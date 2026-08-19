@@ -441,7 +441,38 @@
       "avg_agent_duration_minutes": 80.5,
       "success_rate": 0.8295,
       "note": "rolling 24h window from 08-15 18:17Z; author app/copilot-swe-agent only; 3 of 91 PRs still open (all <2.3h old); success_rate over 88 completed; avg_duration created->merged; 62 human issue comments across 91 PRs via per-PR REST API (34 PRs had >=1, top #53048 with 7); volume up sharply 41->91 (+122%); avg_duration down sharply 99.3->80.5min (-18.9%); success_rate roughly stable 89.5%->82.9% (-7.3%, within 10% threshold); 8 of 15 closures were [WIP] placeholder closures, other 7 had substantive bodies; no PRs open >24h"
+    },
+    {
+      "date": "2026-08-17",
+      "total_prs": 65,
+      "merged_prs": 54,
+      "closed_prs": 11,
+      "open_prs": 0,
+      "avg_agent_duration_minutes": 157,
+      "success_rate": 0.831,
+      "note": "gap-fill (workflow did not run on 08-17), calendar day (UTC) not rolling window; author app/copilot-swe-agent only; all 65 PRs resolved (0 open); avg_duration created->merged; comments not collected during backfill; none of the 11 closures were WIP placeholder text; success_rate down 82.9%->83.1% (roughly stable, +0.2pp)"
+    },
+    {
+      "date": "2026-08-18",
+      "total_prs": 80,
+      "merged_prs": 62,
+      "closed_prs": 17,
+      "open_prs": 1,
+      "avg_agent_duration_minutes": 183,
+      "success_rate": 0.785,
+      "note": "gap-fill (workflow did not run on 08-18), calendar day (UTC) not rolling window; author app/copilot-swe-agent only; 1 of 80 PRs still open at collection time; success_rate over 79 completed; avg_duration created->merged; comments not collected during backfill; success_rate down 83.1%->78.5% (-4.6pp, not significant); 8 of 17 closures were [WIP] placeholder closures, other 9 had substantive bodies; volume up 65->80"
+    },
+    {
+      "date": "2026-08-19",
+      "total_prs": 42,
+      "merged_prs": 21,
+      "closed_prs": 5,
+      "open_prs": 16,
+      "avg_comments": 0.26,
+      "avg_agent_duration_minutes": 214,
+      "success_rate": 0.808,
+      "note": "rolling 24h window from 08-18 18:23:44Z; author app/copilot-swe-agent only; 16 of 42 PRs still open (all <24h old, oldest ~20h); success_rate over 26 completed; avg_duration created->merged; 11 human issue comments across 42 PRs via per-PR REST API (7 PRs had >=1, top #53840 with 4; bot comments from Copilot/gh-aw-bot/github-actions/copilot-pull-request-reviewer excluded, several PRs had 14-23 total comments almost entirely bot noise); success_rate roughly stable 78.5%->80.8% (+2.3pp); avg_duration up 183->214min (+16.9%), continuing a 3-day rise from 157min on 08-17; 1 of 5 closures was a [WIP] placeholder closure (#53989), other 4 had substantive bodies; no PRs open >24h"
     }
   ],
-  "last_updated": "2026-08-16"
+  "last_updated": "2026-08-19"
 }
