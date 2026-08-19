@@ -10,6 +10,7 @@ import (
 )
 
 func TestBuildDrain3Insights_NoEvents(t *testing.T) {
+	t.Parallel()
 	// A ProcessedRun with no meaningful events should return no insights.
 	processedRun := ProcessedRun{}
 	metrics := MetricsData{}
@@ -20,6 +21,7 @@ func TestBuildDrain3Insights_NoEvents(t *testing.T) {
 }
 
 func TestBuildDrain3Insights_BasicRun(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			DatabaseID: 42,
@@ -51,6 +53,7 @@ func TestBuildDrain3Insights_BasicRun(t *testing.T) {
 }
 
 func TestBuildDrain3Insights_WithErrors(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			DatabaseID: 99,
@@ -83,6 +86,7 @@ func TestBuildDrain3Insights_WithErrors(t *testing.T) {
 }
 
 func TestBuildDrain3Insights_StageSequenceEvidence(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			DatabaseID: 7,
@@ -111,6 +115,7 @@ func TestBuildDrain3Insights_StageSequenceEvidence(t *testing.T) {
 }
 
 func TestBuildDrain3InsightsMultiRun_Empty(t *testing.T) {
+	t.Parallel()
 	insights := buildDrain3InsightsMultiRun(nil)
 	assert.Empty(t, insights, "expected no insights for nil runs slice")
 
@@ -119,6 +124,7 @@ func TestBuildDrain3InsightsMultiRun_Empty(t *testing.T) {
 }
 
 func TestBuildDrain3InsightsMultiRun_MultipleRuns(t *testing.T) {
+	t.Parallel()
 	runs := []ProcessedRun{
 		{
 			Run: WorkflowRun{
@@ -167,6 +173,7 @@ func TestBuildDrain3InsightsMultiRun_MultipleRuns(t *testing.T) {
 }
 
 func TestBuildAgentEventsFromProcessedRun(t *testing.T) {
+	t.Parallel()
 	pr := ProcessedRun{
 		Run: WorkflowRun{
 			DatabaseID: 5,
@@ -200,6 +207,7 @@ func TestBuildAgentEventsFromProcessedRun(t *testing.T) {
 }
 
 func TestBuildDrain3Insights_IncludedInAuditData(t *testing.T) {
+	t.Parallel()
 	// Verify that buildAuditData appends drain3 insights to ObservabilityInsights.
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{

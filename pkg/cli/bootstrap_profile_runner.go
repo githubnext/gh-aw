@@ -33,9 +33,10 @@ var (
 	bootstrapSetSecret = func(_ context.Context, repo, name, value string) error {
 		return setBootstrapRepoSecret(repo, name, value)
 	}
-	bootstrapCreateGitHubApp       = createBootstrapGitHubApp
-	bootstrapCheckOwnerType        = checkSetupRepositoryOwnerType
-	bootstrapExchangeGitHubAppCode = bootstrapExchangeGitHubAppCodeImpl
+	bootstrapCreateGitHubApp        = createBootstrapGitHubApp
+	bootstrapCheckOwnerType         = checkSetupRepositoryOwnerType
+	bootstrapExchangeGitHubAppCode  = bootstrapExchangeGitHubAppCodeImpl
+	bootstrapInferGitHubAppRequires = inferBootstrapGitHubAppRequirements
 )
 
 type bootstrapProfileRunConfig struct {
@@ -51,6 +52,10 @@ type bootstrapProfileRunConfig struct {
 	// instead of a PAT. When true, copilot-auth config actions are skipped because
 	// the workflow already has permissions.copilot-requests: write injected.
 	UseCopilotRequests bool
+	// DisableGitHubAppPermissionInference disables inferring GitHub App
+	// permissions/events from the package's resolved workflows. When true, only
+	// permissions/events explicitly declared in aw.yml are applied to the App.
+	DisableGitHubAppPermissionInference bool
 }
 
 type bootstrapProfileExistingState struct {
@@ -119,7 +124,23 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 		return err
 	}
 
+	var inferredPermissions map[string]string
+	var inferredEvents []string
+	if !config.DisableGitHubAppPermissionInference && hasBootstrapGitHubAppAction(config.Profile.Profile.Config) {
+		profileSources := config.Sources
+		if config.Profile.Source != "" {
+			profileSources = []string{config.Profile.Source}
+		}
+		inferredPermissions, inferredEvents, err = bootstrapInferGitHubAppRequires(ctx, profileSources)
+		if err != nil {
+			return err
+		}
+	}
+
 	for _, action := range config.Profile.Profile.Config {
+		if action.Type == "github-app" {
+			action.Permissions, action.Events = mergeBootstrapGitHubAppRequirements(action.Permissions, action.Events, inferredPermissions, inferredEvents)
+		}
 		pending, err := bootstrapActionNeedsMutation(ctx, config.Repo, action, state, usesActionsToken)
 		if err != nil {
 			return err
@@ -189,6 +210,15 @@ func applyBootstrapAction(ctx context.Context, config bootstrapProfileRunConfig,
 		return fmt.Errorf("unsupported bootstrap action type %q. Example: use one of %s", action.Type, bootstrapActionTypeExample)
 	}
 	return nil
+}
+
+func hasBootstrapGitHubAppAction(actions []repositoryPackageBootstrapAction) bool {
+	for _, action := range actions {
+		if action.Type == "github-app" {
+			return true
+		}
+	}
+	return false
 }
 
 func bootstrapProfileState(ctx context.Context, repo string) (*bootstrapProfileExistingState, error) {

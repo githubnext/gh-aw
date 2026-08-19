@@ -366,6 +366,21 @@ When implementing community contributions using an agent:
 - For features that deeply impact the engine, add the `smoke` label and approve workflows.
 - If no smoke run is queued after setting `smoke`, or additional changes require another smoke run, toggle the `smoke` label (remove and re-add) and approve workflows again.
 
+### PR Triage Labels (Core Team)
+
+PR triage assigns one risk label (`pr-risk:low`, `pr-risk:medium`, or
+`pr-risk:high`), a priority label (`pr-priority:*`), and one action label.
+Priority reflects impact, urgency, and quality; quality includes CI status,
+test coverage, and the PR description.
+
+- `pr-action:fast_track` identifies a high-value, high-priority PR that is
+  ready for expedited human review. The risk label determines the review
+  scope; fast-track does not bypass required CI or approvals.
+- `pr-action:batch_review` groups similar low- or medium-risk PRs for review
+  together, typically when a cluster contains three or more related PRs.
+- `pr-action:defer` identifies lower-value, lower-priority work that remains
+  open but is not currently prioritized.
+
 **Remember: As a community contributor, you don't create the PR yourself.** You create an issue with a detailed plan, discuss it with the team, and a core team member creates the PR using agents.
 
 ### What Gets Validated
