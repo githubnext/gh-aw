@@ -65,7 +65,9 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
       throw new Error(`Invalid server URL: ${server}`);
     }
   })();
-  const encodedQuery = encodeURIComponent(queryParts.join(" ")).replaceAll("%20", "+");
+  const encodedQuery = encodeURIComponent(queryParts.join(" "))
+    .replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+    .replaceAll("%20", "+");
 
   // Set the type parameter based on itemType for correct GitHub search filtering
   const searchTypeMap = { issue: "issues", pull_request: "pullrequests", discussion: "discussions", comment: "issues", discussion_comment: "discussions" };
