@@ -195,6 +195,12 @@ func buildToolsMetaRuntimeData(toolsMetaJSON string) (string, []string, map[stri
 // such as <, >, & as \u003c, \u003e, \u0026 and also escapes quotes/backslashes/control
 // characters; this reverses that encoding so the fragment can be used verbatim as a step env
 // value. If the fragment cannot be decoded as JSON string content, it is returned unchanged.
+//
+// Callers must only pass fragments that are themselves valid JSON string interior content
+// (i.e. extracted from inside a JSON string value, with balanced escape sequences and no raw
+// unescaped quotes). Since toolsMetaJSON is produced by encoding/json and the expression regex
+// only matches within an already-encoded string value, this invariant holds for the caller in
+// this file.
 func decodeJSONStringFragment(fragment string) string {
 	var decoded string
 	if err := json.Unmarshal([]byte(`"`+fragment+`"`), &decoded); err != nil {
