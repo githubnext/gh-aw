@@ -65,7 +65,7 @@ jobs:
 // agent job's copy of the safe-outputs config, since that job is only ever wired as a
 // dependency of the safe_outputs handler job (see buildSafeOutputsJobNeeds), never of the
 // agent job itself. Leaving the raw needs.<job> expression in the agent job's config would
-// produce an actionlint "undefined property" error (see github/gh-aw#53588 /
+// produce an actionlint "undefined property" error (see github/gh-aw#53909 /
 // pr-sous-chef.lock.yml:837).
 func TestGenerateSafeOutputsConfigNeutralizesUnresolvableNeedsExpression(t *testing.T) {
 	data := &WorkflowData{
@@ -91,6 +91,49 @@ func TestGenerateSafeOutputsConfigNeutralizesUnresolvableNeedsExpression(t *test
 	require.True(t, ok, "Expected approve_workflow_run key in config")
 	assert.Equal(t, []any{}, approveConfig["allowed_pull_requests"],
 		"allowed_pull_requests should be neutralized to an empty array in the agent job's config")
+}
+
+func TestGenerateSafeOutputsConfigNeutralizesAllUnresolvableNeedsForms(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Needs: []string{"approval_allowlist"},
+			ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+				AllowedPullRequests: []string{`${{ needs['approval_allowlist'].outputs.eligible_pull_request_numbers }}`},
+			},
+			AddComments: &AddCommentsConfig{
+				AllowedCommentIDs: []string{"literal", "${{ needs.approval_allowlist.outputs.comment_ids }}"},
+			},
+			DataEnabled:          true,
+			DataSchemaExpression: "${{ fromJSON(needs.approval_allowlist.outputs.data_schema) }}",
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	approveConfig := parsed["approve_workflow_run"].(map[string]any)
+	assert.Equal(t, []any{}, approveConfig["allowed_pull_requests"])
+	addCommentConfig := parsed["add_comment"].(map[string]any)
+	assert.Equal(t, []any{}, addCommentConfig["allows_comment_ids"])
+	assert.Empty(t, addCommentConfig["data_schema"])
+}
+
+func TestGenerateSafeOutputsConfigPreservesResolvableNeedsExpressions(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Needs: []string{"approval_allowlist"},
+			AddComments: &AddCommentsConfig{
+				AllowedCommentIDs: []string{"${{ needs.prepare.outputs.comment_ids }}"},
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+	assert.Contains(t, result, "needs.prepare.outputs.comment_ids")
 }
 
 func TestGenerateSafeOutputsConfigCommentMemoryToolsOnly(t *testing.T) {

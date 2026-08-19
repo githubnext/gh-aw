@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -175,66 +177,49 @@ func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []st
 	}
 	referencesUnresolvableJob := func(expr string) bool {
 		for _, job := range unresolvableJobs {
-			if strings.Contains(expr, "needs."+job+".") {
+			access := regexp.QuoteMeta(job)
+			if regexp.MustCompile(`needs\s*\.\s*`+access+`\s*\.`).MatchString(expr) ||
+				regexp.MustCompile(`needs\s*\[\s*['"]`+access+`['"]\s*\]\s*\.`).MatchString(expr) {
 				return true
 			}
 		}
 		return false
 	}
-	// itemReferencesUnresolvableJob reports whether a single slice element (as produced by the
-	// handler builder helpers) is a templated expression referencing an unresolvable job.
-	itemReferencesUnresolvableJob := func(item any) bool {
-		switch v := item.(type) {
+	var fieldReferencesUnresolvableJob func(any) bool
+	fieldReferencesUnresolvableJob = func(value any) bool {
+		switch v := value.(type) {
 		case templatableJSONExpression:
 			return referencesUnresolvableJob(v.expr)
 		case string:
 			return isExpression(v) && referencesUnresolvableJob(v)
+		case []string:
+			return slices.ContainsFunc(v, func(item string) bool {
+				return isExpression(item) && referencesUnresolvableJob(item)
+			})
+		case []any:
+			return slices.ContainsFunc(v, func(item any) bool {
+				return fieldReferencesUnresolvableJob(item)
+			})
 		}
 		return false
 	}
-	var visit func(value any)
-	visit = func(value any) {
-		switch v := value.(type) {
-		case map[string]any:
-			for key, fieldValue := range v {
-				switch fv := fieldValue.(type) {
-				case templatableJSONExpression:
-					if referencesUnresolvableJob(fv.expr) {
-						v[key] = []any{}
-					}
-				case string:
-					if isExpression(fv) && referencesUnresolvableJob(fv) {
-						delete(v, key)
-					}
-				case []any:
-					// A slice field is only ever templated as a whole (a single-element
-					// expression slice); replace the entire slice if any element references
-					// an unresolvable job, since individual elements cannot be mutated
-					// in place through the parent map.
-					replaced := false
-					for _, item := range fv {
-						if itemReferencesUnresolvableJob(item) {
-							v[key] = []any{}
-							replaced = true
-							break
-						}
-					}
-					if !replaced {
-						for _, item := range fv {
-							visit(item)
-						}
-					}
-				default:
-					visit(fieldValue)
-				}
+	for _, handlerConfig := range config {
+		fields, ok := handlerConfig.(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, value := range fields {
+			if !fieldReferencesUnresolvableJob(value) {
+				continue
 			}
-		case []any:
-			for _, item := range v {
-				visit(item)
+			switch value.(type) {
+			case string:
+				fields[key] = ""
+			default:
+				fields[key] = []any{}
 			}
 		}
 	}
-	visit(config)
 }
 
 func templatableJSONExpressions(value any) []templatableJSONExpression {
