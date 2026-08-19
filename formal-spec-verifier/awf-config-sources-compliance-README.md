@@ -1,45 +1,50 @@
 # Formal Notes: awf-config-sources-compliance/README.md
 
-**Last formalized**: 2026-07-26-15-46-07
-**Notation**: TLA+ / Z3 / F*
-**Issue**: (pending)
+**Last formalized**: 2026-08-19-15-44-16
+**Notation**: TLA+ / Z3-style guard conjunction
+**Issue**: (created via safe-output; number resolved post-run)
 
 ## Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
-| P1 | `RequiredFieldsComplete` | All four required fields (property_path, drift_category, suggested_action, detected_at) must be non-zero |
-| P2 | `DriftCategoryEnum` | drift_category ∈ {missing_in_ghaw, missing_in_schema, spec_mismatch}; no other value admitted |
-| P3 | `DetectedAtISO8601` | detected_at must parse as a valid RFC 3339 / ISO 8601 UTC timestamp |
-| P4 | `SuggestedActionNonEmpty` | suggested_action string length must be ≥ 1 |
-| P5 | `NoAdditionalProperties` | DriftRecord keys are exactly the four required fields; extra properties rejected |
-| P6 | `CorrectivePRTrigger` | missing_in_ghaw or spec_mismatch category → corrective PR must be opened (CR-05) |
-| P7 | `SLAEscalationTrigger` | SLA exceeded AND actionable drift present → escalation issue opened/updated (CR-06) |
-| P8 | `CorrectivePREmbedsFullList` | Corrective PR body must embed full DriftRecord list as JSON |
-| P9 | `EmptyListNoAction` | Empty drift list must NOT trigger PR or escalation |
-| P10 | `DriftProcedureOutputIsJSONArray` | Drift detection output must be a valid JSON array of DriftRecord objects |
+| P1 | `TestIDMonotonicity` | next T-DR-xxx ID strictly greater than max existing ID |
+| P2 | `TestIDNoDuplicates` | no two conformance rows share a T-DR-xxx ID |
+| P3 | `TestIDFormatWellFormed` | every assigned ID matches ^T-DR-(SAFE-)?\d{3,}$ |
+| P4 | `PlaceholderIDRejectedAsFinal` | "T-DR-NNN" draft placeholder MUST NOT be treated as assigned/final |
+| P5 | `RowHasRequirementReference` | every conformance row cites a "§" section reference |
+| P6 | `RowHasImplementationFile` | every conformance row maps to a concrete Go test file path under pkg/workflow/ |
+| P7 | `SafeguardRowRoutingDecision` | safeguard rows spanning schema+drift route to drift test file; pure safeguard rows route to safeguards test file |
+| P8 | `SpecCrossReferenceRequired` | new row MUST be cross-referenced from specs/awf-config-sources-spec.md |
+| P9 | `DriftSeriesVsSafeguardSeriesDisjoint` | T-DR-001..010 and T-DR-SAFE-001..004 numbering series never collide |
+| P10 | `EmptyRegistryNextIDIsFirst` | empty registry's next-ID computation starts at T-DR-001 |
+
+(Prior run's P1-P10, covering the DriftRecord *schema* itself, remain fully implemented in
+`pkg/workflow/awf_config_drift_test.go`; this run's P1-P10 are a distinct set covering the
+*conformance-registry meta-process* — ID assignment, uniqueness, routing, cross-referencing.)
 
 ## Key Invariants
 
-- Schema closed: no properties beyond the four required fields are allowed
-- Enum strict: drift_category restricted to three values; case-sensitive
-- Timestamp format: ISO 8601 UTC; YYYY-MM-DDTHH:MM:SSZ canonical form
-- PR trigger: missing_in_ghaw OR spec_mismatch (not missing_in_schema) triggers CR-05
-- SLA escalation: requires both SLA breach AND at least one actionable record
-- Empty list is valid: an empty list must silently pass with no side effects
+- ID series are disjoint: T-DR-xxx (DriftRecord, 001-010) vs T-DR-SAFE-xxx (safeguards, 001-004).
+- Next-ID assignment is strictly monotonic per series and ignores the other series.
+- The README's own documented placeholder "T-DR-NNN" must never validate as a final ID.
+- Every row requires both a "§"-referenced requirement AND a concrete pkg/workflow/ test file.
+- Routing rule for safeguard behavior: pure safeguard -> safeguards_formal_test.go; schema+drift span -> drift_test.go.
 
 ## Edge Cases Identified
 
-- missing_in_schema category: does NOT trigger corrective PR (only missing_in_ghaw and spec_mismatch do)
-- Empty drift list with SLA exceeded: must still not trigger escalation (no actionable records)
-- Mixed list (actionable + non-actionable): corrective PR opened; full list embedded
-- Whitespace-only suggested_action: syntactically non-empty; spec may clarify
-- detected_at with timezone offset (not Z): spec says UTC; implementation should validate or normalize
+- Four-digit ID rollover beyond 999 (T-DR-1000) must remain well-formed, no truncation.
+- A registry containing only the safeguard series must not perturb the plain-series next-ID computation.
+- A row with an empty TestFile fails the implementation-file requirement (incomplete registry entry).
 
 ## Notes for Future Runs
 
-- Test file target: pkg/workflow/awf_config_drift_formal_test.go
-- Implementation is aspirational (DriftRecord validation not yet found in pkg/workflow/)
-- Cross-spec dependency: parent spec awf-config-sources-spec.md §6.5 is the canonical source
-- CR-06a (escalation owner assignment) is a rich sub-predicate worth formalizing separately
-- SLA window computation (business days Mon-Fri UTC) is a non-trivial temporal property for TLA+
+- This formalization is complementary to the 2026-07-26 run (DriftRecord schema-level P1-P10);
+  it targets the *meta-process* of adding new conformance rows/IDs described in the README's
+  "Adding New Conformance Tests" and "Adding New Safeguard Conformance Tests" sections instead.
+- The registry today is a markdown table, not structured data — the conformanceRow type and
+  nextConformanceID/routeSafeguardRow functions in the new test file are stubs; if the registry
+  is ever materialized as JSON/YAML, wire these functions to the real data source.
+- Cross-spec dependency: parent spec `specs/awf-config-sources-spec.md` (formalized 2026-08-16)
+  remains the canonical DriftRecord schema source; this README is the fixture index layer.
+- Next candidate for rotation: any spec not processed in the last 14 days — check rotation.json.
