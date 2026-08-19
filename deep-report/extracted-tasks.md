@@ -1,3 +1,13 @@
+## Extracted code-quality tasks (2026-08-19 ~17:50Z cycle)
+
+4 filed, 0 comments, all newly-mined (baseline #53999 @12:34Z, 11 new discussions):
+1. Add `engine: claude` examples to 4 reference pages (imports.md, serena.md, threat-detection.md, feature-flags.md) — discussion #54003. Filed.
+2. Allowlist `proxy.golang.org` for Code Scanning Fixer firewall (89% of all blocked traffic) — discussion #54053. Filed.
+3. Split `add_package_manifest.go` (1330 LOC) + `import_field_extractor.go` (1045 LOC) — discussion #54007, first repo-quality baseline. Filed.
+4. Fix Metrics Collector `collection_status: partial` (~10h window) — discussion #54005. Filed.
+
+Not filed: CodeQL bad-redirect-check (#54036, already #54037); GraphQL interpolation (#54036, already #52749); benchmark "regressions" (#54034, cold-cache noise, self-diagnosed correctly); runtime-table nav gap (#54031, already fixed same run); Linter Miner failure (already auto-filed #54056); unlabeled-issue jump to 10 (still declining per standing pattern, watching).
+
 ## Extracted code-quality tasks (2026-08-18 12:26Z cycle)
 
 7 filed, 0 comments, all newly-mined (short ~6h cycle, 11 new discussions):

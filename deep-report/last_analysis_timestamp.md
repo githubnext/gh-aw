@@ -1,31 +1,32 @@
-2026-08-19T05:45:00Z
+2026-08-19T~17:50:00Z
 
-## Short ~5.5h cycle (window since 00:15:00Z prior cycle): 10 new discussions (excl. this cycle's own prior briefing #53874), 5 new issues filed + 1 comment, top themes: real parser/schema bug + docs gaps + compiler quality quick wins
+## ~5.3h cycle (window since 12:34:27Z briefing #53999): 11 new discussions, 4 new issues filed, top theme: docs/config quick-wins + first repo-quality baseline
 
-Prior cycle ended 2026-08-19T00:15:00Z (briefing #53874); this run started ~2026-08-19T05:45Z (~5.5h gap, under the 20h threshold), so scope was narrowed to the 11 discussions with `updatedAt >= 2026-08-19T00:15:00Z` (excluding this cycle's own prior briefing #53874). All 10 remaining read in full — no sampling shortfall.
+Prior cycle ended 2026-08-19T12:34:27Z (briefing #53999, "Deep Report" run 32252000817). **Note: that cycle's repo-memory write appears to have been lost** — the `known_patterns.md`/`flagged_items.md`/`trend_data.md` files found at the start of this run still showed the 05:45Z cycle as their latest entry, one cycle behind #53999. Root cause found and already fixed in-flight: discussion #54010 (filed same cycle) diagnosed the `push_repo_memory` step hard-failing when the combined diff (13KB) exceeded `max-patch-size` (10KB effective ~12KB with overhead) — silently dropping all 6 changed memory files. Fix PR #54029 is open but not yet merged as of this cycle. Recovered by reading #53999's own discussion body as the missing baseline. **Separately noted**: `processed-discussions.md`/`extracted-tasks.md` (the code-quality-task-mining memory files) were already stale by >1 day before that (last written 2026-08-18 12:26Z) even while the other 3 memory files were updated every cycle — a second, independent gap in step 2.7 bookkeeping, not explained by the patch-size bug alone. Watch whether this cycle's write (and #54029 once merged) restores full per-cycle persistence for all 6 files.
 
-### Turnaround check on last cycle's (00:15Z) filed issues — verified via the Issue Arborist Daily Report (#53910)
-All 7 issues filed by the 00:15Z cycle (#53867 squad detection, #53868 gateway.jsonl/safeoutputs.jsonl, #53869 Daily Status sample window, #53870 MCP per-engine tracking, #53871 discussions:write audit, #53872 workflow_dispatch parity, #53873 fast-track criteria docs) were correctly auto-linked as sub-issues of the `[deep-report] Deep Report - Issue Group` parent (#53376) by the Issue Arborist same day — confirms the org/linking pipeline is working, though this is a linking check not a merge/fix check (too early in this short cycle to see PRs land).
+Window: 11 discussions with `updatedAt > 2026-08-19T12:34:27Z` (54003, 54005, 54007, 54026, 54031, 54034, 54035, 54036, 54039, 54053, 54057), all read in full — no sampling shortfall.
 
-### This cycle's findings and actions (5 new issues filed + 1 comment)
-1. **Filed: fix `safe-outputs.runs-on` type mismatch** — Schema Consistency Checker (#53917) found parser (`SafeOutputsConfig.RunsOn string`) only accepts a string while schema/docs document string/array/object forms (same flexible type already used for top-level `runs-on`/`runs-on-slim`). Real, verified schema↔parser↔docs contract bug, highest-priority finding this cycle.
-2. **Filed: docs bundle — threat-detection-suppress, max-runs deprecation, stale check-for-updates link** — same Schema Consistency Checker report, 3 of its 4 findings bundled into one docs-only quick win (mirrors the successful prior "#53614, 3 docs quick-wins" bundling pattern).
-3. **Filed: Quick Start auth-tabs accordion + curl fallback clarity** — Documentation Noob Tester (#53899, first-time-visitor walkthrough) found the 5-engine auth tab block front-loads all engines before the reader runs a command, and the curl-fallback install script doesn't say what error triggers using it.
-4. **Filed: compiler.go error wrapping + split 2 long functions** — Daily Compiler Code Quality Check (#53892) found `compiler.go` has 0 `%w` wraps (vs 20 in compiler_jobs.go) and 2 functions (75/66 lines) that stand out from the file's otherwise-short-function pattern.
-5. **Filed: fix Daily Compiler Code Quality Check's stale target file list** — same report: 2 of its configured target files (`compiler_activation_jobs.go`, `compiler_safe_outputs_config.go`) no longer exist in the repo; a meta/config fix on the auditing workflow itself.
-6. **Commented (not filed) on #53464** — MCP remote auth-test discussion #53918 is a further occurrence of the already-tracked "Recurring GitHub Remote MCP toolset unavailability (3rd+ occurrence)" issue; folded in per standing pattern rather than re-filing.
+### This cycle's findings and actions (4 new issues filed, 0 comments)
+1. **Filed: engine: claude examples missing from 4 reference pages** — Claude Code User Docs Review (#54003) found `reference/imports.md` (12 Copilot-only fences), `serena.md`, `threat-detection.md`, `feature-flags.md` (no Claude fence at all) never show a Claude-engine example, compounding the existing silent Copilot-fallback trap. Verified not a dup of #53927 (Quick Start auth accordion, different page) or the closed #46613/#39601 (OAuth-note additions, different gap).
+2. **Filed: allowlist proxy.golang.org for Code Scanning Fixer** — Daily Security Observability Report (#54053) found this one workflow responsible for 89% of all blocked firewall traffic repo-wide (182/205 blocks), almost entirely a Go module proxy — clear allowlist gap, not a security concern. No existing issue found via dedup search.
+3. **Filed: split add_package_manifest.go + import_field_extractor.go** — first-ever Repository Quality Improvement baseline (#54007) found these the two highest-value non-declarative monolithic files (1330/69funcs and 1045/51funcs). Prior touch (#43890) closed long ago; files regrew past their old size, so this is a legitimate re-filing, not a dup.
+4. **Filed: fix Metrics Collector partial-window data collection** — Agent Performance Report (#54005) flagged `collection_status: partial` (~10h window, no typed safe-output breakdown) as blocking confident quality/effectiveness scoring every week. No existing open issue found.
 
 ### Declined / no action this cycle
-- LintMonster (#53890): filed its own new mutable-state issue and refreshed its authoritative function-length tracker (#53268) — self-contained, no dup needed.
-- Daily Firewall Report (#53891): 0.5% block rate, blocked traffic is the known Google-auth-domain noise pattern (Daily Model Inventory Checker, Slide Deck Maintainer) plus isolated proxy.golang.org/cdn.playwright.dev blocks — all expected smoke-test-class noise, no action.
-- Sergo R61 (#53902): found a real generatedyamlheredoc bug (`(( expr << n ))` misreported as heredoc) but **already self-filed as #53901** — confirmed via search, no duplicate created.
-- Firewall Escape Test (#53906): SECURE, 11/11 novel techniques tested, all failed as expected. No action.
-- ESLint Refiner (#53916): filed its own 2 real issues (resolveInitializer destructuring bug, no-exec-interpolated-command execApi alias gap) — self-contained, no dup needed.
-- Issues analyst pass (186 open / 314 closed, 3 unlabeled #53670/#53489/#53136, 0 open >7 days): same chronic-fluctuating unlabeled set as prior cycles, still resolving organically — no dedicated labeling task filed again.
-- Live 15-run workflow-log sample (start_date -1d): 13/15 success, 3 failures (Daily Container Image Security Scan, Daily AgentRx Trace Optimizer, Daily Cli Tools Tester) — consistent with baseline ~3-13% noise, and Container Image Security Scan failure already auto-filed as #53923. No new systemic signal.
+- CodeQL `go/bad-redirect-check` in add_package_manifest.go (#54036) — already tracked as #54037, filed same day by the UK AI Resilience workflow itself.
+- GraphQL string-interpolation warnings in project_command.go (#54036) — already tracked, #52749.
+- P0 Cloud Hypervisor guest-network blackout (#53935, referenced in #54039) — already an open, actively-worked issue; just watch, no new filing.
+- Performance regressions (#54034, +1012%/+219%/+961% on 3 benchmarks) — correctly self-diagnosed as cold-cache/cold-compile noise after a 6-week benchmark gap, not real regressions. No action.
+- Runtime-comparison-table navigation gap (#54031) — already implemented in the same run that found it, self-contained.
+- Live 20-run workflow-log sample (`start_date: -1d`): 19/20 success (95%), 1 failure (Linter Miner, agent_logic_failure) — already auto-filed as #54056. No systemic signal.
+- Issues-analyst pass (211 open / 289 closed, top labels agentic-workflows/automation/cookie/code-quality/improvement): 10 unlabeled open issues this cycle (#54054, #54052, #54048, #54047, #54046, #54045, #54025, #53670, #53489, #53136) — roughly 2x the prior cycle's count (3-5), but all createdAt very recent (0 open >7 days), consistent with normal triage lag on freshly-opened issues rather than a new backlog problem. Continuing to decline a dedicated labeling task per standing pattern, but flagging the count jump to watch next cycle.
 
 See [[known_patterns]], [[flagged_items]], [[trend_data]] for details.
 
 ---
 
 (Prior cycle summaries condensed/trimmed for space.)
+
+## Short ~5.5h cycle (window since 00:15:00Z prior cycle): 10 new discussions (excl. this cycle's own prior briefing #53874), 5 new issues filed + 1 comment, top themes: real parser/schema bug + docs gaps + compiler quality quick wins
+
+(2026-08-19T05:45:00Z cycle — condensed, see git history of this file for full text.)

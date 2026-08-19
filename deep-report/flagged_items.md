@@ -1,3 +1,15 @@
+## Flagged Items (2026-08-19, ~17:50Z cycle, baseline #53999 @12:34Z)
+
+- **[new, filed]** 4 engine-agnostic reference pages (imports.md, serena.md, threat-detection.md, feature-flags.md) show only Copilot code-fences, no `engine: claude` example — compounds the silent Copilot-fallback trap (#54003).
+- **[new, filed]** `proxy.golang.org` firewall-allowlist gap: Code Scanning Fixer alone caused 89% of all blocked traffic repo-wide this window (#54053).
+- **[new, filed]** `add_package_manifest.go` (1330 LOC) + `import_field_extractor.go` (1045 LOC) re-grown past a long-closed prior split (#43890) — first repo-quality baseline run (#54007).
+- **[new, filed]** Metrics Collector `collection_status: partial` (~10h window) blocking confident weekly agent-performance scoring (#54005).
+- **[declined, already tracked]** CodeQL `go/bad-redirect-check` (#54037), GraphQL string-interpolation (#52749), P0 Cloud Hypervisor blackout (#53935) — all already open/tracked.
+- **[declined, environmental]** 3 "regressions" in Daily CLI Performance (#54034) correctly self-diagnosed as cold-cache noise after a 6-week benchmark gap, not real.
+- **[declined, self-resolved]** Runtime-comparison nav-link gap (#54031) already fixed in the same run.
+- **[declined, already auto-filed]** Linter Miner failure in live 20-run sample (95% success) — already #54056.
+- **[watch]** Unlabeled open issues jumped to 10 (from 3-5 in recent cycles) — all freshly created (0 open >7d), likely triage-lag not a new backlog; re-check next cycle before filing a labeling task.
+
 ## Flagged Items (2026-08-19, ~05:45Z cycle)
 
 - **[new, filed, top finding]** `safe-outputs.runs-on` type mismatch: parser (`SafeOutputsConfig.RunsOn string`) only accepts a string, but schema and docs both document/allow string/array/object forms — real config-parsing bug, not theoretical.

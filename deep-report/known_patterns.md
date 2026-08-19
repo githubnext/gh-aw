@@ -1,3 +1,8 @@
+## DeepReport Memory (2026-08-19, ~17:50Z cycle)
+
+### Confirmed: repo-memory's own max-patch-size limit can silently drop a full cycle's writes
+Discussion #53999 (12:34Z cycle) should have updated these 3 files but didn't — its 13KB combined diff exceeded the 10KB `max-patch-size` limit and the push hard-failed, discarding all 6 changed files. Root-caused and filed as #54010 this same cycle (fix PR #54029 open, not yet merged). **Lesson: when this file's "latest cycle" doesn't match the most recent DeepReport discussion post, don't assume the cycle didn't run — check whether a push silently failed, and recover the missing baseline from the discussion body itself.** Also keep future memory-file diffs lean (append small sections, avoid full-file rewrites) until #54029 lands.
+
 ## DeepReport Memory (2026-08-19T05:45:00Z)
 
 ### New pattern: a quality/audit workflow's own configuration can go stale, and that is itself a valid finding
