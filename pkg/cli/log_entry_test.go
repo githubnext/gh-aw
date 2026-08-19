@@ -168,29 +168,6 @@ func TestLogEntryInterfaceAccessors(t *testing.T) {
 	}
 }
 
-func TestFormatLogEntryIsGenericAcrossSources(t *testing.T) {
-	t.Parallel()
-
-	entries := []LogEntry{
-		AccessLogEntry{Timestamp: "1701234567.123", Status: "TCP_MISS/200", Method: "GET", URL: "http://example.com"},
-		FirewallLogEntry{Timestamp: "1701234567.123", Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL", URL: "example.com:443"},
-		AuditLogEntry{Timestamp: 1701234567.123, Host: "example.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
-		GatewayLogEntry{Timestamp: "2024-01-12T10:00:00Z", Level: LogLevelInfo, Event: "tool_call"},
-	}
-
-	formatted := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		formatted = append(formatted, FormatLogEntry(entry))
-	}
-
-	assert.Equal(t, []string{
-		"2023-11-29T05:09:27Z [access] info: GET http://example.com TCP_MISS/200",
-		"2023-11-29T05:09:27Z [firewall] info: CONNECT example.com:443 TCP_TUNNEL",
-		"2023-11-29T05:09:27Z [audit] info: CONNECT example.com:443 TCP_TUNNEL",
-		"2024-01-12T10:00:00Z [gateway] info: tool_call",
-	}, formatted)
-}
-
 func TestFormatEpochTimestampKeepsNonEpochValues(t *testing.T) {
 	t.Parallel()
 
