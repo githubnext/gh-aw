@@ -85,6 +85,9 @@ func (c *Compiler) addActivationPreCreatePullRequestStep(ctx *activationJobBuild
 	if baseBranch := ctx.data.SafeOutputs.CreatePullRequests.BaseBranch; baseBranch != "" {
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_CUSTOM_BASE_BRANCH: %q\n", baseBranch))
 	}
+	if titlePrefix := ctx.data.SafeOutputs.CreatePullRequests.TitlePrefix; titlePrefix != "" {
+		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", titlePrefix))
+	}
 	ctx.steps = append(ctx.steps,
 		"        with:\n",
 		fmt.Sprintf("          github-token: %s\n", token),
