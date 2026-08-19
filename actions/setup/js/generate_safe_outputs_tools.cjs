@@ -202,13 +202,22 @@ function applyAssignMilestoneAlternativeRequirements(tool) {
 }
 
 /**
- * Resolve ${ENV_VAR} placeholders inside a string from process.env.
+ * Resolve ${ENV_VAR} placeholders inside a JSON string from process.env.
+ * Replacement values are escaped as JSON string content so quotes, backslashes, and
+ * newlines in the resolved value do not corrupt the surrounding JSON document.
  * Unresolved placeholders are left unchanged.
  * @param {string} value
  * @returns {string}
  */
 function resolveEnvStringPlaceholders(value) {
-  return value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (match, envName) => process.env[envName] ?? match);
+  return value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (match, envName) => {
+    const envValue = process.env[envName];
+    if (envValue === undefined) {
+      return match;
+    }
+    // JSON.stringify wraps the value in quotes; strip them to get escaped string content.
+    return JSON.stringify(envValue).slice(1, -1);
+  });
 }
 
 async function main() {

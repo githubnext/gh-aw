@@ -296,6 +296,31 @@ describe("generate_safe_outputs_tools", () => {
     expect(createIssueTool.description).toContain("TARGET: ${GH_AW_INPUT_MISSING}");
   });
 
+  it("escapes quotes, backslashes, and newlines when resolving GH_AW_TOOLS_META_JSON placeholders", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 1 } }));
+    const metaFromEnv = JSON.stringify({
+      description_suffixes: {
+        create_issue: " TARGET: ${GH_AW_INPUT_TARGET_REPO}",
+      },
+      repo_params: {},
+      dynamic_tools: [],
+    });
+
+    runScript({
+      GH_AW_TOOLS_META_JSON: metaFromEnv,
+      GH_AW_INPUT_TARGET_REPO: 'a"b\\c\nd',
+    });
+
+    // The written tools_meta.json must remain valid JSON despite the unsafe characters.
+    const writtenMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
+    expect(writtenMeta.description_suffixes.create_issue).toContain('a"b\\c\nd');
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const createIssueTool = result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue");
+    expect(createIssueTool).toBeDefined();
+    expect(createIssueTool.description).toContain('TARGET: a"b\\c\nd');
+  });
+
   it("ignores non-tool config keys when filtering", () => {
     // dispatch_workflow and max_bot_mentions are not tool names in source file
     fs.writeFileSync(

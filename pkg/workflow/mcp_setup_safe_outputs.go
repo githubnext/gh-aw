@@ -183,11 +183,24 @@ func buildToolsMetaRuntimeData(toolsMetaJSON string) (string, []string, map[stri
 	sanitizedToolsMeta := toolsMetaJSON
 	for _, expr := range sliceutil.SortedKeys(expressionEnvVars) {
 		envName := expressionEnvVars[expr]
-		envValues[envName] = expr
+		envValues[envName] = decodeJSONStringFragment(expr)
 		sanitizedToolsMeta = strings.ReplaceAll(sanitizedToolsMeta, expr, "${"+envName+"}")
 	}
 
 	return sanitizedToolsMeta, sliceutil.SortedKeys(envValues), envValues
+}
+
+// decodeJSONStringFragment decodes a fragment extracted from a larger JSON-encoded string
+// (e.g. an expression matched inside a JSON string value). encoding/json escapes characters
+// such as <, >, & as \u003c, \u003e, \u0026 and also escapes quotes/backslashes/control
+// characters; this reverses that encoding so the fragment can be used verbatim as a step env
+// value. If the fragment cannot be decoded as JSON string content, it is returned unchanged.
+func decodeJSONStringFragment(fragment string) string {
+	var decoded string
+	if err := json.Unmarshal([]byte(`"`+fragment+`"`), &decoded); err != nil {
+		return fragment
+	}
+	return decoded
 }
 
 func writeStepEnvVars(yaml *strings.Builder, envKeys []string, envValues map[string]string) {

@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -57,4 +58,24 @@ func TestBuildToolsMetaRuntimeDataDedupesRepeatedExpression(t *testing.T) {
 	assert.Equal(t, "${{ inputs.target_repo }}", envValues[envKeys[0]])
 	assert.NotContains(t, sanitized, "${{ inputs.target_repo }}")
 	assert.Equal(t, 2, strings.Count(sanitized, "${"+envKeys[0]+"}"))
+}
+
+func TestBuildToolsMetaRuntimeDataDecodesHTMLEscapedExpression(t *testing.T) {
+	rawJSON, err := json.Marshal(map[string]any{
+		"description_suffixes": map[string]string{
+			"create_issue": "${{ inputs.enabled && 'yes' || 'no' }}",
+		},
+		"dynamic_tools": []any{},
+	})
+	require.NoError(t, err)
+	input := string(rawJSON)
+	// Confirm encoding/json HTML-escaped the expression as expected by this test.
+	require.Contains(t, input, `\u0026\u0026`)
+
+	sanitized, envKeys, envValues := buildToolsMetaRuntimeData(input)
+
+	require.Len(t, envKeys, 1)
+	assert.Equal(t, "${{ inputs.enabled && 'yes' || 'no' }}", envValues[envKeys[0]])
+	assert.NotContains(t, envValues[envKeys[0]], `\u0026`)
+	assert.Contains(t, sanitized, "${"+envKeys[0]+"}")
 }
