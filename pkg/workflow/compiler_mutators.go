@@ -121,7 +121,7 @@ func (c *Compiler) SetAllowActionRefs(allow bool) {
 
 // SetGHESCompat enables GHES compatibility mode via the --ghes CLI flag.
 // It overrides the aw.json ghes field for the current compilation run.
-// Artifact actions still use the latest non-v3 pins.
+// Artifact actions use versions supported by GHES.
 func (c *Compiler) SetGHESCompat(enabled bool) {
 	c.ghesCompatFromCLI = enabled
 }

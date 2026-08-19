@@ -41,7 +41,7 @@ type CompileConfig struct {
 	Approve                   bool     // Approve all safe update changes, skipping safe update enforcement regardless of strict mode setting.
 	ValidateImages            bool     // Require Docker to be available for container image validation (fail instead of skipping when Docker is unavailable)
 	PriorManifestFile         string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
-	GHESCompat                bool     // Enable GHES compatibility mode (overrides aw.json ghes field); artifact actions still use latest non-v3 pins
+	GHESCompat                bool     // Enable GHES-compatible v3 artifact actions (overrides aw.json ghes field)
 }
 
 func (c CompileConfig) shellcheckEnabled() bool {

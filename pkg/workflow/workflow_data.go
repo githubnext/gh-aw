@@ -203,6 +203,7 @@ type WorkflowData struct {
 	DefaultAiCreditsPricing        *AiCreditsPricingConfig         // fallback per-token pricing from frontmatter models.default-ai-credits-pricing; used by AWF API proxy for unrecognized models
 	ActionPinMappings              map[string]string               // action-pin redirect table from aw.json action_pins: maps "owner/repo@version" → "owner/repo@version"
 	ContainerPinMappings           map[string]string               // container-pin redirect table from aw.json container_pins: maps source image → replacement image
+	GHES                           bool                            // select action versions compatible with GitHub Enterprise Server
 	Evals                          *EvalsConfig                    // BinEval evaluation configuration parsed from frontmatter evals field
 	ExcludedEnv                    []string                        // additional env var names to exclude from agent container via AWF --exclude-env (from frontmatter excluded-env field)
 }
@@ -228,6 +229,7 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 		StrictMode:        d.StrictMode,
 		EnforcePinned:     true,
 		AllowActionRefs:   d.AllowActionRefs,
+		GHES:              d.GHES,
 		Warnings:          d.ActionPinWarnings,
 		Mappings:          d.ActionPinMappings,
 		ContainerMappings: d.ContainerPinMappings,

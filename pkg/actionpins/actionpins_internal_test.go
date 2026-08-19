@@ -25,6 +25,55 @@ func (r *countingResolver) ResolveSHA(_ context.Context, _, _ string) (string, e
 	return "", nil
 }
 
+func TestResolveActionPin_GHESArtifactCompatibility(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		repo string
+		want string
+	}{
+		{
+			repo: "actions/upload-artifact",
+			want: "actions/upload-artifact@c6a366c94c3e0affe28c06c8df20a878f24da3cf # v3.2.2",
+		},
+		{
+			repo: "actions/download-artifact",
+			want: "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.repo, func(t *testing.T) {
+			t.Parallel()
+			resolver := &countingResolver{}
+			got, err := ResolveActionPin(tt.repo, "latest", &PinContext{
+				GHES:     true,
+				Resolver: resolver,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+			assert.Zero(t, resolver.called, "GHES compatibility pins should not require dynamic resolution")
+		})
+	}
+}
+
+func TestResolveActionPin_GHESMappingTakesPrecedence(t *testing.T) {
+	t.Parallel()
+
+	resolver := &countingResolver{}
+	got, err := ResolveActionPin("actions/upload-artifact", "v7", &PinContext{
+		GHES:     true,
+		Resolver: resolver,
+		Mappings: map[string]string{
+			"actions/upload-artifact@v7": "enterprise/upload-artifact@v3",
+		},
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	assert.Equal(t, 1, resolver.called, "mapped enterprise action should use normal resolution")
+}
+
 func TestBuildByRepoIndex_GroupsByRepoAndSortsDescending(t *testing.T) {
 	t.Parallel()
 	pins := []ActionPin{

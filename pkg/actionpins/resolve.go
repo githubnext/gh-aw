@@ -10,6 +10,19 @@ import (
 	"github.com/github/gh-aw/pkg/semverutil"
 )
 
+var ghesArtifactPins = map[string]ActionPin{
+	"actions/upload-artifact": {
+		Repo:    "actions/upload-artifact",
+		Version: "v3.2.2",
+		SHA:     "c6a366c94c3e0affe28c06c8df20a878f24da3cf",
+	},
+	"actions/download-artifact": {
+		Repo:    "actions/download-artifact",
+		Version: "v3.1.0",
+		SHA:     "a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59",
+	},
+}
+
 // recordPinResolutionFailure silently records an unresolved action-ref pinning event
 // to the audit callback (ctx.RecordResolutionFailure), if one is configured.
 // If ctx is nil or ctx.RecordResolutionFailure is nil, the function returns early without recording.
@@ -35,6 +48,13 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 
 	// Apply repository/version mapping from aw.json action_pins before resolution.
 	actionRepo, version = applyActionPinMapping(actionRepo, version, ctx)
+
+	if ctx.GHES {
+		if pin, ok := ghesArtifactPins[actionRepo]; ok {
+			actionPinsLog.Printf("GHES mode: using %s@%s", actionRepo, pin.Version)
+			return FormatPinnedActionReference(pin.Repo, pin.SHA, pin.Version), nil
+		}
+	}
 
 	isAlreadySHA := gitutil.IsValidFullSHA(version)
 	if pinnedRef, ok := resolveActionPinDynamically(actionRepo, version, isAlreadySHA, ctx); ok {
@@ -69,6 +89,15 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	}
 	ctx.emitOnce(cacheKey, warningMsg, console.FormatWarningMessage)
 	return "", nil
+}
+
+// ResolveGHESActionPin returns the GHES-compatible pin for repo, if one is required.
+func ResolveGHESActionPin(repo string) (string, bool) {
+	pin, ok := ghesArtifactPins[repo]
+	if !ok {
+		return "", false
+	}
+	return FormatPinnedActionReference(pin.Repo, pin.SHA, pin.Version), true
 }
 
 func resolveActionPinDynamically(actionRepo, version string, isAlreadySHA bool, ctx *PinContext) (string, bool) {

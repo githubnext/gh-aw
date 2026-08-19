@@ -1622,7 +1622,7 @@ func TestSliceToStepsErrorHandling(t *testing.T) {
 	}
 }
 
-// TestGetActionPinGHESArtifactCompat verifies GHES compat mode does not emit deprecated v3 artifact pins.
+// TestGetActionPinGHESArtifactCompat verifies GHES compat mode emits compatible v3 artifact pins.
 func TestGetActionPinGHESArtifactCompat(t *testing.T) {
 	// Verify default (compat disabled) returns latest (v7/v8)
 	defaultCompiler := NewCompiler()
@@ -1653,19 +1653,19 @@ func TestGetActionPinGHESArtifactCompat(t *testing.T) {
 	compatCompiler.ghesArtifactCompat = true
 
 	uploadPinGHES := compatCompiler.getActionPin("actions/upload-artifact")
-	if strings.Contains(uploadPinGHES, "# v3") {
-		t.Errorf("With GHES compat, expected non-v3 upload-artifact pin, got: %s", uploadPinGHES)
+	if !strings.Contains(uploadPinGHES, "c6a366c94c3e0affe28c06c8df20a878f24da3cf # v3.2.2") {
+		t.Errorf("With GHES compat, expected upload-artifact v3.2.2 pin, got: %s", uploadPinGHES)
 	}
-	if uploadPinGHES != uploadPin {
-		t.Errorf("With GHES compat, expected upload-artifact pin to match default, default=%s compat=%s", uploadPin, uploadPinGHES)
+	if uploadPinGHES == uploadPin {
+		t.Errorf("With GHES compat, expected upload-artifact pin to differ from default, got: %s", uploadPinGHES)
 	}
 
 	downloadPinGHES := compatCompiler.getActionPin("actions/download-artifact")
-	if strings.Contains(downloadPinGHES, "# v3") {
-		t.Errorf("With GHES compat, expected non-v3 download-artifact pin, got: %s", downloadPinGHES)
+	if !strings.Contains(downloadPinGHES, "a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0") {
+		t.Errorf("With GHES compat, expected download-artifact v3.1.0 pin, got: %s", downloadPinGHES)
 	}
-	if downloadPinGHES != downloadPin {
-		t.Errorf("With GHES compat, expected download-artifact pin to match default, default=%s compat=%s", downloadPin, downloadPinGHES)
+	if downloadPinGHES == downloadPin {
+		t.Errorf("With GHES compat, expected download-artifact pin to differ from default, got: %s", downloadPinGHES)
 	}
 
 	// Non-artifact actions should be unaffected by GHES compat
@@ -1675,8 +1675,8 @@ func TestGetActionPinGHESArtifactCompat(t *testing.T) {
 	}
 }
 
-// TestGHESArtifactCompatDoesNotUseV3 verifies GHES compat mode never emits deprecated v3 artifact pins.
-func TestGHESArtifactCompatDoesNotUseV3(t *testing.T) {
+// TestGHESArtifactCompatPinsExist verifies GHES compatibility pins are complete.
+func TestGHESArtifactCompatPinsExist(t *testing.T) {
 	c := NewCompiler()
 	c.ghesArtifactCompat = true
 	for _, repo := range []string{"actions/upload-artifact", "actions/download-artifact"} {
@@ -1685,8 +1685,8 @@ func TestGHESArtifactCompatDoesNotUseV3(t *testing.T) {
 			if result == "" {
 				t.Errorf("getActionPin(%s) returned empty with GHES compat enabled", repo)
 			}
-			if strings.Contains(result, "# v3") {
-				t.Errorf("getActionPin(%s) should not return a v3 pin, got: %s", repo, result)
+			if !strings.Contains(result, "# v3") {
+				t.Errorf("getActionPin(%s) should return a v3 pin, got: %s", repo, result)
 			}
 		})
 	}

@@ -277,7 +277,7 @@ When GHES compatibility mode is active, the compiler emits:
 | Action | Default | GHES compatible |
 |--------|---------|-----------------|
 | `actions/upload-artifact` | `@v7` (latest) | `@v3.2.2` |
-| `actions/download-artifact` | `@v4` (latest) | `@v3.1.0` |
+| `actions/download-artifact` | `@v8` (latest) | `@v3.1.0` |
 
 All other actions are unaffected.
 

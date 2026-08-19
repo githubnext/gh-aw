@@ -323,7 +323,9 @@ Or compile with `--ghes` for one-off workflow generation:
 gh aw compile --ghes my-workflow.md
 ```
 
-Artifact actions continue using the latest non-v3 pins because v3 artifact actions are deprecated.
+Compatibility mode emits `upload-artifact@v3.2.2` and `download-artifact@v3.1.0`, which use the artifact backend supported by GHES. Default GitHub.com compilation continues to use the latest artifact actions.
+
+This path supports GHES 3.21.x and earlier. Keep compatibility mode enabled on later releases until the instance supports the v4 artifact backend.
 
 ### API endpoint
 

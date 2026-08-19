@@ -78,6 +78,12 @@ func getActionPin(repo string) string {
 // any existing entry and mark it as "used" for orphan pruning. This ensures compiler-generated
 // action references (e.g., actions/cache/save in notify steps) are tracked.
 func (c *Compiler) getActionPin(repo string) string {
+	if c.ghesArtifactCompat {
+		if pin, ok := actionpins.ResolveGHESActionPin(repo); ok {
+			return pin
+		}
+	}
+
 	// Check the cache for any existing entry for this repo (regardless of version).
 	// Compiler-generated actions don't specify versions, so prefer a cached entry only
 	// when it is at least as new as the latest embedded pin.

@@ -67,7 +67,7 @@ type Compiler struct {
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
 	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
 	ghesCompatFromCLI       bool                     // If true, GHES compat was requested via --ghes CLI flag (takes precedence over aw.json)
-	ghesArtifactCompat      bool                     // If true, GHES compatibility mode is enabled; artifact actions still use latest non-v3 pins
+	ghesArtifactCompat      bool                     // If true, emit GHES-compatible v3 pins for artifact actions
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
 	copilotTipNeeded        bool                     // Tracks whether batch output should include the copilot-requests enable tip
