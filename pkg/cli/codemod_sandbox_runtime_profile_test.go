@@ -133,6 +133,26 @@ sandbox:
 			expectExcludes: []string{"sudo:"},
 		},
 		{
+			name: "rewritten runtime line keeps its trailing comment",
+			content: `---
+on: workflow_dispatch
+sandbox:
+  agent:
+    runtime: docker # keep this note
+    sudo: true
+---
+
+# Test`,
+			frontmatter: map[string]any{
+				"sandbox": map[string]any{
+					"agent": map[string]any{"runtime": "docker", "sudo": true},
+				},
+			},
+			expectApplied:  true,
+			expectContains: []string{"    runtime: docker-sudo-iptables # keep this note"},
+			expectExcludes: []string{"sudo:"},
+		},
+		{
 			name: "workflow without sandbox.agent is untouched",
 			content: `---
 on: workflow_dispatch
@@ -144,7 +164,7 @@ engine: copilot
 			expectApplied: false,
 		},
 		{
-			name: "gvisor combined with legacy-security is an actionable error",
+			name: "gvisor combined with legacy-security keeps gvisor and drops legacy-security",
 			content: `---
 on: workflow_dispatch
 sandbox:
@@ -159,10 +179,12 @@ sandbox:
 					"agent": map[string]any{"runtime": "gvisor", "legacy-security": "enable"},
 				},
 			},
-			expectErrSubstr: "docker-sudo-iptables",
+			expectApplied:  true,
+			expectContains: []string{"    runtime: gvisor"},
+			expectExcludes: []string{"legacy-security:", "docker-sudo-iptables"},
 		},
 		{
-			name: "gvisor combined with sudo: true is an actionable error",
+			name: "gvisor combined with sudo: true keeps gvisor and drops sudo",
 			content: `---
 on: workflow_dispatch
 sandbox:
@@ -177,7 +199,30 @@ sandbox:
 					"agent": map[string]any{"runtime": "gvisor", "sudo": true},
 				},
 			},
-			expectErrSubstr: "gvisor",
+			expectApplied:  true,
+			expectContains: []string{"    runtime: gvisor"},
+			expectExcludes: []string{"sudo:", "docker-sudo-iptables"},
+		},
+		{
+			name: "gvisor combined with both sudo and legacy-security keeps gvisor and drops both",
+			content: `---
+on: workflow_dispatch
+sandbox:
+  agent:
+    runtime: gvisor
+    sudo: true
+    legacy-security: enable
+---
+
+# Test`,
+			frontmatter: map[string]any{
+				"sandbox": map[string]any{
+					"agent": map[string]any{"runtime": "gvisor", "sudo": true, "legacy-security": "enable"},
+				},
+			},
+			expectApplied:  true,
+			expectContains: []string{"    runtime: gvisor"},
+			expectExcludes: []string{"sudo:", "legacy-security:", "docker-sudo-iptables"},
 		},
 	}
 
