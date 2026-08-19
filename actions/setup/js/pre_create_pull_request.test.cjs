@@ -1,5 +1,7 @@
 // @ts-check
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import path from "path";
+import { fileURLToPath } from "url";
 
 describe("pre_create_pull_request", () => {
   let originalGlobals;
@@ -47,6 +49,7 @@ describe("pre_create_pull_request", () => {
       },
     };
     process.env.GH_AW_WORKFLOW_NAME = "Test workflow";
+    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
     process.env.GITHUB_RUN_ATTEMPT = "2";
     delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
     delete process.env.GH_AW_PR_TITLE_PREFIX;

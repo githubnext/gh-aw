@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
+const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { applyTitlePrefix } = require("./sanitize_title.cjs");
 
@@ -68,15 +69,10 @@ async function main() {
   const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX || "";
   // "[WIP]" first so the in-progress state is visible even when a title prefix is configured.
   const title = `[WIP] ${applyTitlePrefix(`${workflowName}: work in progress`, titlePrefix)}`;
-  const body = [
-    `**This pull request is a work in progress.**`,
-    "",
-    `It was pre-created by [the workflow run](${runUrl}) for \`${workflowName}\` before the agent started, so it currently contains no changes.`,
-    "",
-    `The agent is still running. Its title, body, and commits are updated when the run completes. If the run produces no changes, this pull request is closed automatically and its branch deleted.`,
-    "",
-    `Steering is not supported yet: comments or reviews added here while the run is in progress are not read by the agent and will not influence its work.`,
-  ].join("\n");
+  const body = renderTemplateFromFile(getPromptPath("pre_created_pull_request_body.md"), {
+    run_url: runUrl,
+    workflow_name: workflowName,
+  }).trimEnd();
   try {
     ({ data: pullRequest } = await github.rest.pulls.create({
       owner: context.repo.owner,
