@@ -38,7 +38,7 @@ func init() {
 		// Check builtin virtual files first (embedded engine .md files etc.)
 		builtinVirtualFilesMu.RLock()
 		defer builtinVirtualFilesMu.RUnlock()
-		builtinContent, builtinOK := (*builtinVirtualFiles)[path]
+		builtinContent, builtinOK := builtinVirtualFiles.files[path]
 		if builtinOK {
 			parserLog.Printf("readFileFunc: resolved builtin virtual file: %s", path)
 			return builtinContent, nil

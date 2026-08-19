@@ -67,6 +67,9 @@ func getCachedActionPins() *actionPinsCache {
 		}
 	})
 
+	if cachedPins == nil {
+		panic("action pins cache was not initialized")
+	}
 	return cachedPins
 }
 
