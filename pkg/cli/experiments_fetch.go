@@ -1,0 +1,433 @@
+package cli
+
+import (
+	"bufio"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
+	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/workflow"
+)
+
+type evalResultRecord struct {
+	ID        string `json:"id"`
+	Answer    string `json:"answer"`
+	RunID     string `json:"runid"`
+	Timestamp string `json:"timestamp"`
+}
+
+func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults {
+	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
+	ref := "origin/" + branchName
+	if !gitRefExists(ref) {
+		if !gitRefExists(branchName) {
+			return nil
+		}
+		ref = branchName
+	}
+	if !isSafeExperimentStateRef(ref) {
+		experimentsLog.Printf("Rejecting unsafe git ref: %q", ref)
+		return nil
+	}
+	objectArg, err := buildSafeGitShowObjectArg(ref, constants.EvalsResultFilename)
+	if err != nil {
+		experimentsLog.Printf("Rejecting unsafe git show argument (ref=%q file=%q): %v", ref, constants.EvalsResultFilename, err)
+		return nil
+	}
+	cmd := exec.Command("git", "show", objectArg)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	return summarizeMetricEvalResults(out)
+}
+
+func loadRemoteMetricEvalResults(repoOverride, workflowID string) map[string]MetricEvalResults {
+	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
+	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, constants.EvalsResultFilename, "")
+	if err != nil {
+		return nil
+	}
+	return summarizeMetricEvalResults(decoded)
+}
+
+func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	results := map[string]MetricEvalResults{}
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var record evalResultRecord
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			continue
+		}
+		if record.ID == "" {
+			continue
+		}
+		summary := results[record.ID]
+		summary.Total++
+		switch strings.ToUpper(strings.TrimSpace(record.Answer)) {
+		case "YES":
+			summary.Yes++
+		case "NO":
+			summary.No++
+		default:
+			summary.Unknown++
+		}
+		summary.LatestAnswer = strings.ToUpper(strings.TrimSpace(record.Answer))
+		summary.LatestRunID = record.RunID
+		results[record.ID] = summary
+	}
+	if len(results) == 0 {
+		return nil
+	}
+	return results
+}
+
+// experimentFrontmatterResult holds both the experiment configs and evals config parsed
+// from a workflow's frontmatter.
+type experimentFrontmatterResult struct {
+	ExperimentConfigs map[string]*workflow.ExperimentConfig
+	Evals             *workflow.EvalsConfig
+}
+
+// loadLocalExperimentConfigs reads the workflow .md file for the given experiment name
+// and returns the ExperimentConfig map and EvalsConfig from its frontmatter.
+// experimentName is the sanitized workflow ID (the part after "experiments/" in the branch name).
+// Returns a zero-value result when the workflow file cannot be found or parsed.
+func loadLocalExperimentConfigs(experimentName string) experimentFrontmatterResult {
+	experimentsLog.Printf("Loading local experiment configs for %s", experimentName)
+
+	filePath := findWorkflowFileForExperiment(experimentName)
+	if filePath == "" {
+		experimentsLog.Printf("No workflow file found for experiment %s", experimentName)
+		return experimentFrontmatterResult{}
+	}
+
+	// Verify that the resolved path is within .github/workflows/ to prevent path traversal.
+	// findWorkflowFileForExperiment returns paths from filepath.Glob with a relative base dir,
+	// so convert both sides to absolute paths before the prefix check.
+	absFilePath, err := filepath.Abs(filePath)
+	if err != nil {
+		experimentsLog.Printf("Failed to resolve absolute path for %s: %v", filePath, err)
+		return experimentFrontmatterResult{}
+	}
+	workflowsDir, err := filepath.Abs(getWorkflowsDir())
+	if err != nil {
+		experimentsLog.Printf("Failed to resolve workflows dir: %v", err)
+		return experimentFrontmatterResult{}
+	}
+	if !strings.HasPrefix(absFilePath, workflowsDir+string(filepath.Separator)) {
+		experimentsLog.Printf("Refusing to read workflow file outside .github/workflows/: %s", absFilePath)
+		return experimentFrontmatterResult{}
+	}
+
+	content, err := os.ReadFile(absFilePath) // #nosec G304 -- path confirmed within .github/workflows/
+	if err != nil {
+		experimentsLog.Printf("Failed to read workflow file %s: %v", absFilePath, err)
+		return experimentFrontmatterResult{}
+	}
+
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		experimentsLog.Printf("Failed to parse frontmatter from %s: %v", filePath, err)
+		return experimentFrontmatterResult{}
+	}
+
+	cfg, err := workflow.ParseFrontmatterConfig(result.Frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse frontmatter config from %s: %v", filePath, err)
+		return experimentFrontmatterResult{}
+	}
+
+	evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse evals config from %s: %v", filePath, err)
+		// Non-fatal: continue without evals resolution.
+	}
+
+	return experimentFrontmatterResult{
+		ExperimentConfigs: cfg.ExperimentConfigs,
+		Evals:             evals,
+	}
+}
+
+// loadRemoteExperimentConfigs fetches the workflow .md file from the repository default branch
+// via the GitHub API and returns the ExperimentConfig map and EvalsConfig from its frontmatter.
+// Returns a zero-value result when the file cannot be fetched or parsed.
+func loadRemoteExperimentConfigs(repoOverride, experimentName string) experimentFrontmatterResult {
+	experimentsLog.Printf("Loading remote experiment configs for %s from %s", experimentName, repoOverride)
+
+	// Build the candidate list. First, use the directory listing to find the exact filename
+	// whose sanitized basename matches experimentName (e.g. "ci-coach" for "cicoach").
+	// Fall back to the bare experiment name if the listing is unavailable.
+	candidates := workflowFileCandidates(experimentName)
+	if resolved := findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName); resolved != "" && resolved != experimentName {
+		// Prepend the resolved name so it is tried before the bare sanitized form.
+		// Skip when resolved == experimentName to avoid a redundant fetch.
+		candidates = append([]string{resolved}, candidates...)
+	}
+
+	for _, candidate := range candidates {
+		apiPath := constants.WorkflowsDirSlash + candidate + ".md"
+		args := []string{"api",
+			"repos/{owner}/{repo}/contents/" + url.PathEscape(apiPath),
+			"--jq", ".content",
+			"--repo", repoOverride,
+		}
+		cmd := workflow.ExecGH(args...)
+		out, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+
+		b64 := strings.Join(strings.Fields(strings.TrimSpace(string(out))), "")
+		decoded, err := base64.StdEncoding.DecodeString(b64)
+		if err != nil {
+			experimentsLog.Printf("Failed to base64-decode workflow file %s: %v", candidate, err)
+			continue
+		}
+
+		result, err := parser.ExtractFrontmatterFromContent(string(decoded))
+		if err != nil {
+			continue
+		}
+
+		cfg, err := workflow.ParseFrontmatterConfig(result.Frontmatter)
+		if err != nil {
+			continue
+		}
+
+		evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
+		if err != nil {
+			experimentsLog.Printf("Failed to parse evals config from %s: %v", apiPath, err)
+			// Non-fatal: continue without evals resolution.
+		}
+
+		if len(cfg.ExperimentConfigs) > 0 {
+			experimentsLog.Printf("Loaded remote configs from %s", apiPath)
+			return experimentFrontmatterResult{
+				ExperimentConfigs: cfg.ExperimentConfigs,
+				Evals:             evals,
+			}
+		}
+	}
+
+	experimentsLog.Printf("No remote workflow file found for experiment %s", experimentName)
+	return experimentFrontmatterResult{}
+}
+
+// findRemoteWorkflowFilenameForExperiment lists .md files in .github/workflows/ via the
+// GitHub API and returns the basename (without .md) of the first file whose sanitized name
+// matches experimentName. This mirrors findWorkflowFileForExperiment for remote repos.
+// Returns "" when the directory cannot be listed or no match is found.
+func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string) string {
+	args := []string{"api",
+		"repos/{owner}/{repo}/contents/.github/workflows",
+		"--jq", `[.[] | select(.name | endswith(".md")) | .name]`,
+		"--repo", repoOverride,
+	}
+	cmd := workflow.ExecGH(args...)
+	out, err := cmd.Output()
+	if err != nil {
+		experimentsLog.Printf("Failed to list remote workflow files from %s: %v", repoOverride, err)
+		return ""
+	}
+
+	var filenames []string
+	if err := json.Unmarshal(out, &filenames); err != nil {
+		experimentsLog.Printf("Failed to parse remote workflow file listing: %v", err)
+		return ""
+	}
+
+	return matchWorkflowFilenameByExperiment(filenames, experimentName)
+}
+
+// matchWorkflowFilenameByExperiment returns the basename (without .md) of the first file in
+// filenames whose sanitized name matches experimentName. Returns "" when no match is found.
+// Logs a warning when more than one file maps to the same sanitized name.
+//
+// Note: normalizeWorkflowID calls filepath.Base internally, so any path prefix in filenames
+// is stripped before matching. Callers that supply bare filenames (e.g. "my-flow.md") are
+// unaffected; callers supplying full paths (e.g. ".github/workflows/my-flow.md") will have
+// the directory component removed — only the basename is returned and compared.
+func matchWorkflowFilenameByExperiment(filenames []string, experimentName string) string {
+	var matches []string
+	for _, filename := range filenames {
+		base := normalizeWorkflowID(filename)
+		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
+			matches = append(matches, base)
+		}
+	}
+	if len(matches) == 0 {
+		return ""
+	}
+	if len(matches) > 1 {
+		experimentsLog.Printf("Ambiguous experiment name %q: multiple workflow files match (%s); using first", experimentName, strings.Join(matches, ", "))
+	}
+	return matches[0]
+}
+
+// findWorkflowFileForExperiment scans .github/workflows/ for a .md file whose sanitized
+// basename (lowercase, hyphens removed) matches the given experiment name.
+// Returns the file path or "" when no match is found.
+func findWorkflowFileForExperiment(experimentName string) string {
+	mdFiles, err := getMarkdownWorkflowFiles("")
+	if err != nil {
+		return ""
+	}
+	for _, f := range mdFiles {
+		base := normalizeWorkflowID(f)
+		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
+			return f
+		}
+	}
+	return ""
+}
+
+// workflowFileCandidates returns a fallback list of candidate workflow file basenames (without .md)
+// for remote lookups when the directory listing is unavailable. The sanitized form
+// (hyphens removed, lowercased) is irreversible, so only the experiment name itself is
+// returned here. The caller should prefer findRemoteWorkflowFilenameForExperiment which
+// resolves the real filename by scanning the remote directory.
+func workflowFileCandidates(experimentName string) []string {
+	return []string{experimentName}
+}
+
+// fetchLocalExperiments lists experiment branches and reads their state from the local git repo.
+func fetchLocalExperiments() ([]ExperimentInfo, error) {
+	experimentsLog.Print("Fetching local experiment branches via git for-each-ref")
+
+	cmd := exec.Command("git", "for-each-ref",
+		"--sort=-committerdate",
+		"--format=%(refname:short)",
+		"refs/remotes/origin/"+experimentsBranchPrefix+"*",
+		"refs/heads/"+experimentsBranchPrefix+"*",
+	)
+	output, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 128 {
+			return []ExperimentInfo{}, nil
+		}
+		return nil, fmt.Errorf("failed to list experiment branches: %w", err)
+	}
+
+	seen := make(map[string]struct {
+	})
+	var experiments []ExperimentInfo
+
+	for line := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
+		if line == "" {
+			continue
+		}
+		workflowID := extractExperimentName(line)
+		if workflowID == "" || setutil.Contains(seen, workflowID) {
+			continue
+		}
+		seen[workflowID] = struct {
+		}{}
+
+		branchName := experimentsBranchPrefix + workflowID
+		// Prefer remote ref; fall back to local.
+		ref := "origin/" + branchName
+		if !gitRefExists(ref) {
+			ref = branchName
+		}
+		state := readLocalExperimentState(ref)
+		experiments = append(experiments, experimentInfoFromState(workflowID, branchName, state))
+	}
+
+	return experiments, nil
+}
+
+// fetchRemoteExperiments lists experiment branches and reads their state via the GitHub API.
+func fetchRemoteExperiments(repoOverride string) ([]ExperimentInfo, error) {
+	experimentsLog.Printf("Fetching remote experiment branches: repo=%s", repoOverride)
+
+	args := []string{"api", "repos/{owner}/{repo}/branches",
+		"--paginate",
+		"--jq", `[.[] | select(.name | startswith("` + experimentsBranchPrefix + `")) | .name]`,
+		"--repo", repoOverride,
+	}
+	cmd := workflow.ExecGH(args...)
+	output, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("failed to fetch branches (exit %d): %s", exitErr.ExitCode(), strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("failed to fetch branches: %w", err)
+	}
+
+	branchNames, err := parsePagedJSONArray[string](string(output))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse branch list: %w", err)
+	}
+
+	var experiments []ExperimentInfo
+	for _, branchName := range branchNames {
+		workflowID := strings.TrimPrefix(branchName, experimentsBranchPrefix)
+		state := readRemoteExperimentState(repoOverride, branchName)
+		experiments = append(experiments, experimentInfoFromState(workflowID, branchName, state))
+	}
+
+	return experiments, nil
+}
+
+// fetchLocalExperimentDetails reads experiment state from a local experiment branch.
+func fetchLocalExperimentDetails(branchName, workflowID string) (*ExperimentDetails, error) {
+	experimentsLog.Printf("Fetching local experiment details: branch=%s", branchName)
+
+	ref := "origin/" + branchName
+	if !gitRefExists(ref) {
+		if !gitRefExists(branchName) {
+			return nil, fmt.Errorf("experiment branch %q not found locally (tried origin/%s and %s)",
+				branchName, branchName, branchName)
+		}
+		ref = branchName
+	}
+
+	state := readLocalExperimentState(ref)
+	return experimentDetailsFromState(workflowID, branchName, state), nil
+}
+
+// fetchRemoteExperimentDetails reads experiment state from a remote experiment branch.
+func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (*ExperimentDetails, error) {
+	experimentsLog.Printf("Fetching remote experiment details: repo=%s, branch=%s", repoOverride, branchName)
+
+	// Verify the branch exists.
+	encodedBranch := url.PathEscape(branchName)
+	checkArgs := []string{"api",
+		"repos/{owner}/{repo}/branches/" + encodedBranch,
+		"--jq", ".name",
+		"--repo", repoOverride,
+	}
+	checkCmd := workflow.ExecGH(checkArgs...)
+	if _, err := checkCmd.Output(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			stderr := strings.TrimSpace(string(exitErr.Stderr))
+			if errorutil.IsNotFoundOutput(stderr) {
+				return nil, fmt.Errorf("experiment %q not found in %s", workflowID, repoOverride)
+			}
+			return nil, fmt.Errorf("failed to fetch experiment branch (exit %d): %s", exitErr.ExitCode(), stderr)
+		}
+		return nil, fmt.Errorf("failed to fetch experiment branch: %w", err)
+	}
+
+	state := readRemoteExperimentState(repoOverride, branchName)
+	return experimentDetailsFromState(workflowID, branchName, state), nil
+}

@@ -524,9 +524,7 @@ func TestExtractRestoreMemoryConfig(t *testing.T) {
 		RepoMemoryConfig: &RepoMemoryConfig{
 			Memories: []RepoMemoryEntry{{ID: "default"}},
 		},
-		SafeOutputs: &SafeOutputsConfig{
-			CommentMemory: &CommentMemoryConfig{},
-		},
+		CommentMemoryConfig: &CommentMemoryConfig{},
 	}
 	emptyData := &WorkflowData{}
 

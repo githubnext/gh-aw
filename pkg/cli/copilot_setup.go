@@ -5,11 +5,15 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -204,6 +208,150 @@ jobs:
           bash %s
 `, copilotSetupStepsStaticSHA, installScriptTempPath, copilotSetupStepsStaticSHA256, installScriptTempPath, installScriptTempPath)
 
+// copilotSetupStepsJobName is the job name GitHub Copilot coding agent looks for in
+// .github/workflows/copilot-setup-steps.yml. When it is missing (or the workflow cannot
+// be parsed) Copilot reports "no supported setup-steps job found in your workflow file".
+const copilotSetupStepsJobName = "copilot-setup-steps"
+
+// copilotSetupStepsSupportedTriggers are the workflow triggers Copilot supports for the
+// setup steps workflow. A workflow that only declares other triggers (for example
+// workflow_call) is not usable as copilot setup steps.
+var copilotSetupStepsSupportedTriggers = []string{"workflow_dispatch", "push", "pull_request"}
+
+// validateCopilotSetupStepsContent checks that content is a syntactically valid GitHub
+// Actions workflow that GitHub Copilot coding agent can use as setup steps: it must parse
+// as YAML, declare a supported trigger, and define a 'copilot-setup-steps' job with inline
+// steps (reusable workflow calls are not supported).
+func validateCopilotSetupStepsContent(content []byte) error {
+	var doc map[string]any
+	if err := yaml.Unmarshal(content, &doc); err != nil {
+		return fmt.Errorf("invalid YAML: %w", err)
+	}
+	if len(doc) == 0 {
+		return errors.New("workflow is empty")
+	}
+
+	if err := validateCopilotSetupStepsTriggers(doc); err != nil {
+		return err
+	}
+
+	jobsValue, ok := doc["jobs"]
+	if !ok {
+		return errors.New("missing 'jobs' section")
+	}
+	jobs, ok := jobsValue.(map[string]any)
+	if !ok {
+		return errors.New("'jobs' section is not a map")
+	}
+	jobValue, ok := jobs[copilotSetupStepsJobName]
+	if !ok {
+		return fmt.Errorf("missing '%s' job", copilotSetupStepsJobName)
+	}
+	job, ok := jobValue.(map[string]any)
+	if !ok {
+		return fmt.Errorf("'%s' job is not a map", copilotSetupStepsJobName)
+	}
+	if _, ok := job["uses"]; ok {
+		return fmt.Errorf("'%s' job must define inline steps, reusable workflow calls ('uses') are not supported", copilotSetupStepsJobName)
+	}
+	if err := validateCopilotSetupStepsRunsOn(job); err != nil {
+		return err
+	}
+	steps, ok := job["steps"].([]any)
+	if !ok || len(steps) == 0 {
+		return fmt.Errorf("'%s' job has no steps", copilotSetupStepsJobName)
+	}
+	for i, stepValue := range steps {
+		step, ok := stepValue.(map[string]any)
+		if !ok {
+			return fmt.Errorf("'%s' job step %d is not a map", copilotSetupStepsJobName, i+1)
+		}
+		if !hasNonEmptyStringField(step, "run") && !hasNonEmptyStringField(step, "uses") {
+			return fmt.Errorf("'%s' job step %d must define 'run' or 'uses'", copilotSetupStepsJobName, i+1)
+		}
+	}
+	return nil
+}
+
+// validateCopilotSetupStepsRunsOn verifies the job declares a runner. A null or empty
+// 'runs-on' parses as YAML but does not define an executable Actions job.
+func validateCopilotSetupStepsRunsOn(job map[string]any) error {
+	runsOnValue, ok := job["runs-on"]
+	if !ok {
+		return fmt.Errorf("'%s' job is missing 'runs-on'", copilotSetupStepsJobName)
+	}
+	switch typed := runsOnValue.(type) {
+	case string:
+		if strings.TrimSpace(typed) != "" {
+			return nil
+		}
+	case []any:
+		for _, item := range typed {
+			if label, ok := item.(string); ok && strings.TrimSpace(label) != "" {
+				return nil
+			}
+		}
+	case map[string]any:
+		// runs-on group/labels object syntax
+		if hasNonEmptyStringField(typed, "group") {
+			return nil
+		}
+		if labels, ok := typed["labels"]; ok {
+			if label, ok := labels.(string); ok && strings.TrimSpace(label) != "" {
+				return nil
+			}
+			if list, ok := labels.([]any); ok {
+				for _, item := range list {
+					if label, ok := item.(string); ok && strings.TrimSpace(label) != "" {
+						return nil
+					}
+				}
+			}
+		}
+	}
+	return fmt.Errorf("'%s' job has an empty 'runs-on'", copilotSetupStepsJobName)
+}
+
+// hasNonEmptyStringField reports whether the map contains key with a non-blank string value.
+func hasNonEmptyStringField(m map[string]any, key string) bool {
+	value, ok := m[key].(string)
+	return ok && strings.TrimSpace(value) != ""
+}
+
+// validateCopilotSetupStepsTriggers verifies the workflow declares at least one trigger
+// supported by Copilot.
+func validateCopilotSetupStepsTriggers(doc map[string]any) error {
+	onValue, ok := doc["on"]
+	if !ok {
+		return errors.New("missing 'on' section")
+	}
+
+	var triggers []string
+	switch typed := onValue.(type) {
+	case string:
+		triggers = []string{typed}
+	case []any:
+		for _, item := range typed {
+			if name, ok := item.(string); ok {
+				triggers = append(triggers, name)
+			}
+		}
+	case map[string]any:
+		for name := range typed {
+			triggers = append(triggers, name)
+		}
+	default:
+		return errors.New("'on' section has an unexpected format")
+	}
+
+	for _, trigger := range triggers {
+		if slices.Contains(copilotSetupStepsSupportedTriggers, trigger) {
+			return nil
+		}
+	}
+	return fmt.Errorf("'on' section must include one of %s", strings.Join(copilotSetupStepsSupportedTriggers, ", "))
+}
+
 // CopilotWorkflowStep represents a GitHub Actions workflow step for Copilot setup scaffolding
 type CopilotWorkflowStep struct {
 	Name string         `yaml:"name,omitempty"`
@@ -268,6 +416,9 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 			return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
 		}
 
+		// Warn about an unusable existing file before any early return below
+		warnIfCopilotSetupStepsInvalid(setupStepsPath, content)
+
 		// Check if the extension install step is already present (check for both modes)
 		contentStr := string(content)
 		hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
@@ -290,6 +441,10 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No version upgrade needed for "+setupStepsPath))
 				}
 				return nil
+			}
+
+			if err := validateCopilotSetupStepsContent(updatedContent); err != nil {
+				return fmt.Errorf("upgraded copilot-setup-steps.yml is not valid: %w", err)
 			}
 
 			if err := os.WriteFile(setupStepsPath, updatedContent, constants.FilePermSensitive); err != nil {
@@ -319,12 +474,29 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 	}
 
 	// File doesn't exist - create it
-	if err := os.WriteFile(setupStepsPath, []byte(generateCopilotSetupStepsYAML(ctx, actionMode, version, resolver)), constants.FilePermSensitive); err != nil {
+	generated := generateCopilotSetupStepsYAML(ctx, actionMode, version, resolver)
+	if err := validateCopilotSetupStepsContent([]byte(generated)); err != nil {
+		return fmt.Errorf("generated copilot-setup-steps.yml is not valid: %w", err)
+	}
+	if err := os.WriteFile(setupStepsPath, []byte(generated), constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write copilot-setup-steps.yml: %w", err)
 	}
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
 
 	return nil
+}
+
+// warnIfCopilotSetupStepsInvalid prints a warning when an existing copilot-setup-steps.yml
+// cannot be used by GitHub Copilot coding agent, which otherwise fails at runtime with
+// "no supported setup-steps job found in your workflow file".
+func warnIfCopilotSetupStepsInvalid(filePath string, content []byte) {
+	err := validateCopilotSetupStepsContent(content)
+	if err == nil {
+		return
+	}
+	copilotSetupLog.Printf("Existing %s is not a valid Copilot setup steps workflow: %v", filePath, err)
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf(
+		"%s is not usable by GitHub Copilot coding agent: %v", filePath, err)))
 }
 
 // renderCopilotSetupUpdateInstructions renders console instructions for updating copilot-setup-steps.yml

@@ -61,6 +61,7 @@ func TestParseDurationString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := parseDurationString(tt.input)
 			if got != tt.expected {
 				t.Errorf("parseDurationString(%q) = %v, want %v", tt.input, got, tt.expected)
@@ -129,6 +130,7 @@ func TestTruncateString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := stringutil.Truncate(tt.input, tt.maxLen)
 			if got != tt.expected {
 				t.Errorf("stringutil.Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.expected)
@@ -357,6 +359,7 @@ func TestAuditReportFileListingIntegration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.path, func(t *testing.T) {
+			t.Parallel()
 			info, ok := fileMap[tc.path]
 			if !ok {
 				t.Fatalf("File %s not found in extracted files", tc.path)

@@ -531,6 +531,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.discussion.number || github.run_id }}"
+  queue: max
 
 run-name: "Issue Monster"
 

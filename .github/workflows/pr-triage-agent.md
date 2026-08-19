@@ -50,7 +50,7 @@ safe-outputs:
   messages:
     run-started: "🔍 Starting PR triage analysis... [{workflow_name}]({run_url}) is categorizing and prioritizing agent-created PRs"
     run-success: "✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the issue for detailed report."
-    run-failure: "❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged."
+    run-failure: "❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged. Check the [run logs]({run_url}) for details before rerunning triage."
 timeout-minutes: 30
 # Default AI credit budget for this workflow.
 max-ai-credits: 1500

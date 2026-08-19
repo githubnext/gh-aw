@@ -62,11 +62,14 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"create_issue": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"title":        {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinIssueBodyLength},
-			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
-			"fields":       {Type: "array"},
-			"parent":       {IssueOrPRNumber: true},
+			"title":  {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":   {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinIssueBodyLength},
+			"labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"fields": {Type: "array"},
+			"parent": {IssueOrPRNumber: true},
+			// blocked_by accepts an issue number, temporary ID, owner/repo#number, issue URL,
+			// or an array of these; reference parsing is handled by the create_issue handler.
+			"blocked_by":   {},
 			"temporary_id": {Type: "string"},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

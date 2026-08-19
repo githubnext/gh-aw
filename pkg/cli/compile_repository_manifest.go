@@ -113,13 +113,14 @@ func validateLocalRepositoryPackageContents(manifestPath string) error {
 		}
 
 		includeInstallablePaths, _, _ := splitManifestIncludePaths(manifest.Includes)
-		includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
+		includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(manifest.Files)...)
 		installationSources := normalizePackageInstallablePaths(includeInstallablePaths, "")
 		if len(installationSources) == 0 {
-			installationSources, err = scanLocalRepositoryPackageInstallablePaths(filepath.Dir(manifestPath))
+			scanned, err := scanLocalRepositoryPackageInstallablePaths(filepath.Dir(manifestPath))
 			if err != nil {
 				return err
 			}
+			installationSources = packageInstallablesFromSourcePaths(scanned)
 		}
 
 		return validateManifestInstallableWorkflowPrivacy(manifestPath, installationSources, func(sourcePath string) ([]byte, error) {

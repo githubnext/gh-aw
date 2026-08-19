@@ -55,3 +55,42 @@ func TestRenderLogsOutputWritesArtifactHintForNonCompactFormats(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderLogsOutputStaleWarningGatedByCheckStaleness(t *testing.T) {
+	// A result set whose newest run is well past the staleness threshold with no
+	// start_date/end_date requested.
+	processedRuns := []ProcessedRun{{
+		Run: WorkflowRun{
+			DatabaseID:   1,
+			Status:       "completed",
+			WorkflowName: "logs",
+			CreatedAt:    time.Now().Add(-11 * 24 * time.Hour),
+		},
+	}}
+
+	t.Run("discovery mode surfaces the stale warning", func(t *testing.T) {
+		stdout, _ := captureOutput(t, func() error {
+			return renderLogsOutput(processedRuns, renderLogsOutputOptions{
+				outputDir:      t.TempDir(),
+				format:         "console",
+				jsonOutput:     true,
+				checkStaleness: true,
+			})
+		})
+
+		assert.Contains(t, stdout, "No start_date/end_date was specified")
+	})
+
+	t.Run("stdin/explicit-run mode does not surface the stale warning", func(t *testing.T) {
+		stdout, _ := captureOutput(t, func() error {
+			return renderLogsOutput(processedRuns, renderLogsOutputOptions{
+				outputDir:  t.TempDir(),
+				format:     "console",
+				jsonOutput: true,
+				// checkStaleness left false, as it is for DownloadWorkflowLogsFromStdin.
+			})
+		})
+
+		assert.NotContains(t, stdout, "No start_date/end_date was specified")
+	})
+}

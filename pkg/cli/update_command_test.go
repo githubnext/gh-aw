@@ -82,6 +82,82 @@ This is the base content.`
 	}
 }
 
+// TestMergeWorkflowContent_PreservesUnchangedObjectFormImports is a regression test
+// for: gh aw update replacing a valid, unchanged upstream object-form import
+// (uses/with) with `imports: []` when only the prompt body changed upstream.
+func TestMergeWorkflowContent_PreservesUnchangedObjectFormImports(t *testing.T) {
+	base := `---
+on: push
+engine: claude
+imports:
+  - uses: shared/control.md
+    with:
+      role: orchestrator
+---
+
+# Dependabot Workflow
+
+Base prompt body.`
+
+	// Local has no modifications relative to base.
+	current := `---
+on: push
+engine: claude
+imports:
+  - uses: shared/control.md
+    with:
+      role: orchestrator
+source: test/repo/dependabot.md@v1.0.0
+---
+
+# Dependabot Workflow
+
+Base prompt body.`
+
+	// Upstream only changes the prompt body; the object-form import is unchanged.
+	new := `---
+on: push
+engine: claude
+imports:
+  - uses: shared/control.md
+    with:
+      role: orchestrator
+source: test/repo/dependabot.md@v1.1.0
+---
+
+# Dependabot Workflow
+
+Updated prompt body.`
+
+	oldSourceSpec := "test/repo/dependabot.md@v1.0.0"
+	newRef := "v1.1.0"
+
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, "", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if hasConflicts {
+		t.Errorf("Expected no conflicts, merged content:\n%s", merged)
+	}
+
+	if strings.Contains(merged, "imports: []") {
+		t.Fatalf("Expected the unchanged upstream import to be preserved, but imports were emptied:\n%s", merged)
+	}
+
+	if !strings.Contains(merged, "uses: shared/control.md") && !strings.Contains(merged, "shared/control.md") {
+		t.Errorf("Expected the shared/control.md import to be preserved, got:\n%s", merged)
+	}
+
+	if !strings.Contains(merged, "role: orchestrator") {
+		t.Errorf("Expected the import 'with' fields to be preserved, got:\n%s", merged)
+	}
+
+	if !strings.Contains(merged, "Updated prompt body.") {
+		t.Errorf("Expected upstream prompt body change to be applied, got:\n%s", merged)
+	}
+}
+
 func TestNewUpdateCommand_CoolDownFlagUsage(t *testing.T) {
 	cmd := NewUpdateCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)

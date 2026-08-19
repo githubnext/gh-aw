@@ -23,6 +23,8 @@ Workflow-level concurrency groups include the workflow name plus context-specifi
 
 This ensures workflows on different issues, PRs, or branches run concurrently without interference.
 
+For triggers where `cancel-in-progress` is not enabled, the generated top-level group also emits `queue: max` by default, so back-to-back triggers (for example rapid pushes) are queued and run sequentially instead of displacing pending runs. Set `features.group-concurrency-queue: false` to opt out (see [Queue Behavior](#queue-behavior-queue)).
+
 ## Per-Engine Concurrency
 
 The default per-engine pattern `gh-aw-{engine-id}` ensures only one agent job runs per engine across all workflows, preventing AI resource exhaustion. The group includes only the engine ID and `gh-aw-` prefix — workflow name, issue/PR numbers, and branches are excluded.
@@ -83,7 +85,7 @@ concurrency:
   queue: max
 ```
 
-Compiler-generated concurrency groups (agent, output, and conclusion jobs) emit `queue: max` by default so back-to-back triggers run sequentially rather than being dropped. Set `features.group-concurrency-queue: false` to omit `queue` from generated groups and revert to the Actions default:
+Compiler-generated concurrency groups (the top-level workflow group, and the agent, output, and conclusion jobs) emit `queue: max` by default so back-to-back triggers run sequentially rather than being dropped. The top-level group only emits `queue: max` when `cancel-in-progress` is not enabled, since GitHub Actions rejects the combination of `queue: max` and `cancel-in-progress: true`. Set `features.group-concurrency-queue: false` to omit `queue` from generated groups and revert to the Actions default:
 
 ```yaml wrap
 features:

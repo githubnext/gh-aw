@@ -30,7 +30,8 @@ The package root is the folder that contains `aw.yml`.
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
-| `files` | array of strings | No | Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
+| `files` | array of strings | No | Deprecated; use `includes`. Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
+| `includes` | array | No | Installable entries. Each entry is either a path string (same rules as `files`, plus skill and agent paths) or a source-to-destination mapping. |
 
 ## Installable workflows
 
@@ -38,6 +39,35 @@ If `files` is present, valid entries become the install bundle. Two entry kinds 
 
 - **Agentic workflow markdown** — paths ending in `.md` under `workflows/` or `.github/workflows/`. `gh aw add` compiles these to lock files and fetches their dependencies.
 - **Raw GitHub Actions YAML** — paths ending in `.yml` (but not `.lock.yml`) that are direct children of `.github/workflows/`. `gh aw add` copies these verbatim to `.github/workflows/<name>.yml` with no frontmatter processing, no dependency fetch, and no compilation. Nested subdirectories under `.github/workflows/` and `.yml` files under `workflows/` are not accepted.
+
+### Path resolution rules
+
+- A **string entry** that starts with `.github/` is resolved relative to the **consuming repository root**, even inside a nested package. For example, `.github/workflows/nightly.md` in `factory/aw.yml` refers to the repository-root file, not to `factory/.github/workflows/nightly.md`.
+- Every other string entry (such as `workflows/review.md`) is resolved relative to the package root.
+- A **mapping entry** always resolves `source` relative to the package root and `destination` relative to the consuming repository root.
+
+### Source-to-destination mappings
+
+Use mapping entries to keep workflow assets inert in the distribution repository while still installing them into the consuming repository's `.github/workflows/`:
+
+```yaml
+name: Factory
+includes:
+  - source: payload/workflows/reviewer.md
+    destination: .github/workflows/reviewer.md
+    kind: agentic-workflow
+  - source: payload/workflows/controller.yml
+    destination: .github/workflows/controller.yml
+    kind: action-workflow
+```
+
+With a nested package reference such as `owner/repo/factory`, the files above are fetched from `factory/payload/workflows/` and installed to `.github/workflows/`. Because the sources live outside `.github/workflows/` in the distribution repository, they never run there.
+
+The optional `kind` field is either `agentic-workflow` (`.md`) or `action-workflow` (`.yml`) and must match the source extension.
+
+Mappings are rejected when `source` or `destination` is absolute, contains `..`, points at a symbolic link, uses an unsupported extension (or `.lock.yml`), changes the file extension between source and destination, or targets anything other than a direct child of `.github/workflows/`. Two entries installing to the same destination are rejected before any file is written.
+
+`gh aw add`, `gh aw add-wizard`, and `gh aw update` all use these same mapping rules.
 
 If `files` is omitted, or no valid entries remain after filtering,
 `gh aw add` discovers installable markdown files under:
@@ -60,8 +90,10 @@ Missing `README.md` causes package validation to fail.
 name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation for review and issue triage
-files:
+includes:
   - workflows/review.md                # agentic workflow — compiled on install
-  - .github/workflows/nightly-review.md
+  - .github/workflows/nightly-review.md # repository-root-relative string entry
   - .github/workflows/ci.yml           # raw Actions YAML — copied verbatim
+  - source: payload/workflows/reviewer.md   # package-relative source
+    destination: .github/workflows/reviewer.md
 ```

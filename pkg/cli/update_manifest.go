@@ -47,14 +47,16 @@ func manifestSourceWithRef(repoSpec *RepoSpec, ref string) string {
 	return base + "@" + ref
 }
 
-func manifestWorkflowPathByName(paths []string) map[string]string {
-	byName := make(map[string]string, len(paths))
-	for _, p := range paths {
-		if !strings.HasSuffix(strings.ToLower(p), ".md") {
+// manifestWorkflowPathByName maps the installed workflow name (derived from the install
+// destination) to the package source path used to re-fetch the workflow.
+func manifestWorkflowPathByName(installables []resolvedPackageInstallable) map[string]string {
+	byName := make(map[string]string, len(installables))
+	for _, installable := range installables {
+		if !strings.HasSuffix(strings.ToLower(installable.DestinationPath), ".md") {
 			continue
 		}
-		workflowID := normalizeWorkflowID(filepath.Base(p))
-		byName[workflowID] = p
+		workflowID := normalizeWorkflowID(filepath.Base(installable.DestinationPath))
+		byName[workflowID] = installable.SourcePath
 	}
 	return byName
 }

@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -92,6 +91,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			config[handlerName] = handlerConfig
 		}
 	}
+	if handlerConfig := buildCommentMemoryHandlerConfig(data.CommentMemoryConfig, safeOutputs.Footer); handlerConfig != nil {
+		config[commentMemoryHandlerKey] = handlerConfig
+	}
 
 	// Include top-level mentions configuration so the handler manager can pass it to
 	// markdown-producing handlers that call sanitizeContent with allowed aliases.
@@ -105,7 +107,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		safeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
-		configJSON, err := json.Marshal(config)
+		configJSON, err := marshalSafeOutputsConfig(config)
 		if err != nil {
 			safeOutputsConfigLog.Printf("Failed to marshal handler config: %v", err)
 			return

@@ -89,4 +89,11 @@ type renderLogsOutputOptions struct {
 	continuation   *ContinuationData
 	verbose        bool
 	artifactFilter []string
+	startDate      string
+	endDate        string
+	// checkStaleness enables the stale-data warning check. It is only meaningful
+	// for discovery-mode rendering (pagination walking backwards through time
+	// looking for runs); the stdin path processes explicit run IDs with no
+	// pagination, so it leaves this false.
+	checkStaleness bool
 }

@@ -2,35 +2,30 @@
 import type { Props } from '@astrojs/starlight/props';
 import Default from '@astrojs/starlight/components/SocialIcons.astro';
 const base = import.meta.env.BASE_URL;
+const navItems = [
+	{ href: `${base}setup/quick-start/`, label: 'Quick Start' },
+	{ href: `${base}setup/creating-workflows/`, label: 'Create' },
+	{ href: `${base}index.html#gallery`, label: 'Examples' },
+	{ href: `${base}introduction/overview/`, label: 'Docs' },
+	{ href: `${base}reference/faq/`, label: 'FAQ' },
+	{ href: `${base}blog/`, label: 'Blog' },
+	{ href: `${base}blog/2026-01-12-welcome-to-pelis-agent-factory/`, label: "Peli's Agent Factory" },
+];
 
 // Filter out RSS link from social links
 ---
 
 <nav class="custom-header-links" aria-label="Primary navigation">
-	<a href={`${base}setup/quick-start/`} class="header-link">Quick Start</a>
-	<a href={`${base}setup/creating-workflows/`} class="header-link">Create</a>
-	<a href={`${base}index.html#gallery`} class="header-link">Examples</a>
-	<a href={`${base}introduction/overview/`} class="header-link">Docs</a>
-	<a href={`${base}reference/faq/`} class="header-link">FAQ</a>
-	<a href={`${base}blog/`} class="header-link">Blog</a>
-	<a href={`${base}blog/2026-01-12-welcome-to-pelis-agent-factory/`} class="header-link">Peli's Agent Factory</a>
+	{navItems.map((item) => <a href={item.href} class="header-link">{item.label}</a>)}
 </nav>
 
 <!-- Hamburger menu for tablets (769–1050px) where full nav would overflow -->
 <!-- Upper bound raised to 1050px to cover iPad Pro 12.9 (1024px portrait); see issues/45211 -->
-<div class="tablet-nav-wrapper">
+<div class="tablet-nav-wrapper" data-nav-items={JSON.stringify(navItems)}>
 	<button class="hamburger-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="tablet-nav-dropdown">
 		<span class="hamburger-icon" aria-hidden="true"></span>
 	</button>
-	<nav class="tablet-dropdown" id="tablet-nav-dropdown" aria-label="Primary navigation" hidden>
-		<a href={`${base}setup/quick-start/`} class="dropdown-link">Quick Start</a>
-		<a href={`${base}setup/creating-workflows/`} class="dropdown-link">Create</a>
-		<a href={`${base}index.html#gallery`} class="dropdown-link">Examples</a>
-		<a href={`${base}introduction/overview/`} class="dropdown-link">Docs</a>
-		<a href={`${base}reference/faq/`} class="dropdown-link">FAQ</a>
-		<a href={`${base}blog/`} class="dropdown-link">Blog</a>
-		<a href={`${base}blog/2026-01-12-welcome-to-pelis-agent-factory/`} class="dropdown-link">Peli's Agent Factory</a>
-	</nav>
+	<nav class="tablet-dropdown" id="tablet-nav-dropdown" aria-label="Primary navigation" hidden></nav>
 </div>
 
 <Default {...Astro.props} />
@@ -58,7 +53,7 @@ const base = import.meta.env.BASE_URL;
 		background-color: rgba(var(--aw-accent-rgb, 130, 80, 223), 0.12);
 	}
 
-	/* Tablet navigation wrapper — hidden by default; shown via global CSS at 769–900px */
+	/* Tablet navigation wrapper — hidden by default; shown via global CSS at widths up to 1050px */
 	.tablet-nav-wrapper {
 		display: none;
 		position: relative;
@@ -145,10 +140,31 @@ const base = import.meta.env.BASE_URL;
 
 <script>
 	function initHamburgerMenu() {
+		const tabletNavWrapper = document.querySelector<HTMLElement>('.tablet-nav-wrapper');
 		const hamburgerBtn = document.querySelector<HTMLButtonElement>('.hamburger-btn');
 		const tabletDropdown = document.querySelector<HTMLElement>('.tablet-dropdown');
 
-		if (!hamburgerBtn || !tabletDropdown) return;
+		if (!tabletNavWrapper || !hamburgerBtn || !tabletDropdown) return;
+
+		const navItems = JSON.parse(tabletNavWrapper.dataset.navItems || '[]') as Array<{ href: string; label: string }>;
+
+		function populateDropdown() {
+			tabletDropdown.replaceChildren(
+				...navItems.map((item) => {
+					const link = document.createElement('a');
+					link.href = item.href;
+					link.className = 'dropdown-link';
+					link.textContent = item.label;
+					return link;
+				})
+			);
+		}
+
+		function hideDropdown() {
+			hamburgerBtn.setAttribute('aria-expanded', 'false');
+			tabletDropdown.hidden = true;
+			tabletDropdown.replaceChildren();
+		}
 
 		/** Position the dropdown below and flush-right with the button,
 		 *  clamped inside the viewport. This is recalculated on each open
@@ -182,9 +198,12 @@ const base = import.meta.env.BASE_URL;
 		hamburgerBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
 			const isOpen = hamburgerBtn.getAttribute('aria-expanded') === 'true';
-			hamburgerBtn.setAttribute('aria-expanded', String(!isOpen));
-			tabletDropdown.hidden = isOpen;
-			if (!isOpen) {
+			if (isOpen) {
+				hideDropdown();
+			} else {
+				hamburgerBtn.setAttribute('aria-expanded', 'true');
+				populateDropdown();
+				tabletDropdown.hidden = false;
 				positionDropdown();
 				const firstLink = tabletDropdown.querySelector<HTMLAnchorElement>('.dropdown-link');
 				firstLink?.focus();
@@ -194,16 +213,14 @@ const base = import.meta.env.BASE_URL;
 		// Close when clicking outside the menu
 		document.addEventListener('click', (e) => {
 			if (!hamburgerBtn.contains(e.target as Node) && !tabletDropdown.contains(e.target as Node)) {
-				hamburgerBtn.setAttribute('aria-expanded', 'false');
-				tabletDropdown.hidden = true;
+				hideDropdown();
 			}
 		});
 
 		// Close on Escape key only when dropdown is open, for keyboard accessibility
 		document.addEventListener('keydown', (e) => {
 			if (e.key === 'Escape' && hamburgerBtn.getAttribute('aria-expanded') === 'true') {
-				hamburgerBtn.setAttribute('aria-expanded', 'false');
-				tabletDropdown.hidden = true;
+				hideDropdown();
 				hamburgerBtn.focus();
 			}
 		});

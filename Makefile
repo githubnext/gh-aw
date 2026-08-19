@@ -170,17 +170,19 @@ bench:
 	go test -bench=. -benchmem -benchtime=3x -run=^$$ ./pkg/... | tee bench_results.txt
 
 # Run only critical performance benchmarks for daily monitoring
+# Uses time-based -benchtime (not a fixed low iteration count) so that results are
+# averaged over many iterations and are far less sensitive to shared CI runner noise.
 .PHONY: bench-performance
 bench-performance:
 	@echo "Running critical performance benchmarks..."
 	@echo "This includes: CompileSimpleWorkflow, CompileComplexWorkflow, CompileMCPWorkflow,"
 	@echo "               CompileMemoryUsage, ParseWorkflow, Validation, YAMLGeneration"
 	@go test -bench='Benchmark(CompileSimpleWorkflow|CompileComplexWorkflow|CompileMCPWorkflow|CompileMemoryUsage|ParseWorkflow|Validation|YAMLGeneration)$$' \
-		-benchmem -benchtime=3x -run=^$$ ./pkg/workflow | tee bench_performance.txt
+		-benchmem -benchtime=2s -run=^$$ ./pkg/workflow | tee bench_performance.txt
 	@echo ""
 	@echo "Also running CLI helper benchmarks..."
 	@go test -bench='Benchmark(ExtractWorkflowNameFromFile|FindIncludesInContent)$$' \
-		-benchmem -benchtime=1s -run=^$$ ./pkg/cli >> bench_performance.txt
+		-benchmem -benchtime=2s -run=^$$ ./pkg/cli >> bench_performance.txt
 	@echo ""
 	@echo "Performance benchmark results saved to bench_performance.txt"
 

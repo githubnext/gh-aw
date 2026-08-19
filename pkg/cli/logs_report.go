@@ -39,6 +39,7 @@ type LogsData struct {
 	Continuation      *ContinuationData          `json:"continuation,omitempty" console:"-"`
 	LogsLocation      string                     `json:"logs_location" console:"-"`
 	Message           string                     `json:"message,omitempty" console:"-"`
+	StaleWarning      string                     `json:"stale_warning,omitempty" console:"-"`
 }
 
 // ContinuationData provides parameters to continue querying when timeout is reached

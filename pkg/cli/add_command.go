@@ -387,6 +387,8 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 		return err
 	}
 
+	// For package manifest entries WorkflowName is derived from the entry's install
+	// destination, so mapped entries install under their declared destination name.
 	workflowName := workflowSpec.WorkflowName
 	if opts.Name != "" {
 		workflowName = opts.Name

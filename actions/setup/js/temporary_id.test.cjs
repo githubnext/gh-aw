@@ -817,6 +817,17 @@ describe("temporary_id.cjs", () => {
       expect(refs.has("aw_bbbb12")).toBe(true);
     });
 
+    it("should extract temporary IDs from blocked_by dependencies", async () => {
+      const { extractTemporaryIdReferences } = await import("./temporary_id.cjs");
+
+      const refs = extractTemporaryIdReferences({
+        type: "create_issue",
+        blocked_by: ["aw_prereq", "#aw_other"],
+      });
+
+      expect(refs).toEqual(new Set(["aw_prereq", "aw_other"]));
+    });
+
     it("should handle # prefix in ID fields", async () => {
       const { extractTemporaryIdReferences } = await import("./temporary_id.cjs");
 

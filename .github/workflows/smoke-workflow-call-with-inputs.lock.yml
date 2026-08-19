@@ -110,6 +110,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-smoke-workflow-call-with-inputs-${{ github.run_id }}"
+  queue: max
 
 run-name: "Smoke Workflow Call with Inputs"
 
@@ -618,6 +619,7 @@ jobs:
               "create_issue": {
                 "defaultMax": 1,
                 "fields": {
+                  "blocked_by": {},
                   "body": {
                     "required": true,
                     "type": "string",

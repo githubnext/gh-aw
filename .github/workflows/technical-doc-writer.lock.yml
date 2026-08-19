@@ -81,6 +81,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
+  queue: max
 
 run-name: "Rebuild the documentation after making changes"
 
