@@ -509,4 +509,4 @@
 {"run_id":"32250066058","timestamp":"2026-08-19T11:57:41.083Z","assignments":{"model_size":"claude-haiku-4.5"}}
 {"run_id":"32249852184","timestamp":"2026-08-19T12:05:30.148Z","assignments":{"model_size":"claude-haiku-4.5"}}
 {"run_id":"32252721577","timestamp":"2026-08-19T12:28:11.561Z","assignments":{"model_size":"claude-haiku-4.5"}}
-{"run_id":"32257064910","timestamp":"2026-08-19T13:16:14.323Z","assignments":{"model_size":"claude-sonnet-4.6"}}
+{"run_id":"32257019528","timestamp":"2026-08-19T13:16:18.542Z","assignments":{"model_size":"claude-haiku-4.5"}}
