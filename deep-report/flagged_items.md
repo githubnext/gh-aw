@@ -1,3 +1,21 @@
+## Flagged Items (2026-08-19, ~00:15Z cycle)
+
+- **[new, filed, security/observability]** `squad.md` and `squad-implement-worker.md` run frequently (8+11 runs today) with `safe-outputs` defined but `gh-aw-detection` disabled — no prompt-injection scanning on their output.
+- **[new, filed]** MCP-enabled runs universally fall back to `rpc-messages.jsonl` (0/20 emit `gateway.jsonl`) — losing structured duration metrics; 3 runs also missing `safeoutputs.jsonl` entirely.
+- **[new, filed]** Daily Status workflow doesn't disclose its PR/issue sample window, causing a 42% relative discrepancy (71 vs 50) vs Repository Chronicle for the "same" 24h PR-merge metric.
+- **[new, filed]** MCP tool/server usage tracking in lockfile-stats is Claude-engine-only (comment-block extraction), blind to the other 226/286 workflows' real MCP usage.
+- **[new, filed]** 189 workflows hold `discussions: write` but only 91 call `create_discussion` — least-privilege audit opportunity.
+- **[new, filed]** 7/286 workflows lack `workflow_dispatch` — manual-debug parity gap.
+- **[new, filed]** Fast-track PR review criteria appears to exist in practice (6 fast-tracked PRs/24h) but isn't documented for contributors.
+- **[verified fixed, same-day]** GEO Optimizer llms_txt/ai_discovery scanner false-negatives (top finding from 18:23Z cycle) → merged PR #53800.
+- **[verified fixed, same-day]** `agenticworkflows logs` stale-data-by-default bug (filed 12:26Z cycle) → merged PR #53719.
+- **[verified fixed, same-day]** pr-triage-agent.md failure-message next-step, ai-credits blog verify-step (both filed 18:23Z cycle) → merged PR #53798, #53797.
+- **[verified fixed, 3rd attempt succeeded]** compiler_safe_outputs_job.go re-decomposition (#53612) → merged PR #53720, after 2 prior stalls (original #50515 auto-expired, then #53612 stalled ~6h before assignment).
+- **[declined, already tracked]** Oversized test files — already covered by #53788 from a prior cycle, reconfirmed by today's Daily Code Metrics report, no duplicate.
+- **[declined, already auto-filed]** 3 schedule blind spots (craft, daily-hippo-learn, smoke-ci) — the Agent Job Health workflow auto-filed this itself as #53855.
+- **[declined, too early to judge]** CVE/vulnerability-advisory PR cluster still ~49% success in Copilot PR Prompt Analysis's 30-day trailing window — the fix (#53709) merged same-day this cycle, trailing window hasn't absorbed it yet.
+- **[addressed via comment, not new issue]** 4 unconfirmed Copilot-proxy-failure workflows (CLI Consistency Checker, CI Optimization Coach, Daily Malicious Code Scan Agent, Daily BYOK Ollama Test) sharing the `Execute GitHub Copilot CLI` signature — commented on existing root-cause issue #52253.
+
 ## Flagged Items (2026-08-18, 18:23Z cycle)
 
 - **[new, filed, top finding]** GEO Optimizer scanner false-negatives llms_txt/ai_discovery checks (0 scores) despite files being live and 200 OK — curl-verified this cycle. Watch: does the fix also close out the 4 stale duplicate geo-optimizer issues it caused (#53759, #53435, #52534, #52763).

@@ -1,3 +1,14 @@
+## DeepReport Memory (2026-08-19T00:15:00Z)
+
+### New pattern: persistence through re-filing can eventually work, even after 2 stalls
+`compiler_safe_outputs_job.go` decomposition was originally #50515 (auto-expired unfixed), re-filed as #53612 (stalled ~6h unassigned), then finally got PR #53720 merged this cycle — 3rd attempt, ~2 days total. **Lesson: don't give up on re-filing a well-scoped, evidence-backed task after one stall — this repo's fast-turnaround norm can still apply, just with more latency for tasks that first get deprioritized.**
+
+### New pattern: a merged fix takes time to show up in trailing-window metrics — don't re-file just because the metric hasn't moved yet
+The Copilot PR Prompt Analysis report's 30-day trailing window still shows ~49% CVE-cluster success even though the pre-filter fix (#53709) merged same-day. **Lesson: when a report's headline metric is a rolling/trailing window and a relevant fix just merged, expect a lag before the metric reflects it — check the merge date against the window before concluding a fix "didn't work."**
+
+### New pattern: detection/observability audits are strongest on their first baseline run
+Detection Analysis Report, Agent Job Health Monitor, and Daily Observability Report all explicitly noted "first recorded baseline, no trend chart yet" this cycle. Each still produced real, actionable, non-duplicate findings despite having no history to compare against.
+
 ## DeepReport Memory (2026-08-18T18:23:34Z)
 
 ### New pattern: an auditor's own report can partially diagnose a scanner bug and still miss the rest of it — always generalize a root cause across all affected checks
