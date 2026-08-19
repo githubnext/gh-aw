@@ -162,6 +162,52 @@ func marshalSafeOutputsConfig(config map[string]any) ([]byte, error) {
 	return configJSON, nil
 }
 
+// sanitizeAgentSafeOutputsConfig walks a safe-outputs config map (as produced for the agent
+// job's copy of config.json) and neutralizes any templated field whose expression references
+// needs.<job> for a job in unresolvableJobs. These jobs are only ever added as dependencies of
+// the safe_outputs handler job, never of the agent job, so referencing their outputs from the
+// agent job's config is unresolvable at the GitHub Actions expression level and would trip an
+// actionlint "undefined property" error. This only affects the agent job's copy of the config;
+// the handler job's own config (built separately) legitimately depends on these jobs.
+func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []string) {
+	if len(unresolvableJobs) == 0 {
+		return
+	}
+	referencesUnresolvableJob := func(expr string) bool {
+		for _, job := range unresolvableJobs {
+			if strings.Contains(expr, "needs."+job+".") {
+				return true
+			}
+		}
+		return false
+	}
+	var visit func(value any)
+	visit = func(value any) {
+		switch v := value.(type) {
+		case map[string]any:
+			for key, fieldValue := range v {
+				switch fv := fieldValue.(type) {
+				case templatableJSONExpression:
+					if referencesUnresolvableJob(fv.expr) {
+						v[key] = []any{}
+					}
+				case string:
+					if isExpression(fv) && referencesUnresolvableJob(fv) {
+						delete(v, key)
+					}
+				default:
+					visit(fieldValue)
+				}
+			}
+		case []any:
+			for _, item := range v {
+				visit(item)
+			}
+		}
+	}
+	visit(config)
+}
+
 func templatableJSONExpressions(value any) []templatableJSONExpression {
 	var expressions []templatableJSONExpression
 	var visit func(any)
