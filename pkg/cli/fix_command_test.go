@@ -58,6 +58,7 @@ timeout_minutes: 30
 }
 
 func TestFixCommand_TimeoutMinutesMigration(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -117,6 +118,7 @@ This is a test workflow.
 }
 
 func TestFixCommand_NoChangesNeeded(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -166,6 +168,7 @@ This is a test workflow.
 }
 
 func TestFixCommand_NetworkFirewallMigration(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -231,6 +234,7 @@ This is a test workflow.
 }
 
 func TestFixCommand_NetworkFirewallMigrationWithNestedProperties(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -322,6 +326,7 @@ This is a test workflow.
 }
 
 func TestFixCommand_NetworkFirewallMigrationWithCommentsAndEmptyLines(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -412,6 +417,7 @@ This workflow tests comment and empty line handling.
 }
 
 func TestFixCommand_PreservesFormatting(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -478,6 +484,7 @@ This is a test workflow.
 }
 
 func TestGetAllCodemods(t *testing.T) {
+	t.Parallel()
 	codemods := GetAllCodemods()
 
 	if len(codemods) == 0 {
@@ -518,6 +525,7 @@ func TestGetAllCodemods(t *testing.T) {
 }
 
 func TestNewFixCommand_HasDisableCodemodFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewFixCommand()
 	require.NotNil(t, cmd)
 
@@ -528,6 +536,7 @@ func TestNewFixCommand_HasDisableCodemodFlag(t *testing.T) {
 }
 
 func TestRunFix_DisabledCodemodSkipsMatchingFix(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test.md")
 
@@ -553,6 +562,7 @@ timeout_minutes: 30
 }
 
 func TestFixCommand_CommandToSlashCommandMigration(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -622,6 +632,7 @@ This is a test workflow with slash command.
 }
 
 func TestFixCommand_MCPScriptsModeRemoval(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -708,6 +719,7 @@ func stubAgenticWorkflowsMarkdownFilesForTest(t *testing.T) {
 }
 
 func TestWriteGeneratedRepositoryInstructionFile_RefusesDryRun(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	targetPath := filepath.Join(tmpDir, ".github", "skills", "agentic-workflows", "SKILL.md")
 	originalContent := []byte("existing content\n")
@@ -957,6 +969,7 @@ permissions:
 }
 
 func TestFixCommand_GrepToolRemoval(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -1024,6 +1037,7 @@ This workflow uses the deprecated grep tool.
 }
 
 func TestFixCommand_GrepToolRemoval_NoGrep(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -1068,6 +1082,7 @@ This workflow doesn't have grep.
 }
 
 func TestFixCommand_SandboxFalseToAgentFalseMigration(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -1145,6 +1160,7 @@ This workflow has sandbox disabled.
 }
 
 func TestFixCommand_AppToGitHubAppMigration(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -1209,6 +1225,7 @@ This workflow uses top-level app auth.
 }
 
 func TestFixCommand_AppToGitHubAppMigration_Combined(t *testing.T) {
+	t.Parallel()
 	// Combined scenario: top-level app: and nested app: under tools.github both renamed in one pass.
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -1280,6 +1297,7 @@ This workflow uses both top-level app auth and nested app auth.
 }
 
 func TestFixCommand_SandboxFalseToAgentFalseMigration_NoSandbox(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -1320,6 +1338,7 @@ permissions:
 }
 
 func TestFixCommand_ScaffoldsSerenaSharedWorkflow(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
 	workflowFile := filepath.Join(workflowDir, "test-workflow.md")
@@ -1381,6 +1400,7 @@ tools:
 }
 
 func TestRunFix_GuidedErrorReturnsExitCode2(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "byok-workflow.md")
 
@@ -1492,6 +1512,7 @@ env:
 }
 
 func TestProcessWorkflowFileWithInfo_GuidedErrorWrapped(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test.md")
 
@@ -1516,6 +1537,7 @@ env:
 }
 
 func TestRunFix_HardProcessingErrorReturnsExitCode1(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create a directory where a file is expected — reading it will fail
