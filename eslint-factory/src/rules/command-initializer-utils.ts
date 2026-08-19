@@ -67,6 +67,7 @@ function resolveObjectPatternProperty(pattern: TSESTree.ObjectPattern, init: TSE
     if (property.type !== AST_NODE_TYPES.Property || property.computed) continue;
     if (property.value.type !== AST_NODE_TYPES.Identifier || property.value.name !== name) continue;
     key = getStaticPropertyName(property.key);
+    break;
   }
   if (key === null) return null;
 
