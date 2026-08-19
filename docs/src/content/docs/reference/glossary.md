@@ -462,6 +462,10 @@ A `create-issue` safe-output field that drops duplicate issues before creation b
 
 A configuration field on `create-issue:` safe outputs that restricts which GitHub Project custom fields the agent may set when creating issues. Accepts an array of field names (e.g., `[Priority, Iteration]`). When set, the safe-outputs handler rejects any attempt to populate a field not in the list. When omitted, all project fields are permitted. Example: `allowed-fields: [Priority, Iteration]`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-creation-create-issue).
 
+### Blocked-By Dependency (`blocked_by`)
+
+An optional field on the `create_issue` safe output that declares a dependency on another issue. It accepts an issue number, a Temporary ID, an `owner/repo#number` reference, a GitHub issue URL, or a list of these. Temporary IDs are resolved before the referenced issue exists, so dependent output can be emitted in any order within a single agentic run. Attaching the dependency is best-effort: if the underlying GitHub API call fails, the issue is still reported as created and the failure is logged as a warning rather than failing the workflow. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-creation-create-issue).
+
 ### Allowed Files
 
 An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branch` safe outputs. When `allowed-files:` is set to a list of glob patterns, **only** files matching those patterns may be modified — every other file (including normal source files) is refused. This is a restriction, not an exception: listing `.github/workflows/*` does not additionally allow normal source files; it blocks them. Runs independently from [Protected Files](#protected-files): both checks must pass. To modify a protected file, it must both match `allowed-files` and have `protected-files: allowed`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#restricting-changes-to-specific-files-with-allowed-files).
@@ -1372,6 +1376,10 @@ An automatically generated job in compiled workflows that handles post-agent rep
 
 Settings limiting how many workflow instances can run simultaneously. Configured via `concurrency:` field to prevent resource conflicts or rate limiting.
 
+### `queue: max`
+
+A GitHub Actions concurrency modifier the compiler emits on the top-level workflow concurrency group of compiled lock files, alongside the `group` key. It replaces cancel-in-progress semantics for schedule- and push-triggered agentic workflows: queued runs execute sequentially instead of cancelling pending runs, since `queue: max` cannot be combined with `cancel-in-progress: true`. This avoids false-positive failures caused by cancelled runs on frequently triggered workflows.
+
 ### Custom Agents
 
 Specialized instructions customizing AI agent behavior for specific tasks or repositories. Stored as agent files (`.github/agents/*.agent.md`) for Copilot Chat or instruction files (`.github/copilot/instructions/`) for path-specific Copilot instructions.
@@ -1379,6 +1387,10 @@ Specialized instructions customizing AI agent behavior for specific tasks or rep
 ### Ephemerals
 
 A category of features for automatically expiring workflow resources to reduce repository noise and control costs. Includes workflow stop-after scheduling, safe output expiration (auto-closing issues, discussions, and pull requests), and hidden older status comments. See [Ephemerals](/gh-aw/reference/ephemerals/).
+
+### Source-to-Destination Mapping (`includes:`)
+
+An `includes` entry in an `aw.yml` package manifest that pairs a `source` path, resolved relative to the package root, with a `destination` path, resolved relative to the consuming repository root, plus an optional `kind` of `agentic-workflow` or `action-workflow`. This lets a distribution repository keep workflow assets outside `.github/workflows/` — so they stay inert in the source repository — while installing them into the consuming repository's `.github/workflows/` via `gh aw add`, `gh aw add-wizard`, or `gh aw update`. The compiler rejects mappings that use absolute paths, `..` traversal, symlinks, unsupported or `.lock.yml` extensions, extension mismatches between source and destination, or destinations outside `.github/workflows/`. See [Package Manifest Reference](/gh-aw/reference/aw-yml-package-manifest/).
 
 ### Environment Variables (env)
 
