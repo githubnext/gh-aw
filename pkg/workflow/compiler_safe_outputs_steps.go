@@ -311,7 +311,7 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) ([]string,
 
 	scriptNames := sliceutil.SortedKeys(scripts)
 	var steps []string
-	steps = append(steps, "      - name: Configure Safe Outputs Custom Scripts\n")
+	steps = append(steps, "      - name: Configure Safe Output Scripts\n")
 	steps = append(steps, "        run: |\n")
 
 	for _, scriptName := range scriptNames {
