@@ -10,12 +10,14 @@ import (
 )
 
 func TestExtractExperimentVariantStubs_NoExperiments(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{}
 	stubs := extractExperimentVariantStubs(cfg)
 	assert.Empty(t, stubs)
 }
 
 func TestExtractExperimentVariantStubs_NilExperimentConfig(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
 			"exp1": nil,
@@ -26,6 +28,7 @@ func TestExtractExperimentVariantStubs_NilExperimentConfig(t *testing.T) {
 }
 
 func TestExtractExperimentVariantStubs_SingleExperiment(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
 			"prompt_style": {Variants: []string{"concise", "verbose"}},
@@ -40,6 +43,7 @@ func TestExtractExperimentVariantStubs_SingleExperiment(t *testing.T) {
 }
 
 func TestExtractExperimentVariantStubs_SortsByExperimentNameThenVariant(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
 			"zeta":  {Variants: []string{"b", "a"}},
@@ -60,6 +64,7 @@ func TestExtractExperimentVariantStubs_SortsByExperimentNameThenVariant(t *testi
 }
 
 func TestExtractExperimentVariantStubs_MultipleExperimentsMixedNil(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
 			"exp1": {Variants: []string{"v1"}},
@@ -74,6 +79,7 @@ func TestExtractExperimentVariantStubs_MultipleExperimentsMixedNil(t *testing.T)
 }
 
 func TestExtractExperimentVariantStubs_EmptyVariants(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
 			"exp1": {Variants: []string{}},
@@ -83,6 +89,7 @@ func TestExtractExperimentVariantStubs_EmptyVariants(t *testing.T) {
 }
 
 func TestExtractExperimentVariantStubs_RunCountAndFractionDefaultZero(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
 			"exp1": {Variants: []string{"a"}},
@@ -95,6 +102,7 @@ func TestExtractExperimentVariantStubs_RunCountAndFractionDefaultZero(t *testing
 }
 
 func TestExtractExperimentVariantStubs_Pure(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
 			"exp1": {Variants: []string{"b", "a"}},

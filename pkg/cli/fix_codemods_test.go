@@ -10,6 +10,7 @@ import (
 )
 
 func TestCodemodTypes(t *testing.T) {
+	t.Parallel()
 	// Test that the Codemod type has all required fields
 	codemod := Codemod{
 		ID:           "test-id",
@@ -29,6 +30,7 @@ func TestCodemodTypes(t *testing.T) {
 }
 
 func TestCodemodResultType(t *testing.T) {
+	t.Parallel()
 	// Test that the CodemodResult type has all required fields
 	result := CodemodResult{
 		Applied: true,
@@ -40,6 +42,7 @@ func TestCodemodResultType(t *testing.T) {
 }
 
 func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
+	t.Parallel()
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
@@ -57,6 +60,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 }
 
 func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
+	t.Parallel()
 	codemods := GetAllCodemods()
 
 	// Build a map of codemod IDs
@@ -142,6 +146,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 }
 
 func TestGetAllCodemods_NoduplicateIDs(t *testing.T) {
+	t.Parallel()
 	codemods := GetAllCodemods()
 
 	// Check for duplicate IDs
@@ -153,6 +158,7 @@ func TestGetAllCodemods_NoduplicateIDs(t *testing.T) {
 }
 
 func TestGetCodemods_DisablesRequestedCodemods(t *testing.T) {
+	t.Parallel()
 	codemods, err := GetCodemods([]string{"timeout-minutes-migration", "network-firewall-migration"})
 	require.NoError(t, err)
 
@@ -167,6 +173,7 @@ func TestGetCodemods_DisablesRequestedCodemods(t *testing.T) {
 }
 
 func TestGetCodemods_UnknownDisabledCodemodReturnsError(t *testing.T) {
+	t.Parallel()
 	codemods, err := GetCodemods([]string{"not-a-real-codemod"})
 	require.Error(t, err)
 	assert.Nil(t, codemods)
@@ -174,6 +181,7 @@ func TestGetCodemods_UnknownDisabledCodemodReturnsError(t *testing.T) {
 }
 
 func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
+	t.Parallel()
 	codemods := GetAllCodemods()
 
 	// Verify codemods are returned in the expected order

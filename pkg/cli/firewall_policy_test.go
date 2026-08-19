@@ -13,6 +13,7 @@ import (
 )
 
 func TestDomainMatchesRule(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		host     string
@@ -137,6 +138,7 @@ func TestDomainMatchesRule(t *testing.T) {
 }
 
 func TestFindMatchingRule(t *testing.T) {
+	t.Parallel()
 	rules := []FirewallPolicyRule{
 		{
 			ID:       "allow-github",
@@ -211,6 +213,7 @@ func TestFindMatchingRule(t *testing.T) {
 }
 
 func TestProtocolMatching(t *testing.T) {
+	t.Parallel()
 	rules := []FirewallPolicyRule{
 		{
 			ID:       "allow-https-only",
@@ -247,6 +250,7 @@ func TestProtocolMatching(t *testing.T) {
 }
 
 func TestIsEntryHTTPS(t *testing.T) {
+	t.Parallel()
 	assert.True(t, isEntryHTTPS(AuditLogEntry{Method: "CONNECT"}), "CONNECT should be HTTPS")
 	assert.True(t, isEntryHTTPS(AuditLogEntry{Method: "connect"}), "connect (lowercase) should be HTTPS")
 	assert.False(t, isEntryHTTPS(AuditLogEntry{Method: "GET"}), "GET should not be HTTPS")
@@ -254,6 +258,7 @@ func TestIsEntryHTTPS(t *testing.T) {
 }
 
 func TestIsEntryAllowed(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		entry    AuditLogEntry
@@ -276,6 +281,7 @@ func TestIsEntryAllowed(t *testing.T) {
 }
 
 func TestContainsRegexMeta(t *testing.T) {
+	t.Parallel()
 	assert.True(t, containsRegexMeta(`^192\.168`), "Should detect caret")
 	assert.True(t, containsRegexMeta(`foo.*bar`), "Should detect asterisk")
 	assert.True(t, containsRegexMeta(`[0-9]+`), "Should detect brackets")
@@ -284,6 +290,7 @@ func TestContainsRegexMeta(t *testing.T) {
 }
 
 func TestLoadPolicyManifest(t *testing.T) {
+	t.Parallel()
 	t.Run("valid manifest", func(t *testing.T) {
 		dir := t.TempDir()
 		manifestPath := filepath.Join(dir, "policy-manifest.json")
@@ -353,6 +360,7 @@ func TestLoadPolicyManifest(t *testing.T) {
 }
 
 func TestParseAuditJSONL(t *testing.T) {
+	t.Parallel()
 	t.Run("valid JSONL", func(t *testing.T) {
 		dir := t.TempDir()
 		jsonlPath := filepath.Join(dir, "audit.jsonl")
@@ -414,6 +422,7 @@ not valid json
 }
 
 func TestEnrichWithPolicyRules(t *testing.T) {
+	t.Parallel()
 	manifest := &PolicyManifest{
 		Version:     1,
 		GeneratedAt: "2026-01-01T00:00:00Z",
@@ -551,6 +560,7 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 }
 
 func TestDetectFirewallAuditArtifacts(t *testing.T) {
+	t.Parallel()
 	t.Run("sandbox/firewall/audit path", func(t *testing.T) {
 		dir := t.TempDir()
 		auditDir := filepath.Join(dir, "sandbox", "firewall", "audit")
@@ -690,6 +700,7 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 }
 
 func TestAnalyzeFirewallPolicy(t *testing.T) {
+	t.Parallel()
 	t.Run("full enrichment", func(t *testing.T) {
 		dir := t.TempDir()
 		auditDir := filepath.Join(dir, "sandbox", "firewall", "audit")
@@ -754,6 +765,7 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 }
 
 func TestDomainMatchesRegex(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		domain   string

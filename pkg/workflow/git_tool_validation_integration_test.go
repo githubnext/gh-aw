@@ -45,6 +45,7 @@ engine: copilot
 on: workflow_dispatch
 tools:
   bash: false
+  cli-proxy: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[auto] "
@@ -272,6 +273,7 @@ engine: copilot
 on: workflow_dispatch
 tools:
   bash: false
+  cli-proxy: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[auto] "
