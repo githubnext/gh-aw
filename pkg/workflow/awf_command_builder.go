@@ -310,7 +310,8 @@ func buildAWFInvocation(input buildAWFCommandScriptInput) string {
 	if !input.isCloudHypervisor {
 		return fmt.Sprintf("%s 2>&1 | tee -a %s", awfInvocation, logFile)
 	}
-	return fmt.Sprintf(`GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS=2
+	return fmt.Sprintf(`set -o pipefail
+GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS=2
 GH_AW_CLOUD_HYPERVISOR_ATTEMPT=1
 GH_AW_CLOUD_HYPERVISOR_STATUS=1
 while true; do
