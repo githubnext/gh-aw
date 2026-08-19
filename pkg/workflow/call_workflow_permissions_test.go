@@ -200,7 +200,7 @@ jobs:
 		Permissions: "permissions:\n  contents: write\n  issues: write\n  pull-requests: write",
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: new("1")},
 				Workflows:            []string{"worker-docs"},
 				WorkflowFiles: map[string]string{
 					"worker-docs": "./.github/workflows/worker-docs.lock.yml",

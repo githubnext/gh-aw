@@ -266,7 +266,7 @@ func TestBuildCustomScriptFilesStep(t *testing.T) {
 
 	fullYAML := strings.Join(steps, "")
 
-	assert.Contains(t, fullYAML, "Configure Safe Outputs Custom Scripts", "Should have configure step name")
+	assert.Contains(t, fullYAML, "Configure Safe Output Scripts", "Should have configure step name")
 	assert.Contains(t, fullYAML, "safe_output_script_my_handler.cjs", "Should reference the output filename")
 	// Verify heredoc delimiter follows the randomized GH_AW_SAFE_OUTPUT_SCRIPT_MY_HANDLER_<hex>_EOF format
 	delimRE := regexp.MustCompile(`GH_AW_SAFE_OUTPUT_SCRIPT_MY_HANDLER_[0-9a-f]{16}_EOF`)

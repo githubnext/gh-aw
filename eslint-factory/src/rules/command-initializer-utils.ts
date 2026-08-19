@@ -1,10 +1,95 @@
 import { AST_NODE_TYPES, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 /**
+ * Resolves the element of an array literal bound to `name` by an array
+ * destructuring pattern (for example `const [cmd] = [command]`). Returns null
+ * when the binding cannot be resolved precisely — a non-literal right-hand
+ * side, a rest element before the binding, a spread element in the array
+ * literal, a hole, or a default value.
+ */
+function resolveArrayPatternElement(pattern: TSESTree.ArrayPattern, init: TSESTree.Expression, name: string): TSESTree.Expression | null {
+  if (init.type !== AST_NODE_TYPES.ArrayExpression) return null;
+  for (let index = 0; index < pattern.elements.length; index++) {
+    const element = pattern.elements[index];
+    // A rest element consumes the remaining values, so positions after it no
+    // longer line up with the array literal.
+    if (element !== null && element.type === AST_NODE_TYPES.RestElement) return null;
+    if (element === null || element.type !== AST_NODE_TYPES.Identifier || element.name !== name) continue;
+    // A spread element at or before this position shifts the value positions.
+    if (init.elements.slice(0, index + 1).some(value => value !== null && value.type === AST_NODE_TYPES.SpreadElement)) return null;
+    const value = init.elements[index];
+    if (value === null || value.type === AST_NODE_TYPES.SpreadElement) return null;
+    return value;
+  }
+  return null;
+}
+
+/**
+ * Returns the static property name of a non-computed property key, or null
+ * when the key is not statically known.
+ */
+function getStaticPropertyName(key: TSESTree.Node): string | null {
+  if (key.type === AST_NODE_TYPES.Identifier) return key.name;
+  if (key.type === AST_NODE_TYPES.Literal && (typeof key.value === "string" || typeof key.value === "number")) return String(key.value);
+  return null;
+}
+
+/**
+ * Narrows a property value to a plain expression, rejecting binding patterns
+ * and other non-expression property values.
+ */
+function asExpression(value: TSESTree.Property["value"]): TSESTree.Expression | null {
+  switch (value.type) {
+    case AST_NODE_TYPES.ArrayPattern:
+    case AST_NODE_TYPES.AssignmentPattern:
+    case AST_NODE_TYPES.ObjectPattern:
+    case AST_NODE_TYPES.TSEmptyBodyFunctionExpression:
+      return null;
+    default:
+      return value;
+  }
+}
+
+/**
+ * Resolves the property value of an object literal bound to `name` by an
+ * object destructuring pattern (for example `const { cmd } = { cmd: command }`).
+ * Returns null when the binding cannot be resolved precisely — a non-literal
+ * right-hand side, a spread element, a computed or accessor property, or a
+ * default value.
+ */
+function resolveObjectPatternProperty(pattern: TSESTree.ObjectPattern, init: TSESTree.Expression, name: string): TSESTree.Expression | null {
+  if (init.type !== AST_NODE_TYPES.ObjectExpression) return null;
+  // A spread can override any property, so the literal is no longer authoritative.
+  if (init.properties.some(property => property.type === AST_NODE_TYPES.SpreadElement)) return null;
+
+  let key: string | null = null;
+  for (const property of pattern.properties) {
+    if (property.type !== AST_NODE_TYPES.Property || property.computed) continue;
+    if (property.value.type !== AST_NODE_TYPES.Identifier || property.value.name !== name) continue;
+    key = getStaticPropertyName(property.key);
+    break;
+  }
+  if (key === null) return null;
+
+  let resolved: TSESTree.Expression | null = null;
+  for (const property of init.properties) {
+    if (property.type !== AST_NODE_TYPES.Property || property.computed || property.kind !== "init") continue;
+    if (getStaticPropertyName(property.key) !== key) continue;
+    // Later properties win over earlier duplicates.
+    resolved = asExpression(property.value);
+  }
+  return resolved;
+}
+
+/**
  * When `identifier` is a write-once local variable binding, returns its
  * initializer expression so the caller can apply further checks. Returns null
  * for parameters, imports, multiply-assigned vars, and vars with no
  * initializer.
+ *
+ * Destructured bindings (for example `const [cmd] = [command]`) resolve to the
+ * specific destructured value when it can be determined precisely, and to null
+ * otherwise — never to the whole right-hand side expression.
  */
 function resolveInitializer(identifier: TSESTree.Identifier, sourceCode: TSESLint.SourceCode): TSESTree.Expression | null {
   const startScope = sourceCode.getScope(identifier);
@@ -28,7 +113,11 @@ function resolveInitializer(identifier: TSESTree.Identifier, sourceCode: TSESLin
       // Reject re-assigned bindings (write references that are not the initializer).
       if (variable.references.some(ref => ref.isWrite() && !ref.init)) return null;
       const declarator = def.node as TSESTree.VariableDeclarator;
-      return declarator.init ?? null;
+      if (declarator.init === null || declarator.init === undefined) return null;
+      if (declarator.id.type === AST_NODE_TYPES.Identifier) return declarator.init;
+      if (declarator.id.type === AST_NODE_TYPES.ArrayPattern) return resolveArrayPatternElement(declarator.id, declarator.init, identifier.name);
+      if (declarator.id.type === AST_NODE_TYPES.ObjectPattern) return resolveObjectPatternProperty(declarator.id, declarator.init, identifier.name);
+      return null;
     }
     scope = scope.upper;
   }

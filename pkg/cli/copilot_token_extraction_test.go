@@ -19,6 +19,7 @@ import (
 // 2. Log file contains JSON blocks with token usage
 // 3. extractLogMetrics correctly parses and accumulates token counts
 func TestCopilotTokenExtractionFromLogs(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	// Create aw_info.json with copilot engine
@@ -107,6 +108,7 @@ func TestCopilotTokenExtractionFromLogs(t *testing.T) {
 
 // TestCopilotTokenExtractionWithSingleResponse tests extraction with just one API response
 func TestCopilotTokenExtractionWithSingleResponse(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	// Create aw_info.json with copilot engine
@@ -142,6 +144,7 @@ func TestCopilotTokenExtractionWithSingleResponse(t *testing.T) {
 
 // TestCopilotTokenExtractionWithNoUsageData tests when logs don't contain usage data
 func TestCopilotTokenExtractionWithNoUsageData(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	// Create aw_info.json with copilot engine
@@ -171,6 +174,7 @@ func TestCopilotTokenExtractionWithNoUsageData(t *testing.T) {
 // TestCopilotTokenExtractionWithRealLogData tests token extraction with actual log data
 // from workflow run 20696085597 (Smoke Copilot test)
 func TestCopilotTokenExtractionWithRealLogData(t *testing.T) {
+	t.Parallel()
 	// This test validates real log data if available
 	realLogPath := "/tmp/run-20696085597/sandbox/agent/logs/session-dd1eedf4-2b6d-4373-942c-1447d5a6e00a.log"
 
