@@ -30,6 +30,7 @@ import (
 // The fix adds an explicit filepath.SkipDir return when the walk visits a directory
 // named "workflow-logs", so only the agent artifact files are counted.
 func TestExtractLogMetricsExcludesWorkflowLogsDir(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	// Simulate a Copilot-CLI run directory
@@ -72,6 +73,7 @@ func TestExtractLogMetricsExcludesWorkflowLogsDir(t *testing.T) {
 // counted "User:"/"Human:"/"Query:" patterns that do not appear in Copilot CLI debug logs.
 // The fix counts each "[DEBUG] data:" block as one API response (one turn).
 func TestCopilotDebugLogTurnsExtraction(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	awInfoContent := `{"engine_id": "copilot"}`
@@ -143,6 +145,7 @@ func TestCopilotDebugLogTurnsExtraction(t *testing.T) {
 // TestCopilotDebugLogMultipleToolCalls verifies that multiple "Executing tool:" lines
 // produce correct call counts in ToolCalls.
 func TestCopilotDebugLogMultipleToolCalls(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	awInfoContent := `{"engine_id": "copilot"}`
