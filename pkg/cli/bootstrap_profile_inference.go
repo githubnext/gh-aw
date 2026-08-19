@@ -2,31 +2,26 @@ package cli
 
 import (
 	"context"
-	"maps"
 	"sort"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var bootstrapInferenceLog = logger.New("cli:bootstrap_profile_inference")
 
-// eventsExcludedFromGitHubAppInference lists workflow "on" triggers that do not
-// correspond to a GitHub App webhook subscription and must never be inferred as
-// required App events (they are driven by Actions scheduling/dispatch, not by a
-// webhook delivered to an installed App).
-var eventsExcludedFromGitHubAppInference = map[string]bool{
-	"schedule":            true,
-	"workflow_dispatch":   true,
-	"repository_dispatch": true,
-}
-
 // inferBootstrapGitHubAppRequirements resolves every workflow reachable from sources
-// (an aw.yml package) and merges their declared frontmatter permissions and trigger
-// events into the minimal set required for a GitHub App to operate the package. This
-// lets aw.yml manifests omit the github-app config[].permissions/events fields and
-// still get a least-privilege App instead of the "metadata: read" fallback.
+// (an aw.yml package) and merges their required GitHub App manifest permissions and
+// webhook events into the minimal set required for a GitHub App to operate the
+// package. This lets aw.yml manifests omit the github-app config[].permissions/events
+// fields and still get a least-privilege App instead of the "metadata: read"
+// fallback.
+//
+// Requirement derivation is delegated to pkg/workflow (ComputeGitHubAppManifestPermissions
+// and NormalizeGitHubAppWebhookEvents), the same code path used to determine safe-outputs
+// permissions and trigger normalization for standalone .md workflows, so aw.yml packages
+// and directly-added .md workflows are held to identical permission/event rules.
 func inferBootstrapGitHubAppRequirements(ctx context.Context, sources []string) (map[string]string, []string, error) {
 	if len(sources) == 0 {
 		return nil, nil, nil
@@ -46,7 +41,10 @@ func inferBootstrapGitHubAppRequirements(ctx context.Context, sources []string) 
 		if err != nil || frontmatter == nil {
 			continue
 		}
-		mergeBootstrapPermissionsFromFrontmatter(permissions, frontmatter.Frontmatter["permissions"])
+		safeOutputs := bootstrapSafeOutputsConfigFromFrontmatter(frontmatter.Frontmatter)
+		for resource, level := range workflow.ComputeGitHubAppManifestPermissions(frontmatter.Frontmatter["permissions"], safeOutputs) {
+			permissions[resource] = mergeBootstrapPermissionLevel(permissions[resource], level)
+		}
 		for _, event := range bootstrapEventNamesFromOn(frontmatter.Frontmatter["on"]) {
 			eventSet[event] = struct{}{}
 		}
@@ -65,23 +63,28 @@ func inferBootstrapGitHubAppRequirements(ctx context.Context, sources []string) 
 	return permissions, events, nil
 }
 
-// mergeBootstrapPermissionsFromFrontmatter merges a single workflow's declared
-// "permissions" frontmatter block into the running set, keeping the highest scope
-// (write over read over none) seen across all workflows for each resource.
-func mergeBootstrapPermissionsFromFrontmatter(merged map[string]string, raw any) {
-	permMap, ok := raw.(map[string]any)
-	if !ok {
-		return
+// bootstrapSafeOutputsConfigFromFrontmatter builds a minimal *workflow.SafeOutputsConfig
+// from a workflow's raw "safe-outputs" frontmatter map, using the handler key names
+// present (e.g. "create-issue", "add-comment"). This reuses workflow.SafeOutputsConfigFromKeys,
+// the same helper the interactive workflow builder uses to compute safe-outputs-derived
+// permissions for newly generated .md workflows, so package workflows are scoped with the
+// same rules (e.g. an "issues: read" workflow with "create-issue" configured still yields
+// "issues: write").
+func bootstrapSafeOutputsConfigFromFrontmatter(frontmatter map[string]any) *workflow.SafeOutputsConfig {
+	safeOutputsRaw, ok := frontmatter["safe-outputs"].(map[string]any)
+	if !ok || len(safeOutputsRaw) == 0 {
+		return nil
 	}
-	for resource, value := range permMap {
-		level, ok := value.(string)
-		if !ok {
-			continue
-		}
-		merged[resource] = mergeBootstrapPermissionLevel(merged[resource], strings.TrimSpace(level))
+	keys := make([]string, 0, len(safeOutputsRaw))
+	for key := range safeOutputsRaw {
+		keys = append(keys, key)
 	}
+	return workflow.SafeOutputsConfigFromKeys(keys)
 }
 
+// bootstrapPermissionLevelRank ranks permission levels so higher-privilege scopes are
+// never downgraded when merging requirements across multiple workflows or between
+// declared aw.yml values and inferred ones.
 func bootstrapPermissionLevelRank(level string) int {
 	switch level {
 	case "write":
@@ -106,36 +109,14 @@ func mergeBootstrapPermissionLevel(existing, incoming string) string {
 	return existing
 }
 
-// bootstrapEventNamesFromOn extracts the top-level trigger names from a workflow's
-// "on" frontmatter value, which may be a string, a list of strings, or a mapping of
-// trigger name to trigger configuration. Triggers that are not GitHub App webhook
-// events (schedule, workflow_dispatch, repository_dispatch) are excluded.
+// bootstrapEventNamesFromOn extracts the GitHub App webhook events required by a
+// workflow's "on" frontmatter value. It delegates to workflow.NormalizeGitHubAppWebhookEvents,
+// the same trigger-normalization code path used elsewhere in the compiler, so
+// compiler-only keys (slash_command, label_command, reaction, status-comment),
+// command-trigger shorthands (e.g. "on: /my-bot"), and pull_request_target are all
+// handled consistently rather than being reimplemented here.
 func bootstrapEventNamesFromOn(raw any) []string {
-	var names []string
-	switch value := raw.(type) {
-	case string:
-		names = append(names, value)
-	case []any:
-		for _, item := range value {
-			if name, ok := item.(string); ok {
-				names = append(names, name)
-			}
-		}
-	case map[string]any:
-		for name := range value {
-			names = append(names, name)
-		}
-	}
-
-	filtered := make([]string, 0, len(names))
-	for _, name := range names {
-		name = strings.TrimSpace(name)
-		if name == "" || eventsExcludedFromGitHubAppInference[name] {
-			continue
-		}
-		filtered = append(filtered, name)
-	}
-	return filtered
+	return workflow.NormalizeGitHubAppWebhookEvents(raw)
 }
 
 // mergeBootstrapGitHubAppRequirements combines explicitly declared manifest
@@ -144,7 +125,9 @@ func bootstrapEventNamesFromOn(raw any) []string {
 // per resource.
 func mergeBootstrapGitHubAppRequirements(declaredPermissions map[string]string, declaredEvents []string, inferredPermissions map[string]string, inferredEvents []string) (map[string]string, []string) {
 	merged := make(map[string]string, len(declaredPermissions)+len(inferredPermissions))
-	maps.Copy(merged, declaredPermissions)
+	for resource, level := range declaredPermissions {
+		merged[resource] = level
+	}
 	for resource, level := range inferredPermissions {
 		merged[resource] = mergeBootstrapPermissionLevel(merged[resource], level)
 	}
