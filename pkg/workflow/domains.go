@@ -45,6 +45,19 @@ func getLoadedEcosystemDomains() map[string][]string {
 	return ecosystemDomains
 }
 
+// Engine default domain lists intentionally exclude package registries (npm, PyPI, ...).
+//
+// Engine CLIs and SDKs are installed by dedicated GitHub Actions steps that run on the
+// runner *before* the AWF-wrapped agent step, so package registries are not needed inside
+// the sandbox for installation. Likewise, containerized stdio MCP servers (`npx`, `uvx`)
+// are launched by the MCP gateway on the Docker bridge network, outside the agent's
+// firewall namespace.
+//
+// Allowing registries by default would let an agent reach npm/PyPI even when the workflow
+// declares `network: {}` or `network: { allowed: [defaults, github] }`, contradicting the
+// documented behavior that package ecosystems require explicit opt-in
+// (`network: { allowed: [node] }`, `[python]`, or a matching `runtimes:` entry).
+
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
 var CopilotDefaultDomains = []string{
 	"api.business.githubcopilot.com",
@@ -55,7 +68,6 @@ var CopilotDefaultDomains = []string{
 	"github.com",
 	"host.docker.internal",
 	"raw.githubusercontent.com",
-	"registry.npmjs.org",
 	"telemetry.enterprise.githubcopilot.com",
 }
 
@@ -91,7 +103,6 @@ var ClaudeDefaultDomains = []string{
 	"crl3.digicert.com",
 	"crl4.digicert.com",
 	"crls.ssl.com",
-	"files.pythonhosted.org",
 	"ghcr.io",
 	"github-cloud.githubusercontent.com",
 	"github-cloud.s3.amazonaws.com",
@@ -116,9 +127,7 @@ var ClaudeDefaultDomains = []string{
 	"packages.microsoft.com",
 	"playwright.download.prss.microsoft.com",
 	"ppa.launchpad.net",
-	"pypi.org",
 	"raw.githubusercontent.com",
-	"registry.npmjs.org",
 	"s.symcb.com",
 	"s.symcd.com",
 	"security.ubuntu.com",
@@ -135,7 +144,6 @@ var GeminiDefaultDomains = []string{
 	"github.com",
 	"host.docker.internal",
 	"raw.githubusercontent.com",
-	"registry.npmjs.org",
 }
 
 // PiBaseDefaultDomains are the base domains required for the Pi CLI to operate,
@@ -145,7 +153,6 @@ var PiBaseDefaultDomains = []string{
 	"host.docker.internal", // MCP gateway / API proxy access
 	"github.com",
 	"raw.githubusercontent.com",
-	"registry.npmjs.org", // npm package downloads
 }
 
 // piProviderDomains maps provider prefixes to their API domains.
@@ -169,7 +176,6 @@ var PiDefaultDomains = []string{
 	"host.docker.internal",
 	"github.com",
 	"raw.githubusercontent.com",
-	"registry.npmjs.org",
 }
 
 // extractProviderFromModel parses "provider/model" format and returns the

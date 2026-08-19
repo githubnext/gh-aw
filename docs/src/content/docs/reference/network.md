@@ -181,7 +181,11 @@ network:
     - "api.example.com"   # Custom domain
 ```
 
-Each engine has a built-in default domain list for its CLI authentication. See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
+Each engine has a built-in default domain list for its CLI authentication and model API transport. These lists are merged with your `network.allowed` entries and **never include package registries** such as npm or PyPI: selecting an engine does not grant the agent access to `registry.npmjs.org`, `pypi.org`, or `files.pythonhosted.org`. Engine CLIs and SDKs are installed by workflow steps that run on the runner before the sandboxed agent starts, and containerized `npx`/`uvx` MCP servers are launched by the MCP gateway outside the agent firewall, so registry access inside the sandbox is not required for them.
+
+To let the agent itself reach a package registry, opt in explicitly with the matching ecosystem identifier (`node`, `python`, …) in `network.allowed`, or declare the corresponding entry under `runtimes:`. With `network: {}` or `network: { allowed: [defaults, github] }`, package registries stay blocked.
+
+See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
 
 ### Firewall Log Level
 
