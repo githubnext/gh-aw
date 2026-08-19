@@ -12,6 +12,7 @@ import (
 
 // TestBuildLogsDataEmptyRuns tests that buildLogsData works correctly with zero runs
 func TestBuildLogsDataEmptyRuns(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Build logs data with no runs

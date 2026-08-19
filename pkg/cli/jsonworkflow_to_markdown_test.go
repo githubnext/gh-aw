@@ -14,6 +14,7 @@ import (
 )
 
 func TestConvertJSONWorkflowToMarkdown_Basic(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		ID:           "my-workflow",
 		Name:         "My Workflow",
@@ -32,6 +33,7 @@ func TestConvertJSONWorkflowToMarkdown_Basic(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_FallbackToName(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		Name:         "Weekly Research",
 		Instructions: "Do research",
@@ -42,6 +44,7 @@ func TestConvertJSONWorkflowToMarkdown_FallbackToName(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_NameOverride(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		ID:   "original-id",
 		Name: "Original Name",
@@ -52,6 +55,7 @@ func TestConvertJSONWorkflowToMarkdown_NameOverride(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_NoIDOrName(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		Instructions: "Just instructions",
 	}
@@ -61,6 +65,7 @@ func TestConvertJSONWorkflowToMarkdown_NoIDOrName(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_GUIDIDWithNoName(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		ID:           "b5a3f76a-3d8f-4790-b7e2-f2886f784345",
 		Instructions: "Just instructions",
@@ -71,6 +76,7 @@ func TestConvertJSONWorkflowToMarkdown_GUIDIDWithNoName(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_Tags(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		ID:   "tagged",
 		Tags: []string{"automation", "ci"},
@@ -83,6 +89,7 @@ func TestConvertJSONWorkflowToMarkdown_Tags(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_OnField(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		ID: "triggered",
 		On: map[string]any{"push": nil, "pull_request": nil},
@@ -93,6 +100,7 @@ func TestConvertJSONWorkflowToMarkdown_OnField(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_ExtraFieldsPreserved(t *testing.T) {
+	t.Parallel()
 	raw := `{"id":"extra-wf","name":"Extra WF","unknown_field":"some_value","another":42}`
 	var wf JSONWorkflow
 	require.NoError(t, json.Unmarshal([]byte(raw), &wf))
@@ -108,11 +116,13 @@ func TestConvertJSONWorkflowToMarkdown_ExtraFieldsPreserved(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_NilInput(t *testing.T) {
+	t.Parallel()
 	_, err := ConvertJSONWorkflowToMarkdown(nil, ConvertOptions{})
 	require.Error(t, err)
 }
 
 func TestConvertJSONWorkflowToMarkdown_FrontmatterValid(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		ID:           "valid-fm",
 		Description:  "description with: colon",
@@ -125,6 +135,7 @@ func TestConvertJSONWorkflowToMarkdown_FrontmatterValid(t *testing.T) {
 }
 
 func TestConvertJSONWorkflowToMarkdown_NewlineInDescription(t *testing.T) {
+	t.Parallel()
 	wf := &JSONWorkflow{
 		ID:          "newline-desc",
 		Description: "line one\nline two",
@@ -137,6 +148,7 @@ func TestConvertJSONWorkflowToMarkdown_NewlineInDescription(t *testing.T) {
 }
 
 func TestYamlQuoteString_BackslashN(t *testing.T) {
+	t.Parallel()
 	// A literal backslash followed by 'n' (not a newline) must survive round-trip
 	// as '\\n' inside a double-quoted YAML scalar.
 	result := yamlQuoteString(`has\nbackslash`)
@@ -147,6 +159,7 @@ func TestYamlQuoteString_BackslashN(t *testing.T) {
 }
 
 func TestJSONWorkflow_UnmarshalJSON_CapturesExtra(t *testing.T) {
+	t.Parallel()
 	raw := `{"id":"w","name":"N","unknown_key":"val","nested":{"a":1}}`
 	var wf JSONWorkflow
 	require.NoError(t, json.Unmarshal([]byte(raw), &wf))
@@ -157,6 +170,7 @@ func TestJSONWorkflow_UnmarshalJSON_CapturesExtra(t *testing.T) {
 }
 
 func TestJSONWorkflow_UnmarshalJSON_IgnoresMetadataFields(t *testing.T) {
+	t.Parallel()
 	raw := `{"id":"w","created_by":{"login":"octocat"},"disabled":true,"disabled_state":null,"updated_at":"2026-01-01T00:00:00Z","unknown_key":"val"}`
 	var wf JSONWorkflow
 	require.NoError(t, json.Unmarshal([]byte(raw), &wf))
@@ -169,6 +183,7 @@ func TestJSONWorkflow_UnmarshalJSON_IgnoresMetadataFields(t *testing.T) {
 }
 
 func TestToKebabCase(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -191,6 +206,7 @@ func TestToKebabCase(t *testing.T) {
 // a real-world payload from the JSON workflow API with an interval trigger.
 // prompt → body, triggers.interval → "on: hourly" shorthand.
 func TestConvertJSONWorkflowToMarkdown_IntervalTrigger(t *testing.T) {
+	t.Parallel()
 	// Anonymised payload – login replaced with the octocat placeholder.
 	raw := `{
 		"id": "b5a3f76a-3d8f-4790-b7e2-f2886f784345",
@@ -236,6 +252,7 @@ func TestConvertJSONWorkflowToMarkdown_IntervalTrigger(t *testing.T) {
 // multi-trigger (issues + workflow_run), tools migration, permissions, and
 // disabled/metadata fields going to Extra.
 func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
+	t.Parallel()
 	// Anonymised payload – login replaced with octocat.
 	raw := `{
 		"id": "0be2cc4b-de12-43fe-ada7-55ef6dc8f3ba",
@@ -305,6 +322,7 @@ func TestConvertJSONWorkflowToMarkdown_MultiTriggerWithTools(t *testing.T) {
 }
 
 func TestConvertTriggersToOn_SkipsIncompleteWorkflowRun(t *testing.T) {
+	t.Parallel()
 	on, warnings := convertTriggersToOn(&JSONWorkflowTriggers{
 		WorkflowRun: &WorkflowRunTrigger{
 			Workflows: []string{"haiku"},
@@ -316,6 +334,7 @@ func TestConvertTriggersToOn_SkipsIncompleteWorkflowRun(t *testing.T) {
 }
 
 func TestGenericURLWorkflowName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		url  string
 		want string
@@ -339,6 +358,7 @@ func TestGenericURLWorkflowName(t *testing.T) {
 }
 
 func TestRewriteAutomationsURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -375,6 +395,7 @@ func TestRewriteAutomationsURL(t *testing.T) {
 }
 
 func TestParseWorkflowSpec_AutomationsURL(t *testing.T) {
+	t.Parallel()
 	spec, err := parseWorkflowSpec("https://github.com/dmgardiner25/urban-spork/agents/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768")
 	require.NoError(t, err)
 	assert.Equal(t, "https://api.githubcopilot.com/agents/repos/dmgardiner25/urban-spork/automations/1a352b54-80f0-41ed-bf50-9e90e6b9d768", spec.RawURL)
