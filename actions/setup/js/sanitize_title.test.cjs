@@ -39,6 +39,10 @@ describe("sanitize_title", () => {
         expect(sanitized).toHaveLength(256);
         expect(sanitized).not.toContain("Content truncated");
       });
+
+      it("should truncate titles to 128 characters by default", () => {
+        expect(sanitizeTitle("A".repeat(200))).toHaveLength(128);
+      });
     });
 
     describe("Unicode security hardening", () => {
