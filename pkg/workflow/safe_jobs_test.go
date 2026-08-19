@@ -448,6 +448,22 @@ func TestParseAndBuildSafeJobsRunsOnObject(t *testing.T) {
 	}
 }
 
+func TestBuildSafeJobsRejectsEmptyRunsOnObject(t *testing.T) {
+	c := NewCompiler()
+	safeJobs := c.parseSafeJobsConfig(map[string]any{
+		"deploy": map[string]any{
+			"runs-on": map[string]any{},
+			"steps":   []any{map[string]any{"run": "echo 'Deploying'"}},
+		},
+	})
+
+	_, err := c.buildSafeJobs(&WorkflowData{
+		Name:        "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{Jobs: safeJobs},
+	}, false)
+	require.ErrorContains(t, err, "runs-on field for safe-job 'deploy' is empty")
+}
+
 func TestCompileSafeJobRunsOnObject(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "safe-job-runs-on-object")
 	workflowPath := filepath.Join(tmpDir, "safe-job-runs-on-object.md")

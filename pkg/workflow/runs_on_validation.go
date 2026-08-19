@@ -24,6 +24,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -104,6 +105,9 @@ func validateRunsOnValue(value any) error {
 		}
 		return nil
 	case map[string]any:
+		if len(v) == 0 {
+			return errors.New("runs-on object is empty. Expected an object with 'group' or 'labels'. Example: runs-on:\n  group: my-runner-group")
+		}
 		for key, value := range v {
 			switch key {
 			case "group":

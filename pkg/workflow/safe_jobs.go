@@ -240,8 +240,9 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// rendering decision shared with other runs-on parsers.
 		runsOn := formatSafeJobRunsOn(jobConfig.RunsOn, jobConfig.runsOnArray, defaultRunsOn)
 		if jobConfig.runsOnMap != nil {
-			if snippet := renderRunsOnSnippet(jobConfig.runsOnMap); snippet != "" {
-				runsOn = snippet
+			runsOn = renderRunsOnSnippet(jobConfig.runsOnMap)
+			if runsOn == "" {
+				return nil, fmt.Errorf("runs-on field for safe-job '%s' is empty. Expected an object with 'group' or 'labels'. Example: runs-on:\n  group: my-runner-group", normalizedJobName)
 			}
 		}
 		job.RunsOn = c.indentYAMLLines(runsOn, "    ")

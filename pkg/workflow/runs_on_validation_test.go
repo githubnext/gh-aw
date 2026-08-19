@@ -318,6 +318,12 @@ func TestValidateRunsOnValue(t *testing.T) {
 			errContain: "runs-on object key 'runner' is not supported",
 		},
 		{
+			name:       "empty object is invalid",
+			value:      map[string]any{},
+			wantErr:    true,
+			errContain: "runs-on object is empty",
+		},
+		{
 			name:       "unsupported type is invalid",
 			value:      123,
 			wantErr:    true,
