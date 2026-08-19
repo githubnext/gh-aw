@@ -33,6 +33,11 @@ type AddInteractiveConfig struct {
 	AppendText             string // Extra content to append to the workflow on installation
 	DisableSecurityScanner bool   // Disable security scanning of workflow markdown content
 
+	// DisableGitHubAppPermissionInference disables inferring GitHub App
+	// permissions/events from the package's resolved workflows during bootstrap,
+	// so only permissions/events explicitly declared in aw.yml are applied.
+	DisableGitHubAppPermissionInference bool
+
 	// UseCopilotRequests indicates the user chose org-billing (copilot-requests) auth
 	// instead of a PAT when setting up the Copilot engine during the wizard.
 	// When true, COPILOT_GITHUB_TOKEN secret setup is skipped and
@@ -166,7 +171,7 @@ func (c *AddInteractiveConfig) applyBootstrapConfigIfNeeded(ctx context.Context,
 		return nil
 	}
 	if c.hasWriteAccess {
-		return executeBootstrapConfigForAdd(ctx, c.RepoOverride, c.WorkflowSpecs, profile, c.UseCopilotRequests, c.Verbose)
+		return executeBootstrapConfigForAdd(ctx, c.RepoOverride, c.WorkflowSpecs, profile, c.UseCopilotRequests, c.Verbose, c.DisableGitHubAppPermissionInference)
 	}
 	printBootstrapConfigTODO(os.Stderr, profile)
 	return nil

@@ -148,7 +148,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts; see [Initializing for non-Copilot engines](#initializing-for-non-copilot-engines).
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
@@ -164,6 +164,21 @@ gh aw init --create-pull-request        # Initialize and open a pull request
 
 **Options:** `--engine/-e`, `--no-mcp`, `--no-skill`, `--no-agent`, `--codespaces`, `--completions`, `--create-pull-request`
 
+##### Initializing for non-Copilot engines
+
+With `--engine claude`, `--engine codex`, `--engine gemini`, or `--engine pi`, `init` still performs the engine-independent setup and only skips the Copilot-specific artifacts:
+
+| Artifact | Copilot engine | Other engines | Replacement for other engines |
+|---|:---:|:---:|---|
+| `.gitattributes` entries for compiled `.lock.yml` files | ✅ | ✅ | Not needed — created for every engine |
+| Dispatcher skill `.github/skills/agentic-workflows/SKILL.md` | ✅ | ✅ | Not needed — created for every engine; the instructions are plain Markdown that any agent can be pointed at |
+| Custom agent `.github/agents/agentic-workflows.md` | ✅ | ❌ | Use the dispatcher skill, or author an agent file in your own agent's format (Claude Code subagents, Codex prompts) from the same instructions |
+| MCP wiring: `.github/mcp.json` and `.github/workflows/copilot-setup-steps.yml` | ✅ | ❌ | Register `gh aw mcp-server` in your own MCP host configuration — see [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) |
+
+After `init`, the remaining steps are the same for every engine: pick the engine in workflow frontmatter (`engine: claude`, `engine: codex`, `engine: gemini`, `engine: pi`) and configure that engine's authentication secret. See [AI Engines](/gh-aw/reference/engines/) and [Authentication](/gh-aw/reference/auth/).
+
+The engine chosen at `init` time does not restrict workflows: every workflow selects its own engine in frontmatter, and example workflows written for one engine can be adapted to another by changing `engine:` and its authentication secret.
+
 #### `add-wizard`
 
 Add a workflow with interactive guided setup. Checks requirements, adds the markdown file, and generates the compiled YAML. Prompts for missing API keys and secrets. For remote workflows, this command follows frontmatter [`redirect`](/gh-aw/reference/frontmatter/#redirect-redirect) declarations before installation.
@@ -175,7 +190,7 @@ gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary UR
 gh aw add-wizard githubnext/agentics/ci-doctor --no-secret  # Skip secret prompt
 ```
 
-**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`
+**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`, `--no-config`
 
 When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token (a separate token from the default `GITHUB_TOKEN`, because the agent needs elevated Copilot API access that the ephemeral workflow token does not carry). On the PAT path, the wizard auto-opens a preconfigured fine-grained PAT creation page (prefilled token name, expiration, and Copilot Requests permission). The GitHub page still must be completed manually in the browser. Users may paste either an existing suitable fine-grained PAT or a newly created one into the masked CLI prompt, but reuse should be based on the token's properties: personal-account resource owner, repository access set to Public repositories, and Copilot Requests permission available. If `COPILOT_GITHUB_TOKEN` already exists, the wizard still asks for the token again because GitHub does not expose stored secret values for validation. The flow does not rely on the PAT display name in GitHub's token list. The pasted token is then validated and stored as a repository secret.
 

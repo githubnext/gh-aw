@@ -143,7 +143,7 @@ func TestBehaviorDefinedEngineMCPCapability(t *testing.T) {
 
 	t.Run("uses engine definition", func(t *testing.T) {
 		def := newHarnessEngineDefinition()
-		def.MCP = boolPtr(false)
+		def.MCP = new(false)
 		engine, err := NewBehaviorDefinedEngine(def)
 		require.NoError(t, err)
 		assert.False(t, engine.GetCapabilities().MCP)

@@ -424,7 +424,7 @@ For each PR that is not skipped:
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
    - Include a thread only when all of the following are true: the thread is currently unresolved; contains reviewer feedback; and has a later reply from the PR author or `@copilot`.
    - For each thread ID, call `safeoutputs resolve_pull_request_review_thread --thread_id <ID>`.
-   - Each `<ID>` must be the review thread node ID (`PRRT_...`) taken from `reviewThreads`; never pass a review comment node ID (`PRRC_...`).
+   - Each `<ID>` must be the review thread node ID (`PRRT_...`) taken from the `reviewThreads` data fetched via `gh api graphql` (see the `pr-processor` sub-agent instructions); never pass a review comment node ID (`PRRC_...`), and never fetch it via `gh pr view --json reviewThreads` (not a valid field).
    - Copy each `<ID>` verbatim, character-for-character, from the `reviewThreads` data returned for the current PR. Never guess, truncate, extend, or otherwise fabricate a thread ID.
    - If resolving one thread fails, record `{thread_id: <ID>, skip_reason: "resolve_review_thread_failed"}` in the `skipped` array and continue.
 
@@ -484,6 +484,10 @@ description: Processes one PR with minimal API calls and returns skip/nudge deci
 model: sonnet
 ---
 Given one PR number and compact metadata for `github/gh-aw`. Query only `github/gh-aw`; never use review thread or review IDs from another repository.
+
+- `gh pr view --json` has **no** `reviewThreads` field; requesting it fails with `Unknown JSON field: "reviewThreads"`. Never pass `reviewThreads` to `gh pr view --json`.
+- To fetch PR review thread node IDs (`PRRT_...`), issue this GraphQL query instead: `gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{id isResolved comments(first:10){nodes{author{login} body}}}}}}}' -f owner=github -f repo=gh-aw -F pr=<N>` — the resulting `reviewThreads` array (from `data.repository.pullRequest.reviewThreads.nodes`) is the only valid source of `PRRT_...` IDs; each node's `id` is the thread ID and `isResolved` indicates resolution state.
+- Use `gh pr view <N> --repo github/gh-aw --json number,comments,reviews,headRefName,headRefOid,mergeStateStatus,title` (without `reviewThreads`) for all other PR metadata.
 
 1. Check skip conditions in this order:
    - checks/actions running — note: the candidate prefilter already excluded PRs with short-running pending checks (running < 1 hour) via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran; Long-running checks (running > 1 hour) are intentionally ignored

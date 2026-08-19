@@ -10,9 +10,13 @@ import (
 )
 
 func TestPullRequestTargetCheckoutFalseCodemod(t *testing.T) {
+	t.Parallel()
+
 	codemod := getPullRequestTargetCheckoutFalseCodemod()
 
 	t.Run("adds checkout false after on block when missing", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 on:
   pull_request_target:
@@ -35,6 +39,8 @@ description: Review PR metadata
 	})
 
 	t.Run("normalizes checkout true to false", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 on:
   pull_request_target:
@@ -56,6 +62,8 @@ checkout: true
 	})
 
 	t.Run("preserves inline comment spacing when normalizing checkout", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 on:
   pull_request_target:
@@ -77,6 +85,8 @@ checkout: true # keep-comment
 	})
 
 	t.Run("does not modify when checkout false already exists", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 on:
   pull_request_target:
@@ -97,6 +107,8 @@ checkout: false
 	})
 
 	t.Run("does not modify non pull_request_target workflow", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 on:
   pull_request:
@@ -115,6 +127,8 @@ on:
 	})
 
 	t.Run("does not modify when explicit checkout command exists", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 on:
   pull_request_target:
@@ -135,6 +149,8 @@ Run gh pr checkout ${{ github.event.pull_request.number }} before tests.
 	})
 
 	t.Run("does not modify when git checkout uses tab separator", func(t *testing.T) {
+		t.Parallel()
+
 		content := "---\non:\n  pull_request_target:\n---\n\nUse git checkout\tfeature-branch before tests.\n"
 		frontmatter := map[string]any{
 			"on": map[string]any{
@@ -149,6 +165,8 @@ Run gh pr checkout ${{ github.event.pull_request.number }} before tests.
 	})
 
 	t.Run("does not modify when strict is explicitly false", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 on:
   pull_request_target:
@@ -169,6 +187,8 @@ strict: false
 	})
 
 	t.Run("does not modify when checkout is a mapping with sub-keys", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 description: "Review Azure SDK management-plane PRs"
 on:
