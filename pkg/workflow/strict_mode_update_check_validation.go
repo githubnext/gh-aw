@@ -8,7 +8,7 @@
 //   - In strict mode: setting check-for-updates: false raises a compilation error.
 //   - In non-strict mode: setting check-for-updates: false emits a warning.
 //
-// See: https://github.github.com/gh-aw/reference/check-for-updates/
+// See: https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates
 package workflow
 
 import (
