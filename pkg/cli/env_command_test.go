@@ -12,6 +12,7 @@ import (
 )
 
 func TestNewEnvCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewEnvCommand()
 	require.NotNil(t, cmd)
 	assert.Equal(t, "env", cmd.Use)
@@ -91,6 +92,7 @@ func TestResolveDefaultsTarget(t *testing.T) {
 }
 
 func TestDefaultsFileYAMLKeys(t *testing.T) {
+	t.Parallel()
 	file := defaultsFile{
 		DefaultMaxAICredits:          new("1000"),
 		DefaultMaxTurnCacheMisses:    new("5"),
@@ -123,6 +125,7 @@ func TestDefaultsFileYAMLKeys(t *testing.T) {
 }
 
 func TestDefaultsFileYAMLNullDelete(t *testing.T) {
+	t.Parallel()
 	t.Run("null value unmarshals to nil pointer", func(t *testing.T) {
 		var file defaultsFile
 		err := yaml.Unmarshal([]byte("default_max_turns: null\n"), &file)
@@ -149,6 +152,7 @@ func TestDefaultsFileYAMLNullDelete(t *testing.T) {
 }
 
 func TestDefaultsParseFileDisallowsUnknownFields(t *testing.T) {
+	t.Parallel()
 	_, err := defaultsParseFile("defaults.yml", []byte("default_max_turns: \"42\"\ndefault_model_copliot: gpt-5-mini\n"))
 	require.Error(t, err)
 	require.ErrorContains(t, err, "default_model_copliot")
@@ -213,6 +217,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 }
 
 func TestDefaultsTargetEndpoints(t *testing.T) {
+	t.Parallel()
 	repoTarget := defaultsTarget{scope: defaultsScopeRepo, repoOwner: "github", repoName: "gh-aw"}
 	orgTarget := defaultsTarget{scope: defaultsScopeOrg, org: "github"}
 	entTarget := defaultsTarget{scope: defaultsScopeEnt, enterprise: "octo-ent"}
@@ -224,6 +229,7 @@ func TestDefaultsTargetEndpoints(t *testing.T) {
 }
 
 func TestDefaultsBuildUpdateChanges(t *testing.T) {
+	t.Parallel()
 	changes := defaultsBuildUpdateChanges(&defaultsFile{
 		DefaultModelCodex: new("gpt-5.5"),
 	})
@@ -259,6 +265,7 @@ func TestDefaultsBuildUpdateChanges(t *testing.T) {
 }
 
 func TestConfirmDefaultsUpdate(t *testing.T) {
+	t.Parallel()
 	target := defaultsTarget{scope: defaultsScopeOrg, org: "github"}
 	changes := []defaultsUpdateChange{{field: "default_max_turns", value: "42"}}
 

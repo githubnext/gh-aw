@@ -8,6 +8,7 @@ import (
 )
 
 func TestRemoveFieldFromOnTrigger(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -117,6 +118,7 @@ permissions:
 }
 
 func TestSetFieldInOnTrigger(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -214,6 +216,7 @@ permissions:
 }
 
 func TestRemoveTopLevelFieldFromFrontmatter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		content   string
