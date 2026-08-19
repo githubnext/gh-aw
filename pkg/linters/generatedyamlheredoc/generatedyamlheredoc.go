@@ -86,7 +86,8 @@ func lineContainsShellHeredoc(line string) bool {
 			line = line[afterIndex+1:]
 			continue
 		}
-		if strings.LastIndex(line[:operatorIndex], "$((") > strings.LastIndex(line[:operatorIndex], "))") {
+		lastOpen := max(strings.LastIndex(line[:operatorIndex], "$(("), strings.LastIndex(line[:operatorIndex], "(("))
+		if lastOpen > strings.LastIndex(line[:operatorIndex], "))") {
 			line = line[afterIndex:]
 			continue
 		}
