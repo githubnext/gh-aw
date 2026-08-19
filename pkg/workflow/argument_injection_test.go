@@ -412,6 +412,32 @@ func TestValidatePipPackageName(t *testing.T) {
 					t.Errorf("unexpected error for package %q: %v", tt.pkg, err)
 				}
 			}
+
+		})
+	}
+}
+
+func TestValidatePipCommandPackageArg(t *testing.T) {
+	tests := []struct {
+		name        string
+		pkg         string
+		expectError bool
+	}{
+		{name: "valid package", pkg: "requests"},
+		{name: "rejects hyphen prefix", pkg: "--index-url", expectError: true},
+		{name: "rejects control characters", pkg: "pkg\nname", expectError: true},
+		{name: "rejects shell separators", pkg: "pkg;whoami", expectError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePipCommandPackageArg(tt.pkg)
+			if tt.expectError && err == nil {
+				t.Fatalf("expected error for package %q", tt.pkg)
+			}
+			if !tt.expectError && err != nil {
+				t.Fatalf("unexpected error for package %q: %v", tt.pkg, err)
+			}
 		})
 	}
 }

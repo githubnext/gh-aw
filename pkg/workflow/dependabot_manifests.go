@@ -245,6 +245,22 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 func (c *Compiler) generatePackageLock(workflowDir string) error {
 	dependabotLog.Printf("Generating package-lock.json in %s", workflowDir)
 
+	absWorkflowDir, err := filepath.Abs(workflowDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve workflow directory %q: %w", workflowDir, err)
+	}
+	absWorkflowDir, err = fileutil.ValidateAbsolutePath(absWorkflowDir)
+	if err != nil {
+		return fmt.Errorf("invalid workflow directory %q: %w", workflowDir, err)
+	}
+	info, err := os.Stat(absWorkflowDir)
+	if err != nil {
+		return fmt.Errorf("failed to stat workflow directory %q: %w", absWorkflowDir, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("workflow directory %q is not a directory", absWorkflowDir)
+	}
+
 	// Check if npm is available
 	npmPath, err := fileutil.ResolveExecutablePath("npm")
 	if err != nil {
@@ -261,7 +277,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 	// #nosec G204 -- npmPath is resolved by exec.LookPath and validated as an absolute path above;
 	// the fixed arguments contain no user-controlled data.
 	cmd := exec.Command(npmPath, "install", "--package-lock-only", "--ignore-scripts")
-	cmd.Dir = workflowDir
+	cmd.Dir = absWorkflowDir
 	cmd.Env = append(os.Environ(), "NPM_CONFIG_IGNORE_SCRIPTS=true")
 
 	// Capture output for error reporting
@@ -270,7 +286,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 		return fmt.Errorf("npm install --package-lock-only failed: %w\nOutput: %s", err, string(output))
 	}
 
-	lockfilePath := filepath.Join(workflowDir, "package-lock.json")
+	lockfilePath := filepath.Join(absWorkflowDir, "package-lock.json")
 	if _, err := os.Stat(lockfilePath); err != nil {
 		return errors.New("package-lock.json was not created")
 	}

@@ -703,6 +703,18 @@ touch package-lock.json
 	}
 }
 
+func TestGeneratePackageLock_RejectsInvalidWorkflowDir(t *testing.T) {
+	compiler := NewCompiler()
+
+	err := compiler.generatePackageLock("bad\nworkflow-dir")
+	if err == nil {
+		t.Fatal("expected error for invalid workflow directory")
+	}
+	if !strings.Contains(err.Error(), "invalid workflow directory") {
+		t.Fatalf("expected invalid workflow directory error, got: %v", err)
+	}
+}
+
 // Tests for Python (pip) support
 
 func TestParsePipPackage(t *testing.T) {
