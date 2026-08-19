@@ -181,9 +181,11 @@ network:
     - "api.example.com"   # Custom domain
 ```
 
-Each engine has a built-in default domain list for its CLI authentication and model API transport. These lists are merged with your `network.allowed` entries and **never include package registries** such as npm or PyPI: selecting an engine does not grant the agent access to `registry.npmjs.org`, `pypi.org`, or `files.pythonhosted.org`. Engine CLIs and SDKs are installed by workflow steps that run on the runner before the sandboxed agent starts, and containerized `npx`/`uvx` MCP servers are launched by the MCP gateway outside the agent firewall, so registry access inside the sandbox is not required for them.
+Each engine has a built-in default domain list for its CLI authentication and model API transport. These lists are merged with your `network.allowed` entries and **never include the `node` or `python` ecosystem registries**: selecting an engine does not grant the agent access to `registry.npmjs.org`, `pypi.org`, or `files.pythonhosted.org`. Engine CLIs and SDKs are installed by workflow steps that run on the runner before the sandboxed agent starts, and containerized `npx`/`uvx` MCP servers are launched by the MCP gateway outside the agent firewall, so registry access inside the sandbox is not required for them.
 
-To let the agent itself reach a package registry, opt in explicitly with the matching ecosystem identifier (`node`, `python`, …) in `network.allowed`, or declare the corresponding entry under `runtimes:`. With `network: {}` or `network: { allowed: [defaults, github] }`, package registries stay blocked.
+This guarantee is scoped to the `node` and `python` ecosystems. Some engine defaults still include unrelated infrastructure domains needed by the CLI itself (e.g., `ghcr.io`, `packagecloud.io`, `packages.microsoft.com` for OS-level package/container installation) — those are not language package registries and are not gated by `network.allowed`.
+
+To let the agent itself reach the `node` or `python` registries, opt in explicitly with the matching ecosystem identifier (`node`, `python`, …) in `network.allowed`, or declare the corresponding entry under `runtimes:`. With `network: {}` or `network: { allowed: [defaults, github] }`, those registries stay blocked.
 
 See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
 
