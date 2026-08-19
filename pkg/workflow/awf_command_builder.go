@@ -312,6 +312,7 @@ func buildAWFInvocation(input buildAWFCommandScriptInput) string {
 	}
 	return fmt.Sprintf(`GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS=2
 GH_AW_CLOUD_HYPERVISOR_ATTEMPT=1
+GH_AW_CLOUD_HYPERVISOR_STATUS=1
 while true; do
   GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG="$(mktemp)"
   echo "[INFO] [cloud-hypervisor] Starting guest connectivity preflight attempt ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}/${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}"
@@ -336,6 +337,9 @@ while true; do
     fi
   fi
   rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
+  if [ -z "${GH_AW_CLOUD_HYPERVISOR_STATUS:-}" ] || [ "${GH_AW_CLOUD_HYPERVISOR_STATUS}" -eq 0 ]; then
+    GH_AW_CLOUD_HYPERVISOR_STATUS=1
+  fi
   exit "${GH_AW_CLOUD_HYPERVISOR_STATUS}"
 done`, awfInvocation, logFile)
 }
