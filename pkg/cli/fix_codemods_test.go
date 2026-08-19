@@ -257,5 +257,6 @@ func expectedCodemodOrder() []string {
 		"mentions-allow-team-members-to-allowed-collaborators",
 		"engine-copilot-sdk-driver-to-driver",
 		"engine-model-to-top-level",
+		"min-integrity-none-requires-bash",
 	}
 }

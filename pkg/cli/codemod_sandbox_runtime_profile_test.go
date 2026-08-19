@@ -144,7 +144,7 @@ engine: copilot
 			expectApplied: false,
 		},
 		{
-			name: "gvisor combined with legacy-security is an actionable error",
+			name: "gvisor combined with legacy-security auto-migrates to docker-sudo-iptables",
 			content: `---
 on: workflow_dispatch
 sandbox:
@@ -159,10 +159,12 @@ sandbox:
 					"agent": map[string]any{"runtime": "gvisor", "legacy-security": "enable"},
 				},
 			},
-			expectErrSubstr: "docker-sudo-iptables",
+			expectApplied:  true,
+			expectContains: []string{"    runtime: docker-sudo-iptables"},
+			expectExcludes: []string{"legacy-security:", "gvisor"},
 		},
 		{
-			name: "gvisor combined with sudo: true is an actionable error",
+			name: "gvisor combined with sudo: true auto-migrates to docker-sudo-iptables",
 			content: `---
 on: workflow_dispatch
 sandbox:
@@ -177,7 +179,9 @@ sandbox:
 					"agent": map[string]any{"runtime": "gvisor", "sudo": true},
 				},
 			},
-			expectErrSubstr: "gvisor",
+			expectApplied:  true,
+			expectContains: []string{"    runtime: docker-sudo-iptables"},
+			expectExcludes: []string{"sudo:", "gvisor"},
 		},
 	}
 
