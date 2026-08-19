@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,4 +29,32 @@ func TestBuildToolsMetaRuntimeDataWithoutExpressions(t *testing.T) {
 	assert.Equal(t, input, sanitized)
 	assert.Nil(t, envKeys)
 	assert.Nil(t, envValues)
+}
+
+func TestBuildToolsMetaRuntimeDataWithMultipleDistinctExpressions(t *testing.T) {
+	input := `{"description_suffixes":{"create_issue":"${{ inputs.target_repo }}"},"repo_params":{"owner":"${{ github.repository_owner }}"},"dynamic_tools":[]}`
+
+	sanitized, envKeys, envValues := buildToolsMetaRuntimeData(input)
+
+	require.Len(t, envKeys, 2)
+	assert.NotContains(t, sanitized, "${{ inputs.target_repo }}")
+	assert.NotContains(t, sanitized, "${{ github.repository_owner }}")
+	seen := map[string]bool{}
+	for _, key := range envKeys {
+		seen[envValues[key]] = true
+		assert.Contains(t, sanitized, "${"+key+"}")
+	}
+	assert.True(t, seen["${{ inputs.target_repo }}"])
+	assert.True(t, seen["${{ github.repository_owner }}"])
+}
+
+func TestBuildToolsMetaRuntimeDataDedupesRepeatedExpression(t *testing.T) {
+	input := `{"description_suffixes":{"a":"${{ inputs.target_repo }}","b":"${{ inputs.target_repo }}"},"dynamic_tools":[]}`
+
+	sanitized, envKeys, envValues := buildToolsMetaRuntimeData(input)
+
+	require.Len(t, envKeys, 1)
+	assert.Equal(t, "${{ inputs.target_repo }}", envValues[envKeys[0]])
+	assert.NotContains(t, sanitized, "${{ inputs.target_repo }}")
+	assert.Equal(t, 2, strings.Count(sanitized, "${"+envKeys[0]+"}"))
 }

@@ -618,7 +618,7 @@ jobs:
               "dynamic_tools": [
                 {
                   "_workflow_name": "squad",
-                  "description": "Dispatch the 'squad' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in .github/workflows/ directory in the same repository. Use the 'ref' parameter to target a specific branch or tag (allowed patterns: refs/heads/${{ github.event.repository.default_branch }}).",
+                  "description": "Dispatch the 'squad' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in .github/workflows/ directory in the same repository. Use the 'ref' parameter to target a specific branch or tag (allowed patterns: refs/heads/${GH_AW_GITHUB_EVENT_REPOSITORY_DEFAULT_BRANCH}).",
                   "inputSchema": {
                     "additionalProperties": false,
                     "properties": {
@@ -636,7 +636,7 @@ jobs:
                         "type": "string"
                       },
                       "ref": {
-                        "description": "The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: refs/heads/${{ github.event.repository.default_branch }}. If omitted, the dispatching workflow's ref is used.",
+                        "description": "The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: refs/heads/${GH_AW_GITHUB_EVENT_REPOSITORY_DEFAULT_BRANCH}. If omitted, the dispatching workflow's ref is used.",
                         "type": "string"
                       }
                     },
@@ -846,6 +846,7 @@ jobs:
                 }
               }
             }
+          GH_AW_GITHUB_EVENT_REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |

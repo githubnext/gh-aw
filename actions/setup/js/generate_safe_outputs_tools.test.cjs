@@ -253,6 +253,49 @@ describe("generate_safe_outputs_tools", () => {
     expect(createIssueTool.description).toContain("TARGET: github/gh-aw");
   });
 
+  it("resolves multiple distinct env placeholders in GH_AW_TOOLS_META_JSON", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 1 } }));
+    const metaFromEnv = JSON.stringify({
+      description_suffixes: {
+        create_issue: " TARGET: ${GH_AW_INPUT_TARGET_REPO} OWNER: ${GH_AW_GITHUB_REPOSITORY_OWNER}",
+      },
+      repo_params: {},
+      dynamic_tools: [],
+    });
+
+    runScript({
+      GH_AW_TOOLS_META_JSON: metaFromEnv,
+      GH_AW_INPUT_TARGET_REPO: "github/gh-aw",
+      GH_AW_GITHUB_REPOSITORY_OWNER: "github",
+    });
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const createIssueTool = result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue");
+    expect(createIssueTool).toBeDefined();
+    expect(createIssueTool.description).toContain("TARGET: github/gh-aw");
+    expect(createIssueTool.description).toContain("OWNER: github");
+  });
+
+  it("leaves unresolved placeholders in GH_AW_TOOLS_META_JSON unchanged", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 1 } }));
+    const metaFromEnv = JSON.stringify({
+      description_suffixes: {
+        create_issue: " TARGET: ${GH_AW_INPUT_MISSING}",
+      },
+      repo_params: {},
+      dynamic_tools: [],
+    });
+
+    runScript({
+      GH_AW_TOOLS_META_JSON: metaFromEnv,
+    });
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const createIssueTool = result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue");
+    expect(createIssueTool).toBeDefined();
+    expect(createIssueTool.description).toContain("TARGET: ${GH_AW_INPUT_MISSING}");
+  });
+
   it("ignores non-tool config keys when filtering", () => {
     // dispatch_workflow and max_bot_mentions are not tool names in source file
     fs.writeFileSync(
