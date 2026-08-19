@@ -83,6 +83,7 @@ func TestResolveWorkflowErrorFormatting(t *testing.T) {
 
 // TestConsoleFormatErrorMessageUsage verifies console.FormatErrorMessage is used correctly
 func TestConsoleFormatErrorMessageUsage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		message       string
@@ -120,6 +121,7 @@ func TestConsoleFormatErrorMessageUsage(t *testing.T) {
 
 // TestConsoleFormatWarningMessageUsage verifies console.FormatWarningMessage is used correctly
 func TestConsoleFormatWarningMessageUsage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		message       string
@@ -157,6 +159,7 @@ func TestConsoleFormatWarningMessageUsage(t *testing.T) {
 
 // TestErrorMessagePatterns verifies common error message patterns include helpful context
 func TestErrorMessagePatterns(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		errorCreator  func() error
@@ -202,6 +205,7 @@ func TestErrorMessagePatterns(t *testing.T) {
 
 // TestNoPlainErrorOutput verifies that critical error paths don't use plain fmt.Fprintln
 func TestNoPlainErrorOutput(t *testing.T) {
+	t.Parallel()
 	// This test serves as documentation that errors should use console formatting
 
 	testCases := []struct {
@@ -233,6 +237,7 @@ func TestNoPlainErrorOutput(t *testing.T) {
 
 // TestErrorFormattingConsistency verifies console formatting functions are consistent
 func TestErrorFormattingConsistency(t *testing.T) {
+	t.Parallel()
 	testMessage := "test error message"
 
 	// Test error formatting
@@ -252,6 +257,7 @@ func TestErrorFormattingConsistency(t *testing.T) {
 
 // TestErrorFormattingDoesNotMangle verifies formatting doesn't corrupt messages
 func TestErrorFormattingDoesNotMangle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		message string
