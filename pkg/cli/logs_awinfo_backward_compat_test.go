@@ -9,6 +9,7 @@ import (
 
 // TestAwInfoBackwardCompatibility verifies that AwInfo can parse both old and new field names
 func TestAwInfoBackwardCompatibility(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                    string
 		jsonData                string
@@ -113,6 +114,7 @@ func TestAwInfoBackwardCompatibility(t *testing.T) {
 
 // TestAwInfoMarshaling verifies that AwInfo can be marshaled correctly
 func TestAwInfoMarshaling(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		info             AwInfo
