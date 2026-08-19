@@ -75,6 +75,7 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		mcpSetupGeneratorLog.Printf("Error generating tools meta JSON: %v", err)
 		toolsMetaJSON = `{"description_suffixes":{},"repo_params":{},"dynamic_tools":[]}`
 	}
+	sanitizedToolsMetaJSON, toolsMetaEnvKeys, toolsMetaEnvValues := buildToolsMetaRuntimeData(toolsMetaJSON)
 
 	var enabledTypes []string
 	if safeOutputConfig != "" {
@@ -106,13 +107,14 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("      - name: Generate Safe Outputs Tools\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_TOOLS_META_JSON: |\n")
-	for line := range strings.SplitSeq(toolsMetaJSON, "\n") {
+	for line := range strings.SplitSeq(sanitizedToolsMetaJSON, "\n") {
 		yaml.WriteString("            " + line + "\n")
 	}
 	yaml.WriteString("          GH_AW_VALIDATION_JSON: |\n")
 	for line := range strings.SplitSeq(validationConfigJSON, "\n") {
 		yaml.WriteString("            " + line + "\n")
 	}
+	writeStepEnvVars(yaml, toolsMetaEnvKeys, toolsMetaEnvValues)
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", workflowData))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
@@ -149,6 +151,43 @@ func buildSafeOutputsConfigRuntimeData(safeOutputConfig string) (string, []strin
 		sanitizedConfig = strings.ReplaceAll(sanitizedConfig, value, "${"+varName+"}")
 	}
 	return sanitizedConfig, envKeys, envValues
+}
+
+func buildToolsMetaRuntimeData(toolsMetaJSON string) (string, []string, map[string]string) {
+	envValues := make(map[string]string)
+	if toolsMetaJSON == "" {
+		return toolsMetaJSON, nil, envValues
+	}
+
+	extractor := NewExpressionExtractor()
+	expressionEnvVars := make(map[string]string)
+	expressions := ExpressionPatternDotAll.FindAllStringSubmatch(toolsMetaJSON, -1)
+	for _, match := range expressions {
+		if len(match) < 2 {
+			continue
+		}
+		expr := match[0]
+		content := strings.TrimSpace(match[1])
+		if content == "" {
+			continue
+		}
+		if _, exists := expressionEnvVars[expr]; !exists {
+			expressionEnvVars[expr] = extractor.generateEnvVarName(content)
+		}
+	}
+
+	if len(expressionEnvVars) == 0 {
+		return toolsMetaJSON, nil, envValues
+	}
+
+	sanitizedToolsMeta := toolsMetaJSON
+	for _, expr := range sliceutil.SortedKeys(expressionEnvVars) {
+		envName := expressionEnvVars[expr]
+		envValues[envName] = expr
+		sanitizedToolsMeta = strings.ReplaceAll(sanitizedToolsMeta, expr, "${"+envName+"}")
+	}
+
+	return sanitizedToolsMeta, sliceutil.SortedKeys(envValues), envValues
 }
 
 func writeStepEnvVars(yaml *strings.Builder, envKeys []string, envValues map[string]string) {

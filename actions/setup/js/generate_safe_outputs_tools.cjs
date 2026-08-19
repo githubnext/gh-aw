@@ -201,6 +201,16 @@ function applyAssignMilestoneAlternativeRequirements(tool) {
   schema.anyOf = [{ required: ["milestone_number"] }, { required: ["milestone_title"] }];
 }
 
+/**
+ * Resolve ${ENV_VAR} placeholders inside a string from process.env.
+ * Unresolved placeholders are left unchanged.
+ * @param {string} value
+ * @returns {string}
+ */
+function resolveEnvStringPlaceholders(value) {
+  return value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (match, envName) => process.env[envName] ?? match);
+}
+
 async function main() {
   const toolsSourcePath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH || `${process.env.RUNNER_TEMP}/gh-aw/actions/safe_outputs_tools.json`;
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
@@ -210,7 +220,7 @@ async function main() {
   // Write JSON payloads from env vars if provided (replaces heredoc-based file writing)
   if (process.env.GH_AW_TOOLS_META_JSON) {
     try {
-      fs.writeFileSync(toolsMetaPath, process.env.GH_AW_TOOLS_META_JSON);
+      fs.writeFileSync(toolsMetaPath, resolveEnvStringPlaceholders(process.env.GH_AW_TOOLS_META_JSON));
     } catch (err) {
       throw new Error(`${ERR_SYSTEM}: Failed to write file ${toolsMetaPath}: ${getErrorMessage(err)}`, { cause: err });
     }

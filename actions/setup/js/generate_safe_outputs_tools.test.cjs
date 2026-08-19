@@ -232,6 +232,27 @@ describe("generate_safe_outputs_tools", () => {
     expect(result).toHaveLength(0);
   });
 
+  it("resolves env placeholders in GH_AW_TOOLS_META_JSON", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 1 } }));
+    const metaFromEnv = JSON.stringify({
+      description_suffixes: {
+        create_issue: " TARGET: ${GH_AW_INPUT_TARGET_REPO}",
+      },
+      repo_params: {},
+      dynamic_tools: [],
+    });
+
+    runScript({
+      GH_AW_TOOLS_META_JSON: metaFromEnv,
+      GH_AW_INPUT_TARGET_REPO: "github/gh-aw",
+    });
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const createIssueTool = result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue");
+    expect(createIssueTool).toBeDefined();
+    expect(createIssueTool.description).toContain("TARGET: github/gh-aw");
+  });
+
   it("ignores non-tool config keys when filtering", () => {
     // dispatch_workflow and max_bot_mentions are not tool names in source file
     fs.writeFileSync(
