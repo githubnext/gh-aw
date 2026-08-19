@@ -10,9 +10,13 @@ import (
 )
 
 func TestGitHubReposToAllowedReposCodemod(t *testing.T) {
+	t.Parallel()
+
 	codemod := getGitHubReposToAllowedReposCodemod()
 
 	t.Run("renames repos to allowed-repos under tools.github", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -45,6 +49,8 @@ tools:
 	})
 
 	t.Run("renames repos array to allowed-repos under tools.github", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -77,6 +83,8 @@ tools:
 	})
 
 	t.Run("does not modify workflows without repos field", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -102,6 +110,8 @@ tools:
 	})
 
 	t.Run("does not modify workflows without tools.github section", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 ---
@@ -119,6 +129,8 @@ engine: copilot
 	})
 
 	t.Run("does not rename already-migrated allowed-repos field", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -148,6 +160,8 @@ tools:
 	})
 
 	t.Run("does not rename repos when allowed-repos already present", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -179,6 +193,8 @@ tools:
 	})
 
 	t.Run("does not rename repos in toolsets list", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -210,6 +226,8 @@ tools:
 	})
 
 	t.Run("does not rename repos in comments", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
