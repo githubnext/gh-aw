@@ -41,6 +41,10 @@ describe("no-child-process-interpolated-command", () => {
         { code: `const { execSync } = require("child_process"); execSync("git-status".replace("-", () => " "));` },
         // Un-reassigned options object without shell — safe, must not over-flag
         { code: `const { spawnSync } = require("child_process"); const cmd = \`git checkout \${branch}\`; const opts = {}; spawnSync(cmd, [], opts);` },
+        // Statically destructured command — safe, must not be flagged
+        { code: `const { execSync } = require("child_process"); const [cmd] = ["git status"]; execSync(cmd);` },
+        // Destructured from an unresolvable right-hand side — must not be flagged
+        { code: `const { execSync } = require("child_process"); function run(parts) { const [cmd] = parts; execSync(cmd); }` },
       ],
       invalid: [
         {
@@ -140,6 +144,16 @@ describe("no-child-process-interpolated-command", () => {
         {
           code: `require("child_process").spawn(\`git checkout \${branch}\`, { shell: true });`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
+        },
+        // Array-destructured dynamic command must resolve to the destructured element
+        {
+          code: `const { execSync } = require("child_process"); const [cmd] = [\`git checkout \${branch}\`]; execSync(cmd);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        // Object-destructured dynamic command must resolve to the destructured property
+        {
+          code: `const { execSync } = require("child_process"); const { cmd } = { cmd: \`git checkout \${branch}\` }; execSync(cmd);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
         },
       ],
     });
