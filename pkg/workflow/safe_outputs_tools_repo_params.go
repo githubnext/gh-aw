@@ -1,6 +1,10 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+	"sync"
+)
 
 type repoTargetConfig struct {
 	allowedRepos   []string
@@ -9,175 +13,61 @@ type repoTargetConfig struct {
 
 type repoTargetAccessor func(*SafeOutputsConfig) *repoTargetConfig
 
-var repoTargetAccessors = map[string]repoTargetAccessor{
-	"create_issue": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.CreateIssues; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
+var (
+	repoTargetAccessors     map[string]repoTargetAccessor
+	repoTargetAccessorsOnce sync.Once
+)
+
+func getRepoTargetAccessors() map[string]repoTargetAccessor {
+	repoTargetAccessorsOnce.Do(func() {
+		repoTargetAccessors = buildRepoTargetAccessors()
+	})
+	return repoTargetAccessors
+}
+
+func buildRepoTargetAccessors() map[string]repoTargetAccessor {
+	accessors := make(map[string]repoTargetAccessor)
+	for _, handler := range safeOutputHandlers {
+		if !isRepoTargetHandler(handler) {
+			continue
 		}
-		return nil
-	},
-	"create_discussion": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.CreateDiscussions; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
+
+		accessors[handler.ToolName] = newRepoTargetAccessor(handler.StructField)
+	}
+	return accessors
+}
+
+func isRepoTargetHandler(handler safeOutputHandlerDescriptor) bool {
+	if handler.NewConfig == nil {
+		return false
+	}
+	configType := reflect.TypeOf(handler.NewConfig())
+	if configType == nil {
+		return false
+	}
+	outputField, hasOutputField := reflect.TypeFor[SafeOutputsConfig]().FieldByName(handler.StructField)
+	if !hasOutputField || outputField.Type != configType {
+		return false
+	}
+	allowedRepos, hasAllowedRepos := configType.Elem().FieldByName("AllowedRepos")
+	targetRepoSlug, hasTargetRepoSlug := configType.Elem().FieldByName("TargetRepoSlug")
+	return hasAllowedRepos && hasTargetRepoSlug &&
+		allowedRepos.Type == reflect.TypeFor[[]string]() &&
+		targetRepoSlug.Type.Kind() == reflect.String
+}
+
+func newRepoTargetAccessor(structField string) repoTargetAccessor {
+	return func(config *SafeOutputsConfig) *repoTargetConfig {
+		output := reflect.ValueOf(config).Elem().FieldByName(structField)
+		if !output.IsValid() || output.IsNil() {
+			return nil
 		}
-		return nil
-	},
-	"add_comment": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.AddComments; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
+		output = output.Elem()
+		return &repoTargetConfig{
+			allowedRepos:   output.FieldByName("AllowedRepos").Interface().([]string),
+			targetRepoSlug: output.FieldByName("TargetRepoSlug").String(),
 		}
-		return nil
-	},
-	"create_pull_request": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.CreatePullRequests; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"create_pull_request_review_comment": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.CreatePullRequestReviewComments; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"reply_to_pull_request_review_comment": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.ReplyToPullRequestReviewComment; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"dismiss_pull_request_review": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.DismissPullRequestReview; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"create_agent_session": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.CreateAgentSessions; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"close_issue": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.CloseIssues; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"update_issue": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.UpdateIssues; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"close_discussion": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.CloseDiscussions; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"update_discussion": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.UpdateDiscussions; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"close_pull_request": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.ClosePullRequests; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"update_pull_request": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.UpdatePullRequests; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"merge_pull_request": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.MergePullRequest; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"add_labels": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.AddLabels; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"remove_labels": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.RemoveLabels; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"replace_label": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.ReplaceLabel; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"hide_comment": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.HideComment; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"link_sub_issue": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.LinkSubIssue; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"mark_pull_request_as_ready_for_review": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.MarkPullRequestAsReadyForReview; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"add_reviewer": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.AddReviewer; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"assign_milestone": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.AssignMilestone; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"assign_to_agent": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.AssignToAgent; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"assign_to_user": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.AssignToUser; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"unassign_from_user": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.UnassignFromUser; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"set_issue_type": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.SetIssueType; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
-	"set_issue_field": func(config *SafeOutputsConfig) *repoTargetConfig {
-		if output := config.SetIssueField; output != nil {
-			return &repoTargetConfig{output.AllowedRepos, output.TargetRepoSlug}
-		}
-		return nil
-	},
+	}
 }
 
 // addRepoParameterIfNeeded adds a "repo" parameter to the tool's inputSchema
@@ -188,7 +78,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 		return
 	}
 
-	accessor, ok := repoTargetAccessors[toolName]
+	accessor, ok := getRepoTargetAccessors()[toolName]
 	if !ok {
 		return
 	}

@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -234,20 +235,30 @@ func TestAddRepoParameterIfNeededClosePullRequestWithAllowedRepos(t *testing.T) 
 	assert.Contains(t, repoProp["description"].(string), "org/default-repo", "description should include default repo")
 }
 
-func TestRepoTargetAccessorsCoverRepoTargetTools(t *testing.T) {
-	expectedTools := []string{
-		"create_issue", "create_discussion", "add_comment", "create_pull_request",
-		"create_pull_request_review_comment", "reply_to_pull_request_review_comment",
-		"dismiss_pull_request_review", "create_agent_session", "close_issue", "update_issue",
-		"close_discussion", "update_discussion", "close_pull_request", "update_pull_request",
-		"merge_pull_request", "add_labels", "remove_labels", "replace_label", "hide_comment",
-		"link_sub_issue", "mark_pull_request_as_ready_for_review", "add_reviewer",
-		"assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user",
-		"set_issue_type", "set_issue_field",
-	}
-	assert.Len(t, repoTargetAccessors, len(expectedTools))
-	for _, toolName := range expectedTools {
-		assert.Contains(t, repoTargetAccessors, toolName)
+func TestRepoTargetAccessorsMatchHandlerMetadata(t *testing.T) {
+	accessors := getRepoTargetAccessors()
+	for _, handler := range safeOutputHandlers {
+		if !isRepoTargetHandler(handler) {
+			continue
+		}
+
+		t.Run(handler.ToolName, func(t *testing.T) {
+			config := &SafeOutputsConfig{}
+			output := reflect.ValueOf(config).Elem().FieldByName(handler.StructField)
+			require.True(t, output.IsValid(), "handler struct field must exist")
+
+			output.Set(reflect.New(output.Type().Elem()))
+			output = output.Elem()
+			output.FieldByName("AllowedRepos").Set(reflect.ValueOf([]string{handler.ToolName + "/allowed"}))
+			output.FieldByName("TargetRepoSlug").SetString(handler.ToolName + "/target")
+
+			accessor, ok := accessors[handler.ToolName]
+			require.True(t, ok, "repo target handler must have an accessor")
+			targetConfig := accessor(config)
+			require.NotNil(t, targetConfig)
+			assert.Equal(t, []string{handler.ToolName + "/allowed"}, targetConfig.allowedRepos)
+			assert.Equal(t, handler.ToolName+"/target", targetConfig.targetRepoSlug)
+		})
 	}
 }
 
