@@ -88,12 +88,33 @@ engine: copilot
 Approve pending workflow runs for pull requests resolved from the workflow input.
 `)
 
-		expressionHandlerConfig := extractApproveWorkflowRunHandlerConfig(t, expressionCompiled)
-		assert.Equal(t, "${{ inputs.allowed-pull-requests }}", expressionHandlerConfig["allowed_pull_requests"])
+		expressionConfig := extractRawApproveWorkflowRunHandlerConfig(t, expressionCompiled)
+		wrappedExpression := "${{ toJSON(inputs.allowed-pull-requests) }}"
+		assert.Contains(t, expressionConfig, `"allowed_pull_requests":`+wrappedExpression)
+
+		numericConfig := strings.ReplaceAll(expressionConfig, wrappedExpression, `[123,456]`)
+		var numericRuntimeConfig map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(numericConfig), &numericRuntimeConfig))
+		assert.Equal(t, []any{float64(123), float64(456)}, numericRuntimeConfig["approve_workflow_run"]["allowed_pull_requests"])
+
+		expressionConfig = strings.ReplaceAll(expressionConfig, wrappedExpression, `["123","456"]`)
+		var runtimeConfig map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(expressionConfig), &runtimeConfig))
+		assert.Equal(t, []any{"123", "456"}, runtimeConfig["approve_workflow_run"]["allowed_pull_requests"])
 	})
 }
 
 func extractApproveWorkflowRunHandlerConfig(t *testing.T, compiled string) map[string]any {
+	t.Helper()
+
+	configJSON := extractRawApproveWorkflowRunHandlerConfig(t, compiled)
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+	require.Contains(t, config, "approve_workflow_run")
+	return config["approve_workflow_run"]
+}
+
+func extractRawApproveWorkflowRunHandlerConfig(t *testing.T, compiled string) string {
 	t.Helper()
 
 	for line := range strings.SplitSeq(compiled, "\n") {
@@ -105,12 +126,9 @@ func extractApproveWorkflowRunHandlerConfig(t *testing.T, compiled string) map[s
 			continue
 		}
 		configJSON := strings.ReplaceAll(strings.Trim(strings.TrimSpace(parts[1]), "\""), "\\\"", "\"")
-		var config map[string]map[string]any
-		require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
-		require.Contains(t, config, "approve_workflow_run")
-		return config["approve_workflow_run"]
+		return configJSON
 	}
 
 	t.Fatal("approve_workflow_run handler config not found")
-	return nil
+	return ""
 }
