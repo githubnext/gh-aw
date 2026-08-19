@@ -363,8 +363,8 @@ When used via safe outputs, the create-agent-session job provides outputs:
 
 ```yaml
 outputs:
-  task_number: "123"
-  task_url: "https://github.com/owner/repo/issues/123"
+  session_number: "123"
+  session_url: "https://github.com/owner/repo/issues/123"
 ```
 
 **Usage in Dependent Jobs:**
