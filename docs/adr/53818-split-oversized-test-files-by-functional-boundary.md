@@ -1,7 +1,7 @@
 # ADR-53818: Split Oversized Test Files by Functional Boundary
 
 **Date**: 2026-08-18
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -41,7 +41,3 @@ Introduce `testing.Suite` or similar sub-grouping so related tests share a logic
 - All 84 compiler-jobs test functions and 48 safe-outputs config test functions are preserved verbatim; no test logic is altered.
 - Doc comments that fell on a split boundary were carried to the file containing their associated function.
 - Each new file receives only the imports it actually uses, derived from the original shared import block.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

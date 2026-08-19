@@ -390,7 +390,7 @@ func TestHandlerConfigAssignToUserWithUnassignFirst(t *testing.T) {
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					Max: strPtr("3"),
 				},
-				UnassignFirst: testStringPtr("true"),
+				UnassignFirst: strPtr("true"),
 			},
 		},
 	}

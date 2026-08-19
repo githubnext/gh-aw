@@ -257,7 +257,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "hide older comments",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					HideOlderComments: testStringPtr("true"),
+					HideOlderComments: strPtr("true"),
 				},
 			},
 			checkField: "add_comment",
@@ -268,7 +268,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "add comment discussions opt-in",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					Discussions: boolPtr(true),
+					Discussions: new(true),
 				},
 			},
 			checkField: "add_comment",
@@ -279,7 +279,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "close older discussions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
-					CloseOlderDiscussions: testStringPtr("true"),
+					CloseOlderDiscussions: strPtr("true"),
 				},
 			},
 			checkField: "create_discussion",
@@ -290,7 +290,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "allow empty PR",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					AllowEmpty: testStringPtr("true"),
+					AllowEmpty: strPtr("true"),
 				},
 			},
 			checkField: "create_pull_request",
@@ -301,7 +301,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "draft PR",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					Draft: testStringPtr("true"),
+					Draft: strPtr("true"),
 				},
 			},
 			checkField: "create_pull_request",
@@ -369,24 +369,24 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 		{
 			name: "all fields enabled",
 			config: &UpdateIssuesConfig{
-				Status: testBoolPtr(true),
-				Title:  testBoolPtr(true),
-				Body:   testBoolPtr(true),
+				Status: boolPtr(true),
+				Title:  boolPtr(true),
+				Body:   boolPtr(true),
 			},
 			expectedKeys: []string{"allow_status", "allow_title", "allow_body"},
 		},
 		{
 			name: "only status",
 			config: &UpdateIssuesConfig{
-				Status: testBoolPtr(true),
+				Status: boolPtr(true),
 			},
 			expectedKeys: []string{"allow_status"},
 		},
 		{
 			name: "title and body",
 			config: &UpdateIssuesConfig{
-				Title: testBoolPtr(true),
-				Body:  testBoolPtr(true),
+				Title: boolPtr(true),
+				Body:  boolPtr(true),
 			},
 			expectedKeys: []string{"allow_title", "allow_body"},
 		},
@@ -450,8 +450,8 @@ func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 		},
 		{
 			name:               "sets update_branch true and update_branch_stacks false when configured",
-			updateBranch:       testBoolPtr(true),
-			updateBranchStacks: testBoolPtr(false),
+			updateBranch:       boolPtr(true),
+			updateBranchStacks: boolPtr(false),
 			expectedBranch:     true,
 			expectedStacks:     false,
 		},

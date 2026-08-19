@@ -425,9 +425,3 @@ func TestHandlerConfigPushToPullRequestBranchPatchSizeOverridesGlobal(t *testing
 
 	assert.True(t, found, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG step should be present")
 }
-
-// testBoolPtr is a helper function for bool pointers in config tests
-func testBoolPtr(b bool) *bool { return new(b) }
-
-// testStringPtr is a helper function for string pointers in config tests
-func testStringPtr(s string) *string { return new(s) }
