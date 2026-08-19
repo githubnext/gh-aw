@@ -96,6 +96,13 @@ func setShellBackedModesDisabledInTools(lines []string, setCLIProxyFalse, setGit
 	}
 	if toolsLine == -1 {
 		if hasTopLevelKey(lines, "tools") {
+			// A single-line inline mapping can still take an explicit 'cli-proxy: false';
+			// rewriting a nested inline 'github' mapping is not attempted.
+			if setCLIProxyFalse && !setGitHubLocal {
+				if result, inserted := insertEntryIntoInlineMapping(lines, "tools", "cli-proxy: false"); inserted {
+					return result, true
+				}
+			}
 			cliProxyBashCodemodLog.Print("Top-level tools key is not block syntax, skipping")
 			return lines, false
 		}
@@ -225,6 +232,53 @@ func insertLine(lines []string, index int, line string) []string {
 
 func isTopLevelBlockKey(line, key string) bool {
 	return getIndentation(line) == "" && isBlockKey(line, key)
+}
+
+// insertEntryIntoInlineMapping inserts entry as the first item of a top-level inline flow
+// mapping (for example "tools: {github: {min-integrity: none}}"). It only rewrites flow
+// mappings that open and close on a single line, and reports false when the key is absent,
+// is not an inline mapping, or spans multiple lines.
+func insertEntryIntoInlineMapping(lines []string, key, entry string) ([]string, bool) {
+	prefix := key + ":"
+	for i, line := range lines {
+		if getIndentation(line) != "" {
+			continue
+		}
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), prefix)
+		if !ok {
+			continue
+		}
+		if !strings.HasPrefix(strings.TrimSpace(rest), "{") {
+			return lines, false
+		}
+		braceIndex := strings.Index(line, "{")
+		if !hasBalancedBraces(line[braceIndex:]) {
+			return lines, false
+		}
+		inner := strings.TrimLeft(line[braceIndex+1:], " ")
+		separator := ", "
+		if strings.HasPrefix(inner, "}") {
+			separator = ""
+		}
+		result := append([]string{}, lines...)
+		result[i] = line[:braceIndex+1] + entry + separator + inner
+		return result, true
+	}
+	return lines, false
+}
+
+// hasBalancedBraces reports whether every '{' in value is closed within value.
+func hasBalancedBraces(value string) bool {
+	depth := 0
+	for _, r := range value {
+		switch r {
+		case '{':
+			depth++
+		case '}':
+			depth--
+		}
+	}
+	return depth == 0
 }
 
 func hasTopLevelKey(lines []string, key string) bool {
