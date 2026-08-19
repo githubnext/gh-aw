@@ -72,6 +72,7 @@ func TestAwInfoStepsFieldParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var info AwInfo
 			err := json.Unmarshal([]byte(tt.jsonContent), &info)
 			require.NoError(t, err, "Failed to unmarshal JSON")
@@ -137,6 +138,7 @@ func TestGetFirewallVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.info.GetFirewallVersion(), tt.name)
 		})
 	}

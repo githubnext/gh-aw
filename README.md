@@ -1,6 +1,9 @@
-<!--
+# GitHub Agentic Workflows
 
-Hello fellow agent! Welcome to GitHub Agentic Workflows = Actions + Agent + Safety. 
+<details>
+<summary>Agent quick links</summary>
+
+Hello fellow agent! Welcome to GitHub Agentic Workflows = Actions + Agent + Safety.
 Here are some pointers to get you started in using this tool.
 
 - Create a new workflow: https://raw.githubusercontent.com/github/gh-aw/main/create.md
@@ -8,50 +11,7 @@ Here are some pointers to get you started in using this tool.
 - Package a workflow repository: https://raw.githubusercontent.com/github/gh-aw/main/package.md
 - Reference: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md
 
--->
-
-<details>
-<summary>Configure this project with agentic workflows</summary>
-
-Hey agent! If this repository hasn't been configured with agentic workflows yet, here is how to set it up.
-
-1. Install the `gh aw` CLI extension (no GitHub token required beyond an authenticated `gh` CLI):
-
-   ```bash
-   gh extension install github/gh-aw
-   ```
-
-   If `gh` isn't available, use the standalone installer instead, which verifies the downloaded binary's SHA256 checksum by default:
-
-   ```bash
-   curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
-   ```
-
-2. Choose an engine, then run the `init` command to configure the repository. Replace `<engine>` with `copilot`, `claude`, `codex`, `gemini`, or `pi`:
-
-   ```bash
-   gh aw init --engine <engine>
-   ```
-
-3. Add a **daily repo status** agentic workflow using the `add` command:
-
-   ```bash
-   gh aw add --engine <engine> --create-pull-request
-   ```
-
-   The workflow should:
-   - Run on a daily schedule
-   - Summarize the repository status (open issues, recent PRs, CI health)
-   - Use the [Quick Start engine selector](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/setup/quick-start.mdx) to choose your runtime:
-     - For `copilot`, grant `copilot-requests: write`
-     - For `claude`, set `ANTHROPIC_API_KEY` or configure Anthropic WIF. `CLAUDE_CODE_OAUTH_TOKEN` from `claude login` is not supported.
-     - For `codex`, set `CODEX_API_KEY` or `OPENAI_API_KEY`
-     - For `gemini`, set `GEMINI_API_KEY` or configure Google WIF
-     - For `pi`, configure provider authentication and the required proxies
-
 </details>
-
-# GitHub Agentic Workflows
 
 GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents securely through GitHub Actions. The `gh-aw` GitHub CLI extension compiles each agentic workflow into a standard GitHub Actions workflow.
 

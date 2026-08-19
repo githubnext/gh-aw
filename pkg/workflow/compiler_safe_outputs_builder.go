@@ -1,6 +1,12 @@
 package workflow
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync/atomic"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -9,6 +15,55 @@ var safeOutputsBuilderLog = logger.New("workflow:safe_outputs_builder")
 // handlerConfigBuilder provides a fluent API for building handler configurations
 type handlerConfigBuilder struct {
 	config map[string]any
+}
+
+const templatableJSONExpressionPrefix = "__GH_AW_TEMPLATABLE_JSON_EXPRESSION__"
+
+// templatableJSONExpressionCounter assigns a unique id to every templatableJSONExpression
+// created during compilation. The id is embedded in the placeholder used during the
+// two-pass marshalling in marshalSafeOutputsConfig, so that a placeholder can never
+// collide with user-controlled expression text (which would otherwise corrupt
+// unrelated values in the same config payload).
+var templatableJSONExpressionCounter uint64
+
+// templatableJSONExpression is a marker type that causes marshalSafeOutputsConfig to
+// splice the raw (unquoted) expression text into the JSON output instead of a quoted
+// JSON string, so that GitHub Actions expressions evaluating to JSON arrays are
+// embedded as JSON values rather than JSON strings.
+type templatableJSONExpression struct {
+	expr string
+	id   uint64
+}
+
+// newTemplatableJSONExpression wraps expr with a unique id so that its placeholder
+// cannot collide with any user-supplied content elsewhere in the config.
+func newTemplatableJSONExpression(expr string) templatableJSONExpression {
+	id := atomic.AddUint64(&templatableJSONExpressionCounter, 1)
+	return templatableJSONExpression{expr: expr, id: id}
+}
+
+func (e templatableJSONExpression) placeholder() string {
+	return fmt.Sprintf("%s_%d__", templatableJSONExpressionPrefix, e.id)
+}
+
+func (e templatableJSONExpression) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.placeholder())
+}
+
+// wrapExpressionWithToJSON ensures a GitHub Actions expression is serialized through
+// toJSON(...) before being spliced into the config as a raw JSON value. This keeps the
+// output valid JSON even when the expression evaluates to an empty string at runtime
+// (toJSON("") => `""`, still valid JSON), while arrays and JSON-text strings continue to
+// be handled the same way they already are by the runtime handler.
+//
+// Callers must only pass expressions that satisfy isExpression (i.e. the whole string is
+// wrapped in a well-formed "${{ ... }}"); AddTemplatableJSONSlice enforces this.
+func wrapExpressionWithToJSON(expr string) string {
+	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(expr), "${{"), "}}"))
+	if strings.HasPrefix(inner, "toJSON(") {
+		return expr
+	}
+	return "${{ toJSON(" + inner + ") }}"
 }
 
 // newHandlerConfigBuilder creates a new handler config builder
@@ -72,6 +127,60 @@ func (b *handlerConfigBuilder) AddTemplatableStringSlice(key string, value []str
 	}
 	b.config[key] = value
 	return b
+}
+
+// AddTemplatableJSONSlice adds a string slice field whose single expression is expected
+// to evaluate to a JSON array at runtime. Only the canonical single-element expression
+// slice (as produced by ParseStringArrayOrExprFromConfig) is treated as a templatable
+// expression; any other non-empty slice, including a mix of literal values and
+// expressions, falls back to the plain JSON array behaviour of AddStringSlice (each
+// element, including expression text, is emitted as a quoted JSON string element).
+func (b *handlerConfigBuilder) AddTemplatableJSONSlice(key string, value []string) *handlerConfigBuilder {
+	if len(value) == 0 {
+		return b
+	}
+	if len(value) == 1 && isExpression(value[0]) {
+		b.config[key] = newTemplatableJSONExpression(wrapExpressionWithToJSON(value[0]))
+		return b
+	}
+	b.config[key] = value
+	return b
+}
+
+func marshalSafeOutputsConfig(config map[string]any) ([]byte, error) {
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return nil, err
+	}
+	for _, expression := range templatableJSONExpressions(config) {
+		placeholder, err := json.Marshal(expression.placeholder())
+		if err != nil {
+			return nil, err
+		}
+		configJSON = bytes.ReplaceAll(configJSON, placeholder, []byte(expression.expr))
+	}
+	return configJSON, nil
+}
+
+func templatableJSONExpressions(value any) []templatableJSONExpression {
+	var expressions []templatableJSONExpression
+	var visit func(any)
+	visit = func(value any) {
+		switch value := value.(type) {
+		case templatableJSONExpression:
+			expressions = append(expressions, value)
+		case map[string]any:
+			for _, value := range value {
+				visit(value)
+			}
+		case []any:
+			for _, value := range value {
+				visit(value)
+			}
+		}
+	}
+	visit(value)
+	return expressions
 }
 
 // AddBoolPtr adds a boolean pointer field only if the pointer is not nil
