@@ -23,9 +23,13 @@ func hasDeprecatedAppFieldInContent(content string) bool {
 }
 
 func TestGitHubAppCodemod(t *testing.T) {
+	t.Parallel()
+
 	codemod := getGitHubAppCodemod()
 
 	t.Run("renames app to github-app under tools.github", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -59,6 +63,8 @@ tools:
 	})
 
 	t.Run("renames app to github-app under safe-outputs", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 safe-outputs:
@@ -89,6 +95,8 @@ safe-outputs:
 	})
 
 	t.Run("renames app to github-app under checkout", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 checkout:
@@ -117,6 +125,8 @@ checkout:
 	})
 
 	t.Run("renames top-level app to github-app", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 app:
@@ -142,6 +152,8 @@ app:
 	})
 
 	t.Run("does not modify workflows without app field", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -169,6 +181,8 @@ tools:
 	})
 
 	t.Run("does not modify app field outside target sections", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -194,6 +208,8 @@ tools:
 	})
 
 	t.Run("renames app in all three sections", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -239,6 +255,8 @@ safe-outputs:
 	})
 
 	t.Run("does not rename already migrated github-app field", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -271,6 +289,8 @@ tools:
 	})
 
 	t.Run("renames app to github-app inside checkout array item", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 checkout:
@@ -303,6 +323,8 @@ checkout:
 	})
 
 	t.Run("preserves comments and formatting", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 tools:
@@ -337,6 +359,8 @@ tools:
 	})
 
 	t.Run("renames top-level app and nested app in the same document", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 app:
