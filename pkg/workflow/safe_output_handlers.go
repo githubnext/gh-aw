@@ -34,7 +34,6 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 	},
 	{
 		Key:         "create-agent-session",
-		Aliases:     []string{"create-agent-task"},
 		StructField: "CreateAgentSessions",
 		ToolName:    "create_agent_session",
 		NewConfig:   func() any { return &CreateAgentSessionConfig{} },

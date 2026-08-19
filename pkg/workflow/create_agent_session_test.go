@@ -149,39 +149,7 @@ func TestParseAgentSessionConfigWithDeprecatedKey(t *testing.T) {
 		},
 	})
 
-	if config == nil {
-		t.Fatal("parseAgentSessionConfig() returned nil for deprecated key")
-	}
-
-	if config.Base != "develop" {
-		t.Errorf("parseAgentSessionConfig().Base = %v, want %v", config.Base, "develop")
-	}
-
-	if config.TargetRepoSlug != "owner/repo" {
-		t.Errorf("parseAgentSessionConfig().TargetRepoSlug = %v, want %v", config.TargetRepoSlug, "owner/repo")
-	}
-
-	if templatableIntValue(config.Max) != 1 {
-		t.Errorf("parseAgentSessionConfig().Max = %v, want 1", config.Max)
-	}
-}
-
-func TestParseAgentSessionConfigPrefersCurrentKeyOverDeprecated(t *testing.T) {
-	compiler := NewCompiler()
-	config := compiler.parseAgentSessionConfig(map[string]any{
-		"create-agent-session": map[string]any{
-			"base": "main",
-		},
-		"create-agent-task": map[string]any{
-			"base": "develop",
-		},
-	})
-
-	if config == nil {
-		t.Fatal("parseAgentSessionConfig() returned nil")
-	}
-
-	if config.Base != "main" {
-		t.Errorf("parseAgentSessionConfig().Base = %v, want %v", config.Base, "main")
+	if config != nil {
+		t.Fatal("parseAgentSessionConfig() should ignore deprecated create-agent-task key")
 	}
 }

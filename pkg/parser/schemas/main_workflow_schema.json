@@ -5406,7 +5406,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: approve-workflow-run, autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-check-run, create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: approve-workflow-run, autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-check-run, create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -5663,87 +5663,6 @@
             }
           ],
           "description": "Enable AI agents to create GitHub issues from workflow output. Supports title prefixes, automatic labeling, assignees, and cross-repository creation. Does not require 'issues: write' permission."
-        },
-        "create-agent-task": {
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
-              "deprecated": true,
-              "x-deprecation-message": "'create-agent-task' is deprecated. Use 'create-agent-session' instead.",
-              "properties": {
-                "base": {
-                  "type": "string",
-                  "description": "Base branch for the agent session pull request. Defaults to the current branch or repository default branch."
-                },
-                "max": {
-                  "description": "Maximum number of agent sessions to create (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
-                  "oneOf": [
-                    {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 1
-                    },
-                    {
-                      "type": "string",
-                      "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to an integer at runtime"
-                    }
-                  ]
-                },
-                "target-repo": {
-                  "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository agent session creation. Takes precedence over trial target repo settings."
-                },
-                "allowed-repos": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "List of additional repositories in format 'owner/repo' that agent sessions can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the agent session in. The target repository (current or target-repo) is always implicitly allowed."
-                },
-                "github-token": {
-                  "$ref": "#/$defs/github_token_same_job",
-                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
-                },
-                "staged": {
-                  "$ref": "#/$defs/templatable_boolean",
-                  "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
-                  "examples": [true, false]
-                },
-                "issue-intent": {
-                  "type": "boolean",
-                  "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
-                },
-                "samples": {
-                  "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema; recognized sidecar keys (currently `patch` for create-pull-request and push-to-pull-request-branch) are stripped before schema validation and consumed by the replay driver.",
-                  "oneOf": [
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                      }
-                    },
-                    {
-                      "type": "object",
-                      "additionalProperties": true
-                    }
-                  ]
-                },
-                "github-app": {
-                  "$ref": "#/$defs/github_app",
-                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "null",
-              "description": "Enable agent session creation with default configuration"
-            }
-          ],
-          "description": "Enable creation of GitHub Copilot coding agent tasks from workflow output. Allows workflows to spawn new agent sessions for follow-up work."
         },
         "create-agent-session": {
           "oneOf": [

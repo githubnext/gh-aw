@@ -22,12 +22,6 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 		return c.parseAgentSessionConfigMap(configData)
 	}
 
-	// Fall back to deprecated key for backward compatibility
-	if configData, exists := outputMap["create-agent-task"]; exists {
-		createAgentSessionLog.Print("WARNING: Using deprecated 'create-agent-task' configuration. Please migrate to 'create-agent-session' using 'gh aw fix'")
-		return c.parseAgentSessionConfigMap(configData)
-	}
-
 	return nil
 }
 

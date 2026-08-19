@@ -44,7 +44,6 @@ func TestHasSafeOutputTypeNewKeys(t *testing.T) {
 		"upload-artifact",
 		"update-release",
 		"create-agent-session",
-		"create-agent-task",
 		"update-project",
 		"update-discussion",
 		"mark-pull-request-as-ready-for-review",
