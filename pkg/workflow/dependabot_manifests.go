@@ -245,6 +245,9 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 func (c *Compiler) generatePackageLock(workflowDir string) error {
 	dependabotLog.Printf("Generating package-lock.json in %s", workflowDir)
 
+	if strings.TrimSpace(workflowDir) == "" {
+		return fmt.Errorf("invalid workflow directory %q: must not be empty or whitespace", workflowDir)
+	}
 	absWorkflowDir, err := filepath.Abs(workflowDir)
 	if err != nil {
 		return fmt.Errorf("failed to resolve workflow directory %q: %w", workflowDir, err)

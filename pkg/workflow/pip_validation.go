@@ -170,7 +170,7 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 	var invalidNameErrors []string
 	for _, pkg := range packages {
 		pkgName := stripUvPackageVersion(pkg)
-		if err := validatePipPackageName(pkgName); err != nil {
+		if err := validatePipCommandPackageArg(pkgName); err != nil {
 			pipValidationLog.Printf("Invalid uv package name %s: %v", pkgName, err)
 			invalidNameErrors = append(invalidNameErrors, fmt.Sprintf("uv package '%s' is invalid: %v", pkg, err))
 		}
