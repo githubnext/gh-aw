@@ -29,8 +29,10 @@ describe("no-exec-interpolated-command", () => {
         { code: `exec.exec("git" + " checkout", [branch]);` },
         // Not exec.exec — unrelated call
         { code: `someOther.exec(\`git checkout \${branch}\`);` },
-        // Alias object name is intentionally out of scope
-        { code: `execAlias.exec(\`git checkout \${branch}\`);` },
+        // Alias identifier is not a function parameter (module-level global) — out of scope
+        { code: `execAlias.exec(\`git checkout \${branch}\`, [arg1]);` },
+        // Parameter-alias call with only one argument — RegExp.prototype.exec(str) shape, must not be flagged
+        { code: "function run(execApi, branch) { execApi.exec(`git checkout ${branch}`); }" },
         // Bare exec() call — not a member expression
         { code: `exec(\`git checkout \${branch}\`);` },
         // Spread first argument is intentionally out of scope
@@ -150,6 +152,21 @@ describe("no-exec-interpolated-command", () => {
         {
           code: "function run(branch) { const dynamic = `git checkout ${branch}`; const cmd = dynamic; exec.exec(cmd, []); }",
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // execApi parameter-alias with array-shaped args — flagged (matches git_helpers.cjs / create_pull_request.cjs convention)
+        {
+          code: "function run(execApi, branch) { execApi.exec(`git checkout ${branch}`, []); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // execApi.getExecOutput parameter-alias — flagged
+        {
+          code: "async function run(execApi, ref) { await execApi.getExecOutput(`git rev-parse ${ref}`, [], opts); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "getExecOutput" } }],
+        },
+        // execApi parameter-alias with identifier args (still array-shaped by convention) — flagged
+        {
+          code: "function run(execApi, branchName) { execApi.exec(\"git checkout \" + branchName, args); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } }],
         },
       ],
     });
