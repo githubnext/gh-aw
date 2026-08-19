@@ -42,6 +42,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"unicode"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/fileutil"
@@ -49,6 +50,16 @@ import (
 )
 
 var pipValidationLog = logger.New("workflow:pip_validation")
+
+func validatePipCommandPackageArg(pkgName string) error {
+	if strings.HasPrefix(pkgName, "-") {
+		return errors.New("names must not start with '-'")
+	}
+	if strings.IndexFunc(pkgName, unicode.IsControl) >= 0 {
+		return errors.New("names must not contain control characters")
+	}
+	return validatePipPackageName(pkgName)
+}
 
 // validatePythonPackagesWithPip is a generic helper that validates Python packages using pip index.
 // It accepts a package list, package type name for error messaging, and a validated pip executable path.
@@ -60,15 +71,9 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 		// or uvx-style "@version", e.g. "ruff@0.1.0").
 		pkgName := stripUvPackageVersion(pkg)
 
-		// Reject names starting with '-' to prevent argument injection
-		if strings.HasPrefix(pkgName, "-") {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package name '%s' is invalid: names must not start with '-'", packageType, pkg)))
-			continue
-		}
-
 		// Validate the package name against PyPI naming rules (PEP 508).
 		// pip does not universally honour '--', so we validate upfront.
-		if err := validatePipPackageName(pkgName); err != nil {
+		if err := validatePipCommandPackageArg(pkgName); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package name '%s' is invalid: %v", packageType, pkg, err)))
 			continue
 		}
@@ -165,7 +170,7 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 	var invalidNameErrors []string
 	for _, pkg := range packages {
 		pkgName := stripUvPackageVersion(pkg)
-		if err := validatePipPackageName(pkgName); err != nil {
+		if err := validatePipCommandPackageArg(pkgName); err != nil {
 			pipValidationLog.Printf("Invalid uv package name %s: %v", pkgName, err)
 			invalidNameErrors = append(invalidNameErrors, fmt.Sprintf("uv package '%s' is invalid: %v", pkg, err))
 		}
