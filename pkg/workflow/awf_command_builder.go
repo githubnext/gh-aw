@@ -14,6 +14,11 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
+const (
+	cloudHypervisorGuestConnectivityMaxAttempts         = 2
+	cloudHypervisorGuestConnectivityRetryBackoffSeconds = 3
+)
+
 // BuildAWFCommand builds a complete AWF command with all arguments.
 // This consolidates the AWF command building logic that was duplicated across
 // Copilot, Claude, and Codex engines.
@@ -311,7 +316,7 @@ func buildAWFInvocation(input buildAWFCommandScriptInput) string {
 		return fmt.Sprintf("%s 2>&1 | tee -a %s", awfInvocation, logFile)
 	}
 	return fmt.Sprintf(`set -o pipefail
-GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS=2
+GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS=%d
 GH_AW_CLOUD_HYPERVISOR_ATTEMPT=1
 GH_AW_CLOUD_HYPERVISOR_STATUS=1
 while true; do
@@ -328,10 +333,10 @@ while true; do
   fi
   if grep -Fq "Cloud Hypervisor guest connectivity probe failed" "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"; then
     if [ "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}" -lt "${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}" ]; then
-      echo "::warning title=Cloud Hypervisor guest networking preflight retry::Cloud Hypervisor guest connectivity probe failed on attempt ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}/${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}; retrying after 3 seconds."
+      echo "::warning title=Cloud Hypervisor guest networking preflight retry::Cloud Hypervisor guest connectivity probe failed on attempt ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}/${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}; retrying after %d seconds."
       rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
       GH_AW_CLOUD_HYPERVISOR_ATTEMPT=$((GH_AW_CLOUD_HYPERVISOR_ATTEMPT + 1))
-      sleep 3
+      sleep %d
       continue
     fi
     echo "::error title=SANDBOX_NETWORK_INIT_FAILED::SANDBOX_NETWORK_INIT_FAILED: Cloud Hypervisor guest networking did not initialize; guest connectivity probe failed after ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT} attempt(s)."
@@ -339,13 +344,19 @@ while true; do
       echo "SANDBOX_NETWORK_INIT_FAILED guest network state:"
       grep -F "guest network state:" "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}" | tail -n 20
     fi
+  else
+    if [ "${GH_AW_CLOUD_HYPERVISOR_STATUS}" -eq 0 ]; then
+      echo "::error title=Cloud Hypervisor log capture failed::Cloud Hypervisor AWF command succeeded, but log capture failed (tee statuses: ${GH_AW_CLOUD_HYPERVISOR_PIPE_STATUS[1]}, ${GH_AW_CLOUD_HYPERVISOR_PIPE_STATUS[2]})."
+    else
+      echo "[ERROR] [cloud-hypervisor] AWF command failed with exit code ${GH_AW_CLOUD_HYPERVISOR_STATUS}; no guest connectivity probe failure was detected."
+    fi
   fi
   rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
   if [ "${GH_AW_CLOUD_HYPERVISOR_STATUS}" -eq 0 ]; then
     GH_AW_CLOUD_HYPERVISOR_STATUS=1
   fi
   exit "${GH_AW_CLOUD_HYPERVISOR_STATUS}"
-done`, awfInvocation, logFile)
+done`, cloudHypervisorGuestConnectivityMaxAttempts, awfInvocation, logFile, cloudHypervisorGuestConnectivityRetryBackoffSeconds, cloudHypervisorGuestConnectivityRetryBackoffSeconds)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.
