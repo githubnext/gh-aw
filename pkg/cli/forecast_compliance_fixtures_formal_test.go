@@ -64,6 +64,7 @@ func loadFixture(t *testing.T, name string) map[string]any {
 // Formal predicate: ∀f ∈ FixtureFields: f ∈ dom(run_summary_minimal.json)
 // Specification reference: specs/forecast-compliance-fixtures/README.md §Fixture Schema Reference
 func TestFormal_P1_FixtureFieldMapping(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_minimal.json")
 
 	// Top-level identity field.
@@ -89,6 +90,7 @@ func TestFormal_P1_FixtureFieldMapping(t *testing.T) {
 // Formal predicate: successRate = successCount / n; P(AIC>0|trial) = successRate
 // Specification reference: R-MC-020, R-MC-021
 func TestFormal_P2_BernoulliSuccess(t *testing.T) {
+	t.Parallel()
 	rng := rand.New(rand.NewSource(42)) //nolint:gosec
 
 	aicObs := []int{5_000, 6_000, 7_000}
@@ -114,6 +116,7 @@ func TestFormal_P2_BernoulliSuccess(t *testing.T) {
 // Formal predicate: λ = (n/h) × p, where h = historyDays, p = periodDays
 // Specification reference: §3.8 Run Frequency Estimation
 func TestFormal_P3_ObservedRateFormula(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		sampledRuns int
 		historyDays int
@@ -140,6 +143,7 @@ func TestFormal_P3_ObservedRateFormula(t *testing.T) {
 // Formal predicate: yield = sr × obs  (§3.9 example)
 // Specification reference: §3.9 Effective Yield Estimate
 func TestFormal_P4_YieldFormula(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		successCount int
 		totalRuns    int
@@ -166,6 +170,7 @@ func TestFormal_P4_YieldFormula(t *testing.T) {
 // Formal predicate: result.Iterations = monteCarloIterations
 // Specification reference: §7.1 Simulation Trial Count
 func TestFormal_P5_MonteCarloIterations(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 10_000, monteCarloIterations, "P5: monteCarloIterations constant must equal 10 000")
 
 	rng := rand.New(rand.NewSource(7)) //nolint:gosec
@@ -208,6 +213,7 @@ func TestFormal_P6_ZeroLambdaNilResult(t *testing.T) {
 // Formal predicate: ∀r ∈ runs: r.TotalAIC = 0 → aicObservations = [] → result = nil
 // Specification reference: R-MC-011, R-MC-032; forecast.go:593 (runAIC ≤ 0 → continue)
 func TestFormal_P7_ZeroAICExclusion(t *testing.T) {
+	t.Parallel()
 	rng := rand.New(rand.NewSource(42)) //nolint:gosec
 
 	// nil observations → runMonteCarlo must return nil.
@@ -225,6 +231,7 @@ func TestFormal_P7_ZeroAICExclusion(t *testing.T) {
 // Formal predicate: IsReliable ⟺ n ≥ minObservationsForReliableForecast (R-MC-030)
 // Specification reference: R-MC-030
 func TestFormal_P8_ReliabilityThreshold(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 10, minObservationsForReliableForecast,
 		"P8: minObservationsForReliableForecast constant must equal 10")
 
@@ -362,6 +369,7 @@ func TestFormal_P11_FlagValidation_Days(t *testing.T) {
 // Formal predicate (Z3-SMT gap): total_aic > 0 ∧ total_effective_tokens > 0
 // Specification reference: forecast.go:593 (runAIC ≤ 0 → continue skips run)
 func TestFormal_P12_FixtureAICGap(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_minimal.json")
 
 	usage, ok := fixture["token_usage_summary"].(map[string]any)
@@ -392,6 +400,7 @@ func TestFormal_P12_FixtureAICGap(t *testing.T) {
 // Formal predicate: dom(fixture) ⊇ RequiredFields
 // Specification reference: pkg/cli/logs_models.go RunSummary struct
 func TestFormal_P13_FixtureJSONConformance(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_minimal.json")
 
 	// Required top-level fields (mapped from RunSummary struct JSON tags).
@@ -433,6 +442,7 @@ func TestFormal_P13_FixtureJSONConformance(t *testing.T) {
 // Formal predicate (FC-P3): fixture["token_usage_summary"]["total_effective_tokens"] = 0
 // Specification reference: T-FC-022; specs/forecast-compliance-fixtures/README.md
 func TestFormal_FC_P3_ZeroETFixture(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_zero_et.json")
 
 	usage, ok := fixture["token_usage_summary"].(map[string]any)
@@ -453,6 +463,7 @@ func TestFormal_FC_P3_ZeroETFixture(t *testing.T) {
 // Formal predicate (FC-P4): fixture["token_usage_summary"]["total_effective_tokens"] >= 1_000_000
 // Specification reference: T-ET-006; specs/forecast-compliance-fixtures/README.md
 func TestFormal_FC_P4_HighETFixture(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_high_et.json")
 
 	usage, ok := fixture["token_usage_summary"].(map[string]any)
@@ -473,6 +484,7 @@ func TestFormal_FC_P4_HighETFixture(t *testing.T) {
 // Formal predicate (FC-P6): fixture["run"]["conclusion"] = "failure"
 // Specification reference: T-FC-035; specs/forecast-compliance-fixtures/README.md
 func TestFormal_FC_P6_FailedRunFixture(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_failed.json")
 
 	run, ok := fixture["run"].(map[string]any)
@@ -492,6 +504,7 @@ func TestFormal_FC_P6_FailedRunFixture(t *testing.T) {
 // Formal predicate (FC-P7): fixture["run"]["conclusion"] = "cancelled"
 // Specification reference: T-FC-035; specs/forecast-compliance-fixtures/README.md
 func TestFormal_FC_P7_CancelledRunFixture(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_cancelled.json")
 
 	run, ok := fixture["run"].(map[string]any)
@@ -509,6 +522,7 @@ func TestFormal_FC_P7_CancelledRunFixture(t *testing.T) {
 //
 // Specification reference: T-FC-024; specs/forecast-compliance-fixtures/README.md
 func TestFormal_FC_P11_PartialETFixture(t *testing.T) {
+	t.Parallel()
 	fixture := loadFixture(t, "run_summary_partial_et.json")
 
 	run, ok := fixture["run"].(map[string]any)
@@ -530,6 +544,7 @@ func TestFormal_FC_P11_PartialETFixture(t *testing.T) {
 // Formal predicate (FC-P8): unmarshal(marshal(rs)) = rs
 // Specification reference: §8.1 Cache Round-trip Invariant
 func TestFormal_FC_P8_RunSummaryRoundTrip(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
 	start := time.Date(2026, 5, 1, 11, 0, 5, 0, time.UTC)
 	updated := time.Date(2026, 5, 1, 11, 5, 35, 0, time.UTC)
@@ -614,6 +629,7 @@ func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
 // Formal predicate (FC-P10): ∀f ∈ Fixtures: MCInputs(f) are present and well-formed
 // Specification reference: §7 Monte Carlo Engine; R-MC-020, R-MC-021
 func TestFormal_FC_P10_MonteCarloInputCompleteness(t *testing.T) {
+	t.Parallel()
 	type fixtureExpectation struct {
 		name           string
 		wantConclusion string
@@ -691,6 +707,7 @@ var documentedForecastFixtures = []string{
 // present in the fixture directory, so the README table cannot silently drift from
 // the fixtures actually exercised by the tests above.
 func TestFormal_FixtureCountConsistency(t *testing.T) {
+	t.Parallel()
 	dir := fixtureDir(t)
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err, "failed to read forecast compliance fixture directory")

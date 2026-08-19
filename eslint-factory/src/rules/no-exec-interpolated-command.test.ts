@@ -59,6 +59,10 @@ describe("no-exec-interpolated-command", () => {
         { code: `exec.exec("git-checkout".replace("-", () => " "), [branch]);` },
         // A write-once interpolation resolving to a literal is safe
         { code: `function run() { const branch = "main"; const ref = branch; exec.exec(\`git checkout \${ref}\`, []); }` },
+        // Statically destructured command — safe, must not be flagged
+        { code: `function run() { const [cmd] = ["git status"]; exec.exec(cmd, []); }` },
+        // Destructured from an unresolvable right-hand side — must not be flagged
+        { code: `function run(parts) { const [cmd] = parts; exec.exec(cmd, []); }` },
         // A digits-only sanitized interpolation is safe
         { code: `function run(port) { const safePort = String(port).replace(/[^0-9]/g, ""); exec.exec(\`netstat | grep :\${safePort}\`, []); }` },
       ],
@@ -151,6 +155,16 @@ describe("no-exec-interpolated-command", () => {
         // Chained aliases are also flagged when they resolve to a dynamic command
         {
           code: "function run(branch) { const dynamic = `git checkout ${branch}`; const cmd = dynamic; exec.exec(cmd, []); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Array-destructured dynamic command must resolve to the destructured element
+        {
+          code: "function run(branch) { const [cmd] = [`git checkout ${branch}`]; exec.exec(cmd, []); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Object-destructured dynamic command must resolve to the destructured property
+        {
+          code: "function run(branch) { const { cmd } = { cmd: `git checkout ${branch}` }; exec.exec(cmd, []); }",
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
         },
         // execApi parameter-alias with array-shaped args — flagged (matches git_helpers.cjs / create_pull_request.cjs convention)

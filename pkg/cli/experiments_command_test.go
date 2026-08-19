@@ -24,6 +24,7 @@ func TestFetchRemoteExperimentDetailsClassifiesTitleCaseNotFound(t *testing.T) {
 }
 
 func TestBuildSafeGitShowObjectArg(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		ref       string
@@ -101,6 +102,7 @@ func TestBuildSafeGitShowObjectArg(t *testing.T) {
 }
 
 func TestIsSafeExperimentStateRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		ref  string
@@ -126,6 +128,7 @@ func TestIsSafeExperimentStateRef(t *testing.T) {
 }
 
 func TestExtractExperimentName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		ref      string
@@ -177,6 +180,7 @@ func TestExtractExperimentName(t *testing.T) {
 }
 
 func TestParseExperimentState(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		input           []byte
@@ -260,6 +264,7 @@ func TestParseExperimentState(t *testing.T) {
 }
 
 func TestExperimentDetailsFromState(t *testing.T) {
+	t.Parallel()
 	state := &ExperimentState{
 		Counts: map[string]map[string]int{
 			"style":   {"concise": 4, "detailed": 6},
@@ -287,6 +292,7 @@ func TestExperimentDetailsFromState(t *testing.T) {
 }
 
 func TestParseExperimentStateJSONLBaselineCounts(t *testing.T) {
+	t.Parallel()
 	state := parseExperimentState([]byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"},"baseline_counts":{"feature":{"A":2,"B":1}}}
 {"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`))
 
@@ -298,6 +304,7 @@ func TestParseExperimentStateJSONLBaselineCounts(t *testing.T) {
 }
 
 func TestAppendExperimentRunAddsAssignmentToBaseline(t *testing.T) {
+	t.Parallel()
 	state := emptyExperimentState()
 	appendExperimentRun(state, ExperimentRunRecord{
 		RunID:       "1",
@@ -314,6 +321,7 @@ func TestAppendExperimentRunAddsAssignmentToBaseline(t *testing.T) {
 }
 
 func TestParseExperimentStateJSONLSnapshotDiscardsEarlierRuns(t *testing.T) {
+	t.Parallel()
 	state := parseExperimentState([]byte(`{"run_id":"before","timestamp":"2026-08-18T10:00:00Z","assignments":{"feature":"A"}}
 {"counts":{"feature":{"B":2}}}
 {"run_id":"after","timestamp":"2026-08-18T12:00:00Z","assignments":{"feature":"B"}}`))
@@ -324,6 +332,7 @@ func TestParseExperimentStateJSONLSnapshotDiscardsEarlierRuns(t *testing.T) {
 }
 
 func TestExperimentTotalRunsFallback(t *testing.T) {
+	t.Parallel()
 	// When no runs array present, sum variant counts.
 	state := &ExperimentState{
 		Counts: map[string]map[string]int{
@@ -334,6 +343,7 @@ func TestExperimentTotalRunsFallback(t *testing.T) {
 }
 
 func TestFormatAssignments(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    map[string]string
@@ -369,6 +379,7 @@ func TestFormatAssignments(t *testing.T) {
 }
 
 func TestParsePagedJSONArray(t *testing.T) {
+	t.Parallel()
 	type item struct {
 		Name string `json:"name"`
 	}
@@ -415,6 +426,7 @@ func TestParsePagedJSONArray(t *testing.T) {
 }
 
 func TestSummarizeMetricEvalResults(t *testing.T) {
+	t.Parallel()
 	data := []byte(`{"id":"quality","answer":"YES","runid":"100"}
 {"id":"quality","answer":"NO","runid":"101"}
 {"id":"quality","answer":"UNKNOWN","runid":"102"}
@@ -444,6 +456,7 @@ func TestSummarizeMetricEvalResults(t *testing.T) {
 }
 
 func TestExperimentInfoJSONOutput(t *testing.T) {
+	t.Parallel()
 	experiments := []ExperimentInfo{
 		{
 			WorkflowID:  "my-workflow",
@@ -469,6 +482,7 @@ func TestExperimentInfoJSONOutput(t *testing.T) {
 }
 
 func TestExperimentDetailsJSONOutput(t *testing.T) {
+	t.Parallel()
 	details := ExperimentDetails{
 		WorkflowID: "my-workflow",
 		Branch:     "experiments/my-workflow",
@@ -504,6 +518,7 @@ func TestExperimentDetailsJSONOutput(t *testing.T) {
 }
 
 func TestNewExperimentsCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewExperimentsCommand()
 	require.NotNil(t, cmd, "command should be created")
 	assert.Equal(t, "experiments", cmd.Name(), "command name should be experiments")
@@ -520,6 +535,7 @@ func TestNewExperimentsCommand(t *testing.T) {
 }
 
 func TestExperimentsListSubcommandFlags(t *testing.T) {
+	t.Parallel()
 	cmd := NewExperimentsListSubcommand()
 	require.NotNil(t, cmd, "list subcommand should be created")
 
@@ -528,6 +544,7 @@ func TestExperimentsListSubcommandFlags(t *testing.T) {
 }
 
 func TestExperimentsAnalyzeSubcommandFlags(t *testing.T) {
+	t.Parallel()
 	cmd := NewExperimentsAnalyzeSubcommand()
 	require.NotNil(t, cmd, "analyze subcommand should be created")
 
@@ -536,6 +553,7 @@ func TestExperimentsAnalyzeSubcommandFlags(t *testing.T) {
 }
 
 func TestExperimentsAnalyzeRequiresArg(t *testing.T) {
+	t.Parallel()
 	cmd := NewExperimentsAnalyzeSubcommand()
 	require.NotNil(t, cmd, "analyze subcommand should be created")
 
@@ -544,6 +562,7 @@ func TestExperimentsAnalyzeRequiresArg(t *testing.T) {
 }
 
 func TestParseExperimentStateJSONLSkipsInvalidLines(t *testing.T) {
+	t.Parallel()
 	// Valid records plus an unrecognized line: the valid records should still be parsed.
 	data := `{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"style":"concise"}}
 this is not valid json
@@ -559,6 +578,7 @@ this is not valid json
 }
 
 func TestParseExperimentStateJSONLAllInvalid(t *testing.T) {
+	t.Parallel()
 	// When all lines are invalid, should return an empty state (not nil).
 	data := `not json at all
 also not json`
