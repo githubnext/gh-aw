@@ -71,7 +71,7 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
   const searchTypeMap = { issue: "issues", pull_request: "pullrequests", discussion: "discussions", comment: "issues", discussion_comment: "discussions" };
   const searchType = searchTypeMap[itemType] ?? "issues";
 
-  url.search = `q=${encodedQuery}&type=${encodeURIComponent(searchType)}`;
+  url.search = `q=${encodedQuery}&type=${searchType}`;
 
   return url.toString();
 }
