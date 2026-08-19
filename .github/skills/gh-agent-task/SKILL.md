@@ -129,13 +129,13 @@ Fix auth
 
 ## Integration with GitHub Agentic Workflows
 
-The `gh agent-task` extension is used by the `create-agent-task` safe output feature in GitHub Agentic Workflows (gh-aw).
+The `gh agent-task` extension is used by the `create-agent-session` safe output feature in GitHub Agentic Workflows (gh-aw).
 
 ### Safe Output Configuration
 
 ```yaml
 safe-outputs:
-  create-agent-task:
+  create-agent-session:
     base: main                       # Base branch for agent task PR
     target-repo: "owner/target-repo" # Cross-repository task creation
 ```
@@ -151,7 +151,7 @@ permissions:
   actions: read
 engine: claude
 safe-outputs:
-  create-agent-task:
+  create-agent-session:
     base: main
 
 # Code Task Delegator
@@ -163,7 +163,7 @@ When an issue is labeled with "code-task", analyze the requirements and create a
 
 The safe output processor:
 1. Reads agent output from the workflow execution
-2. Extracts `create_agent_task` items from the structured output
+2. Extracts `create_agent_session` items from the structured output
 3. Writes task descriptions to temporary files
 4. Executes `gh agent-task create --from-file <file> --base <branch>`
 5. Captures the created task URL and number
@@ -239,7 +239,7 @@ When `safe-outputs.staged: true`, agent tasks are previewed without creation:
 ```yaml
 safe-outputs:
   staged: true
-  create-agent-task:
+  create-agent-session:
 ```
 
 **Staged Output:**
@@ -268,7 +268,7 @@ on:
     types: [labeled]
 engine: claude
 safe-outputs:
-  create-agent-task:
+  create-agent-session:
 
 When issue is labeled with "needs-implementation", create an agent task with implementation instructions.
 ```
@@ -281,7 +281,7 @@ on:
     - cron: "0 9 * * 1"  # Monday 9AM
 engine: copilot
 safe-outputs:
-  create-agent-task:
+  create-agent-session:
     base: develop
 
 Analyze codebase for improvement opportunities and create agent tasks for top 3 improvements.
@@ -293,7 +293,7 @@ Analyze codebase for improvement opportunities and create agent tasks for top 3 
 on: workflow_dispatch
 engine: claude
 safe-outputs:
-  create-agent-task:
+  create-agent-session:
     target-repo: "organization/backend-repo"
     base: main
 
@@ -359,7 +359,7 @@ Create agent task in backend repository to implement the API changes described i
 
 ## Output Structure
 
-When used via safe outputs, the create-agent-task job provides outputs:
+When used via safe outputs, the create-agent-session job provides outputs:
 
 ```yaml
 outputs:
@@ -371,11 +371,11 @@ outputs:
 ```yaml
 jobs:
   follow_up:
-    needs: create_agent_task
+    needs: create_agent_session
     steps:
       - name: Notify team
         run: |
-          echo "Agent task created: ${{ needs.create_agent_task.outputs.task_url }}"
+          echo "Agent session created: ${{ needs.create_agent_session.outputs.session_url }}"
 ```
 
 ## References

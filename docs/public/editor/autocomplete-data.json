@@ -2143,11 +2143,6 @@
           "desc": "Enable AI agents to create GitHub issues from workflow output.",
           "leaf": true
         },
-        "create-agent-task": {
-          "type": "object|null",
-          "desc": "Enable creation of GitHub Copilot coding agent tasks from workflow output.",
-          "leaf": true
-        },
         "create-agent-session": {
           "type": "object|null",
           "desc": "Enable creation of GitHub Copilot coding agent sessions from workflow output.",
