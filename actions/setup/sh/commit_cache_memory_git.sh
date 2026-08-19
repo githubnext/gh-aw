@@ -37,19 +37,12 @@ scrub_git_config_entries() {
 }
 
 has_symlinked_git_metadata() {
-  local path
-  for path in .git .git/config .git/info .git/hooks; do
-    if [ -L "$path" ]; then
-      return 0
-    fi
-  done
-  return 1
+  [ -L .git ] || [ -n "$(find .git -type l -print -quit 2>/dev/null)" ]
 }
 
 if has_symlinked_git_metadata; then
-  echo "WARNING: Detected symlinked cache-memory git metadata; reinitializing git metadata"
-  rm -rf .git
-  git init -q
+  echo "Refusing to mutate symlinked cache-memory git metadata" >&2
+  exit 1
 fi
 
 # Agent-written cache state may contain hooks or configuration that executes
@@ -64,6 +57,8 @@ git config --unset-all core.attributesFile >/dev/null 2>&1 || true
 git config --unset-all core.fsmonitor >/dev/null 2>&1 || true
 git config --unset-all core.sshCommand >/dev/null 2>&1 || true
 git config --unset-all core.hooksPath >/dev/null 2>&1 || true
+git config --unset-all core.worktree >/dev/null 2>&1 || true
+git config --unset-all core.gitProxy >/dev/null 2>&1 || true
 scrub_git_config_entries include
 scrub_git_config_entries includeif
 scrub_git_config_entries credential

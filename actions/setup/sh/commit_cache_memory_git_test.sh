@@ -48,6 +48,8 @@ touch "${D}/initial"
 git -C "${D}" add initial
 git -C "${D}" commit -qm initial
 git -C "${D}" config core.hooksPath "${D}/evil-hooks"
+git -C "${D}" config core.worktree "${WORKSPACE}"
+git -C "${D}" config core.gitProxy "touch ${WORKSPACE}/proxy-executed"
 git -C "${D}" config filter.evil.clean "touch ${SENTINEL_FILTER}"
 cat > "${D}/evil-hooks/pre-commit" <<EOF
 #!/usr/bin/env bash
@@ -60,8 +62,33 @@ run_script "${D}" >/dev/null
 assert "pre-commit hook was not executed" "[ ! -e '${SENTINEL_HOOK}' ]"
 assert "clean filter was not executed" "[ ! -e '${SENTINEL_FILTER}' ]"
 assert "hooks path hardened" "[ \"\$(git -C '${D}' config --default '' core.hooksPath)\" = '/dev/null' ]"
+assert "worktree override removed" "! git -C '${D}' config --local --get core.worktree >/dev/null"
+assert "git proxy removed" "! git -C '${D}' config --local --get core.gitProxy >/dev/null"
 assert "filter configuration removed" "! git -C '${D}' config --local --name-only --get-regexp '^filter\\.' >/dev/null 2>&1"
 assert "agent changes committed" "git -C '${D}' log -1 --format=%s | grep -qx 'run-test-run'"
+echo ""
+
+echo "Test 3: Symlinked git metadata is rejected without losing history"
+D="${WORKSPACE}/test3"
+REAL_GIT="${WORKSPACE}/test3-git"
+mkdir -p "${D}"
+git -C "${D}" init -q
+git -C "${D}" config user.email "test@example.com"
+git -C "${D}" config user.name "Test"
+touch "${D}/initial"
+git -C "${D}" add initial
+git -C "${D}" commit -qm initial
+INITIAL_COMMIT="$(git -C "${D}" rev-parse HEAD)"
+mv "${D}/.git" "${REAL_GIT}"
+ln -s "${REAL_GIT}" "${D}/.git"
+if run_script "${D}" >/dev/null; then
+  SYMLINK_REJECTED=false
+else
+  SYMLINK_REJECTED=true
+fi
+assert "symlinked metadata was rejected" "${SYMLINK_REJECTED}"
+assert "symlinked metadata was not replaced" "[ -L '${D}/.git' ]"
+assert "existing history was preserved" "[ \"\$(git -C '${D}' rev-parse HEAD)\" = '${INITIAL_COMMIT}' ]"
 echo ""
 
 echo "Tests passed: ${TESTS_PASSED}"
