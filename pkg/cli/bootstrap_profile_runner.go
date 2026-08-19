@@ -127,7 +127,11 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 	var inferredPermissions map[string]string
 	var inferredEvents []string
 	if !config.DisableGitHubAppPermissionInference && hasBootstrapGitHubAppAction(config.Profile.Profile.Config) {
-		inferredPermissions, inferredEvents, err = bootstrapInferGitHubAppRequires(ctx, config.Sources)
+		profileSources := config.Sources
+		if config.Profile.Source != "" {
+			profileSources = []string{config.Profile.Source}
+		}
+		inferredPermissions, inferredEvents, err = bootstrapInferGitHubAppRequires(ctx, profileSources)
 		if err != nil {
 			return err
 		}

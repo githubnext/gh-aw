@@ -294,6 +294,62 @@ func TestExecuteBootstrapProfile_InferredRequirementsMergeWithDeclaredManifestVa
 	}
 }
 
+// TestExecuteBootstrapProfile_InferenceScopedToProfileSourceOnly verifies that when the
+// resolved bootstrap profile carries a Source (the package that produced it), inference
+// resolves only that source's workflows rather than every source config.Sources may
+// contain. This prevents an unrelated standalone workflow/package installed alongside the
+// bootstrap-profile package from leaking its permissions/events into this package's App.
+func TestExecuteBootstrapProfile_InferenceScopedToProfileSourceOnly(t *testing.T) {
+	restore := stubBootstrapGitHubAppCreationForInferenceTest(t)
+
+	var capturedAction repositoryPackageBootstrapAction
+	bootstrapCreateGitHubApp = func(_ context.Context, _, _, _, _ string, action repositoryPackageBootstrapAction, _ bootstrapGitHubAppOverrides) (*bootstrapCreatedGitHubApp, error) {
+		capturedAction = action
+		return &bootstrapCreatedGitHubApp{ClientID: "client-id", PEM: "pem"}, nil
+	}
+	t.Cleanup(restore)
+
+	dir := t.TempDir()
+	packageWorkflow := filepath.Join(dir, "package.md")
+	unrelatedWorkflow := filepath.Join(dir, "unrelated.md")
+	if err := os.WriteFile(packageWorkflow, []byte("---\non: issues\npermissions:\n  issues: write\n---\n\n# Package\n"), 0o644); err != nil {
+		t.Fatalf("failed to write package workflow: %v", err)
+	}
+	if err := os.WriteFile(unrelatedWorkflow, []byte("---\non: pull_request\npermissions:\n  contents: write\n---\n\n# Unrelated\n"), 0o644); err != nil {
+		t.Fatalf("failed to write unrelated workflow: %v", err)
+	}
+
+	profile := &resolvedBootstrapProfile{
+		PackageID: "owner/repo",
+		Source:    packageWorkflow,
+		Profile: &repositoryPackageBootstrap{
+			Config: []repositoryPackageBootstrapAction{
+				{Type: "github-app", AppIDVariable: "APP_ID", PrivateKeySecret: "APP_PRIVATE_KEY"},
+			},
+		},
+	}
+
+	// config.Sources includes the unrelated standalone workflow installed in the same
+	// run; only profile.Source's workflows should influence the inferred App scopes.
+	err := executeBootstrapProfile(context.Background(), bootstrapProfileRunConfig{
+		Repo:    "octo/platform-ops",
+		Sources: []string{packageWorkflow, unrelatedWorkflow},
+		Profile: profile,
+	})
+	if err != nil {
+		t.Fatalf("executeBootstrapProfile returned error: %v", err)
+	}
+
+	wantPermissions := map[string]string{"issues": "write"}
+	if !reflect.DeepEqual(capturedAction.Permissions, wantPermissions) {
+		t.Fatalf("merged permissions = %v, want %v (unrelated workflow's contents:write must not leak in)", capturedAction.Permissions, wantPermissions)
+	}
+	wantEvents := []string{"issues"}
+	if !reflect.DeepEqual(capturedAction.Events, wantEvents) {
+		t.Fatalf("merged events = %v, want %v (unrelated workflow's pull_request must not leak in)", capturedAction.Events, wantEvents)
+	}
+}
+
 // stubBootstrapGitHubAppCreationForInferenceTest stubs the collaborators needed to drive
 // executeBootstrapProfile all the way to bootstrapCreateGitHubApp without any network
 // access or interactive prompts, returning a restore func to reset all stubbed globals.
