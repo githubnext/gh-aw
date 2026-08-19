@@ -389,4 +389,35 @@ describe("no-github-request-interpolated-route", () => {
       invalid: [],
     });
   });
+
+  it("destructured route bindings resolve to the destructured value", () => {
+    cjsRuleTester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
+      valid: [
+        // Statically destructured route — no interpolation, must not be flagged
+        `function f() { const [route] = ["GET /repos/{owner}/{repo}"]; github.request(route, {}); }`,
+        // Destructured from a non-literal right-hand side — unresolvable, must not be flagged
+        "function f(routes) { const [route] = routes; github.request(route, {}); }",
+      ],
+      invalid: [
+        {
+          code: "function f(owner, repo) { const [route] = [`GET /repos/${owner}/${repo}`]; github.request(route, {}); }",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "template literal with interpolations", client: "github" },
+            },
+          ],
+        },
+        {
+          code: "function f(owner, repo) { const { route } = { route: `GET /repos/${owner}/${repo}` }; github.request(route, {}); }",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "template literal with interpolations", client: "github" },
+            },
+          ],
+        },
+      ],
+    });
+  });
 });
