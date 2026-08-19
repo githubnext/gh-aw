@@ -86,8 +86,7 @@ func lineContainsShellHeredoc(line string) bool {
 			line = line[afterIndex+1:]
 			continue
 		}
-		// "$((" is also matched here, since it contains "((" as a suffix.
-		if strings.LastIndex(line[:operatorIndex], "((") > strings.LastIndex(line[:operatorIndex], "))") {
+		if hasOpenShellArithmeticExpression(line[:operatorIndex]) {
 			line = line[afterIndex:]
 			continue
 		}
@@ -100,6 +99,55 @@ func lineContainsShellHeredoc(line string) bool {
 			delimiterStart == '\'' ||
 			delimiterStart == '"' ||
 			isShellWordByte(delimiterStart)
+	}
+}
+
+func hasOpenShellArithmeticExpression(line string) bool {
+	arithmeticDepth := 0
+	inSingleQuote := false
+	inDoubleQuote := false
+
+	for index := 0; index < len(line); index++ {
+		switch line[index] {
+		case '\\':
+			if !inSingleQuote {
+				index++
+			}
+		case '\'':
+			if !inDoubleQuote {
+				inSingleQuote = !inSingleQuote
+			}
+		case '"':
+			if !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+			}
+		case '(':
+			if !inSingleQuote && index+1 < len(line) && line[index+1] == '(' &&
+				((index > 0 && line[index-1] == '$') || (!inDoubleQuote && isShellTokenBoundary(line, index))) {
+				arithmeticDepth++
+				index++
+			}
+		case ')':
+			if !inSingleQuote && arithmeticDepth > 0 && index+1 < len(line) && line[index+1] == ')' {
+				arithmeticDepth--
+				index++
+			}
+		}
+	}
+
+	return arithmeticDepth > 0
+}
+
+func isShellTokenBoundary(line string, index int) bool {
+	if index == 0 {
+		return true
+	}
+
+	switch line[index-1] {
+	case ' ', '\t', ';', '&', '|', '(':
+		return true
+	default:
+		return false
 	}
 }
 
