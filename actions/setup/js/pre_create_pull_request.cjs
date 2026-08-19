@@ -7,7 +7,9 @@ const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs")
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { applyTitlePrefix, sanitizeTitle } = require("./sanitize_title.cjs");
 
+const WIP_TITLE_MARKER = "[WIP] ";
 const MAX_PULL_REQUEST_TITLE_LENGTH = 256;
+const MAX_PRE_CREATED_TITLE_BODY_LENGTH = MAX_PULL_REQUEST_TITLE_LENGTH - WIP_TITLE_MARKER.length;
 
 /**
  * Best-effort deletion of a pre-allocated branch so a failed allocation does not
@@ -69,8 +71,9 @@ async function main() {
   let pullRequest;
   let checkRun;
   const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX || "";
-  // "[WIP]" first so the in-progress state is visible even when a title prefix is configured.
-  const title = sanitizeTitle(`[WIP] ${applyTitlePrefix(`${workflowName}: work in progress`, titlePrefix)}`, "", MAX_PULL_REQUEST_TITLE_LENGTH);
+  // Keep "[WIP]" outside sanitization so the in-progress marker is always preserved.
+  const coreTitle = sanitizeTitle(applyTitlePrefix(`${workflowName}: work in progress`, titlePrefix), "", MAX_PRE_CREATED_TITLE_BODY_LENGTH);
+  const title = `${WIP_TITLE_MARKER}${coreTitle}`;
   const body = renderTemplateFromFile(getPromptPath("pre_created_pull_request_body.md"), {
     run_url: runUrl,
     workflow_name: workflowName,
