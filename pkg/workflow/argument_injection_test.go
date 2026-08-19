@@ -426,6 +426,7 @@ func TestValidatePipCommandPackageArg(t *testing.T) {
 		{name: "valid package", pkg: "requests"},
 		{name: "rejects hyphen prefix", pkg: "--index-url", expectError: true},
 		{name: "rejects control characters", pkg: "pkg\nname", expectError: true},
+		{name: "rejects whitespace", pkg: "pkg name", expectError: true},
 		{name: "rejects shell separators", pkg: "pkg;whoami", expectError: true},
 	}
 

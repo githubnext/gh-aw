@@ -222,14 +222,6 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 	var errors []string
 	for _, pkg := range packages {
 		pkgName := stripUvPackageVersion(pkg)
-		if err := validatePipCommandPackageArg(pkgName); err != nil {
-			return NewValidationError(
-				"uv.packages",
-				fmt.Sprintf("package '%s' is invalid", pkg),
-				"uv package name is invalid",
-				fmt.Sprintf("uv package '%s' is invalid: %v", pkg, err),
-			)
-		}
 
 		// Use uv pip show to check if package exists on PyPI
 		// #nosec G204 -- uvPath is resolved from the hardcoded executable name "uv" via
