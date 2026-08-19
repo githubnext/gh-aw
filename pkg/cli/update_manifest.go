@@ -215,9 +215,6 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 	if err != nil {
 		return fmt.Errorf("failed to download workflow %s/%s@%s: %w", update.repo, update.latestPath, update.latestRef, err)
 	}
-	if err := fetchManifestManagedDependencies(ctx, newContent, update.repo, update.latestPath, update.latestRef, filepath.Dir(update.wf.Path), opts.Verbose); err != nil {
-		return fmt.Errorf("failed to update workflow dependencies: %w", err)
-	}
 
 	if !opts.Force && update.currentRef == update.latestRef && update.currentPath == update.latestPath {
 		sourceContent, err := downloadWorkflowContentFn(ctx, update.repo, update.currentPath, update.currentRef, opts.Verbose)
@@ -289,6 +286,9 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 		}
 	}
 
+	if err := fetchManifestManagedDependencies(ctx, newContent, update.repo, update.latestPath, update.latestRef, filepath.Dir(update.wf.Path), opts.Verbose); err != nil {
+		return fmt.Errorf("failed to update workflow dependencies: %w", err)
+	}
 	if err := os.WriteFile(update.wf.Path, []byte(finalContent), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write updated workflow: %w", err)
 	}
@@ -337,7 +337,7 @@ func addManifestManagedWorkflow(ctx context.Context, targetDir, name, repo, late
 	if err := os.WriteFile(destPath, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write new manifest workflow %s: %w", destPath, err)
 	}
-	if err := fetchManifestManagedDependencies(ctx, newContent, repo, latestPath, latestRef, targetDir, opts.Verbose); err != nil {
+	if err := fetchManifestManagedDependencies(ctx, []byte(content), repo, latestPath, latestRef, targetDir, opts.Verbose); err != nil {
 		return fmt.Errorf("failed to install workflow dependencies: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added new workflow from manifest: "+filepath.Base(destPath)))

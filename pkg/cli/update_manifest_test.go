@@ -170,4 +170,24 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	if !strings.Contains(string(newHelper), "# New helper v2") {
 		t.Fatalf("new workflow dependency was not installed:\n%s", string(newHelper))
 	}
+
+	downloadRemoteImportFile = func(_ context.Context, owner, repo, path, ref string) ([]byte, error) {
+		t.Errorf("unexpected dependency fetch for unchanged workflow: %s/%s/%s@%s", owner, repo, path, ref)
+		return nil, errors.New("unexpected dependency fetch")
+	}
+	if err := updateManifestManagedWorkflow(context.Background(), manifestManagedWorkflowUpdate{
+		wf:             &workflowWithSource{Name: "existing", Path: existingPath},
+		repo:           "owner/repo",
+		currentPath:    "workflows/existing.md",
+		latestPath:     "workflows/existing.md",
+		currentRef:     "v2.0.0",
+		latestRef:      "v2.0.0",
+		manifestSource: "owner/repo@v2.0.0",
+	}, UpdateWorkflowsOptions{
+		NoMerge:                true,
+		NoCompile:              true,
+		DisableSecurityScanner: true,
+	}); err != nil {
+		t.Fatalf("update unchanged workflow: %v", err)
+	}
 }
