@@ -25,6 +25,9 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 	}
 
 	resolveBase, securityBase, normalizedFilePath := computeIncludeResolveAndSecurityBases(filePath, baseDir)
+	if resolveBase == "" {
+		return "", fmt.Errorf("security: path %s must be within .github or .agents folder", normalizedFilePath)
+	}
 	fullPath := filepath.Join(resolveBase, normalizedFilePath)
 
 	normalizedSecurityBase := filepath.Clean(securityBase)
