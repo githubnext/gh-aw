@@ -341,7 +341,7 @@ func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{},
 				Mentions: &MentionsConfig{
-					Enabled: boolPtr(false),
+					Enabled: new(false),
 				},
 			},
 			wantMentions: map[string]any{
