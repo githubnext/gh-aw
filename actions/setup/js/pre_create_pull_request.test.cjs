@@ -112,6 +112,18 @@ describe("pre_create_pull_request", () => {
     );
   });
 
+  it("sanitizes and truncates the fully assembled title after applying the WIP marker and prefix", async () => {
+    process.env.GH_AW_PR_TITLE_PREFIX = "[bot] @team ";
+    process.env.GH_AW_WORKFLOW_NAME = "A".repeat(300);
+    const { main } = await import("./pre_create_pull_request.cjs");
+    await main();
+
+    const title = global.github.rest.pulls.create.mock.calls[0][0].title;
+    expect(title).toHaveLength(256);
+    expect(title).toMatch(/^\[WIP\] \[bot\] `@team` A+/);
+    expect(title).not.toContain("Content truncated");
+  });
+
   it("explains that the pull request is in progress and that steering is unsupported", async () => {
     const { main } = await import("./pre_create_pull_request.cjs");
     await main();

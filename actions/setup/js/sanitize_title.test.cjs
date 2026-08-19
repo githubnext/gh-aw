@@ -33,6 +33,12 @@ describe("sanitize_title", () => {
         expect(sanitizeTitle("Bug Report")).toBe("Bug Report");
         expect(sanitizeTitle("Feature Request: Add new feature")).toBe("Feature Request: Add new feature");
       });
+
+      it("should truncate titles to the requested maximum length without adding a truncation notice", () => {
+        const sanitized = sanitizeTitle("A".repeat(300), "", 256);
+        expect(sanitized).toHaveLength(256);
+        expect(sanitized).not.toContain("Content truncated");
+      });
     });
 
     describe("Unicode security hardening", () => {

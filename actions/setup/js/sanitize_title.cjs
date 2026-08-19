@@ -10,16 +10,16 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
  * Sanitizes a title by applying full content sanitization and preventing duplicate prefixes
  * @param {string} title - The title to sanitize
  * @param {string} [titlePrefix] - Optional prefix that may need to be added
+ * @param {number} [maxLength] - Maximum title length (default: 128)
  * @returns {string} The sanitized title
  */
-function sanitizeTitle(title, titlePrefix = "") {
+function sanitizeTitle(title, titlePrefix = "", maxLength = 128) {
   if (!title || typeof title !== "string") {
     return "";
   }
 
   // Apply full content sanitization (includes Unicode hardening, @mention escaping, etc.)
-  // Use a reasonable max length for titles (128 chars as defined in validation config)
-  let sanitized = sanitizeContent(title, 128);
+  let sanitized = sanitizeContent(title);
 
   // If a prefix is provided, remove any existing occurrences to avoid duplication
   if (titlePrefix && titlePrefix.trim()) {
@@ -50,7 +50,7 @@ function sanitizeTitle(title, titlePrefix = "") {
     }
   }
 
-  return sanitized;
+  return sanitized.length > maxLength ? sanitized.substring(0, maxLength).trimEnd() : sanitized;
 }
 
 /**

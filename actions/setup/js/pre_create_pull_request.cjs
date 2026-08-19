@@ -5,7 +5,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
-const { applyTitlePrefix } = require("./sanitize_title.cjs");
+const { applyTitlePrefix, sanitizeTitle } = require("./sanitize_title.cjs");
+
+const MAX_PULL_REQUEST_TITLE_LENGTH = 256;
 
 /**
  * Best-effort deletion of a pre-allocated branch so a failed allocation does not
@@ -68,7 +70,7 @@ async function main() {
   let checkRun;
   const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX || "";
   // "[WIP]" first so the in-progress state is visible even when a title prefix is configured.
-  const title = `[WIP] ${applyTitlePrefix(`${workflowName}: work in progress`, titlePrefix)}`;
+  const title = sanitizeTitle(`[WIP] ${applyTitlePrefix(`${workflowName}: work in progress`, titlePrefix)}`, "", MAX_PULL_REQUEST_TITLE_LENGTH);
   const body = renderTemplateFromFile(getPromptPath("pre_created_pull_request_body.md"), {
     run_url: runUrl,
     workflow_name: workflowName,
