@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"maps"
 	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -125,9 +126,7 @@ func bootstrapEventNamesFromOn(raw any) []string {
 // per resource.
 func mergeBootstrapGitHubAppRequirements(declaredPermissions map[string]string, declaredEvents []string, inferredPermissions map[string]string, inferredEvents []string) (map[string]string, []string) {
 	merged := make(map[string]string, len(declaredPermissions)+len(inferredPermissions))
-	for resource, level := range declaredPermissions {
-		merged[resource] = level
-	}
+	maps.Copy(merged, declaredPermissions)
 	for resource, level := range inferredPermissions {
 		merged[resource] = mergeBootstrapPermissionLevel(merged[resource], level)
 	}
