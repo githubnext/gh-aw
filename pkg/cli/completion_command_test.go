@@ -11,6 +11,7 @@ import (
 )
 
 func TestNewCompletionCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewCompletionCommand()
 
 	assert.Equal(t, "completion", cmd.Name())
@@ -20,6 +21,7 @@ func TestNewCompletionCommand(t *testing.T) {
 }
 
 func TestCompletionCommand_Bash(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -32,6 +34,7 @@ func TestCompletionCommand_Bash(t *testing.T) {
 }
 
 func TestCompletionCommand_Zsh(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -44,6 +47,7 @@ func TestCompletionCommand_Zsh(t *testing.T) {
 }
 
 func TestCompletionCommand_Fish(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -56,6 +60,7 @@ func TestCompletionCommand_Fish(t *testing.T) {
 }
 
 func TestCompletionCommand_PowerShell(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -68,6 +73,7 @@ func TestCompletionCommand_PowerShell(t *testing.T) {
 }
 
 func TestCompletionCommand_InvalidShell(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -80,6 +86,7 @@ func TestCompletionCommand_InvalidShell(t *testing.T) {
 }
 
 func TestCompletionCommand_NoArgs(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -92,6 +99,7 @@ func TestCompletionCommand_NoArgs(t *testing.T) {
 }
 
 func TestCompletionCommand_InstallSubcommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewCompletionCommand()
 
 	// Verify install subcommand exists
@@ -104,6 +112,7 @@ func TestCompletionCommand_InstallSubcommand(t *testing.T) {
 }
 
 func TestCompletionCommand_UninstallSubcommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewCompletionCommand()
 
 	// Verify uninstall subcommand exists
@@ -116,6 +125,7 @@ func TestCompletionCommand_UninstallSubcommand(t *testing.T) {
 }
 
 func TestCompletionCommand_LongHelp(t *testing.T) {
+	t.Parallel()
 	cmd := NewCompletionCommand()
 
 	assert.Contains(t, cmd.Long, "Tab completion provides")
@@ -126,6 +136,7 @@ func TestCompletionCommand_LongHelp(t *testing.T) {
 }
 
 func TestCompletionCommand_Examples(t *testing.T) {
+	t.Parallel()
 	cmd := NewCompletionCommand()
 
 	// Verify examples are present for all shells
@@ -137,6 +148,7 @@ func TestCompletionCommand_Examples(t *testing.T) {
 }
 
 func TestCompletionCommand_ValidArgs(t *testing.T) {
+	t.Parallel()
 	cmd := NewCompletionCommand()
 
 	expectedArgs := []string{"bash", "zsh", "fish", "powershell"}
@@ -155,6 +167,7 @@ func findSubcommand(cmd *cobra.Command, name string) *cobra.Command {
 
 // TestCompletionCommand_BashScriptFormat verifies bash completion can be generated
 func TestCompletionCommand_BashScriptFormat(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -168,6 +181,7 @@ func TestCompletionCommand_BashScriptFormat(t *testing.T) {
 
 // TestCompletionCommand_ZshScriptFormat verifies zsh completion can be generated
 func TestCompletionCommand_ZshScriptFormat(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -181,6 +195,7 @@ func TestCompletionCommand_ZshScriptFormat(t *testing.T) {
 
 // TestCompletionCommand_FishScriptFormat verifies fish completion can be generated
 func TestCompletionCommand_FishScriptFormat(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)
@@ -194,6 +209,7 @@ func TestCompletionCommand_FishScriptFormat(t *testing.T) {
 
 // TestCompletionCommand_PowerShellScriptFormat verifies PowerShell completion can be generated
 func TestCompletionCommand_PowerShellScriptFormat(t *testing.T) {
+	t.Parallel()
 	rootCmd := &cobra.Command{Use: "gh"}
 	completionCmd := NewCompletionCommand()
 	rootCmd.AddCommand(completionCmd)

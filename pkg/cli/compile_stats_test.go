@@ -212,6 +212,7 @@ func TestDisplayStatsTable_SortsBySize(t *testing.T) {
 }
 
 func TestCollectWorkflowStats(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory
 	tempDir := t.TempDir()
 
@@ -269,6 +270,7 @@ jobs:
 }
 
 func TestCollectWorkflowStats_NonExistentFile(t *testing.T) {
+	t.Parallel()
 	stats, err := collectWorkflowStats("/nonexistent/file.lock.yml")
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
@@ -279,6 +281,7 @@ func TestCollectWorkflowStats_NonExistentFile(t *testing.T) {
 }
 
 func TestCollectWorkflowStats_InvalidYAML(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory
 	tempDir := t.TempDir()
 
