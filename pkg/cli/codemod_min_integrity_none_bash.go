@@ -66,8 +66,7 @@ func insertBashFalseIntoTopLevelTools(lines []string) ([]string, bool) {
 		return lines, false
 	}
 
-	const toolsIndent = ""
-	fieldIndent := toolsIndent + "  "
+	fieldIndent := "  "
 	insertAt := toolsLine + 1
 
 	for i := toolsLine + 1; i < len(lines); i++ {
@@ -76,7 +75,7 @@ func insertBashFalseIntoTopLevelTools(lines []string) ([]string, bool) {
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		if hasExitedBlock(line, toolsIndent) {
+		if hasExitedBlock(line, "") {
 			break
 		}
 		fieldIndent = getIndentation(line)
