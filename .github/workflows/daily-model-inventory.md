@@ -265,7 +265,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Install Copilot SDK with bundled Copilot CLI
+      - name: Install GitHub Copilot SDK with bundled GitHub Copilot CLI
         shell: bash
         run: |
           set -euo pipefail
@@ -273,7 +273,7 @@ jobs:
           mkdir -p "$SDK_DIR"
           npm install --prefix "$SDK_DIR" --no-save @github/copilot-sdk@1.0.11
 
-      - name: Fetch Copilot SDK model billing information
+      - name: Fetch GitHub Copilot SDK model billing information
         shell: bash
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -304,7 +304,7 @@ jobs:
         shell: bash
         run: cat /tmp/gh-aw/agent/model-inventory/copilot-sdk/models.json 2>/dev/null || echo "(no models.json)"
 
-      - name: Upload Copilot SDK models artifact
+      - name: Upload GitHub Copilot SDK models artifact
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
