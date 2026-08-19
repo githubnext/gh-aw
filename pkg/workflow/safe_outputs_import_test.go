@@ -1397,7 +1397,7 @@ func TestMergeSafeOutputsJobsNotMerged(t *testing.T) {
 		Jobs: map[string]*SafeJobConfig{
 			"existing-job": {
 				Name:   "Existing Job",
-				RunsOn: RunsOnValue{"ubuntu-latest"},
+				RunsOn: "runs-on: ubuntu-latest",
 			},
 		},
 	}
