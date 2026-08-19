@@ -10,9 +10,13 @@ import (
 )
 
 func TestSafeOutputAddReviewerAllowlistsCodemod(t *testing.T) {
+	t.Parallel()
+
 	codemod := getSafeOutputAddReviewerAllowlistsCodemod()
 
 	t.Run("renames reviewers and team-reviewers to allowed-reviewers and allowed-team-reviewers", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 safe-outputs:
   add-reviewer:
@@ -41,6 +45,8 @@ safe-outputs:
 	})
 
 	t.Run("renames only reviewers when team-reviewers absent", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 safe-outputs:
   add-reviewer:
@@ -63,6 +69,8 @@ safe-outputs:
 	})
 
 	t.Run("does not modify when new fields already present", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 safe-outputs:
   add-reviewer:
@@ -86,6 +94,8 @@ safe-outputs:
 	})
 
 	t.Run("does not affect create-pull-request reviewers", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 safe-outputs:
   create-pull-request:
@@ -115,6 +125,8 @@ safe-outputs:
 	})
 
 	t.Run("no-op when safe-outputs missing", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 engine: copilot
 ---

@@ -10,9 +10,13 @@ import (
 )
 
 func TestMountAsCLIsToCLIProxyCodemod(t *testing.T) {
+	t.Parallel()
+
 	codemod := getMountAsCLIsToCLIProxyCodemod()
 
 	t.Run("renames tools.mount-as-clis to tools.cli-proxy", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 tools:
   mount-as-clis: true
@@ -38,6 +42,8 @@ tools:
 	})
 
 	t.Run("removes features.mcp-cli flag", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 features:
   mcp-cli: true
@@ -59,6 +65,8 @@ features:
 	})
 
 	t.Run("renames mount-as-clis and removes mcp-cli together", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 tools:
   mount-as-clis: true
@@ -89,6 +97,8 @@ features:
 	})
 
 	t.Run("does not apply when neither key present", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 tools:
   cli-proxy: true
@@ -109,6 +119,8 @@ tools:
 	})
 
 	t.Run("does not rename mount-as-clis outside tools block", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 tools:
   playwright: true
@@ -133,6 +145,8 @@ steps:
 	})
 
 	t.Run("preserves false value when renaming", func(t *testing.T) {
+		t.Parallel()
+
 		content := `---
 tools:
   mount-as-clis: false
