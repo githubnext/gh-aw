@@ -181,6 +181,17 @@ func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []st
 		}
 		return false
 	}
+	// itemReferencesUnresolvableJob reports whether a single slice element (as produced by the
+	// handler builder helpers) is a templated expression referencing an unresolvable job.
+	itemReferencesUnresolvableJob := func(item any) bool {
+		switch v := item.(type) {
+		case templatableJSONExpression:
+			return referencesUnresolvableJob(v.expr)
+		case string:
+			return isExpression(v) && referencesUnresolvableJob(v)
+		}
+		return false
+	}
 	var visit func(value any)
 	visit = func(value any) {
 		switch v := value.(type) {
@@ -194,6 +205,24 @@ func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []st
 				case string:
 					if isExpression(fv) && referencesUnresolvableJob(fv) {
 						delete(v, key)
+					}
+				case []any:
+					// A slice field is only ever templated as a whole (a single-element
+					// expression slice); replace the entire slice if any element references
+					// an unresolvable job, since individual elements cannot be mutated
+					// in place through the parent map.
+					replaced := false
+					for _, item := range fv {
+						if itemReferencesUnresolvableJob(item) {
+							v[key] = []any{}
+							replaced = true
+							break
+						}
+					}
+					if !replaced {
+						for _, item := range fv {
+							visit(item)
+						}
 					}
 				default:
 					visit(fieldValue)
