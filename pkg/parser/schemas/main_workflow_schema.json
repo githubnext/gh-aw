@@ -5665,10 +5665,11 @@
           "description": "Enable AI agents to create GitHub issues from workflow output. Supports title prefixes, automatic labeling, assignees, and cross-repository creation. Does not require 'issues: write' permission."
         },
         "create-agent-session": {
+          "x-synonyms": ["create-agent-task"],
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "description": "Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using the GitHub CLI `gh agent-task create` command. The main job does not need write permissions.",
               "properties": {
                 "base": {
                   "type": "string",

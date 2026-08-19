@@ -4728,8 +4728,8 @@ safe-outputs:
   # Accepted formats:
 
   # Format 1: Configuration for creating GitHub Copilot coding agent sessions from
-  # agentic workflow output using gh agent-task CLI. The main job does not need
-  # write permissions.
+  # agentic workflow output using the GitHub CLI `gh agent-task create` command.
+  # The main job does not need write permissions.
   create-agent-session:
     # Base branch for the agent session pull request. Defaults to the current branch
     # or repository default branch.
