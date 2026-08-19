@@ -402,6 +402,85 @@ func TestParseAndBuildSafeJobsRunsOnList(t *testing.T) {
 	require.Equal(t, "runs-on:\n      - self-hosted\n      - linux", job.RunsOn)
 }
 
+func TestParseAndBuildSafeJobsRunsOnObject(t *testing.T) {
+	tests := []struct {
+		name     string
+		runsOn   map[string]any
+		expected string
+	}{
+		{
+			name:     "group only",
+			runsOn:   map[string]any{"group": "safe-job-runners"},
+			expected: "runs-on:\n      group: safe-job-runners",
+		},
+		{
+			name: "group and labels",
+			runsOn: map[string]any{
+				"group":  "safe-job-runners",
+				"labels": []any{"linux", "x64"},
+			},
+			expected: "runs-on:\n      group: safe-job-runners\n      labels:\n        - linux\n        - x64",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompiler()
+			safeJobs := c.parseSafeJobsConfig(map[string]any{
+				"deploy": map[string]any{
+					"runs-on": tt.runsOn,
+					"steps":   []any{map[string]any{"run": "echo 'Deploying'"}},
+				},
+			})
+
+			_, err := c.buildSafeJobs(&WorkflowData{
+				Name:        "test-workflow",
+				SafeOutputs: &SafeOutputsConfig{Jobs: safeJobs},
+			}, false)
+			require.NoError(t, err)
+
+			jobs := c.jobManager.GetAllJobs()
+			require.Len(t, jobs, 1)
+			for _, job := range jobs {
+				require.Equal(t, tt.expected, job.RunsOn)
+			}
+		})
+	}
+}
+
+func TestCompileSafeJobRunsOnObject(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "safe-job-runs-on-object")
+	workflowPath := filepath.Join(tmpDir, "safe-job-runs-on-object.md")
+	content := `---
+on: workflow_dispatch
+permissions: read-all
+engine: copilot
+safe-outputs:
+  jobs:
+    notify:
+      runs-on:
+        group: safe-job-runners
+        labels: [linux]
+      inputs:
+        message:
+          description: Message
+      steps:
+        - run: echo hi
+---
+
+# Test
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	compiled, err := os.ReadFile(filepath.Join(tmpDir, "safe-job-runs-on-object.lock.yml"))
+	require.NoError(t, err)
+	notifyJob := extractJobSection(string(compiled), "notify")
+	require.Contains(t, notifyJob, "    runs-on:\n      group: safe-job-runners\n      labels:\n        - linux")
+}
+
 func TestParseAndBuildSafeJobsSingleRunsOnList(t *testing.T) {
 	c := NewCompiler()
 

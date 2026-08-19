@@ -57,6 +57,16 @@ func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 		if threatDetection, ok := safeOutputs["threat-detection"].(map[string]any); ok {
 			runsOnFields = append(runsOnFields, runnerField{name: "safe-outputs.threat-detection.runs-on", value: threatDetection["runs-on"]})
 		}
+		if jobs, ok := safeOutputs["jobs"].(map[string]any); ok {
+			for jobName, jobValue := range jobs {
+				if job, ok := jobValue.(map[string]any); ok {
+					runsOnFields = append(runsOnFields, runnerField{
+						name:  fmt.Sprintf("safe-outputs.jobs.%s.runs-on", jobName),
+						value: job["runs-on"],
+					})
+				}
+			}
+		}
 	}
 
 	for _, field := range runsOnFields {

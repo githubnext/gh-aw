@@ -79,6 +79,8 @@ runs-on:
 ---
 ```
 
+The string, array, and object forms are supported by the top-level `runs-on`, `runs-on-slim`, `safe-outputs.runs-on`, `safe-outputs.threat-detection.runs-on`, and custom `safe-outputs.jobs.<job>.runs-on` fields.
+
 ## Sharing configuration via imports
 
 `runs-on` must be set in each workflow — it is not merged from imports. Other settings like `network` and `tools` can be shared:

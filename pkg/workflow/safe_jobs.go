@@ -32,6 +32,7 @@ type SafeJobConfig struct {
 	Output      string                      `yaml:"output,omitempty"`
 	Max         int                         `yaml:"max,omitempty"` // Maximum number of times this output type may be emitted per run (default: 1)
 	runsOnArray bool                        `yaml:"-"`
+	runsOnMap   map[string]any              `yaml:"-"`
 }
 
 // parseSafeJobsConfig parses safe-jobs configuration from a jobs map.
@@ -67,13 +68,11 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 			}
 		}
 
-		// Parse runs-on (also accept "runner" as alias)
+		// Parse runs-on
 		if runsOn, exists := jobConfig["runs-on"]; exists {
 			safeJob.RunsOn = toRunsOnValue(runsOn)
 			safeJob.runsOnArray = isRunsOnArrayValue(runsOn)
-		} else if runner, exists := jobConfig["runner"]; exists {
-			safeJob.RunsOn = toRunsOnValue(runner)
-			safeJob.runsOnArray = isRunsOnArrayValue(runner)
+			safeJob.runsOnMap, _ = runsOn.(map[string]any)
 		}
 
 		// Parse if condition
@@ -239,7 +238,13 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Set runs-on. Preserve list-shaped input from safe-outputs.jobs as a
 		// YAML array; formatSafeJobRunsOn centralizes the array-vs-scalar
 		// rendering decision shared with other runs-on parsers.
-		job.RunsOn = c.indentYAMLLines(formatSafeJobRunsOn(jobConfig.RunsOn, jobConfig.runsOnArray, defaultRunsOn), "    ")
+		runsOn := formatSafeJobRunsOn(jobConfig.RunsOn, jobConfig.runsOnArray, defaultRunsOn)
+		if jobConfig.runsOnMap != nil {
+			if snippet := renderRunsOnSnippet(jobConfig.runsOnMap); snippet != "" {
+				runsOn = snippet
+			}
+		}
+		job.RunsOn = c.indentYAMLLines(runsOn, "    ")
 
 		// Set if condition - combine safe output type check with user-provided condition
 		// Custom safe jobs should only run if the agent output contains the job name (tool call)

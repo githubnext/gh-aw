@@ -91,6 +91,7 @@ func GetAllCodemods() []Codemod {
 		getSafeOutputMergePRConstraintsCodemod(),                   // Rename deprecated merge-pull-request allowed-labels/allowed-branches
 		getSafeOutputAddReviewerAllowlistsCodemod(),                // Rename deprecated add-reviewer reviewers/team-reviewers
 		getSafeOutputDispatchRepositoryKeyCodemod(),                // Rename deprecated safe-outputs.dispatch_repository key
+		getSafeJobRunnerCodemod(),                                  // Rename deprecated safe-outputs.jobs runner fields
 		getSafeInputsToMCPScriptsCodemod(),                         // Rename safe-inputs to mcp-scripts
 		getRateLimitToUserRateLimitCodemod(),                       // Rename rate-limit to user-rate-limit with max key migration
 		getEffectiveTokensToAICreditsCodemod(),                     // Migrate obsolete effective-token budget keys to AI credits keys

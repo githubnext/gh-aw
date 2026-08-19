@@ -191,6 +191,24 @@ func TestValidateRunsOn(t *testing.T) {
 			wantErr:     false,
 			description: "threat-detection runs-on with a Linux runner should be accepted",
 		},
+		{
+			name: "macos in custom safe-job runs-on labels",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runs-on": map[string]any{
+								"group":  "runner-group",
+								"labels": []any{"linux", "macos-latest"},
+							},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.jobs.notify.runs-on",
+			description: "custom safe-job runs-on labels containing macos should be rejected",
+		},
 	}
 
 	for _, tt := range tests {
