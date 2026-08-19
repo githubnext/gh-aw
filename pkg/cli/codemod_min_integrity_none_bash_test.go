@@ -208,6 +208,7 @@ tools: {
 // registry order lets one fix pass emit both 'bash: false' and the 'cli-proxy: false'
 // that strict mode requires once bash is disabled.
 func TestMinIntegrityNoneRequiresBash_SingleFixPassAlsoDisablesCLIProxy(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name    string
 		content string
@@ -236,6 +237,7 @@ tools: {github: {min-integrity: none}}
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			workflowFile := filepath.Join(tmpDir, "test-workflow.md")
 			require.NoError(t, os.WriteFile(workflowFile, []byte(tc.content), 0644))
