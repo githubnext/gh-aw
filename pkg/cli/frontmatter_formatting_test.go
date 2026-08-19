@@ -9,6 +9,7 @@ import (
 
 // TestFormattingPreservation tests that frontmatter operations preserve comments, blank lines, and formatting
 func TestFormattingPreservation(t *testing.T) {
+	t.Parallel()
 	originalContent := `---
 on:
     workflow_dispatch:
@@ -30,6 +31,7 @@ engine: claude
 This is test content.`
 
 	t.Run("RemoveFieldFromOnTrigger preserves formatting", func(t *testing.T) {
+		t.Parallel()
 		result, err := RemoveFieldFromOnTrigger(originalContent, "stop-after")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -68,6 +70,7 @@ This is test content.`
 	})
 
 	t.Run("SetFieldInOnTrigger preserves formatting", func(t *testing.T) {
+		t.Parallel()
 		result, err := SetFieldInOnTrigger(originalContent, "stop-after", "+72h")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -106,6 +109,7 @@ This is test content.`
 	})
 
 	t.Run("UpdateFieldInFrontmatter preserves formatting", func(t *testing.T) {
+		t.Parallel()
 		result, err := UpdateFieldInFrontmatter(originalContent, "source", "test/repo@v1.0.0")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -147,7 +151,9 @@ This is test content.`
 //
 // was updated to engine: copilot but the child "  id: claude" line remained, producing invalid YAML.
 func TestUpdateFieldInFrontmatterBlockMapping(t *testing.T) {
+	t.Parallel()
 	t.Run("replace block-mapped engine with scalar value removes child lines", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   id: claude
@@ -182,6 +188,7 @@ permissions:
 	})
 
 	t.Run("replace block-mapped engine with deeper nesting removes all child lines", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   id: claude
@@ -211,6 +218,7 @@ source: owner/repo/workflow.md@main
 	})
 
 	t.Run("replace scalar engine still works correctly", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: claude
 permissions:
@@ -236,6 +244,7 @@ permissions:
 	})
 
 	t.Run("update preserves nested fields with same name", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 steps:
   - name: test
@@ -265,7 +274,9 @@ source: owner/repo/workflow.md@old
 
 // TestRemoveFieldFromOnTriggerEdgeCases tests edge cases for field removal
 func TestRemoveFieldFromOnTriggerEdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("remove field that doesn't exist", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on:
   issues:
@@ -286,6 +297,7 @@ permissions:
 	})
 
 	t.Run("remove field from workflow without on block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 permissions:
   contents: read
@@ -303,6 +315,7 @@ permissions:
 	})
 
 	t.Run("field with similar prefix should not match", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on:
   workflow_dispatch:
@@ -326,6 +339,7 @@ on:
 	})
 
 	t.Run("on with inline value should not be treated as block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 permissions:
@@ -344,6 +358,7 @@ permissions:
 	})
 
 	t.Run("multiline field value should be fully removed", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on:
   workflow_dispatch:
@@ -373,6 +388,7 @@ on:
 	})
 
 	t.Run("inline comment with multiple colons should be preserved", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on:
   workflow_dispatch:
