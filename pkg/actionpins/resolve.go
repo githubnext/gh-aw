@@ -47,9 +47,11 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, ctx.StrictMode)
 
 	// Apply repository/version mapping from aw.json action_pins before resolution.
+	originalRepo, originalVersion := actionRepo, version
 	actionRepo, version = applyActionPinMapping(actionRepo, version, ctx)
+	mapped := actionRepo != originalRepo || version != originalVersion
 
-	if ctx.GHES {
+	if ctx.GHES && !mapped {
 		if pin, ok := ghesArtifactPins[actionRepo]; ok {
 			actionPinsLog.Printf("GHES mode: using %s@%s", actionRepo, pin.Version)
 			return FormatPinnedActionReference(pin.Repo, pin.SHA, pin.Version), nil

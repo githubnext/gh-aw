@@ -124,6 +124,7 @@ func (c *Compiler) SetAllowActionRefs(allow bool) {
 // Artifact actions use versions supported by GHES.
 func (c *Compiler) SetGHESCompat(enabled bool) {
 	c.ghesCompatFromCLI = enabled
+	c.ghesCompatConfigured = false
 }
 
 // SetRefreshStopTime configures whether to force regeneration of stop-after times

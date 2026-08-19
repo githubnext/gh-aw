@@ -277,9 +277,9 @@ When GHES compatibility mode is active, the compiler emits:
 | Action | Default | GHES compatible |
 |--------|---------|-----------------|
 | `actions/upload-artifact` | `@v7` (latest) | `@v3.2.2` |
-| `actions/download-artifact` | `@v8` (latest) | `@v3.1.0` |
+| `actions/download-artifact` | `@v4` (latest) | `@v3.1.0` |
 
-All other actions are unaffected.
+All other actions are unaffected. These GHES-compatible artifact pins require Actions Runner 2.327.1 or later because they run on Node.js 24.
 
 ## Related Documentation
 

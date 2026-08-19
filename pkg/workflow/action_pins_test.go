@@ -1692,6 +1692,37 @@ func TestGHESArtifactCompatPinsExist(t *testing.T) {
 	}
 }
 
+func TestGeneratedArtifactStepsHonorGHESCompat(t *testing.T) {
+	t.Run("firewall log upload uses workflow data", func(t *testing.T) {
+		data := &WorkflowData{Name: "GHES Firewall", GHES: true}
+		step := strings.Join([]string(generateSquidLogsUploadStep(data.Name, data)), "\n")
+		if !strings.Contains(step, "actions/upload-artifact@c6a366c94c3e0affe28c06c8df20a878f24da3cf # v3.2.2") {
+			t.Fatalf("expected GHES upload-artifact pin in firewall step, got:\n%s", step)
+		}
+		if strings.Contains(step, "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a") {
+			t.Fatalf("expected firewall step not to use default upload-artifact pin, got:\n%s", step)
+		}
+	})
+
+	t.Run("repo memory download uses compiler compatibility", func(t *testing.T) {
+		c := NewCompiler()
+		c.SetGHESCompat(true)
+		c.configureGHESCompatibility()
+		data := &WorkflowData{
+			RepoMemoryConfig: &RepoMemoryConfig{
+				Memories: []RepoMemoryEntry{{ID: "default"}},
+			},
+		}
+		step := strings.Join(c.buildPushRepoMemoryDownloadSteps(data), "\n")
+		if !strings.Contains(step, "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0") {
+			t.Fatalf("expected GHES download-artifact pin in repo-memory step, got:\n%s", step)
+		}
+		if strings.Contains(step, "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c") {
+			t.Fatalf("expected repo-memory step not to use default download-artifact pin, got:\n%s", step)
+		}
+	})
+}
+
 func TestGetActionPinPrefersLatestEmbeddedOverStaleCache(t *testing.T) {
 	latestCacheRestorePin, ok := getLatestActionPinByRepo("actions/cache/restore")
 	if !ok {

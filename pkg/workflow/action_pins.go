@@ -69,6 +69,13 @@ func getActionPin(repo string) string {
 	return actionpins.FormatPinnedActionReference(repo, pins[0].SHA, pins[0].Version)
 }
 
+func getActionPinForData(repo string, data *WorkflowData) string {
+	if data != nil {
+		return getCachedActionPin(repo, data)
+	}
+	return getActionPin(repo)
+}
+
 // getActionPin returns the pinned reference for the given repo.
 //
 // This is the preferred call site for code running inside a Compiler method because it

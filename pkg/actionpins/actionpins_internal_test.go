@@ -25,6 +25,16 @@ func (r *countingResolver) ResolveSHA(_ context.Context, _, _ string) (string, e
 	return "", nil
 }
 
+type fixedResolver struct {
+	sha    string
+	called int
+}
+
+func (r *fixedResolver) ResolveSHA(_ context.Context, _, _ string) (string, error) {
+	r.called++
+	return r.sha, nil
+}
+
 func TestResolveActionPin_GHESArtifactCompatibility(t *testing.T) {
 	t.Parallel()
 
@@ -60,7 +70,7 @@ func TestResolveActionPin_GHESArtifactCompatibility(t *testing.T) {
 func TestResolveActionPin_GHESMappingTakesPrecedence(t *testing.T) {
 	t.Parallel()
 
-	resolver := &countingResolver{}
+	resolver := &fixedResolver{sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	got, err := ResolveActionPin("actions/upload-artifact", "v7", &PinContext{
 		GHES:     true,
 		Resolver: resolver,
@@ -70,7 +80,8 @@ func TestResolveActionPin_GHESMappingTakesPrecedence(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Empty(t, got)
+	assert.Contains(t, got, "enterprise/upload-artifact@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	assert.NotContains(t, got, "c6a366c94c3e0affe28c06c8df20a878f24da3cf")
 	assert.Equal(t, 1, resolver.called, "mapped enterprise action should use normal resolution")
 }
 

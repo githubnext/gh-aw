@@ -571,7 +571,7 @@ func (c *Compiler) buildPushRepoMemoryDownloadSteps(data *WorkflowData) []string
 		} else {
 			fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
 		}
-		fmt.Fprintf(&step, "        uses: %s\n", getActionPin("actions/download-artifact"))
+		fmt.Fprintf(&step, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
 		fmt.Fprintf(&step, "          name: %srepo-memory-%s\n", repoMemoryPrefix, sanitizedID)

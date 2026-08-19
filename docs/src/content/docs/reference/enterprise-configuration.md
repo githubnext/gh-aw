@@ -17,7 +17,7 @@ GHES instances running versions that predate `@actions/artifact` v2.0.0 support 
 
 gh-aw includes a GHES compatibility mode toggle (`aw.json` `ghes` or `gh aw compile --ghes`) for GHES releases that require the v3 artifact backend. Compatibility mode emits `upload-artifact@v3.2.2` and `download-artifact@v3.1.0`; default GitHub.com compilation continues to use the latest artifact actions.
 
-This compatibility path supports GHES 3.21.x and earlier. For later GHES releases, keep compatibility mode enabled until your instance supports the v4 artifact backend.
+This compatibility path supports GHES 3.21.x and earlier when the workflow runs on Actions Runner 2.327.1 or later, which is required by the Node.js 24 runtime used by these pinned artifact actions. For later GHES releases, keep compatibility mode enabled until your instance supports the v4 artifact backend.
 
 #### Enable via `aw.json` (recommended)
 

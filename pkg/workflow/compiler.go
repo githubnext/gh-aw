@@ -78,6 +78,10 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 }
 
 func (c *Compiler) configureGHESCompatibility() {
+	if c.ghesCompatConfigured {
+		return
+	}
+	c.ghesCompatConfigured = true
 	c.ghesArtifactCompat = c.ghesCompatFromCLI
 	if !c.ghesArtifactCompat {
 		if repoConfig, err := c.loadRepoConfig(); err == nil && repoConfig != nil {
