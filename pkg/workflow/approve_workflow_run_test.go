@@ -235,7 +235,7 @@ func TestApproveWorkflowRunAllowedPullRequestsExpressionEmitsJSONArray(t *testin
 		runtimeConfig := strings.ReplaceAll(string(configJSON), wrappedExpression, `""`)
 		var config map[string]map[string]any
 		require.NoError(t, json.Unmarshal([]byte(runtimeConfig), &config))
-		assert.Equal(t, "", config["approve_workflow_run"]["allowed_pull_requests"])
+		assert.Empty(t, config["approve_workflow_run"]["allowed_pull_requests"])
 	})
 }
 

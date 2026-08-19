@@ -428,6 +428,29 @@ func TestParsePRReviewCommentsConfigWithHelpers(t *testing.T) {
 	}
 }
 
+func TestParsePRReviewCommentsConfigPreservesAllowedReposExpression(t *testing.T) {
+	compiler := &Compiler{}
+	expr := "${{ inputs['allowed-repos'] }}"
+	outputMap := map[string]any{
+		"create-pull-request-review-comment": map[string]any{
+			"target-repo":   "${{ inputs.target_repo }}",
+			"allowed-repos": expr,
+		},
+	}
+
+	result := compiler.parsePullRequestReviewCommentsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if result.TargetRepoSlug != "${{ inputs.target_repo }}" {
+		t.Errorf("expected target-repo expression, got %q", result.TargetRepoSlug)
+	}
+	if len(result.AllowedRepos) != 1 || result.AllowedRepos[0] != expr {
+		t.Errorf("expected allowed-repos expression to be preserved, got %v", result.AllowedRepos)
+	}
+}
+
 // Test wildcard target-repo is now allowed for all create/close handlers
 
 func TestParseIssuesConfigWithWildcardTargetRepo(t *testing.T) {
