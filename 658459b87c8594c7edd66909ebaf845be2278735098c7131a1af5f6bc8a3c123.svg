@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" font-family="system-ui,-apple-system,Segoe UI,sans-serif">
+<rect width="1200" height="720" fill="#fcfcfb"/>
+<text x="70" y="28" font-size="18" fill="#0b0b0b" text-anchor="start" font-weight="600">Workflow Health — daily runs, success vs failure</text>
+<text x="70" y="48" font-size="11" fill="#898781" text-anchor="start" font-weight="normal">github/gh-aw · fleet-wide (excl. intentional-failure test workflows) · gap: no audit recorded 2026-07-07 → 2026-08-18</text>
+<text x="60" y="50" font-size="11" fill="#898781" text-anchor="start" font-weight="normal">Runs / day</text>
+<line x1="70" y1="360.0" x2="1160" y2="360.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="364.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">0</text>
+<line x1="70" y1="285.0" x2="1160" y2="285.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="289.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">112</text>
+<line x1="70" y1="210.0" x2="1160" y2="210.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="214.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">224</text>
+<line x1="70" y1="135.0" x2="1160" y2="135.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="139.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">336</text>
+<line x1="70" y1="60.0" x2="1160" y2="60.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="64.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">448</text>
+<rect x="81.1" y="315.1" width="27.3" height="44.9" fill="#0ca30c" rx="2"/>
+<rect x="81.1" y="294.4" width="27.3" height="20.8" fill="#d03b3b" rx="2"/>
+<rect x="130.7" y="301.7" width="27.3" height="58.3" fill="#0ca30c" rx="2"/>
+<rect x="130.7" y="293.0" width="27.3" height="8.7" fill="#d03b3b" rx="2"/>
+<rect x="180.2" y="338.6" width="27.3" height="21.4" fill="#0ca30c" rx="2"/>
+<rect x="180.2" y="335.2" width="27.3" height="3.3" fill="#d03b3b" rx="2"/>
+<rect x="229.8" y="328.5" width="27.3" height="31.5" fill="#0ca30c" rx="2"/>
+<rect x="229.8" y="315.8" width="27.3" height="12.7" fill="#d03b3b" rx="2"/>
+<rect x="279.3" y="331.9" width="27.3" height="28.1" fill="#0ca30c" rx="2"/>
+<rect x="279.3" y="331.2" width="27.3" height="0.7" fill="#d03b3b" rx="2"/>
+<rect x="328.9" y="315.1" width="27.3" height="44.9" fill="#0ca30c" rx="2"/>
+<rect x="328.9" y="307.8" width="27.3" height="7.4" fill="#d03b3b" rx="2"/>
+<rect x="378.4" y="295.0" width="27.3" height="65.0" fill="#0ca30c" rx="2"/>
+<rect x="378.4" y="289.0" width="27.3" height="6.0" fill="#d03b3b" rx="2"/>
+<rect x="428.0" y="175.8" width="27.3" height="184.2" fill="#0ca30c" rx="2"/>
+<rect x="428.0" y="95.5" width="27.3" height="80.4" fill="#d03b3b" rx="2"/>
+<rect x="477.5" y="160.4" width="27.3" height="199.6" fill="#0ca30c" rx="2"/>
+<rect x="477.5" y="142.4" width="27.3" height="18.1" fill="#d03b3b" rx="2"/>
+<rect x="527.1" y="186.6" width="27.3" height="173.4" fill="#0ca30c" rx="2"/>
+<rect x="527.1" y="176.5" width="27.3" height="10.0" fill="#d03b3b" rx="2"/>
+<rect x="576.6" y="252.2" width="27.3" height="107.8" fill="#0ca30c" rx="2"/>
+<rect x="576.6" y="243.5" width="27.3" height="8.7" fill="#d03b3b" rx="2"/>
+<rect x="626.1" y="147.7" width="27.3" height="212.3" fill="#0ca30c" rx="2"/>
+<rect x="626.1" y="131.0" width="27.3" height="16.7" fill="#d03b3b" rx="2"/>
+<rect x="675.7" y="141.7" width="27.3" height="218.3" fill="#0ca30c" rx="2"/>
+<rect x="675.7" y="104.2" width="27.3" height="37.5" fill="#d03b3b" rx="2"/>
+<rect x="725.2" y="165.1" width="27.3" height="194.9" fill="#0ca30c" rx="2"/>
+<rect x="725.2" y="145.7" width="27.3" height="19.4" fill="#d03b3b" rx="2"/>
+<rect x="774.8" y="266.9" width="27.3" height="93.1" fill="#0ca30c" rx="2"/>
+<rect x="774.8" y="245.5" width="27.3" height="21.4" fill="#d03b3b" rx="2"/>
+<rect x="824.3" y="311.8" width="27.3" height="48.2" fill="#0ca30c" rx="2"/>
+<rect x="824.3" y="303.8" width="27.3" height="8.0" fill="#d03b3b" rx="2"/>
+<rect x="873.9" y="352.0" width="27.3" height="8.0" fill="#0ca30c" rx="2"/>
+<rect x="873.9" y="346.6" width="27.3" height="5.4" fill="#d03b3b" rx="2"/>
+<rect x="923.4" y="338.6" width="27.3" height="21.4" fill="#0ca30c" rx="2"/>
+<rect x="923.4" y="328.5" width="27.3" height="10.0" fill="#d03b3b" rx="2"/>
+<rect x="973.0" y="299.7" width="27.3" height="60.3" fill="#0ca30c" rx="2"/>
+<rect x="973.0" y="292.4" width="27.3" height="7.4" fill="#d03b3b" rx="2"/>
+<rect x="1022.5" y="295.0" width="27.3" height="65.0" fill="#0ca30c" rx="2"/>
+<rect x="1022.5" y="287.7" width="27.3" height="7.4" fill="#d03b3b" rx="2"/>
+<rect x="1072.1" y="129.0" width="27.3" height="231.0" fill="#0ca30c" rx="2"/>
+<rect x="1072.1" y="92.1" width="27.3" height="36.8" fill="#d03b3b" rx="2"/>
+<rect x="1121.6" y="145.7" width="27.3" height="214.3" fill="#0ca30c" rx="2"/>
+<rect x="1121.6" y="124.3" width="27.3" height="21.4" fill="#d03b3b" rx="2"/>
+<line x1="70" y1="360" x2="1160" y2="360" stroke="#c3c2b7" stroke-width="1.5"/>
+<rect x="930" y="28" width="12" height="12" fill="#0ca30c" rx="2"/>
+<text x="948" y="38" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">Success</text>
+<rect x="1025" y="28" width="12" height="12" fill="#d03b3b" rx="2"/>
+<text x="1043" y="38" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">Failure</text>
+<text x="60" y="400" font-size="11" fill="#898781" text-anchor="start" font-weight="normal">Success rate %</text>
+<line x1="70" y1="630.0" x2="1160" y2="630.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="634.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">0</text>
+<line x1="70" y1="520.0" x2="1160" y2="520.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="524.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">50</text>
+<line x1="70" y1="465.0" x2="1160" y2="465.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="469.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">75</text>
+<line x1="70" y1="432.0" x2="1160" y2="432.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="436.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">90</text>
+<line x1="70" y1="410.0" x2="1160" y2="410.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="414.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">100</text>
+<path d="M 94.8 479.5 L 144.3 438.6 L 193.9 439.7 L 243.4 473.4 L 293.0 415.1 L 342.5 436.0 L 392.0 428.7 L 441.6 476.9 L 491.1 428.3 L 540.7 422.1 L 590.2 426.5 L 639.8 426.1 L 689.3 442.3 L 738.9 430.0 L 788.4 451.1 L 838.0 441.5 L 887.5 498.0 L 937.0 480.2 L 986.6 434.0 L 1036.1 432.4 L 1085.7 440.2 L 1135.2 430.0" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="94.8" cy="479.5" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="144.3" cy="438.6" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="193.9" cy="439.7" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="243.4" cy="473.4" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="293.0" cy="415.1" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="342.5" cy="436.0" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="392.0" cy="428.7" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="441.6" cy="476.9" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="491.1" cy="428.3" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="540.7" cy="422.1" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="590.2" cy="426.5" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="639.8" cy="426.1" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="689.3" cy="442.3" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="738.9" cy="430.0" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="788.4" cy="451.1" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="838.0" cy="441.5" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="887.5" cy="498.0" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="937.0" cy="480.2" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="986.6" cy="434.0" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1036.1" cy="432.4" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1085.7" cy="440.2" r="3.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1135.2" cy="430.0" r="5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<text x="1143.2272727272727" y="422.02" font-size="12" fill="#2a78d6" text-anchor="start" font-weight="600">90.9%</text>
+<line x1="70" y1="630" x2="1160" y2="630" stroke="#c3c2b7" stroke-width="1.5"/>
+<text x="94.77272727272728" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-13</text>
+<text x="193.86363636363637" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-15</text>
+<text x="292.95454545454544" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-17</text>
+<text x="392.0454545454545" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-19</text>
+<text x="491.1363636363636" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-21</text>
+<text x="590.2272727272727" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-23</text>
+<text x="689.3181818181818" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-25</text>
+<text x="788.4090909090909" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-30</text>
+<text x="887.5" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">07-02</text>
+<text x="986.5909090909091" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">07-04</text>
+<text x="1085.6818181818182" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">07-06</text>
+<text x="1135.2272727272727" y="650" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">08-19</text>
+<line x1="1110.5" y1="60" x2="1110.5" y2="630" stroke="#898781" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="1116.4545454545455" y="74" font-size="10" fill="#898781" text-anchor="start" font-weight="normal">44-day gap</text>
+</svg>

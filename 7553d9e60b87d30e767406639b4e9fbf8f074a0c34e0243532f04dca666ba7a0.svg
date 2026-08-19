@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" font-family="system-ui,-apple-system,Segoe UI,sans-serif">
+<rect width="1200" height="560" fill="#fcfcfb"/>
+<text x="90" y="28" font-size="18" fill="#0b0b0b" text-anchor="start" font-weight="600">Token Usage — daily totals + 7-day moving average</text>
+<text x="90" y="48" font-size="11" fill="#898781" text-anchor="start" font-weight="normal">github/gh-aw · fleet-wide · many days have no reported token total (known gap: token-usage-reporting-gap)</text>
+<line x1="90" y1="490.0" x2="1160" y2="490.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="80" y="494.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">0.0</text>
+<line x1="90" y1="382.5" x2="1160" y2="382.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="80" y="386.5" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">16M</text>
+<line x1="90" y1="275.0" x2="1160" y2="275.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="80" y="279.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">31M</text>
+<line x1="90" y1="167.5" x2="1160" y2="167.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="80" y="171.5" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">47M</text>
+<line x1="90" y1="60.0" x2="1160" y2="60.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="80" y="64.0" font-size="10" fill="#898781" text-anchor="end" font-weight="normal">63M</text>
+<rect x="100.9" y="188.6" width="26.8" height="301.4" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="149.6" y="116.1" width="26.8" height="373.9" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="198.2" y="260.8" width="26.8" height="229.2" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="246.9" y="202.0" width="26.8" height="288.0" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="295.5" y="327.4" width="26.8" height="162.6" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="344.1" y="196.2" width="26.8" height="293.8" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="441.4" y="364.2" width="26.8" height="125.8" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="927.8" y="482.6" width="26.8" height="7.4" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="976.4" y="460.0" width="26.8" height="30.0" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="1025.0" y="466.9" width="26.8" height="23.1" fill="#2a78d6" opacity="0.55" rx="2"/>
+<rect x="1122.3" y="382.6" width="26.8" height="107.4" fill="#2a78d6" opacity="0.55" rx="2"/>
+<path d="M 114.3 188.6 L 163.0 152.4 L 211.6 188.5 L 260.2 191.9 L 308.9 219.0 L 357.5 215.2 L 406.1 215.2 L 454.8 244.5 L 503.4 270.1 L 552.0 272.5 L 600.7 295.9 L 649.3 280.2 L 698.0 364.2 L 746.6 364.2 L 941.1 482.6 L 989.8 471.3 L 1038.4 469.8 L 1087.0 469.8 L 1135.7 448.0" fill="none" stroke="#eb6834" stroke-width="2.5" stroke-linejoin="round"/>
+<line x1="90" y1="490" x2="1160" y2="490" stroke="#c3c2b7" stroke-width="1.5"/>
+<text x="114.31818181818181" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-13</text>
+<text x="211.59090909090907" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-15</text>
+<text x="308.8636363636363" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-17</text>
+<text x="406.1363636363636" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-19</text>
+<text x="503.4090909090909" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-21</text>
+<text x="600.6818181818181" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-23</text>
+<text x="697.9545454545455" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-25</text>
+<text x="795.2272727272727" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">06-30</text>
+<text x="892.5" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">07-02</text>
+<text x="989.7727272727273" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">07-04</text>
+<text x="1087.0454545454543" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">07-06</text>
+<text x="1135.681818181818" y="510" font-size="10" fill="#898781" text-anchor="middle" font-weight="normal">08-19</text>
+<rect x="900" y="28" width="12" height="12" fill="#2a78d6" opacity="0.55" rx="2"/>
+<text x="918" y="38" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">Daily tokens</text>
+<line x1="1020" y1="34" x2="1040" y2="34" stroke="#eb6834" stroke-width="2.5"/>
+<text x="1046" y="38" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">7-day moving avg</text>
+<line x1="1111.4" y1="60" x2="1111.4" y2="490" stroke="#898781" stroke-width="1" stroke-dasharray="4,3"/>
+</svg>
