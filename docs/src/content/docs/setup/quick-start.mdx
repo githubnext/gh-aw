@@ -84,7 +84,7 @@ gh extension install github/gh-aw
 ```
 
 > [!TIP]
-> If you are encountering authentication issues, use this script instead:
+> If `gh extension install` fails — for example with a `HTTP 401`/`HTTP 403` permissions error, an `authentication required` message, or a network/TLS error reaching `github.com` — install with this script instead:
 >
 > ```text wrap
 > curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
@@ -126,20 +126,26 @@ This will take you through an interactive process to:
 > [!NOTE]
 > The `.lock.yml` is the compiled GitHub Actions workflow generated from your Markdown source. GitHub Actions executes this file; regenerate it with `gh aw compile` after frontmatter changes instead of editing it by hand. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
 
-**Configuring authentication?** Select the engine you chose above:
+#### Configuring authentication with GitHub Copilot
+
+If you chose **GitHub Copilot** in the wizard, you need no extra AI account setup — keep reading. If you chose another engine, skip to [other engines](#configuring-authentication-with-another-engine) below.
+
+**Preferred — use organization billing without a PAT:**
+
+Choose **Use copilot-requests** in the wizard. It adds `copilot-requests: write` to the workflow permissions and uses the per-run GitHub Actions token for inference. This path requires an organization Copilot subscription with centralized billing.
+
+**Alternative — use `COPILOT_GITHUB_TOKEN`:**
+
+1. [Create a fine-grained Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) under your user account.
+2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
+3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Copilot authentication](/gh-aw/reference/auth/#copilot_github_token) for both paths.
+
+#### Configuring authentication with another engine
+
+<details>
+  <summary>Claude, Codex, Gemini, or Pi — expand for setup steps</summary>
 
 <Tabs>
-  <TabItem label="Copilot">
-    **Preferred — use organization billing without a PAT:**
-
-    Choose **Use copilot-requests** in the wizard. It adds `copilot-requests: write` to the workflow permissions and uses the per-run GitHub Actions token for inference. This path requires an organization Copilot subscription with centralized billing.
-
-    **Alternative — use `COPILOT_GITHUB_TOKEN`:**
-
-    1. [Create a fine-grained Personal Access Token (PAT)](https://github.com/settings/personal-access-tokens/new) under your user account.
-    2. Under **Permissions → Account permissions**, set **Copilot Requests** to **Read**, then generate the token.
-    3. Add it as a repository secret from your repository root with `gh secret set COPILOT_GITHUB_TOKEN < /path/to/token.txt`, or use the GitHub UI. See [Copilot authentication](/gh-aw/reference/auth/#copilot_github_token) for both paths.
-  </TabItem>
   <TabItem label="Claude">
     **Setting up `ANTHROPIC_API_KEY`:**
     1. Create an API key in [Anthropic Console](https://console.anthropic.com/settings/keys).
@@ -169,6 +175,8 @@ This will take you through an interactive process to:
     Pi also requires `tools.github.mode: gh-proxy` and `tools.cli-proxy: true`. Follow [Using Pi with GitHub Agentic Workflows](/gh-aw/engines/pi/) for the complete setup.
   </TabItem>
 </Tabs>
+
+</details>
 
 > [!TIP]
 > **Having trouble?** Check your [repository secrets](/gh-aw/reference/auth/), see the [FAQ](/gh-aw/reference/faq/) and [Common Issues](/gh-aw/troubleshooting/common-issues/).
