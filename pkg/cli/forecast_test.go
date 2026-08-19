@@ -19,6 +19,7 @@ import (
 // ── extractWorkflowIDFromName ─────────────────────────────────────────────────
 
 func TestExtractWorkflowIDFromName(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in   string
 		want string
@@ -35,6 +36,7 @@ func TestExtractWorkflowIDFromName(t *testing.T) {
 }
 
 func TestExtractEngineNames(t *testing.T) {
+	t.Parallel()
 	cfg := &workflow.FrontmatterConfig{
 		Engine: map[string]any{
 			"id":       "copilot",
@@ -47,24 +49,28 @@ func TestExtractEngineNames(t *testing.T) {
 // ── RunForecast validation ────────────────────────────────────────────────────
 
 func TestRunForecast_InvalidPeriod(t *testing.T) {
+	t.Parallel()
 	cfg := ForecastConfig{Days: 30, Period: "quarter", SampleSize: 10}
 	err := RunForecast(cfg)
 	require.Error(t, err, "should error for invalid period")
 }
 
 func TestRunForecast_InvalidDays(t *testing.T) {
+	t.Parallel()
 	cfg := ForecastConfig{Days: 90, Period: "month", SampleSize: 10}
 	err := RunForecast(cfg)
 	require.Error(t, err, "should error for days=90 (max is 30)")
 }
 
 func TestRunForecast_InvalidTimeout(t *testing.T) {
+	t.Parallel()
 	cfg := ForecastConfig{Days: 30, Period: "month", SampleSize: 10, TimeoutMinutes: -1}
 	err := RunForecast(cfg)
 	require.Error(t, err, "should error for negative timeout")
 }
 
 func TestNewForecastCommand_DaysFlagDocumentsAllowedValues(t *testing.T) {
+	t.Parallel()
 	cmd := NewForecastCommand()
 	require.NotNil(t, cmd)
 
@@ -77,6 +83,7 @@ func TestNewForecastCommand_DaysFlagDocumentsAllowedValues(t *testing.T) {
 }
 
 func TestNewForecastCommand_TimeoutFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewForecastCommand()
 	require.NotNil(t, cmd)
 
@@ -91,6 +98,7 @@ func TestNewForecastCommand_TimeoutFlag(t *testing.T) {
 // TestDurationEnrichment verifies that the forecast loop computes Duration from
 // StartedAt/UpdatedAt when the Duration field is zero (as returned by gh run list).
 func TestDurationEnrichment(t *testing.T) {
+	t.Parallel()
 	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	end := start.Add(5 * time.Minute)
 
@@ -120,6 +128,7 @@ func TestDurationEnrichment(t *testing.T) {
 // that no intermediate recalculation or mutation of λ occurs between JSON output and
 // Monte Carlo execution.
 func TestObservedRunsPerPeriodConsistency(t *testing.T) {
+	t.Parallel()
 	// Reproduce the λ calculation from forecastWorkflow.
 	const (
 		historyDays   = 30
@@ -232,6 +241,7 @@ func TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats(t *testing.T) {
 }
 
 func TestForecastRateLimitSleep_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -240,6 +250,7 @@ func TestForecastRateLimitSleep_ContextCancelled(t *testing.T) {
 }
 
 func TestForecastRateLimitSleep_CompletesWithoutCancellation(t *testing.T) {
+	t.Parallel()
 	err := forecastRateLimitSleep(context.Background(), time.Millisecond)
 	require.NoError(t, err)
 }
@@ -505,6 +516,7 @@ func TestParallelLoadRunAICs_RespectsContextCancellation(t *testing.T) {
 
 // TestParallelLoadRunAICs_EmptyRunsReturnsEmptyMap verifies the empty-input edge case.
 func TestParallelLoadRunAICs_EmptyRunsReturnsEmptyMap(t *testing.T) {
+	t.Parallel()
 	got := parallelLoadRunAICs(context.Background(), nil, ForecastConfig{})
 	assert.Empty(t, got)
 }
@@ -512,6 +524,7 @@ func TestParallelLoadRunAICs_EmptyRunsReturnsEmptyMap(t *testing.T) {
 // TestNewForecastCommand_ConcurrencyFlag verifies that the --concurrency flag is
 // registered with the expected default and usage text.
 func TestNewForecastCommand_ConcurrencyFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewForecastCommand()
 	require.NotNil(t, cmd)
 

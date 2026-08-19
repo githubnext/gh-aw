@@ -10,6 +10,7 @@ import (
 )
 
 func TestCopilotCodingAgentDetector_IsGitHubCopilotCodingAgent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		setupFunc      func(string) error
@@ -96,6 +97,7 @@ func TestCopilotCodingAgentDetector_IsGitHubCopilotCodingAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create temporary directory for test
 			tmpDir, err := os.MkdirTemp("", "copilot-agent-test-*")
 			if err != nil {
@@ -125,6 +127,7 @@ func TestCopilotCodingAgentDetector_IsGitHubCopilotCodingAgent(t *testing.T) {
 }
 
 func TestParseCopilotCodingAgentLogMetrics(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		logContent     string
@@ -213,6 +216,7 @@ Task step 1 complete
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			metrics := ParseCopilotCodingAgentLogMetrics(tt.logContent, false)
 
 			if tt.expectedTurns > 0 && metrics.Turns != tt.expectedTurns {
@@ -235,6 +239,7 @@ Task step 1 complete
 }
 
 func TestExtractToolName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -311,6 +316,7 @@ func TestExtractToolName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := extractToolName(tt.line)
 			if result != tt.expected {
 				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
@@ -320,6 +326,7 @@ func TestExtractToolName(t *testing.T) {
 }
 
 func TestIntegration_CopilotCodingAgentWithAudit(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory that simulates a GitHub Copilot coding agent run
 	// NOTE: GitHub Copilot coding agent runs do NOT have aw_info.json (that's for agentic workflows)
 	tmpDir, err := os.MkdirTemp("", "copilot-agent-integration-*")
@@ -373,6 +380,7 @@ Tool call: github_create_pr
 }
 
 func TestReadLogHeader(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "log-header-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -397,6 +405,7 @@ func TestReadLogHeader(t *testing.T) {
 }
 
 func TestWorkflowLogMetricsConversion(t *testing.T) {
+	t.Parallel()
 	// Test that our metrics are compatible with workflow.LogMetrics
 	logContent := `
 Task iteration 1
