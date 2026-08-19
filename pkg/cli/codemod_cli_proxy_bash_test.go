@@ -135,10 +135,30 @@ tools: # security settings
 		assert.Contains(t, result, "  cli-proxy: false")
 	})
 
-	t.Run("does not treat flow tools value as block header", func(t *testing.T) {
+	t.Run("adds cli-proxy: false to an inline flow tools mapping", func(t *testing.T) {
 		t.Parallel()
 		content := `---
 tools: {bash: false}
+---
+
+# Test
+`
+		frontmatter := map[string]any{
+			"tools": map[string]any{"bash": false},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "tools: {cli-proxy: false, bash: false}")
+	})
+
+	t.Run("does not treat a multi-line flow tools value as block header", func(t *testing.T) {
+		t.Parallel()
+		content := `---
+tools: {
+  bash: false
+}
 ---
 
 # Test
