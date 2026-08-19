@@ -27,5 +27,5 @@ func TestBuildToolsMetaRuntimeDataWithoutExpressions(t *testing.T) {
 
 	assert.Equal(t, input, sanitized)
 	assert.Nil(t, envKeys)
-	assert.Empty(t, envValues)
+	assert.Nil(t, envValues)
 }

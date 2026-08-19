@@ -154,9 +154,8 @@ func buildSafeOutputsConfigRuntimeData(safeOutputConfig string) (string, []strin
 }
 
 func buildToolsMetaRuntimeData(toolsMetaJSON string) (string, []string, map[string]string) {
-	envValues := make(map[string]string)
 	if toolsMetaJSON == "" {
-		return toolsMetaJSON, nil, envValues
+		return toolsMetaJSON, nil, nil
 	}
 
 	extractor := NewExpressionExtractor()
@@ -177,9 +176,10 @@ func buildToolsMetaRuntimeData(toolsMetaJSON string) (string, []string, map[stri
 	}
 
 	if len(expressionEnvVars) == 0 {
-		return toolsMetaJSON, nil, envValues
+		return toolsMetaJSON, nil, nil
 	}
 
+	envValues := make(map[string]string, len(expressionEnvVars))
 	sanitizedToolsMeta := toolsMetaJSON
 	for _, expr := range sliceutil.SortedKeys(expressionEnvVars) {
 		envName := expressionEnvVars[expr]
