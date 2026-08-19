@@ -253,3 +253,73 @@ tools: {github: {min-integrity: none}}
 		})
 	}
 }
+
+func TestInsertBashFalseIntoTopLevelTools_SkipsCommentsAndBlankLines(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		lines    []string
+		expected []string
+	}{
+		{
+			name: "inserts after leading comments and blank lines, matching field indentation",
+			lines: []string{
+				"on: workflow_dispatch",
+				"tools:",
+				"  # keep the github toolset minimal",
+				"",
+				"  github:",
+				"    min-integrity: none",
+			},
+			expected: []string{
+				"on: workflow_dispatch",
+				"tools:",
+				"  # keep the github toolset minimal",
+				"",
+				"  bash: false",
+				"  github:",
+				"    min-integrity: none",
+			},
+		},
+		{
+			name: "uses the first field indentation even when it is not two spaces",
+			lines: []string{
+				"tools:",
+				"    # comment",
+				"    github:",
+				"      min-integrity: none",
+			},
+			expected: []string{
+				"tools:",
+				"    # comment",
+				"    bash: false",
+				"    github:",
+				"      min-integrity: none",
+			},
+		},
+		{
+			name: "inserts right after the tools key when the block has only comments",
+			lines: []string{
+				"tools:",
+				"  # nothing configured yet",
+				"engine: copilot",
+			},
+			expected: []string{
+				"tools:",
+				"  bash: false",
+				"  # nothing configured yet",
+				"engine: copilot",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, applied := insertBashFalseIntoTopLevelTools(tt.lines)
+			assert.True(t, applied)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

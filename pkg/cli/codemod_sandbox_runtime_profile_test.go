@@ -203,6 +203,27 @@ sandbox:
 			expectContains: []string{"    runtime: gvisor"},
 			expectExcludes: []string{"sudo:", "docker-sudo-iptables"},
 		},
+		{
+			name: "gvisor combined with both sudo and legacy-security keeps gvisor and drops both",
+			content: `---
+on: workflow_dispatch
+sandbox:
+  agent:
+    runtime: gvisor
+    sudo: true
+    legacy-security: enable
+---
+
+# Test`,
+			frontmatter: map[string]any{
+				"sandbox": map[string]any{
+					"agent": map[string]any{"runtime": "gvisor", "sudo": true, "legacy-security": "enable"},
+				},
+			},
+			expectApplied:  true,
+			expectContains: []string{"    runtime: gvisor"},
+			expectExcludes: []string{"sudo:", "legacy-security:", "docker-sudo-iptables"},
+		},
 	}
 
 	for _, tt := range tests {
