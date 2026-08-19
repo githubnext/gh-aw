@@ -187,7 +187,7 @@ This guarantee is scoped to the `node` and `python` ecosystems. Some engine defa
 
 To let the agent itself reach the `node` or `python` registries, opt in explicitly with the matching ecosystem identifier (`node`, `python`, …) in `network.allowed`, or declare the corresponding entry under `runtimes:`. With `network: {}` or `network: { allowed: [defaults, github] }`, those registries stay blocked.
 
-See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
+See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists. This invariant is enforced by `TestEngineDefaultDomainsDoNotOverlapEcosystems` in [`domains_package_registry_test.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains_package_registry_test.go), which fails the build if any engine's static default domain list overlaps with the full `node` or `python` ecosystem domain sets — including registry entries added after this was written.
 
 ### Firewall Log Level
 

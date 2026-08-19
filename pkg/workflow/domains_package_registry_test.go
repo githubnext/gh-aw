@@ -88,6 +88,43 @@ func TestEngineDefaultDomainsKeepTransportDomains(t *testing.T) {
 	}
 }
 
+// TestEngineDefaultDomainsDoNotOverlapEcosystems is a broader, self-updating regression guard
+// for the invariant enforced above: it does not rely on a manually curated list of registry
+// domains (packageRegistryDomains), so it also catches future additions of *any* domain from
+// the full "node" or "python" ecosystem definitions (pkg/workflow/data/ecosystem_domains.json)
+// into an engine's static default domain list, even ones not anticipated when this test was
+// written. If this test fails, the fix is almost always to remove the offending domain from
+// the engine default list, not to relax this test — see the invariant documented above
+// CopilotDefaultDomains in domains.go.
+func TestEngineDefaultDomainsDoNotOverlapEcosystems(t *testing.T) {
+	gatedEcosystems := []string{"node", "python"}
+
+	for _, ecosystem := range gatedEcosystems {
+		ecosystemDomains := getEcosystemDomains(ecosystem)
+		require.NotEmpty(t, ecosystemDomains, "ecosystem %q must resolve to a non-empty domain list", ecosystem)
+
+		for _, engine := range allEngines {
+			t.Run(ecosystem+"/"+string(engine), func(t *testing.T) {
+				defaults, err := GetDefaultDomainsForEngine(engine, "")
+				require.NoError(t, err)
+				for _, domain := range ecosystemDomains {
+					assert.NotContains(t, defaults, domain,
+						"engine %q default domains must not include %q ecosystem domain %q; "+
+							"package/language ecosystems require explicit opt-in via network.allowed or runtimes",
+						engine, ecosystem, domain)
+				}
+			})
+		}
+
+		for _, domain := range ecosystemDomains {
+			assert.NotContains(t, PiBaseDefaultDomains, domain,
+				"PiBaseDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
+			assert.NotContains(t, PiDefaultDomains, domain,
+				"PiDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
+		}
+	}
+}
+
 // TestNetworkPermissionsGatePackageRegistries is the end-to-end guarantee: a restrictive
 // network configuration excludes package registries, and explicit ecosystem opt-in
 // (network.allowed or runtimes) brings them back.

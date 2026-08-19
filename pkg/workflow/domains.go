@@ -57,6 +57,13 @@ func getLoadedEcosystemDomains() map[string][]string {
 // declares `network: {}` or `network: { allowed: [defaults, github] }`, contradicting the
 // documented behavior that package ecosystems require explicit opt-in
 // (`network: { allowed: [node] }`, `[python]`, or a matching `runtimes:` entry).
+//
+// This invariant is enforced by TestEngineDefaultDomainsDoNotOverlapEcosystems in
+// domains_package_registry_test.go, which fails if any engine default domain list below
+// overlaps with the full "node" or "python" ecosystem domain sets in data/ecosystem_domains.json
+// — not just the registries known when this comment was written. If you need to add a domain
+// to an engine default and that test starts failing, the domain belongs behind an explicit
+// ecosystem/runtime opt-in instead, not in the unconditional default list.
 
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
 var CopilotDefaultDomains = []string{
