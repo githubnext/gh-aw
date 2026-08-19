@@ -34,7 +34,7 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 				allowAllowedReposExpression: true,
 			})
 			if isInvalid {
-				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
+				return nil // Invalid configuration, return nil to cause validation error
 			}
 			linkSubIssueConfig.SafeOutputTargetConfig = targetConfig
 
