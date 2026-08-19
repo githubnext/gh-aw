@@ -87,7 +87,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					Discussions:          ptrBool(true),
+					Discussions:          new(true),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -101,7 +101,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					Discussions:          ptrBool(false),
+					Discussions:          new(false),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -114,7 +114,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					PullRequests:         ptrBool(false),
+					PullRequests:         new(false),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{

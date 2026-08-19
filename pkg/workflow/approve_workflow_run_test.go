@@ -40,7 +40,7 @@ Approve eligible workflow runs.
 	require.NoError(t, err)
 	require.NotNil(t, data.SafeOutputs)
 	require.NotNil(t, data.SafeOutputs.ApproveWorkflowRun)
-	assert.Equal(t, strPtr("2"), data.SafeOutputs.ApproveWorkflowRun.Max)
+	assert.Equal(t, new("2"), data.SafeOutputs.ApproveWorkflowRun.Max)
 	require.NotNil(t, data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.Equal(t, TemplatableBool("true"), *data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.True(t, data.SafeOutputs.ApproveWorkflowRun.Fork)
@@ -59,7 +59,7 @@ func TestApproveWorkflowRunDefaultConfiguration(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	assert.Equal(t, strPtr("1"), config.Max)
+	assert.Equal(t, new("1"), config.Max)
 	assert.False(t, config.Fork)
 }
 
@@ -235,7 +235,7 @@ func TestApproveWorkflowRunAllowedPullRequestsExpressionEmitsJSONArray(t *testin
 		runtimeConfig := strings.ReplaceAll(string(configJSON), wrappedExpression, `""`)
 		var config map[string]map[string]any
 		require.NoError(t, json.Unmarshal([]byte(runtimeConfig), &config))
-		assert.Equal(t, "", config["approve_workflow_run"]["allowed_pull_requests"])
+		assert.Empty(t, config["approve_workflow_run"]["allowed_pull_requests"])
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 )
 
 func TestExtractSafeOutputLabels_IncludesLabelCommand(t *testing.T) {
+	t.Parallel()
 	data := &workflow.WorkflowData{
 		SafeOutputs: &workflow.SafeOutputsConfig{
 			CreateIssues: &workflow.CreateIssuesConfig{
@@ -38,6 +39,7 @@ func TestExtractSafeOutputLabels_IncludesLabelCommand(t *testing.T) {
 }
 
 func TestExtractSafeOutputLabels_DeduplicatesAcrossSources(t *testing.T) {
+	t.Parallel()
 	data := &workflow.WorkflowData{
 		SafeOutputs: &workflow.SafeOutputsConfig{
 			CreatePullRequests: &workflow.CreatePullRequestsConfig{
