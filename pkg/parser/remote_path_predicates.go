@@ -30,6 +30,10 @@ func isCustomAgentFile(filePath string) bool {
 
 // isRepositoryImport checks if an import spec is a repository-only import (no file path)
 // Format: owner/repo@ref or owner/repo (downloads entire .github folder, no agent extraction)
+// Only common workflow-adjacent file extensions are rejected so dotted repository
+// names such as "githubnext/gh-aw.dev" remain valid repository imports.
+// Callers that also accept local imports should attempt local path resolution
+// first so existing two-segment local paths win over this remote-import heuristic.
 func isRepositoryImport(importPath string) bool {
 	cleanPath := importPath
 	if before, _, ok := strings.Cut(importPath, "#"); ok {

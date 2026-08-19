@@ -123,14 +123,14 @@ func seedInitialImportQueue(importSpecs []ImportSpec, baseDir string, cache *Imp
 
 func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	importPath := importSpec.Path
-	if isRepositoryImport(importPath) {
-		parserLog.Printf("Detected repository import: %s", importPath)
-		state.acc.repositoryImports = append(state.acc.repositoryImports, importPath)
-		return nil
-	}
 	filePath, sectionName := splitPathAndSection(importPath)
 	fullPath, err := resolveSeedImportPath(filePath, importPath, baseDir, cache, workflowFilePath, yamlContent)
 	if err != nil {
+		if isRepositoryImport(importPath) {
+			parserLog.Printf("Detected repository import: %s", importPath)
+			state.acc.repositoryImports = append(state.acc.repositoryImports, importPath)
+			return nil
+		}
 		return err
 	}
 	origin, err := detectRemoteImportOrigin(filePath)

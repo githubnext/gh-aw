@@ -676,6 +676,11 @@ func TestIsRepositoryImport(t *testing.T) {
 			want:       true,
 		},
 		{
+			name:       "repo with non workflow-adjacent extension-like suffix remains repository import",
+			importPath: "owner/tool.sh",
+			want:       true,
+		},
+		{
 			name:       "workflowspec with three parts is not repository import",
 			importPath: "owner/repo/path/to/file.md",
 			want:       false,
@@ -720,6 +725,85 @@ func TestIsRepositoryImport(t *testing.T) {
 	}
 }
 
+func TestSplitPathAndSection(t *testing.T) {
+	path, section := splitPathAndSection("owner/repo/file.md#section")
+	assert.Equal(t, "owner/repo/file.md", path)
+	assert.Equal(t, "section", section)
+
+	path, section = splitPathAndSection("owner/repo/file.md")
+	assert.Equal(t, "owner/repo/file.md", path)
+	assert.Empty(t, section)
+
+	path, section = splitPathAndSection("owner/repo/file.md#")
+	assert.Equal(t, "owner/repo/file.md", path)
+	assert.Empty(t, section)
+}
+
+func TestComputeIncludeResolveAndSecurityBases(t *testing.T) {
+	baseDir := filepath.Join(string(filepath.Separator), "repo", ".github", "workflows")
+	repoRoot := filepath.Dir(filepath.Dir(baseDir))
+	githubDir := filepath.Join(repoRoot, ".github")
+
+	tests := []struct {
+		name             string
+		filePath         string
+		baseDir          string
+		wantResolveBase  string
+		wantSecurityBase string
+		wantNormFilePath string
+	}{
+		{
+			name:             ".github-prefixed path resolves from repo root",
+			filePath:         ".github/workflows/foo.md",
+			baseDir:          baseDir,
+			wantResolveBase:  repoRoot,
+			wantSecurityBase: githubDir,
+			wantNormFilePath: ".github/workflows/foo.md",
+		},
+		{
+			name:             "absolute path inside .github resolves from repo root",
+			filePath:         "/.github/workflows/foo.md",
+			baseDir:          baseDir,
+			wantResolveBase:  repoRoot,
+			wantSecurityBase: githubDir,
+			wantNormFilePath: filepath.FromSlash(".github/workflows/foo.md"),
+		},
+		{
+			name:             "absolute path inside .agents uses agents security base",
+			filePath:         "/.agents/custom.md",
+			baseDir:          baseDir,
+			wantResolveBase:  repoRoot,
+			wantSecurityBase: filepath.Join(repoRoot, ".agents"),
+			wantNormFilePath: filepath.FromSlash(".agents/custom.md"),
+		},
+		{
+			name:             "absolute path outside .github is rejected",
+			filePath:         "/etc/passwd",
+			baseDir:          baseDir,
+			wantResolveBase:  "",
+			wantSecurityBase: "",
+			wantNormFilePath: "/etc/passwd",
+		},
+		{
+			name:             "base without .github ancestor keeps original base",
+			filePath:         "shared/foo.md",
+			baseDir:          filepath.Join(string(filepath.Separator), "repo", "workflows"),
+			wantResolveBase:  filepath.Join(string(filepath.Separator), "repo", "workflows"),
+			wantSecurityBase: filepath.Join(string(filepath.Separator), "repo", "workflows"),
+			wantNormFilePath: "shared/foo.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResolveBase, gotSecurityBase, gotNormFilePath := computeIncludeResolveAndSecurityBases(tt.filePath, tt.baseDir)
+			assert.Equal(t, tt.wantResolveBase, gotResolveBase)
+			assert.Equal(t, tt.wantSecurityBase, gotSecurityBase)
+			assert.Equal(t, tt.wantNormFilePath, gotNormFilePath)
+		})
+	}
+}
+
 // processImportsFromFrontmatter is a test helper that wraps ProcessImportsFromFrontmatterWithSource
 // returning only the merged tools and engines (mirrors the removed production helper).
 func processImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (string, []string, error) {
@@ -728,6 +812,30 @@ func processImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 		return "", nil, err
 	}
 	return result.MergedTools, result.MergedEngines, nil
+}
+
+func TestTwoSegmentLocalImportWinsOverRepositoryImport(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	configDir := filepath.Join(tempDir, "configs")
+	require.NoError(t, os.MkdirAll(configDir, 0755))
+
+	localImport := filepath.Join(configDir, "tool.toml")
+	localImportContent := `---
+tools:
+  local-tool: {}
+---
+# Local config
+`
+	require.NoError(t, os.WriteFile(localImport, []byte(localImportContent), 0644))
+
+	result, err := ProcessImportsFromFrontmatterWithSource(map[string]any{
+		"imports": []string{"configs/tool.toml"},
+	}, tempDir, nil, "", "")
+
+	require.NoError(t, err)
+	assert.Empty(t, result.RepositoryImports, "existing two-segment local paths should not be classified as repository imports")
+	assert.Equal(t, []string{"configs/tool.toml"}, result.ImportedFiles)
+	assert.NotEmpty(t, result.MergedTools)
 }
 
 func TestProcessImportsFromFrontmatter(t *testing.T) {
