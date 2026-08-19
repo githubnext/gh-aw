@@ -21,6 +21,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestParseCronField_Wildcard(t *testing.T) {
+	t.Parallel()
 	vals, err := parseCronField("*", 0, 23)
 	require.NoError(t, err, "wildcard should parse without error")
 	assert.Len(t, vals, 24, "wildcard should expand to all 24 hours")
@@ -29,52 +30,61 @@ func TestParseCronField_Wildcard(t *testing.T) {
 }
 
 func TestParseCronField_SingleValue(t *testing.T) {
+	t.Parallel()
 	vals, err := parseCronField("14", 0, 23)
 	require.NoError(t, err, "single value should parse without error")
 	assert.Equal(t, []int{14}, vals, "should return exactly [14]")
 }
 
 func TestParseCronField_Range(t *testing.T) {
+	t.Parallel()
 	vals, err := parseCronField("1-5", 0, 6)
 	require.NoError(t, err, "range should parse without error")
 	assert.Equal(t, []int{1, 2, 3, 4, 5}, vals, "range 1-5 should expand to [1,2,3,4,5]")
 }
 
 func TestParseCronField_Step(t *testing.T) {
+	t.Parallel()
 	vals, err := parseCronField("*/4", 0, 23)
 	require.NoError(t, err, "step should parse without error")
 	assert.Equal(t, []int{0, 4, 8, 12, 16, 20}, vals, "*/4 should expand to every 4th hour")
 }
 
 func TestParseCronField_RangeWithStep(t *testing.T) {
+	t.Parallel()
 	vals, err := parseCronField("0-12/3", 0, 23)
 	require.NoError(t, err, "range with step should parse without error")
 	assert.Equal(t, []int{0, 3, 6, 9, 12}, vals, "0-12/3 should step by 3 within range")
 }
 
 func TestParseCronField_CommaSeparated(t *testing.T) {
+	t.Parallel()
 	vals, err := parseCronField("9,14,17", 0, 23)
 	require.NoError(t, err, "comma-separated values should parse without error")
 	assert.Equal(t, []int{9, 14, 17}, vals, "comma-separated list should return each value")
 }
 
 func TestParseCronField_CommaSeparatedDeduplication(t *testing.T) {
+	t.Parallel()
 	vals, err := parseCronField("5,5,5", 0, 23)
 	require.NoError(t, err, "duplicate comma values should be deduplicated")
 	assert.Equal(t, []int{5}, vals, "duplicate values should be collapsed to one")
 }
 
 func TestParseCronField_OutOfRange(t *testing.T) {
+	t.Parallel()
 	_, err := parseCronField("25", 0, 23)
 	assert.Error(t, err, "value out of range should return an error")
 }
 
 func TestParseCronField_InvalidValue(t *testing.T) {
+	t.Parallel()
 	_, err := parseCronField("abc", 0, 23)
 	assert.Error(t, err, "non-numeric field should return an error")
 }
 
 func TestParseCronField_InvalidStep(t *testing.T) {
+	t.Parallel()
 	_, err := parseCronField("*/0", 0, 23)
 	assert.Error(t, err, "zero step should return an error")
 }
@@ -84,6 +94,7 @@ func TestParseCronField_InvalidStep(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestParseCronSchedule_Daily(t *testing.T) {
+	t.Parallel()
 	hours, days, err := parseCronSchedule("40 20 * * *")
 	require.NoError(t, err, "daily cron should parse without error")
 	assert.Equal(t, []int{20}, hours, "hour should be 20")
@@ -91,6 +102,7 @@ func TestParseCronSchedule_Daily(t *testing.T) {
 }
 
 func TestParseCronSchedule_Weekdays(t *testing.T) {
+	t.Parallel()
 	hours, days, err := parseCronSchedule("33 14 * * 1-5")
 	require.NoError(t, err, "weekday cron should parse without error")
 	assert.Equal(t, []int{14}, hours, "hour should be 14")
@@ -98,6 +110,7 @@ func TestParseCronSchedule_Weekdays(t *testing.T) {
 }
 
 func TestParseCronSchedule_MultipleHours(t *testing.T) {
+	t.Parallel()
 	hours, days, err := parseCronSchedule("0 9,17 * * *")
 	require.NoError(t, err, "multiple hours cron should parse without error")
 	assert.Equal(t, []int{9, 17}, hours, "hours should be [9,17]")
@@ -105,18 +118,21 @@ func TestParseCronSchedule_MultipleHours(t *testing.T) {
 }
 
 func TestParseCronSchedule_Sunday7NormalisedTo0(t *testing.T) {
+	t.Parallel()
 	_, days, err := parseCronSchedule("0 0 * * 7")
 	require.NoError(t, err, "day 7 (Sunday alias) should parse without error")
 	assert.Equal(t, []int{0}, days, "day 7 should be normalised to 0 (Sunday)")
 }
 
 func TestParseCronSchedule_SundayDeduplicated(t *testing.T) {
+	t.Parallel()
 	_, days, err := parseCronSchedule("0 0 * * 0-7")
 	require.NoError(t, err, "range 0-7 should deduplicate Sunday (0 and 7)")
 	assert.Len(t, days, 7, "0-7 range should result in exactly 7 unique days after dedup")
 }
 
 func TestParseCronSchedule_WrongFieldCount(t *testing.T) {
+	t.Parallel()
 	_, _, err := parseCronSchedule("* * * *")
 	assert.Error(t, err, "cron with 4 fields should return an error")
 }
@@ -126,11 +142,13 @@ func TestParseCronSchedule_WrongFieldCount(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuildScheduleGrid_Empty(t *testing.T) {
+	t.Parallel()
 	grid := buildScheduleGrid([]*WorkflowStats{})
 	assert.Nil(t, grid, "empty stats list should return nil grid")
 }
 
 func TestBuildScheduleGrid_NoSchedules(t *testing.T) {
+	t.Parallel()
 	statsList := []*WorkflowStats{
 		{Workflow: "no-schedule.lock.yml", FileSize: 1000},
 	}
@@ -139,6 +157,7 @@ func TestBuildScheduleGrid_NoSchedules(t *testing.T) {
 }
 
 func TestBuildScheduleGrid_SingleDailyCron(t *testing.T) {
+	t.Parallel()
 	// "40 20 * * *" → hour=20, all 7 days
 	statsList := []*WorkflowStats{
 		{Workflow: "daily.lock.yml", Schedules: []string{"40 20 * * *"}},
@@ -153,6 +172,7 @@ func TestBuildScheduleGrid_SingleDailyCron(t *testing.T) {
 }
 
 func TestBuildScheduleGrid_MultipleWorkflows(t *testing.T) {
+	t.Parallel()
 	// Two workflows both scheduled at hour 9 on all days → count of 2.
 	statsList := []*WorkflowStats{
 		{Workflow: "wf1.lock.yml", Schedules: []string{"0 9 * * *"}},
@@ -167,6 +187,7 @@ func TestBuildScheduleGrid_MultipleWorkflows(t *testing.T) {
 }
 
 func TestBuildScheduleGrid_WeekdayOnly(t *testing.T) {
+	t.Parallel()
 	// "0 8 * * 1-5" → hour=8, Mon–Fri (cron days 1–5)
 	statsList := []*WorkflowStats{
 		{Workflow: "weekday.lock.yml", Schedules: []string{"0 8 * * 1-5"}},
@@ -188,6 +209,7 @@ func TestBuildScheduleGrid_WeekdayOnly(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIntensityChar(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		count    int
 		expected string
