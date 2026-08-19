@@ -1,3 +1,17 @@
+## Flagged Items (2026-08-19, ~05:45Z cycle)
+
+- **[new, filed, top finding]** `safe-outputs.runs-on` type mismatch: parser (`SafeOutputsConfig.RunsOn string`) only accepts a string, but schema and docs both document/allow string/array/object forms — real config-parsing bug, not theoretical.
+- **[new, filed]** 3 docs gaps bundled into one issue: `threat-detection-suppress` undocumented in main frontmatter guide, deprecated `max-runs` missing a deprecation note there, stale `check-for-updates` doc link in code comments.
+- **[new, filed]** Quick Start guide's 5-engine auth-tab block overwhelms first-time visitors before they run a command; curl-fallback install script doesn't say when to use it — found via first-person Documentation Noob Tester walkthrough.
+- **[new, filed]** `compiler.go` has 0 `%w` error-wrap usages (vs 20 in compiler_jobs.go) and 2 functions (75/66 lines) that stand out from its otherwise-short-function pattern.
+- **[new, filed, meta]** Daily Compiler Code Quality Check's own configured target file list references 2 files that no longer exist (`compiler_activation_jobs.go`, `compiler_safe_outputs_config.go`) — auditing-tool config fix.
+- **[commented, not filed]** MCP remote auth-test discussion #53918 folded into already-tracked #53464 (recurring toolset-unavailability issue) as a further occurrence, per standing pattern.
+- **[declined, already self-filed]** Sergo R61 (#53902) found a real `generatedyamlheredoc` bug (`(( expr << n ))` misreported as heredoc) but it was already auto-filed by the workflow itself as #53901 — confirmed via search, no duplicate.
+- **[declined, already self-filed]** LintMonster (#53890) and ESLint Refiner (#53916) both filed their own new issues this run (package-level mutable state; resolveInitializer destructuring bug + execApi alias gap) — self-contained, no dup needed.
+- **[declined, healthy]** Daily Firewall Report (0.5% block rate, known Google-auth-domain noise), Firewall Escape Test (SECURE, 11/11 novel techniques correctly blocked) — no action.
+- **[declined, chronic-fluctuating]** Unlabeled open issues: 3 this cycle (#53670, #53489, #53136) — same set as noted in prior cycles, still resolving via normal triage, no dedicated labeling task.
+- **[declined, already auto-filed]** Daily Container Image Security Scan failure (seen in live 15-run sample) — already auto-filed as #53923.
+
 ## Flagged Items (2026-08-19, ~00:15Z cycle)
 
 - **[new, filed, security/observability]** `squad.md` and `squad-implement-worker.md` run frequently (8+11 runs today) with `safe-outputs` defined but `gh-aw-detection` disabled — no prompt-injection scanning on their output.

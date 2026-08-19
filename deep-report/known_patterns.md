@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-19T05:45:00Z)
+
+### New pattern: a quality/audit workflow's own configuration can go stale, and that is itself a valid finding
+Daily Compiler Code Quality Check (#53892) is configured to analyze a fixed file list; 2 of those files (`compiler_activation_jobs.go`, `compiler_safe_outputs_config.go`) no longer exist in the tree after refactors, so the run silently substituted others. **Lesson: when a recurring auditor/report workflow references specific file paths or targets in its config, treat "target no longer exists" as a first-class finding about the auditing workflow itself, not just noise to filter past — otherwise its effective coverage silently shrinks over time as the codebase changes underneath it.**
+
+### Reconfirmed: self-filing workflows still need a dedup search before DeepReport files anything on their behalf
+Both Sergo (#53902, generatedyamlheredoc bug) and separately LintMonster/ESLint Refiner this cycle produced real findings that were already auto-filed by the reporting workflow itself (#53901 for Sergo's case) before DeepReport's analysis pass ran. **Lesson: always run the dedup search step even for findings that read as "new" in the report body — the workflow that found it often already filed it in the same run, just not yet reflected in the discussion post's own "issues created" section.**
+
 ## DeepReport Memory (2026-08-19T00:15:00Z)
 
 ### New pattern: persistence through re-filing can eventually work, even after 2 stalls
