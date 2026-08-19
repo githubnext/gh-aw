@@ -121,10 +121,31 @@ func TestCloudHypervisorAWFCommandOmitsUnsupportedMountsAndTTY(t *testing.T) {
 	command := BuildAWFCommand(config)
 	assert.Contains(t, command, "sudo --preserve-env awf")
 	assert.Contains(t, command, `--cloud-hypervisor-virtiofsd-sha256 "${GH_AW_CLOUD_HYPERVISOR_VIRTIOFSD_SHA256}"`)
+	assert.Contains(t, command, "GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS=2")
+	assert.Contains(t, command, "Cloud Hypervisor guest connectivity probe failed")
+	assert.Contains(t, command, "SANDBOX_NETWORK_INIT_FAILED")
+	assert.Contains(t, command, "guest network state:")
 	assert.NotContains(t, command, "--mount")
 	assert.NotContains(t, command, "--tty")
 	assert.NotContains(t, command, "--legacy-security")
 	assert.NotContains(t, command, "--enable-host-access")
+}
+
+func TestDefaultAWFCommandDoesNotUseCloudHypervisorRetryWrapper(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName: "claude",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "claude"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDocker}},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+	assert.NotContains(t, command, "GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS")
+	assert.NotContains(t, command, "SANDBOX_NETWORK_INIT_FAILED")
 }
 
 func TestCloudHypervisorFirewallLogsUsePrivilegedMode(t *testing.T) {

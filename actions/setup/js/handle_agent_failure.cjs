@@ -64,6 +64,8 @@ const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|\bmaximum\s+llm\s+invocations\s+exceeded\b)/i;
 const ALLOWED_FILES_ERROR_RE = /^(?<summary>.*outside the allowed-files list) \((?<files>.+?)\)\. (?<remediation>Add the files to the allowed-files configuration field or remove them from the (?:patch|bundle)\.)$/;
+const SANDBOX_NETWORK_INIT_FAILED_CODE = "SANDBOX_NETWORK_INIT_FAILED";
+const CLOUD_HYPERVISOR_GUEST_CONNECTIVITY_FAILURE_RE = /(?:SANDBOX_NETWORK_INIT_FAILED|Cloud Hypervisor guest connectivity probe failed)/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -2697,6 +2699,43 @@ function detectAWFStartupSignals(logContent, errorMessages = undefined) {
 }
 
 /**
+ * Detect Cloud Hypervisor guest networking preflight failures before engine startup.
+ * @param {string} logContent Full content of agent-stdio.log
+ * @returns {boolean}
+ */
+function hasSandboxNetworkInitFailureSignal(logContent) {
+  return CLOUD_HYPERVISOR_GUEST_CONNECTIVITY_FAILURE_RE.test(logContent);
+}
+
+/**
+ * Render Cloud Hypervisor guest networking state lines from AWF probe output.
+ * @param {string[]} lines
+ * @returns {string[]}
+ */
+function extractSandboxNetworkStateLines(lines) {
+  return lines.filter(line => line.includes("guest network state:")).slice(-20);
+}
+
+/**
+ * Build a dedicated context for Cloud Hypervisor guest network initialization failures.
+ * @param {string[]} lines
+ * @param {string} engineLabel
+ * @param {string[]} maskedValues
+ * @returns {string}
+ */
+function buildSandboxNetworkInitFailureContext(lines, engineLabel, maskedValues) {
+  let context = buildWarningAlertLine("Sandbox Network Init Failed", `\`${SANDBOX_NETWORK_INIT_FAILED_CODE}\`: Cloud Hypervisor guest networking did not initialize, so the${engineLabel} agent was never invoked.`) + "\n";
+  const networkStateLines = extractSandboxNetworkStateLines(lines);
+  if (networkStateLines.length > 0) {
+    context += "**Guest network state:**\n```text\n";
+    context += applyAddMaskRedaction(networkStateLines.join("\n"), maskedValues);
+    context += "\n```\n\n";
+  }
+  context += "Check the preceding Cloud Hypervisor logs for the guest connectivity probe output and retry attempts.\n\n";
+  return context;
+}
+
+/**
  * Detect whether the agent-stdio.log contains evidence of an AWF firewall startup failure.
  * Reads the log file from the path derived from GH_AW_AGENT_OUTPUT, falling back to the
  * default path. Returns false when the log file does not exist or cannot be read.
@@ -2806,6 +2845,11 @@ function buildEngineFailureContext(options = {}) {
     if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
       core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
       return "";
+    }
+
+    if (hasSandboxNetworkInitFailureSignal(logContent)) {
+      core.info("Detected Cloud Hypervisor guest networking preflight failure — using dedicated sandbox context message");
+      return buildSandboxNetworkInitFailureContext(lines, engineLabel, maskedValues);
     }
 
     if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {

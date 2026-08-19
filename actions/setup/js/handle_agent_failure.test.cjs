@@ -2539,6 +2539,27 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("> [!WARNING]");
     });
 
+    it("returns dedicated context for Cloud Hypervisor guest network init failures", () => {
+      process.env.GH_AW_ENGINE_ID = "claude";
+      fs.writeFileSync(
+        stdioLogPath,
+        [
+          "[WARN] [cloud-hypervisor] stage=guest-connectivity status=failed: Cloud Hypervisor guest connectivity probe failed with exit code 4",
+          "(stderr: Connection to 172.30.0.10 3128 port [tcp/*] succeeded!; guest network state: 1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000",
+          "ERR_CONFIG: Claude execution failed: no structured log entries were produced",
+          "",
+        ].join("\n")
+      );
+
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Sandbox Network Init Failed");
+      expect(result).toContain("SANDBOX_NETWORK_INIT_FAILED");
+      expect(result).toContain("guest network state:");
+      expect(result).toContain("state DOWN");
+      expect(result).not.toContain("Engine Failure");
+      expect(result).not.toContain("Claude execution failed");
+    });
+
     it("returns dedicated context for engine 429/rate-limit failures in stdio logs", () => {
       fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit for utility models.\n");
       const result = buildEngineFailureContext();

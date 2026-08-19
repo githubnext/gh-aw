@@ -64,6 +64,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		awfArgs:                awfArgs,
 		shellWrappedCommand:    shellWrappedCommand,
 		logFile:                config.LogFile,
+		isCloudHypervisor:      isCloudHypervisor,
 	})
 
 	awfHelpersLog.Print("Successfully built AWF command")
@@ -268,6 +269,7 @@ type buildAWFCommandScriptInput struct {
 	awfArgs                []string
 	shellWrappedCommand    string
 	logFile                string
+	isCloudHypervisor      bool
 }
 
 func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
@@ -289,18 +291,53 @@ func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
 		input.arcDindPrefixProbe,
 		input.toolCacheMountProbe,
 		awfShellcheckDirective,
-		fmt.Sprintf(`%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			input.awfCommand,
-			input.expandableArgs,
-			input.toolCacheMountRef,
-			input.arcDindDockerHostRef,
-			shellJoinArgs(input.awfArgs),
-			input.shellWrappedCommand,
-			shellEscapeArg(input.logFile),
-		),
+		buildAWFInvocation(input),
 	)
 	return strings.Join(lines, "\n")
+}
+
+func buildAWFInvocation(input buildAWFCommandScriptInput) string {
+	awfInvocation := fmt.Sprintf(`%s %s %s %s %s \
+  -- %s`,
+		input.awfCommand,
+		input.expandableArgs,
+		input.toolCacheMountRef,
+		input.arcDindDockerHostRef,
+		shellJoinArgs(input.awfArgs),
+		input.shellWrappedCommand,
+	)
+	logFile := shellEscapeArg(input.logFile)
+	if !input.isCloudHypervisor {
+		return fmt.Sprintf("%s 2>&1 | tee -a %s", awfInvocation, logFile)
+	}
+	return fmt.Sprintf(`GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS=2
+GH_AW_CLOUD_HYPERVISOR_ATTEMPT=1
+while true; do
+  GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG="$(mktemp)"
+  echo "[INFO] [cloud-hypervisor] Starting guest connectivity preflight attempt ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}/${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}"
+  if %s 2>&1 | tee "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}" | tee -a %s; then
+    rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
+    break
+  else
+    GH_AW_CLOUD_HYPERVISOR_STATUS=$?
+  fi
+  if grep -Fq "Cloud Hypervisor guest connectivity probe failed" "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"; then
+    if [ "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}" -lt "${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}" ]; then
+      echo "::warning title=Cloud Hypervisor guest networking preflight retry::Cloud Hypervisor guest connectivity probe failed on attempt ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}/${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}; retrying after 3 seconds."
+      rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
+      GH_AW_CLOUD_HYPERVISOR_ATTEMPT=$((GH_AW_CLOUD_HYPERVISOR_ATTEMPT + 1))
+      sleep 3
+      continue
+    fi
+    echo "::error title=SANDBOX_NETWORK_INIT_FAILED::SANDBOX_NETWORK_INIT_FAILED: Cloud Hypervisor guest networking did not initialize; guest connectivity probe failed after ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT} attempt(s)."
+    if grep -Fq "guest network state:" "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"; then
+      echo "SANDBOX_NETWORK_INIT_FAILED guest network state:"
+      grep -F "guest network state:" "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}" | tail -n 20
+    fi
+  fi
+  rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
+  exit "${GH_AW_CLOUD_HYPERVISOR_STATUS}"
+done`, awfInvocation, logFile)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.
