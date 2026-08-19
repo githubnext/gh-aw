@@ -12,57 +12,6 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 )
 
-// IsWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref]).
-func IsWorkflowSpec(path string) bool {
-	// Remove section reference if present
-	cleanPath := path
-	if before, _, ok := strings.Cut(path, "#"); ok {
-		cleanPath = before
-	}
-
-	// Remove ref if present
-	if idx := strings.Index(cleanPath, "@"); idx != -1 {
-		cleanPath = cleanPath[:idx]
-	}
-
-	// Check if it has at least 3 parts (owner/repo/path)
-	parts := strings.Split(cleanPath, "/")
-	if len(parts) < 3 {
-		return false
-	}
-
-	// Preserve legacy behavior expected by parser tests: URL-like paths are
-	// currently treated as workflowspecs because downstream parsing supports
-	// repository/path extraction from slash-delimited remote references.
-	if strings.Contains(cleanPath, "://") {
-		return true
-	}
-
-	// Reject paths that start with "." (local paths like .github/workflows/...)
-	if strings.HasPrefix(cleanPath, ".") {
-		return false
-	}
-
-	// Reject paths that start with "shared/" (local shared files)
-	if strings.HasPrefix(cleanPath, "shared/") {
-		return false
-	}
-
-	// Reject absolute paths
-	if strings.HasPrefix(cleanPath, "/") {
-		return false
-	}
-
-	// Safe indexing: len(parts) >= 3 is guaranteed above.
-	owner := parts[0]
-	repo := parts[1]
-	if owner == "" || repo == "" {
-		return false
-	}
-
-	return true
-}
-
 // downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec.
 // It first checks the cache, and only downloads if not cached.
 //

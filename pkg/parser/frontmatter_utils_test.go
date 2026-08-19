@@ -671,6 +671,11 @@ func TestIsRepositoryImport(t *testing.T) {
 			want:       true,
 		},
 		{
+			name:       "owner/repo with dot is repository import",
+			importPath: "githubnext/gh-aw.dev",
+			want:       true,
+		},
+		{
 			name:       "workflowspec with three parts is not repository import",
 			importPath: "owner/repo/path/to/file.md",
 			want:       false,
