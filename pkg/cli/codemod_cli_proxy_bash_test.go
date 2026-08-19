@@ -12,9 +12,11 @@ import (
 )
 
 func TestCLIProxyBashDisabledCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getCLIProxyBashDisabledCodemod()
 
 	t.Run("adds cli-proxy false when bash is disabled", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   bash: false
@@ -40,6 +42,7 @@ tools:
 	})
 
 	t.Run("disables existing cli-proxy true", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   bash: false
@@ -63,6 +66,7 @@ tools:
 	})
 
 	t.Run("applies when bash allowlist is empty", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   bash: []
@@ -83,6 +87,7 @@ tools:
 	})
 
 	t.Run("rewrites github gh-proxy when bash is disabled", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   bash: false
@@ -111,6 +116,7 @@ tools:
 	})
 
 	t.Run("matches tools block with trailing comment", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools: # security settings
   bash: false
@@ -130,6 +136,7 @@ tools: # security settings
 	})
 
 	t.Run("does not treat flow tools value as block header", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools: {bash: false}
 ---
@@ -147,6 +154,7 @@ tools: {bash: false}
 	})
 
 	t.Run("adds tools block inside frontmatter when absent", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 name: Test
 ---
@@ -164,6 +172,7 @@ name: Test
 	})
 
 	t.Run("does not apply when bash is enabled", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   bash: ["cat"]
@@ -186,6 +195,7 @@ tools:
 	})
 
 	t.Run("does not apply when cli-proxy is already false", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   bash: false
@@ -208,6 +218,7 @@ tools:
 	})
 
 	t.Run("is idempotent", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   bash: false
@@ -233,6 +244,7 @@ tools:
 	})
 
 	t.Run("apply with context detects imported bash restriction", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		importContent := `---
 tools:
@@ -274,6 +286,7 @@ tools:
 	})
 
 	t.Run("apply with context inserts local github override for imported gh-proxy", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		importContent := `---
 tools:
