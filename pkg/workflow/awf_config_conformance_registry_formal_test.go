@@ -57,19 +57,27 @@ func formalConformanceRegistryParseSeriesID(id string, prefix string) (int, bool
 	return value, true
 }
 
-func formalConformanceRegistryIsWellFormedFinalID(id string) bool {
-	if _, ok := formalConformanceRegistryParseSeriesID(id, "T-DR-"); ok {
-		return !strings.HasPrefix(id, "T-DR-SAFE-")
+func formalConformanceRegistryParsePlainID(id string) (int, bool) {
+	if strings.HasPrefix(id, "T-DR-SAFE-") {
+		return 0, false
 	}
-	_, ok := formalConformanceRegistryParseSeriesID(id, "T-DR-SAFE-")
+	return formalConformanceRegistryParseSeriesID(id, "T-DR-")
+}
+
+func formalConformanceRegistryIsWellFormedFinalID(id string) bool {
+	if strings.HasPrefix(id, "T-DR-SAFE-") {
+		_, ok := formalConformanceRegistryParseSeriesID(id, "T-DR-SAFE-")
+		return ok
+	}
+	_, ok := formalConformanceRegistryParsePlainID(id)
 	return ok
 }
 
 func formalConformanceRegistryNextPlainID(rows []formalConformanceRegistryRow) string {
 	max := 0
 	for _, row := range rows {
-		value, ok := formalConformanceRegistryParseSeriesID(row.TestID, "T-DR-")
-		if !ok || strings.HasPrefix(row.TestID, "T-DR-SAFE-") {
+		value, ok := formalConformanceRegistryParsePlainID(row.TestID)
+		if !ok {
 			continue
 		}
 		if value > max {
@@ -120,9 +128,9 @@ func TestFormalConformanceRegistry_P1_TestIDMonotonicity(t *testing.T) {
 	next := formalConformanceRegistryNextPlainID(formalConformanceRegistryBaselineRows())
 	assert.Equal(t, "T-DR-011", next)
 
-	nextValue, ok := formalConformanceRegistryParseSeriesID(next, "T-DR-")
+	nextValue, ok := formalConformanceRegistryParsePlainID(next)
 	require.True(t, ok)
-	assert.Greater(t, nextValue, 10)
+	assert.Equal(t, 11, nextValue)
 }
 
 func TestFormalConformanceRegistry_P1_EmptyRegistryStartsAtOne(t *testing.T) {
@@ -139,7 +147,7 @@ func TestFormalConformanceRegistry_P2_TestIDNoDuplicates(t *testing.T) {
 
 func TestFormalConformanceRegistry_P3_TestIDFormatWellFormed(t *testing.T) {
 	valid := []string{"T-DR-001", "T-DR-010", "T-DR-1000", "T-DR-SAFE-001", "T-DR-SAFE-1234"}
-	invalid := []string{"t-dr-001", "T-DR-01", "T-DR-ABC", "T-DRSAFE-001", "T-DR-SAFE-1", "T-DR-SAFE-ABC"}
+	invalid := []string{"t-dr-001", "T-DR-01", "T-DR-ABC", "T-DRSAFE-001", "T-DR-SAFE-1", "T-DR-SAFE-01", "T-DR-SAFE-ABC"}
 
 	for _, id := range valid {
 		assert.True(t, formalConformanceRegistryIsWellFormedFinalID(id), id)
