@@ -420,10 +420,8 @@ func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 }
 
 func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
-	getActionPins()
-
 	var mcpgImages []string
-	for image := range cachedContainerPins {
+	for image := range getCachedActionPins().containers {
 		if strings.HasPrefix(image, "ghcr.io/github/gh-aw-mcpg:") {
 			mcpgImages = append(mcpgImages, image)
 		}
