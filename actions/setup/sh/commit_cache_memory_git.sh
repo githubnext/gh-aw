@@ -52,7 +52,9 @@ if [ -d .git/hooks ]; then
 fi
 mkdir -p .git/info
 rm -f .git/info/exclude .git/info/attributes .git/info/grafts .git/info/sparse-checkout
+rm -f .git/config.worktree
 
+git config --unset-all extensions.worktreeConfig >/dev/null 2>&1 || true
 git config --unset-all core.attributesFile >/dev/null 2>&1 || true
 git config --unset-all core.fsmonitor >/dev/null 2>&1 || true
 git config --unset-all core.sshCommand >/dev/null 2>&1 || true
@@ -85,7 +87,7 @@ git add -A
 
 # Commit on the current integrity branch; allow empty commits in case
 # the agent made no changes (idempotent).
-if git commit --no-verify --allow-empty -m "run-${RUN_ID}" -q 2>/tmp/gh-aw-commit-err; then
+if git -c commit.gpgSign=false commit --no-verify --allow-empty -m "run-${RUN_ID}" -q 2>/tmp/gh-aw-commit-err; then
   echo "Cache memory git commit complete (run: $RUN_ID)"
 else
   # Distinguish "nothing to commit" (benign) from real errors
