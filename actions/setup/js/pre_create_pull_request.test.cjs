@@ -49,6 +49,7 @@ describe("pre_create_pull_request", () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test workflow";
     process.env.GITHUB_RUN_ATTEMPT = "2";
     delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    delete process.env.GH_AW_PR_TITLE_PREFIX;
     delete process.env.GITHUB_BASE_REF;
   });
 
@@ -79,7 +80,7 @@ describe("pre_create_pull_request", () => {
     );
     expect(global.github.rest.pulls.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "[Test workflow] Work in progress",
+        title: "[WIP] Test workflow: work in progress",
         body: expect.stringContaining("/actions/runs/123"),
         base: "main",
         draft: true,
@@ -94,6 +95,28 @@ describe("pre_create_pull_request", () => {
     );
     expect(global.core.setOutput).toHaveBeenCalledWith("pull_request_number", 42);
     expect(global.core.setOutput).toHaveBeenCalledWith("branch", "gh-aw/pre-created/123-2");
+  });
+
+  it("applies the configured title prefix after the WIP marker", async () => {
+    process.env.GH_AW_PR_TITLE_PREFIX = "[bot] ";
+    const { main } = await import("./pre_create_pull_request.cjs");
+    await main();
+
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "[WIP] [bot] Test workflow: work in progress",
+      })
+    );
+  });
+
+  it("explains that the pull request is in progress and that steering is unsupported", async () => {
+    const { main } = await import("./pre_create_pull_request.cjs");
+    await main();
+
+    const body = global.github.rest.pulls.create.mock.calls[0][0].body;
+    expect(body).toContain("work in progress");
+    expect(body).toContain("Steering is not supported yet");
+    expect(body).toContain("Test workflow");
   });
 
   it("always creates the allocated pull request as a draft, even when the draft policy is disabled", async () => {
