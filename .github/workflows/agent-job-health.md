@@ -132,11 +132,12 @@ Read the existing history first and compare today's rate against the previous en
 
 Detect fleet-wide "silent gap" blind spots: `schedule`-triggered workflows that stopped firing without raising any error, missing-tool, or missing-data signal (see github/gh-aw#53252, where `audit-workflows` silently missed its own schedule for 41 days).
 
-- List every workflow file with a `schedule:` trigger in `.github/workflows/*.md` frontmatter (exclude the `shared/` includes and workflows whose only trigger is `workflow_dispatch`).
+- List every workflow file with a `schedule:` trigger declared in the actual YAML frontmatter block of `.github/workflows/*.md` (the content between the first two `---` delimiters only — ignore any `schedule:` text that appears in the markdown body, such as documentation examples or sample snippets, which do not represent real triggers). Exclude the `shared/` includes and workflows whose only frontmatter trigger is `workflow_dispatch`.
 - For each schedule-triggered workflow, resolve the expected cadence from its cron alias or expression (for example `daily` → 24h, `weekly` → 7d, `hourly` → 1h; for an explicit cron string, derive the implied interval).
 - Use the GitHub Actions API (`list_workflow_runs` on the corresponding `.lock.yml`, any status, most recent first) to find the timestamp of the **most recent run of any kind** (not just successful runs) for that workflow.
 - Flag a **blind spot** when the gap since that last run exceeds `2x` the expected cadence plus one day of slack (for example, a daily workflow silent for more than 3 days, or a weekly workflow silent for more than 15 days).
-- For each blind spot, record: workflow name, `.lock.yml` path, last observed run timestamp, expected cadence, and the gap size in days.
+- Before reporting a blind spot, also fetch the workflow's `state` (via `get_workflow` on the `.lock.yml`). If `state` is `disabled_manually` or `disabled_inactivity`, that is the root cause (not a silent cron misfire) — call this out explicitly in the report and recommend re-enabling the workflow (for example `gh workflow enable <workflow>`) rather than treating it as an undiagnosed schedule blind spot.
+- For each blind spot, record: workflow name, `.lock.yml` path, last observed run timestamp, expected cadence, the gap size in days, and the workflow's `state` (noting when it explains the gap).
 
 This check is independent of the last-24-hour run collection in Phase 1 and must always run, even when Phase 1 finds zero runs in the window.
 
