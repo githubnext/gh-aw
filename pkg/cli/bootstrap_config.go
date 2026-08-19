@@ -70,7 +70,7 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 
 // executeBootstrapConfigForAdd runs the bootstrap config actions interactively.
 // Used by add-wizard after the workflow PR has been created and merged.
-func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, useCopilotRequests bool, verbose bool) error {
+func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, useCopilotRequests bool, verbose bool, disableGitHubAppPermissionInference bool) error {
 	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
 		return nil
 	}
@@ -88,11 +88,12 @@ func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []st
 	}
 
 	return executeBootstrapProfile(ctx, bootstrapProfileRunConfig{
-		Repo:               repo,
-		RepoDir:            repoDir,
-		Sources:            sources,
-		Profile:            profile,
-		UseCopilotRequests: useCopilotRequests,
-		Verbose:            verbose,
+		Repo:                                repo,
+		RepoDir:                             repoDir,
+		Sources:                             sources,
+		Profile:                             profile,
+		UseCopilotRequests:                  useCopilotRequests,
+		Verbose:                             verbose,
+		DisableGitHubAppPermissionInference: disableGitHubAppPermissionInference,
 	})
 }
