@@ -13,25 +13,30 @@ import (
 
 // Test that DomainAnalysis implements LogAnalysis interface
 func TestDomainAnalysisImplementsLogAnalysis(t *testing.T) {
+	t.Parallel()
 	var _ LogAnalysis = (*DomainAnalysis)(nil)
 }
 
 // Test that DomainAnalysis implements MutableLogAnalysis interface
 func TestDomainAnalysisImplementsMutableLogAnalysis(t *testing.T) {
+	t.Parallel()
 	var _ MutableLogAnalysis = (*DomainAnalysis)(nil)
 }
 
 // Test that FirewallAnalysis implements LogAnalysis interface
 func TestFirewallAnalysisImplementsLogAnalysis(t *testing.T) {
+	t.Parallel()
 	var _ LogAnalysis = (*FirewallAnalysis)(nil)
 }
 
 // Test that FirewallAnalysis implements MutableLogAnalysis interface
 func TestFirewallAnalysisImplementsMutableLogAnalysis(t *testing.T) {
+	t.Parallel()
 	var _ MutableLogAnalysis = (*FirewallAnalysis)(nil)
 }
 
 func TestDomainAnalysisGettersSetters(t *testing.T) {
+	t.Parallel()
 	analysis := &DomainAnalysis{
 		AnalysisBase: AnalysisBase{
 			DomainBuckets: DomainBuckets{
@@ -67,6 +72,7 @@ func TestDomainAnalysisGettersSetters(t *testing.T) {
 }
 
 func TestDomainAnalysisAddMetrics(t *testing.T) {
+	t.Parallel()
 	analysis1 := &DomainAnalysis{
 		AnalysisBase: AnalysisBase{
 			TotalRequests: 10, AllowedRequests: 6, BlockedRequests: 4,
@@ -107,6 +113,7 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 }
 
 func TestFirewallAnalysisGettersSetters(t *testing.T) {
+	t.Parallel()
 	analysis := &FirewallAnalysis{
 		AnalysisBase: AnalysisBase{
 			DomainBuckets: DomainBuckets{
@@ -143,6 +150,7 @@ func TestFirewallAnalysisGettersSetters(t *testing.T) {
 }
 
 func TestFirewallAnalysisAddMetrics(t *testing.T) {
+	t.Parallel()
 	analysis1 := &FirewallAnalysis{
 		AnalysisBase: AnalysisBase{TotalRequests: 10, AllowedRequests: 6, BlockedRequests: 4},
 		RequestsByDomain: map[string]DomainRequestStats{
@@ -189,6 +197,7 @@ func TestFirewallAnalysisAddMetrics(t *testing.T) {
 }
 
 func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 	accessLogsDir := filepath.Join(tempDir, "access.log")
@@ -259,6 +268,7 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 }
 
 func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 	logsDir := filepath.Join(tempDir, "firewall-logs")
@@ -330,6 +340,7 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 }
 
 func TestAggregateLogFilesNoFiles(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory with no log files
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -354,6 +365,7 @@ func TestAggregateLogFilesNoFiles(t *testing.T) {
 }
 
 func TestAggregateLogFilesWithParseErrors(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 	logsDir := filepath.Join(tempDir, "logs")

@@ -41,6 +41,7 @@ func makeRunDir(t *testing.T, parent string, id int64, createdAt time.Time, writ
 }
 
 func TestCleanupOldRunFolders(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	cutoff := now.Add(-7 * 24 * time.Hour) // 1 week ago
 
@@ -154,6 +155,7 @@ func TestCleanupOldRunFolders(t *testing.T) {
 }
 
 func TestCleanupOldRunFoldersVerbose(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	cutoff := now.Add(-7 * 24 * time.Hour)
 	tmpDir := t.TempDir()

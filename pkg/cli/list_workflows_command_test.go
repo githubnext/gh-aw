@@ -46,6 +46,7 @@ func TestRunListWorkflows_JSONOutput(t *testing.T) {
 }
 
 func TestWorkflowListItem_JSONMarshaling(t *testing.T) {
+	t.Parallel()
 	// Test that WorkflowListItem can be marshaled to JSON
 	item := WorkflowListItem{
 		Workflow: "test-workflow",
@@ -108,6 +109,7 @@ func TestRunListWorkflows_TextOutput(t *testing.T) {
 }
 
 func TestNewListCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewListCommand()
 
 	// Verify command properties
