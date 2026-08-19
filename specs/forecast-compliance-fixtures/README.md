@@ -17,6 +17,13 @@ This fixture represents a single successful workflow run (`daily-report`) with:
 Use this fixture as the baseline for Monte Carlo engine compliance tests (**T-FC-031** through
 **T-FC-040**) by loading it as a cached run summary.
 
+`run_summary_minimal.json` is checked into the repository alongside this README. Verify its
+presence with:
+
+```bash
+test -f specs/forecast-compliance-fixtures/run_summary_minimal.json && echo "fixture present"
+```
+
 ## How to Run Compliance Tests
 
 The forecast compliance tests are located in `pkg/cli/forecast_montecarlo_test.go` and

@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.24
+**Version**: 1.0.25
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.25` | `v0.87.1` (or newer) | Editorial: SPDD daily audit confirming Section 5.1 rule catalog / Section 8.1 test ID coverage parity; no new rules, no `.lock.yml` schema changes. |
 | `1.0.24` | `v0.87.1` (or newer) | No new CTR rules; extends existing rule mappings (CTR-005, CTR-006/CTR-009, CTR-007, CTR-012) to cover recently-hardened implementation sites reviewed in this cycle (safe-output field allowlisting, agent-import-path shell escaping, URL-authority userinfo bypass in the markdown/content sanitizer, and generalized wildcard-target validation). No `.lock.yml` schema changes. |
 | `1.0.23` | `v0.87.1` (or newer) | Adds normative coverage for framework self-prompt misattribution handling (CTR-025) in threat-detection setup by stripping only the leading framework-generated `<system>...</system>` block before analysis; no `.lock.yml` schema changes (runtime-only detection setup behavior). |
 | `1.0.22` | `v0.87.0` (or newer) | Adds validated `threat-detection-suppress` handling and the `threat_detection_suppressions` manifest field, plus optimizer suppression and failure-safeguard conformance coverage. |
@@ -415,6 +416,12 @@ These optimizer-protocol IDs cover Section 6 norms; they do not add or replace t
 ---
 
 ## 10. Change Log
+
+### 1.0.25 (2026-08-19)
+
+- SPDD daily audit of Section 5.1 Core Rule Catalog against Section 8.1/8.2 `T-CTR-*` conformance coverage: **pass**, no gap found. Every active `CTR-*` rule (`CTR-001` through `CTR-023`, `CTR-025`) has a corresponding one-to-one `T-CTR-*` test ID in Section 8.1; `CTR-024` is not a defined rule ID (it is reserved as a Section 6.4 optimizer-protocol test ID in Section 8.2, not a rule), so its absence from Section 5.1 is expected and not a coverage gap.
+- Updated Section 2 spec-to-implementation sync table with version 1.0.25 entry.
+- No spec content changes resulted from this audit beyond this Change Log and sync table entry; recorded here per the Section 8.3 test coverage requirement to track audit history.
 
 ### 1.0.24 (2026-08-18)
 

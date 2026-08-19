@@ -24,6 +24,7 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 | T-DR-008 | §7.5.1 — corrective PR embeds records | The corrective PR description MUST embed the full `DriftRecord` list as JSON. |
 | T-DR-009 | §7.5.1 — empty list is valid | An empty `DriftRecord` list (no drift detected) is a valid output and MUST NOT trigger corrective PR or escalation actions. |
 | T-DR-010 | §7.2 Step 5 integration | The drift detection procedure Step 5 MUST produce a list of zero or more `DriftRecord` objects; the output format MUST be a JSON array conforming to the §3.1 schema. |
+| T-DR-011 | §6 Norms — CR-06a escalation owner assignment | The escalation issue's `Owner` field MUST resolve via the CR-06a fallback chain (last maintainer of the drifted implementation file, then the on-call maintainer) and MUST NOT be left unassigned. |
 
 ---
 
@@ -55,7 +56,7 @@ Conformance tests that validate `DriftRecord` schema compliance are implemented 
 
 ```
 pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation and usage (T-DR-001 through T-DR-010; T-DR-005: TestDriftRecord_TDR005_NoAdditionalProperties)
-pkg/workflow/awf_config_safeguards_formal_test.go — unavailable-source safeguards (T-DR-SAFE-001 through T-DR-SAFE-004)
+pkg/workflow/awf_config_safeguards_formal_test.go — unavailable-source safeguards (T-DR-SAFE-001 through T-DR-SAFE-004) and CR-06a escalation owner assignment (T-DR-011: TestFormalP13_EscalationOwnerAssignmentFallbackChain, TestFormalP14_EscalationOwnerMustNotBeUnassigned)
 ```
 
 To run related tests:
@@ -75,7 +76,7 @@ go test -v -run "TestDriftRecord|TestAWFConfigSafeguard" ./pkg/workflow/
 
 ## Adding New Safeguard Conformance Tests
 
-1. Assign the next available `T-DR-011+` identifier for new safeguard behavior that is not part of the existing unavailable-source series; use a placeholder such as `T-DR-NNN` in drafts until the table above confirms the exact next ID.
+1. Assign the next available `T-DR-012+` identifier for new safeguard behavior that is not part of the existing unavailable-source series; use a placeholder such as `T-DR-NNN` in drafts until the table above confirms the exact next ID.
 2. Add a row to the Safeguards Conformance Tests table with the requirement reference, for example `§8 Safeguards — degraded-run reporting`.
 3. Implement the test in `pkg/workflow/awf_config_safeguards_formal_test.go` when it exercises safeguard behavior, or in the closest AWF config drift test file when the safeguard spans drift output and schema validation.
 4. Cross-reference the new safeguard test ID from the relevant safeguard bullet in `specs/awf-config-sources-spec.md` so the spec and fixture index stay synchronized.

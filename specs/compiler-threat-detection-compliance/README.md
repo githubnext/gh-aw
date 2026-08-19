@@ -29,6 +29,14 @@ This directory maps the threat-detection rule catalog in the [Compiler Threat De
 | CTR-023 | T-CTR-023 |
 | CTR-025 | T-CTR-039 |
 
+## Non-sequential Test IDs
+
+The `T-CTR-*` identifier sequence is shared between this table (Section 8.1 rule mappings) and the Section 6 norm tables below (Section 8.2 optimizer-protocol mappings). IDs are allocated in the order rules and norms are added to the spec, **not** re-derived from the rule number, so a rule's test ID number does not necessarily match its rule ID number.
+
+Worked example: `CTR-025` was added after the Section 6.4/6.6 norm tests had already claimed `T-CTR-024` through `T-CTR-038`, so its conformance test was allocated the next free ID, `T-CTR-039`, rather than a rule-aligned `T-CTR-025` (which is already in use as a Section 6.4 norm test ID for suppression audit-trail retention).
+
+Rule for future allocations: when adding a new `CTR-*` rule or a new Section 6 norm, assign the next unused number in the single shared sequence (check both this table and the Section 6.4/6.6 tables below, plus `specs/compiler-threat-detection-spec.md` Sections 8.1 and 8.2, for the current maximum) rather than assuming the ID matches the rule number.
+
 The test triggers, expected compiler actions, and stable diagnostics are defined in [Section 8.1](../compiler-threat-detection-spec.md#81-test-id-catalog). The implementation and concrete test-file mappings are defined in [Section 7.1](../compiler-threat-detection-spec.md#71-baseline-rule-mapping).
 
 ## Section 6.4 False-Positive Handling Norms
