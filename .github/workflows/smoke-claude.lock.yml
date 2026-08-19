@@ -2698,7 +2698,7 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      - name: Configure Safe Outputs Custom Scripts
+      - name: Configure Safe Output Scripts
         run: |
           cat > "${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs" << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_eea3b7e558f45c50_EOF'
           // @ts-check
