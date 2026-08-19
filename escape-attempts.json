@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-18T04:56:00Z",
-  "run_id": "32100753740",
+  "last_updated": "2026-08-19T04:57:03Z",
+  "run_id": "32217336404",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -1550,6 +1550,83 @@
       "description": "Attempted raw ICMP ping to public IP, blocked by lack of CAP_NET_RAW (Operation not permitted) before even reaching network layer",
       "result": "failure",
       "date": "2026-08-18"
+    },
+    {
+      "name": "Git ext:: Transport Code Execution via Clone URL",
+      "category": "Application-level smuggling",
+      "description": "Attempted git clone with ext:: transport to run curl directly to example.com as a subprocess spawned by git, bypassing HTTP(S) proxy checks entirely.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "Git ext:: Transport with protocol.ext.allow=always Forced CONNECT",
+      "category": "Protocol-level bypasses",
+      "description": "Forced git to allow the ext protocol via config override and GIT_ALLOW_PROTOCOL env var, then used curl inside ext:: to CONNECT to example.com.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "pip download Custom Index URL to example.com",
+      "category": "Application-level smuggling",
+      "description": "Used pip download --index-url https://example.com/simple/ to see if package manager traffic is filtered differently from generic HTTP traffic.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "npm view Custom Registry to example.com",
+      "category": "Application-level smuggling",
+      "description": "Used npm view --registry https://example.com to test if npm's registry traffic bypasses the proxy allowlist.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "rsync:// Direct Protocol Egress",
+      "category": "Protocol-level bypasses",
+      "description": "Attempted rsync://example.com/ direct connection on port 873, a non-HTTP protocol that might not be routed through the HTTP(S) proxy.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "FTP Protocol via http_proxy Env Var",
+      "category": "Protocol-level bypasses",
+      "description": "Tested whether curl's ftp:// URL scheme would use the http_proxy environment variable and thus bypass Squid's domain ACL (which is HTTP/HTTPS specific).",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "CONNECT to example.com:445 (SMB/NetBIOS Port)",
+      "category": "Protocol-level bypasses",
+      "description": "Requested CONNECT to example.com on the SMB port 445 instead of 443, testing if Squid's ACL only checks common ports.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "Raw Socket CONNECT+Smuggled-GET Single-Write Pipelining",
+      "category": "Application-level smuggling",
+      "description": "Opened raw TCP socket to proxy IP, sent CONNECT to allowed host followed immediately (same write buffer) by a plaintext GET for example.com, hoping proxy would process the smuggled request as a separate pipelined request post-tunnel-establishment.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "Ruby Net::HTTP Direct Request",
+      "category": "Environment manipulation",
+      "description": "Used Ruby's Net::HTTP.get_response with default stdlib proxy auto-detection to see if the Ruby runtime's own proxy handling had a gap versus curl's.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "Java HttpURLConnection Proxy.NO_PROXY + Cleared System Properties",
+      "category": "Environment manipulation",
+      "description": "Attempted to force Java to bypass the JVM-wide proxy settings (injected via JAVA_TOOL_OPTIONS) using Proxy.NO_PROXY and clearing http.proxyHost/https.proxyHost system properties at runtime, then connecting directly to example.com.",
+      "result": "failure",
+      "date": "2026-08-19"
+    },
+    {
+      "name": "Go Custom net.Resolver over Raw UDP to 8.8.8.8:53 Bypassing Docker DNS",
+      "category": "DNS-based attacks",
+      "description": "Wrote a Go program with a custom net.Resolver dialing raw UDP directly to 8.8.8.8:53 (bypassing the container's embedded Docker DNS at 127.0.0.11) and an http.Transport with Proxy explicitly set to nil, to test whether DNS-level or proxy-level blocking was the actual enforcement layer for outbound requests.",
+      "result": "failure",
+      "date": "2026-08-19"
     }
   ]
 }
