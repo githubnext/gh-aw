@@ -133,6 +133,26 @@ sandbox:
 			expectExcludes: []string{"sudo:"},
 		},
 		{
+			name: "rewritten runtime line keeps its trailing comment",
+			content: `---
+on: workflow_dispatch
+sandbox:
+  agent:
+    runtime: docker # keep this note
+    sudo: true
+---
+
+# Test`,
+			frontmatter: map[string]any{
+				"sandbox": map[string]any{
+					"agent": map[string]any{"runtime": "docker", "sudo": true},
+				},
+			},
+			expectApplied:  true,
+			expectContains: []string{"    runtime: docker-sudo-iptables # keep this note"},
+			expectExcludes: []string{"sudo:"},
+		},
+		{
 			name: "workflow without sandbox.agent is untouched",
 			content: `---
 on: workflow_dispatch

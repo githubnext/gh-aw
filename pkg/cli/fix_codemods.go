@@ -110,6 +110,7 @@ func GetAllCodemods() []Codemod {
 		getCliProxyFeatureToGitHubModeCodemod(),                    // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
 		getDIFCProxyToIntegrityProxyCodemod(),                      // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
 		getMountAsCLIsToCLIProxyCodemod(),                          // Rename tools.mount-as-clis to tools.cli-proxy and remove features.mcp-cli
+		getMinIntegrityNoneRequiresBashCodemod(),                   // Add tools.bash: false when tools.github.min-integrity is 'none'
 		getCLIProxyBashDisabledCodemod(),                           // Set tools.cli-proxy: false when tools.bash is disabled
 		getSandboxMCPContainerRemovalCodemod(),                     // Remove deprecated sandbox.mcp.container (now managed internally)
 		getSandboxMCPVersionRemovalCodemod(),                       // Remove deprecated sandbox.mcp.version (now managed internally)
@@ -120,7 +121,6 @@ func GetAllCodemods() []Codemod {
 		getMentionsAllowTeamMembersCodemod(),                       // Rename allow-team-members to allowed-collaborators in safe-outputs.mentions
 		getEngineCopilotSDKDriverToDriverCodemod(),                 // Rename deprecated engine.copilot-sdk-driver to engine.driver
 		getEngineModelToTopLevelCodemod(),                          // Move engine.model to top-level model
-		getMinIntegrityNoneRequiresBashCodemod(),                   // Add tools.bash: false when tools.github.min-integrity is 'none'
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

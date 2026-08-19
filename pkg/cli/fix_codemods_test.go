@@ -247,6 +247,7 @@ func expectedCodemodOrder() []string {
 		"features-cli-proxy-to-tools-github-mode",
 		"features-difc-proxy-to-tools-github",
 		"mount-as-clis-to-cli-proxy",
+		"min-integrity-none-requires-bash",
 		"cli-proxy-false-when-bash-disabled",
 		"sandbox-mcp-container-removal",
 		"sandbox-mcp-version-removal",
@@ -257,6 +258,5 @@ func expectedCodemodOrder() []string {
 		"mentions-allow-team-members-to-allowed-collaborators",
 		"engine-copilot-sdk-driver-to-driver",
 		"engine-model-to-top-level",
-		"min-integrity-none-requires-bash",
 	}
 }

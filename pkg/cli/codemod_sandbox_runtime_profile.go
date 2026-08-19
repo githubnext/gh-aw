@@ -150,7 +150,7 @@ func migrateSandboxAgentSecurityLines(lines []string, oldRuntime, targetRuntime 
 		}
 		trimmed := strings.TrimSpace(line)
 		if needsRuntimeUpdate && getIndentation(line) == indent && strings.HasPrefix(trimmed, "runtime:") {
-			result = append(result, indent+"runtime: "+targetRuntime)
+			result = append(result, indent+"runtime: "+targetRuntime+trailingCommentSuffix(strings.TrimPrefix(trimmed, "runtime:")))
 			modified = true
 			continue
 		}
@@ -167,6 +167,17 @@ func migrateSandboxAgentSecurityLines(lines []string, oldRuntime, targetRuntime 
 	}
 
 	return result, modified
+}
+
+// trailingCommentSuffix returns the trailing YAML comment of a value part, prefixed by a
+// space so it can be appended to a rewritten key line, or an empty string when the value
+// has no trailing comment.
+func trailingCommentSuffix(valuePart string) string {
+	idx := findTrailingCommentIndex(valuePart)
+	if idx < 0 {
+		return ""
+	}
+	return " " + strings.TrimRight(valuePart[idx:], " \t")
 }
 
 // findSandboxAgentBlock locates the child lines of the sandbox.agent mapping.

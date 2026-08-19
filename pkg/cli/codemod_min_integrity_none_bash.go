@@ -52,8 +52,9 @@ func getMinIntegrityNoneRequiresBashCodemod() Codemod {
 }
 
 // insertBashFalseIntoTopLevelTools inserts 'bash: false' as the first child of the
-// top-level 'tools:' block. It assumes the caller has already verified that 'tools'
-// exists as a block mapping and that 'tools.bash' is not already present.
+// top-level 'tools:' block, supporting both block mappings and inline flow mappings.
+// It assumes the caller has already verified that 'tools' exists as a mapping and that
+// 'tools.bash' is not already present.
 func insertBashFalseIntoTopLevelTools(lines []string) ([]string, bool) {
 	toolsLine := -1
 	for i, line := range lines {
@@ -63,7 +64,7 @@ func insertBashFalseIntoTopLevelTools(lines []string) ([]string, bool) {
 		}
 	}
 	if toolsLine == -1 {
-		return lines, false
+		return insertEntryIntoInlineMapping(lines, "tools", "bash: false")
 	}
 
 	fieldIndent := "  "
