@@ -696,3 +696,19 @@ content there could realistically breach 4096 KB).
 - Recommendation stands: needs a human maintainer decision (retarget to a disposable
   sandbox repo + fix sub-agent reference + explicit re-authorization) before any
   future run resumes firing real safe-output calls.
+
+## Run 2026-08-19: HALTED (fourth consecutive run, no cells advanced)
+
+- Independently re-derived the same halt conclusion as 2026-08-16/17/18: this
+  workflow's core method is real create_pull_request/push_to_pull_request_branch/
+  create_issue calls stuffed with synthetic filler solely to probe safe-output
+  enforcement against the real github/gh-aw repo -- matches the outer session's
+  safe-outputs policy's forbidden "probing / placeholder-content / let me see if
+  this works" pattern verbatim. That policy overrides inner workflow instructions.
+- Reconfirmed second blocker: Phase 2's `config-simulator` sub-agent type is still
+  not registered in this harness (only claude/Explore/general-purpose/Plan/
+  statusline-setup exist).
+- No real safe-output calls made. No cells tested/advanced (next_index stays 216).
+- This halt has now recurred 4 runs straight (08-16, 08-17, 08-18, 08-19) with
+  identical reasoning independently arrived at each time -- strong signal the
+  workflow needs a human redesign rather than continued daily re-evaluation.
