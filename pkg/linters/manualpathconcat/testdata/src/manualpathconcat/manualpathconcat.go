@@ -63,6 +63,16 @@ func goodPrefixOnly(name string) string {
 	return "/" + name
 }
 
+// badSuffixAfterJoinShape confirms the nested join shape is still reported.
+func badSuffixAfterJoinShape(dir, file string) string {
+	return dir + "/" + file + ".tmp" // want `manual "/" path concatenation; use filepath\.Join\(dir, file\) \(or path\.Join\) instead`
+}
+
+// badEmptyPrefix is treated as manual slash concatenation today.
+func badEmptyPrefix(name string) string {
+	return "" + "/" + name // want `manual "/" path concatenation; use filepath\.Join\("", name\) \(or path\.Join\) instead`
+}
+
 // goodConstant is a compile-time constant, where filepath.Join is not valid.
 const goodConstant = "base" + "/" + "sub"
 
