@@ -2219,7 +2219,7 @@ describe("Safe Output Handler Manager", () => {
       const handlerMapBlock = managerSource.match(/const HANDLER_MAP = \{([\s\S]*?)\n\};/);
       expect(handlerMapBlock).not.toBeNull();
 
-      const handlerFiles = [...handlerMapBlock[1].matchAll(/"(\.\/[^"]+\.cjs)"/g)].map(match => match[1].slice(2));
+      const handlerFiles = [...handlerMapBlock[1].matchAll(/["'](\.\/[^"']+\.cjs)["']/g)].map(match => match[1].slice(2));
       expect(handlerFiles).toContain("approve_workflow_run.cjs");
 
       const builtinModules = new Set(require("module").builtinModules);
@@ -2234,7 +2234,7 @@ describe("Safe Output Handler Manager", () => {
         visited.add(file);
 
         const source = fs.readFileSync(`${jsDir}${file}`, "utf8");
-        for (const match of source.matchAll(/require\("([^"]+)"\)/g)) {
+        for (const match of source.matchAll(/require\(["']([^"']+)["']\)/g)) {
           const specifier = match[1];
           if (specifier.startsWith("./")) {
             queue.push(specifier.slice(2));

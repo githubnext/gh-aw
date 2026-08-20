@@ -290,10 +290,12 @@ function loadConfig() {
 const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "submit_pull_request_review"]);
 
 /**
- * @type {Map<string, string>} Records why a configured handler failed to load, keyed by safe output type.
- * Populated by loadHandlers() and surfaced when a message is skipped because no handler was loaded.
+ * @type {WeakMap<Map<string, Function>, Map<string, string>>} Records why configured handlers failed to
+ * load, keyed by the handler map returned from loadHandlers(). The reasons are surfaced when a message
+ * is skipped because no handler was loaded. Scoping by handler map keeps concurrent loadHandlers()
+ * invocations isolated from each other.
  */
-const handlerLoadErrors = new Map();
+const handlerLoadErrorsByHandlerMap = new WeakMap();
 
 /**
  * Wrap a handler so project-safe-output execution can temporarily bind global.github
@@ -337,7 +339,9 @@ function wrapWithClientRebinding(type, messageHandler, handlerGithubClient) {
 async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMentionAliases = []) {
   const messageHandlers = new Map();
 
-  handlerLoadErrors.clear();
+  /** @type {Map<string, string>} */
+  const handlerLoadErrors = new Map();
+  handlerLoadErrorsByHandlerMap.set(messageHandlers, handlerLoadErrors);
 
   core.info("Loading and initializing safe output handlers based on configuration...");
 
@@ -970,7 +974,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       }
 
       // Unknown message type - warn the user
-      const loadError = handlerLoadErrors.get(messageType);
+      const loadError = handlerLoadErrorsByHandlerMap.get(messageHandlers)?.get(messageType);
       const loadErrorSuffix = loadError ? ` The handler was configured but failed to load: ${loadError}` : "";
       core.warning(
         `⚠️ No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.${loadErrorSuffix}`
