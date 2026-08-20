@@ -30,6 +30,7 @@ network:
 
 sandbox:
   agent:  # Firewall enabled (migrated from network.firewall)
+    runtime: cloud-hypervisor
     id: awf
 imports:
   - uses: shared/daily-audit-base.md

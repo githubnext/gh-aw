@@ -21,6 +21,7 @@ network:
   
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 imports:
   - shared/otlp.md

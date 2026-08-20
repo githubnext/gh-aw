@@ -46,6 +46,7 @@ safe-outputs:
 
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 ---
 

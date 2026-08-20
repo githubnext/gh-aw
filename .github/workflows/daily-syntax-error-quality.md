@@ -20,6 +20,7 @@ permissions:
 
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 tracker-id: daily-syntax-error-quality
 engine:

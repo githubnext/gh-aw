@@ -50,6 +50,9 @@ type ResolvedWorkflow struct {
 	// IsPackageAgentFile is true when the file is an agent .md from an aw.yml package
 	// manifest. The file is installed as-is to the agentic engine agents folder.
 	IsPackageAgentFile bool
+	// IsPackageResourceFile is true when the file is a declarative repository resource
+	// from an aw.yml package manifest. The file is installed as-is to DestinationPath.
+	IsPackageResourceFile bool
 	// SkillName is the skill directory name for package skill files (e.g. "my-skill").
 	// Only meaningful when IsPackageSkillFile is true.
 	SkillName string
@@ -346,6 +349,17 @@ func resolvePackageOrActionWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *F
 		}, true
 	}
 
+	if spec.IsPackageResourceFile {
+		resolutionLog.Printf("Resolved package resource file: spec=%s, destination=%s, content_size=%d bytes",
+			spec.String(), spec.DestinationPath, len(fetched.Content))
+		return &ResolvedWorkflow{
+			Spec:                  resolvedSpec,
+			Content:               fetched.Content,
+			SourceInfo:            fetched,
+			IsPackageResourceFile: true,
+		}, true
+	}
+
 	if isActionWorkflowPath(resolvedSpec.WorkflowPath) {
 		resolutionLog.Printf("Resolved action workflow: spec=%s, content_size=%d bytes",
 			spec.String(), len(fetched.Content))
@@ -482,6 +496,10 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 	if err := validateUniqueManifestInstallDestinations(installationSources, manifestPath); err != nil {
 		return nil, err
 	}
+	resourceFiles, err := normalizeLocalPackageResourcePaths(manifest.Resources, packageDir)
+	if err != nil {
+		return nil, err
+	}
 
 	skillFiles, skillWarnings, err := resolveLocalPackageSkillFiles(packageDir, append(append([]string{}, manifest.Skills...), includeSkillDirs...))
 	if err != nil {
@@ -495,8 +513,8 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 	}
 	warnings = append(warnings, agentWarnings...)
 
-	if len(installationSources) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
-		return nil, fmt.Errorf("repository package at %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered)", packageDir)
+	if len(installationSources) == 0 && len(resourceFiles) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
+		return nil, fmt.Errorf("repository package at %q does not contain any installable workflows, resources, skills, or agents (either explicitly declared or auto-discovered)", packageDir)
 	}
 
 	return &resolvedRepositoryPackage{
@@ -507,6 +525,7 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 		License:            manifest.License,
 		DocsPath:           filepath.Join(packageDir, "README.md"),
 		InstallationSource: installationSources,
+		ResourceFiles:      resourceFiles,
 		Bootstrap:          manifest.Bootstrap,
 		SkillFiles:         skillFiles,
 		AgentFiles:         agentFiles,
@@ -610,6 +629,15 @@ func appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, pkg 
 			WorkflowName:           packageInstallableWorkflowName(installable),
 			DestinationPath:        installable.DestinationPath,
 			FromRepositoryManifest: true,
+		})
+	}
+	for _, resource := range pkg.ResourceFiles {
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			WorkflowPath:           resource.SourcePath,
+			WorkflowName:           packageResourceName(resource),
+			DestinationPath:        resource.DestinationPath,
+			FromRepositoryManifest: true,
+			IsPackageResourceFile:  true,
 		})
 	}
 	for _, skillFile := range pkg.SkillFiles {
@@ -776,6 +804,21 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 			DestinationPath:        installable.DestinationPath,
 			Host:                   host,
 			FromRepositoryManifest: true,
+		})
+	}
+	for _, resource := range pkg.ResourceFiles {
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug:    repoSpec.RepoSlug,
+				Version:     effectiveVersion,
+				PackagePath: repoSpec.PackagePath,
+			},
+			WorkflowPath:           resource.SourcePath,
+			WorkflowName:           packageResourceName(resource),
+			DestinationPath:        resource.DestinationPath,
+			Host:                   host,
+			FromRepositoryManifest: true,
+			IsPackageResourceFile:  true,
 		})
 	}
 

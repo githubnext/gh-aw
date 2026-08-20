@@ -31,6 +31,7 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
+	resourceFiles := normalizePackageResourcePaths(manifest.Resources, packagePath)
 
 	docsPath, err := resolveRepositoryPackageDocsPath(ctx, owner, repo, packagePath, ref, host)
 	if err != nil {
@@ -52,11 +53,11 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	}
 	warnings = append(warnings, extensionFiles.warnings...)
 
-	if len(installationSources) == 0 && len(extensionFiles.skillFiles) == 0 && len(extensionFiles.agentFiles) == 0 {
-		return nil, fmt.Errorf("repository %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered). Add workflows under 'workflows/', skills under 'skills/', or agents under 'agents/', or declare them explicitly in aw.yml", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+	if len(installationSources) == 0 && len(resourceFiles) == 0 && len(extensionFiles.skillFiles) == 0 && len(extensionFiles.agentFiles) == 0 {
+		return nil, fmt.Errorf("repository %q does not contain any installable workflows, resources, skills, or agents (either explicitly declared or auto-discovered). Add workflows under 'workflows/', resources in aw.yml, skills under 'skills/', or agents under 'agents/', or declare them explicitly in aw.yml", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
 
-	return newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, installationSources, extensionFiles, warnings), nil
+	return newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, installationSources, resourceFiles, extensionFiles, warnings), nil
 }
 
 func splitRepositoryPackageSlug(repoSlug string) (string, string, error) {
@@ -152,7 +153,7 @@ func resolveRepositoryPackageExtensionFiles(ctx context.Context, options reposit
 	}, nil
 }
 
-func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *repositoryPackageManifest, installationSources []resolvedPackageInstallable, extensionFiles *repositoryPackageExtensionFiles, warnings []string) *resolvedRepositoryPackage {
+func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *repositoryPackageManifest, installationSources []resolvedPackageInstallable, resourceFiles []resolvedPackageResource, extensionFiles *repositoryPackageExtensionFiles, warnings []string) *resolvedRepositoryPackage {
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
 		ResolvedRef:        ref,
@@ -162,6 +163,7 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 		License:            manifest.License,
 		DocsPath:           docsPath,
 		InstallationSource: installationSources,
+		ResourceFiles:      resourceFiles,
 		Bootstrap:          manifest.Bootstrap,
 		SkillFiles:         extensionFiles.skillFiles,
 		AgentFiles:         extensionFiles.agentFiles,

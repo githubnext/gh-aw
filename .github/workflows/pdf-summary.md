@@ -59,6 +59,9 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Resource Summarizer Agent
