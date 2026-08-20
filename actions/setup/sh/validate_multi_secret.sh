@@ -257,7 +257,9 @@ elif [ "${#SECRET_NAMES[@]}" -gt 2 ]; then
   if [ "$found" = false ]; then
     last_secret="${SECRET_NAMES[-1]}"
     last_value="${!last_secret}"
-    echo "✅ $(format_present_secret "$last_secret" "$last_value")"
+    if [ -n "$last_value" ]; then
+      echo "✅ $(format_present_secret "$last_secret" "$last_value")"
+    fi
   fi
 # Last secret uses else (for 2 secret case)
 else

@@ -95,6 +95,9 @@ func TestValidateMultiSecretRejectsInvalidSecretBeforeFallback(t *testing.T) {
 	if !strings.Contains(stderr, "PRIMARY_SECRET secret has an invalid value") {
 		t.Fatalf("expected primary secret invalid error, got:\n%s", stderr)
 	}
+	if strings.Contains(stdout, "FALLBACK_SECRET") {
+		t.Fatalf("validation reported fallback secret before rejecting primary\nstdout:\n%s", stdout)
+	}
 	if strings.Contains(stdout, "valid-fallback-token") || strings.Contains(stderr, "valid-fallback-token") {
 		t.Fatalf("validation output leaked fallback secret value\nstdout:\n%s\nstderr:\n%s", stdout, stderr)
 	}
