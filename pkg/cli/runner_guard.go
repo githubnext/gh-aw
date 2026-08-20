@@ -230,6 +230,10 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	// location in the compiled workflow.
 	output.Findings = filterRunnerGuardIgnoredFindings(output.Findings, gitRoot)
 
+	// Drop RGS-012 findings for Copilot allow-tool declarations that only document local curl
+	// permissions. The declarations are not executable curl calls and cannot exfiltrate secrets.
+	output.Findings = filterCopilotLocalAllowToolFindings(output.Findings, gitRoot)
+
 	// Drop RGS-012 findings for the compiler-generated gVisor install step, which downloads a
 	// pinned, SHA-512-verified artifact and never exfiltrates secrets.
 	output.Findings = filterGvisorInstallFindings(output.Findings, gitRoot)
