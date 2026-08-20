@@ -3,10 +3,23 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestActivationArtifactNameIsValid(t *testing.T) {
+	data := &WorkflowData{On: `"on":
+  push:`}
+	ctx := &activationJobBuildContext{data: data}
+	compiler := NewCompiler()
+
+	compiler.addActivationArtifactUploadStep(ctx)
+
+	assert.Contains(t, strings.Join(ctx.steps, ""), "name: activation-artifact")
+	assert.NotContains(t, strings.Join(ctx.steps, ""), "name: activation\n")
+}
 
 // TestConfigureActivationNeedsAndCondition_EngineEnvJobReferences tests that custom jobs
 // referenced via needs.<job>.outputs.* in engine.env values are added to the activation

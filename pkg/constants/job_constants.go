@@ -153,8 +153,9 @@ const OtlpExportErrorsFilename = "otlp-export-errors.jsonl"
 const ArtifactPrefixOutputName = "artifact_prefix"
 
 // ActivationArtifactName is the artifact name for the activation job output
-// (aw_info.json and prompt.txt).
-const ActivationArtifactName = "activation"
+// (aw_info.json and prompt.txt). Keep the suffix because "activation" is
+// rejected as an artifact name by the GitHub Actions artifact API.
+const ActivationArtifactName = "activation-artifact"
 
 // ActivationStageAmbientFoldersStepName is the step name used to stage ambient
 // folders before the activation artifact is packaged. It is a stable anchor

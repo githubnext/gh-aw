@@ -123,7 +123,7 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "activation resolves to activation artifact",
 			sets:     []string{"activation"},
-			expected: []string{"activation"},
+			expected: []string{constants.ActivationArtifactName},
 		},
 		{
 			name:     "agent resolves to agent artifact and output fallback",
@@ -153,7 +153,7 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "github-api resolves to activation and agent",
 			sets:     []string{"github-api"},
-			expected: []string{"activation", "agent"},
+			expected: []string{constants.ActivationArtifactName, "agent"},
 		},
 		{
 			name:     "usage resolves to usage artifact",
