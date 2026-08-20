@@ -576,7 +576,7 @@ func parseManifestIncludeMapping(mapping map[string]any, manifestPath string) (r
 // paths that escape their root.
 func cleanManifestRelativePath(p string) (string, error) {
 	slashed := filepath.ToSlash(p)
-	if strings.HasPrefix(slashed, "/") || strings.HasPrefix(slashed, "\\") || filepath.IsAbs(p) || isWindowsDriveRelativePath(slashed) {
+	if len(slashed) > 0 && (slashed[0] == '/' || slashed[0] == '\\') || filepath.IsAbs(p) || isWindowsDriveRelativePath(slashed) {
 		return "", errors.New("absolute paths are not allowed")
 	}
 	cleaned := path.Clean(slashed)
