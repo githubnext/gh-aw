@@ -79,12 +79,6 @@ const checkRepositoryHasDiscussionsQuery = `query($owner: String!, $name: String
 	}
 }`
 
-// RepositoryFeatures holds cached information about repository capabilities
-type RepositoryFeatures struct {
-	HasDiscussions bool
-	HasIssues      bool
-}
-
 // Global cache for repository features and current repository info
 var (
 	repositoryFeaturesCache       = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
