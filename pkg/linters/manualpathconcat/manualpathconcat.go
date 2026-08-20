@@ -96,8 +96,8 @@ func matchSlashSeparator(bin *ast.BinaryExpr) (left ast.Expr, ok bool) {
 	if !isSlashLiteral(inner.Y) {
 		return nil, false
 	}
-	// A leading separator (e.g. "/" + root + "/" + name) is matched by the
-	// outer chain instead, so a bare `"/" + x` prefix is not a manual join.
+	// A left operand that is itself the separator (e.g. `"/" + "/" + name`)
+	// carries no path segment to join, so it is not a manual join.
 	if isSlashLiteral(inner.X) {
 		return nil, false
 	}
