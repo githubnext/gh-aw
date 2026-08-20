@@ -33,12 +33,12 @@ func TestBuildProcessedAuditRun(t *testing.T) {
 	assert.Same(t, results.redactedDomainsAnalysis, processedRun.RedactedDomainsAnalysis)
 	assert.Same(t, results.tokenUsageSummary, processedRun.TokenUsage)
 	assert.Same(t, results.rateLimitUsage, processedRun.GitHubRateLimitUsage)
-	assert.Len(t, processedRun.MissingTools, 1)
-	assert.Len(t, processedRun.MissingData, 1)
-	assert.Len(t, processedRun.Noops, 1)
-	assert.Len(t, processedRun.MCPFailures, 1)
-	assert.Len(t, processedRun.SkillActivations, 1)
-	assert.Len(t, processedRun.JobDetails, 1)
+	assert.Equal(t, results.missingTools, processedRun.MissingTools)
+	assert.Equal(t, results.missingData, processedRun.MissingData)
+	assert.Equal(t, results.noops, processedRun.Noops)
+	assert.Equal(t, results.mcpFailures, processedRun.MCPFailures)
+	assert.Equal(t, results.skillActivations, processedRun.SkillActivations)
+	assert.Equal(t, results.jobDetails, processedRun.JobDetails)
 }
 
 func TestBuildAuditRunSummary(t *testing.T) {

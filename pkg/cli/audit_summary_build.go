@@ -38,6 +38,7 @@ func buildProcessedAuditRun(run WorkflowRun, results auditAnalysisResults) Proce
 		GitHubRateLimitUsage:    results.rateLimitUsage,
 		JobDetails:              results.jobDetails,
 	}
+	// Access analysis is persisted in RunSummary but has no live report rendering.
 	awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, results.metrics)
 	processedRun.AwContext = awContext
 	processedRun.TaskDomain = taskDomain

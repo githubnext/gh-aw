@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -164,6 +165,14 @@ func TestShouldSkipForEvals(t *testing.T) {
 	t.Run("skips when no evals results are present", func(t *testing.T) {
 		cfg := auditRunConfig{runID: 1, outputDir: t.TempDir(), evalsOnly: true}
 		assert.True(t, shouldSkipForEvals(context.Background(), cfg, WorkflowRun{}))
+	})
+
+	t.Run("does not skip when evals are present locally", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "evals.jsonl"), []byte("{}"), 0o600))
+
+		cfg := auditRunConfig{runID: 1, outputDir: dir, evalsOnly: true}
+		assert.False(t, shouldSkipForEvals(context.Background(), cfg, WorkflowRun{}))
 	})
 }
 

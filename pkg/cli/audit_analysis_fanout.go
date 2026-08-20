@@ -13,11 +13,11 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 )
 
-func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutputDir string, verbose bool, hasFirewallArtifact bool) (auditAnalysisResults, error) {
+func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutputDir string, verbose bool, includeFirewallAnalyses bool) (auditAnalysisResults, error) {
 	results := auditAnalysisResults{}
 	g, gctx := errgroup.WithContext(ctx)
 	launchCoreAuditAnalyses(g, gctx, &results, run, runOutputDir, verbose)
-	if hasFirewallArtifact {
+	if includeFirewallAnalyses {
 		launchFirewallAuditAnalyses(g, gctx, &results, runOutputDir, verbose)
 	}
 	launchSupplementalAuditAnalyses(g, gctx, &results, runOutputDir, verbose)
@@ -192,6 +192,8 @@ func launchSupplementalAuditAnalyses(g *errgroup.Group, gctx context.Context, re
 	})
 }
 
+// runAuditAnalysis logs and warns about non-context errors without aborting the audit.
+// Callers should treat a zero-value result as unavailable rather than empty.
 func runAuditAnalysis[T any](g *errgroup.Group, gctx context.Context, verbose bool, name, warning string, setter func(T), fn func() (T, error)) {
 	g.Go(func() error {
 		if err := gctx.Err(); err != nil {
