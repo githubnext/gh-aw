@@ -5,8 +5,22 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
+
+// hasPathTraversalSegment reports whether repoPath contains a "." or ".."
+// path segment, which would let pluginCheckoutSubpath escape the plugin's
+// dedicated checkout folder (.gh-aw-plugins/plugin-N) and resolve to an
+// unpinned path elsewhere in the workspace.
+func hasPathTraversalSegment(repoPath string) bool {
+	for segment := range strings.SplitSeq(repoPath, "/") {
+		if segment == "." || segment == ".." {
+			return true
+		}
+	}
+	return false
+}
 
 func (c *Compiler) validatePlugins(workflowData *WorkflowData) error {
 	if workflowData == nil {
@@ -17,6 +31,12 @@ func (c *Compiler) validatePlugins(workflowData *WorkflowData) error {
 		parsed := parseSkillRefSpec(plugin)
 		if !parsed.isRemote || parsed.ref == "" {
 			return fmt.Errorf("plugins[%d]: invalid plugin reference %q; expected owner/repository[/path]@ref, for example github/awesome-copilot/plugins/example@v1", i, plugin)
+		}
+		if hasPathTraversalSegment(parsed.repoPath) {
+			return fmt.Errorf("plugins[%d]: repository path %q must not contain '.' or '..' segments", i, parsed.repoPath)
+		}
+		if !parsed.isFullSHA && len(parsed.ref) == 40 && gitutil.IsValidFullSHACaseInsensitive(parsed.ref) {
+			return fmt.Errorf("plugins[%d]: ref %q looks like a commit SHA but must be lowercase hexadecimal", i, parsed.ref)
 		}
 		if looksLikeAmbiguousSHA(parsed.ref) {
 			return fmt.Errorf("plugins[%d]: ref %q looks like a truncated or malformed commit SHA; use the full 40-character lowercase SHA or a branch/tag name", i, parsed.ref)

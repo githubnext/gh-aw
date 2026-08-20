@@ -159,7 +159,10 @@ func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities
 // (https://agent-plugins.org). Declaring this block enables the engine's Plugins capability.
 // Plugins are always checked out at their pinned commit SHA; `directory` stages each plugin
 // in a workspace folder scanned by the engine, and `install-args` runs the engine CLI's
-// plugin installation command.
+// plugin installation command. When both mechanisms are configured together, both run for
+// every plugin: the plugin is staged into `directory` and also installed via the CLI. This
+// intentional dual-install flow supports engines that need staged files for discovery plus a
+// registration command.
 type EnginePluginsDefinition struct {
 	// Directory is the workspace-relative folder the engine scans for plugins
 	// (for example ".cursor/plugins").

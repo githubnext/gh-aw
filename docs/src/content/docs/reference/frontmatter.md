@@ -308,6 +308,8 @@ The agent job checks out each pinned plugin immediately after installing the eng
 
 Shared agentic workflows may also declare plugins. When the same plugin path is declared more than once, identical refs are deduplicated and compatible semantic versions are merged to the highest version. Incompatible major versions or conflicting non-semver refs fail compilation.
 
+Plugin repositories must be public. The checkout step always uses the workflow's default `github.token`, which cannot read private repositories; unlike `skills:`, `plugins:` does not currently support per-entry `github-token`/`github-app` credentials.
+
 ### MCP Scripts (`mcp-scripts:`)
 
 Enables defining custom MCP tools inline using JavaScript or shell scripts. See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for complete documentation on creating custom tools with controlled secret access.

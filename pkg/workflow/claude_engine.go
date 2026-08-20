@@ -148,6 +148,13 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
+// GetPluginInstallationSteps checks out pinned Agent Plugins for the Claude engine.
+// Claude Code loads plugin directories through the --plugin-dir flag added by
+// appendClaudePluginArgs, so no CLI installation command is required.
+func (e *ClaudeEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{})
+}
+
 // GetDeclaredOutputFiles returns the output files that Claude may produce
 func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{}

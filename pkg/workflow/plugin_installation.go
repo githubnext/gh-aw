@@ -72,26 +72,26 @@ func pluginCheckoutPath(index int) string {
 // inside its checkout folder.
 func pluginCheckoutSubpath(parsed parsedSkillRefSpec, index int) string {
 	repoParts := strings.Split(parsed.repoPath, "/")
+	if len(repoParts) < 2 {
+		// Guarded by validatePlugins, which requires an owner/repo path; this
+		// is a defensive fallback in case that invariant ever changes.
+		return pluginCheckoutPath(index)
+	}
 	return path.Join(pluginCheckoutPath(index), strings.Join(repoParts[2:], "/"))
 }
 
-// GetPluginInstallationSteps checks out pinned Agent Plugins for the Claude engine.
-// Claude Code loads plugin directories through the --plugin-dir flag added by
-// appendClaudePluginArgs, so no CLI installation command is required.
-func (e *ClaudeEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{})
-}
-
-// GetPluginInstallationSteps installs pinned Agent Plugins through the Copilot CLI.
-func (e *CopilotEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	commandName := "copilot"
-	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		commandName = workflowData.EngineConfig.Command
+// pluginStagingName returns a collision-safe destination name for staging a
+// plugin into a directory-based engine's plugin folder. It uses the full
+// sub-path beneath "owner/repo" (joined with "__") so that two plugins with
+// the same basename but different sub-paths (for example "org/a/plugins/foo"
+// and "org/b/plugins/foo") stage to distinct destinations instead of one
+// silently overwriting the other.
+func pluginStagingName(parsed parsedSkillRefSpec, index int) string {
+	repoParts := strings.Split(parsed.repoPath, "/")
+	if len(repoParts) <= 2 {
+		return fmt.Sprintf("plugin-%d-%s", index, path.Base(parsed.repoPath))
 	}
-	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{
-		Command:     commandName,
-		InstallArgs: []string{"plugin", "install"},
-	})
+	return fmt.Sprintf("plugin-%d-%s", index, strings.Join(repoParts[2:], "__"))
 }
 
 func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInstallSpec) []GitHubActionStep {
@@ -109,6 +109,10 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 		}
 
 		repoParts := strings.Split(parsed.repoPath, "/")
+		if len(repoParts) < 2 {
+			pluginInstallationLog.Printf("Skipping malformed plugin path %q", parsed.repoPath)
+			continue
+		}
 		repository := strings.Join(repoParts[:2], "/")
 		checkoutPath := pluginCheckoutPath(i)
 		installPath := pluginCheckoutSubpath(parsed, i)
@@ -128,7 +132,7 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 			if !ok {
 				pluginInstallationLog.Printf("Skipping unsupported plugin directory: %q", spec.Directory)
 			} else {
-				targetPath := path.Join(stageDirectory, path.Base(parsed.repoPath))
+				targetPath := path.Join(stageDirectory, pluginStagingName(parsed, i))
 				stageCommand := strings.Join([]string{
 					fmt.Sprintf("mkdir -p %q", stageDirectory),
 					fmt.Sprintf("rm -rf %q", targetPath),

@@ -41,6 +41,9 @@ func TestValidatePlugins(t *testing.T) {
 		{name: "expression", plugin: "${{ inputs.plugin }}", error: "expected owner/repository[/path]@ref"},
 		{name: "truncated SHA", plugin: "octo-org/agent-plugin@1f181b3", error: "truncated or malformed commit SHA"},
 		{name: "unsafe ref", plugin: "octo-org/agent-plugin@main..next", error: "unsupported characters"},
+		{name: "path traversal segment", plugin: "octo-org/agent-plugin/../evil@main", error: "must not contain '.' or '..' segments"},
+		{name: "current-dir traversal segment", plugin: "octo-org/agent-plugin/./evil@main", error: "must not contain '.' or '..' segments"},
+		{name: "uppercase SHA", plugin: "octo-org/agent-plugin@" + strings.ToUpper(testPluginSHA), error: "must be lowercase hexadecimal"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			err := compiler.validatePlugins(&WorkflowData{Plugins: []string{test.plugin}})
@@ -63,6 +66,18 @@ func TestValidatePluginsMergesOverlappingVersions(t *testing.T) {
 		"octo-org/agent-plugin@v1.3.0",
 		"octo-org/another-plugin@main",
 	}, data.Plugins)
+}
+
+func TestValidatePluginsMergesThreeOverlappingVersionsToHighest(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	data := &WorkflowData{Plugins: []string{
+		"org/plugin@v1.0.0",
+		"org/plugin@v1.3.0",
+		"org/plugin@v1.2.0",
+	}}
+
+	require.NoError(t, compiler.validatePlugins(data))
+	assert.Equal(t, []string{"org/plugin@v1.3.0"}, data.Plugins)
 }
 
 func TestValidatePluginsRejectsOverlappingVersionConflicts(t *testing.T) {
@@ -192,6 +207,47 @@ Run the workflow.
 	require.NoError(t, err)
 	assert.Contains(t, string(lockContent), "name: Install agent plugin octo-org/agent-plugin")
 	assert.Contains(t, string(lockContent), "ref: "+testPluginSHA)
+}
+
+func TestCompileWorkflowMergesImportedPluginVersionsToHighestCompatibleVersion(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "imported-plugin-merge")
+	sharedPath := filepath.Join(tmpDir, "shared.md")
+	require.NoError(t, os.WriteFile(sharedPath, []byte(`---
+plugins:
+  - org/plugin@v1.2.0
+---
+
+Shared plugin configuration.
+`), 0o644))
+
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+plugins:
+  - org/plugin@v1.3.0
+imports:
+  - shared.md
+---
+
+Run the workflow.
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	cache := compiler.GetSharedActionCache()
+	cache.Set("org/plugin", "v1.2.0", "1111111111111111111111111111111111111111")
+	cache.Set("org/plugin", "v1.3.0", "2222222222222222222222222222222222222222")
+
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	lockText := string(lockContent)
+	assert.Contains(t, lockText, "name: Checkout agent plugin org/plugin")
+	assert.Contains(t, lockText, "ref: 2222222222222222222222222222222222222222")
+	assert.NotContains(t, lockText, "ref: 1111111111111111111111111111111111111111")
+	assert.Equal(t, 1, strings.Count(lockText, "name: Checkout agent plugin org/plugin"))
+	assert.Equal(t, 1, strings.Count(lockText, "name: Install agent plugin org/plugin"))
 }
 
 func TestResolveFrontmatterPluginRefs(t *testing.T) {
@@ -373,8 +429,26 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 		stage := strings.Join(steps[1], "\n")
 		assert.Contains(t, stage, "name: Stage agent plugin octo-org/agent-plugins/plugins/example")
 		assert.Contains(t, stage, `mkdir -p ".kiro/powers"`)
-		assert.Contains(t, stage, `rm -rf ".kiro/powers/example"`)
-		assert.Contains(t, stage, `cp -R "./.gh-aw-plugins/plugin-0/plugins/example" ".kiro/powers/example"`)
+		assert.Contains(t, stage, `rm -rf ".kiro/powers/plugin-0-plugins__example"`)
+		assert.Contains(t, stage, `cp -R "./.gh-aw-plugins/plugin-0/plugins/example" ".kiro/powers/plugin-0-plugins__example"`)
+	})
+
+	t.Run("stages plugins with the same basename to distinct destinations", func(t *testing.T) {
+		engine := newEngine(t, &EnginePluginsDefinition{Directory: ".kiro/powers"})
+
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{
+				"octo-org/a/plugins/example@" + testPluginSHA,
+				"octo-org/b/plugins/example@" + testPluginSHA,
+			},
+		})
+
+		require.Len(t, steps, 4)
+		firstStage := strings.Join(steps[1], "\n")
+		secondStage := strings.Join(steps[3], "\n")
+		assert.Contains(t, firstStage, `".kiro/powers/plugin-0-plugins__example"`)
+		assert.Contains(t, secondStage, `".kiro/powers/plugin-1-plugins__example"`)
+		assert.NotEqual(t, firstStage, secondStage, "plugins with the same basename must stage to distinct destinations")
 	})
 
 	t.Run("expands home-relative plugin directories", func(t *testing.T) {
@@ -385,7 +459,7 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 		})
 
 		require.Len(t, steps, 2)
-		assert.Contains(t, strings.Join(steps[1], "\n"), `cp -R "./.gh-aw-plugins/plugin-0" "$HOME/.cursor/plugins/local/agent-plugin"`)
+		assert.Contains(t, strings.Join(steps[1], "\n"), `cp -R "./.gh-aw-plugins/plugin-0" "$HOME/.cursor/plugins/local/plugin-0-agent-plugin"`)
 	})
 
 	t.Run("installs plugins through the engine CLI", func(t *testing.T) {
@@ -397,6 +471,22 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 
 		require.Len(t, steps, 2)
 		assert.Contains(t, strings.Join(steps[1], "\n"), "custom-cli plugin install ./.gh-aw-plugins/plugin-0")
+	})
+
+	t.Run("stages plugins and installs them through the engine CLI when both are configured", func(t *testing.T) {
+		engine := newEngine(t, &EnginePluginsDefinition{
+			Directory:   ".kiro/powers",
+			InstallArgs: []string{"plugin", "install"},
+		})
+
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 3)
+		assert.Contains(t, strings.Join(steps[0], "\n"), "name: Checkout agent plugin octo-org/agent-plugin")
+		assert.Contains(t, strings.Join(steps[1], "\n"), "name: Stage agent plugin octo-org/agent-plugin")
+		assert.Contains(t, strings.Join(steps[2], "\n"), "name: Install agent plugin octo-org/agent-plugin")
 	})
 
 	t.Run("disables plugins without a plugins behavior", func(t *testing.T) {

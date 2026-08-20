@@ -138,6 +138,18 @@ func (e *CopilotEngine) GetSupportedEnvVarKeys() []string {
 	}
 }
 
+// GetPluginInstallationSteps installs pinned Agent Plugins through the Copilot CLI.
+func (e *CopilotEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	commandName := "copilot"
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+	}
+	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{
+		Command:     commandName,
+		InstallArgs: []string{"plugin", "install"},
+	})
+}
+
 // GetInstallationSteps is implemented in copilot_engine_installation.go
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
