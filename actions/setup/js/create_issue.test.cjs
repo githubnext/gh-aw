@@ -366,7 +366,17 @@ describe("create_issue", () => {
         .mockResolvedValueOnce({
           repository: {
             issueFields: {
-              nodes: [{ id: "FIELD_TAGS", name: "Tags", dataType: "MULTI_SELECT", options: [{ id: "OPTION_BUG", name: "Bug" }] }],
+              nodes: [
+                {
+                  id: "FIELD_TAGS",
+                  name: "Tags",
+                  dataType: "MULTI_SELECT",
+                  options: [
+                    { id: "OPTION_BUG", name: "Bug" },
+                    { id: "OPTION_REGRESSION", name: "Regression" },
+                  ],
+                },
+              ],
             },
           },
         })
@@ -380,12 +390,12 @@ describe("create_issue", () => {
       const result = await handler({
         title: "Issue with multi-select field",
         body: "Body",
-        fields: [{ name: "Tags", value: "Bug" }],
+        fields: [{ name: "Tags", value: "Bug, Regression" }],
       });
 
       expect(result.success).toBe(true);
       const mutationCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("setIssueFieldValue"));
-      expect(mutationCall[1].input.issueFields).toEqual([{ fieldId: "FIELD_TAGS", singleSelectOptionId: "OPTION_BUG" }]);
+      expect(mutationCall[1].input.issueFields).toEqual([{ fieldId: "FIELD_TAGS", multiSelectOptionIds: ["OPTION_BUG", "OPTION_REGRESSION"] }]);
     });
 
     it("should not query removed IssueField/IssueFieldIteration fragments", async () => {

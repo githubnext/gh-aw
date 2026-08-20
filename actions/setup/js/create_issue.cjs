@@ -361,13 +361,29 @@ function buildIssueFieldMutationInput(requestedFields, availableFields) {
       return { fieldId: matchedField.id, dateValue: field.value };
     }
 
-    if (dataType === "SINGLE_SELECT" || dataType === "MULTI_SELECT") {
+    if (dataType === "SINGLE_SELECT") {
       const options = Array.isArray(matchedField.options) ? matchedField.options : [];
       const selectedOption = options.find(option => typeof option?.name === "string" && option.name.toLowerCase() === String(field.value).toLowerCase());
       if (!selectedOption) {
         throw new Error(`${ERR_VALIDATION}: invalid option "${field.value}" for issue field "${field.name}". Available options: ${options.map(option => option.name).join(", ") || "(none)"}`);
       }
       return { fieldId: matchedField.id, singleSelectOptionId: selectedOption.id };
+    }
+
+    if (dataType === "MULTI_SELECT") {
+      const options = Array.isArray(matchedField.options) ? matchedField.options : [];
+      const requestedValues = String(field.value)
+        .split(",")
+        .map(value => value.trim())
+        .filter(Boolean);
+      const multiSelectOptionIds = requestedValues.map(value => {
+        const selectedOption = options.find(option => typeof option?.name === "string" && option.name.toLowerCase() === value.toLowerCase());
+        if (!selectedOption) {
+          throw new Error(`${ERR_VALIDATION}: invalid option "${value}" for issue field "${field.name}". Available options: ${options.map(option => option.name).join(", ") || "(none)"}`);
+        }
+        return selectedOption.id;
+      });
+      return { fieldId: matchedField.id, multiSelectOptionIds };
     }
 
     return { fieldId: matchedField.id, textValue: String(field.value) };
