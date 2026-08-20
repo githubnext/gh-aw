@@ -272,7 +272,7 @@ async function resolveIssueNodeId(githubClient, owner, repo, issueNumber) {
 
 /**
  * Fetch issue field metadata from repository.
- * Returns configured field definitions including types, options, and iterations.
+ * Returns configured field definitions including types and options.
  * @param {Object} githubClient
  * @param {string} owner
  * @param {string} repo
@@ -285,7 +285,17 @@ async function fetchIssueFields(githubClient, owner, repo) {
         issueFields(first: 100) {
           nodes {
             __typename
-            ... on IssueField {
+            ... on IssueFieldText {
+              id
+              name
+              dataType
+            }
+            ... on IssueFieldNumber {
+              id
+              name
+              dataType
+            }
+            ... on IssueFieldDate {
               id
               name
               dataType
@@ -299,15 +309,13 @@ async function fetchIssueFields(githubClient, owner, repo) {
                 name
               }
             }
-            ... on IssueFieldIteration {
+            ... on IssueFieldMultiSelect {
               id
               name
               dataType
-              configuration {
-                iterations {
-                  id
-                  title
-                }
+              options {
+                id
+                name
               }
             }
           }
@@ -353,23 +361,13 @@ function buildIssueFieldMutationInput(requestedFields, availableFields) {
       return { fieldId: matchedField.id, dateValue: field.value };
     }
 
-    if (dataType === "SINGLE_SELECT") {
+    if (dataType === "SINGLE_SELECT" || dataType === "MULTI_SELECT") {
       const options = Array.isArray(matchedField.options) ? matchedField.options : [];
       const selectedOption = options.find(option => typeof option?.name === "string" && option.name.toLowerCase() === String(field.value).toLowerCase());
       if (!selectedOption) {
         throw new Error(`${ERR_VALIDATION}: invalid option "${field.value}" for issue field "${field.name}". Available options: ${options.map(option => option.name).join(", ") || "(none)"}`);
       }
       return { fieldId: matchedField.id, singleSelectOptionId: selectedOption.id };
-    }
-
-    if (dataType === "ITERATION") {
-      const iterations = matchedField?.configuration?.iterations;
-      const availableIterations = Array.isArray(iterations) ? iterations : [];
-      const selectedIteration = availableIterations.find(iteration => typeof iteration?.title === "string" && iteration.title.toLowerCase() === String(field.value).toLowerCase());
-      if (!selectedIteration) {
-        throw new Error(`${ERR_VALIDATION}: invalid iteration "${field.value}" for issue field "${field.name}". Available iterations: ${availableIterations.map(iteration => iteration.title).join(", ") || "(none)"}`);
-      }
-      return { fieldId: matchedField.id, singleSelectOptionId: selectedIteration.id };
     }
 
     return { fieldId: matchedField.id, textValue: String(field.value) };

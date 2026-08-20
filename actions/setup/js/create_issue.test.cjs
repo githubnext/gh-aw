@@ -355,6 +355,73 @@ describe("create_issue", () => {
 
       expect(result.success).toBe(true);
     });
+
+    it("should apply multi-select issue field values", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issueFields: {
+              nodes: [{ id: "FIELD_TAGS", name: "Tags", dataType: "MULTI_SELECT", options: [{ id: "OPTION_BUG", name: "Bug" }] }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          setIssueFieldValue: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        });
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Issue with multi-select field",
+        body: "Body",
+        fields: [{ name: "Tags", value: "Bug" }],
+      });
+
+      expect(result.success).toBe(true);
+      const mutationCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("setIssueFieldValue"));
+      expect(mutationCall[1].input.issueFields).toEqual([{ fieldId: "FIELD_TAGS", singleSelectOptionId: "OPTION_BUG" }]);
+    });
+
+    it("should not query removed IssueField/IssueFieldIteration fragments", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issueFields: {
+              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          setIssueFieldValue: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        });
+
+      const handler = await main({});
+      await handler({
+        title: "Issue with fields",
+        body: "Body",
+        fields: [{ name: "Priority", value: "High" }],
+      });
+
+      const discoveryCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("issueFields"));
+      expect(discoveryCall).toBeDefined();
+      expect(discoveryCall[0]).not.toContain("... on IssueField {");
+      expect(discoveryCall[0]).not.toContain("IssueFieldIteration");
+      expect(discoveryCall[0]).toContain("IssueFieldText");
+      expect(discoveryCall[0]).toContain("IssueFieldMultiSelect");
+    });
   });
 
   describe("assignees handling", () => {
