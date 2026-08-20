@@ -21,6 +21,7 @@ func TestNewMiner(t *testing.T) {
 }
 
 func TestTrain(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		simThreshold    float64
@@ -64,6 +65,7 @@ func TestTrain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cfg := DefaultConfig()
 			cfg.SimThreshold = tt.simThreshold
 			m, err := NewMiner(cfg)
@@ -86,6 +88,7 @@ func TestTrain(t *testing.T) {
 }
 
 func TestTrainEvent(t *testing.T) {
+	t.Parallel()
 	m, err := NewMiner(DefaultConfig())
 	require.NoError(t, err, "NewMiner should succeed")
 
@@ -100,6 +103,7 @@ func TestTrainEvent(t *testing.T) {
 }
 
 func TestClusters(t *testing.T) {
+	t.Parallel()
 	m, err := NewMiner(DefaultConfig())
 	require.NoError(t, err, "NewMiner should succeed")
 
@@ -114,6 +118,7 @@ func TestClusters(t *testing.T) {
 }
 
 func TestMasking(t *testing.T) {
+	t.Parallel()
 	masker, err := NewMasker(DefaultConfig().MaskRules)
 	require.NoError(t, err, "NewMasker should not return an error")
 
@@ -140,6 +145,7 @@ func TestMasking(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			out := masker.Mask(tt.input)
 			assert.Contains(t, out, tt.wantContain, "Mask(%q) should contain %q", tt.input, tt.wantContain)
 		})
@@ -310,6 +316,7 @@ func TestConcurrency(t *testing.T) {
 }
 
 func TestStageRouting(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	stages := []string{"plan", "tool_call", "finish"}
 	coord, err := NewCoordinator(cfg, stages)
@@ -330,6 +337,7 @@ func TestStageRouting(t *testing.T) {
 }
 
 func TestCoordinatorAnalyzeEvent(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	stages := []string{"plan", "tool_call"}
 	coord, err := NewCoordinator(cfg, stages)
@@ -396,6 +404,7 @@ func TestStageSequence(t *testing.T) {
 }
 
 func TestPersistenceRoundTrip(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	stages := []string{"plan", "tool_call", "finish"}
 	coord, err := NewCoordinator(cfg, stages)
