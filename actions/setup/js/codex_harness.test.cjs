@@ -378,14 +378,15 @@ env_key = "OPENAI_API_KEY"
       expect(isInvalidRequestError(output)).toBe(true);
     });
 
-    it("returns true for the unescaped OpenAI error type field", () => {
-      expect(isInvalidRequestError('"type": "invalid_request_error"')).toBe(true);
+    it("returns true for an unescaped provider error field in a turn.failed event", () => {
+      expect(isInvalidRequestError('{"type":"turn.failed","error":{"type":"invalid_request_error"}}')).toBe(true);
     });
 
-    it("returns false for unrelated errors", () => {
+    it("returns false for unrelated errors and tool transcript content", () => {
       expect(isInvalidRequestError("rate_limit_exceeded")).toBe(false);
       expect(isInvalidRequestError("500 Internal Server Error")).toBe(false);
       expect(isInvalidRequestError("GitHub API responded with 400 Bad Request")).toBe(false);
+      expect(isInvalidRequestError('{"type":"item.completed","item":{"type":"tool_call_output","output":"invalid_request_error"}}')).toBe(false);
       expect(isInvalidRequestError("")).toBe(false);
     });
   });
@@ -493,6 +494,40 @@ env_key = "OPENAI_API_KEY"
       const isTransient = isRateLimit || isServerError(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
     }
+
+    it("does not retry a provider invalid_request_error failure", () => {
+      const tempDir = makeHarnessTempDir("codex-invalid-request-error-");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+fs.appendFileSync(process.env.CODEX_HARNESS_STUB_CALLS, "called\\n");
+process.stderr.write(JSON.stringify({ type: "turn.failed", error: { message: JSON.stringify({ error: { type: "invalid_request_error" } }) } }) + "\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          GH_AW_HARNESS_MAX_RETRIES: "1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+
+      expect(fs.readFileSync(callsPath, "utf8").trim().split("\n")).toHaveLength(1);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("isInvalidRequestError=true");
+      expect(result.stderr).toContain("invalid_request_error (HTTP 400) — not retrying");
+    });
 
     it("retries on rate limit error even without output", () => {
       const result = { exitCode: 1, hasOutput: false, output: "rate_limit_exceeded" };

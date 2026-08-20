@@ -85,16 +85,10 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
 
-// Pattern to detect deterministic request-validation failures (HTTP 400 `invalid_request_error`).
-// The provider rejects the serialized request itself (e.g. `"code": "empty_array"` on
-// `messages[N].content`), so an identical fresh run produces an identical rejection: retrying
-// only re-bills the turns that succeeded before the failure point.
-// Matches the OpenAI-style error type field in raw and JSON-escaped forms, e.g.
-//   "type": "invalid_request_error"
-//   {\"type\": \"invalid_request_error\", \"param\": \"messages[4].content\"}
-// Deliberately anchored to the `invalid_request_error` token rather than a bare "400" so that
-// unrelated HTTP 400 responses from MCP/tool calls inside the agent transcript are not misread
-// as a terminal model-request failure.
+// Pattern to detect deterministic request-validation failures (HTTP 400 `invalid_request_error`)
+// within Codex's outer `turn.failed` event. The provider rejects the serialized request itself
+// (e.g. `"code": "empty_array"` on `messages[N].content`), so an identical fresh run produces
+// an identical rejection: retrying only re-bills the turns that succeeded before the failure point.
 const INVALID_REQUEST_ERROR_PATTERN = /invalid_request_error/i;
 
 // Post-result watchdog: once the agent writes a terminal safe-output the harness
@@ -237,14 +231,22 @@ function isInvalidModelError(output) {
 }
 
 /**
- * Determines if the collected output contains a deterministic request-validation failure
- * (HTTP 400 `invalid_request_error`).  Such schema-level rejections can never succeed on a
- * fresh run with the same input, so they are treated as terminal.
+ * Determines if Codex emitted a `turn.failed` provider event containing a deterministic
+ * request-validation failure (HTTP 400 `invalid_request_error`). Such schema-level rejections
+ * can never succeed on a fresh run with the same input, so they are treated as terminal.
+ * Tokens in agent transcripts and tool responses are intentionally ignored.
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
  */
 function isInvalidRequestError(output) {
-  return INVALID_REQUEST_ERROR_PATTERN.test(output);
+  return output.split(/\r?\n/).some(line => {
+    try {
+      const event = JSON.parse(line);
+      return event?.type === "turn.failed" && event.error && INVALID_REQUEST_ERROR_PATTERN.test(JSON.stringify(event.error));
+    } catch {
+      return false;
+    }
+  });
 }
 
 /**
