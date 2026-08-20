@@ -14,7 +14,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `agent` | `constants.AgentArtifactName`<br/>Source: `pkg/constants/job_constants.go` | Multi-file | Unified agent job outputs (logs, safe outputs, token usage summary) |
 | `activation` | `constants.ActivationArtifactName` | Multi-file | Activation job output (`aw_info.json`, `prompt.txt`, rate limits) |
 | `firewall-audit-logs` | `constants.FirewallAuditArtifactName`<br/>Source: `pkg/constants/constants.go` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
-| `detection` | `constants.DetectionArtifactName` | Conditional | Inline engine: single-file `detection.log`. External `gh-aw-detection` engine (`features: gh-aw-detection: true`): multi-file `detection_result.json` + `step-summary.md`; `detection.log` is intentionally **not** uploaded (see below) |
+| `detection` | `constants.DetectionArtifactName` | Conditional | Legacy inline engine (`features.gh-aw-detection: false`): single-file `detection.log`. The default external `gh-aw-detection` engine: multi-file `detection_result.json` + `step-summary.md`; `detection.log` is intentionally **not** uploaded (see below) |
 | `safe-output` | `constants.SafeOutputArtifactName` | Legacy/back-compat | Historical standalone safe output artifact (`safe_output.jsonl`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `agent-output` | `constants.AgentOutputArtifactName` | Legacy/back-compat | Historical standalone agent output artifact (`agent_output.json`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `aw-info` | — | Single-file | Engine configuration (`aw_info.json`) |
@@ -164,10 +164,10 @@ The `activation` artifact contains activation job outputs:
 The `detection` artifact is conditional:
 
 - Inline engine (default): `detection.log`, the threat-detection analysis output. Legacy name: `threat-detection.log`.
-- External `gh-aw-detection` engine (`features: gh-aw-detection: true`): `detection_result.json` and `step-summary.md`.
+- External `gh-aw-detection` engine (the default, or `features.gh-aw-detection: true`): `detection_result.json` and `step-summary.md`.
 
 > [!IMPORTANT]
-> When the external `gh-aw-detection` feature (`features: gh-aw-detection: true`) is enabled, `detection.log` is not uploaded: it can contain content derived from the untrusted agent transcript that was passed to the detection engine (including secrets the agent may have echoed), so uploading it as a downloadable artifact would be a secret-exfiltration path. On that path the `detection` artifact contains `detection_result.json` (the structured verdict) and `step-summary.md`.
+> When the external `gh-aw-detection` engine is used (the default, or `features.gh-aw-detection: true`), `detection.log` is not uploaded: it can contain content derived from the untrusted agent transcript that was passed to the detection engine (including secrets the agent may have echoed), so uploading it as a downloadable artifact would be a secret-exfiltration path. On that path the `detection` artifact contains `detection_result.json` (the structured verdict) and `step-summary.md`.
 
 ## `experiment`
 
