@@ -23,6 +23,9 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Lockfile Statistics Analysis Agent

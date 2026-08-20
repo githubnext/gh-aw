@@ -24,6 +24,7 @@ network:
 
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 imports:
   - shared/mcp/tavily.md
