@@ -180,10 +180,10 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	}
 
 	// Set GHES compatibility mode when the --ghes flag is passed.
-	// v3 artifact pins are deprecated, so artifact actions continue to use latest pins.
+	// When enabled, artifact actions use versions supported by GHES.
 	compiler.SetGHESCompat(config.GHESCompat)
 	if config.GHESCompat {
-		compileCompilerSetupLog.Print("GHES compatibility mode enabled via --ghes flag: artifact actions will use latest non-v3 pins")
+		compileCompilerSetupLog.Print("GHES compatibility mode enabled via --ghes flag: artifact actions will use v3-compatible pins")
 	}
 
 	// Load pre-cached manifests from file (written by MCP server at startup).

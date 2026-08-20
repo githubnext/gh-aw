@@ -20,6 +20,10 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 	compilerStringAPILog.Printf("CompileToYAML: markdownPath=%s", markdownPath)
 	c.markdownPath = markdownPath
 	c.skipHeader = true
+	c.configureGHESCompatibility()
+	if workflowData != nil {
+		workflowData.GHES = c.ghesArtifactCompat
+	}
 	// Clear contentOverride after compilation (set by ParseWorkflowString)
 	defer func() { c.contentOverride = "" }()
 
@@ -56,6 +60,8 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 // The virtualPath is used for error messages and lock file naming (e.g., "workflow.md").
 func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*WorkflowData, error) {
 	workflowLog.Printf("ParseWorkflowString: parsing %d bytes with virtual path %s", len(content), virtualPath)
+
+	c.configureGHESCompatibility()
 
 	cleanPath := filepath.Clean(virtualPath)
 	contentBytes := []byte(content)

@@ -72,6 +72,8 @@ type PinContext struct {
 	// AllowActionRefs lowers unresolved pinning failures to warnings.
 	// When false, unresolved action refs return an error.
 	AllowActionRefs bool
+	// GHES selects action versions compatible with GitHub Enterprise Server.
+	GHES bool
 	// Warnings is a shared map for deduplicating warning messages.
 	// Keys are cache keys in the form "repo@version".
 	Warnings map[string]bool

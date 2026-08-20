@@ -37,45 +37,6 @@ func (r *RunsOnValue) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// toRunsOnValue converts a YAML-decoded runs-on value (a string or a list of
-// strings) into a RunsOnValue. Values with an unsupported shape, and non-string
-// list entries, are ignored.
-func toRunsOnValue(value any) RunsOnValue {
-	switch v := value.(type) {
-	case string:
-		return RunsOnValue{v}
-	case []any:
-		labels := make(RunsOnValue, 0, len(v))
-		for _, item := range v {
-			if itemStr, ok := item.(string); ok {
-				labels = append(labels, itemStr)
-			}
-		}
-		if len(labels) == 0 {
-			return nil
-		}
-		return labels
-	case []string:
-		if len(v) == 0 {
-			return nil
-		}
-		return RunsOnValue(v)
-	default:
-		return nil
-	}
-}
-
-// isRunsOnArrayValue reports whether a YAML-decoded runs-on value has array
-// shape (as opposed to a single string label).
-func isRunsOnArrayValue(value any) bool {
-	switch value.(type) {
-	case []any, []string:
-		return true
-	default:
-		return false
-	}
-}
-
 // FormatRunsOn serialises a RunsOnValue to a YAML-compatible string that can
 // be inlined directly after "runs-on: " in a generated workflow.
 //

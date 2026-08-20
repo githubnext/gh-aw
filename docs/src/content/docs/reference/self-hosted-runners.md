@@ -79,6 +79,8 @@ runs-on:
 ---
 ```
 
+The string, array, and object forms are supported by the top-level `runs-on`, `runs-on-slim`, `safe-outputs.runs-on`, `safe-outputs.threat-detection.runs-on`, and custom `safe-outputs.jobs.<job>.runs-on` fields.
+
 ## Sharing configuration via imports
 
 `runs-on` must be set in each workflow — it is not merged from imports. Other settings like `network` and `tools` can be shared:
@@ -323,7 +325,9 @@ Or compile with `--ghes` for one-off workflow generation:
 gh aw compile --ghes my-workflow.md
 ```
 
-Artifact actions continue using the latest non-v3 pins because v3 artifact actions are deprecated.
+Compatibility mode emits `upload-artifact@v3.2.2` and `download-artifact@v3.1.0`, which use the artifact backend supported by GHES. Default GitHub.com compilation continues to use the latest artifact actions.
+
+This path supports GHES 3.21.x and earlier when the workflow runs on Actions Runner 2.327.1 or later, which is required by the Node.js 24 runtime used by these pinned artifact actions. Keep compatibility mode enabled on later releases until the instance supports the v4 artifact backend.
 
 ### API endpoint
 
