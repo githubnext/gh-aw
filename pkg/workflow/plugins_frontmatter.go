@@ -52,7 +52,7 @@ func mergeValidatedPlugins(plugins []string) ([]string, error) {
 			continue
 		}
 		if !semverutil.IsValid(existing.ref) || !semverutil.IsValid(parsed.ref) {
-			return nil, fmt.Errorf("plugin %q is declared with conflicting refs %q and %q; use one ref, or use compatible semantic versions", parsed.repoPath, existing.ref, parsed.ref)
+			return nil, fmt.Errorf("plugin %q is declared with conflicting refs %q and %q; use the same ref for every declaration", parsed.repoPath, existing.ref, parsed.ref)
 		}
 		if !semverutil.IsCompatible(existing.ref, parsed.ref) {
 			return nil, fmt.Errorf("plugin %q is declared with incompatible semantic versions %q and %q", parsed.repoPath, existing.ref, parsed.ref)
