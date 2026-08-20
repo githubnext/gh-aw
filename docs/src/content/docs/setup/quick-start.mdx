@@ -178,7 +178,9 @@ jobs:
   agent:
     needs: activation
     runs-on: ...
-    # Same permissions as activation job, omitted for brevity.
+    permissions:
+      contents: read
+      issues: read
     steps:
       - name: Run agent
         ...
