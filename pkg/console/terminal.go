@@ -64,10 +64,10 @@ func renderWizardTitle(title string) string {
 	)
 
 	var rendered strings.Builder
+	titleStyle := lipgloss.NewStyle().Bold(true)
 	for i, r := range runes {
 		rendered.WriteString(
-			lipgloss.NewStyle().
-				Bold(true).
+			titleStyle.
 				Foreground(gradient[i]).
 				Render(string(r)),
 		)
