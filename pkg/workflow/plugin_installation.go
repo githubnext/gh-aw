@@ -49,7 +49,7 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, commandName str
 			"          persist-credentials: false",
 		})
 
-		installCommand := fmt.Sprintf("%s plugin install %s", commandName, shellEscapeArg("./"+installPath))
+		installCommand := shellJoinArgs([]string{commandName, "plugin", "install", "./" + installPath})
 		installStep := []string{"      - name: Install agent plugin " + parsed.repoPath}
 		steps = append(steps, FormatStepWithCommandAndEnv(installStep, installCommand, nil))
 	}
