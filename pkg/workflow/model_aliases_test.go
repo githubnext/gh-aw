@@ -80,7 +80,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash-lite", "mini"}, aliases["summarization"], "summarization should reference fast/lightweight models")
 	assert.Equal(t, []string{"sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should list sonnet-range pricing models: sonnet, gpt-5-pro, gpt-5, and gemini-pro")
-	assert.Equal(t, []string{"copilot/auto", "large"}, aliases["auto"], "auto should pass copilot/auto as-is to the Copilot API and fall back to large for other providers")
+	assert.Equal(t, []string{"large"}, aliases["auto"], "auto must resolve to concrete priced models via large; copilot/auto has no catalog pricing and is rejected by the AWF proxy")
 	assert.Equal(t, []string{"copilot/*fable*", "anthropic/*fable*"}, aliases["fable"], "fable should map to provider-specific fable patterns")
 	assert.Equal(t, []string{"copilot/gpt-5.6*", "openai/gpt-5.6*"}, aliases["gpt-5.6"], "gpt-5.6 should map to provider-specific gpt-5.6 patterns")
 	assert.Equal(t, []string{"copilot/gemini-omni*", "google/gemini-omni*", "gemini/gemini-omni*"}, aliases["gemini-omni"], "gemini-omni should map to provider-specific gemini-omni patterns")
@@ -375,4 +375,21 @@ func TestFrontmatterModelsField(t *testing.T) {
 		assert.Equal(t, []string{"gpt-5"}, config.ModelPolicyAllowed)
 		assert.Equal(t, []string{"claude-opus"}, config.ModelPolicyBlocked)
 	})
+}
+
+// TestBuiltinModelAliasesHaveNoUnpricedAutoPassthrough verifies that no builtin alias
+// exposes the "copilot/auto" server-side passthrough. That identifier has no catalog
+// pricing entry, so the AWF api-proxy rejects inference requests for it with HTTP 400
+// (missing_model_pricing) whenever max-ai-credits is active. Every alias must therefore
+// resolve to a concrete, priced model.
+func TestBuiltinModelAliasesHaveNoUnpricedAutoPassthrough(t *testing.T) {
+	aliases := BuiltinModelAliases()
+
+	for alias, entries := range aliases {
+		assert.NotContains(t, entries, "copilot/auto",
+			"builtin alias %q must not reference the unpriced copilot/auto passthrough", alias)
+	}
+
+	assert.Equal(t, []string{"large"}, aliases["auto"],
+		"auto must resolve through large so the zero-config default lands on a priced model")
 }
