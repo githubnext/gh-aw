@@ -86,10 +86,9 @@ const (
 	//	features:
 	//	  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
 	DangerouslyDisableSandboxAgentFeatureFlag FeatureFlag = "dangerously-disable-sandbox-agent"
-	// GHAWDetectionFeatureFlag gates the external threat-detect binary detection path.
-	// When enabled, the compiler emits a detection job that downloads and runs
-	// the threat-detect binary from GitHub Releases under AWF, writing a structured
-	// detection_result.json instead of using the inline engine execution path.
+	// GHAWDetectionFeatureFlag controls the external threat-detect binary detection path.
+	// The external detector is enabled by default. Set this flag to false to use
+	// the legacy inline engine execution path.
 	// The binary version is resolved at runtime via DefaultThreatDetectVersion in version_constants.go.
 	//
 	// Workflow frontmatter usage:

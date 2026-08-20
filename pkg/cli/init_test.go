@@ -431,6 +431,7 @@ func TestEnsureGHESRepoConfig_GHHostEnvVar(t *testing.T) {
 	}
 
 	// Point GH_HOST at a GHES instance
+	clearCIEnvironment(t)
 	t.Setenv("GH_HOST", "ghes.example.com")
 	t.Setenv("GITHUB_SERVER_URL", "")
 
@@ -471,6 +472,7 @@ func TestEnsureGHESRepoConfig_Idempotent(t *testing.T) {
 		t.Fatalf("git init failed: %v", err)
 	}
 
+	clearCIEnvironment(t)
 	t.Setenv("GH_HOST", "ghes.example.com")
 	t.Setenv("GITHUB_SERVER_URL", "")
 
@@ -490,5 +492,43 @@ func TestEnsureGHESRepoConfig_Idempotent(t *testing.T) {
 	}
 	if updated2 {
 		t.Error("Second call should be idempotent (no update when ghes: true already set)")
+	}
+}
+
+func TestEnsureGHESRepoConfig_SkipsCI(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	t.Setenv("CI", "true")
+	t.Setenv("GH_HOST", "ghes.example.com")
+
+	updated, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("ensureGHESRepoConfig returned unexpected error: %v", err)
+	}
+	if updated {
+		t.Fatal("ensureGHESRepoConfig should skip GHES configuration in CI")
+	}
+
+	if _, err := os.Stat(filepath.Join(tempDir, ".github", "workflows", "aw.json")); !os.IsNotExist(err) {
+		t.Fatal("ensureGHESRepoConfig should not create aw.json in CI")
+	}
+}
+
+func clearCIEnvironment(t *testing.T) {
+	t.Helper()
+	for _, envVar := range []string{"CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS", "COPILOT_AGENT_SESSION_ID"} {
+		t.Setenv(envVar, "")
 	}
 }
