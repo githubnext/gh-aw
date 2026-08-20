@@ -223,6 +223,13 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	if len(safeOutputsConfig) == 0 {
 		return "", nil
 	}
+	// The agent job never depends on the custom jobs listed in safe-outputs.needs (those
+	// dependencies are only wired onto the later safe_outputs handler job by
+	// buildSafeOutputsJobNeeds). Any templated expression referencing needs.<job> for one of
+	// those jobs would therefore be unresolvable inside the agent job and trip an actionlint
+	// "undefined property" error. Neutralize such expressions here; the handler job's own copy
+	// of the config (GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG) is unaffected and keeps the real value.
+	sanitizeAgentSafeOutputsConfig(safeOutputsConfig, data.SafeOutputs.Needs)
 	configJSON, err := marshalSafeOutputsConfig(safeOutputsConfig)
 	if err != nil {
 		return "", fmt.Errorf("marshaling safe-outputs config: %w", err)
