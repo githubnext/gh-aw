@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/syncutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -27,8 +28,7 @@ func getCurrentRepoSlugUncached() (string, error) {
 		repoSlug := strings.TrimSpace(string(output))
 		if repoSlug != "" {
 			// Validate format (should be owner/repo)
-			parts := strings.Split(repoSlug, "/")
-			if len(parts) == 2 && parts[0] != "" && parts[1] != "" {
+			if _, _, err := repoutil.SplitRepoSlug(repoSlug); err == nil {
 				repoLog.Printf("Successfully got repository slug via gh CLI: %s", repoSlug)
 				return repoSlug, nil
 			}
@@ -55,8 +55,7 @@ func getCurrentRepoSlugUncached() (string, error) {
 	}
 
 	// Validate format (should be owner/repo)
-	parts := strings.Split(repoPath, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	if _, _, err := repoutil.SplitRepoSlug(repoPath); err != nil {
 		repoLog.Printf("Invalid repository format: %s", repoPath)
 		return "", fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: github/gh-aw", repoPath)
 	}

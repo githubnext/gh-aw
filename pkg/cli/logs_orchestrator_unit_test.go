@@ -202,6 +202,25 @@ func TestBuildContinuationIfNeeded(t *testing.T) {
 		assert.Contains(t, c.Message, "Count limit reached")
 	})
 
+	t.Run("lastFetchedBeforeDate overrides end_date so a resumed request does not replay already-scanned pages", func(t *testing.T) {
+		// When many non-matching runs are interspersed across the window, the oldest
+		// *matching* run (used for BeforeRunID) can be far newer than where the scan
+		// actually reached. The continuation must bound its end_date at the real
+		// pagination cursor, not the original request's end_date, or a resumed
+		// request restarts from the top of the original window (see github/gh-aw#54110).
+		c := buildContinuationIfNeeded(runs, false, true, continuationOptions{
+			workflowName:          "my-workflow",
+			startDate:             "2026-01-01",
+			endDate:               "2026-06-30",
+			count:                 100,
+			timeoutMinutes:        3,
+			lastFetchedBeforeDate: "2026-03-15T00:00:00Z",
+		})
+		require.NotNil(t, c)
+		assert.Equal(t, "2026-03-15T00:00:00Z", c.EndDate, "end_date should be the actual scan cursor, not the original request end_date")
+		assert.Equal(t, "2026-01-01", c.StartDate)
+	})
+
 	t.Run("timeout reached emits cursor with timeout message", func(t *testing.T) {
 		c := buildContinuationIfNeeded(runs, true, false, continuationOptions{
 			workflowName:   "my-workflow",
@@ -357,7 +376,7 @@ func TestCollectProcessedWorkflowRunsAccumulatesBatches(t *testing.T) {
 		return processedRuns, len(batch.runs), true, false
 	}
 
-	runs, timeoutReached, countLimitReached, err := collectProcessedWorkflowRuns(
+	runs, timeoutReached, countLimitReached, _, err := collectProcessedWorkflowRuns(
 		logsDownloadRuntime{activeCtx: context.Background(), fetchAllInRange: true},
 		LogsDownloadOptions{Count: 100, StartDate: "-1d"},
 	)
@@ -407,5 +426,136 @@ func TestStaleLogsWarning(t *testing.T) {
 		assert.Contains(t, warning, "No start_date/end_date was specified")
 		assert.Contains(t, warning, "start_date")
 		assert.Contains(t, warning, "11 day")
+	})
+}
+
+// TestCollectProcessedWorkflowRunsIterationLimitSurfacesContinuation is a
+// regression test for the bug where hitting MaxIterations during an explicit
+// start_date/end_date ("fetchAllInRange") download silently returned whatever
+// partial data had accumulated with no continuation cursor, because neither
+// timeoutReached nor countLimitReached was ever set. This let callers requesting
+// a wide date range (e.g. 90 days) mistake a narrow, possibly-stale slice of
+// results for a complete scan of the range (see github/gh-aw#53995).
+func TestCollectProcessedWorkflowRunsIterationLimitSurfacesContinuation(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	fetchRateLimitFunc = func() (rateLimitResource, error) {
+		return rateLimitResource{Limit: 5000, Remaining: 5000, Reset: time.Now().Add(time.Hour).Unix()}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	originalFetch := logsFetchWorkflowRunBatch
+	originalProcess := logsProcessWorkflowRunBatch
+	t.Cleanup(func() {
+		logsFetchWorkflowRunBatch = originalFetch
+		logsProcessWorkflowRunBatch = originalProcess
+	})
+
+	var nextID int64
+	// Every batch returns a single matching run and reports totalFetched ==
+	// batchSize, so pagination never naturally exhausts the range and never
+	// reaches opts.Count either -- the only way out is the MaxIterations cap.
+	logsFetchWorkflowRunBatch = func(_ context.Context, _ LogsDownloadOptions, _ string, _ int, _ bool) (workflowRunBatch, error) {
+		nextID++
+		return workflowRunBatch{
+			runs:                   []WorkflowRun{{DatabaseID: nextID}},
+			totalFetched:           BatchSize,
+			batchSize:              BatchSize,
+			oldestFetchedCreatedAt: time.Now().Add(-time.Duration(nextID) * time.Hour),
+		}, nil
+	}
+	logsProcessWorkflowRunBatch = func(_ context.Context, batch workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool) {
+		for _, run := range batch.runs {
+			processedRuns = append(processedRuns, ProcessedRun{Run: run})
+		}
+		return processedRuns, len(batch.runs), true, false
+	}
+
+	runs, timeoutReached, countLimitReached, _, err := collectProcessedWorkflowRuns(
+		logsDownloadRuntime{activeCtx: context.Background(), fetchAllInRange: true},
+		LogsDownloadOptions{Count: 1000, StartDate: "-90d"},
+	)
+	require.NoError(t, err)
+	assert.False(t, timeoutReached)
+	assert.True(t, countLimitReached, "hitting MaxIterations during a date-range scan should surface a continuation cursor")
+	assert.Len(t, runs, MaxIterations, "one run should have been collected per iteration up to the cap")
+
+	t.Run("last batch is included when cap is hit", func(t *testing.T) {
+		nextID = 0
+		runs, _, countLimitReached, _, err := collectProcessedWorkflowRuns(
+			logsDownloadRuntime{activeCtx: context.Background(), fetchAllInRange: true},
+			LogsDownloadOptions{Count: MaxIterations, StartDate: "-90d"},
+		)
+		require.NoError(t, err)
+		assert.True(t, countLimitReached)
+		assert.Len(t, runs, MaxIterations, "the final iteration's batch must not be discarded")
+	})
+}
+
+// TestDateRangeCoverageWarning verifies that a warning is emitted when an
+// explicit start_date/end_date window was requested, the result was truncated
+// by the count limit (partial=true), and the returned runs span only a small
+// slice of the requested window -- guarding against a caller mistaking a
+// single busy (and possibly stale) day for a representative sample of a much
+// wider requested range (see github/gh-aw#53995).
+func TestDateRangeCoverageWarning(t *testing.T) {
+	now := time.Now()
+	ninetyDaysAgo := now.Add(-90 * 24 * time.Hour).Format(time.RFC3339)
+
+	t.Run("no warning when result is not partial", func(t *testing.T) {
+		runs := []ProcessedRun{
+			{Run: WorkflowRun{CreatedAt: now.Add(-89 * 24 * time.Hour)}},
+			{Run: WorkflowRun{CreatedAt: now.Add(-89*24*time.Hour - time.Hour)}},
+		}
+		assert.Empty(t, dateRangeCoverageWarning(runs, ninetyDaysAgo, "", false))
+	})
+
+	t.Run("no warning when no start_date was requested", func(t *testing.T) {
+		runs := []ProcessedRun{{Run: WorkflowRun{CreatedAt: now}}}
+		assert.Empty(t, dateRangeCoverageWarning(runs, "", "", true))
+	})
+
+	t.Run("no warning when no runs", func(t *testing.T) {
+		assert.Empty(t, dateRangeCoverageWarning(nil, ninetyDaysAgo, "", true))
+	})
+
+	t.Run("no warning when returned runs span most of the requested window", func(t *testing.T) {
+		runs := []ProcessedRun{
+			{Run: WorkflowRun{CreatedAt: now}},
+			{Run: WorkflowRun{CreatedAt: now.Add(-80 * 24 * time.Hour)}},
+		}
+		assert.Empty(t, dateRangeCoverageWarning(runs, ninetyDaysAgo, "", true))
+	})
+
+	t.Run("warns when partial results are all clustered in a narrow window", func(t *testing.T) {
+		staleDay := now.Add(-12 * 24 * time.Hour)
+		runs := []ProcessedRun{
+			{Run: WorkflowRun{CreatedAt: staleDay}},
+			{Run: WorkflowRun{CreatedAt: staleDay.Add(-2 * time.Hour)}},
+		}
+		warning := dateRangeCoverageWarning(runs, ninetyDaysAgo, "", true)
+		require.NotEmpty(t, warning)
+		assert.Contains(t, warning, "narrow slice")
+		assert.Contains(t, warning, "continuation")
+	})
+
+	t.Run("no false-positive warning when only a single run is returned", func(t *testing.T) {
+		// A single run has a zero-length covered span (newest.Sub(oldest) == 0),
+		// which must not be mistaken for a narrow slice of the requested window.
+		runs := []ProcessedRun{
+			{Run: WorkflowRun{CreatedAt: now.Add(-12 * 24 * time.Hour)}},
+		}
+		assert.Empty(t, dateRangeCoverageWarning(runs, ninetyDaysAgo, "", true))
+	})
+
+	t.Run("warns with explicit endDate and narrow coverage", func(t *testing.T) {
+		staleDay := now.Add(-88 * 24 * time.Hour)
+		runs := []ProcessedRun{
+			{Run: WorkflowRun{CreatedAt: staleDay}},
+			{Run: WorkflowRun{CreatedAt: staleDay.Add(-time.Hour)}},
+		}
+		end := now.Add(-1 * 24 * time.Hour).Format(time.RFC3339)
+		warning := dateRangeCoverageWarning(runs, ninetyDaysAgo, end, true)
+		require.NotEmpty(t, warning)
+		assert.Contains(t, warning, "narrow slice")
 	})
 }

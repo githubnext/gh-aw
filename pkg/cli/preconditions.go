@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -164,11 +165,10 @@ func parseJSON(data []byte, v any) error {
 func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
 	preconditionsLog.Print("Checking user permissions")
 
-	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 {
+	owner, repo, err := repoutil.SplitRepoSlug(repoSlug)
+	if err != nil {
 		return false, fmt.Errorf("invalid repository format: %s", repoSlug)
 	}
-	owner, repo := parts[0], parts[1]
 
 	hasAccess, err := checkRepositoryAccess(owner, repo)
 	if err != nil {
