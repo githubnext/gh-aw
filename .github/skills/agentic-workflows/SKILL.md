@@ -41,7 +41,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/github-mcp-server-pagination.md`
 - `.github/aw/github-mcp-server.md`
 - `.github/aw/instructions.md`
-- `.github/aw/jobs.md`
 - `.github/aw/linter-workflows.md`
 - `.github/aw/llms.md`
 - `.github/aw/loop.md`
