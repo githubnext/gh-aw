@@ -12,6 +12,7 @@ import (
 )
 
 func TestExtractMissingDataFromRun_IncludesExperimentProvenance(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	testRun := WorkflowRun{
@@ -72,6 +73,7 @@ func TestExtractMissingDataFromRun_IncludesExperimentProvenance(t *testing.T) {
 }
 
 func TestExtractMissingDataFromRun_NoExperimentProvenance(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	testRun := WorkflowRun{
