@@ -289,6 +289,10 @@ for a full workflow example using `skills:`.
 
 ### Agent Plugins (`plugins:`)
 
+:::caution[Experimental]
+Agent Plugins support is experimental and may change. Compiling a workflow that uses `plugins:` emits a warning.
+:::
+
 Installs [Agent Plugins](https://agent-plugins.org) through the selected agentic engine. Each entry identifies a GitHub repository and, optionally, the path to a plugin within that repository:
 
 ```yaml wrap

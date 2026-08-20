@@ -111,6 +111,32 @@ func TestValidatePluginSupport(t *testing.T) {
 	require.ErrorContains(t, err, `plugins are not supported by engine "codex"`)
 }
 
+func TestPluginsEmitExperimentalWarning(t *testing.T) {
+	expectedMessage := "Using experimental feature: plugins"
+
+	for _, test := range []struct {
+		name          string
+		plugins       []string
+		expectWarning bool
+	}{
+		{name: "plugins declared", plugins: []string{"octo-org/agent-plugin@" + testPluginSHA}, expectWarning: true},
+		{name: "no plugins declared", expectWarning: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			compiler := NewCompiler(WithVersion("dev"))
+			compiler.SetBatchMode(true)
+			compiler.emitExperimentalFeatureWarnings(&WorkflowData{Plugins: test.plugins})
+
+			if test.expectWarning {
+				assert.Equal(t, 1, compiler.GetExperimentalFeatureUsage()[expectedMessage])
+				assert.Positive(t, compiler.GetWarningCount())
+				return
+			}
+			assert.Zero(t, compiler.GetExperimentalFeatureUsage()[expectedMessage])
+		})
+	}
+}
+
 func TestCompileWorkflowRejectsImportedPluginsOnUnsupportedEngine(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "unsupported-imported-plugin")
 	sharedPath := filepath.Join(tmpDir, "shared.md")

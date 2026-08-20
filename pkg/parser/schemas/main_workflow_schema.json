@@ -2445,7 +2445,7 @@
     },
     "plugins": {
       "type": "array",
-      "description": "Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA.",
+      "description": "\u26a0\ufe0f Experimental. Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA. Using this field emits a compile-time warning.",
       "items": {
         "type": "string",
         "minLength": 1,
@@ -13765,7 +13765,7 @@
                 },
                 "plugins": {
                   "type": "object",
-                  "description": "Declares Agent Plugins (https://agent-plugins.org) support for the engine. Plugins are checked out at their pinned commit SHA, then staged in 'directory' and/or installed with the engine CLI using 'install-args'.",
+                  "description": "\u26a0\ufe0f Experimental. Declares Agent Plugins (https://agent-plugins.org) support for the engine. Plugins are checked out at their pinned commit SHA, then staged in 'directory' and/or installed with the engine CLI using 'install-args'.",
                   "properties": {
                     "directory": {
                       "type": "string",
