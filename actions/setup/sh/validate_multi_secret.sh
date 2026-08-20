@@ -47,7 +47,7 @@ is_invalid_secret_value() {
     return 0
   fi
   if [[ "$value" =~ ^[[:space:]]*(null|undefined)[[:space:]]*$ ]]; then
-    INVALID_SECRET_REASON="literal 'null' or 'undefined' placeholder"
+    INVALID_SECRET_REASON="placeholder value"
     return 0
   fi
   return 1
