@@ -13,7 +13,55 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestReconcileManifestManagedAssets_AddsPackageOwnedAssets(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "manifest-assets-*")
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
+	t.Chdir(tmpDir)
+
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		if owner != "owner" || repo != "repo" || ref != "v2.0.0" {
+			return nil, fmt.Errorf("unexpected package source %s/%s@%s", owner, repo, ref)
+		}
+		switch path {
+		case ".github/workflows/new.yml":
+			return []byte("name: new action\n"), nil
+		case "skills/review/scripts/check.sh":
+			return []byte("#!/bin/sh\n"), nil
+		case "agents/reviewer.md":
+			return []byte("# Reviewer\n"), nil
+		default:
+			return nil, fmt.Errorf("unexpected package path %s", path)
+		}
+	}
+
+	err := reconcileManifestManagedAssets(context.Background(), "owner/repo",
+		&resolvedRepositoryPackage{},
+		&resolvedRepositoryPackage{
+			ResolvedRef: "v2.0.0",
+			InstallationSource: []resolvedPackageInstallable{{
+				SourcePath:      ".github/workflows/new.yml",
+				DestinationPath: ".github/workflows/new.yml",
+			}},
+			SkillFiles: []resolvedPackageSkillFile{{
+				SourcePath: "skills/review/scripts/check.sh",
+				SkillName:  "review",
+			}},
+			AgentFiles: []string{"agents/reviewer.md"},
+		},
+		UpdateWorkflowsOptions{EngineOverride: "copilot"},
+	)
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(tmpDir, ".github", "workflows", "new.yml"))
+	assert.FileExists(t, filepath.Join(tmpDir, workflow.GetEngineSkillDir("copilot"), "review", "scripts", "check.sh"))
+	assert.FileExists(t, filepath.Join(tmpDir, workflow.GetEngineSubAgentDir("copilot"), "reviewer.md"))
+}
 
 func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	originalResolveLatestRef := resolveLatestRefFn
