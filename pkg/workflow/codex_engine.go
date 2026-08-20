@@ -220,11 +220,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	structuredOutputParam, detectionSchemaWriteCmd := e.codexStructuredOutputConfig(workflowData)
 	commandName := e.codexCommandName(workflowData)
 	harnessScriptName := e.codexHarnessScriptName(workflowData)
-	codexCommand := wrapCodexCommandWithLogDiagnostics(e.buildCodexCommand(workflowData, commandName, harnessScriptName, firewallEnabled, modelEnvVar, structuredOutputParam))
+	codexCommand := e.buildCodexCommand(workflowData, commandName, harnessScriptName, firewallEnabled, modelEnvVar, structuredOutputParam)
 	command := e.buildCodexExecutionCommand(workflowData, logFile, codexCommand, harnessScriptName, detectionSchemaWriteCmd, firewallEnabled)
 	env := e.buildCodexExecutionEnv(workflowData, firewallEnabled, modelConfigured, modelEnvVar)
 	step := e.buildCodexExecutionStep(workflowData, command, env)
-	return []GitHubActionStep{step}
+	return []GitHubActionStep{step, e.buildRenderCodexLogStep(workflowData)}
 }
 
 func (e *CodexEngine) codexModelEnvVar(workflowData *WorkflowData) string {
@@ -301,37 +301,36 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 		commandName, modelParam, webSearchParam, webFetchParam, shellToolParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 }
 
-// wrapCodexCommandWithLogDiagnostics wraps the Codex CLI invocation so that when it
-// exits with a non-zero status, the most recently modified file under
-// "$CODEX_HOME/logs" is tailed into the step log. Codex CLI ships its own tracing
-// output (controlled by RUST_LOG) to files under $CODEX_HOME/logs rather than to
-// stdout/stderr, so a bare non-zero exit code with no console output can still have
-// a diagnosable error recorded there. Without this, such failures are invisible
-// black-box "exit code 1" crashes even though Codex logged the real cause internally.
+// buildRenderCodexLogStep creates a step that runs after Codex CLI execution and,
+// only when that step failed, renders the most recently modified file under
+// "$CODEX_HOME/logs" to the step log via the shared render_codex_log.cjs helper.
 //
-// The tailed log content is wrapped in a `::stop-commands::<token>` / `::<token>::`
-// pair so that any workflow-command-shaped lines it happens to contain (e.g.
-// "::error::...") are not interpreted by the runner as actual workflow commands.
-func wrapCodexCommandWithLogDiagnostics(codexCommand string) string {
-	return fmt.Sprintf(`{
-%s
-codex_cli_exit_code=$?
-if [ "$codex_cli_exit_code" -ne 0 ]; then
-  echo "::group::Codex internal logs ($CODEX_HOME/logs)"
-  codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '*.log' -printf '%%T@ %%p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)
-  if [ -n "$codex_log_file" ]; then
-    echo "--- tail of $codex_log_file ---"
-    codex_log_stop_token="codex-log-$(date +%%s%%N)-$$"
-    echo "::stop-commands::$codex_log_stop_token"
-    tail -n 200 "$codex_log_file" 2>/dev/null || true
-    echo "::$codex_log_stop_token::"
-  else
-    echo "(no Codex internal log files found under \$CODEX_HOME/logs)"
-  fi
-  echo "::endgroup::"
-fi
-exit "$codex_cli_exit_code"
-}`, codexCommand)
+// Codex CLI ships its own tracing/diagnostic output (controlled by RUST_LOG) to
+// files under $CODEX_HOME/logs rather than to stdout/stderr, so a bare non-zero
+// exit code with no console output can still have a diagnosable error recorded
+// there. Without this step, such failures are invisible black-box "exit code 1"
+// crashes even though Codex logged the real cause internally.
+//
+// This reuses the same renderLogFromFile/renderLogToStdout helpers used for the
+// threat-detection log, so the rendered content gets the same secret redaction
+// and `::stop-commands::` wrapping (preventing `::`-shaped log lines from being
+// interpreted as workflow commands) without duplicating that logic in shell.
+func (e *CodexEngine) buildRenderCodexLogStep(workflowData *WorkflowData) GitHubActionStep {
+	return GitHubActionStep{
+		"      - name: Render Codex internal logs",
+		"        if: always()",
+		"        continue-on-error: true",
+		fmt.Sprintf("        uses: %s", getCachedActionPin("actions/github-script", workflowData)),
+		"        env:",
+		"          GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}",
+		"          CODEX_HOME: " + constants.TmpMcpConfigDir,
+		"        with:",
+		"          script: |",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);",
+		"            const { main } = require('" + SetupActionDestination + "/render_codex_log.cjs');",
+		"            await main();",
+	}
 }
 
 func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, logFile, codexCommand, harnessScriptName, detectionSchemaWriteCmd string, firewallEnabled bool) string {

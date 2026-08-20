@@ -271,19 +271,33 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// Execute the engine through AWF; output is written to evalsLogPath.
 	executionSteps := engine.GetExecutionSteps(evalsData, evalsLogPath)
 	for _, step := range executionSteps {
-		// injected and skipNextIf are intentionally scoped per-step (declared inside the
-		// outer loop) so they reset to false for each new step, preventing carry-over.
-		// skipNextIf is set after injection so that a step's own "if: always()" field
-		// (e.g. behavior-defined log-parser write steps) is dropped in favour of the
-		// injected condition, avoiding YAML duplicate mapping keys.
+		// injected, skipNextIf and skipNextContinueOnError are intentionally scoped
+		// per-step (declared inside the outer loop) so they reset to false for each new
+		// step, preventing carry-over. skipNextIf/skipNextContinueOnError are set after
+		// injection so that a step's own "if:"/"continue-on-error:" fields (e.g.
+		// behavior-defined log-parser write steps, or our own render-logs step) are
+		// dropped in favour of the injected condition, avoiding YAML duplicate mapping
+		// keys.
 		injected := false
 		skipNextIf := false
+		skipNextContinueOnError := false
 		for _, line := range step {
 			// If the previous line was the name line and we just injected an if: condition,
 			// drop the step's original if: field to avoid a YAML duplicate mapping key.
 			if skipNextIf {
 				skipNextIf = false
 				if strings.HasPrefix(strings.TrimSpace(line), "if:") {
+					skipNextContinueOnError = true
+					continue
+				}
+			}
+			// A step whose own "if:" field was just dropped (above) may also define its
+			// own "continue-on-error:" field immediately after (e.g. our render-logs
+			// step). Drop it too so it isn't duplicated alongside the continue-on-error
+			// injected below.
+			if skipNextContinueOnError {
+				skipNextContinueOnError = false
+				if strings.HasPrefix(strings.TrimSpace(line), "continue-on-error:") {
 					continue
 				}
 			}
@@ -291,8 +305,11 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 			// IDs — job managers validate for duplicate step IDs across the compiled YAML.
 			// This mirrors the same pattern used in buildDetectionEngineExecutionStep (see
 			// threat_detection_inline_engine.go), where the ID is also a well-known literal
-			// produced by every engine's GetExecutionSteps implementation.
+			// produced by every engine's GetExecutionSteps implementation. Also rewrite any
+			// "steps.agentic_execution." expression references (e.g. from a later step in
+			// the same engine, like the Codex render-logs step) to the renamed ID.
 			prefixed := strings.Replace(line, "id: agentic_execution", "id: evals_agentic_execution", 1)
+			prefixed = strings.ReplaceAll(prefixed, "steps.agentic_execution.", "steps.evals_agentic_execution.")
 			steps = append(steps, prefixed+"\n")
 			// Inject always() condition and continue-on-error after the "- name:" line
 			// so that infrastructure failures do not block the parse step that follows.

@@ -203,8 +203,8 @@ func TestCodexEngineWithAgentFromImports(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
@@ -242,8 +242,8 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
@@ -523,8 +523,8 @@ func TestInvalidAgentFilePathGeneratesFailingStep(t *testing.T) {
 		}
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-		if len(steps) != 1 {
-			t.Fatalf("Expected exactly 1 step, got %d", len(steps))
+		if len(steps) != 2 {
+			t.Fatalf("Expected exactly 2 steps, got %d", len(steps))
 		}
 		content := strings.Join([]string(steps[0]), "\n")
 		// Must NOT reference the malicious path at all in the generated step
