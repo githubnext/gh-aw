@@ -180,6 +180,32 @@ describe("generate_history_link.cjs", () => {
         expect(url).toContain("gh-aw-workflow-call-id%3A+caller%2Frepo%2FWorkflowName");
       });
 
+      it("should percent-encode both marker delimiter quotes for markdown-safe links", () => {
+        const url = generateHistoryUrl({
+          owner: "elastic",
+          repo: "docs-eng-team",
+          itemType: "issue",
+          workflowCallId: "elastic/docs-eng-team/gh-aw-issue-auto-triage",
+          serverUrl: "https://github.com",
+        });
+
+        expect(url).toContain("%22gh-aw-workflow-call-id%3A+elastic%2Fdocs-eng-team%2Fgh-aw-issue-auto-triage%22");
+        expect(url).not.toContain('"');
+      });
+
+      it("should percent-encode marker parentheses to preserve markdown-safe link targets", () => {
+        const url = generateHistoryUrl({
+          owner: "elastic",
+          repo: "docs-eng-team",
+          itemType: "issue",
+          workflowId: "triage(workflow)",
+          serverUrl: "https://github.com",
+        });
+
+        expect(url).toContain("gh-aw-workflow-id%3A+triage%28workflow%29");
+        expect(url).not.toContain("triage(workflow)");
+      });
+
       it("should include workflow-id marker in search query when used", () => {
         const url = generateHistoryUrl({
           owner: "testowner",
