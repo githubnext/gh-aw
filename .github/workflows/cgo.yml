@@ -1389,7 +1389,7 @@ jobs:
           fi
         elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
           if git rev-parse --verify "$BEFORE_SHA^{commit}" >/dev/null 2>&1; then
-            files=$(git diff --name-only "$BEFORE_SHA...HEAD" -- '*.go' | tr '\n' ',' | sed 's/,$//')
+            files=$(git diff --name-only "$BEFORE_SHA..HEAD" -- '*.go' | tr '\n' ',' | sed 's/,$//')
           else
             echo "Before SHA $BEFORE_SHA not found, skipping push diff"
           fi
