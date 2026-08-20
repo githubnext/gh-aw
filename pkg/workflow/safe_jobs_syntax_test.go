@@ -102,3 +102,35 @@ Test new syntax
 		t.Error("Expected 'deploy' job to exist in SafeOutputs.Jobs")
 	}
 }
+
+func TestSafeOutputsJobsRunnerAliasRejected(t *testing.T) {
+	c := NewCompiler()
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowPath := filepath.Join(tmpDir, "test-runner-alias.md")
+	content := `---
+on: issues
+permissions:
+  contents: read
+safe-outputs:
+  jobs:
+    deploy:
+      runner: ubuntu-latest
+      steps:
+        - run: echo test
+---
+
+# Test workflow
+`
+	err := os.WriteFile(workflowPath, []byte(content), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	_, err = c.ParseWorkflowFile(workflowPath)
+	if err == nil {
+		t.Fatal("Expected runner alias to be rejected")
+	}
+	if !strings.Contains(err.Error(), "runner") {
+		t.Errorf("Expected error to mention 'runner', got: %v", err)
+	}
+}

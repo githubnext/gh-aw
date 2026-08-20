@@ -70,6 +70,7 @@ tools:
     description: "Long-term insights, patterns, and trend data"
     file-glob: ["*.md", "*.json"]
     max-file-size: 1048576  # 1MB
+    max-patch-size: 51200  # 50KB - default (10KB) is too small for a full analysis cycle's diff
   bash:
     - "*"
   edit:
