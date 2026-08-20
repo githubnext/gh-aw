@@ -146,6 +146,26 @@ func TestGenerateCopilotInstallerSteps_EmptyVersionNoCompiledVersion(t *testing.
 	}
 }
 
+func TestGenerateCopilotInstallerSteps_DoesNotRequireSystemRipgrep(t *testing.T) {
+	steps := GenerateCopilotInstallerSteps("", "Install GitHub Copilot CLI", false, "v0.99.0")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join(steps[0], "\n")
+	unexpected := []string{
+		"install_ripgrep.sh",
+		"Install ripgrep",
+		"apt-get install -y ripgrep",
+		"ripgrep not found; installing with apt-get",
+	}
+	for _, pattern := range unexpected {
+		if strings.Contains(stepContent, pattern) {
+			t.Errorf("Copilot install step must not require system ripgrep, found %q in:\n%s", pattern, stepContent)
+		}
+	}
+}
+
 func TestCopilotEngineWithVersion(t *testing.T) {
 	// engine.version must be honored: when an explicit version is set it should be
 	// passed to the installer and compat.json resolution must be skipped.

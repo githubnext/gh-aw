@@ -49,6 +49,9 @@ emoji: 🤖
 files:
   - workflows/example.md
   - .github/workflows/repo-workflow.md
+resources:
+  - source: templates/bug.yml
+    destination: .github/ISSUE_TEMPLATE/bug.yml
 ```
 
 Requirements:
@@ -58,6 +61,7 @@ Requirements:
 - `description`: concise and relevant to the actual workflows
 - `emoji`: optional package emoji (string)
 - `files`: complete list of installable agentic/shared workflows in this repository
+- `resources`: optional package-root-relative assets copied to allowlisted destinations such as `.github/ISSUE_TEMPLATE/*.yml`, `.github/CODEOWNERS`, or `.github/aw/**`
 - File paths must be package-root-relative and point to existing markdown workflow files under `workflows/` or `.github/workflows/`
 
 Do not invent custom package metadata fields.

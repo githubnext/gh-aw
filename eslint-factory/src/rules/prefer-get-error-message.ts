@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -22,6 +22,30 @@ export const preferGetErrorMessageRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
+    type Scope = ReturnType<typeof sourceCode.getScope>;
+
+    function isDefinitionAvailableAtNode(definition: TSESLint.Scope.Definition, node: TSESTree.Node): boolean {
+      if (definition.type === "ImportBinding" || definition.type === "FunctionName") {
+        return true;
+      }
+      const definitionNode = definition.name ?? definition.node;
+      if (!definitionNode?.range || !node.range) return false;
+      return definitionNode.range[0] < node.range[0];
+    }
+
+    function hasResolvableLocalBinding(node: TSESTree.Node, name: string): boolean {
+      let scope: Scope | null = sourceCode.getScope(node);
+      while (scope) {
+        const variable = scope.set.get(name);
+        if (variable && variable.defs.some(def => isDefinitionAvailableAtNode(def, node))) {
+          return true;
+        }
+        scope = scope.upper;
+      }
+      return false;
+    }
+
     return {
       ConditionalExpression(node) {
         const test = node.test;
@@ -38,6 +62,7 @@ export const preferGetErrorMessageRule = createRule({
         if (alternate.type !== AST_NODE_TYPES.CallExpression || !isIdentifierNamed(alternate.callee, "String") || alternate.arguments.length !== 1 || !isIdentifierNamed(alternate.arguments[0], errorVar)) {
           return;
         }
+        if (!hasResolvableLocalBinding(node, "getErrorMessage")) return;
 
         context.report({
           node,

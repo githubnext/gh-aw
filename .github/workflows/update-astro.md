@@ -80,6 +80,9 @@ jobs:
 
           rm -f "$ncu_output"
 
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Update Astro

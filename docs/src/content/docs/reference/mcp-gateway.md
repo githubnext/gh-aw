@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.15.0  
+**Version**: 1.16.0
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -501,7 +501,7 @@ The optional `opentelemetry` object in the gateway configuration enables the gat
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `endpoint` | string | Yes (when `opentelemetry` is present) | OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., `https://collector.example.com:4318/v1/traces`). MUST use HTTPS. Supports variable expressions. |
+| `endpoint` | string | Yes (when `opentelemetry` is present) | OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., `https://collector.example.com:4318/v1/traces` or `http://127.0.0.1:4318/v1/traces`). MUST use HTTP or HTTPS. Supports variable expressions. |
 | `traceId` | string | No | Parent trace ID for context propagation. When set, the gateway attaches all emitted spans as children of this trace, enabling correlation with an existing distributed trace. MUST be a 32-character lowercase hex string (128-bit W3C trace ID format). Supports variable expressions. |
 | `spanId` | string | No | Parent span ID for context propagation. When set together with `traceId`, the gateway sets this span as the direct parent of its root span. MUST be a 16-character lowercase hex string (64-bit W3C span ID format). Ignored when `traceId` is not set. Supports variable expressions. |
 | `serviceName` | string | No | Logical service name reported in the `service.name` resource attribute of all emitted spans. Identifies the gateway in the tracing backend. Defaults to `"mcp-gateway"` when not specified. |
@@ -549,7 +549,7 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 **Requirements**:
 
 - `endpoint` MUST be present when the `opentelemetry` object is configured
-- `endpoint` MUST be an HTTPS URL
+- `endpoint` MUST be an HTTP or HTTPS URL
 - `traceId`, when provided, MUST be a 32-character lowercase hex string
 - `spanId`, when provided, MUST be a 16-character lowercase hex string
 - `spanId` SHOULD only be set when `traceId` is also set; if `spanId` is provided without `traceId` the gateway SHOULD log a warning and ignore `spanId`
@@ -1844,7 +1844,7 @@ A conforming implementation MUST pass the following test categories:
 - **T-OTEL-001**: Gateway starts successfully when `opentelemetry` is omitted
 - **T-OTEL-002**: Gateway starts successfully when `opentelemetry` is configured with a valid endpoint
 - **T-OTEL-003**: Reject `opentelemetry` configuration with missing `endpoint` field
-- **T-OTEL-004**: Reject `opentelemetry` configuration with a non-HTTPS endpoint
+- **T-OTEL-004**: Reject `opentelemetry` configuration with a non-HTTP(S) endpoint
 - **T-OTEL-005**: Span emitted for each MCP tool invocation with required attributes (`mcp.server`, `mcp.method`, `mcp.tool`, `http.status_code`)
 - **T-OTEL-006**: When `OTEL_EXPORTER_OTLP_HEADERS` env var is set, headers are sent with every OTLP export request
 - **T-OTEL-007**: W3C `traceparent` context propagated when both `traceId` and `spanId` are configured
@@ -2230,6 +2230,13 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.16.0 (Draft)
+
+- **Changed**: `opentelemetry.endpoint` now accepts HTTP or HTTPS OTLP/HTTP collector URLs (Section 4.1.3.7)
+  - Enables runner-local OTLP collectors such as `http://127.0.0.1:4318` for gateway self-telemetry
+  - **Updated**: T-OTEL-004 — now rejects non-HTTP(S) endpoints instead of all non-HTTPS endpoints
+  - **Updated**: JSON Schema — `opentelemetryConfig.endpoint` pattern now accepts `http://` and `https://` URLs in both canonical schema copies
 
 ### Version 1.15.0 (Draft)
 

@@ -42,6 +42,7 @@ features:
   gh-aw-detection: false
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 ---
 

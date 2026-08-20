@@ -340,6 +340,7 @@ steps:
 
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 tools:
   cli-proxy: true
