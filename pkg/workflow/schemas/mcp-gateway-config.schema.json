@@ -326,8 +326,8 @@
       "properties": {
         "endpoint": {
           "type": "string",
-          "description": "OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., 'https://collector.example.com:4318/v1/traces'). MUST be an HTTPS URL. Supports variable expressions using '${VARIABLE_NAME}' syntax.",
-          "pattern": "^(https://.+|\\$\\{[A-Z_][A-Z0-9_]*\\})$",
+          "description": "OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., 'https://collector.example.com:4318/v1/traces' or 'http://127.0.0.1:4318/v1/traces'). MUST be an HTTP or HTTPS URL. Supports variable expressions using '${VARIABLE_NAME}' syntax.",
+          "pattern": "^(https?://.+|\\$\\{[A-Z_][A-Z0-9_]*\\})$",
           "minLength": 1
         },
         "traceId": {

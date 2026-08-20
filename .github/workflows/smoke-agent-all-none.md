@@ -19,6 +19,7 @@ permissions:
 
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 name: "Smoke Agent: all/none"
 engine: claude

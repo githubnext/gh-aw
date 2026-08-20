@@ -32,6 +32,9 @@ imports:
   - shared/reporting.md
 
   - shared/otlp.md
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Workflow Normalizer

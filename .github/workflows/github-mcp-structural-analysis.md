@@ -37,6 +37,9 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # GitHub MCP Structural Analysis

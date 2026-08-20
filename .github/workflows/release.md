@@ -982,6 +982,9 @@ evals:
   - id: community-attribution
     question: Does the agent output include attribution to community contributors in the release highlights?
 
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Release Highlights Generator
