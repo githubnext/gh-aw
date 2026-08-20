@@ -79,9 +79,27 @@ func mcpGatewayOTLPEndpointPattern(t *testing.T, schemaPath string) string {
 		t.Fatalf("failed to parse schema: %v", err)
 	}
 
-	definitions := schema["definitions"].(map[string]any)
-	otlpConfig := definitions["opentelemetryConfig"].(map[string]any)
-	properties := otlpConfig["properties"].(map[string]any)
-	endpoint := properties["endpoint"].(map[string]any)
-	return endpoint["pattern"].(string)
+	definitions := requireObject(t, schema, "definitions")
+	otlpConfig := requireObject(t, definitions, "opentelemetryConfig")
+	properties := requireObject(t, otlpConfig, "properties")
+	endpoint := requireObject(t, properties, "endpoint")
+	pattern, ok := endpoint["pattern"].(string)
+	if !ok {
+		t.Fatalf("expected endpoint pattern to be a string")
+	}
+	return pattern
+}
+
+func requireObject(t *testing.T, object map[string]any, key string) map[string]any {
+	t.Helper()
+
+	value, ok := object[key]
+	if !ok {
+		t.Fatalf("missing %q in schema", key)
+	}
+	nested, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected %q to be an object", key)
+	}
+	return nested
 }
