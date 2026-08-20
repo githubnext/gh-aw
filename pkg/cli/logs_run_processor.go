@@ -24,6 +24,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/sourcegraph/conc/pool"
 )
@@ -69,13 +70,9 @@ type runArtifactsConcurrentOptions struct {
 func buildConcurrentDownloadParams(outputDir string, verbose bool, repoOverride string, artifactFilter []string, evalsOnly bool, artifactSets []string) concurrentRunDownloadParams {
 	var dlHost, dlOwner, dlRepo string
 	if repoOverride != "" {
-		// Accepted formats: "owner/repo" or "HOST/owner/repo".
-		parts := strings.SplitN(repoOverride, "/", 3)
-		switch len(parts) {
-		case 3: // HOST/owner/repo
-			dlHost, dlOwner, dlRepo = parts[0], parts[1], parts[2]
-		case 2: // owner/repo
-			dlOwner, dlRepo = parts[0], parts[1]
+		ownerRepo, host := repoutil.NormalizeRepoForAPI(repoOverride)
+		if owner, repo, err := repoutil.SplitRepoSlug(ownerRepo); err == nil {
+			dlHost, dlOwner, dlRepo = host, owner, repo
 		}
 	}
 	evalsArtifactRequested := isEvalsArtifactRequested(evalsOnly, artifactSets)
