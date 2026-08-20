@@ -326,7 +326,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: activation
+          name: activation-artifact
           include-hidden-files: true
           path: |
             /tmp/gh-aw/aw_info.json
@@ -429,7 +429,7 @@ jobs:
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: activation
+          name: activation-artifact
           path: /tmp/gh-aw
       - name: Extract reference doc metadata
         run: "mkdir -p /tmp/gh-aw/data\n\n# Core reference docs the designer depends on\nREFS=(\n  \".github/aw/syntax.md\"\n  \".github/aw/safe-outputs.md\"\n  \".github/aw/network.md\"\n  \".github/aw/patterns.md\"\n  \".github/aw/subagents.md\"\n  \".github/aw/token-optimization.md\"\n  \".github/aw/triggers.md\"\n  \".github/aw/create-agentic-workflow.md\"\n)\n\n# Extract key sections from each reference doc:\n# - H2/H3 headings (structural outline)\n# - YAML frontmatter field names\n# - Table rows containing mapping keywords\nfor ref in \"${REFS[@]}\"; do\n  if [ -f \"$ref\" ]; then\n    basename=$(basename \"$ref\" .md)\n    {\n      echo \"=== $ref ===\"\n      # Headings\n      grep -n '^##' \"$ref\" | head -50\n      echo \"---\"\n      # Frontmatter keys (between --- delimiters)\n      sed -n '/^---$/,/^---$/p' \"$ref\" | grep -E '^\\w+:' | head -30\n      echo \"---\"\n      # Table rows with config keywords\n      grep -E '^\\|.*\\|' \"$ref\" | grep -ivE '^\\|[\\s-]+\\|' | head -80\n      echo \"===\"\n    } > \"/tmp/gh-aw/data/ref-${basename}.txt\"\n  fi\ndone\n"
@@ -1319,7 +1319,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: activation
+          name: activation-artifact
           path: /tmp/gh-aw
       - name: Download agent output artifact
         id: download-agent-output
