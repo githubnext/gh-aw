@@ -25,6 +25,17 @@ type manifestManagedWorkflowUpdate struct {
 	manifestSource string
 }
 
+func fetchManifestManagedDependencies(ctx context.Context, content []byte, repo, workflowPath, ref, targetDir string, verbose bool) error {
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: repo,
+			Version:  ref,
+		},
+		WorkflowPath: workflowPath,
+	}
+	return fetchAllRemoteDependenciesStrict(ctx, string(content), spec, targetDir, verbose, true, nil)
+}
+
 func parseManifestSourceSpec(source string) (*RepoSpec, bool, error) {
 	repoSpec, ok, err := parseRepositoryPackageSpec(strings.TrimSpace(source))
 	if !ok {
@@ -275,6 +286,9 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 		}
 	}
 
+	if err := fetchManifestManagedDependencies(ctx, newContent, update.repo, update.latestPath, update.latestRef, filepath.Dir(update.wf.Path), opts.Verbose); err != nil {
+		return fmt.Errorf("failed to update workflow dependencies: %w", err)
+	}
 	if err := os.WriteFile(update.wf.Path, []byte(finalContent), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write updated workflow: %w", err)
 	}
@@ -320,6 +334,9 @@ func addManifestManagedWorkflow(ctx context.Context, targetDir, name, repo, late
 	}
 
 	destPath := filepath.Join(targetDir, name+".md")
+	if err := fetchManifestManagedDependencies(ctx, []byte(content), repo, latestPath, latestRef, targetDir, opts.Verbose); err != nil {
+		return fmt.Errorf("failed to install workflow dependencies: %w", err)
+	}
 	if err := os.WriteFile(destPath, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write new manifest workflow %s: %w", destPath, err)
 	}
