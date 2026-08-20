@@ -190,7 +190,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
   function neutralizeMentions(s, allowedLowercase) {
     const wrapInCodeSpan = createRenderSafeCodeSpanWrapper(s);
     return applyToNonCodeRegions(s, (segment, regionBefore = "", regionAfter = "") => {
-      return segment.replace(/(^|[^\w])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (match, prefix, alias, offset) => {
+      return segment.replace(/(^|[^A-Za-z0-9])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (match, prefix, alias, offset) => {
         const isAllowed = allowedLowercase.includes(alias.toLowerCase());
         if (isAllowed) {
           return `${prefix}@${alias}`;

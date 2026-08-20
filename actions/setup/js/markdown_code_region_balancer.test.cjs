@@ -35,6 +35,12 @@ More content.`;
         expect(balancer.isBalanced(input)).toBe(true);
       });
 
+      it("should not treat a four-space-indented fence as a fenced block", () => {
+        const input = "    ```\n@octocat\n    ```";
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
+        expect(balancer.isBalanced(input)).toBe(true);
+      });
+
       it("should not modify properly balanced code blocks", () => {
         const input = `# Title
 
