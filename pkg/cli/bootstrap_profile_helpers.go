@@ -177,7 +177,7 @@ func profileSourcesUseActionsTokenCopilotAuth(ctx context.Context, sources []str
 	}
 	hasCopilot := false
 	for _, candidate := range resolved.Workflows {
-		if candidate == nil || candidate.IsActionWorkflow || candidate.IsPackageSkillFile || candidate.IsPackageAgentFile {
+		if candidate == nil || candidate.IsActionWorkflow || candidate.IsPackageSkillFile || candidate.IsPackageAgentFile || candidate.IsPackageResourceFile {
 			continue
 		}
 		engine := strings.TrimSpace(candidate.Engine)

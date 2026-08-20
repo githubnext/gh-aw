@@ -7,7 +7,7 @@ sidebar:
 
 # aw.yml Repository Package Manifest Specification
 
-**Version**: 0.2.0  
+**Version**: 0.2.1
 **Status**: Draft
 
 ## Abstract
@@ -49,6 +49,7 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | `license` | string | No | SPDX license identifier or license name for the package. |
 | `files` | array of strings | No | Deprecated. Explicit installable workflow file list. Use `includes` instead. |
 | `includes` | array of strings or mappings | No | Explicit installable package entries. String entries use path conventions; mapping entries declare an explicit source-to-destination install path. |
+| `resources` | array of mappings | No | Declarative repository assets copied as-is to allowlisted destinations. |
 
 ### 4.2 `manifest-version`
 
@@ -126,6 +127,28 @@ Mapping entries follow the same install semantics as string entries: `.md` sourc
 
 `gh aw add`, `gh aw add-wizard`, and `gh aw update` MUST use identical mapping semantics, and `gh aw update` MUST continue to track the manifest source of installed files.
 
+### 4.10 `resources`
+
+If present, `resources` MUST be an array of mappings. Each mapping MUST contain:
+
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `source` | string | Yes | Package-relative path of the asset to copy. |
+| `destination` | string | Yes | Repository-root-relative destination path. |
+
+Resource `source` and `destination` values MUST NOT be absolute paths and MUST NOT escape their roots through path traversal. Local package sources MUST NOT be symbolic links, directories, or other non-regular file replacements.
+
+Resource destinations are restricted to non-hook repository asset namespaces:
+
+- `.github/ISSUE_TEMPLATE/*.yml`
+- `.github/ISSUE_TEMPLATE/*.yaml`
+- `.github/CODEOWNERS`
+- `.github/aw/**`
+
+Implementations MUST reject duplicate or case-insensitive duplicate resource destinations before writing files. Resources are copied as inert content from the selected package ref; installers MUST NOT execute package-provided scripts or expose configured secrets to package content during installation.
+
+For each package installation, implementations MUST record package-scoped ownership metadata under `.github/aw/packages/`. The record MUST identify the package source, resolved immutable commit/ref, installed destination paths, source paths, and SHA-256 content digests. Implementations MUST refuse to overwrite existing resource files unless they are unchanged files owned by the same package, or unless the user explicitly passes `--force`.
+
 ## 5. Installable file resolution
 
 Supported installable paths are:
@@ -149,7 +172,7 @@ If `files` is omitted, or if no valid entries remain after filtering, the implem
 
 Auto-discovery considers only agentic workflow markdown (`.md`); raw `.yml` action workflows MUST be referenced explicitly in `files` to be installed.
 
-If no installable workflow files are resolved, package validation MUST fail.
+If no installable package assets are resolved (workflows, resources, skills, or agents), package validation MUST fail.
 
 ### 5.1 Install
 
@@ -159,7 +182,8 @@ The install lifecycle (invoked by `gh aw add`) MUST proceed in the following ord
 2. **Resolve** the installable file list per §5.
 3. **Download** each resolved file from the remote package source.
 4. **Compile** each agentic workflow markdown file into the target repository's workflow directory. Raw `.yml` files are copied verbatim without compilation.
-5. **Write** all output files atomically before reporting success.
+5. **Copy** declared `resources` as inert repository assets without executing them.
+6. **Write** all output files and package ownership metadata atomically before reporting success.
 
 If any step fails, the implementation MUST abort and MUST NOT leave partial output files in the target directory. The implementation SHOULD emit an actionable error identifying the failing step. See §10 (Safeguards) for the normative rollback and permission-error requirements that apply to this lifecycle (R-PKG-003, R-PKG-004, R-PKG-006, R-PKG-007).
 
@@ -169,7 +193,7 @@ The update lifecycle re-installs a package at a newer (or specified) version, ov
 
 **R-PKG-U001**: `gh aw add` with a version specifier (e.g., `owner/repo@v2.0.0`) MUST overwrite previously installed files from the same package with the new version's files, following the same install ordering defined in §5.1.
 
-**R-PKG-U002**: Files that were present in the previous installation but are absent from the new version's resolved file list MUST be left in place. The implementation SHOULD emit a warning for each such orphaned file, identifying the file by path and noting that it was not present in the new version.
+**R-PKG-U002**: Files that were present in the previous installation but are absent from the new version's resolved package-managed file list MUST be removed only when all of the following hold: (a) they are owned by the same package, (b) they are unchanged from the recorded digest, and (c) no replacement from the new version maps to the same path. When a new version entry maps to the same path, overwrite behavior is governed by R-PKG-U001. Implementations SHOULD warn when stale files are preserved because they were modified or ownership cannot be proven.
 
 **R-PKG-U003**: If overwriting a file fails (for example, due to a filesystem permission error or a locked file), the implementation MUST abort the update and MUST NOT leave the target directory in a mixed state combining old and new file versions. The implementation MUST emit an error identifying the file that could not be overwritten and the reason.
 
@@ -213,7 +237,7 @@ Validation MUST fail for at least the following conditions:
 - current compiler version is lower than `min-version`;
 - unknown top-level fields, including `docs`; or
 - missing required `README.md`; or
-- no installable workflow files resolved.
+- no installable package assets (workflows, resources, skills, or agents) resolved.
 
 Implementations SHOULD emit warnings for at least the following conditions:
 

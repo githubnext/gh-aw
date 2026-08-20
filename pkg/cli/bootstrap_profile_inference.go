@@ -35,7 +35,7 @@ func inferBootstrapGitHubAppRequirements(ctx context.Context, sources []string) 
 	permissions := map[string]string{}
 	eventSet := map[string]struct{}{}
 	for _, candidate := range resolved.Workflows {
-		if candidate == nil || candidate.IsActionWorkflow || candidate.IsPackageSkillFile || candidate.IsPackageAgentFile {
+		if candidate == nil || candidate.IsActionWorkflow || candidate.IsPackageSkillFile || candidate.IsPackageAgentFile || candidate.IsPackageResourceFile {
 			continue
 		}
 		frontmatter, err := parser.ExtractFrontmatterFromContent(string(candidate.Content))
