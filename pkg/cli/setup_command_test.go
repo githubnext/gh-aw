@@ -225,6 +225,7 @@ func TestValidateSetupRepositoryCheckOptions_RejectsEmptyRepoComponents(t *testi
 		{Repo: "/"},
 		{Repo: "/repo"},
 		{Repo: "owner/"},
+		{Repo: "/"},
 	}
 
 	for _, tt := range tests {

@@ -38,6 +38,7 @@ jobs:
         with:
           path: .
           key: checkout-cwi-${{ github.sha }}
+          enableCrossOsArchive: true
 
   build-windows:
     name: Build Windows CLI
@@ -52,6 +53,7 @@ jobs:
         with:
           path: .
           key: checkout-cwi-${{ github.sha }}
+          enableCrossOsArchive: true
           fail-on-cache-miss: true
 
       - name: Set up Go
@@ -105,6 +107,7 @@ jobs:
         with:
           path: .
           key: checkout-cwi-${{ github.sha }}
+          enableCrossOsArchive: true
           fail-on-cache-miss: true
 
       - name: Set up Go
