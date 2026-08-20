@@ -73,7 +73,7 @@ func analyzeBinaryExpr(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 	leftText := astutil.NodeText(pass.Fset, left)
 	rightText := astutil.NodeText(pass.Fset, bin.Y)
 	message := `manual "/" path concatenation; use filepath.Join (or path.Join) instead`
-	if isShortOperandText(leftText) && isShortOperandText(rightText) {
+	if isShortOperandText(leftText) && isShortOperandText(rightText) && !containsSlashConcat(left) {
 		message = fmt.Sprintf(`manual "/" path concatenation; use filepath.Join(%s, %s) (or path.Join) instead`, leftText, rightText)
 	}
 	pass.Report(analysis.Diagnostic{
@@ -122,6 +122,19 @@ const maxOperandTextLen = 48
 // short enough to quote in a diagnostic message.
 func isShortOperandText(text string) bool {
 	return text != "" && len(text) <= maxOperandTextLen && !strings.ContainsAny(text, "\n\r")
+}
+
+// containsSlashConcat reports whether expr contains a string concatenation that
+// includes a "/" literal operand (e.g. `a + "/" + b`).
+func containsSlashConcat(expr ast.Expr) bool {
+	bin, ok := expr.(*ast.BinaryExpr)
+	if !ok || bin.Op != token.ADD {
+		return false
+	}
+	if isSlashLiteral(bin.X) || isSlashLiteral(bin.Y) {
+		return true
+	}
+	return containsSlashConcat(bin.X) || containsSlashConcat(bin.Y)
 }
 
 // markChain records bin and every nested left-hand concatenation operand so

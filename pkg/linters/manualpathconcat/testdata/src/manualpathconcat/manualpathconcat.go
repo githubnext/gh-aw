@@ -13,7 +13,7 @@ func badSimple(dir, file string) string {
 // badChain concatenates three segments; only the outermost expression is
 // reported so that a single chain produces a single diagnostic.
 func badChain(a, b, c string) string {
-	return a + "/" + b + "/" + c // want `manual "/" path concatenation; use filepath\.Join\(a \+ "/" \+ b, c\) \(or path\.Join\) instead`
+	return a + "/" + b + "/" + c // want `manual "/" path concatenation; use filepath\.Join \(or path\.Join\) instead`
 }
 
 // badLiteralPrefix uses a literal base directory.
