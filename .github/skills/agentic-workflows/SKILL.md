@@ -39,7 +39,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/experiments.md`
 - `.github/aw/github-agentic-workflows.md`
 - `.github/aw/github-mcp-server-pagination.md`
-- `.github/aw/github-mcp-server-tools.md`
 - `.github/aw/github-mcp-server.md`
 - `.github/aw/instructions.md`
 - `.github/aw/jobs.md`
