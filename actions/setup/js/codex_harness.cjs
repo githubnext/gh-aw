@@ -85,6 +85,12 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
 
+// Pattern to detect deterministic request-validation failures (HTTP 400 `invalid_request_error`)
+// within Codex's outer `turn.failed` event. The provider rejects the serialized request itself
+// (e.g. `"code": "empty_array"` on `messages[N].content`), so an identical fresh run produces
+// an identical rejection: retrying only re-bills the turns that succeeded before the failure point.
+const INVALID_REQUEST_ERROR_PATTERN = /invalid_request_error/i;
+
 // Post-result watchdog: once the agent writes a terminal safe-output the harness
 // arms a watchdog timer and kills the Codex process if it is still running after
 // POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS of inactivity.  This prevents the step from
@@ -222,6 +228,25 @@ function isServerError(output) {
  */
 function isInvalidModelError(output) {
   return INVALID_MODEL_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if Codex emitted a `turn.failed` provider event containing a deterministic
+ * request-validation failure (HTTP 400 `invalid_request_error`). Such schema-level rejections
+ * can never succeed on a fresh run with the same input, so they are treated as terminal.
+ * Tokens in agent transcripts and tool responses are intentionally ignored.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isInvalidRequestError(output) {
+  return output.split(/\r?\n/).some(line => {
+    try {
+      const event = JSON.parse(line);
+      return event?.type === "turn.failed" && event.error && INVALID_REQUEST_ERROR_PATTERN.test(JSON.stringify(event.error));
+    } catch {
+      return false;
+    }
+  });
 }
 
 /**
@@ -615,6 +640,7 @@ async function main() {
       const isMissingApiKey = isMissingApiKeyError(result.output);
       const isServer = isServerError(result.output);
       const isInvalidModel = isInvalidModelError(result.output);
+      const isInvalidRequest = isInvalidRequestError(result.output);
       const permissionDeniedCount = countPermissionDeniedIssues(result.output);
       const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
       log(
@@ -627,6 +653,7 @@ async function main() {
           ` isMissingApiKeyError=${isMissingApiKey}` +
           ` isServerError=${isServer}` +
           ` isInvalidModelError=${isInvalidModel}` +
+          ` isInvalidRequestError=${isInvalidRequest}` +
           ` permissionDeniedCount=${permissionDeniedCount}` +
           ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
           ` hasOutput=${result.hasOutput}` +
@@ -673,6 +700,11 @@ async function main() {
 
       if (isInvalidModel) {
         log(`attempt ${attempt + 1}: invalid/unsupported model configuration — not retrying (specify a valid engine model name in workflow frontmatter)`);
+        return { action: "stop" };
+      }
+
+      if (isInvalidRequest) {
+        log(`attempt ${attempt + 1}: invalid_request_error (HTTP 400) — not retrying (the provider rejected the request payload; an identical fresh run would fail the same way)`);
         return { action: "stop" };
       }
 
@@ -735,6 +767,7 @@ if (typeof module !== "undefined" && module.exports) {
     isMissingApiKeyError,
     isServerError,
     isInvalidModelError,
+    isInvalidRequestError,
     isReconnectExhaustedError,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,

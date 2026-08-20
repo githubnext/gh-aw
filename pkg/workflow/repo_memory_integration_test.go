@@ -243,7 +243,7 @@ This workflow has file validation.
 	}
 
 	// Check that push_repo_memory.cjs is being required (not inlined)
-	if !strings.Contains(lockFile, "require('${{ runner.temp }}/gh-aw/actions/push_repo_memory.cjs')") {
+	if !strings.Contains(lockFile, "require(path.join(actionsDir, 'push_repo_memory.cjs'))") {
 		t.Error("Expected push_repo_memory script to be loaded via require")
 	}
 

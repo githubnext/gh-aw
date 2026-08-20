@@ -19,6 +19,9 @@ safe-outputs:
   create-issue:
 imports:
   - shared/reporting.md
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Example: Failure Category Filtering

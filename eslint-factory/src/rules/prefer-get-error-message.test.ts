@@ -73,12 +73,19 @@ describe("prefer-get-error-message", () => {
     });
   });
 
-  it("invalid: basic ternary is flagged with suggestion", () => {
+  it("valid: ternary is not flagged when getErrorMessage is unavailable", () => {
+    cjsRuleTester.run("prefer-get-error-message", preferGetErrorMessageRule, {
+      valid: [`const errorMessage = err instanceof Error ? err.message : String(err);`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: ternary is flagged with suggestion when getErrorMessage is previously imported", () => {
     cjsRuleTester.run("prefer-get-error-message", preferGetErrorMessageRule, {
       valid: [],
       invalid: [
         {
-          code: `const errorMessage = err instanceof Error ? err.message : String(err);`,
+          code: `const { getErrorMessage } = require("./error_helpers.cjs"); const errorMessage = err instanceof Error ? err.message : String(err);`,
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -87,7 +94,7 @@ describe("prefer-get-error-message", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "err" },
-                  output: `const errorMessage = getErrorMessage(err);`,
+                  output: `const { getErrorMessage } = require("./error_helpers.cjs"); const errorMessage = getErrorMessage(err);`,
                 },
               ],
             },
@@ -102,7 +109,7 @@ describe("prefer-get-error-message", () => {
       valid: [],
       invalid: [
         {
-          code: "core.warning(`failed: ${readErr instanceof Error ? readErr.message : String(readErr)}`);",
+          code: 'const { getErrorMessage } = require("./error_helpers.cjs"); core.warning(`failed: ${readErr instanceof Error ? readErr.message : String(readErr)}`);',
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -111,7 +118,7 @@ describe("prefer-get-error-message", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "readErr" },
-                  output: "core.warning(`failed: ${getErrorMessage(readErr)}`);",
+                  output: 'const { getErrorMessage } = require("./error_helpers.cjs"); core.warning(`failed: ${getErrorMessage(readErr)}`);',
                 },
               ],
             },
@@ -126,7 +133,7 @@ describe("prefer-get-error-message", () => {
       valid: [],
       invalid: [
         {
-          code: `console.error(e instanceof Error ? e.message : String(e));`,
+          code: `import { getErrorMessage } from "./error_helpers.cjs"; console.error(e instanceof Error ? e.message : String(e));`,
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -135,7 +142,7 @@ describe("prefer-get-error-message", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "e" },
-                  output: `console.error(getErrorMessage(e));`,
+                  output: `import { getErrorMessage } from "./error_helpers.cjs"; console.error(getErrorMessage(e));`,
                 },
               ],
             },

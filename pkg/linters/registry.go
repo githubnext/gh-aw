@@ -33,6 +33,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/lenstringzero"
 	"github.com/github/gh-aw/pkg/linters/logfatallibrary"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
+	"github.com/github/gh-aw/pkg/linters/manualpathconcat"
 	"github.com/github/gh-aw/pkg/linters/mapclearloop"
 	"github.com/github/gh-aw/pkg/linters/mapdeletecheck"
 	"github.com/github/gh-aw/pkg/linters/nilctxpassed"
@@ -108,6 +109,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	largefunc.Analyzer,
 	logfatallibrary.Analyzer,
 	manualmutexunlock.Analyzer,
+	manualpathconcat.Analyzer,
 	mapclearloop.Analyzer,
 	mapdeletecheck.Analyzer,
 	nilctxpassed.Analyzer,
