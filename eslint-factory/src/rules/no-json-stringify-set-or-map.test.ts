@@ -89,4 +89,38 @@ describe("no-json-stringify-set-or-map", () => {
       ],
     });
   });
+
+  it("invalid: same-name bindings in different scopes only flag the Set/Map binding", () => {
+    cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `
+            function withSet() {
+              const seen = new Set([1, 2]);
+              JSON.stringify(seen);
+            }
+            function withObject() {
+              const seen = { other: true };
+              JSON.stringify(seen);
+            }
+          `,
+          errors: [{ messageId: "jsonStringifySetOrMap" }],
+        },
+        {
+          code: `
+            function withObject() {
+              const seen = { other: true };
+              JSON.stringify(seen);
+            }
+            function withSet() {
+              const seen = new Set([1, 2]);
+              JSON.stringify(seen);
+            }
+          `,
+          errors: [{ messageId: "jsonStringifySetOrMap" }],
+        },
+      ],
+    });
+  });
 });
