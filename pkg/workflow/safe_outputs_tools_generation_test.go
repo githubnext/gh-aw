@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -232,6 +233,33 @@ func TestAddRepoParameterIfNeededClosePullRequestWithAllowedRepos(t *testing.T) 
 	require.True(t, ok, "repo property should be added")
 	assert.Equal(t, "string", repoProp["type"], "repo type should be string")
 	assert.Contains(t, repoProp["description"].(string), "org/default-repo", "description should include default repo")
+}
+
+func TestRepoTargetAccessorsMatchHandlerMetadata(t *testing.T) {
+	accessors := getRepoTargetAccessors()
+	for _, handler := range safeOutputHandlers {
+		if !isRepoTargetHandler(handler) {
+			continue
+		}
+
+		t.Run(handler.ToolName, func(t *testing.T) {
+			config := &SafeOutputsConfig{}
+			output := reflect.ValueOf(config).Elem().FieldByName(handler.StructField)
+			require.True(t, output.IsValid(), "handler struct field must exist")
+
+			output.Set(reflect.New(output.Type().Elem()))
+			output = output.Elem()
+			output.FieldByName("AllowedRepos").Set(reflect.ValueOf([]string{handler.ToolName + "/allowed"}))
+			output.FieldByName("TargetRepoSlug").SetString(handler.ToolName + "/target")
+
+			accessor, ok := accessors[handler.ToolName]
+			require.True(t, ok, "repo target handler must have an accessor")
+			targetConfig := accessor(config)
+			require.NotNil(t, targetConfig)
+			assert.Equal(t, []string{handler.ToolName + "/allowed"}, targetConfig.allowedRepos)
+			assert.Equal(t, handler.ToolName+"/target", targetConfig.targetRepoSlug)
+		})
+	}
 }
 
 func TestParseUpdateIssuesConfigWithWildcardTargetRepo(t *testing.T) {
