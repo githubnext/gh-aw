@@ -14,6 +14,8 @@ Runner-Guard enforces rule RGS-012, which flags workflow lines that reference `c
 
 We will add a targeted post-processing filter, `filterCopilotLocalAllowToolFindings`, in the Runner-Guard output pipeline. The filter suppresses RGS-012 findings that point at lines within a Copilot CLI execution step whose `--allow-tool` declarations reference only loopback hosts (`localhost`, `127.0.0.1`, `::1`, `host.docker.internal`). It preserves findings on all other lines, on steps that mix local and non-local targets, and on any other rule.
 
+Suppression is additionally refused whenever `curl` appears outside of a `shell(...)` allow-tool value — either on the finding's own line or anywhere in the executable body of the Copilot step — so a real outbound request can never be hidden by a neighbouring allow-tool declaration. Host extraction handles bracketed and bare IPv6 literals (`http://[::1]`, `http://[::1]:4321`, `::1`) so loopback targets are recognized with or without an explicit port.
+
 ### Alternatives Considered
 
 #### Alternative 1: Patch the Runner-Guard RGS-012 rule to understand Copilot allow-tool syntax
