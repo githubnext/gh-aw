@@ -65,10 +65,8 @@ func InitRepository(opts InitOptions) error {
 	initLog.Print("Verified git repository")
 
 	// Auto-detect GHES deployment and configure aw.json ghes: true when needed.
-	// Skip detection in CI, where gh-proxy can make the environment look like GHES.
-	if IsRunningInCI() {
-		initLog.Print("Running in CI, skipping GHES deployment detection")
-	} else if _, err := ensureGHESRepoConfig(opts.Verbose); err != nil {
+	// ensureGHESRepoConfig skips detection in CI, where gh-proxy can make the environment look like GHES.
+	if _, err := ensureGHESRepoConfig(opts.Verbose); err != nil {
 		initLog.Printf("Failed to configure GHES repo config: %v", err)
 		// Non-fatal: continue with the rest of init
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to configure GHES repo config: %v", err)))
