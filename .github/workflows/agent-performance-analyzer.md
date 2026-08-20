@@ -9,6 +9,9 @@ permissions:
   discussions: read
   actions: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 sandbox:
   agent:
     runtime: gvisor

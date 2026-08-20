@@ -29,6 +29,9 @@ on:
           }
           core.info(`has_changes=${hasChanges}`);
           core.setOutput('has_changes', hasChanges ? 'true' : 'false');
+engine:
+  id: copilot
+  copilot-sdk: true
 permissions:
   contents: read
   issues: read

@@ -8,6 +8,9 @@ permissions:
   issues: read
   pull-requests: read
   security-events: read
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
 - shared/copilot-engine-baseline.md
 - uses: shared/daily-audit-base.md

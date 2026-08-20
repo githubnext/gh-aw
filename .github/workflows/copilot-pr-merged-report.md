@@ -16,6 +16,9 @@ permissions:
   actions: read
 
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: false
 
 tools:

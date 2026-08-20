@@ -12,6 +12,9 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 network:
   allowed:

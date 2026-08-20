@@ -9,6 +9,9 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 tracker-id: architecture-guardian
 imports:
   - uses: shared/skip-if-issue-open.md

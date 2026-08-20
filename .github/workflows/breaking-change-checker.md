@@ -8,6 +8,9 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 experiments:
   tone_variant:
     variants: [neutral, urgent]

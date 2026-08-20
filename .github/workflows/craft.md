@@ -12,6 +12,9 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
   - shared/otlp.md
   - shared/reporting.md

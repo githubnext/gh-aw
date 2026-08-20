@@ -11,6 +11,9 @@ permissions:
   pull-requests: read
   contents: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 sandbox:
   agent:
     id: awf

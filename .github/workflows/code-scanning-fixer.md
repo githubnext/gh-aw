@@ -11,6 +11,9 @@ permissions:
   pull-requests: read
   security-events: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
   - shared/mcp-pagination.md
   - uses: shared/skip-if-issue-open.md

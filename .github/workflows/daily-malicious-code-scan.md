@@ -10,6 +10,9 @@ permissions:
   actions: read
   security-events: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 tracker-id: malicious-code-scan
 safe-outputs:
   create-code-scanning-alert:

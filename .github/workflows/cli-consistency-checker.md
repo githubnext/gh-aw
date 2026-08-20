@@ -11,6 +11,9 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: false
 network:
   allowed: [defaults]

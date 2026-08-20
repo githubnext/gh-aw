@@ -9,6 +9,9 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
 - shared/copilot-engine-baseline.md
 - shared/reporting.md
