@@ -117,6 +117,9 @@ evals:
     question: Does the agent output identify at least one confusing, broken, or unclear step in the documentation?
   - id: user-perspective-maintained
     question: Does the agent output reflect the perspective of a new user rather than an expert reviewer?
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Documentation Noob Testing
