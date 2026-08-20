@@ -18,9 +18,10 @@ func TestAWFailureInvestigatorPrefetchUsesRunLevelFailures(t *testing.T) {
 	for _, fragment := range []string{
 		`FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}`,
 		`MAX_DISCOVERY_PAGES = 20`,
-		`ERROR_MARKER = re.compile(r"##\[error\]|\b(?:error|panic|exception)\b", re.IGNORECASE)`,
+		`FAULT_MARKER = re.compile(`,
 		`def capture_error_window(log_text):`,
-		`"capture_likely_missed_fault": not has_error_marker`,
+		`has_fault_marker = any(FAULT_MARKER.search(line) for line in captured_lines)`,
+		`"capture_likely_missed_fault": not has_fault_marker`,
 		`Path(".github/workflows").glob("*.lock.yml")`,
 		`falling back to workflow path suffix matching`,
 		`repos/{REPO}/actions/runs`,
