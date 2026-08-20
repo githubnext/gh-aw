@@ -1,7 +1,7 @@
 # ADR-54030: Split add_package_manifest.go into Focused Single-Responsibility Files
 
 **Date**: 2026-08-20
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -42,4 +42,4 @@ Moving the code to its own package would create an enforced API boundary — onl
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent].*
