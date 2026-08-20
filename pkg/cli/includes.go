@@ -593,12 +593,6 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 	return nil
 }
 
-// fetchAndSaveRemoteIncludes parses the workflow content for @include directives and fetches them from the remote source.
-// The optional fetchFn parameter overrides the default FetchIncludeFromSource implementation; pass nil to use the default.
-func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, fetchFn includesFetcher) error {
-	return fetchAndSaveRemoteIncludesWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, fetchFn, false)
-}
-
 func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, fetchFn includesFetcher, strict bool) error {
 	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", spec.String())
 	if fetchFn == nil {
