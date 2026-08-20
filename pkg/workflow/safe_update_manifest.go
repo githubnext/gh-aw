@@ -358,7 +358,7 @@ func normalizeResolutionFailures(failures []GHAWManifestResolutionFailure) []GHA
 func (m *GHAWManifest) ToJSON() (string, error) {
 	data, err := json.Marshal(m)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize gh-aw-manifest: %w", err)
+		return "", fmt.Errorf("gh-aw-manifest could not be serialized to JSON, expected fields that marshal cleanly: %w", err)
 	}
 	return string(data), nil
 }
@@ -374,7 +374,7 @@ func ExtractGHAWManifestFromLockFile(content string) (*GHAWManifest, error) {
 	}
 	var m GHAWManifest
 	if err := json.Unmarshal([]byte(matches[1]), &m); err != nil {
-		return nil, fmt.Errorf("failed to parse gh-aw-manifest JSON: %w", err)
+		return nil, fmt.Errorf("gh-aw-manifest JSON is not recognized, expected the JSON emitted by ToJSON in the lock file header: %w", err)
 	}
 	safeUpdateManifestLog.Printf("Extracted gh-aw-manifest: version=%d secrets=%d actions=%d",
 		m.Version, len(m.Secrets), len(m.Actions))

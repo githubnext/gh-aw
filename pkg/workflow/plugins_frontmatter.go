@@ -33,16 +33,16 @@ func (c *Compiler) validatePlugins(workflowData *WorkflowData) error {
 			return fmt.Errorf("plugins[%d]: invalid plugin reference %q; expected owner/repository[/path]@ref, for example github/awesome-copilot/plugins/example@v1", i, plugin)
 		}
 		if hasPathTraversalSegment(parsed.repoPath) {
-			return fmt.Errorf("plugins[%d]: repository path %q must not contain '.' or '..' segments", i, parsed.repoPath)
+			return fmt.Errorf("plugins[%d]: repository path %q must not contain '.' or '..' segments; expected a plain repository-relative path", i, parsed.repoPath)
 		}
 		if !parsed.isFullSHA && len(parsed.ref) == 40 && gitutil.IsValidFullSHACaseInsensitive(parsed.ref) {
-			return fmt.Errorf("plugins[%d]: ref %q looks like a commit SHA but must be lowercase hexadecimal", i, parsed.ref)
+			return fmt.Errorf("plugins[%d]: ref %q looks like a commit SHA but must be lowercase hexadecimal; expected all-lowercase hex characters, for example a1b2c3", i, parsed.ref)
 		}
 		if looksLikeAmbiguousSHA(parsed.ref) {
 			return fmt.Errorf("plugins[%d]: ref %q looks like a truncated or malformed commit SHA; use the full 40-character lowercase SHA or a branch/tag name", i, parsed.ref)
 		}
 		if !parsed.isFullSHA && (!skillRefCharsRegexp.MatchString(parsed.ref) || strings.Contains(parsed.ref, "..")) {
-			return fmt.Errorf("plugins[%d]: ref %q contains unsupported characters; refs may only contain letters, digits, '.', '_', '-', and '/', must start with a letter or digit, and must not contain '..'", i, parsed.ref)
+			return fmt.Errorf("plugins[%d]: ref %q contains unsupported characters; expected letters, digits, '.', '_', '-', and '/', starting with a letter or digit and not containing '..', for example v1.2.3", i, parsed.ref)
 		}
 	}
 

@@ -70,7 +70,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	} else {
 		suppressions, err := parseThreatDetectionSuppressions(data.RawFrontmatter["threat-detection-suppress"])
 		if err != nil {
-			return fmt.Errorf("invalid threat-detection-suppress: %w", err)
+			return fmt.Errorf("threat-detection-suppress value is not recognized, expected a list of suppression identifiers: %w", err)
 		}
 		manifest.ThreatDetectionSuppressions = suppressions
 	}

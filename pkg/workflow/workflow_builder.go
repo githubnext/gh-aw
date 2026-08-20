@@ -812,12 +812,12 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 	var otherImportedSteps []any
 	if importsResult.MergedSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &otherImportedSteps); err != nil {
-			return fmt.Errorf("failed to parse imported steps: %w", err)
+			return fmt.Errorf("imported steps YAML is not recognized, expected a valid list of GitHub Actions steps: %w", err)
 		}
 		// Convert to typed steps for action pinning
 		typedOtherSteps, err := SliceToSteps(otherImportedSteps)
 		if err != nil {
-			return fmt.Errorf("failed to convert imported steps: %w", err)
+			return fmt.Errorf("imported steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 		}
 		// Apply action pinning to other imported steps
 		typedOtherSteps, err = applyActionPinsToTypedSteps(typedOtherSteps, workflowData)
@@ -833,7 +833,7 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 	if workflowData.CustomSteps != "" {
 		var mainStepsWrapper map[string]any
 		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err != nil {
-			return fmt.Errorf("failed to parse custom steps: %w", err)
+			return fmt.Errorf("custom steps YAML is not recognized, expected a 'steps:' mapping with a valid list of steps: %w", err)
 		}
 		if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 			if steps, ok := mainStepsVal.([]any); ok {
@@ -841,7 +841,7 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 				// Convert to typed steps for action pinning
 				typedMainSteps, err := SliceToSteps(mainSteps)
 				if err != nil {
-					return fmt.Errorf("failed to convert main steps: %w", err)
+					return fmt.Errorf("main steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 				}
 				// Apply action pinning to main steps
 				typedMainSteps, err = applyActionPinsToTypedSteps(typedMainSteps, workflowData)
@@ -889,11 +889,11 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 	var importedPreSteps []any
 	if importsResult.MergedPreSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPreSteps), &importedPreSteps); err != nil {
-			return fmt.Errorf("failed to parse imported pre-steps: %w", err)
+			return fmt.Errorf("imported pre-steps YAML is not recognized, expected a valid list of GitHub Actions steps: %w", err)
 		}
 		typedImported, err := SliceToSteps(importedPreSteps)
 		if err != nil {
-			return fmt.Errorf("failed to convert imported pre-steps: %w", err)
+			return fmt.Errorf("imported pre-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 		}
 		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
 		if err != nil {
@@ -907,14 +907,14 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 	if mainPreStepsYAML != "" {
 		var mainWrapper map[string]any
 		if err := yaml.Unmarshal([]byte(mainPreStepsYAML), &mainWrapper); err != nil {
-			return fmt.Errorf("failed to parse pre-steps: %w", err)
+			return fmt.Errorf("pre-steps YAML is not recognized, expected a 'pre-steps:' mapping with a valid list of steps: %w", err)
 		}
 		if mainVal, ok := mainWrapper["pre-steps"]; ok {
 			if steps, ok := mainVal.([]any); ok {
 				mainPreSteps = steps
 				typedMain, err := SliceToSteps(mainPreSteps)
 				if err != nil {
-					return fmt.Errorf("failed to convert pre-steps: %w", err)
+					return fmt.Errorf("pre-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 				}
 				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
 				if err != nil {
@@ -950,11 +950,11 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 	var importedPreAgentSteps []any
 	if importsResult.MergedPreAgentSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPreAgentSteps), &importedPreAgentSteps); err != nil {
-			return fmt.Errorf("failed to parse imported pre-agent-steps: %w", err)
+			return fmt.Errorf("imported pre-agent-steps YAML is not recognized, expected a valid list of GitHub Actions steps: %w", err)
 		}
 		typedImported, err := SliceToSteps(importedPreAgentSteps)
 		if err != nil {
-			return fmt.Errorf("failed to convert imported pre-agent-steps: %w", err)
+			return fmt.Errorf("imported pre-agent-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 		}
 		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
 		if err != nil {
@@ -967,14 +967,14 @@ func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, work
 	if mainPreAgentStepsYAML != "" {
 		var mainWrapper map[string]any
 		if err := yaml.Unmarshal([]byte(mainPreAgentStepsYAML), &mainWrapper); err != nil {
-			return fmt.Errorf("failed to parse pre-agent-steps: %w", err)
+			return fmt.Errorf("pre-agent-steps YAML is not recognized, expected a 'pre-agent-steps:' mapping with a valid list of steps: %w", err)
 		}
 		if mainVal, ok := mainWrapper["pre-agent-steps"]; ok {
 			if steps, ok := mainVal.([]any); ok {
 				mainPreAgentSteps = steps
 				typedMain, err := SliceToSteps(mainPreAgentSteps)
 				if err != nil {
-					return fmt.Errorf("failed to convert pre-agent-steps: %w", err)
+					return fmt.Errorf("pre-agent-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 				}
 				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
 				if err != nil {
@@ -1010,11 +1010,11 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 	var importedPostSteps []any
 	if importsResult.MergedPostSteps != "" {
 		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err != nil {
-			return fmt.Errorf("failed to parse imported post-steps: %w", err)
+			return fmt.Errorf("imported post-steps YAML is not recognized, expected a valid list of GitHub Actions steps: %w", err)
 		}
 		typedImported, err := SliceToSteps(importedPostSteps)
 		if err != nil {
-			return fmt.Errorf("failed to convert imported post-steps: %w", err)
+			return fmt.Errorf("imported post-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 		}
 		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
 		if err != nil {
@@ -1028,14 +1028,14 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 	if mainPostStepsYAML != "" {
 		var mainWrapper map[string]any
 		if err := yaml.Unmarshal([]byte(mainPostStepsYAML), &mainWrapper); err != nil {
-			return fmt.Errorf("failed to parse post-steps: %w", err)
+			return fmt.Errorf("post-steps YAML is not recognized, expected a 'post-steps:' mapping with a valid list of steps: %w", err)
 		}
 		if mainVal, ok := mainWrapper["post-steps"]; ok {
 			if steps, ok := mainVal.([]any); ok {
 				mainPostSteps = steps
 				typedMain, err := SliceToSteps(mainPostSteps)
 				if err != nil {
-					return fmt.Errorf("failed to convert post-steps: %w", err)
+					return fmt.Errorf("post-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
 				}
 				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
 				if err != nil {
