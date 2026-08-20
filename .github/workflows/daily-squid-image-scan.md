@@ -13,7 +13,6 @@ permissions:
 strict: true
 network:
   allowed:
-    - defaults
     - go
 tools:
   cli-proxy: true
@@ -87,6 +86,8 @@ features:
 sandbox:
   agent:
     runtime: cloud-hypervisor
+imports:
+  - shared/network-defaults.md
 ---
 
 # Daily Container Image Security Scan

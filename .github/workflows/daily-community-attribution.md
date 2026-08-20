@@ -19,9 +19,6 @@ engine:
   id: copilot
 timeout-minutes: 20
 
-network:
-  allowed:
-    - defaults
 
 sandbox:
   agent:
@@ -74,6 +71,7 @@ experiments:
   prompt_style: [concise, verbose]
 
 imports:
+  - shared/network-defaults.md
   - shared/community-attribution.md
   - shared/otlp.md
   - shared/issue-dedup.md

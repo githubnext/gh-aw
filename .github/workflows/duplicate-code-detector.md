@@ -16,10 +16,10 @@ permissions:
 engine: codex
 network:
   allowed:
-    - defaults
     - github.com
     - api.github.com
 imports:
+  - shared/network-defaults.md
   - shared/go-source-analysis.md
   - shared/otlp.md
   - shared/reporting.md

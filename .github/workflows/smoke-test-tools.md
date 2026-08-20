@@ -32,7 +32,6 @@ runtimes:
     version: "8.0"
 network:
   allowed:
-    - defaults
     - github
     - node
 tools:
@@ -50,6 +49,7 @@ safe-outputs:
       run-failure: "❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}"
 timeout-minutes: 5
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/reporting.md

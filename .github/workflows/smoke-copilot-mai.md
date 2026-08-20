@@ -24,11 +24,11 @@ engine:
   id: copilot
   bare: true
 imports:
+  - shared/network-defaults.md
   - shared/smoke-test-brevity.md
   - shared/reporting.md
 network:
   allowed:
-    - defaults
     - github
 tools:
   bash:

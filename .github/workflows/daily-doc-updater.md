@@ -11,9 +11,9 @@ permissions:
   pull-requests: read
 network:
   allowed:
-  - defaults
   - github
 imports:
+- shared/network-defaults.md
 - shared/github-guard-policy.md
 - shared/ai-coding-dictionary.md
 - shared/otlp.md

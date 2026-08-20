@@ -21,10 +21,10 @@ timeout-minutes: 45
 
 network:
   allowed:
-    - defaults
     - node
 
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 tools:

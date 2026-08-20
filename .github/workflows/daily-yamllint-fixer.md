@@ -17,7 +17,6 @@ engine:
 max-turns: 120
 network:
   allowed:
-    - defaults
     - go
     - python
 tools:
@@ -99,6 +98,7 @@ steps:
       pip3 install yamllint==1.38.0 --quiet
       yamllint --version
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 sandbox:
   agent:

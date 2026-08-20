@@ -26,6 +26,7 @@ strict: true
 timeout-minutes: 45
 
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-charts.md
@@ -37,7 +38,6 @@ imports:
   - shared/reporting.md
 network:
   allowed:
-    - defaults
     - github
 
 safe-outputs:

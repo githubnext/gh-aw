@@ -43,9 +43,9 @@ timeout-minutes: 60
 strict: true
 network:
   allowed:
-    - defaults
     - python
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - shared/python-dataviz.md

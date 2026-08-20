@@ -20,7 +20,6 @@ model: copilot/claude-sonnet-4.5
 strict: true
 network:
   allowed:
-    - defaults
     - github
 tools:
   bash: true
@@ -35,6 +34,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 30
 imports:
+  - shared/network-defaults.md
   - shared/goose.md
   - shared/mcp/sentry.md
   - shared/mcp/grafana.md

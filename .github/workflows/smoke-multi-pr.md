@@ -21,7 +21,6 @@ engine: copilot
 strict: true
 network:
   allowed:
-    - defaults
     - node
 tools:
   cli-proxy: true
@@ -49,6 +48,7 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs."
 timeout-minutes: 10
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 features:

@@ -25,12 +25,13 @@ checkout:
   fetch: ["refs/pulls/open/*"]
   fetch-depth: 0
 network:
-  allowed: ["defaults", "go"]
+  allowed: ["go"]
 model: copilot/gpt-5.4
 engine:
   id: pi
 strict: true
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - shared/otlp.md
 tools:

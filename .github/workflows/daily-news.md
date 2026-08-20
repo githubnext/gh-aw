@@ -50,7 +50,6 @@ runtimes:
 
 network:
   allowed:
-    - defaults
     - python
     - node
 
@@ -312,6 +311,7 @@ steps:
       find /tmp/gh-aw/agent/daily-news-data/ -maxdepth 1 -ls
 
 imports:
+  - shared/network-defaults.md
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/daily-news"

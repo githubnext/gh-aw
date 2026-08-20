@@ -13,9 +13,9 @@ permissions:
 
 network:
   allowed:
-  - defaults
   - github
 imports:
+- shared/network-defaults.md
 - uses: shared/daily-audit-base.md
   with:
     title-prefix: "[developer-docs] "

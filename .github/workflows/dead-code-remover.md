@@ -16,6 +16,7 @@ engine:
   bare: true
 max-tool-denials: 3
 imports:
+  - shared/network-defaults.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[dead-code] "
@@ -29,7 +30,6 @@ imports:
   - shared/otlp.md
 network:
   allowed:
-    - defaults
     - go
 tools:
   cli-proxy: true

@@ -14,9 +14,9 @@ engine: codex
 strict: true
 network:
   allowed:
-    - defaults
     - github
 imports:
+  - shared/network-defaults.md
   - shared/github-guard-policy.md
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md

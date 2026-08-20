@@ -30,6 +30,7 @@ engine:
   bare: true
 inlined-imports: true
 imports:
+  - shared/network-defaults.md
   - shared/gh.md
   - shared/mcp/tavily.md
   - shared/go-make.md
@@ -40,7 +41,6 @@ imports:
   - shared/reporting.md
 network:
   allowed:
-    - defaults
     - github
     - playwright
 sandbox:

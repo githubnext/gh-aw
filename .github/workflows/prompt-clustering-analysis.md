@@ -18,11 +18,11 @@ strict: true
 
 network:
   allowed:
-    - defaults
     - github
     - python
 
 imports:
+  - shared/network-defaults.md
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [repos, pull_requests]

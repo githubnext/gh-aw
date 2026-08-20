@@ -9,9 +9,9 @@ permissions:
   pull-requests: read
 network:
   allowed:
-  - defaults
   - github
 imports:
+- shared/network-defaults.md
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:

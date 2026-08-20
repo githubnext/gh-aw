@@ -16,13 +16,13 @@ timeout-minutes: 30
 
 network:
   allowed:
-    - defaults
     - playwright
     - github.github.com
     - ashleywolf.github.io
     - mossaka.github.io
 
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 tools:
   cli-proxy: true

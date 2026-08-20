@@ -20,7 +20,6 @@ max-tool-denials: 3
 strict: true
 network:
   allowed:
-    - defaults
     - github
 tools:
   cli-proxy: true
@@ -44,6 +43,7 @@ safe-outputs:
     title-prefix: "[copilot-opt] "
     close-older-issues: true
 imports:
+  - shared/network-defaults.md
   - ../skills/jqschema/SKILL.md
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md

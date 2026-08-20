@@ -24,7 +24,6 @@ strict: true
 timeout-minutes: 30
 network:
   allowed:
-    - defaults
     - github
     - models.dev
 
@@ -359,6 +358,7 @@ safe-outputs:
     close-older-issues: true
 
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

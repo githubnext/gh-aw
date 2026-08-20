@@ -32,7 +32,6 @@ tools:
     min-integrity: none
 network:
   allowed:
-    - defaults
     - github
 safe-outputs:
   allowed-domains: [default-safe-outputs]
@@ -46,6 +45,7 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."
 timeout-minutes: 10
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 features:

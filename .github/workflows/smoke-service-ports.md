@@ -31,7 +31,6 @@ services:
       --health-retries 5
 network:
   allowed:
-    - defaults
     - github
 tools:
   bash:
@@ -48,6 +47,7 @@ safe-outputs:
       run-failure: "❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}"
 timeout-minutes: 5
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/reporting.md

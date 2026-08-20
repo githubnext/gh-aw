@@ -19,13 +19,13 @@ engine: copilot
 
 network:
   allowed:
-    - defaults
     - node
 
 sandbox:
   agent:
     id: awf
 imports:
+  - shared/network-defaults.md
   - shared/mcp/tavily.md
   - shared/reporting.md
 

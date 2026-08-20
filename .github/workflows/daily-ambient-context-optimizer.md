@@ -19,7 +19,7 @@ tracker-id: daily-ambient-context-optimizer
 strict: true
 max-daily-ai-credits: 10000
 network:
-  allowed: [defaults, github]
+  allowed: [github]
 sandbox:
   agent:
     id: awf
@@ -160,6 +160,7 @@ steps:
         core.info(`PR close-rate (7d): ${rateStr} (${closed7d.length} closed, ${merged7d.length} merged)${autoPause ? ' — AUTO-PAUSE ACTIVE' : ''}`);
 
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - shared/otlp.md
 features:

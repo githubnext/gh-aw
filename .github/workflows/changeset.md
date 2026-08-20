@@ -37,7 +37,6 @@ features:
   gh-aw-detection: true
 network:
   allowed:
-    - defaults
     - github
     - node
     - go
@@ -49,6 +48,7 @@ tools:
     - "*"
   edit:
 imports:
+  - shared/network-defaults.md
   - shared/changeset-format.md
   - ../skills/jqschema/SKILL.md
 

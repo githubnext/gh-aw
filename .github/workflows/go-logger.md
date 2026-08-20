@@ -11,11 +11,11 @@ env:
   GOTOOLCHAIN: auto
 network:
   allowed:
-    - defaults
     - go
 
 
 imports:
+- shared/network-defaults.md
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:

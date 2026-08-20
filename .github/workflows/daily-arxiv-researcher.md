@@ -30,9 +30,9 @@ tools:
     - "cat *"
     - "ls *"
 
-network: defaults
 
 imports:
+  - shared/network-defaults.md
   - shared/crush.md
 
 safe-outputs:

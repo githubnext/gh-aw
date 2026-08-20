@@ -39,6 +39,7 @@ engine:
   id: pi
 # Shared instructions
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[docs] "
@@ -51,7 +52,6 @@ imports:
   - shared/reporting.md
 network:
   allowed:
-    - defaults
     - github
 
 # Sandbox configuration - AWF is enabled by default but making it explicit for clarity

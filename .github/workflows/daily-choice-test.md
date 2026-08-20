@@ -16,9 +16,6 @@ engine: claude
 strict: true
 timeout-minutes: 10
 
-network:
-  allowed:
-    - defaults
 
 sandbox:
   agent:
@@ -66,6 +63,7 @@ safe-outputs:
               echo "No agent output found"
             fi
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

@@ -16,7 +16,6 @@ permissions:
   pull-requests: read
 network:
   allowed:
-    - defaults
     - python
 tracker-id: agentic-token-trend-audit
 safe-outputs:
@@ -94,6 +93,8 @@ evals:
     question: Did the agent analyze AIC usage for the user-specified date range?
   - id: trend_report_created
     question: Was a trend report created with per-workflow AIC data for the requested period?
+imports:
+  - shared/network-defaults.md
 ---
 
 # On-Demand Agentic Workflow AIC Trend Audit

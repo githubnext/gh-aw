@@ -21,7 +21,6 @@ model: copilot/claude-sonnet-4.5
 strict: true
 network:
   allowed:
-    - defaults
     - github
 tools:
   bash: true
@@ -40,6 +39,7 @@ safe-outputs:
     close-older-issues: true
 timeout-minutes: 30
 imports:
+  - shared/network-defaults.md
   - shared/opencode.md
   - uses: shared/daily-issue-base.md
     with:

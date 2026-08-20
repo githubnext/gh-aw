@@ -22,7 +22,6 @@ strict: true
 timeout-minutes: 20
 network:
   allowed:
-    - defaults
     - github
 tools:
   bash: true
@@ -44,6 +43,7 @@ safe-outputs:
     run-success: "📊 [{workflow_name}]({run_url}) outcome evaluation complete!"
     run-failure: "📊 [{workflow_name}]({run_url}) {status}"
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 pre-agent-steps:
   - name: Evaluate outcomes for recent runs

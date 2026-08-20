@@ -22,7 +22,6 @@ timeout-minutes: 45
 
 network:
   allowed:
-    - defaults
     - python
     - node
 sandbox:
@@ -48,6 +47,7 @@ safe-outputs:
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[repo-chronicle] "

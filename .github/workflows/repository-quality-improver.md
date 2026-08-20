@@ -20,9 +20,9 @@ permissions:
 engine: copilot
 network:
   allowed:
-    - defaults
     - go
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[repository-quality] "

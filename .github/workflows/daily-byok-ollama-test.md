@@ -170,7 +170,6 @@ post-steps:
       tail -n 200 "$OLLAMA_LOG" 2>/dev/null || echo "no server log available"
 network:
   allowed:
-    - defaults
     - host.docker.internal
 safe-outputs:
   create-issue:
@@ -194,6 +193,7 @@ models:
     input: 0.000001
     output: 0.000001
 imports:
+  - shared/network-defaults.md
   - shared/reporting.md
 ---
 

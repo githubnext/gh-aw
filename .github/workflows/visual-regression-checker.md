@@ -17,6 +17,7 @@ permissions:
   pull-requests: read
 engine: copilot
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 tools:
@@ -31,7 +32,6 @@ tools:
     - "curl http://host.docker.internal:*"
 network:
   allowed:
-    - defaults
     - playwright
     - local
     - node

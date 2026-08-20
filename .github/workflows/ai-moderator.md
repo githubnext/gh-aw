@@ -30,9 +30,9 @@ concurrency:
 engine: codex
 network:
   allowed:
-    - defaults
     - github
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 tools:

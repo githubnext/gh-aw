@@ -21,7 +21,6 @@ engine:
 strict: true
 network:
   allowed:
-    - defaults
     - github
 tools:
   github:
@@ -44,6 +43,7 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 20
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 ---

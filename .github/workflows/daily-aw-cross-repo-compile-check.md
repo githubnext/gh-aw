@@ -44,10 +44,10 @@ timeout-minutes: 60
 strict: true
 network:
   allowed:
-    - defaults
     - github
     - go
 imports:
+  - shared/network-defaults.md
   - shared/reporting.md
   - shared/otlp.md
 features:

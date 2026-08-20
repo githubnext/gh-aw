@@ -20,7 +20,6 @@ strict: true
 
 network:
   allowed:
-    - defaults
     - github
     - python
 
@@ -41,6 +40,7 @@ tools:
   timeout: 300
 
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - uses: shared/daily-audit-base.md
     with:

@@ -20,6 +20,7 @@ name: "Smoke Agent: scoped/approved"
 engine: claude
 strict: true
 imports:
+  - shared/network-defaults.md
   - shared/github-guard-policy.md
   - shared/otlp.md
   - shared/reporting.md
@@ -32,7 +33,6 @@ tools:
     min-integrity: approved
 network:
   allowed:
-    - defaults
     - github
 safe-outputs:
   allowed-domains: [default-safe-outputs]

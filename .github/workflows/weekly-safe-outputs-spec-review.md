@@ -18,13 +18,13 @@ strict: true
 
 network:
   allowed:
-    - defaults
     - github
 
 sandbox:
   agent:
     id: awf
 imports:
+  - shared/network-defaults.md
   - shared/github-guard-policy.md
 
   - shared/otlp.md

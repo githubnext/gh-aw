@@ -19,11 +19,11 @@ engine: claude
 
 network:
   allowed:
-    - defaults
     - github
     - node
 
 imports:
+  - shared/network-defaults.md
   - shared/mcp/ruflo.md
   - shared/reporting.md
 

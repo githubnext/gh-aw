@@ -24,7 +24,6 @@ engine:
   agent: ci-cleaner
 network:
   allowed:
-    - defaults
     - go
 tools:
   cli-proxy: true
@@ -112,6 +111,7 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 45
 imports:
+  - shared/network-defaults.md
   - ../agents/ci-cleaner.agent.md
 
 

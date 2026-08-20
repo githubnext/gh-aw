@@ -31,9 +31,6 @@ experiments:
     weight: [50, 50]
     start_date: "2026-06-11"
     issue: 38590
-network:
-  allowed:
-    - defaults
 sandbox:
   agent:
     id: awf
@@ -79,6 +76,7 @@ steps:
       echo "Wrote pre-fetched merged PRs to /tmp/gh-aw/agent/merged-prs.json"
 
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - shared/github-guard-policy.md
 

@@ -23,7 +23,6 @@ model: copilot/claude-sonnet-4.5
 strict: false
 network:
   allowed:
-    - defaults
     - github
 tools:
   cli-proxy: true
@@ -35,6 +34,7 @@ max-ai-credits: 1500
 features:
   gh-aw-detection: true
 imports:
+  - shared/network-defaults.md
   - shared/goose.md
   - uses: shared/daily-audit-base.md
     with:

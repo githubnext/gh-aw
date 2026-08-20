@@ -22,7 +22,6 @@ permissions:
   actions: read
 network:
   allowed:
-    - defaults
     - node
     - github
 tools:
@@ -88,6 +87,7 @@ experiments:
     notify:
       issue: 37302
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/reporting.md

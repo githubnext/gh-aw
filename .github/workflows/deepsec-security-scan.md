@@ -33,7 +33,6 @@ strict: true
 timeout-minutes: 90
 network:
   allowed:
-    - defaults
     - node
     - ai-gateway.vercel.sh
 sandbox:
@@ -109,6 +108,7 @@ steps:
         printf '%s\n' '- Findings JSON: /tmp/gh-aw/agent/deepsec/findings.json'
       } > "$AGENT_ROOT/context.md"
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 evals:

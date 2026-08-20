@@ -20,13 +20,13 @@ engine:
 strict: true
 
 imports:
+  - shared/network-defaults.md
   - shared/reporting.md
   - shared/go-source-analysis.md
 
   - shared/otlp.md
 network:
   allowed:
-    - defaults
     - github
 
 pre-agent-steps:

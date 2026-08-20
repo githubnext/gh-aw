@@ -23,6 +23,7 @@ engine:
   id: kiro
 strict: true
 imports:
+  - shared/network-defaults.md
   - shared/kiro.md
   - shared/gh.md
   - shared/reporting-otlp.md
@@ -31,7 +32,6 @@ imports:
   - shared/smoke-test-brevity.md
 network:
   allowed:
-    - defaults
     - github
 safe-outputs:
   allowed-domains: [default-safe-outputs]

@@ -31,7 +31,7 @@ strict: true
 runtimes:
   uv: {}
 network:
-  allowed: [defaults, python-native, github]
+  allowed: [python-native, github]
 sandbox:
   agent:
     id: awf
@@ -67,6 +67,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 45
 imports:
+  - shared/network-defaults.md
   - shared/aw-logs-24h-fetch-setup.md
   - uses: shared/daily-audit-base.md
     with:

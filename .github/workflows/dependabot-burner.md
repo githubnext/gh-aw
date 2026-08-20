@@ -32,7 +32,6 @@ engine:
 strict: true
 network:
   allowed:
-    - defaults
     - node
     - python
     - go
@@ -46,6 +45,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - uses: shared/daily-pr-base.md
     with:

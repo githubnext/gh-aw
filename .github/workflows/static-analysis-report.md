@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 engine: claude
 network:
-  allowed: [defaults, go]
+  allowed: [go]
 tools:
   cache-memory: true
   timeout: 600
@@ -29,6 +29,7 @@ safe-outputs:
 timeout-minutes: 45
 strict: true
 imports:
+  - shared/network-defaults.md
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions]

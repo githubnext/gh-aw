@@ -33,7 +33,6 @@ experiments:
       issue: 32603
 network:
   allowed:
-    - defaults
     - githubnext.com
     - www.githubnext.com
 tools:
@@ -51,6 +50,7 @@ tools:
     - "test *"
 timeout-minutes: 10
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[audit] "

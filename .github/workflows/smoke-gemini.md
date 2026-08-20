@@ -37,13 +37,13 @@ engine:
   id: gemini
 strict: true
 imports:
+  - shared/network-defaults.md
   - shared/reporting-otlp.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/smoke-test-brevity.md
 network:
   allowed:
-    - defaults
     - github
 tools:
   cache-memory: true

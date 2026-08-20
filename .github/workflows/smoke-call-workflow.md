@@ -19,9 +19,6 @@ model: gpt-5.4-mini
 engine:
   id: codex
 strict: true
-network:
-  allowed:
-    - defaults
 safe-outputs:
   allowed-domains: [default-safe-outputs]
   call-workflow:
@@ -30,6 +27,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 tools:
   cli-proxy: true

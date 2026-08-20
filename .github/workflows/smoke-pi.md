@@ -32,13 +32,13 @@ sandbox:
 runtimes:
   node: {}
 imports:
+  - shared/network-defaults.md
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/otlp.md
   - shared/smoke-test-brevity.md
 network:
   allowed:
-    - defaults
     - github
 tools:
   cache-memory: true

@@ -34,10 +34,10 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 network:
   allowed:
-    - defaults
     - node
 
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[docs-noob-tester] "

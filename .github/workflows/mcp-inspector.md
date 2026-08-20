@@ -15,7 +15,6 @@ engine:
 max-tool-denials: 3
 network:
   allowed:
-    - defaults
     - containers
     - node
     - node-cdns
@@ -29,6 +28,7 @@ strict: false
 features:
   gh-aw-detection: true
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-inspector] "

@@ -22,7 +22,6 @@ max-ai-credits: 250
 strict: true
 network:
   allowed:
-    - defaults
     - python
 safe-outputs:
   create-discussion:
@@ -39,6 +38,7 @@ tools:
     - "*"
 timeout-minutes: 30
 imports:
+  - shared/network-defaults.md
   - shared/mcp/sentry.md
   - shared/mcp/grafana.md
   - shared/trends.md

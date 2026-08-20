@@ -20,7 +20,6 @@ engine:
 max-tool-denials: 3
 network:
   allowed:
-    - defaults
     - go
 tools:
   cli-proxy: true
@@ -33,6 +32,7 @@ tools:
     - "*"
   edit:
 imports:
+  - shared/network-defaults.md
   - shared/mcp/serena-go.md
   - shared/otlp.md
   - shared/reporting.md

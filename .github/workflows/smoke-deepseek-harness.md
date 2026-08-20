@@ -24,6 +24,7 @@ engine:
   id: deepseek-harness
 strict: true
 imports:
+  - shared/network-defaults.md
   - shared/deepseek-harness.md
   - shared/gh.md
   - shared/reporting-otlp.md
@@ -32,7 +33,6 @@ imports:
   - shared/smoke-test-brevity.md
 network:
   allowed:
-    - defaults
     - github
 tools:
   cache-memory: true

@@ -17,9 +17,8 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 strict: false
-network:
-  allowed: [defaults]
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 tools:

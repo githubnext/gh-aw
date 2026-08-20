@@ -41,7 +41,6 @@ experiments:
 
 network:
   allowed:
-    - defaults
     - python
     - node
 
@@ -77,6 +76,7 @@ tools:
   cli-proxy: true
 
 imports:
+  - shared/network-defaults.md
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [all]

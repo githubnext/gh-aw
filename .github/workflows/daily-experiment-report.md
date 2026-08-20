@@ -20,7 +20,6 @@ engine:
   copilot-sdk: true
 network:
   allowed:
-    - defaults
     - go
 max-tool-denials: 3
 sandbox:
@@ -40,6 +39,7 @@ steps:
       fi
 
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[experiments] "

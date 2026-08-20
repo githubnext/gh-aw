@@ -23,7 +23,6 @@ engine:
   id: claude
 network:
   allowed:
-    - defaults
     - go
 tools:
   cli-proxy: true
@@ -121,6 +120,7 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 45
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

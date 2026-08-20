@@ -18,10 +18,8 @@ permissions:
   pull-requests: read
 engine: copilot
 strict: true
-network:
-  allowed:
-    - defaults
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 tools:

@@ -19,7 +19,7 @@ engine: codex
 strict: true
 timeout-minutes: 25
 network:
-  allowed: [defaults, github, node, go]
+  allowed: [github, node, go]
 tools:
   cli-proxy: true
   github:
@@ -49,6 +49,7 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) fortified this PR with fresh regression coverage."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while raising regression tests."
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 evals:

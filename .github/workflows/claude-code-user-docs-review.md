@@ -23,7 +23,6 @@ strict: true
 
 network:
   allowed:
-    - defaults
     - github
 
 sandbox:
@@ -42,6 +41,7 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[claude-code-user-docs-review] "

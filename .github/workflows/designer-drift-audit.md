@@ -117,9 +117,8 @@ safe-outputs:
     labels: ["drift-audit", "automated"]
     close-older-issues: true
     expires: 7d
-network:
-  allowed:
-    - defaults
+imports:
+  - shared/network-defaults.md
 ---
 
 # Designer Drift Audit

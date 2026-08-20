@@ -29,13 +29,13 @@ engine: copilot
 timeout-minutes: 20
 network:
   allowed:
-    - defaults
     - node
     - "github.github.com"
 safe-outputs:
   update-release:
   threat-detection: false
 imports:
+  - shared/network-defaults.md
   - shared/community-attribution.md
   - shared/otlp.md
 jobs:

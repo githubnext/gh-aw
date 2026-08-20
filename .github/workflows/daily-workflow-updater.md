@@ -27,7 +27,6 @@ strict: true
 
 network:
   allowed:
-    - defaults
     - github
     - go
 
@@ -49,6 +48,7 @@ tools:
 timeout-minutes: 15
 
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 evals:
   - id: action_versions_checked

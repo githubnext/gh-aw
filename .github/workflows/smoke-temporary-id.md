@@ -23,7 +23,6 @@ engine: copilot
 strict: true
 network:
   allowed:
-    - defaults
     - node
 safe-outputs:
   allowed-domains: [default-safe-outputs]
@@ -47,6 +46,7 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details."
 timeout-minutes: 10
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/reporting.md

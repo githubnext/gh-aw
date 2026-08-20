@@ -27,6 +27,7 @@ permissions:
 name: Smoke Codex
 engine: codex
 imports:
+  - shared/network-defaults.md
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
@@ -36,7 +37,6 @@ imports:
   - shared/smoke-test-brevity.md
 network:
   allowed:
-    - defaults
     - github
     - playwright
 tools:

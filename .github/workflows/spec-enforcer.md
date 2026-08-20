@@ -15,10 +15,10 @@ permissions:
   pull-requests: read
 network:
   allowed:
-  - defaults
   - github
   - go
 imports:
+- shared/network-defaults.md
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:

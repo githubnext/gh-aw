@@ -13,10 +13,10 @@ permissions:
 
 network:
   allowed:
-  - defaults
   - github
   - proxy.golang.org
 imports:
+- shared/network-defaults.md
 - shared/reporting.md
 - uses: shared/daily-audit-base.md
   with:

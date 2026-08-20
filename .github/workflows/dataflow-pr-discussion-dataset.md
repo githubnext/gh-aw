@@ -15,10 +15,10 @@ permissions:
 
 network:
   allowed:
-    - defaults
     - python
     - github-actions
 imports:
+  - shared/network-defaults.md
   - shared/pmg.md
   - uses: shared/discussions-data-fetch.md
   - shared/reporting.md

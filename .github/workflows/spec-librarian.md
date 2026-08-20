@@ -10,9 +10,9 @@ permissions:
   copilot-requests: write
 network:
   allowed:
-  - defaults
   - github
 imports:
+- shared/network-defaults.md
 - shared/reporting.md
 - uses: shared/skip-if-issue-open.md
   with:

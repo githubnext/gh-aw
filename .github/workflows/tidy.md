@@ -25,9 +25,10 @@ engine: copilot
 timeout-minutes: 20
 
 network:
-  allowed: ["defaults", "go"]
+  allowed: ["go"]
 
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 tools:

@@ -29,7 +29,6 @@ lsp:
       ".mjs": javascript
 network:
   allowed:
-    - defaults
     - node
 tools:
   cli-proxy: true
@@ -61,6 +60,7 @@ evals:
   - id: rule_pr_created_or_noop
     question: Did the agent create a pull request for a new ESLint rule, or use noop when no suitable rule was found?
 imports:
+  - shared/network-defaults.md
   - shared/reporting.md
 ---
 

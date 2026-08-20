@@ -22,9 +22,9 @@ engine:
 strict: true
 network:
   allowed:
-    - defaults
     - github
 imports:
+  - shared/network-defaults.md
   - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - shared/reporting.md

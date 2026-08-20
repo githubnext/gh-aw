@@ -20,9 +20,6 @@ engine:
 max-tool-denials: 3
 strict: true
 timeout-minutes: 45
-network:
-  allowed:
-    - defaults
 sandbox:
   agent:
     id: awf
@@ -59,6 +56,7 @@ safe-outputs:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 imports:
+  - shared/network-defaults.md
   - shared/github-guard-policy.md
   - shared/otlp.md
   - shared/reporting.md

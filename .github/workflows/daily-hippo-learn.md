@@ -30,7 +30,6 @@ runtimes:
 
 network:
   allowed:
-    - defaults
     - node
 
 sandbox:
@@ -58,6 +57,7 @@ safe-outputs:
     max: 3
 
 imports:
+  - shared/network-defaults.md
   - shared/hippo-memory.md
   - shared/reporting.md
   - shared/otlp.md

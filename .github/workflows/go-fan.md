@@ -12,10 +12,10 @@ permissions:
 
 network:
   allowed:
-  - defaults
   - github
   - go
 imports:
+- shared/network-defaults.md
 - uses: shared/daily-issue-base.md
   with:
     expires: 1d

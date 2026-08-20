@@ -16,6 +16,7 @@ permissions:
 tracker-id: refactoring-cadence
 engine: copilot
 imports:
+  - shared/network-defaults.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[refactoring-cadence]"
@@ -40,7 +41,6 @@ safe-outputs:
     run-failure: "🔧 Code health check failed! [{workflow_name}]({run_url}) {status}. Code health status unknown..."
 network:
   allowed:
-    - defaults
     - go
 timeout-minutes: 20
 ---

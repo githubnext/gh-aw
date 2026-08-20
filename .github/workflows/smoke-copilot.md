@@ -27,6 +27,7 @@ engine:
   max-continuations: 2
   bare: true
 imports:
+  - shared/network-defaults.md
   - shared/github-guard-policy.md
   - shared/gh.md
   - shared/reporting.md
@@ -37,7 +38,6 @@ imports:
   - shared/smoke-test-brevity.md
 network:
   allowed:
-    - defaults
     - node
     - github
     - playwright

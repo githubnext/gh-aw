@@ -22,10 +22,10 @@ engine:
 
 network:
   allowed:
-    - defaults
     - github
 
 imports:
+  - shared/network-defaults.md
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
   - shared/ai-coding-dictionary.md

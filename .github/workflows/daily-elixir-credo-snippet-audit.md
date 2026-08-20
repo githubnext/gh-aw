@@ -22,7 +22,6 @@ runtimes:
     version: "1.17"
 network:
   allowed:
-    - defaults
     - hex.pm
     - repo.hex.pm
     - builds.hex.pm
@@ -35,6 +34,7 @@ tools:
     - "*"
   edit:
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[elixir-credo] "

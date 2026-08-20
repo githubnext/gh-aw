@@ -11,9 +11,9 @@ permissions:
   pull-requests: read
 network:
   allowed:
-  - defaults
   - github
 imports:
+- shared/network-defaults.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 3d

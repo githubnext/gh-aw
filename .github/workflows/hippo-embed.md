@@ -26,7 +26,6 @@ runtimes:
 
 network:
   allowed:
-    - defaults
     - node
 
 sandbox:
@@ -46,6 +45,7 @@ steps:
       npm install -g @xenova/transformers
 
 imports:
+  - shared/network-defaults.md
   - shared/pmg.md
   - shared/hippo-memory.md
 

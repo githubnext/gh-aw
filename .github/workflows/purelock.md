@@ -19,7 +19,6 @@ max-turns: 60
 max-daily-ai-credits: 10000
 network:
   allowed:
-    - defaults
     - go
 tools:
   cache-memory:
@@ -28,6 +27,7 @@ tools:
   bash: ["*"]
   edit:
 imports:
+  - shared/network-defaults.md
   - shared/mcp/serena-go.md
   - shared/otlp.md
   - shared/reporting.md

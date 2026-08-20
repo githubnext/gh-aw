@@ -16,13 +16,13 @@ engine:
 max-tool-denials: 3
 network:
   allowed:
-    - defaults
     - node
   
 sandbox:
   agent:
     id: awf
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 tools:
   cli-proxy: true

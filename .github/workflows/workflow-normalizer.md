@@ -14,7 +14,6 @@ tracker-id: workflow-normalizer
 timeout-minutes: 30
 network:
   allowed:
-    - defaults
     - python
     - node
 tools:
@@ -28,6 +27,7 @@ safe-outputs:
     labels: [cookie]
     max: 1
 imports:
+  - shared/network-defaults.md
   - shared/aw-logs-24h-fetch.md
   - shared/reporting.md
 

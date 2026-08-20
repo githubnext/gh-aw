@@ -23,6 +23,7 @@ name: Smoke Copilot ARM64
 engine: copilot
 runs-on: ubuntu-24.04-arm
 imports:
+  - shared/network-defaults.md
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/github-queries-mcp-script.md
@@ -32,7 +33,6 @@ imports:
   - shared/smoke-test-brevity.md
 network:
   allowed:
-    - defaults
     - node
     - github
     - playwright

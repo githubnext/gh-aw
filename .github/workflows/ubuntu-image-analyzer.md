@@ -9,9 +9,9 @@ permissions:
   pull-requests: read
 network:
   allowed:
-  - defaults
   - github
 imports:
+- shared/network-defaults.md
 - uses: shared/skip-if-issue-open.md
   with:
     kind: pr

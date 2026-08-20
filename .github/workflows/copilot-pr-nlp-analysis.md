@@ -23,7 +23,6 @@ engine:
 max-tool-denials: 3
 network:
   allowed:
-    - defaults
     - python
     - node
 
@@ -31,6 +30,7 @@ sandbox:
   agent:
     id: awf
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[nlp-analysis] "

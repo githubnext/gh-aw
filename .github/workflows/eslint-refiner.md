@@ -12,10 +12,10 @@ permissions:
 
 network:
   allowed:
-  - defaults
   - github
   - node
 imports:
+- shared/network-defaults.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 1d

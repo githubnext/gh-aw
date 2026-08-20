@@ -21,7 +21,6 @@ model: copilot/claude-sonnet-4.5
 strict: true
 network:
   allowed:
-    - defaults
     - github
 tools:
   cache-memory: true
@@ -54,6 +53,7 @@ experiments:
     issue: 31673
 timeout-minutes: 60
 imports:
+  - shared/network-defaults.md
   - shared/opencode.md
   - shared/security-analysis-base.md
   - uses: shared/daily-audit-base.md

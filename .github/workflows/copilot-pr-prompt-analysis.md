@@ -24,7 +24,6 @@ engine:
 max-tool-denials: 3
 network:
   allowed:
-    - defaults
     - github
     - node
 
@@ -32,6 +31,7 @@ sandbox:
   agent:  # Firewall enabled (migrated from network.firewall)
     id: awf
 imports:
+  - shared/network-defaults.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[prompt-analysis] "

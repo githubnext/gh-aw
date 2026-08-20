@@ -4,6 +4,7 @@ emoji: "🔒"
 description: Daily Semgrep security scan for SQL injection and other vulnerabilities
 name: Daily Semgrep Scan
 imports:
+  - shared/network-defaults.md
   - shared/security-analysis-base.md
   - shared/mcp/semgrep.md
   - shared/otlp.md
@@ -26,7 +27,6 @@ safe-outputs:
 
 network:
   allowed:
-    - defaults
     - pypi.org
     - files.pythonhosted.org
     - semgrep.dev

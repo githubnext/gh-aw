@@ -23,7 +23,6 @@ permissions:
   copilot-requests: write
 network:
   allowed:
-    - defaults
     - github
 
 checkout:
@@ -63,6 +62,7 @@ safe-outputs:
 
 timeout-minutes: 10
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/smoke-test-brevity.md
   - shared/reporting.md

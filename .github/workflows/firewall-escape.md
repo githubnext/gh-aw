@@ -32,7 +32,6 @@ tracker-id: firewall-escape
 
 network:
   allowed:
-    - defaults
     - node
 
 sandbox:
@@ -47,6 +46,7 @@ safe-outputs:
     max: 1
 
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 tools:

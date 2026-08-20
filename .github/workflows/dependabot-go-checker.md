@@ -21,7 +21,6 @@ permissions:
 
 network:
   allowed:
-    - defaults
     - go
     # Required for the Playwright MCP npm version check (registry.npmjs.org).
     # Engine defaults no longer grant package registry access implicitly.
@@ -47,6 +46,7 @@ tools:
   bash: [":*"]
 
 imports:
+  - shared/network-defaults.md
   - shared/reporting.md
 
 

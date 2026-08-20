@@ -37,7 +37,6 @@ experiments:
 
 network:
   allowed:
-    - defaults
     - github
 
 safe-outputs:
@@ -69,6 +68,7 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

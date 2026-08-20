@@ -14,7 +14,6 @@ tracker-id: weekly-issue-summary
 engine: copilot
 network:
   allowed:
-    - defaults
     - python
     - node
 sandbox:
@@ -31,6 +30,7 @@ tools:
     toolsets: 
       - issues
 imports:
+  - shared/network-defaults.md
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-base.md
     with:

@@ -139,9 +139,9 @@ max-turns: 40
 strict: true
 network:
   allowed:
-    - defaults
     - github
 imports:
+  - shared/network-defaults.md
   - shared/otlp.md
   - shared/reporting.md
 evals:

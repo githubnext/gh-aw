@@ -29,11 +29,11 @@ tools:
 
 network:
   allowed:
-    - defaults
     - github
     - api.github.com
 
 imports:
+  - shared/network-defaults.md
   - shared/reporting.md
   - uses: shared/daily-audit-base.md
     with:

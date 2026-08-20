@@ -30,10 +30,10 @@ features:
 
 network:
   allowed:
-    - defaults
     - go
 
 imports:
+  - shared/network-defaults.md
   - uses: shared/pr-review-base.md
     with:
       min-integrity: approved
