@@ -1,3 +1,16 @@
+## Trend Data (2026-08-20, ~00:25Z cycle)
+
+Window since 17:50Z baseline (#53999@12:34:27Z carried forward), 11 new discussions, #54066 excluded as duplicate re-run.
+
+- **Issue activity**: 2 new issues filed (report window-collapse bug, 3 remaining oversized test files) + 3 comments (#53925, #54009, #53871). 0 duplicates — all dedup-checked via `gh api search/issues`.
+- **Issue backlog** (issues-analyst): 205 open / 295 closed. Top labels similar to prior cycles; 3 unlabeled (back down from the 10-count spike last cycle — confirms that was triage lag, not a new backlog trend).
+- **Audit-workflows fleet health**: 354 runs sampled, 90.7% raw / 90.9% adjusted success.
+- **Detection coverage**: 313/344 (91%) — healthy, consistent with prior baselines.
+- **Copilot PR prompt analysis** (30-day, #54079): 78.3% merge rate, declining from ~82% a few cycles ago — conciseness-correlates-with-success finding actioned via comment on #53925.
+- **Report window-collapse bug**: reconfirmed 2nd occurrence (#53828 08-18 → #54081 08-20), live example in #54080 (90d target collapsed to ~4d) — now filed as an issue instead of just a recurring caveat.
+
+Next cycle checks: (a) does the unlabeled-issue count stay low (confirming last cycle's spike was lag not trend), (b) does the report-window-collapse issue get picked up, (c) do the 3 remaining oversized test files get split, (d) does the Copilot PR merge-rate decline (82%→78.3%) continue or stabilize.
+
 ## Trend Data (2026-08-19, ~17:50Z cycle)
 
 Baseline was 2026-08-19T12:34:27Z (discussion #53999; ~5.3h gap, 11 new discussions since baseline, all read in full).

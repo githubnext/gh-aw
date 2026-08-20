@@ -1,3 +1,12 @@
+## Extracted code-quality tasks (2026-08-20 ~00:25Z cycle)
+
+2 filed, 3 comments, window since 17:50Z (11 new discussions, #54066 excluded as duplicate re-run):
+1. Split remaining 3 oversized test files from #53788's original scope (`threat_detection_test.go`, `copilot_engine_test.go`, `maintenance_workflow_test.go`) — #53788 closed completed after only 1/5 named files split; reconfirmed via `wc -l` + #54071. Filed.
+2. Fix fixed-record-cap window-collapse bug in reports (#54081, 2nd occurrence after #53828). Filed.
+3. Comment added to #53925 (concise re-attempt recommendation), #54009 (Ponytail lead), #53871 (issues:write data point) — not new issues, dedup'd into existing tracked work.
+
+Not filed: Code Scanning Fixer timeout comment (dropped for higher-value targets); Team Evolution #54075 (already community-filed); Detection Analysis (healthy, no action); PR duration trend (watch only); comment-density/churn-stability metrics (low-confidence, possibly miscalibrated).
+
 ## Extracted code-quality tasks (2026-08-19 ~17:50Z cycle)
 
 4 filed, 0 comments, all newly-mined (baseline #53999 @12:34Z, 11 new discussions):

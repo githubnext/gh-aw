@@ -1,3 +1,16 @@
+## Flagged Items (2026-08-20, ~00:25Z cycle, window since 17:50Z, 11 new discussions, #54066 excluded as duplicate re-run)
+
+- **[new, filed]** Daily reports using fixed record caps (not date-range pagination) silently collapse their stated analysis window — 2nd occurrence, #53828 (08-18) + #54081 (today); live example #54080 (90d target collapsed to ~4d) (#54081).
+- **[new, filed]** 3 of 5 files named in #53788 (closed completed) were never actually split: `threat_detection_test.go` (3420L), `copilot_engine_test.go` (3311L), `maintenance_workflow_test.go` (3076L) — reconfirmed via `wc -l` + independently by #54071. 5th named file (`compiler_safe_outputs_config_test.go`) already fixed (965L), correctly excluded from new issue's scope.
+- **[new, comment]** #53925 — recommend concise re-attempt per #54079 conciseness finding (prior PR #53989 closed unmerged).
+- **[new, comment]** #54009 — added Ponytail third-party skill lead (#54082).
+- **[new, comment]** #53871 — added issues:write over-grant data point (#54077) to existing discussions:write audit.
+- **[declined, already tracked]** Code Scanning Fixer timeout — lower priority than the 2 filed items, dropped this cycle.
+- **[declined, already community-filed]** Team Evolution's flagged item (#54075) already filed by the community.
+- **[declined, healthy]** Detection Analysis coverage 313/344 (91%) — no action needed.
+- **[watch, not filed]** PR duration trend — watch only, insufficient signal to act.
+- **[watch, low-confidence]** Comment-density/churn-stability metrics — possibly miscalibrated, watch before acting.
+
 ## Flagged Items (2026-08-19, ~17:50Z cycle, baseline #53999 @12:34Z)
 
 - **[new, filed]** 4 engine-agnostic reference pages (imports.md, serena.md, threat-detection.md, feature-flags.md) show only Copilot code-fences, no `engine: claude` example — compounds the silent Copilot-fallback trap (#54003).

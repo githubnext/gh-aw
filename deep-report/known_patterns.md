@@ -1,4 +1,12 @@
-## DeepReport Memory (2026-08-19, ~17:50Z cycle)
+## DeepReport Memory (2026-08-20, ~00:25Z cycle)
+
+### Confirmed: "closed completed" can mean "only part of the named scope was done" — always verify every named target, not just one
+#53788 named 5 oversized files but was closed completed after PR #53818 split only the largest one (`compiler_jobs_test.go`). The other 4 were never checked against the closing PR's actual diff. Verified via `wc -l`: 3 of the remaining 4 are still oversized (unfixed, re-filed this cycle); the 4th (`compiler_safe_outputs_config_test.go`) actually was separately fixed elsewhere (965L now) — so partial-scope closures can go either way per-file. **Lesson: when an issue names multiple targets, check the closing PR's diff (or current state) against every named target individually before assuming closure = full completion, and don't assume the unfixed ones stayed unfixed either — verify each one.**
+
+### New tooling quirk: `gh issue list --search` fails in this sandbox; use `gh api search/issues` instead
+`gh issue list --search "..." --state all --json ...` reproducibly fails with `malformed version:` here (not an auth issue — `gh api` reads work fine, `gh --version` is 2.97.0). **Lesson: for dedup searches, always use `gh api "search/issues?q=repo:OWNER/REPO+terms+in:title,body" --jq '...'` instead of `gh issue list --search`.**
+
+
 
 ### Confirmed: repo-memory's own max-patch-size limit can silently drop a full cycle's writes
 Discussion #53999 (12:34Z cycle) should have updated these 3 files but didn't — its 13KB combined diff exceeded the 10KB `max-patch-size` limit and the push hard-failed, discarding all 6 changed files. Root-caused and filed as #54010 this same cycle (fix PR #54029 open, not yet merged). **Lesson: when this file's "latest cycle" doesn't match the most recent DeepReport discussion post, don't assume the cycle didn't run — check whether a push silently failed, and recover the missing baseline from the discussion body itself.** Also keep future memory-file diffs lean (append small sections, avoid full-file rewrites) until #54029 lands.
