@@ -3144,7 +3144,9 @@ engine:
   # Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to
   # the default engine when engine.id is not specified. Overrides the top-level
   # 'model' field.
-  model: "example-value"# AWF turn cap (`max_turns`) applied consistently across all agentic engines.
+  model: "example-value"
+
+# AWF turn cap (`max_turns`) applied consistently across all agentic engines.
 # Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for
 # reusable workflow_call workflows.
 # (optional)
