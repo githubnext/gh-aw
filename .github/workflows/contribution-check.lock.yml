@@ -637,7 +637,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 10 comment(s) can be added. Target: *. Comments will be added in repository \"${{ vars.TARGET_REPOSITORY }}\". Supports reply_to_id for discussion threading.",
+                "add_comment": " CONSTRAINTS: Maximum 10 comment(s) can be added. Target: *. Comments will be added in repository \"${GH_AW_VARS_TARGET_REPOSITORY}\". Supports reply_to_id for discussion threading.",
                 "add_labels": " CONSTRAINTS: Maximum 4 label(s) can be added. Only these labels are allowed: [\"spam\" \"needs-work\" \"outdated\" \"lgtm\"]. Target: *.",
                 "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[Contribution Check Report]\". Labels [\"contribution-report\"] will be automatically added."
               },
@@ -815,6 +815,7 @@ jobs:
                 }
               }
             }
+          GH_AW_VARS_TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
