@@ -13,6 +13,7 @@ import (
 
 // TestExtractMissingToolsFromRun tests extracting missing tools from safe output artifact files
 func TestExtractMissingToolsFromRun(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -163,6 +164,7 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 }
 
 func TestExtractMissingToolsFromRun_IncludesExperimentProvenance(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	testRun := WorkflowRun{

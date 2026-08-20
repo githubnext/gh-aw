@@ -1,10 +1,10 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-07-30
-**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md)
+**Last Updated**: 2026-08-20
+**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260810.271/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04 LTS
-**Image Version**: 20260720.247.2
-**Kernel Version**: 6.17.0-1020-azure
+**Image Version**: 20260810.271.1
+**Kernel Version**: 6.17.0-1022-azure
 
 ## Overview
 
@@ -14,14 +14,14 @@ The runner image is maintained by GitHub in the [actions/runner-images](https://
 
 ## Recent Changes
 
-> **Image updated to version 20260720.247.2** (July 2026). Key updates include: Kernel updated to 6.17.0-1020-azure, Go cached versions updated to 1.24.13/1.25.12/1.26.5, Node.js cached versions updated to 22.23.1/24.18.0, Ruby cached versions updated to 3.2.11/3.3.12/3.4.10/4.0.6, Python cached versions updated to 3.10.20/3.11.15/3.12.13/3.13.14/3.14.6, GitHub CLI updated to 2.96.0, Selenium Server 4.46.0, Android NDK 29.0.14206865 added. Also refreshed: AWS CLI 2.36.2, Azure CLI 2.88.0, Google Cloud CLI 576.0.0, Rust 1.97.1, Kotlin 2.4.10, Gradle 9.6.1, Bazel 9.2.0, kubectl 1.36.2, helm 3.21.3, kind 0.32.0, PowerShell 7.6.3.
+> **Image updated to version 20260810.271.1** (August 2026). Key updates include: Kernel updated to 6.17.0-1022-azure, Go cached versions unchanged at 1.24.13/1.25.12/1.26.5, Node.js cached versions updated to 22.23.2/24.19.0, GitHub CLI updated to 2.97.0, Git updated to 2.54.0, Docker Buildx updated to 0.36.1, Podman updated to 5.8.4, Gradle updated to 9.7.0, Lerna updated to 10.0.0, GHCup updated to 0.2.6.2, Stack updated to 3.11.1, PowerShell updated to 7.6.4. Also refreshed: AWS CLI 2.36.20, Azure CLI 2.89.0, Google Cloud CLI 579.0.0, Rust 1.97.1 (unchanged), Kotlin 2.4.10 (unchanged), Bazel 9.2.0 (unchanged), kubectl 1.36.3, helm 3.21.3 (unchanged), kind 0.32.0 (unchanged), Chrome/Chromium/Edge updated to 151.x, Firefox updated to 153.0.3. Deprecation notice: Ubuntu 22 based runner images begin deprecation September 17th; Ubuntu 26.04 and Ubuntu 26.04 Arm now available as public preview.
 
 ## Included Software Summary
 
 The Ubuntu 24.04 runner includes:
 - **Operating System**: Ubuntu 24.04 LTS with Linux kernel 6.17.0
 - **Language Runtimes**: Node.js, Python, Ruby, Go, Java, PHP, Rust, Swift, Kotlin, Julia, and more
-- **Container Tools**: Docker 28.0.4, Docker Compose 2.38.2, Podman, Buildah, Skopeo
+- **Container Tools**: Docker 28.0.4, Docker Compose 2.38.2, Podman 5.8.4, Buildah, Skopeo
 - **Build Tools**: CMake, Make, Gradle, Maven, Ant, Bazel
 - **Databases**: PostgreSQL 16.14, MySQL 8.0.46, SQLite 3.45.1
 - **CI/CD Tools**: GitHub CLI, Azure CLI, AWS CLI, Google Cloud CLI
@@ -31,28 +31,28 @@ The Ubuntu 24.04 runner includes:
 ## Operating System
 
 - **Distribution**: Ubuntu 24.04 LTS (Noble Numbat)
-- **Kernel**: Linux 6.17.0-1020-azure
+- **Kernel**: Linux 6.17.0-1022-azure
 - **Architecture**: x86_64
-- **Systemd Version**: 255.4-1ubuntu8.16
+- **Systemd Version**: 255.4-1ubuntu8.17
 
 ## Language Runtimes
 
 ### Node.js
-- **Available Versions**: 22.23.1, 24.18.0 (managed via n)
-- **Default Version**: 24.x (system default in cached PATH)
+- **Available Versions**: 22.23.2, 24.19.0 (managed via n)
+- **Default Version**: 22.23.2 (system installed)
 - **Package Managers**:
-  - npm: 10.x
+  - npm: 10.9.8
   - yarn: 1.22.22
   - pnpm (via npm install)
-- **Version Manager**: nvm 0.40.4
+- **Version Manager**: nvm 0.40.6
 
 ### Python
 - **Installed Version**: 3.12.3 (system default)
-- **Cached Versions**: 3.10.20, 3.11.15, 3.12.13, 3.13.14, 3.14.6
+- **Cached Versions**: 3.10.20, 3.11.15, 3.12.13, 3.13.15, 3.14.7
 - **PyPy Versions**: 3.9.19, 3.10.16, 3.11.15
   - pip: 24.0
   - pip3: 24.0
-  - pipx: 1.16.0
+  - pipx: 1.16.6
 - **Additional Tools**: Miniconda 26.5.3
 
 ### Ruby
@@ -67,11 +67,11 @@ The Ubuntu 24.04 runner includes:
 
 ### Java
 Multiple Java versions are pre-installed:
-- **Java 8**: 8.0.492+9 (JAVA_HOME_8_X64)
-- **Java 11**: 11.0.31+11 (JAVA_HOME_11_X64)
-- **Java 17**: 17.0.19+10 (default) (JAVA_HOME_17_X64)
-- **Java 21**: 21.0.11+10 (JAVA_HOME_21_X64)
-- **Java 25**: 25.0.3+9 (JAVA_HOME_25_X64)
+- **Java 8**: 8.0.502+7 (JAVA_HOME_8_X64)
+- **Java 11**: 11.0.32+9 (JAVA_HOME_11_X64)
+- **Java 17**: 17.0.20+8 (default) (JAVA_HOME_17_X64)
+- **Java 21**: 21.0.12+8 (JAVA_HOME_21_X64)
+- **Java 25**: 25.0.4+7 (JAVA_HOME_25_X64)
 
 ### PHP
 - **PHP Version**: 8.3.6
@@ -103,16 +103,16 @@ Multiple Java versions are pre-installed:
 - **Client Version**: 28.0.4
 - **Server Version**: 28.0.4
 - **Docker Compose**: 2.38.2
-- **Docker Buildx**: 0.35.0
+- **Docker Buildx**: 0.36.1
 - **Credential Helpers**: Amazon ECR Credential Helper 0.12.0
 
 ### Alternative Container Tools
-- **Podman**: 4.9.3
+- **Podman**: 5.8.4
 - **Buildah**: 1.33.7
 - **Skopeo**: 1.13.3
 
 ### Kubernetes Tools
-- **kubectl**: 1.36.2
+- **kubectl**: 1.36.3
 - **helm**: 3.21.3
 - **minikube**: 1.38.1
 - **kind**: 0.32.0
@@ -132,15 +132,15 @@ Multiple Java versions are pre-installed:
 ## Project Management & Build Systems
 
 - **Maven**: 3.9.16
-- **Gradle**: 9.6.1
+- **Gradle**: 9.7.0
 - **Ant**: 1.10.14
-- **Lerna**: 9.0.7
+- **Lerna**: 10.0.0
 
 ### Haskell Build Tools
 - **Cabal**: 3.16.1.0
 - **GHC**: 9.14.1
-- **GHCup**: 0.1.50.2
-- **Stack**: 3.9.3
+- **GHCup**: 0.2.6.2
+- **Stack**: 3.11.1
 
 ## Databases & Services
 
@@ -177,41 +177,41 @@ Multiple Java versions are pre-installed:
 ## CI/CD Tools
 
 ### GitHub CLI
-- **Version**: 2.96.0
+- **Version**: 2.97.0
 - **Installed**: Pre-configured and ready to use
 
 ### Cloud Provider CLIs
-- **AWS CLI**: 2.36.2
-  - AWS SAM CLI: 1.163.0
+- **AWS CLI**: 2.36.20
+  - AWS SAM CLI: 1.165.0
   - AWS CLI Session Manager Plugin: 1.2.835.0
-- **Azure CLI**: 2.88.0
+- **Azure CLI**: 2.89.0
   - Azure DevOps Extension: 1.0.6
-- **Google Cloud CLI**: 576.0.0
+- **Google Cloud CLI**: 579.0.0
 
 ### Infrastructure as Code
 - **Terraform**: Not pre-installed
-- **Pulumi**: 3.253.0
-- **Ansible**: 2.21.2
-- **Packer**: 1.15.4
-- **Bicep**: 0.45.15
+- **Pulumi**: 3.256.0
+- **Ansible**: 2.21.3
+- **Packer**: 1.16.0
+- **Bicep**: 0.46.1
 
 ### Other DevOps Tools
 - **Fastlane**: 2.237.0
-- **CodeQL Action Bundle**: 2.26.1
+- **CodeQL Action Bundle**: 2.26.2
 
 ## Browsers and Testing Tools
 
 ### Browsers
-- **Google Chrome**: 150.x (stable)
-- **Chromium**: 150.x
-- **Microsoft Edge**: 150.x (stable)
-- **Mozilla Firefox**: 152.0.4
+- **Google Chrome**: 151.x (stable)
+- **Chromium**: 151.x
+- **Microsoft Edge**: 151.x (stable)
+- **Mozilla Firefox**: 153.0.3
 
 ### Browser Drivers
-- **ChromeDriver**: 150.x
-- **Microsoft Edge WebDriver**: 150.x
-- **Geckodriver**: 0.37.0
-- **Selenium Server**: 4.46.0
+- **ChromeDriver**: 151.x
+- **Microsoft Edge WebDriver**: 151.x
+- **Geckodriver**: 0.37.1
+- **Selenium Server**: 4.47.0
 
 ### Environment Variables
 | Variable | Value |
@@ -228,10 +228,10 @@ Multiple Java versions are pre-installed:
 
 ## PowerShell Tools
 
-- **PowerShell**: 7.6.3
+- **PowerShell**: 7.6.4
 - **PowerShell Modules**:
   - Az: 15.6.1
-  - Microsoft.Graph: 2.38.1
+  - Microsoft.Graph: 2.39.0
   - Pester: 5.9.0
   - PSScriptAnalyzer: 1.25.0
 
@@ -240,8 +240,8 @@ Multiple Java versions are pre-installed:
 ### Android SDK Components
 - **Command Line Tools**: 12.0
 - **Build-tools**: 37.0.0, 36.0.0, 36.1.0, 35.0.0, 35.0.1, 34.0.0
-- **Platform-Tools**: 37.0.0
-- **SDK Platforms**: android-37.1, android-37.0, android-36.1, android-36, android-35, android-34 (and ext variants)
+- **Platform-Tools**: 37.0.1
+- **SDK Platforms**: android-37.2-beta2, android-37.2-beta1, android-37.1, android-37.0, android-36.1, android-36, android-35, android-34 (and ext variants)
 - **CMake**: 3.31.5, 4.1.2
 - **NDK**: 27.3.13750724 (default), 28.2.13676358, 29.0.14206865
 ### Environment Variables
@@ -257,8 +257,8 @@ Multiple Java versions are pre-installed:
 ## System Utilities
 
 ### Package Managers
-- **Homebrew**: 6.0.11 (installed at /home/linuxbrew, not in PATH by default)
-- **Vcpkg**: Installed from commit a51bb4d143
+- **Homebrew**: 6.0.16 (installed at /home/linuxbrew, not in PATH by default)
+- **Vcpkg**: Installed from commit ddd110b8a0
 - **Miniconda**: 26.5.3
 
 ### Version Control
@@ -282,7 +282,7 @@ Multiple Java versions are pre-installed:
 - **jq**: 1.7.1 (JSON processor)
 - **yq**: 4.53.3 (YAML processor)
 - **yamllint**: 1.38.0
-- **curl**: 8.5.0-2ubuntu10.10
+- **curl**: 8.5.0-2ubuntu10.11
 - **wget**: 1.21.4
 - **rsync**: 3.2.7
 - **aria2**: 1.37.0 (download utility)
@@ -781,7 +781,7 @@ RUN pip install \
 ## References
 
 - **Runner Image Repository**: https://github.com/actions/runner-images
-- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md
+- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260810.271/images/ubuntu/Ubuntu2404-Readme.md
 - **Ubuntu Server Documentation**: https://ubuntu.com/server/docs
 - **Docker Documentation**: https://docs.docker.com/
 - **GitHub Actions Documentation**: https://docs.github.com/en/actions

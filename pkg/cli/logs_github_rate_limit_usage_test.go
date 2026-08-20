@@ -14,6 +14,7 @@ import (
 // TestParseGitHubRateLimitsFileBasic verifies that a well-formed JSONL file is parsed
 // correctly and produces the expected aggregated statistics.
 func TestParseGitHubRateLimitsFileBasic(t *testing.T) {
+	t.Parallel()
 	content := `{"timestamp":"2026-04-05T08:00:00.000Z","source":"rate_limit_api","operation":"check_rate_limit_start","resource":"core","limit":5000,"remaining":4900,"used":100,"reset":"2026-04-05T09:00:00.000Z"}
 {"timestamp":"2026-04-05T08:01:00.000Z","source":"response_headers","operation":"issues.listComments","resource":"core","limit":5000,"remaining":4890,"used":110,"reset":"2026-04-05T09:00:00.000Z"}
 {"timestamp":"2026-04-05T08:02:00.000Z","source":"response_headers","operation":"issues.createComment","resource":"core","limit":5000,"remaining":4880,"used":120,"reset":"2026-04-05T09:00:00.000Z"}
@@ -41,6 +42,7 @@ func TestParseGitHubRateLimitsFileBasic(t *testing.T) {
 
 // TestParseGitHubRateLimitsFileEmpty verifies that an empty file returns nil without error.
 func TestParseGitHubRateLimitsFileEmpty(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "github_rate_limits.jsonl")
 	require.NoError(t, os.WriteFile(path, []byte(""), 0600), "should create empty file")
@@ -53,6 +55,7 @@ func TestParseGitHubRateLimitsFileEmpty(t *testing.T) {
 // TestParseGitHubRateLimitsFileMissingResource verifies that entries without a resource
 // field are bucketed under "core".
 func TestParseGitHubRateLimitsFileMissingResource(t *testing.T) {
+	t.Parallel()
 	content := `{"timestamp":"2026-04-05T08:01:00.000Z","source":"response_headers","operation":"fetch","limit":5000,"remaining":4999,"used":1}
 {"timestamp":"2026-04-05T08:02:00.000Z","source":"response_headers","operation":"fetch","limit":5000,"remaining":4998,"used":2}
 `
@@ -71,6 +74,7 @@ func TestParseGitHubRateLimitsFileMissingResource(t *testing.T) {
 // TestParseGitHubRateLimitsFileWindowReset verifies that a rate-limit window reset during
 // a run is handled gracefully by falling back to lastUsed as the consumption estimate.
 func TestParseGitHubRateLimitsFileWindowReset(t *testing.T) {
+	t.Parallel()
 	// Simulate a window reset: used goes from 4900 down to 5 (new window)
 	content := `{"timestamp":"2026-04-05T08:01:00.000Z","source":"response_headers","operation":"issues.get","resource":"core","limit":5000,"remaining":100,"used":4900,"reset":"2026-04-05T09:00:00.000Z"}
 {"timestamp":"2026-04-05T09:00:05.000Z","source":"response_headers","operation":"issues.get","resource":"core","limit":5000,"remaining":4995,"used":5,"reset":"2026-04-05T10:00:00.000Z"}
@@ -92,6 +96,7 @@ func TestParseGitHubRateLimitsFileWindowReset(t *testing.T) {
 // rate_limit_api snapshot entries (no response_headers) returns zero requests made but
 // still captures remaining/limit for context.
 func TestParseGitHubRateLimitsFileOnlyAPISnapshots(t *testing.T) {
+	t.Parallel()
 	content := `{"timestamp":"2026-04-05T08:00:00.000Z","source":"rate_limit_api","operation":"startup","resource":"core","limit":5000,"remaining":4850,"used":150,"reset":"2026-04-05T09:00:00.000Z"}
 {"timestamp":"2026-04-05T08:30:00.000Z","source":"rate_limit_api","operation":"shutdown","resource":"core","limit":5000,"remaining":4840,"used":160,"reset":"2026-04-05T09:00:00.000Z"}
 `
@@ -111,6 +116,7 @@ func TestParseGitHubRateLimitsFileOnlyAPISnapshots(t *testing.T) {
 // TestParseGitHubRateLimitsFileOnlyAPISnapshotsWindowReset verifies snapshot-only
 // runs still produce a lower-bound consumption value when the window resets.
 func TestParseGitHubRateLimitsFileOnlyAPISnapshotsWindowReset(t *testing.T) {
+	t.Parallel()
 	content := `{"timestamp":"2026-04-05T08:00:00.000Z","source":"rate_limit_api","operation":"startup","resource":"core","limit":5000,"remaining":100,"used":4900,"reset":"2026-04-05T09:00:00.000Z"}
 {"timestamp":"2026-04-05T09:00:10.000Z","source":"rate_limit_api","operation":"shutdown","resource":"core","limit":5000,"remaining":4995,"used":5,"reset":"2026-04-05T10:00:00.000Z"}
 `
@@ -131,6 +137,7 @@ func TestParseGitHubRateLimitsFileOnlyAPISnapshotsWindowReset(t *testing.T) {
 // exactly one rate_limit_api snapshot (no response_headers) produces CoreConsumed==0
 // with provenance tagged as rate_limit_api_single_snapshot.
 func TestParseGitHubRateLimitsFileOnlyAPISnapshotSingle(t *testing.T) {
+	t.Parallel()
 	content := `{"timestamp":"2026-04-05T08:00:00.000Z","source":"rate_limit_api","operation":"startup","resource":"core","limit":5000,"remaining":4850,"used":150,"reset":"2026-04-05T09:00:00.000Z"}
 `
 	dir := t.TempDir()
@@ -151,6 +158,7 @@ func TestParseGitHubRateLimitsFileOnlyAPISnapshotSingle(t *testing.T) {
 // TestFindGitHubRateLimitsFileAbsent verifies that findGitHubRateLimitsFile returns
 // an empty string when the file does not exist.
 func TestFindGitHubRateLimitsFileAbsent(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	result := findGitHubRateLimitsFile(dir)
 	assert.Empty(t, result, "should return empty string when file is absent")
@@ -159,6 +167,7 @@ func TestFindGitHubRateLimitsFileAbsent(t *testing.T) {
 // TestFindGitHubRateLimitsFileRoot verifies that the file is found when placed at the
 // root of the run directory (the standard location after artifact flattening).
 func TestFindGitHubRateLimitsFileRoot(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "github_rate_limits.jsonl")
 	require.NoError(t, os.WriteFile(path, []byte(""), 0600), "should create file")
@@ -170,6 +179,7 @@ func TestFindGitHubRateLimitsFileRoot(t *testing.T) {
 // TestFindGitHubRateLimitsFileNested verifies that the file is found via walk when
 // placed in a subdirectory.
 func TestFindGitHubRateLimitsFileNested(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	subDir := filepath.Join(dir, "activation")
 	require.NoError(t, os.MkdirAll(subDir, 0750), "should create subdirectory")
@@ -183,6 +193,7 @@ func TestFindGitHubRateLimitsFileNested(t *testing.T) {
 // TestGitHubRateLimitUsageResourceRows verifies that ResourceRows returns rows sorted
 // by requests made in descending order.
 func TestGitHubRateLimitUsageResourceRows(t *testing.T) {
+	t.Parallel()
 	usage := &GitHubRateLimitUsage{
 		TotalRequestsMade: 15,
 		Resources: []*GitHubRateLimitResourceUsage{
