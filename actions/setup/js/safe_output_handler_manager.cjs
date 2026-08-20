@@ -290,6 +290,12 @@ function loadConfig() {
 const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "submit_pull_request_review"]);
 
 /**
+ * @type {Map<string, string>} Records why a configured handler failed to load, keyed by safe output type.
+ * Populated by loadHandlers() and surfaced when a message is skipped because no handler was loaded.
+ */
+const handlerLoadErrors = new Map();
+
+/**
  * Wrap a handler so project-safe-output execution can temporarily bind global.github
  * to the handler-specific authenticated client.
  *
@@ -330,6 +336,8 @@ function wrapWithClientRebinding(type, messageHandler, handlerGithubClient) {
  */
 async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMentionAliases = []) {
   const messageHandlers = new Map();
+
+  handlerLoadErrors.clear();
 
   core.info("Loading and initializing safe output handlers based on configuration...");
 
@@ -381,6 +389,7 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           messageHandlers.set(type, wrapWithClientRebinding(type, messageHandler, handlerGithubClient));
           core.info(`✓ Loaded and initialized handler for: ${type}`);
         } else {
+          handlerLoadErrors.set(type, "handler module does not export a main function");
           core.warning(`Handler module ${type} does not export a main function`);
         }
       } catch (error) {
@@ -390,6 +399,7 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           throw error;
         }
         // For other errors (e.g., module not found), log warning and continue
+        handlerLoadErrors.set(type, errorMessage);
         core.warning(`Failed to load handler for ${type}: ${errorMessage}`);
       }
     } else {
@@ -434,11 +444,13 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             core.info(`✓ Loaded and initialized custom script handler for: ${scriptType}`);
           }
         } else {
+          handlerLoadErrors.set(scriptType, "custom script module does not export a main function");
           core.warning(`Custom script handler module ${scriptType} does not export a main function — skipping`);
         }
       } catch (error) {
         // Non-fatal: log a warning and continue loading the remaining handlers. A broken
         // custom script should not prevent built-in or other custom handlers from running.
+        handlerLoadErrors.set(scriptType, getErrorMessage(error));
         core.warning(`Failed to load custom script handler for ${scriptType}: ${getErrorMessage(error)} — this handler will be skipped`);
       }
     }
@@ -465,9 +477,11 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
             core.info(`✓ Loaded and initialized custom action handler for: ${actionType}`);
           }
         } else {
+          handlerLoadErrors.set(actionType, "custom action module does not export a main function");
           core.warning(`Custom action handler module does not export a main function — skipping ${actionType}`);
         }
       } catch (error) {
+        handlerLoadErrors.set(actionType, getErrorMessage(error));
         core.warning(`Failed to load custom action handler for ${actionType}: ${getErrorMessage(error)} — this handler will be skipped`);
       }
     }
@@ -956,14 +970,16 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       }
 
       // Unknown message type - warn the user
+      const loadError = handlerLoadErrors.get(messageType);
+      const loadErrorSuffix = loadError ? ` The handler was configured but failed to load: ${loadError}` : "";
       core.warning(
-        `⚠️ No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.`
+        `⚠️ No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.${loadErrorSuffix}`
       );
       results.push({
         type: messageType,
         messageIndex: i,
         success: false,
-        error: `No handler loaded for type '${messageType}'`,
+        error: loadError ? `No handler loaded for type '${messageType}': ${loadError}` : `No handler loaded for type '${messageType}'`,
       });
       continue;
     }

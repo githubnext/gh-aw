@@ -679,6 +679,20 @@ describe("Safe Output Handler Manager", () => {
       // Handler is absent only because the file doesn't exist in the test env (warning, not error)
       expect(handlers.has("my_script")).toBe(false);
     });
+
+    it("should surface the load failure reason when a message has no handler", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({
+        my_script: "safe_output_script_my_script.cjs",
+      });
+
+      const handlers = await loadHandlers({}, {});
+      const result = await processMessages(handlers, [{ type: "my_script" }]);
+
+      expect(result.results[0].success).toBe(false);
+      expect(result.results[0].error).toContain("No handler loaded for type 'my_script'");
+      expect(result.results[0].error).toContain("Cannot find module");
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("The handler was configured but failed to load"));
+    });
   });
 
   describe("processMessages", () => {
@@ -2192,6 +2206,45 @@ describe("Safe Output Handler Manager", () => {
 
       expect(global.core.setOutput).toHaveBeenCalledWith("created_issue_number", "7");
       expect(global.core.setOutput).toHaveBeenCalledWith("created_issue_url", "https://github.com/owner/repo/issues/7");
+    });
+  });
+
+  describe("handler module runtime dependencies", () => {
+    // Safe output handler modules are copied to the runner temp directory without a
+    // node_modules folder, so requiring an npm package makes the handler fail to load
+    // at runtime with "Cannot find module" and silently skips its messages.
+    it("does not require npm packages from any handler module in HANDLER_MAP", () => {
+      const jsDir = new URL(".", import.meta.url).pathname;
+      const managerSource = fs.readFileSync(`${jsDir}safe_output_handler_manager.cjs`, "utf8");
+      const handlerMapBlock = managerSource.match(/const HANDLER_MAP = \{([\s\S]*?)\n\};/);
+      expect(handlerMapBlock).not.toBeNull();
+
+      const handlerFiles = [...handlerMapBlock[1].matchAll(/"(\.\/[^"]+\.cjs)"/g)].map(match => match[1].slice(2));
+      expect(handlerFiles).toContain("approve_workflow_run.cjs");
+
+      const builtinModules = new Set(require("module").builtinModules);
+      const visited = new Set();
+      const queue = [...handlerFiles];
+      /** @type {string[]} */
+      const externalRequires = [];
+
+      while (queue.length > 0) {
+        const file = queue.shift();
+        if (visited.has(file) || !fs.existsSync(`${jsDir}${file}`)) continue;
+        visited.add(file);
+
+        const source = fs.readFileSync(`${jsDir}${file}`, "utf8");
+        for (const match of source.matchAll(/require\("([^"]+)"\)/g)) {
+          const specifier = match[1];
+          if (specifier.startsWith("./")) {
+            queue.push(specifier.slice(2));
+          } else if (!specifier.startsWith("node:") && !builtinModules.has(specifier)) {
+            externalRequires.push(`${file}: ${specifier}`);
+          }
+        }
+      }
+
+      expect(externalRequires).toEqual([]);
     });
   });
 
