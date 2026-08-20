@@ -703,7 +703,7 @@ func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig
 
 	var engineData any
 	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
-		return nil, "", fmt.Errorf("failed to parse engine JSON: %w", err)
+		return nil, "", fmt.Errorf("engine configuration must contain valid JSON: %w", err)
 	}
 
 	// Use the existing ExtractEngineConfig function by creating a temporary frontmatter map
