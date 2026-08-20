@@ -17,7 +17,9 @@ var pluginInstallationLog = logger.New("workflow:plugin_installation")
 // Engines whose CLI exposes a plugin installation command additionally run
 // "<Command> <InstallArgs...> <plugin path>" for each plugin. Engines that discover
 // plugins from a well-known workspace folder instead set Directory, and each plugin
-// is staged into "<Directory>/<plugin name>".
+// is staged into "<Directory>/<plugin name>". Engines whose installation flow does not
+// fit either shape (for example one that requires resolving the plugin's own manifest
+// name) instead set CustomInstall.
 type pluginInstallSpec struct {
 	// Command is the engine CLI executable used for CLI-based installation.
 	Command string
@@ -27,6 +29,9 @@ type pluginInstallSpec struct {
 	// workspace-relative (for example ".kiro/powers") or home-relative
 	// (for example "~/.cursor/plugins/local").
 	Directory string
+	// CustomInstall, when set, replaces the Directory/Command handling above and is
+	// invoked once per checked-out plugin to produce any additional installation steps.
+	CustomInstall func(parsed parsedSkillRefSpec, checkoutPath, installPath string, index int) []GitHubActionStep
 }
 
 // pluginDirectoryRegexp restricts plugin staging directories to a safe character set so
@@ -80,6 +85,18 @@ func pluginCheckoutSubpath(parsed parsedSkillRefSpec, index int) string {
 	return path.Join(pluginCheckoutPath(index), strings.Join(repoParts[2:], "/"))
 }
 
+// pluginRepoSubpath returns the path of the plugin directory relative to its checked-out
+// repository root, in the "./..." form expected by tooling that references a plugin by a
+// path relative to another root (for example a generated Codex marketplace entry). It
+// returns "." when the plugin is the repository root itself.
+func pluginRepoSubpath(parsed parsedSkillRefSpec) string {
+	repoParts := strings.Split(parsed.repoPath, "/")
+	if len(repoParts) <= 2 {
+		return "."
+	}
+	return "./" + strings.Join(repoParts[2:], "/")
+}
+
 // pluginStagingName returns a collision-safe destination name for staging a
 // plugin into a directory-based engine's plugin folder. It uses the full
 // sub-path beneath "owner/repo" (joined with "__") so that two plugins with
@@ -126,6 +143,11 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 			"          path: " + checkoutPath,
 			"          persist-credentials: false",
 		})
+
+		if spec.CustomInstall != nil {
+			steps = append(steps, spec.CustomInstall(parsed, checkoutPath, installPath, i)...)
+			continue
+		}
 
 		if spec.Directory != "" {
 			stageDirectory, ok := resolvePluginDirectory(spec.Directory)

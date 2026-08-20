@@ -119,11 +119,21 @@ func TestValidatePluginSupport(t *testing.T) {
 		Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
 	}))
 
-	err := compiler.validatePluginSupport(&WorkflowData{
+	codex := NewCodexEngine()
+	assert.True(t, codex.GetCapabilities().Plugins)
+	_, implementsInstaller = any(codex).(PluginInstallationProvider)
+	assert.True(t, implementsInstaller)
+
+	require.NoError(t, compiler.validatePluginSupport(&WorkflowData{
 		AI:      "codex",
 		Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
+	}))
+
+	err := compiler.validatePluginSupport(&WorkflowData{
+		AI:      "gemini",
+		Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
 	})
-	require.ErrorContains(t, err, `plugins are not supported by engine "codex"`)
+	require.ErrorContains(t, err, `plugins are not supported by engine "gemini"`)
 }
 
 func TestPluginsEmitExperimentalWarning(t *testing.T) {
@@ -166,7 +176,7 @@ Shared plugin configuration.
 	workflowPath := filepath.Join(tmpDir, "workflow.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
 on: workflow_dispatch
-engine: codex
+engine: gemini
 imports:
   - shared.md
 ---
@@ -175,7 +185,7 @@ Run the workflow.
 `), 0o644))
 
 	err := NewCompiler(WithVersion("dev")).CompileWorkflow(workflowPath)
-	require.ErrorContains(t, err, `plugins are not supported by engine "codex"`)
+	require.ErrorContains(t, err, `plugins are not supported by engine "gemini"`)
 }
 
 func TestCompileWorkflowInstallsImportedPlugins(t *testing.T) {
@@ -399,6 +409,56 @@ func TestClaudePluginInstallation(t *testing.T) {
 	t.Run("adds no plugin flags without plugins", func(t *testing.T) {
 		args, _, _ := engine.buildClaudeCliArgs(&WorkflowData{}, nil, "log.txt")
 		assert.NotContains(t, strings.Join(args, " "), "--plugin-dir")
+	})
+}
+
+func TestCodexPluginInstallation(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("registers a pinned root plugin as a local marketplace", func(t *testing.T) {
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 2)
+		checkout := strings.Join(steps[0], "\n")
+		assert.Contains(t, checkout, "name: Checkout agent plugin octo-org/agent-plugin")
+		assert.Contains(t, checkout, "repository: octo-org/agent-plugin")
+		assert.Contains(t, checkout, "path: .gh-aw-plugins/plugin-0")
+
+		install := strings.Join(steps[1], "\n")
+		assert.Contains(t, install, "name: Install agent plugin octo-org/agent-plugin")
+		assert.Contains(t, install, "jq -r '.name // empty' \".gh-aw-plugins/plugin-0/plugin.json\"")
+		assert.Contains(t, install, `--arg path "."`)
+		assert.Contains(t, install, "codex plugin marketplace add \"./.gh-aw-plugins/plugin-0\"")
+		assert.Contains(t, install, `codex plugin add "$PLUGIN_NAME@gh-aw-plugin-0"`)
+	})
+
+	t.Run("registers a plugin from a repository subpath", func(t *testing.T) {
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugins/plugins/example@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 2)
+		install := strings.Join(steps[1], "\n")
+		assert.Contains(t, install, "jq -r '.name // empty' \".gh-aw-plugins/plugin-0/plugins/example/plugin.json\"")
+		assert.Contains(t, install, `--arg path "./plugins/example"`)
+	})
+
+	t.Run("uses a custom engine command", func(t *testing.T) {
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			EngineConfig: &EngineConfig{Command: "/opt/codex"},
+			Plugins:      []string{"octo-org/agent-plugin@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 2)
+		install := strings.Join(steps[1], "\n")
+		assert.Contains(t, install, "/opt/codex plugin marketplace add")
+		assert.Contains(t, install, "/opt/codex plugin add")
+	})
+
+	t.Run("returns no steps without plugins", func(t *testing.T) {
+		assert.Empty(t, engine.GetPluginInstallationSteps(&WorkflowData{}))
 	})
 }
 
