@@ -146,6 +146,14 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 ### Getting Workflows
 
+If you are choosing between the similar setup commands, use `add-wizard` for guided interactive installation of an existing workflow, `add` for direct or scripted installation of an existing workflow, and `new` to scaffold a fresh workflow you plan to author.
+
+| Command | Best fit |
+|---------|----------|
+| [`gh aw add-wizard`](#add-wizard) | Guided, interactive setup for an existing workflow, including prompts for engine auth and secrets |
+| [`gh aw add`](#add) | Direct, non-interactive installation of an existing local, remote, or packaged workflow |
+| [`gh aw new`](#new) | Scaffold a new workflow template in this repository before writing custom instructions |
+
 #### `init`
 
 Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts; see [Initializing for non-Copilot engines](#initializing-for-non-copilot-engines).
