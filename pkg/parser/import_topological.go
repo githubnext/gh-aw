@@ -7,7 +7,6 @@ import (
 	"errors"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -74,7 +73,7 @@ func buildImportDependencies(imports []string, baseDir string, cache *ImportCach
 }
 
 func resolveNestedImportPaths(importPath, baseDir string, cache *ImportCache) ([]string, error) {
-	filePath := stripImportSection(importPath)
+	filePath, _ := splitPathAndSection(importPath)
 	fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
 	if err != nil {
 		return nil, err
@@ -83,35 +82,11 @@ func resolveNestedImportPaths(importPath, baseDir string, cache *ImportCache) ([
 	if err != nil {
 		return nil, err
 	}
-	frontmatter, err := extractFrontmatterForTopologicalSort(fullPath, content)
+	result, err := extractFrontmatterForImport(fullPath, content)
 	if err != nil {
 		return nil, err
 	}
-	return extractImportPaths(frontmatter), nil
-}
-
-func stripImportSection(importPath string) string {
-	if strings.Contains(importPath, "#") {
-		parts := strings.SplitN(importPath, "#", 2)
-		return parts[0]
-	}
-	return importPath
-}
-
-func extractFrontmatterForTopologicalSort(fullPath string, content []byte) (map[string]any, error) {
-	var (
-		result *FrontmatterResult
-		err    error
-	)
-	if strings.HasPrefix(fullPath, BuiltinPathPrefix) {
-		result, err = ExtractFrontmatterFromBuiltinFile(fullPath, content)
-	} else {
-		result, err = ExtractFrontmatterFromContent(string(content))
-	}
-	if err != nil {
-		return nil, err
-	}
-	return result.Frontmatter, nil
+	return extractImportPaths(result.Frontmatter), nil
 }
 
 func calculateInDegree(imports []string, dependencies map[string][]string, allImportsSet map[string]struct {

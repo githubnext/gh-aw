@@ -37,6 +37,23 @@
  */
 
 /**
+ * Matches a CommonMark fenced-code delimiter line.
+ * @param {string} line
+ * @returns {RegExpMatchArray | null}
+ */
+function matchFenceLine(line) {
+  const match = line.match(/^( {0,3})(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
+  if (!match) {
+    return null;
+  }
+  const infoString = `${match[3] || ""}${match[4] || ""}`;
+  if (match[2][0] === "`" && infoString.includes("`")) {
+    return null;
+  }
+  return match;
+}
+
+/**
  * Balance markdown code regions by attempting to fix mismatched fences.
  *
  * The algorithm:
@@ -106,7 +123,7 @@ function balanceCodeRegions(markdown) {
   for (let i = 0; i < lines.length; i++) {
     if (isInXmlComment(i)) continue;
 
-    const fenceMatch = lines[i].match(/^(\s*)(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
+    const fenceMatch = matchFenceLine(lines[i]);
     if (fenceMatch) {
       fences.push({
         lineIndex: i,
@@ -340,7 +357,7 @@ function isBalanced(markdown) {
   let openingFence = null;
 
   for (const line of lines) {
-    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
+    const fenceMatch = matchFenceLine(line);
 
     if (fenceMatch) {
       const fence = fenceMatch[2];
@@ -392,7 +409,7 @@ function countCodeRegions(markdown) {
   let openingFence = null;
 
   for (const line of lines) {
-    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
+    const fenceMatch = matchFenceLine(line);
 
     if (fenceMatch) {
       const fence = fenceMatch[2];

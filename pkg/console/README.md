@@ -61,6 +61,7 @@ The package is designed to adapt to the execution environment. Native builds det
 | `FormatVerboseMessage` | `func FormatVerboseMessage(message string) string` | Formats verbose output with a `»` prefix. |
 | `FormatWarningMessage` | `func FormatWarningMessage(message string) string` | Formats a warning message with a warning prefix. |
 | `FormatWarningMessageStderr` | `func FormatWarningMessageStderr(message string) string` | Formats a warning message for stderr styling. |
+| `(*SpinnerWrapper).IsEnabled` | `func (s *SpinnerWrapper) IsEnabled() bool` | WASM-only helper that reports spinner availability; always returns `false` in WASM builds. |
 | `IsAccessibleMode` | `func IsAccessibleMode() bool` | Returns whether accessibility mode should be enabled based on environment variables. |
 | `IsCancelled` | `func IsCancelled(err error) bool` | Reports whether an error represents user cancellation from a `huh` form. |
 | `LayoutEmphasisBox` | `func LayoutEmphasisBox(content string, color any) string` | Returns a simple emphasized block layout in WASM builds. |

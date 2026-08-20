@@ -672,7 +672,7 @@ func TestFetchAndSaveRemoteIncludes_PathTraversalRejected(t *testing.T) {
 	spec := &WorkflowSpec{
 		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
 	}
-	err := fetchAndSaveRemoteIncludes(t.Context(), "@include ../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch)
+	err := fetchAndSaveRemoteIncludesWithOptions(t.Context(), "@include ../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch, false)
 	require.Error(t, err)
 	require.NoFileExists(t, filepath.Join(tmpDir, ".github", "secrets", "evil.md"))
 }
@@ -690,7 +690,7 @@ func TestFetchAndSaveRemoteIncludes_NestedTraversalRejected(t *testing.T) {
 		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
 	}
 	// A path that doesn't start with "../" but still escapes via a sub-directory component.
-	err := fetchAndSaveRemoteIncludes(t.Context(), "@include subdir/../../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch)
+	err := fetchAndSaveRemoteIncludesWithOptions(t.Context(), "@include subdir/../../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch, false)
 	require.Error(t, err)
 	require.NoFileExists(t, filepath.Join(tmpDir, ".github", "secrets", "evil.md"))
 }
@@ -707,7 +707,7 @@ func TestFetchAndSaveRemoteIncludes_SharedIncludeStaysUnderSharedDir(t *testing.
 	spec := &WorkflowSpec{
 		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
 	}
-	err := fetchAndSaveRemoteIncludes(t.Context(), "@include shared/helper.md\n", spec, targetDir, false, false, nil, mockFetch)
+	err := fetchAndSaveRemoteIncludesWithOptions(t.Context(), "@include shared/helper.md\n", spec, targetDir, false, false, nil, mockFetch, false)
 	require.NoError(t, err)
 	assert.FileExists(t, filepath.Join(tmpDir, ".github", "shared", "helper.md"))
 }

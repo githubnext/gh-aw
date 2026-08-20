@@ -12,6 +12,7 @@ import (
 
 // TestWriteSummaryFile tests the writeSummaryFile function
 func TestWriteSummaryFile(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 	summaryPath := filepath.Join(tmpDir, "test-summary.json")
@@ -87,6 +88,7 @@ func TestWriteSummaryFile(t *testing.T) {
 
 // TestWriteSummaryFileCreatesDirectory tests that parent directory is created
 func TestWriteSummaryFileCreatesDirectory(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 	summaryPath := filepath.Join(tmpDir, "subdir", "nested", "summary.json")
@@ -120,6 +122,7 @@ func TestWriteSummaryFileCreatesDirectory(t *testing.T) {
 
 // TestWriteSummaryFileWithEmptyPath tests that empty path skips writing
 func TestSummaryFileDisabling(t *testing.T) {
+	t.Parallel()
 	// This test verifies the behavior when summaryFile is empty string
 	// The actual skip logic is in the orchestrator, but we document the behavior here
 

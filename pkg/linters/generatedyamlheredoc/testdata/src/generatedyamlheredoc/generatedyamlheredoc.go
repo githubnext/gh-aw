@@ -11,6 +11,9 @@ func generatedWorkflowFragments() []string {
 		"<<EOF command\ncontent\nEOF\n",                   // want `generated workflow shell uses a heredoc; pass plain content through an environment variable to a JavaScript renderer instead \(do not base64 encode it\)`
 		"cat <<< \"$VALUE\"\n",
 		"echo $((1 << 2))\n",
+		"(( count << 1 ))\n",
+		"if (( a << 2 )); then\n",
+		"printf '%s\n' '((' && cat <<EOF\ncontent\nEOF\n", // want `generated workflow shell uses a heredoc; pass plain content through an environment variable to a JavaScript renderer instead \(do not base64 encode it\)`
 		`(?ms)<<\s*EOF`,
 		"echo no-heredoc\n",
 	}

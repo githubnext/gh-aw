@@ -480,10 +480,8 @@ func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 }
 
 func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
-	getActionPins()
-
 	var mcpgImages []string
-	for image := range cachedContainerPins {
+	for image := range getCachedActionPins().containers {
 		if strings.HasPrefix(image, "ghcr.io/github/gh-aw-mcpg:") {
 			mcpgImages = append(mcpgImages, image)
 		}
@@ -525,6 +523,16 @@ func TestGetActionPins_CacheCorrectnessOnRepeatedCalls(t *testing.T) {
 
 	require.NotEmpty(t, first, "Expected at least one action pin in embedded data")
 	assert.Equal(t, first, second, "Expected repeated calls to getActionPins() to return equal data (cache correctness)")
+}
+
+func TestGetCachedActionPins_InitializesCache(t *testing.T) {
+	cache := getCachedActionPins()
+
+	require.NotNil(t, cache, "Expected cache accessor to return initialized data")
+	assert.NotEmpty(t, cache.pins, "Expected cached action pins")
+	assert.NotNil(t, cache.byRepo, "Expected cached action pins by repository")
+	assert.NotNil(t, cache.containers, "Expected cached container pins")
+	assert.Same(t, cache, getCachedActionPins(), "Expected repeated cache access to return the same cache")
 }
 
 func TestResolveActionPinDynamically_SkipsForSHAInput(t *testing.T) {
