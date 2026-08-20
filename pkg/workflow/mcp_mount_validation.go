@@ -68,10 +68,10 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 			return fmt.Errorf("internal error: unsupported mount validation kind %d for tool %q mount %q", kind, toolName, mount)
 		}
 	})
-	if err != nil {
-		return err
+	if sourceErr != nil {
+		return sourceErr
 	}
-	return sourceErr
+	return err
 }
 
 func validateMCPMountSource(source string) error {
