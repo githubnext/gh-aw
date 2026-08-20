@@ -98,3 +98,4 @@
 {"run_id":"32081032093","timestamp":"2026-08-17T23:35:23.463Z","assignments":{"reasoning_depth":"single_pass"}}
 {"run_id":"32197746932","timestamp":"2026-08-18T23:35:03.111Z","assignments":{"reasoning_depth":"single_pass"}}
 {"run_id":"32313830115","timestamp":"2026-08-19T23:35:05.715Z","assignments":{"reasoning_depth":"iterative"}}
+{"run_id":"32429330769","timestamp":"2026-08-20T23:36:37.638Z","assignments":{"reasoning_depth":"iterative"}}
