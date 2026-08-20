@@ -588,6 +588,45 @@ func TestComputePropertyInjectionsNilCloseIssues(t *testing.T) {
 	assert.Empty(t, injections)
 }
 
+// TestComputePropertyInjectionsAllowedEventsSubmitPRReview verifies that a configured
+// allowed-events list narrows the submit_pull_request_review event enum in the tool schema.
+func TestComputePropertyInjectionsAllowedEventsSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"COMMENT"},
+		},
+	})
+
+	require.Contains(t, injections, "submit_pull_request_review")
+	prop, ok := injections["submit_pull_request_review"]["event"].(map[string]any)
+	require.True(t, ok, "event should be a property map")
+	assert.Equal(t, []string{"COMMENT"}, prop["enum"])
+}
+
+// TestComputePropertyInjectionsAllowedEventsMultipleSubmitPRReview verifies multiple allowed
+// events are all present in the narrowed enum.
+func TestComputePropertyInjectionsAllowedEventsMultipleSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"COMMENT", "REQUEST_CHANGES"},
+		},
+	})
+
+	prop, ok := injections["submit_pull_request_review"]["event"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, []string{"COMMENT", "REQUEST_CHANGES"}, prop["enum"])
+}
+
+// TestComputePropertyInjectionsNoAllowedEventsSubmitPRReview verifies that no injection
+// happens when allowed-events is not configured, so the static schema's full enum applies.
+func TestComputePropertyInjectionsNoAllowedEventsSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{},
+	})
+
+	assert.NotContains(t, injections, "submit_pull_request_review", "no allowed-events should not inject an event enum")
+}
+
 // TestPreprocessStateReasonListSlice verifies that a []any slice is converted to allowed-state-reason.
 func TestPreprocessStateReasonListSlice(t *testing.T) {
 	configData := map[string]any{

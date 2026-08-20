@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -338,6 +339,22 @@ func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[st
 					"description": "Optional closing state reason. Omit to use the configured default. Select 'duplicate' together with 'duplicate_of' to mark a native duplicate relationship.",
 				},
 			}
+		}
+	}
+
+	// submit_pull_request_review event: when allowed-events restricts the set of review
+	// decisions, narrow the tool schema's event enum to match so the agent cannot select
+	// an event that runtime policy will reject. This retains runtime enforcement as
+	// defense in depth while preventing the doomed call in the first place.
+	if safeOutputs.SubmitPullRequestReview != nil && len(safeOutputs.SubmitPullRequestReview.AllowedEvents) > 0 {
+		allowedEvents := safeOutputs.SubmitPullRequestReview.AllowedEvents
+		injections["submit_pull_request_review"] = map[string]any{
+			"event": map[string]any{
+				"type":        "string",
+				"enum":        allowedEvents,
+				"description": "Review decision. Restricted by allowed-events configuration to: " + strings.Join(allowedEvents, ", ") + ".",
+				"x-synonyms":  []string{"action"},
+			},
 		}
 	}
 
