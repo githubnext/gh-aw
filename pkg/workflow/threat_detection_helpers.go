@@ -151,6 +151,9 @@ func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *Wor
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.MaxAICredits != 0 {
 		d.EngineConfig.MaxAICredits = data.SafeOutputs.ThreatDetection.MaxAICredits
 	}
+	if d.EngineConfig.HarnessMaxRetries == "" {
+		d.EngineConfig.HarnessMaxRetries = "0"
+	}
 	return d
 }
 
@@ -177,12 +180,17 @@ func resolveExternalDetectorEngineConfig(data *WorkflowData, engineID string) *E
 	}
 	if data.EngineConfig != nil && (data.EngineConfig.ID == "" || data.EngineConfig.ID == engineID) {
 		return &EngineConfig{
-			ID:            engineID,
-			Version:       data.EngineConfig.Version,
-			Config:        data.EngineConfig.Config,
-			Args:          data.EngineConfig.Args,
-			HarnessScript: data.EngineConfig.HarnessScript,
-			Driver:        data.EngineConfig.Driver,
+			ID:                       engineID,
+			Version:                  data.EngineConfig.Version,
+			Config:                   data.EngineConfig.Config,
+			Args:                     data.EngineConfig.Args,
+			HarnessScript:            data.EngineConfig.HarnessScript,
+			Driver:                   data.EngineConfig.Driver,
+			HarnessMaxRetries:        data.EngineConfig.HarnessMaxRetries,
+			HarnessInitialDelayMs:    data.EngineConfig.HarnessInitialDelayMs,
+			HarnessBackoffMultiplier: data.EngineConfig.HarnessBackoffMultiplier,
+			HarnessMaxDelayMs:        data.EngineConfig.HarnessMaxDelayMs,
+			HarnessWatchdogTimeoutMs: data.EngineConfig.HarnessWatchdogTimeoutMs,
 		}
 	}
 	return &EngineConfig{ID: engineID}

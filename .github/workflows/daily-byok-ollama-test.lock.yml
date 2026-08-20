@@ -1502,6 +1502,7 @@ jobs:
           COPILOT_MODEL: qwen2.5:0.5b
           COPILOT_PROVIDER_API_KEY: ${{ env.OLLAMA_API_KEY }}
           COPILOT_PROVIDER_BASE_URL: http://host.docker.internal:11434/v1
+          GH_AW_HARNESS_MAX_RETRIES: 0
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}

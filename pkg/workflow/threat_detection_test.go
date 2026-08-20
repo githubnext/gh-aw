@@ -1095,6 +1095,46 @@ func TestBuildDetectionEngineExecutionStepRespectsExplicitHarnessMaxRetries(t *t
 	}
 }
 
+func TestBuildExternalDetectorExecutionStepDefaultsHarnessMaxRetriesToZero(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildExternalDetectorExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 0") {
+		t.Fatalf("expected external detector execution to default GH_AW_HARNESS_MAX_RETRIES to 0, got:\n%s", allSteps)
+	}
+}
+
+func TestBuildExternalDetectorExecutionStepRespectsExplicitHarnessMaxRetries(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		EngineConfig: &EngineConfig{
+			ID:                "codex",
+			HarnessMaxRetries: "5",
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildExternalDetectorExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 5") {
+		t.Fatalf("expected external detector execution to honor explicit GH_AW_HARNESS_MAX_RETRIES=5, got:\n%s", allSteps)
+	}
+}
+
 func TestBuildDetectionJobStepsCodexAvoidsDuplicateContainerPullStep(t *testing.T) {
 	compiler := NewCompiler()
 
