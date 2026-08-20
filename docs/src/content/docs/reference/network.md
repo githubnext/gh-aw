@@ -16,9 +16,9 @@ If no `network:` permission is specified, it defaults to `network: defaults`, wh
 
 Network permissions follow the principle of least privilege:
 
-- **Default** (`network: defaults`): Basic infrastructure only
-- **Selective** (`network: { allowed: [...] }`): Only listed domains/ecosystems
-- **No access** (`network: {}`): All network blocked
+- **Default** (`network: defaults`) allows basic infrastructure only.
+- **Selective** (`network: { allowed: [...] }`) allows only the listed domains or ecosystems.
+- **No access** (`network: {}`) blocks all network access.
 
 Listed domains automatically match all subdomains; wildcard patterns (`*.example.com`) are also supported — see [Wildcard Domain Patterns](#wildcard-domain-patterns).
 
@@ -264,9 +264,9 @@ network:
 
 ## Troubleshooting
 
-If you encounter network access blocked errors, verify that required domains or ecosystems are in the `allowed` list. Start with `network: defaults` and add specific requirements incrementally. Network access violations are logged in workflow execution logs.
+If network access is blocked, confirm the required domains or ecosystems are in `allowed`. Start with `network: defaults`, then add only what the workflow needs. Violations appear in workflow logs.
 
-Use `gh aw logs --run-id <run-id>` to view firewall activity and identify blocked domains. For detailed diagnostics, use `gh aw audit <run-id>` — the **Firewall Analysis** section lists every domain request with its allow/deny status, request volume, and policy attribution. Pass two run IDs to compare firewall behavior between runs:
+Use `gh aw logs --run-id <run-id>` to identify blocked domains. For deeper analysis, run `gh aw audit <run-id>`; the **Firewall Analysis** section shows each domain request with its allow/deny status, request volume, and policy attribution. Pass two run IDs to compare runs:
 
 ```bash
 gh aw audit 12345678              # Single run
@@ -277,9 +277,4 @@ See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troub
 
 ## Related Documentation
 
-- [Network Configuration Guide](/gh-aw/guides/network-configuration/) - Practical examples and common patterns
-- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
-- [Tools](/gh-aw/reference/tools/) - Tool-specific network access configuration
-- [Playwright](/gh-aw/reference/playwright/) - Browser automation and network requirements
-- [Audit Commands](/gh-aw/reference/audit/) - Firewall analysis and cross-run diff for understanding domain allow/block behavior
-- [Security Guide](/gh-aw/introduction/architecture/) - Comprehensive security guidance
+See also the [Network Configuration Guide](/gh-aw/guides/network-configuration/), [Frontmatter](/gh-aw/reference/frontmatter/), [Tools](/gh-aw/reference/tools/), [Playwright](/gh-aw/reference/playwright/), [Audit Commands](/gh-aw/reference/audit/), and the [Security Guide](/gh-aw/introduction/architecture/).
