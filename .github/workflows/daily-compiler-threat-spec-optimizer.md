@@ -3,13 +3,13 @@ private: true
 on:
   schedule: daily
   workflow_dispatch: null
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
   pull-requests: read
   security-events: read
 imports:
+- shared/copilot-engine-baseline.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 3d
@@ -27,10 +27,6 @@ safe-outputs:
     title-prefix: "[compiler-threat-spec] "
 description: Daily optimizer that reconciles compiler threat coverage with W3C specification-driven detection rules
 emoji: 🔒
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 name: Daily Compiler Threat Spec Optimizer
 strict: true
 timeout-minutes: 30

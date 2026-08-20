@@ -6,16 +6,11 @@ strict: true
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   issues: read
   pull-requests: read
   contents: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 sandbox:
   agent:
     id: awf
@@ -36,6 +31,7 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/copilot-engine-baseline.md
 features:
   gh-aw-detection: true
 evals:

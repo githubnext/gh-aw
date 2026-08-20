@@ -9,7 +9,6 @@ on:
     - cron: "daily around 15:00 on weekdays"
   workflow_dispatch:
 
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
@@ -17,10 +16,6 @@ permissions:
   actions: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: false
 
 tools:
@@ -41,6 +36,7 @@ imports:
       expires: 1d
   - shared/gh.md
   - shared/copilot-pr-analysis-base.md
+  - shared/copilot-engine-baseline.md
 
   - shared/otlp.md
 timeout-minutes: 10

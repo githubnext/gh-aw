@@ -4,15 +4,10 @@ description: Daily analysis of recent commits and merged PRs for breaking CLI ch
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 experiments:
   tone_variant:
     variants: [neutral, urgent]
@@ -59,6 +54,7 @@ imports:
       labels: [breaking-change, automated-analysis, cookie]
       assignees: [copilot]
   - shared/otlp.md
+  - shared/copilot-engine-baseline.md
 safe-outputs:
   messages:
     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"

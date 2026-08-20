@@ -3,7 +3,6 @@ private: true
 on:
   schedule:
   - cron: daily
-max-daily-ai-credits: 10000
 permissions:
   actions: read
   contents: read
@@ -16,6 +15,7 @@ network:
   - defaults
   - github
 imports:
+- shared/copilot-engine-baseline.md
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:
@@ -26,10 +26,6 @@ safe-outputs:
     title-prefix: "[copilot-cli-research] "
 description: Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
 emoji: 🔬
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: true
 timeout-minutes: 20
 tools:

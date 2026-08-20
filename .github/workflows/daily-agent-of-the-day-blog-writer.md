@@ -7,17 +7,12 @@ on:
   schedule: daily on weekdays
   workflow_dispatch:
   skip-if-match: 'is:pr is:open label:blog in:title "Agent of the Day"'
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
   issues: read
   pull-requests: read
 tracker-id: daily-agent-of-the-day-blog-writer
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: true
 timeout-minutes: 45
 network:
@@ -62,6 +57,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/copilot-engine-baseline.md
 features:
   gh-aw-detection: true
 evals:

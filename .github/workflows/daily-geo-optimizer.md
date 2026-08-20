@@ -5,7 +5,6 @@ description: Daily GEO (Generative Engine Optimization) audit of the README and 
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
@@ -13,10 +12,6 @@ permissions:
   discussions: read
   copilot-requests: write
 tracker-id: daily-geo-optimizer
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: true
 timeout-minutes: 30
 tools:
@@ -215,6 +210,7 @@ imports:
     with:
       title-prefix: "[geo-optimizer] "
       expires: 3d
+  - shared/copilot-engine-baseline.md
 
   - shared/otlp.md
 features:

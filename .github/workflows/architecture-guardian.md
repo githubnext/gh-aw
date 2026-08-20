@@ -5,15 +5,10 @@ description: Daily analysis of commits from the last 24 hours to detect code str
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 tracker-id: architecture-guardian
 imports:
   - uses: shared/skip-if-issue-open.md
@@ -26,6 +21,7 @@ imports:
       labels: [architecture, automated-analysis, cookie]
       assignees: [copilot]
   - shared/otlp.md
+  - shared/copilot-engine-baseline.md
 sandbox:
   agent:
     runtime: cloud-hypervisor

@@ -6,16 +6,11 @@ description: Automatically fixes code scanning alerts by creating pull requests 
 on:
   schedule: every 6h
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   pull-requests: read
   security-events: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 imports:
   - shared/mcp-pagination.md
   - uses: shared/skip-if-issue-open.md
@@ -30,6 +25,7 @@ imports:
       labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
       reviewers: [copilot]
   - shared/otlp.md
+  - shared/copilot-engine-baseline.md
 tools:
   cli-proxy: true
   bash: ["git diff:*", "git restore:*", "git status:*", "sed:*", wc]

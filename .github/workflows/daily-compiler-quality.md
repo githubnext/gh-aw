@@ -3,7 +3,6 @@ on:
   schedule: daily
   workflow_dispatch: null
 max-ai-credits: 1000
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   discussions: read
@@ -11,6 +10,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/copilot-engine-baseline.md
 - shared/reporting.md
 - uses: shared/daily-audit-base.md
   with:
@@ -30,10 +30,6 @@ safe-outputs:
   noop:
 description: Analyzes compiler code daily to assess if it meets human-written quality standards, creates discussion reports, and uses cache memory to avoid re-analyzing unchanged files
 emoji: 📊
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 experiments:
   output_format:
     analysis_type: mann_whitney

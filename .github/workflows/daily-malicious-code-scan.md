@@ -5,17 +5,12 @@ description: Daily security scan that reviews code changes from the last 3 days 
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
   security-events: read
   copilot-requests: write
 tracker-id: malicious-code-scan
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 safe-outputs:
   create-code-scanning-alert:
     driver: "Malicious Code Scanner"
@@ -28,6 +23,7 @@ imports:
     with:
       title-prefix: "[malicious-code-scan] "
       expires: 3d
+  - shared/copilot-engine-baseline.md
 
   - shared/otlp.md
 tools:

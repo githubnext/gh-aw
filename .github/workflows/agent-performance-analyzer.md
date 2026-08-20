@@ -2,7 +2,6 @@
 emoji: "⚡"
 description: Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
 on: daily
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
@@ -10,10 +9,6 @@ permissions:
   discussions: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 sandbox:
   agent:
     runtime: gvisor
@@ -32,6 +27,7 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+  - shared/copilot-engine-baseline.md
 safe-outputs:
   create-issue:
     expires: 2d

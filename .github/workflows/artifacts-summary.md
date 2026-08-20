@@ -5,15 +5,10 @@ description: Generates a comprehensive summary of GitHub Actions artifacts usage
 on:
   workflow_dispatch:
   schedule: weekly on sunday around 06:00
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 network:
   allowed:
     - defaults
@@ -41,6 +36,7 @@ imports:
   - shared/reporting.md
   - shared/safe-output-app.md
   - shared/otlp.md
+  - shared/copilot-engine-baseline.md
 features:
   gh-aw-detection: true
 evals:

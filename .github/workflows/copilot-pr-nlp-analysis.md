@@ -8,7 +8,6 @@ on:
     - cron: "daily around 10:00 on weekdays"
   workflow_dispatch:
 
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   pull-requests: read
@@ -16,11 +15,6 @@ permissions:
   issues: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-
-max-tool-denials: 3
 network:
   allowed:
     - defaults
@@ -43,6 +37,7 @@ imports:
   - shared/python-dataviz.md
   - shared/python-nlp.md
   - shared/reporting.md
+  - shared/copilot-engine-baseline.md
 
   - shared/otlp.md
 steps:

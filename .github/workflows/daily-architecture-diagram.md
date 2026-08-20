@@ -6,18 +6,12 @@ on:
   schedule: weekly on Monday around 08:00
   workflow_dispatch:
 
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
   pull-requests: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-
-max-tool-denials: 3
 experiments:
   detail_level:
     variants: [brief, comprehensive]
@@ -65,6 +59,7 @@ imports:
       title-prefix: "[architecture-diagram] "
       expires: 3d
   - shared/reporting.md
+  - shared/copilot-engine-baseline.md
 
   - shared/otlp.md
 timeout-minutes: 20

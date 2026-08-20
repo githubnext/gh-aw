@@ -4,13 +4,13 @@ on:
   schedule:
   - cron: daily around 9:00 on weekdays
   workflow_dispatch: null
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/copilot-engine-baseline.md
 - shared/reporting.md
 - uses: shared/daily-audit-base.md
   with:
@@ -38,10 +38,6 @@ safe-outputs:
     title-prefix: "[concurrency] "
 description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 emoji: 📊
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 name: Daily MCP Tool Concurrency Analysis
 strict: true
 timeout-minutes: 45

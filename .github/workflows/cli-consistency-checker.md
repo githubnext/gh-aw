@@ -5,23 +5,19 @@ on:
   schedule:
     - cron: "daily around 13:00 on weekdays"  # ~1 PM UTC, weekdays only (Mon-Fri)
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
   issues: read
   pull-requests: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: false
 network:
   allowed: [defaults]
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/copilot-engine-baseline.md
 tools:
   bash:
     - "*"

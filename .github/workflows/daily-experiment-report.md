@@ -6,7 +6,6 @@ name: daily-experiment-report
 on:
   schedule: daily around 8:00
   workflow_dispatch:
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   actions: read
@@ -15,14 +14,10 @@ permissions:
   discussions: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
 network:
   allowed:
     - defaults
     - go
-max-tool-denials: 3
 sandbox:
   agent:
     id: awf
@@ -44,6 +39,7 @@ imports:
     with:
       title-prefix: "[experiments] "
       expires: 3d
+  - shared/copilot-engine-baseline.md
 
   - shared/otlp.md
 safe-outputs:

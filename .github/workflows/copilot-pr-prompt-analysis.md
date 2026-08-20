@@ -9,7 +9,6 @@ on:
     - cron: daily
   workflow_dispatch:
 
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
@@ -17,11 +16,6 @@ permissions:
   actions: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-
-max-tool-denials: 3
 network:
   allowed:
     - defaults
@@ -42,6 +36,7 @@ imports:
       description: "Historical prompt pattern analysis"
   - shared/copilot-pr-analysis-base.md
   - shared/reporting.md
+  - shared/copilot-engine-baseline.md
 
   - shared/otlp.md
 timeout-minutes: 15

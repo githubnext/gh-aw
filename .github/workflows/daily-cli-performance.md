@@ -29,17 +29,12 @@ on:
           }
           core.info(`has_changes=${hasChanges}`);
           core.setOutput('has_changes', hasChanges ? 'true' : 'false');
-max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-cli-performance
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 tools:
   cli-proxy: true
   repo-memory:
@@ -71,6 +66,7 @@ imports:
       expires: 3d
   - shared/go-make.md
   - shared/otlp.md
+  - shared/copilot-engine-baseline.md
 if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
 jobs:
   pre-activation:
