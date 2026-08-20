@@ -61,6 +61,7 @@ func TestValidateMultiSecretRejectsPlaceholderValues(t *testing.T) {
 		length int
 	}{
 		{name: "null", value: "null", length: 4},
+		{name: "null-with-spaces", value: "  null  ", length: 8},
 		{name: "undefined", value: "undefined", length: 9},
 		{name: "whitespace", value: "   ", length: 3},
 	} {

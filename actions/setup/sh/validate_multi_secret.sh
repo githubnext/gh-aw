@@ -76,13 +76,13 @@ for secret_name in "${SECRET_NAMES[@]}"; do
         echo ""
         echo "Regenerate or reconfigure the secret before running the $ENGINE_NAME engine."
         echo ""
-        echo "Documentation: ${DOCS_URL@Q}"
+        echo "Documentation: $DOCS_URL"
       } >> "$GITHUB_STEP_SUMMARY"
 
       echo "Error: $error_msg" >&2
       echo "Regenerate or reconfigure the secret before running the $ENGINE_NAME engine." >&2
       echo "" >&2
-      echo "Documentation: ${DOCS_URL@Q}" >&2
+      echo "Documentation: $DOCS_URL" >&2
 
       if [ -n "$GITHUB_OUTPUT" ]; then
         echo "verification_result=failed" >> "$GITHUB_OUTPUT"
@@ -135,7 +135,7 @@ if [ "$all_empty" = true ]; then
     echo "- **Environment secrets** are only available if the job specifies that environment"
     echo "- **Secret name mismatch** - verify the exact spelling (case-sensitive)"
     echo ""
-    echo "Documentation: ${DOCS_URL@Q}"
+    echo "Documentation: $DOCS_URL"
   } >> "$GITHUB_STEP_SUMMARY"
   
   # Print to stderr
@@ -147,7 +147,7 @@ if [ "$all_empty" = true ]; then
   echo "  - Environment secrets require the job to specify that environment" >&2
   echo "  - Secret names are case-sensitive - verify exact spelling" >&2
   echo "" >&2
-  echo "Documentation: ${DOCS_URL@Q}" >&2
+  echo "Documentation: $DOCS_URL" >&2
   
   # Set step output to indicate verification failed
   if [ -n "$GITHUB_OUTPUT" ]; then
