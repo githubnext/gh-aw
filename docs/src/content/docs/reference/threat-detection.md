@@ -61,8 +61,13 @@ safe-outputs:
 # Or disable entirely:
 safe-outputs:
   create-pull-request:
-  threat-detection: false  # Disable threat detection
+  threat-detection: false  # Disable threat detection entirely
 ```
+
+The `features.gh-aw-detection` flag controls the detection implementation, not
+whether threat detection runs. The external `threat-detect` implementation is
+the default; set `features.gh-aw-detection: false` to select the legacy inline
+engine implementation.
 
 > [!NOTE]
 > When a workflow explicitly sets `threat-detection: false`, that setting takes precedence over any imported fragments. Imported shared workflows that configure safe outputs without a `threat-detection` key will not re-enable threat detection in the importing workflow.

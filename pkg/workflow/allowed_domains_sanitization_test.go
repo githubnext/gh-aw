@@ -68,9 +68,8 @@ Test workflow with network permissions.
 				"api.github.com",
 				"github.com",
 				"raw.githubusercontent.com",
-				"registry.npmjs.org",
 			},
-			unexpectedDomain: "",
+			unexpectedDomain: "registry.npmjs.org",
 		},
 		{
 			name: "Claude with network permissions",

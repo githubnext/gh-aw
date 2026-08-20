@@ -128,6 +128,16 @@ features:
   awf-diagnostic-logs: true
 ```
 
+## External Threat Detection (`features.gh-aw-detection`)
+
+Threat detection uses the external `threat-detect` binary by default. Set
+`features.gh-aw-detection: false` to use the legacy inline engine path.
+
+```yaml wrap
+features:
+  gh-aw-detection: false
+```
+
 ## Reaction-based Trust Signals (`features.integrity-reactions`)
 
 Enables maintainers to promote or demote content past the integrity filter using GitHub reactions (👍, ❤️, 👎, 😕), without adding labels or modifying issue state. Available from gh-aw v0.68.2.
