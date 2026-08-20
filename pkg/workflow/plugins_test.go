@@ -459,7 +459,7 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 		})
 
 		require.Len(t, steps, 2)
-		assert.Contains(t, strings.Join(steps[1], "\n"), `cp -R "./.gh-aw-plugins/plugin-0" "$HOME/.cursor/plugins/local/plugin-0-agent-plugin"`)
+		assert.Contains(t, strings.Join(steps[1], "\n"), `cp -R "./.gh-aw-plugins/plugin-0" "$HOME/.cursor/plugins/local/plugin-0-octo-org__agent-plugin"`)
 	})
 
 	t.Run("installs plugins through the engine CLI", func(t *testing.T) {

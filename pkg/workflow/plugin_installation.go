@@ -89,7 +89,7 @@ func pluginCheckoutSubpath(parsed parsedSkillRefSpec, index int) string {
 func pluginStagingName(parsed parsedSkillRefSpec, index int) string {
 	repoParts := strings.Split(parsed.repoPath, "/")
 	if len(repoParts) <= 2 {
-		return fmt.Sprintf("plugin-%d-%s", index, path.Base(parsed.repoPath))
+		return fmt.Sprintf("plugin-%d-%s", index, strings.Join(repoParts, "__"))
 	}
 	return fmt.Sprintf("plugin-%d-%s", index, strings.Join(repoParts[2:], "__"))
 }
