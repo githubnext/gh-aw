@@ -39,7 +39,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	if opts.checkStaleness {
 		if warning := staleLogsWarning(processedRuns, opts.startDate, opts.endDate); warning != "" {
 			logsData.StaleWarning = warning
-		} else if warning := dateRangeCoverageWarning(processedRuns, opts.startDate, opts.endDate, opts.continuation != nil); warning != "" {
+		} else if warning := dateRangeCoverageWarning(processedRuns, opts.startDate, opts.endDate, opts.countLimitReached); warning != "" {
 			logsData.StaleWarning = warning
 		}
 	}
