@@ -613,7 +613,7 @@ func TestComputePropertyInjectionsAllowedEventsMultipleSubmitPRReview(t *testing
 	})
 
 	prop, ok := injections["submit_pull_request_review"]["event"].(map[string]any)
-	require.True(t, ok)
+	require.True(t, ok, "event should be a property map")
 	assert.Equal(t, []string{"COMMENT", "REQUEST_CHANGES"}, prop["enum"])
 }
 
