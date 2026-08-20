@@ -193,8 +193,7 @@ func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []st
 		}
 		return false
 	}
-	var fieldReferencesUnresolvableJob func(any) bool
-	fieldReferencesUnresolvableJob = func(value any) bool {
+	fieldReferencesUnresolvableJob := func(value any) bool {
 		switch v := value.(type) {
 		case templatableJSONExpression:
 			return referencesUnresolvableJob(v.expr)
@@ -206,7 +205,14 @@ func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []st
 			})
 		case []any:
 			return slices.ContainsFunc(v, func(item any) bool {
-				return fieldReferencesUnresolvableJob(item)
+				switch item := item.(type) {
+				case templatableJSONExpression:
+					return referencesUnresolvableJob(item.expr)
+				case string:
+					return isExpression(item) && referencesUnresolvableJob(item)
+				default:
+					return false
+				}
 			})
 		}
 		return false

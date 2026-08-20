@@ -136,6 +136,31 @@ func TestGenerateSafeOutputsConfigPreservesResolvableNeedsExpressions(t *testing
 	assert.Contains(t, result, "needs.prepare.outputs.comment_ids")
 }
 
+func TestSanitizeAgentSafeOutputsConfigNoOp(t *testing.T) {
+	config := map[string]any{
+		"add_comment": map[string]any{
+			"allowed_comment_ids": []string{"${{ needs.prepare.outputs.comment_ids }}"},
+		},
+	}
+
+	sanitizeAgentSafeOutputsConfig(config, nil)
+
+	assert.Equal(t, []string{"${{ needs.prepare.outputs.comment_ids }}"},
+		config["add_comment"].(map[string]any)["allowed_comment_ids"])
+}
+
+func TestSanitizeAgentSafeOutputsConfigStringExpression(t *testing.T) {
+	config := map[string]any{
+		"safe_output": map[string]any{
+			"data_schema": "${{ fromJSON(needs.approval_allowlist.outputs.data_schema) }}",
+		},
+	}
+
+	sanitizeAgentSafeOutputsConfig(config, []string{"approval_allowlist"})
+
+	assert.Empty(t, config["safe_output"].(map[string]any)["data_schema"])
+}
+
 func TestGenerateSafeOutputsConfigCommentMemoryToolsOnly(t *testing.T) {
 	data := &WorkflowData{
 		CommentMemoryConfig: &CommentMemoryConfig{
