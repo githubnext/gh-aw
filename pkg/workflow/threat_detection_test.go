@@ -353,6 +353,9 @@ func TestThreatDetectionInlineStepsDependencies(t *testing.T) {
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
+		Features: map[string]any{
+			string(constants.GHAWDetectionFeatureFlag): false,
+		},
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{},
 		},
@@ -664,6 +667,9 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 
 	t.Run("pre-steps come before engine execution", func(t *testing.T) {
 		data := &WorkflowData{
+			Features: map[string]any{
+				string(constants.GHAWDetectionFeatureFlag): false,
+			},
 			SafeOutputs: &SafeOutputsConfig{
 				ThreatDetection: &ThreatDetectionConfig{
 					Steps: []any{
@@ -717,6 +723,9 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 
 	t.Run("post-steps come after engine execution and before upload", func(t *testing.T) {
 		data := &WorkflowData{
+			Features: map[string]any{
+				string(constants.GHAWDetectionFeatureFlag): false,
+			},
 			SafeOutputs: &SafeOutputsConfig{
 				ThreatDetection: &ThreatDetectionConfig{
 					PostSteps: []any{
@@ -770,6 +779,9 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 
 	t.Run("pre-steps and post-steps both present in correct order", func(t *testing.T) {
 		data := &WorkflowData{
+			Features: map[string]any{
+				string(constants.GHAWDetectionFeatureFlag): false,
+			},
 			SafeOutputs: &SafeOutputsConfig{
 				ThreatDetection: &ThreatDetectionConfig{
 					Steps: []any{
@@ -1087,6 +1099,9 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
+		Features: map[string]any{
+			string(constants.GHAWDetectionFeatureFlag): false,
+		},
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{},
 		},
@@ -2109,13 +2124,15 @@ func TestBuildDetectionJobStepsCodexExternalDetectorIncludesContainerDownload(t 
 		}
 	})
 
-	t.Run("codex without gh-aw-detection emits exactly one container download (inline path via MCP setup)", func(t *testing.T) {
+	t.Run("codex with gh-aw-detection disabled emits exactly one container download (inline path via MCP setup)", func(t *testing.T) {
 		data := &WorkflowData{
 			AI: "codex",
 			SafeOutputs: &SafeOutputsConfig{
 				ThreatDetection: &ThreatDetectionConfig{},
 			},
-			Features: map[string]any{},
+			Features: map[string]any{
+				string(constants.GHAWDetectionFeatureFlag): false,
+			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -3411,7 +3428,7 @@ func TestSetupThreatDetectionPromptSummarySuppressedOnExternalPath(t *testing.T)
 	})
 
 	t.Run("inline path does not set the suppression flag", func(t *testing.T) {
-		data := newData(map[string]any{})
+		data := newData(map[string]any{string(constants.GHAWDetectionFeatureFlag): false})
 		joined := strings.Join(compiler.buildThreatDetectionAnalysisStep(data), "")
 		if strings.Contains(joined, "GH_AW_DETECTION_SKIP_PROMPT_SUMMARY") {
 			t.Errorf("did not expect GH_AW_DETECTION_SKIP_PROMPT_SUMMARY on the inline path\ngot:\n%s", joined)

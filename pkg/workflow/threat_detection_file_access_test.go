@@ -26,6 +26,9 @@ func createTestWorkflowData(t *testing.T, threatConfig *ThreatDetectionConfig) *
 		Name:            "Test Workflow",
 		Description:     "Test Description",
 		MarkdownContent: "Test markdown content",
+		Features: map[string]any{
+			"gh-aw-detection": false,
+		},
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: threatConfig,
 		},
