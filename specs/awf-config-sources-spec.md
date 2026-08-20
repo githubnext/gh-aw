@@ -110,6 +110,14 @@ A `DriftRecord` represents a single detected schema drift item. All automation a
 | `suggested_action` | `string` | **MUST** | Actionable remediation text; **MUST NOT** be empty | `pkg/workflow/awf_config_drift_formal_test.go` (`FormalDriftRecord.SuggestedAction`, `formalDriftRecordStructuralValidity`); production emission target: `pkg/workflow/` drift detection logic |
 | `detected_at` | `string` (ISO 8601) | **MUST** | UTC timestamp of detection; filesystem-safe format **SHOULD** use `YYYY-MM-DDTHH:MM:SSZ` | `pkg/workflow/awf_config_drift_formal_test.go` (`FormalDriftRecord.DetectedAt`); production emission target: `pkg/workflow/` drift detection logic |
 
+The conformance fixture index assigns the following test IDs to the `DriftRecord` schema requirements:
+
+- Required fields: T-DR-001
+- `drift_category` enum: T-DR-002
+- `detected_at` format: T-DR-003
+- `suggested_action` non-empty: T-DR-004
+- No additional properties: T-DR-005
+
 ## 4. Required coverage checks
 
 When updating AWF config generation, schema sync, or validation in gh-aw, agents MUST verify:
@@ -200,7 +208,7 @@ Drift detection MUST be triggered when:
    - **Missing in schema**: `gh-aw` generates a field not present in either schema.
    - **Spec mismatch**: CLI mapping in `gh-aw` disagrees with the normative spec description.
 
-5. **Produce a drift report** listing:
+5. **Produce a drift report** (T-DR-010) listing:
    - Each drifted property path (e.g., `apiProxy.anthropicAutoCache`).
    - Drift category (missing in gh-aw / missing in schema / spec mismatch).
    - Suggested corrective action (add coverage, open PR, update spec).
@@ -279,7 +287,7 @@ A `DriftRecord` represents a single detected schema drift item produced by the d
 
 #### 7.5.1 Usage
 
-The drift detection procedure (Section 7.2, Step 5) **MUST** produce a list of zero or more `DriftRecord` objects (schema: Section 3.1). When any record has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation **MUST** open a corrective PR (CR-05) and, if the SLA window is exceeded, an escalation issue (CR-06). The corrective PR description **MUST** embed the full `DriftRecord` list as JSON.
+The drift detection procedure (Section 7.2, Step 5) **MUST** produce a list of zero or more `DriftRecord` objects (schema: Section 3.1; T-DR-009). When any record has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation **MUST** open a corrective PR (CR-05; T-DR-006) and, if the SLA window is exceeded, an escalation issue (CR-06; T-DR-007). The corrective PR description **MUST** embed the full `DriftRecord` list as JSON (T-DR-008).
 
 **Example output (Step 5 of the drift detection procedure):**
 

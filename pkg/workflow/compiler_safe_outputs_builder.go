@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -160,6 +162,78 @@ func marshalSafeOutputsConfig(config map[string]any) ([]byte, error) {
 		configJSON = bytes.ReplaceAll(configJSON, placeholder, []byte(expression.expr))
 	}
 	return configJSON, nil
+}
+
+var (
+	needsDotReferencePattern     = regexp.MustCompile(`needs\s*\.\s*([^\s.]+)\s*\.`)
+	needsBracketReferencePattern = regexp.MustCompile(`needs\s*\[\s*['"]([^'"]+)['"]\s*\]\s*\.`)
+)
+
+// sanitizeAgentSafeOutputsConfig walks a safe-outputs config map (as produced for the agent
+// job's copy of config.json) and neutralizes any templated field whose expression references
+// needs.<job> for a job in unresolvableJobs. These jobs are only ever added as dependencies of
+// the safe_outputs handler job, never of the agent job, so referencing their outputs from the
+// agent job's config is unresolvable at the GitHub Actions expression level and would trip an
+// actionlint "undefined property" error. This only affects the agent job's copy of the config;
+// the handler job's own config (built separately) legitimately depends on these jobs.
+func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []string) {
+	if len(unresolvableJobs) == 0 {
+		return
+	}
+	referencesUnresolvableJob := func(expr string) bool {
+		for _, reference := range needsDotReferencePattern.FindAllStringSubmatch(expr, -1) {
+			if slices.Contains(unresolvableJobs, reference[1]) {
+				return true
+			}
+		}
+		for _, reference := range needsBracketReferencePattern.FindAllStringSubmatch(expr, -1) {
+			if slices.Contains(unresolvableJobs, reference[1]) {
+				return true
+			}
+		}
+		return false
+	}
+	fieldReferencesUnresolvableJob := func(value any) bool {
+		switch v := value.(type) {
+		case templatableJSONExpression:
+			return referencesUnresolvableJob(v.expr)
+		case string:
+			return isExpression(v) && referencesUnresolvableJob(v)
+		case []string:
+			return slices.ContainsFunc(v, func(item string) bool {
+				return isExpression(item) && referencesUnresolvableJob(item)
+			})
+		case []any:
+			return slices.ContainsFunc(v, func(item any) bool {
+				switch item := item.(type) {
+				case templatableJSONExpression:
+					return referencesUnresolvableJob(item.expr)
+				case string:
+					return isExpression(item) && referencesUnresolvableJob(item)
+				default:
+					return false
+				}
+			})
+		}
+		return false
+	}
+	for _, handlerConfig := range config {
+		fields, ok := handlerConfig.(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, value := range fields {
+			if !fieldReferencesUnresolvableJob(value) {
+				continue
+			}
+			switch value.(type) {
+			case string:
+				fields[key] = ""
+			default:
+				fields[key] = []any{}
+			}
+		}
+	}
 }
 
 func templatableJSONExpressions(value any) []templatableJSONExpression {

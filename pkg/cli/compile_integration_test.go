@@ -287,6 +287,50 @@ Please check the repository for any open issues and create a summary.
 	t.Logf("Successfully compiled workflow to %s", lockFilePath)
 }
 
+func TestCompileGHESArtifactPinsIntegration(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "ghes-artifacts.md")
+	err := os.WriteFile(testWorkflowPath, []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+steps:
+  - uses: actions/upload-artifact@v7
+    with:
+      name: test
+      path: test.txt
+---
+# GHES artifact pins
+`), 0o600)
+	if err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	cmd := exec.Command(setup.binaryPath, "compile", "--ghes", testWorkflowPath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	lockContent, err := os.ReadFile(filepath.Join(setup.workflowsDir, "ghes-artifacts.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	contents := string(lockContent)
+	if !strings.Contains(contents, "actions/upload-artifact@c6a366c94c3e0affe28c06c8df20a878f24da3cf # v3.2.2") {
+		t.Error("Lock file should contain the GHES-compatible upload-artifact pin")
+	}
+	if !strings.Contains(contents, "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0") {
+		t.Error("Lock file should contain the GHES-compatible download-artifact pin")
+	}
+	if strings.Contains(contents, "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1") {
+		t.Error("Lock file should not contain the default upload-artifact pin")
+	}
+}
+
 func removeAllWithRetry(path string) error {
 	attempts := 1
 	if runtime.GOOS == "windows" {

@@ -21,6 +21,7 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	originalListPackage := listPackageWorkflowFilesForHost
 	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	originalDownloadWorkflow := downloadWorkflowContentFn
+	originalDownloadImport := downloadRemoteImportFile
 	originalDirSubdirs := listPackageDirSubdirsForHost
 	originalDirFiles := listPackageDirFilesForHost
 	t.Cleanup(func() {
@@ -29,6 +30,7 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 		listPackageWorkflowFilesForHost = originalListPackage
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 		downloadWorkflowContentFn = originalDownloadWorkflow
+		downloadRemoteImportFile = originalDownloadImport
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		listPackageDirFilesForHost = originalDirFiles
 	})
@@ -72,16 +74,41 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 		case "workflows/existing.md@v1.0.0":
 			return []byte("---\non: push\n---\n\n# Existing old\n"), nil
 		case "workflows/existing.md@v2.0.0":
-			return []byte("---\non: push\n---\n\n# Existing new\n"), nil
+			return []byte("---\non: push\nimports:\n  - shared/control.md\n---\n\n# Existing new\n"), nil
 		case "workflows/new.md@v2.0.0":
-			return []byte("---\non: push\n---\n\n# New workflow\n"), nil
+			return []byte("---\non: push\nimports:\n  - shared/new-helper.md\n---\n\n# New workflow\n"), nil
 		}
 		return nil, fmt.Errorf("unexpected download %s@%s", path, ref)
+	}
+	downloadRemoteImportFile = func(_ context.Context, owner, repo, path, ref string) ([]byte, error) {
+		if owner != "owner" || repo != "repo" || ref != "v2.0.0" {
+			return nil, fmt.Errorf("unexpected import source %s/%s@%s", owner, repo, ref)
+		}
+		switch path {
+		case "workflows/shared/control.md":
+			return []byte("---\nimports:\n  - control-precompute.md\n---\n\n# Control v2\n"), nil
+		case "workflows/shared/control-precompute.md":
+			return []byte("# Control precompute v2\n"), nil
+		case "workflows/shared/new-helper.md":
+			return []byte("# New helper v2\n"), nil
+		default:
+			return nil, fmt.Errorf("unexpected import download %s", path)
+		}
 	}
 
 	tmpDir := testutil.TempDir(t, "manifest-update-*")
 	existingPath := filepath.Join(tmpDir, "existing.md")
 	removedPath := filepath.Join(tmpDir, "removed.md")
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		t.Fatalf("create shared directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "control.md"), []byte("# Control v1\n"), 0o644); err != nil {
+		t.Fatalf("write stale shared control: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDir, "control-precompute.md"), []byte("# Control precompute v1\n"), 0o644); err != nil {
+		t.Fatalf("write stale shared precompute: %v", err)
+	}
 	if err := os.WriteFile(existingPath, []byte("---\nsource: owner/repo@v1.0.0\n---\n\n# Existing old\n"), 0o644); err != nil {
 		t.Fatalf("write existing: %v", err)
 	}
@@ -121,5 +148,77 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	}
 	if !strings.Contains(string(newContent), "# New workflow") || !strings.Contains(string(newContent), "source: owner/repo@v2.0.0") {
 		t.Fatalf("new workflow content unexpected:\n%s", string(newContent))
+	}
+	updatedControl, err := os.ReadFile(filepath.Join(sharedDir, "control.md"))
+	if err != nil {
+		t.Fatalf("read updated shared control: %v", err)
+	}
+	if !strings.Contains(string(updatedControl), "# Control v2") {
+		t.Fatalf("shared control was not updated:\n%s", string(updatedControl))
+	}
+	updatedPrecompute, err := os.ReadFile(filepath.Join(sharedDir, "control-precompute.md"))
+	if err != nil {
+		t.Fatalf("read updated shared precompute: %v", err)
+	}
+	if !strings.Contains(string(updatedPrecompute), "# Control precompute v2") {
+		t.Fatalf("transitive shared dependency was not updated:\n%s", string(updatedPrecompute))
+	}
+	newHelper, err := os.ReadFile(filepath.Join(sharedDir, "new-helper.md"))
+	if err != nil {
+		t.Fatalf("read new workflow dependency: %v", err)
+	}
+	if !strings.Contains(string(newHelper), "# New helper v2") {
+		t.Fatalf("new workflow dependency was not installed:\n%s", string(newHelper))
+	}
+
+	downloadRemoteImportFile = func(_ context.Context, owner, repo, path, ref string) ([]byte, error) {
+		t.Errorf("unexpected dependency fetch for unchanged workflow: %s/%s/%s@%s", owner, repo, path, ref)
+		return nil, errors.New("unexpected dependency fetch")
+	}
+	if err := updateManifestManagedWorkflow(context.Background(), manifestManagedWorkflowUpdate{
+		wf:             &workflowWithSource{Name: "existing", Path: existingPath},
+		repo:           "owner/repo",
+		currentPath:    "workflows/existing.md",
+		latestPath:     "workflows/existing.md",
+		currentRef:     "v2.0.0",
+		latestRef:      "v2.0.0",
+		manifestSource: "owner/repo@v2.0.0",
+	}, UpdateWorkflowsOptions{
+		NoMerge:                true,
+		NoCompile:              true,
+		DisableSecurityScanner: true,
+	}); err != nil {
+		t.Fatalf("update unchanged workflow: %v", err)
+	}
+
+	downloadRemoteImportFile = func(_ context.Context, owner, repo, path, ref string) ([]byte, error) {
+		return nil, errors.New("dependency download failed")
+	}
+	err = updateManifestManagedWorkflow(context.Background(), manifestManagedWorkflowUpdate{
+		wf:             &workflowWithSource{Name: "existing", Path: existingPath},
+		repo:           "owner/repo",
+		currentPath:    "workflows/existing.md",
+		latestPath:     "workflows/existing.md",
+		currentRef:     "v2.0.0",
+		latestRef:      "v2.0.0",
+		manifestSource: "owner/repo@v2.0.0",
+	}, UpdateWorkflowsOptions{
+		Force:                  true,
+		NoMerge:                true,
+		NoCompile:              true,
+		DisableSecurityScanner: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "dependency download failed") {
+		t.Fatalf("expected dependency refresh failure, got %v", err)
+	}
+	err = addManifestManagedWorkflow(context.Background(), tmpDir, "failing", "owner/repo", "workflows/new.md", "v2.0.0", "owner/repo@v2.0.0", UpdateWorkflowsOptions{
+		NoCompile:              true,
+		DisableSecurityScanner: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "dependency download failed") {
+		t.Fatalf("expected dependency installation failure, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(tmpDir, "failing.md")); !os.IsNotExist(statErr) {
+		t.Fatalf("failed workflow was written, got err=%v", statErr)
 	}
 }

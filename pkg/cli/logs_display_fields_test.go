@@ -12,6 +12,7 @@ import (
 
 // TestMissingToolSummaryDisplayFields verifies that Display fields are used by console rendering
 func TestMissingToolSummaryDisplayFields(t *testing.T) {
+	t.Parallel()
 	// Create a MissingToolSummary with populated Display fields
 	summaries := []MissingToolSummary{
 		{
@@ -56,6 +57,7 @@ func TestMissingToolSummaryDisplayFields(t *testing.T) {
 
 // TestMCPFailureSummaryDisplayFields verifies that MCP display fields retain their specific tags.
 func TestMCPFailureSummaryDisplayFields(t *testing.T) {
+	t.Parallel()
 	// Create a MCPFailureSummary with populated Display field
 	summaries := []MCPFailureSummary{
 		{
@@ -91,6 +93,7 @@ func TestMCPFailureSummaryDisplayFields(t *testing.T) {
 // TestMCPFailureSummaryJSONFields verifies that embedding AggregatedSummaryBase keeps
 // the shared JSON fields flattened at the MCP failure summary level.
 func TestMCPFailureSummaryJSONFields(t *testing.T) {
+	t.Parallel()
 	summary := MCPFailureSummary{
 		ServerName: "github-mcp-server",
 		AggregatedSummaryBase: AggregatedSummaryBase{
