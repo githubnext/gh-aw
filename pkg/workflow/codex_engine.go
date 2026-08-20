@@ -308,6 +308,10 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 // stdout/stderr, so a bare non-zero exit code with no console output can still have
 // a diagnosable error recorded there. Without this, such failures are invisible
 // black-box "exit code 1" crashes even though Codex logged the real cause internally.
+//
+// The tailed log content is wrapped in a `::stop-commands::<token>` / `::<token>::`
+// pair so that any workflow-command-shaped lines it happens to contain (e.g.
+// "::error::...") are not interpreted by the runner as actual workflow commands.
 func wrapCodexCommandWithLogDiagnostics(codexCommand string) string {
 	return fmt.Sprintf(`{
 %s
@@ -317,7 +321,10 @@ if [ "$codex_cli_exit_code" -ne 0 ]; then
   codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '*.log' -printf '%%T@ %%p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2-)
   if [ -n "$codex_log_file" ]; then
     echo "--- tail of $codex_log_file ---"
+    codex_log_stop_token="codex-log-$(date +%%s%%N)-$$"
+    echo "::stop-commands::$codex_log_stop_token"
     tail -n 200 "$codex_log_file" 2>/dev/null || true
+    echo "::$codex_log_stop_token::"
   else
     echo "(no Codex internal log files found under \$CODEX_HOME/logs)"
   fi

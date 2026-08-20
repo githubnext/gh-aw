@@ -256,6 +256,12 @@ func assertCodexLogDiagnosticsPresent(t *testing.T, stepContent string) {
 	if !strings.Contains(stepContent, `exit "$codex_cli_exit_code"`) {
 		t.Errorf("Expected step to preserve and propagate the original Codex CLI exit code, got:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, `::stop-commands::$codex_log_stop_token`) {
+		t.Errorf("Expected step to disable workflow commands before tailing the log content, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `::$codex_log_stop_token::`) {
+		t.Errorf("Expected step to re-enable workflow commands after tailing the log content, got:\n%s", stepContent)
+	}
 }
 
 func TestCodexEngineRenderMCPConfig(t *testing.T) {

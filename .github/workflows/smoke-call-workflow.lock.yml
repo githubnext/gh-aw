@@ -931,7 +931,10 @@ jobs:
             codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '\''*.log'\'' -printf '\''%T@ %p\n'\'' 2>/dev/null | sort -rn | head -n 1 | cut -d'\'' '\'' -f2-)
             if [ -n "$codex_log_file" ]; then
               echo "--- tail of $codex_log_file ---"
+              codex_log_stop_token="codex-log-$(date +%s%N)-$$"
+              echo "::stop-commands::$codex_log_stop_token"
               tail -n 200 "$codex_log_file" 2>/dev/null || true
+              echo "::$codex_log_stop_token::"
             else
               echo "(no Codex internal log files found under \$CODEX_HOME/logs)"
             fi
@@ -1692,7 +1695,10 @@ jobs:
             codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '\''*.log'\'' -printf '\''%T@ %p\n'\'' 2>/dev/null | sort -rn | head -n 1 | cut -d'\'' '\'' -f2-)
             if [ -n "$codex_log_file" ]; then
               echo "--- tail of $codex_log_file ---"
+              codex_log_stop_token="codex-log-$(date +%s%N)-$$"
+              echo "::stop-commands::$codex_log_stop_token"
               tail -n 200 "$codex_log_file" 2>/dev/null || true
+              echo "::$codex_log_stop_token::"
             else
               echo "(no Codex internal log files found under \$CODEX_HOME/logs)"
             fi
