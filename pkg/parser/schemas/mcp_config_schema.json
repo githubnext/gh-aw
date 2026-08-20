@@ -101,10 +101,10 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+        "pattern": "^((\\\\?\\$\\{GITHUB_WORKSPACE\\}|\\\\?\\$GITHUB_WORKSPACE)(/[^:]*)?|((\\\\?\\$\\{RUNNER_TEMP\\}|\\\\?\\$RUNNER_TEMP)/gh-aw)(/[^:]*)?|/tmp/gh-aw(/[^:]*)?|[A-Za-z0-9][A-Za-z0-9_.-]*):[^:]+:(ro|rw)$"
       },
-      "description": "Volume mounts for container (format: 'source:dest:mode' where mode is 'ro' or 'rw')",
-      "examples": [["/host/data:/container/data:ro", "/host/config:/container/config:rw"], ["/tmp/cache:/app/cache:rw"]]
+      "description": "Volume mounts for container (format: 'source:dest:mode' where mode is 'ro' or 'rw'). Host sources must be under ${GITHUB_WORKSPACE}, ${RUNNER_TEMP}/gh-aw, /tmp/gh-aw, or use Docker named volumes.",
+      "examples": [["${GITHUB_WORKSPACE}/data:/container/data:ro", "${RUNNER_TEMP}/gh-aw/config:/container/config:rw"], ["/tmp/gh-aw/cache:/app/cache:rw"]]
     },
     "env": {
       "type": "object",

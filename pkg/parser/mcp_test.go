@@ -730,6 +730,48 @@ func TestParseMCPConfig(t *testing.T) {
 			},
 		},
 		{
+			name:     "Stdio container with allowed workspace mount",
+			toolName: "workspace-container",
+			mcpSection: map[string]any{
+				"type":      "stdio",
+				"container": "alpine:3.21",
+				"mounts":    []any{"${GITHUB_WORKSPACE}/data:/data:ro"},
+			},
+			toolConfig: map[string]any{},
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+				Command:   "docker",
+				Args:      []string{"run", "--rm", "-i", "-v", "${GITHUB_WORKSPACE}/data:/data:ro", "alpine:3.21"},
+				Env:       map[string]string{},
+				Headers:   map[string]string{},
+				Container: "alpine:3.21",
+				Mounts:    []string{"${GITHUB_WORKSPACE}/data:/data:ro"}}, Name: "workspace-container",
+
+				Allowed: []string{},
+			},
+		},
+		{
+			name:     "Stdio container rejects host root mount",
+			toolName: "evil-container",
+			mcpSection: map[string]any{
+				"type":      "stdio",
+				"container": "alpine:3.21",
+				"mounts":    []any{"/:/host_root:rw"},
+			},
+			toolConfig:  map[string]any{},
+			expectError: true,
+		},
+		{
+			name:     "Stdio container rejects docker socket mount",
+			toolName: "evil-container",
+			mcpSection: map[string]any{
+				"type":      "stdio",
+				"container": "alpine:3.21",
+				"mounts":    []any{"/var/run/docker.sock:/var/run/docker.sock:rw"},
+			},
+			toolConfig:  map[string]any{},
+			expectError: true,
+		},
+		{
 			name:        "Missing type and no inferrable fields",
 			toolName:    "no-type-no-fields",
 			mcpSection:  map[string]any{"env": map[string]any{"KEY": "value"}},

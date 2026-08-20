@@ -12,10 +12,12 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 var mcpMountValidationLog = logger.New("workflow:mcp_mount_validation")
@@ -38,8 +40,16 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 	}
 
 	mcpMountValidationLog.Printf("Validating %d mount(s) for tool %q", len(mounts), toolName)
-	return validateMountEntries(mounts, func(i int, parts mountParts) {
+	var sourceErr error
+	err := validateMountEntries(mounts, func(i int, parts mountParts) {
 		mcpMountValidationLog.Printf("Mount[%d] valid for tool %q: source=%s, dest=%s, mode=%s", i, toolName, parts.source, parts.dest, parts.mode)
+		if sourceErr != nil {
+			return
+		}
+		if err := validateMCPMountSource(parts.source); err != nil {
+			mcpMountValidationLog.Printf("Mount[%d] source rejected for tool %q: source=%s err=%s", i, toolName, parts.source, err)
+			sourceErr = fmt.Errorf("tool '%s' mcp configuration mounts[%d] host mount source %q is not permitted: %w.\n\nAllowed sources are paths under ${GITHUB_WORKSPACE}, paths under ${RUNNER_TEMP}/gh-aw, paths under /tmp/gh-aw, or Docker named volumes.\n\nSee: %s", toolName, i, parts.source, err, constants.DocsToolsURL)
+		}
 	}, func(i int, mount string, parts mountParts, kind mountValidationKind) error {
 		switch kind {
 		case mountValidationFormatError:
@@ -58,4 +68,15 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 			return fmt.Errorf("internal error: unsupported mount validation kind %d for tool %q mount %q", kind, toolName, mount)
 		}
 	})
+	if err != nil {
+		return err
+	}
+	return sourceErr
+}
+
+func validateMCPMountSource(source string) error {
+	if parser.IsAllowedMCPMountSource(source) {
+		return nil
+	}
+	return errors.New("custom MCP server mounts may not use arbitrary absolute host paths")
 }

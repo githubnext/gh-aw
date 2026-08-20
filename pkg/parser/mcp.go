@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -521,7 +523,9 @@ func parseMCPRegistryValue(mcpConfig map[string]any, toolName string, config *Re
 func parseMCPStdioTypeConfig(mcpConfig map[string]any, toolName string, config *RegistryMCPServerConfig) error {
 	if container, hasContainer := mcpConfig["container"]; hasContainer {
 		if containerStr, ok := container.(string); ok {
-			configureMCPStdioContainer(toolName, containerStr, mcpConfig, config)
+			if err := configureMCPStdioContainer(toolName, containerStr, mcpConfig, config); err != nil {
+				return err
+			}
 		}
 	} else {
 		if err := configureMCPStdioCommand(toolName, mcpConfig, config); err != nil {
@@ -533,20 +537,23 @@ func parseMCPStdioTypeConfig(mcpConfig map[string]any, toolName string, config *
 	return nil
 }
 
-func configureMCPStdioContainer(toolName, containerStr string, mcpConfig map[string]any, config *RegistryMCPServerConfig) {
+func configureMCPStdioContainer(toolName, containerStr string, mcpConfig map[string]any, config *RegistryMCPServerConfig) error {
 	mcpLog.Printf("Tool %s uses container: %s", toolName, containerStr)
 	config.Container = containerStr
 	config.Command = "docker"
 	config.Args = []string{"run", "--rm", "-i"}
 
 	appendContainerEnv(config, mcpConfig["env"])
-	appendContainerMounts(config, mcpConfig["mounts"])
+	if err := appendContainerMounts(config, mcpConfig["mounts"]); err != nil {
+		return err
+	}
 	if entrypointStr, ok := mcpConfig["entrypoint"].(string); ok {
 		config.Entrypoint = entrypointStr
 		config.Args = append(config.Args, "--entrypoint", entrypointStr)
 	}
 	config.Args = append(config.Args, containerStr)
 	appendBuiltinArgs(config, mcpConfig["entrypointArgs"])
+	return nil
 }
 
 func configureMCPStdioCommand(toolName string, mcpConfig map[string]any, config *RegistryMCPServerConfig) error {
@@ -591,14 +598,21 @@ func appendContainerEnv(config *RegistryMCPServerConfig, envValue any) {
 	}
 }
 
-func appendContainerMounts(config *RegistryMCPServerConfig, mountsValue any) {
+func appendContainerMounts(config *RegistryMCPServerConfig, mountsValue any) error {
 	mountsSlice, ok := mountsValue.([]any)
 	if !ok {
-		return
+		return nil
 	}
 	var mountStrings []string
 	for _, mount := range mountsSlice {
 		if mountStr, ok := mount.(string); ok {
+			source, err := parseContainerMountSource(mountStr)
+			if err != nil {
+				return err
+			}
+			if !IsAllowedMCPMountSource(source) {
+				return fmt.Errorf("mcp container mount source %q is not permitted. Allowed sources are paths under ${GITHUB_WORKSPACE}, paths under ${RUNNER_TEMP}/gh-aw, paths under /tmp/gh-aw, or Docker named volumes", source)
+			}
 			mountStrings = append(mountStrings, mountStr)
 			config.Mounts = append(config.Mounts, mountStr)
 		}
@@ -607,6 +621,78 @@ func appendContainerMounts(config *RegistryMCPServerConfig, mountsValue any) {
 	for _, mountStr := range mountStrings {
 		config.Args = append(config.Args, "-v", mountStr)
 	}
+	return nil
+}
+
+func parseContainerMountSource(mount string) (string, error) {
+	parts := strings.Split(mount, ":")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("mcp container mount must follow 'source:destination:mode' format, got: %q", mount)
+	}
+	if parts[0] == "" {
+		return "", fmt.Errorf("mcp container mount source path cannot be empty, got: %q", mount)
+	}
+	if parts[1] == "" {
+		return "", fmt.Errorf("mcp container mount destination path cannot be empty, got: %q", mount)
+	}
+	if parts[2] != "ro" && parts[2] != "rw" {
+		return "", fmt.Errorf("mcp container mount mode must be 'ro' or 'rw', got: %q", parts[2])
+	}
+	return parts[0], nil
+}
+
+func IsAllowedMCPMountSource(source string) bool {
+	normalized := strings.ReplaceAll(source, `\$`, "$")
+	cleaned := filepath.Clean(normalized)
+	if cleaned == "/" || isPathWithin(cleaned, "/var/run/docker.sock") {
+		return false
+	}
+	if isUnderSafeVariablePrefix(normalized, "${GITHUB_WORKSPACE}") ||
+		isUnderSafeVariablePrefix(normalized, "$GITHUB_WORKSPACE") ||
+		isUnderSafeVariablePrefix(normalized, "${RUNNER_TEMP}/gh-aw") ||
+		isUnderSafeVariablePrefix(normalized, "$RUNNER_TEMP/gh-aw") {
+		return true
+	}
+	if isPathWithin(cleaned, "/tmp/gh-aw") {
+		return true
+	}
+	if filepath.IsAbs(cleaned) {
+		return false
+	}
+	return isDockerNamedVolumeSource(normalized)
+}
+
+func isUnderSafeVariablePrefix(source, prefix string) bool {
+	if source != prefix && !strings.HasPrefix(source, prefix+"/") {
+		return false
+	}
+	suffix := strings.TrimPrefix(source, prefix)
+	if suffix == "" {
+		return true
+	}
+	if slices.Contains(strings.Split(strings.TrimPrefix(suffix, "/"), "/"), "..") {
+		return false
+	}
+	return true
+}
+
+func isPathWithin(path, root string) bool {
+	cleanPath := filepath.Clean(path)
+	cleanRoot := filepath.Clean(root)
+	return cleanPath == cleanRoot || strings.HasPrefix(cleanPath, cleanRoot+"/")
+}
+
+func isDockerNamedVolumeSource(source string) bool {
+	if source == "" || strings.ContainsAny(source, `/\`) || strings.HasPrefix(source, ".") || strings.HasPrefix(source, "~") || strings.Contains(source, "$") {
+		return false
+	}
+	for _, r := range source {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func appendNetworkProxyArgs(networkValue any, proxyArgs *[]string) {

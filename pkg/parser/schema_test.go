@@ -339,6 +339,35 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 			errContains: "jsonschema validation failed",
 		},
 		{
+			name: "unsafe root mount rejected by schema",
+			mcpConfig: map[string]any{
+				"type":      "stdio",
+				"container": "mcp/server",
+				"mounts":    []any{"/:/host_root:rw"},
+			},
+			wantErr:     true,
+			errContains: "jsonschema validation failed",
+		},
+		{
+			name: "unsafe docker socket mount rejected by schema",
+			mcpConfig: map[string]any{
+				"type":      "stdio",
+				"container": "mcp/server",
+				"mounts":    []any{"/var/run/docker.sock:/var/run/docker.sock:rw"},
+			},
+			wantErr:     true,
+			errContains: "jsonschema validation failed",
+		},
+		{
+			name: "workspace mount accepted by schema",
+			mcpConfig: map[string]any{
+				"type":      "stdio",
+				"container": "mcp/server",
+				"mounts":    []any{"${GITHUB_WORKSPACE}/data:/data:ro"},
+			},
+			wantErr: false,
+		},
+		{
 			name: "additional property rejected by schema",
 			mcpConfig: map[string]any{
 				"type":          "stdio",

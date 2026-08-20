@@ -19,25 +19,31 @@ func TestValidateMCPMountsSyntax(t *testing.T) {
 		errMsg    string
 	}{
 		{
-			name:      "valid []string - ro mount",
+			name:      "valid []string - workspace ro mount",
 			toolName:  "my-tool",
-			mountsRaw: []string{"/host/data:/data:ro"},
+			mountsRaw: []string{"${GITHUB_WORKSPACE}/data:/data:ro"},
 			wantErr:   false,
 		},
 		{
-			name:      "valid []string - rw mount",
+			name:      "valid []string - runtime rw mount",
 			toolName:  "my-tool",
-			mountsRaw: []string{"/host/data:/data:rw"},
+			mountsRaw: []string{"${RUNNER_TEMP}/gh-aw/data:/data:rw"},
 			wantErr:   false,
 		},
 		{
 			name:     "valid []any with string items",
 			toolName: "my-tool",
 			mountsRaw: []any{
-				"/host/data:/data:ro",
-				"/usr/bin/tool:/usr/bin/tool:ro",
+				`\${GITHUB_WORKSPACE}/data:/data:ro`,
+				"cache-volume:/cache:rw",
 			},
 			wantErr: false,
+		},
+		{
+			name:      "valid tmp gh-aw mount",
+			toolName:  "my-tool",
+			mountsRaw: []string{"/tmp/gh-aw/cache:/cache:rw"},
+			wantErr:   false,
 		},
 		{
 			name:      "empty []string",
@@ -105,7 +111,7 @@ func TestValidateMCPMountsSyntax(t *testing.T) {
 			name:     "error message includes mount index",
 			toolName: "my-tool",
 			mountsRaw: []string{
-				"/host/data:/data:ro",
+				"${GITHUB_WORKSPACE}/data:/data:ro",
 				"/invalid/mount",
 			},
 			wantErr: true,
@@ -115,10 +121,45 @@ func TestValidateMCPMountsSyntax(t *testing.T) {
 			name:     "[]any with non-string items are silently skipped",
 			toolName: "my-tool",
 			mountsRaw: []any{
-				123,                   // non-string, skipped
-				"/host/data:/data:ro", // valid string
+				123,                                 // non-string, skipped
+				"${GITHUB_WORKSPACE}/data:/data:ro", // valid string
 			},
 			wantErr: false,
+		},
+		{
+			name:      "reject filesystem root source",
+			toolName:  "my-tool",
+			mountsRaw: []string{"/:/host_root:rw"},
+			wantErr:   true,
+			errMsg:    "host mount source \"/\" is not permitted",
+		},
+		{
+			name:      "reject arbitrary absolute source",
+			toolName:  "my-tool",
+			mountsRaw: []string{"/etc:/host_etc:ro"},
+			wantErr:   true,
+			errMsg:    "custom MCP server mounts may not use arbitrary absolute host paths",
+		},
+		{
+			name:      "reject docker socket source",
+			toolName:  "my-tool",
+			mountsRaw: []string{"/var/run/docker.sock:/var/run/docker.sock:rw"},
+			wantErr:   true,
+			errMsg:    "host mount source \"/var/run/docker.sock\" is not permitted",
+		},
+		{
+			name:      "reject source under docker socket",
+			toolName:  "my-tool",
+			mountsRaw: []string{"/var/run/docker.sock/child:/sock:ro"},
+			wantErr:   true,
+			errMsg:    "host mount source \"/var/run/docker.sock/child\" is not permitted",
+		},
+		{
+			name:      "reject workspace traversal",
+			toolName:  "my-tool",
+			mountsRaw: []string{"${GITHUB_WORKSPACE}/..:/host_parent:ro"},
+			wantErr:   true,
+			errMsg:    "host mount source \"${GITHUB_WORKSPACE}/..\" is not permitted",
 		},
 	}
 

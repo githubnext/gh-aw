@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
@@ -485,9 +486,12 @@ func buildMCPGatewayAllowedMountRoots(tools map[string]any, gatewayConfig *MCPGa
 		}
 		rootModes[path] = mode
 	}
-	addMount := func(mount string) {
+	addMount := func(mount string, enforceMCPSourcePolicy bool) {
 		source, mode, ok := parseMCPGatewayAllowlistMount(mount)
 		if !ok {
+			return
+		}
+		if enforceMCPSourcePolicy && !parser.IsAllowedMCPMountSource(source) {
 			return
 		}
 		addRoot(source, mode)
@@ -506,12 +510,12 @@ func buildMCPGatewayAllowedMountRoots(tools map[string]any, gatewayConfig *MCPGa
 
 	if gatewayConfig != nil {
 		for _, mount := range gatewayConfig.Mounts {
-			addMount(mount)
+			addMount(mount, false)
 		}
 	}
 
 	for _, mount := range collectMCPServerConfiguredMounts(tools) {
-		addMount(mount)
+		addMount(mount, true)
 	}
 
 	roots := sliceutil.SortedKeys(rootModes)
