@@ -7,7 +7,7 @@
 
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { minimatch } = require("minimatch");
+const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
 const path = require("node:path");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -70,7 +70,7 @@ function isAllowedWorkflow(workflowPath, allowedWorkflows) {
   return allowedWorkflows.some(pattern => {
     if (typeof pattern !== "string" || path.posix.basename(pattern) !== pattern) return false;
     const normalizedPattern = normalizeWorkflowFilename(pattern);
-    return normalizedPattern !== undefined && minimatch(filename, normalizedPattern, { nocase: true });
+    return normalizedPattern !== undefined && matchesSimpleGlob(filename, normalizedPattern);
   });
 }
 
