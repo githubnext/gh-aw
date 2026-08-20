@@ -2,8 +2,9 @@ package console
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/github/gh-aw/pkg/styles"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/github/gh-aw/pkg/tty"
 )
 
@@ -17,6 +18,9 @@ const (
 
 	// ansiCarriageReturn moves cursor to start of current line
 	ansiCarriageReturn = "\r"
+
+	primerGreenLight = "#2da44e"
+	primerGreenDark  = "#3fb950"
 )
 
 // ClearScreen clears the terminal screen if stderr is a TTY
@@ -41,7 +45,7 @@ func ShowWelcomeBanner(description string) {
 	ClearScreen()
 	header := "→ Welcome to GitHub Agentic Workflows!"
 	if tty.IsStderrTerminal() {
-		header = styles.Header.Render(header)
+		header = renderWizardTitle(header)
 	}
 	out := stderrWriter()
 	fmt.Fprintln(out, "")
@@ -49,4 +53,24 @@ func ShowWelcomeBanner(description string) {
 	fmt.Fprintln(out, "")
 	fmt.Fprintln(out, description)
 	fmt.Fprintln(out, "")
+}
+
+func renderWizardTitle(title string) string {
+	runes := []rune(title)
+	gradient := lipgloss.Blend1D(
+		len(runes),
+		lipgloss.Color(primerGreenLight),
+		lipgloss.Color(primerGreenDark),
+	)
+
+	var rendered strings.Builder
+	for i, r := range runes {
+		rendered.WriteString(
+			lipgloss.NewStyle().
+				Bold(true).
+				Foreground(gradient[i]).
+				Render(string(r)),
+		)
+	}
+	return rendered.String()
 }
