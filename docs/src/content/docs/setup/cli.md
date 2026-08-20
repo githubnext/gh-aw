@@ -144,7 +144,7 @@ For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
 Commands are organized by workflow lifecycle: creating, building, testing, monitoring, and managing workflows.
 
-Use this chooser for the similarly named setup commands:
+Use this table to choose between the similarly named setup commands:
 
 | Command | Best fit |
 |---------|----------|
