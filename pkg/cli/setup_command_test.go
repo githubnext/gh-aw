@@ -222,6 +222,7 @@ func TestRunSetupRepositoryCheck_AcceptsCaseInsensitiveSlugMatch(t *testing.T) {
 
 func TestValidateSetupRepositoryCheckOptions_RejectsEmptyRepoComponents(t *testing.T) {
 	tests := []SetupRepositoryCheckOptions{
+		{Repo: "/"},
 		{Repo: "/repo"},
 		{Repo: "owner/"},
 	}

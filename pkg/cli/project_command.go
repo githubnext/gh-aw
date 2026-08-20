@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -419,12 +420,10 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	console.LogVerbose(verbose, "Linking project to repository: "+repoSlug)
 
 	// Parse repo slug
-	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 {
+	repoOwner, repoName, err := repoutil.SplitRepoSlug(repoSlug)
+	if err != nil {
 		return fmt.Errorf("repository slug '%s' is not in owner/repo format. Expected '<owner>/<repo>'. Example: github/gh-aw", repoSlug)
 	}
-	repoOwner := parts[0]
-	repoName := parts[1]
 
 	// Get repository ID
 	repoIdQuery := `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`

@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/spf13/cobra"
 )
@@ -251,12 +252,10 @@ func getRemoteWorkflowFiles(ctx context.Context, repoSpec, workflowPath string, 
 	}
 
 	// Parse owner/repo
-	repoParts := strings.Split(repoPart, "/")
-	if len(repoParts) != 2 {
+	owner, repo, err := repoutil.SplitRepoSlug(repoPart)
+	if err != nil {
 		return nil, fmt.Errorf("invalid repository format: %s (expected owner/repo or owner/repo@ref)", repoSpec)
 	}
-	owner = repoParts[0]
-	repo = repoParts[1]
 
 	if verbose && !jsonOutput {
 		fmt.Fprintf(os.Stderr, "Fetching workflow files from %s/%s@%s (path: %s)\n", owner, repo, ref, workflowPath)

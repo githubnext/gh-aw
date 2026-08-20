@@ -22,15 +22,37 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    name: Build Windows CLI
-    runs-on: windows-latest
-    timeout-minutes: 15
+  checkout-cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Cache repository checkout
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+        with:
+          path: .
+          key: checkout-cwi-${{ github.sha }}
+
+  build-windows:
+    name: Build Windows CLI
+    needs: [checkout-cache]
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Restore checkout
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+        with:
+          path: .
+          key: checkout-cwi-${{ github.sha }}
+          fail-on-cache-miss: true
 
       - name: Set up Go
         id: setup-go
@@ -70,14 +92,20 @@ jobs:
 
   integration:
     name: "Windows Integration"
-    needs: build-windows
+    needs:
+      - checkout-cache
+      - build-windows
     runs-on: windows-latest
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+      - name: Restore checkout
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+        with:
+          path: .
+          key: checkout-cwi-${{ github.sha }}
+          fail-on-cache-miss: true
 
       - name: Set up Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6

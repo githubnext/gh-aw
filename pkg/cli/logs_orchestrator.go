@@ -103,6 +103,67 @@ func staleLogsWarning(processedRuns []ProcessedRun, startDate, endDate string) s
 		humanizeDuration(age), newest.Format(time.RFC3339))
 }
 
+// dateRangeCoverageMinFraction is the minimum fraction of the requested
+// start_date/end_date window that returned runs must span before a partial
+// (count-limit-truncated) result is considered a reasonable sample of the
+// requested range. Below this fraction, callers are warned that the result is
+// a narrow slice of the range, not a representative multi-day sample.
+const dateRangeCoverageMinFraction = 0.2
+
+// dateRangeCoverageWarning returns a warning when an explicit start_date/end_date
+// range was requested, the result was truncated before the range was fully
+// scanned (partial=true, i.e. a continuation cursor was produced), and the runs
+// actually returned span only a small fraction of the requested window. Without
+// this warning, a caller can mistake a single busy (and possibly old) day for a
+// representative sample of a much wider requested range, silently invalidating
+// multi-day trend analysis built on top of it (see github/gh-aw#53995).
+// Returns "" when no warning is warranted.
+func dateRangeCoverageWarning(processedRuns []ProcessedRun, startDate, endDate string, partial bool) string {
+	if !partial || startDate == "" || len(processedRuns) == 0 {
+		return ""
+	}
+	start, err := parseFilterDate(startDate)
+	if err != nil {
+		return ""
+	}
+	end := time.Now()
+	if endDate != "" {
+		if parsedEnd, err := parseFilterDate(endDate); err == nil {
+			end = parsedEnd
+		}
+	}
+	requestedSpan := end.Sub(start)
+	if requestedSpan <= 0 {
+		return ""
+	}
+	// A single returned run trivially has a zero-length covered span
+	// (newest.Sub(oldest) == 0), which would always look like a narrow slice
+	// even when that one run legitimately falls within the requested window.
+	// Require at least two runs before computing a meaningful coverage ratio.
+	if len(processedRuns) < 2 {
+		return ""
+	}
+	var oldest, newest time.Time
+	for _, pr := range processedRuns {
+		created := pr.Run.CreatedAt
+		if oldest.IsZero() || created.Before(oldest) {
+			oldest = created
+		}
+		if created.After(newest) {
+			newest = created
+		}
+	}
+	coveredSpan := newest.Sub(oldest)
+	if coveredSpan.Seconds()/requestedSpan.Seconds() >= dateRangeCoverageMinFraction {
+		return ""
+	}
+	return fmt.Sprintf(
+		"An explicit date range was requested (%s), but the count limit was reached after collecting runs spanning only %s "+
+			"(from %s to %s). This is a narrow slice of the requested range and may not represent overall trends. "+
+			"Use the continuation cursor to fetch the remaining time range, or increase 'count' to cover the full window.",
+		humanizeDuration(requestedSpan), humanizeDuration(coveredSpan), oldest.Format(time.RFC3339), newest.Format(time.RFC3339))
+}
+
 // noRunsMessage returns a human-readable explanation for why zero workflow runs
 // were returned.  It inspects the startDate filter and the timeoutReached flag
 // so callers receive actionable guidance instead of a silent empty result.
@@ -183,7 +244,19 @@ func buildContinuationIfNeeded(
 	}
 	// Use the oldest processed run as the before_run_id cursor for the next page.
 	oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
-	logsOrchestratorLog.Printf("Building continuation cursor: before_run_id=%d, timeoutReached=%v, countLimitReached=%v", oldestRunID, timeoutReached, countLimitReached)
+	// Prefer the actual pagination date cursor over the fixed request end_date: when
+	// many non-matching runs are interspersed across the window (the scenario this
+	// guards against), the oldest *matching* run can be far newer than the point the
+	// scan actually reached. Using before_run_id alone in that case makes a resumed
+	// request re-fetch pages already scanned (from end_date/now down to oldestRunID),
+	// wasting iterations and potentially exhausting them again with zero new matches
+	// and no further continuation (see github/gh-aw#54110). Persisting the real
+	// fetch cursor as end_date bounds the resumed query server-side instead.
+	endDate := opts.endDate
+	if opts.lastFetchedBeforeDate != "" {
+		endDate = opts.lastFetchedBeforeDate
+	}
+	logsOrchestratorLog.Printf("Building continuation cursor: before_run_id=%d, end_date=%s, timeoutReached=%v, countLimitReached=%v", oldestRunID, endDate, timeoutReached, countLimitReached)
 	message := "Timeout reached. Use these parameters to continue fetching more logs."
 	if countLimitReached {
 		// In fetchAllInRange mode the date window may contain more runs than count.
@@ -194,7 +267,7 @@ func buildContinuationIfNeeded(
 		WorkflowName: opts.workflowName,
 		Count:        opts.count,
 		StartDate:    opts.startDate,
-		EndDate:      opts.endDate,
+		EndDate:      endDate,
 		Engine:       opts.engine,
 		Branch:       opts.branch,
 		AfterRunID:   opts.afterRunID,
@@ -212,7 +285,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	}
 	defer cancelLogsDownload(runtime.timeoutCancel)
 
-	processedRuns, timeoutReached, countLimitReached, err := collectProcessedWorkflowRuns(runtime, opts)
+	processedRuns, timeoutReached, countLimitReached, lastFetchedBeforeDate, err := collectProcessedWorkflowRuns(runtime, opts)
 	if err != nil {
 		return err
 	}
@@ -224,29 +297,31 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	processedRuns = limitProcessedRuns(processedRuns, opts.Count, opts.Verbose)
 	logsOrchestratorLog.Printf("Collected %d processed runs (timeoutReached=%v, countLimitReached=%v)", len(processedRuns), timeoutReached, countLimitReached)
 	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached, continuationOptions{
-		workflowName:   opts.WorkflowName,
-		startDate:      opts.StartDate,
-		endDate:        opts.EndDate,
-		engine:         opts.Engine,
-		branch:         opts.Ref,
-		afterRunID:     opts.AfterRunID,
-		count:          opts.Count,
-		timeoutMinutes: opts.TimeoutMinutes,
+		workflowName:          opts.WorkflowName,
+		startDate:             opts.StartDate,
+		endDate:               opts.EndDate,
+		engine:                opts.Engine,
+		branch:                opts.Ref,
+		afterRunID:            opts.AfterRunID,
+		count:                 opts.Count,
+		timeoutMinutes:        opts.TimeoutMinutes,
+		lastFetchedBeforeDate: lastFetchedBeforeDate,
 	})
 
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
-		outputDir:      opts.OutputDir,
-		summaryFile:    opts.SummaryFile,
-		format:         opts.Format,
-		reportFile:     opts.ReportFile,
-		jsonOutput:     opts.JSONOutput,
-		toolGraph:      opts.ToolGraph,
-		train:          opts.Train,
-		continuation:   continuation,
-		verbose:        opts.Verbose,
-		artifactFilter: runtime.artifactFilter,
-		startDate:      opts.StartDate,
-		endDate:        opts.EndDate,
-		checkStaleness: true,
+		outputDir:         opts.OutputDir,
+		summaryFile:       opts.SummaryFile,
+		format:            opts.Format,
+		reportFile:        opts.ReportFile,
+		jsonOutput:        opts.JSONOutput,
+		toolGraph:         opts.ToolGraph,
+		train:             opts.Train,
+		continuation:      continuation,
+		verbose:           opts.Verbose,
+		artifactFilter:    runtime.artifactFilter,
+		startDate:         opts.StartDate,
+		endDate:           opts.EndDate,
+		checkStaleness:    true,
+		countLimitReached: countLimitReached,
 	})
 }
