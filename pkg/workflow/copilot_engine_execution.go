@@ -484,7 +484,11 @@ func (e *CopilotEngine) buildCopilotAllowedDomains(workflowData *WorkflowData) s
 }
 
 func (e *CopilotEngine) buildCopilotAWFPathSetup(workflowData *WorkflowData, customCommandScriptSetup string) string {
-	pathSetup := "touch " + AgentStepSummaryPath + "\n" +
+	stepSummaryPath := AgentStepSummaryPath
+	if isDetectionRun(workflowData) {
+		stepSummaryPath = constants.ThreatDetectionStepSummaryPath
+	}
+	pathSetup := "touch " + stepSummaryPath + "\n" +
 		"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
 		"export GH_AW_NODE_BIN\n" +
 		"export COPILOT_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""

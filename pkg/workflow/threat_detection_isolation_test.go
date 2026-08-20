@@ -142,6 +142,9 @@ Test workflow`
 	if !strings.Contains(detectionSection, "GITHUB_STEP_SUMMARY: "+constants.ThreatDetectionStepSummaryPath) {
 		t.Errorf("Detection execution step should set GITHUB_STEP_SUMMARY to %q", constants.ThreatDetectionStepSummaryPath)
 	}
+	if strings.Contains(detectionSection, "touch "+AgentStepSummaryPath) {
+		t.Errorf("Detection execution step must not create unused agent step summary %q", AgentStepSummaryPath)
+	}
 
 	// Test 2: A dedicated echo step for the detection step summary must be present.
 	if !strings.Contains(detectionSection, "Echo detection step summary") {
