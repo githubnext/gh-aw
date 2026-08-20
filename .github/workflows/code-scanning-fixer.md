@@ -12,6 +12,10 @@ permissions:
   pull-requests: read
   security-events: read
   copilot-requests: write
+network:
+  allowed:
+    - defaults
+    - go
 engine:
   id: copilot
   copilot-sdk: true
