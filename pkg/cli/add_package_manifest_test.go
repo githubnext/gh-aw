@@ -92,6 +92,36 @@ files:
 			getRepositoryPackageDefaultBranch = previousDefaultBranch
 			getRepositoryPackageLatestRelease = previousLatestRelease
 		})
+
+		t.Run("uses resources mappings", func(t *testing.T) {
+			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+				switch path {
+				case "aw.yml":
+					return []byte(`name: Repo Assist
+resources:
+  - source: templates/bug.yml
+    destination: .github/ISSUE_TEMPLATE/bug.yml
+  - source: policy/controls.json
+    destination: .github/aw/policy/controls.json
+`), nil
+				case "README.md":
+					return []byte("# Repo Assist\n"), nil
+				default:
+					return nil, createRepositoryPackageNotFoundError(path)
+				}
+			}
+			listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
+			}
+
+			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
+			require.NoError(t, err)
+			require.Len(t, pkg.ResourceFiles, 2)
+			assert.Equal(t, "packages/repo-assist/templates/bug.yml", pkg.ResourceFiles[0].SourcePath)
+			assert.Equal(t, ".github/ISSUE_TEMPLATE/bug.yml", pkg.ResourceFiles[0].DestinationPath)
+			assert.Equal(t, "packages/repo-assist/policy/controls.json", pkg.ResourceFiles[1].SourcePath)
+			assert.Equal(t, ".github/aw/policy/controls.json", pkg.ResourceFiles[1].DestinationPath)
+		})
 		getRepositoryPackageLatestRelease = func(_ context.Context, repoSlug, host string) (string, error) {
 			assert.Equal(t, "owner/repo", repoSlug)
 			assert.Equal(t, "github.com", host)

@@ -192,6 +192,12 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		successes = append(successes, name)
 	}
 
+	if err := syncManifestManagedResources(ctx, repoSpec, latestPkg, latestRef, opts); err != nil {
+		for _, wf := range grouped {
+			failures = append(failures, updateFailure{Name: wf.Name, Error: err.Error()})
+		}
+	}
+
 	return successes, failures
 }
 

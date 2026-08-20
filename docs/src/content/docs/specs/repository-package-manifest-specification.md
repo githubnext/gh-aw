@@ -49,6 +49,7 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | `license` | string | No | SPDX license identifier or license name for the package. |
 | `files` | array of strings | No | Deprecated. Explicit installable workflow file list. Use `includes` instead. |
 | `includes` | array of strings or mappings | No | Explicit installable package entries. String entries use path conventions; mapping entries declare an explicit source-to-destination install path. |
+| `resources` | array of mappings | No | Declarative repository assets copied as-is to allowlisted destinations. |
 
 ### 4.2 `manifest-version`
 
@@ -126,6 +127,28 @@ Mapping entries follow the same install semantics as string entries: `.md` sourc
 
 `gh aw add`, `gh aw add-wizard`, and `gh aw update` MUST use identical mapping semantics, and `gh aw update` MUST continue to track the manifest source of installed files.
 
+### 4.10 `resources`
+
+If present, `resources` MUST be an array of mappings. Each mapping MUST contain:
+
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `source` | string | Yes | Package-relative path of the asset to copy. |
+| `destination` | string | Yes | Repository-root-relative destination path. |
+
+Resource `source` and `destination` values MUST NOT be absolute paths and MUST NOT escape their roots through path traversal. Local package sources MUST NOT be symbolic links, directories, or other non-regular file replacements.
+
+Resource destinations are restricted to non-hook repository asset namespaces:
+
+- `.github/ISSUE_TEMPLATE/*.yml`
+- `.github/ISSUE_TEMPLATE/*.yaml`
+- `.github/CODEOWNERS`
+- `.github/aw/**`
+
+Implementations MUST reject duplicate or case-insensitive duplicate resource destinations before writing files. Resources are copied as inert content from the selected package ref; installers MUST NOT execute package-provided scripts or expose configured secrets to package content during installation.
+
+For each package installation, implementations MUST record package-scoped ownership metadata under `.github/aw/packages/`. The record MUST identify the package source, resolved immutable commit/ref, installed destination paths, source paths, and SHA-256 content digests. Implementations MUST refuse to overwrite existing resource files unless they are unchanged files owned by the same package, or unless the user explicitly passes `--force`.
+
 ## 5. Installable file resolution
 
 Supported installable paths are:
@@ -159,7 +182,8 @@ The install lifecycle (invoked by `gh aw add`) MUST proceed in the following ord
 2. **Resolve** the installable file list per §5.
 3. **Download** each resolved file from the remote package source.
 4. **Compile** each agentic workflow markdown file into the target repository's workflow directory. Raw `.yml` files are copied verbatim without compilation.
-5. **Write** all output files atomically before reporting success.
+5. **Copy** declared `resources` as inert repository assets without executing them.
+6. **Write** all output files and package ownership metadata atomically before reporting success.
 
 If any step fails, the implementation MUST abort and MUST NOT leave partial output files in the target directory. The implementation SHOULD emit an actionable error identifying the failing step. See §10 (Safeguards) for the normative rollback and permission-error requirements that apply to this lifecycle (R-PKG-003, R-PKG-004, R-PKG-006, R-PKG-007).
 

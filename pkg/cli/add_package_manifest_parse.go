@@ -23,6 +23,7 @@ type repositoryPackageManifest struct {
 	License         string
 	Includes        []repositoryPackageInclude
 	Files           []string
+	Resources       []repositoryPackageResource
 	Bootstrap       *repositoryPackageBootstrap
 	Skills          []string // skill directory paths (e.g. "skills/my-skill")
 	Agents          []string // agent .md file paths (e.g. "agents/my-agent.md")
@@ -140,6 +141,14 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 			warnings = append(warnings, fmt.Sprintf("Field 'files' in %s is deprecated; use 'includes' instead.", manifestPath))
 			warnings = append(warnings, "Codemod suggestion:\n"+formatIncludesCodemodSuggestion(codemodManifestFilesToIncludes(files)))
 		}
+	}
+
+	if resourcesValue, ok := root["resources"]; ok {
+		resources, err := extractManifestResources(resourcesValue, manifestPath)
+		if err != nil {
+			return nil, err
+		}
+		manifest.Resources = resources
 	}
 
 	if skillsValue, ok := root["skills"]; ok {
