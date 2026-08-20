@@ -548,7 +548,28 @@ function sanitizeUrlDomains(s, allowed) {
 }
 
 /**
- * Neutralizes commands at the start of text by wrapping them in backticks.
+ * Creates a code-span wrapper whose delimiter length does not occur in the input.
+ * This prevents surrounding attacker-controlled backticks from pairing with the
+ * sanitizer's delimiters and exposing the wrapped token in rendered Markdown.
+ * @param {string} s - The complete string being processed
+ * @returns {(text: string, before?: string, after?: string) => string} A render-safe inline-code wrapper
+ */
+function createRenderSafeCodeSpanWrapper(s) {
+  const usedDelimiterLengths = new Set(Array.from(s.matchAll(/`+/g), match => match[0].length));
+  let delimiterLength = 1;
+  while (usedDelimiterLengths.has(delimiterLength)) {
+    delimiterLength++;
+  }
+  const delimiter = "`".repeat(delimiterLength);
+  return (text, before = "", after = "") => {
+    const leadingSeparator = before.endsWith("`") ? " " : "";
+    const trailingSeparator = after.startsWith("`") ? " " : "";
+    return `${leadingSeparator}${delimiter}${text}${delimiter}${trailingSeparator}`;
+  };
+}
+
+/**
+ * Neutralizes commands at the start of text by wrapping them in a render-safe code span.
  * Reads all command names from GH_AW_COMMANDS (JSON array).
  * @param {string} s - The string to process
  * @returns {string} The string with neutralized commands
@@ -575,10 +596,11 @@ function neutralizeCommands(s) {
 
   const leadingWhitespace = s.match(/^\s*/)?.[0] ?? "";
   const remainder = s.slice(leadingWhitespace.length);
+  const wrapInCodeSpan = createRenderSafeCodeSpanWrapper(s);
   const matchedCommand = resolveMatchedCommand(remainder, commandNames);
   if (matchedCommand) {
     const escapedCommand = matchedCommand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), (match, whitespace, command, offset, input) => `${whitespace}${wrapInCodeSpan(`/${command}`, "", input[offset + match.length])}`);
   }
 
   for (const name of commandNames) {
@@ -586,7 +608,7 @@ function neutralizeCommands(s) {
       continue;
     }
     const escapedCommand = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const result = s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+    const result = s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), (match, whitespace, command, offset, input) => `${whitespace}${wrapInCodeSpan(`/${command}`, "", input[offset + match.length])}`);
     if (result !== s) {
       return result;
     }
@@ -596,20 +618,22 @@ function neutralizeCommands(s) {
 }
 
 /**
- * Neutralizes ALL @mentions by wrapping them in backticks
+ * Neutralizes ALL @mentions by wrapping them in render-safe code spans.
  * This is the core version without any filtering
  * @param {string} s - The string to process
  * @returns {string} The string with neutralized mentions
  */
 function neutralizeAllMentions(s) {
-  // Replace @name or @org/team outside code with `@name`
-  // No filtering - all mentions are neutralized
-  // Changed [^\w`] to [^A-Za-z0-9`] to include underscore as a valid preceding character
-  // This prevents bypass patterns like "test_@user" from escaping sanitization
-  return s.replace(/(^|[^A-Za-z0-9`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
-    // Log when a mention is escaped to help debug issues
-    core.info(`Escaped mention: @${p2} (not in allowed list)`);
-    return `${p1}\`@${p2}\``;
+  const wrapInCodeSpan = createRenderSafeCodeSpanWrapper(s);
+  return applyToNonCodeRegions(s, (segment, regionBefore = "", regionAfter = "") => {
+    // No filtering - all mentions outside matched code regions are neutralized.
+    // Use an explicit ASCII class so underscores before mentions remain covered.
+    return segment.replace(/(^|[^A-Za-z0-9])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (match, prefix, alias, offset) => {
+      core.info(`Escaped mention: @${alias} (not in allowed list)`);
+      const before = prefix || (offset === 0 ? regionBefore : "");
+      const after = segment[offset + match.length] || (offset + match.length === segment.length ? regionAfter : "");
+      return `${prefix}${wrapInCodeSpan(`@${alias}`, before, after)}`;
+    });
   });
 }
 
@@ -641,8 +665,11 @@ function getFencedCodeRanges(s) {
     const lineEnd = i < lines.length - 1 ? lineContentEnd + 1 : lineContentEnd;
 
     if (!inBlock) {
-      const m = trimmed.match(/^(`{3,}|~{3,})/);
-      if (m) {
+      // CommonMark permits at most three leading spaces. Backtick fence info
+      // strings cannot contain backticks; such lines may instead contain an
+      // inline code span followed by prose that still requires sanitization.
+      const m = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      if (m && (m[1][0] !== "`" || !m[2].includes("`"))) {
         inBlock = true;
         blockStart = pos;
         fenceChar = m[1][0];
@@ -651,8 +678,8 @@ function getFencedCodeRanges(s) {
     } else {
       // A closing fence: same character, at least as long, only whitespace after
       const fc = fenceChar === "`" ? "\\`" : "~";
-      const closingRegex = new RegExp(`^[${fc}]{${fenceLen},}\\s*$`);
-      if (closingRegex.test(trimmed)) {
+      const closingRegex = new RegExp(`^ {0,3}[${fc}]{${fenceLen},}\\s*$`);
+      if (closingRegex.test(line)) {
         ranges.push([blockStart, lineEnd]);
         inBlock = false;
         blockStart = -1;
@@ -678,11 +705,13 @@ function getFencedCodeRanges(s) {
  * non-code text; inline code spans are preserved verbatim.
  *
  * @param {string} text - The text to process (should not contain fenced code blocks)
- * @param {(s: string) => string} fn - Transformation to apply to non-code portions
+ * @param {(s: string, before?: string, after?: string) => string} fn - Transformation to apply to non-code portions
+ * @param {string} [outerBefore] - Character immediately before this text segment
+ * @param {string} [outerAfter] - Character immediately after this text segment
  * @returns {string} The processed text
  */
-function applyFnOutsideInlineCode(text, fn) {
-  if (!text) return fn(text || "");
+function applyFnOutsideInlineCode(text, fn, outerBefore = "", outerAfter = "") {
+  if (!text) return fn(text || "", outerBefore, outerAfter);
 
   const parts = [];
   let i = 0;
@@ -727,7 +756,8 @@ function applyFnOutsideInlineCode(text, fn) {
     if (closeIdx !== -1) {
       // Valid inline code span found: apply fn to the text before it, then keep the code span
       if (textStart < btStart) {
-        parts.push(fn(text.slice(textStart, btStart)));
+        const before = textStart > 0 ? text[textStart - 1] : outerBefore;
+        parts.push(fn(text.slice(textStart, btStart), before, text[btStart]));
       }
       parts.push(text.slice(btStart, closeIdx + btCount));
       textStart = closeIdx + btCount;
@@ -738,7 +768,8 @@ function applyFnOutsideInlineCode(text, fn) {
 
   // Apply fn to any remaining non-code text
   if (textStart < text.length) {
-    parts.push(fn(text.slice(textStart)));
+    const before = textStart > 0 ? text[textStart - 1] : outerBefore;
+    parts.push(fn(text.slice(textStart), before, outerAfter));
   }
 
   return parts.join("");
@@ -752,7 +783,7 @@ function applyFnOutsideInlineCode(text, fn) {
  * Falls back to applying fn to the entire string if any parsing error occurs.
  *
  * @param {string} s - Markdown content to process
- * @param {(s: string) => string} fn - Transformation to apply outside code regions
+ * @param {(s: string, before?: string, after?: string) => string} fn - Transformation to apply outside code regions
  * @returns {string} The content with the transformation applied only outside code regions
  */
 function applyToNonCodeRegions(s, fn) {
@@ -774,7 +805,7 @@ function applyToNonCodeRegions(s, fn) {
     for (const [start, end] of codeRanges) {
       if (pos < start) {
         // Non-code text before this code block: protect inline code spans
-        parts.push(applyFnOutsideInlineCode(s.slice(pos, start), fn));
+        parts.push(applyFnOutsideInlineCode(s.slice(pos, start), fn, pos > 0 ? s[pos - 1] : "", s[start]));
       }
       // Fenced code block: preserve verbatim
       parts.push(s.slice(start, end));
@@ -783,13 +814,13 @@ function applyToNonCodeRegions(s, fn) {
 
     // Non-code text after the last code block
     if (pos < s.length) {
-      parts.push(applyFnOutsideInlineCode(s.slice(pos), fn));
+      parts.push(applyFnOutsideInlineCode(s.slice(pos), fn, pos > 0 ? s[pos - 1] : "", ""));
     }
 
     return parts.join("");
   } catch (_e) {
     // Fallback: apply fn to the entire string (conservative – redacts more, never less)
-    return fn(s);
+    return fn(s, "", "");
   }
 }
 
@@ -1021,7 +1052,7 @@ function convertXmlTags(s) {
 const MAX_BOT_TRIGGER_REFERENCES = 10;
 
 /**
- * Neutralizes bot trigger phrases by wrapping them in backticks.
+ * Neutralizes bot trigger phrases by wrapping them in render-safe code spans.
  * The first `maxBotMentions` unquoted trigger references are left unchanged;
  * any occurrences beyond that threshold are wrapped in backticks.
  * Already-quoted entries are never re-quoted.
@@ -1030,20 +1061,19 @@ const MAX_BOT_TRIGGER_REFERENCES = 10;
  * @returns {string} The string with excess bot triggers neutralized
  */
 function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
-  // Match unquoted bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-  // The negative lookbehind (?<!`) skips already-quoted entries.
-  const pattern = /(?<!`)\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi;
-  const matches = s.match(pattern);
-  if (!matches || matches.length <= maxBotMentions) {
-    return s;
-  }
+  const pattern = /\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi;
   let count = 0;
-  return s.replace(pattern, (match, action, ref) => {
-    count++;
-    if (count <= maxBotMentions) {
-      return match;
-    }
-    return `\`${action} #${ref}\``;
+  const wrapInCodeSpan = createRenderSafeCodeSpanWrapper(s);
+  return applyToNonCodeRegions(s, (segment, regionBefore = "", regionAfter = "") => {
+    return segment.replace(pattern, (match, action, ref, offset) => {
+      count++;
+      if (count <= maxBotMentions) {
+        return match;
+      }
+      const before = segment[offset - 1] || (offset === 0 ? regionBefore : "");
+      const after = segment[offset + match.length] || (offset + match.length === segment.length ? regionAfter : "");
+      return wrapInCodeSpan(`${action} #${ref}`, before, after);
+    });
   });
 }
 
@@ -1186,7 +1216,8 @@ function getCurrentRepoSlug() {
 }
 
 /**
- * Neutralizes GitHub references (#123 or owner/repo#456) by wrapping them in backticks
+ * Neutralizes GitHub references (#123 or owner/repo#456) by wrapping them in
+ * render-safe code spans
  * if they reference repositories not in the allowed list.
  * Supports wildcard patterns (e.g., "myorg/*", "*") via isRepoAllowed().
  * @param {string} s - The string to process
@@ -1200,38 +1231,35 @@ function neutralizeGitHubReferences(s, allowedRepos) {
   }
 
   const currentRepo = getCurrentRepoSlug();
+  const wrapInCodeSpan = createRenderSafeCodeSpanWrapper(s);
 
   // Expand the special "repo" keyword to the current repo slug and build a Set for isRepoAllowed()
   const allowedSet = new Set(allowedRepos.map(r => (r === "repo" ? currentRepo : r)));
 
-  // Match GitHub references:
-  // - #123 (current repo reference)
-  // - owner/repo#456 (cross-repo reference)
-  // - GH-123 (GitHub shorthand)
-  // Must not be inside backticks or code blocks
-  return s.replace(/(^|[^\w`])(?:([a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?)\/([a-z0-9._-]+))?#(\w+)/gi, (match, prefix, owner, repo, issueNum) => {
-    let targetRepo;
+  return applyToNonCodeRegions(s, (segment, regionBefore = "", regionAfter = "") => {
+    // Match #123 and owner/repo#456 outside matched code regions.
+    return segment.replace(/(^|[^\w])(?:([a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?)\/([a-z0-9._-]+))?#(\w+)/gi, (match, prefix, owner, repo, issueNum, offset) => {
+      let targetRepo;
 
-    if (owner && repo) {
-      // Cross-repo reference: owner/repo#123
-      targetRepo = `${owner}/${repo}`.toLowerCase();
-    } else {
-      // Current repo reference: #123
-      targetRepo = currentRepo;
-    }
+      if (owner && repo) {
+        // Cross-repo reference: owner/repo#123
+        targetRepo = `${owner}/${repo}`.toLowerCase();
+      } else {
+        // Current repo reference: #123
+        targetRepo = currentRepo;
+      }
 
-    // Check if this repo is allowed using isRepoAllowed (supports wildcard patterns)
-    if (isRepoAllowed(targetRepo, allowedSet)) {
-      return match; // Keep the original reference
-    } else {
-      // Escape the reference
+      // Check if this repo is allowed using isRepoAllowed (supports wildcard patterns)
+      if (isRepoAllowed(targetRepo, allowedSet)) {
+        return match; // Keep the original reference
+      }
+
       const refText = owner && repo ? `${owner}/${repo}#${issueNum}` : `#${issueNum}`;
-
-      // Log when a reference is escaped
       core.info(`Escaped GitHub reference: ${refText} (not in allowed list)`);
-
-      return `${prefix}\`${refText}\``;
-    }
+      const before = prefix || (offset === 0 ? regionBefore : "");
+      const after = segment[offset + match.length] || (offset + match.length === segment.length ? regionAfter : "");
+      return `${prefix}${wrapInCodeSpan(refText, before, after)}`;
+    });
   });
 }
 
@@ -1533,9 +1561,6 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   // Must run before mention neutralization for the same ordering reason as removeXmlComments.
   sanitized = applyToNonCodeRegions(sanitized, neutralizeMarkdownLinkTitles);
 
-  // Neutralize ALL @mentions (no filtering in core version)
-  sanitized = neutralizeAllMentions(sanitized);
-
   // Convert XML tags to parentheses format – skip code blocks and inline code so that
   // type parameters (e.g. VBuffer<float32>) and code containing angle brackets are preserved
   sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
@@ -1545,6 +1570,10 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
 
   // Apply truncation limits
   sanitized = applyTruncation(sanitized, maxLength);
+
+  // Neutralize ALL @mentions after truncation so a length boundary cannot split
+  // an inserted code-span delimiter and reactivate the mention.
+  sanitized = neutralizeAllMentions(sanitized);
 
   // Neutralize GitHub references if restrictions are configured
   sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
@@ -1601,6 +1630,7 @@ module.exports = {
   sanitizeUrlProtocols,
   sanitizeUrlDomains,
   applyURLSanitizationPolicy,
+  createRenderSafeCodeSpanWrapper,
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,

@@ -14,6 +14,7 @@ const {
   buildAllowedGitHubReferences,
   getCurrentRepoSlug,
   applyURLSanitizationPolicy,
+  createRenderSafeCodeSpanWrapper,
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,
@@ -112,9 +113,6 @@ function sanitizeContent(content, maxLengthOrOptions) {
   // removeXmlComments.
   sanitized = applyToNonCodeRegions(sanitized, neutralizeMarkdownLinkTitles);
 
-  // Neutralize @mentions with selective filtering (custom logic for allowed aliases)
-  sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
-
   // Convert XML tags – skip code blocks and inline code
   sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
 
@@ -123,6 +121,10 @@ function sanitizeContent(content, maxLengthOrOptions) {
 
   // Apply truncation limits (shared with core)
   sanitized = applyTruncation(sanitized, maxLength);
+
+  // Neutralize mentions after truncation so the length boundary cannot split an
+  // inserted code-span delimiter and reactivate a mention.
+  sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
 
   // Neutralize GitHub references if restrictions are configured
   sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
@@ -186,17 +188,20 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * @returns {string} Processed string
    */
   function neutralizeMentions(s, allowedLowercase) {
-    return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
-      // Check if this mention is in the allowed aliases list (case-insensitive)
-      const isAllowed = allowedLowercase.includes(p2.toLowerCase());
-      if (isAllowed) {
-        return `${p1}@${p2}`; // Keep the original mention
-      }
-      // Log when a mention is escaped
-      if (typeof core !== "undefined" && core.info) {
-        core.info(`Escaped mention: @${p2} (not in allowed list)`);
-      }
-      return `${p1}\`@${p2}\``; // Neutralize the mention
+    const wrapInCodeSpan = createRenderSafeCodeSpanWrapper(s);
+    return applyToNonCodeRegions(s, (segment, regionBefore = "", regionAfter = "") => {
+      return segment.replace(/(^|[^\w])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (match, prefix, alias, offset) => {
+        const isAllowed = allowedLowercase.includes(alias.toLowerCase());
+        if (isAllowed) {
+          return `${prefix}@${alias}`;
+        }
+        if (typeof core !== "undefined" && core.info) {
+          core.info(`Escaped mention: @${alias} (not in allowed list)`);
+        }
+        const before = prefix || (offset === 0 ? regionBefore : "");
+        const after = segment[offset + match.length] || (offset + match.length === segment.length ? regionAfter : "");
+        return `${prefix}${wrapInCodeSpan(`@${alias}`, before, after)}`;
+      });
     });
   }
 }
