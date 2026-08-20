@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -75,8 +76,7 @@ func trialRepositoryActionsSettingsURL(repoSlug string) string {
 func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHostRepo bool, dryRun bool, verbose bool) error {
 	trialRepoLog.Printf("Ensuring trial repository: %s (cloneRepo=%s, forceDelete=%v, dryRun=%v)", repoSlug, cloneRepoSlug, forceDeleteHostRepo, dryRun)
 
-	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	if _, _, err := repoutil.SplitRepoSlug(repoSlug); err != nil {
 		return fmt.Errorf("invalid repository slug format: %s. Expected format: owner/repo. Example: github/gh-aw", repoSlug)
 	}
 

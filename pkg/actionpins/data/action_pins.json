@@ -118,10 +118,10 @@
       "version": "v6.2.0",
       "sha": "dc802804100637a589fabce1cb79ff13a1411302"
     },
-    "docker/setup-buildx-action@v4.2.0": {
+    "docker/setup-buildx-action@v4.3.0": {
       "repo": "docker/setup-buildx-action",
-      "version": "v4.2.0",
-      "sha": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c"
+      "version": "v4.3.0",
+      "sha": "37fe631027851001ddb9b187196cc803df7f5f0e"
     },
     "erlef/setup-beam@v1.24.1": {
       "repo": "erlef/setup-beam",
@@ -133,10 +133,10 @@
       "version": "v4.37.5",
       "sha": "d1ba80a13dd99fba24a470575428917156a28b43"
     },
-    "github/stale-repos@v9.0.16": {
+    "github/stale-repos@v9.0.17": {
       "repo": "github/stale-repos",
-      "version": "v9.0.16",
-      "sha": "1528080fabb5abf5d12213736bb1e3b5f7e682cd"
+      "version": "v9.0.17",
+      "sha": "589e3f5e9aca6ec6c2bd978e6c181348907ccbac"
     },
     "haskell-actions/setup@v2.11.0": {
       "repo": "haskell-actions/setup",
