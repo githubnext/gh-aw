@@ -963,7 +963,7 @@ jobs:
           codex_cli_exit_code=$?
           if [ "$codex_cli_exit_code" -ne 0 ]; then
             echo "::group::Codex internal logs ($CODEX_HOME/logs)"
-            codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '\''*.log'\'' 2>/dev/null | xargs -r ls -t 2>/dev/null | head -n 1)
+            codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '\''*.log'\'' -printf '\''%T@ %p\n'\'' 2>/dev/null | sort -rn | head -n 1 | cut -d'\'' '\'' -f2-)
             if [ -n "$codex_log_file" ]; then
               echo "--- tail of $codex_log_file ---"
               tail -n 200 "$codex_log_file" 2>/dev/null || true
@@ -1909,7 +1909,7 @@ jobs:
           codex_cli_exit_code=$?
           if [ "$codex_cli_exit_code" -ne 0 ]; then
             echo "::group::Codex internal logs ($CODEX_HOME/logs)"
-            codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '\''*.log'\'' 2>/dev/null | xargs -r ls -t 2>/dev/null | head -n 1)
+            codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '\''*.log'\'' -printf '\''%T@ %p\n'\'' 2>/dev/null | sort -rn | head -n 1 | cut -d'\'' '\'' -f2-)
             if [ -n "$codex_log_file" ]; then
               echo "--- tail of $codex_log_file ---"
               tail -n 200 "$codex_log_file" 2>/dev/null || true
