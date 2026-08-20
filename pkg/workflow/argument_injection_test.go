@@ -7,6 +7,8 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -440,6 +442,38 @@ func TestValidatePipCommandPackageArg(t *testing.T) {
 				t.Fatalf("unexpected error for package %q: %v", tt.pkg, err)
 			}
 		})
+	}
+}
+
+func TestValidatePythonPackagesWithPip_SkipsInvalidPackageBeforeExec(t *testing.T) {
+	compiler := NewCompiler()
+	tempDir := t.TempDir()
+	argsFile := filepath.Join(tempDir, "pip-args.txt")
+	fakePip := filepath.Join(tempDir, "pip")
+
+	script := `#!/bin/sh
+printf "%s\n" "$@" >> "$GH_AW_TEST_PIP_ARGS_FILE"
+`
+	if err := os.WriteFile(fakePip, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write fake pip executable: %v", err)
+	}
+	t.Setenv("GH_AW_TEST_PIP_ARGS_FILE", argsFile)
+
+	compiler.validatePythonPackagesWithPip([]string{"--index-url", "requests"}, "pip", fakePip)
+
+	argsData, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("failed to read recorded pip arguments: %v", err)
+	}
+	args := string(argsData)
+	if strings.Contains(args, "--index-url\n") {
+		t.Fatalf("expected invalid package to be rejected before exec, got args: %q", args)
+	}
+	if strings.Count(args, "index\n") != 1 {
+		t.Fatalf("expected exactly one pip invocation, got args: %q", args)
+	}
+	if !strings.Contains(args, "versions\nrequests\n--pre\n") {
+		t.Fatalf("expected safe pip invocation args, got: %q", args)
 	}
 }
 
