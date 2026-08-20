@@ -56,6 +56,54 @@ func TestRewriteRunnerTempInShellRunCommand(t *testing.T) {
 	}
 }
 
+func TestRewriteRunnerTempOnlyRewritesRunCommands(t *testing.T) {
+	input := `steps:
+  - uses: github/gh-aw/actions/setup@v1
+    with:
+      command: node ${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs
+  - run: node ${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs
+`
+
+	got := rewriteRunnerTempInExecutableBodies(input)
+
+	if !strings.Contains(got, "command: node ${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs") {
+		t.Fatalf("expected non-executable YAML field to remain unchanged:\n%s", got)
+	}
+	if !strings.Contains(got, `run: node "${RUNNER_TEMP}/gh-aw/actions/generate_aw_info.cjs"`) {
+		t.Fatalf("expected run command to use quoted RUNNER_TEMP path:\n%s", got)
+	}
+}
+
+func TestRewriteRunnerTempIsIdempotent(t *testing.T) {
+	input := `steps:
+  - uses: actions/github-script@v7
+    with:
+      script: |
+        const path = require('path');
+        const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+        const { main } = require(path.join(actionsDir, 'generate_aw_info.cjs'));
+`
+
+	once := rewriteRunnerTempInExecutableBodies(input)
+	twice := rewriteRunnerTempInExecutableBodies(once)
+	if once != twice {
+		t.Fatalf("rewrite is not idempotent\nfirst:\n%s\nsecond:\n%s", once, twice)
+	}
+}
+
+func TestRewriteRunnerTempPreservesCRLF(t *testing.T) {
+	input := "steps:\r\n  - run: node ${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs\r\n"
+
+	got := rewriteRunnerTempInExecutableBodies(input)
+
+	if strings.Contains(got, "${{ runner.temp }}") {
+		t.Fatalf("expected CRLF run command to avoid runner.temp expression:\n%s", got)
+	}
+	if !strings.Contains(got, "\r\n") {
+		t.Fatalf("expected CRLF line endings to be preserved:\n%s", got)
+	}
+}
+
 func TestValidateNoRunnerTempInExecutableBodiesAllowsYamlFields(t *testing.T) {
 	input := `steps:
   - uses: github/gh-aw/actions/setup@v1

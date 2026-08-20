@@ -255,7 +255,10 @@ func generateSideRepoMaintenanceWorkflow(
 	opts generateSideRepoMaintenanceWorkflowOptions,
 ) error {
 	renderCtx := newSideRepoMaintenanceRenderContext(ctx, opts)
-	content := buildSideRepoMaintenanceWorkflowYAML(renderCtx)
+	content, err := buildSideRepoMaintenanceWorkflowYAML(renderCtx)
+	if err != nil {
+		return fmt.Errorf("failed to finalize side-repo maintenance workflow YAML: %w", err)
+	}
 	maintenanceLog.Printf("Writing side-repo maintenance workflow to %s", renderCtx.outPath)
 	if err := os.WriteFile(renderCtx.outPath, []byte(content), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write side-repo maintenance workflow: %w", err)
@@ -315,7 +318,7 @@ func newSideRepoMaintenanceRenderContext(ctx context.Context, opts generateSideR
 	return renderCtx
 }
 
-func buildSideRepoMaintenanceWorkflowYAML(renderCtx sideRepoMaintenanceRenderContext) string {
+func buildSideRepoMaintenanceWorkflowYAML(renderCtx sideRepoMaintenanceRenderContext) (string, error) {
 	var yaml strings.Builder
 	yaml.WriteString(buildSideRepoMaintenanceHeader(renderCtx.repoSlug))
 	yaml.WriteString(buildSideRepoMaintenanceOnSection(renderCtx))
@@ -329,10 +332,9 @@ func buildSideRepoMaintenanceWorkflowYAML(renderCtx sideRepoMaintenanceRenderCon
 	yaml.WriteString(buildValidateWorkflowsJob(renderCtx))
 	finalYAML, err := finalizeRunnerTempSafety(yaml.String())
 	if err != nil {
-		maintenanceLog.Printf("Runner temp safety validation failed for side-repo maintenance workflow: %v", err)
-		return yaml.String()
+		return "", fmt.Errorf("runner temp safety: %w", err)
 	}
-	return finalYAML
+	return finalYAML, nil
 }
 
 func buildSideRepoMaintenanceHeader(repoSlug string) string {

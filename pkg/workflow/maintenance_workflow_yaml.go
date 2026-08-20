@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -35,7 +36,7 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 func buildMaintenanceWorkflowYAML(
 	ctx context.Context,
 	opts buildMaintenanceWorkflowYAMLOptions,
-) string {
+) (string, error) {
 	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v copilotOrgBilling=%v", opts.actionMode, opts.minExpiresDays, opts.cronSchedule, opts.defaultBranch, opts.disableLabelTrigger, opts.createCompilePR, opts.copilotOrgBilling)
 	labelDisableJobEnabled := !opts.disableLabelTrigger && !opts.maintenanceConfig.IsJobDisabled("label_disable_agentic_workflow")
 	labelApplySafeOutputsJobEnabled := !opts.disableLabelTrigger && !opts.maintenanceConfig.IsJobDisabled("label_apply_safe_outputs")
@@ -59,10 +60,9 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(buildMaintenanceDevOnlyJobs(ctx, opts, setupActionRef))
 	finalYAML, err := finalizeRunnerTempSafety(yaml.String())
 	if err != nil {
-		maintenanceWorkflowYAMLLog.Printf("Runner temp safety validation failed for maintenance workflow: %v", err)
-		return yaml.String()
+		return "", fmt.Errorf("runner temp safety: %w", err)
 	}
-	return finalYAML
+	return finalYAML, nil
 }
 
 func buildMaintenanceAppliedRunURLOutput(opts buildMaintenanceWorkflowYAMLOptions) (string, string) {

@@ -112,7 +112,7 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 	}
 
 	ctx := ctxutil.OrBackground(opts.Context)
-	content := buildAutoUpdateWorkflowYAML(
+	content, err := buildAutoUpdateWorkflowYAML(
 		cronSchedule,
 		setupActionRef,
 		githubScriptPin,
@@ -120,6 +120,9 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		getCLICmdPrefix(actionMode),
 		opts.CustomCron != "",
 	)
+	if err != nil {
+		return fmt.Errorf("failed to finalize auto-update workflow YAML: %w", err)
+	}
 
 	autoUpdateWorkflowLog.Printf("Writing auto-update workflow to %s", outputFile)
 	if err := fileutil.EnsureParentDir(outputFile, constants.DirPermPublic); err != nil {
@@ -162,7 +165,7 @@ func buildAutoUpdateSeed(repoSlug string, actionMode ActionMode) string {
 func buildAutoUpdateWorkflowYAML(
 	cronSchedule, setupActionRef, githubScriptPin, installCLISteps, cliCmdPrefix string,
 	isCustomCron bool,
-) string {
+) (string, error) {
 	var customInstructions string
 	if isCustomCron {
 		customInstructions = `Alternative regeneration methods:
@@ -231,8 +234,7 @@ jobs:
 `
 	finalYAML, err := finalizeRunnerTempSafety(yaml)
 	if err != nil {
-		autoUpdateWorkflowLog.Printf("Runner temp safety validation failed for auto-update workflow: %v", err)
-		return yaml
+		return "", fmt.Errorf("runner temp safety: %w", err)
 	}
-	return finalYAML
+	return finalYAML, nil
 }

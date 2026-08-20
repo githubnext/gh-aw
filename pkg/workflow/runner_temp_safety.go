@@ -14,8 +14,9 @@ const (
 var (
 	githubScriptActionRequireRE = regexp.MustCompile(`^(\s*)(.*\brequire\()'\$\{\{\s*runner\.temp\s*\}\}/gh-aw/actions/([^']+)'(\).*)$`)
 	shellActionCommandRE        = regexp.MustCompile(`\b(node|bash|sh) \$\{\{\s*runner\.temp\s*\}\}/gh-aw/actions/([^ \t\r\n]+)`)
-	blockScalarHeaderRE         = regexp.MustCompile(`^(\s*)(script|run):\s*[|>]`)
-	singleLineExecutableRE      = regexp.MustCompile(`^\s*(script|run):\s+`)
+	blockScalarHeaderRE         = regexp.MustCompile(`^(\s*)(?:-\s+)?(script|run):\s*[|>]`)
+	singleLineRunRE             = regexp.MustCompile(`^\s*(?:-\s+)?run:\s+`)
+	singleLineExecutableRE      = regexp.MustCompile(`^\s*(?:-\s+)?(script|run):\s+`)
 )
 
 func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
@@ -24,7 +25,8 @@ func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 	out.Grow(len(yamlContent))
 
 	inScriptBlock := false
-	scriptBlockIndent := -1
+	inRunBlock := false
+	blockIndent := -1
 	scriptBlockHasActionsDir := false
 
 	for _, line := range lines {
@@ -34,25 +36,30 @@ func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 			newline = "\n"
 		}
 
-		if inScriptBlock {
+		if inScriptBlock || inRunBlock {
 			trimmed := strings.TrimSpace(lineWithoutNewline)
 			currentIndent := leadingSpaces(lineWithoutNewline)
-			if trimmed != "" && currentIndent <= scriptBlockIndent {
+			if trimmed != "" && currentIndent <= blockIndent {
 				inScriptBlock = false
-				scriptBlockIndent = -1
+				inRunBlock = false
+				blockIndent = -1
 				scriptBlockHasActionsDir = false
 			}
 		}
 
 		if matches := blockScalarHeaderRE.FindStringSubmatch(lineWithoutNewline); matches != nil {
 			inScriptBlock = matches[2] == "script"
+			inRunBlock = matches[2] == "run"
+			blockIndent = len(matches[1])
 			if inScriptBlock {
-				scriptBlockIndent = len(matches[1])
 				scriptBlockHasActionsDir = false
 			}
 		}
 
-		rewrittenLine := shellActionCommandRE.ReplaceAllString(lineWithoutNewline, `${1} "$${RUNNER_TEMP}/gh-aw/actions/${2}"`)
+		rewrittenLine := lineWithoutNewline
+		if inRunBlock || singleLineRunRE.MatchString(lineWithoutNewline) {
+			rewrittenLine = shellActionCommandRE.ReplaceAllString(lineWithoutNewline, `${1} "$${RUNNER_TEMP}/gh-aw/actions/${2}"`)
+		}
 		if inScriptBlock {
 			if strings.Contains(rewrittenLine, safeActionsDirLine) {
 				scriptBlockHasActionsDir = true

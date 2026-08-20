@@ -214,7 +214,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent, err := finalizeRunnerTempSafety(yamlContent)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, fmt.Errorf("failed to finalize runner temp safety in generated YAML: %w", err)
 	}
 
 	// Normalize assembled YAML whitespace. This clears indentation-only blank lines
