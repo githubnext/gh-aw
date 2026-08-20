@@ -74,6 +74,14 @@ func findingInCopilotLocalCurlAllowTool(lines []string, lineNum int) bool {
 		return false
 	}
 
+	// The executable body of the step must not contain any curl invocation outside of
+	// allow-tool values, otherwise a real outbound request would be hidden.
+	for i := runIndex; i < stepEnd; i++ {
+		if containsCurlOutsideAllowTool(lines[i]) {
+			return false
+		}
+	}
+
 	hasToolCommentHeader := false
 	hasLocalCurlAllowTool := false
 	hasNonLocalCurlAllowTool := false
@@ -108,6 +116,9 @@ func isLocalCurlAllowToolComment(line string) bool {
 
 func isLocalCurlAllowToolArgumentLine(line string) bool {
 	if !strings.Contains(line, "--allow-tool") || !strings.Contains(line, "copilot") {
+		return false
+	}
+	if containsCurlOutsideAllowTool(line) {
 		return false
 	}
 
@@ -156,6 +167,28 @@ func curlAllowToolHosts(line string) []string {
 	}
 }
 
+// containsCurlOutsideAllowTool reports whether a line invokes curl outside of a
+// shell(...) allow-tool value, which indicates a real executable request.
+func containsCurlOutsideAllowTool(line string) bool {
+	var remainder strings.Builder
+	remaining := line
+	for {
+		index := strings.Index(remaining, "shell(")
+		if index < 0 {
+			remainder.WriteString(remaining)
+			break
+		}
+		remainder.WriteString(remaining[:index])
+		remaining = remaining[index+len("shell("):]
+		end := strings.Index(remaining, ")")
+		if end < 0 {
+			break
+		}
+		remaining = remaining[end+1:]
+	}
+	return strings.Contains(remainder.String(), "curl")
+}
+
 func curlTargetHost(target string) (string, bool) {
 	target = strings.TrimSpace(target)
 	if fields := strings.Fields(target); len(fields) > 0 {
@@ -169,8 +202,16 @@ func curlTargetHost(target string) (string, bool) {
 	if slash := strings.Index(target, "/"); slash >= 0 {
 		target = target[:slash]
 	}
-	target = strings.Trim(target, "[]")
-	if colon := strings.LastIndex(target, ":"); colon >= 0 {
+
+	if strings.HasPrefix(target, "[") {
+		// Bracketed IPv6 literal: the host is inside the brackets and any trailing
+		// ":port" suffix is outside them.
+		if end := strings.Index(target, "]"); end >= 0 {
+			target = target[1:end]
+		} else {
+			target = target[1:]
+		}
+	} else if colon := strings.LastIndex(target, ":"); colon >= 0 && strings.Count(target, ":") == 1 {
 		port := target[colon+1:]
 		if port == "*" || allDigits(port) {
 			target = target[:colon]
@@ -180,7 +221,7 @@ func curlTargetHost(target string) (string, bool) {
 	if target == "" {
 		return "", false
 	}
-	return strings.ToLower(strings.Trim(target, "[]")), true
+	return strings.ToLower(target), true
 }
 
 func allDigits(value string) bool {
