@@ -123,14 +123,14 @@ func seedInitialImportQueue(importSpecs []ImportSpec, baseDir string, cache *Imp
 
 func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	importPath := importSpec.Path
-	if isRepositoryImport(importPath) {
-		parserLog.Printf("Detected repository import: %s", importPath)
-		state.acc.repositoryImports = append(state.acc.repositoryImports, importPath)
-		return nil
-	}
-	filePath, sectionName := splitImportPathAndSection(importPath)
+	filePath, sectionName := splitPathAndSection(importPath)
 	fullPath, err := resolveSeedImportPath(filePath, importPath, baseDir, cache, workflowFilePath, yamlContent)
 	if err != nil {
+		if isRepositoryImport(importPath) {
+			parserLog.Printf("Detected repository import: %s", importPath)
+			state.acc.repositoryImports = append(state.acc.repositoryImports, importPath)
+			return nil
+		}
 		return err
 	}
 	origin, err := detectRemoteImportOrigin(filePath)
@@ -138,14 +138,6 @@ func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCa
 		return err
 	}
 	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, origin)
-}
-
-func splitImportPathAndSection(importPath string) (string, string) {
-	if strings.Contains(importPath, "#") {
-		parts := strings.SplitN(importPath, "#", 2)
-		return parts[0], parts[1]
-	}
-	return importPath, ""
 }
 
 func resolveSeedImportPath(filePath, importPath, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (string, error) {
@@ -399,7 +391,7 @@ func nestedEntriesFromSpecs(specs []ImportSpec) []nestedImportEntry {
 
 func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	nestedImportPath := entry.path
-	nestedFilePath, nestedSectionName := splitImportPathAndSection(nestedImportPath)
+	nestedFilePath, nestedSectionName := splitPathAndSection(nestedImportPath)
 	resolvedPath, nestedRemoteOrigin, err := resolveNestedImportPathAndOrigin(item, nestedFilePath)
 	if err != nil {
 		return err
