@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -27,6 +28,11 @@ type packageOwnershipRecord struct {
 	ResolvedCommit string                      `json:"resolvedCommit,omitempty"`
 	Installer      string                      `json:"installer"`
 	Files          []packageOwnershipFileEntry `json:"files"`
+}
+
+func sha256Bytes(content []byte) string {
+	sum := sha256.Sum256(content)
+	return hex.EncodeToString(sum[:])
 }
 
 type packageOwnershipFileEntry struct {
@@ -262,31 +268,21 @@ func syncManifestManagedResources(ctx context.Context, repoSpec *RepoSpec, pkg *
 	if existing, err := readPackageOwnershipRecord(recordPath); err == nil && existing != nil {
 		record.Files = existing.Files
 	}
+	existingFiles := append([]packageOwnershipFileEntry(nil), record.Files...)
 
 	desired := make(map[string]resolvedPackageResource, len(pkg.ResourceFiles))
 	for _, resource := range pkg.ResourceFiles {
 		desired[filepath.ToSlash(filepath.Clean(resource.DestinationPath))] = resource
 	}
 
-	var kept []packageOwnershipFileEntry
-	for _, entry := range record.Files {
-		destination := filepath.ToSlash(filepath.Clean(entry.Destination))
-		if _, stillDesired := desired[destination]; stillDesired || !isPackageResourceDestination(destination) {
-			kept = append(kept, entry)
-			continue
-		}
-		path := filepath.Join(gitRoot, filepath.FromSlash(destination))
-		current, digestErr := fileSHA256(path)
-		if digestErr == nil && current == entry.SHA256 {
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("failed to remove stale package resource %s: %w", destination, err)
-			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stale package resource: "+destination))
-			continue
-		}
-		kept = append(kept, entry)
+	type downloadedPackageResource struct {
+		resource    resolvedPackageResource
+		destination string
+		destPath    string
+		content     []byte
+		sha256      string
 	}
-	record.Files = kept
+	var downloads []downloadedPackageResource
 
 	for _, resource := range pkg.ResourceFiles {
 		destination := filepath.ToSlash(filepath.Clean(resource.DestinationPath))
@@ -303,21 +299,104 @@ func syncManifestManagedResources(ctx context.Context, repoSpec *RepoSpec, pkg *
 		if err != nil {
 			return fmt.Errorf("failed to download package resource %s: %w", resource.SourcePath, err)
 		}
-		if err := os.MkdirAll(filepath.Dir(destPath), constants.DirPermPublic); err != nil {
+		downloads = append(downloads, downloadedPackageResource{
+			resource:    resource,
+			destination: destination,
+			destPath:    destPath,
+			content:     content,
+			sha256:      sha256Bytes(content),
+		})
+	}
+
+	type fileRollback struct {
+		path    string
+		existed bool
+		content []byte
+		mode    os.FileMode
+	}
+	var rollbacks []fileRollback
+	rollbackChanges := func() {
+		for _, rollback := range slices.Backward(rollbacks) {
+			if rollback.existed {
+				_ = os.MkdirAll(filepath.Dir(rollback.path), constants.DirPermPublic)
+				_ = os.WriteFile(rollback.path, rollback.content, rollback.mode)
+				continue
+			}
+			_ = os.Remove(rollback.path)
+		}
+	}
+
+	for _, download := range downloads {
+		rollback := fileRollback{path: download.destPath}
+		if stat, err := os.Stat(download.destPath); err == nil {
+			rollback.existed = true
+			rollback.mode = stat.Mode().Perm()
+			content, readErr := os.ReadFile(download.destPath)
+			if readErr != nil {
+				rollbackChanges()
+				return fmt.Errorf("failed to read existing package resource %s: %w", download.destination, readErr)
+			}
+			rollback.content = content
+		}
+		if err := os.MkdirAll(filepath.Dir(download.destPath), constants.DirPermPublic); err != nil {
+			rollbackChanges()
 			return fmt.Errorf("failed to create package resource directory: %w", err)
 		}
-		if err := os.WriteFile(destPath, content, constants.FilePermPublic); err != nil {
-			return fmt.Errorf("failed to write package resource %s: %w", destination, err)
+		if err := os.WriteFile(download.destPath, download.content, constants.FilePermPublic); err != nil {
+			rollbackChanges()
+			return fmt.Errorf("failed to write package resource %s: %w", download.destination, err)
 		}
-		digest, err := fileSHA256(destPath)
-		if err != nil {
-			return err
+		rollbacks = append(rollbacks, rollback)
+	}
+
+	var retained []packageOwnershipFileEntry
+	var staleRemoved []string
+	for _, entry := range existingFiles {
+		destination := filepath.ToSlash(filepath.Clean(entry.Destination))
+		if !isPackageResourceDestination(destination) {
+			retained = append(retained, entry)
+			continue
 		}
+		if _, stillDesired := desired[destination]; stillDesired {
+			continue
+		}
+
+		path := filepath.Join(gitRoot, filepath.FromSlash(destination))
+		current, digestErr := fileSHA256(path)
+		if digestErr != nil || current != entry.SHA256 {
+			retained = append(retained, entry)
+			continue
+		}
+
+		rollback := fileRollback{path: path}
+		if stat, err := os.Stat(path); err == nil {
+			rollback.existed = true
+			rollback.mode = stat.Mode().Perm()
+			content, readErr := os.ReadFile(path)
+			if readErr != nil {
+				rollbackChanges()
+				return fmt.Errorf("failed to read stale package resource %s before removal: %w", destination, readErr)
+			}
+			rollback.content = content
+		}
+		rollbacks = append(rollbacks, rollback)
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			rollbackChanges()
+			return fmt.Errorf("failed to remove stale package resource %s: %w", destination, err)
+		}
+		staleRemoved = append(staleRemoved, destination)
+	}
+
+	record.Files = retained
+	for _, download := range downloads {
 		record.Files = upsertPackageOwnershipFile(record.Files, packageOwnershipFileEntry{
-			Source:      resource.SourcePath,
-			Destination: destination,
-			SHA256:      digest,
+			Source:      download.resource.SourcePath,
+			Destination: download.destination,
+			SHA256:      download.sha256,
 		})
+	}
+	for _, destination := range staleRemoved {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stale package resource: "+destination))
 	}
 	if len(record.Files) == 0 {
 		return nil
@@ -386,10 +465,10 @@ func removePackageOwnedFilesIfUnused(packageBase string) error {
 	var kept []packageOwnershipFileEntry
 	for _, entry := range record.Files {
 		destination := filepath.ToSlash(filepath.Clean(entry.Destination))
-		if strings.HasPrefix(destination, constants.WorkflowsDirSlash) {
+		path := filepath.Join(gitRoot, filepath.FromSlash(destination))
+		if _, statErr := os.Stat(path); os.IsNotExist(statErr) && isMarkdownOwnedWorkflowDestination(destination) {
 			continue
 		}
-		path := filepath.Join(gitRoot, filepath.FromSlash(destination))
 		current, digestErr := fileSHA256(path)
 		if digestErr == nil && current == entry.SHA256 {
 			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
@@ -414,6 +493,14 @@ func removePackageOwnedFilesIfUnused(packageBase string) error {
 	}
 	data = append(data, '\n')
 	return os.WriteFile(recordPath, data, constants.FilePermPublic)
+}
+
+func isMarkdownOwnedWorkflowDestination(destination string) bool {
+	if !strings.HasPrefix(destination, constants.WorkflowsDirSlash) {
+		return false
+	}
+	lower := strings.ToLower(destination)
+	return strings.HasSuffix(lower, ".md") || strings.HasSuffix(lower, ".lock.yml")
 }
 
 func packageHasRemainingWorkflows(gitRoot, packageBase string) bool {
