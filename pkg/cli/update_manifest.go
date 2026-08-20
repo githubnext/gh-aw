@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -192,7 +193,131 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		successes = append(successes, name)
 	}
 
+	assetEngine := resolveManifestAssetEngine(grouped, opts)
+	if err := reconcileManifestManagedAssets(ctx, repoSpec.RepoSlug, currentPkg, latestPkg, assetEngine); err != nil {
+		failures = append(failures, updateFailure{Name: source, Error: err.Error()})
+	}
+
 	return successes, failures
+}
+
+// reconcileManifestManagedAssets installs package-owned action workflows, skills, and
+// agents that were added to the latest manifest. These assets do not carry source
+// frontmatter, so their package ownership is derived from the package manifest itself.
+func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolvedRepositoryPackage, latestPkg *resolvedRepositoryPackage, engineOverride string) error {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find repository root for package assets: %w", err)
+	}
+	owner, repository, err := splitRepositoryPackageSlug(repo)
+	if err != nil {
+		return err
+	}
+
+	for _, installable := range latestPkg.InstallationSource {
+		if !isActionWorkflowPath(installable.SourcePath) {
+			continue
+		}
+		destPath := filepath.Join(gitRoot, filepath.FromSlash(installable.DestinationPath))
+		if _, err := os.Stat(destPath); err == nil {
+			updateManifestLog.Printf("Skipping new package action workflow because destination already exists: %s", destPath)
+			continue
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to inspect new package action workflow destination %s: %w", destPath, err)
+		}
+		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, installable.SourcePath, latestPkg.ResolvedRef, "")
+		if err != nil {
+			return fmt.Errorf("failed to download new package action workflow %s: %w", installable.SourcePath, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(destPath), constants.DirPermPublic); err != nil {
+			return fmt.Errorf("failed to create package action workflow directory: %w", err)
+		}
+		if err := os.WriteFile(destPath, content, constants.FilePermPublic); err != nil {
+			return fmt.Errorf("failed to install new package action workflow %s: %w", installable.DestinationPath, err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added package action workflow: "+filepath.Base(destPath)))
+	}
+
+	for _, skill := range latestPkg.SkillFiles {
+		destPath, err := packageSkillDestinationPath(gitRoot, skill, engineOverride)
+		if err != nil {
+			return err
+		}
+		if _, err := os.Stat(destPath); err == nil {
+			updateManifestLog.Printf("Skipping new package skill because destination already exists: %s", destPath)
+			continue
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to inspect new package skill destination %s: %w", destPath, err)
+		}
+		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, skill.SourcePath, latestPkg.ResolvedRef, "")
+		if err != nil {
+			return fmt.Errorf("failed to download new package skill %s: %w", skill.SourcePath, err)
+		}
+		resolved := &ResolvedWorkflow{
+			Content:            content,
+			Spec:               &WorkflowSpec{WorkflowPath: skill.SourcePath},
+			IsPackageSkillFile: true,
+			SkillName:          skill.SkillName,
+		}
+		if err := addSkillFileWithTracking(resolved, nil, AddOptions{
+			EngineOverride: engineOverride,
+			Quiet:          false,
+		}, gitRoot); err != nil {
+			return fmt.Errorf("failed to install new package skill %s: %w", skill.SourcePath, err)
+		}
+	}
+
+	for _, agent := range latestPkg.AgentFiles {
+		destPath := packageAgentDestinationPath(gitRoot, agent, engineOverride)
+		if _, err := os.Stat(destPath); err == nil {
+			updateManifestLog.Printf("Skipping new package agent because destination already exists: %s", destPath)
+			continue
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to inspect new package agent destination %s: %w", destPath, err)
+		}
+		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, agent, latestPkg.ResolvedRef, "")
+		if err != nil {
+			return fmt.Errorf("failed to download new package agent %s: %w", agent, err)
+		}
+		resolved := &ResolvedWorkflow{Content: content, Spec: &WorkflowSpec{WorkflowPath: agent}, IsPackageAgentFile: true}
+		if err := addAgentFileWithTracking(resolved, nil, AddOptions{EngineOverride: engineOverride}, gitRoot); err != nil {
+			return fmt.Errorf("failed to install new package agent %s: %w", agent, err)
+		}
+	}
+	return nil
+}
+
+func resolveManifestAssetEngine(grouped []*workflowWithSource, opts UpdateWorkflowsOptions) string {
+	if opts.EngineOverride != "" {
+		return opts.EngineOverride
+	}
+	for _, wf := range grouped {
+		content, err := os.ReadFile(wf.Path)
+		if err != nil {
+			continue
+		}
+		if engine := strings.TrimSpace(ExtractWorkflowEngine(string(content))); engine != "" {
+			updateManifestLog.Printf("Using engine %q from installed manifest-managed workflow %s for package asset reconciliation", engine, wf.Name)
+			return engine
+		}
+	}
+	return ""
+}
+
+func packageSkillDestinationPath(gitRoot string, skill resolvedPackageSkillFile, engineOverride string) (string, error) {
+	resolved := &ResolvedWorkflow{
+		Spec:      &WorkflowSpec{WorkflowPath: skill.SourcePath},
+		SkillName: skill.SkillName,
+	}
+	relPath, err := resolveSkillRelativePath(resolved)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve destination for package skill %s: %w", skill.SourcePath, err)
+	}
+	return filepath.Join(gitRoot, workflow.GetEngineSkillDir(engineOverride), skill.SkillName, relPath), nil
+}
+
+func packageAgentDestinationPath(gitRoot, sourcePath, engineOverride string) string {
+	return filepath.Join(gitRoot, workflow.GetEngineSubAgentDir(engineOverride), filepath.Base(sourcePath))
 }
 
 func removeManifestManagedWorkflow(workflowPath string) error {
