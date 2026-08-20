@@ -2090,6 +2090,66 @@ func TestCleanFirewallDirsStepOrdering(t *testing.T) {
 	}
 }
 
+func TestBuildCopyDetectionFirewallLogsStep(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("returns nil when firewall disabled", func(t *testing.T) {
+		data := &WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+		if steps := compiler.buildCopyDetectionFirewallLogsStep(data); steps != nil {
+			t.Fatalf("expected nil steps when firewall is disabled, got %v", steps)
+		}
+	})
+
+	t.Run("default topology copies from tmp paths and directory contents", func(t *testing.T) {
+		data := &WorkflowData{
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := strings.Join(compiler.buildCopyDetectionFirewallLogsStep(data), "")
+		if !strings.Contains(steps, "Copy detection firewall logs") {
+			t.Fatalf("expected copy step to be present, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, "continue-on-error: true") {
+			t.Fatalf("expected continue-on-error in copy step, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, "cp -r "+constants.AWFProxyLogsDir+"/. "+detectionFirewallLogsDir+"/logs/") {
+			t.Fatalf("expected logs copy to use source contents and stable destination, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, "cp -r "+constants.AWFAuditDir+"/. "+detectionFirewallLogsDir+"/audit/") {
+			t.Fatalf("expected audit copy to use source contents and stable destination, got:\n%s", steps)
+		}
+	})
+
+	t.Run("arc-dind topology copies from runner_temp paths", func(t *testing.T) {
+		data := &WorkflowData{
+			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := strings.Join(compiler.buildCopyDetectionFirewallLogsStep(data), "")
+		if !strings.Contains(steps, `${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs`) {
+			t.Fatalf("expected arc-dind logs source path under ${RUNNER_TEMP}/gh-aw, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, `${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit`) {
+			t.Fatalf("expected arc-dind audit source path under ${RUNNER_TEMP}/gh-aw, got:\n%s", steps)
+		}
+	})
+}
+
 func TestBuildDetectionJobStepsCodexExternalDetectorIncludesContainerDownload(t *testing.T) {
 	// Regression test: when engine=codex and gh-aw-detection feature is enabled (external
 	// detector path), the detection job must include a "Download container images" step.

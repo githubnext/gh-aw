@@ -252,4 +252,3 @@ func buildDetectionArtifactDownloadSteps(prefix string, pinAction func(string) s
 		StepID:       "download-detection-artifact",
 	}, pinAction)
 }
-

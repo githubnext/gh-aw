@@ -213,14 +213,22 @@ func (c *Compiler) buildCopyDetectionFirewallLogsStep(data *WorkflowData) []stri
 	if !isFirewallEnabled(data) {
 		return nil
 	}
+
+	proxyLogsDir := constants.AWFProxyLogsDir
+	auditDir := constants.AWFAuditDir
+	if isArcDindTopology(data) {
+		proxyLogsDir = rewriteArcDindPath(proxyLogsDir)
+		auditDir = rewriteArcDindPath(auditDir)
+	}
+
 	return []string{
 		"      - name: Copy detection firewall logs\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        continue-on-error: true\n",
 		"        run: |\n",
 		fmt.Sprintf("          mkdir -p %s\n", detectionFirewallLogsDir),
-		fmt.Sprintf("          [ -d %s ] && cp -r %s %s/logs || true\n", constants.AWFProxyLogsDir, constants.AWFProxyLogsDir, detectionFirewallLogsDir),
-		fmt.Sprintf("          [ -d %s ] && cp -r %s %s/audit || true\n", constants.AWFAuditDir, constants.AWFAuditDir, detectionFirewallLogsDir),
+		fmt.Sprintf("          [ -d %s ] && mkdir -p %s/logs && cp -r %s/. %s/logs/ || true\n", proxyLogsDir, detectionFirewallLogsDir, proxyLogsDir, detectionFirewallLogsDir),
+		fmt.Sprintf("          [ -d %s ] && mkdir -p %s/audit && cp -r %s/. %s/audit/ || true\n", auditDir, detectionFirewallLogsDir, auditDir, detectionFirewallLogsDir),
 	}
 }
 
