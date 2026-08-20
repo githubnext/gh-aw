@@ -321,3 +321,4 @@
 {"run_id":"32080621476","timestamp":"2026-08-17T23:30:12.726Z","assignments":{"caveman":"yes","subagent_model":"large"}}
 {"run_id":"32134218478","timestamp":"2026-08-18T11:57:12.131Z","assignments":{"caveman":"no","subagent_model":"small"}}
 {"run_id":"32375443008","timestamp":"2026-08-20T13:40:16.784Z","assignments":{"caveman":"no","subagent_model":"large"}}
+{"run_id":"32415509157","timestamp":"2026-08-20T20:43:43.947Z","assignments":{"caveman":"yes","subagent_model":"small"}}
