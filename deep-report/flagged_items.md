@@ -1,3 +1,20 @@
+## Flagged Items (2026-08-20, ~17:50Z cycle, window since 12:31:42Z baseline #54233, 10 new discussions: 54237,54241,54270,54271,54272,54274,54277,54278,54290,54297)
+
+- **[new, filed]** Code Scanning Fixer 0% success (2/2 runs), $75.35 for 0 outputs, no self-assessment/partial-progress checkpoint — distinct from open #54187 (model config) and #54063 (firewall) (#54237).
+- **[new, filed]** PureLock / Dead Code Removal Agent / Daily AIC Consumption Report all missing `node` ecosystem in `network.allowed`, causing 17/64 firewall blocks on `registry.npmjs.org` — verified live in each workflow's frontmatter (#54290).
+- **[new, filed]** `docs/engines/copilot.md` line 10 bundles org-billed vs. PAT auth into one dense sentence — verified live (#54271).
+- **[new, filed]** 3 brittle `strings.Contains(err.Error())` checks (`project_command.go:385`, `update_extension_check.go:439`, `add_interactive_git.go:22`) inconsistent with project's own `errstringmatch` convention — verified live (#54241).
+- **[new, filed]** 8 `panic()` sites in `pkg/workflow`/`pkg/actionpins` (embed-guarded lazy loaders) lack documented "should never happen" contract — verified live, exact line numbers confirmed (#54241).
+- **[new, filed]** Test Quality Sentinel: 2 outputs / 10 runs, $67/output — needs sharper act-vs-noop rubric (#54237).
+- **[new, filed]** Matt Pocock Skills Reviewer: duplicate inline fallback-triage table now that `pr-triage` sub-agent is stable — remove for cost/complexity reduction (#54237).
+- **[declined, already tracked]** Design Decision Gate redesign (30% AR, $49/run) — already open #54238, not re-filed (#54237).
+- **[declined, already tracked]** Impeccable Skills Reviewer skill-selection table — already open #54240, not re-filed (#54237).
+- **[declined, false claim]** "919/2504 fmt.Errorf calls use %v not %w" in init.go/dispatch.go/run_push.go/upgrade_command.go/audit.go — verified false via grep (true count 20/2546 repo-wide, 0 in the 5 named files); not filed. See [[known_patterns]].
+- **[declined, overlaps active investigation]** AI Moderator 0-output/92%-success pattern — already has open, more specific incident #54242 (Codex CLI exit code 1); avoided filing an overlapping vague logging task (#54237).
+- **[declined, self-diagnosed noise]** CLI performance report's 4 "regressions" (up to +1792%) — correctly self-attributed to cold `GOCACHE`/module-download noise, not real regressions (#54272).
+- **[declined, healthy]** Secrets analysis (100% redaction coverage, no unsafe interpolation, no output-embedded secrets), UK AI Resilience recent-changes review (no new unaddressed risks, all CodeQL findings already tracked), Repository Chronicle news digest, Copilot PR merged report — no action needed (#54297, #54278, #54277, #54274).
+- **[declined, informational]** Daily Issues Report (#54270, 1000-issue snapshot, automation-dominated, healthy triage cadence) — no discrete action item, context only.
+
 ## Flagged Items (2026-08-20, ~12:30Z cycle, window since 05:45Z, 9 new discussions excl. own prior briefing #54183)
 
 - **[new, filed]** `Footer` field duplicated across 11 safe-output config structs, never added to existing `BaseSafeOutputConfig` (#54213 Typist Cluster 2).

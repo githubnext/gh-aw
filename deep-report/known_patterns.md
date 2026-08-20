@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-20, ~17:50Z cycle, baseline #54233)
+
+### New pattern: a report's own quantitative claim can be flatly wrong — always spot-check the numbers, not just whether the files exist
+Discussion #54241 (Error Handling Consistency & Panic Safety) claimed "919 of 2,504 non-test `fmt.Errorf` call sites (~37%) still format an error with `%v` instead of `%w`," concentrated in `init.go`, `dispatch.go`, `run_push.go`, `upgrade_command.go`, `audit.go`. Direct `grep` found the true repo-wide count is 20/2546 (<1%), and all 5 named files have **zero** `%v`-formatted `fmt.Errorf` calls. Declined to file this sub-finding. The report's other 2 claims in the same discussion (panic() sites, brittle string-matching checks) were separately verified true via grep and filed. **Lesson: don't extend "verify files exist" to "trust the report's numbers" — a source report can be internally inconsistent (some claims accurate, one wildly wrong) in the same discussion. Spot-check the specific metric being cited (grep the actual count), not just that the named files are real, before filing.**
+
+### New pattern: config-based firewall/network gaps are directly verifiable and make clean quick-win issues
+#54290's npm-registry-block finding (PureLock, Dead Code Removal Agent, Daily AIC Consumption Report) was verified by reading each workflow's frontmatter `network.allowed` list directly — all three were missing the `node` ecosystem preset used by `pkg/workflow/domains.go` to cover `registry.npmjs.org`. This is the same shape as the earlier `proxy.golang.org`/Code Scanning Fixer allowlist gap (#54063) — a recurring, easily-verified pattern (missing ecosystem preset in `network.allowed`) worth checking directly in workflow `.md` frontmatter whenever a firewall report names specific blocked-domain/workflow pairs.
+
 ## DeepReport Memory (2026-08-20, ~12:30Z cycle)
 
 ### Reconfirmed: "closed" duplication/permission fixes can regress or never have landed — always verify against the live tree, not the issue tracker

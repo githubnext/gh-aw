@@ -1,3 +1,8 @@
+## Discussions mined for code-quality tasks (processed through 2026-08-20 ~17:50Z)
+
+### Processed 2026-08-20 ~17:50Z cycle (full — all 10 new/updated discussions read; window since 12:31:42Z baseline #54233)
+54237, 54241, 54270, 54271, 54272, 54274, 54277, 54278, 54290, 54297 — all read in full, no sampling shortfall. 5 code-quality-relevant tasks extracted and filed as issues (Code Scanning Fixer checkpoint, npm allowlist, docs auth sentence, errorutil string-matching helpers, panic() doc contract); 2 more agent-prompt tasks filed from the same performance report (Test Quality Sentinel rubric, Matt Pocock dedup). One quantitative claim in #54241 (fmt.Errorf %v/%w counts) was verified false via grep and excluded — see known_patterns.md.
+
 ## Discussions mined for code-quality tasks (processed through 2026-08-20 ~12:30Z)
 
 ### Processed 2026-08-20 ~12:30Z cycle (full — all 9 new/updated discussions read; window since 05:45Z baseline #54183)

@@ -1,3 +1,16 @@
+## Extracted code-quality tasks (2026-08-20 ~17:50Z cycle)
+
+7 filed, 0 comments, window since 12:31:42Z baseline #54233 (10 new discussions):
+1. Code Scanning Fixer: add self-assessment checkpoint for 0-output timeout runs — discussion #54237. Filed.
+2. Allowlist node ecosystem for PureLock/Dead Code Removal Agent/Daily AIC Consumption Report — discussion #54290. Filed.
+3. Docs: split dense auth sentence in engines/copilot.md — discussion #54271. Filed.
+4. Replace 3 brittle strings.Contains(err.Error()) checks with errorutil helpers — discussion #54241. Filed.
+5. Document panic() contract for 8 embed-guarded panic sites — discussion #54241. Filed.
+6. Test Quality Sentinel: add explicit act-vs-noop rubric — discussion #54237. Filed.
+7. Matt Pocock Skills Reviewer: remove duplicate inline fallback-triage table — discussion #54237. Filed.
+
+Not filed (already self-filed/tracked, confirmed via `gh api search/issues` dedup search): Design Decision Gate redesign (#54237→already #54238); Impeccable Skills Reviewer skill-selection table (#54237→already #54240). Declined as unverified: "919/2504 fmt.Errorf %v not %w" claim in #54241 — grep found true count 20/2546, 0 in the 5 named files; not filed (see known_patterns.md). Declined as overlapping: AI Moderator 0-output pattern (#54237) overlaps active #54242. Declined as noise/healthy: CLI performance report regressions (#54272, self-diagnosed cold-cache); Secrets Analysis, UK AI Resilience review, Repository Chronicle, Copilot PR Merged Report, Daily Issues Report (#54297/#54278/#54277/#54274/#54270) — all healthy or informational only.
+
 ## Extracted code-quality tasks (2026-08-20 ~12:30Z cycle)
 
 7 filed, 0 comments, window since 05:45Z baseline #54183 (9 new discussions):
