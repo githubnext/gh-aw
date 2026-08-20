@@ -663,7 +663,8 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
 	}
 
-	if providers := extractModelCostProviders(config.WorkflowData); len(providers) > 0 {
+	providers := withCopilotAutoPricing(extractModelCostProviders(config.WorkflowData))
+	if len(providers) > 0 {
 		if awfSupportsAPIProxyProviders(firewallConfig) {
 			apiProxy.Providers = providers
 			awfConfigLog.Printf("API proxy: %d model-cost provider override(s) configured", len(providers))

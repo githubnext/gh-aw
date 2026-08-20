@@ -465,9 +465,12 @@ func TestBuildEvalsEngineStepsModelMappingsPropagated(t *testing.T) {
 
 		steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
 
-		// Without ModelMappings, the models section should not appear in the AWF config.
-		if strings.Contains(steps, `\"models\"`) {
-			t.Errorf("expected evals engine steps to exclude \"models\" key from AWF config when ModelMappings is nil;\ngot:\n%s", steps)
+		// Without ModelMappings, the alias section should not appear in the AWF config.
+		// Assert on an alias entry rather than the bare "models" key: the builtin
+		// copilot/auto pricing overlay also emits a nested "models" key under
+		// apiProxy.providers.
+		if strings.Contains(steps, `\"large\":[`) {
+			t.Errorf("expected evals engine steps to exclude the apiProxy.models alias section from AWF config when ModelMappings is nil;\ngot:\n%s", steps)
 		}
 	})
 }
