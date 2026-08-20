@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -363,9 +361,11 @@ func applyReferencedEngineFields(config *EngineConfig, engineObj map[string]any,
 }
 
 func resolveEngineModel(engineObj map[string]any, topLevel engineTopLevelConfig, fallback string) string {
-	if modelStr, ok := engineObj["model"].(string); ok {
-		fallback = modelStr
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
+	if modelStr, ok := engineObj["model"].(string); ok && modelStr != "" {
+		// engine.model is an explicit override for this engine instance and takes
+		// precedence over the top-level model (e.g. threat-detection.engine.model
+		// selecting a different model than the main agent engine).
+		return modelStr
 	}
 	if topLevel.model != "" {
 		return topLevel.model

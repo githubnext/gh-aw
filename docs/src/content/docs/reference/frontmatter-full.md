@@ -2409,6 +2409,14 @@ engine:
   # (optional)
   version: null
 
+  # Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022',
+  # 'gpt-4'). Has sensible defaults and can typically be omitted. Overrides the
+  # top-level 'model' field for this engine instance, which is useful when a nested
+  # engine (e.g. safe-outputs.threat-detection.engine) needs a different model than
+  # the main agent engine.
+  # (optional)
+  model: "example-value"
+
   # Optional inference provider override for this engine. Defaults to the engine's
   # native provider (copilot: github, claude: anthropic, codex: openai, pi: github).
   # (optional)
@@ -3133,9 +3141,10 @@ engine:
 # committing to a specific engine. The runtime selects an appropriate engine using
 # its default, and the model preference is applied to it.
 engine:
-
-
-# AWF turn cap (`max_turns`) applied consistently across all agentic engines.
+  # Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to
+  # the default engine when engine.id is not specified. Overrides the top-level
+  # 'model' field.
+  model: "example-value"# AWF turn cap (`max_turns`) applied consistently across all agentic engines.
 # Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for
 # reusable workflow_call workflows.
 # (optional)
@@ -21234,10 +21243,13 @@ github-app:
 import-schema:
   {}
 
-# Optional top-level LLM model override. Sets the model used by the agentic engine
-# for this workflow. Takes precedence over engine.model when both are specified.
-# Supports full model IDs (e.g. 'claude-3-5-sonnet-20241022', 'gpt-5.4') and model
-# aliases (e.g. 'small', 'large').
+# Optional top-level LLM model override. Sets the default model used by the
+# agentic engine for this workflow. Acts as a fallback when an engine instance
+# does not specify its own 'model'; a nested 'engine.model' (e.g.
+# safe-outputs.threat-detection.engine.model) takes precedence over this field
+# for that engine instance. Supports full model IDs (e.g.
+# 'claude-3-5-sonnet-20241022', 'gpt-5.4') and model aliases (e.g. 'small',
+# 'large').
 # (optional)
 model: "example-value"
 

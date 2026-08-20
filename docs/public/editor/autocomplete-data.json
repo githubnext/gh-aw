@@ -1007,8 +1007,6 @@
         "model": {
           "type": "string",
           "desc": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4').",
-          "deprecated": true,
-          "x-deprecation-message": "'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate.",
           "leaf": true
         },
         "model-provider": {

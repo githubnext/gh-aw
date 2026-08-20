@@ -204,7 +204,7 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedModel:         "gpt-4o",
 		},
 		{
-			name: "object format - top-level model overrides engine.model",
+			name: "object format - engine.model overrides top-level model",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
 					"id":    "codex",
@@ -214,7 +214,7 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex"},
-			expectedModel:         "gpt-5",
+			expectedModel:         "gpt-4o",
 		},
 		{
 			// Empty top-level model: "" must NOT override engine.model.
