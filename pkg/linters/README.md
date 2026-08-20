@@ -38,6 +38,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `mapclearloop` — reports range-over-map loops that delete every entry and can be replaced with `clear(m)`.
 - `mapdeletecheck` — reports redundant map membership checks before `delete(m, k)` calls since `delete` is already a no-op for missing keys.
 - `manualmutexunlock` — reports non-deferred mutex `Unlock()` calls that can lead to deadlocks on early returns or panics.
+- `manualpathconcat` — reports manual `"/"` separator string concatenation used to build paths (e.g. `dir + "/" + file`) that should use `filepath.Join` or `path.Join`.
 - `nilctxpassed` — reports function calls where `nil` is passed as a `context.Context` argument; the correct idioms are `context.Background()` or `context.TODO()`.
 - `osgetenvlibrary` — reports `os.Getenv` calls in library packages (`pkg/*`) where environment access should be injected.
 - `osexitinlibrary` — reports `os.Exit` calls in library packages (`pkg/*`) where process termination should be delegated to `cmd/*` entry points.
@@ -132,6 +133,7 @@ environment variable and gates findings on the recorded execution hit count for 
 | `mapclearloop` | Custom `go/analysis` analyzer that flags range-over-map loops that delete every entry and can be replaced with `clear(m)` |
 | `mapdeletecheck` | Custom `go/analysis` analyzer that flags redundant map membership checks before `delete(m, k)` calls since `delete` is a no-op for missing keys |
 | `manualmutexunlock` | Custom `go/analysis` analyzer that flags mutex `Unlock()` calls that are not deferred |
+| `manualpathconcat` | Custom `go/analysis` analyzer that flags manual `"/"` separator string concatenation used to build paths that should use `filepath.Join` or `path.Join` |
 | `nilctxpassed` | Custom `go/analysis` analyzer that flags function calls where `nil` is passed as a `context.Context` argument |
 | `osgetenvlibrary` | Custom `go/analysis` analyzer that flags `os.Getenv` usage in library packages |
 | `osexitinlibrary` | Custom `go/analysis` analyzer that flags `os.Exit` usage in library packages |
@@ -271,6 +273,7 @@ _ = trimleftright.Analyzer
 - `github.com/github/gh-aw/pkg/linters/mapclearloop` — map-clear-loop analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/mapdeletecheck` — map-delete-check analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/manualmutexunlock` — manual-mutex-unlock analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/manualpathconcat` — manual-path-concat analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/osgetenvlibrary` — os-getenv-library analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/osexitinlibrary` — os-exit-in-library analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ossetenvlibrary` — os-setenv-library analyzer subpackage
