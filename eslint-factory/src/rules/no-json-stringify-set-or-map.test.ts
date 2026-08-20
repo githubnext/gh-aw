@@ -50,6 +50,24 @@ describe("no-json-stringify-set-or-map", () => {
     });
   });
 
+  it("valid: same-name non-Set binding is not flagged when another scope has a Set", () => {
+    cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
+      valid: [
+        `
+          function tracksSetWithoutStringify() {
+            const seen = new Set([1, 2]);
+            return seen.size;
+          }
+          function stringifyObject() {
+            const seen = { other: true };
+            JSON.stringify(seen);
+          }
+        `,
+      ],
+      invalid: [],
+    });
+  });
+
   it("invalid: JSON.stringify on a const Set binding", () => {
     cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
       valid: [],
