@@ -1095,6 +1095,29 @@ func TestBuildDetectionEngineExecutionStepRespectsExplicitHarnessMaxRetries(t *t
 	}
 }
 
+func TestBuildDetectionEngineExecutionStepRespectsExplicitThreatDetectionHarnessMaxRetries(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID:                "codex",
+					HarnessMaxRetries: "2",
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 2") {
+		t.Fatalf("expected detection steps to honor threat-detection GH_AW_HARNESS_MAX_RETRIES=2, got:\n%s", allSteps)
+	}
+}
+
 func TestBuildExternalDetectorExecutionStepDefaultsHarnessMaxRetriesToZero(t *testing.T) {
 	compiler := NewCompiler()
 
