@@ -87,9 +87,13 @@ steps:
       LOOKBACK_HOURS = 6
       FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
       MAX_DISCOVERY_PAGES = 20
-      # Capture this many lines around an error marker, or from the tail if none exists.
+      # Capture this many lines around a fault marker, or from the tail if none exists.
       MAX_LOG_TAIL_LINES = 50
-      ERROR_MARKER = re.compile(r"##\[error\]|\b(?:error|panic|exception)\b", re.IGNORECASE)
+      FAULT_MARKER = re.compile(
+          r"\b(?:error|panic|exception|traceback|fatal|abort|segfault|coredump)\b|"
+          r"(?:process|command).*(?:failed|exit code)|(?:exit code|non-zero exit)",
+          re.IGNORECASE,
+      )
       # Deep-dive budget: investigate at most this many distinct failed runs.
       MAX_FAILURES_TO_DETAIL = 5
       AGENTIC_WORKFLOW_PATHS = {
@@ -146,7 +150,7 @@ steps:
       def capture_error_window(log_text):
           lines = log_text.splitlines()
           marker_index = next(
-              (index for index in range(len(lines) - 1, -1, -1) if ERROR_MARKER.search(lines[index])),
+              (index for index in range(len(lines) - 1, -1, -1) if FAULT_MARKER.search(lines[index])),
               None,
           )
           if marker_index is None:
@@ -155,7 +159,8 @@ steps:
               start = max(0, min(marker_index - MAX_LOG_TAIL_LINES // 2, len(lines) - MAX_LOG_TAIL_LINES))
               end = min(len(lines), start + MAX_LOG_TAIL_LINES)
               captured_lines = lines[start:end]
-          return captured_lines, marker_index is not None
+          has_fault_marker = any(FAULT_MARKER.search(line) for line in captured_lines)
+          return captured_lines, has_fault_marker
       
       def isoformat_z(dt):
           return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -272,14 +277,14 @@ steps:
                           ]
                       )
                       if log_text:
-                          tail_lines, has_error_marker = capture_error_window(log_text)
+                          tail_lines, has_fault_marker = capture_error_window(log_text)
                           truncated_error_logs.append(
                               {
                                   "job_id": job_id,
                                   "job_name": job_name,
                                   "line_count": len(tail_lines),
                                   "tail_lines": "\n".join(tail_lines),
-                                  "capture_likely_missed_fault": not has_error_marker,
+                                  "capture_likely_missed_fault": not has_fault_marker,
                               }
                           )
       
