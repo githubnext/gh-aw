@@ -3,7 +3,6 @@
 package intent_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,7 +115,7 @@ func TestAuthorizeTool_DeniedWins(t *testing.T) {
 	}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "write")
 	require.Error(t, err, "P9: denied tool must be rejected")
-	assert.True(t, errors.Is(err, intent.ErrToolDenied),
+	assert.ErrorIs(t, err, intent.ErrToolDenied,
 		"P9: denied tool must return ErrToolDenied")
 }
 
@@ -126,7 +125,7 @@ func TestAuthorizeTool_AllowlistGate(t *testing.T) {
 	policy := intent.ExecutionPolicy{AllowedTools: []string{"read"}}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "exec")
 	require.Error(t, err, "P10: tool absent from a restricted allow list must be rejected")
-	assert.True(t, errors.Is(err, intent.ErrToolNotAllowed),
+	require.ErrorIs(t, err, intent.ErrToolNotAllowed,
 		"P10: tool absent from allow list must return ErrToolNotAllowed")
 
 	require.NoError(t, intent.Authorizer{}.AuthorizeTool(policy, "read"),
@@ -145,7 +144,7 @@ func TestAuthorizeTool_UnrestrictedWhenAllowedToolsNil(t *testing.T) {
 
 	err := intent.Authorizer{}.AuthorizeTool(policy, "exec")
 	require.Error(t, err, "P11: an explicit deny must still be rejected even when unrestricted")
-	assert.True(t, errors.Is(err, intent.ErrToolDenied))
+	assert.ErrorIs(t, err, intent.ErrToolDenied)
 }
 
 // TestAuthorizeTool_EmptyAllowedToolsDeniesAll (P12 — AuthorizeToolEmptyDenyAll)
@@ -154,7 +153,7 @@ func TestAuthorizeTool_EmptyAllowedToolsDeniesAll(t *testing.T) {
 	policy := intent.ExecutionPolicy{AllowedTools: []string{}}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "read")
 	require.Error(t, err, "P12: non-nil empty AllowedTools must deny all tools")
-	assert.True(t, errors.Is(err, intent.ErrToolNotAllowed))
+	assert.ErrorIs(t, err, intent.ErrToolNotAllowed)
 }
 
 // TestSafestDefaultPolicy_FailClosedForIndeterminateStatus (P13 — SafestDefaultFailClosed)
