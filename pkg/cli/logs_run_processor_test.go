@@ -25,6 +25,7 @@ func TestBuildConcurrentDownloadParams_RepoOverride(t *testing.T) {
 		{name: "owner and repo", repoOverride: "owner/repo", wantOwner: "owner", wantRepo: "repo"},
 		{name: "host owner and repo", repoOverride: "ghe.example/owner/repo", wantHost: "ghe.example", wantOwner: "owner", wantRepo: "repo"},
 		{name: "empty component", repoOverride: "owner/"},
+		{name: "empty host-qualified component", repoOverride: "ghe.example/owner/"},
 	}
 
 	for _, tt := range tests {
