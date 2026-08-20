@@ -90,11 +90,7 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 
 ### Supported Invocation Surface
 
-Ad hoc scenario evaluation is a **conversation-mode capability** of the installed `agentic-workflows` custom agent — it is not a CLI flag or an MCP tool parameter.
-
-- The `gh aw` CLI and the equivalent MCP tools (`compile`, `audit`, `audit-diff`, `checks`, `mcp-inspect`, `status`, `logs`, `add`, `update`, `fix`) are all centered on managing existing workflow files (compiling, auditing runs, adding/updating workflow sources, reporting status). None of them accept a freeform `prompt`, `scenario`, or `query` parameter.
-- To run ad hoc evaluation, address the request directly to the `agentic-workflows` custom agent in conversation (for example, as an issue/PR comment or chat prompt directed at the agent) using phrasing like `agentic-workflows evaluate this scenario without creating files: ...`. Do not attempt to pass the scenario text as a parameter to a CLI/MCP tool call — those calls will fail with an "Unknown parameter" error because no tool schema defines a prompt-like field.
-- If a CLI/MCP invocation returns `Unknown parameter 'prompt'` (or similarly for `scenario`/`query`), that confirms freeform evaluation is unavailable through that path; fall back to conversation mode and use the recommendation pattern documented above and in [create-agentic-workflow.md](create-agentic-workflow.md#ad-hoc-evaluation-mode) instead of retrying with a different parameter name.
+Ad hoc scenario evaluation is a **conversation-mode capability** of the installed `agentic-workflows` custom agent, not a CLI flag or MCP tool parameter — no `gh aw` CLI/MCP command accepts a freeform `prompt`/`scenario`/`query` parameter. See [Invocation Surface](create-agentic-workflow.md#ad-hoc-evaluation-mode) in create-agentic-workflow.md for the full explanation and recovery steps if a tool call returns `Unknown parameter`.
 
 ### Program Manager digest example
 
@@ -168,7 +164,9 @@ For the full dependency-license/compliance review pattern (paths scoping, licens
 | Skills | [skills.md](skills.md) |
 | Token cost optimization | [token-optimization.md](token-optimization.md) |
 | GitHub MCP server configuration | [github-mcp-server.md](github-mcp-server.md) |
+| GitHub MCP server per-toolset tool reference | [github-mcp-server-tools.md](github-mcp-server-tools.md) |
 | GitHub MCP server pagination limits | [github-mcp-server-pagination.md](github-mcp-server-pagination.md) |
+| Compiler-generated jobs, credentials, and job graph | [jobs.md](jobs.md) |
 | Campaign and KPI patterns | [campaign.md](campaign.md) |
 | Experiments and A/B testing | [experiments.md](experiments.md) |
 | Charts and Python data visualization | [charts.md](charts.md) |

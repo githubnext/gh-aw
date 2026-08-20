@@ -10,6 +10,7 @@ import (
 
 // TestWorkflowRunStructHasMissingToolCount verifies that WorkflowRun has the MissingToolCount field
 func TestWorkflowRunStructHasMissingToolCount(t *testing.T) {
+	t.Parallel()
 	run := WorkflowRun{
 		MissingToolCount: 5,
 	}
@@ -21,6 +22,7 @@ func TestWorkflowRunStructHasMissingToolCount(t *testing.T) {
 
 // TestProcessedRunPopulatesMissingToolCount verifies that missing tools are counted correctly
 func TestProcessedRunPopulatesMissingToolCount(t *testing.T) {
+	t.Parallel()
 	processedRuns := []ProcessedRun{
 		{
 			Run: WorkflowRun{
@@ -49,6 +51,7 @@ func TestProcessedRunPopulatesMissingToolCount(t *testing.T) {
 
 // TestLogsOverviewHeaderIncludesMissing verifies the header includes "Missing"
 func TestLogsOverviewHeaderIncludesMissing(t *testing.T) {
+	t.Parallel()
 	// This test verifies the structure by checking that our expected headers are defined
 	expectedHeaders := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Created", "Logs Path"}
 
@@ -67,6 +70,7 @@ func TestLogsOverviewHeaderIncludesMissing(t *testing.T) {
 
 // TestTotalMissingToolsCalculation verifies totals are calculated correctly
 func TestTotalMissingToolsCalculation(t *testing.T) {
+	t.Parallel()
 	runs := []WorkflowRun{
 		{DatabaseID: 1, MissingToolCount: 2, LogsPath: "/tmp/gh-aw/run-1"},
 		{DatabaseID: 2, MissingToolCount: 0, LogsPath: "/tmp/gh-aw/run-2"},
@@ -93,6 +97,7 @@ func TestTotalMissingToolsCalculation(t *testing.T) {
 
 // TestMissingToolCountFieldAccessibility verifies field is accessible
 func TestMissingToolCountFieldAccessibility(t *testing.T) {
+	t.Parallel()
 	var run WorkflowRun
 
 	// Should be able to set and get the field

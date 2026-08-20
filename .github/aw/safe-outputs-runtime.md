@@ -4,6 +4,8 @@ description: Safe-output reference for runtime defaults, custom jobs, scripts, a
 
 # Safe Outputs: Runtime and Extensibility
 
+See [jobs.md](jobs.md) for the full compiler-generated job graph and which job each credential (`github-token`, `github-app`) configures.
+
 The `report-incomplete` safe-output is enabled by default and is distinct from `noop`. Use it when required tools or data are unavailable and the task cannot be meaningfully performed (e.g., MCP server crash, missing authentication, inaccessible repository). When an agent emits `report_incomplete`, gh-aw activates failure handling even when the agent process exits 0 — preventing empty outputs from being classified as successful, so every unrecoverable failure is tracked.
 
 **Per-handler modifiers** — most handlers accept `max`, `github-token`, `github-app`, and `staged` to override the global equivalents for that one output type. Two extras:

@@ -68,21 +68,6 @@ func FormatRunsOn(runsOn RunsOnValue, defaultRunsOn string) string {
 	return string(encoded)
 }
 
-// formatSafeJobRunsOn renders the runs-on YAML fragment (including the
-// leading "runs-on:" key) for a safe-job, given its parsed RunsOnValue and
-// whether the original configured value had array shape. This centralizes the
-// array-vs-scalar rendering decision so callers don't need to special-case it.
-func formatSafeJobRunsOn(runsOn RunsOnValue, runsOnArray bool, defaultRunsOn string) string {
-	// Keep []string{""} semantically unset, matching FormatRunsOn behavior.
-	if runsOnArray && len(runsOn) > 0 && (len(runsOn) != 1 || runsOn[0] != "") {
-		if snippet := renderRunsOnSnippet([]string(runsOn)); snippet != "" {
-			return snippet
-		}
-	}
-	// FormatRunsOn handles defaulting and YAML-safe rendering for scalar values.
-	return "runs-on: " + FormatRunsOn(runsOn, defaultRunsOn)
-}
-
 func runsOnMarshalOptions() []yaml.EncodeOption {
 	opts := append([]yaml.EncodeOption{}, DefaultMarshalOptions...)
 	return append(opts, yaml.IndentSequence(true))

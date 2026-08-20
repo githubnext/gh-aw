@@ -15,6 +15,7 @@ describe("sanitize_content_core.cjs – parser internals", () => {
   let getFencedCodeRanges;
   let applyFnOutsideInlineCode;
   let applyToNonCodeRegions;
+  let createRenderSafeCodeSpanWrapper;
 
   beforeEach(async () => {
     // Set up a minimal stub so code that calls core.* doesn't throw.
@@ -34,10 +35,19 @@ describe("sanitize_content_core.cjs – parser internals", () => {
     getFencedCodeRanges = mod.getFencedCodeRanges ?? null;
     applyFnOutsideInlineCode = mod.applyFnOutsideInlineCode ?? null;
     applyToNonCodeRegions = mod.applyToNonCodeRegions;
+    createRenderSafeCodeSpanWrapper = mod.createRenderSafeCodeSpanWrapper;
   });
 
   afterEach(() => {
     delete global.core;
+  });
+
+  it("uses bounded HTML code elements when all short delimiters are present", () => {
+    const input = Array.from({ length: 17 }, (_, index) => "`".repeat(index + 1)).join(" ");
+    const wrap = createRenderSafeCodeSpanWrapper(input);
+    const result = wrap("@user");
+    expect(result).toBe("<code>@user</code>");
+    expect(result.length).toBeLessThan(32);
   });
 
   // ---------------------------------------------------------------------------
@@ -128,6 +138,11 @@ describe("sanitize_content_core.cjs – parser internals", () => {
       const input = "   ```\ncontent\n   ```\nafter";
       const result = applyToNonCodeRegions(input, s => s.toUpperCase());
       expect(result).toContain("content"); // preserved, not uppercased
+    });
+
+    it("does not treat a four-space-indented fence as a code block", () => {
+      const input = "    ```\n@user\n    ```";
+      expect(getFencedCodeRanges(input)).toEqual([]);
     });
 
     it("backtick fence is not closed by tilde fence", () => {

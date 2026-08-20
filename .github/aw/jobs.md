@@ -31,11 +31,11 @@ Keep `agent` and `detection` read-only; use safe outputs for writes.
 | `pre_activation` | Trigger validation, role/skip checks, or `on.github-app` | — | Trigger-time reactions, comments, and queries. |
 | `activation` | Most workflows | `pre_activation` if present | Activation-only credential use. |
 | `agent` | Every workflow | `activation` if present | GitHub tool access; read-only. |
-| `detection` | Safe-output threat detection | `agent` | Read-only; no credential configuration. |
-| `safe_outputs` | Built-in output, script, action, or job | `agent`, `detection` if present | Approved writes. |
-| `upload_assets` | Release-asset output | `safe_outputs` | Inherits safe-output authentication; release permissions only. |
+| `detection` | Safe-output threat detection | `agent`, `activation` | Read-only; no credential configuration. |
+| `safe_outputs` | Built-in output, script, action, or job | `agent`, `activation`, `detection` if present, `unlock` if `lock-for-agent`, plus any explicit `safe-outputs.needs` jobs | Approved writes. |
+| `upload_assets` | Release-asset output | `safe_outputs`, `activation` | Inherits safe-output authentication; release permissions only. |
 | `upload_code_scanning_sarif` | Code-scanning output | `safe_outputs` | Inherits safe-output authentication; `security-events: write`. |
-| `unlock` | `lock-for-agent` | `agent` | Workflow-token lock cleanup; do not grant agent writes. |
+| `unlock` | `lock-for-agent` | `activation`, `agent`, `detection` if present | Workflow-token lock cleanup; do not grant agent writes. |
 | `evals` | `evals` | `agent` | No custom credential; runs alongside safe outputs. |
 | `conclusion` | Compiler-generated conclusion | All generated and custom jobs | No custom credential; aggregates results and usage. |
 | `push_repo_memory` | Repository-backed memory | After threat detection | Framework-managed repository credential. |

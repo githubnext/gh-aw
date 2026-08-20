@@ -17,6 +17,7 @@
 mcp-servers:
   deepwiki:
     url: "https://mcp.deepwiki.com/sse"
+    required: false
     allowed:
       - read_wiki_structure
       - read_wiki_contents
