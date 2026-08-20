@@ -11,6 +11,7 @@ import (
 )
 
 func TestParseLogFileWithEngine_FallbackParser(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		logContent     string
@@ -66,6 +67,7 @@ INFO: Configuration loaded`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary log file
 			tempDir := t.TempDir()
 			logFile := filepath.Join(tempDir, "test.log")
@@ -82,6 +84,7 @@ INFO: Configuration loaded`,
 }
 
 func TestParseLogFileWithEngine_FallbackVsEngineSpecific(t *testing.T) {
+	t.Parallel()
 	// Test that fallback parser works but engine-specific parser is still preferred
 	logContent := `::error::GitHub Actions error
 ERROR: Generic error
@@ -104,6 +107,7 @@ ERROR: Generic error
 }
 
 func TestParseLogFileWithEngine_NoAwInfoJson(t *testing.T) {
+	t.Parallel()
 	// Simulate a scenario where aw_info.json is missing
 	// This should trigger the fallback parser
 
