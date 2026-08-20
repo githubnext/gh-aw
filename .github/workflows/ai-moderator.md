@@ -65,7 +65,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 pre-agent-steps:
   - name: Pre-fetch moderation context
     env:

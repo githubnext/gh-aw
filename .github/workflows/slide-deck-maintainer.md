@@ -96,6 +96,9 @@ steps:
       cd docs || exit 1
       npm ci
 
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Slide Deck Maintenance Agent
