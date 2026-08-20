@@ -12,6 +12,8 @@ engine:
   behaviors:
     supported-env-var-keys:
       - KIRO_API_KEY
+    plugins:
+      directory: .kiro/powers
     manifest:
       files:
         - AGENTS.md

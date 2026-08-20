@@ -300,7 +300,7 @@ plugins:
 
 Entries use `owner/repository[/path]@ref` syntax. The ref is required and may be a branch, tag, or full 40-character lowercase commit SHA. During compilation, gh-aw resolves every branch or tag to a commit SHA. Compilation fails if a reference cannot be resolved, so generated workflows never install a plugin from a moving ref.
 
-The agent job checks out each pinned plugin and invokes the engine's plugin installer immediately after installing the engine. GitHub Copilot CLI is currently the only built-in engine with Agent Plugins support; using `plugins:` with another engine is a compile-time error.
+The agent job checks out each pinned plugin immediately after installing the engine, then makes it available the way the engine expects: GitHub Copilot CLI runs `copilot plugin install`, and Claude Code loads each plugin directory through `--plugin-dir`. Imported engine definitions declare their own handling with a `behaviors.plugins` block, so the shared Cursor and Kiro engines stage plugins in the folder their CLI scans. Using `plugins:` with an engine that has no Agent Plugins support is a compile-time error.
 
 Shared agentic workflows may also declare plugins. When the same plugin path is declared more than once, identical refs are deduplicated and compatible semantic versions are merged to the highest version. Incompatible major versions or conflicting non-semver refs fail compilation.
 

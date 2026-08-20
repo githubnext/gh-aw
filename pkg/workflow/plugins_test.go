@@ -94,11 +94,21 @@ func TestValidatePluginSupport(t *testing.T) {
 		Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
 	}))
 
-	err := compiler.validatePluginSupport(&WorkflowData{
+	claude := NewClaudeEngine()
+	assert.True(t, claude.GetCapabilities().Plugins)
+	_, implementsInstaller = any(claude).(PluginInstallationProvider)
+	assert.True(t, implementsInstaller)
+
+	require.NoError(t, compiler.validatePluginSupport(&WorkflowData{
 		AI:      "claude",
 		Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
+	}))
+
+	err := compiler.validatePluginSupport(&WorkflowData{
+		AI:      "codex",
+		Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
 	})
-	require.ErrorContains(t, err, `plugins are not supported by engine "claude"`)
+	require.ErrorContains(t, err, `plugins are not supported by engine "codex"`)
 }
 
 func TestCompileWorkflowRejectsImportedPluginsOnUnsupportedEngine(t *testing.T) {
@@ -115,7 +125,7 @@ Shared plugin configuration.
 	workflowPath := filepath.Join(tmpDir, "workflow.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
 on: workflow_dispatch
-engine: claude
+engine: codex
 imports:
   - shared.md
 ---
@@ -124,7 +134,7 @@ Run the workflow.
 `), 0o644))
 
 	err := NewCompiler(WithVersion("dev")).CompileWorkflow(workflowPath)
-	require.ErrorContains(t, err, `plugins are not supported by engine "claude"`)
+	require.ErrorContains(t, err, `plugins are not supported by engine "codex"`)
 }
 
 func TestCompileWorkflowInstallsImportedPlugins(t *testing.T) {
@@ -274,4 +284,114 @@ func TestPluginInstallationFollowsEngineInstallation(t *testing.T) {
 	require.NotEqual(t, -1, pluginInstallIndex)
 	assert.Less(t, engineInstallIndex, pluginCheckoutIndex)
 	assert.Less(t, pluginCheckoutIndex, pluginInstallIndex)
+}
+
+func TestClaudePluginInstallation(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	t.Run("checks plugins out without a CLI install command", func(t *testing.T) {
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugins/plugins/example@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 1)
+		checkout := strings.Join(steps[0], "\n")
+		assert.Contains(t, checkout, "name: Checkout agent plugin octo-org/agent-plugins/plugins/example")
+		assert.Contains(t, checkout, "repository: octo-org/agent-plugins")
+		assert.Contains(t, checkout, "path: .gh-aw-plugins/plugin-0")
+	})
+
+	t.Run("loads plugin directories through --plugin-dir", func(t *testing.T) {
+		args, _, _ := engine.buildClaudeCliArgs(&WorkflowData{
+			Plugins: []string{
+				"octo-org/agent-plugin@" + testPluginSHA,
+				"octo-org/agent-plugins/plugins/example@" + testPluginSHA,
+			},
+		}, nil, "log.txt")
+
+		joined := strings.Join(args, " ")
+		assert.Contains(t, joined, "--plugin-dir ./.gh-aw-plugins/plugin-0")
+		assert.Contains(t, joined, "--plugin-dir ./.gh-aw-plugins/plugin-1/plugins/example")
+	})
+
+	t.Run("adds no plugin flags without plugins", func(t *testing.T) {
+		args, _, _ := engine.buildClaudeCliArgs(&WorkflowData{}, nil, "log.txt")
+		assert.NotContains(t, strings.Join(args, " "), "--plugin-dir")
+	})
+}
+
+func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
+	newEngine := func(t *testing.T, plugins *EnginePluginsDefinition) *BehaviorDefinedEngine {
+		t.Helper()
+		engine, err := NewBehaviorDefinedEngine(&EngineDefinition{
+			ID:          "custom",
+			DisplayName: "Custom",
+			Behaviors: &EngineBehaviorDefinition{
+				Plugins:   plugins,
+				Execution: &EngineExecutionDefinition{CommandName: "custom-cli"},
+			},
+		})
+		require.NoError(t, err)
+		return engine
+	}
+
+	t.Run("stages plugins in the engine plugin directory", func(t *testing.T) {
+		engine := newEngine(t, &EnginePluginsDefinition{Directory: ".kiro/powers"})
+		assert.True(t, engine.GetCapabilities().Plugins)
+
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugins/plugins/example@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 2)
+		stage := strings.Join(steps[1], "\n")
+		assert.Contains(t, stage, "name: Stage agent plugin octo-org/agent-plugins/plugins/example")
+		assert.Contains(t, stage, `mkdir -p ".kiro/powers"`)
+		assert.Contains(t, stage, `rm -rf ".kiro/powers/example"`)
+		assert.Contains(t, stage, `cp -R "./.gh-aw-plugins/plugin-0/plugins/example" ".kiro/powers/example"`)
+	})
+
+	t.Run("expands home-relative plugin directories", func(t *testing.T) {
+		engine := newEngine(t, &EnginePluginsDefinition{Directory: "~/.cursor/plugins/local"})
+
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 2)
+		assert.Contains(t, strings.Join(steps[1], "\n"), `cp -R "./.gh-aw-plugins/plugin-0" "$HOME/.cursor/plugins/local/agent-plugin"`)
+	})
+
+	t.Run("installs plugins through the engine CLI", func(t *testing.T) {
+		engine := newEngine(t, &EnginePluginsDefinition{InstallArgs: []string{"plugin", "install"}})
+
+		steps := engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
+		})
+
+		require.Len(t, steps, 2)
+		assert.Contains(t, strings.Join(steps[1], "\n"), "custom-cli plugin install ./.gh-aw-plugins/plugin-0")
+	})
+
+	t.Run("disables plugins without a plugins behavior", func(t *testing.T) {
+		engine := newEngine(t, nil)
+		assert.False(t, engine.GetCapabilities().Plugins)
+		assert.Empty(t, engine.GetPluginInstallationSteps(&WorkflowData{
+			Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
+		}))
+	})
+
+	t.Run("rejects incomplete or unsafe plugin behaviors", func(t *testing.T) {
+		_, err := NewBehaviorDefinedEngine(&EngineDefinition{
+			ID:        "custom",
+			Behaviors: &EngineBehaviorDefinition{Plugins: &EnginePluginsDefinition{}},
+		})
+		require.ErrorContains(t, err, "without 'directory' or 'install-args'")
+
+		_, err = NewBehaviorDefinedEngine(&EngineDefinition{
+			ID:        "custom",
+			Behaviors: &EngineBehaviorDefinition{Plugins: &EnginePluginsDefinition{Directory: "../escape"}},
+		})
+		require.ErrorContains(t, err, "unsupported behaviors.plugins.directory")
+	})
 }

@@ -13763,6 +13763,28 @@
                   },
                   "additionalProperties": false
                 },
+                "plugins": {
+                  "type": "object",
+                  "description": "Declares Agent Plugins (https://agent-plugins.org) support for the engine. Plugins are checked out at their pinned commit SHA, then staged in 'directory' and/or installed with the engine CLI using 'install-args'.",
+                  "properties": {
+                    "directory": {
+                      "type": "string",
+                      "description": "Folder the engine scans for plugins. Workspace-relative (for example '.kiro/powers') or home-relative (for example '~/.cursor/plugins/local')."
+                    },
+                    "command-name": {
+                      "type": "string",
+                      "description": "CLI executable used with 'install-args'. Defaults to the execution command name."
+                    },
+                    "install-args": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CLI arguments placed before the local plugin path (for example ['plugin', 'install'])."
+                    }
+                  },
+                  "additionalProperties": false
+                },
                 "config-file": {
                   "type": "object",
                   "properties": {
