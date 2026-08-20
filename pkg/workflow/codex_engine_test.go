@@ -216,6 +216,48 @@ func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
 	}
 }
 
+func TestCodexEngineExecutionDumpsInternalLogsOnFailure(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("without firewall", func(t *testing.T) {
+		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow"}, "/tmp/gh-aw/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		assertCodexLogDiagnosticsPresent(t, stepContent)
+	})
+
+	t.Run("with firewall", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:               "test-workflow",
+			NetworkPermissions: &NetworkPermissions{Firewall: &FirewallConfig{Enabled: true}},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		assertCodexLogDiagnosticsPresent(t, stepContent)
+	})
+}
+
+func assertCodexLogDiagnosticsPresent(t *testing.T, stepContent string) {
+	t.Helper()
+	if !strings.Contains(stepContent, `codex_cli_exit_code=$?`) {
+		t.Errorf("Expected step to capture Codex CLI exit code before diagnostics, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `Codex internal logs`) {
+		t.Errorf("Expected step to announce Codex internal logs group, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `find "$CODEX_HOME/logs" -type f -name`) {
+		t.Errorf("Expected step to search for Codex internal log files under $CODEX_HOME/logs, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `exit "$codex_cli_exit_code"`) {
+		t.Errorf("Expected step to preserve and propagate the original Codex CLI exit code, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	engine := NewCodexEngine()
 

@@ -220,7 +220,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	structuredOutputParam, detectionSchemaWriteCmd := e.codexStructuredOutputConfig(workflowData)
 	commandName := e.codexCommandName(workflowData)
 	harnessScriptName := e.codexHarnessScriptName(workflowData)
-	codexCommand := e.buildCodexCommand(workflowData, commandName, harnessScriptName, firewallEnabled, modelEnvVar, structuredOutputParam)
+	codexCommand := wrapCodexCommandWithLogDiagnostics(e.buildCodexCommand(workflowData, commandName, harnessScriptName, firewallEnabled, modelEnvVar, structuredOutputParam))
 	command := e.buildCodexExecutionCommand(workflowData, logFile, codexCommand, harnessScriptName, detectionSchemaWriteCmd, firewallEnabled)
 	env := e.buildCodexExecutionEnv(workflowData, firewallEnabled, modelConfigured, modelEnvVar)
 	step := e.buildCodexExecutionStep(workflowData, command, env)
@@ -299,6 +299,32 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 	}
 	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s exec%s%s%s%s%s%s%s \"$INSTRUCTION\"",
 		commandName, modelParam, webSearchParam, webFetchParam, shellToolParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+}
+
+// wrapCodexCommandWithLogDiagnostics wraps the Codex CLI invocation so that when it
+// exits with a non-zero status, the most recently modified file under
+// "$CODEX_HOME/logs" is tailed into the step log. Codex CLI ships its own tracing
+// output (controlled by RUST_LOG) to files under $CODEX_HOME/logs rather than to
+// stdout/stderr, so a bare non-zero exit code with no console output can still have
+// a diagnosable error recorded there. Without this, such failures are invisible
+// black-box "exit code 1" crashes even though Codex logged the real cause internally.
+func wrapCodexCommandWithLogDiagnostics(codexCommand string) string {
+	return fmt.Sprintf(`{
+%s
+codex_cli_exit_code=$?
+if [ "$codex_cli_exit_code" -ne 0 ]; then
+  echo "::group::Codex internal logs ($CODEX_HOME/logs)"
+  codex_log_file=$(find "$CODEX_HOME/logs" -type f -name '*.log' 2>/dev/null | xargs -r ls -t 2>/dev/null | head -n 1)
+  if [ -n "$codex_log_file" ]; then
+    echo "--- tail of $codex_log_file ---"
+    tail -n 200 "$codex_log_file" 2>/dev/null || true
+  else
+    echo "(no Codex internal log files found under \$CODEX_HOME/logs)"
+  fi
+  echo "::endgroup::"
+fi
+exit "$codex_cli_exit_code"
+}`, codexCommand)
 }
 
 func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, logFile, codexCommand, harnessScriptName, detectionSchemaWriteCmd string, firewallEnabled bool) string {
