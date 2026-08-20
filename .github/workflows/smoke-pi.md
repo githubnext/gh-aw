@@ -32,10 +32,10 @@ sandbox:
 runtimes:
   node: {}
 imports:
-  - shared/gh.md
   - shared/reporting-otlp.md
   - shared/otlp.md
   - shared/smoke-test-brevity.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - defaults
@@ -44,12 +44,10 @@ tools:
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]
-    mode: gh-proxy
   edit:
   bash:
     - "*"
   web-fetch:
-  cli-proxy: true
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:

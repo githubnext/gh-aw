@@ -21,9 +21,7 @@ engine:
 max-ai-credits: 1500
 max-daily-ai-credits: 10000
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, actions, issues]
 timeout-minutes: 30
 strict: true
@@ -34,6 +32,7 @@ imports:
       expires: 3d
   - shared/aw-logs-24h-fetch.md
   - ../skills/jqschema/SKILL.md
+  - shared/gh-cli-proxy.md
 safe-outputs:
   mentions: false
   create-issue:

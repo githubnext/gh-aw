@@ -35,13 +35,13 @@ engine:
     COPILOT_PROVIDER_WIRE_API: responses
 imports:
   - shared/github-guard-policy.md
-  - shared/gh.md
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/smoke-test-brevity.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - defaults
@@ -56,14 +56,12 @@ tools:
   bash:
     - "*"
   github:
-    mode: gh-proxy
     min-integrity: approved
     trusted-users:
       - pelikhan
   playwright:
     mode: cli
   web-fetch:
-  cli-proxy: true
 runtimes:
   go:
     version: "1.26"

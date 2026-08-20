@@ -19,6 +19,7 @@ imports:
     expires: 3d
     title-prefix: "[doc-healer] "
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     assignees:
@@ -67,10 +68,8 @@ tools:
   - git show:*
   - grep:*
   cache-memory: true
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: daily-doc-healer

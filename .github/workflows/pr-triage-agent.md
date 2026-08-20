@@ -21,10 +21,9 @@ imports:
     with:
       min-integrity: approved
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [pull_requests, repos, issues, labels]
   repo-memory:
     branch-name: memory/pr-triage

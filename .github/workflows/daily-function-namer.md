@@ -26,6 +26,7 @@ imports:
   - shared/mcp/serena-go.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -38,10 +39,8 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
   cache-memory: true
   github:
-    mode: gh-proxy
     toolsets: [default, issues]
   bash: true
 

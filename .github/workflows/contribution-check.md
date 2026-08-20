@@ -23,11 +23,10 @@ engine:
 
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   bash: ["cat", "ls", "find", "grep", "head", "tail", "wc", "git", "jq *"]
   github:
-    mode: gh-proxy
     toolsets: [pull_requests, repos, issues]
     allowed-repos: all
     min-integrity: none

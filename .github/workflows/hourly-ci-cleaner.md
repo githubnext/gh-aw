@@ -27,9 +27,7 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash: ["*"]
   edit:
@@ -117,6 +115,7 @@ imports:
 
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 evals:
   - id: ci_state_checked
     question: Did the agent check whether CI was failing on the main branch?

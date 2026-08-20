@@ -20,10 +20,9 @@ imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     min-integrity: approved
     toolsets: [default]
 if: startsWith(github.event.issue.title, '[Workflow]')

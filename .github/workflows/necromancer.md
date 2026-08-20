@@ -21,9 +21,7 @@ timeout-minutes: 25
 network:
   allowed: [defaults, github, node, go]
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, pull_requests]
   bash:
     - "*"
@@ -51,6 +49,7 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 evals:
   - id: investigation-completed
     question: Did the agent investigate the pull request and identify any root-cause issues or missing test coverage?

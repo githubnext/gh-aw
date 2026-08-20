@@ -20,9 +20,7 @@ max-tool-denials: 3
 strict: true
 timeout-minutes: 30
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash:
     - "cat *"
@@ -217,6 +215,7 @@ imports:
       expires: 3d
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 sandbox:

@@ -50,9 +50,7 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets:
       - default
       - discussions
@@ -68,6 +66,7 @@ imports:
   - shared/otlp.md
   - shared/mcp/mempalace.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

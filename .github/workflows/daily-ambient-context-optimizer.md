@@ -25,9 +25,6 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   agentic-workflows:
   bash: true
 safe-outputs:
@@ -162,6 +159,7 @@ steps:
 imports:
   - shared/mcp-pagination.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

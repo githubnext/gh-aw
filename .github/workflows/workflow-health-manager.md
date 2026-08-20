@@ -9,11 +9,9 @@ permissions:
   actions: read
 engine: copilot
 tools:
-  cli-proxy: true
   bash: [":*"]
   edit:
   github:
-    mode: gh-proxy
     toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators
@@ -37,6 +35,7 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+  - shared/gh-cli-proxy.md
 steps:
   - name: Build Inventory
     env:

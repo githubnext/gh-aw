@@ -15,6 +15,7 @@ imports:
     expires: 3d
     title-prefix: "[compiler-threat-spec] "
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-pull-request:
     draft: false
@@ -61,10 +62,8 @@ tools:
   - head
   - pwd
   - go
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - issues

@@ -31,6 +31,7 @@ imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 safe-outputs:
   create-pull-request:
     expires: 2d
@@ -39,13 +40,11 @@ safe-outputs:
     draft: false
 
 tools:
-  cli-proxy: true
   cache-memory: true
   repo-memory:
     wiki: true
     description: "Project glossary and terminology reference"
   github:
-    mode: gh-proxy
     toolsets: [repos, pull_requests]  # scoped to avoid search_repositories (in default); repos covers commits/files, pull_requests covers PRs
   edit:
   bash: true

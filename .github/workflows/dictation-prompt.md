@@ -27,13 +27,12 @@ imports:
   - shared/reporting.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
   github:
-    mode: gh-proxy
     toolsets: [default]
 
 safe-outputs:

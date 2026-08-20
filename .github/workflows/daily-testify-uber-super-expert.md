@@ -23,6 +23,7 @@ imports:
 - shared/go-source-analysis.md
 - shared/safe-output-app.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 description: Daily expert that analyzes one test file and creates an issue with testify-based improvements
 emoji: 🧪
 engine:
@@ -39,9 +40,7 @@ tools:
   - grep -r "func Test" . --include="*_test.go"
   - go test -v ./...
   - wc -l **/*_test.go
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets:
     - default
   repo-memory:

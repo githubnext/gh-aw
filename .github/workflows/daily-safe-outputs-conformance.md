@@ -12,9 +12,7 @@ tracker-id: safe-outputs-conformance
 engine: claude
 strict: true
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [repos, issues]
   bash: true
 safe-outputs:
@@ -34,6 +32,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 sandbox:
   agent:
     id: awf

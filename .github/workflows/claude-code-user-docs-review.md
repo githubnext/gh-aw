@@ -30,10 +30,8 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
   cache-memory: true
   github:
-    mode: gh-proxy
     toolsets: [default, discussions]
   bash:
     - "cat *"
@@ -48,6 +46,7 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

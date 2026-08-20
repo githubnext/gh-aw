@@ -69,9 +69,6 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   edit:
   bash:
     - "*"
@@ -325,6 +322,7 @@ imports:
   - shared/trends.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

@@ -17,6 +17,7 @@ network:
 imports:
 - shared/reporting.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-pull-request:
     draft: false
@@ -57,10 +58,8 @@ tools:
   - sed -n
   - git status --short
   - git checkout -b * && git add scratchpad/layout.md && git status --short
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: layout-spec-maintainer

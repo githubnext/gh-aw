@@ -21,9 +21,7 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [issues, pull_requests, repos]
 safe-outputs:
   assign-to-user:
@@ -36,6 +34,7 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

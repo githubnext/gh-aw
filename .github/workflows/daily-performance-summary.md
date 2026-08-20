@@ -22,9 +22,7 @@ max-tool-denials: 3
 strict: true
 tracker-id: daily-performance-summary
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, discussions]
 safe-outputs:
   upload-asset:
@@ -42,6 +40,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

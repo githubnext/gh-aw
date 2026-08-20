@@ -18,6 +18,7 @@ network:
 imports:
 - shared/reporting.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     close-older-issues: true
@@ -52,9 +53,7 @@ tools:
   - ls
   - head
   - tail
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - actions

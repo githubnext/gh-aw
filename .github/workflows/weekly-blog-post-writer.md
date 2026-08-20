@@ -38,12 +38,10 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
   agentic-workflows:
   edit:
   bash: ["*"]
   github:
-    mode: gh-proxy
     lockdown: false
     allowed-repos:
       - github/gh-aw
@@ -83,6 +81,7 @@ imports:
   - shared/github-guard-policy.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 safe-outputs:
   create-pull-request:
     expires: 7d

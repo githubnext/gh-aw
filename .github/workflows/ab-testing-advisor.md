@@ -18,6 +18,7 @@ network:
   - defaults
 imports:
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     close-older-issues: true
@@ -42,9 +43,7 @@ tools:
   bash:
   - "*"
   cache-memory: true
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - actions

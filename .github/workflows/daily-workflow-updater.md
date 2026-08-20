@@ -40,9 +40,7 @@ safe-outputs:
     protected-files: allowed
 
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash: true
 
@@ -50,6 +48,7 @@ timeout-minutes: 15
 
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 evals:
   - id: action_versions_checked
     question: Did the agent check GitHub Actions versions for available updates?

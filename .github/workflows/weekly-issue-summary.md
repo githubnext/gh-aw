@@ -21,12 +21,10 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
   github:
-    mode: gh-proxy
     min-integrity: approved
     toolsets: 
       - issues
@@ -39,6 +37,7 @@ imports:
   - shared/trends.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 ---
 
 # Weekly Issue Summary

@@ -57,10 +57,8 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
   cache-memory: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   edit:
   bash:
@@ -70,6 +68,7 @@ timeout-minutes: 30
 
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

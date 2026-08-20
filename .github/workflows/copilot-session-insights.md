@@ -25,9 +25,7 @@ network:
     - python
 
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash:
     - "jq *"
@@ -57,6 +55,7 @@ imports:
   - shared/reporting.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 timeout-minutes: 45
 features:
   gh-aw-detection: true

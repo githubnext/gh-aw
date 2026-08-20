@@ -32,10 +32,8 @@ safe-outputs:
     close-older-discussions: true
     expires: 14
 tools:
-  cli-proxy: true
   agentic-workflows:
   github:
-    mode: gh-proxy
     toolsets:
       - all
   bash:
@@ -44,6 +42,7 @@ tools:
 imports:
   - shared/aw-logs-24h-fetch.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 evals:
   - id: firewall_data_collected
     question: Did the agent collect firewall log events for the reporting period?

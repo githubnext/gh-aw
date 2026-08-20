@@ -18,9 +18,7 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [issues, pull_requests]
   edit:
 safe-outputs:
@@ -34,6 +32,7 @@ imports:
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 experiments:
   prompt_style:
     variants: [detailed, concise]

@@ -52,12 +52,9 @@ imports:
   - shared/copilot-pr-analysis-base.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 timeout-minutes: 15
 
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
 features:
   gh-aw-detection: true
 evals:

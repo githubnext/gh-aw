@@ -17,6 +17,7 @@ imports:
 - shared/github-guard-policy.md
 - shared/ai-coding-dictionary.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-pull-request:
     auto-merge: true
@@ -61,11 +62,9 @@ tools:
   bash:
   - "*"
   cache-memory: true
-  cli-proxy: true
   edit: null
   github:
     min-integrity: approved
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: daily-doc-updater

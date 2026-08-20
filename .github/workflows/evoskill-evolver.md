@@ -17,9 +17,7 @@ engine:
   id: copilot
 tools:
   github:
-    mode: gh-proxy
     toolsets: [actions, repos]
-  cli-proxy: true
   cache-memory: true
   edit:
   bash:
@@ -50,6 +48,7 @@ evals:
     question: Was the candidate accepted only when its validation score exceeded the baseline without a regression?
 imports:
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 ---
 
 # EvoSkill Evolver

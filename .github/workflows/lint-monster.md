@@ -20,9 +20,7 @@ engine:
 strict: true
 timeout-minutes: 45
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, issues, discussions]
   bash:
     - "*"
@@ -80,6 +78,7 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

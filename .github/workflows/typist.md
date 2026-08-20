@@ -15,6 +15,7 @@ imports:
     title-prefix: "[typist] "
 - shared/mcp/serena-go.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 description: Analyzes Go type usage patterns and identifies opportunities for better type safety and code improvements
 emoji: ✍️
 engine: claude
@@ -51,10 +52,8 @@ tools:
   - grep -r "interface{}" pkg --include="*.go"
   - "grep -r \"\\\\bany\\\\b\" pkg --include=\"*.go\""
   - cat pkg/**/*.go
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 features:

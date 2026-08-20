@@ -32,13 +32,12 @@ imports:
       assignees: [copilot]
   - shared/otlp.md
 
+  - shared/gh-cli-proxy.md
 sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, issues, pull_requests]
   cache-memory: true
   repo-memory:

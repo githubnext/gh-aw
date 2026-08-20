@@ -33,10 +33,9 @@ strict: true
 imports:
   - shared/mcp-pagination.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     min-integrity: approved
     toolsets: [pull_requests, repos, issues]
   edit:

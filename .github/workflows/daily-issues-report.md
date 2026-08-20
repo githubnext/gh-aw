@@ -22,9 +22,7 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     min-integrity: approved
     toolsets: [default, discussions]
 timeout-minutes: 30
@@ -58,6 +56,7 @@ imports:
   - shared/python-nlp.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

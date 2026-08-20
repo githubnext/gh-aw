@@ -20,9 +20,6 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   repo-memory:
     branch-prefix: daily
     description: "Historical code quality and health metrics"
@@ -45,6 +42,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 experiments:
   output_format:
     variants: [full_detail, executive_summary, ste]

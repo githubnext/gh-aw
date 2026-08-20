@@ -30,7 +30,6 @@ engine:
   bare: true
 inlined-imports: true
 imports:
-  - shared/gh.md
   - shared/mcp/tavily.md
   - shared/go-make.md
   - shared/github-mcp-app.md
@@ -38,6 +37,7 @@ imports:
   - shared/token-telemetry-check.md
   - shared/smoke-test-brevity.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - defaults
@@ -51,10 +51,8 @@ sandbox:
           - /tmp/gh-aw/agent
 tools:
   agentic-workflows:
-  cli-proxy: true
   cache-memory: true
   github:
-    mode: gh-proxy
     toolsets: [repos, pull_requests]
   playwright:
     mode: cli

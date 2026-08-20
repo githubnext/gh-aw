@@ -18,6 +18,7 @@ imports:
     title-prefix: "[daily-compiler-quality] "
 - shared/go-source-analysis.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-discussion:
     category: audits
@@ -92,9 +93,7 @@ tools:
   - uniq
   - yq
   cache-memory: true
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets:
     - discussions
 tracker-id: daily-compiler-quality

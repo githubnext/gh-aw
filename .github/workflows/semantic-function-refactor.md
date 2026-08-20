@@ -24,6 +24,7 @@ imports:
 
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 safe-outputs:
   close-issue:
     required-title-prefix: "[refactor] "
@@ -36,9 +37,7 @@ safe-outputs:
     max: 1
 
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, issues]
   edit:
 

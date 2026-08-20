@@ -32,9 +32,7 @@ network:
     - defaults
     - node
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, discussions, issues, repos]
   cache-memory:
     key: eslint-miner-state-${{ github.workflow }}
@@ -62,6 +60,7 @@ evals:
     question: Did the agent create a pull request for a new ESLint rule, or use noop when no suitable rule was found?
 imports:
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 ---
 
 # ESLint Miner

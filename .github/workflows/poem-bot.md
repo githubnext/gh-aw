@@ -38,13 +38,12 @@ imports:
   - shared/otlp.md
 
 # Deny all network access
+  - shared/gh-cli-proxy.md
 network: {}
 
 # Tools configuration
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   edit:
   bash:

@@ -33,9 +33,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [actions, issues, pull_requests]
   bash: ["*"]
 cache:
@@ -64,6 +62,7 @@ imports:
 
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+  - shared/gh-cli-proxy.md
 steps:
   - name: Deterministic pre-fetch for failure analysis
     env:

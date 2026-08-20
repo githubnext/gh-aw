@@ -42,9 +42,6 @@ network:
     - node
     - go
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   bash:
     - "*"
   edit:
@@ -54,6 +51,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 sandbox:
   agent:
     runtime: gvisor

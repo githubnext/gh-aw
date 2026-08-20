@@ -39,10 +39,8 @@ imports:
       min-integrity: approved
   - shared/otlp.md
   - shared/pr-diff-data-fetch.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   comment-memory:
     memory-id: pr-code-quality-reviewer
 cache:

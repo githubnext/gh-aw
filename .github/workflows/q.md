@@ -25,11 +25,10 @@ engine:
 max-tool-denials: 3
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   agentic-workflows:
   github:
-    mode: gh-proxy
     min-integrity: none
     toolsets:
       - default

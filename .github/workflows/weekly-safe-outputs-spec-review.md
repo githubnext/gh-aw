@@ -28,13 +28,12 @@ imports:
   - shared/github-guard-policy.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
   github:
-    mode: gh-proxy
     min-integrity: approved
     toolsets:
       - repos

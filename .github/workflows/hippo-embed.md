@@ -34,9 +34,6 @@ sandbox:
     id: awf
 
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   bash:
     - "*"
 
@@ -50,6 +47,7 @@ imports:
   - shared/hippo-memory.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

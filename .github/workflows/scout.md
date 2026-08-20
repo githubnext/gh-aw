@@ -37,13 +37,12 @@ imports:
   - shared/mcp/deepwiki.md
   # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   edit:
   cache-memory: true
   bash: ["cat", "ls", "find", "grep", "head", "tail", "wc"]
   github:
-    mode: gh-proxy
     allowed-repos: all
     min-integrity: none
 safe-outputs:

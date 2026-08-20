@@ -35,6 +35,7 @@ imports:
 
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - defaults
@@ -66,9 +67,7 @@ safe-outputs:
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."
 
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     read-only: true
     min-integrity: approved
     toolsets:

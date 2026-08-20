@@ -26,9 +26,7 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash: ["*"]
   edit:
@@ -122,6 +120,7 @@ safe-outputs:
 timeout-minutes: 45
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

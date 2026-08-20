@@ -14,6 +14,7 @@ network:
 imports:
 - shared/reporting.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-pull-request:
     allowed-files:
@@ -44,10 +45,8 @@ tools:
   - "git show --stat *"
   - ls .github/aw/
   cache-memory: true
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 ---

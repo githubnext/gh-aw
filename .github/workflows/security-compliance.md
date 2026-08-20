@@ -38,10 +38,9 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [repos, search, code_security]
   repo-memory:
     branch-name: memory/campaigns

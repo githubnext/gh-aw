@@ -18,9 +18,7 @@ cache:
     restore-keys: |
       objective-impact-report-cache-
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     read-only: true
     toolsets: [default]
   bash:
@@ -222,6 +220,7 @@ safe-outputs:
     max: 1
 imports:
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 ---
 
 ### Impact Efficiency Report

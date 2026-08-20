@@ -18,12 +18,11 @@ imports:
   - shared/mcp-pagination.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [repos, actions]
 safe-outputs:
   create-issue:

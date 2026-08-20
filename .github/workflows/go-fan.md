@@ -25,6 +25,7 @@ imports:
     title-prefix: "[go-fan] "
 - shared/go-source-analysis.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 description: "Daily Go module usage reviewer - analyzes direct dependencies prioritizing recently updated ones"
 emoji: 🐹
 engine: claude
@@ -41,10 +42,8 @@ tools:
   - find scratchpad/mods/ -maxdepth 1 -ls
   - cat scratchpad/mods/*
   cache-memory: true
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: go-fan-daily

@@ -31,10 +31,7 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
   - shared/pr-diff-data-fetch.md
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
+  - shared/gh-cli-proxy.md
 cache:
   key: pr-prefetch-${{ github.event.pull_request.head.sha }}
   path: /tmp/gh-aw/agent

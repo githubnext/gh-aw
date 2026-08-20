@@ -19,9 +19,7 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, issues, pull_requests]
   repo-memory:
     branch-name: memory/awf-feature-surfacing
@@ -39,6 +37,7 @@ timeout-minutes: 30
 strict: true
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

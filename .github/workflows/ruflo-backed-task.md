@@ -27,11 +27,10 @@ imports:
   - shared/mcp/ruflo.md
   - shared/reporting.md
 
+  - shared/gh-cli-proxy.md
 tools:
   startup-timeout: 300
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, actions]
   web-fetch:
   edit:

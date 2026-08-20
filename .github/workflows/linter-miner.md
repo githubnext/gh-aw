@@ -23,9 +23,7 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, discussions, issues, repos]
   cache-memory:
     key: linter-miner-state-${{ github.workflow }}
@@ -36,6 +34,7 @@ imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 pre-agent-steps:
   - name: Preload linter source and cache context
     run: |

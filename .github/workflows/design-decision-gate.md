@@ -61,10 +61,9 @@ imports:
   - ../agents/adr-writer.agent.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, repos]
   edit:
   bash:

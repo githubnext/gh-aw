@@ -21,9 +21,7 @@ network:
     - go
     - python
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash:
     - "*"
@@ -100,6 +98,7 @@ steps:
       yamllint --version
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 sandbox:
   agent:
     id: awf

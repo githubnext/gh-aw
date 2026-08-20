@@ -21,9 +21,7 @@ max-tool-denials: 3
 strict: true
 tracker-id: daily-secrets-analysis
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, discussions]
   bash: true
 timeout-minutes: 20
@@ -33,6 +31,7 @@ imports:
       title-prefix: "[daily secrets] "
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 evals:
   - id: secrets_analyzed
     question: Did the agent analyze secret usage patterns across compiled lock.yml workflow files?

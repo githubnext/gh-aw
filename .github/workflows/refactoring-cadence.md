@@ -25,10 +25,9 @@ imports:
       expires: "14d"
       labels: [refactoring, ai-generated]
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [repos, issues]
   bash: true
   cache-memory: true

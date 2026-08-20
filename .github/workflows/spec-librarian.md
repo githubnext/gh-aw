@@ -29,6 +29,7 @@ imports:
     title-prefix: "[spec-librarian] "
 - shared/go-source-analysis.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     assignees: copilot
@@ -69,10 +70,8 @@ tools:
   - "git log --oneline --since=\"30 days ago\" -- pkg/*"
   - "git log --oneline --since=\"7 days ago\" -- pkg/*/README.md"
   - "git log -1 --format=%H -- pkg/*"
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: spec-librarian

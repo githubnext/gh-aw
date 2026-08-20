@@ -26,13 +26,12 @@ imports:
   - shared/safe-output-upload-artifact.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, pull_requests, issues]
   bash:
     - "cat:*"

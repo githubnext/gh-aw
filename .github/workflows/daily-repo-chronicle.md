@@ -29,12 +29,10 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"
   github:
-    mode: gh-proxy
     toolsets:
       - default
       - discussions
@@ -55,6 +53,7 @@ imports:
   - shared/trends.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

@@ -30,10 +30,9 @@ network:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   edit:
   bash: ["make:*", "git restore:*", "git status"]

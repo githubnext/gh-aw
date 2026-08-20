@@ -21,10 +21,9 @@ imports:
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     min-integrity: approved
     toolsets:
       - issues

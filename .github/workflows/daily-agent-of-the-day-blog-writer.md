@@ -28,12 +28,10 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
   agentic-workflows:
   edit:
   bash: ["*"]
   github:
-    mode: gh-proxy
     lockdown: false
     allowed-repos:
       - github/gh-aw
@@ -62,6 +60,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

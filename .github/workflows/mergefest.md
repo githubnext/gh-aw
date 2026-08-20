@@ -17,8 +17,8 @@ engine:
 max-tool-denials: 3
 imports:
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   bash:
     - "git fetch"
     - "git checkout"
@@ -43,7 +43,6 @@ tools:
     - "grep"
   edit:
   github:
-    mode: gh-proxy
     toolsets: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:

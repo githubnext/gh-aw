@@ -27,24 +27,21 @@ permissions:
 name: Smoke Codex
 engine: codex
 imports:
-  - shared/gh.md
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
   - shared/trufflehog.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/smoke-test-brevity.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - defaults
     - github
     - playwright
 tools:
-  cli-proxy: true
   cache-memory: true
   comment-memory: true
-  github:
-    mode: gh-proxy
   playwright:
     mode: cli
   edit:

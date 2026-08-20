@@ -28,9 +28,7 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [issues]
   repo-memory:
     wiki: true
@@ -78,6 +76,7 @@ imports:
   - shared/otlp.md
   - shared/issue-dedup.md
 
+  - shared/gh-cli-proxy.md
 steps:
   - name: Re-fetch full community issue history with pagination
     env:

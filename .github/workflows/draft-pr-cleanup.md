@@ -21,10 +21,9 @@ strict: true
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [pull_requests, repos]
   bash:
     - "jq *"

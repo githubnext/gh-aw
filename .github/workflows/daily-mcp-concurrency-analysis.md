@@ -23,6 +23,7 @@ imports:
     - go
     - typescript
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-agent-session:
     max: 3
@@ -60,10 +61,8 @@ tools:
   - "git log -1 --format=\"%ai\" -- actions/setup/js/*.cjs"
   - "git log -3 --format=\"%ai %s\" -- actions/setup/js/*.cjs"
   cache-memory: true
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: mcp-concurrency-analysis

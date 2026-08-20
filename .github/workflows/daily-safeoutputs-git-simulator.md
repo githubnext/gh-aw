@@ -15,11 +15,11 @@ sandbox:
     id: awf
 engine: claude
 strict: true
+imports:
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   bash: true
   github:
-    mode: gh-proxy
     toolsets: [default, repos, pull_requests]
   repo-memory:
     branch-name: memory/git-simulator

@@ -24,10 +24,9 @@ imports:
   - shared/reporting.md
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [repos]
   edit:
   bash:

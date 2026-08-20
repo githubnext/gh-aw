@@ -33,10 +33,9 @@ imports:
       assignees: [copilot]
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, repos, issues, pull_requests]
   cache-memory: true
   edit: null

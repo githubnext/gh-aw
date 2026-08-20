@@ -28,11 +28,8 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/reporting.md
-tools:
-  github:
-    mode: gh-proxy
-  cli-proxy: true
 
+  - shared/gh-cli-proxy.md
 evals:
   - id: project_activity_analyzed
     question: Did the agent analyze recent gh-aw project activity for the daily status report?

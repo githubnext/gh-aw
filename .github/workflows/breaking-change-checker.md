@@ -36,9 +36,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [repos]
   bash:
     - "git diff:*"
@@ -59,6 +57,7 @@ imports:
       labels: [breaking-change, automated-analysis, cookie]
       assignees: [copilot]
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 safe-outputs:
   messages:
     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"

@@ -27,9 +27,7 @@ network:
     - repo.hex.pm
     - builds.hex.pm
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash:
     - "*"
@@ -41,6 +39,7 @@ imports:
       expires: 3d
       labels: [automation, elixir, docs]
       reviewers: [copilot]
+  - shared/gh-cli-proxy.md
 sandbox:
   agent:
     id: awf

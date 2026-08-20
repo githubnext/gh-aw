@@ -18,6 +18,7 @@ network:
 imports:
 - shared/reporting.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-pull-request:
     draft: false
@@ -160,10 +161,8 @@ tools:
   - ./gh-aw compile
   - git
   cache-memory: null
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 evals:

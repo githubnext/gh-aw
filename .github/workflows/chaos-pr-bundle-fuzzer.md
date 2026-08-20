@@ -18,9 +18,6 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   cache-memory: true
   bash: true
 safe-outputs:
@@ -46,6 +43,7 @@ timeout-minutes: 30
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 ---

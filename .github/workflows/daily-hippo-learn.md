@@ -37,11 +37,9 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
   bash:
     - "*"
   github:
-    mode: gh-proxy
     toolsets: [default]
 
 safe-outputs:
@@ -61,6 +59,7 @@ imports:
   - shared/hippo-memory.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

@@ -22,6 +22,7 @@ imports:
     title-prefix: "[eslint-refiner] "
 - shared/otlp.md
 - shared/reporting.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -41,10 +42,8 @@ tools:
   - find actions/setup/js -name "*.cjs" -type f
   - find eslint-factory/src/rules -name "*.ts" -type f
   - wc -l
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - issues

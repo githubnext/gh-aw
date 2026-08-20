@@ -24,9 +24,6 @@ cache:
   restore-keys:
     - pr-test-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   bash:
     - "git diff:*"
     - "grep:*"
@@ -214,6 +211,7 @@ timeout-minutes: 15
 imports:
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 experiments:

@@ -27,17 +27,16 @@ imports:
       labels: [chore, dead-code]
       reviewers: [copilot]
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - defaults
     - go
 tools:
-  cli-proxy: true
   bash:
     - "*"
   edit:
   github:
-    mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [default, pull_requests]
   cache-memory: true

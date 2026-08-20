@@ -17,6 +17,7 @@ imports:
     min-integrity: approved
 - shared/otlp.md
 - shared/pr-diff-data-fetch.md
+- shared/gh-cli-proxy.md
 max-daily-ai-credits: 10000
 model: claude-sonnet-4.6
 "on":
@@ -63,10 +64,6 @@ skills:
 - mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28
 - mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28
 timeout-minutes: 15
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
 ---
 
 # Matt Pocock Skills Reviewer

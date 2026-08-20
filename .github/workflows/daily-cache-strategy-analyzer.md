@@ -43,9 +43,6 @@ sandbox:
     runtime: docker-sbx
 tools:
   cache-memory: true
-  cli-proxy: true
-  github:
-    mode: gh-proxy
 safe-outputs:
   create-issue:
     expires: 7d
@@ -67,6 +64,7 @@ imports:
       toolsets: [default, actions]
   - shared/reporting.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

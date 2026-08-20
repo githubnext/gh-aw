@@ -30,11 +30,10 @@ imports:
       labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
       reviewers: [copilot]
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   bash: ["git diff:*", "git restore:*", "git status:*", "sed:*", wc]
   github:
-    mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests, code_security]
   edit:

@@ -23,6 +23,7 @@ imports:
 - shared/mcp/serena-go.md
 - shared/otlp.md
 - shared/reporting.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -45,10 +46,8 @@ tools:
   - grep -r "func " --include="*.go"
   - grep -c '.Analyzer,' pkg/linters/registry.go
   - wc -l
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - issues

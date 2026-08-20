@@ -25,6 +25,7 @@ imports:
     - infrastructure
     title-prefix: "[ubuntu-image] "
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 description: Weekly analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
 emoji: 🐧
 engine: copilot
@@ -36,10 +37,8 @@ tools:
   - find .github/workflows -name "*.lock.yml" -type f
   - cat research/ubuntulatest.md
   - git
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - actions

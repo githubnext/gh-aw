@@ -14,11 +14,9 @@ engine:
   id: pi
 max-ai-credits: 1500
 tools:
-  cli-proxy: true
   edit:
   bash: ["*"]
   github:
-    mode: gh-proxy
     toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}
@@ -32,6 +30,7 @@ imports:
       title-prefix: "[Schema Consistency] "
       expires: 1d
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 pre-agent-steps:
   - name: Precompute schema analysis data
     run: |

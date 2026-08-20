@@ -25,9 +25,7 @@ network:
     - github
 tools:
   bash: true
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, issues]
 safe-outputs:
   mentions: false
@@ -49,6 +47,7 @@ imports:
   - shared/sentry.md
   - shared/mcp/sentry.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

@@ -29,15 +29,14 @@ imports:
       expires: 1d
   - shared/repository-quality-report-template.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 tools:
-  cli-proxy: true
   edit:
   bash: ["*"]
   cache-memory:
     - id: focus-areas
       key: quality-focus-${{ github.workflow }}
   github:
-    mode: gh-proxy
     toolsets:
       - default
 timeout-minutes: 20

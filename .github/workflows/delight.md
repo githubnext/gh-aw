@@ -26,6 +26,7 @@ imports:
     branch-name: memory/delight
     description: Track delight findings and historical patterns
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -79,9 +80,7 @@ tools:
   - awk
   - sed
   - shuf
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - discussions

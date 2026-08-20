@@ -17,9 +17,7 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     min-integrity: approved
     toolsets:
       - repos
@@ -54,6 +52,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 ---
 
 # Organization Health Report

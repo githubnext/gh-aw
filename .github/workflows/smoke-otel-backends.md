@@ -25,9 +25,7 @@ engine:
 strict: true
 tools:
   bash: true
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default, issues]
 safe-outputs:
   create-issue:
@@ -46,6 +44,7 @@ imports:
   - shared/grafana.md
   - shared/datadog.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: false
 sandbox:

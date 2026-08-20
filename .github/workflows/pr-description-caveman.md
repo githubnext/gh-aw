@@ -17,9 +17,7 @@ features:
 strict: true
 tools:
   github:
-    mode: gh-proxy
     toolsets: [default]
-  cli-proxy: true
   bash:
     - "git diff*"
     - "git log*"
@@ -72,6 +70,7 @@ safe-outputs:
 timeout-minutes: 15
 imports:
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 ---
 
 # PR Description Updater

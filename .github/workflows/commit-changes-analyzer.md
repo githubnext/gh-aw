@@ -20,9 +20,7 @@ model: copilot/gpt-5.4
 engine:
   id: pi
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash:
     - "*"
@@ -38,6 +36,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

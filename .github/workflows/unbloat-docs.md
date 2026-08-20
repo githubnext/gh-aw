@@ -49,6 +49,7 @@ imports:
 # Network access for documentation best practices research
   - shared/otlp.md
   - shared/reporting.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - defaults
@@ -61,10 +62,8 @@ sandbox:
 
 # Tools configuration
 tools:
-  cli-proxy: true
   cache-memory: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   edit:
   bash:

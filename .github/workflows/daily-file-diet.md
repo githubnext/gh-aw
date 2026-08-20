@@ -25,6 +25,7 @@ imports:
 - shared/go-source-analysis.md
 - shared/safe-output-app.md
 - shared/otlp.md
+- shared/gh-cli-proxy.md
 description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the healthy size threshold
 emoji: 🧹
 engine:
@@ -36,10 +37,8 @@ timeout-minutes: 20
 tools:
   bash:
   - "find pkg -name \"*.go\" ! -name \"*_test.go\" -type f -exec wc -l {} \\; | sort -rn"
-  cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: daily-file-diet

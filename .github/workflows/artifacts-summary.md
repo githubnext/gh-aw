@@ -23,11 +23,9 @@ sandbox:
     id: awf
     runtime: gvisor
 tools:
-  cli-proxy: true
   edit:
   bash: true
   github:
-    mode: gh-proxy
     toolsets: [actions, repos]
 safe-outputs:
   create-discussion:
@@ -41,6 +39,7 @@ imports:
   - shared/reporting.md
   - shared/safe-output-app.md
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 features:
   gh-aw-detection: true
 evals:

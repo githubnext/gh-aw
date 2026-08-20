@@ -33,6 +33,7 @@ imports:
           - .github/extensions/
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 network:
   allowed:
     - go
@@ -41,9 +42,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
   bash: ["*"]
 

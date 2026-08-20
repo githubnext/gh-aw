@@ -30,9 +30,6 @@ runtimes:
   node:
     version: "24"
 tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
   timeout: 120  # Multi-device runs include preview startup and Playwright tests
   playwright:
     mode: cli
@@ -62,6 +59,7 @@ imports:
       expires: 3d
 
   - shared/otlp.md
+  - shared/gh-cli-proxy.md
 pre-agent-steps:
   - name: Resolve slide deck PDF
     env:
