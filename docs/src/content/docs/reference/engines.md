@@ -60,8 +60,9 @@ Not all features are available across all engines. The table below summarizes pe
 | `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Per-command `tools.bash` allowlist | ✅ | ✅ | ❌ (disable only) | ✅ | ❌ |
 | Native MCP server integration | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Agent Plugins (`plugins`) | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-`max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `1000`) are top-level frontmatter fields supported by all engines. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot continuation mode. Claude and Codex have native web search support; Codex requires explicit `tools: web-search:` configuration. Copilot and Gemini can use a third-party MCP server for search. See [Using Web Search](/gh-aw/reference/web-search/).
+`max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `1000`) are top-level frontmatter fields supported by all engines. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot continuation mode. Claude and Codex have native web search support; Codex requires explicit `tools: web-search:` configuration. Copilot and Gemini can use a third-party MCP server for search. Top-level `plugins` uses the [Agent Plugins](https://agent-plugins.org) format and is currently supported by Copilot only. See [Using Web Search](/gh-aw/reference/web-search/) and [Agent Plugins](/gh-aw/reference/frontmatter/#agent-plugins-plugins).
 
 ## Shared imported engines
 
@@ -491,7 +492,7 @@ Defaults to `false`.
 
 ### Pi Extensions (`extensions`)
 
-The Pi engine supports loading additional plugins via `engine.extensions`. Each entry is an npm package name installed with `pi install <extension>` before the agent runs. Only the Pi engine reads this field; other engines ignore it.
+The Pi engine supports loading additional plugins via `engine.extensions`. Each entry is an npm package name installed with `pi install <extension>` before the agent runs. Only the Pi engine reads this field; other engines ignore it. Pi extensions are distinct from the top-level Agent Plugins `plugins` field.
 
 ```yaml wrap
 engine:

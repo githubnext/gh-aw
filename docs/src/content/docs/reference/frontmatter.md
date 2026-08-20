@@ -287,6 +287,21 @@ for terminology, and
 [`mattpocock-skills-reviewer.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/mattpocock-skills-reviewer.md)
 for a full workflow example using `skills:`.
 
+### Agent Plugins (`plugins:`)
+
+Installs [Agent Plugins](https://agent-plugins.org) through the selected agentic engine. Each entry identifies a GitHub repository and, optionally, the path to a plugin within that repository:
+
+```yaml wrap
+engine: copilot
+plugins:
+  - octo-org/agent-plugin@v1
+  - octo-org/agent-plugins/plugins/example@main
+```
+
+Entries use `owner/repository[/path]@ref` syntax. The ref is required and may be a branch, tag, or full 40-character lowercase commit SHA. During compilation, gh-aw resolves every branch or tag to a commit SHA. Compilation fails if a reference cannot be resolved, so generated workflows never install a plugin from a moving ref.
+
+The agent job checks out each pinned plugin and invokes the engine's plugin installer immediately after installing the engine. GitHub Copilot CLI is currently the only built-in engine with Agent Plugins support; using `plugins:` with another engine is a compile-time error.
+
 ### MCP Scripts (`mcp-scripts:`)
 
 Enables defining custom MCP tools inline using JavaScript or shell scripts. See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for complete documentation on creating custom tools with controlled secret access.
