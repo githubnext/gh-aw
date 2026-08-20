@@ -78,6 +78,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/syncutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
@@ -455,9 +456,7 @@ func buildAWFConfigSchemaURL(firewallConfig *FirewallConfig) string {
 		return "https://github.com/github/gh-aw-firewall/releases/latest/download/awf-config.schema.json"
 	}
 	// Ensure version has the 'v' prefix required by GitHub release tag URLs.
-	if !strings.HasPrefix(version, "v") {
-		version = "v" + version
-	}
+	version = semverutil.EnsureVPrefix(version)
 	return fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", version)
 }
 

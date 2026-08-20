@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -352,10 +353,8 @@ func validateSetupRepositoryCheckOptions(opts SetupRepositoryCheckOptions) error
 }
 
 func isValidOwnerRepoSlug(repo string) bool {
-	parts := strings.Split(repo, "/")
-	return len(parts) == 2 &&
-		strings.TrimSpace(parts[0]) != "" &&
-		strings.TrimSpace(parts[1]) != ""
+	owner, name, err := repoutil.SplitRepoSlug(repo)
+	return err == nil && strings.TrimSpace(owner) != "" && strings.TrimSpace(name) != ""
 }
 
 func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtime setupRepositoryRuntime) error {
