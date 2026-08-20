@@ -212,6 +212,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		yamlContent = c.replaceIssueNumberReferences(yamlContent)
 	}
 
+	yamlContent, err := finalizeRunnerTempSafety(yamlContent)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
 	// Normalize assembled YAML whitespace. This clears indentation-only blank lines
 	// everywhere, trims trailing whitespace on structural YAML lines, preserves
 	// block-scalar payload content, caps over-long structural blank runs, and

@@ -57,7 +57,12 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(buildMaintenanceValidateWorkflowsJob(ctx, opts, setupActionRef))
 	yaml.WriteString(buildMaintenanceLabelTriggeredJobs(opts, setupActionRef))
 	yaml.WriteString(buildMaintenanceDevOnlyJobs(ctx, opts, setupActionRef))
-	return yaml.String()
+	finalYAML, err := finalizeRunnerTempSafety(yaml.String())
+	if err != nil {
+		maintenanceWorkflowYAMLLog.Printf("Runner temp safety validation failed for maintenance workflow: %v", err)
+		return yaml.String()
+	}
+	return finalYAML
 }
 
 func buildMaintenanceAppliedRunURLOutput(opts buildMaintenanceWorkflowYAMLOptions) (string, string) {

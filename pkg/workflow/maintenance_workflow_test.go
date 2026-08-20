@@ -980,7 +980,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "FORECAST_STEP_OUTCOME: ${{ steps.generate_forecast_report.outcome }}") {
 		t.Errorf("Job forecast_report issue generation step should pass forecast step outcome to create_forecast_issue.cjs in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "const { main } = require('${{ runner.temp }}/gh-aw/actions/create_forecast_issue.cjs');") {
+	if !strings.Contains(yaml, "const { main } = require(path.join(actionsDir, 'create_forecast_issue.cjs'));") {
 		t.Errorf("Job forecast_report issue generation step should call create_forecast_issue.cjs in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "setupGlobals(core, github, context, exec, io, getOctokit);") {

@@ -327,7 +327,12 @@ func buildSideRepoMaintenanceWorkflowYAML(renderCtx sideRepoMaintenanceRenderCon
 	yaml.WriteString(buildCreateLabelsJob(renderCtx))
 	yaml.WriteString(buildActivityReportJob(renderCtx))
 	yaml.WriteString(buildValidateWorkflowsJob(renderCtx))
-	return yaml.String()
+	finalYAML, err := finalizeRunnerTempSafety(yaml.String())
+	if err != nil {
+		maintenanceLog.Printf("Runner temp safety validation failed for side-repo maintenance workflow: %v", err)
+		return yaml.String()
+	}
+	return finalYAML
 }
 
 func buildSideRepoMaintenanceHeader(repoSlug string) string {

@@ -192,7 +192,7 @@ The weekly schedule is deterministically scattered based on the repository slug.
 
 	header := GenerateWorkflowHeader("", "pkg/workflow/auto_update_workflow.go", customInstructions)
 
-	return header + `name: Agentic Auto-Upgrade
+	yaml := header + `name: Agentic Auto-Upgrade
 
 on:
   schedule:
@@ -229,4 +229,10 @@ jobs:
             const { mainNotifyIssue } = require('${{ runner.temp }}/gh-aw/actions/run_operation_update_upgrade.cjs');
             await mainNotifyIssue();
 `
+	finalYAML, err := finalizeRunnerTempSafety(yaml)
+	if err != nil {
+		autoUpdateWorkflowLog.Printf("Runner temp safety validation failed for auto-update workflow: %v", err)
+		return yaml
+	}
+	return finalYAML
 }
