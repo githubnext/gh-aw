@@ -19,14 +19,25 @@ var actionPinsLog = logger.New("actionpins:actionpins")
 //go:embed data/action_pins.json
 var actionPinsJSON []byte
 
+// actionPinsCache bundles the parsed/derived action pin data behind a single
+// pointer so the package-level variable holding it is never a bare slice or
+// map that gets reassigned in place; the pointer itself is written exactly
+// once (guarded by actionPinsOnce) and is treated as read-only thereafter.
+type actionPinsCache struct {
+	pins       []ActionPin
+	byRepo     map[string][]ActionPin
+	containers map[string]ContainerPin
+}
+
 var (
-	cachedActionPins       []ActionPin
-	cachedActionPinsByRepo map[string][]ActionPin
-	cachedContainerPins    map[string]ContainerPin
-	actionPinsOnce         sync.Once
+	cachedPins     *actionPinsCache
+	actionPinsOnce sync.Once
 )
 
-func getActionPins() []ActionPin {
+// getCachedActionPins returns the initialized action pin cache.
+// Panics if cache initialization did not complete, which can only follow
+// invalid embedded action pin data.
+func getCachedActionPins() *actionPinsCache {
 	actionPinsOnce.Do(func() {
 		actionPinsLog.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
 
@@ -42,19 +53,31 @@ func getActionPins() []ActionPin {
 		})
 
 		actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
-		cachedActionPins = pins
 
-		cachedActionPinsByRepo = buildByRepoIndex(pins)
-		actionPinsLog.Printf("Built per-repo action pin index for %d repos", len(cachedActionPinsByRepo))
+		byRepo := buildByRepoIndex(pins)
+		actionPinsLog.Printf("Built per-repo action pin index for %d repos", len(byRepo))
 
-		cachedContainerPins = data.Containers
-		if cachedContainerPins == nil {
-			cachedContainerPins = make(map[string]ContainerPin)
+		containers := data.Containers
+		if containers == nil {
+			containers = make(map[string]ContainerPin)
 		}
-		actionPinsLog.Printf("Loaded %d container pins from JSON", len(cachedContainerPins))
+		actionPinsLog.Printf("Loaded %d container pins from JSON", len(containers))
+
+		cachedPins = &actionPinsCache{
+			pins:       pins,
+			byRepo:     byRepo,
+			containers: containers,
+		}
 	})
 
-	return cachedActionPins
+	if cachedPins == nil {
+		panic("action pins cache was not initialized")
+	}
+	return cachedPins
+}
+
+func getActionPins() []ActionPin {
+	return getCachedActionPins().pins
 }
 
 // loadActionPinsData unmarshals embedded action pin data.
@@ -129,8 +152,7 @@ func buildByRepoIndex(pins []ActionPin) map[string][]ActionPin {
 // GetActionPinsByRepo returns the sorted (version-descending) list of action pins
 // for the given repository. Returns nil if the repo has no pins.
 func GetActionPinsByRepo(repo string) []ActionPin {
-	getActionPins()
-	return cachedActionPinsByRepo[repo]
+	return getCachedActionPins().byRepo[repo]
 }
 
 // GetLatestActionPinByRepo returns the latest ActionPin for a given repository, if any.
@@ -144,7 +166,6 @@ func GetLatestActionPinByRepo(repo string) (ActionPin, bool) {
 
 // GetContainerPin returns a pinned container image by its original image reference.
 func GetContainerPin(image string) (ContainerPin, bool) {
-	getActionPins()
-	pin, ok := cachedContainerPins[image]
+	pin, ok := getCachedActionPins().containers[image]
 	return pin, ok
 }
