@@ -293,6 +293,44 @@ timeout-minutes: 20
 # Code Review Agent
 ```
 
+**Claude equivalent:**
+
+```yaml wrap
+---
+on: push
+engine: claude
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    post-steps:
+      - name: Ollama LlamaGuard 3 Scan
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Install and start Ollama service
+            await exec.exec('curl', ['-fsSL', 'https://ollama.com/install.sh', '-o', '/tmp/install.sh']);
+            await exec.exec('sh', ['/tmp/install.sh']);
+            exec.exec('ollama', ['serve'], { detached: true });
+
+            // Pull model and scan output
+            await exec.exec('ollama', ['pull', 'llama-guard3:1b']);
+            const content = require('fs').readFileSync('/tmp/gh-aw/threat-detection/agent_output.json', 'utf8');
+            const response = await exec.getExecOutput('curl', [
+              '-X', 'POST', 'http://localhost:11434/api/chat',
+              '-H', 'Content-Type: application/json',
+              '-d', JSON.stringify({ model: 'llama-guard3:1b', messages: [{ role: 'user', content }] })
+            ]);
+
+            const result = JSON.parse(response.stdout);
+            const isSafe = result.message?.content.toLowerCase().includes('safe');
+            if (!isSafe) core.setFailed('LlamaGuard detected threat');
+
+timeout-minutes: 20
+---
+
+# Code Review Agent
+```
+
 > [!TIP]
 > For a complete implementation with error handling and service readiness checks, see `.github/workflows/shared/ollama-threat-scan.md` in the repository.
 
@@ -306,6 +344,26 @@ safe-outputs:
   threat-detection:
     prompt: "Check for authentication bypass vulnerabilities"
     engine: copilot
+    post-steps:
+      - name: Static Analysis
+        run: |
+          # Run static analysis tool
+          semgrep --config auto /tmp/gh-aw/threat-detection/
+
+      - name: Secret Scanner
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: /tmp/gh-aw/threat-detection/aw.patch
+```
+
+**Claude equivalent:**
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    prompt: "Check for authentication bypass vulnerabilities"
+    engine: claude
     post-steps:
       - name: Static Analysis
         run: |
@@ -334,6 +392,22 @@ safe-outputs:
           ./scripts/setup-gateway.sh
     engine:
       id: copilot
+```
+
+**Claude equivalent:**
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    steps:
+      - name: Connect to AI Gateway
+        run: |
+          # Authenticate and set up connection to private AI gateway
+          echo "Setting up gateway connection..."
+          ./scripts/setup-gateway.sh
+    engine:
+      id: claude
 ```
 
 ## Error Handling

@@ -25,6 +25,24 @@ imports:
 Workflow instructions here...
 ```
 
+**Claude equivalent:**
+
+```aw wrap
+---
+on: issues
+
+engine: claude
+
+imports:
+  - shared/common-tools.md
+  - shared/mcp/tavily.md
+---
+
+# Your Workflow
+
+Workflow instructions here...
+```
+
 ### Parameterized imports (`uses`/`with`)
 
 Shared workflows that declare an `import-schema` accept runtime parameters. Use the `uses`/`with` form to pass values:
@@ -34,6 +52,21 @@ Shared workflows that declare an `import-schema` accept runtime parameters. Use 
 on: issues
 
 engine: copilot
+
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go", "typescript"]
+---
+```
+
+**Claude equivalent:**
+
+```aw wrap
+---
+on: issues
+
+engine: claude
 
 imports:
   - uses: shared/mcp/serena.md
@@ -73,6 +106,22 @@ engine: copilot
 Generate the daily report.
 ```
 
+**Claude equivalent:**
+
+```aw wrap
+---
+on: schedule
+
+engine: claude
+---
+
+{{#runtime-import .github/shared/editorial.md}}
+
+# Daily Report
+
+Generate the daily report.
+```
+
 Use `{{#runtime-import? filepath}}` to silently skip a missing file instead of failing:
 
 ```aw wrap
@@ -96,6 +145,20 @@ on:
   schedule: daily
 
 engine: copilot
+
+imports:
+  - shared/reporting-otlp.md
+---
+```
+
+**Claude equivalent:**
+
+```aw wrap
+---
+on:
+  schedule: daily
+
+engine: claude
 
 imports:
   - shared/reporting-otlp.md
@@ -187,6 +250,27 @@ imports:
 ---
 ```
 
+**Claude equivalent:**
+
+```aw wrap
+---
+on: issues
+
+engine: claude
+
+imports:
+  - uses: shared/deploy.md
+    with:
+      region: us-east-1
+      environment: staging
+      count: 5
+      languages: ["go", "typescript"]
+      config:
+        apiKey: my-secret-key
+        timeout: 60
+---
+```
+
 The compiler validates `required` fields, `choice` options, array element types, and object `properties`. Unknown keys are compile-time errors.
 
 ## Path Resolution
@@ -202,6 +286,20 @@ Paths that do not start with `.github/`, `/`, or an `owner/repo/` prefix resolve
 on: issues
 
 engine: copilot
+
+imports:
+  - shared/common-tools.md        # → .github/workflows/shared/common-tools.md
+  - ../agents/helper.md           # → .github/agents/helper.md (.. goes up from .github/workflows/)
+---
+```
+
+**Claude equivalent:**
+
+```aw wrap
+---
+on: issues
+
+engine: claude
 
 imports:
   - shared/common-tools.md        # → .github/workflows/shared/common-tools.md
@@ -225,6 +323,20 @@ imports:
 ---
 ```
 
+**Claude equivalent:**
+
+```aw wrap
+---
+on: pull_request
+
+engine: claude
+
+imports:
+  - .github/agents/code-reviewer.md   # resolved from repo root
+  - .github/workflows/shared/app.md   # resolved from repo root
+---
+```
+
 Use this form when workflows in different directories need the same stable import path, and for files under `.github/agents/`.
 
 ### Cross-repo imports
@@ -236,6 +348,21 @@ Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. Th
 on: issues
 
 engine: copilot
+
+imports:
+  - acme-org/shared-workflows/shared/reporting.md@v2.1.0   # pinned to a tag
+  - acme-org/shared-workflows/shared/tools.md@main         # track a branch
+  - acme-org/shared-workflows/shared/helpers.md@abc1234    # locked to a SHA
+---
+```
+
+**Claude equivalent:**
+
+```aw wrap
+---
+on: issues
+
+engine: claude
 
 imports:
   - acme-org/shared-workflows/shared/reporting.md@v2.1.0   # pinned to a tag
@@ -274,6 +401,18 @@ Agent files are markdown documents in `.github/agents/` that add specialized ins
 ---
 on: pull_request
 engine: copilot
+imports:
+  - .github/agents/code-reviewer.md                                       # local
+  - githubnext/shared-agents/.github/agents/security-reviewer.md@v1.0.0   # remote, pinned
+---
+```
+
+**Claude equivalent:**
+
+```yaml wrap
+---
+on: pull_request
+engine: claude
 imports:
   - .github/agents/code-reviewer.md                                       # local
   - githubnext/shared-agents/.github/agents/security-reviewer.md@v1.0.0   # remote, pinned
@@ -361,6 +500,27 @@ Any workflow that imports this file gets the rotation step prepended before its 
 ---
 on: issues
 engine: copilot
+imports:
+  - shared/rotate-token.md
+permissions:
+  contents: read
+  issues: write
+steps:
+  - name: Prepare context
+    run: echo "context ready"
+---
+
+# My Workflow
+
+Process the issue using the rotated token from the imported step.
+```
+
+**Claude equivalent:**
+
+```aw title="my-workflow.md" wrap
+---
+on: issues
+engine: claude
 imports:
   - shared/rotate-token.md
 permissions:
@@ -488,6 +648,24 @@ permissions:
 Review the build output in /tmp/build-output and suggest improvements.
 ```
 
+**Claude equivalent:**
+
+```aw title="my-workflow.md" wrap
+---
+on: pull_request
+engine: claude
+imports:
+  - shared/build.md
+permissions:
+  contents: read
+  pull-requests: write
+---
+
+# Code Review Workflow
+
+Review the build output in /tmp/build-output and suggest improvements.
+```
+
 In the compiled lock file, the `build` job appears alongside `activation` and `agent`, ordered by each job's `needs` declarations.
 
 ### Importing Jobs via `safe-outputs.jobs`
@@ -537,6 +715,27 @@ on:
   workflow_call:
 
 engine: copilot
+
+inlined-imports: true
+
+imports:
+  - shared/common-tools.md
+  - shared/security-setup.md
+---
+
+# Platform Gateway Workflow
+
+Workflow instructions here.
+```
+
+**Claude equivalent:**
+
+```aw wrap
+---
+on:
+  workflow_call:
+
+engine: claude
 
 inlined-imports: true
 

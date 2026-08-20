@@ -30,6 +30,25 @@ imports:
 ---
 ```
 
+**Claude equivalent:**
+
+```aw wrap
+---
+on: issues
+
+engine: claude
+
+permissions:
+  contents: read
+# NOTE: first copy `shared/mcp/serena.md` into your repository before importing it
+
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go", "typescript"]
+---
+```
+
 For Go-only workflows, use the convenience wrapper (copy [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) into your repository before importing it):
 
 ```aw wrap
@@ -47,11 +66,54 @@ imports:
 ---
 ```
 
+**Claude equivalent:**
+
+```aw wrap
+---
+on: issues
+
+engine: claude
+
+permissions:
+  contents: read
+# NOTE: first copy `shared/mcp/serena-go.md` into your repository before importing it
+
+imports:
+  - shared/mcp/serena-go.md
+---
+```
+
 ### Example: Code Analysis
 
 ```aw wrap
 ---
 engine: copilot
+
+permissions:
+  contents: read
+
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go"]
+
+tools:
+  github:
+    toolsets: [default]
+---
+
+# Code Quality Analyzer
+
+Analyze Go code for quality improvements:
+1. Find all exported functions and check for missing documentation
+2. Identify code patterns and suggest improvements
+```
+
+**Claude equivalent:**
+
+```aw wrap
+---
+engine: claude
 
 permissions:
   contents: read
@@ -110,6 +172,27 @@ These tools enable agents to work at the **symbol level** rather than the file l
 ```aw wrap
 ---
 engine: copilot
+
+imports:
+  - shared/mcp/serena-go.md
+
+tools:
+  github:
+    toolsets: [default]
+---
+
+# Find Unused Code
+
+1. Configure memory: `mkdir -p /tmp/gh-aw/cache-memory/serena`
+2. Use `find_symbol` and `find_referencing_symbols` to identify unused exports
+3. Report findings
+```
+
+**Claude equivalent:**
+
+```aw wrap
+---
+engine: claude
 
 imports:
   - shared/mcp/serena-go.md

@@ -59,6 +59,43 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
+## Claude engine example
+
+Feature flags are independent of the selected engine. For example, a Claude workflow can enable script mode:
+
+```aw wrap
+---
+on: workflow_dispatch
+engine: claude
+features:
+  action-mode: "script"
+---
+
+Run the workflow using Claude and script mode.
+```
+
+```aw wrap
+---
+on: workflow_dispatch
+engine: claude
+features:
+  awf-diagnostic-logs: true
+---
+
+Collect AWF diagnostics when the Claude workflow fails.
+```
+
+```aw wrap
+---
+on: workflow_dispatch
+engine: claude
+features:
+  integrity-reactions: true
+---
+
+Use reaction-based trust signals with Claude.
+```
+
 ## Copilot BYOK Mode (Default for `engine: copilot`)
 
 Copilot offline Bring Your Own Key (BYOK) behavior is now the default for `engine: copilot`, bundling four behaviors:
