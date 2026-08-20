@@ -10,6 +10,7 @@ import (
 )
 
 func TestFormatNumber(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    int
@@ -49,6 +50,7 @@ func TestFormatNumber(t *testing.T) {
 }
 
 func TestFormatFileSize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		size     int64

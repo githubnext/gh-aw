@@ -15,6 +15,7 @@ import (
 
 // TestExtractZipFileSuccess tests successful extraction of a zip file
 func TestExtractZipFileSuccess(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for extraction
 	tempDir := t.TempDir()
 
@@ -49,6 +50,7 @@ func TestExtractZipFileSuccess(t *testing.T) {
 
 // TestExtractZipFileDirectory tests extraction of a directory entry
 func TestExtractZipFileDirectory(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for extraction
 	tempDir := t.TempDir()
 
@@ -80,6 +82,7 @@ func TestExtractZipFileDirectory(t *testing.T) {
 
 // TestExtractZipFileZipSlipPrevention tests that zip slip attacks are prevented
 func TestExtractZipFileZipSlipPrevention(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for extraction
 	tempDir := t.TempDir()
 
@@ -109,6 +112,7 @@ func TestExtractZipFileZipSlipPrevention(t *testing.T) {
 
 // TestExtractZipFilePreservesMode tests that file permissions are preserved
 func TestExtractZipFilePreservesMode(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for extraction
 	tempDir := t.TempDir()
 
@@ -153,6 +157,7 @@ func TestExtractZipFilePreservesMode(t *testing.T) {
 
 // TestExtractZipFileWithNestedDirectories tests extraction with nested paths
 func TestExtractZipFileWithNestedDirectories(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for extraction
 	tempDir := t.TempDir()
 
@@ -188,6 +193,7 @@ func TestExtractZipFileWithNestedDirectories(t *testing.T) {
 // TestExtractZipFileErrorHandling tests that the function properly handles and returns errors
 // This test validates the security fix for CWE-252: Unchecked Return Value
 func TestExtractZipFileErrorHandling(t *testing.T) {
+	t.Parallel()
 	t.Run("returns error when opening invalid zip file", func(t *testing.T) {
 		// Create a temporary directory for extraction
 		tempDir := t.TempDir()
