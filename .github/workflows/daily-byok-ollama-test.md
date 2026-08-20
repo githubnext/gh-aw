@@ -30,6 +30,7 @@ steps:
       mkdir -p /tmp/gh-aw
       curl -fsSL "https://github.com/ollama/ollama/releases/download/v${OLLAMA_VERSION}/install.sh" -o /tmp/gh-aw/ollama-install.sh
       echo "${OLLAMA_INSTALL_SHA256}  /tmp/gh-aw/ollama-install.sh" | sha256sum -c -
+      # runner-guard:ignore RGS-018 -- version-pinned Ollama installer is downloaded to disk and SHA-256 verified before execution.
       bash /tmp/gh-aw/ollama-install.sh
   - name: Generate Ollama API key
     run: |
