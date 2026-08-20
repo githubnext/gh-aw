@@ -103,6 +103,60 @@ func staleLogsWarning(processedRuns []ProcessedRun, startDate, endDate string) s
 		humanizeDuration(age), newest.Format(time.RFC3339))
 }
 
+// dateRangeCoverageMinFraction is the minimum fraction of the requested
+// start_date/end_date window that returned runs must span before a partial
+// (count-limit-truncated) result is considered a reasonable sample of the
+// requested range. Below this fraction, callers are warned that the result is
+// a narrow slice of the range, not a representative multi-day sample.
+const dateRangeCoverageMinFraction = 0.2
+
+// dateRangeCoverageWarning returns a warning when an explicit start_date/end_date
+// range was requested, the result was truncated before the range was fully
+// scanned (partial=true, i.e. a continuation cursor was produced), and the runs
+// actually returned span only a small fraction of the requested window. Without
+// this warning, a caller can mistake a single busy (and possibly old) day for a
+// representative sample of a much wider requested range, silently invalidating
+// multi-day trend analysis built on top of it (see github/gh-aw#53995).
+// Returns "" when no warning is warranted.
+func dateRangeCoverageWarning(processedRuns []ProcessedRun, startDate, endDate string, partial bool) string {
+	if !partial || startDate == "" || len(processedRuns) == 0 {
+		return ""
+	}
+	start, err := parseFilterDate(startDate)
+	if err != nil {
+		return ""
+	}
+	end := time.Now()
+	if endDate != "" {
+		if parsedEnd, err := parseFilterDate(endDate); err == nil {
+			end = parsedEnd
+		}
+	}
+	requestedSpan := end.Sub(start)
+	if requestedSpan <= 0 {
+		return ""
+	}
+	var oldest, newest time.Time
+	for _, pr := range processedRuns {
+		created := pr.Run.CreatedAt
+		if oldest.IsZero() || created.Before(oldest) {
+			oldest = created
+		}
+		if created.After(newest) {
+			newest = created
+		}
+	}
+	coveredSpan := newest.Sub(oldest)
+	if requestedSpan > 0 && coveredSpan.Seconds()/requestedSpan.Seconds() >= dateRangeCoverageMinFraction {
+		return ""
+	}
+	return fmt.Sprintf(
+		"An explicit date range was requested (%s), but the count limit was reached after collecting runs spanning only %s "+
+			"(from %s to %s). This is a narrow slice of the requested range and may not represent overall trends. "+
+			"Use the continuation cursor to fetch the remaining time range, or increase 'count' to cover the full window.",
+		humanizeDuration(requestedSpan), humanizeDuration(coveredSpan), oldest.Format(time.RFC3339), newest.Format(time.RFC3339))
+}
+
 // noRunsMessage returns a human-readable explanation for why zero workflow runs
 // were returned.  It inspects the startDate filter and the timeoutReached flag
 // so callers receive actionable guidance instead of a silent empty result.

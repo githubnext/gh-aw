@@ -261,6 +261,18 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 	}
 	logLogsIterationLimit(runtime.fetchAllInRange, iteration, len(processedRuns), opts.Count)
 	logLogsTimeoutResult(timeoutReached, len(processedRuns))
+	// Hitting MaxIterations without reaching the requested count or the timeout
+	// means pagination stopped before the explicit date range was fully scanned
+	// (e.g. a burst of non-matching runs consumed every iteration's batch before
+	// the cursor could walk across the whole window). Previously this silently
+	// returned whatever partial data had accumulated with no continuation cursor,
+	// so callers requesting a wide start_date/end_date window could mistake a
+	// narrow, stale slice of results for a complete scan of the range (see
+	// github/gh-aw#53995). Treat it the same as a count-limit break so a
+	// continuation is always surfaced for explicit date-range queries.
+	if runtime.fetchAllInRange && !timeoutReached && iteration >= MaxIterations {
+		countLimitReached = true
+	}
 	return processedRuns, timeoutReached, countLimitReached, nil
 }
 
