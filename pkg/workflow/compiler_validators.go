@@ -158,6 +158,15 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	}
 	c.emitGeneralToolWarnings(workflowData, markdownPath)
 	c.resolveFrontmatterSkillRefs(workflowData, markdownPath)
+	if err := c.validatePlugins(workflowData); err != nil {
+		return err
+	}
+	if err := c.validatePluginSupport(workflowData); err != nil {
+		return err
+	}
+	if err := c.resolveFrontmatterPluginRefs(workflowData); err != nil {
+		return err
+	}
 	if err := c.validateThreatDetectionSandboxRequirement(workflowData, markdownPath); err != nil {
 		return err
 	}

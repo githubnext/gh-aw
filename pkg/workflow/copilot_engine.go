@@ -49,6 +49,7 @@ func NewCopilotEngine() *CopilotEngine {
 				WebSearch:            false, // Copilot CLI does not have built-in web-search support
 				BareMode:             true,  // Copilot CLI supports --no-custom-instructions
 				BashCommandAllowlist: true,  // Copilot enforces tools.bash allowlist via --allow-tool shell(cmd)
+				Plugins:              true,  // Copilot CLI supports Agent Plugins
 			},
 			dedicatedLLMGatewayPort: constants.CopilotLLMGatewayPort,
 		},

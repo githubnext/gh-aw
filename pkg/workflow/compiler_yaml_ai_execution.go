@@ -324,6 +324,17 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 		}
 	}
 
+	if pluginInstaller, ok := engine.(PluginInstallationProvider); ok {
+		pluginInstallSteps := pluginInstaller.GetPluginInstallationSteps(data)
+		compilerYamlLog.Printf("Adding %d plugin installation steps for %s", len(pluginInstallSteps), engine.GetID())
+		for _, step := range pluginInstallSteps {
+			for _, line := range step {
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
+			}
+		}
+	}
+
 	// Add Playwright CLI install steps when playwright is configured in CLI mode.
 	// These run after Node.js is available (set up by the engine install steps above).
 	for _, step := range generatePlaywrightCLIInstallSteps(data) {

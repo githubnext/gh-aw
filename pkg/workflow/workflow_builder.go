@@ -51,6 +51,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		ImportedFiles:              importsResult.ImportedFiles,
 		Skills:                     extractFrontmatterSkills(toolsResult.parsedFrontmatter, result.Frontmatter),
 		SkillReferences:            extractFrontmatterSkillReferences(toolsResult.parsedFrontmatter, result.Frontmatter),
+		Plugins:                    extractFrontmatterPlugins(toolsResult.parsedFrontmatter, result.Frontmatter),
 		ImportedMarkdown:           toolsResult.importedMarkdown, // Only imports WITH inputs
 		ImportPaths:                toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
 		PromptImports:              toolsResult.promptImports,    // Ordered prompt contributions from imports
@@ -277,6 +278,24 @@ func extractFrontmatterSkills(parsedFrontmatter *FrontmatterConfig, frontmatter 
 		return nil
 	}
 	return skills
+}
+
+func extractFrontmatterPlugins(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []string {
+	if parsedFrontmatter != nil {
+		return parsedFrontmatter.Plugins
+	}
+
+	rawPlugins, ok := frontmatter["plugins"].([]any)
+	if !ok {
+		return nil
+	}
+	plugins := make([]string, 0, len(rawPlugins))
+	for _, rawPlugin := range rawPlugins {
+		if plugin, ok := rawPlugin.(string); ok {
+			plugins = append(plugins, plugin)
+		}
+	}
+	return plugins
 }
 
 func extractFrontmatterSkillReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []SkillReference {

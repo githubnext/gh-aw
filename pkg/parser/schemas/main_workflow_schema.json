@@ -2443,6 +2443,19 @@
         }
       ]
     },
+    "plugins": {
+      "type": "array",
+      "description": "Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
+        "description": "A plugin repository reference in owner/repository[/path]@ref format"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "examples": [["github/awesome-copilot/plugins/example@v1"]]
+    },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
       "examples": [
