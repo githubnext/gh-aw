@@ -50,6 +50,7 @@ safe-outputs:
     draft: false
     if-no-changes: "ignore"
     protected-files: fallback-to-issue
+    max-patch-files: 500
   messages:
     footer: "> 🎩 *Equipped by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}..."
