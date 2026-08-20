@@ -63,8 +63,12 @@ func newRepoTargetAccessor(structField string) repoTargetAccessor {
 			return nil
 		}
 		output = output.Elem()
+		allowedRepos, ok := output.FieldByName("AllowedRepos").Interface().([]string)
+		if !ok {
+			return nil
+		}
 		return &repoTargetConfig{
-			allowedRepos:   output.FieldByName("AllowedRepos").Interface().([]string),
+			allowedRepos:   allowedRepos,
 			targetRepoSlug: output.FieldByName("TargetRepoSlug").String(),
 		}
 	}
