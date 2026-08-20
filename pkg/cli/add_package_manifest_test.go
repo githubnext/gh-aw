@@ -96,7 +96,7 @@ files:
 		t.Run("uses resources mappings", func(t *testing.T) {
 			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 				switch path {
-				case "aw.yml":
+				case "packages/repo-assist/aw.yml":
 					return []byte(`name: Repo Assist
 resources:
   - source: templates/bug.yml
@@ -104,7 +104,7 @@ resources:
   - source: policy/controls.json
     destination: .github/aw/policy/controls.json
 `), nil
-				case "README.md":
+				case "packages/repo-assist/README.md":
 					return []byte("# Repo Assist\n"), nil
 				default:
 					return nil, createRepositoryPackageNotFoundError(path)

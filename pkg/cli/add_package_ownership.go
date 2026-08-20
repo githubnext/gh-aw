@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -131,8 +130,8 @@ func buildPackageOwnershipRecord(gitRoot, packageSource string, workflows []*Res
 			SHA256:      digest,
 		})
 	}
-	sort.Slice(record.Files, func(i, j int) bool {
-		return record.Files[i].Destination < record.Files[j].Destination
+	slices.SortFunc(record.Files, func(a, b packageOwnershipFileEntry) int {
+		return strings.Compare(a.Destination, b.Destination)
 	})
 	return record, nil
 }
@@ -401,8 +400,8 @@ func syncManifestManagedResources(ctx context.Context, repoSpec *RepoSpec, pkg *
 	if len(record.Files) == 0 {
 		return nil
 	}
-	sort.Slice(record.Files, func(i, j int) bool {
-		return record.Files[i].Destination < record.Files[j].Destination
+	slices.SortFunc(record.Files, func(a, b packageOwnershipFileEntry) int {
+		return strings.Compare(a.Destination, b.Destination)
 	})
 	if err := os.MkdirAll(filepath.Dir(recordPath), constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create package ownership directory: %w", err)
