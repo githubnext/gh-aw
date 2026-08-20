@@ -227,8 +227,9 @@ Stop and emit a safe output **immediately** when any of the following is true:
    - Missing `pr.diff` → `mcp__github__get_pull_request_diff` (only if `diff_available` is `true` in the summary; if `false`, the diff exceeds the 300-file API limit — use `pr-files.json` instead and do **not** call the diff API)
    - Missing `adr-prefetch-summary.json` → compute manually from PR files and labels
 3. Do **not** perform broad exploration. Only fetch extra data if a required field is missing from pre-fetched files.
-4. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
-5. If you have enough evidence to decide, stop immediately. Do not gather optional data.
+4. Do not use the `Agent` or `Task` tools, delegate work, run `git push`, or investigate safe-output tool availability or permissions. The required safe-output tools are available directly.
+5. Call only the minimum final safe outputs, then stop: use `noop` or `add-comment` for every non-draft outcome; when a draft ADR is generated, call `push-to-pull-request-branch` and then `add-comment`.
+6. If you have enough evidence to decide, stop immediately. Do not gather optional data.
 
 ## Gate Quality Bar
 
