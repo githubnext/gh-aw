@@ -106,6 +106,7 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 // TestLogsJSONRunDataFields verifies that run data includes key fields like
 // agent (engine_id), workflow_path, and workflow_name that should be resolved
 func TestLogsJSONRunDataFields(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-logs-run-fields-*")
 
 	// Create a mock processed run with all fields populated
@@ -229,6 +230,7 @@ func TestLogsJSONRunDataFields(t *testing.T) {
 
 // TestLogsJSONOutputStructure verifies the complete JSON structure when there are no runs
 func TestLogsJSONOutputStructure(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-logs-structure-*")
 
 	// Build logs data with empty runs
@@ -303,6 +305,7 @@ func TestLogsJSONOutputStructure(t *testing.T) {
 // TestSummaryFileWrittenWithNoRuns verifies that the summary.json file is created
 // even when there are no runs (important for campaign orchestrators)
 func TestSummaryFileWrittenWithNoRuns(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-summary-*")
 
 	// Build logs data with empty runs

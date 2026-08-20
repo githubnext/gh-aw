@@ -289,6 +289,39 @@ Greet the user warmly.
 	assert.Contains(t, yaml, "jobs:")
 }
 
+func TestCompileToYAML_GHESCompatPinsStringAPI(t *testing.T) {
+	markdown := `---
+name: ghes-string-api
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+strict: false
+steps:
+  - name: Upload test artifact
+    uses: actions/upload-artifact@v7
+    with:
+      name: test
+      path: test.txt
+---
+
+# GHES string API pins
+`
+
+	compiler := NewCompiler()
+	compiler.SetGHESCompat(true)
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+
+	yaml, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+	assert.Contains(t, yaml, "actions/upload-artifact@c6a366c94c3e0affe28c06c8df20a878f24da3cf # v3.2.2")
+	assert.Contains(t, yaml, "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0")
+	assert.NotContains(t, yaml, "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7")
+	assert.NotContains(t, yaml, "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8")
+}
+
 func TestCompileToYAML_OutputContainsWorkflowName(t *testing.T) {
 	markdown := `---
 name: my-unique-workflow

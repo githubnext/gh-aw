@@ -12,6 +12,7 @@ import (
 )
 
 func TestNewLintCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewLintCommand()
 
 	require.NotNil(t, cmd, "NewLintCommand should return a non-nil command")

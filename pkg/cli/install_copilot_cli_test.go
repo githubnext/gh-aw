@@ -14,6 +14,7 @@ import (
 )
 
 func TestInstallCopilotCLIScriptUsesToolcacheBeforeDownload(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	require.NoError(t, err, "Failed to get working directory")
 
@@ -80,6 +81,7 @@ exit 97
 }
 
 func TestInstallCopilotCLIScriptPreservesCachedBinaryAtInstallPath(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	require.NoError(t, err, "Failed to get working directory")
 
@@ -115,6 +117,7 @@ func TestInstallCopilotCLIScriptPreservesCachedBinaryAtInstallPath(t *testing.T)
 }
 
 func TestInstallCopilotCLIScriptDevModeUsesToolcache(t *testing.T) {
+	t.Parallel()
 	const compatVersion = "1.0.56"
 	const cachedCompatibleVersion = "1.0.40"
 	const cachedBoundaryMinVersion = "1.0.21"
@@ -250,6 +253,7 @@ exit 97
 }
 
 func TestInstallCopilotCLIScriptUsesBoundedRetriesForReleaseDownloads(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -266,6 +270,7 @@ func TestInstallCopilotCLIScriptUsesBoundedRetriesForReleaseDownloads(t *testing
 }
 
 func TestInstallCopilotCLIScriptRootlessModeUsesRealScriptWithToolcacheAndNoSudo(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	require.NoError(t, err, "Failed to get working directory")
 
@@ -321,6 +326,7 @@ exit 99
 }
 
 func TestInstallCopilotCLIScriptFallsBackToBakedInDefaultWhenCompatUnavailable(t *testing.T) {
+	t.Parallel()
 	// When no explicit version argument is passed AND GH_AW_COMPILED_VERSION is not set
 	// (so compat.json resolution is skipped), the script must fall back to its baked-in
 	// DEFAULT_COPILOT_VERSION rather than exiting with an error.

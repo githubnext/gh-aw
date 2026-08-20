@@ -91,6 +91,7 @@ func GetAllCodemods() []Codemod {
 		getSafeOutputMergePRConstraintsCodemod(),                   // Rename deprecated merge-pull-request allowed-labels/allowed-branches
 		getSafeOutputAddReviewerAllowlistsCodemod(),                // Rename deprecated add-reviewer reviewers/team-reviewers
 		getSafeOutputDispatchRepositoryKeyCodemod(),                // Rename deprecated safe-outputs.dispatch_repository key
+		getSafeJobRunnerCodemod(),                                  // Rename deprecated safe-outputs.jobs runner fields
 		getSafeInputsToMCPScriptsCodemod(),                         // Rename safe-inputs to mcp-scripts
 		getRateLimitToUserRateLimitCodemod(),                       // Rename rate-limit to user-rate-limit with max key migration
 		getEffectiveTokensToAICreditsCodemod(),                     // Migrate obsolete effective-token budget keys to AI credits keys
@@ -110,6 +111,7 @@ func GetAllCodemods() []Codemod {
 		getCliProxyFeatureToGitHubModeCodemod(),                    // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
 		getDIFCProxyToIntegrityProxyCodemod(),                      // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
 		getMountAsCLIsToCLIProxyCodemod(),                          // Rename tools.mount-as-clis to tools.cli-proxy and remove features.mcp-cli
+		getMinIntegrityNoneRequiresBashCodemod(),                   // Add tools.bash: false when tools.github.min-integrity is 'none'
 		getCLIProxyBashDisabledCodemod(),                           // Set tools.cli-proxy: false when tools.bash is disabled
 		getSandboxMCPContainerRemovalCodemod(),                     // Remove deprecated sandbox.mcp.container (now managed internally)
 		getSandboxMCPVersionRemovalCodemod(),                       // Remove deprecated sandbox.mcp.version (now managed internally)

@@ -25,6 +25,8 @@ permissions:
 engine: claude
 safe-outputs:
   create-issue:
+features:
+  gh-aw-detection: false
 ---
 
 # Test

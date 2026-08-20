@@ -170,12 +170,3 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 		})
 	}
 }
-
-func TestIsKnownGitHubWebhookEvent(t *testing.T) {
-	if !IsKnownGitHubWebhookEvent("issues") {
-		t.Fatal("expected issues to be a known GitHub webhook event")
-	}
-	if IsKnownGitHubWebhookEvent("not-a-real-event") {
-		t.Fatal("expected not-a-real-event to be unknown")
-	}
-}

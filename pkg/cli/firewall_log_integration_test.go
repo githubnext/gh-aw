@@ -12,6 +12,7 @@ import (
 
 // TestFirewallLogIntegration tests the complete firewall log analysis pipeline
 func TestFirewallLogIntegration(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tempDir, "run-12345")
@@ -139,6 +140,7 @@ func TestFirewallLogIntegration(t *testing.T) {
 
 // TestFirewallLogSummaryBuilding tests the aggregation of firewall logs across multiple runs
 func TestFirewallLogSummaryBuilding(t *testing.T) {
+	t.Parallel()
 	// Create mock processed runs with firewall analysis
 	processedRuns := []ProcessedRun{
 		{
@@ -245,6 +247,7 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 // TestAnalyzeFirewallLogsFromSandboxPath tests that firewall logs can be found
 // in sandbox/firewall/logs/ directory (the path after artifact download)
 func TestAnalyzeFirewallLogsFromSandboxPath(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	runDir := testutil.TempDir(t, "firewall-test-*")
 

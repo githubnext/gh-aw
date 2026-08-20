@@ -24,6 +24,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -56,6 +57,16 @@ func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 		runsOnFields = append(runsOnFields, runnerField{name: "safe-outputs.runs-on", value: safeOutputs["runs-on"]})
 		if threatDetection, ok := safeOutputs["threat-detection"].(map[string]any); ok {
 			runsOnFields = append(runsOnFields, runnerField{name: "safe-outputs.threat-detection.runs-on", value: threatDetection["runs-on"]})
+		}
+		if jobs, ok := safeOutputs["jobs"].(map[string]any); ok {
+			for jobName, jobValue := range jobs {
+				if job, ok := jobValue.(map[string]any); ok {
+					runsOnFields = append(runsOnFields, runnerField{
+						name:  fmt.Sprintf("safe-outputs.jobs.%s.runs-on", jobName),
+						value: job["runs-on"],
+					})
+				}
+			}
 		}
 	}
 
@@ -94,6 +105,9 @@ func validateRunsOnValue(value any) error {
 		}
 		return nil
 	case map[string]any:
+		if len(v) == 0 {
+			return errors.New("runs-on object is empty. Expected an object with 'group' or 'labels'. Example: runs-on:\n  group: my-runner-group")
+		}
 		for key, value := range v {
 			switch key {
 			case "group":
@@ -127,7 +141,16 @@ func isEmptyRunsOnValue(value any) bool {
 	case string:
 		return strings.TrimSpace(v) == ""
 	case []any:
-		return len(v) == 0
+		if len(v) == 0 {
+			return true
+		}
+		for _, label := range v {
+			label, ok := label.(string)
+			if !ok || strings.TrimSpace(label) != "" {
+				return false
+			}
+		}
+		return true
 	case map[string]any:
 		if len(v) == 0 {
 			return true

@@ -13,6 +13,7 @@ import (
 )
 
 func TestLinterMinerWorkflowSubAgentModelContract(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)

@@ -66,6 +66,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		AI:                         engineSetup.engineSetting,
 		Model:                      engineSetup.model,
 		EngineConfig:               engineSetup.engineConfig,
+		GHES:                       c.ghesArtifactCompat,
 		AgentFile:                  agentFile,
 		AgentImportSpec:            agentImportSpec,
 		RepositoryImports:          importsResult.RepositoryImports,

@@ -114,8 +114,7 @@ func TestAuthorizeTool_DeniedWins(t *testing.T) {
 		DeniedTools:  []string{"write"},
 	}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "write")
-	require.Error(t, err, "P9: denied tool must be rejected")
-	assert.ErrorIs(t, err, intent.ErrToolDenied,
+	require.ErrorIs(t, err, intent.ErrToolDenied,
 		"P9: denied tool must return ErrToolDenied")
 }
 
@@ -124,7 +123,6 @@ func TestAuthorizeTool_DeniedWins(t *testing.T) {
 func TestAuthorizeTool_AllowlistGate(t *testing.T) {
 	policy := intent.ExecutionPolicy{AllowedTools: []string{"read"}}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "exec")
-	require.Error(t, err, "P10: tool absent from a restricted allow list must be rejected")
 	require.ErrorIs(t, err, intent.ErrToolNotAllowed,
 		"P10: tool absent from allow list must return ErrToolNotAllowed")
 
@@ -143,8 +141,8 @@ func TestAuthorizeTool_UnrestrictedWhenAllowedToolsNil(t *testing.T) {
 		"P11: nil AllowedTools must permit any tool that isn't denied")
 
 	err := intent.Authorizer{}.AuthorizeTool(policy, "exec")
-	require.Error(t, err, "P11: an explicit deny must still be rejected even when unrestricted")
-	assert.ErrorIs(t, err, intent.ErrToolDenied)
+	require.ErrorIs(t, err, intent.ErrToolDenied,
+		"P11: an explicit deny must still return ErrToolDenied")
 }
 
 // TestAuthorizeTool_EmptyAllowedToolsDeniesAll (P12 — AuthorizeToolEmptyDenyAll)
@@ -152,8 +150,8 @@ func TestAuthorizeTool_UnrestrictedWhenAllowedToolsNil(t *testing.T) {
 func TestAuthorizeTool_EmptyAllowedToolsDeniesAll(t *testing.T) {
 	policy := intent.ExecutionPolicy{AllowedTools: []string{}}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "read")
-	require.Error(t, err, "P12: non-nil empty AllowedTools must deny all tools")
-	assert.ErrorIs(t, err, intent.ErrToolNotAllowed)
+	require.ErrorIs(t, err, intent.ErrToolNotAllowed,
+		"P12: non-nil empty AllowedTools must return ErrToolNotAllowed")
 }
 
 // TestSafestDefaultPolicy_FailClosedForIndeterminateStatus (P13 — SafestDefaultFailClosed)

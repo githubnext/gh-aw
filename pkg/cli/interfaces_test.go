@@ -16,6 +16,7 @@ import (
 
 // TestCommandProviderInterface verifies that *cobra.Command satisfies the CommandProvider interface
 func TestCommandProviderInterface(t *testing.T) {
+	t.Parallel()
 	cmd := &cobra.Command{
 		Use:   "test",
 		Short: "Test command",
@@ -102,6 +103,7 @@ func TestInitRepository_WithRootCmd(t *testing.T) {
 
 // TestInstallShellCompletion_TypeAssertion verifies type assertion behavior
 func TestInstallShellCompletion_TypeAssertion(t *testing.T) {
+	t.Parallel()
 	t.Run("with cobra.Command", func(t *testing.T) {
 		rootCmd := &cobra.Command{
 			Use:   "gh-aw",

@@ -306,6 +306,19 @@ safe-outputs:
 
 When omitted, `report-failed-jobs` defaults to `true`.
 
+### Threat Detection Suppression (`threat-detection-suppress:`)
+
+Suppresses specific threat-detection diagnostic rules (`CTR-###` identifiers) that would otherwise block safe-output processing, with a required, auditable justification. Each entry must include a `rule` matching `CTR-###`, a non-empty `reason`, and an optional `expires` date in `YYYY-MM-DD` format; once `expires` has passed (UTC), the suppression is no longer active and the rule is enforced again.
+
+```yaml wrap
+threat-detection-suppress:
+  - rule: CTR-012
+    reason: "False positive on generated changelog entries; tracked in issue #123"
+    expires: "2026-12-31"
+```
+
+Compilation fails if any entry has an invalid `rule`, an empty `reason`, or a malformed `expires` date. See [Threat Detection](/gh-aw/reference/threat-detection/) for the full list of detection rules.
+
 ### Run Configuration (`run-name:`, `runs-on:`, `runs-on-slim:`, `timeout-minutes:`)
 
 Standard GitHub Actions properties:
@@ -350,6 +363,16 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 > Do not use `${{ secrets.* }}` expressions in the workflow-level `env:` section. Environment variables defined here are passed directly to the agent container, which means secret values would be visible to the AI model. In strict mode, this is a compilation error. In non-strict mode, it emits a warning.
 >
 > Use engine-specific secret configuration instead of the `env:` section to pass secrets securely.
+
+### Turn Limit (`max-turns:`)
+
+Caps the number of chat iterations (model responses and tool calls) the AWF proxy allows for a single workflow run, across all supported engines. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime.
+
+```yaml wrap
+max-turns: 20
+```
+
+The top-level `max-runs:` field is a **deprecated** alias for `max-turns:` and is only accepted as a fallback for backward compatibility. Migrate existing workflows with `gh aw fix`. See [Cost Management](/gh-aw/reference/cost-management/#cap-turns-per-run) for more details.
 
 ### AI Credits Guardrail (`max-ai-credits:`)
 

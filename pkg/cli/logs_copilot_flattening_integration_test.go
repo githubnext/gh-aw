@@ -19,6 +19,7 @@ import (
 // 2. Flatten artifacts (moves agent_outputs/sandbox/agent/logs/ to sandbox/agent/logs/)
 // 3. Parse logs (findAgentLogFile should find the session log in the flattened location)
 func TestCopilotLogParsingAfterFlattening(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "copilot-flatten-*")
 
 	// Step 1: Simulate downloaded artifacts structure (before flattening)
@@ -94,6 +95,7 @@ func TestCopilotLogParsingAfterFlattening(t *testing.T) {
 // TestCopilotLogParsingDirectFlattening tests that the Copilot parser can find session logs
 // when they're flattened directly to the root directory (actual gh run download behavior)
 func TestCopilotLogParsingDirectFlattening(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "copilot-direct-flatten-*")
 
 	// When gh run download downloads the agent_outputs artifact,
@@ -168,6 +170,7 @@ func TestCopilotLogParsingDirectFlattening(t *testing.T) {
 // TestCopilotLogParsingMultipleSessionFiles tests that the parser finds the first session log
 // when multiple session log files exist in the flattened location
 func TestCopilotLogParsingMultipleSessionFiles(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "copilot-multiple-sessions-*")
 
 	// Create flattened session logs directory with multiple files
@@ -201,6 +204,7 @@ func TestCopilotLogParsingMultipleSessionFiles(t *testing.T) {
 // TestCopilotLogParsingBackwardCompatibility tests that the old agent_output directory
 // is still supported (before flattening)
 func TestCopilotLogParsingBackwardCompatibility(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "copilot-backward-compat-*")
 
 	// Create old-style agent_output directory (without 's')

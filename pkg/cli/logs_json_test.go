@@ -16,6 +16,7 @@ import (
 
 // TestBuildLogsData tests the structured data creation for logs
 func TestBuildLogsData(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create sample processed runs
@@ -190,6 +191,7 @@ func TestBuildLogsData(t *testing.T) {
 
 // TestRenderLogsJSON tests JSON output rendering
 func TestRenderLogsJSON(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create sample logs data
@@ -295,6 +297,7 @@ func writeTestAwInfo(t *testing.T, runDir string, payload map[string]any) {
 }
 
 func TestBuildLogsDataAggregatesDispatchEpisode(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-episode-*")
 	processedRuns := []ProcessedRun{
 		{
@@ -390,6 +393,7 @@ func TestBuildLogsDataAggregatesDispatchEpisode(t *testing.T) {
 }
 
 func TestBuildLogsDataJoinsWorkflowCallEpisode(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-workflow-call-*")
 	parentDir := filepath.Join(tmpDir, "run-3001")
 	childOneDir := filepath.Join(tmpDir, "run-3002")
@@ -457,6 +461,7 @@ func TestBuildLogsDataJoinsWorkflowCallEpisode(t *testing.T) {
 }
 
 func TestBuildLogsDataDoesNotCoalesceWorkflowCallEpisodesWithoutRepositoryAndRef(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-workflow-call-low-info-*")
 	firstDir := filepath.Join(tmpDir, "run-5001")
 	secondDir := filepath.Join(tmpDir, "run-5002")
@@ -503,6 +508,7 @@ func TestBuildLogsDataDoesNotCoalesceWorkflowCallEpisodesWithoutRepositoryAndRef
 }
 
 func TestBuildLogsDataAttachesWorkflowRunEpisode(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-workflow-run-*")
 	parentDir := filepath.Join(tmpDir, "run-4001")
 	childDir := filepath.Join(tmpDir, "run-4002")
@@ -549,6 +555,7 @@ func TestBuildLogsDataAttachesWorkflowRunEpisode(t *testing.T) {
 
 // TestBuildMissingToolsSummary tests missing tools aggregation
 func TestBuildMissingToolsSummary(t *testing.T) {
+	t.Parallel()
 	processedRuns := []ProcessedRun{
 		{
 			Run: WorkflowRun{
@@ -621,6 +628,7 @@ func TestBuildMissingToolsSummary(t *testing.T) {
 
 // TestBuildLogsDataWithContinuation tests continuation field in logs data
 func TestBuildLogsDataWithContinuation(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create sample processed runs
@@ -715,6 +723,7 @@ func TestBuildLogsDataWithContinuation(t *testing.T) {
 // This mirrors the scenario fixed in issue #42994 where daily audits only received
 // partial run sets because the count cap was hit mid-range with no pagination signal.
 func TestBuildLogsDataWithCountLimitContinuation(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	processedRuns := []ProcessedRun{
@@ -777,6 +786,7 @@ func TestBuildLogsDataWithCountLimitContinuation(t *testing.T) {
 
 // TestBuildLogsDataWithoutContinuation tests that continuation is omitted when nil
 func TestBuildLogsDataWithoutContinuation(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	processedRuns := []ProcessedRun{
@@ -816,6 +826,7 @@ func TestBuildLogsDataWithoutContinuation(t *testing.T) {
 
 // TestBuildMCPFailuresSummary tests MCP failures aggregation
 func TestBuildMCPFailuresSummary(t *testing.T) {
+	t.Parallel()
 	processedRuns := []ProcessedRun{
 		{
 			Run: WorkflowRun{
@@ -873,6 +884,7 @@ func TestBuildMCPFailuresSummary(t *testing.T) {
 // TestBuildLogsDataRepositoryAndOrganizationFields verifies that repository and organization
 // fields are populated on both RunData and EpisodeData from aw_info.json.
 func TestBuildLogsDataRepositoryAndOrganizationFields(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-repo-org-*")
 	runDir := filepath.Join(tmpDir, "run-9001")
 
@@ -930,6 +942,7 @@ func TestBuildLogsDataRepositoryAndOrganizationFields(t *testing.T) {
 // TestBuildLogsDataOrganizationEmptyWhenNoRepository verifies that organization is empty
 // when no repository is set (e.g., older aw_info.json without repository field).
 func TestBuildLogsDataOrganizationEmptyWhenNoRepository(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-no-repo-*")
 
 	processedRuns := []ProcessedRun{
@@ -972,6 +985,7 @@ func TestBuildLogsDataOrganizationEmptyWhenNoRepository(t *testing.T) {
 // TestInferWorkflowPathFromDisplayName verifies that display names are correctly
 // slugified into conventional lock-file paths.
 func TestInferWorkflowPathFromDisplayName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		displayName string
@@ -1022,6 +1036,7 @@ func TestInferWorkflowPathFromDisplayName(t *testing.T) {
 // TestBuildLogsDataInfersWorkflowPathFromAwInfo verifies that buildLogsData falls back
 // to inferring workflow_path from aw_info.json when the GitHub API returned an empty path.
 func TestBuildLogsDataInfersWorkflowPathFromAwInfo(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-infer-workflow-path-*")
 
 	// Create a run with an empty WorkflowPath (simulating what the GitHub API returns
@@ -1068,6 +1083,7 @@ func TestBuildLogsDataInfersWorkflowPathFromAwInfo(t *testing.T) {
 // TestBuildLogsDataPreservesExplicitWorkflowPath verifies that an explicit WorkflowPath
 // set by the GitHub API is never overwritten by the inference fallback.
 func TestBuildLogsDataPreservesExplicitWorkflowPath(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-preserve-workflow-path-*")
 
 	explicitPath := ".github/workflows/custom-path.lock.yml"
@@ -1115,6 +1131,7 @@ func TestBuildLogsDataPreservesExplicitWorkflowPath(t *testing.T) {
 // len(d.get('episodes', [])) — the default [] is only used when the key is absent,
 // but null is a present key with a null value, causing a TypeError.
 func TestCompactLogsDataEpisodesEmptySliceNotNull(t *testing.T) {
+	t.Parallel()
 	data := LogsData{
 		Episodes: []EpisodeData{
 			{

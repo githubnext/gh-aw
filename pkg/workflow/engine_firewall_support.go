@@ -110,7 +110,7 @@ func generateSquidLogsUploadStep(workflowName string, workflowData *WorkflowData
 		"      - name: Upload Firewall Logs",
 		"        if: always()",
 		"        continue-on-error: true",
-		"        uses: " + getActionPin("actions/upload-artifact"),
+		"        uses: " + getActionPinForData("actions/upload-artifact", workflowData),
 		"        with:",
 		"          name: " + artifactName,
 		"          path: " + firewallLogsDir,
