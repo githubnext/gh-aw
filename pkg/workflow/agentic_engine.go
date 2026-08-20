@@ -234,6 +234,14 @@ type LogParser interface {
 	// the AWF sandbox container) so it can write to GITHUB_OUTPUT. Returns empty string if the
 	// engine does not provide a post-execution error detection step.
 	GetErrorDetectionScriptId() string
+
+	// GetInternalLogsDir returns the host-runner path of a directory containing the engine's own
+	// internal tracing/diagnostic log files (as opposed to the captured stdout/stderr agent log),
+	// or empty string if the engine does not write such logs. When non-empty, the error detection
+	// script (see GetErrorDetectionScriptId) tails the most recently modified log file under this
+	// directory into the step log when the execution step failed, surfacing diagnosable output for
+	// crashes that print nothing to stdout/stderr.
+	GetInternalLogsDir() string
 }
 
 // SecurityProvider handles security-related configuration
@@ -492,6 +500,13 @@ func (e *BaseEngine) GetLogParserScriptId() string {
 // Engines can override this to provide a host-runner script that detects errors in the agent
 // stdio log and writes them as GITHUB_OUTPUT values after the AWF container exits.
 func (e *BaseEngine) GetErrorDetectionScriptId() string {
+	return ""
+}
+
+// GetInternalLogsDir returns empty string by default (no engine-internal log directory).
+// Engines that write their own tracing/diagnostic logs to files (separate from the captured
+// stdout/stderr) can override this to have those logs tailed into the step log on failure.
+func (e *BaseEngine) GetInternalLogsDir() string {
 	return ""
 }
 

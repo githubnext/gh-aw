@@ -1,4 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
+
+// Minimal mock for @actions/core used by github-script CJS modules (renderLogFromFile).
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  setSecret: vi.fn(),
+};
+global.core = mockCore;
 
 const {
   detectErrors,
@@ -22,6 +33,8 @@ const {
   isShellExpansionGuardRejectedError,
   extractMissingModelPricingModelName,
   buildOutputLines,
+  findMostRecentLogFile,
+  renderInternalEngineLogOnFailure,
 } = require("./detect_agent_errors.cjs");
 
 describe("detect_agent_errors.cjs", () => {
@@ -937,6 +950,131 @@ commentary" has no AI credits pricing`;
       });
 
       expect(lines).toContain("shell_expansion_guard_rejected=true");
+    });
+  });
+});
+
+describe("renderInternalEngineLogOnFailure() / findMostRecentLogFile()", () => {
+  let tempDir;
+  let logsDir;
+  let originalOutcome;
+  let originalInternalLogsDir;
+
+  // Patch process.stdout.write so we can capture workflow-command output emitted by
+  // renderLogFromFile/renderLogToStdout.
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  let stdoutChunks = [];
+  const stubbedWrite = chunk => {
+    stdoutChunks.push(typeof chunk === "string" ? chunk : chunk.toString("utf8"));
+    return true;
+  };
+
+  function capturedStdout() {
+    return stdoutChunks.join("");
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stdoutChunks = [];
+    process.stdout.write = stubbedWrite;
+
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "detect-agent-errors-internal-log-test-"));
+    logsDir = path.join(tempDir, "logs");
+    fs.mkdirSync(logsDir, { recursive: true });
+
+    originalOutcome = process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME;
+    originalInternalLogsDir = process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR;
+  });
+
+  afterEach(() => {
+    process.stdout.write = originalWrite;
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    if (originalOutcome === undefined) {
+      delete process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME;
+    } else {
+      process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = originalOutcome;
+    }
+    if (originalInternalLogsDir === undefined) {
+      delete process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR;
+    } else {
+      process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR = originalInternalLogsDir;
+    }
+  });
+
+  describe("findMostRecentLogFile()", () => {
+    it("returns undefined when the directory does not exist", () => {
+      expect(findMostRecentLogFile(path.join(tempDir, "missing"))).toBeUndefined();
+    });
+
+    it("returns undefined when no *.log files are present", () => {
+      fs.writeFileSync(path.join(logsDir, "notes.txt"), "hi", "utf8");
+      expect(findMostRecentLogFile(logsDir)).toBeUndefined();
+    });
+
+    it("finds a *.log file nested in subdirectories", () => {
+      const nested = path.join(logsDir, "session-1");
+      fs.mkdirSync(nested, { recursive: true });
+      const nestedLog = path.join(nested, "codex.log");
+      fs.writeFileSync(nestedLog, "nested log content\n", "utf8");
+
+      expect(findMostRecentLogFile(logsDir)).toBe(nestedLog);
+    });
+
+    it("picks the most recently modified *.log file", async () => {
+      const older = path.join(logsDir, "older.log");
+      const newer = path.join(logsDir, "newer.log");
+      fs.writeFileSync(older, "older\n", "utf8");
+      await new Promise(resolve => setTimeout(resolve, 10));
+      fs.writeFileSync(newer, "newer\n", "utf8");
+      fs.utimesSync(older, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+
+      expect(findMostRecentLogFile(logsDir)).toBe(newer);
+    });
+  });
+
+  describe("renderInternalEngineLogOnFailure()", () => {
+    it("is a no-op when GH_AW_ENGINE_INTERNAL_LOGS_DIR is not set", async () => {
+      delete process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR;
+      process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = "failure";
+      fs.writeFileSync(path.join(logsDir, "codex.log"), "should not be rendered\n", "utf8");
+
+      await renderInternalEngineLogOnFailure();
+      expect(capturedStdout()).toBe("");
+    });
+
+    it("is a no-op when the execution outcome was not 'failure'", async () => {
+      process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR = logsDir;
+      process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = "success";
+      fs.writeFileSync(path.join(logsDir, "codex.log"), "should not be rendered\n", "utf8");
+
+      await renderInternalEngineLogOnFailure();
+      expect(capturedStdout()).toBe("");
+    });
+
+    it("is a no-op when no log files exist under the internal logs directory", async () => {
+      process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR = logsDir;
+      process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = "failure";
+
+      await renderInternalEngineLogOnFailure();
+      expect(capturedStdout()).toBe("");
+    });
+
+    it("renders the most recent log file wrapped in group + stop-commands macros on failure", async () => {
+      process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR = logsDir;
+      process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = "failure";
+      fs.writeFileSync(path.join(logsDir, "codex.log"), "codex crashed here\n", "utf8");
+
+      await renderInternalEngineLogOnFailure();
+
+      const out = capturedStdout();
+      expect(out).toMatch(/^::group::Engine internal logs \(/);
+      expect(out).toContain("codex crashed here");
+      const stopMatch = out.match(/::stop-commands::(render-[a-f0-9]+)\n/);
+      expect(stopMatch).not.toBeNull();
+      expect(out).toContain("::" + stopMatch[1] + "::\n");
+      expect(out).toContain("::endgroup::\n");
     });
   });
 });

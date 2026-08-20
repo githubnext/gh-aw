@@ -71,8 +71,8 @@ func TestCodexEngine(t *testing.T) {
 		Name: "test-workflow",
 	}
 	execSteps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(execSteps) != 2 {
-		t.Fatalf("Expected 2 steps for Codex execution, got %d", len(execSteps))
+	if len(execSteps) != 1 {
+		t.Fatalf("Expected 1 step for Codex execution, got %d", len(execSteps))
 	}
 
 	// Check the execution step
@@ -219,9 +219,15 @@ func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
 func TestCodexEngineExecutionDumpsInternalLogsOnFailure(t *testing.T) {
 	engine := NewCodexEngine()
 
+	if got, want := engine.GetInternalLogsDir(), constants.TmpMcpConfigDir+"/logs"; got != want {
+		t.Errorf("Expected GetInternalLogsDir() to return %q, got %q", want, got)
+	}
+
 	t.Run("without firewall", func(t *testing.T) {
 		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow"}, "/tmp/gh-aw/test.log")
-		assertCodexRenderLogStepPresent(t, steps)
+		if len(steps) != 1 {
+			t.Fatalf("Expected a single execution step (internal log rendering is handled by the shared detect-agent-errors step), got %d steps", len(steps))
+		}
 	})
 
 	t.Run("with firewall", func(t *testing.T) {
@@ -230,32 +236,10 @@ func TestCodexEngineExecutionDumpsInternalLogsOnFailure(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{Firewall: &FirewallConfig{Enabled: true}},
 		}
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		assertCodexRenderLogStepPresent(t, steps)
+		if len(steps) != 1 {
+			t.Fatalf("Expected a single execution step (internal log rendering is handled by the shared detect-agent-errors step), got %d steps", len(steps))
+		}
 	})
-}
-
-func assertCodexRenderLogStepPresent(t *testing.T, steps []GitHubActionStep) {
-	t.Helper()
-	if len(steps) != 2 {
-		t.Fatalf("Expected execution step plus a render-logs step, got %d steps", len(steps))
-	}
-
-	stepContent := strings.Join([]string(steps[1]), "\n")
-	if !strings.Contains(stepContent, "Render Codex internal logs") {
-		t.Errorf("Expected a step rendering Codex internal logs, got:\n%s", stepContent)
-	}
-	if !strings.Contains(stepContent, "if: always()") {
-		t.Errorf("Expected the render-logs step to always run so it can inspect the execution outcome, got:\n%s", stepContent)
-	}
-	if !strings.Contains(stepContent, "GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}") {
-		t.Errorf("Expected the render-logs step to receive the Codex CLI execution outcome, got:\n%s", stepContent)
-	}
-	if !strings.Contains(stepContent, "CODEX_HOME: "+constants.TmpMcpConfigDir) {
-		t.Errorf("Expected the render-logs step to receive CODEX_HOME, got:\n%s", stepContent)
-	}
-	if !strings.Contains(stepContent, "render_codex_log.cjs") {
-		t.Errorf("Expected the render-logs step to reuse the shared render_codex_log.cjs helper, got:\n%s", stepContent)
-	}
 }
 
 func TestCodexEngineRenderMCPConfig(t *testing.T) {
@@ -1098,8 +1082,8 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
@@ -1124,8 +1108,8 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
@@ -1144,8 +1128,8 @@ func TestCodexEngineWebSearch(t *testing.T) {
 			Name: "test-workflow",
 		}
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if !strings.Contains(stepContent, `-c web_search="disabled"`) {
@@ -1167,8 +1151,8 @@ func TestCodexEngineWebSearch(t *testing.T) {
 			},
 		}
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if strings.Contains(stepContent, `-c web_search="disabled"`) {
@@ -1191,8 +1175,8 @@ func TestCodexEngineBashDisabled(t *testing.T) {
 			Name: "test-workflow",
 		}
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if strings.Contains(stepContent, "features.shell_tool=false") {
@@ -1206,8 +1190,8 @@ func TestCodexEngineBashDisabled(t *testing.T) {
 			BashDisabled: true,
 		}
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if !strings.Contains(stepContent, `-c features.shell_tool=false`) {
@@ -1224,8 +1208,8 @@ func TestCodexEngineWebFetch(t *testing.T) {
 			Name: "test-workflow",
 		}
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if !strings.Contains(stepContent, `-c fetch="disabled"`) {
@@ -1241,8 +1225,8 @@ func TestCodexEngineWebFetch(t *testing.T) {
 			},
 		}
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 2 {
-			t.Fatalf("Expected 2 steps, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if strings.Contains(stepContent, `-c fetch="disabled"`) {
@@ -1309,8 +1293,8 @@ func TestCodexEngineExecutionUsesHarness(t *testing.T) {
 		Name: "test-workflow",
 	}
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps for Codex execution, got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Codex execution, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
@@ -1353,8 +1337,8 @@ func TestCodexEngineExecutionCustomHarness(t *testing.T) {
 		},
 	}
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps for Codex execution, got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Codex execution, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
@@ -1392,8 +1376,8 @@ func TestCodexEngineForwardsSafeOutputsInputEnvVars(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 execution steps, got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
 	}
 	stepContent := strings.Join([]string(steps[0]), "\n")
 

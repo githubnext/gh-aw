@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -386,4 +387,13 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 // post-run agent errors from the host runner (including invalid/unsupported model names).
 func (e *CodexEngine) GetErrorDetectionScriptId() string {
 	return "detect_agent_errors"
+}
+
+// GetInternalLogsDir returns the host-runner path of the directory containing Codex CLI's own
+// tracing/diagnostic log files ($CODEX_HOME/logs). Codex CLI writes this output (controlled by
+// RUST_LOG) to files rather than to stdout/stderr, so a bare non-zero exit code with no console
+// output can still have a diagnosable error recorded there. The error detection step tails the
+// most recently modified log file under this directory into the step log on failure.
+func (e *CodexEngine) GetInternalLogsDir() string {
+	return strings.TrimSuffix(constants.TmpMcpConfigLogsDir, "/")
 }

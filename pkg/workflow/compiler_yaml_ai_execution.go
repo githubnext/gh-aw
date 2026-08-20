@@ -267,6 +267,13 @@ func (c *Compiler) generateDetectAgentErrorsStep(yaml *strings.Builder, data *Wo
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}\n")
 	fmt.Fprintf(yaml, "          GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: %s\n", resolveStepTimeoutValue(data))
+	// Engines that write their own internal tracing/diagnostic logs to files (rather than
+	// stdout/stderr) can surface a directory here; the detection script tails the most recently
+	// modified log file under it into the step log when the execution step failed, so a bare
+	// non-zero exit with no console output still has diagnosable content.
+	if internalLogsDir := engine.GetInternalLogsDir(); internalLogsDir != "" {
+		fmt.Fprintf(yaml, "          GH_AW_ENGINE_INTERNAL_LOGS_DIR: %s\n", internalLogsDir)
+	}
 	fmt.Fprintf(yaml, "        run: node \"${RUNNER_TEMP}/gh-aw/actions/%s.cjs\"\n", scriptId)
 }
 

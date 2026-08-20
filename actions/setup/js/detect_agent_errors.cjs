@@ -51,6 +51,13 @@
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
  *
+ * In addition to the output variables above, when the engine sets
+ * GH_AW_ENGINE_INTERNAL_LOGS_DIR (via CodingAgentEngine.GetInternalLogsDir) and the execution
+ * step failed, this script tails the most recently modified `*.log` file under that directory
+ * into the step log (see renderInternalEngineLogOnFailure()). Some engines (e.g. Codex CLI)
+ * write their own tracing/diagnostic output to files rather than to stdout/stderr, so a bare
+ * non-zero exit code with no console output can still have a diagnosable error recorded there.
+ *
  * Exit codes:
  *   0 — Always succeeds (uses continue-on-error in the workflow step)
  */
@@ -58,8 +65,10 @@
 "use strict";
 
 const fs = require("fs");
+const path = require("path");
 const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
 const { parseUnknownModelAICreditsAndModelFromAuditLog, parseMaxCacheMissesExceededFromEventLog } = require("./ai_credits_context.cjs");
+const { renderLogFromFile } = require("./render_detection_log.cjs");
 
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
@@ -399,7 +408,86 @@ function writeOutputs(results) {
   }
 }
 
-function main() {
+/**
+ * Finds the most recently modified `*.log` file under `dir`, recursing into subdirectories.
+ * @param {string} dir
+ * @returns {string | undefined}
+ */
+function findMostRecentLogFile(dir) {
+  /** @type {{ path: string, mtimeMs: number }[]} */
+  const logFiles = [];
+
+  /** @param {string} current */
+  function walk(current) {
+    let entries;
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const entryPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(entryPath);
+      } else if (entry.isFile() && entry.name.endsWith(".log")) {
+        try {
+          logFiles.push({ path: entryPath, mtimeMs: fs.statSync(entryPath).mtimeMs });
+        } catch {
+          // Ignore files that disappear or fail to stat between readdir and stat.
+        }
+      }
+    }
+  }
+
+  walk(dir);
+  if (logFiles.length === 0) {
+    return undefined;
+  }
+
+  logFiles.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return logFiles[0].path;
+}
+
+/**
+ * Renders the most recently modified log file under the engine-provided internal logs
+ * directory (GH_AW_ENGINE_INTERNAL_LOGS_DIR) to the step log, when the engine execution
+ * step failed.
+ *
+ * Some engines (e.g. Codex CLI) write their own tracing/diagnostic output to files rather
+ * than to stdout/stderr, so a bare non-zero exit code with no console output can still have
+ * a diagnosable error recorded there. Without this, such failures are invisible black-box
+ * "exit code 1" crashes even though the engine logged the real cause internally.
+ *
+ * This reuses the same renderLogFromFile helper used for the threat-detection log, so the
+ * rendered content gets the same secret redaction and `::stop-commands::` wrapping
+ * (preventing `::`-shaped log lines from being interpreted as workflow commands) without
+ * duplicating that logic in shell.
+ *
+ * This is a no-op when GH_AW_ENGINE_INTERNAL_LOGS_DIR is not set, the execution outcome was
+ * not "failure", or no log files are found under the directory.
+ * @returns {Promise<void>}
+ */
+async function renderInternalEngineLogOnFailure() {
+  const internalLogsDir = process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR;
+  if (!internalLogsDir) {
+    return;
+  }
+
+  const outcome = process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME;
+  if (outcome !== "failure") {
+    return;
+  }
+
+  const logFile = findMostRecentLogFile(internalLogsDir);
+  if (!logFile) {
+    process.stderr.write(`[detect-agent-errors] No engine internal log files found under ${internalLogsDir}\n`);
+    return;
+  }
+
+  await renderLogFromFile(logFile, `Engine internal logs (${internalLogsDir})`);
+}
+
+async function main() {
   let logContent = "";
 
   if (fs.existsSync(LOG_FILE)) {
@@ -481,10 +569,14 @@ function main() {
   }
 
   writeOutputs(results);
+
+  await renderInternalEngineLogOnFailure();
 }
 
 if (require.main === module) {
-  main();
+  main().catch(err => {
+    process.stderr.write(`[detect-agent-errors] Unhandled error: ${err && err.stack ? err.stack : String(err)}\n`);
+  });
 }
 
 module.exports = {
@@ -511,4 +603,6 @@ module.exports = {
   SHELL_EXPANSION_GUARD_REJECTED_PATTERN,
   isShellExpansionGuardRejectedError,
   buildOutputLines,
+  findMostRecentLogFile,
+  renderInternalEngineLogOnFailure,
 };
