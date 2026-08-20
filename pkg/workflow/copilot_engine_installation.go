@@ -5,9 +5,8 @@
 //
 // Installation includes:
 //  1. Secret validation (COPILOT_GITHUB_TOKEN) — runs in the activation job
-//  2. ripgrep installation (skipped when rg is already available)
-//  3. Sandbox installation (SRT or AWF, if needed)
-//  4. Copilot CLI installation
+//  2. Sandbox installation (SRT or AWF, if needed)
+//  3. Copilot CLI installation
 //
 // The installation strategy differs based on sandbox mode:
 //   - Standard mode: Global installation using official installer script
@@ -103,8 +102,8 @@ func (e *CopilotEngine) GetSecretFailureMessage(workflowData *WorkflowData) stri
 // GetInstallationSteps generates the complete installation workflow for Copilot CLI.
 // This includes Node.js setup, sandbox installation (SRT or AWF), and Copilot CLI installation.
 // Secret validation is handled separately in the activation job via GetSecretValidationStep.
-// The generated steps include ripgrep setup (skipped when rg is already available),
-// Copilot CLI installation, and sandbox installation (AWF, if needed).
+// The generated steps include Copilot CLI installation and sandbox installation
+// (AWF, if needed).
 //
 // If a custom command is specified in the engine configuration, this function skips
 // standard Copilot CLI installation. When firewall is enabled, it still returns AWF

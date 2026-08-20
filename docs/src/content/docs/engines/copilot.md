@@ -7,7 +7,10 @@ GitHub Agentic Workflows (`gh-aw`) uses GitHub Copilot as its default AI engine.
 
 ## Selection and authentication
 
-Set `engine: copilot` or omit `engine:` because Copilot is the default. For organization-billed usage, grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission); otherwise provide a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) secret containing a fine-grained PAT with Copilot Requests access.
+Set `engine: copilot` or omit `engine:` because Copilot is the default. Authenticate Copilot in one of these ways:
+
+- For organization-billed usage, grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission).
+- Otherwise, provide a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) secret containing a fine-grained PAT with Copilot Requests access.
 
 ### Initialize the repository
 

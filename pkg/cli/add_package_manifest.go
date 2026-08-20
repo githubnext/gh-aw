@@ -56,6 +56,7 @@ type resolvedRepositoryPackage struct {
 	License            string
 	DocsPath           string
 	InstallationSource []resolvedPackageInstallable
+	ResourceFiles      []resolvedPackageResource
 	Bootstrap          *repositoryPackageBootstrap
 	SkillFiles         []resolvedPackageSkillFile
 	AgentFiles         []string
@@ -71,6 +72,11 @@ type resolvedPackageInstallable struct {
 	SourcePath string
 	// DestinationPath is the repository-root-relative install path in the consuming
 	// repository (e.g. ".github/workflows/reviewer.md").
+	DestinationPath string
+}
+
+type resolvedPackageResource struct {
+	SourcePath      string
 	DestinationPath string
 }
 
