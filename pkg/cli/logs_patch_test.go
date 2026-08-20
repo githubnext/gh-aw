@@ -12,6 +12,7 @@ import (
 )
 
 func TestLogsPatchArtifactHandling(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -71,6 +72,7 @@ index 0000000..9daeafb
 }
 
 func TestLogsCommandHelp(t *testing.T) {
+	t.Parallel()
 	// Test that the logs command help includes patch information
 	cmd := NewLogsCommand()
 	helpText := cmd.Long
