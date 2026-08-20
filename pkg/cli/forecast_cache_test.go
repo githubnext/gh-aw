@@ -13,6 +13,7 @@ import (
 )
 
 func TestForecastAICCache_RoundTrip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	const runID int64 = 12345
 
@@ -37,6 +38,7 @@ func TestForecastAICCache_RoundTrip(t *testing.T) {
 }
 
 func TestForecastAICCache_NonPositiveNotWritten(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	saveForecastAICCache(dir, 1, 0)
 	saveForecastAICCache(dir, 1, -5)
@@ -46,6 +48,7 @@ func TestForecastAICCache_NonPositiveNotWritten(t *testing.T) {
 }
 
 func TestForecastAICCache_InvalidatedOnVersionMismatch(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	const runID int64 = 999
 	c := forecastAICCache{CLIVersion: "some-old-version", RunID: runID, AIC: 10}
@@ -59,6 +62,7 @@ func TestForecastAICCache_InvalidatedOnVersionMismatch(t *testing.T) {
 }
 
 func TestForecastAICCache_MismatchedRunID(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	saveForecastAICCache(dir, 100, 7.0)
 	if _, ok := loadForecastAICCache(dir, 200); ok {
@@ -67,6 +71,7 @@ func TestForecastAICCache_MismatchedRunID(t *testing.T) {
 }
 
 func TestForecastAICCache_NegativeCacheRoundTrip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	const runID int64 = 555
 
@@ -87,6 +92,7 @@ func TestForecastAICCache_NegativeCacheRoundTrip(t *testing.T) {
 }
 
 func TestForecastAICCache_NegativeCacheInvalidatedOnVersionMismatch(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	const runID int64 = 777
 	c := forecastAICCache{CLIVersion: "old", RunID: runID, NoData: true}

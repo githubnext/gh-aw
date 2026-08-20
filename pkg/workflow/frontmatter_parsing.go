@@ -51,6 +51,15 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 				return nil, err
 			}
 		}
+		if jobsRaw, ok := safeOutputsRaw["jobs"].(map[string]any); ok {
+			for _, jobRaw := range jobsRaw {
+				if job, ok := jobRaw.(map[string]any); ok {
+					if err := validateRunsOnValue(job["runs-on"]); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
 	}
 
 	// Parse typed Runtimes field if runtimes exist

@@ -104,12 +104,6 @@ var commandTriggerDefaultWebhookEvents = []string{"issues", "issue_comment", "pu
 // "label_command:" trigger listens to by default.
 var labelCommandDefaultWebhookEvents = []string{"issues", "pull_request", "discussion"}
 
-// IsKnownGitHubWebhookEvent reports whether name is a recognized GitHub Actions/App
-// webhook event type.
-func IsKnownGitHubWebhookEvent(name string) bool {
-	return isKnownGitHubEvent(name)
-}
-
 // rawOnSectionTriggerNames extracts the top-level trigger key(s) from a workflow's
 // "on" frontmatter value, which may be a string, a list of strings, or a mapping of
 // trigger name to trigger configuration.

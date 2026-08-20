@@ -13,6 +13,7 @@ import (
 )
 
 func TestParseFirewallLogLine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -218,6 +219,7 @@ func TestParseFirewallLogLine(t *testing.T) {
 }
 
 func TestIsRequestAllowed(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		decision string
@@ -303,6 +305,7 @@ func TestIsRequestAllowed(t *testing.T) {
 }
 
 func TestParseFirewallLog(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -377,6 +380,7 @@ func TestParseFirewallLog(t *testing.T) {
 }
 
 func TestParseFirewallLogMalformedLines(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -418,6 +422,7 @@ Invalid line with not enough fields
 }
 
 func TestParseFirewallLogPartialMissingFields(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -454,6 +459,7 @@ func TestParseFirewallLogPartialMissingFields(t *testing.T) {
 }
 
 func TestParseFirewallLogIptablesDropped(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -536,6 +542,7 @@ func TestParseFirewallLogIptablesDropped(t *testing.T) {
 }
 
 func TestParseFirewallLogUnknownAllowedDomain(t *testing.T) {
+	t.Parallel()
 	// Verify that when both domain and destIPPort are "-" and the request is classified as
 	// allowed, the unknownDomain sentinel is excluded from AllowedDomains.
 	// This is an unlikely but possible edge case (e.g. Squid internally marks a
@@ -575,6 +582,7 @@ func TestParseFirewallLogUnknownAllowedDomain(t *testing.T) {
 }
 
 func TestAnalyzeMultipleFirewallLogs(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 	logsDir := filepath.Join(tempDir, "firewall-logs")
@@ -635,6 +643,7 @@ func TestAnalyzeMultipleFirewallLogs(t *testing.T) {
 }
 
 func TestSanitizeWorkflowName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -693,6 +702,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 }
 
 func TestAnalyzeFirewallLogsWithWorkflowSuffix(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure that mimics actual workflow artifact layout
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -755,6 +765,7 @@ func TestAnalyzeFirewallLogsWithWorkflowSuffix(t *testing.T) {
 }
 
 func TestParseFirewallLogInternalSquidErrorEntries(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -810,6 +821,7 @@ func TestParseFirewallLogInternalSquidErrorEntries(t *testing.T) {
 }
 
 func TestParseFirewallLogInternalSquidErrorEntriesDashDash(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -847,6 +859,7 @@ func TestParseFirewallLogInternalSquidErrorEntriesDashDash(t *testing.T) {
 }
 
 func TestExtractFirewallFromAgentLog(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		logContent      string
@@ -959,6 +972,7 @@ add --allow-domains chatgpt.com to your command`,
 }
 
 func TestExtractFirewallFromAgentLogNoFile(t *testing.T) {
+	t.Parallel()
 	tempDir := testutil.TempDir(t, "no-agent-log-*")
 	// No agent-stdio.log created
 	result := extractFirewallFromAgentLog(tempDir, false)
@@ -968,6 +982,7 @@ func TestExtractFirewallFromAgentLogNoFile(t *testing.T) {
 }
 
 func TestFirewallAnalysisAddMetricsMergesDomains(t *testing.T) {
+	t.Parallel()
 	base := &FirewallAnalysis{
 		AnalysisBase:     AnalysisBase{TotalRequests: 2, AllowedRequests: 1, BlockedRequests: 1},
 		RequestsByDomain: map[string]DomainRequestStats{},
@@ -1011,6 +1026,7 @@ func TestFirewallAnalysisAddMetricsMergesDomains(t *testing.T) {
 // agent artifact is downloaded and flattened the path is:
 // {runDir}/sandbox/firewall/logs/squid-logs/access.log
 func TestAnalyzeFirewallLogsSandboxSquidSubdir(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-sandbox-squid-*")
 
 	squidLogsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs", "squid-logs")
@@ -1052,6 +1068,7 @@ func TestAnalyzeFirewallLogsSandboxSquidSubdir(t *testing.T) {
 // exists but has no squid-logs/ subdirectory, analyzeFirewallLogs falls back to looking for
 // *.log files directly in sandbox/firewall/logs/ (backward compatibility for older AWF layout).
 func TestAnalyzeFirewallLogsSandboxFallbackToTopLevel(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-sandbox-fallback-*")
 
 	sandboxLogsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs")
@@ -1078,6 +1095,7 @@ func TestAnalyzeFirewallLogsSandboxFallbackToTopLevel(t *testing.T) {
 }
 
 func TestAnalyzeFirewallLogsSandboxEmptySquidSubdirFallsBackToTopLevel(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-sandbox-empty-squid-subdir-*")
 
 	sandboxLogsDir := filepath.Join(tmpDir, "sandbox", "firewall", "logs")
@@ -1104,6 +1122,7 @@ func TestAnalyzeFirewallLogsSandboxEmptySquidSubdirFallsBackToTopLevel(t *testin
 }
 
 func TestFirewallAnalysisAddMetricsDeduplicatesDomains(t *testing.T) {
+	t.Parallel()
 	base := &FirewallAnalysis{
 		AnalysisBase:     AnalysisBase{TotalRequests: 1, BlockedRequests: 1},
 		RequestsByDomain: map[string]DomainRequestStats{},

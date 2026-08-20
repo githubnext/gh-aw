@@ -14,6 +14,7 @@ import (
 // TestAwInfoResolution tests that aw_info.json is correctly resolved
 // from the aw-info artifact directory after flattening
 func TestAwInfoResolution(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure mimicking downloaded artifacts
 	tempDir := t.TempDir()
 
@@ -61,6 +62,7 @@ func TestAwInfoResolution(t *testing.T) {
 // TestAwInfoResolutionWithoutFlattening tests the failure case
 // where aw_info.json is still in the artifact directory
 func TestAwInfoResolutionWithoutFlattening(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure mimicking unflattened artifacts
 	tempDir := t.TempDir()
 
@@ -94,6 +96,7 @@ func TestAwInfoResolutionWithoutFlattening(t *testing.T) {
 
 // TestMultipleArtifactFlattening tests that all files from unified agent are flattened
 func TestMultipleArtifactFlattening(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	// Create unified agent structure as it would be downloaded

@@ -12,6 +12,7 @@ import (
 )
 
 func TestBuildLogsDataIncludesAmbientContext(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "logs-ambient-context")
 	processedRuns := []ProcessedRun{
 		{

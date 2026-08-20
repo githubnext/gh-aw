@@ -30,6 +30,18 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 		return true
 	}
 
+	// The external threat detector is now the default. The feature flag is kept
+	// as an opt-out for workflows that need the legacy inline detection path.
+	if strings.EqualFold(flagLower, string(constants.GHAWDetectionFeatureFlag)) {
+		if enabled, found := getFeatureValueFromFrontmatter(flagLower, workflowData, logEnabled); found {
+			return enabled
+		}
+		if isFeatureInEnvironment(flagLower, logEnabled) {
+			return true
+		}
+		return true
+	}
+
 	// First, check if the feature is explicitly set in frontmatter.
 	// Frontmatter values always take precedence.
 	if enabled, found := getFeatureValueFromFrontmatter(flagLower, workflowData, logEnabled); found {

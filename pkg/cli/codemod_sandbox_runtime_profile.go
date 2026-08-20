@@ -14,6 +14,7 @@ const (
 	sandboxRuntimeDockerSudoIptables = "docker-sudo-iptables"
 	sandboxRuntimeDockerSbx          = "docker-sbx"
 	sandboxRuntimeCloudHypervisor    = "cloud-hypervisor"
+	sandboxRuntimeGvisor             = "gvisor"
 )
 
 // getSandboxRuntimeProfileCodemod creates a codemod that migrates the removed
@@ -24,10 +25,13 @@ const (
 //	legacy-security: enable           -> runtime: docker-sudo-iptables
 //	runtime: docker-sbx + sudo: true  -> runtime: docker-sbx
 //	sudo: true (no other runtime)     -> runtime: docker-sudo-iptables
+//	runtime: gvisor + sudo/legacy     -> runtime: gvisor (sudo/legacy-security are dropped)
 //
-// Mixed profiles that cannot be migrated unambiguously (for example gVisor combined
-// with legacy security) return an actionable error so the author can choose between
-// strict isolation and the privileged iptables profile.
+// gVisor combined with privileged security options keeps the strict 'runtime: gvisor'
+// isolation and simply drops the no-longer-supported 'sudo'/'legacy-security' fields,
+// since gVisor's network isolation already takes precedence over the privileged intent.
+// Other mixed profiles that cannot be migrated unambiguously return an actionable error
+// so the author can choose between strict isolation and the privileged iptables profile.
 func getSandboxRuntimeProfileCodemod() Codemod {
 	return Codemod{
 		ID:           "sandbox-runtime-profiles",
@@ -59,7 +63,7 @@ func getSandboxRuntimeProfileCodemod() Codemod {
 			}
 
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				result, modified := migrateSandboxAgentSecurityLines(lines, targetRuntime, runtime != "")
+				result, modified := migrateSandboxAgentSecurityLines(lines, runtime, targetRuntime)
 				if modified {
 					// Dropping the only key under sandbox.agent leaves a dangling
 					// "agent:" (and possibly "sandbox:") key that YAML parses as null.
@@ -97,6 +101,16 @@ func resolveMigratedSandboxRuntime(runtime string, sudoEnabled, legacyEnabled bo
 			return "", mixedSandboxProfileError(runtime)
 		}
 		return "", nil
+	case sandboxRuntimeGvisor:
+		// gVisor combined with privileged security options is no longer a supported
+		// combination. gVisor's strict network isolation takes precedence, so keep
+		// 'runtime: gvisor' and drop the 'sudo'/'legacy-security' fields instead of
+		// aborting the fix pass so `gh aw fix --write` can still repair the file.
+		sandboxRuntimeProfileCodemodLog.Printf(
+			"sandbox.agent.runtime: gvisor combined with privileged security options is not supported; keeping %q and dropping sudo/legacy-security",
+			sandboxRuntimeGvisor,
+		)
+		return sandboxRuntimeGvisor, nil
 	default:
 		return "", mixedSandboxProfileError(runtime)
 	}
@@ -114,14 +128,18 @@ func mixedSandboxProfileError(runtime string) error {
 // migrateSandboxAgentSecurityLines removes the sudo and legacy-security keys from the
 // sandbox.agent block. When targetRuntime is non-empty and the block has no runtime
 // key yet, the first removed key is replaced by the runtime key so the profile is
-// preserved in place.
-func migrateSandboxAgentSecurityLines(lines []string, targetRuntime string, hasRuntime bool) ([]string, bool) {
+// preserved in place. When the block already has a runtime key but its value differs
+// from targetRuntime (for example gVisor migrating to the privileged iptables profile),
+// the existing runtime line's value is rewritten in place.
+func migrateSandboxAgentSecurityLines(lines []string, oldRuntime, targetRuntime string) ([]string, bool) {
 	start, end, indent, found := findSandboxAgentBlock(lines)
 	if !found {
 		return lines, false
 	}
 
+	hasRuntime := oldRuntime != ""
 	needsRuntime := targetRuntime != "" && !hasRuntime
+	needsRuntimeUpdate := targetRuntime != "" && hasRuntime && targetRuntime != oldRuntime
 	result := make([]string, 0, len(lines))
 	modified := false
 
@@ -131,6 +149,11 @@ func migrateSandboxAgentSecurityLines(lines []string, targetRuntime string, hasR
 			continue
 		}
 		trimmed := strings.TrimSpace(line)
+		if needsRuntimeUpdate && getIndentation(line) == indent && strings.HasPrefix(trimmed, "runtime:") {
+			result = append(result, indent+"runtime: "+targetRuntime+trailingCommentSuffix(strings.TrimPrefix(trimmed, "runtime:")))
+			modified = true
+			continue
+		}
 		if getIndentation(line) != indent ||
 			(!strings.HasPrefix(trimmed, "sudo:") && !strings.HasPrefix(trimmed, "legacy-security:")) {
 			result = append(result, line)
@@ -144,6 +167,17 @@ func migrateSandboxAgentSecurityLines(lines []string, targetRuntime string, hasR
 	}
 
 	return result, modified
+}
+
+// trailingCommentSuffix returns the trailing YAML comment of a value part, prefixed by a
+// space so it can be appended to a rewritten key line, or an empty string when the value
+// has no trailing comment.
+func trailingCommentSuffix(valuePart string) string {
+	idx := findTrailingCommentIndex(valuePart)
+	if idx < 0 {
+		return ""
+	}
+	return " " + strings.TrimRight(valuePart[idx:], " \t")
 }
 
 // findSandboxAgentBlock locates the child lines of the sandbox.agent mapping.

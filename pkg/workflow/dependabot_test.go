@@ -703,6 +703,71 @@ touch package-lock.json
 	}
 }
 
+func TestGeneratePackageLock_UsesNormalizedWorkflowDir(t *testing.T) {
+	compiler := NewCompiler()
+	parentDir := testutil.TempDir(t, "parent-*")
+	workflowDir := filepath.Join(parentDir, "workflow")
+	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
+
+	if err := os.Mkdir(workflowDir, 0o755); err != nil {
+		t.Fatalf("failed to create workflow directory: %v", err)
+	}
+
+	pwdFile := filepath.Join(parentDir, "npm-pwd.txt")
+	fakeNpm := filepath.Join(fakeBinDir, "npm")
+	script := `#!/bin/sh
+pwd > "$GH_AW_TEST_PWD_FILE"
+touch package-lock.json
+`
+	if err := os.WriteFile(fakeNpm, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write fake npm binary: %v", err)
+	}
+
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GH_AW_TEST_PWD_FILE", pwdFile)
+	t.Chdir(parentDir)
+
+	if err := compiler.generatePackageLock("workflow"); err != nil {
+		t.Fatalf("generatePackageLock() error = %v", err)
+	}
+
+	pwdData, err := os.ReadFile(pwdFile)
+	if err != nil {
+		t.Fatalf("failed to read recorded npm working directory: %v", err)
+	}
+	if strings.TrimSpace(string(pwdData)) != workflowDir {
+		t.Fatalf("expected npm to run in %q, got %q", workflowDir, strings.TrimSpace(string(pwdData)))
+	}
+	if _, err := os.Stat(filepath.Join(workflowDir, "package-lock.json")); err != nil {
+		t.Fatalf("expected package-lock.json in normalized workflow directory: %v", err)
+	}
+}
+
+func TestGeneratePackageLock_RejectsInvalidWorkflowDir(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name        string
+		workflowDir string
+	}{
+		{name: "empty", workflowDir: ""},
+		{name: "whitespace", workflowDir: "   "},
+		{name: "control character", workflowDir: "bad\nworkflow-dir"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := compiler.generatePackageLock(tt.workflowDir)
+			if err == nil {
+				t.Fatal("expected error for invalid workflow directory")
+			}
+			if !strings.Contains(err.Error(), "invalid workflow directory") {
+				t.Fatalf("expected invalid workflow directory error, got: %v", err)
+			}
+		})
+	}
+}
+
 // Tests for Python (pip) support
 
 func TestParsePipPackage(t *testing.T) {

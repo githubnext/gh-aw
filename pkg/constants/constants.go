@@ -540,7 +540,8 @@ const ThreatDetectionLogPath = TmpGhAwDir + "/threat-detection/detection.log"
 const ThreatDetectionDir = TmpGhAwDir + "/threat-detection"
 
 // ThreatDetectionResultPath is the structured verdict output file written by the
-// external threat-detect binary (features: gh-aw-detection: true). The binary writes
+// external threat-detect binary (enabled by default; set features.gh-aw-detection to false
+// to use the inline path). The binary writes
 // a four-field JSON verdict to this path via --output; threat-detect conclude reads it.
 const ThreatDetectionResultPath = TmpGhAwDir + "/threat-detection/detection_result.json"
 

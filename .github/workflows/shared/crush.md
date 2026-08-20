@@ -28,7 +28,6 @@ engine:
         - api.github.com
         - objects.githubusercontent.com
         - release-assets.githubusercontent.com
-        - registry.npmjs.org
       provider-domains:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com

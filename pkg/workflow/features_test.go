@@ -86,6 +86,22 @@ func TestIsFeatureEnabledNoEnv(t *testing.T) {
 	}
 }
 
+func TestGHAWDetectionFeatureDefaultsToEnabled(t *testing.T) {
+	t.Setenv("GH_AW_FEATURES", "")
+
+	if !isFeatureEnabled(constants.GHAWDetectionFeatureFlag, nil) {
+		t.Fatal("gh-aw-detection should be enabled by default")
+	}
+
+	if isFeatureEnabled(constants.GHAWDetectionFeatureFlag, &WorkflowData{
+		Features: map[string]any{
+			string(constants.GHAWDetectionFeatureFlag): false,
+		},
+	}) {
+		t.Fatal("explicit gh-aw-detection: false should disable the external detector")
+	}
+}
+
 func TestIsFeatureEnabledWithData(t *testing.T) {
 	tests := []struct {
 		name        string
