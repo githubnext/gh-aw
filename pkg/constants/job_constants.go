@@ -154,7 +154,12 @@ const ArtifactPrefixOutputName = "artifact_prefix"
 
 // ActivationArtifactName is the artifact name for the activation job output
 // (aw_info.json and prompt.txt).
-const ActivationArtifactName = "activation"
+//
+// This must not be a bare single word like "activation": GitHub's Actions
+// artifact "Create Artifact Container" API rejects some plain single-word
+// names as invalid, which broke uploads across the fleet. Keep this prefixed
+// to avoid any future collision with reserved/invalid artifact names.
+const ActivationArtifactName = "aw-activation"
 
 // ActivationStageAmbientFoldersStepName is the step name used to stage ambient
 // folders before the activation artifact is packaged. It is a stable anchor

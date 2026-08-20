@@ -358,7 +358,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: activation
+          name: aw-activation
           include-hidden-files: true
           path: |
             /tmp/gh-aw/aw_info.json
@@ -463,7 +463,7 @@ jobs:
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: activation
+          name: aw-activation
           path: /tmp/gh-aw
       - name: Precompute semantic refactor slice
         run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent/semantic-function-refactor\n\nmapfile -t packages < <(find pkg -mindepth 1 -maxdepth 1 -type d | sort)\nif [ \"${#packages[@]}\" -eq 0 ]; then\n  : > /tmp/gh-aw/agent/semantic-function-refactor/targets.txt\n  : > /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt\n  exit 0\nfi\n\nbatch_size=2\nday_of_year=\"$(date -u +%j)\"\nday_of_year=\"${day_of_year#0}\"\nday_of_year=\"${day_of_year#0}\"\n: \"${day_of_year:=1}\"\nstart_index=$(( ( (day_of_year - 1) * batch_size ) % ${#packages[@]} ))\n: > /tmp/gh-aw/agent/semantic-function-refactor/targets.txt\n: > /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt\n\nfor offset in 0 1; do\n  idx=$(( (start_index + offset) % ${#packages[@]} ))\n  pkg_dir=\"${packages[$idx]}\"\n  printf '%s\\n' \"$pkg_dir\" >> /tmp/gh-aw/agent/semantic-function-refactor/targets.txt\n  find \"$pkg_dir\" -name \"*.go\" ! -name \"*_test.go\" -type f | sort >> /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt\ndone"
@@ -1521,7 +1521,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: activation
+          name: aw-activation
           path: /tmp/gh-aw
       - name: Download agent output artifact
         id: download-agent-output

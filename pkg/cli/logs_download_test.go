@@ -451,7 +451,7 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	fakeGHScript := "#!/bin/sh\n" +
 		"printf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\n" +
 		"if [ \"$1\" = \"api\" ]; then\n" +
-		"  printf '%s\\n' \"abc123-activation\"\n" +
+		"  printf '%s\\n' \"abc123-aw-activation\"\n" +
 		"  exit 0\n" +
 		"fi\n" +
 		"if [ \"$1\" = \"run\" ] && [ \"$2\" = \"download\" ]; then\n" +
@@ -485,8 +485,8 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tmpDir, "aw_info.json"))
-	assert.FileExists(t, filepath.Join(tmpDir, ".fallback-download-abc123-activation"))
-	assert.NoDirExists(t, filepath.Join(tmpDir, "abc123-activation"))
+	assert.FileExists(t, filepath.Join(tmpDir, ".fallback-download-abc123-aw-activation"))
+	assert.NoDirExists(t, filepath.Join(tmpDir, "abc123-aw-activation"))
 	awInfo, err := os.ReadFile(filepath.Join(tmpDir, "aw_info.json"))
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"engine_id":"claude"}`, string(awInfo))
@@ -494,7 +494,7 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	argsLog, err := os.ReadFile(argsLogPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(argsLog), "api --paginate repos/github/gh-aw/actions/runs/12345/artifacts")
-	assert.Contains(t, string(argsLog), "run download 12345 --name abc123-activation")
+	assert.Contains(t, string(argsLog), "run download 12345 --name abc123-aw-activation")
 }
 
 func TestDownloadRunArtifacts_CachedUsageSkipsDockerBuildOnlyRun(t *testing.T) {
