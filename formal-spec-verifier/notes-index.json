@@ -30,9 +30,9 @@
     },
     "specs/awf-config-sources-compliance/README.md": {
       "slug": "awf-config-sources-compliance-README",
-      "last_formalized": "2026-07-26-15-46-07",
-      "notation": "TLA+ / Z3 / F*",
-      "predicate_count": 10,
+      "last_formalized": "2026-08-20-15-39-59",
+      "notation": "TLA+ / Z3-style guard conjunction",
+      "predicate_count": 8,
       "issue_number": null
     },
     "specs/compiler-threat-detection-spec.md": {
@@ -51,9 +51,9 @@
     },
     "specs/intent-attribution-agent-governance.md": {
       "slug": "intent-attribution-agent-governance",
-      "last_formalized": "2026-07-30-16-13-07",
-      "notation": "TLA+ / Z3 / F*",
-      "predicate_count": 11,
+      "last_formalized": "2026-08-18-15-43-32",
+      "notation": "Z3-style guard conjunction",
+      "predicate_count": 13,
       "issue_number": null
     },
     "specs/github-mcp-access-control-compliance/README.md": {
@@ -117,13 +117,6 @@
       "last_formalized": "2026-08-17-15-37-40",
       "notation": "TLA+ / Z3-style guard conjunction / F*",
       "predicate_count": 9,
-      "issue_number": null
-    },
-    "specs/intent-attribution-agent-governance.md": {
-      "slug": "intent-attribution-agent-governance",
-      "last_formalized": "2026-08-18-15-43-32",
-      "notation": "Z3-style guard conjunction",
-      "predicate_count": 13,
       "issue_number": null
     }
   }
