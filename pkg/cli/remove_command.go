@@ -137,7 +137,13 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 
 	// Remove the files
 	var removedFiles []string
+	removedPackageSources := make(map[string]struct{})
 	for _, file := range filesToRemove {
+		if source := readFullSourceFromFile(file); source != "" {
+			if repoSpec, ok, err := parseManifestSourceSpec(source); err == nil && ok && repoSpec != nil {
+				removedPackageSources[repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath)] = struct{}{}
+			}
+		}
 		if err := os.Remove(file); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", file, err)))
 		} else {
@@ -160,6 +166,11 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 	if len(removedFiles) > 0 && !keepOrphans {
 		if err := cleanupOrphanedIncludes(false); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up orphaned includes: %v", err)))
+		}
+	}
+	for packageSource := range removedPackageSources {
+		if err := removePackageOwnedFilesIfUnused(packageSource); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove package-owned files for %s: %v", packageSource, err)))
 		}
 	}
 
