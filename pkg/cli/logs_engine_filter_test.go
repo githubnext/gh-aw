@@ -16,6 +16,7 @@ import (
 // bug where the --engine filter was silently ignored and runs from all engines
 // were returned regardless of the filter value.
 func TestMatchEngineFilter(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name             string
 		awInfoContent    string // empty means no file
@@ -88,6 +89,7 @@ func TestMatchEngineFilter(t *testing.T) {
 // TestMatchRuntimeFilter verifies that matchRuntimeFilter correctly compares
 // awInfo.AgentRuntime against the filter string.
 func TestMatchRuntimeFilter(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name                  string
 		awInfoContent         string // empty means no file

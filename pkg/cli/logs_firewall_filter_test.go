@@ -13,6 +13,7 @@ import (
 
 // TestParseAwInfo_FirewallField verifies that the firewall field is correctly parsed from aw_info.json
 func TestParseAwInfo_FirewallField(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		jsonContent      string
@@ -114,6 +115,7 @@ func TestParseAwInfo_FirewallField(t *testing.T) {
 
 // TestFirewallFilterLogic verifies the filtering logic for firewall parameter
 func TestFirewallFilterLogic(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		firewallInJSON  string
@@ -196,6 +198,7 @@ func TestFirewallFilterLogic(t *testing.T) {
 
 // TestAwInfoWithFirewallMarshaling verifies that AwInfo with firewall field marshals correctly
 func TestAwInfoWithFirewallMarshaling(t *testing.T) {
+	t.Parallel()
 	info := AwInfo{
 		EngineID:     "copilot",
 		EngineName:   "Copilot",
