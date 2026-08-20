@@ -190,7 +190,7 @@ describe("generate_history_link.cjs", () => {
         });
 
         expect(url).toContain("%22gh-aw-workflow-call-id%3A+elastic%2Fdocs-eng-team%2Fgh-aw-issue-auto-triage%22");
-        expect(url).not.toContain('+"gh-aw-workflow-call-id');
+        expect(url).not.toContain('"');
       });
 
       it("should percent-encode marker parentheses to preserve markdown-safe link targets", () => {
