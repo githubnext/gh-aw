@@ -60,7 +60,7 @@ The package also acts as the authoritative source for the generated workflow con
 | `IntegrityReactionsFeatureFlag` | `FeatureFlag` | `"integrity-reactions"` | Enables reaction-based integrity promotion and demotion. |
 | `GroupConcurrencyQueueFeatureFlag` | `FeatureFlag` | `"group-concurrency-queue"` | Controls whether generated group concurrency uses `queue: max`. |
 | `DangerouslyDisableSandboxAgentFeatureFlag` | `FeatureFlag` | `"dangerously-disable-sandbox-agent"` | Required to allow `sandbox.agent: false`. |
-| `GHAWDetectionFeatureFlag` | `FeatureFlag` | `"gh-aw-detection"` | Enables the external threat-detection binary path. |
+| `GHAWDetectionFeatureFlag` | `FeatureFlag` | `"gh-aw-detection"` | Enables the external threat-detection binary path by default; set to `false` for the legacy inline path. |
 | `AgentJobName` | `JobName` | `"agent"` | Built-in agent job identifier. |
 | `ActivationJobName` | `JobName` | `"activation"` | Built-in activation job identifier. |
 | `PreActivationJobName` | `JobName` | `"pre_activation"` | Built-in pre-activation job identifier. |

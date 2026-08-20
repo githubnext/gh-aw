@@ -178,7 +178,8 @@ const DefaultGitHubScriptVersion Version = "v9"
 
 // DefaultThreatDetectVersion is the version of the gh-aw-threat-detection binary to install.
 // When set to "latest", the install script downloads release assets from GitHub's latest-release
-// download endpoint. This is used when `features: gh-aw-detection: true` is set in the workflow
+// download endpoint. This is used by the default external threat-detection path and when
+// `features: gh-aw-detection: true` is set in the workflow
 // frontmatter, enabling the external threat-detect binary path instead of the inline engine
 // execution path.
 const DefaultThreatDetectVersion Version = "latest"

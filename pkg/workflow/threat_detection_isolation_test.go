@@ -25,6 +25,8 @@ func TestThreatDetectionIsolation(t *testing.T) {
 on: push
 safe-outputs:
   create-issue:
+features:
+  gh-aw-detection: false
 tools:
   github:
     allowed: ["*"]
@@ -107,6 +109,8 @@ safe-outputs:
   create-issue:
   threat-detection:
     continue-on-error: true
+features:
+  gh-aw-detection: false
 tools:
   github:
     allowed: ["*"]
