@@ -14,6 +14,7 @@ import (
 
 // TestExtractNoopsFromRun tests extracting noop messages from safe output artifact files
 func TestExtractNoopsFromRun(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -149,6 +150,7 @@ func TestExtractNoopsFromRun(t *testing.T) {
 // TestExtractNoopsFlattenedStructure tests extracting noops from the new flattened artifact structure
 // where agent_output.json is at root after artifact flattening
 func TestExtractNoopsFlattenedStructure(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-flattened-noop")
 	err := os.MkdirAll(runDir, 0755)
@@ -219,6 +221,7 @@ func TestExtractNoopsFlattenedStructure(t *testing.T) {
 }
 
 func TestExtractNoopsFromRun_IncludesExperimentProvenance(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	testRun := WorkflowRun{
@@ -277,6 +280,7 @@ func TestExtractNoopsFromRun_IncludesExperimentProvenance(t *testing.T) {
 }
 
 func TestExtractNoopsFromRun_NoExperimentProvenance(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	testRun := WorkflowRun{
