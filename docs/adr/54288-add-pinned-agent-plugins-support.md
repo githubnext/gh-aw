@@ -8,11 +8,11 @@
 
 ### Context
 
-Agentic engines hosted in gh-aw (Copilot CLI, Claude Code, and imported engines such as Cursor and Kiro) need a standardized way to extend their capabilities with third-party Agent Plugins. Prior to this change, extension mechanisms were entirely engine-specific (e.g., Pi's `engine.extensions` npm packages) and not portable across engines. There was no compile-time guarantee that plugins would be installed from an immutable ref, creating a supply-chain risk if a moving branch or tag were used. The project needed a uniform, cross-engine plugin delivery mechanism that integrates with the existing compilation and validation pipeline.
+Agentic engines hosted in gh-aw (Copilot CLI, Claude Code, Codex CLI, and imported engines such as Cursor and Kiro) need a standardized way to extend their capabilities with third-party Agent Plugins. Prior to this change, extension mechanisms were entirely engine-specific (e.g., Pi's `engine.extensions` npm packages) and not portable across engines. There was no compile-time guarantee that plugins would be installed from an immutable ref, creating a supply-chain risk if a moving branch or tag were used. The project needed a uniform, cross-engine plugin delivery mechanism that integrates with the existing compilation and validation pipeline.
 
 ### Decision
 
-We will introduce a top-level `plugins` frontmatter field that accepts `owner/repository[/path]@ref` entries. During compilation, gh-aw resolves every branch or tag ref to a pinned commit SHA; compilation fails if any ref cannot be resolved. At runtime, each plugin is checked out at its pinned SHA, then made available to the engine either by staging it in the engine's plugin directory (imported engines via `behaviors.plugins.directory`) or by invoking the engine CLI's installation command (Copilot uses `copilot plugin install`, Claude uses `--plugin-dir`). Engines that declare no `behaviors.plugins` block reject `plugins:` at compile time. Duplicate identical plugin refs are deduplicated; compatible semver ranges are merged to the highest version.
+We will introduce an experimental top-level `plugins` frontmatter field that accepts public `owner/repository[/path]@ref` entries. During compilation, gh-aw resolves every branch or tag ref to a pinned commit SHA; compilation fails if any ref cannot be resolved. At runtime, each plugin is checked out at its pinned SHA, then made available using the selected engine's supported mechanism: Copilot invokes `copilot plugin install`, Claude adds `--plugin-dir` arguments, Codex registers a generated local marketplace and invokes `codex plugin add`, and behavior-defined engines may stage plugins and/or invoke an installation command through `behaviors.plugins`. Engines without the Agent Plugins capability reject `plugins:` at compile time. Duplicate identical plugin refs are deduplicated; compatible semantic versions are merged to the highest version.
 
 ### Alternatives Considered
 
@@ -28,12 +28,13 @@ Users could install plugins by adding arbitrary shell steps under `pre-agent-ste
 
 #### Positive
 - Pinned commit SHAs prevent supply-chain attacks; generated workflows never install a plugin from a moving ref.
-- A single, uniform `plugins:` field works across all supported engines (Copilot, Claude, and any imported engine that declares `behaviors.plugins`), replacing ad-hoc per-engine extension patterns.
+- A single, uniform `plugins:` field works across all supported engines (Copilot, Claude, Codex, and any imported engine that declares `behaviors.plugins`), replacing ad-hoc per-engine extension patterns.
 - Compile-time deduplication and semver merging prevent duplicate or conflicting plugin installations when shared workflows each declare the same plugin.
 
 #### Negative
 - The feature is experimental and explicitly emits a compile-time warning; the interface may change in future releases, requiring consumers to update.
-- Only two built-in engines support Agent Plugins natively (Copilot CLI and Claude Code); all other engines require an explicit `behaviors.plugins` block in their definition, adding a maintenance burden for imported engine authors.
+- Built-in engines require engine-specific integration, while imported engines require an explicit `behaviors.plugins` block in their definition, adding a maintenance burden when plugin mechanisms change.
+- Plugin repositories must be public because plugin entries do not support per-entry checkout credentials.
 - Using a plugin from a non-semver ref (e.g., a raw branch SHA) that conflicts with another import fails compilation, which may surprise authors who mix plugin sources across shared imports.
 
 #### Neutral
