@@ -484,10 +484,7 @@ func (e *CopilotEngine) buildCopilotAllowedDomains(workflowData *WorkflowData) s
 }
 
 func (e *CopilotEngine) buildCopilotAWFPathSetup(workflowData *WorkflowData, customCommandScriptSetup string) string {
-	stepSummaryPath := AgentStepSummaryPath
-	if isDetectionRun(workflowData) {
-		stepSummaryPath = constants.ThreatDetectionStepSummaryPath
-	}
+	stepSummaryPath := copilotStepSummaryPath(workflowData)
 	pathSetup := "touch " + stepSummaryPath + "\n" +
 		"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
 		"export GH_AW_NODE_BIN\n" +
@@ -508,6 +505,14 @@ func (e *CopilotEngine) buildCopilotAWFPathSetup(workflowData *WorkflowData, cus
 	return homeExport + buildCopilotSettingsCleanupAndExitCodeTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
 }
 
+func copilotStepSummaryPath(workflowData *WorkflowData) string {
+	if workflowData != nil && workflowData.IsDetectionRun &&
+		!isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData) {
+		return constants.ThreatDetectionStepSummaryPath
+	}
+	return AgentStepSummaryPath
+}
+
 func (e *CopilotEngine) buildCopilotDirectCommand(workflowData *WorkflowData, copilotCommand, customCommandScriptSetup, mkdirCommands, logFile string) string {
 	// Run copilot command without AWF wrapper.
 	// Prepend a touch command to create the agent step summary file before copilot runs.
@@ -521,7 +526,7 @@ func (e *CopilotEngine) buildCopilotDirectCommand(workflowData *WorkflowData, co
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, copilotStepSummaryPath(workflowData), logFile, preCommandSetup, copilotCommand, logFile)
 }
 
 type copilotStepEnvFlags struct {
@@ -550,7 +555,7 @@ func (e *CopilotEngine) buildCopilotStepEnv(
 }
 
 func (e *CopilotEngine) buildCopilotBaseStepEnv(workflowData *WorkflowData, llmProvider LLMProvider, timeoutValue string, isBYOKMode, useCopilotRequests bool) map[string]string {
-	env := map[string]string{"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE", "GITHUB_STEP_SUMMARY": AgentStepSummaryPath, "GITHUB_HEAD_REF": "${{ github.head_ref }}", "GITHUB_REF_NAME": "${{ github.ref_name }}", "GITHUB_WORKSPACE": "${{ github.workspace }}", "RUNNER_TEMP": "${{ runner.temp }}", "GH_AW_TIMEOUT_MINUTES": timeoutValue, "GITHUB_SERVER_URL": "${{ github.server_url }}", "GITHUB_API_URL": "${{ github.api_url }}", "GH_AW_LLM_PROVIDER": string(llmProvider)}
+	env := map[string]string{"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE", "GITHUB_STEP_SUMMARY": copilotStepSummaryPath(workflowData), "GITHUB_HEAD_REF": "${{ github.head_ref }}", "GITHUB_REF_NAME": "${{ github.ref_name }}", "GITHUB_WORKSPACE": "${{ github.workspace }}", "RUNNER_TEMP": "${{ runner.temp }}", "GH_AW_TIMEOUT_MINUTES": timeoutValue, "GITHUB_SERVER_URL": "${{ github.server_url }}", "GITHUB_API_URL": "${{ github.api_url }}", "GH_AW_LLM_PROVIDER": string(llmProvider)}
 	// Auto-configure Copilot BYOK routing when engine.model-provider selects a non-GitHub provider.
 	// Explicit engine.env values still win later via maps.Copy.
 	if llmProvider != LLMProviderGitHub && isFirewallEnabled(workflowData) {
