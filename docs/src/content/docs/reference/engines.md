@@ -227,6 +227,8 @@ network:
     - openrouter.ai
 ```
 
+If the custom provider also rejects requests because of proxy-side model steering, disable it with [`sandbox.agent.token-steering: false`](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
+
 ### Copilot Bring Your Own Key (BYOK) Mode
 
 The Copilot engine supports routing requests to an external LLM provider instead of GitHub's default routing. This is useful when you want to use a different model or provider (e.g., OpenAI, Anthropic, Azure OpenAI, or a local Ollama/vLLM instance) while still using the Copilot CLI tooling.
