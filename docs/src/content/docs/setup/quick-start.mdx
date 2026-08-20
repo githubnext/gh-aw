@@ -163,11 +163,11 @@ on:
     types:
       - opened
 
-permissions: {}
+permissions: {} # gh-aw applies permissions on generated jobs
 
 jobs:
   activation:
-    runs-on: ubuntu-slim
+    runs-on: ...
     permissions:
       contents: read
       issues: read
@@ -177,7 +177,7 @@ jobs:
         ...
   agent:
     needs: activation
-    runs-on: ubuntu-slim
+    runs-on: ...
     steps:
       - name: Run agent
         ...
