@@ -34,6 +34,9 @@ var (
 	actionPinsOnce sync.Once
 )
 
+// getCachedActionPins returns the initialized action pin cache.
+// Panics if cache initialization did not complete, which can only follow
+// invalid embedded action pin data.
 func getCachedActionPins() *actionPinsCache {
 	actionPinsOnce.Do(func() {
 		actionPinsLog.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
