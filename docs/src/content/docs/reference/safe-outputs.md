@@ -1895,6 +1895,24 @@ safe-outputs:
 
 `safe-outputs.runs-on` overrides `runs-on-slim:` for safe-output jobs specifically. To override the runner for all framework jobs at once, use the top-level [`runs-on-slim:`](/gh-aw/reference/self-hosted-runners/#configuring-the-framework-job-runner) field instead.
 
+Custom safe-jobs can select their own runner with `safe-outputs.jobs.<job>.runs-on`. This field supports runner labels, label arrays, and runner-group objects:
+
+```aw
+---
+safe-outputs:
+  jobs:
+    notify:
+      runs-on:
+        group: safe-job-runners
+        labels: [linux]
+      inputs:
+        message:
+          description: Notification message
+      steps:
+        - run: echo "Notify"
+---
+```
+
 ### Safe Outputs Job Concurrency (`concurrency-group:`)
 
 Control concurrency for the compiled `safe_outputs` job. When set, the job uses this group with `cancel-in-progress: false` (queuing semantics — in-progress runs are never cancelled).

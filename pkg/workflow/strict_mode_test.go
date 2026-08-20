@@ -380,6 +380,7 @@ tools:
   github:
     allowed: [issue_read]
   bash: []
+  cli-proxy: false
 ---
 
 # Test Workflow`,
@@ -449,6 +450,7 @@ timeout-minutes: 10
 engine: copilot
 tools:
   bash: []
+  cli-proxy: false
 ---
 
 # Test Workflow`,
@@ -466,6 +468,7 @@ timeout-minutes: 10
 engine: copilot
 tools:
   bash: []
+  cli-proxy: false
 ---
 
 # Test Workflow`,

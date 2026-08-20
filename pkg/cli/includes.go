@@ -245,6 +245,10 @@ func FetchIncludeFromSource(ctx context.Context, includePath string, baseSpec *W
 // markdown body; this function handles the YAML frontmatter 'imports:' field.
 // Import failures are non-fatal (best-effort); the compiler will report any still-missing files.
 func fetchAndSaveRemoteFrontmatterImports(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	return fetchAndSaveRemoteFrontmatterImportsWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, false)
+}
+
+func fetchAndSaveRemoteFrontmatterImportsWithOptions(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, strict bool) error {
 	if spec.RepoSlug == "" {
 		return nil
 	}
@@ -280,7 +284,7 @@ func fetchAndSaveRemoteFrontmatterImports(ctx context.Context, content string, s
 	// cycles (A imports B, B imports A) are broken without infinite recursion.
 	seen := make(map[string]struct {
 	})
-	fetchFrontmatterImportsRecursive(ctx, content, workflowBaseDir, frontmatterImportsOpts{
+	return fetchFrontmatterImportsRecursive(ctx, content, workflowBaseDir, frontmatterImportsOpts{
 		owner:           owner,
 		repo:            repo,
 		ref:             ref,
@@ -289,9 +293,9 @@ func fetchAndSaveRemoteFrontmatterImports(ctx context.Context, content string, s
 		verbose:         verbose,
 		force:           force,
 		tracker:         tracker,
+		strict:          strict,
 		seen:            seen,
 	})
-	return nil
 }
 
 // frontmatterImportsOpts holds the constant parameters for fetchFrontmatterImportsRecursive.
@@ -305,6 +309,7 @@ type frontmatterImportsOpts struct {
 	verbose         bool
 	force           bool
 	tracker         *FileTracker
+	strict          bool
 	seen            map[string]struct{}
 	// downloadFn is the function used to fetch file content from the source repository.
 	// When nil, parser.DownloadFileFromGitHub is used. Tests may inject a stub to avoid
@@ -323,15 +328,15 @@ type frontmatterImportsOpts struct {
 //   - originalBaseDir: directory of the top-level workflow (used to map remote paths → local paths)
 //   - targetDir: the `.github/workflows` directory in the user's repo
 //   - seen: shared visited set (keyed by fully-resolved remote path) — prevents cycles & duplicates
-func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseDir string, opts frontmatterImportsOpts) {
+func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseDir string, opts frontmatterImportsOpts) error {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil || result.Frontmatter == nil {
-		return
+		return nil
 	}
 
 	importsField, exists := result.Frontmatter["imports"]
 	if !exists {
-		return
+		return nil
 	}
 
 	var importPaths []string
@@ -359,7 +364,7 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 	}
 
 	if len(importPaths) == 0 {
-		return
+		return nil
 	}
 
 	remoteWorkflowLog.Printf("Processing %d frontmatter imports recursively: owner=%s, repo=%s, ref=%s", len(importPaths), opts.owner, opts.repo, opts.ref)
@@ -367,7 +372,10 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 	// Pre-compute the absolute target directory once for path-traversal boundary checks.
 	absTargetDir, err := filepath.Abs(opts.targetDir)
 	if err != nil {
-		return
+		if opts.strict {
+			return fmt.Errorf("failed to resolve import target directory: %w", err)
+		}
+		return nil
 	}
 
 	for _, importPath := range importPaths {
@@ -431,6 +439,9 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 
 		// Reject paths that try to escape the repository root (e.g. "../../etc/passwd")
 		if remoteFilePath == ".." || strings.HasPrefix(remoteFilePath, "../") {
+			if opts.strict {
+				return fmt.Errorf("import path %q escapes repository root", importPath)
+			}
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping import with unsafe path: %q", importPath)))
 			}
@@ -466,6 +477,9 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 		// ".." cannot appear here because remoteFilePath was already rejected above if it
 		// started with "..", and path.Clean cannot introduce new ".." components.
 		if localRelPath == "" || localRelPath == "." {
+			if opts.strict {
+				return fmt.Errorf("invalid import path %q", importPath)
+			}
 			continue
 		}
 		targetPath := filepath.Join(opts.targetDir, localRelPath)
@@ -473,9 +487,15 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 		// Belt-and-suspenders: verify the resolved path is inside targetDir
 		absTargetPath, absErr := filepath.Abs(targetPath)
 		if absErr != nil {
+			if opts.strict {
+				return fmt.Errorf("failed to resolve import target path %q: %w", importPath, absErr)
+			}
 			continue
 		}
 		if rel, relErr := filepath.Rel(absTargetDir, absTargetPath); relErr != nil || strings.HasPrefix(rel, "..") {
+			if opts.strict {
+				return fmt.Errorf("refusing to write import outside target directory: %q", importPath)
+			}
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Refusing to write import outside target directory: %q", importPath)))
 			}
@@ -498,8 +518,13 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 				// any missing transitive dependencies.
 				if existingContent, readErr := os.ReadFile(targetPath); readErr == nil {
 					importedBaseDir := path.Dir(remoteFilePath)
-					fetchFrontmatterImportsRecursive(ctx, string(existingContent), importedBaseDir, opts)
+					if err := fetchFrontmatterImportsRecursive(ctx, string(existingContent), importedBaseDir, opts); err != nil && opts.strict {
+						return err
+					}
 				} else {
+					if opts.strict {
+						return fmt.Errorf("failed to read existing import %s: %w", targetPath, readErr)
+					}
 					remoteWorkflowLog.Printf("Failed to read existing import %s for recursion: %v", targetPath, readErr)
 				}
 				continue
@@ -513,6 +538,9 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 		}
 		importContent, err := downloadFn(ctx, opts.owner, opts.repo, remoteFilePath, opts.ref)
 		if err != nil {
+			if opts.strict {
+				return fmt.Errorf("failed to fetch import %s: %w", remoteFilePath, err)
+			}
 			remoteWorkflowLog.Printf("Failed to download import %s from %s/%s@%s: %v", remoteFilePath, opts.owner, opts.repo, opts.ref, err)
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch import %s: %v", remoteFilePath, err)))
@@ -522,6 +550,9 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 
 		// Create the parent directory if needed
 		if err := os.MkdirAll(filepath.Dir(targetPath), constants.DirPermPublic); err != nil {
+			if opts.strict {
+				return fmt.Errorf("failed to create directory for import %s: %w", remoteFilePath, err)
+			}
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for import %s: %v", remoteFilePath, err)))
 			}
@@ -530,6 +561,9 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 
 		// Write the file
 		if err := os.WriteFile(targetPath, importContent, constants.FilePermSensitive); err != nil {
+			if opts.strict {
+				return fmt.Errorf("failed to write import %s: %w", remoteFilePath, err)
+			}
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write import %s: %v", remoteFilePath, err)))
 			}
@@ -552,13 +586,20 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 		// Recurse into the imported file's imports. Use the imported file's directory as
 		// currentBaseDir so that relative paths inside it resolve correctly.
 		importedBaseDir := path.Dir(remoteFilePath)
-		fetchFrontmatterImportsRecursive(ctx, string(importContent), importedBaseDir, opts)
+		if err := fetchFrontmatterImportsRecursive(ctx, string(importContent), importedBaseDir, opts); err != nil && opts.strict {
+			return err
+		}
 	}
+	return nil
 }
 
 // fetchAndSaveRemoteIncludes parses the workflow content for @include directives and fetches them from the remote source.
 // The optional fetchFn parameter overrides the default FetchIncludeFromSource implementation; pass nil to use the default.
 func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, fetchFn includesFetcher) error {
+	return fetchAndSaveRemoteIncludesWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, fetchFn, false)
+}
+
+func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, fetchFn includesFetcher, strict bool) error {
 	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", spec.String())
 	if fetchFn == nil {
 		fetchFn = FetchIncludeFromSource
@@ -667,7 +708,10 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 		}
 
 		// Recursively fetch includes from the fetched file
-		if err := fetchAndSaveRemoteIncludes(ctx, string(includeContent), spec, targetDir, verbose, force, tracker, fetchFn); err != nil {
+		if err := fetchAndSaveRemoteIncludesWithOptions(ctx, string(includeContent), spec, targetDir, verbose, force, tracker, fetchFn, strict); err != nil {
+			if strict {
+				return fmt.Errorf("failed to fetch nested includes from %s: %w", filePath, err)
+			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch nested includes from %s: %v", filePath, err)))
 			}
@@ -686,9 +730,20 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 //     verbose is true but do not stop the overall operation.
 //   - Dispatch-workflow and resource errors are fatal and are returned to the caller.
 func fetchAllRemoteDependencies(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	return fetchAllRemoteDependenciesWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, false)
+}
+
+func fetchAllRemoteDependenciesStrict(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	return fetchAllRemoteDependenciesWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, true)
+}
+
+func fetchAllRemoteDependenciesWithOptions(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, strict bool) error {
 	remoteWorkflowLog.Printf("Fetching all remote dependencies: spec=%s, targetDir=%s, force=%v", spec.String(), targetDir, force)
 	// Fetch and save @include directive dependencies (best-effort: errors are not fatal).
-	if err := fetchAndSaveRemoteIncludes(ctx, content, spec, targetDir, verbose, force, tracker, nil); err != nil {
+	if err := fetchAndSaveRemoteIncludesWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, nil, strict); err != nil {
+		if strict {
+			return fmt.Errorf("failed to fetch include dependencies: %w", err)
+		}
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
 		}
@@ -697,7 +752,10 @@ func fetchAllRemoteDependencies(ctx context.Context, content string, spec *Workf
 	// locally during compilation. Keeping these as relative paths (not workflowspecs)
 	// ensures the compiler resolves them from disk rather than downloading from GitHub.
 	// Best-effort: errors are not fatal.
-	if err := fetchAndSaveRemoteFrontmatterImports(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
+	if err := fetchAndSaveRemoteFrontmatterImportsWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, strict); err != nil {
+		if strict {
+			return fmt.Errorf("failed to fetch frontmatter import dependencies: %w", err)
+		}
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
 		}
@@ -705,6 +763,9 @@ func fetchAllRemoteDependencies(ctx context.Context, content string, spec *Workf
 	// Fetch and save required runtime-import dependencies so installs include the
 	// explicit runtime-import closure without copying unrelated .github contents.
 	if err := fetchAndSaveRemoteRuntimeImports(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
+		if strict {
+			return fmt.Errorf("failed to fetch runtime-import dependencies: %w", err)
+		}
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to fetch runtime-import dependencies; activation may fail"))
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(err.Error()))
