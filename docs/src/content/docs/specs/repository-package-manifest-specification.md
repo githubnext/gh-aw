@@ -7,7 +7,7 @@ sidebar:
 
 # aw.yml Repository Package Manifest Specification
 
-**Version**: 0.2.0  
+**Version**: 0.2.1
 **Status**: Draft
 
 ## Abstract
@@ -172,7 +172,7 @@ If `files` is omitted, or if no valid entries remain after filtering, the implem
 
 Auto-discovery considers only agentic workflow markdown (`.md`); raw `.yml` action workflows MUST be referenced explicitly in `files` to be installed.
 
-If no installable workflow files are resolved, package validation MUST fail.
+If no installable package assets are resolved (workflows, resources, skills, or agents), package validation MUST fail.
 
 ### 5.1 Install
 
@@ -193,7 +193,7 @@ The update lifecycle re-installs a package at a newer (or specified) version, ov
 
 **R-PKG-U001**: `gh aw add` with a version specifier (e.g., `owner/repo@v2.0.0`) MUST overwrite previously installed files from the same package with the new version's files, following the same install ordering defined in §5.1.
 
-**R-PKG-U002**: Files that were present in the previous installation but are absent from the new version's resolved file list MUST be left in place. The implementation SHOULD emit a warning for each such orphaned file, identifying the file by path and noting that it was not present in the new version.
+**R-PKG-U002**: Files that were present in the previous installation but are absent from the new version's resolved package-managed file list MUST be removed only when all of the following hold: (a) they are owned by the same package, (b) they are unchanged from the recorded digest, and (c) no replacement from the new version maps to the same path. When a new version entry maps to the same path, overwrite behavior is governed by R-PKG-U001. Implementations SHOULD warn when stale files are preserved because they were modified or ownership cannot be proven.
 
 **R-PKG-U003**: If overwriting a file fails (for example, due to a filesystem permission error or a locked file), the implementation MUST abort the update and MUST NOT leave the target directory in a mixed state combining old and new file versions. The implementation MUST emit an error identifying the file that could not be overwritten and the reason.
 
@@ -237,7 +237,7 @@ Validation MUST fail for at least the following conditions:
 - current compiler version is lower than `min-version`;
 - unknown top-level fields, including `docs`; or
 - missing required `README.md`; or
-- no installable workflow files resolved.
+- no installable package assets (workflows, resources, skills, or agents) resolved.
 
 Implementations SHOULD emit warnings for at least the following conditions:
 
