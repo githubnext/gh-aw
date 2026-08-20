@@ -144,7 +144,7 @@ For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
 Commands are organized by workflow lifecycle: creating, building, testing, monitoring, and managing workflows.
 
-If you are choosing between the similar setup commands, use `add-wizard` for guided interactive installation of an existing workflow, `add` for direct or scripted installation of an existing workflow, and `new` to scaffold a fresh workflow you plan to author.
+Use this chooser for the similarly named setup commands:
 
 | Command | Best fit |
 |---------|----------|

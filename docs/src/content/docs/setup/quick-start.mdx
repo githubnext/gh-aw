@@ -126,7 +126,7 @@ This will take you through an interactive process to:
 > [!NOTE]
 > The `.lock.yml` is the compiled GitHub Actions workflow generated from your Markdown source. GitHub Actions executes this file; regenerate it with `gh aw compile` after frontmatter changes instead of editing it by hand. See [Lock File](/gh-aw/reference/workflow-structure/#lock-file-header) for the full explanation.
 
-For example, a short Markdown source file compiles into a longer GitHub Actions workflow:
+For example, a short Markdown source file compiles into a longer GitHub Actions workflow. In the compiled excerpt, the top-level `permissions` map is empty because `gh-aw` moves source-level permissions onto the generated jobs that need them.
 
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(18rem, 1fr))', gap: '1rem' }}>
 
@@ -163,7 +163,7 @@ on:
     types:
       - opened
 
-permissions: {} # source-level permissions move to generated jobs
+permissions: {}
 
 jobs:
   activation:
