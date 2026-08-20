@@ -49,6 +49,7 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 }
 
 func TestDirExists(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test existing directory
@@ -75,6 +76,7 @@ func TestDirExists(t *testing.T) {
 }
 
 func TestIsDirEmpty(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test empty directory
@@ -113,6 +115,7 @@ func TestIsDirEmpty(t *testing.T) {
 }
 
 func TestErrNoArtifacts(t *testing.T) {
+	t.Parallel()
 	// Test that ErrNoArtifacts is properly defined and can be used with errors.Is
 	err := ErrNoArtifacts
 	if !errors.Is(err, ErrNoArtifacts) {
@@ -127,6 +130,7 @@ func TestErrNoArtifacts(t *testing.T) {
 }
 
 func TestIsNonZipArtifactError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		output   string
@@ -175,6 +179,7 @@ func TestIsNonZipArtifactError(t *testing.T) {
 }
 
 func TestIsCaseCollisionArtifactError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		output   string
@@ -208,6 +213,7 @@ func TestIsCaseCollisionArtifactError(t *testing.T) {
 }
 
 func TestIsDockerBuildArtifact(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -261,6 +267,7 @@ func TestIsDockerBuildArtifact(t *testing.T) {
 }
 
 func TestCriticalArtifactNames(t *testing.T) {
+	t.Parallel()
 	// Verify the list of critical artifacts includes the expected names
 	expected := map[string]bool{
 		constants.ActivationArtifactName:          true,
@@ -280,6 +287,7 @@ func TestCriticalArtifactNames(t *testing.T) {
 }
 
 func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
+	t.Parallel()
 	// When a critical artifact directory already exists, retryCriticalArtifacts should
 	// skip it (no gh CLI call). We verify by creating existing dirs and checking that
 	// the function completes without error (gh CLI is not available in unit tests, so
@@ -645,6 +653,7 @@ func TestListWorkflowRunsWithPagination(t *testing.T) {
 }
 
 func TestIterativeAlgorithmConstants(t *testing.T) {
+	t.Parallel()
 	// Test that our constants are reasonable
 	if MaxIterations <= 0 {
 		t.Errorf("MaxIterations should be positive, got %d", MaxIterations)
@@ -730,6 +739,7 @@ func TestDownloadWorkflowLogsWithEngineFilter(t *testing.T) {
 }
 
 func TestUnzipFile(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -824,6 +834,7 @@ func TestUnzipFile(t *testing.T) {
 }
 
 func TestUnzipFileZipSlipPrevention(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -874,6 +885,7 @@ func TestUnzipFileZipSlipPrevention(t *testing.T) {
 }
 
 func TestDownloadWorkflowRunLogsStructure(t *testing.T) {
+	t.Parallel()
 	// This test verifies that workflow logs are extracted into a workflow-logs subdirectory
 	// Note: This test cannot fully test downloadWorkflowRunLogs without GitHub CLI authentication
 	// So we test the directory creation and unzipFile behavior that mimics the workflow
@@ -994,6 +1006,7 @@ func TestDownloadWorkflowRunLogsStructure(t *testing.T) {
 // - aw_info.json lands at the root output directory (required by audit for engine detection)
 // - aw-prompts/prompt.txt lands at aw-prompts/prompt.txt under root (used by agent and audit)
 func TestFlattenActivationArtifact(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-flatten-activation-*")
 
 	// Simulate the directory structure created by `gh run download` for the activation artifact
@@ -1055,6 +1068,7 @@ func TestFlattenActivationArtifact(t *testing.T) {
 // loadResolvedTemporaryIDTargets can find their files at the run directory root.
 // The artifact contains safe-output-items.jsonl and temporary-id-map.json.
 func TestFlattenSafeOutputsItemsArtifact(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-flatten-safe-outputs-items-*")
 
 	// Simulate the directory structure created by `gh run download` for the safe-outputs-items artifact.
@@ -1113,6 +1127,7 @@ func TestFlattenSafeOutputsItemsArtifact(t *testing.T) {
 // TestFlattenSafeOutputsItemsArtifactMissing verifies that flattenSafeOutputsItemsArtifact
 // is a no-op (returns nil) when no safe-outputs-items artifact directory is present.
 func TestFlattenSafeOutputsItemsArtifactMissing(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-flatten-safe-outputs-items-missing-*")
 
 	if err := flattenSafeOutputsItemsArtifact(tmpDir, false); err != nil {
@@ -1122,6 +1137,7 @@ func TestFlattenSafeOutputsItemsArtifactMissing(t *testing.T) {
 
 // not the number of runs fetched when date filters are specified
 func TestCountParameterBehavior(t *testing.T) {
+	t.Parallel()
 	// This test documents the expected behavior:
 	// 1. When date filters (startDate/endDate) are specified, fetch ALL runs in that range
 	// 2. Apply post-download filters (engine, staged, etc.)

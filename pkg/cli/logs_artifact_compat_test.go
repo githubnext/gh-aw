@@ -14,6 +14,7 @@ import (
 // TestArtifactNamingBackwardCompatibility tests that both old and new artifact
 // directory names are correctly flattened to the expected file names
 func TestArtifactNamingBackwardCompatibility(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name               string
 		artifactDirName    string
@@ -131,6 +132,7 @@ func TestArtifactNamingBackwardCompatibility(t *testing.T) {
 // TestAuditCommandFindsNewArtifacts verifies that the audit command can find artifacts
 // with both old and new naming schemes after flattening
 func TestAuditCommandFindsNewArtifacts(t *testing.T) {
+	t.Parallel()
 	// Simulate downloading new artifacts with upload-artifact@v5 naming
 	tmpDir := testutil.TempDir(t, "test-*")
 

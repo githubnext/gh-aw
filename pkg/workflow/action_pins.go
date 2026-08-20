@@ -69,6 +69,13 @@ func getActionPin(repo string) string {
 	return actionpins.FormatPinnedActionReference(repo, pins[0].SHA, pins[0].Version)
 }
 
+func getActionPinForData(repo string, data *WorkflowData) string {
+	if data != nil {
+		return getCachedActionPin(repo, data)
+	}
+	return getActionPin(repo)
+}
+
 // getActionPin returns the pinned reference for the given repo.
 //
 // This is the preferred call site for code running inside a Compiler method because it
@@ -78,6 +85,12 @@ func getActionPin(repo string) string {
 // any existing entry and mark it as "used" for orphan pruning. This ensures compiler-generated
 // action references (e.g., actions/cache/save in notify steps) are tracked.
 func (c *Compiler) getActionPin(repo string) string {
+	if c.ghesArtifactCompat {
+		if pin, ok := actionpins.ResolveGHESActionPin(repo); ok {
+			return pin
+		}
+	}
+
 	// Check the cache for any existing entry for this repo (regardless of version).
 	// Compiler-generated actions don't specify versions, so prefer a cached entry only
 	// when it is at least as new as the latest embedded pin.

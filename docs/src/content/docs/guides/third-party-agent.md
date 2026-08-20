@@ -40,7 +40,6 @@ engine:
         - host.docker.internal
         - github.com
         - raw.githubusercontent.com
-        - registry.npmjs.org
         - opencode.ai
         - models.dev
       provider-domains:

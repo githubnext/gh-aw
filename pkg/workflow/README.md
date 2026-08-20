@@ -185,10 +185,8 @@ The `checkout:` frontmatter key is parsed by `ParseCheckoutConfigs` into one or 
 | `NewPermissionsContentsWritePRWrite()` | contents:write + pull-requests:write |
 | `NewPermissionsContentsWriteIssuesWritePRWrite()` | contents:write + issues:write + pull-requests:write |
 | `NewPermissionsContentsReadDiscussionsWrite()` | contents:read + discussions:write |
-| `NewPermissionsContentsReadIssuesWriteDiscussionsWrite()` | contents:read + issues:write + discussions:write |
 | `NewPermissionsContentsReadPRWrite()` | contents:read + pull-requests:write |
 | `NewPermissionsContentsReadSecurityEventsWrite()` | contents:read + security-events:write |
-| `NewPermissionsContentsReadProjectsWrite()` | contents:read + projects:write |
 
 ### Tools Configuration
 

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -51,11 +50,6 @@ var (
 	_ LogEntry = AuditLogEntry{}
 	_ LogEntry = GatewayLogEntry{}
 )
-
-// FormatLogEntry renders any log entry in a uniform "timestamp [source] level: message" form.
-func FormatLogEntry(entry LogEntry) string {
-	return fmt.Sprintf("%s [%s] %s: %s", entry.EntryTimestamp(), entry.EntrySource(), entry.EntryLevel(), entry.EntryMessage())
-}
 
 // formatEpochSeconds converts fractional epoch seconds to RFC3339 in UTC.
 func formatEpochSeconds(seconds float64) string {

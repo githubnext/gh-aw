@@ -13,6 +13,7 @@ import (
 )
 
 func TestValidateArtifactSets(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		sets      []string
@@ -93,6 +94,7 @@ func TestValidateArtifactSets(t *testing.T) {
 }
 
 func TestResolveArtifactFilter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		sets     []string
@@ -184,6 +186,7 @@ func TestResolveArtifactFilter(t *testing.T) {
 }
 
 func TestArtifactMatchesFilter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		artifact string
@@ -255,6 +258,7 @@ func TestArtifactMatchesFilter(t *testing.T) {
 }
 
 func TestValidArtifactSetNames(t *testing.T) {
+	t.Parallel()
 	names := ValidArtifactSetNames()
 	require.NotEmpty(t, names, "ValidArtifactSetNames should return non-empty slice")
 
@@ -263,6 +267,7 @@ func TestValidArtifactSetNames(t *testing.T) {
 }
 
 func TestApplyEvalsArtifact(t *testing.T) {
+	t.Parallel()
 	t.Run("returns empty slice unchanged when artifact list is empty", func(t *testing.T) {
 		assert.Empty(t, applyEvalsArtifact(nil, true))
 		assert.Empty(t, applyEvalsArtifact([]string{}, true))
@@ -278,6 +283,7 @@ func TestApplyEvalsArtifact(t *testing.T) {
 }
 
 func TestIsEvalsArtifactRequested(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		evalsOnly    bool
@@ -312,6 +318,7 @@ func TestIsEvalsArtifactRequested(t *testing.T) {
 }
 
 func TestIsUsageOnlyArtifactFilter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		filter   []string
@@ -347,6 +354,7 @@ func TestIsUsageOnlyArtifactFilter(t *testing.T) {
 }
 
 func TestShouldDownloadWorkflowRunLogs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		filter   []string
@@ -367,6 +375,7 @@ func TestShouldDownloadWorkflowRunLogs(t *testing.T) {
 }
 
 func TestFindMissingFilterEntries(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		filter       []string
@@ -451,6 +460,7 @@ func TestFindMissingFilterEntries(t *testing.T) {
 }
 
 func TestFindMissingFilterEntriesUsesDownloadedMarkers(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, markArtifactDownloaded(dir, "activation"))
 	require.NoError(t, markArtifactDownloaded(dir, "abc123-usage"))
@@ -460,6 +470,7 @@ func TestFindMissingFilterEntriesUsesDownloadedMarkers(t *testing.T) {
 }
 
 func TestFindMissingFilterEntriesAllMarkerSatisfiesFiltered(t *testing.T) {
+	t.Parallel()
 	// A complete-download marker (ArtifactSetAll) should satisfy every filtered
 	// request even when individual artifact directories no longer exist (e.g. after
 	// flattenSingleFileArtifacts removes them).
@@ -472,6 +483,7 @@ func TestFindMissingFilterEntriesAllMarkerSatisfiesFiltered(t *testing.T) {
 }
 
 func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"../activation", `..\activation`, ".", ".."} {
 		t.Run(name, func(t *testing.T) {
 			err := markArtifactDownloaded(t.TempDir(), name)
@@ -487,6 +499,7 @@ func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
 // subsequent unfiltered pass supplies the same full names to findMissingFilterEntries
 // to determine which are still missing.
 func TestFindMissingFilterEntriesIncrementalScenario(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Simulate a previous filtered download that wrote markers with full API artifact names.
@@ -507,6 +520,7 @@ func TestFindMissingFilterEntriesIncrementalScenario(t *testing.T) {
 // complete-download marker satisfies a filter containing full API artifact names
 // (as used by the incremental unfiltered download check).
 func TestFindMissingFilterEntriesAllMarkerSatisfiesFullNames(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, markArtifactDownloaded(dir, string(ArtifactSetAll)))
 
