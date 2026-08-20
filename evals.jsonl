@@ -20,3 +20,5 @@
 {"id":"allowed_labels_only","question":"Does the agent output show that only labels from the allowed set were applied to issues?","answer":"YES","model":"evals","timestamp":"2026-08-18T15:00:51.450Z","runid":"32150688736"}
 {"id":"labels_applied_or_noop","question":"Did the agent apply at least one label to an unlabeled issue, or correctly skip when no unlabeled issues were found?","answer":"YES","model":"evals","timestamp":"2026-08-19T14:57:43.454Z","runid":"32266348807"}
 {"id":"allowed_labels_only","question":"Does the agent output show that only labels from the allowed set were applied to issues?","answer":"YES","model":"evals","timestamp":"2026-08-19T14:57:43.454Z","runid":"32266348807"}
+{"id":"labels_applied_or_noop","question":"Did the agent apply at least one label to an unlabeled issue, or correctly skip when no unlabeled issues were found?","answer":"YES","model":"evals","timestamp":"2026-08-20T15:03:20.979Z","runid":"32382551488"}
+{"id":"allowed_labels_only","question":"Does the agent output show that only labels from the allowed set were applied to issues?","answer":"YES","model":"evals","timestamp":"2026-08-20T15:03:20.979Z","runid":"32382551488"}
