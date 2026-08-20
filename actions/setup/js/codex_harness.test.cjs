@@ -15,6 +15,7 @@ const {
   isMissingApiKeyError,
   isServerError,
   isInvalidModelError,
+  isInvalidRequestError,
   isReconnectExhaustedError,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
@@ -368,6 +369,24 @@ env_key = "OPENAI_API_KEY"
     it("returns false for unrelated errors", () => {
       expect(isServerError("Error: ENOENT: no such file")).toBe(false);
       expect(isServerError("")).toBe(false);
+    });
+  });
+
+  describe("isInvalidRequestError", () => {
+    it("returns true for a provider invalid_request_error payload", () => {
+      const output = String.raw`{"type":"turn.failed","error":{"message":"{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\": \\\"invalid_request_error\\\",\\n    \\\"param\\\": \\\"messages[4].content\\\",\\n    \\\"code\\\": \\\"empty_array\\\"}\"}}}"}}`;
+      expect(isInvalidRequestError(output)).toBe(true);
+    });
+
+    it("returns true for the unescaped OpenAI error type field", () => {
+      expect(isInvalidRequestError('"type": "invalid_request_error"')).toBe(true);
+    });
+
+    it("returns false for unrelated errors", () => {
+      expect(isInvalidRequestError("rate_limit_exceeded")).toBe(false);
+      expect(isInvalidRequestError("500 Internal Server Error")).toBe(false);
+      expect(isInvalidRequestError("GitHub API responded with 400 Bad Request")).toBe(false);
+      expect(isInvalidRequestError("")).toBe(false);
     });
   });
 
