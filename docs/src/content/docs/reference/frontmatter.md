@@ -302,6 +302,8 @@ Entries use `owner/repository[/path]@ref` syntax. The ref is required and may be
 
 The agent job checks out each pinned plugin and invokes the engine's plugin installer immediately after installing the engine. GitHub Copilot CLI is currently the only built-in engine with Agent Plugins support; using `plugins:` with another engine is a compile-time error.
 
+Shared agentic workflows may also declare plugins. When the same plugin path is declared more than once, identical refs are deduplicated and compatible semantic versions are merged to the highest version. Incompatible major versions or conflicting non-semver refs fail compilation.
+
 ### MCP Scripts (`mcp-scripts:`)
 
 Enables defining custom MCP tools inline using JavaScript or shell scripts. See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for complete documentation on creating custom tools with controlled secret access.

@@ -4,9 +4,12 @@ package workflow
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,6 +49,38 @@ func TestValidatePlugins(t *testing.T) {
 	}
 }
 
+func TestValidatePluginsMergesOverlappingVersions(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	data := &WorkflowData{Plugins: []string{
+		"octo-org/agent-plugin@v1.2.0",
+		"octo-org/another-plugin@main",
+		"octo-org/agent-plugin@v1.3.0",
+		"octo-org/agent-plugin@v1",
+	}}
+
+	require.NoError(t, compiler.validatePlugins(data))
+	assert.Equal(t, []string{
+		"octo-org/agent-plugin@v1.3.0",
+		"octo-org/another-plugin@main",
+	}, data.Plugins)
+}
+
+func TestValidatePluginsRejectsOverlappingVersionConflicts(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+
+	err := compiler.validatePlugins(&WorkflowData{Plugins: []string{
+		"octo-org/agent-plugin@v1",
+		"octo-org/agent-plugin@v2",
+	}})
+	require.ErrorContains(t, err, `plugin "octo-org/agent-plugin" is declared with incompatible semantic versions "v1" and "v2"`)
+
+	err = compiler.validatePlugins(&WorkflowData{Plugins: []string{
+		"octo-org/agent-plugin@main",
+		"octo-org/agent-plugin@stable",
+	}})
+	require.ErrorContains(t, err, `plugin "octo-org/agent-plugin" is declared with conflicting refs "main" and "stable"`)
+}
+
 func TestValidatePluginSupport(t *testing.T) {
 	compiler := NewCompiler(WithVersion("dev"))
 
@@ -64,6 +99,63 @@ func TestValidatePluginSupport(t *testing.T) {
 		Plugins: []string{"octo-org/agent-plugin@" + testPluginSHA},
 	})
 	require.ErrorContains(t, err, `plugins are not supported by engine "claude"`)
+}
+
+func TestCompileWorkflowRejectsImportedPluginsOnUnsupportedEngine(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "unsupported-imported-plugin")
+	sharedPath := filepath.Join(tmpDir, "shared.md")
+	require.NoError(t, os.WriteFile(sharedPath, []byte(`---
+plugins:
+  - octo-org/agent-plugin@`+testPluginSHA+`
+---
+
+Shared plugin configuration.
+`), 0o644))
+
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: claude
+imports:
+  - shared.md
+---
+
+Run the workflow.
+`), 0o644))
+
+	err := NewCompiler(WithVersion("dev")).CompileWorkflow(workflowPath)
+	require.ErrorContains(t, err, `plugins are not supported by engine "claude"`)
+}
+
+func TestCompileWorkflowInstallsImportedPlugins(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "imported-plugin")
+	sharedPath := filepath.Join(tmpDir, "shared.md")
+	require.NoError(t, os.WriteFile(sharedPath, []byte(`---
+plugins:
+  - octo-org/agent-plugin@`+testPluginSHA+`
+---
+
+Shared plugin configuration.
+`), 0o644))
+
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+imports:
+  - shared.md
+---
+
+Run the workflow.
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), "name: Install agent plugin octo-org/agent-plugin")
+	assert.Contains(t, string(lockContent), "ref: "+testPluginSHA)
 }
 
 func TestResolveFrontmatterPluginRefs(t *testing.T) {

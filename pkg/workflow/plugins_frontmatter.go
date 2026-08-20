@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 func (c *Compiler) validatePlugins(workflowData *WorkflowData) error {
@@ -24,7 +25,44 @@ func (c *Compiler) validatePlugins(workflowData *WorkflowData) error {
 			return fmt.Errorf("plugins[%d]: ref %q contains unsupported characters; refs may only contain letters, digits, '.', '_', '-', and '/', must start with a letter or digit, and must not contain '..'", i, parsed.ref)
 		}
 	}
+
+	mergedPlugins, err := mergeValidatedPlugins(workflowData.Plugins)
+	if err != nil {
+		return err
+	}
+	workflowData.Plugins = mergedPlugins
 	return nil
+}
+
+func mergeValidatedPlugins(plugins []string) ([]string, error) {
+	merged := make([]string, 0, len(plugins))
+	indexByPath := make(map[string]int, len(plugins))
+
+	for _, plugin := range plugins {
+		parsed := parseSkillRefSpec(plugin)
+		index, exists := indexByPath[parsed.repoPath]
+		if !exists {
+			indexByPath[parsed.repoPath] = len(merged)
+			merged = append(merged, plugin)
+			continue
+		}
+
+		existing := parseSkillRefSpec(merged[index])
+		if existing.ref == parsed.ref {
+			continue
+		}
+		if !semverutil.IsValid(existing.ref) || !semverutil.IsValid(parsed.ref) {
+			return nil, fmt.Errorf("plugin %q is declared with conflicting refs %q and %q; use one ref, or use compatible semantic versions", parsed.repoPath, existing.ref, parsed.ref)
+		}
+		if !semverutil.IsCompatible(existing.ref, parsed.ref) {
+			return nil, fmt.Errorf("plugin %q is declared with incompatible semantic versions %q and %q", parsed.repoPath, existing.ref, parsed.ref)
+		}
+		if semverutil.Compare(parsed.ref, existing.ref) > 0 {
+			merged[index] = plugin
+		}
+	}
+
+	return merged, nil
 }
 
 func (c *Compiler) validatePluginSupport(workflowData *WorkflowData) error {
