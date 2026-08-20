@@ -18,7 +18,7 @@ type SafeJobConfig struct {
 	// Standard GitHub Actions job properties
 	Name           string            `yaml:"name,omitempty"`
 	Description    string            `yaml:"description,omitempty"`
-	RunsOn         RunsOnValue       `yaml:"runs-on,omitempty"`
+	RunsOn         string            `yaml:"runs-on,omitempty"`
 	If             string            `yaml:"if,omitempty"`
 	Needs          []string          `yaml:"needs,omitempty"`
 	Steps          []any             `yaml:"steps,omitempty"`
@@ -31,7 +31,7 @@ type SafeJobConfig struct {
 	GitHubToken string                      `yaml:"github-token,omitempty"`
 	Output      string                      `yaml:"output,omitempty"`
 	Max         int                         `yaml:"max,omitempty"` // Maximum number of times this output type may be emitted per run (default: 1)
-	runsOnArray bool                        `yaml:"-"`
+	runsOnError error                       `yaml:"-"`
 }
 
 // parseSafeJobsConfig parses safe-jobs configuration from a jobs map.
@@ -67,13 +67,14 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 			}
 		}
 
-		// Parse runs-on (also accept "runner" as alias)
-		if runsOn, exists := jobConfig["runs-on"]; exists {
-			safeJob.RunsOn = toRunsOnValue(runsOn)
-			safeJob.runsOnArray = isRunsOnArrayValue(runsOn)
-		} else if runner, exists := jobConfig["runner"]; exists {
-			safeJob.RunsOn = toRunsOnValue(runner)
-			safeJob.runsOnArray = isRunsOnArrayValue(runner)
+		// Parse runs-on using the shared custom-job parser.
+		runsOnJob := &Job{}
+		if err := c.extractCustomJobRunsOn(runsOnJob, jobName, jobConfig); err != nil {
+			safeJob.runsOnError = err
+		} else if isEmptySafeJobRunsOn(jobConfig["runs-on"]) {
+			safeJob.RunsOn = ""
+		} else {
+			safeJob.RunsOn = runsOnJob.RunsOn
 		}
 
 		// Parse if condition
@@ -184,6 +185,13 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 	return result
 }
 
+func isEmptySafeJobRunsOn(value any) bool {
+	if _, isObject := value.(map[string]any); isObject {
+		return false
+	}
+	return isEmptyRunsOnValue(value)
+}
+
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
 func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool) ([]string, error) {
 	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
@@ -236,10 +244,15 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		const defaultRunsOn = "ubuntu-latest"
 
-		// Set runs-on. Preserve list-shaped input from safe-outputs.jobs as a
-		// YAML array; formatSafeJobRunsOn centralizes the array-vs-scalar
-		// rendering decision shared with other runs-on parsers.
-		job.RunsOn = c.indentYAMLLines(formatSafeJobRunsOn(jobConfig.RunsOn, jobConfig.runsOnArray, defaultRunsOn), "    ")
+		// Set runs-on, defaulting to ubuntu-latest when omitted.
+		if jobConfig.runsOnError != nil {
+			return nil, fmt.Errorf("invalid runs-on for safe-job '%s': %w", normalizedJobName, jobConfig.runsOnError)
+		}
+		runsOn := jobConfig.RunsOn
+		if runsOn == "" {
+			runsOn = "runs-on: " + defaultRunsOn
+		}
+		job.RunsOn = runsOn
 
 		// Set if condition - combine safe output type check with user-provided condition
 		// Custom safe jobs should only run if the agent output contains the job name (tool call)

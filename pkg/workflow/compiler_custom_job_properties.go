@@ -80,6 +80,9 @@ func (c *Compiler) extractCustomJobRunsOn(job *Job, jobName string, configMap ma
 	if !hasRunsOn {
 		return nil
 	}
+	if err := validateRunsOnValue(runsOn); err != nil {
+		return fmt.Errorf("runs-on field for job '%s' is invalid: %w", jobName, err)
+	}
 	if runsOnStr, ok := runsOn.(string); ok {
 		job.RunsOn = "runs-on: " + runsOnStr
 		return nil
