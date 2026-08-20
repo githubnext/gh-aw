@@ -364,6 +364,7 @@ safe-outputs:
 **Claude equivalent:**
 
 ```yaml wrap
+engine: claude
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -402,6 +403,7 @@ safe-outputs:
 **Claude equivalent:**
 
 ```yaml wrap
+engine: claude
 safe-outputs:
   create-pull-request:
   threat-detection:

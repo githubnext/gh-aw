@@ -415,7 +415,7 @@ on: pull_request
 engine: claude
 imports:
   - .github/agents/code-reviewer.md                                       # local
-  - githubnext/shared-agents/.github/agents/security-reviewer.md@v1.0.0   # remote, pinned
+  # - githubnext/shared-agents/.github/agents/security-reviewer.md@v1.0.0 # remote, pinned alternative
 ---
 ```
 
