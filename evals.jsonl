@@ -14,3 +14,5 @@
 {"id":"content-accurate","question":"Does the changeset accurately summarize the changes described in the pull request?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-08-13T18:56:18.079Z","runid":"31732491896"}
 {"id":"changeset-created","question":"Did the agent create a valid changeset file for the labeled pull request?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-08-16T22:00:54.861Z","runid":"31974687385"}
 {"id":"content-accurate","question":"Does the changeset accurately summarize the changes described in the pull request?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-08-16T22:00:54.861Z","runid":"31974687385"}
+{"id":"changeset-created","question":"Did the agent create a valid changeset file for the labeled pull request?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-08-20T13:45:00.731Z","runid":"32336198932"}
+{"id":"content-accurate","question":"Does the changeset accurately summarize the changes described in the pull request?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-08-20T13:45:00.731Z","runid":"32336198932"}
