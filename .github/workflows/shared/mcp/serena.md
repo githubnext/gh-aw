@@ -14,6 +14,18 @@
 #         languages: ["typescript", "python"]        # with node/python runtimes
 #
 # The 'languages' input configures the Serena MCP server language list.
+#
+# Container pinning note:
+#   oraios/serena publishes container images only under the `latest` tag on
+#   ghcr.io (no semver release tags exist upstream, and no GitHub releases are
+#   published: https://github.com/oraios/serena/releases). The compiler still
+#   pins this reference to an immutable digest at compile time (see
+#   .github/aw/actions-lock.json / pkg/actionpins), so `.lock.yml` output never
+#   floats — only the source `container:` tag stays `latest` because there is
+#   no versioned alternative to pin to. Run
+#   `gh aw compile --force-refresh-container-pins` (already run automatically
+#   by the daily container image security scan) to pick up the newest
+#   published digest and its CVE fixes.
 
 import-schema:
   languages:
