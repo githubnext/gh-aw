@@ -237,3 +237,19 @@ func buildAgentOutputDownloadSteps(prefix string, pinAction func(string) string)
 		StepID:           "download-agent-output",
 	}, pinAction)
 }
+
+// buildDetectionArtifactDownloadSteps creates a step to download the detection artifact
+// into the threat-detection working directory so its firewall proxy/audit logs are
+// available for collect_usage_artifact_files.sh in the conclusion job (see gh-aw#54047).
+// prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
+// pinAction resolves the download-artifact action reference; pass c.getActionPin from Compiler methods.
+func buildDetectionArtifactDownloadSteps(prefix string, pinAction func(string) string) []string {
+	safeOutputsStepsLog.Printf("Building detection artifact download steps with prefix: %q", prefix)
+	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: prefix + constants.DetectionArtifactName,
+		DownloadPath: constants.ThreatDetectionDir + "/",
+		StepName:     "Download detection artifact",
+		StepID:       "download-detection-artifact",
+	}, pinAction)
+}
+

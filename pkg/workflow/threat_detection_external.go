@@ -512,15 +512,28 @@ func extractStepEnvLines(step GitHubActionStep) []string {
 // runner's filesystem and is only ever inspected in-job (e.g. by the conclude step).
 func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string {
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
-	return []string{
+	steps := []string{
 		"      - name: Upload threat detection artifact\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
-		"          path: " + constants.ThreatDetectionResultPath + "\n",
-		"          if-no-files-found: ignore\n",
+		"          path: |\n",
+		"            " + constants.ThreatDetectionResultPath + "\n",
 	}
+	// Include the detection AWF run's own firewall proxy/audit logs (token usage, squid
+	// logs) so detection-phase usage surfaces in the usage artifact and counts toward the
+	// AI-credits budget cap (see gh-aw#54047). These are firewall/proxy metadata, not the
+	// untrusted agent transcript, so bundling them does not introduce the secret-exfiltration
+	// risk that keeps detection.log off this artifact.
+	if isFirewallEnabled(data) {
+		steps = append(steps,
+			"            "+detectionFirewallLogsDir+"/logs/\n",
+			"            "+detectionFirewallLogsDir+"/audit/\n",
+		)
+	}
+	steps = append(steps, "          if-no-files-found: ignore\n")
+	return steps
 }
 
 // buildExternalDetectorConcludeStep creates the conclude step for the external

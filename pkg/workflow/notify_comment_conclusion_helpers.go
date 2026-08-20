@@ -50,6 +50,14 @@ func (c *Compiler) buildConclusionSetupSteps(data *WorkflowData) []string {
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	// Download the detection artifact (when threat detection is enabled) so its firewall
+	// proxy/audit logs (collected under threat-detection/sandbox/firewall/ by
+	// buildCopyDetectionFirewallLogsStep) land at the paths collect_usage_artifact_files.sh
+	// expects, letting detection-phase usage surface in the usage artifact and count toward
+	// the AI-credits budget cap (see gh-aw#54047).
+	if IsDetectionJobEnabled(data.SafeOutputs) {
+		steps = append(steps, buildDetectionArtifactDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	}
 	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), data.Evals != nil && data.Evals.HasEvals(), c.getActionPin)...)
 	if needsDailyAICCachePermission(data) {
 		steps = append(steps, buildDailyAICUsageCacheSteps(data, c.getActionPin)...)

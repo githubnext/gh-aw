@@ -87,6 +87,10 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 11a: Render detection.log to the Actions log wrapped in group/stop-commands macros.
 		steps = append(steps, c.buildRenderDetectionLogStep(data)...)
 
+		// Step 11b: Copy the detection AWF run's own firewall proxy/audit logs into the
+		// threat-detection working directory so they can be bundled in the detection artifact.
+		steps = append(steps, c.buildCopyDetectionFirewallLogsStep(data)...)
+
 		// Step 12: Custom post-steps if configured (run after detection execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
@@ -114,6 +118,10 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 
 		// Step 7b: Render detection.log to the Actions log wrapped in group/stop-commands macros.
 		steps = append(steps, c.buildRenderDetectionLogStep(data)...)
+
+		// Step 7c: Copy the detection AWF run's own firewall proxy/audit logs into the
+		// threat-detection working directory so they can be bundled in the detection artifact.
+		steps = append(steps, c.buildCopyDetectionFirewallLogsStep(data)...)
 
 		// Step 8: Custom post-steps if configured (run after engine execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
@@ -184,6 +192,35 @@ func (c *Compiler) buildCleanFirewallDirsStep() []string {
 		"        run: |\n",
 		fmt.Sprintf("          rm -rf %s\n", constants.AWFProxyLogsDir),
 		fmt.Sprintf("          rm -rf %s\n", constants.AWFAuditDir),
+	}
+}
+
+// detectionFirewallLogsDir is the directory (relative to ThreatDetectionDir) where the
+// detection job's own AWF firewall proxy/audit logs are copied before upload. Namespacing
+// them under threat-detection/ (rather than uploading the raw AWFProxyLogsDir/AWFAuditDir
+// paths directly) avoids colliding with the agent job's identically-named firewall log
+// files when both artifacts are extracted into the same /tmp/gh-aw/ root in the conclusion
+// job — and matches the layout collect_usage_artifact_files.sh expects for detection usage.
+const detectionFirewallLogsDir = constants.ThreatDetectionDir + "/sandbox/firewall"
+
+// buildCopyDetectionFirewallLogsStep creates a step that copies the detection AWF run's
+// own proxy/audit logs (written to the same well-known AWFProxyLogsDir/AWFAuditDir paths
+// the agent job uses) into the threat-detection working directory. Without this, the
+// detection job's firewall/api-proxy token-usage data never leaves its ephemeral runner:
+// it is not part of any uploaded artifact, so the usage artifact and the AI-credits budget
+// cap have nothing to observe for the detection phase (see gh-aw#54047/#54046).
+func (c *Compiler) buildCopyDetectionFirewallLogsStep(data *WorkflowData) []string {
+	if !isFirewallEnabled(data) {
+		return nil
+	}
+	return []string{
+		"      - name: Copy detection firewall logs\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        continue-on-error: true\n",
+		"        run: |\n",
+		fmt.Sprintf("          mkdir -p %s\n", detectionFirewallLogsDir),
+		fmt.Sprintf("          [ -d %s ] && cp -r %s %s/logs || true\n", constants.AWFProxyLogsDir, constants.AWFProxyLogsDir, detectionFirewallLogsDir),
+		fmt.Sprintf("          [ -d %s ] && cp -r %s %s/audit || true\n", constants.AWFAuditDir, constants.AWFAuditDir, detectionFirewallLogsDir),
 	}
 }
 
@@ -457,15 +494,23 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 // The prefix comes from the agent job output since the detection job depends on the agent job.
 func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
-	return []string{
+	steps := []string{
 		"      - name: Upload threat detection log\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
-		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
-		"          if-no-files-found: ignore\n",
+		"          path: |\n",
+		"            /tmp/gh-aw/threat-detection/detection.log\n",
 	}
+	if isFirewallEnabled(data) {
+		steps = append(steps,
+			"            "+detectionFirewallLogsDir+"/logs/\n",
+			"            "+detectionFirewallLogsDir+"/audit/\n",
+		)
+	}
+	steps = append(steps, "          if-no-files-found: ignore\n")
+	return steps
 }
 
 // buildDetectionStepSummaryEchoStep creates a step that echoes the detection engine's

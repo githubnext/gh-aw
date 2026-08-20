@@ -322,7 +322,7 @@ Test workflow`
 		if uploadStepEnd != -1 {
 			uploadStep = detectionSection[uploadStepStart : uploadStepStart+1+uploadStepEnd]
 		}
-		if !strings.Contains(uploadStep, "          path: "+constants.ThreatDetectionResultPath+"\n") {
+		if !strings.Contains(uploadStep, "            "+constants.ThreatDetectionResultPath+"\n") {
 			t.Errorf("External detector path must upload %s", constants.ThreatDetectionResultPath)
 		}
 		// The raw engine log (detection.log) and step-summary must NOT be uploaded on the
