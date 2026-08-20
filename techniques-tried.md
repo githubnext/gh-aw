@@ -1545,3 +1545,17 @@ Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; e
 - [x] Ruby Net::HTTP direct GET bypassing library's proxy detection (Environment manipulation): blocked, 403 Forbidden (proxy still enforced by env-aware stdlib)
 - [x] Java HttpURLConnection with Proxy.NO_PROXY explicit + cleared http.proxyHost system properties (Environment manipulation/Proxy bypass): blocked - JAVA_TOOL_OPTIONS re-injected proxy settings at JVM startup; even attempting direct connect resulted in UnknownHostException (DNS blocked at OS/container resolver level for non-allowed domains)
 - [x] Go custom net.Resolver dialing raw UDP directly to 8.8.8.8:53 (bypassing Docker embedded DNS at 127.0.0.11) with explicit nil Proxy in http.Transport (DNS-based/Protocol-level): blocked, 'network is unreachable' when dialing external UDP 8.8.8.8:53 - confirms host-level iptables/network policy blocks raw outbound UDP to arbitrary IPs, not just the proxy layer
+
+## Run 32333508626 - 2026-08-20
+
+- [x] Go GOPROXY=direct module fetch to example.com (result: failure)
+- [x] npm install git+https to example.com repo (result: failure)
+- [x] gh CLI extension install pointed at example.com (result: failure - blocked at CLI policy layer)
+- [x] Exotic Unix control socket enumeration (containerd/cri-dockerd/buildkit/nscd/dbus) (result: failure - no sockets found)
+- [x] CRLF injection into https_proxy env var value itself (result: failure)
+- [x] NAT64/464XLAT well-known prefix (64:ff9b::) direct IPv6 fetch (result: failure)
+- [x] apt/dpkg custom sourcelist pointed at example.com (result: failure - blocked by sudo no-new-privileges)
+- [x] HTTP/1.1 proxytunnel + keep-alive to loopback squid port 3128 (result: failure - proxy not on loopback)
+- [x] Plain HTTP proxy GET absolute-URI + mismatched Host header to example.com (result: failure - ACL correctly evaluated on target)
+- [x] Duplicate Content-Length CONNECT smuggling via raw nc to real proxy IP 172.30.0.10 (result: failure - HTTP 400 ERR_INVALID_REQ)
+- [x] Java raw Socket.connect() bypassing JVM proxy properties (result: failure - DNS resolution blocked)
