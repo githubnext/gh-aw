@@ -140,8 +140,11 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 		}
 
 		if spec.Command != "" && len(spec.InstallArgs) > 0 {
-			installArgs := append([]string{spec.Command}, spec.InstallArgs...)
-			installCommand := shellJoinArgs(append(installArgs, "./"+installPath))
+			installArgs := make([]string, 0, len(spec.InstallArgs)+2)
+			installArgs = append(installArgs, spec.Command)
+			installArgs = append(installArgs, spec.InstallArgs...)
+			installArgs = append(installArgs, "./"+installPath)
+			installCommand := shellJoinArgs(installArgs)
 			installStep := []string{"      - name: Install agent plugin " + parsed.repoPath}
 			steps = append(steps, FormatStepWithCommandAndEnv(installStep, installCommand, nil))
 		}
