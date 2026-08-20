@@ -1047,6 +1047,54 @@ func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
 	}
 }
 
+func TestBuildDetectionEngineExecutionStepDefaultsHarnessMaxRetriesToZero(t *testing.T) {
+	// Threat detection is a bounded scan of already-completed agent output; a failed
+	// attempt (e.g. a sandboxed cleanup command failing inside the read-only
+	// /tmp/gh-aw mount) should not silently retry the whole run several times with
+	// backoff, burning significant time and model spend. Unless the harness policy is
+	// explicitly configured, detection should default to zero retries.
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 0") {
+		t.Fatalf("expected detection steps to default GH_AW_HARNESS_MAX_RETRIES to 0, got:\n%s", allSteps)
+	}
+}
+
+func TestBuildDetectionEngineExecutionStepRespectsExplicitHarnessMaxRetries(t *testing.T) {
+	// When the user explicitly configures a harness retry policy (via engine.harness
+	// or threat-detection.engine.harness), that explicit choice must be honored rather
+	// than overridden by the detection-specific zero-retry default.
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		EngineConfig: &EngineConfig{
+			ID:                "codex",
+			HarnessMaxRetries: "5",
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 5") {
+		t.Fatalf("expected detection steps to honor explicit GH_AW_HARNESS_MAX_RETRIES=5, got:\n%s", allSteps)
+	}
+}
+
 func TestBuildDetectionJobStepsCodexAvoidsDuplicateContainerPullStep(t *testing.T) {
 	compiler := NewCompiler()
 

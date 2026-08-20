@@ -381,6 +381,8 @@ The post-result watchdog is dormant until the harness observes a terminal safe o
 
 You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control, including `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` for the post-result watchdog. Explicit `engine.env` values take precedence over `engine.harness` sub-key values. See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment-variables/#harness-settings-and-runtime-tuning-variables) for supported env vars, units, clamping behavior, and engine-specific controls such as `GH_AW_CLAUDE_STARTUP_RETRIES`.
 
+Threat detection runs default `max-retries` to **0** instead of inheriting the harness default of 3, since detection is a bounded scan of already-completed agent output rather than the primary task — a failed attempt should not silently retry the whole detection run and burn extra time and model spend. Set `engine.harness.max-retries` (or `safe-outputs.threat-detection.engine.harness.max-retries`) explicitly to opt back into retries for detection.
+
 ### Copilot SDK Support
 
 Enable `engine.copilot-sdk: true` to run Copilot in SDK mode.

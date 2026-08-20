@@ -64,14 +64,19 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:            detectionEngineConfig.ID,
-			Version:       detectionEngineConfig.Version,
-			Env:           detectionEngineConfig.Env,
-			Config:        detectionEngineConfig.Config,
-			Args:          detectionEngineConfig.Args,
-			APITarget:     detectionEngineConfig.APITarget,
-			HarnessScript: detectionEngineConfig.HarnessScript,
-			Driver:        detectionEngineConfig.Driver,
+			ID:                       detectionEngineConfig.ID,
+			Version:                  detectionEngineConfig.Version,
+			Env:                      detectionEngineConfig.Env,
+			Config:                   detectionEngineConfig.Config,
+			Args:                     detectionEngineConfig.Args,
+			APITarget:                detectionEngineConfig.APITarget,
+			HarnessScript:            detectionEngineConfig.HarnessScript,
+			Driver:                   detectionEngineConfig.Driver,
+			HarnessMaxRetries:        detectionEngineConfig.HarnessMaxRetries,
+			HarnessInitialDelayMs:    detectionEngineConfig.HarnessInitialDelayMs,
+			HarnessBackoffMultiplier: detectionEngineConfig.HarnessBackoffMultiplier,
+			HarnessMaxDelayMs:        detectionEngineConfig.HarnessMaxDelayMs,
+			HarnessWatchdogTimeoutMs: detectionEngineConfig.HarnessWatchdogTimeoutMs,
 		}
 	}
 	if detectionEngineConfig.ID == "" {
@@ -79,6 +84,16 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.MaxAICredits != 0 {
 		detectionEngineConfig.MaxAICredits = data.SafeOutputs.ThreatDetection.MaxAICredits
+	}
+	// Threat detection is a bounded scan of already-completed agent output, not the
+	// primary task. If the harness policy was not explicitly configured (via
+	// engine.harness or threat-detection.engine.harness), default to zero retries so a
+	// failing detection attempt (e.g. a sandboxed cleanup command failing inside the
+	// read-only /tmp/gh-aw mount) does not silently retry the whole run up to
+	// DEFAULT_MAX_RETRIES times with backoff, burning significant time and model spend
+	// re-sending the growing transcript. Explicit user configuration always wins.
+	if detectionEngineConfig.HarnessMaxRetries == "" {
+		detectionEngineConfig.HarnessMaxRetries = "0"
 	}
 
 	resolvedDetectionModel := data.Model
