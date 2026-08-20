@@ -10,6 +10,7 @@ import (
 )
 
 func TestBuildMCPToolUsageSummary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		processedRuns     []ProcessedRun
@@ -223,6 +224,7 @@ func TestBuildMCPToolUsageSummary(t *testing.T) {
 }
 
 func TestBuildMCPToolUsageSummaryAggregation(t *testing.T) {
+	t.Parallel()
 	// Test that aggregation correctly merges data from multiple runs
 	processedRuns := []ProcessedRun{
 		{
@@ -322,6 +324,7 @@ func TestBuildMCPToolUsageSummaryAggregation(t *testing.T) {
 }
 
 func TestBuildMCPToolUsageSummarySorting(t *testing.T) {
+	t.Parallel()
 	// Test that results are sorted correctly
 	processedRuns := []ProcessedRun{
 		{
@@ -360,6 +363,7 @@ func TestBuildMCPToolUsageSummarySorting(t *testing.T) {
 }
 
 func TestBuildMCPToolUsageSummaryFilteredEvents(t *testing.T) {
+	t.Parallel()
 	// Verify FilteredEvents are aggregated across runs and that a non-nil summary
 	// is returned when filtered events exist even if there is no tool usage data.
 	event1 := DifcFilteredEvent{
