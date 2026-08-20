@@ -182,7 +182,7 @@ var (
 	logsProcessWorkflowRunBatch = processWorkflowRunBatch
 )
 
-func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownloadOptions) ([]ProcessedRun, bool, bool, error) {
+func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownloadOptions) ([]ProcessedRun, bool, bool, string, error) {
 	var processedRuns []ProcessedRun
 	var beforeDate string
 	var iteration int
@@ -190,7 +190,7 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 	for iteration < MaxIterations {
 		stop, timedOut, err := shouldStopLogsIteration(runtime, opts)
 		if err != nil {
-			return processedRuns, timeoutReached || timedOut, countLimitReached, err
+			return processedRuns, timeoutReached || timedOut, countLimitReached, beforeDate, err
 		}
 		if stop {
 			timeoutReached = timeoutReached || timedOut
@@ -219,9 +219,9 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 			// timeoutReached=false because this is an external cancellation, not the
 			// internal --timeout deadline firing.
 			if errors.Is(err, context.Canceled) {
-				return nil, false, false, err
+				return nil, false, false, "", err
 			}
-			return nil, false, false, err
+			return nil, false, false, "", err
 		}
 		if len(batch.runs) == 0 {
 			cursor, shouldContinue, shouldStop := handleEmptyWorkflowRunBatch(batch, opts.Verbose)
@@ -261,7 +261,23 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 	}
 	logLogsIterationLimit(runtime.fetchAllInRange, iteration, len(processedRuns), opts.Count)
 	logLogsTimeoutResult(timeoutReached, len(processedRuns))
-	return processedRuns, timeoutReached, countLimitReached, nil
+	// Hitting MaxIterations without reaching the requested count or the timeout
+	// means pagination stopped before the explicit date range was fully scanned
+	// (e.g. a burst of non-matching runs consumed every iteration's batch before
+	// the cursor could walk across the whole window). Previously this silently
+	// returned whatever partial data had accumulated with no continuation cursor,
+	// so callers requesting a wide start_date/end_date window could mistake a
+	// narrow, stale slice of results for a complete scan of the range (see
+	// github/gh-aw#53995). Treat it the same as a count-limit break so a
+	// continuation is always surfaced for explicit date-range queries.
+	if runtime.fetchAllInRange && !timeoutReached && iteration >= MaxIterations {
+		countLimitReached = true
+	}
+	// beforeDate reflects the pagination cursor collectProcessedWorkflowRuns actually
+	// advanced to (including iterations that fetched runs but matched none of them),
+	// so callers building a continuation can resume the scan from here instead of
+	// re-fetching pages already visited (see github/gh-aw#54110).
+	return processedRuns, timeoutReached, countLimitReached, beforeDate, nil
 }
 
 func shouldStopLogsIteration(runtime logsDownloadRuntime, opts LogsDownloadOptions) (bool, bool, error) {

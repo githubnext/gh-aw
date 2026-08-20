@@ -161,6 +161,27 @@ describe("approve_workflow_run", () => {
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 
+  it("matches allowed workflow filenames case-insensitively", async () => {
+    mockGetWorkflow.mockResolvedValue({ data: { path: ".github/workflows/Test.YML" } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each([undefined, "", "[]", []])("loads the handler when allowed_pull_requests is %j", async allowedPullRequests => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_pull_requests: allowedPullRequests });
+
+    expect(typeof handler).toBe("function");
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects path-containing allowed workflow patterns", async () => {
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main({ ...externalTokenConfig, allowed_workflows: [".github/workflows/test.yml"] });

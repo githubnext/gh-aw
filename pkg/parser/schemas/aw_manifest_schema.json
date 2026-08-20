@@ -81,6 +81,25 @@
         "type": "string"
       }
     },
+    "resources": {
+      "type": "array",
+      "description": "Declarative repository assets installed as-is from immutable package content. Each entry maps a package-relative source to an allowlisted repository destination.",
+      "items": {
+        "type": "object",
+        "required": ["source", "destination"],
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "destination": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "branding": {
       "type": "object",
       "description": "Follows GitHub Actions marketplace branding. See https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#branding",

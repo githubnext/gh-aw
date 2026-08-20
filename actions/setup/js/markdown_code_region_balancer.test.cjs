@@ -29,6 +29,18 @@ More content.`;
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
+      it("should not treat backticks in an info string as a fenced block", () => {
+        const input = "```x```@octocat";
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
+        expect(balancer.isBalanced(input)).toBe(true);
+      });
+
+      it("should not treat a four-space-indented fence as a fenced block", () => {
+        const input = "    ```\n@octocat\n    ```";
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
+        expect(balancer.isBalanced(input)).toBe(true);
+      });
+
       it("should not modify properly balanced code blocks", () => {
         const input = `# Title
 

@@ -77,6 +77,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 	updateManifestLog.Printf("updateManifestWorkflowGroup: source=%s, workflows=%d, force=%v, no_merge=%v", source, len(grouped), opts.Force, opts.NoMerge)
 	var successes []string
 	var failures []updateFailure
+	var groupedSuccesses []string
 
 	if len(grouped) == 0 {
 		return successes, failures
@@ -157,7 +158,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 				failures = append(failures, updateFailure{Name: wf.Name, Error: err.Error()})
 				continue
 			}
-			successes = append(successes, wf.Name)
+			groupedSuccesses = append(groupedSuccesses, wf.Name)
 			continue
 		}
 
@@ -178,7 +179,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 			failures = append(failures, updateFailure{Name: wf.Name, Error: err.Error()})
 			continue
 		}
-		successes = append(successes, wf.Name)
+		groupedSuccesses = append(groupedSuccesses, wf.Name)
 	}
 
 	targetDir := filepath.Dir(grouped[0].Path)
@@ -190,13 +191,20 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 			failures = append(failures, updateFailure{Name: name, Error: err.Error()})
 			continue
 		}
-		successes = append(successes, name)
+		groupedSuccesses = append(groupedSuccesses, name)
 	}
 
+	if err := syncManifestManagedResources(ctx, repoSpec, latestPkg, latestRef, opts); err != nil {
+		for _, name := range groupedSuccesses {
+			failures = append(failures, updateFailure{Name: name, Error: err.Error()})
+		}
+		return successes, failures
+	}
 	assetEngine := resolveManifestAssetEngine(grouped, opts)
 	if err := reconcileManifestManagedAssets(ctx, repoSpec.RepoSlug, currentPkg, latestPkg, assetEngine); err != nil {
 		failures = append(failures, updateFailure{Name: source, Error: err.Error()})
 	}
+	successes = append(successes, groupedSuccesses...)
 
 	return successes, failures
 }

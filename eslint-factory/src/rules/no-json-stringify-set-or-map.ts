@@ -31,6 +31,35 @@ function isSetOrMapConstruction(sourceCode: TSESLint.SourceCode, expr: TSESTree.
   return name;
 }
 
+function getConstSetOrMapBindingKind(sourceCode: TSESLint.SourceCode, identifier: TSESTree.Identifier): "Set" | "Map" | null {
+  let scope: SourceCodeScope | null = sourceCode.getScope(identifier);
+
+  while (scope) {
+    const variable = scope.set.get(identifier.name);
+    if (variable && variable.defs.length > 0) {
+      for (const def of variable.defs) {
+        if (def.type !== "Variable") continue;
+
+        const declarator = def.node as TSESTree.VariableDeclarator;
+        if (declarator.id.type !== AST_NODE_TYPES.Identifier || declarator.id.name !== identifier.name) continue;
+        if (!declarator.init) continue;
+
+        const declaration = declarator.parent;
+        if (declaration.type !== AST_NODE_TYPES.VariableDeclaration || declaration.kind !== "const") continue;
+
+        const kind = isSetOrMapConstruction(sourceCode, declarator.init);
+        if (kind) return kind;
+      }
+
+      return null;
+    }
+
+    scope = scope.upper;
+  }
+
+  return null;
+}
+
 export const noJsonStringifySetOrMapRule = createRule({
   name: "no-json-stringify-set-or-map",
   meta: {
@@ -49,30 +78,11 @@ export const noJsonStringifySetOrMapRule = createRule({
   create(context) {
     const sourceCode = context.sourceCode;
 
-    // Track variable names in scope whose declared initializer is `new Set(...)` / `new Map(...)`,
-    // mapped to which kind they are. Reassignment to something else removes the binding from tracking
-    // (handled conservatively: only VariableDeclarator initializers are tracked, not `let` reassignment).
-    const trackedVars = new Map<string, "Set" | "Map">();
-
     function suggestionFor(kind: "Set" | "Map", varName: string): string {
       return kind === "Set" ? `Array.from(${varName})` : `Object.fromEntries(${varName})`;
     }
 
     return {
-      VariableDeclarator(node: TSESTree.VariableDeclarator) {
-        if (node.id.type !== AST_NODE_TYPES.Identifier) return;
-        if (!node.init) return;
-        const kind = isSetOrMapConstruction(sourceCode, node.init);
-        if (!kind) return;
-
-        // Only track when declared with `const` — `let`/`var` bindings could be reassigned
-        // to a non-Set/Map value later, which this rule cannot statically follow.
-        const declaration = node.parent;
-        if (declaration.type !== AST_NODE_TYPES.VariableDeclaration || declaration.kind !== "const") return;
-
-        trackedVars.set(node.id.name, kind);
-      },
-
       CallExpression(node: TSESTree.CallExpression) {
         const callee = node.callee;
         if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed) return;
@@ -97,9 +107,9 @@ export const noJsonStringifySetOrMapRule = createRule({
           return;
         }
 
-        // Reference to a tracked `const x = new Set(...)/new Map(...)` binding.
+        // Reference to a `const x = new Set(...)/new Map(...)` binding.
         if (firstArg.type !== AST_NODE_TYPES.Identifier) return;
-        const kind = trackedVars.get(firstArg.name);
+        const kind = getConstSetOrMapBindingKind(sourceCode, firstArg);
         if (!kind) return;
 
         context.report({
