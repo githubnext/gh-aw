@@ -2014,8 +2014,8 @@ func TestDetectionJobDownloadsActivationArtifactBeforeAgentOutput(t *testing.T) 
 	if agentDownloadIdx > prepareIdx {
 		t.Error("Agent output download should appear before detection file preparation")
 	}
-	if !strings.Contains(stepsString, "name: activation") {
-		t.Error("Detection job should download the activation artifact so prompt files are available")
+	if !strings.Contains(stepsString, "name: ambient") {
+		t.Error("Detection job should download the ambient artifact so prompt files are available")
 	}
 	if !strings.Contains(stepsString, "path: /tmp/gh-aw") {
 		t.Error("Activation artifact should download into /tmp/gh-aw for prompt staging")
@@ -2027,7 +2027,7 @@ func TestDetectionActivationArtifactDownloadUsesActivationPrefixForWorkflowCall(
 		On: "workflow_call",
 	}, getActionPin), "")
 
-	expected := "name: ${{ needs.activation.outputs.artifact_prefix }}activation"
+	expected := "name: ${{ needs.activation.outputs.artifact_prefix }}ambient"
 	if !strings.Contains(steps, expected) {
 		t.Fatalf("Expected workflow_call detection activation download to use %q, got:\n%s", expected, steps)
 	}

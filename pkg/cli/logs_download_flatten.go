@@ -255,9 +255,12 @@ func flattenAgentOutputFallbackArtifact(outputDir string, verbose bool) error {
 // flattenActivationArtifact flattens the activation artifact directory structure.
 // The activation artifact contains aw_info.json and aw-prompts/prompt.txt.
 // This function moves those files to the root output directory and removes the nested structure.
-// In workflow_call context, the artifact may be prefixed: "<hash>-activation"
+// In workflow_call context, the artifact may be prefixed: "<hash>-ambient".
 func flattenActivationArtifact(outputDir string, verbose bool) error {
-	activationDir := findArtifactDir(outputDir, "activation", "")
+	activationDir := findArtifactDir(outputDir, constants.AmbientArtifactName, constants.LegacyActivationArtifactName)
+	if activationDir == "" {
+		activationDir = findArtifactDir(outputDir, constants.LegacyActivationJobArtifactName, "")
+	}
 	if activationDir == "" {
 		// No activation artifact, nothing to flatten
 		return nil

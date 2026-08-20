@@ -17,7 +17,7 @@ func TestActivationArtifactNameIsValid(t *testing.T) {
 
 	compiler.addActivationArtifactUploadStep(ctx)
 
-	assert.Contains(t, strings.Join(ctx.steps, ""), "name: activation-artifact")
+	assert.Contains(t, strings.Join(ctx.steps, ""), "name: ambient")
 }
 
 // TestConfigureActivationNeedsAndCondition_EngineEnvJobReferences tests that custom jobs

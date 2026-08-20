@@ -121,9 +121,14 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:     "activation resolves to activation artifact",
+			name:     "ambient resolves to ambient artifact",
+			sets:     []string{"ambient"},
+			expected: []string{constants.AmbientArtifactName},
+		},
+		{
+			name:     "activation alias resolves to ambient artifact",
 			sets:     []string{"activation"},
-			expected: []string{constants.ActivationArtifactName},
+			expected: []string{constants.AmbientArtifactName},
 		},
 		{
 			name:     "agent resolves to agent artifact and output fallback",
@@ -153,7 +158,7 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "github-api resolves to activation and agent",
 			sets:     []string{"github-api"},
-			expected: []string{constants.ActivationArtifactName, "agent"},
+			expected: []string{constants.AmbientArtifactName, "agent"},
 		},
 		{
 			name:     "usage resolves to usage artifact",
@@ -168,12 +173,12 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "multiple sets are merged and deduplicated",
 			sets:     []string{"activation", "agent"},
-			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.AmbientArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
 		},
 		{
 			name:     "github-api and agent deduplicates agent",
 			sets:     []string{"github-api", "agent"},
-			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.AmbientArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
 		},
 	}
 
@@ -262,7 +267,7 @@ func TestValidArtifactSetNames(t *testing.T) {
 	names := ValidArtifactSetNames()
 	require.NotEmpty(t, names, "ValidArtifactSetNames should return non-empty slice")
 
-	expected := []string{"all", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "mcp", "usage"}
+	expected := []string{"all", "ambient", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "mcp", "usage"}
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
 }
 

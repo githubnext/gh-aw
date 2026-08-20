@@ -152,10 +152,17 @@ const OtlpExportErrorsFilename = "otlp-export-errors.jsonl"
 // Empty string in non-workflow_call context.
 const ArtifactPrefixOutputName = "artifact_prefix"
 
-// ActivationArtifactName is the artifact name for the activation job output
-// (aw_info.json and prompt.txt). Keep the suffix because "activation" is
-// rejected as an artifact name by the GitHub Actions artifact API.
-const ActivationArtifactName = "activation-artifact"
+// AmbientArtifactName is the artifact name for the activation job output
+// (aw_info.json and prompt.txt).
+const AmbientArtifactName = "ambient"
+
+// LegacyActivationArtifactName is the artifact name emitted by older workflow
+// versions. It is kept so audit and logs can read existing workflow runs.
+const LegacyActivationArtifactName = "activation-artifact"
+
+// LegacyActivationJobArtifactName is the original artifact name emitted before
+// activation became a reserved artifact name.
+const LegacyActivationJobArtifactName = "activation"
 
 // ActivationStageAmbientFoldersStepName is the step name used to stage ambient
 // folders before the activation artifact is packaged. It is a stable anchor

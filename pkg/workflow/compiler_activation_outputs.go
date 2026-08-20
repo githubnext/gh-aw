@@ -155,7 +155,7 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 // addActivationArtifactUploadStep appends the activation artifact upload step for downstream jobs.
 func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
-	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName
+	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.AmbientArtifactName
 	ctx.steps = append(ctx.steps, generateStageAmbientFoldersStep(ctx.data)...)
 	ctx.steps = append(ctx.steps,
 		"      - name: Stage prompt files for artifact upload\n",

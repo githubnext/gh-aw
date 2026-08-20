@@ -58,7 +58,10 @@ func shouldDownloadWorkflowRunLogs(artifactFilter []string) bool {
 		return true
 	}
 	for _, artifact := range artifactFilter {
-		if artifact != constants.ActivationArtifactName && artifact != constants.UsageArtifactName {
+		if artifact != constants.AmbientArtifactName &&
+			artifact != constants.LegacyActivationArtifactName &&
+			artifact != constants.LegacyActivationJobArtifactName &&
+			artifact != constants.UsageArtifactName {
 			return true
 		}
 	}
@@ -639,16 +642,20 @@ func resolveActivationArtifactNames(ctx context.Context, opts downloadArtifactsO
 	artifactNames, err := listRunArtifactNames(ctx, opts.runID, opts.owner, opts.repo, opts.hostname, opts.verbose)
 	if err != nil {
 		logsDownloadLog.Printf("Failed to list artifacts for activation fallback: %v", err)
-		return []string{constants.ActivationArtifactName}
+		return []string{constants.AmbientArtifactName}
 	}
 	var matched []string
 	for _, name := range artifactNames {
-		if artifactMatchesFilter(name, []string{constants.ActivationArtifactName}) {
+		if artifactMatchesFilter(name, []string{
+			constants.AmbientArtifactName,
+			constants.LegacyActivationArtifactName,
+			constants.LegacyActivationJobArtifactName,
+		}) {
 			matched = append(matched, name)
 		}
 	}
 	if len(matched) == 0 {
-		return []string{constants.ActivationArtifactName}
+		return []string{constants.AmbientArtifactName}
 	}
 	return matched
 }

@@ -3,7 +3,7 @@
 // for filtering artifact downloads in the logs and audit commands.
 //
 // Key responsibilities:
-//   - Defining known artifact set names (all, agent, mcp, firewall, detection, github-api, activation)
+//   - Defining known artifact set names (all, agent, mcp, firewall, detection, github-api, ambient)
 //   - Mapping sets to concrete artifact name patterns
 //   - Validating artifact set inputs from CLI flags and MCP arguments
 //   - Determining whether a given artifact name matches an active filter
@@ -35,8 +35,11 @@ const (
 	// ArtifactSetAll downloads every artifact for the run (default behavior).
 	ArtifactSetAll ArtifactSet = "all"
 
-	// ArtifactSetActivation downloads the activation artifact (aw_info.json, prompt.txt,
+	// ArtifactSetAmbient downloads the ambient artifact (aw_info.json, prompt.txt,
 	// and github_rate_limits.jsonl from the activation job).
+	ArtifactSetAmbient ArtifactSet = "ambient"
+
+	// ArtifactSetActivation is a compatibility alias for the former artifact set name.
 	ArtifactSetActivation ArtifactSet = "activation"
 
 	// ArtifactSetAgent downloads the unified agent artifact containing agent logs,
@@ -83,13 +86,14 @@ const (
 // ResolveArtifactFilter means no filter is active so the caller downloads all artifacts).
 var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetAll:        nil, // no filtering – download all artifacts
-	ArtifactSetActivation: {constants.ActivationArtifactName},
+	ArtifactSetAmbient:    {constants.AmbientArtifactName},
+	ArtifactSetActivation: {constants.AmbientArtifactName},
 	ArtifactSetAgent:      {constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
 	ArtifactSetMCP:        {constants.AgentArtifactName},
 	ArtifactSetFirewall:   {constants.AgentArtifactName},
 	ArtifactSetDetection:  {constants.DetectionArtifactName},
 	// github-api: both jobs upload github_rate_limits.jsonl; fetch both for a complete view.
-	ArtifactSetGitHubAPI: {constants.ActivationArtifactName, constants.AgentArtifactName},
+	ArtifactSetGitHubAPI: {constants.AmbientArtifactName, constants.AgentArtifactName},
 	// experiment: A/B experiment state uploaded by the activation job.
 	ArtifactSetExperiment: {constants.ExperimentArtifactName},
 	// usage: compact conclusion artifact for lightweight reporting/forecasting.
