@@ -164,6 +164,11 @@ func marshalSafeOutputsConfig(config map[string]any) ([]byte, error) {
 	return configJSON, nil
 }
 
+var (
+	needsDotReferencePattern     = regexp.MustCompile(`needs\s*\.\s*([^\s.]+)\s*\.`)
+	needsBracketReferencePattern = regexp.MustCompile(`needs\s*\[\s*['"]([^'"]+)['"]\s*\]\s*\.`)
+)
+
 // sanitizeAgentSafeOutputsConfig walks a safe-outputs config map (as produced for the agent
 // job's copy of config.json) and neutralizes any templated field whose expression references
 // needs.<job> for a job in unresolvableJobs. These jobs are only ever added as dependencies of
@@ -176,10 +181,13 @@ func sanitizeAgentSafeOutputsConfig(config map[string]any, unresolvableJobs []st
 		return
 	}
 	referencesUnresolvableJob := func(expr string) bool {
-		for _, job := range unresolvableJobs {
-			access := regexp.QuoteMeta(job)
-			if regexp.MustCompile(`needs\s*\.\s*`+access+`\s*\.`).MatchString(expr) ||
-				regexp.MustCompile(`needs\s*\[\s*['"]`+access+`['"]\s*\]\s*\.`).MatchString(expr) {
+		for _, reference := range needsDotReferencePattern.FindAllStringSubmatch(expr, -1) {
+			if slices.Contains(unresolvableJobs, reference[1]) {
+				return true
+			}
+		}
+		for _, reference := range needsBracketReferencePattern.FindAllStringSubmatch(expr, -1) {
+			if slices.Contains(unresolvableJobs, reference[1]) {
 				return true
 			}
 		}
