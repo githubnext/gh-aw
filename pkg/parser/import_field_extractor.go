@@ -38,6 +38,7 @@ type importAccumulator struct {
 	envSources                 map[string]string // env var name → source import path (for conflict detection and header listing)
 	observabilityConfigs       []string          // observability config JSON blobs from all imports (merged into endpoint array)
 	engines                    []string
+	plugins                    []string
 	safeOutputs                []string
 	mcpScripts                 []string
 	bots                       []string
@@ -395,6 +396,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
 
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
+	acc.plugins = append(acc.plugins, parseStringSliceField(fm["plugins"], false)...)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
 	acc.appendYAMLBuilderField(fm, "steps", &acc.stepsBuilder)
@@ -955,6 +957,7 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		MergedTools:                      acc.toolsBuilder.String(),
 		MergedMCPServers:                 acc.mcpServersBuilder.String(),
 		MergedEngines:                    acc.engines,
+		MergedPlugins:                    acc.plugins,
 		MergedSafeOutputs:                acc.safeOutputs,
 		MergedMCPScripts:                 acc.mcpScripts,
 		MergedMarkdown:                   acc.markdownBuilder.String(),

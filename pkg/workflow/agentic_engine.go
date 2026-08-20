@@ -153,6 +153,14 @@ type EngineCapabilities struct {
 	// off entirely (e.g. Codex's `features.shell_tool=false` config flag). When true, the
 	// compiler allows a fully-disabled tools.bash even if BashCommandAllowlist is false.
 	BashDisable bool
+
+	// Plugins reports whether the engine can install Agent Plugins.
+	Plugins bool
+}
+
+// PluginInstallationProvider generates installation steps for Agent Plugins.
+type PluginInstallationProvider interface {
+	GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
 }
 
 // CapabilityProvider detects what capabilities an engine supports.

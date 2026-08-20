@@ -287,6 +287,29 @@ for terminology, and
 [`mattpocock-skills-reviewer.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/mattpocock-skills-reviewer.md)
 for a full workflow example using `skills:`.
 
+### Agent Plugins (`plugins:`)
+
+:::caution[Experimental]
+Agent Plugins support is experimental and may change. Compiling a workflow that uses `plugins:` emits a warning.
+:::
+
+Installs [Agent Plugins](https://agent-plugins.org) through the selected agentic engine. Each entry identifies a GitHub repository and, optionally, the path to a plugin within that repository:
+
+```yaml wrap
+engine: copilot
+plugins:
+  - octo-org/agent-plugin@v1
+  - octo-org/agent-plugins/plugins/example@main
+```
+
+Entries use `owner/repository[/path]@ref` syntax. The ref is required and may be a branch, tag, or full 40-character lowercase commit SHA. During compilation, gh-aw resolves every branch or tag to a commit SHA. Compilation fails if a reference cannot be resolved, so generated workflows never install a plugin from a moving ref.
+
+The agent job checks out each pinned plugin immediately after installing the engine, then makes it available the way the engine expects: GitHub Copilot CLI runs `copilot plugin install`, Claude Code loads each plugin directory through `--plugin-dir`, and OpenAI Codex CLI registers a local, single-plugin marketplace for each checkout (reading the plugin's declared name from its `plugin.json` manifest) and runs `codex plugin marketplace add` followed by `codex plugin add`. Imported engine definitions declare their own handling with a `behaviors.plugins` block, so the shared Cursor and Kiro engines stage plugins in the folder their CLI scans. Using `plugins:` with an engine that has no Agent Plugins support is a compile-time error.
+
+Shared agentic workflows may also declare plugins. When the same plugin path is declared more than once, identical refs are deduplicated and compatible semantic versions are merged to the highest version. Incompatible major versions or conflicting non-semver refs fail compilation.
+
+Plugin repositories must be public. The checkout step always uses the workflow's default `github.token`, which cannot read private repositories; unlike `skills:`, `plugins:` does not currently support per-entry `github-token`/`github-app` credentials.
+
 ### MCP Scripts (`mcp-scripts:`)
 
 Enables defining custom MCP tools inline using JavaScript or shell scripts. See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for complete documentation on creating custom tools with controlled secret access.

@@ -2443,6 +2443,19 @@
         }
       ]
     },
+    "plugins": {
+      "type": "array",
+      "description": "\u26a0\ufe0f Experimental. Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA. Using this field emits a compile-time warning.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
+        "description": "A plugin repository reference in owner/repository[/path]@ref format"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "examples": [["github/awesome-copilot/plugins/example@v1"]]
+    },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
       "examples": [
@@ -13746,6 +13759,28 @@
                     },
                     "docs-url": {
                       "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "plugins": {
+                  "type": "object",
+                  "description": "\u26a0\ufe0f Experimental. Declares Agent Plugins (https://agent-plugins.org) support for the engine. Plugins are checked out at their pinned commit SHA, then staged in 'directory' and/or installed with the engine CLI using 'install-args'.",
+                  "properties": {
+                    "directory": {
+                      "type": "string",
+                      "description": "Folder the engine scans for plugins. Workspace-relative (for example '.kiro/powers') or home-relative (for example '~/.cursor/plugins/local')."
+                    },
+                    "command-name": {
+                      "type": "string",
+                      "description": "CLI executable used with 'install-args'. Defaults to the execution command name."
+                    },
+                    "install-args": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CLI arguments placed before the local plugin path (for example ['plugin', 'install'])."
                     }
                   },
                   "additionalProperties": false

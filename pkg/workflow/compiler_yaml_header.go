@@ -64,7 +64,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// The manifest records all secrets, external actions, container images, and frontmatter
 	// skills detected at compile time so that subsequent compilations can perform safe update
 	// enforcement.
-	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
+	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.Plugins, data.RawFrontmatter["on"])
 	if data.ParsedFrontmatter != nil {
 		manifest.ThreatDetectionSuppressions = data.ParsedFrontmatter.ThreatDetectionSuppressions
 	} else {
