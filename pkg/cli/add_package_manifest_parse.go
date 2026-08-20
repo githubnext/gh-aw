@@ -1,0 +1,227 @@
+// add_package_manifest_parse.go: parsing raw YAML into a repositoryPackageManifest and
+// validating manifest-level invariants (unique destinations, filenames, workflow privacy).
+
+package cli
+
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+
+	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/semverutil"
+)
+
+type repositoryPackageManifest struct {
+	ManifestVersion string
+	MinVersion      string
+	Name            string
+	Emoji           string
+	Description     string
+	License         string
+	Includes        []repositoryPackageInclude
+	Files           []string
+	Bootstrap       *repositoryPackageBootstrap
+	Skills          []string // skill directory paths (e.g. "skills/my-skill")
+	Agents          []string // agent .md file paths (e.g. "agents/my-agent.md")
+}
+
+func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
+	root, name, err := parseRepositoryPackageManifestRoot(manifestPath, content)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	manifest := &repositoryPackageManifest{
+		Name: strings.TrimSpace(name),
+	}
+	warnings, err := populateRepositoryPackageManifest(manifest, root, manifestPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	return manifest, warnings, nil
+}
+
+func parseRepositoryPackageManifestRoot(manifestPath string, content []byte) (map[string]any, string, error) {
+	var raw any
+	if err := yaml.Unmarshal(content, &raw); err != nil {
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: %s. Ensure the manifest is valid YAML. Example:\nname: My Package", manifestPath, parser.FormatYAMLError(err, 1, string(content)))
+	}
+
+	root, ok := raw.(map[string]any)
+	if !ok {
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: top-level document must be a mapping, not a list or scalar. Example:\nname: My Package", manifestPath)
+	}
+
+	// Validate name before schema validation to provide a clear error message for
+	// the most common manifest authoring error (missing or empty name).
+	name, ok := stringValue(root["name"])
+	if !ok || strings.TrimSpace(name) == "" {
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string. Example:\nname: My Package", manifestPath)
+	}
+
+	if err := parser.ValidateRepositoryPackageManifestWithSchemaAndLocation(root, manifestPath); err != nil {
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: %w", manifestPath, err)
+	}
+
+	return root, name, nil
+}
+
+func populateRepositoryPackageManifest(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) ([]string, error) {
+	var warnings []string
+	if err := populateRepositoryPackageManifestVersions(manifest, root, manifestPath); err != nil {
+		return nil, err
+	}
+	metadataWarnings, err := populateRepositoryPackageManifestMetadata(manifest, root, manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, metadataWarnings...)
+	return warnings, nil
+}
+
+func populateRepositoryPackageManifestVersions(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) error {
+	if manifestVersion, ok := stringValue(root["manifest-version"]); ok {
+		manifest.ManifestVersion = strings.TrimSpace(manifestVersion)
+	} else {
+		manifest.ManifestVersion = repositoryPackageManifestVersion
+	}
+
+	if minVersion, ok := stringValue(root["min-version"]); ok {
+		manifest.MinVersion = strings.TrimSpace(minVersion)
+		if !isSupportedManifestMinVersion(manifest.MinVersion) {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q. Example:\nmin-version: v1.2.3", manifestPath, minVersion)
+		}
+		currentVersion := GetVersion()
+		if !semverutil.IsValid(currentVersion) {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version. This indicates a build issue; rebuild gh-aw with a proper version tag. Example: v1.2.3", manifestPath, currentVersion)
+		}
+		currentVersion = semverutil.NormalizeGitDescribeSemver(currentVersion)
+		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s). Upgrade gh-aw, or lower min-version in aw.yml to a version at or below the current one. Example:\nmin-version: %s", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion, currentVersion)
+		}
+	}
+	return nil
+}
+
+func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) ([]string, error) {
+	var warnings []string
+	if description, ok := stringValue(root["description"]); ok {
+		manifest.Description = description
+		if len(description) > 255 {
+			warnings = append(warnings, fmt.Sprintf("Manifest %s description exceeds the 255-character marketplace display limit", manifestPath))
+		}
+	}
+
+	if emoji, ok := stringValue(root["emoji"]); ok {
+		manifest.Emoji = emoji
+	}
+
+	if license, ok := stringValue(root["license"]); ok {
+		manifest.License = license
+	}
+
+	if includesValue, ok := root["includes"]; ok {
+		includes, includeWarnings, err := extractManifestIncludes(includesValue, manifestPath)
+		if err != nil {
+			return nil, err
+		}
+		manifest.Includes = includes
+		warnings = append(warnings, includeWarnings...)
+	}
+
+	if filesValue, ok := root["files"]; ok {
+		files, fileWarnings := extractManifestFiles(filesValue, manifestPath)
+		manifest.Files = files
+		warnings = append(warnings, fileWarnings...)
+		if len(files) > 0 {
+			warnings = append(warnings, fmt.Sprintf("Field 'files' in %s is deprecated; use 'includes' instead.", manifestPath))
+			warnings = append(warnings, "Codemod suggestion:\n"+formatIncludesCodemodSuggestion(codemodManifestFilesToIncludes(files)))
+		}
+	}
+
+	if skillsValue, ok := root["skills"]; ok {
+		skills, skillWarnings := extractManifestSkillDirs(skillsValue, manifestPath)
+		manifest.Skills = skills
+		warnings = append(warnings, skillWarnings...)
+	}
+
+	if agentsValue, ok := root["agents"]; ok {
+		agents, agentWarnings := extractManifestAgentFiles(agentsValue, manifestPath)
+		manifest.Agents = agents
+		warnings = append(warnings, agentWarnings...)
+	}
+
+	if configValue, ok := root["config"]; ok {
+		warnings = append(warnings, "Using experimental feature: config")
+		bootstrap, err := extractManifestConfig(configValue, manifestPath)
+		if err != nil {
+			return nil, err
+		}
+		manifest.Bootstrap = bootstrap
+	}
+
+	return warnings, nil
+}
+
+// validateUniqueManifestInstallDestinations rejects manifests where two entries would be
+// installed to the same repository path, before any file is written.
+func validateUniqueManifestInstallDestinations(installables []resolvedPackageInstallable, manifestPath string) error {
+	seen := make(map[string]string, len(installables))
+	for _, installable := range installables {
+		key := strings.ToLower(installable.DestinationPath)
+		if previous, exists := seen[key]; exists {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: includes entries %q and %q both install to %q. Each entry must have a unique destination; rename one of the destinations", manifestPath, previous, installable.SourcePath, installable.DestinationPath)
+		}
+		seen[key] = installable.SourcePath
+	}
+	return nil
+}
+
+func validateManifestInstallableWorkflowPrivacy(manifestPath string, installationSources []resolvedPackageInstallable, readWorkflow func(string) ([]byte, error)) error {
+	for _, installable := range installationSources {
+		installationSource := installable.SourcePath
+		if isActionWorkflowPath(installationSource) {
+			continue
+		}
+
+		content, err := readWorkflow(installationSource)
+		if err != nil {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: %w", manifestPath, err)
+		}
+
+		privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(content))
+		if hasPrivate && privateValue {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added. Remove 'private: true' from the workflow frontmatter or exclude it from the manifest. Example:\n---\nprivate: false\n---", manifestPath, installationSource)
+		}
+	}
+
+	return nil
+}
+
+func isSupportedManifestMinVersion(version string) bool {
+	const expectedManifestMinVersionDotCount = 2
+	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
+}
+
+func validateUniqueManifestWorkflowFilenames(installables []resolvedPackageInstallable, manifestPath string) error {
+	seen := make(map[string]string, len(installables))
+	for _, installable := range installables {
+		installPath := installable.DestinationPath
+		if !strings.HasSuffix(strings.ToLower(installPath), ".md") {
+			continue
+		}
+		filenameWithoutExt := strings.TrimSuffix(filepath.Base(installPath), filepath.Ext(installPath))
+		key := strings.ToLower(strings.TrimSpace(filenameWithoutExt))
+		if key == "" { //nolint:tolowerequalfold
+			continue
+		}
+		if previous, exists := seen[key]; exists {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q. Filenames must be unique across a package; rename one of the workflow files. Example:\nfiles:\n  - workflows/%s.md\n  - workflows/%s-2.md", manifestPath, filenameWithoutExt, previous, installPath, filenameWithoutExt, filenameWithoutExt)
+		}
+		seen[key] = installPath
+	}
+	return nil
+}
