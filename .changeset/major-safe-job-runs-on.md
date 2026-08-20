@@ -1,4 +1,6 @@
+---
 "gh-aw": major
+---
 
 Support runner-group objects in custom safe-job `runs-on` fields.
 

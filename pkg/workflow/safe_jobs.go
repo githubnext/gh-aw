@@ -71,6 +71,8 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 		runsOnJob := &Job{}
 		if err := c.extractCustomJobRunsOn(runsOnJob, jobName, jobConfig); err != nil {
 			safeJob.runsOnError = err
+		} else if isEmptySafeJobRunsOn(jobConfig["runs-on"]) {
+			safeJob.RunsOn = ""
 		} else {
 			safeJob.RunsOn = runsOnJob.RunsOn
 		}
@@ -181,6 +183,13 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 	}
 
 	return result
+}
+
+func isEmptySafeJobRunsOn(value any) bool {
+	if _, isObject := value.(map[string]any); isObject {
+		return false
+	}
+	return isEmptyRunsOnValue(value)
 }
 
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs

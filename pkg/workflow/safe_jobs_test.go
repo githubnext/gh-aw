@@ -148,6 +148,30 @@ func TestParseSafeJobsConfig(t *testing.T) {
 	}
 }
 
+func TestBuildSafeJobsDefaultsEmptyRunsOn(t *testing.T) {
+	for name, runsOn := range map[string]any{
+		"empty scalar": "",
+		"empty array":  []any{},
+		"empty label":  []any{""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := NewCompiler()
+			safeJobs := c.parseSafeJobsConfig(map[string]any{
+				"notify": map[string]any{"runs-on": runsOn},
+			})
+			_, err := c.buildSafeJobs(&WorkflowData{
+				Name:        "test-workflow",
+				SafeOutputs: &SafeOutputsConfig{Jobs: safeJobs},
+			}, false)
+
+			require.NoError(t, err)
+			job, exists := c.jobManager.GetJob("notify")
+			require.True(t, exists)
+			require.Equal(t, "runs-on: ubuntu-latest", job.RunsOn)
+		})
+	}
+}
+
 func TestParseSafeJobsConfigMax(t *testing.T) {
 	c := NewCompiler()
 
@@ -1074,4 +1098,18 @@ func TestSafeJobsInputTypes(t *testing.T) {
 	if envInput.Type != "environment" {
 		t.Errorf("Expected type 'environment', got %s", envInput.Type)
 	}
+}
+
+func TestMergeSafeJobsFromIncludedConfigsRejectsMacOSRunner(t *testing.T) {
+	c := NewCompiler()
+
+	_, err := c.mergeSafeJobsFromIncludedConfigs(nil, []string{`{
+"jobs": {
+"notify": {
+"runs-on": "macos-latest"
+}
+}
+}`})
+
+	require.ErrorContains(t, err, "safe-outputs.jobs.notify.runs-on")
 }

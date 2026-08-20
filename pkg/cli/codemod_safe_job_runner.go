@@ -29,7 +29,7 @@ func renameSafeJobRunnerKeys(lines []string) ([]string, bool) {
 	modified := false
 
 	for i := range lines {
-		if strings.TrimSpace(lines[i]) != "safe-outputs:" {
+		if !hasYAMLKey(strings.TrimSpace(lines[i]), "safe-outputs") {
 			continue
 		}
 
@@ -48,7 +48,7 @@ func renameSafeJobRunnerKeys(lines []string) ([]string, bool) {
 			if childIndent == -1 {
 				childIndent = indent
 			}
-			if indent != childIndent || trimmed != "jobs:" {
+			if indent != childIndent || !hasYAMLKey(trimmed, "jobs") {
 				continue
 			}
 
@@ -124,10 +124,10 @@ func renameSafeJobRunnerKeyInJob(result, lines []string, start, end int) bool {
 		if indent != fieldIndent {
 			continue
 		}
-		if strings.HasPrefix(trimmed, "runs-on:") {
+		if hasYAMLKey(trimmed, "runs-on") {
 			hasRunsOn = true
 		}
-		if strings.HasPrefix(trimmed, "runner:") {
+		if hasYAMLKey(trimmed, "runner") {
 			runnerLine = i
 		}
 	}
@@ -140,4 +140,8 @@ func renameSafeJobRunnerKeyInJob(result, lines []string, start, end int) bool {
 		result[runnerLine] = replacement
 	}
 	return replaced
+}
+
+func hasYAMLKey(line, key string) bool {
+	return strings.HasPrefix(line, key+":")
 }

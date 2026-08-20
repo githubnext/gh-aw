@@ -67,6 +67,22 @@ safe-outputs:
 			wantApplied: true,
 		},
 		{
+			name: "matches keys with trailing comments",
+			content: `---
+safe-outputs: # security settings
+  jobs: # custom output jobs
+    notify:
+      runner: ubuntu-latest # legacy field
+---`,
+			want: `---
+safe-outputs: # security settings
+  jobs: # custom output jobs
+    notify:
+      runs-on: ubuntu-latest # legacy field
+---`,
+			wantApplied: true,
+		},
+		{
 			name: "skips job with canonical field",
 			content: `---
 safe-outputs:

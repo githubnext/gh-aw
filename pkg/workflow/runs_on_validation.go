@@ -141,7 +141,16 @@ func isEmptyRunsOnValue(value any) bool {
 	case string:
 		return strings.TrimSpace(v) == ""
 	case []any:
-		return len(v) == 0
+		if len(v) == 0 {
+			return true
+		}
+		for _, label := range v {
+			label, ok := label.(string)
+			if !ok || strings.TrimSpace(label) != "" {
+				return false
+			}
+		}
+		return true
 	case map[string]any:
 		if len(v) == 0 {
 			return true

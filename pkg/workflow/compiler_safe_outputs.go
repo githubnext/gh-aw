@@ -28,6 +28,9 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 			compilerSafeOutputsLog.Printf("Warning: skipping included safe-outputs config with invalid JSON: %v", err)
 			continue
 		}
+		if err := validateRunsOn(map[string]any{"safe-outputs": safeOutputsConfig}, c.markdownPath); err != nil {
+			return nil, err
+		}
 
 		// Extract safe-jobs from the safe-outputs.jobs field
 		includedSafeJobs := extractSafeJobsFromFrontmatter(map[string]any{
