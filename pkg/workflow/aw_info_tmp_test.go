@@ -58,7 +58,7 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 	lockStr := string(lockContent)
 
 	// Test 1: Verify the step uses the generate_aw_info.cjs module
-	if !strings.Contains(lockStr, "require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs')") {
+	if !strings.Contains(lockStr, "require(path.join(actionsDir, 'generate_aw_info.cjs'))") {
 		t.Error("Expected step to require generate_aw_info.cjs module")
 	}
 

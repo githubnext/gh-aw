@@ -44,7 +44,7 @@ engine: copilot
 	if !strings.Contains(compiled, "- name: Generate observability summary") {
 		t.Fatal("Expected observability summary step to be generated when OTLP is enabled")
 	}
-	if !strings.Contains(compiled, "require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs')") {
+	if !strings.Contains(compiled, "require(path.join(actionsDir, 'generate_observability_summary.cjs'))") {
 		t.Fatal("Expected generated workflow to load generate_observability_summary.cjs")
 	}
 }

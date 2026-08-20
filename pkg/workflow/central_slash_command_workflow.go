@@ -435,7 +435,11 @@ jobs:
             const { main } = require('` + SetupActionDestination + `/route_slash_command.cjs');
             await main();
 `)
-	return b.String(), nil
+	finalYAML, err := finalizeRunnerTempSafety(b.String())
+	if err != nil {
+		return "", err
+	}
+	return finalYAML, nil
 }
 
 func buildHelpCommandEntries(workflowDataList []*WorkflowData) []helpCommandEntry {

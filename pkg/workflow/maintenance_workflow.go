@@ -275,7 +275,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		strings.TrimSpace(compileGitHubTokenSecret) != "",
 	)
 	copilotOrgBilling := allCopilotWorkflowsUseOrgBilling(workflowDataList)
-	content := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOptions{
+	content, err := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOptions{
 		cronSchedule:        cronSchedule,
 		scheduleDesc:        scheduleDesc,
 		minExpiresDays:      minExpiresDays,
@@ -292,6 +292,9 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		createCompilePR:     enableCompileCreatePullRequest,
 		copilotOrgBilling:   copilotOrgBilling,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to finalize maintenance workflow YAML: %w", err)
+	}
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
