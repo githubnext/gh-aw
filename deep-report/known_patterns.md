@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-20, ~05:45Z cycle)
+
+### Reconfirmed: audit/quality workflows now self-file the large majority of their own findings — DeepReport's marginal value is in the dedup check + the few gaps they miss
+Of ~9 distinct findings surfaced across 10 discussions this cycle, only 5 (Schema Consistency Checker's 3 findings + Docs Noob Tester's docs gap + compiler-quality's godoc gap) lacked a self-filed issue; the rest (Workflow Skill Extractor ×3, Sergo, ESLint Refiner, LintMonster, MCP-auth-test) were already filed by their source workflow before this analysis ran. **Lesson: always run the dedup search before treating any "new-looking" finding as a filing candidate — this repo's reporting workflows increasingly file their own issues directly via safe-outputs, so DeepReport's job is verification + gap-filling, not first-filing.**
+
+### New pattern: a scanner's own generated intermediate data can itself be the finding
+Schema Consistency Checker (#54161) found bugs in the app being audited (strict-mode default, redirect docs) but *also* found that its own precomputed `schema-diff.json` field-gap data has false positives from a nested-key extraction bug — filed as a 3rd, independent issue. **Lesson: when a recurring audit tool references its own precomputed/cached intermediate artifact, treat quality problems in that artifact as a first-class finding, same as [[known_patterns]]'s existing lesson about a report's own stale config being a valid finding.**
+
 ## DeepReport Memory (2026-08-20, ~00:25Z cycle)
 
 ### Confirmed: "closed completed" can mean "only part of the named scope was done" — always verify every named target, not just one

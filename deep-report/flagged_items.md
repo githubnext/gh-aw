@@ -1,3 +1,17 @@
+## Flagged Items (2026-08-20, ~05:45Z cycle, window since 00:25Z, 10 new discussions)
+
+- **[new, filed]** `strict:` mode default may diverge between CLI compile path (`compile_compiler_setup.go`) and schema/docs/MCP tool (both promise `true`) — follow-on to closed #49893/#49482 (#54161 Schema Consistency Checker).
+- **[new, filed]** `redirect:` docs overstate compile behavior + 3 frontmatter fields (max-turn-cache-misses, excluded-env, import-schema) undocumented (#54161).
+- **[new, filed]** schema-diff key extractor false positives from nested keys/body content — tooling fix (#54161).
+- **[new, filed]** Quick Start missing side-by-side `.lock.yml` example + CLI Commands add-wizard/add/new not disambiguated (#54139 Docs Noob Tester, distinct from #53927).
+- **[new, filed]** 9 missing godoc comments in `compiler_safe_outputs_job.go` (#54126, distinct from closed decomposition issue #53612).
+- **[declined, already self-filed]** Workflow Skill Extractor's 3 shared-component proposals (#54137) — #54133/#54135/#54136.
+- **[declined, already self-filed]** Sergo's errormessage CI-gate-disabled finding (#54143) — #54142.
+- **[declined, already self-filed]** ESLint Refiner's 2 findings (#54164), LintMonster's param-count finding (#54128).
+- **[declined, already re-filed]** MCP toolset unavailability (#54165) — same-day #54166; prior #53464 closed/auto-expired.
+- **[declined, already tracked]** Firewall proxy.golang.org volume (#54123) — open #54063.
+- **[declined, healthy]** Firewall Escape Test SECURE (#54149); Compiler Quality 3/3 pass threshold (#54126).
+
 ## Flagged Items (2026-08-20, ~00:25Z cycle, window since 17:50Z, 11 new discussions, #54066 excluded as duplicate re-run)
 
 - **[new, filed]** Daily reports using fixed record caps (not date-range pagination) silently collapse their stated analysis window — 2nd occurrence, #53828 (08-18) + #54081 (today); live example #54080 (90d target collapsed to ~4d) (#54081).
@@ -55,39 +69,11 @@
 - **[declined, too early to judge]** CVE/vulnerability-advisory PR cluster still ~49% success in Copilot PR Prompt Analysis's 30-day trailing window — the fix (#53709) merged same-day this cycle, trailing window hasn't absorbed it yet.
 - **[addressed via comment, not new issue]** 4 unconfirmed Copilot-proxy-failure workflows (CLI Consistency Checker, CI Optimization Coach, Daily Malicious Code Scan Agent, Daily BYOK Ollama Test) sharing the `Execute GitHub Copilot CLI` signature — commented on existing root-cause issue #52253.
 
-## Flagged Items (2026-08-18, 18:23Z cycle)
+## Flagged Items (2026-08-18, 18:23Z & 12:26Z cycles) — condensed
 
-- **[new, filed, top finding]** GEO Optimizer scanner false-negatives llms_txt/ai_discovery checks (0 scores) despite files being live and 200 OK — curl-verified this cycle. Watch: does the fix also close out the 4 stale duplicate geo-optimizer issues it caused (#53759, #53435, #52534, #52763).
-- **[new, filed]** Split oversized test files, starting with `compiler_jobs_test.go` (4,511 lines).
-- **[new, filed]** Consolidate 4 chronic duplicate "Smoke Copilot - AOAI (apikey)" failure issues (#53235, #53263, #53129, #48838) + runtime/token cap (2.98M tokens burned on 0% success today).
-- **[new, filed]** Document non-Copilot `gh aw init`/example parity gaps (Claude/Codex/custom engine).
-- **[new, filed]** Actionable next-step for pr-triage-agent.md run-failure message.
-- **[new, filed]** Investigate hidden-text/cloaking flag on docs site + README.
-- **[new, filed]** Add verify-the-change step to ai-credits migration blog post.
-- **[verified fixed]** #53612 (compiler_safe_outputs_job.go, 3rd attempt) → now has open PR #53720, assigned to Copilot — watch if it actually lands this time. BoundedQueriesConfig.Timeout drift → merged PR #53694. Container/CVE pre-filter → merged PR #53709. Frontmatter schema gap (#53613) → merged PR #53678. PR Sous Chef consolidation (#53615) → merged PR #53676.
-- **[declined, already tracked]** UK AI Resilience Tier-C findings (#53737 open, #53738 already fixed via PR #53764) — no duplicate needed.
-- **[declined, healthy]** Daily Secrets Analysis (100% redaction/permission coverage), Daily Security Observability (0.42% firewall block rate, no DIFC events) — no action.
-- **[declined, too fresh]** Design Decision Gate P1 hang (#53619) — filed same day, no PR yet, let normal triage proceed before escalating.
-- **[declined, not actionable / scanner limitation likely]** README lacking Schema JSON-LD per GEO report — GitHub sanitizes `<script>` tags in rendered READMEs, so this is likely infeasible the way it works on the docs site homepage, not a real gap.
-- **[declined, explicitly do-not-re-file]** Avenger chronic `driver_exit` (#53251) — systemic gap, watch only per standing guidance.
-
-## Flagged Items (2026-08-18, 12:26Z cycle)
-
-- **[new, filed]** `agenticworkflows logs` serves ~11-day-stale data by default (no date-range params) — reproduced live this cycle. Watch: does this get root-caused quickly given it affects every workflow's fleet-health checks.
-- **[new, filed]** copilot-session-data-fetch conversation-transcript bug still broken 11 days after PR #51195's claimed fix (issue #51113 closed `completed` 2026-08-07). Watch: this is a "fix that didn't fix it" — track whether the re-investigation actually identifies why the merged change had no effect.
-- **[new, filed]** `BoundedQueriesConfig.Timeout *int` vs `AWFBoundedQueriesConfig.Timeout int` drift (Typist #53651, Cluster 2) — real bug risk, quick fix.
-- **[new, filed]** `GitHubRateLimitDiff` duplicate-field-vs-embed (Typist #53651, Cluster 6) — quick fix.
-- **[new, filed]** Container/Image Security Pinning cluster merges at 53.4% (23pts below fleet average) — pre-filter upstream-blocked CVE findings + stale-WIP reaper (Prompt Clustering #53637).
-- **[new, filed]** PR comment/review fetch consistently empty in Copilot PR Conversation NLP Analysis, 284/284 PRs this week (#53641) — recurring across at least 2 tracked runs.
-- **[new, filed]** MCP server health/stats 4-way struct duplication — apply existing `AggregatedSummaryBase` pattern (Typist #53651, Cluster 7).
-- **[watch, not yet re-filed]** #53612 (compiler_safe_outputs_job.go re-decomposition, filed 06:23Z cycle) still has no assignee/PR ~6h later. If it stalls again next cycle, that's a 2nd consecutive failure to land this exact fix — worth escalating differently (e.g. direct assignment or a smaller-scoped sub-task) rather than re-filing verbatim a 3rd time.
-- **[verified in-progress]** #53613 (frontmatter version/include schema) → PR #53678 (WIP) open. #53615 (PR Sous Chef consolidation) → PR #53676 (WIP) open. Both assigned, neither merged yet.
-- **[verified fixed]** #53614 (3 docs quick-wins) → merged via PR #53655, closed within ~5h48m.
-- **[declined, environmental]** MCP Structural Analysis (#53673): `get_teams` blocked by sandbox permission gate — this is a sandbox/environment constraint, not a code bug to fix.
-- **[declined, expected]** "copilot was here" smoke test (#53667) blocked 6 Google auth domains via firewall — expected smoke-test noise, not a real security concern.
-- **[declined, already auto-filed]** API Consumption Report chart-rendering gap (#53645, Python/glibc/matplotlib incompatibility) — already auto-filed as #53646 (missing_tool), no duplicate needed.
-- **[declined, already auto-filed]** Copilot Session Insights missing_data for today's run — already auto-filed as #53622; the *root cause* (83-day streak, "fix" that didn't fix it) is the new issue filed this cycle, not a duplicate of the daily auto-filer.
-- **[chronic, fluctuating, not re-filed]** Unlabeled open issues: 5 this cycle (#53670, #53652, #53631, #53489, #53136), up from 3 two cycles ago but still resolving via normal triage — continuing to decline a dedicated labeling task.
+- 18:23Z: GEO scanner false-negatives (fixed same-day #53800), split oversized test files, consolidate 4 duplicate Smoke Copilot failures, non-Copilot init/example parity docs, pr-triage next-step, hidden-text/cloaking check, ai-credits blog verify-step. All 7 filed; #53612 3rd-attempt PR #53720 eventually merged.
+- 12:26Z: `agenticworkflows logs` 11-day-stale-data bug (fixed via #53719), copilot-session-transcript "fix that didn't fix it", 2 Typist quick fixes (BoundedQueriesConfig.Timeout drift, GitHubRateLimitDiff dedup), Container/CVE cluster pre-filter, NLP data-gap investigation, MCP health-struct dedup. 7 filed, 0 duplicates.
+- See git history of this file for full per-cycle text.
 
 ## Flagged Items (2026-08-18, 06:23Z cycle) — condensed
 

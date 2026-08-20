@@ -1,3 +1,16 @@
+## Trend Data (2026-08-20, ~05:45Z cycle)
+
+Window since 00:25Z baseline (#54107), 10 new discussions, all read in full.
+
+- **Issue activity**: 5 new issues filed (strict-mode default gap, redirect/frontmatter docs bundle, schema-diff extractor fix, docs-noob docs bundle, compiler_safe_outputs_job.go godoc gap) + 0 comments. 0 duplicates — most other candidate findings this cycle were already self-filed by their source workflows (Workflow Skill Extractor ×3, Sergo, ESLint Refiner, LintMonster, MCP-auth-test), confirmed via `gh api search/issues` dedup.
+- **Issue backlog** (issues-analyst): 217 open / 283 closed. Unlabeled: 2 (down sharply from 10 two cycles ago — confirms that was triage lag). 0 open >7 days.
+- **Live 30-run sample** (`start_date: -1d`): 26/30 success (86.7%), 4 failures (Daily VulnHunter Scan, AI Moderator, Daily Container Image Security Scan, Ponytail Reviewer) — no systemic pattern, none matched intentional-failure list.
+- **Firewall** (#54123, 24h): 2.07% block rate (362/17,483), still dominated by proxy.golang.org/Code Scanning Fixer (269 blocks) — already tracked, open #54063.
+- **Firewall Escape Test** (#54149): SECURE, 11/11 novel techniques blocked.
+- **Compiler quality** (#54126): avg 80/100, all 3 files above threshold (up from 77/100 avg 05:45Z 08-19 cycle) — first sign of the 08-19 filed doc/error-wrap gaps improving the score.
+
+Next cycle checks: (a) does the strict-mode CLI/MCP divergence get confirmed as a real bug or a false alarm, (b) do the 5 issues filed this cycle land at the usual fast pace, (c) does the unlabeled-issue count (2) stay low.
+
 ## Trend Data (2026-08-20, ~00:25Z cycle)
 
 Window since 17:50Z baseline (#53999@12:34:27Z carried forward), 11 new discussions, #54066 excluded as duplicate re-run.
@@ -55,18 +68,9 @@ Baseline was 2026-08-18T18:23:34Z (~5.5h gap, narrowed scope to 11 new discussio
 
 Next cycle checks: (a) do the 7 newly-filed issues get picked up at the usual fast pace, (b) does the CVE-prefilter fix start moving the trailing-window success rate up, (c) does #52253 get the 4 additional workflows linked, (d) first trend charts for detection-analysis/agent-job-health/observability now that baselines exist.
 
-## Trend Data (2026-08-18, 12:26Z cycle)
+## Trend Data (2026-08-18, 12:26Z cycle) — condensed
 
-Baseline was 2026-08-18T06:23Z (~6h gap, narrowed scope to 11 new discussions since baseline).
-
-- **Issue/comment activity this cycle**: 7 new issues filed (logs-tool stale-data bug, conversation-transcript "fix that didn't fix it", 2 Typist quick fixes, container/CVE pre-filter, NLP data-gap investigation, MCP health-struct dedup). 0 comments this cycle (no exact-match existing issue found for any candidate — all 7 were genuinely new).
-- **Live workflow-log sample**: `agenticworkflows logs --count 30` (no date filter) returned a **stale 2026-08-07 snapshot** (29/30 success, 1 failure from 12 days ago) — this is itself a live demonstration of the bug filed this cycle. Re-queried with explicit `start_date: -1d`: 15/15 success (100%) in the corrected current-data sample, engine mix copilot/pi/claude/codex/goose. Do **not** trust a bare `logs --count N` call without date params for fleet-health conclusions until the staleness bug is fixed — always pass an explicit `start_date` going forward.
-- **API Consumption Report snapshot** (discussion #53645, live data): 262 runs in 24h, 253 success / 9 failure = 96.6% success rate — consistent with the corrected 100% mini-sample above (different window sizes, no contradiction). 216,698 REST API calls/day. PR Sous Chef dominates consumption (~18%, 39,813 calls/43 runs).
-- **Prompt clustering fleet snapshot** (discussion #53637, 18-day/988-task window): 76.8% overall Copilot-agent PR merge rate; Container/Image Security Pinning cluster is a confirmed outlier at 53.4%.
-- **Issue backlog** (issues-analyst full pass, 500-issue/7-day window): 133 open / 367 closed. Top labels: agentic-workflows (226), automation (174), cookie (141), code-quality (50), bug (42). Unlabeled backlog: 5 (up from 3 two cycles ago, still resolving organically). 0 issues open > 7 days.
-- **Turnaround-time check** (from 06:23Z cycle's 4 filings): 1 of 4 fully merged within ~5h48m (#53614), 2 of 4 in-progress with open WIP PRs (#53613, #53615), 1 of 4 still unassigned after ~6h (#53612 — 2nd attempt at the same fix, first attempt auto-expired unfixed).
-
-Next cycle checks: (a) is the `logs`-tool stale-data bug root-caused, (b) does the conversation-transcript "fix that didn't fix it" issue get a real diagnosis this time, (c) do the 2 in-progress WIP PRs (#53678, #53676) land, (d) does #53612 finally get picked up or stall a 2nd time, (e) do the 2 quick Typist fixes and container/CVE pre-filter land on the usual fast turnaround.
+7 issues filed (logs-tool stale-data bug, transcript "fix that didn't fix it", 2 Typist fixes, container/CVE pre-filter, NLP data-gap, MCP health-struct dedup). Issue backlog 133 open/367 closed, 5 unlabeled. See git history for full text.
 
 ## Trend Data (2026-08-18, 06:23Z cycle) — condensed
 

@@ -1,3 +1,14 @@
+## Extracted code-quality tasks (2026-08-20 ~05:45Z cycle)
+
+5 filed, 0 comments, window since 00:25Z baseline #54107 (10 new discussions):
+1. Audit strict-mode default in CLI compile path vs schema/docs/MCP tool — discussion #54161. Filed.
+2. Docs: redirect: clarification + 3 missing frontmatter fields — discussion #54161. Filed.
+3. Fix schema-diff key extractor false positives — discussion #54161. Filed.
+4. Docs: Quick Start lock.yml example + CLI Commands add-wizard/add/new disambiguation — discussion #54139. Filed.
+5. Add 9 missing godoc comments to compiler_safe_outputs_job.go — discussion #54126. Filed.
+
+Not filed (already self-filed by source workflow, confirmed via dedup search): Workflow Skill Extractor's 3 shared-component proposals (#54137→#54133/#54135/#54136); Sergo's errormessage finding (#54143→#54142); ESLint Refiner's 2 findings (#54164); LintMonster's param-count finding (#54128); MCP toolset unavailability (#54165→#54166, same-day). Also declined: Firewall proxy.golang.org volume (already #54063); Firewall Escape Test / Compiler Quality (both healthy, no action).
+
 ## Extracted code-quality tasks (2026-08-20 ~00:25Z cycle)
 
 2 filed, 3 comments, window since 17:50Z (11 new discussions, #54066 excluded as duplicate re-run):
