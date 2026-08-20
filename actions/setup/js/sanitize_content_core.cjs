@@ -560,6 +560,12 @@ function createRenderSafeCodeSpanWrapper(s) {
   while (usedDelimiterLengths.has(delimiterLength)) {
     delimiterLength++;
   }
+  // Do not let an attacker inflate every replacement by supplying progressively
+  // longer backtick runs. HTML code elements provide the same inert rendering
+  // without a delimiter whose length depends on the input.
+  if (delimiterLength > 16) {
+    return text => `<code>${text.replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character])}</code>`;
+  }
   const delimiter = "`".repeat(delimiterLength);
   return (text, before = "", after = "") => {
     const leadingSeparator = before.endsWith("`") ? " " : "";
@@ -1631,6 +1637,7 @@ module.exports = {
   sanitizeUrlDomains,
   applyURLSanitizationPolicy,
   createRenderSafeCodeSpanWrapper,
+  getFencedCodeRanges,
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,
