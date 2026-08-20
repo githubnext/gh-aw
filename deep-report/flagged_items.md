@@ -1,3 +1,17 @@
+## Flagged Items (2026-08-20, ~12:30Z cycle, window since 05:45Z, 9 new discussions excl. own prior briefing #54183)
+
+- **[new, filed]** `Footer` field duplicated across 11 safe-output config structs, never added to existing `BaseSafeOutputConfig` (#54213 Typist Cluster 2).
+- **[new, filed, re-file]** `GitHubMCPDockerOptions`/`GitHubMCPRemoteOptions` still share 8 fields verbatim — prior closure #51076 didn't stick (#54213 Cluster 5).
+- **[new, filed]** 9 security-scanner integrations (zizmor/poutine/grype/runner-guard/yamllint/grant/audit-report/markdown-scanner/validation-issue) each reinvent Finding/severity shape, no shared type (#54213 Cluster 1).
+- **[new, filed]** `AgentMetadataInfo` duplicates 7 fields already in `LockMetadata`, same file (#54213 Cluster 7).
+- **[new, filed]** `CloseOlderKey`/`CloseOlder*` duplicated across 3 entity configs — distinct scope from closed #53500/#50938/#47868 (handler-level, not struct-field-level) (#54213 Cluster 4).
+- **[new, filed, re-file]** `get_teams` MCP tool blocked by permission gap 2nd consecutive day — prior closure #51032 (2026-08-08) didn't stick (#54223).
+- **[new, filed]** 82% of lowest-merge PR cluster (51.4% vs 77.2%) is a 1-commit/0-diff abandonment fingerprint, partly from recurring duplicate backlog asks (`llms.txt` ×4) — filed a staleness-screening task (#54207).
+- **[declined, already tracked]** `TargetRepoSlug`/`AllowedRepos` duplication (#54213 Cluster 3) — already open #53836/#53839, not re-filed.
+- **[declined, already tracked]** Copilot Session Insights 43-day-stale transcript gap (#54190) — already open #53684, not re-filed.
+- **[declined, healthy]** Terminal Stylist (#54198) explicitly concludes no code changes needed — console/styling system fully compliant.
+- **[declined, informational only]** arXiv research digest (#54196, meta-agent orchestration ideas), Daily Status (#54199), Constraint Solving POTD (#54212), NLP sentiment analysis (#54208 — no conversation data this period, PR-description-only) — no code-level action, nothing new to file.
+
 ## Flagged Items (2026-08-20, ~05:45Z cycle, window since 00:25Z, 10 new discussions)
 
 - **[new, filed]** `strict:` mode default may diverge between CLI compile path (`compile_compiler_setup.go`) and schema/docs/MCP tool (both promise `true`) — follow-on to closed #49893/#49482 (#54161 Schema Consistency Checker).

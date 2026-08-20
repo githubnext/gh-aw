@@ -1,3 +1,14 @@
+## Extracted code-quality tasks (2026-08-20 ~12:30Z cycle)
+
+7 filed, 0 comments, window since 05:45Z baseline #54183 (9 new discussions):
+1. Extend BaseSafeOutputConfig for duplicated Footer field (11 structs) — discussion #54213. Filed.
+2. Re-file GitHubMCPDockerOptions/GitHubMCPRemoteOptions 8-field duplication (prior #51076 didn't stick) — discussion #54213. Filed.
+3. Shared Finding/SeverityLevel type across 9 security-scanner integrations — discussion #54213. Filed.
+4. Embed AgentMetadataInfo in LockMetadata (7 duplicated fields) — discussion #54213. Filed.
+5. Unify CloseOlderKey/CloseOlder* into CloseOlderConfig embed — discussion #54213. Filed.
+6. Re-file get_teams MCP permission gap (prior #51032 didn't stick) — discussion #54223. Filed.
+7. Staleness/dup screening before auto-queuing agent backlog tasks — discussion #54207. Filed.
+
 ## Extracted code-quality tasks (2026-08-20 ~05:45Z cycle)
 
 5 filed, 0 comments, window since 00:25Z baseline #54107 (10 new discussions):

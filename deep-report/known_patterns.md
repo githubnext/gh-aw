@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-20, ~12:30Z cycle)
+
+### Reconfirmed: "closed" duplication/permission fixes can regress or never have landed — always verify against the live tree, not the issue tracker
+Two of this cycle's 5 Typist-sourced findings are exact re-occurrences of previously "closed" issues: #51076 (GitHubMCPDockerOptions/GitHubMCPRemoteOptions consolidation) and #51032 (get_teams permission gating, closed 2026-08-08, symptom recurring per today's #54223 "2nd consecutive day"). Both were verified live via direct code/report inspection before re-filing, not assumed from the tracker. **Lesson: this is now a repeat pattern (3rd+ time this memory has recorded it) — for any Typist/type-consistency finding, always grep the live code before trusting a closed issue's title as evidence the gap is gone.**
+
+### New pattern: a scanner's own root-cause section can point to a *process* fix, not just a code fix
+Prompt Clustering Analysis (#54207) traced 82% of its lowest-merge PR cluster to a single mechanical fingerprint (1 commit/0 files/0 comments) and explicitly recommended a pre-assignment staleness/dedup screen for auto-generated backlog tasks — directly relevant to DeepReport's own dedup-gate discipline, since duplicate `llms.txt` requests recurred 4 times (#51616/#52115/#53158/#53760) before being queued as agent work. **Lesson: when a report's root-cause section names a concrete process gap (not just a code bug), it's still filing material — don't restrict "actionable tasks" to code diffs only.**
+
 ## DeepReport Memory (2026-08-20, ~05:45Z cycle)
 
 ### Reconfirmed: audit/quality workflows now self-file the large majority of their own findings — DeepReport's marginal value is in the dedup check + the few gaps they miss
