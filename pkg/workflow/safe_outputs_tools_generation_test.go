@@ -509,6 +509,26 @@ func TestComputeRequiredFieldAdditionsDisabledByDefault(t *testing.T) {
 	assert.Empty(t, additions)
 }
 
+func TestComputeRequiredFieldAdditionsSubmitPRReviewEventRequiredWhenCommentDisallowed(t *testing.T) {
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"APPROVE"},
+		},
+	})
+
+	assert.Equal(t, []string{"event"}, additions["submit_pull_request_review"])
+}
+
+func TestComputeRequiredFieldAdditionsSubmitPRReviewEventOptionalWhenCommentAllowed(t *testing.T) {
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"COMMENT", "REQUEST_CHANGES"},
+		},
+	})
+
+	assert.NotContains(t, additions, "submit_pull_request_review")
+}
+
 func TestComputeRequiredFieldAdditionsIssueIntentDefaultDisabled(t *testing.T) {
 	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
 		CloseIssues:   &CloseIssuesConfig{},

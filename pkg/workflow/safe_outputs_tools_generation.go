@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -277,6 +278,11 @@ func computeRequiredFieldAdditions(safeOutputs *SafeOutputsConfig) map[string][]
 	}
 	if safeOutputs.AssignToAgent != nil && issueIntentRequired(safeOutputs.AssignToAgent.IssueIntent) {
 		additions["assign_to_agent"] = issueIntentRequiredFields
+	}
+	if safeOutputs.SubmitPullRequestReview != nil && len(safeOutputs.SubmitPullRequestReview.AllowedEvents) > 0 {
+		if !slices.Contains(safeOutputs.SubmitPullRequestReview.AllowedEvents, "COMMENT") {
+			additions["submit_pull_request_review"] = []string{"event"}
+		}
 	}
 	return additions
 }
