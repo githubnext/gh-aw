@@ -338,6 +338,18 @@ Red flags (mark **suspicious** when present):
 
 **Goroutine-leak guards**: `TestMain` with `goleak.VerifyTestMain(m)` enforces that no goroutines are leaked after each test run. Classify each such entry as `behavioral_contract`, `high_value`, `design_test` — this is a package-level design invariant that protects all future tests. Do not penalize its absence of traditional assertions. If `go-goleak-entries.txt` is non-empty, note it as a positive quality signal in the report.
 
+### Act-vs-noop rubric
+
+Decide whether there is a reviewable signal before drafting a report. Do not use `noop` to avoid reporting a concrete red flag, and do not manufacture a finding merely because a test changed.
+
+| Evidence after the scoped review | Required outcome |
+|---|---|
+| Pre-fetch unavailable, no changed test files, or only unsupported-language tests | Call `noop` immediately with the specific scope reason; do not post a report. |
+| Recognized test files changed but no behavioral test case changed and no hard violation exists | Call `noop` with the specific scope reason; do not post a report. |
+| A hard violation exists, or the implementation-test ratio exceeds 30% | Act: include each concrete file, test, and evidence in the report, then request changes. |
+| A red flag exists but does not meet the failure threshold | Act: flag only the evidenced test in the report; do not escalate a speculative concern. |
+| Behavioral tests were reviewed and no red flags or violations exist | Act: report the clean result and approve; a clean review is not a reason to invent a finding. |
+
 Scope for this step:
 - Analyze only new/changed Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`) tests; note other languages without scoring.
 - Treat Go mocking with `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` as a hard violation.
