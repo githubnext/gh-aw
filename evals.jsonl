@@ -22,3 +22,5 @@
 {"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"YES","model":"evals","timestamp":"2026-08-19T03:34:04.593Z","runid":"32212100001"}
 {"id":"spellcheck_completed","question":"Did the agent run American English spellcheck on AstroStyleLite docs content?","answer":"YES","model":"evals","timestamp":"2026-08-20T03:33:33.408Z","runid":"32328181340"}
 {"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"YES","model":"evals","timestamp":"2026-08-20T03:33:33.408Z","runid":"32328181340"}
+{"id":"spellcheck_completed","question":"Did the agent run American English spellcheck on AstroStyleLite docs content?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-21T03:32:51.441Z","runid":"32443500200"}
+{"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-21T03:32:51.441Z","runid":"32443500200"}
