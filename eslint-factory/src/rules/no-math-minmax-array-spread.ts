@@ -21,7 +21,7 @@ export const noMathMinMaxArraySpreadRule = createRule({
     schema: [],
     messages: {
       noMathMinMaxArraySpread:
-        "Avoid Math.{{method}}(...{{arg}}) — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `{{arg}}.reduce((a, b) => Math.{{method}}(a, b), {{identity}})` instead — the `{{identity}}` initializer preserves the same result as `Math.{{method}}(...{{arg}})` on an empty array.",
+        "Avoid {{invocation}} — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `{{arg}}.reduce((a, b) => Math.{{method}}(a, b), {{identity}})` instead — the `{{identity}}` initializer preserves the same result as `{{invocation}}` on an empty array.",
     },
   },
   defaultOptions: [],
@@ -75,19 +75,30 @@ export const noMathMinMaxArraySpreadRule = createRule({
         if (!method) return;
         if (hasLocalBinding(node, "Math")) return;
 
-        // Only the single-argument spread form is reported: fixed arguments such as
-        // `Math.max(0, ...arr)` suggest an intentional, likely bounded call shape.
-        if (node.arguments.length !== 1) return;
+        // Fixed extra arguments (e.g. `Math.max(0, ...arr)`) are clamp/floor values, not a
+        // size bound on the spread array — they don't change the crash risk, so every
+        // spread argument is checked regardless of how many fixed arguments accompany it.
+        const fixedArgsText = node.arguments.filter(argument => argument.type !== AST_NODE_TYPES.SpreadElement).map(argument => sourceCode.getText(argument));
 
-        const argument = node.arguments[0];
-        if (argument.type !== AST_NODE_TYPES.SpreadElement) return;
-        if (!isUnboundedSpreadArgument(argument.argument)) return;
+        // The reduce initializer must preserve the result of calling Math.min/max with the
+        // fixed arguments (and no spread elements at all), so fold them into the seed:
+        // no fixed args keeps the identity value, one fixed arg is used as-is, and multiple
+        // fixed args are folded together with the same method first.
+        const seed = fixedArgsText.length === 0 ? IDENTITY_VALUE[method] : fixedArgsText.length === 1 ? fixedArgsText[0] : `Math.${method}(${fixedArgsText.join(", ")})`;
 
-        context.report({
-          node,
-          messageId: "noMathMinMaxArraySpread",
-          data: { method, arg: sourceCode.getText(argument.argument), identity: IDENTITY_VALUE[method] },
-        });
+        for (const argument of node.arguments) {
+          if (argument.type !== AST_NODE_TYPES.SpreadElement) continue;
+          if (!isUnboundedSpreadArgument(argument.argument)) continue;
+
+          const argText = sourceCode.getText(argument.argument);
+          const invocation = fixedArgsText.length === 0 ? `Math.${method}(...${argText})` : `Math.${method}(${fixedArgsText.join(", ")}, ...${argText})`;
+
+          context.report({
+            node,
+            messageId: "noMathMinMaxArraySpread",
+            data: { method, arg: argText, identity: seed, invocation },
+          });
+        }
       },
     };
   },
