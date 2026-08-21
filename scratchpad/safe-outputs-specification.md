@@ -158,6 +158,7 @@ This subsection clarifies how the Requirements Notation (§2.2) is applied consi
 - When a requirement uses "SHOULD" or "RECOMMENDED", implementations that deviate MUST document the deviation and its rationale (for example in release notes or an architecture decision record).
 - Conflicting requirements MUST NOT appear for the same conformance class; if a later section appears to narrow an earlier "MUST", the later section is normative and the earlier section MUST be read as superseded.
 - Requirements scoped to a specific conformance class (§2.1) apply only to implementations claiming that class or higher; a Standard Conforming Implementation MUST also satisfy all Basic Conformance requirements.
+- Changes to the Layer 3 and Layer 4 requirements MUST be reviewed using the implementation mappings in [Sync Notes](#sync-notes).
 
 ---
 
@@ -1263,6 +1264,24 @@ The system does NOT protect against:
 - **[SAFE-OUTPUT-MESSAGES]** "Safe Output Messages Design System". ../safe-output-messages.md
 
 - **[SAFE-OUTPUT-ENV]** "Safe Output Environment Variables Reference". ../safe-output-environment-variables.md
+
+---
+
+## Sync Notes
+
+| Specification area | Implementation mapping |
+|---|---|
+| §3.4 Layer 3 validation guardrails | `pkg/workflow/safe_outputs_validation.go`, `pkg/workflow/safe_outputs_validation_config.go` |
+| §3.5 Layer 4 execution handlers | `pkg/workflow/safe_output_handlers.go`, `pkg/workflow/safe_outputs_actions.go` |
+| §2.4 Norms | Review the Layer 3 and Layer 4 mappings above whenever a normative requirement changes. |
+
+## Sync Follow-ups
+
+When changing Layer 3 or Layer 4 behavior:
+
+1. Verify the mapped `pkg/workflow/` implementation and its focused tests reflect the updated requirement.
+2. Update this specification's conformance requirements when the implementation changes behavior.
+3. Record any intentional implementation deviation and its rationale as required by §2.4.
 
 ---
 

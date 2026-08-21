@@ -24,6 +24,7 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 | T-DR-008 | §7.5.1 — corrective PR embeds records | The corrective PR description MUST embed the full `DriftRecord` list as JSON. | `pkg/workflow/awf_config_drift_test.go` |
 | T-DR-009 | §7.5.1 — empty list is valid | An empty `DriftRecord` list (no drift detected) is a valid output and MUST NOT trigger corrective PR or escalation actions. | `pkg/workflow/awf_config_drift_test.go` |
 | T-DR-010 | §7.2 Step 5 integration | The drift detection procedure Step 5 MUST produce a list of zero or more `DriftRecord` objects; the output format MUST be a JSON array conforming to the §3.1 schema. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-011 | §6 CR-06a — escalation-owner acknowledgement | Escalations select a non-empty owner using the documented fallback and require acknowledgement within one business day. | `pkg/workflow/awf_config_safeguards_formal_test.go` |
 
 ---
 
@@ -55,7 +56,7 @@ Conformance tests that validate `DriftRecord` schema compliance are implemented 
 
 ```
 pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation and usage (T-DR-001 through T-DR-010; T-DR-005: TestDriftRecord_TDR005_NoAdditionalProperties)
-pkg/workflow/awf_config_safeguards_formal_test.go — unavailable-source safeguards (T-DR-SAFE-001 through T-DR-SAFE-004)
+pkg/workflow/awf_config_safeguards_formal_test.go — unavailable-source safeguards (T-DR-SAFE-001 through T-DR-SAFE-004) and CR-06a escalation-owner acknowledgement (T-DR-011)
 ```
 
 To run related tests:
