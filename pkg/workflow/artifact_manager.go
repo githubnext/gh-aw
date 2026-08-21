@@ -83,7 +83,7 @@ func (am *ArtifactManager) AnalyzeJobs(jobs map[string]*Job) error {
 					return err
 				}
 			case strings.HasPrefix(action, "actions/download-artifact@"):
-				am.recordDownloadStep(job, step.With)
+				am.recordDownloadStep(jobName, job, step.With)
 			}
 		}
 	}
@@ -115,7 +115,7 @@ func (am *ArtifactManager) recordUploadStep(jobName string, with map[string]any)
 	return nil
 }
 
-func (am *ArtifactManager) recordDownloadStep(job *Job, with map[string]any) {
+func (am *ArtifactManager) recordDownloadStep(jobName string, job *Job, with map[string]any) {
 	name := artifactInputString(with, "name")
 	pattern := artifactInputString(with, "pattern")
 	if name == "" && pattern == "" {
@@ -126,12 +126,12 @@ func (am *ArtifactManager) recordDownloadStep(job *Job, with map[string]any) {
 		downloadPath = "${{ github.workspace }}"
 	}
 
-	am.downloads[job.Name] = append(am.downloads[job.Name], &ArtifactDownload{
+	am.downloads[jobName] = append(am.downloads[jobName], &ArtifactDownload{
 		Name:          name,
 		Pattern:       pattern,
 		Path:          downloadPath,
 		MergeMultiple: artifactInputString(with, "merge-multiple") == "true",
-		JobName:       job.Name,
+		JobName:       jobName,
 		DependsOn:     append([]string(nil), job.Needs...),
 	})
 }
