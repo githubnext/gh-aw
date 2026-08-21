@@ -299,6 +299,7 @@ Shared workflow files (without `on:` field) can define the fields below. Other f
 | `network` | Network permission specifications |
 | `permissions` | GitHub Actions permissions (validated, not merged) |
 | `runtimes` | Runtime version overrides (node, python, go, etc.) |
+| `plugins` | Agent Plugin references |
 | `secret-masking` | Secret masking steps |
 | `env` | Workflow-level environment variables |
 | `pre-agent-steps` | Steps that run after artifacts download, before engine execution |
@@ -319,6 +320,7 @@ Imports are processed using breadth-first traversal: direct imports first, then 
 | `permissions:` | Validation only — not merged. Main must declare all imported permissions at sufficient levels (`write` ≥ `read` ≥ `none`). |
 | `safe-outputs:` | Each type defined once; main overrides imports. Duplicate types across imports fail. |
 | `runtimes:` | Main overrides imports; imported values fill in unspecified fields. |
+| `plugins:` | Union by plugin path. Identical refs are deduplicated; compatible semantic versions select the highest version. Incompatible major versions or conflicting non-semver refs fail. |
 | `services:` | All services merged; duplicate names fail compilation. |
 | `github-app:` | Main workflow's `github-app` takes precedence; first imported value fills in if main does not define one. |
 | `checkout:` | Imported checkout entries are appended after the main workflow's entries. For duplicate (repository, path) pairs, the main workflow's entry takes precedence: first-seen wins for `ref`, and auth is mutually exclusive — once `github-token` or `github-app` is set by the main workflow, an imported duplicate cannot add the other auth method. `checkout: false` in the main workflow disables all checkout including imported entries. |

@@ -158,6 +158,15 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	}
 	c.emitGeneralToolWarnings(workflowData, markdownPath)
 	c.resolveFrontmatterSkillRefs(workflowData, markdownPath)
+	if err := c.validatePlugins(workflowData); err != nil {
+		return err
+	}
+	if err := c.validatePluginSupport(workflowData); err != nil {
+		return err
+	}
+	if err := c.resolveFrontmatterPluginRefs(workflowData); err != nil {
+		return err
+	}
 	if err := c.validateThreatDetectionSandboxRequirement(workflowData, markdownPath); err != nil {
 		return err
 	}
@@ -366,6 +375,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ReplaceLabel != nil, message: "Using experimental feature: replace-label"},
 		{enabled: detectionConfigured && isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 		{enabled: len(workflowData.LSP) > 0, message: "Using experimental feature: lsp"},
+		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.PreCreate, message: "Using experimental feature: create-pull-request pre-create"},
 	}
 	for _, warning := range warnings {

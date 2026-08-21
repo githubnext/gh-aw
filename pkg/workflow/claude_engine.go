@@ -40,6 +40,7 @@ func NewClaudeEngine() *ClaudeEngine {
 				NativeAgentFile:      false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 				BareMode:             true,  // Claude CLI supports --bare
 				BashCommandAllowlist: true,  // Claude enforces tools.bash allowlist via --allowed-tools Bash(cmd)
+				Plugins:              true,  // Claude Code loads Agent Plugins via --plugin-dir
 			},
 			dedicatedLLMGatewayPort: constants.ClaudeLLMGatewayPort,
 		},
@@ -145,6 +146,13 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		))
 	}
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+}
+
+// GetPluginInstallationSteps checks out pinned Agent Plugins for the Claude engine.
+// Claude Code loads plugin directories through the --plugin-dir flag added by
+// appendClaudePluginArgs, so no CLI installation command is required.
+func (e *ClaudeEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{})
 }
 
 // GetDeclaredOutputFiles returns the output files that Claude may produce
@@ -259,9 +267,21 @@ func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithM
 		claudeArgs = append(claudeArgs, "--bare")
 	}
 
+	claudeArgs = appendClaudePluginArgs(claudeArgs, workflowData)
+
 	claudeArgs = appendClaudeCustomEngineArgs(claudeArgs, permissionModeValueIndex, workflowData)
 
 	return claudeArgs, mcpConfigArg, allowedTools
+}
+
+// appendClaudePluginArgs adds one --plugin-dir flag per checked-out Agent Plugin so the
+// Claude CLI loads the plugin directory without an interactive marketplace install.
+func appendClaudePluginArgs(claudeArgs []string, workflowData *WorkflowData) []string {
+	for _, pluginPath := range pluginLocalPaths(workflowData) {
+		claudeLog.Printf("Adding plugin directory: %s", pluginPath)
+		claudeArgs = append(claudeArgs, "--plugin-dir", "./"+pluginPath)
+	}
+	return claudeArgs
 }
 
 // resolveClaudePermissionMode returns the --permission-mode value to use, applying any

@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .
-          key: checkout-cjs-${{ github.sha }}
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
 
   js-typecheck:
     needs: [checkout-cache]
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .
-          key: checkout-cjs-${{ github.sha }}
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           fail-on-cache-miss: true
       - name: Set up Node.js
         id: setup-node
@@ -102,7 +102,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .
-          key: checkout-cjs-${{ github.sha }}
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           fail-on-cache-miss: true
       - name: Set up Node.js
         id: setup-node
@@ -142,7 +142,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .
-          key: checkout-cjs-${{ github.sha }}
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           fail-on-cache-miss: true
       - name: Set up Node.js
         id: setup-node
@@ -168,7 +168,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .
-          key: checkout-cjs-${{ github.sha }}
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Set up Node.js
@@ -215,7 +215,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .
-          key: checkout-cjs-${{ github.sha }}
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           fail-on-cache-miss: true
       - name: Set up Node.js
         id: setup-node
@@ -237,3 +237,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cd actions/setup/js && npm run test:js-integration-artifact
+
+  cleanup-cache:
+    name: Cleanup checkout cache
+    needs:
+      - checkout-cache
+      - js-typecheck
+      - js-tests
+      - impacted-js-tests
+      - lint-js
+      - artifact-integration
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Delete checkout cache
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CACHE_KEY: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+        run: |
+          cache_id=$(gh cache list --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
+          if [ -n "$cache_id" ]; then
+            gh cache delete "$cache_id"
+          fi

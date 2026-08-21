@@ -55,6 +55,7 @@ type WorkflowData struct {
 	ImportedFiles                  []string         // list of files imported via imports field (rendered as comment in lock file)
 	Skills                         []string         // skill specs from frontmatter (owner/repo@sha or owner/repo/skill/path@sha)
 	SkillReferences                []SkillReference
+	Plugins                        []string
 	ImportedMarkdown               string   // Only imports WITH inputs (for compile-time substitution)
 	ImportPaths                    []string // Import file paths for runtime-import macro generation (imports without inputs)
 	PromptImports                  []parser.PromptImportEntry

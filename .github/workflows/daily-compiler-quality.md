@@ -135,15 +135,29 @@ Analyze a rotating subset of compiler files daily using Serena's semantic analys
 Focus on Go compiler files in `pkg/workflow/` directory:
 
 ```bash
-pkg/workflow/compiler.go
-pkg/workflow/compiler_activation_jobs.go
-pkg/workflow/compiler_orchestrator.go
-pkg/workflow/compiler_jobs.go
-pkg/workflow/compiler_safe_outputs.go
-pkg/workflow/compiler_safe_outputs_config.go
-pkg/workflow/compiler_safe_outputs_job.go
-pkg/workflow/compiler_yaml.go
-pkg/workflow/compiler_yaml_main_job.go
+TARGET_FILES=(
+  pkg/workflow/compiler.go
+  pkg/workflow/compiler_activation_job.go
+  pkg/workflow/compiler_orchestrator_engine.go
+  pkg/workflow/compiler_orchestrator_frontmatter.go
+  pkg/workflow/compiler_orchestrator_tools.go
+  pkg/workflow/compiler_orchestrator_workflow.go
+  pkg/workflow/compiler_jobs.go
+  pkg/workflow/compiler_safe_outputs.go
+  pkg/workflow/compiler_safe_outputs_job.go
+  pkg/workflow/compiler_safe_output_jobs.go
+  pkg/workflow/compiler_safe_outputs_builder.go
+  pkg/workflow/safe_outputs_config_generation.go
+  pkg/workflow/compiler_yaml.go
+  pkg/workflow/compiler_yaml_main_job.go
+)
+
+for file in "${TARGET_FILES[@]}"; do
+  if [ ! -f "$file" ]; then
+    printf 'Configured compiler quality target is missing: %s\n' "$file" >&2
+    exit 1
+  fi
+done
 ```
 
 **Daily rotation strategy**: Analyze 2-3 files per day to provide thorough analysis while respecting time limits.
@@ -190,22 +204,24 @@ Organize analysis state in `/tmp/gh-aw/cache-memory/`:
 
 ### Determine Which Files to Analyze
 
-1. **Get current git hashes** for all compiler files:
+1. **Run the scope preflight** shown above before loading cached hashes. If a target is missing, stop the run and report the configuration error rather than substituting a different file.
+
+2. **Get current git hashes** for all compiler files:
    ```bash
    git log -1 --format=%H -- pkg/workflow/compiler.go
    ```
 
-2. **Compare with cached hashes** from `file-hashes.json`:
+3. **Compare with cached hashes** from `file-hashes.json`:
    - If file hash changed: Mark for priority analysis
    - If file never analyzed: Mark for priority analysis
    - If file unchanged: Check rotation schedule
 
-3. **Select 2-3 files** using this priority:
+4. **Select 2-3 files** using this priority:
    - **Priority 1**: Files with changes since last analysis
    - **Priority 2**: Files never analyzed
    - **Priority 3**: Next files in rotation schedule
 
-4. **Update rotation state** in `rotation.json`
+5. **Update rotation state** in `rotation.json`
 
 ## Phase 2: Analyze Code Quality with Serena
 

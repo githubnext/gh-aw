@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -179,7 +180,7 @@ func TestNewGHAWManifest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect, tt.skillSpecs, tt.onField)
+			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect, tt.skillSpecs, nil, tt.onField)
 			require.NotNil(t, m, "manifest should not be nil")
 			assert.Equal(t, tt.wantVersion, m.Version, "manifest version")
 			if tt.wantSecrets != nil {
@@ -242,7 +243,7 @@ func TestNewGHAWManifestContainerDigest(t *testing.T) {
 			Image: "alpine:3.14", // no digest
 		},
 	}
-	m := NewGHAWManifest(nil, nil, nil, containers, "", nil, nil)
+	m := NewGHAWManifest(nil, nil, nil, containers, "", nil, nil, nil)
 	require.Len(t, m.Containers, 2, "should have two containers")
 
 	// Sorted: alpine before node
@@ -452,4 +453,23 @@ func TestParseActionRefs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewGHAWManifestPlugins(t *testing.T) {
+	m := NewGHAWManifest(nil, nil, nil, nil, "", nil, []string{
+		"octo-org/agent-plugin@" + strings.Repeat("a", 40),
+		"octo-org/agent-plugin@" + strings.Repeat("a", 40), // duplicate, deduplicated
+		"octo-org/other-plugin@" + strings.Repeat("b", 40),
+	}, nil)
+	require.NotNil(t, m, "manifest should not be nil")
+	assert.Equal(t, []string{
+		"octo-org/agent-plugin@" + strings.Repeat("a", 40),
+		"octo-org/other-plugin@" + strings.Repeat("b", 40),
+	}, m.Plugins, "manifest plugins should be deduplicated and sorted")
+}
+
+func TestNewGHAWManifestPluginsEmpty(t *testing.T) {
+	m := NewGHAWManifest(nil, nil, nil, nil, "", nil, nil, nil)
+	require.NotNil(t, m, "manifest should not be nil")
+	assert.Nil(t, m.Plugins, "manifest plugins should be nil when no plugins are provided")
 }

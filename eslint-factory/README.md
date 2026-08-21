@@ -964,3 +964,41 @@ while (true) {
   page++;
 }
 ```
+
+### `require-http-response-error-listener`
+
+Require the response object passed to `http.request()` / `http.get()` / `https.request()` / `https.get()` callbacks to register an `'error'` event listener.
+
+Why: Node emits `'error'` on the `IncomingMessage` (the response) — not on the request — for socket-level failures that occur while the body is streamed, such as reset connections, decompression failures, or aborted sockets. A `req.on("error", ...)` listener does not catch those, so the unhandled response `'error'` event becomes an uncaught exception that crashes the action.
+
+**Flagged form:**
+```js
+const http = require("http");
+const req = http.request(options, res => {
+  let data = "";
+  res.on("data", chunk => {
+    data += chunk;
+  });
+  res.on("end", () => resolve(data));
+});
+req.on("error", reject);
+```
+
+**Safe alternative:**
+```js
+const http = require("http");
+const req = http.request(options, res => {
+  let data = "";
+  res.on("data", chunk => {
+    data += chunk;
+  });
+  res.on("end", () => resolve(data));
+  res.on("error", reject);
+});
+req.on("error", reject);
+```
+
+**Out of scope:**
+- `http`/`https` identifiers that are not statically bound through `require("http")` / `require("https")` / `require("node:http")` / `require("node:https")`, including bindings created by a locally shadowed `require` or reassigned after initialization
+- Request calls without a response callback, or callbacks whose response parameter is destructured
+- `fetch`-based HTTP calls (covered by `require-fetch-try-catch` and `require-fetch-timeout`) and non-standard HTTP client libraries

@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"path"
 	"regexp"
 	"strings"
 
@@ -65,6 +66,7 @@ func NewCodexEngine() *CodexEngine {
 				WebSearch:        true,  // Codex has built-in web-search support
 				NativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 				BashDisable:      true,  // Codex can fully refuse shell execution via `-c features.shell_tool=false`, though it cannot enforce a per-command allowlist
+				Plugins:          true,  // Codex CLI loads Agent Plugins through a generated local marketplace and "codex plugin add"
 			},
 			dedicatedLLMGatewayPort: constants.CodexLLMGatewayPort,
 		},
@@ -178,6 +180,43 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	}
 
 	return steps
+}
+
+// codexPluginMarketplaceName returns the deterministic local marketplace name Codex
+// registers the index-th checked-out Agent Plugin under. It only uses characters Codex's
+// plugin/marketplace name validation accepts ([A-Za-z0-9_-]+).
+func codexPluginMarketplaceName(index int) string {
+	return fmt.Sprintf("gh-aw-plugin-%d", index)
+}
+
+// GetPluginInstallationSteps checks out pinned Agent Plugins and registers each one as a
+// single-plugin local Codex marketplace, since the Codex CLI only installs plugins through
+// "codex plugin add <name>@<marketplace>" and has no flag to load a bare plugin directory.
+// For each checked-out plugin this writes a ".agents/plugins/marketplace.json" manifest
+// inside the checkout that points back at the plugin's own directory, reads the plugin's
+// declared name from its "plugin.json" manifest, then runs "codex plugin marketplace add"
+// followed by "codex plugin add".
+func (e *CodexEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	commandName := e.codexCommandName(workflowData)
+	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{
+		CustomInstall: func(parsed parsedSkillRefSpec, checkoutPath, installPath string, index int) []GitHubActionStep {
+			marketplaceName := codexPluginMarketplaceName(index)
+			pluginSubpath := pluginRepoSubpath(parsed)
+			manifestPath := path.Join(checkoutPath, pluginSubpath, "plugin.json")
+			marketplaceDir := path.Join(checkoutPath, ".agents/plugins")
+			marketplaceManifestPath := path.Join(marketplaceDir, "marketplace.json")
+			installCommand := strings.Join([]string{
+				fmt.Sprintf("PLUGIN_NAME=$(jq -r %s %q)", `'.name // empty'`, manifestPath),
+				fmt.Sprintf(`if [ -z "$PLUGIN_NAME" ]; then echo %s; exit 1; fi`, shellEscapeArg(fmt.Sprintf("::error::Agent plugin %s is missing a \"name\" in plugin.json", parsed.repoPath))),
+				fmt.Sprintf("mkdir -p %q", marketplaceDir),
+				fmt.Sprintf("jq -n --arg name \"$PLUGIN_NAME\" --arg path %q '{name: %q, plugins: [{name: $name, source: {source: \"local\", path: $path}}]}' > %q", pluginSubpath, marketplaceName, marketplaceManifestPath),
+				fmt.Sprintf("%s plugin marketplace add %q", commandName, "./"+checkoutPath),
+				fmt.Sprintf(`%s plugin add "$PLUGIN_NAME@%s"`, commandName, marketplaceName),
+			}, "\n")
+			installStep := []string{"      - name: Install agent plugin " + parsed.repoPath}
+			return []GitHubActionStep{FormatStepWithCommandAndEnv(installStep, installCommand, nil)}
+		},
+	})
 }
 
 // GetDeclaredOutputFiles returns the output files that Codex may produce.

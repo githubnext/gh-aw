@@ -298,7 +298,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve agentic engine from AI configuration: %w", err)
+		return nil, fmt.Errorf("agentic engine could not be resolved from the 'engine' field, expected a supported engine id such as 'copilot' or 'claude': %w", err)
 	}
 
 	// Ensure MCP gateway defaults are set before generating aw_info.json
@@ -321,6 +321,17 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 		for _, line := range step {
 			yaml.WriteString(line)
 			yaml.WriteByte('\n')
+		}
+	}
+
+	if pluginInstaller, ok := engine.(PluginInstallationProvider); ok {
+		pluginInstallSteps := pluginInstaller.GetPluginInstallationSteps(data)
+		compilerYamlLog.Printf("Adding %d plugin installation steps for %s", len(pluginInstallSteps), engine.GetID())
+		for _, step := range pluginInstallSteps {
+			for _, line := range step {
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
+			}
 		}
 	}
 
@@ -396,7 +407,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 
 	// Add MCP setup
 	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
-		return nil, fmt.Errorf("failed to generate MCP setup: %w", err)
+		return nil, fmt.Errorf("MCP setup could not be generated, expected valid tool configuration in the 'tools' section: %w", err)
 	}
 
 	// Mount MCP servers as CLI tools (runs after gateway is started)
@@ -440,7 +451,7 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 		for _, step := range data.EngineConfigSteps {
 			stepYAML, err := ConvertStepToYAML(step)
 			if err != nil {
-				return nil, "", fmt.Errorf("failed to render engine config step: %w", err)
+				return nil, "", fmt.Errorf("engine config step could not be rendered to YAML, expected a step with valid fields: %w", err)
 			}
 			yaml.WriteString(stepYAML)
 		}

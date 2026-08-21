@@ -216,6 +216,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
         - outdated
         - resolved
       target-repo: "owner/repo"       # Optional: cross-repository
+      discussions: true               # Optional: opt-in to discussions:write permission for hiding discussion comments (default: false)
   ```
 
   Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`, `low_quality`.

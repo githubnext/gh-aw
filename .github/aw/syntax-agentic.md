@@ -316,6 +316,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         token-steering: false       # Optional: disable API proxy token steering to preserve the configured provider and model
     ```
 
+  - When `engine.env` sets `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` (custom provider endpoints, e.g. OpenRouter), `model-fallback` is disabled automatically so provider-specific model slugs pass through verbatim; set it explicitly to override.
+
   - To disable the agent firewall while keeping MCP gateway enabled, you must provide the dangerous-disable justification feature:
 
     ```yaml

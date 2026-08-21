@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.28.4<br>
+**Version**: 1.28.5<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-08-07<br>
+**Publication Date**: 2026-08-20<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -3161,11 +3161,13 @@ This section provides complete definitions for all remaining safe output types. 
 6. **Forks and Events**: The handler MUST reject `pull_request_target` events. It MUST reject an associated fork pull request unless `fork` is explicitly true.
 7. **Protected Files**: Before approval, the handler MUST list the files modified by every pull request associated with the run and reject approval when any file is protected. `protected-files.exclude` MAY remove specific filenames or path prefixes from the default protected set.
 8. **Execution**: Only after all preceding checks pass MAY the handler invoke GitHub's workflow-run approval API and consume one max-count slot.
+9. **Comment**: After a successful approval, when `comment` is not explicitly false, the handler MUST post a comment on each pull request associated with the approved run announcing the workflow run has started, linking to the run's HTML URL, and including the standard generated attribution footer. Comment posting failures MUST be logged as warnings and MUST NOT fail the approval.
 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
 - `fork`: Permit associated fork pull requests (default: false)
+- `comment`: Post a comment on the associated pull request(s) announcing the run has started (default: true)
 - `staged`: Preview without a GitHub API call or max-count consumption
 - `github-token`: Explicit external token for this handler or inherited from `safe-outputs.github-token`
 - `github-app`: GitHub App configuration that mints a handler-scoped token
@@ -3185,12 +3187,12 @@ This section provides complete definitions for all remaining safe output types. 
 *GitHub Actions Token*:
 
 - `actions: write` - Workflow-run approval
-- `pull-requests: read` - Listing associated pull request files
+- `pull-requests: write` - Posting the run-started comment (when `comment` is enabled, the default); `pull-requests: read` is sufficient when `comment: false`
 
 *GitHub App*:
 
 - `actions: write` - Workflow-run approval
-- `pull-requests: read` - Listing associated pull request files
+- `pull-requests: write` - Posting the run-started comment (when `comment` is enabled, the default); `pull-requests: read` is sufficient when `comment: false`
 - `metadata: read` - Repository metadata (automatically granted)
 
 ---
@@ -3680,7 +3682,7 @@ This section provides complete definitions for all remaining safe output types. 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 5)
-- `discussions`: Control `discussions:write` permission (default: true)
+- `discussions`: Control `discussions:write` permission (default: false)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
 - `allowed-reasons`: Allowed reasons for hiding comments
@@ -3691,21 +3693,21 @@ This section provides complete definitions for all remaining safe output types. 
 
 - `issues: write` - Comment hiding on issues
 - `pull-requests: write` - Comment hiding on pull requests
-- `discussions: write` - Comment hiding on discussions (when `discussions: true` or omitted)
+- `discussions: write` - Comment hiding on discussions (when `discussions: true`)
 
 *GitHub App*:
 
 - `issues: write` - Comment hiding on issues
 - `pull-requests: write` - Comment hiding on pull requests
-- `discussions: write` - Comment hiding on discussions (when `discussions: true` or omitted)
+- `discussions: write` - Comment hiding on discussions (when `discussions: true`)
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Permission Control via `discussions` Field**:
 
 The optional `discussions` boolean field controls whether `discussions:write` permission is requested:
 
-- **Default behavior** (`discussions: true` or omitted): Includes `discussions:write` permission for maximum compatibility. Use this when the GitHub App has Discussions permission granted.
-- **Opt-out** (`discussions: false`): Excludes `discussions:write` permission. Use this when the GitHub App lacks Discussions permission to prevent 422 errors during token generation.
+- **Default behavior** (`discussions: false` or omitted): Excludes `discussions:write` permission. The `discussions:write` permission is now opt-in.
+- **Opt-in** (`discussions: true`): Includes `discussions:write` permission. Use this when comments on discussions may need to be hidden.
 
 **Example Configuration**:
 
@@ -3718,14 +3720,14 @@ safe-outputs:
     repositories: ['myrepo']
   hide-comment:
     max: 5
-    discussions: false  # Exclude discussions:write permission
+    discussions: true  # Include discussions:write permission
     allowed-reasons: [spam, abuse, off_topic]
 ```
 
 **Notes**:
 
-- By default, requires all three write permissions to support hiding comments across all entity types
-- When `discussions: false`, the workflow only requests `issues:write` and `pull-requests:write` permissions
+- By default, only requests `issues:write` and `pull-requests:write` permissions
+- When `discussions: true`, the workflow additionally requests `discussions:write` permission
 - Discussion-related safe outputs independently add `discussions:write` permission when configured
 - Comments are minimized, not deleted - reversible by moderators
 
@@ -5498,6 +5500,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.28.5** (2026-08-20):
+
+- **Changed**: Default value of the `discussions` field on `hide-comment` inverted from `true` to `false`. The `discussions:write` permission is now opt-in, matching `add-comment`. Set `discussions: true` to hide comments on discussions; omitting the field no longer requests `discussions:write`.
+- **Updated**: Section 7 `hide_comment` permission documentation, configuration examples, and notes to reflect the opt-in default.
+- **Updated**: Publication metadata to 1.28.5.
 
 **Version 1.28.4** (2026-08-15):
 

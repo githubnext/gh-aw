@@ -25,14 +25,6 @@
 
 package workflow
 
-// RepositoryFeatures holds information about repository capabilities.
-// In WASM builds this struct is kept for API compatibility with the native build; its
-// fields are never populated because feature queries require GitHub API access.
-type RepositoryFeatures struct {
-	HasDiscussions bool
-	HasIssues      bool
-}
-
 // validateRepositoryFeatures is a no-op in WASM/playground builds.
 //
 // The native implementation queries the GitHub API to verify that features such as

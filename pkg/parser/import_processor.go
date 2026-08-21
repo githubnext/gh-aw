@@ -27,6 +27,7 @@ type ImportsResult struct {
 	MergedTools                      string                // Merged tools configuration from all imports
 	MergedMCPServers                 string                // Merged mcp-servers configuration from all imports
 	MergedEngines                    []string              // Merged engine configurations from all imports
+	MergedPlugins                    []string              // Agent Plugin references from all imports (merged after main-workflow plugins)
 	MergedSafeOutputs                []string              // Merged safe-outputs configurations from all imports
 	MergedMCPScripts                 []string              // Merged mcp-scripts configurations from all imports
 	MergedMarkdown                   string                // Only contains imports WITH inputs (for compile-time substitution)

@@ -78,6 +78,10 @@ import sys
 
 workflow = sys.argv[1]
 
+# `actions: write` is required by the cleanup jobs that delete the shared
+# checkout cache at the end of a run; it grants no access to repository content.
+allowed_write_scopes = {"actions"}
+
 
 def strip_comment(line):
     quote = None
@@ -160,8 +164,12 @@ for line_number, line in enumerate(lines, start=1):
         if indent <= permissions_indent:
             in_permissions = False
         else:
-            match = re.match(r"[A-Za-z0-9_-]+\s*:\s*(.+)$", stripped)
-            if match and normalize(match.group(1)) == "write":
+            match = re.match(r"([A-Za-z0-9_-]+)\s*:\s*(.+)$", stripped)
+            if (
+                match
+                and normalize(match.group(2)) == "write"
+                and match.group(1) not in allowed_write_scopes
+            ):
                 print(f"{workflow}:{line_number}: {line.rstrip()}")
             continue
 
@@ -179,8 +187,8 @@ for line_number, line in enumerate(lines, start=1):
     if normalized == "write-all":
         print(f"{workflow}:{line_number}: {line.rstrip()}")
         continue
-    for _, pair_value in flow_pairs(value):
-        if pair_value == "write":
+    for pair_key, pair_value in flow_pairs(value):
+        if pair_value == "write" and pair_key not in allowed_write_scopes:
             print(f"{workflow}:{line_number}: {line.rstrip()}")
             break
 PY

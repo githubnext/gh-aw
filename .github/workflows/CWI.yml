@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
         with:
           path: .
-          key: checkout-cwi-${{ github.sha }}
+          key: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           enableCrossOsArchive: true
 
   build-windows:
@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
         with:
           path: .
-          key: checkout-cwi-${{ github.sha }}
+          key: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
@@ -106,7 +106,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
         with:
           path: .
-          key: checkout-cwi-${{ github.sha }}
+          key: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
@@ -165,8 +165,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      actions: read
+      actions: write
     steps:
+      - name: Delete checkout cache
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CACHE_KEY: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+        run: |
+          cache_id=$(gh cache list --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
+          if [ -n "$cache_id" ]; then
+            gh cache delete "$cache_id"
+          fi
       - name: Summarize job and step durations
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
         with:

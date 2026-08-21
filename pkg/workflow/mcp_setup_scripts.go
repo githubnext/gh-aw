@@ -20,6 +20,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 
 	mcpSetupScriptsLog.Printf("Generating MCP scripts setup: tools=%d", len(workflowData.MCPScripts.Tools))
 	yaml.WriteString("      - name: Write MCP Scripts Config\n")
+	yaml.WriteString("        # runner-guard:ignore RGS-018 -- writes first-party mcp-scripts tools.json manifest and mcp-server.cjs shim generated verbatim from the gh-aw compiler template, not an attacker-controlled dropper.\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-scripts/logs\"\n")
 

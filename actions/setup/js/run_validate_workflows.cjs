@@ -2,9 +2,22 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
+const { generateXMLMarker } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+
+const MAX_VALIDATION_OUTPUT_LENGTH = 50000;
+
+/**
+ * Truncate and sanitize validation output for safe inclusion in an issue or comment body.
+ * @param {string} output - Raw combined stdout/stderr output
+ * @param {number} [maxLength] - Maximum length before truncation
+ * @returns {string} Sanitized, possibly truncated output
+ */
+function prepareValidationOutput(output, maxLength = MAX_VALIDATION_OUTPUT_LENGTH) {
+  const truncated = output.substring(0, maxLength) + (output.length > maxLength ? "\n\n... (output truncated)" : "");
+  return sanitizeContent(truncated);
+}
 
 /**
  * Run full workflow validation using gh-aw compile --validate and all known
@@ -89,8 +102,7 @@ async function main() {
       const existingIssue = searchResult.data.items[0];
       core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
-      const truncatedOutput = combinedOutput.substring(0, 50000) + (combinedOutput.length > 50000 ? "\n\n... (output truncated)" : "");
-      const sanitizedOutput = sanitizeContent(truncatedOutput);
+      const sanitizedOutput = prepareValidationOutput(combinedOutput);
 
       const xmlMarker = generateXMLMarker(workflowName, runUrl);
       const commentBody = `Validation still has findings (exit code: ${exitCode}).
@@ -131,8 +143,7 @@ ${xmlMarker}`;
   // No existing issue found, create a new one
   core.info("No existing issue found, creating a new issue with validation findings");
 
-  const truncatedOutput = combinedOutput.substring(0, 50000) + (combinedOutput.length > 50000 ? "\n\n... (output truncated)" : "");
-  const sanitizedOutput = sanitizeContent(truncatedOutput);
+  const sanitizedOutput = prepareValidationOutput(combinedOutput);
 
   const xmlMarker = generateXMLMarker(workflowName, runUrl);
   const issueBody = `## Problem
@@ -198,4 +209,4 @@ ${xmlMarker}
   }
 }
 
-module.exports = { main };
+module.exports = { main, prepareValidationOutput };
