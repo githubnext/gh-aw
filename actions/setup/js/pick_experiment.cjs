@@ -401,6 +401,21 @@ function continualWeights(cfg, variants, state = { counts: {} }, name = "") {
   return [100 - candidate, candidate];
 }
 
+function logContinualDecision(name, cfg, variants, state, weights, selected, core) {
+  if (!cfg.continual) return;
+
+  const candidateObservations = state.counts?.[name]?.[variants[1]] ?? 0;
+  const allocation = variants.map((variant, index) => `${variant}=${weights[index]}`).join(", ");
+  let rampStage = "no ramp configured";
+  if (Array.isArray(cfg.continual.ramp) && cfg.continual.ramp.length > 0 && variants.length === 2) {
+    const configuredMinimum = cfg.continual.decision?.minimum_observations ?? cfg.min_samples;
+    const minimumObservations = typeof configuredMinimum === "number" && Number.isInteger(configuredMinimum) && configuredMinimum > 0 ? configuredMinimum : 20;
+    const stage = Math.min(Math.floor(candidateObservations / minimumObservations), cfg.continual.ramp.length - 1);
+    rampStage = `ramp stage ${stage + 1}/${cfg.continual.ramp.length} (${candidateObservations}/${minimumObservations} candidate observations)`;
+  }
+  core.info(`Continual experiment "${name}": assignment decision; ${rampStage}; weights ${allocation}; selected variant "${selected}"`);
+}
+
 /**
  * Increment the counter for the chosen variant.
  *
@@ -627,6 +642,7 @@ async function main() {
     } else {
       selected = pickVariant(name, variants, state);
     }
+    logContinualDecision(name, cfg, variants, state, weights, selected, core);
     recordVariant(name, selected, state);
     assignments[name] = selected;
     const selectedIndex = variants.indexOf(selected);

@@ -450,6 +450,25 @@ describe("pick_experiment", () => {
       vi.restoreAllMocks();
     });
 
+    it("logs continual assignment decisions with ramp context", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { optimization: { control: 10, candidate: 10 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        optimization: {
+          variants: ["control", "candidate"],
+          continual: { seed: "test-seed", ramp: [5, 20, 50], decision: { minimum_observations: 10 } },
+        },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/^Continual experiment "optimization": assignment decision; ramp stage 2\/3 \(10\/10 candidate observations\); weights control=80, candidate=20; selected variant "(control|candidate)"$/)
+      );
+    });
+
     it("uses control variant when today is before start_date", async () => {
       const stateFile = path.join(tmpDir, "state.json");
       // Use a far-future start_date to ensure we're always before it.
