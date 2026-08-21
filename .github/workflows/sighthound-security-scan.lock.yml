@@ -1565,8 +1565,8 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
-          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/ || true
-          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/ || true
+          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && cp -r /tmp/gh-aw/sandbox/firewall/logs /tmp/gh-aw/threat-detection/sandbox/firewall/logs || true
+          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && cp -r /tmp/gh-aw/sandbox/firewall/audit /tmp/gh-aw/threat-detection/sandbox/firewall/audit || true
       - name: Upload threat detection artifact
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
