@@ -212,6 +212,24 @@ network:
 
 `GITHUB_COPILOT_BASE_URL` is a fallback — if both it and `engine.api-target` are set, `engine.api-target` takes precedence.
 
+When `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` is set, the configured model is passed through to the custom provider verbatim: gh-aw automatically emits `apiProxy.modelFallback.enabled: false` so the API proxy does not rewrite provider-specific model slugs (for example `anthropic/claude-sonnet-5` on OpenRouter) that are absent from the built-in model catalog, which otherwise causes HTTP 404 `model_not_found`. Set [`sandbox.agent.model-fallback`](/gh-aw/reference/sandbox/#model-fallback-sandboxagentmodel-fallback) explicitly to override this default.
+
+```yaml wrap
+engine:
+  id: claude
+  env:
+    ANTHROPIC_BASE_URL: "https://openrouter.ai/api/v1"
+    ANTHROPIC_API_KEY: ${{ secrets.OPENROUTER_KEY }}
+model: anthropic/claude-sonnet-5
+
+network:
+  allowed:
+    - defaults
+    - openrouter.ai
+```
+
+If the custom provider also rejects requests because of proxy-side model steering, disable it with [`sandbox.agent.token-steering: false`](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
+
 ### Copilot Bring Your Own Key (BYOK) Mode
 
 The Copilot engine supports routing requests to an external LLM provider instead of GitHub's default routing. This is useful when you want to use a different model or provider (e.g., OpenAI, Anthropic, Azure OpenAI, or a local Ollama/vLLM instance) while still using the Copilot CLI tooling.

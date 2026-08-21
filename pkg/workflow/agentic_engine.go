@@ -592,7 +592,7 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 func (r *EngineRegistry) Register(engine CodingAgentEngine) error {
 	type portProvider interface{ getDedicatedLLMGatewayPort() int }
 	if p, ok := engine.(portProvider); ok && p.getDedicatedLLMGatewayPort() < 0 {
-		return fmt.Errorf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d", engine.GetID(), p.getDedicatedLLMGatewayPort())
+		return fmt.Errorf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d; expected a non-negative port number or 0 to disable the dedicated gateway", engine.GetID(), p.getDedicatedLLMGatewayPort())
 	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine

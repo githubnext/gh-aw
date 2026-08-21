@@ -824,7 +824,7 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	}
 	var engineData any
 	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
-		return nil, fmt.Errorf("failed to parse engine JSON: %w", err)
+		return nil, fmt.Errorf("engine JSON is not recognized, expected a valid JSON object describing the engine: %w", err)
 	}
 	dataMap, ok := engineData.(map[string]any)
 	if !ok {
@@ -840,11 +840,11 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	}
 	yamlBytes, err := yaml.Marshal(dataMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert engine JSON to yaml: %w", err)
+		return nil, fmt.Errorf("engine JSON could not be converted to YAML, expected values that marshal cleanly (e.g. no unsupported types): %w", err)
 	}
 	var def EngineDefinition
 	if err := yaml.Unmarshal(yamlBytes, &def); err != nil {
-		return nil, fmt.Errorf("failed to parse engine definition: %w", err)
+		return nil, fmt.Errorf("engine definition is not recognized, expected fields matching the EngineDefinition schema: %w", err)
 	}
 	if def.RuntimeID == "" {
 		def.RuntimeID = def.ID
