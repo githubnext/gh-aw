@@ -507,6 +507,21 @@ Always reference secrets through `${{ secrets.NAME }}` expressions, never plaint
 
 **Note:** For passing secrets to reusable workflows, use the `jobs.<job_id>.secrets` field instead. The top-level `secrets:` field is for workflow-level secret configuration.
 
+### Secret Masking (`secret-masking:`)
+
+Adds custom secret redaction steps that run after the built-in "Redact secrets in logs" step, which automatically masks the values of every `${{ secrets.* }}` expression referenced by the workflow before logs and artifacts are uploaded. Use `secret-masking.steps` when generated files contain sensitive values that the built-in redaction cannot detect, such as tokens matching an organization-specific pattern.
+
+```yaml wrap
+secret-masking:
+  steps:
+    - name: Redact custom secrets
+      run: find /tmp/gh-aw -type f -exec sed -i -E 's/int_[A-Za-z0-9]{32}/REDACTED/g' {} +
+```
+
+Each entry is a standard GitHub Actions step. Steps declared in [imported files](/gh-aw/reference/imports/) are merged with the top-level `secret-masking.steps` list.
+
+See the [full frontmatter reference](/gh-aw/reference/frontmatter-full/) for the complete schema.
+
 ### Environment Protection (`environment:`)
 
 Specifies the environment for deployment protection rules and environment-specific secrets. Standard GitHub Actions syntax.
