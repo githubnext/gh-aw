@@ -21,7 +21,13 @@ func TestSharedPythonImportsUsePortableManagedPython(t *testing.T) {
 	repoRoot, err := gitutil.FindGitRoot()
 	require.NoError(t, err)
 
-	for _, sharedWorkflow := range []string{"python-dataviz.md", "python-nlp.md"} {
+	// Each component installs its own packages into the shared portable environment.
+	packageInstalls := map[string]string{
+		"python-dataviz.md": "/tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy",
+		"python-nlp.md":     "/tmp/gh-aw/python/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud",
+	}
+
+	for sharedWorkflow, packageInstall := range packageInstalls {
 		t.Run(sharedWorkflow, func(t *testing.T) {
 			content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "shared", sharedWorkflow))
 			require.NoError(t, err)
@@ -29,6 +35,7 @@ func TestSharedPythonImportsUsePortableManagedPython(t *testing.T) {
 
 			require.Contains(t, workflowContent, "UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python")
 			require.Contains(t, workflowContent, portableVenvCommand)
+			require.Contains(t, workflowContent, packageInstall)
 			require.NotContains(t, workflowContent, "python3 -m venv")
 		})
 	}
