@@ -137,10 +137,10 @@ func TestArgumentTypeUnmarshalsToTypedEnum(t *testing.T) {
 }
 
 func TestServerStatusConstants(t *testing.T) {
-	if ServerStatus("active") != StatusActive {
-		t.Errorf("Expected 'active' to equal StatusActive '%s'", StatusActive)
+	if string(StatusActive) != "active" {
+		t.Errorf("Expected StatusActive to equal 'active', got '%s'", StatusActive)
 	}
-	if ServerStatus("inactive") != StatusInactive {
-		t.Errorf("Expected 'inactive' to equal StatusInactive '%s'", StatusInactive)
+	if string(StatusInactive) != "inactive" {
+		t.Errorf("Expected StatusInactive to equal 'inactive', got '%s'", StatusInactive)
 	}
 }

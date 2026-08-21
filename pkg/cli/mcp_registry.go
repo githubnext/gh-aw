@@ -75,7 +75,7 @@ func (c *MCPRegistryClient) SearchServers(ctx context.Context, query string) ([]
 	// Create HTTP request with proper headers
 	req, err := c.createRegistryRequest(ctx, "GET", searchURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create registry request: %w", err)
+		return nil, fmt.Errorf("MCP registry request requires a valid registry URL and HTTP method: %w", err)
 	}
 
 	// Make HTTP request with spinner
@@ -86,7 +86,7 @@ func (c *MCPRegistryClient) SearchServers(ctx context.Context, query string) ([]
 
 	if err != nil {
 		spinner.Stop()
-		return nil, fmt.Errorf("failed to search MCP registry: %w", err)
+		return nil, fmt.Errorf("MCP registry search requires network access to %s: %w", searchURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -112,13 +112,13 @@ func (c *MCPRegistryClient) SearchServers(ctx context.Context, query string) ([]
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		spinner.Stop()
-		return nil, fmt.Errorf("failed to read registry response: %w", err)
+		return nil, fmt.Errorf("MCP registry response body should be readable from %s: %w", searchURL, err)
 	}
 
 	var response ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		spinner.Stop()
-		return nil, fmt.Errorf("failed to parse registry response: %w", err)
+		return nil, fmt.Errorf("MCP registry response should be valid JSON matching the server list schema: %w", err)
 	}
 
 	// Stop spinner with success message
