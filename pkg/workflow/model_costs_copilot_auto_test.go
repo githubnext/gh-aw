@@ -52,9 +52,7 @@ func TestCopilotAutoPricingCoversBundledCatalog(t *testing.T) {
 	for model, entry := range catalog.Providers[copilotAutoPricingProvider].Models {
 		for costType, rawCost := range entry.Cost {
 			fallbackCost, ok := copilotAutoCost[costType]
-			if !ok {
-				continue
-			}
+			require.True(t, ok, "copilot/auto fallback must define catalog cost type %s", costType)
 			modelRate, err := strconv.ParseFloat(rawCost, 64)
 			require.NoError(t, err, "catalog rate for %s/%s should be numeric", model, costType)
 			fallbackRate, err := strconv.ParseFloat(fallbackCost, 64)
@@ -137,6 +135,7 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 	tests := []struct {
 		name           string
 		engineName     string
+		model          string
 		firewallConfig *FirewallConfig
 		wantPricing    bool
 	}{
@@ -152,6 +151,19 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 			firewallConfig: &FirewallConfig{Enabled: true},
 		},
 		{
+			name:           "Copilot workflow with concrete model",
+			engineName:     "copilot",
+			model:          "claude-sonnet-5",
+			firewallConfig: &FirewallConfig{Enabled: true},
+		},
+		{
+			name:           "Copilot workflow with dynamic model expression",
+			engineName:     "copilot",
+			model:          "${{ inputs.model }}",
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
 			name:           "Copilot workflow pinned below provider support",
 			engineName:     "copilot",
 			firewallConfig: &FirewallConfig{Enabled: true, Version: "v0.27.42"},
@@ -165,6 +177,7 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 				EngineName:     tt.engineName,
 				AllowedDomains: "github.com",
 				WorkflowData: &WorkflowData{
+					Model:              tt.model,
 					EngineConfig:       &EngineConfig{ID: tt.engineName},
 					NetworkPermissions: &NetworkPermissions{Firewall: tt.firewallConfig},
 				},

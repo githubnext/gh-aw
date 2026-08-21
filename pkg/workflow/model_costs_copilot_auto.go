@@ -1,6 +1,9 @@
 package workflow
 
-import "maps"
+import (
+	"maps"
+	"strings"
+)
 
 // copilotAutoPricingProvider is the models.json provider key used by the AWF API proxy
 // pricing table for the Copilot inference gateway.
@@ -22,15 +25,26 @@ const copilotAutoPricingModel = "auto"
 // Copilot catalog rather than risking under-accounting.
 var copilotAutoCost = map[string]string{
 	"input":       "1e-05",
+	"input_audio": "1.5e-06",
 	"output":      "5e-05",
 	"cache_read":  "1e-06",
 	"cache_write": "1.25e-05",
 }
 
-// shouldInjectCopilotAutoPricing limits the builtin overlay to Copilot workflows on
-// AWF versions that can pass apiProxy.providers to the proxy.
+// shouldInjectCopilotAutoPricing limits the builtin overlay to Copilot workflows whose
+// configured model can resolve to auto, on AWF versions that pass apiProxy.providers.
 func shouldInjectCopilotAutoPricing(config AWFCommandConfig, firewallConfig *FirewallConfig) bool {
-	return config.EngineName == "copilot" && awfSupportsAPIProxyProviders(firewallConfig)
+	if !strings.EqualFold(config.EngineName, "copilot") || !awfSupportsAPIProxyProviders(firewallConfig) {
+		return false
+	}
+	if config.WorkflowData == nil {
+		return true
+	}
+	model := strings.TrimSpace(config.WorkflowData.Model)
+	return model == "" ||
+		strings.EqualFold(model, "auto") ||
+		strings.EqualFold(model, "copilot/auto") ||
+		isExpression(model)
 }
 
 // withCopilotAutoPricing returns the apiProxy.providers overlay with a built-in pricing
