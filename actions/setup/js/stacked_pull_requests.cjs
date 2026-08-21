@@ -8,6 +8,12 @@
  * branch, so a chain of dependent changes can be reviewed and merged one at a time. Everything
  * related to stacks (configuration, run-scoped tracking, validation, GitHub API calls and body
  * metadata) lives in this file.
+ *
+ * @safe-outputs-exempt SEC-005: `targetRepo` in this file is a display-only "owner/repo" string
+ * used solely for log/error message formatting (e.g. in `verifyStackBaseBranchExists`). It is not
+ * an independent cross-repo configuration surface — the actual repo resolution and allowlist
+ * enforcement happen in the caller, `create_pull_request.cjs`, via `resolveTargetRepoConfig()` /
+ * `resolveAndValidateRepo()`, before the already-validated value is passed into this file.
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -171,10 +177,14 @@ function circularStackError(branchName, baseBranch) {
  * A missing branch is reported with actionable guidance instead of an opaque API error; other API
  * failures (and clients without the repos.getBranch API) degrade to a warning so the pull request
  * creation is still attempted.
+ * CONTRACT: `repoParts` and `targetRepo` MUST already be allowlist-validated by the caller
+ * (create_pull_request.cjs's `resolveTargetRepoConfig()` / `resolveAndValidateRepo()`) before this
+ * function is invoked. `targetRepo` is used here only for log/error message formatting, never for
+ * an independent authorization decision — do not wire in unvalidated input from a future refactor.
  * @param {any} githubClient - Authenticated Octokit client
- * @param {{owner: string, repo: string}} repoParts
+ * @param {{owner: string, repo: string}} repoParts - Must already be allowlist-validated by the caller
  * @param {string} baseBranch
- * @param {string} targetRepo - "owner/repo" used in log and error messages
+ * @param {string} targetRepo - "owner/repo" used in log and error messages only; must already be allowlist-validated by the caller
  * @param {string} defaultBaseBranch
  * @returns {Promise<{success: boolean, error?: string}>}
  */
