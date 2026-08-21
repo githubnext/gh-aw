@@ -114,11 +114,11 @@ func validateAWFConfigJSON(configJSON string) error {
 	}
 	var doc any
 	if err := json.Unmarshal([]byte(configJSON), &doc); err != nil {
-		return fmt.Errorf("failed to parse AWF config JSON: %w", err)
+		return fmt.Errorf("invalid AWF config JSON: expected generated output to be valid JSON for schema validation; parse error: %w. This indicates a compiler bug; please report it", err)
 	}
 	normalizeTemplatableModelFallbackEnabled(doc)
 	if err := schema.Validate(doc); err != nil {
-		return fmt.Errorf("AWF config schema validation failed: %w", err)
+		return fmt.Errorf("invalid AWF config JSON: expected generated output to satisfy the embedded schema; review the referenced field path and fix that workflow/frontmatter value: %w", err)
 	}
 	return nil
 }
@@ -764,14 +764,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
+		return "", fmt.Errorf("invalid AWF config values: expected generated output to be JSON-serializable; encountered serialization error: %w. This indicates a compiler bug; please report it", err)
 	}
 
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonStr))
 
 	if config.WorkflowData != nil && config.WorkflowData.ValidateAWFConfig {
 		if err := validateAWFConfigJSON(jsonStr); err != nil {
-			return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
+			return "", fmt.Errorf("invalid generated AWF config: expected awf-config JSON to satisfy the embedded schema; review the referenced field path and fix that workflow/frontmatter value: %w", err)
 		}
 	}
 
@@ -943,7 +943,7 @@ func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 // AWF built-in model catalog.
 func hasCustomLLMAPITarget(workflowData *WorkflowData) bool {
 	for _, envVar := range []string{"OPENAI_BASE_URL", "ANTHROPIC_BASE_URL"} {
-		if extractAPITargetHost(workflowData, envVar) != "" {
+		if engineEnvHasNonEmptyValue(workflowData, envVar) {
 			return true
 		}
 	}

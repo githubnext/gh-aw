@@ -1148,6 +1148,28 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"modelFallback":{"enabled":false}`, "apiProxy should disable modelFallback for custom OpenAI-compatible providers")
 	})
 
+	t.Run("model-fallback is disabled by default for expression-valued custom API targets", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com,openrouter.ai",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+					Env: map[string]string{
+						"ANTHROPIC_BASE_URL": "${{ vars.LLM_URL }}",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback":{"enabled":false}`, "apiProxy should disable modelFallback for expression-valued custom API targets")
+	})
+
 	t.Run("explicit model-fallback overrides the custom API target default", func(t *testing.T) {
 		enabled := TemplatableBool("true")
 		config := AWFCommandConfig{
