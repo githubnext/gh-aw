@@ -270,6 +270,49 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 	}
 }
 
+func TestGenerateWorkflowHeaderIncludesMCPManifest(t *testing.T) {
+	compiler := NewCompiler()
+	var yaml strings.Builder
+
+	data := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"allowed": []any{"list_issues"},
+			},
+			"custom-api": map[string]any{
+				"type":    "http",
+				"url":     "https://api.example.test/mcp",
+				"allowed": []any{"search"},
+			},
+		},
+	}
+
+	if err := compiler.generateWorkflowHeader(&yaml, data, "frontmatter-hash", "", nil, nil); err != nil {
+		t.Fatalf("generateWorkflowHeader() error = %v", err)
+	}
+
+	manifest, err := ExtractGHAWManifestFromLockFile(yaml.String())
+	if err != nil {
+		t.Fatalf("ExtractGHAWManifestFromLockFile() error = %v", err)
+	}
+	if manifest == nil {
+		t.Fatal("expected gh-aw-manifest in generated header")
+	}
+
+	expected := []GHAWManifestMCPServer{
+		{Name: "custom-api", Tools: []string{"search"}},
+		{Name: "github", Tools: []string{"list_issues"}},
+	}
+	if len(manifest.MCPServers) != len(expected) {
+		t.Fatalf("MCPServers = %#v, want %#v", manifest.MCPServers, expected)
+	}
+	for i := range expected {
+		if manifest.MCPServers[i].Name != expected[i].Name || strings.Join(manifest.MCPServers[i].Tools, ",") != strings.Join(expected[i].Tools, ",") {
+			t.Fatalf("MCPServers = %#v, want %#v", manifest.MCPServers, expected)
+		}
+	}
+}
+
 // TestGenerateWorkflowBody tests the generateWorkflowBody helper function
 func TestGenerateWorkflowBody(t *testing.T) {
 	tests := []struct {

@@ -53,6 +53,13 @@ type GHAWManifestMemoryValidationScript struct {
 	SHA256 string `json:"sha256"`
 }
 
+// GHAWManifestMCPServer represents an MCP server exposed to the agent and the
+// statically-declared tool names allowed for that server.
+type GHAWManifestMCPServer struct {
+	Name  string   `json:"name"`
+	Tools []string `json:"tools,omitempty"`
+}
+
 // GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
 // comment in generated lock files. It records the secrets, external actions, and
 // container images that were detected at the time the lock file was last compiled
@@ -70,6 +77,7 @@ type GHAWManifest struct {
 	HasPullRequest              bool                                 `json:"has_pull_request,omitempty"`          // whether on: includes pull_request
 	HasPullRequestTarget        bool                                 `json:"has_pull_request_target,omitempty"`   // whether on: includes pull_request_target
 	MemoryValidationScripts     []GHAWManifestMemoryValidationScript `json:"memory_validation_scripts,omitempty"` // custom repo/cache memory validation scripts, hashed
+	MCPServers                  []GHAWManifestMCPServer              `json:"mcp_servers,omitempty"`               // MCP servers/tools exposed to the agent, independent of engine-specific allowlist syntax
 	ThreatDetectionSuppressions []ThreatDetectionSuppression         `json:"threat_detection_suppressions,omitempty"`
 }
 

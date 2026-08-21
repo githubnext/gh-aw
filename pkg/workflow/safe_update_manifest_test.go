@@ -232,6 +232,69 @@ func TestCollectMemoryValidationScripts(t *testing.T) {
 	assert.NotEqual(t, scripts[0].SHA256, scripts[1].SHA256)
 }
 
+func TestCollectMCPServersForManifest(t *testing.T) {
+	data := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"allowed": []any{"list_issues", "get_issue"},
+			},
+			"playwright": map[string]any{},
+			"my-api": map[string]any{
+				"type":    "http",
+				"url":     "https://api.example.test/mcp",
+				"allowed": []any{"fetch_data", "list_items"},
+			},
+			"all-tools": map[string]any{
+				"command": "npx example-mcp",
+			},
+			"cache-memory": true,
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+			NoOp:         &NoOpConfig{},
+			Scripts: map[string]*SafeScriptConfig{
+				"triage-script": {},
+			},
+		},
+		MCPScripts: &MCPScriptsConfig{Tools: map[string]*MCPScriptToolConfig{
+			"lookup": {Name: "lookup"},
+		}},
+	}
+
+	servers := collectMCPServersForManifest(data)
+
+	assert.Equal(t, []GHAWManifestMCPServer{
+		{Name: "all-tools", Tools: []string{"*"}},
+		{Name: "github", Tools: []string{"get_issue", "list_issues"}},
+		{Name: "mcpscripts", Tools: []string{"lookup"}},
+		{Name: "my-api", Tools: []string{"fetch_data", "list_items"}},
+		{Name: "playwright", Tools: []string{
+			"browser_click",
+			"browser_close",
+			"browser_console_messages",
+			"browser_drag",
+			"browser_evaluate",
+			"browser_file_upload",
+			"browser_fill_form",
+			"browser_handle_dialog",
+			"browser_hover",
+			"browser_install",
+			"browser_navigate",
+			"browser_navigate_back",
+			"browser_network_requests",
+			"browser_press_key",
+			"browser_resize",
+			"browser_select_option",
+			"browser_snapshot",
+			"browser_tabs",
+			"browser_take_screenshot",
+			"browser_type",
+			"browser_wait_for",
+		}},
+		{Name: "safeoutputs", Tools: []string{"create_issue", "noop", "triage_script"}},
+	}, servers)
+}
+
 func TestNewGHAWManifestContainerDigest(t *testing.T) {
 	containers := []GHAWManifestContainer{
 		{

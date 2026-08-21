@@ -47,10 +47,10 @@ You are the Lockfile Statistics Analysis Agent. Analyze `.github/workflows/*.loc
 Use a single bash command that:
 
 1. Creates `/tmp/gh-aw/cache-memory/scripts` and `/tmp/gh-aw/agent`.
-2. Reuses `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v1.py` if it already exists.
+2. Reuses `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v2.py` if it already exists.
 3. Otherwise writes that script once, then executes it.
 4. Produces `/tmp/gh-aw/agent/lockfile-stats-summary.json` (compact, target ≤50KB; if larger, reduce examples before writing).
-5. If the prompt version is bumped (for example to `lockfile_stats_v2.py`), do not reuse older script versions; use the version referenced in this prompt.
+5. If the prompt version is bumped (for example to `lockfile_stats_v3.py`), do not reuse older script versions; use the version referenced in this prompt.
 
 The script must parse all `.github/workflows/*.lock.yml` files and compute aggregate metrics including:
 
@@ -73,6 +73,7 @@ Parser reliability requirements (must follow):
 - Include `yaml_available` in the summary JSON.
 - If `yaml_available` is `false`, fail loudly (non-zero exit) or emit a clear warning and stop the report flow; never continue with silently empty safe-output stats.
 - If any regex/text fallback parsing is used, it must still populate `safe_output_types`, `discussion_categories`, and per-permission read/write maps.
+- For MCP server/tool usage, parse `# gh-aw-manifest: ...` JSON and prefer its `mcp_servers` array. Only fall back to scraping `# - mcp__...` allowed-tool comments for legacy lockfiles without `mcp_servers`, and report the fallback count.
 
 Keep only compact examples and enforce these limits so JSON stays within target size:
 - max 10 workflow names per bucket
@@ -93,8 +94,8 @@ If `/tmp/gh-aw/cache-memory/history/` has prior summaries, compare against lates
 
 ## Cache-memory requirements
 
-- Persist the analyzer script at `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v1.py`.
-- Treat `v1` as a schema/version marker and as the source-of-truth filename for this prompt. Bump script name (for example `lockfile_stats_v2.py`) in the prompt **and update all Step 1 script filename references (items 2 and 5)** when adding/removing metrics or changing output structure; bug fixes that preserve schema can keep the same version.
+- Persist the analyzer script at `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v2.py`.
+- Treat `v2` as a schema/version marker and as the source-of-truth filename for this prompt. Bump script name (for example `lockfile_stats_v3.py`) in the prompt **and update all Step 1 script filename references (items 2 and 5)** when adding/removing metrics or changing output structure; bug fixes that preserve schema can keep the same version.
 - Save current run summary to `/tmp/gh-aw/cache-memory/history/<YYYY-MM-DD>.json`.
 - If historical data exists, include trend deltas in the report.
 
