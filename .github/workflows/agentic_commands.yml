@@ -121,6 +121,7 @@ jobs:
   route:
     runs-on: ubuntu-slim
     timeout-minutes: 15
+    # runner-guard:ignore RGS-005 -- the router requires these scoped writes to dispatch approved workflows and add their status reactions/comments; it never executes user-supplied code.
     permissions:
       actions: write
       contents: read

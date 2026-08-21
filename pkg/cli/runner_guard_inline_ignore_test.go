@@ -45,6 +45,26 @@ func TestFilterRunnerGuardIgnoredFindings(t *testing.T) {
 	assert.Equal(t, "RGS-005", filtered[1].RuleID)
 }
 
+func TestFilterGeneratedSafeOutputPermissionFindings(t *testing.T) {
+	gitRoot := t.TempDir()
+	writeWorkflow(t, gitRoot, "generated.lock.yml", "# To regenerate this workflow, run:\n#   gh aw compile\njobs:\n  safe_outputs:\n")
+	writeWorkflow(t, gitRoot, "user-workflow.yml", "jobs:\n  safe_outputs:\n")
+
+	findings := []runnerGuardFinding{
+		{RuleID: "RGS-005", File: "generated.lock.yml", JobID: "activation"},
+		{RuleID: "RGS-005", File: "generated.lock.yml", JobID: "agent"},
+		{RuleID: "RGS-005", File: "user-workflow.yml", JobID: "safe_outputs"},
+		{RuleID: "RGS-012", File: "generated.lock.yml", JobID: "safe_outputs"},
+	}
+
+	filtered := filterGeneratedSafeOutputPermissionFindings(findings, gitRoot)
+
+	require.Len(t, filtered, 3)
+	assert.Equal(t, "agent", filtered[0].JobID)
+	assert.Equal(t, "user-workflow.yml", filtered[1].File)
+	assert.Equal(t, "RGS-012", filtered[2].RuleID)
+}
+
 func TestHasRunnerGuardInlineIgnore(t *testing.T) {
 	lines := []string{
 		"      - name: Public index request", // 1
