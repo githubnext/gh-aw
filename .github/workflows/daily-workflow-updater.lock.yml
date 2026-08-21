@@ -1657,7 +1657,7 @@ jobs:
       - activation
       - agent
       - detection
-    if: always() && needs.agent.result != 'skipped'
+    if: always() && needs.agent.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read

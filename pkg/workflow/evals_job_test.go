@@ -33,7 +33,7 @@ func TestBuildEvalsJobNeedsWithoutDetection(t *testing.T) {
 	}, job.Needs)
 	assert.NotContains(t, job.Needs, string(constants.SafeOutputsJobName))
 	assert.NotContains(t, job.Needs, string(constants.DetectionJobName))
-	assert.Contains(t, job.If, "needs.agent.result")
+	assert.Contains(t, job.If, "needs.agent.result == 'success'")
 	assert.NotContains(t, job.If, "needs.safe_outputs.result")
 	assert.Equal(t, "${{ steps.parse-mcp-gateway.outputs.aic }}", job.Outputs["aic"])
 	assert.Contains(t, strings.Join(job.Steps, ""), "id: parse-mcp-gateway\n")
@@ -64,7 +64,7 @@ func TestBuildEvalsJobNeedsWithDetection(t *testing.T) {
 		string(constants.DetectionJobName),
 	}, job.Needs)
 	assert.NotContains(t, job.Needs, string(constants.SafeOutputsJobName))
-	assert.Contains(t, job.If, "needs.agent.result")
+	assert.Contains(t, job.If, "needs.agent.result == 'success'")
 	assert.NotContains(t, job.If, "needs.safe_outputs.result")
 	assert.Equal(t, "${{ steps.parse-mcp-gateway.outputs.aic }}", job.Outputs["aic"])
 	assert.Contains(t, strings.Join(job.Steps, ""), "id: parse-mcp-gateway\n")
