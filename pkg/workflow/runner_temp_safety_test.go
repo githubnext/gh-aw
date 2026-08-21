@@ -128,3 +128,36 @@ func TestValidateNoRunnerTempInExecutableBodiesRejectsScriptRegression(t *testin
 		t.Fatal("expected unsafe runner.temp expression in script body to be rejected")
 	}
 }
+
+func TestRewriteRunnerTempEscapesActionPath(t *testing.T) {
+	input := `steps:
+  - uses: actions/github-script@v7
+    with:
+      script: |
+        const { main } = require('${{ runner.temp }}/gh-aw/actions/evil\'); process.exit(1); //.cjs');
+`
+
+	got := rewriteRunnerTempInExecutableBodies(input)
+
+	if !strings.Contains(got, `path.join(actionsDir, 'evil\\')`) {
+		t.Fatalf("expected trailing backslash in action path to be escaped:\n%s", got)
+	}
+}
+
+func TestEscapeSingleQuotedJS(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"generate_aw_info.cjs", "generate_aw_info.cjs"},
+		{`a'b`, `a\'b`},
+		{`a\b`, `a\\b`},
+		{"a\nb", `a\nb`},
+		{"a\rb", `a\rb`},
+	}
+	for _, tt := range tests {
+		if got := escapeSingleQuotedJS(tt.in); got != tt.want {
+			t.Errorf("escapeSingleQuotedJS(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}

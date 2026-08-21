@@ -19,6 +19,19 @@ var (
 	singleLineExecutableRE      = regexp.MustCompile(`^\s*(?:-\s+)?(script|run):\s+`)
 )
 
+var singleQuotedJSEscaper = strings.NewReplacer(
+	`\`, `\\`,
+	`'`, `\'`,
+	"\r", `\r`,
+	"\n", `\n`,
+)
+
+// escapeSingleQuotedJS escapes a value so it can be safely embedded inside a
+// single-quoted JavaScript string literal in generated workflow scripts.
+func escapeSingleQuotedJS(s string) string {
+	return singleQuotedJSEscaper.Replace(s)
+}
+
 func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 	lines := strings.SplitAfter(yamlContent, "\n")
 	var out strings.Builder
@@ -74,7 +87,7 @@ func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 					out.WriteString("\n")
 					scriptBlockHasActionsDir = true
 				}
-				rewrittenLine = matches[1] + matches[2] + "path.join(actionsDir, '" + matches[3] + "')" + matches[4]
+				rewrittenLine = matches[1] + matches[2] + "path.join(actionsDir, '" + escapeSingleQuotedJS(matches[3]) + "')" + matches[4]
 			}
 		}
 
