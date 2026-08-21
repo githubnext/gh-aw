@@ -19,6 +19,8 @@ var dockerLog = logger.New("workflow:docker")
 func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actionMode ActionMode) []string {
 	var images []string
 	imageSet := make(map[string]struct{}) // Use a set to avoid duplicates
+	var authoritativeAWFImages []string
+	authoritativeAWFImageSet := make(map[string]struct{})
 
 	// Check for GitHub tool (uses Docker image)
 	if rawGithubTool, hasGitHub := tools["github"]; hasGitHub {
@@ -85,64 +87,30 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	// Collect AWF (firewall) container images when firewall is enabled
 	// AWF uses three containers: squid (proxy), agent, and api-proxy (for engines with LLM gateway support)
 	if isFirewallEnabled(workflowData) {
-		// Get the firewall version for image tags
 		firewallConfig := getFirewallConfig(workflowData)
 		awfImageTag := getAWFImageTag(firewallConfig)
+		sandboxImages := getSandboxAgentImages(workflowData)
 
-		// Add squid (proxy) container
-		squidImage := constants.DefaultFirewallRegistry + "/squid:" + awfImageTag
-		if !setutil.Contains(imageSet, squidImage) {
-			images = append(images, squidImage)
-			imageSet[squidImage] = struct {
-			}{}
-			dockerLog.Printf("Added AWF squid (proxy) container: %s", squidImage)
-		}
-
-		// Add default agent container
-		agentImage := constants.DefaultFirewallRegistry + "/agent:" + awfImageTag
-		if !setutil.Contains(imageSet, agentImage) {
-			images = append(images, agentImage)
-			imageSet[agentImage] = struct {
-			}{}
-			dockerLog.Printf("Added AWF agent container: %s", agentImage)
-		}
-
-		// Add api-proxy sidecar container (required for all engines — LLM gateway is mandatory)
-		// The api-proxy holds LLM API keys securely and proxies requests through Squid
-		// Each engine uses its own dedicated port for communication
-		if workflowData != nil && workflowData.AI != "" {
-			apiProxyImage := constants.DefaultFirewallRegistry + "/api-proxy:" + awfImageTag
-			if !setutil.Contains(imageSet, apiProxyImage) {
-				images = append(images, apiProxyImage)
-				imageSet[apiProxyImage] = struct {
-				}{}
-				dockerLog.Printf("Added AWF api-proxy sidecar container: %s", apiProxyImage)
+		// Use the same enabled-role ledger as manifest completeness validation so
+		// every AWF consumer is predownloaded under --skip-pull. A closed manifest
+		// is authoritative: its literal references bypass aw.json container_pins.
+		for _, role := range requiredAWFImageRoles(workflowData) {
+			image := defaultAWFImageForRole(role, awfImageTag)
+			if sandboxImages != nil {
+				image = sandboxImages[role]
+				if image != "" && !setutil.Contains(authoritativeAWFImageSet, image) {
+					authoritativeAWFImages = append(authoritativeAWFImages, image)
+					authoritativeAWFImageSet[image] = struct{}{}
+					dockerLog.Printf("Added authoritative AWF %s container: %s", role, image)
+				}
+				continue
 			}
-		}
-
-		// Add cli-proxy sidecar container when the cli-proxy is needed.
-		// Without this, --skip-pull causes AWF to fail because the cli-proxy image was never pulled.
-		if isCliProxyNeeded(workflowData) {
-			cliProxyImage := constants.DefaultFirewallRegistry + "/cli-proxy:" + awfImageTag
-			if !setutil.Contains(imageSet, cliProxyImage) {
-				images = append(images, cliProxyImage)
-				imageSet[cliProxyImage] = struct {
-				}{}
-				dockerLog.Printf("Added AWF cli-proxy sidecar container: %s", cliProxyImage)
+			if image == "" || setutil.Contains(imageSet, image) {
+				continue
 			}
-		}
-
-		// Add build-tools sysroot image for ARC/DinD topology.
-		// AWF uses this as an init container to populate the sysroot volume with
-		// system binaries (gcc, make, libraries) that are invisible on the DinD daemon's FS.
-		if isArcDindTopology(workflowData) {
-			buildToolsImage := constants.DefaultFirewallRegistry + "/build-tools:" + awfImageTag
-			if !setutil.Contains(imageSet, buildToolsImage) {
-				images = append(images, buildToolsImage)
-				imageSet[buildToolsImage] = struct {
-				}{}
-				dockerLog.Printf("Added AWF build-tools sysroot container for arc-dind: %s", buildToolsImage)
-			}
+			images = append(images, image)
+			imageSet[image] = struct{}{}
+			dockerLog.Printf("Added AWF %s container: %s", role, image)
 		}
 	}
 
@@ -207,12 +175,24 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 
 	// Sort for stable output
 	sort.Strings(images)
-	dockerLog.Printf("Collected %d Docker images from tools", len(images))
+	sort.Strings(authoritativeAWFImages)
+	dockerLog.Printf("Collected %d Docker images from tools", len(images)+len(authoritativeAWFImages))
 
 	// Apply digest pins from the action cache when available.
 	// Each pinned ref replaces the bare tag with "tag@sha256:…" so that the pull
 	// is bound to a specific immutable manifest and not just to a mutable tag.
 	pinnedImages, imagePins := applyContainerPins(images, workflowData)
+
+	// Closed AWF manifest references are already literal digest pins and must
+	// remain unchanged. Keep them separate from normal image mapping so a non-AWF
+	// container using the same source reference can still be redirected and both
+	// runtime images are predownloaded.
+	pinnedImages = mergeDockerImages(pinnedImages, authoritativeAWFImages)
+	authoritativePins := make([]GHAWManifestContainer, 0, len(authoritativeAWFImages))
+	for _, image := range authoritativeAWFImages {
+		authoritativePins = append(authoritativePins, GHAWManifestContainer{Image: image})
+	}
+	imagePins = mergeDockerImagePins(imagePins, authoritativePins)
 
 	// Store pinned image refs and full pin info in WorkflowData so they can be
 	// included in the compiled lock file header and gh-aw-manifest for auditability.
