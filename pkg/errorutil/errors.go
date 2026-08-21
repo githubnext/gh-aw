@@ -91,6 +91,49 @@ func IsAuthError(output string) bool {
 	return matched
 }
 
+// IsInsufficientScopesError reports whether err indicates that a GitHub
+// GraphQL API request was rejected because the authenticated token is
+// missing required OAuth/PAT scopes. The gh CLI and GitHub GraphQL API
+// surface this as the literal "INSUFFICIENT_SCOPES" error type.
+// It returns false when err is nil.
+//
+// Exception: the gh CLI returns this condition only as error text, with no
+// machine-readable type or status code, so classification is necessarily a
+// substring match. The match lives here rather than at call sites so the
+// fragile literal is documented, tested, and updated in one place.
+func IsInsufficientScopesError(err error) bool {
+	matched := containsErrorSubstring(err, "insufficient_scopes")
+	if matched {
+		errorutilLog.Printf("Classified error as insufficient scopes: %v", err)
+	}
+	return matched
+}
+
+// IsAlreadyMergedError reports whether err indicates that a `gh pr merge`
+// operation failed because the pull request was already merged. The gh CLI
+// only surfaces this state via error text: either the phrase "already merged"
+// (matched case-insensitively) or the uppercase GraphQL "MERGED" state literal
+// (matched case-sensitively so that ordinary wording such as "could not be
+// merged" or "not merged" is not misclassified as success).
+// It returns false when err is nil.
+//
+// Exception: `gh pr merge` exposes no structured state for this condition, so
+// classification is necessarily a substring match. The match lives here rather
+// than at call sites so the fragile literals are documented, tested, and
+// updated in one place.
+func IsAlreadyMergedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	matched := containsSubstring(message, "already merged") ||
+		containsCaseSensitiveSubstring(message, "MERGED")
+	if matched {
+		errorutilLog.Printf("Classified error as already-merged: %v", err)
+	}
+	return matched
+}
+
 // containsErrorSubstring reports whether err contains any of the provided
 // substrings after lowercasing the full error message for case-insensitive
 // matching.
@@ -99,6 +142,18 @@ func containsErrorSubstring(err error, substrings ...string) bool {
 		return false
 	}
 	return containsSubstring(err.Error(), substrings...)
+}
+
+// containsCaseSensitiveSubstring reports whether value contains any of the
+// provided substrings, preserving case. It is used for markers such as the
+// GraphQL "MERGED" state literal where case carries meaning.
+func containsCaseSensitiveSubstring(value string, substrings ...string) bool {
+	for _, substring := range substrings {
+		if strings.Contains(value, substring) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsSubstring(value string, substrings ...string) bool {

@@ -156,6 +156,68 @@ func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_IsInsufficientScopesError validates the documented
+// behavior of IsInsufficientScopesError as described in the errorutil
+// README.md.
+//
+// Specification:
+//   - Returns true when err indicates a GitHub GraphQL request was rejected
+//     for missing OAuth/PAT scopes by matching the case-insensitive
+//     "INSUFFICIENT_SCOPES" literal.
+//   - Returns false for nil and non-matching errors.
+func TestSpec_PublicAPI_IsInsufficientScopesError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "documented: nil returns false", err: nil, want: false},
+		{name: "documented: INSUFFICIENT_SCOPES literal", err: errors.New("GraphQL: INSUFFICIENT_SCOPES"), want: true},
+		{name: "documented: case-insensitive lowercase", err: errors.New("insufficient_scopes"), want: true},
+		{name: "documented: wrapped INSUFFICIENT_SCOPES", err: fmt.Errorf("mutation failed: %w", errors.New("INSUFFICIENT_SCOPES")), want: true},
+		{name: "documented: non-matching error returns false", err: errors.New("something else went wrong"), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := errorutil.IsInsufficientScopesError(tt.err)
+			assert.Equal(t, tt.want, got, "IsInsufficientScopesError(%v) mismatch for: %s", tt.err, tt.name)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_IsAlreadyMergedError validates the documented behavior
+// of IsAlreadyMergedError as described in the errorutil README.md.
+//
+// Specification:
+//   - Returns true when err indicates a `gh pr merge` operation failed
+//     because the pull request was already merged, by matching the
+//     case-insensitive phrase "already merged" or the case-sensitive
+//     GraphQL state literal "MERGED".
+//   - Returns false for nil, non-matching errors, and failure wording such
+//     as "could not be merged".
+func TestSpec_PublicAPI_IsAlreadyMergedError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "documented: nil returns false", err: nil, want: false},
+		{name: "documented: already merged phrase", err: errors.New("Pull request is already merged"), want: true},
+		{name: "documented: MERGED state literal", err: errors.New("state is MERGED"), want: true},
+		{name: "documented: non-matching error returns false", err: errors.New("network timeout"), want: false},
+		{name: "documented: failed merge wording returns false", err: errors.New("Pull request could not be merged"), want: false},
+		{name: "documented: not merged wording returns false", err: errors.New("pull request is not merged"), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := errorutil.IsAlreadyMergedError(tt.err)
+			assert.Equal(t, tt.want, got, "IsAlreadyMergedError(%v) mismatch for: %s", tt.err, tt.name)
+		})
+	}
+}
+
 // TestSpec_UsageExample_ErrorClassifiers validates that the documented usage
 // example pattern compiles and runs.
 //

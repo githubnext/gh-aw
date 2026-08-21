@@ -446,12 +446,16 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 
 	if run1 != nil {
 		for _, s := range run1.Summary {
-			run1Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
+			toolSummary := s
+			toolSummary.syncFieldsFromBase()
+			run1Tools[mcpToolKey(toolSummary.ServerName, toolSummary.ToolName)] = toolSummary
 		}
 	}
 	if run2 != nil {
 		for _, s := range run2.Summary {
-			run2Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
+			toolSummary := s
+			toolSummary.syncFieldsFromBase()
+			run2Tools[mcpToolKey(toolSummary.ServerName, toolSummary.ToolName)] = toolSummary
 		}
 	}
 
@@ -979,7 +983,7 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter}); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
 			auditDiffLog.Printf("Failed to download artifacts for run %d: %v", runID, err)
-			return nil, fmt.Errorf("could not download artifacts for run %d, expected a valid GitHub token and network access: %w", runID, err)
+			return nil, fmt.Errorf("could not download artifacts for run %d; ensure the run has downloadable artifacts and repository access is available, then retry: %w", runID, err)
 		}
 		auditDiffLog.Printf("No artifacts found for run %d, proceeding with partial summary", runID)
 	}
@@ -992,7 +996,7 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 		var err error
 		analysis, err = analyzeFirewallLogs(runOutputDir, verbose)
 		if err != nil {
-			return nil, fmt.Errorf("could not analyze firewall logs for run %d, expected valid firewall audit logs in the downloaded artifact: %w", runID, err)
+			return nil, fmt.Errorf("could not analyze firewall logs for run %d; ensure the agent artifact includes firewall logs and the files are readable, then retry: %w", runID, err)
 		}
 	}
 
