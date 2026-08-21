@@ -577,9 +577,10 @@ func NewEngineRegistry() *EngineRegistry {
 	}
 	for _, engine := range builtins {
 		if err := registry.Register(engine); err != nil {
-			// Build-time invariant: the built-in engines list above has fixed, non-empty
-			// names, so registration can only fail if a future refactor introduces a
-			// duplicate or empty name — a programming error caught by CI, not user input.
+			// Build-time invariant: Register only rejects a negative
+			// dedicatedLLMGatewayPort, and every built-in engine above is constructed
+			// with a compile-time constant port, so this is a programming error caught
+			// by CI (TestBuiltinEnginesRegisterWithoutError), never user input.
 			panic(fmt.Sprintf("BUG: failed to register built-in engine: %v", err))
 		}
 	}

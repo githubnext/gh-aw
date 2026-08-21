@@ -144,9 +144,9 @@ func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
-		// Build-time invariant: payload above is built entirely from string/map
-		// literals, so Marshal cannot fail; json.Marshal only errors for
-		// non-serialisable types such as channels or functions.
+		// Build-time invariant: the payload holds only strings, maps and slices —
+		// json.Marshal only errors for non-serialisable types such as channels or
+		// functions, so no runtime argument value can reach this branch.
 		panic(fmt.Sprintf("BUG: buildPiModelsJSON failed to marshal JSON: %v", err))
 	}
 	return string(b)
