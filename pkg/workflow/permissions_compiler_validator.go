@@ -345,7 +345,7 @@ func validateCodexCopilotAwfVersion(workflowData *WorkflowData) error {
 		effectiveVersion = firewallConfig.Version
 	}
 	return fmt.Errorf(
-		"Codex with the GitHub provider requires AWF %s or newer to keep GitHub credentials out of the agent container.\n\nThe effective AWF version is %s. Set firewall.version to %s or newer",
+		"codex with the GitHub provider requires AWF %s or newer to keep GitHub credentials out of the agent container.\n\nThe effective AWF version is %s. Set firewall.version to %s or newer",
 		constants.AWFExcludeEnvMinVersion,
 		effectiveVersion,
 		constants.AWFExcludeEnvMinVersion,
