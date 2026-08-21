@@ -19,7 +19,6 @@ tools:
   github:
     mode: gh-proxy
     toolsets: [default]
-  cli-proxy: true
   bash:
     - "git diff*"
     - "git log*"
