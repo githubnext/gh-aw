@@ -356,9 +356,15 @@ func TestLowercaseDiscussionTriggerTypesInLines(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			var inputLines []string
+			if tt.lines != nil {
+				inputLines = make([]string, len(tt.lines))
+				copy(inputLines, tt.lines)
+			}
 			gotLines, gotModified := lowercaseDiscussionTriggerTypesInLines(tt.lines)
 			assert.Equal(t, tt.wantModified, gotModified)
 			assert.Equal(t, tt.wantLines, gotLines)
+			assert.Equal(t, inputLines, tt.lines)
 		})
 	}
 }

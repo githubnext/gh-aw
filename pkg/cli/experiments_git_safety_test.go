@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,7 @@ func TestIsSafeGitRefName(t *testing.T) {
 		{name: "simple branch name is safe", ref: "main", want: true},
 		{name: "slash separated ref is safe", ref: "experiments/my-run", want: true},
 		{name: "empty string is unsafe", ref: "", want: false},
+		{name: "single at sign is unsafe", ref: "@", want: false},
 		{name: "leading slash is unsafe", ref: "/main", want: false},
 		{name: "trailing slash is unsafe", ref: "main/", want: false},
 		{name: "trailing dot is unsafe", ref: "main.", want: false},
@@ -29,6 +31,7 @@ func TestIsSafeGitRefName(t *testing.T) {
 		{name: "empty path component is unsafe", ref: "foo//", want: false},
 		{name: "component starting with dot is unsafe", ref: "foo/.bar", want: false},
 		{name: "component ending with .lock is unsafe", ref: "foo/bar.lock", want: false},
+		{name: "top-level .lock name is unsafe", ref: "foo.lock", want: false},
 		{name: "component with space is unsafe", ref: "foo bar", want: false},
 		{name: "component with control char is unsafe", ref: "foo\tbar", want: false},
 		{name: "component with tilde is unsafe", ref: "foo~1", want: false},
@@ -54,6 +57,7 @@ func TestIsSafeGitRefName(t *testing.T) {
 func FuzzIsSafeGitRefName(f *testing.F) {
 	seeds := []string{
 		"",
+		"@",
 		"main",
 		"experiments/foo",
 		"/main",
@@ -65,6 +69,7 @@ func FuzzIsSafeGitRefName(f *testing.F) {
 		`foo\bar`,
 		"foo/.bar",
 		"foo/bar.lock",
+		"foo.lock",
 		"foo bar",
 		"foo~1",
 		"foo^1",
@@ -84,5 +89,11 @@ func FuzzIsSafeGitRefName(f *testing.F) {
 		got := isSafeGitRefName(ref)
 		again := isSafeGitRefName(ref)
 		assert.Equal(t, got, again)
+		if got {
+			assert.NotContains(t, ref, "..")
+			assert.NotContains(t, ref, "@{")
+			assert.False(t, strings.HasSuffix(ref, "."))
+			assert.False(t, strings.ContainsAny(ref, "@~^:?*[\\"))
+		}
 	})
 }
