@@ -76,8 +76,8 @@ func TestBuildLogsObservabilityInsights(t *testing.T) {
 	}
 
 	toolUsage := []ToolUsageSummary{
-		{Name: "bash", TotalCalls: 14},
-		{Name: "github_issue_read", TotalCalls: 6},
+		{ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "bash", CallCount: 14}},
+		{ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "github_issue_read", CallCount: 6}},
 	}
 
 	insights := buildLogsObservabilityInsights(processedRuns, toolUsage)

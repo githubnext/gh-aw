@@ -380,14 +380,14 @@ func TestComputeMCPToolsDiff_NewTools(t *testing.T) {
 	t.Parallel()
 	run1 := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 5}, ErrorCount: 0},
 		},
 	}
 	run2 := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
-			{ServerName: "github", ToolName: "create_issue", CallCount: 3, ErrorCount: 0},
-			{ServerName: "playwright", ToolName: "screenshot", CallCount: 2, ErrorCount: 1},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 5}, ErrorCount: 0},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "create_issue", CallCount: 3}, ErrorCount: 0},
+			{ServerName: "playwright", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "screenshot", CallCount: 2}, ErrorCount: 1},
 		},
 	}
 
@@ -418,13 +418,13 @@ func TestComputeMCPToolsDiff_RemovedTools(t *testing.T) {
 	t.Parallel()
 	run1 := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "github", ToolName: "issue_read", CallCount: 10, ErrorCount: 0},
-			{ServerName: "github", ToolName: "search_repos", CallCount: 4, ErrorCount: 0},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 10}, ErrorCount: 0},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "search_repos", CallCount: 4}, ErrorCount: 0},
 		},
 	}
 	run2 := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "github", ToolName: "issue_read", CallCount: 8, ErrorCount: 0},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 8}, ErrorCount: 0},
 		},
 	}
 
@@ -441,14 +441,14 @@ func TestComputeMCPToolsDiff_ChangedTools(t *testing.T) {
 	t.Parallel()
 	run1 := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
-			{ServerName: "github", ToolName: "create_pr", CallCount: 2, ErrorCount: 1},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 5}, ErrorCount: 0},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "create_pr", CallCount: 2}, ErrorCount: 1},
 		},
 	}
 	run2 := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "github", ToolName: "issue_read", CallCount: 10, ErrorCount: 0},
-			{ServerName: "github", ToolName: "create_pr", CallCount: 2, ErrorCount: 3},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 10}, ErrorCount: 0},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "create_pr", CallCount: 2}, ErrorCount: 3},
 		},
 	}
 
@@ -489,7 +489,7 @@ func TestComputeMCPToolsDiff_BothNil(t *testing.T) {
 func TestComputeMCPToolsDiff_NoChanges(t *testing.T) {
 	t.Parallel()
 	toolSummary := []MCPToolSummary{
-		{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+		{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 5}, ErrorCount: 0},
 	}
 	run1 := &MCPToolUsageData{Summary: toolSummary}
 	run2 := &MCPToolUsageData{Summary: toolSummary}
@@ -506,9 +506,9 @@ func TestComputeMCPToolsDiff_SortedOutput(t *testing.T) {
 	run1 := &MCPToolUsageData{}
 	run2 := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "z-server", ToolName: "tool", CallCount: 1},
-			{ServerName: "a-server", ToolName: "tool", CallCount: 1},
-			{ServerName: "m-server", ToolName: "tool", CallCount: 1},
+			{ServerName: "z-server", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "tool", CallCount: 1}},
+			{ServerName: "a-server", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "tool", CallCount: 1}},
+			{ServerName: "m-server", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "tool", CallCount: 1}},
 		},
 	}
 
@@ -613,7 +613,7 @@ func TestComputeAuditDiff_CombinesAllSections(t *testing.T) {
 			},
 			MCPToolUsage: &MCPToolUsageData{
 				Summary: []MCPToolSummary{
-					{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+					{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 3}, ErrorCount: 0},
 				},
 			},
 			Run: WorkflowRun{TokenUsage: 2000, Turns: 5},
@@ -630,8 +630,8 @@ func TestComputeAuditDiff_CombinesAllSections(t *testing.T) {
 			},
 			MCPToolUsage: &MCPToolUsageData{
 				Summary: []MCPToolSummary{
-					{ServerName: "github", ToolName: "issue_read", CallCount: 7, ErrorCount: 0},
-					{ServerName: "github", ToolName: "create_issue", CallCount: 2, ErrorCount: 0},
+					{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 7}, ErrorCount: 0},
+					{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "create_issue", CallCount: 2}, ErrorCount: 0},
 				},
 			},
 			Run: WorkflowRun{TokenUsage: 3000, Turns: 8},
@@ -676,7 +676,7 @@ func TestAuditDiffJSONSerialization(t *testing.T) {
 		},
 		MCPToolUsage: &MCPToolUsageData{
 			Summary: []MCPToolSummary{
-				{ServerName: "github", ToolName: "issue_read", CallCount: 3},
+				{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 3}},
 			},
 		},
 		Run: WorkflowRun{TokenUsage: 1000, Turns: 4},
@@ -691,7 +691,7 @@ func TestAuditDiffJSONSerialization(t *testing.T) {
 		},
 		MCPToolUsage: &MCPToolUsageData{
 			Summary: []MCPToolSummary{
-				{ServerName: "github", ToolName: "issue_read", CallCount: 5},
+				{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 5}},
 			},
 		},
 		Run: WorkflowRun{TokenUsage: 1500, Turns: 6},
@@ -938,7 +938,7 @@ func TestComputeAuditDiff_MultipleRuns(t *testing.T) {
 			},
 			MCPToolUsage: &MCPToolUsageData{
 				Summary: []MCPToolSummary{
-					{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+					{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 3}, ErrorCount: 0},
 				},
 			},
 			Run: WorkflowRun{Turns: 5},
@@ -961,7 +961,7 @@ func TestComputeAuditDiff_MultipleRuns(t *testing.T) {
 			},
 			MCPToolUsage: &MCPToolUsageData{
 				Summary: []MCPToolSummary{
-					{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+					{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "issue_read", CallCount: 5}, ErrorCount: 0},
 				},
 			},
 			Run: WorkflowRun{Turns: 7},
