@@ -33,9 +33,12 @@ steps:
       # sandbox builds NumPy/SciPy from source and exhausts the runner disk. Install a
       # portable uv-managed CPython plus the chart libraries under /tmp/gh-aw, which is
       # mounted read-write into the sandbox, so the agent can import them directly.
-      # Recreate the environment every run so chart generation never depends on stale state.
-      rm -rf /tmp/gh-aw/python/venv
-      uv venv --python 3.12 --python-preference only-managed /tmp/gh-aw/python/venv
+      # This must match shared/python-dataviz.md and shared/python-nlp.md so either import can
+      # create the shared environment first; never recreate it, or a sibling import's packages
+      # (for example the NLP libraries) would be discarded.
+      if [ ! -d /tmp/gh-aw/python/venv ]; then
+        uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
+      fi
       uv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy pandas matplotlib seaborn scipy
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
       /tmp/gh-aw/python/venv/bin/python -c "import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')"
