@@ -1,3 +1,5 @@
+//go:build !integration
+
 package workflow
 
 import (
@@ -129,7 +131,7 @@ func TestValidateNoRunnerTempInExecutableBodiesRejectsScriptRegression(t *testin
 	}
 }
 
-func TestRewriteRunnerTempEscapesActionPath(t *testing.T) {
+func TestRewriteRunnerTempRejectsEscapedActionPath(t *testing.T) {
 	input := `steps:
   - uses: actions/github-script@v7
     with:
@@ -139,8 +141,11 @@ func TestRewriteRunnerTempEscapesActionPath(t *testing.T) {
 
 	got := rewriteRunnerTempInExecutableBodies(input)
 
-	if !strings.Contains(got, `path.join(actionsDir, 'evil\\')`) {
-		t.Fatalf("expected trailing backslash in action path to be escaped:\n%s", got)
+	if !strings.Contains(got, "${{ runner.temp }}/gh-aw/actions/evil\\'") {
+		t.Fatalf("expected escaped action path to remain unre-written for validation:\n%s", got)
+	}
+	if _, err := finalizeRunnerTempSafety(input); err == nil {
+		t.Fatal("expected escaped action path to fail closed during validation")
 	}
 }
 
@@ -151,11 +156,18 @@ func TestSingleQuotedJS(t *testing.T) {
 	}{
 		{"generate_aw_info.cjs", `'generate_aw_info.cjs'`},
 		{`a'b`, `'a\'b'`},
+		{`a\'b`, `'a\\\'b'`},
 		{`a\b`, `'a\\b'`},
 		{`a"b`, `'a"b'`},
 		{`a\"b`, `'a\\"b'`},
+		{"a\ab", `'a\u0007b'`},
+		{"a\bb", `'a\bb'`},
+		{"a\fb", `'a\fb'`},
 		{"a\nb", `'a\nb'`},
 		{"a\rb", `'a\rb'`},
+		{"a\tb", `'a\tb'`},
+		{"a\vb", `'a\u000bb'`},
+		{"a`b", "'a`b'"},
 	}
 	for _, tt := range tests {
 		if got := singleQuotedJS(tt.in); got != tt.want {
