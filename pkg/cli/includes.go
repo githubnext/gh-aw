@@ -593,10 +593,23 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 	return nil
 }
 
-func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, fetchFn includesFetcher, strict bool) error {
-	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", spec.String())
-	if fetchFn == nil {
-		fetchFn = FetchIncludeFromSource
+// includesFetchOptions holds the constant parameters for fetchAndSaveRemoteIncludesWithOptions.
+// Only `content` changes across the recursive calls made while processing nested includes;
+// everything else stays the same for the duration of a single top-level fetch operation.
+type includesFetchOptions struct {
+	spec      *WorkflowSpec
+	targetDir string
+	verbose   bool
+	force     bool
+	tracker   *FileTracker
+	fetchFn   includesFetcher
+	strict    bool
+}
+
+func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, opts includesFetchOptions) error {
+	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", opts.spec.String())
+	if opts.fetchFn == nil {
+		opts.fetchFn = FetchIncludeFromSource
 	}
 
 	// Parse the workflow content to find @include directives
@@ -633,10 +646,10 @@ func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, 
 		}{}
 
 		// Fetch the include file
-		includeContent, _, err := fetchFn(ctx, includePath, spec, verbose)
+		includeContent, _, err := opts.fetchFn(ctx, includePath, opts.spec, opts.verbose)
 		if err != nil {
 			if isOptional {
-				if verbose {
+				if opts.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Optional include not found: "+includePath))
 				}
 				continue
@@ -648,19 +661,19 @@ func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, 
 		var targetPath string
 		if strings.HasPrefix(filePath, "shared/") {
 			// shared/ files go to .github/shared/
-			targetPath = filepath.Join(filepath.Dir(targetDir), filePath)
+			targetPath = filepath.Join(filepath.Dir(opts.targetDir), filePath)
 		} else if isWorkflowSpecFormat(filePath) {
 			// Workflowspec includes: extract just the filename and put in shared/
 			parts := strings.Split(filePath, "/")
 			filename := parts[len(parts)-1]
-			targetPath = filepath.Join(filepath.Dir(targetDir), "shared", filename)
+			targetPath = filepath.Join(filepath.Dir(opts.targetDir), "shared", filename)
 		} else {
 			// Relative includes go alongside the workflow
-			targetPath = filepath.Join(targetDir, filePath)
+			targetPath = filepath.Join(opts.targetDir, filePath)
 		}
-		writeBase := targetDir
+		writeBase := opts.targetDir
 		if strings.HasPrefix(filePath, "shared/") || isWorkflowSpecFormat(filePath) {
-			writeBase = filepath.Join(filepath.Dir(targetDir), "shared")
+			writeBase = filepath.Join(filepath.Dir(opts.targetDir), "shared")
 		}
 		if err := fileutil.ValidatePathWithinBase(writeBase, targetPath); err != nil {
 			return fmt.Errorf("refusing to write include outside allowed directory %s: %w", writeBase, err)
@@ -675,8 +688,8 @@ func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, 
 		fileExists := false
 		if fileutil.FileExists(targetPath) {
 			fileExists = true
-			if !force {
-				if verbose {
+			if !opts.force {
+				if opts.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Include file already exists, skipping: "+targetPath))
 				}
 				continue
@@ -688,25 +701,25 @@ func fetchAndSaveRemoteIncludesWithOptions(ctx context.Context, content string, 
 			return fmt.Errorf("failed to write include file %s: %w", targetPath, err)
 		}
 
-		if verbose {
+		if opts.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched include: "+targetPath))
 		}
 
 		// Track the file
-		if tracker != nil {
+		if opts.tracker != nil {
 			if fileExists {
-				tracker.TrackModified(targetPath)
+				opts.tracker.TrackModified(targetPath)
 			} else {
-				tracker.TrackCreated(targetPath)
+				opts.tracker.TrackCreated(targetPath)
 			}
 		}
 
 		// Recursively fetch includes from the fetched file
-		if err := fetchAndSaveRemoteIncludesWithOptions(ctx, string(includeContent), spec, targetDir, verbose, force, tracker, fetchFn, strict); err != nil {
-			if strict {
+		if err := fetchAndSaveRemoteIncludesWithOptions(ctx, string(includeContent), opts); err != nil {
+			if opts.strict {
 				return fmt.Errorf("failed to fetch nested includes from %s: %w", filePath, err)
 			}
-			if verbose {
+			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch nested includes from %s: %v", filePath, err)))
 			}
 		}
@@ -734,7 +747,14 @@ func fetchAllRemoteDependenciesStrict(ctx context.Context, content string, spec 
 func fetchAllRemoteDependenciesWithOptions(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, strict bool) error {
 	remoteWorkflowLog.Printf("Fetching all remote dependencies: spec=%s, targetDir=%s, force=%v", spec.String(), targetDir, force)
 	// Fetch and save @include directive dependencies (best-effort: errors are not fatal).
-	if err := fetchAndSaveRemoteIncludesWithOptions(ctx, content, spec, targetDir, verbose, force, tracker, nil, strict); err != nil {
+	if err := fetchAndSaveRemoteIncludesWithOptions(ctx, content, includesFetchOptions{
+		spec:      spec,
+		targetDir: targetDir,
+		verbose:   verbose,
+		force:     force,
+		tracker:   tracker,
+		strict:    strict,
+	}); err != nil {
 		if strict {
 			return fmt.Errorf("failed to fetch include dependencies: %w", err)
 		}
