@@ -21,10 +21,11 @@ func TestSharedPythonImportsUsePortableManagedPython(t *testing.T) {
 	repoRoot, err := gitutil.FindGitRoot()
 	require.NoError(t, err)
 
-	// Each component installs its own packages into the shared portable environment.
+	// Each component installs its own packages additively into the shared portable environment.
 	packageInstalls := map[string]string{
-		"python-dataviz.md": "/tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy",
-		"python-nlp.md":     "/tmp/gh-aw/python/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud",
+		"python-dataviz.md":         "/tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy",
+		"python-nlp.md":             "/tmp/gh-aw/python/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud",
+		"trending-charts-simple.md": "uv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy pandas matplotlib seaborn scipy",
 	}
 
 	for sharedWorkflow, packageInstall := range packageInstalls {
@@ -37,6 +38,8 @@ func TestSharedPythonImportsUsePortableManagedPython(t *testing.T) {
 			require.Contains(t, workflowContent, portableVenvCommand)
 			require.Contains(t, workflowContent, packageInstall)
 			require.NotContains(t, workflowContent, "python3 -m venv")
+			// Recreating the shared environment would discard a sibling import's packages.
+			require.NotContains(t, workflowContent, "rm -rf /tmp/gh-aw/python/venv")
 		})
 	}
 }
@@ -47,13 +50,24 @@ func TestCompiledConsumersOnlyCreatePortableSharedVenv(t *testing.T) {
 	repoRoot, err := gitutil.FindGitRoot()
 	require.NoError(t, err)
 
-	for _, lockFile := range []string{"copilot-pr-nlp-analysis.lock.yml", "daily-issues-report.lock.yml"} {
+	lockFiles := []string{
+		// python-dataviz.md + python-nlp.md
+		"copilot-pr-nlp-analysis.lock.yml",
+		"daily-issues-report.lock.yml",
+		// python-nlp.md + trending-charts-simple.md
+		"prompt-clustering-analysis.lock.yml",
+		// python-dataviz.md + trending-charts-simple.md
+		"daily-security-observability.lock.yml",
+	}
+
+	for _, lockFile := range lockFiles {
 		t.Run(lockFile, func(t *testing.T) {
 			content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", lockFile))
 			require.NoError(t, err)
 			lockContent := string(content)
 
 			require.NotContains(t, lockContent, "python3 -m venv /tmp/gh-aw/python/venv")
+			require.NotContains(t, lockContent, "rm -rf /tmp/gh-aw/python/venv")
 			require.GreaterOrEqual(t, strings.Count(lockContent, portableVenvCommand), 1)
 		})
 	}
