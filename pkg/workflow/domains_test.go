@@ -471,6 +471,11 @@ func TestClaudeDefaultDomains(t *testing.T) {
 		"anthropic.com",
 		"api.anthropic.com",
 		"statsig.anthropic.com",
+		// Claude Code CLI contacts these during startup for authentication and
+		// sign-in/feature configuration; blocking them makes the CLI exit before
+		// it emits any structured log entry.
+		"claude.ai",
+		"platform.claude.com",
 		"api.github.com",
 		"github.com",
 		"host.docker.internal",

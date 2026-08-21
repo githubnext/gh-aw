@@ -99,6 +99,7 @@ var ClaudeDefaultDomains = []string{
 	"archive.ubuntu.com",
 	"azure.archive.ubuntu.com",
 	"cdn.playwright.dev",
+	"claude.ai", // Claude Code CLI startup: sign-in state and feature/config lookups
 	"codeload.github.com",
 	"crl.geotrust.com",
 	"crl.globalsign.com",
@@ -132,6 +133,7 @@ var ClaudeDefaultDomains = []string{
 	"packagecloud.io",
 	"packages.cloud.google.com",
 	"packages.microsoft.com",
+	"platform.claude.com", // Claude Code CLI startup: OAuth/authentication endpoint (replaced console.anthropic.com)
 	"playwright.download.prss.microsoft.com",
 	"ppa.launchpad.net",
 	"raw.githubusercontent.com",
