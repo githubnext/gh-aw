@@ -248,11 +248,34 @@ func appendTopLevelClaudeTools(allowedTools []string, tools map[string]any, cach
 		switch toolName {
 		case "cache-memory":
 			allowedTools = appendCacheMemoryTools(allowedTools, cacheMemoryConfig)
+		case "drive-memory":
+			allowedTools = appendDriveMemoryTools(allowedTools, toolValue)
 		case "agentic-workflows":
 			allowedTools = append(allowedTools, "mcp__"+string(constants.AgenticWorkflowsMCPServerID))
 		default:
 			allowedTools = appendMCPToolPermissions(allowedTools, toolName, toolValue)
 		}
+
+	}
+	return allowedTools
+}
+
+func appendDriveMemoryTools(allowedTools []string, raw any) []string {
+	tools := &ToolsConfig{DriveMemory: &DriveMemoryToolConfig{Raw: raw}}
+	config, err := NewCompiler().extractDriveMemoryConfig(tools)
+	if err != nil || config == nil {
+		return allowedTools
+	}
+	for _, drive := range config.Drives {
+		memoryDir := driveMemoryDirFor(drive.ID)
+		pattern := memoryDir + "/*"
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Read(%s)", pattern))
+		if !drive.RestoreOnly {
+			allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Write(%s)", pattern))
+			allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Edit(%s)", pattern))
+			allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("MultiEdit(%s)", pattern))
+		}
+		allowedTools = appendCacheMemoryBashTools(allowedTools, memoryDir)
 	}
 	return allowedTools
 }

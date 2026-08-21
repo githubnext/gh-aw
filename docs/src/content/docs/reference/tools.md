@@ -89,6 +89,17 @@ tools:
 
 See **[Cache Memory Reference](/gh-aw/reference/cache-memory/)** for complete configuration options and usage examples.
 
+### Drive Memory (`drive-memory:`) — Experimental
+
+Persistent memory backed by the GitHub Drives preview.
+
+```yaml wrap
+tools:
+  drive-memory:
+```
+
+See **[Drive Memory Reference](/gh-aw/reference/drive-memory/)** for enrollment requirements, configuration, and limitations.
+
 ### Repo Memory (`repo-memory:`)
 
 Repository-specific memory storage for maintaining context across executions.

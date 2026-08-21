@@ -30,6 +30,34 @@ func (c *Compiler) isActivationJobNeeded() bool {
 	return true
 }
 
+// ensureDriveMemoryJobPermissions grants the preview drive and OIDC permissions only
+// to jobs containing compiler-generated drive-memory steps.
+func (c *Compiler) ensureDriveMemoryJobPermissions(data *WorkflowData) {
+	if data == nil || data.DriveMemoryConfig == nil || len(data.DriveMemoryConfig.Drives) == 0 {
+		return
+	}
+	for _, job := range c.jobManager.GetAllJobs() {
+		hasCheckout := false
+		hasCommit := false
+		for _, step := range job.Steps {
+			hasCheckout = hasCheckout || strings.Contains(step, "actions/gh-drives-preview/checkout@")
+			hasCommit = hasCommit || strings.Contains(step, "actions/gh-drives-preview/commit@")
+		}
+		if !hasCheckout {
+			continue
+		}
+		perms := NewPermissionsParser(job.Permissions).ToPermissions()
+		perms.Set(PermissionContents, PermissionRead)
+		perms.Set(PermissionIdToken, PermissionWrite)
+		if hasCommit {
+			perms.Set(PermissionDrives, PermissionWrite)
+		} else {
+			perms.Set(PermissionDrives, PermissionRead)
+		}
+		job.Permissions = perms.RenderToYAML()
+	}
+}
+
 // referencesCustomJobOutputs checks if a condition string references custom jobs.
 // Returns true if the condition contains "needs.<customJobName>." patterns, which includes
 // both outputs (needs.job.outputs.*) and results (needs.job.result).
@@ -38,6 +66,7 @@ func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[s
 	if condition == "" || customJobs == nil {
 		return false
 	}
+
 	for jobName := range customJobs {
 		// Check for patterns like "needs.ast_grep.outputs" or "needs.ast_grep.result"
 		if strings.Contains(condition, fmt.Sprintf("needs.%s.", jobName)) {
@@ -314,7 +343,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
 
-	// Build memory management jobs (repo-memory and cache-memory)
+	// Build memory management jobs.
 	if err := c.buildMemoryManagementJobs(data); err != nil {
 		return err
 	}
@@ -336,6 +365,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Job-level permissions override the workflow-level block, so this must be applied
 	// to each job individually after all jobs have been created.
 	c.ensureOTLPOIDCJobPermissions(data)
+	c.ensureDriveMemoryJobPermissions(data)
 
 	compilerJobsLog.Print("Successfully built all jobs for workflow")
 	return nil
@@ -465,6 +495,10 @@ func (c *Compiler) buildMemoryManagementJobs(data *WorkflowData) error {
 		return err
 	}
 
+	if _, err := c.buildUpdateDriveMemoryJobWrapper(data, threatDetectionEnabledForSafeJobs); err != nil {
+		return err
+	}
+
 	// Build push_experiments_state job when experiment storage is "repo"
 	pushExperimentsJobName, err := c.buildPushExperimentsStateJobWrapper(data)
 	if err != nil {
@@ -541,6 +575,23 @@ func (c *Compiler) buildUpdateCacheMemoryJobWrapper(data *WorkflowData, threatDe
 
 	compilerJobsLog.Printf("Successfully added update_cache_memory job: %s", updateCacheMemoryJob.Name)
 	return updateCacheMemoryJob.Name, nil
+}
+
+func (c *Compiler) buildUpdateDriveMemoryJobWrapper(data *WorkflowData, threatDetectionEnabled bool) (string, error) {
+	if data.DriveMemoryConfig == nil || len(data.DriveMemoryConfig.Drives) == 0 || !threatDetectionEnabled {
+		return "", nil
+	}
+	job, err := c.buildUpdateDriveMemoryJob(data, threatDetectionEnabled)
+	if err != nil {
+		return "", fmt.Errorf("failed to build update_drive_memory job: %w", err)
+	}
+	if job == nil {
+		return "", nil
+	}
+	if err := c.jobManager.AddJob(job); err != nil {
+		return "", fmt.Errorf("failed to add update_drive_memory job: %w", err)
+	}
+	return job.Name, nil
 }
 
 // buildPushExperimentsStateJobWrapper builds the push_experiments_state job when experiments

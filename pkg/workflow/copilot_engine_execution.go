@@ -284,6 +284,12 @@ func (e *CopilotEngine) buildCopilotFeatureArgs(workflowData *WorkflowData, copi
 			cacheDir := cacheMemoryDirFor(cache.ID) + "/"
 			copilotArgs = append(copilotArgs, "--add-dir", cacheDir)
 		}
+		// Drive-memory is exposed through /tmp symlinks outside the repository workspace.
+		if workflowData.DriveMemoryConfig != nil {
+			for _, drive := range workflowData.DriveMemoryConfig.Drives {
+				copilotArgs = append(copilotArgs, "--add-dir", driveMemoryDirFor(drive.ID)+"/")
+			}
+		}
 	}
 	// Add --allow-all-paths when edit tool is enabled to allow write on all paths
 	// See: https://github.com/github/copilot-cli/issues/67#issuecomment-3411256174

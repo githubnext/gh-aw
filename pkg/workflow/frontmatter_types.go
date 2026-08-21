@@ -57,6 +57,7 @@ type GitHubActionsPermissionsConfig struct {
 	IDToken             string `json:"id-token,omitempty"`
 	Issues              string `json:"issues,omitempty"`
 	Discussions         string `json:"discussions,omitempty"`
+	Drives              string `json:"drives,omitempty"`
 	Packages            string `json:"packages,omitempty"`
 	Pages               string `json:"pages,omitempty"`
 	PullRequests        string `json:"pull-requests,omitempty"`
