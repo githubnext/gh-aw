@@ -167,6 +167,17 @@ describe("pick_experiment", () => {
       expect(loaded.runs).toEqual(runs);
     });
 
+    it("restores the latest continual stage from jsonl state", () => {
+      const file = path.join(tmpDir, "state.jsonl");
+      const runs = [
+        { run_id: "123", timestamp: "2026-01-01T00:00:00.000Z", assignments: { f: "A" }, continual_state: { f: { current_stage: 2 } } },
+        { run_id: "124", timestamp: "2026-01-01T01:00:00.000Z", assignments: { f: "B" }, continual_state: { f: { current_stage: 1 } } },
+      ];
+      fs.writeFileSync(file, `${runs.map(run => JSON.stringify(run)).join("\n")}\n`, "utf8");
+
+      expect(loadState(file).continual).toEqual({ f: { current_stage: 2 } });
+    });
+
     it("migrates legacy json state to a jsonl run ledger with baseline counts", () => {
       const legacyFile = path.join(tmpDir, "state.jsonl");
       fs.writeFileSync(legacyFile, JSON.stringify({ counts: { f: { A: 2 } }, runs: [] }) + "\n", "utf8");
@@ -760,10 +771,20 @@ describe("pick_experiment", () => {
 
       it("advances canary weights from persisted candidate observations", () => {
         const cfg = { continual: { ramp: [5, 20, 50], decision: { minimum_observations: 10 } } };
-        expect(continualWeights(cfg, ["control", "candidate"], { counts: {} }, "optimization")).toEqual([95, 5]);
-        expect(continualWeights(cfg, ["control", "candidate"], { counts: { optimization: { candidate: 10 } } }, "optimization")).toEqual([80, 20]);
-        expect(continualWeights(cfg, ["control", "candidate"], { counts: { optimization: { candidate: 20 } } }, "optimization")).toEqual([50, 50]);
-        expect(continualWeights(cfg, ["control", "candidate"], { counts: { optimization: { candidate: 100 } } }, "optimization")).toEqual([50, 50]);
+        const state = { counts: { optimization: { candidate: 10 } } };
+        expect(continualWeights(cfg, ["control", "candidate"], state, "optimization")).toEqual([80, 20]);
+        expect(state.continual).toEqual({ optimization: { current_stage: 1 } });
+        expect(cfg.continual).not.toHaveProperty("current_stage");
+      });
+
+      it("does not regress a stage persisted in experiment state", () => {
+        const cfg = { continual: { ramp: [5, 20, 50], decision: { minimum_observations: 10 } } };
+        const state = {
+          counts: { optimization: { candidate: 5 } },
+          continual: { optimization: { current_stage: 2 } },
+        };
+        expect(continualWeights(cfg, ["control", "candidate"], state, "optimization")).toEqual([50, 50]);
+        expect(state.continual.optimization.current_stage).toBe(2);
       });
     });
 
@@ -877,6 +898,26 @@ describe("pick_experiment", () => {
       expect(state.runs).toHaveLength(2);
       expect(state.runs[0].run_id).toBe("1");
       expect(state.runs[1].run_id).toBe("2");
+    });
+
+    it("persists continual stage in the branch state ledger", async () => {
+      const stateFile = path.join(tmpDir, "state.jsonl");
+      fs.writeFileSync(stateFile, `${JSON.stringify({ run_id: "1", timestamp: "2026-01-01T00:00:00.000Z", assignments: { optimization: "candidate" }, baseline_counts: { optimization: { candidate: 9 } } })}\n`, "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        optimization: {
+          variants: ["control", "candidate"],
+          continual: { seed: "test-seed", ramp: [5, 20], decision: { minimum_observations: 10 } },
+        },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "2";
+
+      await main();
+
+      const state = loadState(stateFile);
+      expect(state.continual).toEqual({ optimization: { current_stage: 1 } });
+      expect(state.runs.at(-1)?.continual_state).toEqual({ optimization: { current_stage: 1 } });
     });
 
     it("does not append a run record when no experiments are assigned", async () => {

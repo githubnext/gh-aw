@@ -46,6 +46,7 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {string} [harness_version]
  * @property {Record<string, {probability: number, unit: string, deterministic: boolean}>} [assignment]
  * @property {Record<string, string>} [features]
+ * @property {Record<string, {current_stage: number}>} [continual_state]
  */
 
 /**
@@ -54,6 +55,8 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  *   Maps experiment name → variant → cumulative invocation count.
  * @property {ExperimentRunRecord[]} [runs]
  *   Per-run ledger history appended on each invocation.
+ * @property {Record<string, {current_stage: number}>} [continual]
+ *   Dynamic continual experiment state persisted independently of workflow configuration.
  */
 
 /**
@@ -156,6 +159,19 @@ function hasCounts(counts) {
   return Object.values(counts).some(variants => Object.keys(variants).length > 0);
 }
 
+function mergeContinualState(target, source) {
+  if (!isPlainObject(source)) {
+    throw new Error("Invalid continual experiment state");
+  }
+  for (const [name, value] of Object.entries(source)) {
+    if (!isPlainObject(value) || !Number.isInteger(value.current_stage) || value.current_stage < 0) {
+      throw new Error("Invalid continual experiment stage");
+    }
+    const currentStage = target[name]?.current_stage ?? 0;
+    target[name] = { current_stage: Math.max(currentStage, value.current_stage) };
+  }
+}
+
 /**
  * Load and parse the state file. Returns an empty state if the file does not exist
  * or cannot be parsed (e.g. first run or corrupted cache).
@@ -195,6 +211,10 @@ function loadState(stateFile) {
       if (entry && typeof entry.run_id === "string" && typeof entry.timestamp === "string" && entry.assignments && typeof entry.assignments === "object" && !Array.isArray(entry.assignments)) {
         if (entry.baseline_counts !== undefined) {
           mergeBaselineCounts(state.counts, entry.baseline_counts);
+        }
+        if (entry.continual_state !== undefined) {
+          if (!state.continual) state.continual = {};
+          mergeContinualState(state.continual, entry.continual_state);
         }
         state.runs.push(entry);
         if (state.runs.length > MAX_RUN_HISTORY) {
@@ -396,7 +416,12 @@ function continualWeights(cfg, variants, state = { counts: {} }, name = "") {
     minimumObservations = configuredMinimum;
   }
   const candidateObservations = state.counts?.[name]?.[variants[1]] ?? 0;
-  const stage = Math.min(Math.floor(candidateObservations / minimumObservations), ramp.length - 1);
+  const observedStage = Math.min(Math.floor(candidateObservations / minimumObservations), ramp.length - 1);
+  const storedStageValue = state.continual?.[name]?.current_stage;
+  const storedStage = typeof storedStageValue === "number" && Number.isInteger(storedStageValue) && storedStageValue >= 0 ? Math.min(storedStageValue, ramp.length - 1) : 0;
+  const stage = Math.max(storedStage, observedStage);
+  if (!state.continual) state.continual = {};
+  state.continual[name] = { current_stage: stage };
   const candidate = ramp[stage] ?? 0;
   return [100 - candidate, candidate];
 }
@@ -410,7 +435,7 @@ function logContinualDecision(name, cfg, variants, state, weights, selected, cor
   if (Array.isArray(cfg.continual.ramp) && cfg.continual.ramp.length > 0 && variants.length === 2) {
     const configuredMinimum = cfg.continual.decision?.minimum_observations ?? cfg.min_samples;
     const minimumObservations = typeof configuredMinimum === "number" && Number.isInteger(configuredMinimum) && configuredMinimum > 0 ? configuredMinimum : 20;
-    const stage = Math.min(Math.floor(candidateObservations / minimumObservations), cfg.continual.ramp.length - 1);
+    const stage = state.continual?.[name]?.current_stage ?? 0;
     rampStage = `ramp stage ${stage + 1}/${cfg.continual.ramp.length} (${candidateObservations}/${minimumObservations} candidate observations)`;
   }
   core.info(`Continual experiment "${name}": assignment decision; ${rampStage}; weights ${allocation}; selected variant "${selected}"`);
@@ -683,6 +708,7 @@ async function main() {
         event: process.env.GITHUB_EVENT_NAME || "unknown",
         trigger_mode: process.env.GITHUB_EVENT_NAME === "schedule" ? "scheduled" : "reactive",
       },
+      continual_state: state.continual ? JSON.parse(JSON.stringify(state.continual)) : undefined,
     });
     // Prune in-memory run history so summaries stay small even when state.jsonl is append-only.
     if (state.runs.length > MAX_RUN_HISTORY) {
