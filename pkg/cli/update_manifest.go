@@ -227,9 +227,9 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 			continue
 		}
 		destPath := filepath.Join(gitRoot, filepath.FromSlash(installable.DestinationPath))
+		fileExists := false
 		if _, err := os.Stat(destPath); err == nil {
-			updateManifestLog.Printf("Skipping new package action workflow because destination already exists: %s", destPath)
-			continue
+			fileExists = true
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to inspect new package action workflow destination %s: %w", destPath, err)
 		}
@@ -243,19 +243,17 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 		if err := os.WriteFile(destPath, content, constants.FilePermPublic); err != nil {
 			return fmt.Errorf("failed to install new package action workflow %s: %w", installable.DestinationPath, err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added package action workflow: "+filepath.Base(destPath)))
+		if fileExists {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated package action workflow: "+filepath.Base(destPath)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added package action workflow: "+filepath.Base(destPath)))
+		}
 	}
 
 	for _, skill := range latestPkg.SkillFiles {
-		destPath, err := packageSkillDestinationPath(gitRoot, skill, engineOverride)
+		_, err := packageSkillDestinationPath(gitRoot, skill, engineOverride)
 		if err != nil {
 			return err
-		}
-		if _, err := os.Stat(destPath); err == nil {
-			updateManifestLog.Printf("Skipping new package skill because destination already exists: %s", destPath)
-			continue
-		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to inspect new package skill destination %s: %w", destPath, err)
 		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, skill.SourcePath, latestPkg.ResolvedRef, "")
 		if err != nil {
@@ -270,25 +268,19 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 		if err := addSkillFileWithTracking(resolved, nil, AddOptions{
 			EngineOverride: engineOverride,
 			Quiet:          false,
+			Force:          true,
 		}, gitRoot); err != nil {
 			return fmt.Errorf("failed to install new package skill %s: %w", skill.SourcePath, err)
 		}
 	}
 
 	for _, agent := range latestPkg.AgentFiles {
-		destPath := packageAgentDestinationPath(gitRoot, agent, engineOverride)
-		if _, err := os.Stat(destPath); err == nil {
-			updateManifestLog.Printf("Skipping new package agent because destination already exists: %s", destPath)
-			continue
-		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to inspect new package agent destination %s: %w", destPath, err)
-		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, agent, latestPkg.ResolvedRef, "")
 		if err != nil {
 			return fmt.Errorf("failed to download new package agent %s: %w", agent, err)
 		}
 		resolved := &ResolvedWorkflow{Content: content, Spec: &WorkflowSpec{WorkflowPath: agent}, IsPackageAgentFile: true}
-		if err := addAgentFileWithTracking(resolved, nil, AddOptions{EngineOverride: engineOverride}, gitRoot); err != nil {
+		if err := addAgentFileWithTracking(resolved, nil, AddOptions{EngineOverride: engineOverride, Force: true}, gitRoot); err != nil {
 			return fmt.Errorf("failed to install new package agent %s: %w", agent, err)
 		}
 	}
@@ -322,10 +314,6 @@ func packageSkillDestinationPath(gitRoot string, skill resolvedPackageSkillFile,
 		return "", fmt.Errorf("failed to resolve destination for package skill %s: %w", skill.SourcePath, err)
 	}
 	return filepath.Join(gitRoot, workflow.GetEngineSkillDir(engineOverride), skill.SkillName, relPath), nil
-}
-
-func packageAgentDestinationPath(gitRoot, sourcePath, engineOverride string) string {
-	return filepath.Join(gitRoot, workflow.GetEngineSubAgentDir(engineOverride), filepath.Base(sourcePath))
 }
 
 func removeManifestManagedWorkflow(workflowPath string) error {

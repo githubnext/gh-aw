@@ -96,8 +96,15 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 			}
 			return nil
 		}
+		updatedPlugins, newContent, err := updatePluginRefsInContent(ctx, newContent, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
+		if err != nil {
+			if opts.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update plugin refs in %s: %v", path, err)))
+			}
+			return nil
+		}
 
-		if !updatedActions && !updatedSkills {
+		if !updatedActions && !updatedSkills && !updatedPlugins {
 			return nil
 		}
 
@@ -105,7 +112,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 			return fmt.Errorf("failed to write updated workflow %s: %w", path, err)
 		}
 
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action/skill references in "+d.Name()))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action/skill/plugin references in "+d.Name()))
 		updatedFiles = append(updatedFiles, path)
 		return nil
 	})

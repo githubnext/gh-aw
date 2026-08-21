@@ -220,6 +220,53 @@ func TestUpdateSkillRefsInContentWithResolver_NoFrontmatterNoChange(t *testing.T
 	}
 }
 
+func TestUpdatePluginRefsInContentWithResolver_UpdatesPluginRefs(t *testing.T) {
+	oldRepoPluginSHA := "1111111111111111111111111111111111111111"
+	oldPathPluginSHA := "2222222222222222222222222222222222222222"
+	newRepoPluginSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	newPathPluginSHA := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	input := `---
+name: test
+plugins:
+  - githubnext/plugins@` + oldRepoPluginSHA + `
+  - githubnext/plugins/review/security@` + oldPathPluginSHA + `
+  - ${{ inputs.dynamic_plugin }}
+---
+body
+`
+
+	resolver := func(_ context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
+		if repo != "githubnext/plugins" {
+			t.Fatalf("resolver called with repo %q, want githubnext/plugins", repo)
+		}
+		switch currentRef {
+		case oldRepoPluginSHA:
+			return newRepoPluginSHA, nil
+		case oldPathPluginSHA:
+			return newPathPluginSHA, nil
+		default:
+			return currentRef, nil
+		}
+	}
+
+	changed, got, err := updatePluginRefsInContentWithResolver(context.Background(), input, true, false, 0, resolver)
+	if err != nil {
+		t.Fatalf("updatePluginRefsInContentWithResolver() error = %v", err)
+	}
+	if !changed {
+		t.Fatal("updatePluginRefsInContentWithResolver() changed = false, want true")
+	}
+	if !strings.Contains(got, "githubnext/plugins@"+newRepoPluginSHA) {
+		t.Fatalf("updated content missing updated repo plugin ref:\n%s", got)
+	}
+	if !strings.Contains(got, "githubnext/plugins/review/security@"+newPathPluginSHA) {
+		t.Fatalf("updated content missing updated path plugin ref:\n%s", got)
+	}
+	if !strings.Contains(got, "- ${{ inputs.dynamic_plugin }}") {
+		t.Fatalf("updated content unexpectedly modified expression plugin ref:\n%s", got)
+	}
+}
+
 // TestUpdateActionRefsInContent_CooldownFallback verifies that
 // updateActionRefsInContentWithDeps falls back to an older cooled-down release
 // when the newest candidate is still within the cooldown window.

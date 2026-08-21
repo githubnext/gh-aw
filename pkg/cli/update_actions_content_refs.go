@@ -23,6 +23,10 @@ func updateSkillRefsInContent(ctx context.Context, content string, allowMajor, v
 	return updateSkillRefsInContentWithResolver(ctx, content, allowMajor, verbose, coolDown, resolveLatestRef)
 }
 
+func updatePluginRefsInContent(ctx context.Context, content string, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
+	return updatePluginRefsInContentWithResolver(ctx, content, allowMajor, verbose, coolDown, resolveLatestRef)
+}
+
 func updateSkillRefsInContentWithResolver(
 	ctx context.Context,
 	content string,
@@ -30,10 +34,32 @@ func updateSkillRefsInContentWithResolver(
 	coolDown time.Duration,
 	resolver skillRefUpdateResolver,
 ) (bool, string, error) {
+	return updateFrontmatterRepoRefsInContentWithResolver(ctx, content, "skills", "skill", allowMajor, verbose, coolDown, resolver)
+}
+
+func updatePluginRefsInContentWithResolver(
+	ctx context.Context,
+	content string,
+	allowMajor, verbose bool,
+	coolDown time.Duration,
+	resolver skillRefUpdateResolver,
+) (bool, string, error) {
+	return updateFrontmatterRepoRefsInContentWithResolver(ctx, content, "plugins", "", allowMajor, verbose, coolDown, resolver)
+}
+
+func updateFrontmatterRepoRefsInContentWithResolver(
+	ctx context.Context,
+	content string,
+	fieldName string,
+	objectKey string,
+	allowMajor, verbose bool,
+	coolDown time.Duration,
+	resolver skillRefUpdateResolver,
+) (bool, string, error) {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
 		if verbose {
-			updateLog.Printf("Skipping skill update for content without parseable frontmatter: %v", err)
+			updateLog.Printf("Skipping %s update for content without parseable frontmatter: %v", fieldName, err)
 		}
 		return false, content, nil
 	}
@@ -41,25 +67,28 @@ func updateSkillRefsInContentWithResolver(
 		return false, content, nil
 	}
 
-	rawSkills, ok := result.Frontmatter["skills"].([]any)
-	if !ok || len(rawSkills) == 0 {
+	rawRefs, ok := result.Frontmatter[fieldName].([]any)
+	if !ok || len(rawRefs) == 0 {
 		return false, content, nil
 	}
 
 	changed := false
-	for i, rawSkill := range rawSkills {
-		switch typed := rawSkill.(type) {
+	for i, rawRef := range rawRefs {
+		switch typed := rawRef.(type) {
 		case string:
 			updated, updatedRef, err := updateSkillRefValue(ctx, typed, allowMajor, verbose, coolDown, resolver)
 			if err != nil {
 				return false, content, err
 			}
 			if updated {
-				rawSkills[i] = updatedRef
+				rawRefs[i] = updatedRef
 				changed = true
 			}
 		case map[string]any:
-			skillRef, ok := typed["skill"].(string)
+			if objectKey == "" {
+				continue
+			}
+			skillRef, ok := typed[objectKey].(string)
 			if !ok {
 				continue
 			}
@@ -68,7 +97,7 @@ func updateSkillRefsInContentWithResolver(
 				return false, content, err
 			}
 			if updated {
-				typed["skill"] = updatedRef
+				typed[objectKey] = updatedRef
 				changed = true
 			}
 		}
@@ -76,7 +105,7 @@ func updateSkillRefsInContentWithResolver(
 	if !changed {
 		return false, content, nil
 	}
-	result.Frontmatter["skills"] = rawSkills
+	result.Frontmatter[fieldName] = rawRefs
 
 	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
 	if err != nil {
