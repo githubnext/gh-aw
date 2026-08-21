@@ -326,7 +326,9 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
     ...validationConfig,
     protected_files_policy: validationConfig.protected_files_policy ?? "request_review",
   });
-  if (protection.action !== "allow") {
+  // Only "deny" is fatal here: "fallback" and "request_review" are non-fatal outcomes that the
+  // caller (create_pull_request.cjs) already decided to tolerate and handles after the push.
+  if (protection.action === "deny") {
     throw new PushSignedCommitsPolicyViolation(`${ERR_VALIDATION}: Signed-commit payload violates file-protection policy (${protection.action}): ${protection.files.join(", ")}`);
   }
 }
