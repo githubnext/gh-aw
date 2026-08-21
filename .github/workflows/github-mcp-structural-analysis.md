@@ -78,7 +78,9 @@ For each GitHub MCP toolset, systematically test representative tools:
 
 #### Toolsets to Test
 
-Test ONE representative tool from each toolset with minimal parameters.
+Test ONE representative tool from each toolset available to `GITHUB_TOKEN` with minimal parameters.
+
+The `context` toolset is intentionally excluded: its team endpoints require organization access that `GITHUB_TOKEN` cannot grant. Analyze the injected `<github-context>` block below for workflow identity metadata instead.
 
 For workflow identity, do **not** call `get_me`. The `<github-context>` block is injected separately whenever the GitHub tool is configured, so analyze that Markdown block as workflow identity metadata with zero MCP overhead.
 
@@ -87,17 +89,16 @@ Analyze the injected `<github-context>` block in addition to the MCP toolset res
 Record this prompt-only source separately:
 - **workflow_context**: `<github-context>` - Injected workflow identity metadata; no MCP call required
 
-1. **context**: `get_teams` - Inspect team-awareness data with `org` set to the repository owner
-2. **repos**: `get_file_contents` - Get a small file (README.md or similar)
-3. **issues**: `list_issues` - List issues with perPage=1
-4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
-5. **actions**: `list_workflows` (mcp-scripts wrapper) - List workflows with `perPage: 1` (the built-in GitHub MCP `list_workflows` tool uses snake_case `per_page` and silently ignores camelCase `perPage`; the mcp-scripts wrapper imported via `shared/github-mcp-pagination-wrappers.md` respects `perPage`)
-6. **code_security**: `list_code_scanning_alerts` — always call with `state: open` and `severity: critical,high`
+1. **repos**: `get_file_contents` - Get a small file (README.md or similar)
+2. **issues**: `list_issues` - List issues with perPage=1
+3. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
+4. **actions**: `list_workflows` (mcp-scripts wrapper) - List workflows with `perPage: 1` (the built-in GitHub MCP `list_workflows` tool uses snake_case `per_page` and silently ignores camelCase `perPage`; the mcp-scripts wrapper imported via `shared/github-mcp-pagination-wrappers.md` respects `perPage`)
+5. **code_security**: `list_code_scanning_alerts` — always call with `state: open` and `severity: critical,high`
    - `head_limit` note: the GitHub MCP server's `list_code_scanning_alerts` tool does not support `head_limit`; use `head_limit: 20` only with custom wrappers that explicitly document support
-7. **discussions**: `list_discussions` (if available)
-8. **labels**: `get_label` - Get a single label
-9. **users**: `get_user` (if available)
-10. **search**: Search with minimal query
+6. **discussions**: `list_discussions` (if available)
+7. **labels**: `get_label` - Get a single label
+8. **users**: `get_user` (if available)
+9. **search**: Search with minimal query
 
 #### For Each Tool Call, Analyze:
 

@@ -53,6 +53,44 @@ function sanitizeArgsBySchema(args, inputSchema, onUnknownKeysStripped) {
 }
 
 /**
+ * Map from safe-outputs config key to the tool-definition metadata field that marks a
+ * dynamically generated tool belonging to that config key. Such tools are named after their
+ * target (e.g. a tool named `my_workflow` for the `call_workflow` config key), so they cover
+ * the config key even though their name differs from it.
+ * @type {Record<string, string>}
+ */
+const DYNAMIC_TOOL_METADATA_BY_CONFIG_KEY = {
+  dispatch_workflow: "_workflow_name",
+  dispatch_repository: "_dispatch_repository_tool",
+  call_workflow: "_call_workflow_name",
+};
+
+/**
+ * Safe-outputs config keys that never correspond to an agent-facing tool: handler-only output
+ * types produced by other handlers, and global configuration knobs.
+ * @type {Set<string>}
+ */
+const NON_TOOL_CONFIG_KEYS = new Set(["create_report_incomplete_issue", "create_missing_tool_issue", "create_missing_data_issue", "mentions", "max_bot_mentions"]);
+
+/**
+ * Check whether a config key is already covered by a dynamically generated tool that was
+ * renamed after its target workflow/tool (identified by tool metadata rather than by name).
+ * @param {Array} tools - Array of tool definitions
+ * @param {string} normalizedKey - Normalized config key
+ * @returns {boolean} True when a tool of the same family is already defined
+ */
+function isConfigKeyCoveredByDynamicTool(tools, normalizedKey) {
+  const metadataKey = DYNAMIC_TOOL_METADATA_BY_CONFIG_KEY[normalizedKey];
+  if (!metadataKey) {
+    return false;
+  }
+  if (metadataKey === "_workflow_name" || metadataKey === "_call_workflow_name") {
+    return tools.some(tool => tool && hasValidWorkflowMetadataName(tool[metadataKey]));
+  }
+  return tools.some(tool => tool && tool[metadataKey]);
+}
+
+/**
  * Check whether workflow metadata name is a non-empty string after trimming.
  * @param {any} workflowName
  * @returns {boolean}
@@ -336,8 +374,20 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
   Object.keys(config).forEach(configKey => {
     const normalizedKey = normalizeTool(configKey);
 
-    // Skip if it's already a predefined tool
+    // Skip config keys that are never exposed as agent-facing tools (handler-only output
+    // types and global configuration knobs).
+    if (NON_TOOL_CONFIG_KEYS.has(normalizedKey)) {
+      server.debug(`Skipping generic tool for non-tool config key: ${configKey}`);
+      return;
+    }
+
+    // Skip if it's already a predefined tool, or if a dynamically generated tool named after
+    // its target (identified by metadata) already covers this config key.
     if (server.tools[normalizedKey] || tools.find(t => t.name === normalizedKey)) {
+      return;
+    }
+    if (isConfigKeyCoveredByDynamicTool(tools, normalizedKey)) {
+      server.debug(`Skipping generic tool for '${configKey}': already covered by dynamically generated tool(s)`);
       return;
     }
 

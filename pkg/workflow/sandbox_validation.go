@@ -66,7 +66,12 @@ func validateMountsSyntax(mounts []string) error {
 				fmt.Sprintf("Provide a valid destination path.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
 			)
 		default:
-			return fmt.Errorf("internal error: sandbox mount validation kind %d for mount %q is not supported. Expected one of: invalid-format, too-few-parts, too-many-parts, empty-host-path, empty-destination. Example: \"/host/path:/container/path:ro\"", kind, mount)
+			return NewValidationError(
+				fmt.Sprintf("sandbox.mounts[%d]", i),
+				mount,
+				fmt.Sprintf("internal error: sandbox mount validation kind %d is not supported", kind),
+				fmt.Sprintf("Expected one of: invalid-format, too-few-parts, too-many-parts, empty-host-path, empty-destination.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
+			)
 		}
 	})
 }
@@ -122,6 +127,11 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		if err := validateAllowHostPorts(agentConfig.AllowHostPorts); err != nil {
 			return err
 		}
+	}
+
+	// Validate the digest-pinned AWF infrastructure image manifest if configured.
+	if err := validateSandboxAgentImages(workflowData); err != nil {
+		return err
 	}
 
 	// Validate the runtime profile and the properties that depend on it.
@@ -392,7 +402,12 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 		field := fmt.Sprintf("tools.github.bounded-queries.private-repos[%d]", i)
 
 		if r == nil {
-			return NewValidationError(field, "<nil>", "private-repos entry must not be null", "")
+			return NewValidationError(
+				field,
+				"<nil>",
+				"private-repos entry must not be null",
+				"Provide a repo/sensitivity object for each entry.\n\nExample:\ntools:\n  github:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal",
+			)
 		}
 
 		// Validate repo slug format.
@@ -549,10 +564,20 @@ func validateAgentMemoryLimit(memory string) error {
 func validateAllowHostPorts(ports []int) error {
 	for _, port := range ports {
 		if port < minPort || port > maxPort {
-			return fmt.Errorf("allow-host-ports value %d is out of range. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [9000]", port)
+			return NewValidationError(
+				"sandbox.agent.allow-host-ports",
+				strconv.Itoa(port),
+				"allow-host-ports value "+strconv.Itoa(port)+" is out of range",
+				"Expected a TCP port between 1 and 65535.\n\nExample: allow-host-ports: [9000]",
+			)
 		}
 		if service, dangerous := awfDangerousHostPorts[port]; dangerous {
-			return fmt.Errorf("allow-host-ports value %d maps to blocked service %s. Expected blocked service ports to be removed from allow-host-ports because they remain unreachable there even with the %s runtime; expose the service via GitHub Actions services: with sandbox.agent.runtime: %s instead. Example:\n# Do not list blocked service ports under allow-host-ports\nsandbox:\n  agent:\n    runtime: %s\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service, AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables)
+			return NewValidationError(
+				"sandbox.agent.allow-host-ports",
+				strconv.Itoa(port),
+				"allow-host-ports value "+strconv.Itoa(port)+" maps to blocked service "+service,
+				fmt.Sprintf("Blocked service ports remain unreachable under allow-host-ports even with the %s runtime; expose the service via GitHub Actions services: with sandbox.agent.runtime: %s instead.\n\nExample:\n# Do not list blocked service ports under allow-host-ports\nsandbox:\n  agent:\n    runtime: %s\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables),
+			)
 		}
 	}
 	return nil
@@ -627,12 +652,22 @@ func getSandboxDisableJustification(workflowData *WorkflowData) (string, error) 
 
 	justification, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("dangerously-disable-sandbox-agent feature value has type %T. Expected a string justification. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"", value)
+		return "", NewValidationError(
+			"features.dangerously-disable-sandbox-agent",
+			fmt.Sprintf("%T", value),
+			"dangerously-disable-sandbox-agent feature value must be a string justification",
+			"Provide a string justification.\n\nExample:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"",
+		)
 	}
 
 	trimmed := strings.TrimSpace(justification)
 	if len(trimmed) < minSandboxDisableJustificationLength {
-		return "", fmt.Errorf("dangerously-disable-sandbox-agent justification is shorter than %d characters. Expected a descriptive justification string with at least %d characters. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"", minSandboxDisableJustificationLength, minSandboxDisableJustificationLength)
+		return "", NewValidationError(
+			"features.dangerously-disable-sandbox-agent",
+			trimmed,
+			fmt.Sprintf("dangerously-disable-sandbox-agent justification is shorter than %d characters", minSandboxDisableJustificationLength),
+			fmt.Sprintf("Provide a descriptive justification string with at least %d characters.\n\nExample:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"", minSandboxDisableJustificationLength),
+		)
 	}
 
 	if githubActionsExpressionPattern.MatchString(trimmed) {

@@ -126,6 +126,11 @@ const AWFDefaultAiCreditsPricingMinVersion Version = "v0.27.43"
 // v0.27.43 adds apiProxy.providers to awf-config-schema.json.
 const AWFAPIProxyProvidersMinVersion Version = "v0.27.43"
 
+// AWFContainerImagesMinVersion is the minimum AWF version that supports the
+// container.images manifest in awf-config.json (mapped from frontmatter
+// sandbox.agent.images). Older versions reject the unknown property.
+const AWFContainerImagesMinVersion Version = "v0.28.4"
+
 // AWFBoundedQueriesMinVersion is the minimum AWF version that supports
 // the boundedQueries section in awf-config.json.
 // Workflows pinning an older AWF version must not emit this section.
