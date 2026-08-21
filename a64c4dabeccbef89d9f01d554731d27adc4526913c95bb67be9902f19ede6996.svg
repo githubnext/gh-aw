@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="480" viewBox="0 0 900 480" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <rect width="900" height="480" fill="#fcfcfb"/>
+  <text x="30" y="34" font-size="20" font-weight="700" fill="#0b0b0b">Top API Burners — last 24h</text>
+  <text x="30" y="56" font-size="13" fill="#52514e">GitHub REST API core quota consumed per workflow (9,555 calls total across 9 runs)</text>
+
+  <!-- baseline -->
+  <line x1="260" y1="80" x2="260" y2="440" stroke="#0b0b0b" stroke-width="1.5"/>
+
+  <!-- scale: max 2287 -> 560px bar length, x0=260 -->
+  <!-- row height 42, gap 2 -->
+
+  <!-- PR Description Updater: 2287 -> 560px -->
+  <text x="250" y="98" font-size="13" fill="#0b0b0b" text-anchor="end">PR Description Updater</text>
+  <rect x="260" y="86" width="560" height="24" rx="4" fill="#2a78d6"/>
+  <text x="830" y="103" font-size="13" font-weight="600" fill="#0b0b0b">2,287</text>
+
+  <!-- Issue Monster: 1565 -> 383px -->
+  <text x="250" y="140" font-size="13" fill="#0b0b0b" text-anchor="end">Issue Monster</text>
+  <rect x="260" y="128" width="383" height="24" rx="4" fill="#2a78d6"/>
+  <text x="653" y="145" font-size="13" font-weight="600" fill="#0b0b0b">1,565</text>
+
+  <!-- Avenger: 1472 -> 360px -->
+  <text x="250" y="182" font-size="13" fill="#0b0b0b" text-anchor="end">Avenger</text>
+  <rect x="260" y="170" width="360" height="24" rx="4" fill="#2a78d6"/>
+  <text x="630" y="187" font-size="13" font-weight="600" fill="#0b0b0b">1,472</text>
+
+  <!-- Q: 1470 -> 360px -->
+  <text x="250" y="224" font-size="13" fill="#0b0b0b" text-anchor="end">Q</text>
+  <rect x="260" y="212" width="360" height="24" rx="4" fill="#2a78d6"/>
+  <text x="630" y="229" font-size="13" font-weight="600" fill="#0b0b0b">1,470</text>
+
+  <!-- Daily Documentation Updater: 1462 -> 358px -->
+  <text x="250" y="266" font-size="13" fill="#0b0b0b" text-anchor="end">Daily Documentation Updater</text>
+  <rect x="260" y="254" width="358" height="24" rx="4" fill="#2a78d6"/>
+  <text x="628" y="271" font-size="13" font-weight="600" fill="#0b0b0b">1,462</text>
+
+  <!-- PR Sous Chef: 1276 -> 312px -->
+  <text x="250" y="308" font-size="13" fill="#0b0b0b" text-anchor="end">PR Sous Chef</text>
+  <rect x="260" y="296" width="312" height="24" rx="4" fill="#2a78d6"/>
+  <text x="582" y="313" font-size="13" font-weight="600" fill="#0b0b0b">1,276</text>
+
+  <!-- Daily Go Test Parallelizer: 15 -> ~4px, floor 6px for visibility -->
+  <text x="250" y="350" font-size="13" fill="#0b0b0b" text-anchor="end">Daily Go Test Parallelizer</text>
+  <rect x="260" y="338" width="6" height="24" rx="3" fill="#2a78d6"/>
+  <text x="276" y="355" font-size="13" font-weight="600" fill="#0b0b0b">15</text>
+
+  <!-- Test Quality Sentinel: 8 -> ~2px, floor 6px -->
+  <text x="250" y="392" font-size="13" fill="#0b0b0b" text-anchor="end">Test Quality Sentinel</text>
+  <rect x="260" y="380" width="6" height="24" rx="3" fill="#2a78d6"/>
+  <text x="276" y="397" font-size="13" font-weight="600" fill="#0b0b0b">8</text>
+
+  <text x="30" y="460" font-size="11" fill="#9c9b95">Source: agentic workflow run logs, github/gh-aw · last-24h window ends 2026-08-21T10:46:44Z (partial day)</text>
+</svg>

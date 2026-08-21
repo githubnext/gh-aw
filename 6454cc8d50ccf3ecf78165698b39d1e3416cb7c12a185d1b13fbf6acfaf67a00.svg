@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <rect width="900" height="520" fill="#fcfcfb"/>
+  <text x="30" y="34" font-size="20" font-weight="700" fill="#0b0b0b">GitHub REST API Calls per Day</text>
+  <text x="30" y="56" font-size="13" fill="#52514e">core quota consumed, collected run logs only — gaps mark days not yet collected</text>
+
+  <!-- gridlines + y axis labels -->
+  <g stroke="#e3e2dd" stroke-width="1">
+    <line x1="90" y1="420" x2="860" y2="420"/>
+    <line x1="90" y1="330" x2="860" y2="330"/>
+    <line x1="90" y1="240" x2="860" y2="240"/>
+    <line x1="90" y1="150" x2="860" y2="150"/>
+    <line x1="90" y1="80"  x2="860" y2="80"/>
+  </g>
+  <g font-size="12" fill="#52514e" text-anchor="end">
+    <text x="80" y="424">0</text>
+    <text x="80" y="334">75,000</text>
+    <text x="80" y="244">150,000</text>
+    <text x="80" y="154">225,000</text>
+    <text x="80" y="84">300,000</text>
+  </g>
+
+  <!-- baseline -->
+  <line x1="90" y1="420" x2="860" y2="420" stroke="#0b0b0b" stroke-width="1.5"/>
+
+  <!-- bars: scale 300000 -> 340px (80 to 420) -->
+  <!-- 2026-08-06: 41680 -> 47px -->
+  <rect x="150" y="373" width="90" height="47" rx="4" fill="#2a78d6"/>
+  <text x="195" y="360" font-size="13" font-weight="600" fill="#0b0b0b" text-anchor="middle">41,680</text>
+  <text x="195" y="440" font-size="13" fill="#0b0b0b" text-anchor="middle">2026-08-06</text>
+
+  <!-- 2026-08-07: 290558 -> 329px -->
+  <rect x="390" y="91" width="90" height="329" rx="4" fill="#2a78d6"/>
+  <text x="435" y="78" font-size="13" font-weight="600" fill="#0b0b0b" text-anchor="middle">290,558</text>
+  <text x="435" y="440" font-size="13" fill="#0b0b0b" text-anchor="middle">2026-08-07</text>
+
+  <!-- gap indicator -->
+  <text x="565" y="416" font-size="34" fill="#9c9b95" text-anchor="middle">⋯</text>
+  <text x="565" y="440" font-size="12" fill="#9c9b95" text-anchor="middle">Aug 08–20</text>
+  <text x="565" y="455" font-size="11" fill="#9c9b95" text-anchor="middle">not collected</text>
+
+  <!-- 2026-08-21: 9555 -> 11px -->
+  <rect x="700" y="409" width="90" height="11" rx="4" fill="#2a78d6"/>
+  <text x="745" y="396" font-size="13" font-weight="600" fill="#0b0b0b" text-anchor="middle">9,555</text>
+  <text x="745" y="440" font-size="13" fill="#0b0b0b" text-anchor="middle">2026-08-21</text>
+  <text x="745" y="456" font-size="11" fill="#9c9b95" text-anchor="middle">(partial day)</text>
+
+  <text x="30" y="500" font-size="11" fill="#9c9b95">Source: agentic workflow run logs, github/gh-aw · only 3 of the requested 90 days were retrievable this run</text>
+</svg>
