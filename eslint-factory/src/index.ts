@@ -51,6 +51,7 @@ import { requireLastIndexResetBeforeGlobalExecLoopRule } from "./rules/require-l
 import { requirePageCounterIncrementInWhileTrueLoopRule } from "./rules/require-page-counter-increment-in-while-true-loop";
 import { noMathMinMaxArraySpreadRule } from "./rules/no-math-minmax-array-spread";
 import { requireErrorCodeForGithubApiThrowRule } from "./rules/require-error-code-for-github-api-throw";
+import { requireHttpResponseErrorListenerRule } from "./rules/require-http-response-error-listener";
 
 const plugin = {
   meta: {
@@ -111,6 +112,7 @@ const plugin = {
     "require-page-counter-increment-in-while-true-loop": requirePageCounterIncrementInWhileTrueLoopRule,
     "no-math-minmax-array-spread": noMathMinMaxArraySpreadRule,
     "require-error-code-for-github-api-throw": requireErrorCodeForGithubApiThrowRule,
+    "require-http-response-error-listener": requireHttpResponseErrorListenerRule,
   },
 };
 

@@ -26,10 +26,10 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 	for _, line := range installStep {
 		yaml.WriteString(line + "\n")
 	}
-	yaml.WriteString("      - name: Copy gh-aw binary for MCP server\n")
+	yaml.WriteString("      - name: Copy gh-aw binary for MCP Server\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          gh aw --version\n")
-	yaml.WriteString("          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization\n")
+	yaml.WriteString("          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP Server containerization\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
 	yaml.WriteString("          GH_AW_BIN=\"\"\n")
 	yaml.WriteString("          GH_AW_BIN=$(command -v gh-aw 2>/dev/null) || true\n")
@@ -47,7 +47,7 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 	yaml.WriteString("            chmod +x \"${RUNNER_TEMP}/gh-aw/gh-aw\"\n")
 	yaml.WriteString("            echo \"Copied gh-aw binary to ${RUNNER_TEMP}/gh-aw/gh-aw\"\n")
 	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"::error::Failed to find gh-aw binary for MCP server\"\n")
+	yaml.WriteString("            echo \"::error::Failed to find gh-aw binary for MCP Server\"\n")
 	yaml.WriteString("            exit 1\n")
 	yaml.WriteString("          fi\n")
 }

@@ -427,10 +427,24 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "approve-workflow-run requires actions write and pull-requests read",
+			name: "approve-workflow-run with comment enabled requires actions write and pull-requests write",
 			safeOutputs: &SafeOutputsConfig{
 				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Comment:              true,
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionActions:      PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "approve-workflow-run with comment disabled requires actions write and pull-requests read",
+			safeOutputs: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Comment:              false,
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
