@@ -30,7 +30,7 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 			gatewayLogsLog.Print("No gateway log file found, skipping MCP tool usage extraction")
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to parse gateway logs: %w", err)
+		return nil, fmt.Errorf("could not parse gateway logs; ensure the gateway log files are valid JSONL and not corrupted, then retry: %w", err)
 	}
 
 	if gatewayMetrics == nil || len(gatewayMetrics.Servers) == 0 {
@@ -76,7 +76,7 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		// Build tool call records from rpc-messages.jsonl
 		toolCalls, err := buildToolCallsFromRPCMessages(gatewayLogPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read rpc-messages.jsonl: %w", err)
+			return nil, fmt.Errorf("could not read rpc-messages.jsonl; ensure the file exists and contains valid JSONL records, then retry: %w", err)
 		}
 		// Correlate tool calls with effective-token deltas from token-usage.jsonl
 		tokenUsageFile := findTokenUsageFile(logDir)
@@ -105,7 +105,7 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 func extractToolCallsFromGatewayLog(gatewayLogPath string, mcpData *MCPToolUsageData) error {
 	file, err := os.Open(gatewayLogPath)
 	if err != nil {
-		return fmt.Errorf("failed to open gateway.jsonl: %w", err)
+		return fmt.Errorf("could not open gateway.jsonl; ensure required prerequisites are configured, then retry: %w", err)
 	}
 	defer file.Close()
 
