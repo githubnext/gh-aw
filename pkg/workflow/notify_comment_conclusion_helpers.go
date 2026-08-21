@@ -220,7 +220,7 @@ func (c *Compiler) buildAgentFailureCoreVars(data *WorkflowData, mainJobName str
 	}
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get agentic engine: %w", err)
+		return nil, nil, fmt.Errorf("could not resolve agentic engine from workflow AI configuration; ensure a supported engine or model is configured: %w", err)
 	}
 	if EngineHasValidateSecretStep(engine, data) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.%s.outputs.secret_verification_result }}\n", constants.ActivationJobName))
