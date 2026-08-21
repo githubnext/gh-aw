@@ -64,6 +64,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		awfArgs:                awfArgs,
 		shellWrappedCommand:    shellWrappedCommand,
 		logFile:                config.LogFile,
+		isCloudHypervisor:      isCloudHypervisor,
 	})
 
 	awfHelpersLog.Print("Successfully built AWF command")
@@ -268,6 +269,7 @@ type buildAWFCommandScriptInput struct {
 	awfArgs                []string
 	shellWrappedCommand    string
 	logFile                string
+	isCloudHypervisor      bool
 }
 
 func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
@@ -282,6 +284,22 @@ func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
 	if input.configFileSetup != "" {
 		lines = append(lines, input.configFileSetup)
 	}
+	awfInvocation := fmt.Sprintf(`%s %s %s %s %s \
+  -- %s`,
+		input.awfCommand,
+		input.expandableArgs,
+		input.toolCacheMountRef,
+		input.arcDindDockerHostRef,
+		shellJoinArgs(input.awfArgs),
+		input.shellWrappedCommand,
+	)
+	logFileArg := shellEscapeArg(input.logFile)
+	var invocationBlock string
+	if input.isCloudHypervisor {
+		invocationBlock = buildCloudHypervisorGuestNetworkRetryScript(awfInvocation, logFileArg)
+	} else {
+		invocationBlock = fmt.Sprintf("%s 2>&1 | tee -a %s", awfInvocation, logFileArg)
+	}
 	lines = append(
 		lines,
 		input.modelsJSONPathExport,
@@ -289,18 +307,51 @@ func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
 		input.arcDindPrefixProbe,
 		input.toolCacheMountProbe,
 		awfShellcheckDirective,
-		fmt.Sprintf(`%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			input.awfCommand,
-			input.expandableArgs,
-			input.toolCacheMountRef,
-			input.arcDindDockerHostRef,
-			shellJoinArgs(input.awfArgs),
-			input.shellWrappedCommand,
-			shellEscapeArg(input.logFile),
-		),
+		invocationBlock,
 	)
 	return strings.Join(lines, "\n")
+}
+
+// buildCloudHypervisorGuestNetworkRetryScript wraps the AWF invocation with a
+// bounded retry loop that specifically targets the known Cloud Hypervisor
+// guest-network race (gh-aw-firewall#7568, github/gh-aw#54402): the guest's
+// eth0/loopback interfaces can still be coming up when the guest-connectivity
+// probe runs, causing AWF to fail fast with a fatal error before the agent
+// ever gets control of the microVM. Since this failure always occurs during
+// microVM boot -- before the wrapped agent command starts running -- retrying
+// the whole invocation cannot duplicate any agent-side side effects (safe
+// outputs, API calls, etc.).
+//
+// Only exit codes preceded by the known probe-failure signature in the tee'd
+// log are retried; any other failure (including a legitimate agent failure)
+// is surfaced immediately on the first attempt.
+func buildCloudHypervisorGuestNetworkRetryScript(awfInvocation, logFileArg string) string {
+	return fmt.Sprintf(`gh_aw_ch_attempt=1
+while :; do
+  %s 2>&1 | tee -a %s
+  gh_aw_ch_exit_code=$?
+  if [ "$gh_aw_ch_exit_code" -eq 0 ]; then
+    break
+  fi
+  if [ "$gh_aw_ch_attempt" -ge %d ]; then
+    break
+  fi
+  if ! tail -c 200000 %s | grep -qE %q; then
+    break
+  fi
+  echo "::warning::Cloud Hypervisor guest-network race detected (attempt $gh_aw_ch_attempt/%d); retrying microVM boot" >&2
+  sleep $((gh_aw_ch_attempt * %d))
+  gh_aw_ch_attempt=$((gh_aw_ch_attempt + 1))
+done
+exit "$gh_aw_ch_exit_code"`,
+		awfInvocation,
+		logFileArg,
+		cloudHypervisorGuestNetworkRetryMaxAttempts,
+		logFileArg,
+		cloudHypervisorGuestNetworkRaceSignaturePattern,
+		cloudHypervisorGuestNetworkRetryMaxAttempts,
+		cloudHypervisorGuestNetworkRetryBackoffSeconds,
+	)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.

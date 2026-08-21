@@ -56,6 +56,27 @@ const (
 	//
 	// User-controlled values remain quoted via shellEscapeArg/shellJoinArgs.
 	awfShellcheckDirective = "# shellcheck disable=SC1003,SC2016,SC2086"
+
+	// cloudHypervisorGuestNetworkRaceSignaturePattern matches the fatal error
+	// signatures gh-aw-firewall emits when its guest-connectivity probe runs
+	// before the microVM's guest network has finished coming up (see
+	// github/gh-aw#54402 and github/gh-aw-firewall#7568). Both stages that can
+	// surface this race ("guest-network-readiness" and "guest-connectivity")
+	// are matched so retries also cover the loopback-not-UP precondition
+	// failure, not just the later service-connectivity probe.
+	cloudHypervisorGuestNetworkRaceSignaturePattern = "Cloud Hypervisor guest connectivity probe failed|guest-network-not-ready"
+
+	// cloudHypervisorGuestNetworkRetryMaxAttempts bounds the number of times the
+	// AWF cloud-hypervisor invocation is retried when it fails with the known
+	// guest-network race signature above. The failure occurs during microVM
+	// boot, before the wrapped agent command runs, so retrying cannot duplicate
+	// agent-side side effects.
+	cloudHypervisorGuestNetworkRetryMaxAttempts = 3
+
+	// cloudHypervisorGuestNetworkRetryBackoffSeconds is the linear backoff unit
+	// (in seconds) applied between cloud-hypervisor guest-network race retries:
+	// attempt N sleeps for N * this value seconds before retrying.
+	cloudHypervisorGuestNetworkRetryBackoffSeconds = 5
 )
 
 // AWFCommandConfig contains configuration for building AWF commands.

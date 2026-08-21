@@ -802,6 +802,65 @@ func TestBuildAWFCommandScript_OptionalSections(t *testing.T) {
 	}
 }
 
+func TestBuildAWFCommandScript_CloudHypervisorGuestNetworkRetry(t *testing.T) {
+	base := buildAWFCommandScriptInput{
+		writeAgentCLIStartMs:   "start",
+		preCreateLog:           "pre",
+		modelsJSONPathExport:   "models",
+		arcDindDockerHostProbe: "probe",
+		arcDindPrefixProbe:     "prefix",
+		toolCacheMountProbe:    "tool",
+		awfCommand:             "awf",
+		expandableArgs:         "--expand",
+		toolCacheMountRef:      "--tool-ref",
+		arcDindDockerHostRef:   "--docker-ref",
+		awfArgs:                []string{"--arg", "value"},
+		shellWrappedCommand:    "wrapped",
+		logFile:                "/tmp/test.log",
+	}
+
+	t.Run("non-cloud-hypervisor runtime keeps the plain invocation", func(t *testing.T) {
+		command := buildAWFCommandScript(base)
+		assert.Contains(t, command, "-- wrapped 2>&1 | tee -a /tmp/test.log")
+		assert.NotContains(t, command, "gh_aw_ch_attempt", "should not add retry loop when not cloud-hypervisor")
+	})
+
+	t.Run("cloud-hypervisor runtime wraps the invocation in a bounded retry loop", func(t *testing.T) {
+		input := base
+		input.isCloudHypervisor = true
+		command := buildAWFCommandScript(input)
+
+		assert.Contains(t, command, "-- wrapped 2>&1 | tee -a /tmp/test.log")
+		assert.Contains(t, command, "gh_aw_ch_attempt=1")
+		assert.Contains(t, command, "Cloud Hypervisor guest connectivity probe failed|guest-network-not-ready")
+		assert.Contains(t, command, "tail -c 200000 /tmp/test.log")
+		assert.Contains(t, command, `if [ "$gh_aw_ch_attempt" -ge 3 ]; then`)
+		assert.Contains(t, command, `exit "$gh_aw_ch_exit_code"`)
+	})
+}
+
+func TestBuildAWFCommand_CloudHypervisorGuestNetworkRetryEndToEnd(t *testing.T) {
+	config := AWFCommandConfig{
+		WorkflowData: &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:      "awf",
+					Runtime: AgentRuntimeCloudHypervisor,
+				},
+			},
+		},
+		EngineName:    "copilot",
+		EngineCommand: "copilot-agent",
+		LogFile:       "/tmp/gh-aw/agent.log",
+	}
+
+	cmd := BuildAWFCommand(config)
+	assert.Contains(t, cmd, "gh_aw_ch_attempt=1", "cloud-hypervisor runtime should retry on the known guest-network race")
+	assert.Contains(t, cmd, "Cloud Hypervisor guest connectivity probe failed|guest-network-not-ready")
+}
+
 func argValue(args []string, flag string) string {
 	for i, arg := range args {
 		if arg == flag && i+1 < len(args) {
