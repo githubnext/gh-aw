@@ -333,66 +333,34 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |
 | `end_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) after which the experiment is inactive. The control variant is returned after this date without incrementing any counter. |
-| `continual` | `object` | | Experimental opt-in deterministic control/candidate assignment, sequential quality decisions, critical segments, and automatic canary stages. |
+| `continual` | `object` | | Experimental deterministic control/candidate assignment with automatic traffic ramping. |
 
-## Guarded continual optimization
+## Continual experiment ramps
 
 :::caution[Experimental]
 Continual experiments are experimental and may change in future releases.
 :::
 
-A continual experiment evaluates a candidate on a bounded share of future,
-naturally occurring executions. It does not replay historical traces. The first
-variant is the incumbent control and the second is the candidate.
+A continual experiment assigns a candidate to a bounded share of future executions.
+The first variant is the control and the second is the candidate.
 
 ```yaml
 experiments:
   optimize_tool_use:
     variants: [control, candidate]
+    metric: eval:quality
+    min_samples: 20
     continual:
       seed: tool-use-v1
-      objective:
-        metric: eval:quality
-        direction: maximize
-        minimum_improvement: 0.02
-      decision:
-        minimum_observations: 20
-        confidence: 0.95
-        regression_tolerance: 0.02
-        allow_cost_promotion: true
-      segments:
-        critical: [event, trigger_mode]
       ramp: [10, 25, 50]
 ```
 
-Assignment happens in activation before agent execution. A SHA-256 hash of the
-explicit seed, experiment, repository, workflow, and run ID selects a weighted
-variant. The run ID is the assignment unit, so all jobs in a run receive the same
-treatment. The persisted assignment includes its probability, assignment unit,
-bounded pre-treatment features, and a harness fingerprint covering the compiled
-workflow prompt and configuration, expanded imports, engine, model, and compiler
-version.
+Assignment happens in the activation job before agent execution. A SHA-256 hash of
+the seed, experiment name, repository, workflow, and run ID selects the variant.
+The activation job advances the ramp after each `min_samples` candidate assignments
+and stores the current stage on the experiment branch, leaving the workflow source
+immutable. The logs show the stage, assignment counts, weights, and selected variant.
 
-`gh aw experiments analyze` joins assignments to existing binary eval records by
-run ID and emits a versioned compact outcome ledger. Missing and `UNKNOWN` evals
-are excluded. The decision uses Beta(1,1) binary-quality posteriors and a normal
-approximation to the posterior difference. It can return `PROMOTE`, `CONTINUE`,
-`REJECT`, or `INSUFFICIENT_DATA`. Quality and critical-segment retention dominate
-the optional lower-AIC preference.
-
-Critical and diagnostic segment names are bounded to avoid an uncontrolled
-cross-product. Critical segments can reject a candidate that improves globally but
-regresses materially for one pre-treatment class. Segment values must not come
-from model output.
-
-The activation job computes the canary stage at runtime from persisted assignment
-counts. After each `minimum_observations` tranche of candidate assignments, traffic
-advances to the next configured percentage and remains at the final stage. Existing
-compilation, permissions, tool, import, safe-output, and security gates remain in
-force; variants cannot dynamically add capabilities.
-
-This approach bounds incremental inference and tool cost to candidate traffic on
-runs that would happen anyway. Concurrent controls help distinguish candidate
-effects from environmental drift. Statistical non-regression is not proof that no
-unseen behavior can regress. Sparse segments, delayed outcomes, simultaneous
-experiment interactions, and correlated run-level observations remain limitations.
+The ramp does not evaluate outcomes or promote a winner. Use the existing experiment
+analysis commands and configured metrics to decide whether to stop the experiment
+or make a variant permanent.

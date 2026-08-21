@@ -131,44 +131,13 @@ type GuardrailMetric struct {
 
 	// Threshold is a comparison expression (e.g. ">=0.95", "==0").
 	Threshold string `json:"threshold"`
-
-	// MaxRegression is the largest tolerated candidate-minus-control regression.
-	MaxRegression float64 `json:"max_regression,omitempty"`
-
-	// Segment optionally restricts this guardrail to a pre-treatment segment value.
-	// The form is "<feature>=<value>".
-	Segment string `json:"segment,omitempty"`
 }
 
-// ContinualObjectiveConfig defines the primary quality objective for a continual experiment.
-type ContinualObjectiveConfig struct {
-	Metric             string  `json:"metric"`
-	Direction          string  `json:"direction,omitempty"`
-	MinimumImprovement float64 `json:"minimum_improvement,omitempty"`
-}
-
-// ContinualDecisionConfig defines sequential decision thresholds.
-type ContinualDecisionConfig struct {
-	MinimumObservations int     `json:"minimum_observations,omitempty"`
-	Confidence          float64 `json:"confidence,omitempty"`
-	RegressionTolerance float64 `json:"regression_tolerance,omitempty"`
-	AllowCostPromotion  bool    `json:"allow_cost_promotion,omitempty"`
-}
-
-// ContinualSegmentsConfig bounds the pre-treatment features used for retention checks.
-type ContinualSegmentsConfig struct {
-	Critical   []string `json:"critical,omitempty"`
-	Diagnostic []string `json:"diagnostic,omitempty"`
-}
-
-// ContinualExperimentConfig opts an existing A/B experiment into guarded online evaluation.
+// ContinualExperimentConfig opts an existing A/B experiment into automatic traffic ramping.
 // The first declared variant remains control and the second is the candidate.
 type ContinualExperimentConfig struct {
-	Seed      string                   `json:"seed"`
-	Objective ContinualObjectiveConfig `json:"objective"`
-	Decision  ContinualDecisionConfig  `json:"decision,omitzero"`
-	Segments  ContinualSegmentsConfig  `json:"segments,omitzero"`
-	Ramp      []int                    `json:"ramp,omitempty"`
+	Seed string `json:"seed"`
+	Ramp []int  `json:"ramp"`
 }
 
 // ExperimentNotify specifies where to post significance alerts when an experiment reaches
@@ -235,7 +204,7 @@ type ExperimentConfig struct {
 	// Notify specifies where to post significance alerts when the experiment concludes.
 	Notify *ExperimentNotify `json:"notify,omitempty"`
 
-	// Continual enables deterministic control/candidate assignment and online decisions.
+	// Continual enables deterministic control/candidate assignment and automatic traffic ramping.
 	Continual *ContinualExperimentConfig `json:"continual,omitempty"`
 }
 

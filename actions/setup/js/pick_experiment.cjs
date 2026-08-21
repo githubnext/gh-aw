@@ -42,10 +42,7 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {Record<string, string>} assignments - Maps experiment name → selected variant
  * @property {Record<string, Record<string, number>>} [baseline_counts]
  *   Optional cumulative counts that existed before the recorded run history began.
- * @property {number} [schema_version]
  * @property {string} [harness_version]
- * @property {Record<string, {probability: number, unit: string, deterministic: boolean}>} [assignment]
- * @property {Record<string, string>} [features]
  * @property {Record<string, {current_stage: number}>} [continual_state]
  */
 
@@ -81,7 +78,7 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {string} [analysis_type]               - Statistical test: t_test | mann_whitney | proportion_test | bayesian_ab
  * @property {string[]} [tags]                      - Free-form labels for dashboard filtering
  * @property {{discussion?: number, issue?: number}} [notify] - Where to post significance alerts
- * @property {{seed: string, objective: object, decision?: {minimum_observations?: number}, segments?: object, ramp?: number[]}} [continual]
+ * @property {{seed: string, ramp: number[]}} [continual]
  */
 
 /**
@@ -421,7 +418,7 @@ function continualWeights(cfg, variants, state = { counts: {} }, name = "") {
   if (!Array.isArray(ramp) || ramp.length === 0 || variants.length !== 2) {
     return cfg.weight && cfg.weight.length === variants.length ? cfg.weight : variants.map(() => 1);
   }
-  const configuredMinimum = continual?.decision?.minimum_observations ?? cfg.min_samples;
+  const configuredMinimum = cfg.min_samples;
   let minimumObservations = 20;
   if (typeof configuredMinimum === "number" && Number.isInteger(configuredMinimum) && configuredMinimum > 0) {
     minimumObservations = configuredMinimum;
@@ -444,7 +441,7 @@ function logContinualDecision(name, cfg, variants, state, weights, selected, cor
   const allocation = variants.map((variant, index) => `${variant}=${weights[index]}`).join(", ");
   let rampStage = "no ramp configured";
   if (Array.isArray(cfg.continual.ramp) && cfg.continual.ramp.length > 0 && variants.length === 2) {
-    const configuredMinimum = cfg.continual.decision?.minimum_observations ?? cfg.min_samples;
+    const configuredMinimum = cfg.min_samples;
     const minimumObservations = typeof configuredMinimum === "number" && Number.isInteger(configuredMinimum) && configuredMinimum > 0 ? configuredMinimum : 20;
     const stage = state.continual?.[name]?.current_stage ?? 0;
     rampStage = `ramp stage ${stage + 1}/${cfg.continual.ramp.length} (${candidateObservations}/${minimumObservations} candidate observations)`;
@@ -648,9 +645,6 @@ async function main() {
 
   /** @type {Record<string, string>} */
   const assignments = {};
-  /** @type {Record<string, {probability: number, unit: string, deterministic: boolean}>} */
-  const assignmentMetadata = {};
-
   for (const name of experimentNames) {
     const cfg = configs[name];
     const variants = cfg.variants;
@@ -681,14 +675,6 @@ async function main() {
     logContinualDecision(name, cfg, variants, state, weights, selected, core);
     recordVariant(name, selected, state);
     assignments[name] = selected;
-    const selectedIndex = variants.indexOf(selected);
-    const totalWeight = weights.reduce((a, b) => a + b, 0);
-    assignmentMetadata[name] = {
-      probability: totalWeight > 0 ? weights[selectedIndex] / totalWeight : 1,
-      unit: assignmentUnit,
-      deterministic: Boolean(cfg.continual?.seed),
-    };
-
     // Expose the selected variant as a step output (individual per experiment).
     // Downstream jobs access this via needs.activation.outputs.<name>.
     core.setOutput(name, selected);
@@ -709,16 +695,10 @@ async function main() {
       state.runs = [];
     }
     state.runs.push({
-      schema_version: 2,
       run_id: runId,
       timestamp,
       harness_version: process.env.GH_AW_HARNESS_VERSION || "",
       assignments: { ...assignments },
-      assignment: assignmentMetadata,
-      features: {
-        event: process.env.GITHUB_EVENT_NAME || "unknown",
-        trigger_mode: process.env.GITHUB_EVENT_NAME === "schedule" ? "scheduled" : "reactive",
-      },
       continual_state: state.continual ? structuredClone(state.continual) : undefined,
     });
     // Prune in-memory run history so summaries stay small even when state.jsonl is append-only.

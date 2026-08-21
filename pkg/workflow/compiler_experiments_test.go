@@ -65,15 +65,13 @@ func TestBuildExperimentSpecJSONWithContinualConfig(t *testing.T) {
 		"optimization": {
 			Variants: experiments["optimization"],
 			Continual: &ContinualExperimentConfig{
-				Seed:      "stable-seed",
-				Objective: ContinualObjectiveConfig{Metric: "eval:quality", MinimumImprovement: 0.02},
-				Decision:  ContinualDecisionConfig{MinimumObservations: 20, Confidence: 0.95},
-				Ramp:      []int{10, 25, 50},
+				Seed: "stable-seed",
+				Ramp: []int{10, 25, 50},
 			},
 		},
 	}
 	got := buildExperimentSpecJSON(experiments, configs, []string{"optimization"})
-	assert.JSONEq(t, `{"optimization":{"variants":["control","candidate"],"continual":{"seed":"stable-seed","objective":{"metric":"eval:quality","minimum_improvement":0.02},"decision":{"minimum_observations":20,"confidence":0.95},"ramp":[10,25,50]}}}`, got)
+	assert.JSONEq(t, `{"optimization":{"variants":["control","candidate"],"continual":{"seed":"stable-seed","ramp":[10,25,50]}}}`, got)
 }
 
 func TestValidateContinualRamp(t *testing.T) {

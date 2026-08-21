@@ -231,45 +231,11 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 
 func extractContinualExperimentConfig(raw map[string]any) *ContinualExperimentConfig {
 	seed, _ := raw["seed"].(string)
-	objectiveRaw, ok := raw["objective"].(map[string]any)
-	if seed == "" || !ok {
+	ramp := extractIntSlice(raw["ramp"])
+	if seed == "" || len(ramp) == 0 {
 		return nil
 	}
-	metric, _ := objectiveRaw["metric"].(string)
-	if metric == "" {
-		return nil
-	}
-	cfg := &ContinualExperimentConfig{Seed: seed}
-	cfg.Objective.Metric = metric
-	cfg.Objective.Direction, _ = objectiveRaw["direction"].(string)
-	cfg.Objective.MinimumImprovement, _ = extractFloatField(objectiveRaw["minimum_improvement"])
-	if decisionRaw, ok := raw["decision"].(map[string]any); ok {
-		cfg.Decision.MinimumObservations, _ = extractIntField(decisionRaw["minimum_observations"])
-		cfg.Decision.Confidence, _ = extractFloatField(decisionRaw["confidence"])
-		cfg.Decision.RegressionTolerance, _ = extractFloatField(decisionRaw["regression_tolerance"])
-		cfg.Decision.AllowCostPromotion, _ = decisionRaw["allow_cost_promotion"].(bool)
-	}
-	if segmentsRaw, ok := raw["segments"].(map[string]any); ok {
-		cfg.Segments.Critical = parseStringSliceAny(segmentsRaw["critical"], nil)
-		cfg.Segments.Diagnostic = parseStringSliceAny(segmentsRaw["diagnostic"], nil)
-	}
-	cfg.Ramp = extractIntSlice(raw["ramp"])
-	return cfg
-}
-
-func extractFloatField(val any) (float64, bool) {
-	switch n := val.(type) {
-	case float64:
-		return n, true
-	case float32:
-		return float64(n), true
-	case int:
-		return float64(n), true
-	case int64:
-		return float64(n), true
-	default:
-		return 0, false
-	}
+	return &ContinualExperimentConfig{Seed: seed, Ramp: ramp}
 }
 
 // extractIntField converts a numeric any value to int.
@@ -322,14 +288,10 @@ func extractGuardrailMetrics(raw any) []GuardrailMetric {
 		if name == "" || threshold == "" {
 			continue
 		}
-		maxRegression, _ := extractFloatField(m["max_regression"])
-		segment, _ := m["segment"].(string)
 		result = append(result, GuardrailMetric{
-			Name:          name,
-			Direction:     direction,
-			Threshold:     threshold,
-			MaxRegression: maxRegression,
-			Segment:       segment,
+			Name:      name,
+			Direction: direction,
+			Threshold: threshold,
 		})
 	}
 	return result
@@ -429,7 +391,6 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 			if err := validateContinualRamp(experimentName, cfg.Continual); err != nil {
 				return err
 			}
-			metric = cfg.Continual.Objective.Metric
 		}
 		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(metric)
 		if !referencesEval {

@@ -467,7 +467,8 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
         optimization: {
           variants: ["control", "candidate"],
-          continual: { seed: "test-seed", ramp: [5, 20, 50], decision: { minimum_observations: 10 } },
+          min_samples: 10,
+          continual: { seed: "test-seed", ramp: [5, 20, 50] },
         },
       });
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
@@ -770,7 +771,7 @@ describe("pick_experiment", () => {
       });
 
       it("advances canary weights from persisted candidate observations", () => {
-        const cfg = { continual: { ramp: [5, 20, 50], decision: { minimum_observations: 10 } } };
+        const cfg = { min_samples: 10, continual: { ramp: [5, 20, 50] } };
         const state = { counts: { optimization: { candidate: 10 } } };
         expect(continualWeights(cfg, ["control", "candidate"], state, "optimization")).toEqual([80, 20]);
         expect(state.continual).toEqual({ optimization: { current_stage: 1 } });
@@ -778,7 +779,7 @@ describe("pick_experiment", () => {
       });
 
       it("does not regress a stage persisted in experiment state", () => {
-        const cfg = { continual: { ramp: [5, 20, 50], decision: { minimum_observations: 10 } } };
+        const cfg = { min_samples: 10, continual: { ramp: [5, 20, 50] } };
         const state = {
           counts: { optimization: { candidate: 5 } },
           continual: { optimization: { current_stage: 2 } },
@@ -906,7 +907,8 @@ describe("pick_experiment", () => {
       process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
         optimization: {
           variants: ["control", "candidate"],
-          continual: { seed: "test-seed", ramp: [5, 20], decision: { minimum_observations: 10 } },
+          min_samples: 10,
+          continual: { seed: "test-seed", ramp: [5, 20] },
         },
       });
       process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;

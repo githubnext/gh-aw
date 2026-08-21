@@ -124,8 +124,6 @@ experiments:
     variants: [control, candidate]
     continual:
       seed: stable-seed
-      objective:
-        metric: eval:quality
       ramp: [10, 25, 50]
 ---
 
