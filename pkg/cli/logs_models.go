@@ -112,6 +112,7 @@ type ProcessedRun struct {
 	SkillActivations        []SkillActivation
 	MCPToolUsage            *MCPToolUsageData
 	TokenUsage              *TokenUsageSummary
+	WorkingSet              *WorkingSetMetrics
 	GitHubRateLimitUsage    *GitHubRateLimitUsage
 	JobDetails              []JobInfoWithDuration
 }
@@ -258,6 +259,7 @@ type RunAnalysis struct {
 	SkillActivations        []SkillActivation        `json:"skill_activations,omitempty"`       // Detected skill invocations
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`          // MCP tool usage data
 	TokenUsage              *TokenUsageSummary       `json:"token_usage_summary,omitempty"`     // Token usage from firewall proxy
+	WorkingSet              *WorkingSetMetrics       `json:"working_set,omitempty"`             // Working-set rebuild metric from usage summary
 	GitHubRateLimitUsage    *GitHubRateLimitUsage    `json:"github_rate_limit_usage,omitempty"` // GitHub API quota consumption
 	JobDetails              []JobInfoWithDuration    `json:"job_details"`                       // Job execution details
 }
