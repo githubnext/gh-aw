@@ -2331,18 +2331,20 @@ describe("push_signed_commits integration tests", () => {
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "protected-payload-request-review-branch",
-        baseRef: "origin/main",
-        cwd: workDir,
-        validationConfig: {
-          protected_files: ["CODEOWNERS"],
-          protected_files_policy: "request_review",
-        },
-      });
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "protected-payload-request-review-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          validationConfig: {
+            protected_files: ["CODEOWNERS"],
+            protected_files_policy: "request_review",
+          },
+        })
+      ).resolves.toBe("signed-oid-abc123");
 
       expect(githubClient.graphql).toHaveBeenCalledTimes(1);
     });
@@ -2356,18 +2358,20 @@ describe("push_signed_commits integration tests", () => {
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
-      await pushSignedCommits({
-        githubClient,
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "protected-payload-fallback-branch",
-        baseRef: "origin/main",
-        cwd: workDir,
-        validationConfig: {
-          protected_files: ["CODEOWNERS"],
-          protected_files_policy: "fallback-to-issue",
-        },
-      });
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "protected-payload-fallback-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          validationConfig: {
+            protected_files: ["CODEOWNERS"],
+            protected_files_policy: "fallback-to-issue",
+          },
+        })
+      ).resolves.toBe("signed-oid-abc123");
 
       expect(githubClient.graphql).toHaveBeenCalledTimes(1);
     });
