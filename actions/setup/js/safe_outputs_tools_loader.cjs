@@ -84,6 +84,9 @@ function isConfigKeyCoveredByDynamicTool(tools, normalizedKey) {
   if (!metadataKey) {
     return false;
   }
+  if (metadataKey === "_workflow_name" || metadataKey === "_call_workflow_name") {
+    return tools.some(tool => tool && hasValidWorkflowMetadataName(tool[metadataKey]));
+  }
   return tools.some(tool => tool && tool[metadataKey]);
 }
 
