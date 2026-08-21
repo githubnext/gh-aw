@@ -196,9 +196,9 @@ func TestIsAlreadyMergedError(t *testing.T) {
 		{name: "MERGED state literal", err: errors.New("pull request state is MERGED"), want: true},
 		{name: "case-insensitive merged", err: errors.New("pull request already merged"), want: true},
 		{name: "wrapped already merged", err: fmt.Errorf("merge failed: %w", errors.New("already merged")), want: true},
-		{name: "unrelated error", err: errors.New("network timeout")},
+		{name: "unrelated error", err: errors.New("network timeout"), want: false},
 		{name: "could not be merged", err: errors.New("GraphQL: Pull request could not be merged (mergePullRequest)"), want: false},
-		{name: "not merged", err: errors.New("pull request is not merged")},
+		{name: "not merged", err: errors.New("pull request is not merged"), want: false},
 		{name: "lowercase merged word", err: errors.New("failed to merge: branch was merged upstream"), want: false},
 	}
 

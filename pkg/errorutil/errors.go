@@ -96,6 +96,11 @@ func IsAuthError(output string) bool {
 // missing required OAuth/PAT scopes. The gh CLI and GitHub GraphQL API
 // surface this as the literal "INSUFFICIENT_SCOPES" error type.
 // It returns false when err is nil.
+//
+// Exception: the gh CLI returns this condition only as error text, with no
+// machine-readable type or status code, so classification is necessarily a
+// substring match. The match lives here rather than at call sites so the
+// fragile literal is documented, tested, and updated in one place.
 func IsInsufficientScopesError(err error) bool {
 	matched := containsErrorSubstring(err, "insufficient_scopes")
 	if matched {
@@ -111,6 +116,11 @@ func IsInsufficientScopesError(err error) bool {
 // (matched case-sensitively so that ordinary wording such as "could not be
 // merged" or "not merged" is not misclassified as success).
 // It returns false when err is nil.
+//
+// Exception: `gh pr merge` exposes no structured state for this condition, so
+// classification is necessarily a substring match. The match lives here rather
+// than at call sites so the fragile literals are documented, tested, and
+// updated in one place.
 func IsAlreadyMergedError(err error) bool {
 	if err == nil {
 		return false

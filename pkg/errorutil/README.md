@@ -67,7 +67,7 @@ if errorutil.IsAlreadyMergedError(err) {
 - `IsNotFoundError`, `IsForbiddenError`, and `IsGoneError` intentionally accept multiple message formats to cover errors produced by GitHub API responses, `gh` CLI output, and `go-gh` wrappers.
 - `IsRateLimitError` and `IsAuthError` provide shared case-insensitive string classifiers for GitHub API and `gh` CLI output so callers avoid duplicating inline substring checks.
 - `IsForbiddenError` and `IsGoneError` intentionally require HTTP-style status context so unrelated phrases like `forbidden character` or `gone away` are not misclassified.
-- `IsInsufficientScopesError` and `IsAlreadyMergedError` centralize gh CLI error-text classification that would otherwise require inline `strings.Contains(err.Error(), ...)` checks at call sites, keeping the brittle substring matching in one reviewed location.
+- `IsInsufficientScopesError` and `IsAlreadyMergedError` centralize gh CLI error-text classification that would otherwise require inline `strings.Contains(err.Error(), ...)` checks at call sites, keeping the brittle substring matching in one reviewed location. Both are documented exceptions to the `errstringmatch` convention: the gh CLI exposes no structured type, status code, or state for these conditions, so text matching is the only available signal. Because the fragility is centralized here, a gh CLI wording change is fixed in one place and is covered by tests, including negative cases such as `could not be merged`.
 
 ---
 
