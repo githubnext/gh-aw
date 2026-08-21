@@ -12,7 +12,7 @@ type HideCommentConfig struct {
 	SafeOutputTargetConfig `yaml:",inline"`
 	SafeOutputFilterConfig `yaml:",inline"`
 	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"` // List of allowed reasons for hiding comments (default: all reasons allowed)
-	Discussions            *bool    `yaml:"discussions,omitempty"`     // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission.
+	Discussions            *bool    `yaml:"discussions,omitempty"`     // When true, includes discussions:write permission. Default (nil or false) excludes discussions:write.
 }
 
 // parseHideCommentConfig handles hide-comment configuration

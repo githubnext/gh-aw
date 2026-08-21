@@ -1920,7 +1920,7 @@ func TestProcessAndMergeSteps_InvalidYAML_MergedSteps(t *testing.T) {
 	// Malformed MergedSteps YAML must propagate as an error
 	err := compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed MergedSteps YAML should return an error")
-	require.ErrorContains(t, err, "failed to parse imported steps")
+	require.ErrorContains(t, err, "imported steps YAML is not recognized")
 }
 
 // TestProcessAndMergePreSteps_InvalidYAML tests that malformed imported pre-steps YAML returns an error
@@ -1941,7 +1941,7 @@ func TestProcessAndMergePreSteps_InvalidYAML(t *testing.T) {
 
 	err := compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed imported pre-steps YAML should return an error")
-	require.ErrorContains(t, err, "failed to parse imported pre-steps")
+	require.ErrorContains(t, err, "imported pre-steps YAML is not recognized")
 }
 
 // TestProcessAndMergePreAgentSteps_InvalidYAML tests that malformed imported pre-agent-steps YAML returns an error
@@ -1962,7 +1962,7 @@ func TestProcessAndMergePreAgentSteps_InvalidYAML(t *testing.T) {
 
 	err := compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed imported pre-agent-steps YAML should return an error")
-	require.ErrorContains(t, err, "failed to parse imported pre-agent-steps")
+	require.ErrorContains(t, err, "imported pre-agent-steps YAML is not recognized")
 }
 
 // TestProcessAndMergePostSteps_InvalidYAML tests that malformed imported post-steps YAML returns an error
@@ -1983,7 +1983,7 @@ func TestProcessAndMergePostSteps_InvalidYAML(t *testing.T) {
 
 	err := compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed imported post-steps YAML should return an error")
-	require.ErrorContains(t, err, "failed to parse imported post-steps")
+	require.ErrorContains(t, err, "imported post-steps YAML is not recognized")
 }
 
 // TestProcessAndMergeServices_EmptyImportedServices tests handling of empty imported services

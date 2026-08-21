@@ -38,8 +38,41 @@ func TestValidateMainWorkflowFrontmatter_RejectsUnsupportedTopLevelFields(t *tes
 			if err == nil {
 				t.Fatalf("expected unsupported top-level %q field to be rejected", field)
 			}
+
 			if !strings.Contains(err.Error(), field) {
 				t.Fatalf("expected error to mention %q, got: %v", field, err)
+			}
+		})
+	}
+}
+
+func TestValidateMainWorkflowFrontmatter_Plugins(t *testing.T) {
+	valid := map[string]any{
+		"on":      "workflow_dispatch",
+		"engine":  "copilot",
+		"plugins": []any{"github/awesome-copilot/plugins/example@v1"},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err != nil {
+		t.Fatalf("expected plugins to validate: %v", err)
+	}
+
+	for _, test := range []struct {
+		name    string
+		plugins any
+	}{
+		{name: "empty list", plugins: []any{}},
+		{name: "missing ref", plugins: []any{"github/awesome-copilot"}},
+		{name: "expression", plugins: []any{"${{ inputs.plugin }}"}},
+		{name: "duplicate", plugins: []any{"github/awesome-copilot@v1", "github/awesome-copilot@v1"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			frontmatter := map[string]any{
+				"on":      "workflow_dispatch",
+				"engine":  "copilot",
+				"plugins": test.plugins,
+			}
+			if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err == nil {
+				t.Fatalf("expected invalid plugins value to be rejected: %#v", test.plugins)
 			}
 		})
 	}
