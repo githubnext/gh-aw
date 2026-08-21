@@ -130,6 +130,8 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 	if len(customEnvVarNames) > 0 {
 		customEnvNamesJSON, err := json.Marshal(customEnvVarNames)
 		if err != nil {
+			// Build-time invariant: customEnvVarNames is a []string, which json.Marshal
+			// always serialises successfully; this branch is unreachable in practice.
 			panic(fmt.Sprintf("BUG: failed to marshal MCP gateway environment variable names: %v", err))
 		}
 		yaml.WriteString(formatYAMLEnv("          ", mcpGatewayCustomEnvNamesVar, string(customEnvNamesJSON)))
