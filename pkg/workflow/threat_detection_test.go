@@ -3626,16 +3626,17 @@ func TestBuildExternalDetectorExecutionStepEmitsTimeoutMinutes(t *testing.T) {
 	}
 	joined := strings.Join(steps, "")
 
-	if !strings.Contains(joined, "        timeout-minutes: 20\n") {
-		t.Errorf("expected external detector execution step to declare timeout-minutes: 20;\ngot:\n%s", joined)
+	expectedTimeout := resolveStepTimeoutValue(data)
+	if !strings.Contains(joined, "        timeout-minutes: "+expectedTimeout+"\n") {
+		t.Errorf("expected external detector execution step to declare timeout-minutes: %s;\ngot:\n%s", expectedTimeout, joined)
 	}
-	if !strings.Contains(joined, "GH_AW_TIMEOUT_MINUTES: 20") {
+	if !strings.Contains(joined, "GH_AW_TIMEOUT_MINUTES: "+expectedTimeout) {
 		t.Errorf("expected external detector execution step to keep GH_AW_TIMEOUT_MINUTES aligned with the step timeout;\ngot:\n%s", joined)
 	}
 }
 
 // TestBuildInstallAWFForExternalDetectorStepUsesRootless verifies that the detection
-// job installs the AWF binary in the same mode used to invoke it, matching the agent job.
+// job installs the AWF binary in the same mode used to invoke awf in that job.
 func TestBuildInstallAWFForExternalDetectorStepUsesRootless(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{
