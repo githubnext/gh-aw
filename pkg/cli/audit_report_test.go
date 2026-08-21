@@ -95,6 +95,7 @@ func assertRecommendationExists(t *testing.T, recs []Recommendation, priority, a
 }
 
 func TestGenerateFindings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		processedRun  ProcessedRun
@@ -419,6 +420,7 @@ func TestGenerateFindings(t *testing.T) {
 }
 
 func TestBuildBlockedNetworkFindingDescription(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		blockedRequests int
@@ -458,6 +460,7 @@ func TestBuildBlockedNetworkFindingDescription(t *testing.T) {
 }
 
 func TestGenerateRecommendations(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                 string
 		processedRun         ProcessedRun
@@ -595,6 +598,7 @@ func TestGenerateRecommendations(t *testing.T) {
 }
 
 func TestGeneratePerformanceMetrics(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		processedRun ProcessedRun
@@ -695,6 +699,7 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 }
 
 func TestBuildAuditDataComplete(t *testing.T) {
+	t.Parallel()
 	// Create a comprehensive test with all data filled in
 	tmpDir := testutil.TempDir(t, "audit-data-test-*")
 
@@ -890,6 +895,7 @@ func TestBuildAuditDataComplete(t *testing.T) {
 }
 
 func TestBuildAuditDataMinimal(t *testing.T) {
+	t.Parallel()
 	// Test with minimal/empty data
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
@@ -915,6 +921,7 @@ func TestBuildAuditDataMinimal(t *testing.T) {
 }
 
 func TestBuildAuditDataFallbackMetricsWithoutAwInfo(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "audit-fallback-*")
 	logContent := `{"type":"result","subtype":"success","num_turns":7,"usage":{"input_tokens":100,"output_tokens":200}}`
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(logContent), 0o644))
@@ -1065,6 +1072,7 @@ func TestRenderConsoleExperimentsSorted(t *testing.T) {
 }
 
 func TestToolUsageAggregation(t *testing.T) {
+	t.Parallel()
 	// Test that tool usage is properly aggregated with prettified names
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
@@ -1106,6 +1114,7 @@ func TestToolUsageAggregation(t *testing.T) {
 }
 
 func TestExtractDownloadedFilesEmpty(t *testing.T) {
+	t.Parallel()
 	// Test with nonexistent directory
 	files := extractDownloadedFiles("/nonexistent/path")
 	assert.Empty(t, files,
@@ -1119,6 +1128,7 @@ func TestExtractDownloadedFilesEmpty(t *testing.T) {
 }
 
 func TestFindingSeverityOrdering(t *testing.T) {
+	t.Parallel()
 	// Test that findings are generated with proper severity levels
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
@@ -1162,6 +1172,7 @@ func TestFindingSeverityOrdering(t *testing.T) {
 }
 
 func TestRecommendationPriorityOrdering(t *testing.T) {
+	t.Parallel()
 	// Test that recommendations are generated with proper priorities
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
@@ -1201,6 +1212,7 @@ func TestRecommendationPriorityOrdering(t *testing.T) {
 }
 
 func TestDescribeFileAdditionalPatterns(t *testing.T) {
+	t.Parallel()
 	// Test file description for additional file patterns not covered in audit_test.go
 	tests := []struct {
 		filename    string
@@ -1219,6 +1231,7 @@ func TestDescribeFileAdditionalPatterns(t *testing.T) {
 }
 
 func TestExtractCreatedItemsFromManifest(t *testing.T) {
+	t.Parallel()
 	t.Run("returns nil for empty logsPath", func(t *testing.T) {
 		items := extractCreatedItemsFromManifest("")
 		assert.Nil(t, items, "should return nil for empty logsPath")
@@ -1310,6 +1323,7 @@ not-valid-json
 }
 
 func TestParseStepFilename(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		filename     string
@@ -1364,6 +1378,7 @@ func TestParseStepFilename(t *testing.T) {
 }
 
 func TestStripGHALogTimestamps(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -1415,6 +1430,7 @@ func TestStripGHALogTimestamps(t *testing.T) {
 }
 
 func TestExtractPreAgentStepErrors(t *testing.T) {
+	t.Parallel()
 	t.Run("falls back to agent-stdio.log excerpt when agent ran and no ##[error] annotation exists", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// Create agent-stdio.log to indicate agent ran
@@ -1693,6 +1709,7 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 }
 
 func TestBuildAuditDataActionMinutes(t *testing.T) {
+	t.Parallel()
 	// Verify that action_minutes is populated from run.Duration even when
 	// token/turn metrics are zero (e.g. Codex runs that exit early).
 	// math.Ceil should be applied, and a pre-set run.ActionMinutes should take precedence.
@@ -1743,6 +1760,7 @@ func TestBuildAuditDataActionMinutes(t *testing.T) {
 }
 
 func TestGenerateFindingsFirewallWithBlockedDomains(t *testing.T) {
+	t.Parallel()
 	// A single blocked domain should produce a finding naming the domain.
 	pr := createTestProcessedRun()
 	fw := &FirewallAnalysis{
@@ -1771,6 +1789,7 @@ func TestGenerateFindingsFirewallWithBlockedDomains(t *testing.T) {
 }
 
 func TestGenerateRecommendationsFirewallSingleBlock(t *testing.T) {
+	t.Parallel()
 	// Even a single blocked request (threshold changed from >10 to >0)
 	// should generate a recommendation with the domain name in the example.
 	pr := createTestProcessedRun()
@@ -1801,6 +1820,7 @@ func TestGenerateRecommendationsFirewallSingleBlock(t *testing.T) {
 }
 
 func TestGenerateRecommendationsFiltersDashPlaceholder(t *testing.T) {
+	t.Parallel()
 	// Defense-in-depth: even if "-" somehow appears in BlockedDomains (e.g. from
 	// extractFirewallFromAgentLog or a future code path), the recommendation must
 	// not include it as an allow-list entry.  In practice, parseFirewallLog now
@@ -1834,6 +1854,7 @@ func TestGenerateRecommendationsFiltersDashPlaceholder(t *testing.T) {
 }
 
 func TestGenerateRecommendationsFiltersUnknownSentinel(t *testing.T) {
+	t.Parallel()
 	// When blocked domains only contain the unknownDomain sentinel (from iptables drops
 	// where no destination info is available), the recommendation should not include the
 	// sentinel in the allow-list example.

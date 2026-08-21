@@ -22,6 +22,7 @@ import (
 )
 
 func TestIsPermissionError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -90,6 +91,7 @@ func TestIsPermissionError(t *testing.T) {
 }
 
 func TestIsPermissionErrorStr(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		s        string
@@ -133,6 +135,7 @@ func TestIsPermissionErrorStr(t *testing.T) {
 }
 
 func TestProcessedRunFromSummaryBackfillsTurnsFromMetrics(t *testing.T) {
+	t.Parallel()
 	summary := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{DatabaseID: 123, Turns: 0},
 		Metrics: LogMetrics{Turns: 34},
@@ -146,6 +149,7 @@ func TestProcessedRunFromSummaryBackfillsTurnsFromMetrics(t *testing.T) {
 }
 
 func TestProcessedRunFromSummaryPreservesExistingTurns(t *testing.T) {
+	t.Parallel()
 	summary := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{DatabaseID: 456, Turns: 7},
 		Metrics: LogMetrics{Turns: 34},
@@ -158,6 +162,7 @@ func TestProcessedRunFromSummaryPreservesExistingTurns(t *testing.T) {
 }
 
 func TestProcessedRunFromSummaryBothTurnsZero(t *testing.T) {
+	t.Parallel()
 	summary := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{DatabaseID: 789, Turns: 0},
 		Metrics: LogMetrics{Turns: 0},
@@ -170,6 +175,7 @@ func TestProcessedRunFromSummaryBothTurnsZero(t *testing.T) {
 }
 
 func TestBuildAuditData(t *testing.T) {
+	t.Parallel()
 	// Create test data
 	run := WorkflowRun{
 		DatabaseID:   123456,
@@ -306,6 +312,7 @@ func TestBuildAuditData(t *testing.T) {
 }
 
 func TestBuildAuditDataCountsFailedWorkflowWithoutTelemetryAsError(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			DatabaseID:   123456,
@@ -322,6 +329,7 @@ func TestBuildAuditDataCountsFailedWorkflowWithoutTelemetryAsError(t *testing.T)
 }
 
 func TestApplyAuditMetricsCountsWorkflowFailureWithoutTelemetry(t *testing.T) {
+	t.Parallel()
 	run := WorkflowRun{
 		Conclusion: "failure",
 	}
@@ -332,6 +340,7 @@ func TestApplyAuditMetricsCountsWorkflowFailureWithoutTelemetry(t *testing.T) {
 }
 
 func TestDescribeFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		filename    string
 		description string
@@ -475,6 +484,7 @@ func TestRenderJSON(t *testing.T) {
 }
 
 func TestAuditCachingBehavior(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test artifacts
 	tempDir := testutil.TempDir(t, "test-*")
 	runOutputDir := filepath.Join(tempDir, "run-12345")
@@ -580,6 +590,7 @@ func TestAuditCachingBehavior(t *testing.T) {
 // would call fetchWorkflowRunMetadata → gh api → fail in the test environment (no credentials),
 // causing the test to fail.  Only the cache path can satisfy the call without network access.
 func TestAuditUsesRunSummaryCache(t *testing.T) {
+	t.Parallel()
 	tempDir := testutil.TempDir(t, "test-audit-cache-*")
 	// AuditWorkflowRun derives runOutputDir as <outputDir>/run-<runID>, so use tempDir as
 	// the outputDir and let the function build the subdirectory path.
@@ -683,6 +694,7 @@ func TestAuditUsesRunSummaryCache(t *testing.T) {
 // using the metrics supplied by the caller rather than re-extracting them from log files.
 // This is the key property that ensures cache-path and fresh-path produce identical output.
 func TestRenderAuditReportUsesProvidedMetrics(t *testing.T) {
+	t.Parallel()
 	tempDir := testutil.TempDir(t, "test-render-audit-*")
 	runOutputDir := filepath.Join(tempDir, "run-11111")
 	if err := os.MkdirAll(runOutputDir, 0755); err != nil {
@@ -721,6 +733,7 @@ func TestRenderAuditReportUsesProvidedMetrics(t *testing.T) {
 }
 
 func TestBuildAuditDataWithFirewall(t *testing.T) {
+	t.Parallel()
 	// Create test data with firewall analysis
 	run := WorkflowRun{
 		DatabaseID:   123456,
@@ -885,6 +898,7 @@ func TestRenderJSONWithFirewall(t *testing.T) {
 }
 
 func TestExtractStepOutput(t *testing.T) {
+	t.Parallel()
 	jobLog := `##[group]Run actions/checkout@v4
 Checking out repository...
 ##[endgroup]
@@ -962,6 +976,7 @@ Cleaning up...
 }
 
 func TestFindFirstFailingStep(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		jobLog          string
@@ -1033,6 +1048,7 @@ Also success
 }
 
 func TestExtractWorkflowNameFromYAML(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -1120,6 +1136,7 @@ on:
 }
 
 func TestResolveWorkflowDisplayNameFromLocalFile(t *testing.T) {
+	t.Parallel()
 	// Write a temporary workflow YAML file and verify the name is extracted correctly
 	// via extractWorkflowNameFromYAML (the local-file path in resolveWorkflowDisplayName
 	// requires a real git root, so we test the YAML extraction directly here).
@@ -1133,6 +1150,7 @@ func TestResolveWorkflowDisplayNameFromLocalFile(t *testing.T) {
 // TestRunAuditMulti_Validation verifies that runAuditMulti rejects invalid
 // argument combinations before attempting to download any run data.
 func TestRunAuditMulti_Validation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		args    []string
@@ -1184,6 +1202,7 @@ func TestRunAuditMulti_Validation(t *testing.T) {
 }
 
 func TestAuditCommandStdinFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewAuditCommand()
 	flags := cmd.Flags()
 
@@ -1195,6 +1214,7 @@ func TestAuditCommandStdinFlag(t *testing.T) {
 }
 
 func TestAuditCommandStdinRejectsPositionalArgs(t *testing.T) {
+	t.Parallel()
 	cmd := NewAuditCommand()
 	cmd.SetArgs([]string{"1234567890", "--stdin"})
 	cmd.SetOut(nil)
@@ -1205,6 +1225,7 @@ func TestAuditCommandStdinRejectsPositionalArgs(t *testing.T) {
 }
 
 func TestAuditCommandRequiresArgsOrStdin(t *testing.T) {
+	t.Parallel()
 	cmd := NewAuditCommand()
 	cmd.SetArgs([]string{})
 	cmd.SetOut(nil)
@@ -1215,6 +1236,7 @@ func TestAuditCommandRequiresArgsOrStdin(t *testing.T) {
 }
 
 func TestAuditCommandVariantWithoutExperiment(t *testing.T) {
+	t.Parallel()
 	cmd := NewAuditCommand()
 	cmd.SetArgs([]string{"1234567890", "--variant", "concise"})
 	cmd.SetOut(io.Discard)
@@ -1225,6 +1247,7 @@ func TestAuditCommandVariantWithoutExperiment(t *testing.T) {
 }
 
 func TestAuditCommandExperimentAndVariantFlagsAreAccepted(t *testing.T) {
+	t.Parallel()
 	// Verifies that --experiment and --variant are registered and parseable.
 	// The command will fail before reaching GitHub API calls (no valid run ID),
 	// but the parse step must succeed without an unknown-flag error.
@@ -1240,6 +1263,7 @@ func TestAuditCommandExperimentAndVariantFlagsAreAccepted(t *testing.T) {
 }
 
 func TestAuditCommandInvalidRuntimeIsRejected(t *testing.T) {
+	t.Parallel()
 	// Mirrors TestAuditCommandVariantWithoutExperiment: --runtime should be
 	// eagerly validated (like the logs command) rather than silently skipping
 	// every run on a typo.
@@ -1253,6 +1277,7 @@ func TestAuditCommandInvalidRuntimeIsRejected(t *testing.T) {
 }
 
 func TestValidateLogsRuntimeAllowsCloudHypervisor(t *testing.T) {
+	t.Parallel()
 	require.NoError(t, validateLogsRuntime(string(workflow.AgentRuntimeCloudHypervisor)))
 }
 
@@ -1261,6 +1286,7 @@ func TestValidateLogsRuntimeAllowsCloudHypervisor(t *testing.T) {
 // orchestrator: matching runtime is not skipped, non-matching or missing
 // runtime is skipped, with an "unknown" fallback label for the skip message.
 func TestShouldSkipAuditRun_Runtime(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name          string
 		awInfoContent string // empty means no aw_info.json file
