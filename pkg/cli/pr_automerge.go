@@ -17,16 +17,6 @@ import (
 
 var prAutomergeLog = logger.New("cli:pr_automerge")
 
-// PullRequest represents a GitHub Pull Request
-type PullRequest struct {
-	Number    int       `json:"number"`
-	Title     string    `json:"title"`
-	IsDraft   bool      `json:"isDraft"`
-	Mergeable string    `json:"mergeable"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
 // AutoMergePullRequestsCreatedAfter checks for open PRs in the repository created after a specific time and auto-merges them
 // This function filters PRs to only those created after the specified time to avoid merging unrelated PRs
 func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, verbose bool) error {

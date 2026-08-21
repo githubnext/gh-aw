@@ -24,19 +24,26 @@ import (
 
 var prLog = logger.New("cli:pr_command")
 
-// PRInfo represents the details of a pull request
-type PRInfo struct {
-	Number      int    `json:"number"`
-	Title       string `json:"title"`
-	Body        string `json:"body"`
-	State       string `json:"state"`
-	HeadSHA     string `json:"headSHA"`
-	BaseBranch  string `json:"baseBranch"`
-	HeadBranch  string `json:"headBranch"`
-	SourceRepo  string `json:"sourceRepo"`
-	TargetRepo  string `json:"targetRepo"`
-	AuthorLogin string `json:"authorLogin"`
+// PullRequest represents a GitHub pull request.
+type PullRequest struct {
+	Number      int       `json:"number"`
+	Title       string    `json:"title"`
+	Body        string    `json:"body"`
+	State       string    `json:"state"`
+	HeadSHA     string    `json:"headSHA"`
+	BaseBranch  string    `json:"baseBranch"`
+	HeadBranch  string    `json:"headBranch"`
+	SourceRepo  string    `json:"sourceRepo"`
+	TargetRepo  string    `json:"targetRepo"`
+	AuthorLogin string    `json:"authorLogin"`
+	IsDraft     bool      `json:"isDraft"`
+	Mergeable   string    `json:"mergeable"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
+
+// PRInfo is kept as an alias for backward compatibility.
+type PRInfo = PullRequest
 
 // NewPRCommand creates the main pr command with subcommands
 func NewPRCommand() *cobra.Command {

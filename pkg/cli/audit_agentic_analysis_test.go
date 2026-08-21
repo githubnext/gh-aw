@@ -345,8 +345,8 @@ func TestMergeMCPToolUsageInfoUsesSummaryWhenMetricsToolCallsEmpty(t *testing.T)
 	t.Parallel()
 	merged := mergeMCPToolUsageInfo(nil, &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "safeoutputs", ToolName: "create_discussion", CallCount: 2, MaxInputSize: 50, MaxOutputSize: 1200},
-			{ServerName: "safeoutputs", ToolName: "push_repo_memory", CallCount: 1, MaxInputSize: 32, MaxOutputSize: 240},
+			{ServerName: "safeoutputs", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "create_discussion", CallCount: 2, MaxOutputSize: 1200}, MaxInputSize: 50},
+			{ServerName: "safeoutputs", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "push_repo_memory", CallCount: 1, MaxOutputSize: 240}, MaxInputSize: 32},
 		},
 	})
 

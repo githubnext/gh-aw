@@ -30,15 +30,17 @@ func TestBuildMCPToolUsageSummary(t *testing.T) {
 					MCPToolUsage: &MCPToolUsageData{
 						Summary: []MCPToolSummary{
 							{
-								ServerName:      "github",
-								ToolName:        "search_issues",
-								CallCount:       5,
+								ServerName: "github",
+								ToolUsageStatsBase: ToolUsageStatsBase{
+									ToolName:      "search_issues",
+									CallCount:     5,
+									MaxOutputSize: 8000,
+									MaxDuration:   "200ms",
+								},
 								TotalInputSize:  5000,
 								TotalOutputSize: 25000,
 								MaxInputSize:    1500,
-								MaxOutputSize:   8000,
 								AvgDuration:     "150ms",
-								MaxDuration:     "200ms",
 								ErrorCount:      0,
 							},
 						},
@@ -78,13 +80,15 @@ func TestBuildMCPToolUsageSummary(t *testing.T) {
 					MCPToolUsage: &MCPToolUsageData{
 						Summary: []MCPToolSummary{
 							{
-								ServerName:      "github",
-								ToolName:        "search_issues",
-								CallCount:       3,
+								ServerName: "github",
+								ToolUsageStatsBase: ToolUsageStatsBase{
+									ToolName:      "search_issues",
+									CallCount:     3,
+									MaxOutputSize: 6000,
+								},
 								TotalInputSize:  3000,
 								TotalOutputSize: 15000,
 								MaxInputSize:    1200,
-								MaxOutputSize:   6000,
 								AvgDuration:     "100ms",
 							},
 						},
@@ -107,13 +111,15 @@ func TestBuildMCPToolUsageSummary(t *testing.T) {
 					MCPToolUsage: &MCPToolUsageData{
 						Summary: []MCPToolSummary{
 							{
-								ServerName:      "github",
-								ToolName:        "search_issues",
-								CallCount:       2,
+								ServerName: "github",
+								ToolUsageStatsBase: ToolUsageStatsBase{
+									ToolName:      "search_issues",
+									CallCount:     2,
+									MaxOutputSize: 8000,
+								},
 								TotalInputSize:  2000,
 								TotalOutputSize: 10000,
 								MaxInputSize:    1500,
-								MaxOutputSize:   8000,
 								AvgDuration:     "150ms",
 							},
 						},
@@ -145,22 +151,26 @@ func TestBuildMCPToolUsageSummary(t *testing.T) {
 					MCPToolUsage: &MCPToolUsageData{
 						Summary: []MCPToolSummary{
 							{
-								ServerName:      "github",
-								ToolName:        "search_issues",
-								CallCount:       2,
+								ServerName: "github",
+								ToolUsageStatsBase: ToolUsageStatsBase{
+									ToolName:      "search_issues",
+									CallCount:     2,
+									MaxOutputSize: 6000,
+								},
 								TotalInputSize:  2000,
 								TotalOutputSize: 10000,
 								MaxInputSize:    1200,
-								MaxOutputSize:   6000,
 							},
 							{
-								ServerName:      "playwright",
-								ToolName:        "navigate",
-								CallCount:       1,
+								ServerName: "playwright",
+								ToolUsageStatsBase: ToolUsageStatsBase{
+									ToolName:      "navigate",
+									CallCount:     1,
+									MaxOutputSize: 1000,
+								},
 								TotalInputSize:  500,
 								TotalOutputSize: 1000,
 								MaxInputSize:    500,
-								MaxOutputSize:   1000,
 							},
 						},
 						Servers: []MCPServerStats{
@@ -232,15 +242,17 @@ func TestBuildMCPToolUsageSummaryAggregation(t *testing.T) {
 			MCPToolUsage: &MCPToolUsageData{
 				Summary: []MCPToolSummary{
 					{
-						ServerName:      "github",
-						ToolName:        "search_issues",
-						CallCount:       3,
+						ServerName: "github",
+						ToolUsageStatsBase: ToolUsageStatsBase{
+							ToolName:      "search_issues",
+							CallCount:     3,
+							MaxOutputSize: 6000,
+							MaxDuration:   "150ms",
+						},
 						TotalInputSize:  3000,
 						TotalOutputSize: 15000,
 						MaxInputSize:    1200,
-						MaxOutputSize:   6000,
 						AvgDuration:     "100ms",
-						MaxDuration:     "150ms",
 						ErrorCount:      0,
 					},
 				},
@@ -263,15 +275,17 @@ func TestBuildMCPToolUsageSummaryAggregation(t *testing.T) {
 			MCPToolUsage: &MCPToolUsageData{
 				Summary: []MCPToolSummary{
 					{
-						ServerName:      "github",
-						ToolName:        "search_issues",
-						CallCount:       2,
+						ServerName: "github",
+						ToolUsageStatsBase: ToolUsageStatsBase{
+							ToolName:      "search_issues",
+							CallCount:     2,
+							MaxOutputSize: 8000, // Larger than first run
+							MaxDuration:   "200ms",
+						},
 						TotalInputSize:  2000,
 						TotalOutputSize: 10000,
 						MaxInputSize:    1500, // Larger than first run
-						MaxOutputSize:   8000, // Larger than first run
 						AvgDuration:     "150ms",
-						MaxDuration:     "200ms",
 						ErrorCount:      1,
 					},
 				},
@@ -331,9 +345,9 @@ func TestBuildMCPToolUsageSummarySorting(t *testing.T) {
 			Run: WorkflowRun{DatabaseID: 1},
 			MCPToolUsage: &MCPToolUsageData{
 				Summary: []MCPToolSummary{
-					{ServerName: "playwright", ToolName: "navigate", CallCount: 1},
-					{ServerName: "github", ToolName: "search_issues", CallCount: 1},
-					{ServerName: "github", ToolName: "get_repository", CallCount: 1},
+					{ServerName: "playwright", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "navigate", CallCount: 1}},
+					{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "search_issues", CallCount: 1}},
+					{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "get_repository", CallCount: 1}},
 				},
 				Servers: []MCPServerStats{
 					{MCPServerStatsBase: MCPServerStatsBase{ServerName: "playwright"}, RequestCount: 1},

@@ -242,8 +242,8 @@ func TestBuildAuditDataUsesMCPToolUsageForToolTypes(t *testing.T) {
 	}
 	mcpData := &MCPToolUsageData{
 		Summary: []MCPToolSummary{
-			{ServerName: "safeoutputs", ToolName: "create_discussion", CallCount: 3},
-			{ServerName: "safeoutputs", ToolName: "push_repo_memory", CallCount: 1},
+			{ServerName: "safeoutputs", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "create_discussion", CallCount: 3}},
+			{ServerName: "safeoutputs", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "push_repo_memory", CallCount: 1}},
 		},
 	}
 

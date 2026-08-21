@@ -307,11 +307,11 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 
 	totalToolCalls := 0
 	for _, tool := range toolUsage {
-		totalToolCalls += tool.TotalCalls
+		totalToolCalls += tool.CallCount
 	}
 	if len(toolUsage) > 0 && totalToolCalls > 0 {
 		topTool := toolUsage[0]
-		share := float64(topTool.TotalCalls) / float64(totalToolCalls)
+		share := float64(topTool.CallCount) / float64(totalToolCalls)
 		if share >= 0.5 {
 			severity := "info"
 			if share >= 0.7 {
@@ -321,8 +321,8 @@ func buildLogsObservabilityInsights(processedRuns []ProcessedRun, toolUsage []To
 				Category: "tooling",
 				Severity: severity,
 				Title:    "Tool concentration observed",
-				Summary:  fmt.Sprintf("Tool %q accounted for %.0f%% of observed tool calls, which suggests the workflow fleet depends heavily on a narrow capability path.", topTool.Name, share*100),
-				Evidence: fmt.Sprintf("tool=%s calls=%d total_calls=%d", topTool.Name, topTool.TotalCalls, totalToolCalls),
+				Summary:  fmt.Sprintf("Tool %q accounted for %.0f%% of observed tool calls, which suggests the workflow fleet depends heavily on a narrow capability path.", topTool.ToolName, share*100),
+				Evidence: fmt.Sprintf("tool=%s calls=%d total_calls=%d", topTool.ToolName, topTool.CallCount, totalToolCalls),
 			})
 		}
 	}

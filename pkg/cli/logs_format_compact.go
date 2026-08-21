@@ -195,7 +195,7 @@ func renderLogsCompactToWriter(w io.Writer, data LogsData) {
 		limit := min(10, len(data.ToolUsage))
 		for i := range limit {
 			t := data.ToolUsage[i]
-			fmt.Fprintf(w, "%s calls=%d runs=%d\n", t.Name, t.TotalCalls, t.Runs)
+			fmt.Fprintf(w, "%s calls=%d runs=%d\n", t.ToolName, t.CallCount, t.Runs)
 		}
 		if len(data.ToolUsage) > limit {
 			fmt.Fprintf(w, "... +%d more tools\n", len(data.ToolUsage)-limit)
@@ -360,7 +360,7 @@ func renderLogsCompactVerboseToWriter(w io.Writer, data LogsData) {
 	if len(data.ToolUsage) > 0 {
 		fmt.Fprintln(w, "[tools]")
 		for _, t := range data.ToolUsage {
-			fmt.Fprintf(w, "%s calls=%d runs=%d\n", t.Name, t.TotalCalls, t.Runs)
+			fmt.Fprintf(w, "%s calls=%d runs=%d\n", t.ToolName, t.CallCount, t.Runs)
 		}
 	}
 

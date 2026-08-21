@@ -2,6 +2,7 @@ package cli
 
 import (
 	"cmp"
+	"encoding/json"
 	"slices"
 	"strings"
 
@@ -9,13 +10,57 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+// ToolUsageStatsBase contains the identity and metrics shared by tool usage summaries.
+type ToolUsageStatsBase struct {
+	ToolName      string `json:"tool_name" console:"header:Tool"`
+	CallCount     int    `json:"call_count" console:"header:Calls"`
+	MaxOutputSize int    `json:"max_output_size" console:"header:Max Output,format:number"`
+	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+}
+
 // ToolUsageSummary contains aggregated tool usage statistics
 type ToolUsageSummary struct {
-	Name          string `json:"name" console:"header:Tool"`
-	TotalCalls    int    `json:"total_calls" console:"header:Total Calls,format:number"`
-	Runs          int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
-	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:filesize,default:N/A,omitempty"`
-	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,default:N/A,omitempty"`
+	ToolUsageStatsBase
+	Runs int `json:"runs" console:"header:Runs"` // Number of runs that used this tool
+}
+
+// MarshalJSON preserves the generic tool usage report schema.
+func (s ToolUsageSummary) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Name          string `json:"name"`
+		TotalCalls    int    `json:"total_calls"`
+		Runs          int    `json:"runs"`
+		MaxOutputSize int    `json:"max_output_size,omitempty"`
+		MaxDuration   string `json:"max_duration,omitempty"`
+	}{
+		Name:          s.ToolName,
+		TotalCalls:    s.CallCount,
+		Runs:          s.Runs,
+		MaxOutputSize: s.MaxOutputSize,
+		MaxDuration:   s.MaxDuration,
+	})
+}
+
+// UnmarshalJSON preserves support for the generic tool usage report schema.
+func (s *ToolUsageSummary) UnmarshalJSON(data []byte) error {
+	var summary struct {
+		Name          string `json:"name"`
+		TotalCalls    int    `json:"total_calls"`
+		Runs          int    `json:"runs"`
+		MaxOutputSize int    `json:"max_output_size"`
+		MaxDuration   string `json:"max_duration"`
+	}
+	if err := json.Unmarshal(data, &summary); err != nil {
+		return err
+	}
+	s.ToolUsageStatsBase = ToolUsageStatsBase{
+		ToolName:      summary.Name,
+		CallCount:     summary.TotalCalls,
+		MaxOutputSize: summary.MaxOutputSize,
+		MaxDuration:   summary.MaxDuration,
+	}
+	s.Runs = summary.Runs
+	return nil
 }
 
 // toolNameStopWords is a set of common English words that should never be treated as tool names.
@@ -91,7 +136,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 			}{}
 
 			if existing, exists := toolStats[displayKey]; exists {
-				existing.TotalCalls += toolCall.CallCount
+				existing.CallCount += toolCall.CallCount
 				if toolCall.MaxOutputSize > existing.MaxOutputSize {
 					existing.MaxOutputSize = toolCall.MaxOutputSize
 				}
@@ -103,10 +148,12 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 				}
 			} else {
 				info := &ToolUsageSummary{
-					Name:          displayKey,
-					TotalCalls:    toolCall.CallCount,
-					MaxOutputSize: toolCall.MaxOutputSize,
-					Runs:          0, // Will be incremented below
+					ToolUsageStatsBase: ToolUsageStatsBase{
+						ToolName:      displayKey,
+						CallCount:     toolCall.CallCount,
+						MaxOutputSize: toolCall.MaxOutputSize,
+					},
+					Runs: 0, // Will be incremented below
 				}
 				if toolCall.MaxDuration > 0 {
 					info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
@@ -130,7 +177,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 
 	// Sort by total calls descending
 	slices.SortFunc(result, func(a, b ToolUsageSummary) int {
-		return cmp.Compare(b.TotalCalls, a.TotalCalls)
+		return cmp.Compare(b.CallCount, a.CallCount)
 	})
 
 	return result

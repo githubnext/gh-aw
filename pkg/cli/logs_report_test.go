@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,65 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+func TestToolUsageSummariesShareStatsBase(t *testing.T) {
+	t.Parallel()
+
+	for _, typ := range []reflect.Type{
+		reflect.TypeFor[ToolUsageSummary](),
+		reflect.TypeFor[MCPToolSummary](),
+	} {
+		field, ok := typ.FieldByName("ToolUsageStatsBase")
+		if !ok || !field.Anonymous {
+			t.Fatalf("%s must embed ToolUsageStatsBase", typ.Name())
+		}
+	}
+}
+
+func TestToolUsageSummaryJSONSchemas(t *testing.T) {
+	t.Parallel()
+
+	stats := ToolUsageStatsBase{
+		ToolName:      "github.issue_read",
+		CallCount:     3,
+		MaxOutputSize: 1024,
+		MaxDuration:   "2s",
+	}
+
+	genericData, err := json.Marshal(ToolUsageSummary{ToolUsageStatsBase: stats, Runs: 2})
+	if err != nil {
+		t.Fatalf("failed to marshal generic tool summary: %v", err)
+	}
+	var generic map[string]any
+	if err := json.Unmarshal(genericData, &generic); err != nil {
+		t.Fatalf("failed to decode generic tool summary: %v", err)
+	}
+	if generic["name"] != stats.ToolName || generic["total_calls"] != float64(stats.CallCount) || generic["runs"] != float64(2) {
+		t.Fatalf("unexpected generic tool summary JSON: %s", genericData)
+	}
+	if _, ok := generic["tool_name"]; ok {
+		t.Fatalf("generic tool summary must preserve its legacy JSON schema: %s", genericData)
+	}
+	var decodedGeneric ToolUsageSummary
+	if err := json.Unmarshal(genericData, &decodedGeneric); err != nil {
+		t.Fatalf("failed to unmarshal generic tool summary: %v", err)
+	}
+	if decodedGeneric.ToolUsageStatsBase != stats || decodedGeneric.Runs != 2 {
+		t.Fatalf("unexpected generic tool summary round trip: %+v", decodedGeneric)
+	}
+
+	mcpData, err := json.Marshal(MCPToolSummary{ServerName: "github", ToolUsageStatsBase: stats})
+	if err != nil {
+		t.Fatalf("failed to marshal MCP tool summary: %v", err)
+	}
+	var mcp map[string]any
+	if err := json.Unmarshal(mcpData, &mcp); err != nil {
+		t.Fatalf("failed to decode MCP tool summary: %v", err)
+	}
+	if mcp["server_name"] != "github" || mcp["tool_name"] != stats.ToolName || mcp["call_count"] != float64(stats.CallCount) {
+		t.Fatalf("unexpected MCP tool summary JSON: %s", mcpData)
+	}
+}
 
 // TestRenderLogsConsoleUnified tests the unified console rendering
 func TestRenderLogsConsoleUnified(t *testing.T) {
@@ -46,18 +106,22 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		},
 		ToolUsage: []ToolUsageSummary{
 			{
-				Name:          "github-mcp-server",
-				TotalCalls:    1500,
-				Runs:          5,
-				MaxOutputSize: 2500000,
-				MaxDuration:   "1m30s",
+				ToolUsageStatsBase: ToolUsageStatsBase{
+					ToolName:      "github-mcp-server",
+					CallCount:     1500,
+					MaxOutputSize: 2500000,
+					MaxDuration:   "1m30s",
+				},
+				Runs: 5,
 			},
 			{
-				Name:          "playwright",
-				TotalCalls:    500,
-				Runs:          3,
-				MaxOutputSize: 512000,
-				MaxDuration:   "45s",
+				ToolUsageStatsBase: ToolUsageStatsBase{
+					ToolName:      "playwright",
+					CallCount:     500,
+					MaxOutputSize: 512000,
+					MaxDuration:   "45s",
+				},
+				Runs: 3,
 			},
 		},
 		MissingTools: []MissingToolSummary{

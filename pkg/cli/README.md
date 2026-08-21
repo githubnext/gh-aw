@@ -331,7 +331,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `OutcomesHistoryConfig` | struct | Configuration for `RunOutcomesHistory` |
 | `PRCheckRun` | struct | A single CI check run attached to a pull request |
 | `PRCommitStatus` | struct | A commit status context for a pull request |
-| `PRInfo` | struct | Pull-request metadata used by `gh aw pr` commands |
+| `PRInfo` | type alias | Backward-compatible alias for `PullRequest` |
 | `PerRunFirewallBreakdown` | struct | Per-run firewall domain breakdown in a cross-run report |
 | `PerformanceMetrics` | struct | Performance counters for a workflow run |
 | `PolicyAnalysis` | struct | Analysis of guard-policy evaluation results |
@@ -377,6 +377,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `ToolCallsDiffSummary` | struct | Summary statistics for a tool calls diff |
 | `ToolTransition` | struct | A transition between tool calls in an agent episode |
 | `ToolUsageInfo` | struct | Usage information for a single tool |
+| `ToolUsageStatsBase` | struct | Identity and metrics shared by tool usage summaries |
 | `ToolUsageSummary` | struct | Aggregated tool usage statistics |
 | `Transport` | struct | MCP server transport configuration |
 | `TrendDirection` | int alias | Direction of a metric trend (`Up`, `Down`, `Stable`) |
