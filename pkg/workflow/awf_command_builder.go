@@ -329,7 +329,7 @@ func buildCloudHypervisorGuestNetworkRetryScript(awfInvocation, logFileArg strin
 	return fmt.Sprintf(`gh_aw_ch_attempt=1
 while :; do
   %s 2>&1 | tee -a %s
-  gh_aw_ch_exit_code=$?
+  gh_aw_ch_exit_code="${PIPESTATUS[0]}"
   if [ "$gh_aw_ch_exit_code" -eq 0 ]; then
     break
   fi
