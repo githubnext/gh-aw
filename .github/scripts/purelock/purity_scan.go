@@ -396,10 +396,7 @@ func (a *analyzer) inspect(pkg *packages.Package, fd *ast.FuncDecl) *funcInfo {
 func (a *analyzer) classifyCall(pkg *packages.Package, call *ast.CallExpr, locals map[types.Object]bool) (string, string) {
 	switch fun := call.Fun.(type) {
 	case *ast.Ident:
-		obj := pkg.TypesInfo.Uses[fun]
-		if obj == nil {
-			obj = pkg.TypesInfo.Defs[fun]
-		}
+		obj := resolveObj(pkg, fun)
 		if obj == nil {
 			return "", ""
 		}
@@ -602,6 +599,13 @@ func escapingWriteThroughBase(pkg *packages.Package, base ast.Expr, locals map[t
 // deliberately excluded: mutating a parameter's pointee or backing array is
 // observable by the caller.
 func collectLocals(pkg *packages.Package, fd *ast.FuncDecl, locals map[types.Object]bool) {
+	recordLocal := func(expr ast.Expr) {
+		if ident, ok := expr.(*ast.Ident); ok {
+			if obj := pkg.TypesInfo.Defs[ident]; obj != nil {
+				locals[obj] = true
+			}
+		}
+	}
 	ast.Inspect(fd.Body, func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.AssignStmt:
@@ -609,26 +613,15 @@ func collectLocals(pkg *packages.Package, fd *ast.FuncDecl, locals map[types.Obj
 				return true
 			}
 			for _, lhs := range node.Lhs {
-				if ident, ok := lhs.(*ast.Ident); ok {
-					if obj := pkg.TypesInfo.Defs[ident]; obj != nil {
-						locals[obj] = true
-					}
-				}
+				recordLocal(lhs)
 			}
 		case *ast.ValueSpec:
 			for _, name := range node.Names {
-				if obj := pkg.TypesInfo.Defs[name]; obj != nil {
-					locals[obj] = true
-				}
+				recordLocal(name)
 			}
 		case *ast.RangeStmt:
-			for _, expr := range []ast.Expr{node.Key, node.Value} {
-				if ident, ok := expr.(*ast.Ident); ok {
-					if obj := pkg.TypesInfo.Defs[ident]; obj != nil {
-						locals[obj] = true
-					}
-				}
-			}
+			recordLocal(node.Key)
+			recordLocal(node.Value)
 		}
 		return true
 	})
