@@ -77,7 +77,7 @@ type GHAWManifest struct {
 	HasPullRequest              bool                                 `json:"has_pull_request,omitempty"`          // whether on: includes pull_request
 	HasPullRequestTarget        bool                                 `json:"has_pull_request_target,omitempty"`   // whether on: includes pull_request_target
 	MemoryValidationScripts     []GHAWManifestMemoryValidationScript `json:"memory_validation_scripts,omitempty"` // custom repo/cache memory validation scripts, hashed
-	MCPServers                  []GHAWManifestMCPServer              `json:"mcp_servers,omitempty"`               // MCP servers/tools exposed to the agent, independent of engine-specific allowlist syntax
+	MCPServers                  []GHAWManifestMCPServer              `json:"mcp_servers"`                         // MCP servers/tools exposed to the agent, independent of engine-specific allowlist syntax
 	ThreatDetectionSuppressions []ThreatDetectionSuppression         `json:"threat_detection_suppressions,omitempty"`
 }
 

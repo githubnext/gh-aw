@@ -12,7 +12,7 @@ import (
 
 func collectMCPServersForManifest(data *WorkflowData) []GHAWManifestMCPServer {
 	if data == nil {
-		return nil
+		return []GHAWManifestMCPServer{}
 	}
 
 	serversByName := make(map[string]GHAWManifestMCPServer)
@@ -45,6 +45,10 @@ func collectMCPServersForManifest(data *WorkflowData) []GHAWManifestMCPServer {
 			add(constants.MCPScriptsMCPServerID.String(), sliceutil.SortedKeys(data.MCPScripts.Tools))
 		case enclaveMCPServerName:
 			add(enclaveMCPServerName, []string{"*"})
+		case "dispatch_workflow", "dispatch_repository", "call_workflow":
+			// These descriptors configure dynamic safe-output tools. The actual
+			// exposed tools are the normalized target names collected below.
+			continue
 		default:
 			if toolConfig, ok := data.Tools[toolName].(map[string]any); ok {
 				add(toolName, collectGenericMCPManifestTools(toolConfig))
@@ -53,7 +57,7 @@ func collectMCPServersForManifest(data *WorkflowData) []GHAWManifestMCPServer {
 	}
 
 	if len(serversByName) == 0 {
-		return nil
+		return []GHAWManifestMCPServer{}
 	}
 	names := sliceutil.SortedKeys(serversByName)
 	servers := make([]GHAWManifestMCPServer, 0, len(names))
@@ -68,7 +72,31 @@ func collectGitHubMCPManifestTools(toolValue any) []string {
 	if githubConfig != nil && len(githubConfig.Allowed) > 0 {
 		return githubConfig.Allowed.ToStringSlice()
 	}
-	return append([]string(nil), constants.DefaultGitHubToolsLocal...)
+
+	githubTool, _ := toolValue.(map[string]any)
+	defaultTools := constants.DefaultGitHubToolsLocal
+	if getGitHubType(githubTool) == GitHubMCPModeRemote {
+		defaultTools = constants.DefaultGitHubToolsRemote
+	}
+	enabledToolsets := ParseGitHubToolsets(getGitHubToolsets(githubTool))
+	enabled := make(map[string]struct{}, len(enabledToolsets))
+	for _, toolset := range enabledToolsets {
+		enabled[toolset] = struct{}{}
+	}
+	toolToToolset, err := getGitHubToolToToolsetMap()
+	if err != nil {
+		return nil
+	}
+
+	tools := make([]string, 0, len(defaultTools))
+	for _, tool := range defaultTools {
+		if toolset, ok := toolToToolset[tool]; ok {
+			if _, enabled := enabled[toolset]; enabled {
+				tools = append(tools, tool)
+			}
+		}
+	}
+	return tools
 }
 
 func collectGenericMCPManifestTools(toolConfig map[string]any) []string {

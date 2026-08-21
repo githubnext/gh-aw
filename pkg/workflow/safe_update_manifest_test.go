@@ -247,6 +247,10 @@ func TestCollectMCPServersForManifest(t *testing.T) {
 			"all-tools": map[string]any{
 				"command": "npx example-mcp",
 			},
+			"dispatch_workflow": map[string]any{
+				"type": "http",
+				"url":  "https://example.test/mcp",
+			},
 			"cache-memory": true,
 		},
 		SafeOutputs: &SafeOutputsConfig{
@@ -293,6 +297,34 @@ func TestCollectMCPServersForManifest(t *testing.T) {
 		}},
 		{Name: "safeoutputs", Tools: []string{"create_issue", "noop", "triage_script"}},
 	}, servers)
+}
+
+func TestCollectMCPServersForManifestGitHubToolsets(t *testing.T) {
+	servers := collectMCPServersForManifest(&WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"toolsets": []any{"repos", "issues"},
+			},
+		},
+	})
+
+	require.Len(t, servers, 1)
+	assert.Equal(t, "github", servers[0].Name)
+	assert.Contains(t, servers[0].Tools, "list_issues")
+	assert.NotContains(t, servers[0].Tools, "actions_list")
+	assert.NotContains(t, servers[0].Tools, "get_me")
+}
+
+func TestGHAWManifestMCPServersAlwaysSerialized(t *testing.T) {
+	json, err := (&GHAWManifest{
+		Version:    1,
+		Secrets:    []string{},
+		Actions:    []GHAWManifestAction{},
+		MCPServers: collectMCPServersForManifest(&WorkflowData{}),
+	}).ToJSON()
+
+	require.NoError(t, err)
+	assert.Contains(t, json, `"mcp_servers":[]`)
 }
 
 func TestNewGHAWManifestContainerDigest(t *testing.T) {
