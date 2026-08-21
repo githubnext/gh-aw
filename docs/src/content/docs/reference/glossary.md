@@ -329,6 +329,14 @@ Configuration field in the `create-pull-request` safe output specifying which br
 
 A safe output capability for hiding or minimizing GitHub comments without requiring write permissions. When minimized, comments are classified as SPAM. Requires GraphQL node IDs to identify comments. Useful for content moderation workflows.
 
+### Hide Comment (`hide-comment:`)
+
+A safe output capability that collapses comments, issues, pull requests, or discussion comments in the GitHub UI with a reason (`spam`, `abuse`, `off_topic`, `outdated`, `resolved`, or `low_quality`). Requires GraphQL node IDs rather than REST numeric IDs. Supports a `max` limit (default: 5), cross-repository targeting via `target-repo`, and an opt-in `discussions: true` field that requests the `discussions:write` permission needed to hide discussion comments — following the [least privilege](#least-privilege) principle by defaulting discussion support to off. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#hide-comment-hide-comment).
+
+### Least Privilege
+
+A security principle applied throughout gh-aw's safe-output design: features that require elevated permissions default to disabled and must be explicitly opted into (for example, `hide-comment.discussions: true` requesting `discussions:write`), rather than requesting the broadest permission set by default.
+
 ### Hide Older Comments (`hide-older-comments`)
 
 A field on `add-comment:` safe outputs that minimizes previous comments before posting a new one. Accepts a boolean (`true`) or an object with `enabled` and `match` keys. The boolean form hides earlier comments from the same workflow only (identified by `GITHUB_WORKFLOW`). The object form adds a `match` list of additional workflow IDs whose older comments are also minimized — using exact full-string matching — so a single run can clean up comments from multiple related workflows.
@@ -752,6 +760,14 @@ engine:
 ```
 
 See [AI Engines Reference](/gh-aw/reference/engines/).
+
+### Agent Plugins (`plugins:`)
+
+An experimental top-level frontmatter field that installs [Agent Plugins](https://agent-plugins.org) through the selected agentic engine. Each entry identifies a GitHub repository and, optionally, a path to a plugin within it; `gh aw compile` resolves and pins each reference to a specific commit SHA so a moving branch or tag ref cannot silently change what gets installed at run time. Supported by Copilot, Claude, Codex, and any imported engine definition that declares a `behaviors.plugins` block (such as the shared Cursor and Kiro engines); using `plugins:` with an unsupported engine is a compile-time error. Compiling a workflow that uses `plugins:` emits a warning because the feature is experimental. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#agent-plugins-plugins).
+
+### Custom Provider (`OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`)
+
+A deployment pattern where the `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` environment variable routes an engine's API calls to a non-default, OpenAI- or Anthropic-compatible endpoint. When set, gh-aw passes the configured model through verbatim and automatically emits `apiProxy.modelFallback.enabled: false` so the API proxy does not rewrite provider-specific model slugs (for example `anthropic/claude-sonnet-5` on OpenRouter) that are absent from the built-in model catalog, which would otherwise cause an HTTP 404 `model_not_found` error. See [`sandbox.agent.model-fallback`](#sandboxagentruntime) and [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Engine Driver (`engine.driver`)
 
@@ -1281,6 +1297,10 @@ A security linter for GitHub Actions workflows that detects supply-chain vulnera
 ### syft
 
 A Software Bill of Materials (SBOM) generation tool that catalogs packages and dependencies in container images. Integrated into `gh aw compile` via the `--syft` flag. Produces a structured inventory of all software components in Docker images used by the workflow. Typically used alongside [grant](#grant) for license policy enforcement. See [Compilation Reference](/gh-aw/reference/compilation-process/).
+
+### manualpathconcat
+
+A custom Go static-analysis linter (`pkg/linters/manualpathconcat`) that flags manual `"/"`-based path concatenation (for example, `dir + "/" + name`) in favor of `filepath.Join`. Part of the gh-aw linter registry used in CI to enforce internal Go code-quality conventions. See [Linters README](https://github.com/github/gh-aw/blob/main/pkg/linters/README.md).
 
 ### Validation
 

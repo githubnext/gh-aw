@@ -21,16 +21,35 @@ describe("no-math-minmax-array-spread", () => {
     });
   });
 
-  it("valid: mixed spread forms with fixed arguments are accepted", () => {
+  it("invalid: mixed spread forms with fixed arguments are flagged", () => {
     cjsRuleTester.run("no-math-minmax-array-spread", noMathMinMaxArraySpreadRule, {
-      valid: [`const largest = Math.max(0, ...values);`, `const smallest = Math.min(a, b, ...values);`],
-      invalid: [],
+      valid: [],
+      invalid: [
+        {
+          code: `const largest = Math.max(0, ...values);`,
+          errors: [
+            {
+              message:
+                "Avoid Math.max(0, ...values) — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `values.reduce((a, b) => Math.max(a, b), 0)` instead — the `0` initializer preserves the same result as `Math.max(0, ...values)` on an empty array.",
+            },
+          ],
+        },
+        {
+          code: `const smallest = Math.min(a, b, ...values);`,
+          errors: [
+            {
+              message:
+                "Avoid Math.min(a, b, ...values) — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `values.reduce((a, b) => Math.min(a, b), Math.min(a, b))` instead — the `Math.min(a, b)` initializer preserves the same result as `Math.min(a, b, ...values)` on an empty array.",
+            },
+          ],
+        },
+      ],
     });
   });
 
-  it("valid: spreading an inline array literal is statically bounded", () => {
+  it("valid: spreading an inline array literal is statically bounded, even with fixed arguments", () => {
     cjsRuleTester.run("no-math-minmax-array-spread", noMathMinMaxArraySpreadRule, {
-      valid: [`const largest = Math.max(...[1, 2, 3]);`, `const smallest = Math.min(...[a, b]);`],
+      valid: [`const largest = Math.max(...[1, 2, 3]);`, `const smallest = Math.min(...[a, b]);`, `const clamped = Math.max(...[1, 2, 3], 0);`],
       invalid: [],
     });
   });

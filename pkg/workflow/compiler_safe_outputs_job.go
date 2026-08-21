@@ -286,6 +286,8 @@ type safeOutputsHandlerOutputsAndActionState struct {
 	safeOutputStepNames []string
 }
 
+// hasHandlerManagerTypes reports whether the workflow configures any safe-output type that is
+// processed by the consolidated handler manager step (as opposed to a dedicated job/step).
 func hasHandlerManagerTypes(data *WorkflowData) bool {
 	return data.SafeOutputs.CreateIssues != nil ||
 		data.SafeOutputs.AddComments != nil ||
@@ -325,6 +327,8 @@ func hasHandlerManagerTypes(data *WorkflowData) bool {
 		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
 }
 
+// appendCustomScriptFilesStep appends the setup step(s) for writing custom safe-output scripts to
+// disk, when the workflow declares any, to the accumulated job state.
 func (c *Compiler) appendCustomScriptFilesStep(data *WorkflowData, state *safeOutputsHandlerOutputsAndActionState) error {
 	if len(data.SafeOutputs.Scripts) > 0 {
 		consolidatedSafeOutputsJobLog.Printf("Adding setup step for %d custom safe-output script(s)", len(data.SafeOutputs.Scripts))
@@ -337,6 +341,9 @@ func (c *Compiler) appendCustomScriptFilesStep(data *WorkflowData, state *safeOu
 	return nil
 }
 
+// appendUploadArtifactStagingDownloadStep appends a step that downloads the upload-artifact
+// staging artifact produced by the agent job, when the workflow uses the upload_artifact safe
+// output, so the handler manager can process staged files.
 func (c *Compiler) appendUploadArtifactStagingDownloadStep(data *WorkflowData, agentArtifactPrefix string, state *safeOutputsHandlerOutputsAndActionState) {
 	if data.SafeOutputs.UploadArtifact != nil {
 		consolidatedSafeOutputsJobLog.Print("Adding upload-artifact staging download step")
@@ -352,6 +359,8 @@ func (c *Compiler) appendUploadArtifactStagingDownloadStep(data *WorkflowData, a
 	}
 }
 
+// appendHandlerManagerStep appends the consolidated handler manager step, when the workflow
+// declares any safe-output type it handles, and records its outputs and step name.
 func (c *Compiler) appendHandlerManagerStep(data *WorkflowData, state *safeOutputsHandlerOutputsAndActionState) error {
 	if hasHandlerManagerTypes(data) {
 		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
@@ -366,6 +375,9 @@ func (c *Compiler) appendHandlerManagerStep(data *WorkflowData, state *safeOutpu
 	return nil
 }
 
+// appendSarifArtifactUploadStep appends the step that uploads the SARIF artifact produced by the
+// handler manager, when create_code_scanning_alert is configured and not staged, and exposes its
+// sarif_file output for the downstream upload_code_scanning_sarif job.
 func (c *Compiler) appendSarifArtifactUploadStep(data *WorkflowData, agentArtifactPrefix string, state *safeOutputsHandlerOutputsAndActionState) {
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil && !isHandlerStaged(c.trialMode || templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
 		consolidatedSafeOutputsJobLog.Print("Exposing sarif_file output for upload_code_scanning_sarif job")
@@ -374,6 +386,8 @@ func (c *Compiler) appendSarifArtifactUploadStep(data *WorkflowData, agentArtifa
 	}
 }
 
+// appendCustomActionSteps resolves and appends the steps for any custom safe-output actions
+// declared by the workflow, recording a step name for each so later steps can depend on it.
 func (c *Compiler) appendCustomActionSteps(data *WorkflowData, markdownPath string, state *safeOutputsHandlerOutputsAndActionState) {
 	if len(data.SafeOutputs.Actions) > 0 {
 		c.resolveAllActions(data, markdownPath)
@@ -386,6 +400,8 @@ func (c *Compiler) appendCustomActionSteps(data *WorkflowData, markdownPath stri
 	}
 }
 
+// addHandlerManagerOutputs populates the job outputs map with the common outputs exposed by the
+// process_safe_outputs handler manager step, plus any conditional per-type outputs.
 func addHandlerManagerOutputs(data *WorkflowData, outputs map[string]string) {
 	maps.Copy(outputs, map[string]string{
 		"process_safe_outputs_temporary_id_map": "${{ steps.process_safe_outputs.outputs.temporary_id_map }}",
@@ -406,6 +422,9 @@ func addHandlerManagerOutputs(data *WorkflowData, outputs map[string]string) {
 	addConditionalHandlerManagerOutputs(data, outputs)
 }
 
+// addConditionalHandlerManagerOutputs adds outputs from the handler manager step that are only
+// exposed when the corresponding safe-output type (assign_to_agent, create_agent_session, or
+// upload_artifact) is configured.
 func addConditionalHandlerManagerOutputs(data *WorkflowData, outputs map[string]string) {
 	if data.SafeOutputs.AssignToAgent != nil {
 		consolidatedSafeOutputsJobLog.Print("Exposing assign_to_agent outputs from handler manager")
@@ -463,9 +482,8 @@ func addNamedSafeOutputHandlerOutputs(data *WorkflowData, outputs map[string]str
 	}
 }
 
-// buildSafeOutputsJobFromParts finalizes the step list (app-token insertion, token invalidation,
-// items-manifest upload, dev-mode restore, script-mode cleanup), builds the job condition and
-// dependency list, and assembles the Job struct for the safe_outputs job.
+// buildSafeOutputsJobFromPartsOptions bundles the inputs required by buildSafeOutputsJobFromParts
+// to assemble the final safe_outputs job.
 type buildSafeOutputsJobFromPartsOptions struct {
 	data                   *WorkflowData
 	mainJobName            string
@@ -478,6 +496,9 @@ type buildSafeOutputsJobFromPartsOptions struct {
 	threatDetectionEnabled bool
 }
 
+// buildSafeOutputsJobFromParts finalizes the step list (app-token insertion, token invalidation,
+// items-manifest upload, dev-mode restore, script-mode cleanup), builds the job condition and
+// dependency list, and assembles the Job struct for the safe_outputs job.
 func (c *Compiler) buildSafeOutputsJobFromParts(
 	opts buildSafeOutputsJobFromPartsOptions,
 ) (*Job, []string, error) {
