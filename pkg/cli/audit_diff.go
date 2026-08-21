@@ -979,7 +979,7 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname, artifactFilter: artifactFilter}); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
 			auditDiffLog.Printf("Failed to download artifacts for run %d: %v", runID, err)
-			return nil, fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
+			return nil, fmt.Errorf("could not download artifacts for run %d, expected a valid GitHub token and network access: %w", runID, err)
 		}
 		auditDiffLog.Printf("No artifacts found for run %d, proceeding with partial summary", runID)
 	}
@@ -992,7 +992,7 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 		var err error
 		analysis, err = analyzeFirewallLogs(runOutputDir, verbose)
 		if err != nil {
-			return nil, fmt.Errorf("failed to analyze firewall logs for run %d: %w", runID, err)
+			return nil, fmt.Errorf("could not analyze firewall logs for run %d, expected valid firewall audit logs in the downloaded artifact: %w", runID, err)
 		}
 	}
 

@@ -23,7 +23,6 @@ func TestMergeBootstrapPermissionLevel(t *testing.T) {
 		{name: "equal levels unchanged", existing: "write", incoming: "write", want: "write"},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := mergeBootstrapPermissionLevel(tt.existing, tt.incoming)
@@ -56,7 +55,6 @@ func TestBootstrapEventNamesFromOn(t *testing.T) {
 		{name: "nil value", raw: nil, want: nil},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := bootstrapEventNamesFromOn(tt.raw)
