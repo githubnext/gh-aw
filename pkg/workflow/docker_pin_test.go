@@ -207,9 +207,16 @@ func TestCollectDockerImages_SandboxAgentImagesOverrideDefaults(t *testing.T) {
 	assert.NotContains(t, images, constants.DefaultFirewallRegistry+"/agent:0.28.4", "default agent image should not be collected when overridden")
 
 	// api-proxy has no override, so aw.json container_pins and embedded pins still
-	// apply to it as before.
+	// apply to it as before (the embedded pin here appends a digest suffix).
 	apiProxyImage := constants.DefaultFirewallRegistry + "/api-proxy:0.28.4"
-	assert.Contains(t, images, apiProxyImage, "unoverridden roles keep using the default registry/tag image")
+	foundAPIProxy := false
+	for _, image := range images {
+		if strings.HasPrefix(image, apiProxyImage) {
+			foundAPIProxy = true
+			break
+		}
+	}
+	assert.True(t, foundAPIProxy, "unoverridden roles keep using the default registry/tag image: %v", images)
 }
 
 // TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage verifies that enabling

@@ -15,6 +15,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -69,12 +70,7 @@ func getSandboxAgentImages(workflowData *WorkflowData) map[string]string {
 
 // isKnownAWFImageRole reports whether role is part of the closed AWF role set.
 func isKnownAWFImageRole(role string) bool {
-	for _, known := range awfImageRoles {
-		if known == role {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(awfImageRoles, role)
 }
 
 // requiredAWFImageRoles returns the image roles that must be present in the
@@ -103,10 +99,8 @@ func requiredAWFImageRoles(workflowData *WorkflowData) []string {
 }
 
 func appendUniqueRole(roles []string, role string) []string {
-	for _, existing := range roles {
-		if existing == role {
-			return roles
-		}
+	if slices.Contains(roles, role) {
+		return roles
 	}
 	return append(roles, role)
 }
@@ -185,7 +179,7 @@ func validateAWFImageManifestCoverage(workflowData *WorkflowData, images map[str
 	return NewValidationError(
 		"sandbox.agent.images",
 		strings.Join(roles, ", "),
-		fmt.Sprintf("incomplete image manifest: missing required role(s) %s", strings.Join(missing, ", ")),
+		"incomplete image manifest: missing required role(s) "+strings.Join(missing, ", "),
 		fmt.Sprintf("AWF fails closed when container.images is set, so every image role required by the enabled features must be pinned.\n\nAdd the missing role(s):\n\nsandbox:\n  agent:\n    images:\n      %s: registry.example.com/approved/%s:v0.28.4@sha256:<64-hex-digest>\n\nSee: %s", missing[0], missing[0], constants.DocsSandboxURL),
 	)
 }
@@ -198,7 +192,7 @@ func validateNoConflictingAWFImageSelectors(workflowData *WorkflowData, firewall
 			"sandbox.agent.images",
 			strings.Join(roles, ", "),
 			"sandbox.agent.images cannot be combined with SSL bump",
-			"AWF rejects a custom image manifest together with security.sslBump because SSL bump selects a different Squid image. Remove the ssl_bump firewall setting or the images manifest.",
+			"AWF rejects a custom image manifest together with security.sslBump because SSL bump selects a different Squid image.\n\nExample: remove the ssl_bump firewall setting or the images manifest.",
 		)
 	}
 	for _, enclave := range workflowData.Enclaves {
@@ -207,7 +201,7 @@ func validateNoConflictingAWFImageSelectors(workflowData *WorkflowData, firewall
 				"sandbox.agent.images",
 				enclave.Image,
 				"sandbox.agent.images cannot be combined with per-enclave image overrides",
-				"Remove the 'image' field from the enclave configuration and pin the enclave images through sandbox.agent.images (enclaveScript, enclaveAgent, enclaveMcpServer) instead.",
+				"Remove the 'image' field from the enclave configuration and pin the enclave images through sandbox.agent.images instead.\n\nExample:\nsandbox:\n  agent:\n    images:\n      enclaveScript: registry.example.com/approved/enclave-script:v0.28.4@sha256:<64-hex-digest>",
 			)
 		}
 	}
@@ -246,8 +240,8 @@ func validateNoConflictingAWFImageArgs(workflowData *WorkflowData, firewallConfi
 				return NewValidationError(
 					"sandbox.agent.images",
 					arg,
-					fmt.Sprintf("%s selects AWF images through a legacy control and cannot be combined with sandbox.agent.images", selector),
-					fmt.Sprintf("Remove %s from the AWF arguments, or remove the sandbox.agent.images manifest.", selector),
+					selector+" selects AWF images through a legacy control and cannot be combined with sandbox.agent.images",
+					"Remove "+selector+" from the AWF arguments, or remove the sandbox.agent.images manifest.",
 				)
 			}
 		}
