@@ -495,7 +495,6 @@ func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
 	slices.Sort(mcpgImages)
 
 	for _, image := range mcpgImages {
-		image := image
 		t.Run(image, func(t *testing.T) {
 			t.Parallel()
 			pin, ok := GetContainerPin(image)
@@ -515,7 +514,6 @@ func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {
 	}
 
 	for _, image := range images {
-		image := image
 		t.Run(image, func(t *testing.T) {
 			t.Parallel()
 			pin, ok := GetContainerPin(image)

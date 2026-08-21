@@ -41,7 +41,7 @@ Approve the pending workflow run for this pull request.
 		step := compiledStepBlock(compiled, "approve-workflow-run-app-token")
 		require.NotEmpty(t, step)
 		assert.Contains(t, step, "permission-actions: write")
-		assert.Contains(t, step, "permission-pull-requests: read")
+		assert.Contains(t, step, "permission-pull-requests: write")
 		assert.Contains(t, compiled, "steps.approve-workflow-run-app-token.outputs.token")
 		handlerConfig := extractApproveWorkflowRunHandlerConfig(t, compiled)
 		assert.Equal(t, true, handlerConfig["fork"])

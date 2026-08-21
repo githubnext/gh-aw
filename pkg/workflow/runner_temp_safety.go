@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -12,12 +13,60 @@ const (
 )
 
 var (
-	githubScriptActionRequireRE = regexp.MustCompile(`^(\s*)(.*\brequire\()'\$\{\{\s*runner\.temp\s*\}\}/gh-aw/actions/([^']+)'(\).*)$`)
-	shellActionCommandRE        = regexp.MustCompile(`\b(node|bash|sh) \$\{\{\s*runner\.temp\s*\}\}/gh-aw/actions/([^ \t\r\n]+)`)
-	blockScalarHeaderRE         = regexp.MustCompile(`^(\s*)(?:-\s+)?(script|run):\s*[|>]`)
-	singleLineRunRE             = regexp.MustCompile(`^\s*(?:-\s+)?run:\s+`)
-	singleLineExecutableRE      = regexp.MustCompile(`^\s*(?:-\s+)?(script|run):\s+`)
+	githubScriptActionRequirePrefixRE = regexp.MustCompile(`^(\s*)(.*\brequire\()'`)
+	shellActionCommandRE              = regexp.MustCompile(`\b(node|bash|sh) \$\{\{\s*runner\.temp\s*\}\}/gh-aw/actions/([^ \t\r\n]+)`)
+	blockScalarHeaderRE               = regexp.MustCompile(`^(\s*)(?:-\s+)?(script|run):\s*[|>]`)
+	singleLineRunRE                   = regexp.MustCompile(`^\s*(?:-\s+)?run:\s+`)
+	singleLineExecutableRE            = regexp.MustCompile(`^\s*(?:-\s+)?(script|run):\s+`)
 )
+
+const githubScriptActionRequirePathPrefix = "${{ runner.temp }}/gh-aw/actions/"
+
+// singleQuotedJS renders s as a single-quoted JavaScript string literal for
+// embedding in generated workflow scripts. strconv.Quote produces valid
+// JavaScript string escaping; only the quote characters need adjusting, since
+// JavaScript single-quoted strings escape ' rather than ".
+func singleQuotedJS(s string) string {
+	quoted := strconv.Quote(s)
+	body := quoted[1 : len(quoted)-1]
+	body = strings.ReplaceAll(body, `\"`, `"`)
+	body = strings.ReplaceAll(body, `'`, `\'`)
+	return "'" + body + "'"
+}
+
+func rewriteGitHubScriptActionRequire(line string) (string, bool) {
+	matches := githubScriptActionRequirePrefixRE.FindStringSubmatchIndex(line)
+	if matches == nil {
+		return line, false
+	}
+
+	literalBody, suffix, ok := splitSimpleSingleQuotedJSLiteral(line[matches[1]:])
+	if !ok || !strings.HasPrefix(literalBody, githubScriptActionRequirePathPrefix) || !strings.HasPrefix(suffix, ")") {
+		return line, false
+	}
+
+	actionPath := strings.TrimPrefix(literalBody, githubScriptActionRequirePathPrefix)
+	return line[:matches[3]] + line[matches[4]:matches[5]] + "path.join(actionsDir, " + singleQuotedJS(actionPath) + ")" + suffix, true
+}
+
+func splitSimpleSingleQuotedJSLiteral(s string) (string, string, bool) {
+	escaped := false
+	for i := range len(s) {
+		switch {
+		case escaped:
+			escaped = false
+		case s[i] == '\\':
+			escaped = true
+		case s[i] == '\'':
+			body := s[:i]
+			if strings.Contains(body, `\`) {
+				return "", "", false
+			}
+			return body, s[i+1:], true
+		}
+	}
+	return "", "", false
+}
 
 func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 	lines := strings.SplitAfter(yamlContent, "\n")
@@ -64,8 +113,8 @@ func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 			if strings.Contains(rewrittenLine, safeActionsDirLine) {
 				scriptBlockHasActionsDir = true
 			}
-			if matches := githubScriptActionRequireRE.FindStringSubmatch(rewrittenLine); matches != nil {
-				indent := matches[1]
+			if requireLine, ok := rewriteGitHubScriptActionRequire(rewrittenLine); ok {
+				indent := strings.Repeat(" ", leadingSpaces(rewrittenLine))
 				if !scriptBlockHasActionsDir {
 					out.WriteString(indent)
 					out.WriteString("const path = require('path');\n")
@@ -74,7 +123,7 @@ func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 					out.WriteString("\n")
 					scriptBlockHasActionsDir = true
 				}
-				rewrittenLine = matches[1] + matches[2] + "path.join(actionsDir, '" + matches[3] + "')" + matches[4]
+				rewrittenLine = requireLine
 			}
 		}
 
