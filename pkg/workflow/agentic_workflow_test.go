@@ -190,7 +190,7 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 		"install step should not use mutable latest CLI version")
 
 	// Verify follow-up copy/verification commands are present
-	assert.Contains(t, result, "Copy gh-aw binary for MCP server",
+	assert.Contains(t, result, "Copy gh-aw binary for MCP Server",
 		"MCP setup should include a step to copy gh-aw binary for MCP server containerization")
 	assert.Contains(t, result, "gh aw --version",
 		"install step should include command to verify gh-aw installation")
