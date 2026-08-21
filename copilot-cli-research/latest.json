@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-08-20T03:57:00Z",
-  "run_id": "32329924665",
+  "timestamp": "2026-08-21T03:58:00Z",
+  "run_id": "32445142266",
   "total_workflows": 286,
   "copilot_workflows_narrow": 38,
-  "share_flag_real_usage": 2,
+  "share_flag_real_usage": 0,
   "engine_args_real_usage": 0,
   "disable_builtin_mcps_usage": 2,
   "copilot_sdk_true_usage": 69,
   "orphaned_agents": ["create-safe-output-type", "custom-engine-implementation", "grumpy-reviewer", "w3c-specification-writer"],
   "opportunities_found": 0,
-  "notable_change": "No material change vs run 32213836580 (2026-08-19). Total workflows flat at 286. Narrow engine:copilot count flat at 38. disable-builtin-mcps flat at 2. copilot-sdk:true flat at 69. Orphaned agents unchanged (4, 18th+ consecutive run). No new Copilot CLI Go source files detected. Filing noop again - metrics identical to previous run, no new report warranted to avoid issue spam."
+  "notable_change": "No material change vs run 32329924665 (2026-08-20). Total workflows flat at 286. Narrow engine:copilot count flat at 38. disable-builtin-mcps flat at 2. copilot-sdk:true flat at 69. Orphaned agents unchanged (4, 19th+ consecutive run). Only commit since last run (659a35a) is unrelated to Copilot CLI (hide-comment discussions default flip). No new Copilot CLI Go source files or engine changes detected. Filing noop again - metrics identical to previous run, no new report warranted to avoid issue spam."
 }
