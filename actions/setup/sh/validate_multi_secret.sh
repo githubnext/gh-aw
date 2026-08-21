@@ -40,6 +40,59 @@ if [ "${#SECRET_NAMES[@]}" -eq 0 ]; then
   exit 1
 fi
 
+is_invalid_secret_value() {
+  local value="$1"
+  if [[ "$value" =~ ^[[:space:]]*$ ]]; then
+    INVALID_SECRET_REASON="whitespace-only"
+    return 0
+  fi
+  if [[ "$value" =~ ^[[:space:]]*(null|undefined)[[:space:]]*$ ]]; then
+    INVALID_SECRET_REASON="placeholder value"
+    return 0
+  fi
+  return 1
+}
+
+format_present_secret() {
+  local secret_name="$1"
+  local secret_value="$2"
+  local detail="${3:-}"
+  if [ -n "$detail" ]; then
+    echo "$secret_name: present (length=${#secret_value}; $detail)"
+  else
+    echo "$secret_name: present (length=${#secret_value})"
+  fi
+}
+
+# Reject configured secrets with values that are known placeholder artifacts.
+for secret_name in "${SECRET_NAMES[@]}"; do
+  # Use indirect expansion to get the value of the variable named by secret_name
+  secret_value="${!secret_name}"
+  if [ -n "$secret_value" ]; then
+    if is_invalid_secret_value "$secret_value"; then
+      error_msg="$secret_name secret has an invalid value: $INVALID_SECRET_REASON (length=${#secret_value})"
+      {
+        echo "Error: $error_msg"
+        echo ""
+        echo "Regenerate or reconfigure the secret before running the $ENGINE_NAME engine."
+        echo ""
+        echo "Documentation: $DOCS_URL"
+      } >> "$GITHUB_STEP_SUMMARY"
+
+      echo "Error: $error_msg" >&2
+      echo "Regenerate or reconfigure the secret before running the $ENGINE_NAME engine." >&2
+      echo "" >&2
+      echo "Documentation: $DOCS_URL" >&2
+
+      if [ -n "$GITHUB_OUTPUT" ]; then
+        echo "verification_result=failed" >> "$GITHUB_OUTPUT"
+      fi
+
+      exit 1
+    fi
+  fi
+done
+
 # Check if all secrets are empty
 all_empty=true
 for secret_name in "${SECRET_NAMES[@]}"; do
@@ -82,7 +135,7 @@ if [ "$all_empty" = true ]; then
     echo "- **Environment secrets** are only available if the job specifies that environment"
     echo "- **Secret name mismatch** - verify the exact spelling (case-sensitive)"
     echo ""
-    echo "Documentation: ${DOCS_URL@Q}"
+    echo "Documentation: $DOCS_URL"
   } >> "$GITHUB_STEP_SUMMARY"
   
   # Print to stderr
@@ -94,7 +147,7 @@ if [ "$all_empty" = true ]; then
   echo "  - Environment secrets require the job to specify that environment" >&2
   echo "  - Secret names are case-sensitive - verify exact spelling" >&2
   echo "" >&2
-  echo "Documentation: ${DOCS_URL@Q}" >&2
+  echo "Documentation: $DOCS_URL" >&2
   
   # Set step output to indicate verification failed
   if [ -n "$GITHUB_OUTPUT" ]; then
@@ -184,9 +237,9 @@ first_value="${!first_secret}"
 if [ -n "$first_value" ]; then
   # Show extra info for COPILOT_GITHUB_TOKEN indicating fine-grained PAT
   if [ "$first_secret" = "COPILOT_GITHUB_TOKEN" ]; then
-    echo "✅ $first_secret: Configured (fine-grained PAT)"
+    echo "✅ $(format_present_secret "$first_secret" "$first_value" "fine-grained PAT")"
   else
-    echo "✅ $first_secret: Configured"
+    echo "✅ $(format_present_secret "$first_secret" "$first_value")"
   fi
 # Middle secrets use elif (if there are more than 2 secrets)
 elif [ "${#SECRET_NAMES[@]}" -gt 2 ]; then
@@ -195,7 +248,7 @@ elif [ "${#SECRET_NAMES[@]}" -gt 2 ]; then
     secret_name="${SECRET_NAMES[$i]}"
     secret_value="${!secret_name}"
     if [ -n "$secret_value" ]; then
-      echo "✅ $secret_name: Configured"
+      echo "✅ $(format_present_secret "$secret_name" "$secret_value")"
       found=true
       break
     fi
@@ -203,15 +256,19 @@ elif [ "${#SECRET_NAMES[@]}" -gt 2 ]; then
   # Last secret uses else
   if [ "$found" = false ]; then
     last_secret="${SECRET_NAMES[-1]}"
-    echo "✅ $last_secret: Configured"
+    last_value="${!last_secret}"
+    if [ -n "$last_value" ]; then
+      echo "✅ $(format_present_secret "$last_secret" "$last_value")"
+    fi
   fi
 # Last secret uses else (for 2 secret case)
 else
   last_secret="${SECRET_NAMES[-1]}"
+  last_value="${!last_secret}"
   if [ "${#SECRET_NAMES[@]}" -eq 2 ]; then
-    echo "✅ $last_secret: Configured (using as fallback for ${SECRET_NAMES[0]})"
+    echo "✅ $(format_present_secret "$last_secret" "$last_value" "using as fallback for ${SECRET_NAMES[0]}")"
   else
-    echo "✅ $last_secret: Configured"
+    echo "✅ $(format_present_secret "$last_secret" "$last_value")"
   fi
 fi
 
