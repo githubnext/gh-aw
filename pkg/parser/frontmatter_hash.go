@@ -150,7 +150,7 @@ func ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath string, parsed
 	// Read file content using the provided file reader
 	content, err := fileReader(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
+		return "", fmt.Errorf("failed to read file %q: %w", filePath, err)
 	}
 
 	return computeFrontmatterHashFromContent(string(content), parsedFrontmatter, filePath, cache, fileReader)
@@ -165,7 +165,7 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 	// Read file content using the provided file reader
 	content, err := fileReader(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
+		return "", fmt.Errorf("failed to read file %q: %w", filePath, err)
 	}
 
 	// Parse frontmatter once from content; treat inlined-imports as false if parsing fails
@@ -185,7 +185,7 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 	// Extract frontmatter and markdown as text (no YAML parsing)
 	frontmatterText, markdown, err := extractFrontmatterAndBodyText(content)
 	if err != nil {
-		return "", fmt.Errorf("failed to extract frontmatter: %w", err)
+		return "", fmt.Errorf("failed to extract frontmatter from %q: %w", filePath, err)
 	}
 
 	// Get base directory for resolving imports

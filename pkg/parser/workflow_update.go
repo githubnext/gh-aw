@@ -24,13 +24,13 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 	// Read the workflow file
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
+		return fmt.Errorf("failed to read workflow file %q: %w", workflowPath, err)
 	}
 
 	// Parse frontmatter using existing helper
 	result, err := ExtractFrontmatterFromContent(string(content))
 	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
+		return fmt.Errorf("failed to parse frontmatter in %q: %w", workflowPath, err)
 	}
 
 	// Ensure frontmatter map exists
@@ -46,18 +46,18 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 	// Convert back to YAML
 	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
 	if err != nil {
-		return fmt.Errorf("failed to marshal updated frontmatter: %w", err)
+		return fmt.Errorf("failed to marshal updated frontmatter for %q: %w", workflowPath, err)
 	}
 
 	// Reconstruct the file content
 	updatedContent, err := ReconstructWorkflowFile(string(updatedFrontmatter), result.Markdown)
 	if err != nil {
-		return fmt.Errorf("failed to reconstruct workflow file: %w", err)
+		return fmt.Errorf("failed to reconstruct workflow file %q: %w", workflowPath, err)
 	}
 
 	// Write the updated content back to the file
 	if err := os.WriteFile(workflowPath, []byte(updatedContent), constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write updated workflow file: %w", err)
+		return fmt.Errorf("failed to write updated workflow file %q: %w", workflowPath, err)
 	}
 
 	workflowUpdateLog.Printf("Successfully updated workflow file: %s", workflowPath)
