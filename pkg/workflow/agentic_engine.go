@@ -153,6 +153,14 @@ type EngineCapabilities struct {
 	// off entirely (e.g. Codex's `features.shell_tool=false` config flag). When true, the
 	// compiler allows a fully-disabled tools.bash even if BashCommandAllowlist is false.
 	BashDisable bool
+
+	// Plugins reports whether the engine can install Agent Plugins.
+	Plugins bool
+}
+
+// PluginInstallationProvider generates installation steps for Agent Plugins.
+type PluginInstallationProvider interface {
+	GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
 }
 
 // CapabilityProvider detects what capabilities an engine supports.
@@ -584,7 +592,7 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 func (r *EngineRegistry) Register(engine CodingAgentEngine) error {
 	type portProvider interface{ getDedicatedLLMGatewayPort() int }
 	if p, ok := engine.(portProvider); ok && p.getDedicatedLLMGatewayPort() < 0 {
-		return fmt.Errorf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d", engine.GetID(), p.getDedicatedLLMGatewayPort())
+		return fmt.Errorf("engine '%s': dedicatedLLMGatewayPort must be >= 0, got %d; expected a non-negative port number or 0 to disable the dedicated gateway", engine.GetID(), p.getDedicatedLLMGatewayPort())
 	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine

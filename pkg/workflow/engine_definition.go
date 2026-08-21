@@ -155,6 +155,26 @@ func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities
 	}
 }
 
+// EnginePluginsDefinition declares how a behavior-defined engine consumes Agent Plugins
+// (https://agent-plugins.org). Declaring this block enables the engine's Plugins capability.
+// Plugins are always checked out at their pinned commit SHA; `directory` stages each plugin
+// in a workspace folder scanned by the engine, and `install-args` runs the engine CLI's
+// plugin installation command. When both mechanisms are configured together, both run for
+// every plugin: the plugin is staged into `directory` and also installed via the CLI. This
+// intentional dual-install flow supports engines that need staged files for discovery plus a
+// registration command.
+type EnginePluginsDefinition struct {
+	// Directory is the workspace-relative folder the engine scans for plugins
+	// (for example ".cursor/plugins").
+	Directory string `yaml:"directory,omitempty"`
+	// CommandName overrides the CLI executable used for `install-args`.
+	// Defaults to the execution command name.
+	CommandName string `yaml:"command-name,omitempty"`
+	// InstallArgs are the CLI arguments placed before the local plugin path
+	// (for example ["plugin", "install"]).
+	InstallArgs []string `yaml:"install-args,omitempty"`
+}
+
 // EngineManifestDefinition describes engine-specific files and folders that alter
 // agent behaviour and must be protected from untrusted pull requests.
 type EngineManifestDefinition struct {
@@ -242,6 +262,7 @@ type EngineBehaviorDefinition struct {
 	Manifest            *EngineManifestDefinition     `yaml:"manifest,omitempty"`
 	Network             *EngineNetworkDefinition      `yaml:"network,omitempty"`
 	Installation        *EngineInstallationDefinition `yaml:"installation,omitempty"`
+	Plugins             *EnginePluginsDefinition      `yaml:"plugins,omitempty"`
 	ConfigFile          *EngineConfigFileDefinition   `yaml:"config-file,omitempty"`
 	Execution           *EngineExecutionDefinition    `yaml:"execution,omitempty"`
 	MCP                 *EngineMCPDefinition          `yaml:"mcp,omitempty"`
