@@ -1,9 +1,9 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -23,15 +23,12 @@ var (
 const githubScriptActionRequirePathPrefix = "${{ runner.temp }}/gh-aw/actions/"
 
 // singleQuotedJS renders s as a single-quoted JavaScript string literal for
-// embedding in generated workflow scripts. JSON string encoding is also valid
+// embedding in generated workflow scripts. strconv.Quote produces valid
 // JavaScript string escaping; only the quote characters need adjusting, since
 // JavaScript single-quoted strings escape ' rather than ".
 func singleQuotedJS(s string) string {
-	quoted, err := json.Marshal(s)
-	if err != nil {
-		panic(err)
-	}
-	body := string(quoted[1 : len(quoted)-1])
+	quoted := strconv.Quote(s)
+	body := quoted[1 : len(quoted)-1]
 	body = strings.ReplaceAll(body, `\"`, `"`)
 	body = strings.ReplaceAll(body, `'`, `\'`)
 	return "'" + body + "'"
