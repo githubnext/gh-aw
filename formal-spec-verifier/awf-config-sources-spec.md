@@ -1,8 +1,8 @@
 # Formal Notes: awf-config-sources-spec.md
 
-**Last formalized**: 2026-08-16-15-36-00
-**Notation**: TLA+ / Z3-style guard conjunction / F*
-**Issue**: see notes-index.json
+**Last formalized**: 2026-08-21-15-38-08
+**Notation**: TLA+ / Z3-style guard conjunction
+**Issue**: created via safe-output (number resolved post-run)
 
 ## Predicates
 
@@ -49,28 +49,15 @@
 - Escalation assignment on a Friday requiring skip-to-Monday business-day math for 1-day ack window.
 - `LastMaintainerKnown=true` but maintainer string empty — must still fall back to on-call (CR-06a).
 - Partial CLI mapping coverage surfacing exactly the uncovered top-level property (CR-04).
-- Escalation title exactly equal to or shorter than the required `[Schema Drift SLA]` prefix (false-prefix-match edge case, P18).
-- Escalation label set containing only one of `workflow`/`bug` (P17).
-- Escalation template with empty unblock plan but all other fields populated (P19).
+- Escalation title exactly equal to the required `[Schema Drift SLA]` prefix satisfies the predicate; a truncated prefix (shorter substring) does not (P18, formalized this run).
+- Escalation label set containing only one of `workflow`/`bug` is rejected by the overall validity gate (P17, formalized this run).
+- Escalation template with empty waiver rationale but all other fields populated remains valid; the completeness result is identical whether or not waiver rationale is set (P19, formalized this run).
 
 ## Notes for Future Runs
 
-- P1-P10 already implemented in `pkg/workflow/awf_config_drift_formal_test.go` (verified present in repo).
-- P11-P15 were referenced in the 2026-08-04 formal notes as "done" but had NO corresponding code in
-  the repository — this run added them for real via a new test file
-  `awf_config_safeguards_formal_test.go` with stub helpers marked `// stub — replace with real implementation`
-  since no production drift-safeguard code exists yet in pkg/workflow/.
-- Added new predicate P16 (`formalCoverageVerificationEveryRun`, CR-04) which had no prior formal coverage.
-- Remaining gaps: Section 7.4.1 SLA tracking label/template requirements (issue title prefix, label pair)
-  have no dedicated formal predicate yet; consider formalizing in a future run.
-- IMPORTANT correction for future runs: verify claimed predicate implementations actually exist in
-  `pkg/workflow/` before marking notes-index entries as done — the previous run's notes overstated
-  completion of P11-P15.
-- This run (2026-08-16) closed the previously identified gap by adding P17-P19 covering Section 7.4.1's
-  escalation label pair (`workflow` + `bug`), title prefix (`[Schema Drift SLA]`), and minimum required
-  template fields (waiver rationale optional). New test file:
-  `pkg/workflow/awf_config_escalation_template_formal_test.go` (stub helpers, no production code yet).
-- Remaining gaps for future runs: none of P1-P19 have production implementations backing the stub
-  predicates yet (all are illustrative/stub-based per the constraint against runtime formal-tool
-  dependencies) — a future pass could audit whether `pkg/workflow/` has since grown real drift-detection
-  and escalation-issue-construction logic that these stubs should be replaced with.
+- P1-P10 implemented in `pkg/workflow/awf_config_drift_formal_test.go` (verified present in repo).
+- P11-P16 implemented in `pkg/workflow/awf_config_safeguards_formal_test.go` and related files (stub-based, no production code yet).
+- **This run (2026-08-21) closed the P17-P19 gap** that was explicitly called out as unfinished in the 2026-08-16 notes: added `pkg/workflow/awf_config_escalation_template_formal_test.go` with 8 test functions covering the escalation label pair, title prefix, template field completeness, waiver-rationale optionality, and two dedicated edge cases (partial label set rejection, exact-boundary title prefix).
+- All P1-P19 predicates now have dedicated formal test files backing stub implementations; none have real production code in `pkg/workflow/` yet — a future pass should audit whether escalation-issue construction logic has been added to `pkg/workflow/` (e.g., a real `EscalationIssue` type or drift-SLA-tracking workflow implementation) and, if so, replace the stubs with calls into that real code.
+- Cross-spec note: `pkg/workflow/awf_config_conformance_registry_formal_test.go` already exists and covers T-DR test-ID registry mechanics (P1-P9 registry-specific, distinct series from the drift/safeguard predicates above) — do not duplicate.
+- Next candidate specs in rotation (not yet touched or oldest-processed): `specs/compiler-threat-detection-compliance/README.md`, `specs/forecast-compliance-fixtures/README.md`, `specs/github-mcp-access-control-compliance/README.md`.

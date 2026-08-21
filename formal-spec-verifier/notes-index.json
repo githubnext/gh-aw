@@ -86,8 +86,8 @@
     },
     "specs/awf-config-sources-spec.md": {
       "slug": "awf-config-sources-spec",
-      "last_formalized": "2026-08-16-15-36-00",
-      "notation": "TLA+ / Z3-style guard conjunction / F*",
+      "last_formalized": "2026-08-21-15-38-08",
+      "notation": "TLA+ / Z3-style guard conjunction",
       "predicate_count": 19,
       "issue_number": null
     },
