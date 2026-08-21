@@ -266,6 +266,8 @@ Omit the field to keep the compiler-selected default images from `ghcr.io/github
 
 > [!NOTE]
 > This is different from the repository-level `.github/workflows/aw.json` `container_pins` setting, which substitutes container references used directly by compiled workflows (such as MCP server images). `sandbox.agent.images` configures AWF's own internal service image roles per workflow.
+>
+> `container_pins` never redirects a role that `sandbox.agent.images` overrides: the manifest reference is already a complete, digest-pinned literal, so it is pre-pulled and recorded in the lock-file manifest as-is, without going through the `container_pins` lookup. Any role left out of `sandbox.agent.images` still resolves through `container_pins` and the embedded digest pins normally.
 
 #### Copilot BYOK request customization (`sandbox.agent.targets.copilot`)
 

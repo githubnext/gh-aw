@@ -89,60 +89,50 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		firewallConfig := getFirewallConfig(workflowData)
 		awfImageTag := getAWFImageTag(firewallConfig)
 
-		// Add squid (proxy) container
-		squidImage := constants.DefaultFirewallRegistry + "/squid:" + awfImageTag
-		if !setutil.Contains(imageSet, squidImage) {
-			images = append(images, squidImage)
-			imageSet[squidImage] = struct {
-			}{}
-			dockerLog.Printf("Added AWF squid (proxy) container: %s", squidImage)
+		// When sandbox.agent.images pins a role to a specific literal reference,
+		// that reference — not the default registry/tag — is what AWF actually
+		// launches (see sandbox_agent_images.go). Use it here too so the pre-pull
+		// step and lock-file manifest match what container.images selects, and so
+		// aw.json container_pins (which only targets default-registry references)
+		// isn't mistakenly credited with substituting an image that AWF never uses.
+		sandboxImages := getSandboxAgentImages(workflowData)
+		addAWFRoleImage := func(role, defaultImage string) {
+			image := defaultImage
+			if pinned, ok := sandboxImages[role]; ok && pinned != "" {
+				image = pinned
+			}
+			if !setutil.Contains(imageSet, image) {
+				images = append(images, image)
+				imageSet[image] = struct {
+				}{}
+				dockerLog.Printf("Added AWF %s container: %s", role, image)
+			}
 		}
 
+		// Add squid (proxy) container
+		addAWFRoleImage(awfImageRoleSquid, constants.DefaultFirewallRegistry+"/squid:"+awfImageTag)
+
 		// Add default agent container
-		agentImage := constants.DefaultFirewallRegistry + "/agent:" + awfImageTag
-		if !setutil.Contains(imageSet, agentImage) {
-			images = append(images, agentImage)
-			imageSet[agentImage] = struct {
-			}{}
-			dockerLog.Printf("Added AWF agent container: %s", agentImage)
-		}
+		addAWFRoleImage(awfImageRoleAgent, constants.DefaultFirewallRegistry+"/agent:"+awfImageTag)
 
 		// Add api-proxy sidecar container (required for all engines — LLM gateway is mandatory)
 		// The api-proxy holds LLM API keys securely and proxies requests through Squid
 		// Each engine uses its own dedicated port for communication
 		if workflowData != nil && workflowData.AI != "" {
-			apiProxyImage := constants.DefaultFirewallRegistry + "/api-proxy:" + awfImageTag
-			if !setutil.Contains(imageSet, apiProxyImage) {
-				images = append(images, apiProxyImage)
-				imageSet[apiProxyImage] = struct {
-				}{}
-				dockerLog.Printf("Added AWF api-proxy sidecar container: %s", apiProxyImage)
-			}
+			addAWFRoleImage(awfImageRoleAPIProxy, constants.DefaultFirewallRegistry+"/api-proxy:"+awfImageTag)
 		}
 
 		// Add cli-proxy sidecar container when the cli-proxy is needed.
 		// Without this, --skip-pull causes AWF to fail because the cli-proxy image was never pulled.
 		if isCliProxyNeeded(workflowData) {
-			cliProxyImage := constants.DefaultFirewallRegistry + "/cli-proxy:" + awfImageTag
-			if !setutil.Contains(imageSet, cliProxyImage) {
-				images = append(images, cliProxyImage)
-				imageSet[cliProxyImage] = struct {
-				}{}
-				dockerLog.Printf("Added AWF cli-proxy sidecar container: %s", cliProxyImage)
-			}
+			addAWFRoleImage(awfImageRoleCliProxy, constants.DefaultFirewallRegistry+"/cli-proxy:"+awfImageTag)
 		}
 
 		// Add build-tools sysroot image for ARC/DinD topology.
 		// AWF uses this as an init container to populate the sysroot volume with
 		// system binaries (gcc, make, libraries) that are invisible on the DinD daemon's FS.
 		if isArcDindTopology(workflowData) {
-			buildToolsImage := constants.DefaultFirewallRegistry + "/build-tools:" + awfImageTag
-			if !setutil.Contains(imageSet, buildToolsImage) {
-				images = append(images, buildToolsImage)
-				imageSet[buildToolsImage] = struct {
-				}{}
-				dockerLog.Printf("Added AWF build-tools sysroot container for arc-dind: %s", buildToolsImage)
-			}
+			addAWFRoleImage(awfImageRoleBuildTools, constants.DefaultFirewallRegistry+"/build-tools:"+awfImageTag)
 		}
 	}
 
@@ -239,6 +229,16 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 	}
 
 	for i, img := range images {
+		// Images already carrying a "@sha256:" digest are already immutable, fully
+		// resolved literals — most notably sandbox.agent.images role overrides,
+		// which AWF treats as a closed manifest. aw.json container_pins only
+		// targets bare default-registry tags, so it must not rewrite these.
+		if strings.Contains(img, "@sha256:") {
+			result[i] = img
+			pins[i] = GHAWManifestContainer{Image: img}
+			continue
+		}
+
 		// Apply container_pins mapping from aw.json before digest resolution so that
 		// redirected registries are pre-downloaded and recorded in the manifest.
 		img = applyContainerPinMappingFromData(img, workflowData)

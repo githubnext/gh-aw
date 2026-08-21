@@ -166,6 +166,52 @@ func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
 	assert.Len(t, workflowData.DockerImagePins, len(workflowData.DockerImages), "pin count should match image count")
 }
 
+// TestCollectDockerImages_SandboxAgentImagesOverrideDefaults verifies that when
+// sandbox.agent.images pins a role, collectDockerImages pre-pulls and manifests
+// that literal reference instead of the default registry/tag image AWF would
+// otherwise use — and that it is not subject to aw.json container_pins
+// substitution, since it is already a fully resolved, digest-pinned reference.
+func TestCollectDockerImages_SandboxAgentImagesOverrideDefaults(t *testing.T) {
+	pinnedSquid := "registry.example.com/approved/squid:v0.28.4@sha256:" + strings.Repeat("a", 64)
+	pinnedAgent := "registry.example.com/approved/agent:v0.28.4@sha256:" + strings.Repeat("b", 64)
+
+	workflowData := &WorkflowData{
+		AI: "claude",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+				Version: "0.28.4",
+			},
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Images: map[string]string{
+					"squid": pinnedSquid,
+					"agent": pinnedAgent,
+				},
+			},
+		},
+		// Redirect the default (unused) firewall images through aw.json
+		// container_pins to prove the redirect is not applied to the pinned
+		// literal references above.
+		ContainerPinMappings: map[string]string{
+			constants.DefaultFirewallRegistry + "/squid:0.28.4": "mirror.example.com/squid:0.28.4@sha256:" + strings.Repeat("c", 64),
+		},
+	}
+
+	images := collectDockerImages(nil, workflowData, ActionModeRelease)
+
+	assert.Contains(t, images, pinnedSquid, "sandbox.agent.images squid override should be used for pre-pull")
+	assert.Contains(t, images, pinnedAgent, "sandbox.agent.images agent override should be used for pre-pull")
+	assert.NotContains(t, images, constants.DefaultFirewallRegistry+"/squid:0.28.4", "default squid image should not be collected when overridden")
+	assert.NotContains(t, images, constants.DefaultFirewallRegistry+"/agent:0.28.4", "default agent image should not be collected when overridden")
+
+	// api-proxy has no override, so aw.json container_pins and embedded pins still
+	// apply to it as before.
+	apiProxyImage := constants.DefaultFirewallRegistry + "/api-proxy:0.28.4"
+	assert.Contains(t, images, apiProxyImage, "unoverridden roles keep using the default registry/tag image")
+}
+
 // TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage verifies that enabling
 // safe-outputs adds the published gh-aw-node container to the default Docker pull
 // list and manifest data, while not falling back to node:lts-alpine.
