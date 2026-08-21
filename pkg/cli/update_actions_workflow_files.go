@@ -109,7 +109,7 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 		}
 
 		if err := os.WriteFile(path, []byte(newContent), constants.FilePermPublic); err != nil {
-			return fmt.Errorf("failed to write updated workflow %s: %w", path, err)
+			return fmt.Errorf("unable to write updated workflow %s: %w", path, err)
 		}
 
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action/skill/plugin references in "+d.Name()))
@@ -117,12 +117,12 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to walk workflows directory: %w", err)
+		return fmt.Errorf("unable to walk workflows directory: %w", err)
 	}
 
 	if len(updatedFiles) > 0 && !opts.noCompile {
 		if err := compileWorkflowsForUpdate(ctx, updatedFiles, opts.workflowsDir, opts.engineOverride, opts.verbose, opts.approve); err != nil {
-			return fmt.Errorf("failed to compile workflows with updated action references: %w", err)
+			return fmt.Errorf("unable to compile workflows with updated action references: %w", err)
 		}
 	}
 

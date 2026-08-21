@@ -114,11 +114,11 @@ func updateFrontmatterRepoRefsInContentWithResolver(
 
 	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
 	if err != nil {
-		return false, content, fmt.Errorf("failed to marshal updated frontmatter: %w", err)
+		return false, content, fmt.Errorf("unable to marshal updated frontmatter: %w", err)
 	}
 	updatedContent, err := parser.ReconstructWorkflowFile(parser.QuoteCronExpressions(string(updatedFrontmatter)), result.Markdown)
 	if err != nil {
-		return false, content, fmt.Errorf("failed to reconstruct workflow file: %w", err)
+		return false, content, fmt.Errorf("unable to reconstruct workflow file: %w", err)
 	}
 	return true, updatedContent, nil
 }
