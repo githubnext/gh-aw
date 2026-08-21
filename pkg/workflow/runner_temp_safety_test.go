@@ -144,20 +144,20 @@ func TestRewriteRunnerTempEscapesActionPath(t *testing.T) {
 	}
 }
 
-func TestEscapeSingleQuotedJS(t *testing.T) {
+func TestSingleQuotedJS(t *testing.T) {
 	tests := []struct {
 		in   string
 		want string
 	}{
-		{"generate_aw_info.cjs", "generate_aw_info.cjs"},
-		{`a'b`, `a\'b`},
-		{`a\b`, `a\\b`},
-		{"a\nb", `a\nb`},
-		{"a\rb", `a\rb`},
+		{"generate_aw_info.cjs", `'generate_aw_info.cjs'`},
+		{`a'b`, `'a\'b'`},
+		{`a\b`, `'a\\b'`},
+		{"a\nb", `'a\nb'`},
+		{"a\rb", `'a\rb'`},
 	}
 	for _, tt := range tests {
-		if got := escapeSingleQuotedJS(tt.in); got != tt.want {
-			t.Errorf("escapeSingleQuotedJS(%q) = %q, want %q", tt.in, got, tt.want)
+		if got := singleQuotedJS(tt.in); got != tt.want {
+			t.Errorf("singleQuotedJS(%q) = %q, want %q", tt.in, got, tt.want)
 		}
 	}
 }

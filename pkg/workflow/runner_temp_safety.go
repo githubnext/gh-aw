@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -19,17 +20,14 @@ var (
 	singleLineExecutableRE      = regexp.MustCompile(`^\s*(?:-\s+)?(script|run):\s+`)
 )
 
-var singleQuotedJSEscaper = strings.NewReplacer(
-	`\`, `\\`,
-	`'`, `\'`,
-	"\r", `\r`,
-	"\n", `\n`,
-)
-
-// escapeSingleQuotedJS escapes a value so it can be safely embedded inside a
-// single-quoted JavaScript string literal in generated workflow scripts.
-func escapeSingleQuotedJS(s string) string {
-	return singleQuotedJSEscaper.Replace(s)
+// singleQuotedJS renders s as a single-quoted JavaScript string literal for
+// embedding in generated workflow scripts. strconv.Quote escapes backslashes and
+// control characters; only the quote character itself differs between Go's
+// double-quoted syntax and the single-quoted form emitted here.
+func singleQuotedJS(s string) string {
+	body := strconv.Quote(s)
+	body = strings.ReplaceAll(body[1:len(body)-1], `'`, `\'`)
+	return "'" + body + "'"
 }
 
 func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
@@ -87,7 +85,7 @@ func rewriteRunnerTempInExecutableBodies(yamlContent string) string {
 					out.WriteString("\n")
 					scriptBlockHasActionsDir = true
 				}
-				rewrittenLine = matches[1] + matches[2] + "path.join(actionsDir, '" + escapeSingleQuotedJS(matches[3]) + "')" + matches[4]
+				rewrittenLine = matches[1] + matches[2] + "path.join(actionsDir, " + singleQuotedJS(matches[3]) + ")" + matches[4]
 			}
 		}
 
