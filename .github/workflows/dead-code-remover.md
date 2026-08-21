@@ -31,6 +31,7 @@ network:
   allowed:
     - defaults
     - go
+    - node
 tools:
   cli-proxy: true
   bash:

@@ -210,7 +210,7 @@ jobs:
     2. Add it as a repository secret from your repository root with `gh secret set ANTHROPIC_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
 
     :::note
-    Claude subscription OAuth tokens (`CLAUDE_CODE_OAUTH_TOKEN`) are not supported and are ignored if set. Use `ANTHROPIC_API_KEY` or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif).
+    Claude subscription OAuth tokens (`CLAUDE_CODE_OAUTH_TOKEN`) are not supported and are ignored if set. If it is the only credential configured, the workflow fails with an authentication error from the Claude CLI (for example, a missing/invalid API key error) rather than any message mentioning `CLAUDE_CODE_OAUTH_TOKEN` — treat that failure as a signal to switch to `ANTHROPIC_API_KEY` or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif).
     :::
   </TabItem>
   <TabItem label="Codex">
