@@ -114,11 +114,11 @@ func validateAWFConfigJSON(configJSON string) error {
 	}
 	var doc any
 	if err := json.Unmarshal([]byte(configJSON), &doc); err != nil {
-		return fmt.Errorf("failed to parse AWF config JSON: %w", err)
+		return fmt.Errorf("AWF config must contain valid JSON. Check the generated configuration values. Underlying error: %w", err)
 	}
 	normalizeTemplatableModelFallbackEnabled(doc)
 	if err := schema.Validate(doc); err != nil {
-		return fmt.Errorf("AWF config schema validation failed: %w", err)
+		return fmt.Errorf("AWF config must match the embedded schema. Each field should conform to a schema-defined type. Underlying error: %w", err)
 	}
 	return nil
 }
@@ -756,14 +756,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
+		return "", fmt.Errorf("AWF config must be serializable as JSON. Configuration values should use JSON-compatible types. Underlying error: %w", err)
 	}
 
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonStr))
 
 	if config.WorkflowData != nil && config.WorkflowData.ValidateAWFConfig {
 		if err := validateAWFConfigJSON(jsonStr); err != nil {
-			return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
+			return "", fmt.Errorf("generated AWF config must match the schema. Each workflow field should conform to the AWF schema. Underlying error: %w", err)
 		}
 	}
 
