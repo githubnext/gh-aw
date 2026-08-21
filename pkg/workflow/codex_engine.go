@@ -403,18 +403,22 @@ mkdir -p "$CODEX_HOME/logs"
 }
 
 func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
-	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
-		defaults := append(append([]string{}, CodexDefaultDomains...), CopilotDefaultDomains...)
-		return mergeDomainsWithNetworkToolsAndRuntimes(defaults, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
-	}
 	allowedDomains := workflowData.CachedAllowedDomainsStr
 	if !workflowData.CachedAllowedDomainsComputed {
-		allowedDomains = GetAllowedDomainsForEngine(constants.CodexEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		allowedDomains = mergeDomainsWithNetworkToolsAndRuntimes(e.defaultDomains(workflowData), workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 	}
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 		allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
 	}
 	return allowedDomains
+}
+
+func (e *CodexEngine) defaultDomains(workflowData *WorkflowData) []string {
+	defaults := append([]string{}, CodexDefaultDomains...)
+	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+		defaults = append(defaults, CopilotDefaultDomains...)
+	}
+	return defaults
 }
 
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {

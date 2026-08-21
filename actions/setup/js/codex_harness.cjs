@@ -399,6 +399,15 @@ function extractOpenAIProxyBaseURLFromToml(tomlContent) {
  */
 function getConfiguredProviderPortFromReflect(reflectData, provider = "openai") {
   const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger: () => {} });
+  const normalizedProvider = normalizeReflectProviderName(provider, "openai");
+  const normalizedEndpointProvider = normalizeReflectProviderName(resolved?.endpointProvider);
+  const aliases = {
+    github: new Set(["copilot", "github", "github-copilot", "github_models"]),
+    openai: new Set(["openai", "codex"]),
+    anthropic: new Set(["anthropic"]),
+  };
+  const matchingProviders = aliases[normalizedProvider] || new Set([normalizedProvider]);
+  if (!matchingProviders.has(normalizedEndpointProvider)) return null;
   return resolved && resolved.port != null ? resolved.port : null;
 }
 

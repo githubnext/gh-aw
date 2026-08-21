@@ -265,6 +265,13 @@ env_key = "OPENAI_API_KEY"
       expect(getConfiguredProviderPortFromReflect(reflect)).toBeNull();
     });
 
+    it("returns null when the selected provider is not configured", () => {
+      const reflect = {
+        endpoints: [{ provider: "anthropic", port: 10001, configured: true }],
+      };
+      expect(getConfiguredProviderPortFromReflect(reflect, "github")).toBeNull();
+    });
+
     it("fails validation when config and reflect OpenAI ports mismatch", () => {
       const toml = `[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10001"\n`;
       const reflect = JSON.stringify({
