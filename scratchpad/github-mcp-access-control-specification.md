@@ -1026,11 +1026,11 @@ approval-labels: [true]      # All elements must be strings
 **Validation**:
 ```yaml
 # INVALID
-repos: []        # Empty array blocks all access
+repos: []        # Empty allowlist would block all access; omit `repos` for no repository restriction
 roles: []        # Empty array blocks all access
 
 # VALID
-# (omit field entirely if you want no restrictions)
+# Omitted `repos` means no repository restriction; an empty array is rejected to prevent accidental deny-all.
 repos:
   - "*/*"               # Explicit all-access
 ```
@@ -1852,6 +1852,7 @@ This subsection specifies normative failure-mode behavior for the case where gua
 - Implementations MUST fail closed on malformed guard-policy configuration: until the configuration error is fixed, the affected GitHub MCP tools MUST NOT be enabled, rather than falling back to an unrestricted ("all repos", `min-integrity: none`) policy.
 - Compilation error messages for malformed guard-policy configuration SHOULD identify the offending field, the value received, and the set of valid values or formats, so the misconfiguration can be corrected without consulting this specification.
 - Implementations MUST NOT partially apply a malformed guard policy (for example, enforcing `min-integrity` while ignoring an invalid `allowed-repos` value); validation MUST treat the guard policy as a single unit that either fully passes validation or causes compilation to fail.
+- When a username appears in both `blocked-users` and `trusted-users`, the blocked-user decision MUST take precedence and the item MUST be denied. This deterministic rule prevents a trusted-user grant from weakening an explicit deny list (T-GH-094).
 
 ### 9.7 Open Questions
 
@@ -2124,6 +2125,7 @@ Additional blocked-user validation tests in `TestValidateGitHubGuardPolicy`:
 - **T-GH-091**: When both `blocked-users` and `min-integrity` are configured, access is the conjunction of P5_NotBlocked AND P6_IntegrityMet; a non-blocked user with content at or above the threshold is allowed
 - **T-GH-092**: Non-blocked user with content exceeding the configured threshold is allowed; P5 and P6 both pass
 - **T-GH-093**: Blocked user whose content also fails the integrity threshold is denied with `-32005` (P5_NotBlocked fires before P6_IntegrityMet per §8.5 combined evaluation order), not `-32006`
+- **T-GH-094**: A user in both `blocked-users` and `trusted-users` is denied because `blocked-users` takes precedence
 
 ### 11.2 Compliance Checklist
 

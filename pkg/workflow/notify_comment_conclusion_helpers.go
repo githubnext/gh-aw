@@ -50,6 +50,14 @@ func (c *Compiler) buildConclusionSetupSteps(data *WorkflowData) []string {
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	// Download the detection artifact (when threat detection is enabled) so its firewall
+	// proxy/audit logs (collected under threat-detection/sandbox/firewall/ by
+	// buildCopyDetectionFirewallLogsStep) land at the paths collect_usage_artifact_files.sh
+	// expects, letting detection-phase usage surface in the usage artifact and count toward
+	// the AI-credits budget cap (see gh-aw#54047).
+	if IsDetectionJobEnabled(data.SafeOutputs) {
+		steps = append(steps, buildDetectionArtifactDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	}
 	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), data.Evals != nil && data.Evals.HasEvals(), c.getActionPin)...)
 	if needsDailyAICCachePermission(data) {
 		steps = append(steps, buildDailyAICUsageCacheSteps(data, c.getActionPin)...)
@@ -212,7 +220,7 @@ func (c *Compiler) buildAgentFailureCoreVars(data *WorkflowData, mainJobName str
 	}
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get agentic engine: %w", err)
+		return nil, nil, fmt.Errorf("could not resolve agentic engine from workflow AI configuration; ensure a supported engine or model is configured: %w", err)
 	}
 	if EngineHasValidateSecretStep(engine, data) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.%s.outputs.secret_verification_result }}\n", constants.ActivationJobName))

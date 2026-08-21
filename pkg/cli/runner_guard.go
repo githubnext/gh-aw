@@ -226,6 +226,10 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	// runner-guard evaluates jobs in isolation and does not follow needs: edges.
 	output.Findings = filterRunnerGuardFindings(output.Findings, gitRoot)
 
+	// Drop RGS-005 findings for compiler-generated jobs that perform narrowly scoped
+	// lifecycle and safe-output writes. The main agent job remains read-only.
+	output.Findings = filterGeneratedSafeOutputPermissionFindings(output.Findings, gitRoot)
+
 	// Drop findings that carry an inline runner-guard suppression comment near the reported
 	// location in the compiled workflow.
 	output.Findings = filterRunnerGuardIgnoredFindings(output.Findings, gitRoot)

@@ -216,6 +216,54 @@ func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
 	}
 }
 
+func TestCodexEngineExecutionDumpsInternalLogsOnFailure(t *testing.T) {
+	engine := NewCodexEngine()
+
+	if got, want := engine.GetInternalLogsDir(), constants.TmpMcpConfigDir+"/logs"; got != want {
+		t.Errorf("Expected GetInternalLogsDir() to return %q, got %q", want, got)
+	}
+
+	t.Run("without firewall", func(t *testing.T) {
+		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow"}, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected a single execution step (internal log rendering is handled by the shared detect-agent-errors step), got %d steps", len(steps))
+		}
+	})
+
+	t.Run("with firewall", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:               "test-workflow",
+			NetworkPermissions: &NetworkPermissions{Firewall: &FirewallConfig{Enabled: true}},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected a single execution step (internal log rendering is handled by the shared detect-agent-errors step), got %d steps", len(steps))
+		}
+	})
+}
+
+func TestCodexEngineErrorDetectionUsesGitHubScript(t *testing.T) {
+	var yaml strings.Builder
+	compiler := &Compiler{}
+
+	compiler.generateDetectAgentErrorsStep(&yaml, &WorkflowData{}, NewCodexEngine())
+
+	step := yaml.String()
+	for _, expected := range []string{
+		"uses: actions/github-script@",
+		"setupGlobals(core, github, context, exec, io, getOctokit);",
+		"const { main } = require('${{ runner.temp }}/gh-aw/actions/detect_agent_errors.cjs');",
+		"await main();",
+	} {
+		if !strings.Contains(step, expected) {
+			t.Errorf("Expected Detect agent errors step to contain %q, got:\n%s", expected, step)
+		}
+	}
+	if strings.Contains(step, "run: node") {
+		t.Errorf("Expected Detect agent errors step not to invoke node directly, got:\n%s", step)
+	}
+}
+
 func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	engine := NewCodexEngine()
 

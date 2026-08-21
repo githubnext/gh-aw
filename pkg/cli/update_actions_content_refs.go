@@ -19,8 +19,17 @@ import (
 
 type skillRefUpdateResolver func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error)
 
+// noObjectKey signals to updateFrontmatterRepoRefsInContentWithResolver that the field
+// being updated (e.g. "plugins") does not support the map[string]any object form with a
+// nested ref key, so object-form entries are left untouched.
+const noObjectKey = ""
+
 func updateSkillRefsInContent(ctx context.Context, content string, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
 	return updateSkillRefsInContentWithResolver(ctx, content, allowMajor, verbose, coolDown, resolveLatestRef)
+}
+
+func updatePluginRefsInContent(ctx context.Context, content string, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
+	return updatePluginRefsInContentWithResolver(ctx, content, allowMajor, verbose, coolDown, resolveLatestRef)
 }
 
 func updateSkillRefsInContentWithResolver(
@@ -30,10 +39,32 @@ func updateSkillRefsInContentWithResolver(
 	coolDown time.Duration,
 	resolver skillRefUpdateResolver,
 ) (bool, string, error) {
+	return updateFrontmatterRepoRefsInContentWithResolver(ctx, content, "skills", "skill", allowMajor, verbose, coolDown, resolver)
+}
+
+func updatePluginRefsInContentWithResolver(
+	ctx context.Context,
+	content string,
+	allowMajor, verbose bool,
+	coolDown time.Duration,
+	resolver skillRefUpdateResolver,
+) (bool, string, error) {
+	return updateFrontmatterRepoRefsInContentWithResolver(ctx, content, "plugins", noObjectKey, allowMajor, verbose, coolDown, resolver)
+}
+
+func updateFrontmatterRepoRefsInContentWithResolver(
+	ctx context.Context,
+	content string,
+	fieldName string,
+	objectKey string,
+	allowMajor, verbose bool,
+	coolDown time.Duration,
+	resolver skillRefUpdateResolver,
+) (bool, string, error) {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
 		if verbose {
-			updateLog.Printf("Skipping skill update for content without parseable frontmatter: %v", err)
+			updateLog.Printf("Skipping %s update for content without parseable frontmatter: %v", fieldName, err)
 		}
 		return false, content, nil
 	}
@@ -41,34 +72,37 @@ func updateSkillRefsInContentWithResolver(
 		return false, content, nil
 	}
 
-	rawSkills, ok := result.Frontmatter["skills"].([]any)
-	if !ok || len(rawSkills) == 0 {
+	rawRefs, ok := result.Frontmatter[fieldName].([]any)
+	if !ok || len(rawRefs) == 0 {
 		return false, content, nil
 	}
 
 	changed := false
-	for i, rawSkill := range rawSkills {
-		switch typed := rawSkill.(type) {
+	for i, rawRef := range rawRefs {
+		switch typed := rawRef.(type) {
 		case string:
-			updated, updatedRef, err := updateSkillRefValue(ctx, typed, allowMajor, verbose, coolDown, resolver)
+			updated, updatedRef, err := updateSkillRefValue(ctx, fieldName, typed, allowMajor, verbose, coolDown, resolver)
 			if err != nil {
 				return false, content, err
 			}
 			if updated {
-				rawSkills[i] = updatedRef
+				rawRefs[i] = updatedRef
 				changed = true
 			}
 		case map[string]any:
-			skillRef, ok := typed["skill"].(string)
+			if objectKey == noObjectKey {
+				continue
+			}
+			skillRef, ok := typed[objectKey].(string)
 			if !ok {
 				continue
 			}
-			updated, updatedRef, err := updateSkillRefValue(ctx, skillRef, allowMajor, verbose, coolDown, resolver)
+			updated, updatedRef, err := updateSkillRefValue(ctx, fieldName, skillRef, allowMajor, verbose, coolDown, resolver)
 			if err != nil {
 				return false, content, err
 			}
 			if updated {
-				typed["skill"] = updatedRef
+				typed[objectKey] = updatedRef
 				changed = true
 			}
 		}
@@ -76,21 +110,22 @@ func updateSkillRefsInContentWithResolver(
 	if !changed {
 		return false, content, nil
 	}
-	result.Frontmatter["skills"] = rawSkills
+	result.Frontmatter[fieldName] = rawRefs
 
 	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
 	if err != nil {
-		return false, content, fmt.Errorf("failed to marshal updated frontmatter: %w", err)
+		return false, content, fmt.Errorf("unable to marshal updated frontmatter: %w", err)
 	}
 	updatedContent, err := parser.ReconstructWorkflowFile(parser.QuoteCronExpressions(string(updatedFrontmatter)), result.Markdown)
 	if err != nil {
-		return false, content, fmt.Errorf("failed to reconstruct workflow file: %w", err)
+		return false, content, fmt.Errorf("unable to reconstruct workflow file: %w", err)
 	}
 	return true, updatedContent, nil
 }
 
 func updateSkillRefValue(
 	ctx context.Context,
+	fieldName string,
 	skillRef string,
 	allowMajor, verbose bool,
 	coolDown time.Duration,
@@ -114,7 +149,7 @@ func updateSkillRefValue(
 	latestRef, err := resolver(ctx, repo, currentRef, allowMajor, verbose, coolDown)
 	if err != nil {
 		if verbose {
-			updateLog.Printf("Skipping skill update for %s@%s: %v", spec, currentRef, err)
+			updateLog.Printf("Skipping %s update for %s@%s: %v", fieldName, spec, currentRef, err)
 		}
 		return false, skillRef, nil
 	}

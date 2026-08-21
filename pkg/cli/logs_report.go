@@ -141,6 +141,8 @@ type RunData struct {
 	TokenUsage                 int                    `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
 	AIC                        float64                `json:"aic,omitempty"`
 	AmbientContext             *AmbientContextMetrics `json:"ambient_context,omitempty" console:"-"`
+	WorkingSet                 *WorkingSetMetrics     `json:"working_set,omitempty" console:"-"`
+	WSRF                       string                 `json:"-" console:"header:WSRF,omitempty"` // Working-Set Rebuild Factor, pre-formatted for table display
 	Turns                      int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount                 int                    `json:"error_count,omitempty" console:"header:Errors"`
 	WarningCount               int                    `json:"warning_count,omitempty" console:"header:Warnings"`
@@ -447,6 +449,8 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		TokenUsage:                 run.TokenUsage,
 		AIC:                        0,
 		AmbientContext:             ambientContext,
+		WorkingSet:                 pr.WorkingSet,
+		WSRF:                       wsrfDisplayValue(pr.WorkingSet),
 		ActionMinutes:              run.ActionMinutes,
 		Turns:                      run.Turns,
 		ErrorCount:                 run.ErrorCount,
@@ -678,18 +682,18 @@ func writeSummaryFile(path string, data LogsData, verbose bool) error {
 	// Create parent directory if it doesn't exist
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create directory for summary file: %w", err)
+		return fmt.Errorf("could not create directory %q for summary file, expected a writable parent path: %w", dir, err)
 	}
 
 	// Marshal to JSON with indentation for readability
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal logs data to JSON: %w", err)
+		return fmt.Errorf("could not marshal logs data to JSON, expected all summary fields to be serializable: %w", err)
 	}
 
 	// Write to file
 	if err := os.WriteFile(path, jsonData, constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write summary file: %w", err)
+		return fmt.Errorf("could not write summary file %q, expected a writable path with sufficient disk space: %w", path, err)
 	}
 
 	if verbose {

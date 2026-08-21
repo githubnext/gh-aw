@@ -8,6 +8,7 @@
 //   gateway: total/failed tool-call counters with per-server breakdown
 //   safe_outputs: total item count and per-type breakdown from safe-output-items manifest
 //   experiments: A/B experiment variant assignments for the current run
+//   working_set: cumulative input-token traffic relative to peak invocation input
 
 const fs = require("fs");
 const { globSync } = require("node:fs");
@@ -25,6 +26,93 @@ const LOCALHOST_CLIENT_PREFIX = "::1:";
 const PLACEHOLDER_DOMAIN_KEY = "-";
 const PLACEHOLDER_DEST_KEY = "-:-";
 const ERROR_DOMAIN_PREFIX = "error:";
+const AGENT_TOKEN_USAGE_PATH = "/tmp/gh-aw/usage/agent/token_usage.jsonl";
+
+/**
+ * Compute Working-Set Rebuild Factor from canonical per-request input_tokens.
+ * Cache-read and cache-write fields are intentionally not added: token-usage.jsonl
+ * already exposes gh-aw's normalized logical input count in input_tokens.
+ *
+ * @param {string} content
+ * @returns {{ workingSet: {
+ *   measurement_state: "measured" | "partial" | "unavailable",
+ *   rebuild_factor?: number,
+ *   cumulative_input_tokens: number,
+ *   peak_input_tokens: number,
+ *   rebuild_excess_tokens: number,
+ *   invocations: number
+ * }, ignoredRecords: number }}
+ */
+function calculateWorkingSetFromJSONL(content) {
+  let cumulativeInputTokens = 0n;
+  let peakInputTokens = 0n;
+  let invocations = 0;
+  let ignoredRecords = 0;
+
+  for (const raw of content.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      ignoredRecords += 1;
+      continue;
+    }
+
+    const inputTokens = entry?.input_tokens;
+    if (typeof inputTokens !== "number" || !Number.isSafeInteger(inputTokens) || inputTokens < 0) {
+      ignoredRecords += 1;
+      continue;
+    }
+
+    const logicalInputTokens = BigInt(inputTokens);
+    cumulativeInputTokens += logicalInputTokens;
+    if (logicalInputTokens > peakInputTokens) {
+      peakInputTokens = logicalInputTokens;
+    }
+    invocations += 1;
+  }
+
+  /** @type {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"]} */
+  const base = {
+    measurement_state: "unavailable",
+    cumulative_input_tokens: Number(cumulativeInputTokens),
+    peak_input_tokens: Number(peakInputTokens),
+    rebuild_excess_tokens: Number(cumulativeInputTokens - peakInputTokens),
+    invocations,
+  };
+
+  if (peakInputTokens === 0n) {
+    return { workingSet: base, ignoredRecords };
+  }
+
+  const rebuildFactor = Number(cumulativeInputTokens) / Number(peakInputTokens);
+  return {
+    workingSet: {
+      ...base,
+      measurement_state: ignoredRecords > 0 ? "partial" : "measured",
+      rebuild_factor: Number.isFinite(rebuildFactor) ? Math.max(1, rebuildFactor) : 1,
+    },
+    ignoredRecords,
+  };
+}
+
+/**
+ * @param {string} [tokenUsagePath]
+ * @returns {{ workingSet: ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"], ignoredRecords: number }}
+ */
+function parseWorkingSetMetrics(tokenUsagePath = AGENT_TOKEN_USAGE_PATH) {
+  if (!fs.existsSync(tokenUsagePath)) {
+    return calculateWorkingSetFromJSONL("");
+  }
+  try {
+    return calculateWorkingSetFromJSONL(fs.readFileSync(tokenUsagePath, "utf-8"));
+  } catch (err) {
+    throw new Error(`Failed to read working-set token usage from ${tokenUsagePath}: ${String(err)}`, { cause: err });
+  }
+}
 
 /**
  * Check if a Squid decision indicates an allowed request
@@ -503,6 +591,19 @@ function main() {
     summary.experiments = experiments;
   }
 
+  // Compute run-level Working-Set Rebuild Factor after the agent token-usage
+  // file has been copied into the compact usage artifact.
+  try {
+    const { workingSet, ignoredRecords } = parseWorkingSetMetrics();
+    summary.working_set = workingSet;
+    if (ignoredRecords > 0) {
+      core.warning(`Working-set rebuild measurement ignored ${ignoredRecords} malformed or unsupported token-usage record(s)`);
+    }
+  } catch (err) {
+    summary.working_set = calculateWorkingSetFromJSONL("").workingSet;
+    core.warning(`Working-set rebuild measurement unavailable: ${String(err)}`);
+  }
+
   // Write summary to file
   const outputPath = "/tmp/gh-aw/usage/activity/summary.json";
   try {
@@ -518,4 +619,14 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { parseFirewallLogs, parseSessionLogs, parseGatewayLogs, parseSafeOutputsManifest, parseExperimentsData, MANIFEST_FILE_PATH };
+module.exports = {
+  parseFirewallLogs,
+  parseSessionLogs,
+  parseGatewayLogs,
+  parseSafeOutputsManifest,
+  parseExperimentsData,
+  calculateWorkingSetFromJSONL,
+  parseWorkingSetMetrics,
+  AGENT_TOKEN_USAGE_PATH,
+  MANIFEST_FILE_PATH,
+};

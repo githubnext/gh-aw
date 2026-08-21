@@ -17,7 +17,7 @@ type FormalDriftRecord struct {
 	DetectedAt      string
 }
 
-type formalEscalationIssue struct {
+type formalDriftEscalationIssue struct {
 	Owner       string
 	UnblockPlan []string
 	RevisedETA  time.Time
@@ -98,7 +98,7 @@ func formalSLARemediationWindow(detectedAt, now time.Time) bool {
 	return !now.After(deadline)
 }
 
-func formalEscalationIssueStructure(issue formalEscalationIssue) bool {
+func formalEscalationIssueStructure(issue formalDriftEscalationIssue) bool {
 	return issue.Owner != "" && len(issue.UnblockPlan) > 0 && !issue.RevisedETA.IsZero()
 }
 
@@ -190,12 +190,12 @@ func TestFormal_P7_SLARemediationWindow(t *testing.T) {
 }
 
 func TestFormal_P8_EscalationIssueStructure(t *testing.T) {
-	valid := formalEscalationIssue{
+	valid := formalDriftEscalationIssue{
 		Owner:       "@maintainer",
 		UnblockPlan: []string{"reproduce drift", "ship corrective PR"},
 		RevisedETA:  time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC),
 	}
-	invalid := formalEscalationIssue{Owner: "", UnblockPlan: nil, RevisedETA: time.Time{}}
+	invalid := formalDriftEscalationIssue{Owner: "", UnblockPlan: nil, RevisedETA: time.Time{}}
 
 	assert.True(t, formalEscalationIssueStructure(valid))
 	assert.False(t, formalEscalationIssueStructure(invalid))
