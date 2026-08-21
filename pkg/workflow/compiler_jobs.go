@@ -337,6 +337,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// to each job individually after all jobs have been created.
 	c.ensureOTLPOIDCJobPermissions(data)
 
+	// Final pass: same-job `steps.<id>.outputs.*` token expressions must be produced by a
+	// step of the job that consumes them, otherwise the token is empty at runtime.
+	if err := c.validateSafeOutputStepTokenReferences(data); err != nil {
+		return err
+	}
+
 	compilerJobsLog.Print("Successfully built all jobs for workflow")
 	return nil
 }

@@ -1673,17 +1673,51 @@ safe-outputs:
 - `needs.<job>.outputs.<name>`
 - `steps.<id>.outputs.<name>`
 
-The `steps.*.outputs.*` form is useful when the safe-outputs job mints a short-lived token in `pre-steps:` or `setup-steps:` and then reuses that token for `Process Safe Outputs` in the same job.
+The `steps.*.outputs.*` form is useful when a short-lived token is minted inside the job that uses it, for example with a keyless OIDC token-minting action. Step outputs are only readable inside the job that produced them, so the minting step must be injected into **every** job that consumes the token: the `agent` job (top-level `pre-steps:`), the `safe_outputs` job and the `conclusion` job (`jobs.<job>.pre-steps:` or `jobs.<job>.setup-steps:`).
+
+`pre-steps:` run before the job's checkout, git-credential and token-consuming steps, so the minted token is available everywhere it is needed. `safe-outputs.steps:` is not a valid place to mint such a token because it runs *after* the `safe_outputs` job checkout.
 
 ```yaml wrap
-pre-steps:
-  - id: fetch_token
-    run: echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+permissions:
+  contents: read
+  id-token: write
+
+pre-steps:                        # agent job
+  - name: Mint token
+    id: mint_token
+    uses: octo-sts/action@v1.1.1
+    with:
+      scope: ${{ github.repository }}
+      identity: my-policy
 
 safe-outputs:
-  github-token: ${{ steps.fetch_token.outputs.token }}
-  create-pull-request:
+  github-token: ${{ steps.mint_token.outputs.token }}
+  push-to-pull-request-branch:
+
+jobs:
+  safe_outputs:
+    permissions:
+      id-token: write
+    pre-steps:
+      - name: Mint token
+        id: mint_token
+        uses: octo-sts/action@v1.1.1
+        with:
+          scope: ${{ github.repository }}
+          identity: my-policy
+  conclusion:
+    permissions:
+      id-token: write
+    pre-steps:
+      - name: Mint token
+        id: mint_token
+        uses: octo-sts/action@v1.1.1
+        with:
+          scope: ${{ github.repository }}
+          identity: my-policy
 ```
+
+The compiler fails compilation when a job consumes `${{ steps.<id>.outputs.* }}` but never declares a step with that id, or declares it after the first consumer, rather than emitting a lock file with an unresolvable reference.
 
 ### Using a GitHub App for Authentication (`github-app:`)
 
