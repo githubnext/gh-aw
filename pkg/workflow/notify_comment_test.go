@@ -1652,16 +1652,17 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 	falseVal := "false"
 	falseTemplatable := TemplatableBool("false")
 
-	t.Run("no issues: write or actions: read when every issue-creating mechanism is disabled", func(t *testing.T) {
+	t.Run("no issues: write or actions: read when all conclusion issue-writing paths are disabled", func(t *testing.T) {
 		compiler := NewCompiler()
 		falseReportFailedJobs := false
+		trueVal := "true"
 		workflowData := &WorkflowData{
 			Name: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				ReportFailedJobs:     &falseReportFailedJobs,
 				ReportFailureAsIssue: &falseTemplatable,
 				MissingTool: &MissingToolConfig{
-					CreateIssue: &falseVal,
+					CreateIssue: &trueVal,
 				},
 			},
 		}
@@ -1706,17 +1707,15 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("issues: write present when missing-tool.create-issue is explicitly enabled", func(t *testing.T) {
+	t.Run("issues: read from safe-outputs is upgraded to issues: write when a conclusion issue path is enabled", func(t *testing.T) {
 		compiler := NewCompiler()
-		trueVal := "true"
 		falseReportFailedJobs := false
 		workflowData := &WorkflowData{
 			Name: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
-				ReportFailedJobs:     &falseReportFailedJobs,
-				ReportFailureAsIssue: &falseTemplatable,
-				MissingTool: &MissingToolConfig{
-					CreateIssue: &trueVal,
+				ReportFailedJobs: &falseReportFailedJobs,
+				CreateProjects: &CreateProjectsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 		}
@@ -1728,7 +1727,30 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 			t.Fatal("Expected conclusion job to be non-nil")
 		}
 		if !strings.Contains(job.Permissions, "issues: write") {
-			t.Errorf("conclusion job should have 'issues: write' when missing-tool.create-issue is enabled, got: %q", job.Permissions)
+			t.Errorf("conclusion job should upgrade from 'issues: read' to 'issues: write' when report-failure-as-issue is enabled, got: %q", job.Permissions)
+		}
+	})
+
+	t.Run("issues: write present when detection reporting is enabled", func(t *testing.T) {
+		compiler := NewCompiler()
+		falseReportFailedJobs := false
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				ReportFailedJobs:     &falseReportFailedJobs,
+				ReportFailureAsIssue: &falseTemplatable,
+				ThreatDetection:      &ThreatDetectionConfig{},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if !strings.Contains(job.Permissions, "issues: write") {
+			t.Errorf("conclusion job should have 'issues: write' when detection reporting is enabled, got: %q", job.Permissions)
 		}
 	})
 }
