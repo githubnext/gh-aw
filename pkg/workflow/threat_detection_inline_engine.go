@@ -216,10 +216,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		}
 
 		stepSummaryEnvInjected := false
+		skippedAlwaysIf := false
 		for i, line := range step {
 			// Prefix step IDs with "detection_" to avoid conflicts with agent job steps
-			// (e.g., "agentic_execution" is already used by the main engine execution step)
+			// (e.g., "agentic_execution" is already used by the main engine execution step).
+			// Also rewrite any "steps.agentic_execution." expression references (e.g. from a
+			// later step in the same engine, like the Codex render-logs step) to the
+			// renamed ID so they keep resolving correctly within this job.
 			prefixed := strings.Replace(line, "id: agentic_execution", "id: detection_agentic_execution", 1)
+			prefixed = strings.ReplaceAll(prefixed, "steps.agentic_execution.", "steps.detection_agentic_execution.")
 			// Inject the if condition and continue-on-error after the first line (- name:).
 			// continue-on-error: true ensures that infrastructure failures (e.g. unhealthy
 			// AWF container, Claude API errors) do not mark the detection job as failed.
@@ -231,12 +236,23 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 				steps = append(steps, "        continue-on-error: true\n")
 				continue
 			}
-			// If the step already had an "if: always()" field at position 1 (e.g. behavior-defined
-			// engine log-parser write steps emit "if: always()" to ensure file materialization),
-			// skip it to avoid a duplicate YAML mapping key. The detection condition injected
-			// above supersedes it. We check specifically for "if: always()" to avoid silently
-			// dropping a legitimate custom condition from unrelated steps.
+			// If the step already had an "if: always()" field right after its "- name:" line
+			// (e.g. behavior-defined engine log-parser write steps emit "if: always()" to
+			// ensure file materialization), skip it to avoid a duplicate YAML mapping key.
+			// The detection condition injected above supersedes it. We check specifically
+			// for "if: always()" to avoid silently dropping a legitimate custom condition
+			// from unrelated steps. Uses a flag rather than a hard-coded index so it still
+			// works if a step ever has fields interleaved before "if:".
 			if i == 1 && strings.HasPrefix(strings.TrimSpace(step[0]), "- name:") && strings.TrimSpace(line) == "if: always()" {
+				skippedAlwaysIf = true
+				continue
+			}
+			// A step whose own "if: always()" was just skipped (above) may also define its
+			// own "continue-on-error: true" immediately after (e.g. our render-logs step).
+			// Skip it too so it isn't duplicated alongside the continue-on-error injected at
+			// i == 0 above, which would otherwise produce a duplicate YAML mapping key.
+			if skippedAlwaysIf && strings.TrimSpace(line) == "continue-on-error: true" {
+				skippedAlwaysIf = false
 				continue
 			}
 			// For the AWF execution step, inject/replace GITHUB_STEP_SUMMARY in the

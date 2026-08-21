@@ -188,5 +188,29 @@ describe("render_detection_log.cjs", () => {
       expect(out).toContain("::endgroup::\n");
       expect(out.length).toBeLessThan(1024 * 1024 + 500);
     });
+
+    it("renders only the requested tail lines", async () => {
+      const lines = Array.from({ length: 5 }, (_, index) => `line ${index + 1}`);
+      fs.writeFileSync(logPath, lines.join("\n") + "\n", "utf8");
+
+      await module.renderLogFromFile(logPath, "Tail", { tailLines: 2 });
+
+      const out = capturedStdout();
+      expect(out).not.toContain("line 3");
+      expect(out).toContain("line 4");
+      expect(out).toContain("line 5");
+    });
+
+    it("omits an oversized partial line that cannot be safely redacted", async () => {
+      const fakeToken = "ghp_" + "A".repeat(36);
+      fs.writeFileSync(logPath, Buffer.concat([Buffer.from(fakeToken), Buffer.alloc(1024 * 1024, "z")]));
+
+      await module.renderLogFromFile(logPath, "Tail", { tailLines: 200 });
+
+      const out = capturedStdout();
+      expect(out).toContain("Log tail omitted: final line exceeds");
+      expect(out).not.toContain(fakeToken.slice(1));
+      expect(out).not.toContain("z".repeat(100));
+    });
   });
 });
