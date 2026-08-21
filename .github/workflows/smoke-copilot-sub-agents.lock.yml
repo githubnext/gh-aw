@@ -1556,7 +1556,7 @@ jobs:
           fi
           chmod 755 "$GH_AW_COPILOT_BIN"
 
-          touch /tmp/gh-aw/agent-step-summary.md
+          touch /tmp/gh-aw/step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
           export COPILOT_API_KEY="$COPILOT_DUMMY_BYOK"

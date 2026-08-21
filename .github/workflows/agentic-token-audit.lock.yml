@@ -603,10 +603,10 @@ jobs:
           gh aw version
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Copy gh-aw binary for MCP server
+      - name: Copy gh-aw binary for MCP Server
         run: |
           gh aw --version
-          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization
+          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP Server containerization
           mkdir -p "${RUNNER_TEMP}/gh-aw"
           GH_AW_BIN=""
           GH_AW_BIN=$(command -v gh-aw 2>/dev/null) || true
@@ -624,7 +624,7 @@ jobs:
             chmod +x "${RUNNER_TEMP}/gh-aw/gh-aw"
             echo "Copied gh-aw binary to ${RUNNER_TEMP}/gh-aw/gh-aw"
           else
-            echo "::error::Failed to find gh-aw binary for MCP server"
+            echo "::error::Failed to find gh-aw binary for MCP Server"
             exit 1
           fi
       - name: Prepare Safe Outputs Directories

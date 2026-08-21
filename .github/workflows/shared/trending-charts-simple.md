@@ -2,6 +2,9 @@
 # Trending Charts (Simple) - Python environment with NumPy, Pandas, Matplotlib, Seaborn, SciPy
 # Cache-memory integration for persistent trending data, automatic artifact upload
 
+runtimes:
+  uv: {}
+
 tools:
   cache-memory:
     key: trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
@@ -20,17 +23,22 @@ safe-outputs:
 
 steps:
   - name: Setup Python environment
+    env:
+      UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python
     run: |
+      set -euo pipefail
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-      # Create a virtual environment for proper package isolation (avoids --break-system-packages)
-      # Use /tmp/gh-aw/python/venv to avoid polluting the agent artifact upload path (/tmp/gh-aw/agent/)
-      if [ ! -d /tmp/gh-aw/python/venv ]; then
-        python3 -m venv /tmp/gh-aw/python/venv
-      fi
+      # The agent sandbox cannot run the runner's CPython (glibc mismatch) and only ships
+      # PyPy, which has no wheels for the chart libraries — installing them from inside the
+      # sandbox builds NumPy/SciPy from source and exhausts the runner disk. Install a
+      # portable uv-managed CPython plus the chart libraries under /tmp/gh-aw, which is
+      # mounted read-write into the sandbox, so the agent can import them directly.
+      # Recreate the environment every run so chart generation never depends on stale state.
+      rm -rf /tmp/gh-aw/python/venv
+      uv venv --python 3.12 --python-preference only-managed /tmp/gh-aw/python/venv
+      uv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy pandas matplotlib seaborn scipy
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
-      # Reinstall chart libraries every run so chart generation never depends on stale state.
-      /tmp/gh-aw/python/venv/bin/pip install --quiet --upgrade --force-reinstall numpy pandas matplotlib seaborn scipy
-      /tmp/gh-aw/python/venv/bin/python3 -c "import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')"
+      /tmp/gh-aw/python/venv/bin/python -c "import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')"
 
   - name: Upload source files and data
     if: always()
@@ -48,6 +56,10 @@ steps:
 
 Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
 Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`, `/tmp/gh-aw/cache-memory/`
+
+**Always run chart scripts with `/tmp/gh-aw/python/venv/bin/python`** (for example
+`/tmp/gh-aw/python/venv/bin/python script.py`). The sandbox `python3` on `PATH` is PyPy and
+cannot import these libraries; do not try to `pip install` them from the agent shell.
 
 ## Store Historical Data (JSON Lines)
 
