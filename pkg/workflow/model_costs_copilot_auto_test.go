@@ -49,7 +49,11 @@ func TestCopilotAutoPricingCoversBundledCatalog(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(data, &catalog), "bundled model catalog should be valid JSON")
 
-	for model, entry := range catalog.Providers[copilotAutoPricingProvider].Models {
+	provider, ok := catalog.Providers[copilotAutoPricingProvider]
+	require.True(t, ok, "bundled model catalog should contain the Copilot pricing provider")
+	require.NotEmpty(t, provider.Models, "bundled Copilot provider should contain priced models")
+
+	for model, entry := range provider.Models {
 		for costType, rawCost := range entry.Cost {
 			fallbackCost, ok := copilotAutoCost[costType]
 			require.True(t, ok, "copilot/auto fallback must define catalog cost type %s", costType)
@@ -160,6 +164,20 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 			name:           "Copilot workflow with dynamic model expression",
 			engineName:     "copilot",
 			model:          "${{ inputs.model }}",
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
+			name:           "Copilot workflow with provider-prefixed model expression",
+			engineName:     "copilot",
+			model:          "copilot/${{ inputs.model }}",
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
+			name:           "Copilot workflow with expression model options",
+			engineName:     "copilot",
+			model:          "${{ inputs.model }}?effort=high",
 			firewallConfig: &FirewallConfig{Enabled: true},
 			wantPricing:    true,
 		},

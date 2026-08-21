@@ -44,7 +44,7 @@ func shouldInjectCopilotAutoPricing(config AWFCommandConfig, firewallConfig *Fir
 	return model == "" ||
 		strings.EqualFold(model, "auto") ||
 		strings.EqualFold(model, "copilot/auto") ||
-		isExpression(model)
+		containsExpression(model)
 }
 
 // withCopilotAutoPricing returns the apiProxy.providers overlay with a built-in pricing
