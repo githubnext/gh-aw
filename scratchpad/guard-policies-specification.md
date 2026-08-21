@@ -137,6 +137,8 @@ The MCP Gateway MUST evaluate access in this order:
 2. When lockdown is not enabled, `allowed-repos` determines whether the target repository is in scope.
 3. When the repository is in scope, `min-integrity` determines whether the content meets the required integrity level. Both checks MUST pass to allow the invocation.
 
+Lockdown is an emergency security stop and MUST NOT be weakened by guard policies; those policies narrow access in an otherwise-open tool session but never grant access revoked by lockdown.
+
 ### 5. Safe Outputs Integration
 
 When GitHub guard policies are configured, the compiler automatically derives a linked guard-policy for the safe-outputs MCP server. This ensures that safe output operations work correctly with guard policies by creating a write-sink configuration.
