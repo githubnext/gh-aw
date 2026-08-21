@@ -140,6 +140,7 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 		name           string
 		engineName     string
 		model          string
+		modelMappings  map[string][]string
 		firewallConfig *FirewallConfig
 		wantPricing    bool
 	}{
@@ -196,6 +197,32 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 			wantPricing:    true,
 		},
 		{
+			name:           "Copilot workflow with custom alias to auto",
+			engineName:     "copilot",
+			model:          "my-auto",
+			modelMappings:  map[string][]string{"my-auto": {"copilot/auto"}},
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
+			name:       "Copilot workflow with chained alias to auto",
+			engineName: "copilot",
+			model:      "preferred",
+			modelMappings: map[string][]string{
+				"preferred": {"my-auto"},
+				"my-auto":   {"copilot/auto"},
+			},
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
+			name:           "Copilot workflow with unrelated custom alias",
+			engineName:     "copilot",
+			model:          "preferred",
+			modelMappings:  map[string][]string{"preferred": {"sonnet"}},
+			firewallConfig: &FirewallConfig{Enabled: true},
+		},
+		{
 			name:           "Copilot workflow pinned below provider support",
 			engineName:     "copilot",
 			firewallConfig: &FirewallConfig{Enabled: true, Version: "v0.27.42"},
@@ -210,6 +237,7 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 				AllowedDomains: "github.com",
 				WorkflowData: &WorkflowData{
 					Model:              tt.model,
+					ModelMappings:      tt.modelMappings,
 					EngineConfig:       &EngineConfig{ID: tt.engineName},
 					NetworkPermissions: &NetworkPermissions{Firewall: tt.firewallConfig},
 				},

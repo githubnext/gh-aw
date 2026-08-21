@@ -40,12 +40,33 @@ func shouldInjectCopilotAutoPricing(config AWFCommandConfig, firewallConfig *Fir
 	if config.WorkflowData == nil {
 		return true
 	}
-	model := strings.TrimSpace(config.WorkflowData.Model)
+	return modelCanResolveToCopilotAuto(config.WorkflowData.Model, config.WorkflowData.ModelMappings, make(map[string]bool))
+}
+
+func modelCanResolveToCopilotAuto(model string, aliases map[string][]string, visited map[string]bool) bool {
+	model = strings.TrimSpace(model)
 	if model == "" || containsExpression(model) {
 		return true
 	}
 	base, _, _ := strings.Cut(model, "?")
-	return strings.EqualFold(base, "auto") || strings.EqualFold(base, "copilot/auto")
+	if strings.EqualFold(base, "auto") || strings.EqualFold(base, "copilot/auto") {
+		return true
+	}
+	if visited[base] {
+		return false
+	}
+	visited[base] = true
+	for alias, candidates := range aliases {
+		if !strings.EqualFold(alias, base) {
+			continue
+		}
+		for _, candidate := range candidates {
+			if modelCanResolveToCopilotAuto(candidate, aliases, visited) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // withCopilotAutoPricing returns the apiProxy.providers overlay with a built-in pricing
