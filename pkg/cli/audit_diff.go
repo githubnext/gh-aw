@@ -443,16 +443,16 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 
 	if run1 != nil {
 		for _, s := range run1.Summary {
-			sync := s
-			sync.syncFieldsFromBase()
-			run1Tools[mcpToolKey(sync.ServerName, sync.ToolName)] = sync
+			toolSummary := s
+			toolSummary.syncFieldsFromBase()
+			run1Tools[mcpToolKey(toolSummary.ServerName, toolSummary.ToolName)] = toolSummary
 		}
 	}
 	if run2 != nil {
 		for _, s := range run2.Summary {
-			sync := s
-			sync.syncFieldsFromBase()
-			run2Tools[mcpToolKey(sync.ServerName, sync.ToolName)] = sync
+			toolSummary := s
+			toolSummary.syncFieldsFromBase()
+			run2Tools[mcpToolKey(toolSummary.ServerName, toolSummary.ToolName)] = toolSummary
 		}
 	}
 

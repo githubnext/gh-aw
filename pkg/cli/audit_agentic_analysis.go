@@ -144,13 +144,13 @@ func mergeMCPToolUsageInfo(toolUsage []ToolUsageInfo, mcpToolUsage *MCPToolUsage
 
 	if len(mcpToolUsage.Summary) > 0 {
 		for _, summary := range mcpToolUsage.Summary {
-			sync := summary
-			sync.syncFieldsFromBase()
+			toolSummary := summary
+			toolSummary.syncFieldsFromBase()
 			switch {
-			case sync.ServerName != "" && sync.ToolName != "":
-				addOrUpdateToolUsage(sync.ServerName+"."+sync.ToolName, sync.CallCount, sync.MaxInputSize, sync.MaxOutputSize, sync.MaxDuration)
-			case sync.ToolName != "":
-				addOrUpdateToolUsage(sync.ToolName, sync.CallCount, sync.MaxInputSize, sync.MaxOutputSize, sync.MaxDuration)
+			case toolSummary.ServerName != "" && toolSummary.ToolName != "":
+				addOrUpdateToolUsage(toolSummary.ServerName+"."+toolSummary.ToolName, toolSummary.CallCount, toolSummary.MaxInputSize, toolSummary.MaxOutputSize, toolSummary.MaxDuration)
+			case toolSummary.ToolName != "":
+				addOrUpdateToolUsage(toolSummary.ToolName, toolSummary.CallCount, toolSummary.MaxInputSize, toolSummary.MaxOutputSize, toolSummary.MaxDuration)
 			}
 		}
 	} else {
