@@ -53,7 +53,7 @@ func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
 			expected: LLMProviderOpenAI,
 		},
 		{
-			name:     "legacy copilot-large name keeps OpenAI default",
+			name:     "unprefixed model keeps OpenAI default",
 			data:     &WorkflowData{Model: "copilot-large", EngineConfig: &EngineConfig{ID: "codex"}},
 			expected: LLMProviderOpenAI,
 		},
