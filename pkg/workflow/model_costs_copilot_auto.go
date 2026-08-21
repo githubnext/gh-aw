@@ -15,15 +15,22 @@ const copilotAutoPricingModel = "auto"
 // copilotAutoCost is the built-in per-token USD rate published for "copilot/auto".
 //
 // Without an entry the AWF API proxy rejects every inference request for the model with
-// HTTP 400 (missing_model_pricing) whenever maxAiCredits is active, which breaks the
-// zero-config path (engine: copilot with no model:, which sends "auto"). Copilot picks
-// the served model server-side, so gh-aw publishes the Sonnet-class rate — the tier the
-// "large" fallback chain lands on — as the accounting rate for the selector.
+// HTTP 400 (unknown_model_ai_credits) whenever maxAiCredits is active, which breaks the
+// zero-config path (engine: copilot with no model:, which sends "auto"). AWF normally
+// accounts against the concrete response model. If Copilot omits it, AWF falls back to
+// this request-model rate, so the rate matches the most expensive model in the bundled
+// Copilot catalog rather than risking under-accounting.
 var copilotAutoCost = map[string]string{
-	"input":       "3e-06",
-	"output":      "1.5e-05",
-	"cache_read":  "3e-07",
-	"cache_write": "3.75e-06",
+	"input":       "1e-05",
+	"output":      "5e-05",
+	"cache_read":  "1e-06",
+	"cache_write": "1.25e-05",
+}
+
+// shouldInjectCopilotAutoPricing limits the builtin overlay to Copilot workflows on
+// AWF versions that can pass apiProxy.providers to the proxy.
+func shouldInjectCopilotAutoPricing(config AWFCommandConfig, firewallConfig *FirewallConfig) bool {
+	return config.EngineName == "copilot" && awfSupportsAPIProxyProviders(firewallConfig)
 }
 
 // withCopilotAutoPricing returns the apiProxy.providers overlay with a built-in pricing

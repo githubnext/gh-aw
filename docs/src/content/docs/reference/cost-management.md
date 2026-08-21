@@ -199,6 +199,10 @@ max-ai-credits: 500
 
 When the budget is approached, gh-aw emits steering warnings before the run reaches the limit. Set a negative value only to disable budget enforcement explicitly.
 
+For Copilot workflows that use the `auto` model, AWF accounts against the concrete model reported in the response. If the response omits that model, AWF uses the request model and gh-aw supplies a conservative fallback rate equal to the highest per-token rates in its bundled Copilot catalog. This prevents `unknown_model_ai_credits` without undercounting a more expensive model selected by `auto`. The fallback requires AWF v0.27.43 or later; workflows pinned to an older AWF version do not receive it.
+
+This fallback applies only to `maxAiCredits` accounting. AWF's separate `maxModelMultiplierCap` guardrail remains fail-closed for the dynamic `auto` selector unless an explicit model multiplier is configured.
+
 > [!NOTE]
 > Threat-detection runs have their own AI Credits cap, separate
 > from the main agent budget. See

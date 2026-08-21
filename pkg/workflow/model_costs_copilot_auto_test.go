@@ -3,6 +3,9 @@
 package workflow
 
 import (
+	"encoding/json"
+	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +15,7 @@ import (
 // TestWithCopilotAutoPricingAddsBuiltinEntry verifies that the builtin pricing overlay
 // for "copilot/auto" is injected when the workflow supplies no provider pricing.
 // Without it the AWF API proxy rejects the zero-config default model with HTTP 400
-// missing_model_pricing while maxAiCredits is active.
+// unknown_model_ai_credits while maxAiCredits is active.
 func TestWithCopilotAutoPricingAddsBuiltinEntry(t *testing.T) {
 	t.Parallel()
 
@@ -27,8 +30,39 @@ func TestWithCopilotAutoPricingAddsBuiltinEntry(t *testing.T) {
 	cost, ok := autoEntry["cost"].(map[string]any)
 	require.True(t, ok, "auto cost map should be present")
 
-	assert.Equal(t, "3e-06", cost["input"], "input rate should be the Sonnet-class rate")
-	assert.Equal(t, "1.5e-05", cost["output"], "output rate should be the Sonnet-class rate")
+	assert.Equal(t, "1e-05", cost["input"], "input rate should be the conservative catalog maximum")
+	assert.Equal(t, "5e-05", cost["output"], "output rate should be the conservative catalog maximum")
+}
+
+func TestCopilotAutoPricingCoversBundledCatalog(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile("../../actions/setup/js/models.json")
+	require.NoError(t, err, "bundled model catalog should be readable")
+
+	var catalog struct {
+		Providers map[string]struct {
+			Models map[string]struct {
+				Cost map[string]string `json:"cost"`
+			} `json:"models"`
+		} `json:"providers"`
+	}
+	require.NoError(t, json.Unmarshal(data, &catalog), "bundled model catalog should be valid JSON")
+
+	for model, entry := range catalog.Providers[copilotAutoPricingProvider].Models {
+		for costType, rawCost := range entry.Cost {
+			fallbackCost, ok := copilotAutoCost[costType]
+			if !ok {
+				continue
+			}
+			modelRate, err := strconv.ParseFloat(rawCost, 64)
+			require.NoError(t, err, "catalog rate for %s/%s should be numeric", model, costType)
+			fallbackRate, err := strconv.ParseFloat(fallbackCost, 64)
+			require.NoError(t, err, "fallback rate for %s should be numeric", costType)
+			assert.LessOrEqual(t, modelRate, fallbackRate,
+				"copilot/auto fallback %s rate must cover bundled model %s", costType, model)
+		}
+	}
 }
 
 // TestWithCopilotAutoPricingPreservesFrontmatterPricing verifies that workflow-supplied
@@ -95,4 +129,54 @@ func TestBuildAWFConfigJSONIncludesCopilotAutoPricing(t *testing.T) {
 
 	assert.Contains(t, jsonStr, `"providers":{"github-copilot":{"models":{"auto":{"cost":`,
 		"AWF config should publish builtin pricing for the copilot auto selector")
+}
+
+func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		engineName     string
+		firewallConfig *FirewallConfig
+		wantPricing    bool
+	}{
+		{
+			name:           "current Copilot workflow",
+			engineName:     "copilot",
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
+			name:           "non-Copilot workflow",
+			engineName:     "claude",
+			firewallConfig: &FirewallConfig{Enabled: true},
+		},
+		{
+			name:           "Copilot workflow pinned below provider support",
+			engineName:     "copilot",
+			firewallConfig: &FirewallConfig{Enabled: true, Version: "v0.27.42"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			config := AWFCommandConfig{
+				EngineName:     tt.engineName,
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig:       &EngineConfig{ID: tt.engineName},
+					NetworkPermissions: &NetworkPermissions{Firewall: tt.firewallConfig},
+				},
+			}
+
+			jsonStr, err := BuildAWFConfigJSON(config)
+			require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+			if tt.wantPricing {
+				assert.Contains(t, jsonStr, `"providers":{"github-copilot"`)
+			} else {
+				assert.NotContains(t, jsonStr, `"providers":{"github-copilot"`)
+			}
+		})
+	}
 }
