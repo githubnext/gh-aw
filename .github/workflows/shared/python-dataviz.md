@@ -51,6 +51,8 @@ steps:
     run: |
       # Create a virtual environment for proper package isolation (avoids --break-system-packages)
       # Use /tmp/gh-aw/python/venv to avoid polluting the agent artifact upload path (/tmp/gh-aw/agent/)
+      # Use uv-managed CPython so the interpreter works inside the agent sandbox (runner CPython needs a newer GLIBC).
+      # This must match shared/python-nlp.md so either import can create the shared environment first.
       if [ ! -d /tmp/gh-aw/python/venv ]; then
         uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
       fi
