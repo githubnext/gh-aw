@@ -555,6 +555,6 @@ func TestWSRFDisplayValue(t *testing.T) {
 
 	factor := 3.9017857142857144
 	assert.Equal(t, "3.90", wsrfDisplayValue(&WorkingSetMetrics{RebuildFactor: &factor}))
-	assert.Equal(t, "", wsrfDisplayValue(&WorkingSetMetrics{MeasurementState: "unavailable"}))
-	assert.Equal(t, "", wsrfDisplayValue(nil))
+	assert.Empty(t, wsrfDisplayValue(&WorkingSetMetrics{MeasurementState: "unavailable"}))
+	assert.Empty(t, wsrfDisplayValue(nil))
 }
