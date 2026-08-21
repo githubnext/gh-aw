@@ -210,7 +210,7 @@ func frontmatterSkillStepName(skill string, stepNumber int) string {
 	if at := strings.LastIndex(identifier, "@"); at > 0 {
 		identifier = identifier[:at]
 	}
-	return fmt.Sprintf("%q", fmt.Sprintf("Install frontmatter skill: %s", identifier))
+	return fmt.Sprintf("%q", "Install frontmatter skill: "+identifier)
 }
 
 func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) {
