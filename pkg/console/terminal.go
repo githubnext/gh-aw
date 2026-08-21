@@ -8,6 +8,10 @@ import (
 )
 
 // ANSI escape sequences for terminal control
+//
+// These two sequences are a deliberate exception to the Lipgloss-based styling used
+// elsewhere in this package: Lipgloss has no equivalent for cursor/screen control
+// operations (clear-screen, clear-to-end-of-line), so raw ANSI codes are required here.
 const (
 	// ansiClearScreen clears the screen and moves cursor to home position
 	ansiClearScreen = "\033[H\033[2J"
