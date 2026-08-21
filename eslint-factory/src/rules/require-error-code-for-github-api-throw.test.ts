@@ -1,0 +1,55 @@
+import { RuleTester } from "eslint";
+import { describe, it } from "vitest";
+import { requireErrorCodeForGithubApiThrowRule } from "./require-error-code-for-github-api-throw";
+
+const cjsRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "commonjs",
+  },
+});
+
+describe("require-error-code-for-github-api-throw", () => {
+  it("valid: files without error_codes.cjs import are ignored", () => {
+    cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
+      valid: [`async function f(githubClient) { await githubClient.rest.pulls.get({}); throw new Error("failed"); }`],
+      invalid: [],
+    });
+  });
+
+  it("valid: throws that include standardized code are allowed", () => {
+    cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
+      valid: [
+        `const { ERR_API, SAFE_OUTPUT_E099 } = require("./error_codes.cjs"); async function f(githubClient) { await githubClient.rest.pulls.get({}); throw new Error(\`\${ERR_API}: failed\`); }`,
+        `const { SAFE_OUTPUT_E099 } = require("./error_codes.cjs"); async function f(githubClient) { await githubClient.graphql("query {}"); const msg = \`\${SAFE_OUTPUT_E099}: failed\`; throw new Error(msg); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: throw after githubClient.rest call without code is flagged", () => {
+    cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); async function f(githubClient) { await githubClient.rest.pulls.get({}); throw new Error("failed to fetch pull request"); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+      ],
+    });
+  });
+
+  it("valid: throw before github api call in same function is not flagged", () => {
+    cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
+      valid: [`const { ERR_API } = require("./error_codes.cjs"); async function f(githubClient) { if (!githubClient) throw new Error("missing client"); await githubClient.paginate("GET /repos/{owner}/{repo}/pulls"); }`],
+      invalid: [],
+    });
+  });
+
+  it("valid: github api call in another function is not considered", () => {
+    cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
+      valid: [`const { ERR_API } = require("./error_codes.cjs"); async function fetch(githubClient) { await githubClient.rest.pulls.get({}); } function fail() { throw new Error("failed without api call in this function"); }`],
+      invalid: [],
+    });
+  });
+});
