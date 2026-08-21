@@ -96,3 +96,11 @@ The Agentic Workflow Audit (#54358) and the Detection Analysis Report (#54377) w
 
 ### Reconfirmed: a chronic pattern with 5+ prior closed "fix" attempts that never stuck is not a good re-filing candidate — it needs a different kind of task, or none
 "Instrument Copilot CLI stderr/exit code on 0-turn failure" has been proposed and closed at least 5 times since 2026-07-01 (#42789, #42876, #43814, #43906, #47349, #50304, #53180) yet still recurs (audit's own tracking: recurrence 25). Declined to file a 6th generic re-ask this cycle. **Lesson: past a certain repeat count, re-filing the same generic ask is noise — either the fix needs a fundamentally different approach (not just "add logging"), or it's a genuinely hard upstream CLI/SDK limitation not fixable from this repo. Don't keep re-filing verbatim; note the chronic-unstuck pattern itself as the finding instead.**
+
+## DeepReport Memory (2026-08-21, ~00:39Z cycle, baseline #54396)
+
+### Reconfirmed: source workflows self-file the large majority of their own findings; Schema Consistency Checker remains a consistent exception
+This cycle's Sergo (#54430) and ESLint Refiner (#54441) reports both self-filed their own findings before DeepReport ran, matching the standing [[known_patterns]] lesson. Schema Consistency Checker (#54442) again did not self-file any of its 4 findings — same as every prior cycle this pattern has been checked (05:45Z cycle, this cycle) — confirming it's reliably a pure-reporting workflow whose findings always need DeepReport (or another agent) to convert into issues.
+
+### New pattern: a docs-only "missing frontmatter.md section" issue and a "silently degrades instead of erroring" behavior bug can both stem from the same source field — file them separately by fix type
+`max-turn-cache-misses` has two distinct, independently-filable gaps surfaced two cycles apart: a docs-coverage gap (already open #54179, docs-only fix) and a parser-behavior gap where expression input is silently dropped to default (filed this cycle, code fix). Lesson: when a field recurs across cycles with different symptom types (missing docs vs. wrong runtime behavior), check whether the existing open issue's scope actually covers the new symptom before assuming it's a duplicate — a docs fix and a behavior fix are different work items even for the same field name.

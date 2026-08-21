@@ -59,3 +59,8 @@ Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:
 
 ### Processed 2026-08-20 ~23:36Z cycle (full — all 8 new/updated discussions read; window since 18:32:59Z baseline #54319)
 54323, 54340, 54344, 54350, 54352, 54357, 54358, 54377 — all read in full, no sampling shortfall. 3 code-quality/infra tasks extracted and filed (codex binary path fleet-wide fix, 2 verified network-allowlist gaps). Chronic "instrument Copilot CLI stderr" ask (5+ prior closed attempts) deliberately not re-filed — see known_patterns.md.
+
+## Discussions mined for code-quality tasks (processed through 2026-08-21 ~06:25Z)
+
+### Processed 2026-08-21 ~06:25Z cycle (full — all 7 new/updated discussions read; window since 00:39:35Z baseline #54396)
+54390, 54411, 54414, 54430, 54433, 54441, 54442 — all read in full, no sampling shortfall. 4 code-quality/docs tasks extracted and filed (compiler_jobs.go buildJobs split, tracker-id schema constraints, max-turn-cache-misses silent-degradation fix, secret-masking docs). Sergo/ESLint Refiner findings already self-filed by their source workflows; 2 Schema Consistency Checker findings already covered by open #54179/#54180.
