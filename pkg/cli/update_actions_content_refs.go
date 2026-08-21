@@ -19,6 +19,11 @@ import (
 
 type skillRefUpdateResolver func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error)
 
+// noObjectKey signals to updateFrontmatterRepoRefsInContentWithResolver that the field
+// being updated (e.g. "plugins") does not support the map[string]any object form with a
+// nested ref key, so object-form entries are left untouched.
+const noObjectKey = ""
+
 func updateSkillRefsInContent(ctx context.Context, content string, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
 	return updateSkillRefsInContentWithResolver(ctx, content, allowMajor, verbose, coolDown, resolveLatestRef)
 }
@@ -44,7 +49,7 @@ func updatePluginRefsInContentWithResolver(
 	coolDown time.Duration,
 	resolver skillRefUpdateResolver,
 ) (bool, string, error) {
-	return updateFrontmatterRepoRefsInContentWithResolver(ctx, content, "plugins", "", allowMajor, verbose, coolDown, resolver)
+	return updateFrontmatterRepoRefsInContentWithResolver(ctx, content, "plugins", noObjectKey, allowMajor, verbose, coolDown, resolver)
 }
 
 func updateFrontmatterRepoRefsInContentWithResolver(
@@ -85,7 +90,7 @@ func updateFrontmatterRepoRefsInContentWithResolver(
 				changed = true
 			}
 		case map[string]any:
-			if objectKey == "" {
+			if objectKey == noObjectKey {
 				continue
 			}
 			skillRef, ok := typed[objectKey].(string)
