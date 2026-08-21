@@ -22,11 +22,23 @@ function memberChainHasProperty(node: TSESTree.MemberExpression, name: string): 
 }
 
 function objectLooksLikeGitHubClient(node: TSESTree.Expression | TSESTree.Super): boolean {
-  if (node.type === AST_NODE_TYPES.Identifier) return /github|octokit/i.test(node.name);
+  if (node.type === AST_NODE_TYPES.Identifier) return /^(github|octokit)/i.test(node.name);
   if (node.type !== AST_NODE_TYPES.MemberExpression) return false;
   const prop = getStaticPropertyName(node);
   if (prop === "github" || prop === "octokit") return true;
   return objectLooksLikeGitHubClient(node.object);
+}
+
+function hasErrorCodesRequire(program: TSESTree.Program): boolean {
+  return program.body.some(statement => {
+    if (statement.type !== AST_NODE_TYPES.VariableDeclaration) return false;
+    return statement.declarations.some(declaration => {
+      if (!declaration.init || declaration.init.type !== AST_NODE_TYPES.CallExpression) return false;
+      if (declaration.init.callee.type !== AST_NODE_TYPES.Identifier || declaration.init.callee.name !== "require") return false;
+      const firstArg = declaration.init.arguments[0];
+      return firstArg?.type === AST_NODE_TYPES.Literal && firstArg.value === "./error_codes.cjs";
+    });
+  });
 }
 
 function isGitHubApiCall(node: TSESTree.CallExpression): boolean {
@@ -81,8 +93,7 @@ export const requireErrorCodeForGithubApiThrowRule = createRule({
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
-    const fullText = sourceCode.getText();
-    const importsErrorCodes = /require\(\s*["']\.\/error_codes\.cjs["']\s*\)/.test(fullText);
+    const importsErrorCodes = hasErrorCodesRequire(sourceCode.ast);
     if (!importsErrorCodes) return {};
 
     const githubApiCallsByFunction = new Map<FunctionNode, number[]>();

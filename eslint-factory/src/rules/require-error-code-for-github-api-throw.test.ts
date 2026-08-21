@@ -48,7 +48,7 @@ describe("require-error-code-for-github-api-throw", () => {
 
   it("valid: github api call in another function is not considered", () => {
     cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
-      valid: [`const { ERR_API } = require("./error_codes.cjs"); async function fetch(githubClient) { await githubClient.rest.pulls.get({}); } function fail() { throw new Error("failed without api call in this function"); }`],
+      valid: [`const { ERR_API } = require("./error_codes.cjs"); async function fetchPulls(githubClient) { await githubClient.rest.pulls.get({}); } function fail() { throw new Error("failed without api call in this function"); }`],
       invalid: [],
     });
   });
