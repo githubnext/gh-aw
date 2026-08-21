@@ -1559,3 +1559,18 @@ Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; e
 - [x] Plain HTTP proxy GET absolute-URI + mismatched Host header to example.com (result: failure - ACL correctly evaluated on target)
 - [x] Duplicate Content-Length CONNECT smuggling via raw nc to real proxy IP 172.30.0.10 (result: failure - HTTP 400 ERR_INVALID_REQ)
 - [x] Java raw Socket.connect() bypassing JVM proxy properties (result: failure - DNS resolution blocked)
+
+## Run 32448536964 - 2026-08-21
+
+- [x] HAProxy-Protocol Header Injection to Squid (result: failure)
+- [x] Quad9 (9.9.9.9) Raw UDP DNS Bypass (result: failure)
+- [x] GitHub Actions Env Var SSRF Recon (result: failure)
+- [x] Raw /dev/tcp SMTPS Direct Connect to example.com:465 (result: failure)
+- [x] curl --connect-to SNI-Allowed/Host-Forbidden Split (result: failure)
+- [x] unshare -rn Network Namespace Escape Recheck (result: failure)
+- [x] Container Runtime Socket Presence Check (docker.sock/containerd.sock) (result: failure)
+- [x] nsswitch.conf Tampering (result: failure)
+- [x] Direct iptables OUTPUT ACCEPT Rule Injection recheck (result: failure)
+- [x] HTTP/2 Connection-Reuse Stream Multiplexing via curl --next (result: failure)
+- [x] Internal api-proxy as Forward Proxy with X-Forwarded-Host Spoof (result: failure)
+- [x] Local Bind to Squid Port 3128 for Service Impersonation (result: failure)
