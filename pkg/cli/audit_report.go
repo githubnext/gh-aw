@@ -186,27 +186,11 @@ type MCPToolSummary struct {
 }
 
 func (s *MCPToolSummary) syncFieldsFromBase() {
-	if s.ToolName == "" {
-		s.ToolName = s.ToolUsageStatsBase.ToolName
-	}
-	if s.CallCount == 0 {
-		s.CallCount = s.ToolUsageStatsBase.CallCount
-	}
-	if s.MaxOutputSize == 0 {
-		s.MaxOutputSize = s.ToolUsageStatsBase.MaxOutputSize
-	}
-	if s.MaxDuration == "" {
-		s.MaxDuration = s.ToolUsageStatsBase.MaxDuration
-	}
+	s.syncFields(&s.ToolName, &s.CallCount, &s.MaxOutputSize, &s.MaxDuration)
 }
 
 func (s *MCPToolSummary) syncBaseFromFields() {
-	s.ToolUsageStatsBase = ToolUsageStatsBase{
-		ToolName:      s.ToolName,
-		CallCount:     s.CallCount,
-		MaxOutputSize: s.MaxOutputSize,
-		MaxDuration:   s.MaxDuration,
-	}
+	s.syncFromFields(s.ToolName, s.CallCount, s.MaxOutputSize, s.MaxDuration)
 }
 
 // MCPToolCall represents a single MCP tool call with full details

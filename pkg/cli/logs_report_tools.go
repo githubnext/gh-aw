@@ -18,6 +18,30 @@ type ToolUsageStatsBase struct {
 	MaxDuration   string
 }
 
+func (b *ToolUsageStatsBase) syncFromFields(toolName string, callCount int, maxOutputSize int, maxDuration string) {
+	*b = ToolUsageStatsBase{
+		ToolName:      toolName,
+		CallCount:     callCount,
+		MaxOutputSize: maxOutputSize,
+		MaxDuration:   maxDuration,
+	}
+}
+
+func (b *ToolUsageStatsBase) syncFields(toolName *string, callCount *int, maxOutputSize *int, maxDuration *string) {
+	if *toolName == "" {
+		*toolName = b.ToolName
+	}
+	if *callCount == 0 {
+		*callCount = b.CallCount
+	}
+	if *maxOutputSize == 0 {
+		*maxOutputSize = b.MaxOutputSize
+	}
+	if *maxDuration == "" {
+		*maxDuration = b.MaxDuration
+	}
+}
+
 // ToolUsageSummary contains aggregated tool usage statistics
 type ToolUsageSummary struct {
 	ToolUsageStatsBase `json:"-" console:"-"`
@@ -31,7 +55,7 @@ type ToolUsageSummary struct {
 // MarshalJSON preserves the generic tool usage report schema.
 func (s ToolUsageSummary) MarshalJSON() ([]byte, error) {
 	normalized := s
-	normalized.syncLegacyFromBase()
+	normalized.syncFieldsFromBase()
 	return json.Marshal(struct {
 		Name          string `json:"name"`
 		TotalCalls    int    `json:"total_calls"`
@@ -81,32 +105,16 @@ func (s *ToolUsageSummary) UnmarshalJSON(data []byte) error {
 	s.MaxOutputSize = summary.MaxOutputSize
 	s.MaxDuration = summary.MaxDuration
 	s.Runs = summary.Runs
-	s.syncBaseFromLegacy()
+	s.syncBaseFromFields()
 	return nil
 }
 
-func (s *ToolUsageSummary) syncBaseFromLegacy() {
-	s.ToolUsageStatsBase = ToolUsageStatsBase{
-		ToolName:      s.Name,
-		CallCount:     s.TotalCalls,
-		MaxOutputSize: s.MaxOutputSize,
-		MaxDuration:   s.MaxDuration,
-	}
+func (s *ToolUsageSummary) syncBaseFromFields() {
+	s.syncFromFields(s.Name, s.TotalCalls, s.MaxOutputSize, s.MaxDuration)
 }
 
-func (s *ToolUsageSummary) syncLegacyFromBase() {
-	if s.Name == "" {
-		s.Name = s.ToolName
-	}
-	if s.TotalCalls == 0 {
-		s.TotalCalls = s.CallCount
-	}
-	if s.MaxOutputSize == 0 {
-		s.MaxOutputSize = s.ToolUsageStatsBase.MaxOutputSize
-	}
-	if s.MaxDuration == "" {
-		s.MaxDuration = s.ToolUsageStatsBase.MaxDuration
-	}
+func (s *ToolUsageSummary) syncFieldsFromBase() {
+	s.syncFields(&s.Name, &s.TotalCalls, &s.MaxOutputSize, &s.MaxDuration)
 }
 
 // toolNameStopWords is a set of common English words that should never be treated as tool names.
@@ -192,7 +200,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 						existing.MaxDuration = maxDur
 					}
 				}
-				existing.syncBaseFromLegacy()
+				existing.syncBaseFromFields()
 			} else {
 				info := &ToolUsageSummary{
 					Name:          displayKey,
@@ -203,7 +211,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 				if toolCall.MaxDuration > 0 {
 					info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
 				}
-				info.syncBaseFromLegacy()
+				info.syncBaseFromFields()
 				toolStats[displayKey] = info
 			}
 		}

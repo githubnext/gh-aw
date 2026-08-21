@@ -62,14 +62,15 @@ func TestToolUsageSummaryJSONSchemas(t *testing.T) {
 		t.Fatalf("unexpected generic tool summary round trip: %+v", decodedGeneric)
 	}
 
-	mcpData, err := json.Marshal(MCPToolSummary{
-		ServerName:         "github",
-		ToolName:           stats.ToolName,
-		CallCount:          stats.CallCount,
-		MaxOutputSize:      stats.MaxOutputSize,
-		MaxDuration:        stats.MaxDuration,
-		ToolUsageStatsBase: stats,
-	})
+	mcpSummary := MCPToolSummary{
+		ServerName:    "github",
+		ToolName:      stats.ToolName,
+		CallCount:     stats.CallCount,
+		MaxOutputSize: stats.MaxOutputSize,
+		MaxDuration:   stats.MaxDuration,
+	}
+	mcpSummary.syncBaseFromFields()
+	mcpData, err := json.Marshal(mcpSummary)
 	if err != nil {
 		t.Fatalf("failed to marshal MCP tool summary: %v", err)
 	}

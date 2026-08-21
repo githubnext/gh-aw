@@ -223,12 +223,7 @@ func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageD
 					}
 				}
 			}
-			summary.ToolUsageStatsBase = ToolUsageStatsBase{
-				ToolName:      summary.ToolName,
-				CallCount:     summary.CallCount,
-				MaxOutputSize: summary.MaxOutputSize,
-				MaxDuration:   summary.MaxDuration,
-			}
+			summary.syncBaseFromFields()
 
 			mcpData.Summary = append(mcpData.Summary, summary)
 
