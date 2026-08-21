@@ -98,6 +98,10 @@ function normalizeConfig(raw) {
   return raw;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, any>}
+ */
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -170,7 +174,7 @@ function mergeContinualState(target, source) {
   if (!isPlainObject(source)) {
     throw new Error("Invalid continual experiment state: expected an object");
   }
-  for (const [name, value] of Object.entries(source)) {
+  for (const [name, value] of Object.entries(/** @type {Record<string, unknown>} */ source)) {
     if (!isPlainObject(value) || !Number.isInteger(value.current_stage) || value.current_stage < 0) {
       throw new Error(`Invalid continual experiment stage for "${name}": current_stage must be a non-negative integer`);
     }
@@ -202,7 +206,7 @@ function loadState(stateFile) {
       // Fall through to JSONL state parsing.
     }
 
-    /** @type {{ counts: Record<string, Record<string, number>>, runs: ExperimentRunRecord[] }} */
+    /** @type {ExperimentState & {runs: ExperimentRunRecord[]}} */
     const state = { counts: {}, runs: [] };
     for (const line of raw.split(/\r?\n/)) {
       const trimmed = line.trim();
@@ -715,7 +719,7 @@ async function main() {
         event: process.env.GITHUB_EVENT_NAME || "unknown",
         trigger_mode: process.env.GITHUB_EVENT_NAME === "schedule" ? "scheduled" : "reactive",
       },
-      continual_state: state.continual ? JSON.parse(JSON.stringify(state.continual)) : undefined,
+      continual_state: state.continual ? structuredClone(state.continual) : undefined,
     });
     // Prune in-memory run history so summaries stay small even when state.jsonl is append-only.
     if (state.runs.length > MAX_RUN_HISTORY) {
