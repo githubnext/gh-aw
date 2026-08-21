@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"6393f7d9a894e3f8efae4f0352937d870aac849a3bd478e58a47e6d3d475d26c","body_hash":"b190a632a42ef056f07aa75d73c24d45935731d47475b1d0e276c3316a155b15","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.233"}}
-# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3","digest":"sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3","digest":"sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3","digest":"sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3","digest":"sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.10","digest":"sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.9.0","digest":"sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e","pinned_image":"ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"6393f7d9a894e3f8efae4f0352937d870aac849a3bd478e58a47e6d3d475d26c","body_hash":"b190a632a42ef056f07aa75d73c24d45935731d47475b1d0e276c3316a155b15","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.237"}}
+# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3","digest":"sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3","digest":"sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3","digest":"sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3","digest":"sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.10","digest":"sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.10.0","digest":"sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c","pinned_image":"ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -60,7 +60,7 @@
 #   - ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0
 #   - ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42
 #   - ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196
-#   - ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e
+#   - ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c
 
 name: "Daily Safe Outputs Conformance Checker"
 on:
@@ -134,7 +134,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.3"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
@@ -145,8 +145,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'agent' }}
-          GH_AW_INFO_VERSION: "2.1.233"
-          GH_AW_INFO_AGENT_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
+          GH_AW_INFO_AGENT_VERSION: "2.1.237"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -443,7 +443,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.3"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Set runtime paths
@@ -501,7 +501,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.3 --rootless
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.233
+        run: npm install -g @anthropic-ai/claude-code@2.1.237
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -530,7 +530,7 @@ jobs:
           GH_AW_SKILL_DIR: ".claude/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90 ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0 ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42 ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196 ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90 ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0 ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42 ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196 ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c
       - name: Prepare Safe Outputs Directories
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
@@ -1200,7 +1200,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.3"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
@@ -1492,7 +1492,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.3"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download activation artifact
@@ -1584,7 +1584,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.233
+        run: npm install -g @anthropic-ai/claude-code@2.1.237
       - name: Install threat-detect binary
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
@@ -1728,7 +1728,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.3"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
@@ -1788,7 +1788,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.3 --rootless
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.233
+        run: npm install -g @anthropic-ai/claude-code@2.1.237
       - name: Execute Claude Code CLI
         if: always()
         continue-on-error: true
@@ -1964,7 +1964,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.3"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
@@ -2081,7 +2081,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-safe-outputs-conformance.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.233"
+          GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.3"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
