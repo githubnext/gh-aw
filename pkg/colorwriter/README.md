@@ -14,15 +14,14 @@ It is imported by `pkg/console` and `pkg/logger` to obtain consistent stdout/std
 |--------|-----------|-------------|
 | `New` | `func(w io.Writer, environ []string) io.Writer` | Returns a color-profile-aware writer wrapping `w` using `environ` (e.g. `os.Environ()`) to detect `NO_COLOR`, `COLORTERM`, and terminal capabilities. On wasm, returns `w` unchanged. |
 | `Stderr` | `func() io.Writer` | Convenience wrapper that calls `New(os.Stderr, os.Environ())`. On wasm, returns `os.Stderr` directly. |
-| `Stdout` | `func() io.Writer` | Convenience wrapper that calls `New(os.Stdout, os.Environ())`. On wasm, returns `os.Stdout` directly. |
 | `Degrade` | `func(s string, environ []string) string` | Routes a pre-rendered ANSI string through a color-profile-aware writer backed by a string builder, downgrading or stripping ANSI according to `environ`. On wasm, returns `s` unchanged. |
 
 ### Build variants
 
 | Build constraint | Behavior |
 |-----------------|----------|
-| `!js && !wasm` (`colorprofile_writer.go`) | `New` delegates to `colorprofile.NewWriter`; `Stderr` and `Stdout` wrap the corresponding standard streams with the process environment; `Degrade` transforms a rendered ANSI string through an in-memory color-profile-aware writer. |
-| `js \|\| wasm` (`colorprofile_writer_wasm.go`) | `New` returns `w` unchanged; `Stderr` and `Stdout` return the corresponding standard streams directly; `Degrade` returns the original string unchanged. Color-profile detection is not supported on wasm. |
+| `!js && !wasm` (`colorprofile_writer.go`) | `New` delegates to `colorprofile.NewWriter`; `Stderr` wraps `os.Stderr` with the process environment; `Degrade` transforms a rendered ANSI string through an in-memory color-profile-aware writer. |
+| `js \|\| wasm` (`colorprofile_writer_wasm.go`) | `New` returns `w` unchanged; `Stderr` returns `os.Stderr` directly; `Degrade` returns the original string unchanged. Color-profile detection is not supported on wasm. |
 
 ## Usage Examples
 

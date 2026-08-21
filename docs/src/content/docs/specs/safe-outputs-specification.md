@@ -3161,11 +3161,13 @@ This section provides complete definitions for all remaining safe output types. 
 6. **Forks and Events**: The handler MUST reject `pull_request_target` events. It MUST reject an associated fork pull request unless `fork` is explicitly true.
 7. **Protected Files**: Before approval, the handler MUST list the files modified by every pull request associated with the run and reject approval when any file is protected. `protected-files.exclude` MAY remove specific filenames or path prefixes from the default protected set.
 8. **Execution**: Only after all preceding checks pass MAY the handler invoke GitHub's workflow-run approval API and consume one max-count slot.
+9. **Comment**: After a successful approval, when `comment` is not explicitly false, the handler MUST post a comment on each pull request associated with the approved run announcing the workflow run has started, linking to the run's HTML URL, and including the standard generated attribution footer. Comment posting failures MUST be logged as warnings and MUST NOT fail the approval.
 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
 - `fork`: Permit associated fork pull requests (default: false)
+- `comment`: Post a comment on the associated pull request(s) announcing the run has started (default: true)
 - `staged`: Preview without a GitHub API call or max-count consumption
 - `github-token`: Explicit external token for this handler or inherited from `safe-outputs.github-token`
 - `github-app`: GitHub App configuration that mints a handler-scoped token
@@ -3185,12 +3187,12 @@ This section provides complete definitions for all remaining safe output types. 
 *GitHub Actions Token*:
 
 - `actions: write` - Workflow-run approval
-- `pull-requests: read` - Listing associated pull request files
+- `pull-requests: write` - Posting the run-started comment (when `comment` is enabled, the default); `pull-requests: read` is sufficient when `comment: false`
 
 *GitHub App*:
 
 - `actions: write` - Workflow-run approval
-- `pull-requests: read` - Listing associated pull request files
+- `pull-requests: write` - Posting the run-started comment (when `comment` is enabled, the default); `pull-requests: read` is sufficient when `comment: false`
 - `metadata: read` - Repository metadata (automatically granted)
 
 ---
