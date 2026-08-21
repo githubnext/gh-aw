@@ -348,6 +348,7 @@ safe-outputs:
   hide-comment:
     max: 5                    # max comments (default: 5)
     target-repo: "owner/repo" # cross-repository
+    discussions: true         # request discussions:write permission (default: false)
 ```
 
 ### Add Labels (`add-labels:`)
