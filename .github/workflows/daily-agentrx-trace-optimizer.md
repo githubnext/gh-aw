@@ -190,6 +190,8 @@ Use AgentRx outputs to identify:
 - the critical workflow step causing it
 - one smallest meaningful fix
 
+When a run was enriched via the `audit` fallback, also check its `working_set.rebuild_factor` (WSRF): a high value indicates context was repeatedly rebuilt near the peak invocation size rather than growing incrementally, which is corroborating evidence for a "reducing token-heavy context payloads" fix.
+
 Candidate fix types:
 - prompt tightening to reduce invalid tool invocations
 - adding precondition checks before expensive tools
