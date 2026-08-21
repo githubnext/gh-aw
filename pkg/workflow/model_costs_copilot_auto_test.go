@@ -182,6 +182,20 @@ func TestBuildAWFConfigJSONScopesCopilotAutoPricing(t *testing.T) {
 			wantPricing:    true,
 		},
 		{
+			name:           "Copilot workflow with auto model options",
+			engineName:     "copilot",
+			model:          "auto?effort=high",
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
+			name:           "Copilot workflow with provider-prefixed auto model options",
+			engineName:     "copilot",
+			model:          "copilot/auto?effort=high",
+			firewallConfig: &FirewallConfig{Enabled: true},
+			wantPricing:    true,
+		},
+		{
 			name:           "Copilot workflow pinned below provider support",
 			engineName:     "copilot",
 			firewallConfig: &FirewallConfig{Enabled: true, Version: "v0.27.42"},
