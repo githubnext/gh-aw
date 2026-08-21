@@ -24,7 +24,7 @@ var loadEcosystemDomains = sync.OnceValues(func() (map[string][]string, error) {
 
 	ecosystemDomains := make(map[string][]string)
 	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
-		return nil, fmt.Errorf("failed to load ecosystem domains from JSON: %w", err)
+		return nil, fmt.Errorf("could not parse embedded ecosystem domains JSON (data/ecosystem_domains.json): %w", err)
 	}
 
 	// Pre-sort all domain lists once so getEcosystemDomains only needs to copy, not sort.
