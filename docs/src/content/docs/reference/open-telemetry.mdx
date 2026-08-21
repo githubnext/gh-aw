@@ -94,6 +94,12 @@ These attributes appear on built-in workflow setup, agent, and conclusion spans 
     <tr><td><code>gh-aw.max_ai_credits_exceeded</code></td><td>Whether the run exceeded the max AI credits budget.</td></tr>
     <tr><td><code>gh-aw.ai_credits_rate_limit_error</code></td><td>Whether an AI-credits rate-limit or budget-exhaustion signal was detected.</td></tr>
     <tr><td><code>gh-aw.turns</code></td><td>Total agent turns recorded for the run.</td></tr>
+    <tr><td><code>gh-aw.working_set.measurement_state</code></td><td>Working-set measurement availability: <code>measured</code>, <code>partial</code>, or <code>unavailable</code>.</td></tr>
+    <tr><td><code>gh-aw.working_set.rebuild_factor</code></td><td>Cumulative canonical input tokens divided by peak invocation input tokens. Omitted when unavailable.</td></tr>
+    <tr><td><code>gh-aw.working_set.cumulative_input_tokens</code></td><td>Sum of canonical logical input tokens across measured agent invocations.</td></tr>
+    <tr><td><code>gh-aw.working_set.peak_input_tokens</code></td><td>Largest canonical logical input-token count among measured agent invocations.</td></tr>
+    <tr><td><code>gh-aw.working_set.rebuild_excess_tokens</code></td><td>Cumulative input tokens minus peak input tokens, clamped to zero.</td></tr>
+    <tr><td><code>gh-aw.working_set.invocations</code></td><td>Valid invocation records contributing to the working-set measurement.</td></tr>
     <tr><td><code>gh-aw.agent.conclusion</code></td><td>Normalized agent conclusion.</td></tr>
     <tr><td><code>gh-aw.detection.conclusion</code></td><td>Detection subsystem conclusion when present.</td></tr>
     <tr><td><code>gh-aw.detection.reason</code></td><td>Detection subsystem reason when present.</td></tr>
@@ -110,6 +116,8 @@ These attributes appear on built-in workflow setup, agent, and conclusion spans 
     <tr><td><code>gh-aw.github.rate_limit.reset</code></td><td>GitHub rate limit reset timestamp.</td></tr>
   </tbody>
 </table>
+
+Working-Set Rebuild Factor measures cumulative context reconstruction relative to peak invocation context. It is an efficiency/trajectory metric, not a measurement of semantic coherence debt and not a predictor of task success. Numeric working-set attributes are emitted on the built-in conclusion span only when the measurement exists.
 
 ## Agent and GenAI attributes
 

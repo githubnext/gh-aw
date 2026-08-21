@@ -1006,9 +1006,7 @@
         },
         "model": {
           "type": "string",
-          "desc": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4').",
-          "deprecated": true,
-          "x-deprecation-message": "'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate.",
+          "desc": "Model for this engine, overriding the top-level model.",
           "leaf": true
         },
         "model-provider": {
@@ -3439,7 +3437,7 @@
     },
     "model": {
       "type": "string",
-      "desc": "Optional top-level LLM model override.",
+      "desc": "Default LLM model, overridden by nested engine.model.",
       "leaf": true
     },
     "evals": {

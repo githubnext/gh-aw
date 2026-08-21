@@ -821,7 +821,15 @@ jobs:
         env:
           GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}
           GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: 30
-        run: node "${RUNNER_TEMP}/gh-aw/actions/detect_agent_errors.cjs"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'detect_agent_errors.cjs'));
+            await main();
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -1052,6 +1060,13 @@ jobs:
           if [ -f "/tmp/gh-aw/agent_output.json" ]; then
             echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
           fi
+      - name: Download detection artifact
+        id: download-detection-artifact
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: detection
+          path: /tmp/gh-aw/threat-detection/
       - name: Download Safe Outputs Items Manifest
         id: download-safe-outputs-manifest
         if: always()
@@ -1438,7 +1453,7 @@ jobs:
           fi
           chmod 755 "$GH_AW_COPILOT_BIN"
 
-          touch /tmp/gh-aw/agent-step-summary.md
+          touch /tmp/gh-aw/step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
           export COPILOT_API_KEY="$COPILOT_DUMMY_BYOK"
@@ -1473,6 +1488,7 @@ jobs:
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
           COPILOT_MODEL: gpt-5.4
+          GH_AW_HARNESS_MAX_RETRIES: 0
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
@@ -1513,6 +1529,13 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'render_detection_log.cjs'));
             await main();
+      - name: Copy detection firewall logs
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
+          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/ || true
+          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/ || true
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
         if: always()
@@ -1533,7 +1556,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: detection
-          path: /tmp/gh-aw/threat-detection/detection.log
+          path: |
+            /tmp/gh-aw/threat-detection/detection.log
+            /tmp/gh-aw/threat-detection/sandbox/firewall/logs/
+            /tmp/gh-aw/threat-detection/sandbox/firewall/audit/
           if-no-files-found: ignore
       - name: Parse and conclude threat detection
         id: detection_conclusion

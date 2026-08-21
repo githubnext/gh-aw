@@ -18,15 +18,6 @@ func (c *Compiler) SetContext(ctx context.Context) {
 	c.ctx = ctx
 }
 
-// SetModelPricingResolver registers a callback used to resolve pricing for models that are
-// not present in the embedded models.json catalog. The resolver receives the workflow's
-// inference provider and model name; it should return per-token pricing (USD) and true when
-// pricing is available, or (nil, false) when it is not. Injected by the cli package so that
-// the compiler can fetch missing pricing from models.dev without a circular import.
-func (c *Compiler) SetModelPricingResolver(fn func(ctx context.Context, provider, model string) (map[string]float64, bool)) {
-	c.modelPricingResolver = fn
-}
-
 // SetRequireDocker configures whether Docker must be available for container image validation.
 // When true, validation fails with an error if Docker is not installed or the daemon is not running.
 // When false (default), validation is silently skipped when Docker is unavailable.

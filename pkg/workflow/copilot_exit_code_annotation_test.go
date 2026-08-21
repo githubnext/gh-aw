@@ -141,7 +141,12 @@ func TestAllAgentExecutionSteps_ContainExitCodeAnnotation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotEmpty(t, tt.steps)
-			assert.Contains(t, strings.Join(tt.steps[len(tt.steps)-1], "\n"),
+			var allSteps strings.Builder
+			for _, step := range tt.steps {
+				allSteps.WriteString(strings.Join(step, "\n"))
+				allSteps.WriteString("\n")
+			}
+			assert.Contains(t, allSteps.String(),
 				"::error::Agent execution exited with code",
 				"execution step must surface a non-zero exit code in the log")
 		})

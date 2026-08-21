@@ -1047,6 +1047,117 @@ func TestBuildDetectionEngineExecutionStepCodexIncludesMCPSetup(t *testing.T) {
 	}
 }
 
+func TestBuildDetectionEngineExecutionStepDefaultsHarnessMaxRetriesToZero(t *testing.T) {
+	// Threat detection is a bounded scan of already-completed agent output; a failed
+	// attempt (e.g. a sandboxed cleanup command failing inside the read-only
+	// /tmp/gh-aw mount) should not silently retry the whole run several times with
+	// backoff, burning significant time and model spend. Unless the harness policy is
+	// explicitly configured, detection should default to zero retries.
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 0") {
+		t.Fatalf("expected detection steps to default GH_AW_HARNESS_MAX_RETRIES to 0, got:\n%s", allSteps)
+	}
+}
+
+func TestBuildDetectionEngineExecutionStepRespectsExplicitHarnessMaxRetries(t *testing.T) {
+	// When the user explicitly configures a harness retry policy (via engine.harness
+	// or threat-detection.engine.harness), that explicit choice must be honored rather
+	// than overridden by the detection-specific zero-retry default.
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		EngineConfig: &EngineConfig{
+			ID:                "codex",
+			HarnessMaxRetries: "5",
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 5") {
+		t.Fatalf("expected detection steps to honor explicit GH_AW_HARNESS_MAX_RETRIES=5, got:\n%s", allSteps)
+	}
+}
+
+func TestBuildDetectionEngineExecutionStepRespectsExplicitThreatDetectionHarnessMaxRetries(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID:                "codex",
+					HarnessMaxRetries: "2",
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 2") {
+		t.Fatalf("expected detection steps to honor threat-detection GH_AW_HARNESS_MAX_RETRIES=2, got:\n%s", allSteps)
+	}
+}
+
+func TestBuildExternalDetectorExecutionStepDefaultsHarnessMaxRetriesToZero(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildExternalDetectorExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 0") {
+		t.Fatalf("expected external detector execution to default GH_AW_HARNESS_MAX_RETRIES to 0, got:\n%s", allSteps)
+	}
+}
+
+func TestBuildExternalDetectorExecutionStepRespectsExplicitHarnessMaxRetries(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		EngineConfig: &EngineConfig{
+			ID:                "codex",
+			HarnessMaxRetries: "5",
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildExternalDetectorExecutionStep(data)
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "GH_AW_HARNESS_MAX_RETRIES: 5") {
+		t.Fatalf("expected external detector execution to honor explicit GH_AW_HARNESS_MAX_RETRIES=5, got:\n%s", allSteps)
+	}
+}
+
 func TestBuildDetectionJobStepsCodexAvoidsDuplicateContainerPullStep(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -1084,7 +1195,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 		"if: always()",
 		"uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
 		"name: " + constants.DetectionArtifactName,
-		"path: /tmp/gh-aw/threat-detection/detection.log",
+		"            /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",
 	}
 
@@ -2088,6 +2199,66 @@ func TestCleanFirewallDirsStepOrdering(t *testing.T) {
 	if cleanIdx > guardIdx {
 		t.Error("Cleanup firewall dirs step should appear before detection guard step")
 	}
+}
+
+func TestBuildCopyDetectionFirewallLogsStep(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("returns nil when firewall disabled", func(t *testing.T) {
+		data := &WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+		if steps := compiler.buildCopyDetectionFirewallLogsStep(data); steps != nil {
+			t.Fatalf("expected nil steps when firewall is disabled, got %v", steps)
+		}
+	})
+
+	t.Run("default topology copies from tmp paths and directory contents", func(t *testing.T) {
+		data := &WorkflowData{
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := strings.Join(compiler.buildCopyDetectionFirewallLogsStep(data), "")
+		if !strings.Contains(steps, "Copy detection firewall logs") {
+			t.Fatalf("expected copy step to be present, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, "continue-on-error: true") {
+			t.Fatalf("expected continue-on-error in copy step, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, "cp -r "+constants.AWFProxyLogsDir+"/. "+detectionFirewallLogsDir+"/logs/") {
+			t.Fatalf("expected logs copy to use source contents and stable destination, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, "cp -r "+constants.AWFAuditDir+"/. "+detectionFirewallLogsDir+"/audit/") {
+			t.Fatalf("expected audit copy to use source contents and stable destination, got:\n%s", steps)
+		}
+	})
+
+	t.Run("arc-dind topology copies from runner_temp paths", func(t *testing.T) {
+		data := &WorkflowData{
+			RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := strings.Join(compiler.buildCopyDetectionFirewallLogsStep(data), "")
+		if !strings.Contains(steps, `${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs`) {
+			t.Fatalf("expected arc-dind logs source path under ${RUNNER_TEMP}/gh-aw, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, `${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit`) {
+			t.Fatalf("expected arc-dind audit source path under ${RUNNER_TEMP}/gh-aw, got:\n%s", steps)
+		}
+	})
 }
 
 func TestBuildDetectionJobStepsCodexExternalDetectorIncludesContainerDownload(t *testing.T) {
