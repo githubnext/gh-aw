@@ -3633,6 +3633,61 @@
                       "pattern": "^[1-9][0-9]*[bkmgBKMG]$",
                       "examples": ["4g", "8g", "512m"]
                     },
+                    "images": {
+                      "type": "object",
+                      "description": "Digest-pinned AWF infrastructure images (AWF v0.28.4+). Selects the container image used for each AWF service role instead of the compiler-selected defaults from the official registry. Every value must be a literal, registry-qualified OCI reference that carries both a tag and an immutable SHA-256 digest ('registry/repository:tag@sha256:<64 lowercase hex chars>'); GitHub Actions expressions and other dynamic values are rejected at compile time. When set, the manifest must cover every image role required by the enabled feature set, AWF fails closed instead of falling back to the official registry, and the Docker daemon must already be authenticated to the registry. This is distinct from the repository-level '.github/workflows/aw.json' 'container_pins' setting, which only substitutes container references used directly by compiled workflows.",
+                      "additionalProperties": false,
+                      "minProperties": 1,
+                      "properties": {
+                        "squid": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Squid forward-proxy image used for domain filtering."
+                        },
+                        "agent": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Agent container image that runs the agentic engine."
+                        },
+                        "apiProxy": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "API proxy sidecar image that holds provider credentials."
+                        },
+                        "cliProxy": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "CLI proxy sidecar image used by tools.github.mode: gh-proxy and integrity-reactions."
+                        },
+                        "buildTools": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Build-tools image used as the chroot sysroot base on runner.topology: arc-dind."
+                        },
+                        "dohProxy": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "DNS-over-HTTPS proxy image."
+                        },
+                        "enclaveScript": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Script enclave image."
+                        },
+                        "enclaveAgent": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Agent enclave image."
+                        },
+                        "enclaveMcpServer": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "MCP server enclave image."
+                        },
+                        "dindStaging": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Docker-in-Docker staging image."
+                        }
+                      },
+                      "examples": [
+                        {
+                          "squid": "registry.example.com/approved/squid:v0.28.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                          "agent": "registry.example.com/approved/agent:v0.28.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                          "apiProxy": "registry.example.com/approved/api-proxy:v0.28.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                        }
+                      ]
+                    },
                     "model-fallback": {
                       "$ref": "#/$defs/templatable_boolean",
                       "description": "Enable or disable model fallback for unresolved model selections. Set to false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports literal boolean or GitHub Actions expression.",
@@ -14702,6 +14757,11 @@
           "organization-administration": "read"
         }
       ]
+    },
+    "awf_pinned_image": {
+      "type": "string",
+      "description": "Literal, registry-qualified OCI image reference containing both a tag and an immutable SHA-256 digest, e.g. 'registry.example.com/approved/squid:v0.28.4@sha256:<64 lowercase hex chars>'. Expressions and other dynamic values are not allowed.",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*(:[0-9]+)?(/[a-zA-Z0-9._-]+)+:[a-zA-Z0-9._-]+@sha256:[0-9a-f]{64}$"
     },
     "sandbox_agent_api_target": {
       "type": "object",

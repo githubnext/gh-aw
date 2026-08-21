@@ -2120,6 +2120,61 @@ sandbox:
     # (optional)
     memory: "example-value"
 
+    # Digest-pinned AWF infrastructure images (AWF v0.28.4+). Selects the container
+    # image used for each AWF service role instead of the compiler-selected defaults
+    # from the official registry. Every value must be a literal, registry-qualified
+    # OCI reference that carries both a tag and an immutable SHA-256 digest
+    # ('registry/repository:tag@sha256:<64 lowercase hex chars>'); GitHub Actions
+    # expressions and other dynamic values are rejected at compile time. When set, the
+    # manifest must cover every image role required by the enabled feature set, AWF
+    # fails closed instead of falling back to the official registry, and the Docker
+    # daemon must already be authenticated to the registry. This is distinct from the
+    # repository-level '.github/workflows/aw.json' 'container_pins' setting, which
+    # only substitutes container references used directly by compiled workflows.
+    # (optional)
+    images:
+      # Squid forward-proxy image used for domain filtering.
+      # (optional)
+      squid: "example-value"
+
+      # Agent container image that runs the agentic engine.
+      # (optional)
+      agent: "example-value"
+
+      # API proxy sidecar image that holds provider credentials.
+      # (optional)
+      apiProxy: "example-value"
+
+      # CLI proxy sidecar image used by tools.github.mode: gh-proxy and
+      # integrity-reactions.
+      # (optional)
+      cliProxy: "example-value"
+
+      # Build-tools image used as the chroot sysroot base on runner.topology: arc-dind.
+      # (optional)
+      buildTools: "example-value"
+
+      # DNS-over-HTTPS proxy image.
+      # (optional)
+      dohProxy: "example-value"
+
+      # Script enclave image.
+      # (optional)
+      enclaveScript: "example-value"
+
+      # Agent enclave image.
+      # (optional)
+      enclaveAgent: "example-value"
+
+      # MCP server enclave image.
+      # (optional)
+      enclaveMcpServer: "example-value"
+
+      # Docker-in-Docker staging image.
+      # (optional)
+      dindStaging: "example-value"
+
+
     # Enable or disable model fallback for unresolved model selections. Set to false
     # for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports
     # literal boolean or GitHub Actions expression.

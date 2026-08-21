@@ -562,6 +562,24 @@
           "type": "string",
           "description": "Override the agent container image (e.g. for a GitHub Actions parity image)."
         },
+        "images": {
+          "type": "object",
+          "description": "Closed manifest of digest-pinned infrastructure images keyed by image role (AWF v0.28.4+). Config-only. Every value must be a literal, registry-qualified reference containing both a tag and a SHA-256 digest. When present, AWF requires every image role needed by the enabled feature set, fails closed instead of falling back to the official registry, and cannot be combined with imageRegistry, imageTag, agentImage, buildLocal, runner.sysrootImage, dind.stagingImage, security.sslBump, or per-enclave image overrides.",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "squid": { "$ref": "#/$defs/pinnedImageReference" },
+            "agent": { "$ref": "#/$defs/pinnedImageReference" },
+            "apiProxy": { "$ref": "#/$defs/pinnedImageReference" },
+            "cliProxy": { "$ref": "#/$defs/pinnedImageReference" },
+            "buildTools": { "$ref": "#/$defs/pinnedImageReference" },
+            "dohProxy": { "$ref": "#/$defs/pinnedImageReference" },
+            "enclaveScript": { "$ref": "#/$defs/pinnedImageReference" },
+            "enclaveAgent": { "$ref": "#/$defs/pinnedImageReference" },
+            "enclaveMcpServer": { "$ref": "#/$defs/pinnedImageReference" },
+            "dindStaging": { "$ref": "#/$defs/pinnedImageReference" }
+          }
+        },
         "tty": {
           "type": "boolean",
           "description": "Allocate a pseudo-TTY for the agent container."
@@ -1207,6 +1225,11 @@
     }
   },
   "$defs": {
+    "pinnedImageReference": {
+      "type": "string",
+      "description": "Literal, registry-qualified OCI image reference containing both a tag and an immutable SHA-256 digest: 'registry/repository:tag@sha256:<64 lowercase hex characters>'.",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*(:[0-9]+)?(/[a-zA-Z0-9._-]+)+:[a-zA-Z0-9._-]+@sha256:[0-9a-f]{64}$"
+    },
     "providerTarget": {
       "type": "object",
       "description": "API provider target override.",

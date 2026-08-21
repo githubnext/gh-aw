@@ -124,6 +124,11 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	// Validate the digest-pinned AWF infrastructure image manifest if configured.
+	if err := validateSandboxAgentImages(workflowData); err != nil {
+		return err
+	}
+
 	// Validate the runtime profile and the properties that depend on it.
 	if err := validateSandboxRuntimeProfile(workflowData, agentConfig); err != nil {
 		return err
