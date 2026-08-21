@@ -24,6 +24,39 @@ let DISCLOSURE_HEADER_DEFAULT_SENTINEL;
 const WORKFLOW = "My Workflow";
 const RUN_URL = "https://github.com/owner/repo/actions/runs/99";
 
+describe("messages_header module loading", () => {
+  it("does not require prompt templates until default disclosure text is rendered", () => {
+    const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+    const originalRunnerTemp = process.env.RUNNER_TEMP;
+    const modulePath = require.resolve("./messages_header.cjs");
+
+    try {
+      delete process.env.GH_AW_PROMPTS_DIR;
+      delete process.env.RUNNER_TEMP;
+      delete require.cache[modulePath];
+
+      const headerModule = require("./messages_header.cjs");
+      expect(headerModule.getBodyHeader({ workflowName: WORKFLOW, runUrl: RUN_URL })).toBe("");
+
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ disclosureHeader: true });
+      expect(() => headerModule.getDisclosureHeader({ workflowName: WORKFLOW, runUrl: RUN_URL })).toThrow(/Cannot resolve prompt path/);
+    } finally {
+      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      if (originalPromptsDir === undefined) {
+        delete process.env.GH_AW_PROMPTS_DIR;
+      } else {
+        process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+      }
+      if (originalRunnerTemp === undefined) {
+        delete process.env.RUNNER_TEMP;
+      } else {
+        process.env.RUNNER_TEMP = originalRunnerTemp;
+      }
+      delete require.cache[modulePath];
+    }
+  });
+});
+
 describe("messages_header", () => {
   beforeAll(() => {
     originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
