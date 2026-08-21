@@ -234,6 +234,41 @@ sandbox:
     token-steering: false
 ```
 
+#### Custom infrastructure images (`sandbox.agent.images`)
+
+Self-hosted and air-gapped deployments can mirror, scan, approve, and preload every privileged image AWF launches. Set `sandbox.agent.images` to select digest-pinned replacements for AWF's infrastructure images (requires AWF v0.28.4 or newer):
+
+```yaml wrap
+sandbox:
+  agent:
+    version: v0.28.4
+    images:
+      squid: registry.example.com/approved/squid:v0.28.4@sha256:<64-hex-digest>
+      agent: registry.example.com/approved/agent:v0.28.4@sha256:<64-hex-digest>
+      apiProxy: registry.example.com/approved/api-proxy:v0.28.4@sha256:<64-hex-digest>
+```
+
+The compiler emits the manifest as `container.images` in the generated AWF configuration.
+
+Supported image roles: `squid`, `agent`, `apiProxy`, `cliProxy`, `buildTools`, `dohProxy`, `enclaveScript`, `enclaveAgent`, `enclaveMcpServer`, and `dindStaging`.
+
+Rules enforced at compile time:
+
+- Every value must be a literal, registry-qualified reference with both a tag and an immutable digest: `registry/repository:tag@sha256:<64 lowercase hex characters>`. Expressions (`${{ ... }}`), environment interpolation, and any other dynamic value are rejected, so no runtime input can influence an infrastructure image.
+- Unknown roles are rejected.
+- The manifest must cover every role required by the enabled features: `squid`, `agent`, and `apiProxy` are always required; `cliProxy` is required with [`tools.github.mode: gh-proxy`](/gh-aw/reference/tools/), the `integrity-reactions` feature, or raw `--difc-proxy-host` AWF arguments; `buildTools` is required with [`runner.topology: arc-dind`](/gh-aw/reference/self-hosted-runners/); `dohProxy` is required when legacy-security raw AWF arguments enable `--dns-over-https`; `dindStaging` is required when raw AWF arguments enable `--dind-pre-stage-dirs`, `--dind-stage-engine-binary-path`, or `--dind-stage-engine-binary-target-path`; `enclaveScript` and `enclaveAgent` are required for their corresponding [enclave](/gh-aw/reference/enclaves/) executors, and `enclaveMcpServer` is required whenever any enclave is enabled. AWF fails closed rather than falling back to a default, so an incomplete manifest is a compile error.
+- The manifest cannot be combined with controls that select a different effective image: SSL bump, per-enclave `image` overrides, and AWF arguments such as `--image-tag`, `--image-registry`, `--agent-image`, `--build-local`, `--sysroot-image`, and `--dind-staging-image`. The compiler-owned `container.imageTag` is suppressed when the manifest is set.
+
+Omit the field to keep AWF's default role references and gh-aw's existing digest-pin resolution.
+
+> [!NOTE]
+> AWF does not accept registry credentials in configuration. The Docker daemon on the runner must already be authenticated to the registry hosting these images.
+
+> [!NOTE]
+> Repository-level `.github/workflows/aw.json` `container_pins` mappings already participate in AWF predownload and lock metadata by redirecting AWF's default references. They do not configure the role references AWF resolves at runtime. `sandbox.agent.images` is the authoritative per-workflow runtime manifest and matching predownload set.
+>
+> `container_pins` never redirects an AWF role supplied by `sandbox.agent.images`: each manifest reference is already a complete, digest-pinned literal, so gh-aw pre-pulls and records it in lock metadata unchanged. Mappings continue to transform non-AWF workflow containers, and they continue to transform default AWF predownload references when `sandbox.agent.images` is omitted.
+
 #### Copilot BYOK request customization (`sandbox.agent.targets.copilot`)
 
 When routing Copilot through a BYOK-compatible upstream behind the AWF proxy, you can attach custom headers, extra request body fields, and an explicit session identifier on upstream requests:

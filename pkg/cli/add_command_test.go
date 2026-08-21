@@ -95,6 +95,7 @@ func TestNewAddCommand_MentionsEnterpriseSourceResolution(t *testing.T) {
 }
 
 func TestAddWorkflows(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		workflows     []string
@@ -117,6 +118,7 @@ func TestAddWorkflows(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			opts := AddOptions{}
 			_, err := AddWorkflows(context.Background(), tt.workflows, opts)
 
@@ -188,6 +190,7 @@ func TestAddResolvedWorkflows(t *testing.T) {
 }
 
 func TestAddWorkflowsResult(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                string
 		prNumber            int
@@ -228,6 +231,7 @@ func TestAddWorkflowsResult(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := &AddWorkflowsResult{
 				PRNumber:            tt.prNumber,
 				PRURL:               tt.prURL,
@@ -243,6 +247,7 @@ func TestAddWorkflowsResult(t *testing.T) {
 }
 
 func TestAddCommandFlagInteractions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		flagSetup   func(cmd *cobra.Command)
@@ -288,6 +293,7 @@ func TestAddCommandFlagInteractions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cmd := NewAddCommand(validateEngineStub)
 
 			// Apply flag setup
@@ -305,6 +311,7 @@ func TestAddCommandFlagInteractions(t *testing.T) {
 }
 
 func TestAddCommandFlagDefaults(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddCommand(validateEngineStub)
 	flags := cmd.Flags()
 
@@ -322,6 +329,7 @@ func TestAddCommandFlagDefaults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.flagName, func(t *testing.T) {
+			t.Parallel()
 			flag := flags.Lookup(tt.flagName)
 			require.NotNil(t, flag, "Flag should exist: %s", tt.flagName)
 			assert.Equal(t, tt.defaultValue, flag.DefValue, "Default value should match for flag: %s", tt.flagName)
@@ -330,6 +338,7 @@ func TestAddCommandFlagDefaults(t *testing.T) {
 }
 
 func TestAddCommandBooleanFlags(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddCommand(validateEngineStub)
 	flags := cmd.Flags()
 
@@ -337,6 +346,7 @@ func TestAddCommandBooleanFlags(t *testing.T) {
 
 	for _, flagName := range boolFlags {
 		t.Run(flagName, func(t *testing.T) {
+			t.Parallel()
 			flag := flags.Lookup(flagName)
 			require.NotNil(t, flag, "Boolean flag should exist: %s", flagName)
 			assert.Equal(t, "false", flag.DefValue, "Boolean flag should default to false: %s", flagName)
@@ -345,6 +355,7 @@ func TestAddCommandBooleanFlags(t *testing.T) {
 }
 
 func TestAddCommandArgs(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddCommand(validateEngineStub)
 
 	// Test that Args validator is set (MinimumNArgs(1))
@@ -362,6 +373,7 @@ func TestAddCommandArgs(t *testing.T) {
 }
 
 func TestRejectBootstrapProfileForRegularAdd(t *testing.T) {
+	t.Parallel()
 	profileWithConfig := &resolvedBootstrapProfile{
 		PackageID: "githubnext/central-agentic-ops",
 		Profile: &repositoryPackageBootstrap{
@@ -372,6 +384,7 @@ func TestRejectBootstrapProfileForRegularAdd(t *testing.T) {
 	}
 
 	t.Run("rejects regular add for packages with manifest config", func(t *testing.T) {
+		t.Parallel()
 		err := rejectBootstrapProfileForRegularAdd([]string{"githubnext/central-agentic-ops"}, profileWithConfig)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "package githubnext/central-agentic-ops declares aw.yml config")
@@ -379,12 +392,14 @@ func TestRejectBootstrapProfileForRegularAdd(t *testing.T) {
 	})
 
 	t.Run("uses requested sources in the add-wizard guidance", func(t *testing.T) {
+		t.Parallel()
 		err := rejectBootstrapProfileForRegularAdd([]string{"githubnext/central-agentic-ops", "./local-workflow.md"}, profileWithConfig)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "gh aw add-wizard githubnext/central-agentic-ops ./local-workflow.md")
 	})
 
 	t.Run("allows packages without manifest config", func(t *testing.T) {
+		t.Parallel()
 		err := rejectBootstrapProfileForRegularAdd([]string{"owner/pkg"}, nil)
 		require.NoError(t, err)
 
@@ -648,6 +663,7 @@ on:
 }
 
 func TestValidateWorkflowDestination_SkipsExistingWorkflowFromSameSource(t *testing.T) {
+	t.Parallel()
 	workflowsDir := t.TempDir()
 	existingPath := filepath.Join(workflowsDir, "dependabot.md")
 	require.NoError(t, os.WriteFile(existingPath, []byte(`---
@@ -662,6 +678,7 @@ source: githubnext/central-agentic-ops/.github/workflows/dependabot.md@main
 }
 
 func TestValidateWorkflowDestination_ErrorsForExistingWorkflowFromDifferentSource(t *testing.T) {
+	t.Parallel()
 	workflowsDir := t.TempDir()
 	existingPath := filepath.Join(workflowsDir, "dependabot.md")
 	require.NoError(t, os.WriteFile(existingPath, []byte(`---
@@ -678,6 +695,7 @@ source: octo/other/.github/workflows/dependabot.md@main
 
 // TestAddMultipleWorkflowsNameFlag verifies that --name is not allowed when multiple workflows are specified.
 func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddCommand(validateEngineStub)
 
 	// Simulate calling the command with --name and multiple workflow arguments
@@ -1090,6 +1108,7 @@ func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure(t *testing
 }
 
 func TestAddSkillFileWithTracking_PreservesPathFromSkillsRoot(t *testing.T) {
+	t.Parallel()
 	gitRoot := testutil.TempDir(t, "test-add-skill-path-*")
 	resolved := &ResolvedWorkflow{
 		Spec: &WorkflowSpec{
@@ -1116,7 +1135,9 @@ func TestAddSkillFileWithTracking_PreservesPathFromSkillsRoot(t *testing.T) {
 }
 
 func TestAddSkillFileWithTracking_RejectsInvalidPaths(t *testing.T) {
+	t.Parallel()
 	t.Run("rejects path that escapes skill directory", func(t *testing.T) {
+		t.Parallel()
 		gitRoot := testutil.TempDir(t, "test-add-skill-traversal-*")
 		resolved := &ResolvedWorkflow{
 			Spec: &WorkflowSpec{
@@ -1132,6 +1153,7 @@ func TestAddSkillFileWithTracking_RejectsInvalidPaths(t *testing.T) {
 	})
 
 	t.Run("rejects source path when skill root cannot be determined", func(t *testing.T) {
+		t.Parallel()
 		gitRoot := testutil.TempDir(t, "test-add-skill-missing-root-*")
 		resolved := &ResolvedWorkflow{
 			Spec: &WorkflowSpec{
@@ -1148,7 +1170,9 @@ func TestAddSkillFileWithTracking_RejectsInvalidPaths(t *testing.T) {
 }
 
 func TestAddCopilotRequestsPermissionToContent(t *testing.T) {
+	t.Parallel()
 	t.Run("adds permission to workflow without existing permissions block", func(t *testing.T) {
+		t.Parallel()
 		content := "---\nengine: copilot\n---\nDo the thing.\n"
 		result, err := addCopilotRequestsPermissionToContent(content)
 		require.NoError(t, err)
@@ -1157,6 +1181,7 @@ func TestAddCopilotRequestsPermissionToContent(t *testing.T) {
 	})
 
 	t.Run("adds permission to workflow with existing permissions block", func(t *testing.T) {
+		t.Parallel()
 		content := "---\nengine: copilot\npermissions:\n  contents: read\n---\nDo the thing.\n"
 		result, err := addCopilotRequestsPermissionToContent(content)
 		require.NoError(t, err)
@@ -1165,6 +1190,7 @@ func TestAddCopilotRequestsPermissionToContent(t *testing.T) {
 	})
 
 	t.Run("is idempotent when permission already present", func(t *testing.T) {
+		t.Parallel()
 		content := "---\nengine: copilot\npermissions:\n  copilot-requests: write\n---\nDo the thing.\n"
 		result, err := addCopilotRequestsPermissionToContent(content)
 		require.NoError(t, err)
@@ -1173,6 +1199,7 @@ func TestAddCopilotRequestsPermissionToContent(t *testing.T) {
 	})
 
 	t.Run("returns error when permissions is a non-mapping scalar", func(t *testing.T) {
+		t.Parallel()
 		content := "---\nengine: copilot\npermissions: read-all\n---\nDo the thing.\n"
 		_, err := addCopilotRequestsPermissionToContent(content)
 		require.Error(t, err)
