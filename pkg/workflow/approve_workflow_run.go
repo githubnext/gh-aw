@@ -8,6 +8,7 @@ var approveWorkflowRunLog = logger.New("workflow:approve_workflow_run")
 type ApproveWorkflowRunConfig struct {
 	BaseSafeOutputConfig  `yaml:",inline"`
 	Fork                  bool     `yaml:"fork,omitempty"`
+	Comment               bool     `yaml:"comment,omitempty"`
 	AllowedPullRequests   []string `yaml:"allowed-pull-requests,omitempty"`
 	AllowedWorkflows      []string `yaml:"allowed-workflows,omitempty"`
 	ProtectedFilesExclude []string `yaml:"-"`
@@ -23,10 +24,14 @@ func (c *Compiler) parseApproveWorkflowRunConfig(outputMap map[string]any) *Appr
 	approveWorkflowRunLog.Print("Parsing approve-workflow-run configuration")
 	config := &ApproveWorkflowRunConfig{}
 	config.Max = defaultIntStr(1)
+	config.Comment = true
 	if configMap, ok := configData.(map[string]any); ok {
 		c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
 		if fork, ok := configMap["fork"].(bool); ok {
 			config.Fork = fork
+		}
+		if comment, ok := configMap["comment"].(bool); ok {
+			config.Comment = comment
 		}
 		config.AllowedPullRequests = ParseStringArrayOrExprFromConfig(configMap, "allowed-pull-requests", approveWorkflowRunLog)
 		config.AllowedWorkflows = ParseStringArrayFromConfig(configMap, "allowed-workflows", approveWorkflowRunLog)

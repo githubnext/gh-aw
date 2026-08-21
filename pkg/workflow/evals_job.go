@@ -65,14 +65,13 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 	}
 	evalsJobLog.Printf("Evals job dependencies resolved: needs=%v", needs)
 
-	// Evals job condition: always run but skip if the agent job was skipped.
-	// This matches the detection job pattern so conclusion still sees a non-skipped evals result.
+	// Evals job condition: run only after the agent job succeeds.
 	alwaysFunc := BuildFunctionCall("always")
-	upstreamNotSkipped := BuildNotEquals(
+	agentSucceeded := BuildEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
-		BuildStringLiteral("skipped"),
+		BuildStringLiteral("success"),
 	)
-	jobConditionNode := BuildAnd(alwaysFunc, upstreamNotSkipped)
+	jobConditionNode := BuildAnd(alwaysFunc, agentSucceeded)
 	jobCondition := RenderCondition(jobConditionNode)
 
 	// Determine runs-on: use evals override if set, otherwise ubuntu-latest.

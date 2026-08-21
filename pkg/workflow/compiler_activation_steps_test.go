@@ -285,7 +285,7 @@ func TestActivationStepsAddSkillInstallSteps(t *testing.T) {
 
 		steps := strings.Join(ctx.steps, "")
 		assert.Contains(t, steps, "Upgrade gh CLI for frontmatter skills")
-		assert.Contains(t, steps, "Install frontmatter skill 1")
+		assert.Contains(t, steps, "Install frontmatter skill: githubnext/skills")
 		assert.Contains(t, steps, "GH_AW_INFO_ENGINE_ID: \"claude\"")
 		assert.Contains(t, steps, "GH_AW_GH_SKILL_AGENT_NAME: \"claude-code\"")
 		assert.Contains(t, steps, "GH_AW_FRONTMATTER_SKILLS: \"githubnext/skills@deadbeef\"")

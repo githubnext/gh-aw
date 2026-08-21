@@ -1,5 +1,5 @@
 # gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"4f19d5737de1648b35e7e6d2f57e3095fabe620c37fa806a76e2d49999ed7bba","body_hash":"bc78e141ebcae8ec5005b27b449cd34e73f92fb72f34ebca4fec72b2656e6950","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.80","copilot-sdk":"1.0.11"}}
-# gh-aw-manifest: {"version":1,"secrets":["DOCKER_PAT","DOCKER_USERNAME","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"53b7df96c91f9c12dcc8a07bcb9ccacbed38856a","version":"v7.3.0"},{"repo":"docker/setup-buildx-action","sha":"37fe631027851001ddb9b187196cc803df7f5f0e","version":"v4.3.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3","digest":"sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3","digest":"sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3","digest":"sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3","digest":"sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.10","digest":"sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.9.0","digest":"sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e","pinned_image":"ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e"}]}
+# gh-aw-manifest: {"version":1,"secrets":["DOCKER_PAT","DOCKER_USERNAME","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"53b7df96c91f9c12dcc8a07bcb9ccacbed38856a","version":"v7.3.0"},{"repo":"docker/setup-buildx-action","sha":"37fe631027851001ddb9b187196cc803df7f5f0e","version":"v4.3.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3","digest":"sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3","digest":"sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3","digest":"sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3","digest":"sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.10","digest":"sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.10.0","digest":"sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c","pinned_image":"ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -62,7 +62,7 @@
 #   - ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0
 #   - ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42
 #   - ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196
-#   - ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e
+#   - ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c
 
 name: "Daily Ambient Context Optimizer"
 on:
@@ -608,7 +608,7 @@ jobs:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90 ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0 ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42 ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196 ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.3@sha256:63245de80cc82210c36b469a0ff6ef89fe0b621a8609c7ae6960ac544cf75505 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.3@sha256:9c068361b93bd9349b83758b1073c17fef25ac0bad00c24fedcb96f6cb4b6a90 ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.3@sha256:930993b386043941fc68b2d135abcecb74fadbe1a63a62365fa43a194217584b ghcr.io/github/gh-aw-firewall/squid:0.28.3@sha256:7cecff2dc2815aefac37d3030c3cb795bb0f0a434032fab522987fae398effe0 ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42 ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196 ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c
       - name: Build and install gh-aw CLI from source
         run: |
           gh extension remove aw || true
@@ -617,10 +617,10 @@ jobs:
           gh aw version
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Copy gh-aw binary for MCP server
+      - name: Copy gh-aw binary for MCP Server
         run: |
           gh aw --version
-          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization
+          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP Server containerization
           mkdir -p "${RUNNER_TEMP}/gh-aw"
           GH_AW_BIN=""
           GH_AW_BIN=$(command -v gh-aw 2>/dev/null) || true
@@ -638,7 +638,7 @@ jobs:
             chmod +x "${RUNNER_TEMP}/gh-aw/gh-aw"
             echo "Copied gh-aw binary to ${RUNNER_TEMP}/gh-aw/gh-aw"
           else
-            echo "::error::Failed to find gh-aw binary for MCP server"
+            echo "::error::Failed to find gh-aw binary for MCP Server"
             exit 1
           fi
       - name: Prepare Safe Outputs Directories
@@ -1048,7 +1048,15 @@ jobs:
         env:
           GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}
           GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: 45
-        run: node "${RUNNER_TEMP}/gh-aw/actions/detect_agent_errors.cjs"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'detect_agent_errors.cjs'));
+            await main();
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -1294,6 +1302,13 @@ jobs:
           if [ -f "/tmp/gh-aw/agent_output.json" ]; then
             echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
           fi
+      - name: Download detection artifact
+        id: download-detection-artifact
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: detection
+          path: /tmp/gh-aw/threat-detection/
       - name: Download Safe Outputs Items Manifest
         id: download-safe-outputs-manifest
         if: always()
@@ -1671,6 +1686,7 @@ jobs:
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
           COPILOT_MODEL: detection
+          GH_AW_HARNESS_MAX_RETRIES: 0
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
@@ -1748,12 +1764,22 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'render_detection_log.cjs'));
             await main();
+      - name: Copy detection firewall logs
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
+          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && cp -r /tmp/gh-aw/sandbox/firewall/logs /tmp/gh-aw/threat-detection/sandbox/firewall/logs || true
+          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && cp -r /tmp/gh-aw/sandbox/firewall/audit /tmp/gh-aw/threat-detection/sandbox/firewall/audit || true
       - name: Upload threat detection artifact
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: detection
-          path: /tmp/gh-aw/threat-detection/detection_result.json
+          path: |
+            /tmp/gh-aw/threat-detection/detection_result.json
+            /tmp/gh-aw/threat-detection/sandbox/firewall/logs/
+            /tmp/gh-aw/threat-detection/sandbox/firewall/audit/
           if-no-files-found: ignore
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
@@ -1786,7 +1812,7 @@ jobs:
       - activation
       - agent
       - detection
-    if: always() && needs.agent.result != 'skipped'
+    if: always() && needs.agent.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read

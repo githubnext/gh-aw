@@ -6942,6 +6942,10 @@
                   "type": "boolean",
                   "description": "Allow approval of workflow runs associated with fork pull requests. Defaults to false."
                 },
+                "comment": {
+                  "type": "boolean",
+                  "description": "Post a comment on the pull request associated with the approved workflow run announcing that the run has started. Defaults to true; set to false to disable."
+                },
                 "allowed-pull-requests": {
                   "description": "Additional pull request numbers whose pending workflow runs may be approved. The triggering pull request is always allowed. Supports a list of strings or a GitHub Actions expression that resolves to a list.",
                   "oneOf": [
@@ -12523,7 +12527,7 @@
     },
     "model": {
       "type": "string",
-      "description": "Optional top-level LLM model override. Sets the model used by the agentic engine for this workflow. Takes precedence over engine.model when both are specified. Supports full model IDs (e.g. 'claude-3-5-sonnet-20241022', 'gpt-5.4') and model aliases (e.g. 'small', 'large').",
+      "description": "Default LLM model, overridden by nested engine.model. Sets the default model used by the agentic engine for this workflow. Acts as a fallback when an engine instance does not specify its own 'model'; a nested 'engine.model' (e.g. safe-outputs.threat-detection.engine.model) takes precedence over this field for that engine instance. Supports full model IDs (e.g. 'claude-3-5-sonnet-20241022', 'gpt-5.4') and model aliases (e.g. 'small', 'large').",
       "examples": ["gpt-5.4", "claude-3-5-sonnet-20241022", "gpt-4"]
     },
     "evals": {
@@ -13048,9 +13052,7 @@
             },
             "model": {
               "type": "string",
-              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted.",
-              "deprecated": true,
-              "x-deprecation-message": "'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."
+              "description": "Model for this engine, overriding the top-level model. Has sensible defaults and can typically be omitted. Supports full model IDs (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'), which is useful when a nested engine (e.g. safe-outputs.threat-detection.engine) needs a different model than the main agent engine."
             },
             "model-provider": {
               "type": "string",
@@ -13908,9 +13910,7 @@
           "properties": {
             "model": {
               "type": "string",
-              "description": "Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to the default engine when engine.id is not specified.",
-              "deprecated": true,
-              "x-deprecation-message": "'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."
+              "description": "Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to the default engine when engine.id is not specified. Overrides the top-level 'model' field."
             }
           },
           "required": ["model"],
