@@ -22,6 +22,7 @@ network:
   allowed:
     - defaults
     - github
+    - node
 tools:
   bash: true
 safe-outputs:
