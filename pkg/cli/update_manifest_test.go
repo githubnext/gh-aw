@@ -231,6 +231,56 @@ func TestReconcileManifestManagedAssets_RefusesToOverwriteUnownedAsset(t *testin
 	assert.Equal(t, "name: unrelated workflow\n", string(workflowContent), "unowned file must not be overwritten")
 }
 
+func TestReconcileManifestManagedAssets_WarnsWhenUpstreamRemovesSkillOrAgent(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "manifest-assets-removed-*")
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
+	t.Chdir(tmpDir)
+
+	engine := "copilot"
+	existingSkillPath := filepath.Join(tmpDir, workflow.GetEngineSkillDir(engine), "review", "scripts", "check.sh")
+	existingAgentPath := filepath.Join(tmpDir, workflow.GetEngineSubAgentDir(engine), "reviewer.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingSkillPath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingAgentPath), 0o755))
+	require.NoError(t, os.WriteFile(existingSkillPath, []byte("#!/bin/sh\necho old\n"), 0o644))
+	require.NoError(t, os.WriteFile(existingAgentPath, []byte("# Old Reviewer\n"), 0o644))
+
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		return nil, fmt.Errorf("unexpected download for removed package path %s", path)
+	}
+
+	currentPkg := &resolvedRepositoryPackage{
+		ResolvedRef: "v1.0.0",
+		SkillFiles: []resolvedPackageSkillFile{{
+			SourcePath: "skills/review/scripts/check.sh",
+			SkillName:  "review",
+		}},
+		AgentFiles: []string{"agents/reviewer.md"},
+	}
+	latestPkg := &resolvedRepositoryPackage{
+		ResolvedRef: "v2.0.0",
+	}
+
+	var err error
+	output := testutil.CaptureStderr(t, func() {
+		err = reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"}, currentPkg, latestPkg, engine, UpdateWorkflowsOptions{})
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, output, "skills/review/scripts/check.sh")
+	assert.Contains(t, output, "removed from the upstream package")
+	assert.Contains(t, output, "agents/reviewer.md")
+
+	skillContent, readErr := os.ReadFile(existingSkillPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "#!/bin/sh\necho old\n", string(skillContent), "removed-upstream skill must not be modified")
+
+	agentContent, readErr := os.ReadFile(existingAgentPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "# Old Reviewer\n", string(agentContent), "removed-upstream agent must not be modified")
+}
+
 func TestResolveManifestAssetEngine(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "manifest-assets-engine-*")
 	workflowPath := filepath.Join(tmpDir, "existing.md")

@@ -216,7 +216,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 // under .github/aw/packages. Existing destinations are only overwritten when they are
 // tracked as owned by this package (and unmodified locally, or opts.Force is set);
 // otherwise the reconciliation fails rather than clobbering an unrelated file.
-func reconcileManifestManagedAssets(ctx context.Context, repoSpec *RepoSpec, _ *resolvedRepositoryPackage, latestPkg *resolvedRepositoryPackage, engineOverride string, opts UpdateWorkflowsOptions) error {
+func reconcileManifestManagedAssets(ctx context.Context, repoSpec *RepoSpec, currentPkg *resolvedRepositoryPackage, latestPkg *resolvedRepositoryPackage, engineOverride string, opts UpdateWorkflowsOptions) error {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find repository root for package assets: %w", err)
@@ -226,6 +226,8 @@ func reconcileManifestManagedAssets(ctx context.Context, repoSpec *RepoSpec, _ *
 		return err
 	}
 	packageBase := repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath)
+
+	warnUpstreamRemovedSkillsAndAgents(currentPkg, latestPkg)
 
 	for _, installable := range latestPkg.InstallationSource {
 		if !isActionWorkflowPath(installable.SourcePath) {
@@ -316,6 +318,43 @@ func reconcileManifestManagedAssets(ctx context.Context, repoSpec *RepoSpec, _ *
 		}
 	}
 	return nil
+}
+
+// warnUpstreamRemovedSkillsAndAgents reports skill and agent files that were present in
+// the currently-installed package manifest but are no longer listed in the latest
+// manifest. These assets are intentionally left untouched (not deleted) since the
+// removal may be transient or unintended upstream; the local copy is kept and a warning
+// is printed so the user can decide whether to remove it manually.
+func warnUpstreamRemovedSkillsAndAgents(currentPkg, latestPkg *resolvedRepositoryPackage) {
+	if currentPkg == nil || latestPkg == nil {
+		return
+	}
+
+	latestSkillSources := make(map[string]bool, len(latestPkg.SkillFiles))
+	for _, skill := range latestPkg.SkillFiles {
+		latestSkillSources[skill.SourcePath] = true
+	}
+	for _, skill := range currentPkg.SkillFiles {
+		if latestSkillSources[skill.SourcePath] {
+			continue
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+			"Skill %q was removed from the upstream package; skipping update and keeping the local copy. Remove it manually if it is no longer needed.",
+			skill.SourcePath)))
+	}
+
+	latestAgentSources := make(map[string]bool, len(latestPkg.AgentFiles))
+	for _, agent := range latestPkg.AgentFiles {
+		latestAgentSources[agent] = true
+	}
+	for _, agent := range currentPkg.AgentFiles {
+		if latestAgentSources[agent] {
+			continue
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+			"Agent %q was removed from the upstream package; skipping update and keeping the local copy. Remove it manually if it is no longer needed.",
+			agent)))
+	}
 }
 
 // ensurePackageAssetOverwriteAllowed returns an error unless the given destination is
