@@ -149,7 +149,8 @@ need to guess:
 
 Generate two PNG charts, save them to `/tmp/gh-aw/python/charts/`, upload each with
 the `upload_asset` safe-output tool, and embed them in the report using the returned
-asset URLs.
+asset URLs. Run both scripts with `/tmp/gh-aw/python/venv/bin/python` — the `python3` on
+`PATH` inside the sandbox is PyPy and cannot import Pandas/Matplotlib.
 
 **Chart 1 — Spending Trend** (`spending_trend.png`):
 Line chart showing per-run AIC over the 30-day sample window, one series per
@@ -157,7 +158,7 @@ workflow (top 5 by total AIC; group the rest into "Other"). X-axis: date. Y-axis
 per run. Include a 7-day rolling-average overlay. Title: "Spending Trend — Last 30 Days".
 
 ```python
-#!/usr/bin/env python3
+#!/tmp/gh-aw/python/venv/bin/python
 import json, os, sys
 import pandas as pd
 import matplotlib
@@ -208,7 +209,7 @@ projected spend. Use green for P10, blue for P50, and red for P90. Title: "Weekl
 Forecast Distribution (P10 optimistic / P50 median / P90 conservative)".
 
 ```python
-#!/usr/bin/env python3
+#!/tmp/gh-aw/python/venv/bin/python
 import json, os
 import pandas as pd
 import matplotlib
