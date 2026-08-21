@@ -18,7 +18,7 @@ This package currently exposes focused helpers for identifying common error cate
 | `IsRateLimitError` | `func(output string) bool` | Returns `true` when `output` indicates GitHub API rate limiting by matching case-insensitive `rate limit exceeded` (including `API rate limit exceeded`) or `secondary rate limit` text |
 | `IsAuthError` | `func(output string) bool` | Returns `true` when `output` indicates authentication or authorization failures by matching case-insensitive credential-specific markers including `GH_TOKEN`, `GITHUB_TOKEN`, `authentication`, `not logged into`, `unauthorized`, `permission denied`, or `SAML enforcement` |
 | `IsInsufficientScopesError` | `func(err error) bool` | Returns `true` when `err` indicates a GitHub GraphQL request was rejected for missing OAuth/PAT scopes by matching the case-insensitive `INSUFFICIENT_SCOPES` literal; returns `false` for `nil` and non-matching errors |
-| `IsAlreadyMergedError` | `func(err error) bool` | Returns `true` when `err` indicates a `gh pr merge` operation failed because the pull request was already merged, by matching case-insensitive `already merged` or `merged` text; returns `false` for `nil` and non-matching errors |
+| `IsAlreadyMergedError` | `func(err error) bool` | Returns `true` when `err` indicates a `gh pr merge` operation failed because the pull request was already merged, by matching the case-insensitive phrase `already merged` or the case-sensitive GraphQL state literal `MERGED`; returns `false` for `nil`, non-matching errors, and failure wording such as `could not be merged` |
 
 ## Usage Examples
 

@@ -106,11 +106,18 @@ func IsInsufficientScopesError(err error) bool {
 
 // IsAlreadyMergedError reports whether err indicates that a `gh pr merge`
 // operation failed because the pull request was already merged. The gh CLI
-// only surfaces this state via error text such as "already merged" or the
-// GraphQL "MERGED" state literal.
+// only surfaces this state via error text: either the phrase "already merged"
+// (matched case-insensitively) or the uppercase GraphQL "MERGED" state literal
+// (matched case-sensitively so that ordinary wording such as "could not be
+// merged" or "not merged" is not misclassified as success).
 // It returns false when err is nil.
 func IsAlreadyMergedError(err error) bool {
-	matched := containsErrorSubstring(err, "already merged", "merged")
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	matched := containsSubstring(message, "already merged") ||
+		containsCaseSensitiveSubstring(message, "MERGED")
 	if matched {
 		errorutilLog.Printf("Classified error as already-merged: %v", err)
 	}
@@ -125,6 +132,18 @@ func containsErrorSubstring(err error, substrings ...string) bool {
 		return false
 	}
 	return containsSubstring(err.Error(), substrings...)
+}
+
+// containsCaseSensitiveSubstring reports whether value contains any of the
+// provided substrings, preserving case. It is used for markers such as the
+// GraphQL "MERGED" state literal where case carries meaning.
+func containsCaseSensitiveSubstring(value string, substrings ...string) bool {
+	for _, substring := range substrings {
+		if strings.Contains(value, substring) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsSubstring(value string, substrings ...string) bool {

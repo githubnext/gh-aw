@@ -191,9 +191,11 @@ func TestSpec_PublicAPI_IsInsufficientScopesError(t *testing.T) {
 //
 // Specification:
 //   - Returns true when err indicates a `gh pr merge` operation failed
-//     because the pull request was already merged, by matching
-//     case-insensitive "already merged" or "merged" text.
-//   - Returns false for nil and non-matching errors.
+//     because the pull request was already merged, by matching the
+//     case-insensitive phrase "already merged" or the case-sensitive
+//     GraphQL state literal "MERGED".
+//   - Returns false for nil, non-matching errors, and failure wording such
+//     as "could not be merged".
 func TestSpec_PublicAPI_IsAlreadyMergedError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -204,6 +206,8 @@ func TestSpec_PublicAPI_IsAlreadyMergedError(t *testing.T) {
 		{name: "documented: already merged phrase", err: errors.New("Pull request is already merged"), want: true},
 		{name: "documented: MERGED state literal", err: errors.New("state is MERGED"), want: true},
 		{name: "documented: non-matching error returns false", err: errors.New("network timeout"), want: false},
+		{name: "documented: failed merge wording returns false", err: errors.New("Pull request could not be merged"), want: false},
+		{name: "documented: not merged wording returns false", err: errors.New("pull request is not merged"), want: false},
 	}
 
 	for _, tt := range tests {

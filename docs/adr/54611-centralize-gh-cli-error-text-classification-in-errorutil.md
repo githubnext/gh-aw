@@ -1,8 +1,8 @@
 # ADR-54611: Centralize gh CLI Error Text Classification in errorutil
 
 **Date**: 2026-08-21
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: gh-aw maintainers
 
 ---
 
@@ -12,7 +12,12 @@ Three sites in `pkg/cli` used inline `strings.Contains(err.Error(), "...")` call
 
 ### Decision
 
-We will add `IsInsufficientScopesError(err error) bool` and `IsAlreadyMergedError(err error) bool` helpers to `pkg/errorutil`, mirroring the existing `IsNotFoundError`/`IsForbiddenError` pattern. The brittle substring matching is centralized inside `errorutil` (via an intermediate variable to satisfy the linter), so call sites in `pkg/cli` use named helper calls instead of raw string matching. This eliminates per-site `nolint` comments and consolidates the fragile literals in one reviewed location.
+We will add `IsInsufficientScopesError(err error) bool` and `IsAlreadyMergedError(err error) bool` helpers to `pkg/errorutil`, mirroring the existing `IsNotFoundError`/`IsForbiddenError` pattern. The error-text matching is centralized inside `errorutil`, so call sites in `pkg/cli` use named helper calls instead of raw string matching. This eliminates per-site `nolint` comments and consolidates the fragile literals in one reviewed, documented, and tested location.
+
+Each helper keeps the narrowest match that still covers the known gh CLI wording:
+
+- `IsInsufficientScopesError` matches the `INSUFFICIENT_SCOPES` GraphQL error type case-insensitively; the literal is specific enough that broader wording cannot collide with it.
+- `IsAlreadyMergedError` matches the case-insensitive phrase `already merged` or the case-sensitive GraphQL state literal `MERGED`. Matching the bare lowercase word `merged` was explicitly rejected because failure wording such as "could not be merged" or "not merged" would then be classified as a successful merge, causing `handleMergeAttempt` to report success and stop retrying after a failed merge. Negative tests pin this behavior.
 
 ### Alternatives Considered
 
@@ -36,9 +41,10 @@ Instead of matching error text, expose structured sentinel errors or typed error
 - The `pkg/errorutil` package API surface grows with each new error category; without governance, this could accumulate many narrowly-scoped helpers over time.
 
 #### Neutral
+- Matching semantics are deliberately asymmetric (case-insensitive phrase plus case-sensitive state literal), which is documented in the helper doc comments, `pkg/errorutil/README.md`, and pinned by negative tests.
 - The `pkg/cli/update_extension_check.go` `isWindowsLockError` function was intentionally excluded — it matches local Windows-specific stdout/stderr text that is not a structured GitHub/gh CLI error category and already carries a proper `nolint` justification.
 - Unit tests and spec tests were added for both new helpers following the existing test pattern in `pkg/errorutil`.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent] and finalized to reflect the classification semantics implemented in this PR.*

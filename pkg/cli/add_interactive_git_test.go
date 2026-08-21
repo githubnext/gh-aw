@@ -197,6 +197,8 @@ func TestIsAlreadyMergedGHError(t *testing.T) {
 		{name: "already merged phrase", err: errors.New("GraphQL: Pull request is already merged (mergePullRequest)"), want: true},
 		{name: "MERGED state literal", err: errors.New("pull request state is MERGED"), want: true},
 		{name: "unrelated error", err: errors.New("network timeout"), want: false},
+		{name: "merge failure wording", err: errors.New("GraphQL: Pull request could not be merged (mergePullRequest)"), want: false},
+		{name: "not merged wording", err: errors.New("pull request is not merged"), want: false},
 	}
 
 	for _, tt := range tests {
