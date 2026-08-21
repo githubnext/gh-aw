@@ -688,6 +688,12 @@ Test workflow`
 	if !strings.Contains(detectionSection, "supports_websockets = false") {
 		t.Error("Codex external detector path must disable websocket startup for the proxy config")
 	}
+	if !strings.Contains(detectionSection, "env_key = \"CODEX_API_KEY\"") {
+		t.Error("Codex external detector path must use the Codex BYOK API key")
+	}
+	if !strings.Contains(detectionSection, "wire_api = \"responses\"") {
+		t.Error("Codex external detector path must use the Responses API")
+	}
 }
 
 // TestExternalDetectorCodexConfigModelProviderAtRoot verifies that the top-level

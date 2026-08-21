@@ -86,7 +86,8 @@ func TestCodexEngineCopilotModelUsesGitHubInference(t *testing.T) {
 		`AWF_REFLECT_ENABLED: 1`,
 		`api.githubcopilot.com`,
 		`COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
-		`OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
+		constants.CopilotBYOKDummyAPIKeyEnvVar + `: ` + constants.CopilotBYOKDummyAPIKey,
+		`export CODEX_API_KEY="$` + constants.CopilotBYOKDummyAPIKeyEnvVar + `"`,
 		`GH_AW_MODEL_AGENT_CODEX: auto`,
 		`${GH_AW_MODEL_AGENT_CODEX:+ --model "$GH_AW_MODEL_AGENT_CODEX"}`,
 	}
@@ -95,7 +96,7 @@ func TestCodexEngineCopilotModelUsesGitHubInference(t *testing.T) {
 			t.Errorf("expected execution step to contain %q, got:\n%s", value, stepContent)
 		}
 	}
-	if strings.Contains(stepContent, "secrets.CODEX_API_KEY") || strings.Contains(stepContent, "secrets.OPENAI_API_KEY") {
+	if strings.Contains(stepContent, "secrets.CODEX_API_KEY") || strings.Contains(stepContent, "secrets.OPENAI_API_KEY") || strings.Contains(stepContent, `OPENAI_API_KEY:`) {
 		t.Errorf("GitHub inference must not use OpenAI credentials, got:\n%s", stepContent)
 	}
 
@@ -119,8 +120,11 @@ func TestCodexEngineCopilotModelUsesGitHubActionsToken(t *testing.T) {
 	}
 
 	stepContent := strings.Join([]string(engine.GetExecutionSteps(workflowData, "test-log")[0]), "\n")
-	if !strings.Contains(stepContent, `OPENAI_API_KEY: ${{ github.token }}`) {
-		t.Errorf("expected GitHub Actions token for Codex BYOK, got:\n%s", stepContent)
+	if !strings.Contains(stepContent, `COPILOT_GITHUB_TOKEN: ${{ github.token }}`) {
+		t.Errorf("expected GitHub Actions token for the Copilot provider, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `export CODEX_API_KEY="$`+constants.CopilotBYOKDummyAPIKeyEnvVar+`"`) {
+		t.Errorf("expected Codex to use the BYOK sentinel, got:\n%s", stepContent)
 	}
 	if secrets := engine.GetRequiredSecretNames(workflowData); len(secrets) != 0 {
 		t.Fatalf("expected no inference secret with copilot-requests permission, got %v", secrets)
@@ -521,7 +525,8 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"[model_providers.openai-proxy]",
 			"name = \"OpenAI AWF proxy\"",
 			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
-			"env_key = \"OPENAI_API_KEY\"",
+			"env_key = \"CODEX_API_KEY\"",
+			"wire_api = \"responses\"",
 			"supports_websockets = false",
 		}
 

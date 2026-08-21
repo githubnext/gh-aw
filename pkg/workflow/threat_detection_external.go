@@ -56,7 +56,8 @@ func buildExternalDetectorCodexConfig(apiBase, wssBase string) string {
 		"          base_url = \"" + apiBase + "\"",
 		"          api_base = \"" + apiBase + "\"",
 		"          wss_base = \"" + wssBase + "\"",
-		"          env_key = \"OPENAI_API_KEY\"",
+		"          env_key = \"CODEX_API_KEY\"",
+		"          wire_api = \"responses\"",
 		"          supports_websockets = false",
 		"",
 	}, "\n")

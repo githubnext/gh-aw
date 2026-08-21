@@ -432,6 +432,9 @@ func (e *CodexEngine) defaultDomains(workflowData *WorkflowData) []string {
 
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {
 	base := "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath
+	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+		base += " && export CODEX_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""
+	}
 	if workflowData.IsDetectionRun {
 		return base + " && " + detectionSchemaWriteCmd
 	}
@@ -456,7 +459,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 	if provider == LLMProviderGitHub {
 		copilotToken := llmProviderSecretExpression(provider, workflowData)
 		env["COPILOT_GITHUB_TOKEN"] = copilotToken
-		env["OPENAI_API_KEY"] = copilotToken
+		env[constants.CopilotBYOKDummyAPIKeyEnvVar] = constants.CopilotBYOKDummyAPIKey
 	} else {
 		openAIKey := llmProviderSecretExpression(provider, workflowData)
 		env["CODEX_API_KEY"] = openAIKey
