@@ -122,7 +122,7 @@ function mergeExperimentStateJSON(baseState, remoteState, localState) {
   for (const state of [baseState, remoteState, localState]) {
     if (state.continual === undefined) continue;
     if (!isPlainObject(state.continual)) {
-      throw new Error("Merged continual experiment state must be an object");
+      throw new Error("Continual experiment state must be a plain object");
     }
     for (const [name, value] of Object.entries(state.continual)) {
       if (!isPlainObject(value) || !Number.isInteger(value.current_stage) || value.current_stage < 0) {

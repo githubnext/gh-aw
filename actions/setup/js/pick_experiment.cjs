@@ -159,6 +159,13 @@ function hasCounts(counts) {
   return Object.values(counts).some(variants => Object.keys(variants).length > 0);
 }
 
+/**
+ * Merge persisted continual stages into target without allowing stage regression.
+ *
+ * @param {Record<string, {current_stage: number}>} target
+ * @param {unknown} source
+ * @throws {Error} When source contains invalid continual stage state.
+ */
 function mergeContinualState(target, source) {
   if (!isPlainObject(source)) {
     throw new Error("Invalid continual experiment state: expected an object");
