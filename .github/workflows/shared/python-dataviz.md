@@ -48,7 +48,6 @@ steps:
   - name: Install Python scientific libraries
     env:
       UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python
-      UV_PYTHON: /tmp/gh-aw/python/venv/bin/python
     run: |
       # Create a virtual environment for proper package isolation (avoids --break-system-packages)
       # Use /tmp/gh-aw/python/venv to avoid polluting the agent artifact upload path (/tmp/gh-aw/agent/)
@@ -56,7 +55,7 @@ steps:
         uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
       fi
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
-      uv pip install numpy pandas matplotlib seaborn scipy --quiet
+      /tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
       
       # Verify installations
       /tmp/gh-aw/python/venv/bin/python3 -c "import numpy; print(f'NumPy {numpy.__version__} installed')"

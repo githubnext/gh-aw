@@ -21,8 +21,7 @@ func TestPythonDatavizUsesPortableManagedPython(t *testing.T) {
 	workflowContent := string(content)
 
 	require.Contains(t, workflowContent, "UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python")
-	require.Contains(t, workflowContent, "UV_PYTHON: /tmp/gh-aw/python/venv/bin/python")
 	require.Contains(t, workflowContent, "uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv")
-	require.Contains(t, workflowContent, "uv pip install numpy pandas matplotlib seaborn scipy --quiet")
+	require.Contains(t, workflowContent, "/tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy")
 	require.NotContains(t, workflowContent, "python3 -m venv")
 }
