@@ -282,7 +282,20 @@ describe("approve_workflow_run", () => {
     const result = await handler({ run_id: 123 }, {});
 
     expect(result.success).toBe(false);
+    expect(result.error).toContain("E007: Cannot approve pull request");
     expect(result.error).toContain("fork repository is unavailable");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects pull requests with an unverifiable fork status", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: {} } } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("E007: Unable to verify fork status");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 
@@ -322,6 +335,18 @@ describe("approve_workflow_run", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("modifies protected files");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("fails when modified pull request files cannot be verified", async () => {
+    mockListFiles.mockResolvedValue({ data: [{ filename: 123 }] });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, protected_path_prefixes: [".github/"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("E007: Unable to verify modified files");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 

@@ -8,6 +8,7 @@
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+const { SAFE_OUTPUT_E007 } = require("./error_codes.cjs");
 const path = require("node:path");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -99,7 +100,7 @@ async function getModifiedPullRequestFiles(githubClient, pullRequestNumber) {
     per_page: 100,
   });
   if (!Array.isArray(files) || files.some(file => typeof file?.filename !== "string")) {
-    throw new Error(`Unable to verify modified files for pull request #${pullRequestNumber}`);
+    throw new Error(`${SAFE_OUTPUT_E007}: Unable to verify modified files for pull request #${pullRequestNumber}`);
   }
   return files.map(file => file.filename);
 }
@@ -116,10 +117,10 @@ async function isForkPullRequest(githubClient, pullRequestNumber) {
     pull_number: pullRequestNumber,
   });
   if (pullRequest?.head?.repo === null) {
-    throw new Error(`Cannot approve pull request #${pullRequestNumber}: its fork repository is unavailable`);
+    throw new Error(`${SAFE_OUTPUT_E007}: Cannot approve pull request #${pullRequestNumber}: its fork repository is unavailable`);
   }
   if (typeof pullRequest?.head?.repo?.fork !== "boolean") {
-    throw new Error(`Unable to verify fork status for pull request #${pullRequestNumber}`);
+    throw new Error(`${SAFE_OUTPUT_E007}: Unable to verify fork status for pull request #${pullRequestNumber}`);
   }
   return pullRequest.head.repo.fork;
 }
