@@ -306,7 +306,3 @@ func modelPolicyPatternMatches(pattern, value string) bool {
 	matched, err := regexp.MatchString(re, value)
 	return err == nil && matched
 }
-
-// resolveInlinedImports returns true if inlined-imports is enabled.
-// It reads the value directly from the raw (pre-parsed) frontmatter map, which is always
-// populated regardless of whether ParseFrontmatterConfig succeeded.

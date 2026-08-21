@@ -232,6 +232,121 @@ func TestCollectMemoryValidationScripts(t *testing.T) {
 	assert.NotEqual(t, scripts[0].SHA256, scripts[1].SHA256)
 }
 
+func TestCollectMCPServersForManifest(t *testing.T) {
+	data := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"allowed": []any{"list_issues", "get_issue"},
+			},
+			"playwright": map[string]any{},
+			"my-api": map[string]any{
+				"type":    "http",
+				"url":     "https://api.example.test/mcp",
+				"allowed": []any{"fetch_data", "list_items"},
+			},
+			"all-tools": map[string]any{
+				"command": "npx example-mcp",
+			},
+			"dispatch_workflow": map[string]any{
+				"type": "http",
+				"url":  "https://example.test/mcp",
+			},
+			"cache-memory": true,
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+			NoOp:         &NoOpConfig{},
+			Scripts: map[string]*SafeScriptConfig{
+				"triage-script": {},
+			},
+		},
+		MCPScripts: &MCPScriptsConfig{Tools: map[string]*MCPScriptToolConfig{
+			"lookup": {Name: "lookup"},
+		}},
+	}
+
+	servers := collectMCPServersForManifest(data)
+
+	assert.Equal(t, []GHAWManifestMCPServer{
+		{Name: "all-tools", Tools: []string{"*"}},
+		{Name: "github", Tools: []string{"get_issue", "list_issues"}},
+		{Name: "mcpscripts", Tools: []string{"lookup"}},
+		{Name: "my-api", Tools: []string{"fetch_data", "list_items"}},
+		{Name: "playwright", Tools: []string{
+			"browser_click",
+			"browser_close",
+			"browser_console_messages",
+			"browser_drag",
+			"browser_evaluate",
+			"browser_file_upload",
+			"browser_fill_form",
+			"browser_handle_dialog",
+			"browser_hover",
+			"browser_install",
+			"browser_navigate",
+			"browser_navigate_back",
+			"browser_network_requests",
+			"browser_press_key",
+			"browser_resize",
+			"browser_select_option",
+			"browser_snapshot",
+			"browser_tabs",
+			"browser_take_screenshot",
+			"browser_type",
+			"browser_wait_for",
+		}},
+		{Name: "safeoutputs", Tools: []string{"create_issue", "noop", "triage_script"}},
+	}, servers)
+}
+
+func TestCollectMCPServersForManifestGitHubToolsets(t *testing.T) {
+	servers := collectMCPServersForManifest(&WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"toolsets": []any{"repos", "issues"},
+			},
+		},
+	})
+
+	require.Len(t, servers, 1)
+	assert.Equal(t, "github", servers[0].Name)
+	assert.Contains(t, servers[0].Tools, "list_issues")
+	assert.NotContains(t, servers[0].Tools, "actions_list")
+	assert.NotContains(t, servers[0].Tools, "get_me")
+}
+
+func TestCollectMCPServersForManifestGitHubGHProxy(t *testing.T) {
+	servers := collectMCPServersForManifest(&WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode": "gh-proxy",
+			},
+		},
+	})
+
+	assert.Empty(t, servers)
+}
+
+func TestStringsFromAnySlice(t *testing.T) {
+	assert.Equal(t, []string{"first", "second"}, stringsFromAnySlice([]any{"first", "second"}))
+	assert.Equal(t, []string{"first", "second"}, stringsFromAnySlice([]string{"first", "second"}))
+	assert.Equal(t, []string{"tool"}, stringsFromAnySlice("tool"))
+	assert.Equal(t, []string{"*"}, stringsFromAnySlice(""))
+	assert.Equal(t, []string{"*"}, stringsFromAnySlice(42))
+}
+
+func TestGHAWManifestMCPServersAlwaysSerialized(t *testing.T) {
+	json, err := (&GHAWManifest{
+		Version:    1,
+		Secrets:    []string{},
+		Actions:    []GHAWManifestAction{},
+		MCPServers: collectMCPServersForManifest(&WorkflowData{}),
+	}).ToJSON()
+
+	require.NoError(t, err)
+	assert.Contains(t, json, `"mcp_servers":[]`)
+}
+
 func TestNewGHAWManifestContainerDigest(t *testing.T) {
 	containers := []GHAWManifestContainer{
 		{
