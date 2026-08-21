@@ -116,8 +116,8 @@ function buildStepSummarySection(title, markdown, workingSet = null) {
 function buildWorkingSetDetailsSection(workingSet) {
   if (!workingSet || typeof workingSet !== "object") return "";
   const measurementState = workingSet.measurement_state || "unavailable";
-  const hasFactor = typeof workingSet.rebuild_factor === "number" && Number.isFinite(workingSet.rebuild_factor);
-  const displayFactor = hasFactor ? `${workingSet.rebuild_factor.toFixed(2)}×` : "unavailable";
+  const rebuildFactor = typeof workingSet.rebuild_factor === "number" && Number.isFinite(workingSet.rebuild_factor) ? workingSet.rebuild_factor : null;
+  const displayFactor = rebuildFactor === null ? "unavailable" : `${rebuildFactor.toFixed(2)}×`;
   const displayInvocations = Number.isFinite(workingSet.invocations) ? workingSet.invocations.toLocaleString() : "0";
   const displayCumulative = Number.isFinite(workingSet.cumulative_input_tokens) ? workingSet.cumulative_input_tokens.toLocaleString() : "0";
   const displayPeak = Number.isFinite(workingSet.peak_input_tokens) ? workingSet.peak_input_tokens.toLocaleString() : "0";
