@@ -30,13 +30,13 @@ func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
 		expected LLMProvider
 	}{
 		{
-			name:     "copilot-large selects GitHub",
-			data:     &WorkflowData{Model: "copilot-large", EngineConfig: &EngineConfig{ID: "codex"}},
+			name:     "copilot prefix selects GitHub",
+			data:     &WorkflowData{Model: "copilot/auto", EngineConfig: &EngineConfig{ID: "codex"}},
 			expected: LLMProviderGitHub,
 		},
 		{
 			name:     "model matching is case insensitive",
-			data:     &WorkflowData{Model: " COPILOT-LARGE ", EngineConfig: &EngineConfig{ID: "codex"}},
+			data:     &WorkflowData{Model: " COPILOT/AUTO ", EngineConfig: &EngineConfig{ID: "codex"}},
 			expected: LLMProviderGitHub,
 		},
 		{
@@ -47,9 +47,14 @@ func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
 		{
 			name: "explicit provider overrides model",
 			data: &WorkflowData{
-				Model:        "copilot-large",
+				Model:        "copilot/auto",
 				EngineConfig: &EngineConfig{ID: "codex", LLMProvider: LLMProviderOpenAI},
 			},
+			expected: LLMProviderOpenAI,
+		},
+		{
+			name:     "legacy copilot-large name keeps OpenAI default",
+			data:     &WorkflowData{Model: "copilot-large", EngineConfig: &EngineConfig{ID: "codex"}},
 			expected: LLMProviderOpenAI,
 		},
 	}
@@ -63,11 +68,11 @@ func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
 	}
 }
 
-func TestCodexEngineCopilotLargeUsesGitHubInference(t *testing.T) {
+func TestCodexEngineCopilotModelUsesGitHubInference(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		Model:        "copilot-large",
+		Model:        "copilot/auto",
 		EngineConfig: &EngineConfig{ID: "codex"},
 		SafeOutputs:  &SafeOutputsConfig{},
 		NetworkPermissions: &NetworkPermissions{
@@ -82,7 +87,7 @@ func TestCodexEngineCopilotLargeUsesGitHubInference(t *testing.T) {
 		`api.githubcopilot.com`,
 		`COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
 		`OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
-		`GH_AW_MODEL_AGENT_CODEX: copilot-large`,
+		`GH_AW_MODEL_AGENT_CODEX: auto`,
 		`${GH_AW_MODEL_AGENT_CODEX:+ --model "$GH_AW_MODEL_AGENT_CODEX"}`,
 	}
 	for _, value := range expected {
@@ -100,11 +105,11 @@ func TestCodexEngineCopilotLargeUsesGitHubInference(t *testing.T) {
 	}
 }
 
-func TestCodexEngineCopilotLargeUsesGitHubActionsToken(t *testing.T) {
+func TestCodexEngineCopilotModelUsesGitHubActionsToken(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		Model:        "copilot-large",
+		Model:        "copilot/auto",
 		EngineConfig: &EngineConfig{ID: "codex"},
 		Permissions:  "permissions:\n  copilot-requests: write",
 		SafeOutputs:  &SafeOutputsConfig{},

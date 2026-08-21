@@ -15,7 +15,7 @@ permissions:
 
 
 engine: codex
-model: copilot-large
+model: copilot/auto
 network:
   allowed:
     - defaults

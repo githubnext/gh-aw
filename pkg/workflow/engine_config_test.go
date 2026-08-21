@@ -954,7 +954,7 @@ safe-outputs:
 	assert.Equal(t, "gpt-5-mini", metadata.DetectionAgentModel)
 }
 
-func TestCompileCodexWithCopilotLargeModel(t *testing.T) {
+func TestCompileCodexWithCopilotModel(t *testing.T) {
 	workflowPath := filepath.Join(testutil.TempDir(t, "codex-copilot-model-test"), "workflow.md")
 	workflowContent := `---
 on: push
@@ -963,7 +963,7 @@ permissions:
   copilot-requests: write
 strict: false
 engine: codex
-model: copilot-large
+model: copilot/auto
 ---
 
 # Test Workflow
@@ -982,7 +982,7 @@ model: copilot-large
 	lock := string(lockFile)
 	assert.Contains(t, lock, "GH_AW_LLM_PROVIDER: github")
 	assert.Contains(t, lock, "OPENAI_API_KEY: ${{ github.token }}")
-	assert.Contains(t, lock, "GH_AW_MODEL_AGENT_CODEX: copilot-large")
+	assert.Contains(t, lock, "GH_AW_MODEL_AGENT_CODEX: auto")
 	assert.NotContains(t, lock, "secrets.CODEX_API_KEY")
 	assert.NotContains(t, lock, "secrets.OPENAI_API_KEY")
 }

@@ -81,16 +81,25 @@ func (e *CodexEngine) GetModelEnvVarName() string {
 }
 
 // ResolveLLMProvider returns the effective provider for Codex inference.
-// The copilot-large model uses GitHub-hosted inference by default. An explicit
+// A copilot/ model prefix selects GitHub-hosted inference. An explicit
 // engine.provider (or engine.model-provider) override always takes precedence.
 func (e *CodexEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvider {
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.LLMProvider != "" {
 		return resolveEngineLLMProvider(workflowData, LLMProviderOpenAI)
 	}
-	if workflowData != nil && strings.EqualFold(strings.TrimSpace(workflowData.Model), "copilot-large") {
+	if workflowData != nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(workflowData.Model)), "copilot/") {
 		return LLMProviderGitHub
 	}
 	return resolveEngineLLMProvider(workflowData, LLMProviderOpenAI)
+}
+
+func codexModelID(model string) string {
+	model = strings.TrimSpace(model)
+	provider, modelID, found := strings.Cut(model, "/")
+	if found && strings.EqualFold(provider, "copilot") {
+		return modelID
+	}
+	return model
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
@@ -473,8 +482,9 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 		if containsExpression(workflowData.Model) {
 			env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 		}
-		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.Model)
-		env[modelEnvVar] = workflowData.Model
+		model := codexModelID(workflowData.Model)
+		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, model)
+		env[modelEnvVar] = model
 	} else {
 		env[modelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	}
