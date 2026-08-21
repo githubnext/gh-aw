@@ -12,6 +12,10 @@ const path = require("node:path");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
+const { getRunStartedMessage } = require("./messages_run_status.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "approve_workflow_run";
@@ -118,6 +122,43 @@ async function isForkPullRequest(githubClient, pullRequestNumber) {
     throw new Error(`Unable to verify fork status for pull request #${pullRequestNumber}`);
   }
   return pullRequest.head.repo.fork;
+}
+
+/**
+ * Build the comment body announcing that an approved workflow run has started.
+ * @param {string} runHtmlUrl - HTML URL of the approved workflow run
+ * @param {number|undefined} pullRequestNumber - Pull request number the comment is posted on
+ * @returns {string} The complete comment body with attribution footer
+ */
+function buildApprovalCommentBody(runHtmlUrl, pullRequestNumber) {
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
+
+  const message = sanitizeContent(getRunStartedMessage({ workflowName, runUrl: runHtmlUrl, eventType: "pull request" }));
+  const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, pullRequestNumber, undefined, undefined);
+  return `${message}\n\n${footer}`;
+}
+
+/**
+ * Post a comment on the pull request announcing that the approved workflow run has started.
+ * Failures are logged as warnings and never fail the overall approval.
+ * @param {any} githubClient
+ * @param {number} pullRequestNumber
+ * @param {string} runHtmlUrl
+ */
+async function postApprovalComment(githubClient, pullRequestNumber, runHtmlUrl) {
+  try {
+    await githubClient.rest.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: pullRequestNumber,
+      body: buildApprovalCommentBody(runHtmlUrl, pullRequestNumber),
+    });
+  } catch (error) {
+    core.warning(`Failed to post approval comment on pull request #${pullRequestNumber}: ${getErrorMessage(error)}`);
+  }
 }
 
 /**
@@ -249,6 +290,16 @@ async function main(config = {}) {
       }
 
       core.info(`Approved workflow run ${runId}: ${run.html_url}`);
+
+      if (config.comment !== false) {
+        for (const pullRequest of run.pull_requests) {
+          const pullRequestNumber = parsePositiveInt(pullRequest.number);
+          if (pullRequestNumber !== undefined) {
+            await postApprovalComment(githubClient, pullRequestNumber, run.html_url);
+          }
+        }
+      }
+
       return { success: true, run_id: runId, url: run.html_url };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -266,4 +317,6 @@ module.exports = {
   isAllowedWorkflow,
   getModifiedPullRequestFiles,
   isForkPullRequest,
+  buildApprovalCommentBody,
+  postApprovalComment,
 };
