@@ -1,20 +1,6 @@
 // @ts-check
 import { describe, expect, it } from "vitest";
-
-const ISSUE_FIELDS_DISCOVERY_QUERY = `query($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    issueFields(first: 100) {
-      nodes {
-        __typename
-        ... on IssueFieldText { id name dataType }
-        ... on IssueFieldNumber { id name dataType }
-        ... on IssueFieldDate { id name dataType }
-        ... on IssueFieldSingleSelect { id name dataType options { id name } }
-        ... on IssueFieldMultiSelect { id name dataType options { id name } }
-      }
-    }
-  }
-}`;
+const { ISSUE_FIELDS_QUERY } = require("./create_issue.cjs");
 
 describe("create_issue GraphQL field discovery query integration", () => {
   it("validates against live schema and excludes the removed IssueField/IssueFieldIteration fragments", async () => {
@@ -31,7 +17,7 @@ describe("create_issue GraphQL field discovery query integration", () => {
     const octokit = getOctokit(token);
 
     try {
-      const result = await octokit.graphql(ISSUE_FIELDS_DISCOVERY_QUERY, { owner, repo });
+      const result = await octokit.graphql(ISSUE_FIELDS_QUERY, { owner, repo });
       expect(result?.repository).toBeDefined();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

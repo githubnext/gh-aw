@@ -227,14 +227,14 @@ describe("create_issue", () => {
       mockGithub.graphql
         .mockResolvedValueOnce({
           repository: {
-            issue: { id: "ISSUE_NODE_ID" },
+            issueFields: {
+              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
+            },
           },
         })
         .mockResolvedValueOnce({
           repository: {
-            issueFields: {
-              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
-            },
+            issue: { id: "ISSUE_NODE_ID" },
           },
         })
         .mockResolvedValueOnce({
@@ -257,19 +257,13 @@ describe("create_issue", () => {
     });
 
     it("should return actionable error for unknown issue field name", async () => {
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "ISSUE_NODE_ID" },
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issueFields: {
+            nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "TEXT" }],
           },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issueFields: {
-              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "TEXT" }],
-            },
-          },
-        });
+        },
+      });
 
       const handler = await main({});
       const result = await handler({
@@ -281,22 +275,17 @@ describe("create_issue", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('unknown issue field "Iteration"');
       expect(result.error).toContain("Available fields: Priority");
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
     });
 
     it("should return actionable error for invalid single-select option", async () => {
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "ISSUE_NODE_ID" },
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issueFields: {
+            nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
           },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issueFields: {
-              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
-            },
-          },
-        });
+        },
+      });
 
       const handler = await main({});
       const result = await handler({
@@ -308,6 +297,7 @@ describe("create_issue", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('invalid option "Low" for issue field "Priority"');
       expect(result.error).toContain("Available options: High");
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
     });
 
     it("should enforce configured allowed-fields list", async () => {
@@ -328,14 +318,14 @@ describe("create_issue", () => {
       mockGithub.graphql
         .mockResolvedValueOnce({
           repository: {
-            issue: { id: "ISSUE_NODE_ID" },
+            issueFields: {
+              nodes: [{ id: "FIELD_IMPACT", name: "Customer Impact", dataType: "TEXT" }],
+            },
           },
         })
         .mockResolvedValueOnce({
           repository: {
-            issueFields: {
-              nodes: [{ id: "FIELD_IMPACT", name: "Customer Impact", dataType: "TEXT" }],
-            },
+            issue: { id: "ISSUE_NODE_ID" },
           },
         })
         .mockResolvedValueOnce({
@@ -360,11 +350,6 @@ describe("create_issue", () => {
       mockGithub.graphql
         .mockResolvedValueOnce({
           repository: {
-            issue: { id: "ISSUE_NODE_ID" },
-          },
-        })
-        .mockResolvedValueOnce({
-          repository: {
             issueFields: {
               nodes: [
                 {
@@ -378,6 +363,11 @@ describe("create_issue", () => {
                 },
               ],
             },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
           },
         })
         .mockResolvedValueOnce({
@@ -398,18 +388,61 @@ describe("create_issue", () => {
       expect(mutationCall[1].input.issueFields).toEqual([{ fieldId: "FIELD_TAGS", multiSelectOptionIds: ["OPTION_BUG", "OPTION_REGRESSION"] }]);
     });
 
+    it("should return actionable error for invalid multi-select option", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issueFields: {
+            nodes: [{ id: "FIELD_TAGS", name: "Tags", dataType: "MULTI_SELECT", options: [{ id: "OPTION_BUG", name: "Bug" }] }],
+          },
+        },
+      });
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Issue with invalid multi-select option",
+        body: "Body",
+        fields: [{ name: "Tags", value: "Unknown" }],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('invalid option "Unknown" for issue field "Tags"');
+      expect(result.error).toContain("Available options: Bug");
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should return actionable error for a blank multi-select value", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issueFields: {
+            nodes: [{ id: "FIELD_TAGS", name: "Tags", dataType: "MULTI_SELECT", options: [{ id: "OPTION_BUG", name: "Bug" }] }],
+          },
+        },
+      });
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Issue with blank multi-select value",
+        body: "Body",
+        fields: [{ name: "Tags", value: " , ," }],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('issue field "Tags" requires at least one selected option');
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
     it("should not query removed IssueField/IssueFieldIteration fragments", async () => {
       mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "ISSUE_NODE_ID" },
-          },
-        })
         .mockResolvedValueOnce({
           repository: {
             issueFields: {
               nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
             },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
           },
         })
         .mockResolvedValueOnce({

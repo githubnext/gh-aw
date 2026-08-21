@@ -271,6 +271,54 @@ async function resolveIssueNodeId(githubClient, owner, repo, issueNumber) {
 }
 
 /**
+ * GraphQL query used to discover issue field definitions for a repository.
+ * Exported so integration tests can validate the exact query sent in production
+ * against the live schema, instead of maintaining a separate copy that could drift.
+ */
+const ISSUE_FIELDS_QUERY = `query($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    issueFields(first: 100) {
+      nodes {
+        __typename
+        ... on IssueFieldText {
+          id
+          name
+          dataType
+        }
+        ... on IssueFieldNumber {
+          id
+          name
+          dataType
+        }
+        ... on IssueFieldDate {
+          id
+          name
+          dataType
+        }
+        ... on IssueFieldSingleSelect {
+          id
+          name
+          dataType
+          options {
+            id
+            name
+          }
+        }
+        ... on IssueFieldMultiSelect {
+          id
+          name
+          dataType
+          options {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+}`;
+
+/**
  * Fetch issue field metadata from repository.
  * Returns configured field definitions including types and options.
  * @param {Object} githubClient
@@ -279,51 +327,7 @@ async function resolveIssueNodeId(githubClient, owner, repo, issueNumber) {
  * @returns {Promise<Array<any>>}
  */
 async function fetchIssueFields(githubClient, owner, repo) {
-  const result = await githubClient.graphql(
-    `query($owner: String!, $repo: String!) {
-      repository(owner: $owner, name: $repo) {
-        issueFields(first: 100) {
-          nodes {
-            __typename
-            ... on IssueFieldText {
-              id
-              name
-              dataType
-            }
-            ... on IssueFieldNumber {
-              id
-              name
-              dataType
-            }
-            ... on IssueFieldDate {
-              id
-              name
-              dataType
-            }
-            ... on IssueFieldSingleSelect {
-              id
-              name
-              dataType
-              options {
-                id
-                name
-              }
-            }
-            ... on IssueFieldMultiSelect {
-              id
-              name
-              dataType
-              options {
-                id
-                name
-              }
-            }
-          }
-        }
-      }
-    }`,
-    { owner, repo }
-  );
+  const result = await githubClient.graphql(ISSUE_FIELDS_QUERY, { owner, repo });
 
   return Array.isArray(result?.repository?.issueFields?.nodes) ? result.repository.issueFields.nodes.filter(Boolean) : [];
 }
@@ -376,6 +380,9 @@ function buildIssueFieldMutationInput(requestedFields, availableFields) {
         .split(",")
         .map(value => value.trim())
         .filter(Boolean);
+      if (requestedValues.length === 0) {
+        throw new Error(`${ERR_VALIDATION}: issue field "${field.name}" requires at least one selected option`);
+      }
       const multiSelectOptionIds = requestedValues.map(value => {
         const selectedOption = options.find(option => typeof option?.name === "string" && option.name.toLowerCase() === value.toLowerCase());
         if (!selectedOption) {
@@ -478,19 +485,34 @@ function resolveBlockedByReferences(blockedBy, temporaryIdMap, defaultRepo, allo
 }
 
 /**
- * Apply issue field values to a newly-created issue.
- * Resolves metadata and sends the setIssueFieldValue GraphQL mutation.
- * @param {{githubClient: Object, owner: string, repo: string, issueNumber: number, fields: Array<{name: string, value: string|number}>}} params
+ * Discover and validate issue field mutation inputs against the repository's configured
+ * fields (schema, unknown-field, and invalid-option checks). Performed before issue
+ * creation so invalid `fields` payloads fail fast without leaving an orphaned issue.
+ * @param {Object} githubClient
+ * @param {string} owner
+ * @param {string} repo
+ * @param {Array<{name: string, value: string|number}>} fields
+ * @returns {Promise<Array<any>>}
+ */
+async function resolveIssueFieldMutationInput(githubClient, owner, repo, fields) {
+  if (!Array.isArray(fields) || fields.length === 0) {
+    return [];
+  }
+  const availableFields = await fetchIssueFields(githubClient, owner, repo);
+  return buildIssueFieldMutationInput(fields, availableFields);
+}
+
+/**
+ * Apply pre-validated issue field mutation inputs to a newly-created issue.
+ * @param {{githubClient: Object, owner: string, repo: string, issueNumber: number, issueFieldsInput: Array<any>}} params
  * @returns {Promise<void>}
  */
-async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields }) {
-  if (!Array.isArray(fields) || fields.length === 0) {
+async function submitIssueFieldMutation({ githubClient, owner, repo, issueNumber, issueFieldsInput }) {
+  if (!Array.isArray(issueFieldsInput) || issueFieldsInput.length === 0) {
     return;
   }
 
   const issueId = await resolveIssueNodeId(githubClient, owner, repo, issueNumber);
-  const availableFields = await fetchIssueFields(githubClient, owner, repo);
-  const issueFields = buildIssueFieldMutationInput(fields, availableFields);
 
   await githubClient.graphql(
     `mutation($input: SetIssueFieldValueInput!) {
@@ -503,7 +525,7 @@ async function applyIssueFields({ githubClient, owner, repo, issueNumber, fields
     {
       input: {
         issueId,
-        issueFields,
+        issueFields: issueFieldsInput,
       },
     }
   );
@@ -851,9 +873,15 @@ async function main(config = {}) {
       .filter((assignee, index, arr) => arr.indexOf(assignee) === index);
 
     let issueFields;
+    let preparedIssueFieldsInput = [];
     try {
       issueFields = normalizeIssueFields(message.fields);
       validateAllowedIssueFields(issueFields, allowedIssueFields);
+      if (issueFields.length > 0) {
+        // Discover and validate field schema/options before creating the issue so
+        // invalid `fields` payloads fail fast without leaving an orphaned issue.
+        preparedIssueFieldsInput = await resolveIssueFieldMutationInput(githubClient, repoParts.owner, repoParts.repo, issueFields);
+      }
     } catch (error) {
       return { success: false, error: getErrorMessage(error) };
     }
@@ -1172,12 +1200,12 @@ async function main(config = {}) {
 
       if (issueFields.length > 0) {
         try {
-          await applyIssueFields({
+          await submitIssueFieldMutation({
             githubClient,
             owner: repoParts.owner,
             repo: repoParts.repo,
             issueNumber: issue.number,
-            fields: issueFields,
+            issueFieldsInput: preparedIssueFieldsInput,
           });
           core.info(`Applied ${issueFields.length} issue field(s) to ${qualifiedItemRepo}#${issue.number}`);
         } catch (error) {
@@ -1383,4 +1411,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount };
+module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount, ISSUE_FIELDS_QUERY };
