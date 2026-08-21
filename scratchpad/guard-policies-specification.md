@@ -102,6 +102,8 @@ tools:
 
 > **Note**: The field was originally named `repos` and renamed to `allowed-repos` in PR #22331. The old name is retained as a deprecated alias; run `gh aw fix` to migrate automatically.
 
+Runtime precedence is defined by the canonical [Evaluation Order](#41-evaluation-order) in Operations.
+
 ## Operations
 
 ### 4. MCP Gateway Configuration Flow
@@ -126,6 +128,14 @@ tools:
    - Gateway receives guard policies in server configuration
    - Enforces policies on all tool invocations
    - Blocks unauthorized repository access
+
+### 4.1 Evaluation Order
+
+The MCP Gateway MUST evaluate access in this order:
+
+1. `lockdown: true` takes absolute precedence and denies the invocation; `allowed-repos` and `min-integrity` MUST NOT be evaluated.
+2. When lockdown is not enabled, `allowed-repos` determines whether the target repository is in scope.
+3. When the repository is in scope, `min-integrity` determines whether the content meets the required integrity level. Both checks MUST pass to allow the invocation.
 
 ### 5. Safe Outputs Integration
 
@@ -403,8 +413,7 @@ tools:
 
 3. **How should conflicts between lockdown and guard policies be resolved?**
 
-   **Decision**: `lockdown: true` takes **absolute precedence** over guard policies. When `lockdown: true` is set, all tool invocations are blocked regardless of any `allowed-repos` or `min-integrity` configuration. Guard policies are not evaluated when lockdown is active.
-   *Rationale*: Lockdown is an emergency/security stop; it MUST NOT be weakened by other configuration. Guard policies narrow access within an otherwise-open tool session; they do not grant access that lockdown has revoked. The compiler SHOULD warn operators at compilation time when both `lockdown: true` and guard-policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, `approval-labels`) are present, as the combination is likely a misconfiguration. This warning is now implemented in `pkg/workflow/tools_validation_github.go`, where `validateGitHubGuardPolicy()` detects the conflict and `emitGitHubLockdownGuardPolicyWarning()` surfaces the compiler warning.
+   **Decision**: The canonical [Evaluation Order](#41-evaluation-order) applies. The compiler SHOULD warn operators at compilation time when `lockdown: true` and guard-policy fields are both present; this is implemented in `pkg/workflow/tools_validation_github.go`, where `validateGitHubGuardPolicy()` detects the conflict and `emitGitHubLockdownGuardPolicyWarning()` surfaces the warning.
 
 4. **Should we add a "dry-run" mode to test policies before enforcement?**
 

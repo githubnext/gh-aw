@@ -105,18 +105,18 @@ func TestAWFConfigSafeguard_TDRSAFE001_SnapshotStoragePathSelection(t *testing.T
 	assert.NotEqual(t, filepath.Clean(formalSnapshotStoragePath(false)), filepath.Clean(formalSnapshotStoragePath(true)))
 }
 
-func TestFormalP13_EscalationOwnerAssignmentFallbackChain(t *testing.T) {
+func TestAWFConfigSafeguard_TDR011_EscalationOwnerAssignmentFallbackChain(t *testing.T) {
 	assert.Equal(t, "@last-maintainer", formalEscalationOwner("@last-maintainer", "@on-call"))
 	assert.Equal(t, "@on-call", formalEscalationOwner("", "@on-call"))
 }
 
-func TestFormalP14_EscalationOwnerMustNotBeUnassigned(t *testing.T) {
+func TestAWFConfigSafeguard_TDR011_EscalationOwnerMustNotBeUnassigned(t *testing.T) {
 	assert.True(t, formalEscalationOwnerNonEmpty(formalEscalationOwner("@last-maintainer", "@on-call")))
 	assert.True(t, formalEscalationOwnerNonEmpty(formalEscalationOwner("", "@on-call")))
 	assert.False(t, formalEscalationOwnerNonEmpty(formalEscalationOwner("", "")))
 }
 
-func TestFormalP15_EscalationAcknowledgementWindow(t *testing.T) {
+func TestAWFConfigSafeguard_TDR011_EscalationAcknowledgementWindow(t *testing.T) {
 	assignedFriday := time.Date(2026, 8, 7, 9, 0, 0, 0, time.UTC)
 	mondayDeadline := time.Date(2026, 8, 10, 9, 0, 0, 0, time.UTC)
 
