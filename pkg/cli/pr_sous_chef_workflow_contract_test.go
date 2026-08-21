@@ -57,4 +57,9 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, ".startedAt // .createdAt) as $ts", "Workflow must bind timestamp (startedAt with createdAt fallback) to a variable for null-safe comparison")
 	assert.Contains(t, text, "$ts == null or (($ts | fromdateiso8601) > $cutoff)", "Workflow must treat null timestamps as pending and ignore checks running > 1 hour")
 	assert.Contains(t, text, "Long-running checks (running > 1 hour) are intentionally ignored", "Workflow instructions must document the long-running check exception")
+	assert.Contains(t, text, "createdAt,updatedAt,changedFiles", "Prefilter must fetch creation time and changed-file count for zero-diff triage")
+	assert.Contains(t, text, `zero_diff_age_hours="${ZERO_DIFF_AGE_HOURS:-24}"`, "Workflow must define a configurable zero-diff age threshold")
+	assert.Contains(t, text, "zero_diff_stalled", "Workflow must classify and report stalled zero-diff PRs")
+	assert.Contains(t, text, "PRs with `zero_diff_stalled == true` next", "Workflow must prioritize stalled zero-diff PRs before ordinary nudges")
+	assert.Contains(t, text, "zero_diff_stalled_count=", "Prefilter must expose the stalled zero-diff count")
 }
