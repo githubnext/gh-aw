@@ -64,6 +64,8 @@
 
 "use strict";
 
+require("./shim.cjs");
+
 const fs = require("fs");
 const path = require("path");
 const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
@@ -484,7 +486,7 @@ async function renderInternalEngineLogOnFailure() {
     return;
   }
 
-  await renderLogFromFile(logFile, `Engine internal logs (${internalLogsDir})`);
+  await renderLogFromFile(logFile, `Engine internal logs (${internalLogsDir})`, { tailLines: 200 });
 }
 
 async function main() {

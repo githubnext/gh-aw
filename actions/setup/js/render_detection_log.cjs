@@ -38,11 +38,12 @@ const MAX_LOG_BYTES = 1024 * 1024; // 1 MiB
  * Reads a log file (with size capping), applies built-in redaction, and
  * renders it to stdout wrapped in GitHub Actions group + stop-commands macros.
  *
- * @param {string} filePath   - Absolute path to the log file to render.
- * @param {string} groupTitle - Label shown in the collapsible group header.
+ * @param {string} filePath                     - Absolute path to the log file to render.
+ * @param {string} groupTitle                   - Label shown in the collapsible group header.
+ * @param {{ tailLines?: number }} [options]    - Optional bounded tail to render.
  * @returns {Promise<void>}
  */
-async function renderLogFromFile(filePath, groupTitle) {
+async function renderLogFromFile(filePath, groupTitle, options) {
   if (!fs.existsSync(filePath)) {
     core.info("Log not found, skipping render: " + filePath);
     return;
@@ -73,18 +74,28 @@ async function renderLogFromFile(filePath, groupTitle) {
 
   let content;
   try {
+    const tailLines = options?.tailLines;
     if (stat.size > MAX_LOG_BYTES) {
-      core.warning("Log exceeds " + MAX_LOG_BYTES + " bytes (" + stat.size + " bytes); truncating to first " + MAX_LOG_BYTES + " bytes: " + filePath);
+      const readFrom = tailLines ? stat.size - MAX_LOG_BYTES : 0;
+      core.warning("Log exceeds " + MAX_LOG_BYTES + " bytes (" + stat.size + " bytes); truncating to " + (tailLines ? "last " : "first ") + MAX_LOG_BYTES + " bytes: " + filePath);
       const fd = fs.openSync(filePath, "r");
       try {
         const buf = Buffer.alloc(MAX_LOG_BYTES);
-        const bytesRead = fs.readSync(fd, buf, 0, MAX_LOG_BYTES, 0);
+        const bytesRead = fs.readSync(fd, buf, 0, MAX_LOG_BYTES, readFrom);
         content = buf.slice(0, bytesRead).toString("utf8");
+        if (tailLines) {
+          const firstNewline = content.indexOf("\n");
+          content = firstNewline === -1 ? "" : content.slice(firstNewline + 1);
+        }
       } finally {
         fs.closeSync(fd);
       }
     } else {
       content = fs.readFileSync(filePath, "utf8");
+    }
+    if (tailLines) {
+      const lines = content.split("\n");
+      content = lines.slice(-(tailLines + (content.endsWith("\n") ? 1 : 0))).join("\n");
     }
   } catch (error) {
     core.warning("Failed to read log: " + getErrorMessage(error));

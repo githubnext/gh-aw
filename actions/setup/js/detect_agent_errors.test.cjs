@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { spawnSync } from "child_process";
 
 // Minimal mock for @actions/core used by github-script CJS modules (renderLogFromFile).
 const mockCore = {
@@ -1061,20 +1062,42 @@ describe("renderInternalEngineLogOnFailure() / findMostRecentLogFile()", () => {
       expect(capturedStdout()).toBe("");
     });
 
-    it("renders the most recent log file wrapped in group + stop-commands macros on failure", async () => {
+    it("renders the last 200 lines of the most recent log wrapped in group + stop-commands macros on failure", async () => {
       process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR = logsDir;
       process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = "failure";
-      fs.writeFileSync(path.join(logsDir, "codex.log"), "codex crashed here\n", "utf8");
+      const lines = Array.from({ length: 250 }, (_, index) => `codex line ${String(index + 1).padStart(3, "0")}`);
+      fs.writeFileSync(path.join(logsDir, "codex.log"), lines.join("\n") + "\n", "utf8");
 
       await renderInternalEngineLogOnFailure();
 
       const out = capturedStdout();
       expect(out).toMatch(/^::group::Engine internal logs \(/);
-      expect(out).toContain("codex crashed here");
+      expect(out).not.toContain("codex line 050");
+      expect(out).toContain("codex line 051");
+      expect(out).toContain("codex line 250");
       const stopMatch = out.match(/::stop-commands::(render-[a-f0-9]+)\n/);
       expect(stopMatch).not.toBeNull();
       expect(out).toContain("::" + stopMatch[1] + "::\n");
       expect(out).toContain("::endgroup::\n");
+    });
+
+    it("runs directly under Node and redacts credentials", () => {
+      const fakeToken = "ghp_" + "A".repeat(36);
+      fs.writeFileSync(path.join(logsDir, "codex.log"), `token=${fakeToken}\n`, "utf8");
+
+      const result = spawnSync(process.execPath, [path.join(import.meta.dirname, "detect_agent_errors.cjs")], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GH_AW_AGENTIC_EXECUTION_OUTCOME: "failure",
+          GH_AW_ENGINE_INTERNAL_LOGS_DIR: logsDir,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("***REDACTED***");
+      expect(result.stdout).not.toContain(fakeToken);
+      expect(result.stderr).not.toContain("ReferenceError");
     });
   });
 });
