@@ -1551,3 +1551,23 @@ func findToolCallDiffEntry(entries []ToolCallDiffEntry, name string) *ToolCallDi
 	}
 	return nil
 }
+
+func TestComputeRunMetricsDiffIncludesWorkingSetRebuild(t *testing.T) {
+	t.Parallel()
+	run1Factor := 2.0
+	run2Factor := 3.9
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
+		WorkingSet: &WorkingSetMetrics{MeasurementState: "measured", RebuildFactor: &run1Factor},
+	}}
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
+		WorkingSet: &WorkingSetMetrics{MeasurementState: "measured", RebuildFactor: &run2Factor},
+	}}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	require.NotNil(t, diff)
+	require.NotNil(t, diff.Run1WorkingSetRebuild)
+	require.NotNil(t, diff.Run2WorkingSetRebuild)
+	assert.InDelta(t, 2.0, *diff.Run1WorkingSetRebuild, 1e-12)
+	assert.InDelta(t, 3.9, *diff.Run2WorkingSetRebuild, 1e-12)
+	assert.Equal(t, "+95.0%", diff.WorkingSetRebuildDelta)
+}

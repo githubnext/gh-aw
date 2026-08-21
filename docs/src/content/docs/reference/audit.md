@@ -80,6 +80,10 @@ The Metrics section includes an `ambient_context` object when available. Ambient
 - `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
 - `ambient_context.effective_tokens` — legacy ET field (`input_tokens + cached_tokens`) retained for compatibility
 
+The Metrics section and JSON output also include `working_set` from the compact usage activity summary. When measured, human-readable output shows `working-set-rebuild=<factor>×`; JSON preserves the measurement state, factor, cumulative and peak input tokens, rebuild excess, and invocation count. Diff output compares measured factors without assigning a success or failure interpretation.
+
+Working-Set Rebuild Factor measures cumulative context reconstruction relative to peak invocation context. It is an efficiency/trajectory metric, not a measurement of semantic coherence debt and not a predictor of task success. Equal factors can occur on successful and failed runs, and missing required facts cannot be inferred from the value.
+
 **Diff output** includes network changes (new, removed, and allow/deny flips), anomaly flags, MCP tool invocation changes, run-level metric deltas, token and AIC breakdowns, tokens per turn, per-tool call counts with max input/output sizes, and aggregated bash command usage.
 
 With multiple comparisons, `--json` emits a single object for one comparison or an array for many, while `--format pretty` and `--format markdown` separate each diff with dividers.
@@ -110,6 +114,8 @@ Top-level fields in `--json` output are stable; nested sub-fields may be extende
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
 For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, and legacy `effective_tokens`). It is absent when the downloaded artifacts do not contain usable `token-usage.jsonl` or fallback `agent_usage.json` data for that run.
+
+Detailed logs JSON output includes the same `working_set` object when the usage activity summary is available.
 
 **`--stdin` mode:** Pass `--stdin` to supply an explicit list of run IDs or URLs instead of letting the command discover runs from the GitHub API. Date, count, and workflow-name filters are ignored; `--engine`, `--firewall`, `--safe-output`, and other content filters still apply. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`.
 

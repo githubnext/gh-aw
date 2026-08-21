@@ -1277,6 +1277,12 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 		t.Fatalf("Failed to read collect_usage_artifact_files.sh: %v", err)
 	}
 	script := string(scriptBytes)
+	generatorPath := filepath.Join("..", "..", "actions", "setup", "js", "generate_usage_activity_summary.cjs")
+	generatorBytes, err := os.ReadFile(generatorPath)
+	if err != nil {
+		t.Fatalf("Failed to read generate_usage_activity_summary.cjs: %v", err)
+	}
+	generator := string(generatorBytes)
 
 	// --- YAML assertions: step names, script invocation, and upload artifact paths ---
 
@@ -1332,6 +1338,10 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if downloadIdx == -1 || collectIdx == -1 || downloadIdx >= collectIdx {
 		t.Errorf("Expected 'Download Safe Outputs Items Manifest' to appear before 'Collect usage artifact files'.\ndownloadIdx=%d collectIdx=%d\nGenerated steps:\n%s", downloadIdx, collectIdx, allSteps)
 	}
+	uploadIdx := strings.Index(allSteps, "Upload usage artifact")
+	if collectIdx == -1 || uploadIdx == -1 || collectIdx >= uploadIdx || !strings.Contains(allSteps[collectIdx:uploadIdx], "continue-on-error: true") {
+		t.Errorf("Expected unavailable working-set data not to fail the conclusion job.\nGenerated steps:\n%s", allSteps)
+	}
 
 	// --- Script assertions: verify collection logic inside collect_usage_artifact_files.sh ---
 
@@ -1372,6 +1382,9 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	}
 	if !strings.Contains(script, "generate_usage_activity_summary.cjs") {
 		t.Errorf("Expected collect script to generate activity summary aggregates.\nScript:\n%s", script)
+	}
+	if !strings.Contains(generator, "calculateWorkingSetFromJSONL") || !strings.Contains(generator, "summary.working_set = workingSet") {
+		t.Errorf("Expected usage activity generator to calculate and persist working-set rebuild metrics.\nGenerator:\n%s", generator)
 	}
 	if !strings.Contains(script, `node "${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs"`) {
 		t.Errorf("Expected collect script to use quoted shell-safe RUNNER_TEMP form to prevent word-splitting (SC2086).\nScript:\n%s", script)

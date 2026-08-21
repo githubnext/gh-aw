@@ -2112,6 +2112,33 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.steering_event_count", runtimeMetrics.steeringEventCount));
   attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));
 
+  // The compact usage summary is assembled by the conclusion job before its
+  // setup action post-step emits this run-level span.
+  if (jobName === "conclusion") {
+    const usageActivity = readJSONIfExists("/tmp/gh-aw/usage/activity/summary.json");
+    const workingSet = usageActivity?.working_set;
+    const measurementState = workingSet?.measurement_state;
+    if (measurementState === "measured" || measurementState === "partial" || measurementState === "unavailable") {
+      attributes.push(buildAttr("gh-aw.working_set.measurement_state", measurementState));
+      if (measurementState !== "unavailable") {
+        if (typeof workingSet.rebuild_factor === "number" && Number.isFinite(workingSet.rebuild_factor)) {
+          attributes.push(buildDoubleAttr("gh-aw.working_set.rebuild_factor", workingSet.rebuild_factor));
+        }
+        for (const [attributeName, fieldName] of [
+          ["gh-aw.working_set.cumulative_input_tokens", "cumulative_input_tokens"],
+          ["gh-aw.working_set.peak_input_tokens", "peak_input_tokens"],
+          ["gh-aw.working_set.rebuild_excess_tokens", "rebuild_excess_tokens"],
+          ["gh-aw.working_set.invocations", "invocations"],
+        ]) {
+          const value = workingSet[fieldName];
+          if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+            attributes.push(buildAttr(attributeName, value));
+          }
+        }
+      }
+    }
+  }
+
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) {
     const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;

@@ -512,6 +512,7 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 		SkillActivations:        result.SkillActivations,
 		MCPToolUsage:            result.MCPToolUsage,
 		TokenUsage:              result.TokenUsage,
+		WorkingSet:              result.WorkingSet,
 		GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
 		JobDetails:              jobDetails,
 	}
@@ -542,6 +543,7 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 			SkillActivations:        result.SkillActivations,
 			MCPToolUsage:            result.MCPToolUsage,
 			TokenUsage:              result.TokenUsage,
+			WorkingSet:              result.WorkingSet,
 			GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
 			JobDetails:              jobDetails,
 		},
@@ -559,7 +561,7 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 // summary file is silent (no summary = nothing to backfill).
 func backfillCacheHitIfNeeded(result *DownloadResult, runOutputDir string, verbose bool) {
 	backfillRunTokenUsageFromFirewall(&result.Metrics, result, result.TokenUsage)
-	if result.Run.Turns == 0 || result.Run.SafeItemsCount == 0 {
+	if result.Run.Turns == 0 || result.Run.SafeItemsCount == 0 || result.WorkingSet == nil {
 		usageActivitySummary, err := loadUsageActivitySummary(runOutputDir)
 		if err != nil && verbose {
 			logsOrchestratorLog.Printf("Warning: failed to load usage activity summary for cache-hit backfill (run %d): %v", result.Run.DatabaseID, err)

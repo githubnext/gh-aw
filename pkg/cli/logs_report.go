@@ -141,6 +141,7 @@ type RunData struct {
 	TokenUsage                 int                    `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
 	AIC                        float64                `json:"aic,omitempty"`
 	AmbientContext             *AmbientContextMetrics `json:"ambient_context,omitempty" console:"-"`
+	WorkingSet                 *WorkingSetMetrics     `json:"working_set,omitempty" console:"-"`
 	Turns                      int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount                 int                    `json:"error_count,omitempty" console:"header:Errors"`
 	WarningCount               int                    `json:"warning_count,omitempty" console:"header:Warnings"`
@@ -447,6 +448,7 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		TokenUsage:                 run.TokenUsage,
 		AIC:                        0,
 		AmbientContext:             ambientContext,
+		WorkingSet:                 pr.WorkingSet,
 		ActionMinutes:              run.ActionMinutes,
 		Turns:                      run.Turns,
 		ErrorCount:                 run.ErrorCount,

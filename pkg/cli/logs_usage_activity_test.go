@@ -518,3 +518,34 @@ func TestMetricsTurnsNonZeroOverridesBackfilledTurns(t *testing.T) {
 
 	assert.Equal(t, 36, run.Turns, "log-derived Metrics.Turns must override backfilled value when non-zero")
 }
+
+func TestUsageActivitySummaryBackfillsWorkingSet(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"working_set":{
+			"measurement_state":"measured",
+			"rebuild_factor":3.9017857142857144,
+			"cumulative_input_tokens":874000,
+			"peak_input_tokens":224000,
+			"rebuild_excess_tokens":650000,
+			"invocations":5
+		}
+	}`), 0o644))
+
+	summary, err := loadUsageActivitySummary(runDir)
+	require.NoError(t, err)
+	result := DownloadResult{}
+	applyUsageActivitySummaryToResult(summary, &result, true)
+
+	require.NotNil(t, result.WorkingSet)
+	assert.Equal(t, "measured", result.WorkingSet.MeasurementState)
+	require.NotNil(t, result.WorkingSet.RebuildFactor)
+	assert.InDelta(t, 3.9017857142857144, *result.WorkingSet.RebuildFactor, 1e-12)
+	assert.EqualValues(t, 874000, result.WorkingSet.CumulativeInputTokens)
+	assert.Equal(t, 5, result.WorkingSet.Invocations)
+}

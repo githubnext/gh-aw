@@ -35,6 +35,7 @@ func buildProcessedAuditRun(run WorkflowRun, results auditAnalysisResults) Proce
 		MCPFailures:             results.mcpFailures,
 		SkillActivations:        results.skillActivations,
 		TokenUsage:              results.tokenUsageSummary,
+		WorkingSet:              results.workingSet,
 		GitHubRateLimitUsage:    results.rateLimitUsage,
 		JobDetails:              results.jobDetails,
 	}
@@ -76,6 +77,7 @@ func buildAuditRunSummary(run WorkflowRun, processedRun ProcessedRun, results au
 			SkillActivations:        results.skillActivations,
 			MCPToolUsage:            results.mcpToolUsage,
 			TokenUsage:              results.tokenUsageSummary,
+			WorkingSet:              results.workingSet,
 			GitHubRateLimitUsage:    results.rateLimitUsage,
 			JobDetails:              results.jobDetails,
 		},

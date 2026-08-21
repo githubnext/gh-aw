@@ -120,6 +120,9 @@ func renderConsoleMetrics(metrics MetricsData) {
 	if metrics.AIC > 0 {
 		line += fmt.Sprintf(" aic=%.2f", metrics.AIC)
 	}
+	if metrics.WorkingSet != nil && metrics.WorkingSet.RebuildFactor != nil {
+		line += fmt.Sprintf(" working-set-rebuild=%.2f×", *metrics.WorkingSet.RebuildFactor)
+	}
 	if metrics.ActionMinutes > 0 {
 		line += fmt.Sprintf(" action_min=%.0f", metrics.ActionMinutes)
 	}

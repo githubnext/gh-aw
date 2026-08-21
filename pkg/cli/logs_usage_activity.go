@@ -22,6 +22,18 @@ type usageActivitySummary struct {
 	Gateway     *usageActivityGateway     `json:"gateway,omitempty"`
 	SafeOutputs *usageActivitySafeOutputs `json:"safe_outputs,omitempty"`
 	Experiments *usageActivityExperiments `json:"experiments,omitempty"`
+	WorkingSet  *WorkingSetMetrics        `json:"working_set,omitempty"`
+}
+
+// WorkingSetMetrics describes cumulative model-input traffic relative to the
+// largest invocation context observed during the agent phase.
+type WorkingSetMetrics struct {
+	MeasurementState      string   `json:"measurement_state"`
+	RebuildFactor         *float64 `json:"rebuild_factor,omitempty"`
+	CumulativeInputTokens int64    `json:"cumulative_input_tokens"`
+	PeakInputTokens       int64    `json:"peak_input_tokens"`
+	RebuildExcessTokens   int64    `json:"rebuild_excess_tokens"`
+	Invocations           int      `json:"invocations"`
 }
 
 type usageActivityFirewall struct {
@@ -102,6 +114,10 @@ func loadUsageActivitySummary(runDir string) (*usageActivitySummary, error) {
 func applyUsageActivitySummaryToResult(summary *usageActivitySummary, result *DownloadResult, allowTurnBackfill bool) {
 	if summary == nil || result == nil {
 		return
+	}
+
+	if summary.WorkingSet != nil {
+		result.WorkingSet = summary.WorkingSet
 	}
 
 	// Preserve previously parsed turn counts (from full session artifacts/events.jsonl)

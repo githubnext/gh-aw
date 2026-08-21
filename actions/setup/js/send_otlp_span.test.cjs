@@ -3608,6 +3608,74 @@ describe("sendJobConclusionSpan", () => {
     expect(aicAttr.value.doubleValue).toBe(0.125);
   });
 
+  it("emits working-set attributes on the built-in conclusion span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "conclusion";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/usage/activity/summary.json") {
+        return JSON.stringify({
+          working_set: {
+            measurement_state: "measured",
+            rebuild_factor: 3.9017857142857144,
+            cumulative_input_tokens: 874000,
+            peak_input_tokens: 224000,
+            rebuild_excess_tokens: 650000,
+            invocations: 5,
+          },
+        });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(attribute => [attribute.key, attribute.value]));
+    expect(attrs["gh-aw.working_set.measurement_state"].stringValue).toBe("measured");
+    expect(attrs["gh-aw.working_set.rebuild_factor"].doubleValue).toBeCloseTo(3.9017857142857144);
+    expect(attrs["gh-aw.working_set.cumulative_input_tokens"].intValue).toBe(874000);
+    expect(attrs["gh-aw.working_set.peak_input_tokens"].intValue).toBe(224000);
+    expect(attrs["gh-aw.working_set.rebuild_excess_tokens"].intValue).toBe(650000);
+    expect(attrs["gh-aw.working_set.invocations"].intValue).toBe(5);
+  });
+
+  it("emits only working-set measurement state when unavailable", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "conclusion";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/usage/activity/summary.json") {
+        return JSON.stringify({
+          working_set: {
+            measurement_state: "unavailable",
+            cumulative_input_tokens: 0,
+            peak_input_tokens: 0,
+            rebuild_excess_tokens: 0,
+            invocations: 0,
+          },
+        });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(attribute => attribute.key);
+    expect(keys).toContain("gh-aw.working_set.measurement_state");
+    expect(keys).not.toContain("gh-aw.working_set.rebuild_factor");
+    expect(keys).not.toContain("gh-aw.working_set.cumulative_input_tokens");
+  });
+
   it("includes gh-aw.aic when INPUT_JOB_NAME is missing but span name is gh-aw.agent.conclusion", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);

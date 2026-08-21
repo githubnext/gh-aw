@@ -254,6 +254,12 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
 		fmt.Fprintf(os.Stdout, "| Tokens / turn | %d | %d | %s |\n", diff.Run1TokensPerTurn, diff.Run2TokensPerTurn, diff.TokensPerTurnChange)
 	}
+	if diff.Run1WorkingSetRebuild != nil || diff.Run2WorkingSetRebuild != nil {
+		fmt.Fprintf(os.Stdout, "| Working-set rebuild | %s | %s | %s |\n",
+			formatOptionalRebuildFactor(diff.Run1WorkingSetRebuild),
+			formatOptionalRebuildFactor(diff.Run2WorkingSetRebuild),
+			diff.WorkingSetRebuildDelta)
+	}
 	fmt.Fprintln(os.Stdout)
 
 	if diff.TokenUsageDetails != nil {
@@ -493,6 +499,14 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 			diff.TokensPerTurnChange,
 		})
 	}
+	if diff.Run1WorkingSetRebuild != nil || diff.Run2WorkingSetRebuild != nil {
+		config.Rows = append(config.Rows, []string{
+			"Working-set rebuild",
+			formatOptionalRebuildFactor(diff.Run1WorkingSetRebuild),
+			formatOptionalRebuildFactor(diff.Run2WorkingSetRebuild),
+			diff.WorkingSetRebuildDelta,
+		})
+	}
 
 	if len(config.Rows) > 0 {
 		fmt.Fprint(os.Stderr, console.RenderTable(config))
@@ -510,6 +524,13 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 		fmt.Fprintln(os.Stderr)
 		renderToolCallsDiffPrettySection(run1ID, run2ID, diff.ToolCallsDiff)
 	}
+}
+
+func formatOptionalRebuildFactor(value *float64) string {
+	if value == nil {
+		return "unavailable"
+	}
+	return fmt.Sprintf("%.2f×", *value)
 }
 
 // renderTokenUsageDiffPrettySection renders detailed token usage as a pretty console sub-section

@@ -110,6 +110,7 @@ type MetricsData struct {
 	TokenUsage     int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
 	AIC            float64                `json:"aic,omitempty"`
 	AmbientContext *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
+	WorkingSet     *WorkingSetMetrics     `json:"working_set,omitempty" console:"-"`
 	ActionMinutes  float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	Turns          int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount     int                    `json:"error_count" console:"header:Errors"`
@@ -330,6 +331,7 @@ func buildAuditMetrics(processedRun ProcessedRun, metrics LogMetrics) (MetricsDa
 	fallbackMetrics, inferredEngineID := lookupFallbackMetrics(run.LogsPath, metricsData)
 	applyFallbackMetrics(&metricsData, processedRun, metrics, fallbackMetrics)
 	populateAuditMetricContext(&metricsData, processedRun.TokenUsage)
+	metricsData.WorkingSet = processedRun.WorkingSet
 	return metricsData, inferredEngineID
 }
 
