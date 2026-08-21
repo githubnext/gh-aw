@@ -381,8 +381,7 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 	output, err := workflow.RunGHInputContext(ctx, "Creating project...", bytes.NewReader(requestJSON), "api", "graphql", "--input", "-")
 	if err != nil {
 		// Check for permission errors
-		//nolint:errstringmatch // gh CLI GraphQL surfaces missing Projects scope as INSUFFICIENT_SCOPES text.
-		if strings.Contains(err.Error(), "INSUFFICIENT_SCOPES") || errorutil.IsNotFoundError(err) {
+		if errorutil.IsInsufficientScopesError(err) || errorutil.IsNotFoundError(err) {
 			return nil, errors.New("insufficient permissions. You need a PAT with Projects access (classic: 'project' scope, fine-grained: Organization → Projects: Read & Write). Set GH_AW_PROJECT_GITHUB_TOKEN or configure gh CLI with a suitable token")
 		}
 		return nil, fmt.Errorf("GraphQL mutation failed: %w", err)

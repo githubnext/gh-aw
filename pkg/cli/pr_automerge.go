@@ -17,16 +17,6 @@ import (
 
 var prAutomergeLog = logger.New("cli:pr_automerge")
 
-// PullRequest represents a GitHub Pull Request
-type PullRequest struct {
-	Number    int       `json:"number"`
-	Title     string    `json:"title"`
-	IsDraft   bool      `json:"isDraft"`
-	Mergeable string    `json:"mergeable"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
 // AutoMergePullRequestsCreatedAfter checks for open PRs in the repository created after a specific time and auto-merges them
 // This function filters PRs to only those created after the specified time to avoid merging unrelated PRs
 func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, verbose bool) error {
@@ -40,12 +30,12 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	output, err := workflow.RunGH("Listing pull requests...", "pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable,createdAt,updatedAt")
 	if err != nil {
 		prAutomergeLog.Printf("Failed to list pull requests: %v", err)
-		return fmt.Errorf("failed to list pull requests: %w", err)
+		return fmt.Errorf("could not list pull requests; ensure required prerequisites are configured, then retry: %w", err)
 	}
 
 	var prs []PullRequest
 	if err := json.Unmarshal(output, &prs); err != nil {
-		return fmt.Errorf("failed to parse pull request list: %w", err)
+		return fmt.Errorf("could not parse pull request list; the GitHub API response may be malformed or unexpected: %w", err)
 	}
 
 	if len(prs) == 0 {
@@ -131,7 +121,7 @@ func WaitForWorkflowCompletion(ctx context.Context, repoSlug, runID string, time
 			// ctx is cancelled on Ctrl-C, which causes RunGHContext to abort the gh subprocess.
 			output, err := workflow.RunGHContext(ctx, "Checking workflow status...", "run", "view", runID, "--repo", repoSlug, "--json", "status,conclusion")
 			if err != nil {
-				return PollFailure, fmt.Errorf("failed to check workflow status: %w", err)
+				return PollFailure, fmt.Errorf("could not check workflow status; ensure required prerequisites are configured, then retry: %w", err)
 			}
 
 			status := string(output)
@@ -141,11 +131,11 @@ func WaitForWorkflowCompletion(ctx context.Context, repoSlug, runID string, time
 				if strings.Contains(status, `"conclusion":"success"`) {
 					return PollSuccess, nil
 				} else if strings.Contains(status, `"conclusion":"failure"`) {
-					return PollFailure, errors.New("workflow failed")
+					return PollFailure, errors.New("workflow completed with failure; inspect workflow logs and rerun after fixing reported errors")
 				} else if strings.Contains(status, `"conclusion":"cancelled"`) {
-					return PollFailure, errors.New("workflow was cancelled")
+					return PollFailure, errors.New("workflow was cancelled; rerun the workflow to continue auto-merge")
 				} else {
-					return PollFailure, errors.New("workflow completed with unknown conclusion")
+					return PollFailure, errors.New("workflow completed with an unknown conclusion; inspect run details to confirm success before proceeding")
 				}
 			}
 
