@@ -47,16 +47,16 @@ func run(pass *analysis.Pass) (any, error) {
 			if fn.Body == nil {
 				return
 			}
-			pos := pass.Fset.PositionFor(fn.Pos(), false)
-			if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-				return
-			}
 			body = fn.Body
 		case *ast.FuncLit:
 			if fn.Body == nil {
 				return
 			}
 			body = fn.Body
+		}
+		pos := pass.Fset.PositionFor(n.Pos(), false)
+		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+			return
 		}
 		inspectBody(pass, body, noLintIndex)
 	})

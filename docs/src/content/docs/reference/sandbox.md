@@ -212,6 +212,18 @@ When omitted, AWF's own default memory limit applies. Specifying an invalid form
 > [!NOTE]
 > Exit code 137 means the process received `SIGKILL`. A memory limit can be one cause, but verify with logs before changing `memory`. If you increase `memory`, leave headroom for the runner OS and other processes.
 
+#### Model fallback (`sandbox.agent.model-fallback`)
+
+AWF's API proxy resolves unrecognized model selections against its built-in model catalog and may rewrite them. Set `model-fallback: false` to pass the configured model through to the provider verbatim:
+
+```yaml wrap
+sandbox:
+  agent:
+    model-fallback: false
+```
+
+This is required for providers whose model identifiers are not in the built-in catalog (BYOK Azure OpenAI deployment names, self-hosted routers), where rewriting causes HTTP 404 `model_not_found`. When an [`OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` custom endpoint](/gh-aw/reference/engines/#custom-api-endpoints-via-environment-variables) is configured in `engine.env`, model fallback is disabled automatically; set this field explicitly to override that default.
+
 #### Token steering (`sandbox.agent.token-steering`)
 
 AWF enables API proxy token steering by default. To keep the explicitly configured provider and model, disable it for a workflow:

@@ -15871,9 +15871,8 @@ safe-outputs:
       # Array of strings
 
     # Controls whether the workflow requests discussions:write permission for
-    # hide-comment. Default: true (includes discussions:write). Set to false if your
-    # GitHub App lacks Discussions permission to prevent 422 errors during token
-    # generation.
+    # hide-comment. Default: false (excludes discussions:write). Set to true if you
+    # need to hide comments on discussions.
     # (optional)
     discussions: true
 
