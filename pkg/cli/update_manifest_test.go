@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -41,7 +42,7 @@ func TestReconcileManifestManagedAssets_AddsPackageOwnedAssets(t *testing.T) {
 		}
 	}
 
-	err := reconcileManifestManagedAssets(context.Background(), "owner/repo",
+	err := reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"},
 		&resolvedRepositoryPackage{},
 		&resolvedRepositoryPackage{
 			ResolvedRef: "v2.0.0",
@@ -56,6 +57,7 @@ func TestReconcileManifestManagedAssets_AddsPackageOwnedAssets(t *testing.T) {
 			AgentFiles: []string{"agents/reviewer.md"},
 		},
 		"copilot",
+		UpdateWorkflowsOptions{},
 	)
 	require.NoError(t, err)
 	workflowPath := filepath.Join(tmpDir, ".github", "workflows", "new.yml")
@@ -102,12 +104,181 @@ func TestReconcileManifestManagedAssets_BranchTrackingInstallsMissingAssets(t *t
 		}},
 		AgentFiles: []string{"agents/reviewer.md"},
 	}
-	err := reconcileManifestManagedAssets(context.Background(), "owner/repo", currentAndLatest, currentAndLatest, "copilot")
+	err := reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"}, currentAndLatest, currentAndLatest, "copilot", UpdateWorkflowsOptions{})
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tmpDir, ".github", "workflows", "new.yml"))
 	assert.FileExists(t, filepath.Join(tmpDir, workflow.GetEngineSkillDir("copilot"), "review", "scripts", "check.sh"))
 	assert.FileExists(t, filepath.Join(tmpDir, workflow.GetEngineSubAgentDir("copilot"), "reviewer.md"))
+}
+
+func TestReconcileManifestManagedAssets_RefreshesExistingPackageOwnedAssets(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "manifest-assets-refresh-*")
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
+	t.Chdir(tmpDir)
+
+	engine := "copilot"
+	existingWorkflowPath := filepath.Join(tmpDir, ".github", "workflows", "new.yml")
+	existingSkillPath := filepath.Join(tmpDir, workflow.GetEngineSkillDir(engine), "review", "scripts", "check.sh")
+	existingAgentPath := filepath.Join(tmpDir, workflow.GetEngineSubAgentDir(engine), "reviewer.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingWorkflowPath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingSkillPath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingAgentPath), 0o755))
+	require.NoError(t, os.WriteFile(existingWorkflowPath, []byte("name: old action\n"), 0o644))
+	require.NoError(t, os.WriteFile(existingSkillPath, []byte("#!/bin/sh\necho old\n"), 0o644))
+	require.NoError(t, os.WriteFile(existingAgentPath, []byte("# Old Reviewer\n"), 0o644))
+
+	packageBase := "owner/repo"
+	record := packageOwnershipRecord{
+		SchemaVersion: packageOwnershipSchemaVersion,
+		Package:       packageBase,
+		Source:        packageBase + "@v1.0.0",
+		Installer:     "gh-aw test",
+		Files: []packageOwnershipFileEntry{
+			{Source: ".github/workflows/new.yml", Destination: ".github/workflows/new.yml", SHA256: sha256Bytes([]byte("name: old action\n"))},
+			{Source: "skills/review/scripts/check.sh", Destination: filepath.ToSlash(filepath.Join(workflow.GetEngineSkillDir(engine), "review", "scripts", "check.sh")), SHA256: sha256Bytes([]byte("#!/bin/sh\necho old\n"))},
+			{Source: "agents/reviewer.md", Destination: filepath.ToSlash(filepath.Join(workflow.GetEngineSubAgentDir(engine), "reviewer.md")), SHA256: sha256Bytes([]byte("# Old Reviewer\n"))},
+		},
+	}
+	recordPath := packageOwnershipRecordPath(tmpDir, packageBase)
+	require.NoError(t, os.MkdirAll(filepath.Dir(recordPath), 0o755))
+	recordData, err := json.Marshal(record)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(recordPath, recordData, 0o644))
+
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		if owner != "owner" || repo != "repo" || ref != "v2.0.0" {
+			return nil, fmt.Errorf("unexpected package source %s/%s@%s", owner, repo, ref)
+		}
+		switch path {
+		case ".github/workflows/new.yml":
+			return []byte("name: new action\n"), nil
+		case "skills/review/scripts/check.sh":
+			return []byte("#!/bin/sh\necho new\n"), nil
+		case "agents/reviewer.md":
+			return []byte("# New Reviewer\n"), nil
+		default:
+			return nil, fmt.Errorf("unexpected package path %s", path)
+		}
+	}
+
+	err = reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: packageBase},
+		&resolvedRepositoryPackage{},
+		&resolvedRepositoryPackage{
+			ResolvedRef: "v2.0.0",
+			InstallationSource: []resolvedPackageInstallable{{
+				SourcePath:      ".github/workflows/new.yml",
+				DestinationPath: ".github/workflows/new.yml",
+			}},
+			SkillFiles: []resolvedPackageSkillFile{{
+				SourcePath: "skills/review/scripts/check.sh",
+				SkillName:  "review",
+			}},
+			AgentFiles: []string{"agents/reviewer.md"},
+		},
+		engine,
+		UpdateWorkflowsOptions{},
+	)
+	require.NoError(t, err)
+
+	workflowContent, readErr := os.ReadFile(existingWorkflowPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "name: new action\n", string(workflowContent))
+
+	skillContent, readErr := os.ReadFile(existingSkillPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "#!/bin/sh\necho new\n", string(skillContent))
+
+	agentContent, readErr := os.ReadFile(existingAgentPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "# New Reviewer\n", string(agentContent))
+}
+
+func TestReconcileManifestManagedAssets_RefusesToOverwriteUnownedAsset(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "manifest-assets-collision-*")
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
+	t.Chdir(tmpDir)
+
+	existingWorkflowPath := filepath.Join(tmpDir, ".github", "workflows", "new.yml")
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingWorkflowPath), 0o755))
+	require.NoError(t, os.WriteFile(existingWorkflowPath, []byte("name: unrelated workflow\n"), 0o644))
+
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		return []byte("name: new action\n"), nil
+	}
+
+	err := reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"},
+		&resolvedRepositoryPackage{},
+		&resolvedRepositoryPackage{
+			ResolvedRef: "v2.0.0",
+			InstallationSource: []resolvedPackageInstallable{{
+				SourcePath:      ".github/workflows/new.yml",
+				DestinationPath: ".github/workflows/new.yml",
+			}},
+		},
+		"copilot",
+		UpdateWorkflowsOptions{},
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not tracked as owned")
+
+	workflowContent, readErr := os.ReadFile(existingWorkflowPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "name: unrelated workflow\n", string(workflowContent), "unowned file must not be overwritten")
+}
+
+func TestReconcileManifestManagedAssets_WarnsWhenUpstreamRemovesSkillOrAgent(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "manifest-assets-removed-*")
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
+	t.Chdir(tmpDir)
+
+	engine := "copilot"
+	existingSkillPath := filepath.Join(tmpDir, workflow.GetEngineSkillDir(engine), "review", "scripts", "check.sh")
+	existingAgentPath := filepath.Join(tmpDir, workflow.GetEngineSubAgentDir(engine), "reviewer.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingSkillPath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingAgentPath), 0o755))
+	require.NoError(t, os.WriteFile(existingSkillPath, []byte("#!/bin/sh\necho old\n"), 0o644))
+	require.NoError(t, os.WriteFile(existingAgentPath, []byte("# Old Reviewer\n"), 0o644))
+
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		return nil, fmt.Errorf("unexpected download for removed package path %s", path)
+	}
+
+	currentPkg := &resolvedRepositoryPackage{
+		ResolvedRef: "v1.0.0",
+		SkillFiles: []resolvedPackageSkillFile{{
+			SourcePath: "skills/review/scripts/check.sh",
+			SkillName:  "review",
+		}},
+		AgentFiles: []string{"agents/reviewer.md"},
+	}
+	latestPkg := &resolvedRepositoryPackage{
+		ResolvedRef: "v2.0.0",
+	}
+
+	var err error
+	output := testutil.CaptureStderr(t, func() {
+		err = reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"}, currentPkg, latestPkg, engine, UpdateWorkflowsOptions{})
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, output, "skills/review/scripts/check.sh")
+	assert.Contains(t, output, "removed from the upstream package")
+	assert.Contains(t, output, "agents/reviewer.md")
+
+	skillContent, readErr := os.ReadFile(existingSkillPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "#!/bin/sh\necho old\n", string(skillContent), "removed-upstream skill must not be modified")
+
+	agentContent, readErr := os.ReadFile(existingAgentPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "# Old Reviewer\n", string(agentContent), "removed-upstream agent must not be modified")
 }
 
 func TestResolveManifestAssetEngine(t *testing.T) {

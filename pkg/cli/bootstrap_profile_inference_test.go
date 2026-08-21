@@ -10,6 +10,7 @@ import (
 )
 
 func TestMergeBootstrapPermissionLevel(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		existing string
@@ -22,7 +23,9 @@ func TestMergeBootstrapPermissionLevel(t *testing.T) {
 		{name: "equal levels unchanged", existing: "write", incoming: "write", want: "write"},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := mergeBootstrapPermissionLevel(tt.existing, tt.incoming)
 			if got != tt.want {
 				t.Fatalf("mergeBootstrapPermissionLevel(%q, %q) = %q, want %q", tt.existing, tt.incoming, got, tt.want)
@@ -32,6 +35,7 @@ func TestMergeBootstrapPermissionLevel(t *testing.T) {
 }
 
 func TestBootstrapEventNamesFromOn(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		raw  any
@@ -52,7 +56,9 @@ func TestBootstrapEventNamesFromOn(t *testing.T) {
 		{name: "nil value", raw: nil, want: nil},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := bootstrapEventNamesFromOn(tt.raw)
 			sort.Strings(got)
 			want := append([]string(nil), tt.want...)
@@ -70,6 +76,7 @@ func TestBootstrapEventNamesFromOn(t *testing.T) {
 }
 
 func TestMergeBootstrapGitHubAppRequirements(t *testing.T) {
+	t.Parallel()
 	declaredPermissions := map[string]string{"contents": "read"}
 	declaredEvents := []string{"push"}
 	inferredPermissions := map[string]string{"contents": "write", "issues": "write"}
@@ -106,6 +113,7 @@ func TestMergeBootstrapGitHubAppRequirements(t *testing.T) {
 }
 
 func TestInferBootstrapGitHubAppRequirements_MergesAcrossWorkflows(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	first := filepath.Join(dir, "first.md")
 	second := filepath.Join(dir, "second.md")
@@ -136,6 +144,7 @@ func TestInferBootstrapGitHubAppRequirements_MergesAcrossWorkflows(t *testing.T)
 }
 
 func TestInferBootstrapGitHubAppRequirements_NoSources(t *testing.T) {
+	t.Parallel()
 	permissions, events, err := inferBootstrapGitHubAppRequirements(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("inferBootstrapGitHubAppRequirements returned error: %v", err)
@@ -148,6 +157,7 @@ func TestInferBootstrapGitHubAppRequirements_NoSources(t *testing.T) {
 // TestInferBootstrapGitHubAppRequirements_SingleWorkflow covers the simplest case of a
 // single workflow with a string "on" trigger and a small permissions block.
 func TestInferBootstrapGitHubAppRequirements_SingleWorkflow(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "solo.md")
 	content := "---\non: issues\npermissions:\n  issues: write\n---\n\n# Solo\n"
@@ -174,6 +184,7 @@ func TestInferBootstrapGitHubAppRequirements_SingleWorkflow(t *testing.T) {
 // declares neither a "permissions" block nor an "on" trigger recognized as a webhook
 // event; both inferred maps/slices must come back nil rather than empty.
 func TestInferBootstrapGitHubAppRequirements_NoPermissionsOrEvents(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bare.md")
 	content := "---\non:\n  schedule:\n    - cron: \"0 0 * * *\"\n  workflow_dispatch:\n---\n\n# Bare\n"
@@ -197,6 +208,7 @@ func TestInferBootstrapGitHubAppRequirements_NoPermissionsOrEvents(t *testing.T)
 // merging across three workflows where the same resource is requested at different
 // scopes (none/read/write) and events accumulate as a de-duplicated, sorted union.
 func TestInferBootstrapGitHubAppRequirements_ThreeWorkflowsHighestScopeWins(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	paths := []string{
 		filepath.Join(dir, "a.md"),
@@ -233,6 +245,7 @@ func TestInferBootstrapGitHubAppRequirements_ThreeWorkflowsHighestScopeWins(t *t
 // when every trigger in a mapping-style "on" block is excluded from App inference
 // (schedule/workflow_dispatch/repository_dispatch), no events are inferred at all.
 func TestInferBootstrapGitHubAppRequirements_MapOnAllExcludedYieldsNoEvents(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "excluded.md")
 	content := "---\non:\n  schedule:\n    - cron: \"*/5 * * * *\"\n  workflow_dispatch:\n  repository_dispatch:\n    types: [custom]\npermissions:\n  contents: read\n---\n\n# Excluded\n"
@@ -257,6 +270,7 @@ func TestInferBootstrapGitHubAppRequirements_MapOnAllExcludedYieldsNoEvents(t *t
 // workflow file with unparsable frontmatter does not fail the whole inference pass;
 // its contribution is simply skipped while valid sibling workflows still contribute.
 func TestInferBootstrapGitHubAppRequirements_InvalidFrontmatterSkipped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	badPath := filepath.Join(dir, "bad.md")
 	goodPath := filepath.Join(dir, "good.md")
@@ -288,6 +302,7 @@ func TestInferBootstrapGitHubAppRequirements_InvalidFrontmatterSkipped(t *testin
 // errors from resolving the underlying workflow sources (e.g. a nonexistent local
 // file) are surfaced to the caller instead of being silently swallowed.
 func TestInferBootstrapGitHubAppRequirements_ResolutionErrorPropagates(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	missing := filepath.Join(dir, "does-not-exist.md")
 
