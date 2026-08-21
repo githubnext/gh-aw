@@ -3,8 +3,10 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -113,29 +115,26 @@ func TestParsePRURL(t *testing.T) {
 	}
 }
 
-func TestPRInfo(t *testing.T) {
-	// Test PRInfo struct can be properly initialized
-	prInfo := &PRInfo{
-		Number:      123,
-		Title:       "Test PR",
-		State:       "open",
-		AuthorLogin: "test-author",
+func TestPullRequestSupportsTransferAndAutomergeJSON(t *testing.T) {
+	t.Parallel()
+
+	var transferPR PRInfo
+	if err := json.Unmarshal([]byte(`{"number":123,"title":"Test PR","state":"open","authorLogin":"test-author"}`), &transferPR); err != nil {
+		t.Fatalf("failed to decode transfer PR: %v", err)
+	}
+	if transferPR.Number != 123 || transferPR.Title != "Test PR" || transferPR.State != "open" || transferPR.AuthorLogin != "test-author" {
+		t.Fatalf("unexpected transfer PR: %+v", transferPR)
 	}
 
-	if prInfo.Number != 123 {
-		t.Errorf("PRInfo.Number = %v, want %v", prInfo.Number, 123)
+	var automergePR PullRequest
+	if err := json.Unmarshal([]byte(`{"number":456,"title":"Automerge PR","isDraft":true,"mergeable":"MERGEABLE","createdAt":"2026-08-20T12:00:00Z","updatedAt":"2026-08-20T13:00:00Z"}`), &automergePR); err != nil {
+		t.Fatalf("failed to decode automerge PR: %v", err)
 	}
-
-	if prInfo.Title != "Test PR" {
-		t.Errorf("PRInfo.Title = %v, want %v", prInfo.Title, "Test PR")
+	if automergePR.Number != 456 || !automergePR.IsDraft || automergePR.Mergeable != "MERGEABLE" {
+		t.Fatalf("unexpected automerge PR: %+v", automergePR)
 	}
-
-	if prInfo.State != "open" {
-		t.Errorf("PRInfo.State = %v, want %v", prInfo.State, "open")
-	}
-
-	if prInfo.AuthorLogin != "test-author" {
-		t.Errorf("PRInfo.AuthorLogin = %v, want %v", prInfo.AuthorLogin, "test-author")
+	if want := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC); !automergePR.CreatedAt.Equal(want) {
+		t.Fatalf("CreatedAt = %v, want %v", automergePR.CreatedAt, want)
 	}
 }
 
