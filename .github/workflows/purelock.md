@@ -21,6 +21,7 @@ network:
   allowed:
     - defaults
     - go
+    - node
 tools:
   cache-memory:
     retention-days: 60
