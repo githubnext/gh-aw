@@ -89,14 +89,20 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if needsDailyAICCachePermission(data) && !conclusionPerms.HasAnyWriteScope() {
 		conclusionPerms.Set(PermissionActions, PermissionWrite)
 	}
-	// The report-failed-jobs step lists workflow run jobs (actions: read) and creates issues
-	// (issues: write). Ensure the conclusion job has at least those permissions when the
+	// The report-failed-jobs step lists workflow run jobs (actions: read) when the
 	// feature is enabled (default: true).
-	if data.SafeOutputs == nil || data.SafeOutputs.ReportFailedJobs == nil || *data.SafeOutputs.ReportFailedJobs {
+	if conclusionReportFailedJobsEnabled(data) {
 		if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
 			conclusionPerms.Set(PermissionActions, PermissionRead)
 		}
-		if level, ok := conclusionPerms.Get(PermissionIssues); !ok || level == PermissionNone {
+	}
+	// Only request issues: write when at least one conclusion-job mechanism can actually
+	// create/update an issue and that path is not already covered by
+	// ComputePermissionsForSafeOutputs (report-failed-jobs, agent-failure reporting,
+	// noop reporting, or detection-runs reporting). This keeps the permission grant
+	// derived from the resolved configuration instead of being emitted unconditionally.
+	if conclusionMayCreateIssue(data) {
+		if level, ok := conclusionPerms.Get(PermissionIssues); !ok || level != PermissionWrite {
 			conclusionPerms.Set(PermissionIssues, PermissionWrite)
 		}
 	}
@@ -111,6 +117,48 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Needs:       needs,
 		Outputs:     buildConclusionJobOutputs(data),
 	}, nil
+}
+
+// conclusionReportFailedJobsEnabled returns true unless safe-outputs.report-failed-jobs is
+// explicitly set to false. Defaults to true.
+func conclusionReportFailedJobsEnabled(data *WorkflowData) bool {
+	return data.SafeOutputs == nil || data.SafeOutputs.ReportFailedJobs == nil || *data.SafeOutputs.ReportFailedJobs
+}
+
+// conclusionReportFailureAsIssueEnabled returns true unless safe-outputs.report-failure-as-issue
+// is explicitly set to false. Defaults to true.
+func conclusionReportFailureAsIssueEnabled(data *WorkflowData) bool {
+	if data.SafeOutputs == nil || data.SafeOutputs.ReportFailureAsIssue == nil {
+		return true
+	}
+	return !strings.EqualFold(strings.TrimSpace(data.SafeOutputs.ReportFailureAsIssue.String()), "false")
+}
+
+// conclusionDetectionReportingEnabled returns true when the conclusion job emits the
+// detection-runs step, which may create an issue and/or post comments to that issue.
+func conclusionDetectionReportingEnabled(data *WorkflowData) bool {
+	return data.SafeOutputs != nil && IsDetectionJobEnabled(data.SafeOutputs)
+}
+
+// conclusionMayCreateIssue returns true if at least one conclusion-job mechanism can create or
+// update an issue: report-failed-jobs, agent-failure reporting (report-failure-as-issue), noop
+// reporting (noop.report-as-issue), or detection-runs reporting. This mirrors the resolved
+// configuration so that disabling every issue-creating path removes issues: write from the
+// compiled conclusion job's permissions.
+func conclusionMayCreateIssue(data *WorkflowData) bool {
+	if conclusionReportFailedJobsEnabled(data) {
+		return true
+	}
+	if conclusionReportFailureAsIssueEnabled(data) {
+		return true
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil && isNoOpReportAsIssueEnabled(data.SafeOutputs.NoOp.ReportAsIssue) {
+		return true
+	}
+	if conclusionDetectionReportingEnabled(data) {
+		return true
+	}
+	return false
 }
 
 // buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
