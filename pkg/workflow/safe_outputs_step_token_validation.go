@@ -122,15 +122,19 @@ func (c *Compiler) validateSafeOutputStepTokenReferences(data *WorkflowData) err
 			}
 			if declareIdx < 0 {
 				safeOutputsStepTokenValidationLog.Printf("Job %q consumes steps.%s.outputs.* without declaring the step", jobName, stepID)
-				return fmt.Errorf(
-					"safe-outputs github-token references ${{ steps.%s.outputs.* }}, but job %q has no step with id %q. Step outputs are only available inside the job that produced them, so this token would be empty at runtime. Add the token-minting step to that job:\n%s",
-					stepID, jobName, stepID, stepMintingHint(jobName, stepID),
+				return NewValidationError(
+					"safe-outputs.github-token",
+					fmt.Sprintf("${{ steps.%s.outputs.* }}", stepID),
+					fmt.Sprintf("job %q has no step with id %q; step outputs are only available inside the job that produced them, so this token would be empty at runtime and requires the minting step to run in that job", jobName, stepID),
+					fmt.Sprintf("Add the token-minting step to job %q:\n\n%s", jobName, stepMintingHint(jobName, stepID)),
 				)
 			}
 			safeOutputsStepTokenValidationLog.Printf("Job %q consumes steps.%s.outputs.* before the step that declares it", jobName, stepID)
-			return fmt.Errorf(
-				"safe-outputs github-token references ${{ steps.%s.outputs.* }}, but job %q runs the step with id %q after the first step that consumes the token, so the token would be empty at runtime. Move the token-minting step earlier in that job:\n%s",
-				stepID, jobName, stepID, stepMintingHint(jobName, stepID),
+			return NewValidationError(
+				"safe-outputs.github-token",
+				fmt.Sprintf("${{ steps.%s.outputs.* }}", stepID),
+				fmt.Sprintf("job %q runs the step with id %q after the first step that consumes the token, so the token would be empty at runtime and requires the minting step to run before its first consumer", jobName, stepID),
+				fmt.Sprintf("Move the token-minting step earlier in job %q, for example using its pre-steps:\n\n%s", jobName, stepMintingHint(jobName, stepID)),
 			)
 		}
 	}
