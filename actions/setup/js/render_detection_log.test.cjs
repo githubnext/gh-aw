@@ -200,5 +200,15 @@ describe("render_detection_log.cjs", () => {
       expect(out).toContain("line 4");
       expect(out).toContain("line 5");
     });
+
+    it("renders a bounded suffix when an oversized log has no newlines", async () => {
+      fs.writeFileSync(logPath, Buffer.alloc(1024 * 1024 + 1, "z"));
+
+      await module.renderLogFromFile(logPath, "Tail", { tailLines: 200 });
+
+      const out = capturedStdout();
+      expect(out).toContain("z".repeat(100));
+      expect(out.length).toBeLessThan(1024 * 1024 + 500);
+    });
   });
 });

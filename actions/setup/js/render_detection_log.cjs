@@ -85,7 +85,9 @@ async function renderLogFromFile(filePath, groupTitle, options) {
         content = buf.slice(0, bytesRead).toString("utf8");
         if (tailLines) {
           const firstNewline = content.indexOf("\n");
-          content = firstNewline === -1 ? "" : content.slice(firstNewline + 1);
+          if (firstNewline !== -1) {
+            content = content.slice(firstNewline + 1);
+          }
         }
       } finally {
         fs.closeSync(fd);
