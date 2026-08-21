@@ -198,6 +198,25 @@ See [A/B Experiments](/gh-aw/experimental/experiments/) for how to declare exper
 
 The `usage` artifact is a compact conclusion-job artifact with workflow-run metadata and token-usage files for lightweight reporting and forecasting, so downstream tools can read aggregated usage data without downloading the full `agent` artifact.
 
+Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. The optional activity sections are additive; the `working_set` section is always written when the calculation step executes:
+
+```json
+{
+  "working_set": {
+    "measurement_state": "measured",
+    "rebuild_factor": 3.9017857142857144,
+    "cumulative_input_tokens": 874000,
+    "peak_input_tokens": 224000,
+    "rebuild_excess_tokens": 650000,
+    "invocations": 5
+  }
+}
+```
+
+`rebuild_factor` is `cumulative_input_tokens / peak_input_tokens`, where each invocation contributes the canonical `input_tokens` value from the agent `token_usage.jsonl` record. Cache-read and cache-write fields are not added because provider normalization has already produced that logical input count. The factor is omitted when `measurement_state` is `unavailable`; `partial` means usable records were measured but malformed or unsupported records were ignored.
+
+Working-Set Rebuild Factor measures cumulative context reconstruction relative to peak invocation context. It is an efficiency/trajectory metric, not a measurement of semantic coherence debt and not a predictor of task success. It cannot identify missing task facts or classify outcome quality. The metric is conceptually inspired by [“The Working Set of a Coding Agent: Coherence Debt in Repository-Scale Tasks”](https://arxiv.org/abs/2608.16630), while deliberately limiting the implementation to observable token traffic.
+
 ### Accessing usage data
 
 ```bash

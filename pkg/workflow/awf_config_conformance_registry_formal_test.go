@@ -167,11 +167,11 @@ func formalConformanceRegistrySeriesDisjoint(id string) bool {
 
 func TestFormalConformanceRegistry_P1_TestIDMonotonicity(t *testing.T) {
 	next := formalConformanceRegistryNextPlainID(formalConformanceRegistryBaselineRows(t))
-	assert.Equal(t, "T-DR-011", next)
+	assert.Equal(t, "T-DR-012", next)
 
 	nextValue, ok := formalConformanceRegistryParsePlainID(next)
 	require.True(t, ok)
-	assert.Equal(t, 11, nextValue)
+	assert.Equal(t, 12, nextValue)
 }
 
 func TestFormalConformanceRegistry_P1_EmptyRegistryStartsAtOne(t *testing.T) {
@@ -228,7 +228,7 @@ func TestFormalConformanceRegistry_P8_SpecCrossReferenceRequired(t *testing.T) {
 		assert.True(t, formalConformanceRegistryHasSpecCrossReference(specContent, row.TestID), row.TestID)
 	}
 
-	assert.False(t, formalConformanceRegistryHasSpecCrossReference(specContent, "T-DR-011"))
+	assert.False(t, formalConformanceRegistryHasSpecCrossReference(specContent, "T-DR-012"))
 }
 
 func TestFormalConformanceRegistry_P9_DriftSeriesVsSafeguardSeriesDisjoint(t *testing.T) {
