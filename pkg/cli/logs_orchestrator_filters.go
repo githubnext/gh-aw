@@ -220,6 +220,7 @@ func buildProcessedRun(ctx context.Context, result DownloadResult, verbose, logF
 		MCPFailures:             result.MCPFailures,
 		MCPToolUsage:            result.MCPToolUsage,
 		TokenUsage:              result.TokenUsage,
+		WorkingSet:              result.WorkingSet,
 		GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
 		JobDetails:              result.JobDetails,
 	}

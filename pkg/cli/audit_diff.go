@@ -353,9 +353,12 @@ type RunMetricsDiff struct {
 	Run1Turns              int                  `json:"run1_turns,omitempty"`
 	Run2Turns              int                  `json:"run2_turns,omitempty"`
 	TurnsChange            int                  `json:"turns_change,omitempty"`
-	Run1TokensPerTurn      int                  `json:"run1_tokens_per_turn,omitempty"`      // Avg token usage per turn in run 1
-	Run2TokensPerTurn      int                  `json:"run2_tokens_per_turn,omitempty"`      // Avg token usage per turn in run 2
-	TokensPerTurnChange    string               `json:"tokens_per_turn_change,omitempty"`    // e.g. "+20%", "-10%"
+	Run1TokensPerTurn      int                  `json:"run1_tokens_per_turn,omitempty"`   // Avg token usage per turn in run 1
+	Run2TokensPerTurn      int                  `json:"run2_tokens_per_turn,omitempty"`   // Avg token usage per turn in run 2
+	TokensPerTurnChange    string               `json:"tokens_per_turn_change,omitempty"` // e.g. "+20%", "-10%"
+	Run1WorkingSetRebuild  *float64             `json:"run1_working_set_rebuild_factor,omitempty"`
+	Run2WorkingSetRebuild  *float64             `json:"run2_working_set_rebuild_factor,omitempty"`
+	WorkingSetRebuildDelta string               `json:"working_set_rebuild_factor_change,omitempty"`
 	TokenUsageDetails      *TokenUsageDiff      `json:"token_usage_details,omitempty"`       // Detailed breakdown from firewall proxy
 	GitHubRateLimitDetails *GitHubRateLimitDiff `json:"github_rate_limit_details,omitempty"` // GitHub API quota consumption diff
 	ToolCallsDiff          *ToolCallsDiff       `json:"tool_calls_diff,omitempty"`           // Engine-level tool call diff
@@ -531,6 +534,7 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	var tu1, tu2 *TokenUsageSummary
 	var rl1, rl2 *GitHubRateLimitUsage
 	var m1, m2 *LogMetrics
+	var ws1, ws2 *float64
 
 	if summary1 != nil {
 		run1Tokens = summary1.Run.TokenUsage
@@ -543,6 +547,9 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 		tu1 = summary1.TokenUsage
 		rl1 = summary1.GitHubRateLimitUsage
 		m1 = &summary1.Metrics
+		if summary1.WorkingSet != nil {
+			ws1 = summary1.WorkingSet.RebuildFactor
+		}
 	}
 	if summary2 != nil {
 		run2Tokens = summary2.Run.TokenUsage
@@ -555,21 +562,26 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 		tu2 = summary2.TokenUsage
 		rl2 = summary2.GitHubRateLimitUsage
 		m2 = &summary2.Metrics
+		if summary2.WorkingSet != nil {
+			ws2 = summary2.WorkingSet.RebuildFactor
+		}
 	}
 
 	// Skip if there is no meaningful data
 	hasTokenDetails := tu1 != nil || tu2 != nil
 	hasRateLimitDetails := rl1 != nil || rl2 != nil
-	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 && !hasTokenDetails && !hasRateLimitDetails {
+	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 && ws1 == nil && ws2 == nil && !hasTokenDetails && !hasRateLimitDetails {
 		return nil
 	}
 
 	diff := &RunMetricsDiff{
-		Run1TokenUsage: run1Tokens,
-		Run2TokenUsage: run2Tokens,
-		Run1Turns:      run1Turns,
-		Run2Turns:      run2Turns,
-		TurnsChange:    run2Turns - run1Turns,
+		Run1TokenUsage:        run1Tokens,
+		Run2TokenUsage:        run2Tokens,
+		Run1Turns:             run1Turns,
+		Run2Turns:             run2Turns,
+		TurnsChange:           run2Turns - run1Turns,
+		Run1WorkingSetRebuild: ws1,
+		Run2WorkingSetRebuild: ws2,
 	}
 
 	if run1Tokens > 0 || run2Tokens > 0 {
@@ -602,6 +614,9 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	}
 	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
 		diff.TokensPerTurnChange = formatVolumeChange(diff.Run1TokensPerTurn, diff.Run2TokensPerTurn)
+	}
+	if ws1 != nil && ws2 != nil && *ws1 > 0 {
+		diff.WorkingSetRebuildDelta = fmt.Sprintf("%+.1f%%", ((*ws2-*ws1)/(*ws1))*100)
 	}
 
 	diff.TokenUsageDetails = computeTokenUsageDiff(tu1, tu2)

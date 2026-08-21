@@ -27,6 +27,13 @@ func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutput
 	if ctx.Err() != nil {
 		return results, ctx.Err()
 	}
+	usageSummary, usageErr := loadUsageActivitySummary(runOutputDir)
+	if usageErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to load usage activity summary for run %d: %v", run.DatabaseID, usageErr)))
+	}
+	if usageSummary != nil {
+		results.workingSet = usageSummary.WorkingSet
+	}
 	return results, nil
 }
 

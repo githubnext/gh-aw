@@ -72,6 +72,7 @@ type auditAnalysisResults struct {
 	policyAnalysis          *PolicyAnalysis
 	mcpToolUsage            *MCPToolUsageData
 	tokenUsageSummary       *TokenUsageSummary
+	workingSet              *WorkingSetMetrics
 	redactedDomainsAnalysis *RedactedDomainsAnalysis
 	rateLimitUsage          *GitHubRateLimitUsage
 	artifacts               []string
