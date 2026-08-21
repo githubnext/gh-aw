@@ -88,6 +88,9 @@ func getBuiltinOnlyAliasMap() map[string][]string {
 	builtinOnlyAliasMapOnce.Do(func() {
 		data, err := loadBuiltinModelAliases()
 		if err != nil {
+			// Build-time invariant: model_aliases.json is embedded at compile time and
+			// validated by TestBuiltinModelAliases; a real unmarshal failure here can only
+			// follow a corrupted release build, never dynamic user input.
 			panic(err)
 		}
 		builtinOnlyAliasMap = data
@@ -145,6 +148,7 @@ func isBuiltinOnlyAliasMap(m map[string][]string) bool {
 func BuiltinModelAliases() map[string][]string {
 	data, err := loadBuiltinModelAliases()
 	if err != nil {
+		// Build-time invariant: see comment in getBuiltinOnlyAliasMap above.
 		panic(err)
 	}
 	// Return a fresh deep copy so callers may freely modify map entries and slices.

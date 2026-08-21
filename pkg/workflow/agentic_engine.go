@@ -577,6 +577,9 @@ func NewEngineRegistry() *EngineRegistry {
 	}
 	for _, engine := range builtins {
 		if err := registry.Register(engine); err != nil {
+			// Build-time invariant: the built-in engines list above has fixed, non-empty
+			// names, so registration can only fail if a future refactor introduces a
+			// duplicate or empty name — a programming error caught by CI, not user input.
 			panic(fmt.Sprintf("BUG: failed to register built-in engine: %v", err))
 		}
 	}

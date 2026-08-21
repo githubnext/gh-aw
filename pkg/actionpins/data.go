@@ -71,6 +71,8 @@ func getCachedActionPins() *actionPinsCache {
 	})
 
 	if cachedPins == nil {
+		// Build-time invariant: actionPinsOnce.Do above always assigns cachedPins
+		// unless loadActionPinsData panicked, so this is unreachable in practice.
 		panic("action pins cache was not initialized")
 	}
 	return cachedPins
@@ -87,6 +89,9 @@ func loadActionPinsData(raw []byte) ActionPinsData {
 	var data ActionPinsData
 	if err := json.Unmarshal(raw, &data); err != nil {
 		actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
+		// Build-time invariant: data/action_pins.json is embedded at compile time and
+		// validated by this package's tests; unmarshal can only fail for corrupted
+		// release data, never dynamic user input.
 		panic(fmt.Sprintf("failed to load action pins: %v", err))
 	}
 
@@ -95,6 +100,8 @@ func loadActionPinsData(raw []byte) ActionPinsData {
 	}
 
 	if emptyKeys := collectEntriesWithEmptySHA(data.Entries); len(emptyKeys) > 0 {
+		// Build-time invariant: an empty SHA in the embedded pin data would produce
+		// invalid workflow YAML at release time and must be caught before shipping.
 		panic(fmt.Sprintf("action_pins.json has %d entries with empty SHA %v — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing", len(emptyKeys), emptyKeys))
 	}
 
