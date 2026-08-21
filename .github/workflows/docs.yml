@@ -11,10 +11,7 @@ on:
   pull_request:
     paths:
       - 'docs/**'
-      - 'cmd/gh-aw-wasm/**'
-      - 'scripts/bundle-wasm-docs.sh'
       - '.github/workflows/docs.yml'
-      - 'Makefile'
   push:
     branches:
       - main

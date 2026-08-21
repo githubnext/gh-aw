@@ -66,7 +66,7 @@ This workflow tests that MCP server env vars are sorted alphabetically.
 
 	// Find the test-server env section in the generated YAML
 	// Look for "test-server" first, then find the env section after it
-	testServerIndex := strings.Index(yamlContent, `"test-server"`)
+	testServerIndex := strings.LastIndex(yamlContent, `"test-server"`)
 	if testServerIndex == -1 {
 		t.Fatalf("Could not find test-server section in generated YAML")
 	}
@@ -345,7 +345,7 @@ Test workflow.
 			}
 
 			// Find the server-specific block in the YAML
-			serverIndex := strings.Index(yamlContent, tt.serverName)
+			serverIndex := strings.LastIndex(yamlContent, tt.serverName)
 			if serverIndex == -1 {
 				t.Fatalf("Could not find server %s in generated YAML", tt.serverName)
 			}
@@ -596,7 +596,7 @@ mcp-servers:
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			serverIdx := strings.Index(yamlContent, `"my-server"`)
+			serverIdx := strings.LastIndex(yamlContent, `"my-server"`)
 			if serverIdx == -1 {
 				t.Fatal("Could not find my-server block in generated YAML")
 			}
@@ -681,7 +681,7 @@ Do nothing.
 	}
 
 	// Locate the my-server block.
-	serverIdx := strings.Index(yamlContent, `"my-server"`)
+	serverIdx := strings.LastIndex(yamlContent, `"my-server"`)
 	if serverIdx == -1 {
 		t.Fatal("Could not find my-server block in generated YAML")
 	}
@@ -757,7 +757,7 @@ Do nothing.
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	serverIdx := strings.Index(yamlContent, `"datadog"`)
+	serverIdx := strings.LastIndex(yamlContent, `"datadog"`)
 	if serverIdx == -1 {
 		t.Fatal("Could not find datadog block in generated YAML")
 	}
@@ -918,7 +918,7 @@ Do nothing.
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			serverIdx := strings.Index(yamlContent, tt.serverName)
+			serverIdx := strings.LastIndex(yamlContent, tt.serverName)
 			if serverIdx == -1 {
 				t.Fatalf("Could not find server %s in generated YAML", tt.serverName)
 			}
