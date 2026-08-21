@@ -10,6 +10,7 @@ import (
 )
 
 func TestBuildProcessedAuditRun(t *testing.T) {
+	t.Parallel()
 	run := WorkflowRun{DatabaseID: 11, WorkflowName: "Test Workflow"}
 	results := auditAnalysisResults{
 		firewallAnalysis:        &FirewallAnalysis{},
@@ -42,6 +43,7 @@ func TestBuildProcessedAuditRun(t *testing.T) {
 }
 
 func TestBuildAuditRunSummary(t *testing.T) {
+	t.Parallel()
 	run := WorkflowRun{DatabaseID: 22}
 	results := auditAnalysisResults{
 		metrics:        LogMetrics{TokenUsage: 100, Turns: 3},
@@ -66,6 +68,7 @@ func TestBuildAuditRunSummary(t *testing.T) {
 }
 
 func TestSaveAuditRunSummaryRoundTrip(t *testing.T) {
+	t.Parallel()
 	outputDir := t.TempDir()
 	run := WorkflowRun{DatabaseID: 33}
 	results := auditAnalysisResults{metrics: LogMetrics{Turns: 4}}
