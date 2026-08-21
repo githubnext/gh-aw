@@ -28,6 +28,7 @@ func compactTestData() LogsData {
 			Actor:        "octocat",
 			Branch:       "main",
 			CreatedAt:    time.Now(),
+			WSRF:         "3.90",
 		}},
 	}
 }
@@ -43,6 +44,8 @@ func TestRenderLogsCompactRendersRunsTableWithBorders(t *testing.T) {
 	assert.Contains(t, out, "RUNID")
 	assert.Contains(t, out, "1234567")
 	assert.Contains(t, out, "logs")
+	assert.Contains(t, out, "WSRF")
+	assert.Contains(t, out, "3.90")
 	assert.NotContains(t, out, "\x1b[", "non-TTY output should degrade to plain text")
 }
 
@@ -56,6 +59,8 @@ func TestRenderLogsCompactVerboseRendersRunsTableWithBorders(t *testing.T) {
 	assert.Contains(t, out, "╭")
 	assert.Contains(t, out, "CLASS")
 	assert.Contains(t, out, "1234567")
+	assert.Contains(t, out, "WSRF")
+	assert.Contains(t, out, "3.90")
 	assert.NotContains(t, out, "\x1b[", "non-TTY output should degrade to plain text")
 }
 

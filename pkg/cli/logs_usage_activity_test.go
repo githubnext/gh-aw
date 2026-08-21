@@ -549,3 +549,12 @@ func TestUsageActivitySummaryBackfillsWorkingSet(t *testing.T) {
 	assert.EqualValues(t, 874000, result.WorkingSet.CumulativeInputTokens)
 	assert.Equal(t, 5, result.WorkingSet.Invocations)
 }
+
+func TestWSRFDisplayValue(t *testing.T) {
+	t.Parallel()
+
+	factor := 3.9017857142857144
+	assert.Equal(t, "3.90", wsrfDisplayValue(&WorkingSetMetrics{RebuildFactor: &factor}))
+	assert.Equal(t, "", wsrfDisplayValue(&WorkingSetMetrics{MeasurementState: "unavailable"}))
+	assert.Equal(t, "", wsrfDisplayValue(nil))
+}

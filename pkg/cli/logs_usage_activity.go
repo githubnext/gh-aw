@@ -36,6 +36,16 @@ type WorkingSetMetrics struct {
 	Invocations           int      `json:"invocations"`
 }
 
+// wsrfDisplayValue formats the Working-Set Rebuild Factor for compact table
+// display, returning "" when the metric was not measured for the run so table
+// renderers can fall back to their standard "-" placeholder.
+func wsrfDisplayValue(ws *WorkingSetMetrics) string {
+	if ws == nil || ws.RebuildFactor == nil {
+		return ""
+	}
+	return fmt.Sprintf("%.2f", *ws.RebuildFactor)
+}
+
 type usageActivityFirewall struct {
 	TotalRequests    int                           `json:"total_requests"`
 	AllowedRequests  int                           `json:"allowed_requests"`

@@ -135,12 +135,13 @@ func renderLogsCompactToWriter(w io.Writer, data LogsData) {
 			strconv.FormatInt(r.RunID, 10), wfID, r.EngineID, status, dur,
 			strconv.Itoa(r.TokenUsage), formatCompactAIC(r.AIC),
 			strconv.Itoa(r.Turns), strconv.Itoa(r.ErrorCount),
+			formatCompactWSRF(r.WSRF),
 			r.Event, actor, branch,
 		})
 	}
 	// RenderTable appends a trailing newline, so following section headers remain separated.
 	fmt.Fprint(w, console.RenderTable(console.TableConfig{
-		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "EVENT", "ACTOR", "BRANCH"},
+		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "WSRF", "EVENT", "ACTOR", "BRANCH"},
 		Rows:    rows,
 	}))
 
@@ -318,13 +319,14 @@ func renderLogsCompactVerboseToWriter(w io.Writer, data LogsData) {
 			strconv.FormatInt(r.RunID, 10), wfID, r.EngineID, status, dur,
 			strconv.Itoa(r.TokenUsage), formatCompactAIC(r.AIC),
 			strconv.Itoa(r.Turns), strconv.Itoa(r.ErrorCount), strconv.Itoa(r.WarningCount),
+			formatCompactWSRF(r.WSRF),
 			r.Event, actor, tbt, classification,
 			r.CreatedAt.Format("01-02 15:04"), r.Branch,
 		})
 	}
 	// RenderTable appends a trailing newline, so following section headers remain separated.
 	fmt.Fprint(w, console.RenderTable(console.TableConfig{
-		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "WARN", "EVENT", "ACTOR", "TBT", "CLASS", "CREATED", "BRANCH"},
+		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "WARN", "WSRF", "EVENT", "ACTOR", "TBT", "CLASS", "CREATED", "BRANCH"},
 		Rows:    rows,
 	}))
 
@@ -406,6 +408,15 @@ func renderLogsCompactVerboseToWriter(w io.Writer, data LogsData) {
 // renderLogsCompactVerbose adds extra columns and sections for deeper analysis, writing to os.Stdout.
 func renderLogsCompactVerbose(data LogsData) {
 	renderLogsCompactVerboseToWriter(os.Stdout, data)
+}
+
+// formatCompactWSRF returns a table-ready cell value for the Working-Set
+// Rebuild Factor, falling back to "-" when the metric was not measured.
+func formatCompactWSRF(value string) string {
+	if value == "" {
+		return "-"
+	}
+	return value
 }
 
 func formatCompactAIC(value float64) string {
