@@ -10,6 +10,7 @@ import (
 
 var workflowBuilderLog = logger.New("workflow:workflow_builder")
 
+// buildInitialWorkflowData creates the initial WorkflowData struct with basic fields populated.
 func (c *Compiler) buildInitialWorkflowData(
 	result *parser.FrontmatterResult,
 	toolsResult *toolsProcessingResult,

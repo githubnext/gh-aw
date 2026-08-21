@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"math"
 	"path"
 	"regexp"
 	"strings"
@@ -116,7 +117,13 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 		return nil
 	}
 
-	steps := make([]GitHubActionStep, 0, len(workflowData.Plugins)*2)
+	// Each plugin contributes at most two steps. Guard the capacity computation so
+	// the multiplication can never overflow for an unexpectedly large plugin list.
+	capacity := len(workflowData.Plugins)
+	if capacity <= math.MaxInt/2 {
+		capacity *= 2
+	}
+	steps := make([]GitHubActionStep, 0, capacity)
 	checkoutAction := getActionPinForData("actions/checkout", workflowData)
 	for i, plugin := range workflowData.Plugins {
 		parsed := parseSkillRefSpec(plugin)

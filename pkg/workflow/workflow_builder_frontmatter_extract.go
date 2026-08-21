@@ -268,5 +268,3 @@ func extractDispatchItemNumber(frontmatter map[string]any) bool {
 	_, ok = inputsMap["item_number"]
 	return ok
 }
-
-// processAndMergeSteps handles the merging of imported steps with main workflow steps
