@@ -6,9 +6,10 @@
 // by the enabled feature set must be listed and AWF fails closed instead of falling
 // back to the official registry.
 //
-// This is distinct from the repository-level .github/workflows/aw.json
-// "container_pins" setting, which only substitutes container references used
-// directly by compiled workflows (e.g. MCP server images).
+// The repository-level .github/workflows/aw.json "container_pins" setting can
+// redirect default AWF references for predownload and lock metadata, but it
+// cannot change the role references AWF resolves at runtime. This manifest is
+// authoritative for both runtime role selection and gh-aw's matching predownload.
 
 package workflow
 
@@ -54,10 +55,10 @@ var awfImageRoles = []string{
 	awfImageRoleDindStaging,
 }
 
-// awfPinnedImagePattern matches a literal, registry-qualified OCI reference that
-// carries both a tag and an immutable SHA-256 digest:
-// "registry/repository:tag@sha256:<64 lowercase hex characters>".
-var awfPinnedImagePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*(:[0-9]+)?(/[a-zA-Z0-9._-]+)+:[a-zA-Z0-9._-]+@sha256:[0-9a-f]{64}$`)
+// awfPinnedImagePattern is AWF's canonical digestPinnedImage grammar. It follows
+// distribution/reference while requiring an explicit registry host, tag, and
+// lowercase SHA-256 digest.
+var awfPinnedImagePattern = regexp.MustCompile(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+(?::[0-9]{1,5})?|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?:[0-9]{1,5}|localhost)/[a-z0-9]+(?:(?:[._]|__|[-]+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|[-]+)[a-z0-9]+)*)*:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[a-f0-9]{64}$`)
 
 // getSandboxAgentImages returns the configured sandbox.agent.images manifest, or nil.
 func getSandboxAgentImages(workflowData *WorkflowData) map[string]string {
@@ -77,17 +78,33 @@ func isKnownAWFImageRole(role string) bool {
 // manifest for the workflow's enabled feature set.
 func requiredAWFImageRoles(workflowData *WorkflowData) []string {
 	required := []string{awfImageRoleSquid, awfImageRoleAgent, awfImageRoleAPIProxy}
-	if isCliProxyNeeded(workflowData) {
+	args := customAWFArgs(workflowData)
+	if isCliProxyNeeded(workflowData) || hasEnabledAWFArg(args, "--difc-proxy-host") {
 		required = append(required, awfImageRoleCliProxy)
 	}
 	if isArcDindTopology(workflowData) {
 		required = append(required, awfImageRoleBuildTools)
 	}
+	legacySecurityEnabled := isLegacySecurityRuntime(workflowData) || hasEnabledAWFArg(args, "--legacy-security")
+	if legacySecurityEnabled && hasEnabledAWFArg(args, "--dns-over-https") {
+		required = append(required, awfImageRoleDohProxy)
+	}
+	if hasEnabledAWFArg(
+		args,
+		"--dind-pre-stage-dirs",
+		"--dind-stage-engine-binary-path",
+		"--dind-stage-engine-binary-target-path",
+	) {
+		required = append(required, awfImageRoleDindStaging)
+	}
+
+	enclaveEnabled := false
 	for _, enclave := range workflowData.Enclaves {
 		executor, ok := enclaveExecutor(enclave)
 		if !ok {
 			continue
 		}
+		enclaveEnabled = true
 		switch executor {
 		case "script":
 			required = appendUniqueRole(required, awfImageRoleEnclaveScript)
@@ -95,7 +112,65 @@ func requiredAWFImageRoles(workflowData *WorkflowData) []string {
 			required = appendUniqueRole(required, awfImageRoleEnclaveAgent)
 		}
 	}
+	if enclaveEnabled {
+		required = append(required, awfImageRoleEnclaveMcpServer)
+	}
 	return required
+}
+
+// defaultAWFImageForRole returns the image AWF resolves when no closed manifest
+// is configured. Most roles use the selected AWF version under the official
+// registry; DoH and DinD staging retain AWF's external legacy defaults.
+func defaultAWFImageForRole(role, imageTag string) string {
+	switch role {
+	case awfImageRoleSquid:
+		return constants.DefaultFirewallRegistry + "/squid:" + imageTag
+	case awfImageRoleAgent:
+		return constants.DefaultFirewallRegistry + "/agent:" + imageTag
+	case awfImageRoleAPIProxy:
+		return constants.DefaultFirewallRegistry + "/api-proxy:" + imageTag
+	case awfImageRoleCliProxy:
+		return constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag
+	case awfImageRoleBuildTools:
+		return constants.DefaultFirewallRegistry + "/build-tools:" + imageTag
+	case awfImageRoleDohProxy:
+		return "cloudflare/cloudflared:latest"
+	case awfImageRoleEnclaveScript:
+		return constants.DefaultFirewallRegistry + "/enclave-script:" + imageTag
+	case awfImageRoleEnclaveAgent:
+		return constants.DefaultFirewallRegistry + "/enclave-agent:" + imageTag
+	case awfImageRoleEnclaveMcpServer:
+		return constants.DefaultFirewallRegistry + "/enclave-mcp-server:" + imageTag
+	case awfImageRoleDindStaging:
+		return constants.DefaultFirewallRegistry + "/agent:latest"
+	default:
+		return ""
+	}
+}
+
+func customAWFArgs(workflowData *WorkflowData) []string {
+	var args []string
+	if agentConfig := getAgentConfig(workflowData); agentConfig != nil {
+		args = append(args, agentConfig.Args...)
+	}
+	if firewallConfig := getFirewallConfig(workflowData); firewallConfig != nil {
+		args = append(args, firewallConfig.Args...)
+	}
+	return args
+}
+
+// hasEnabledAWFArg reports whether one of the named boolean/optional-value AWF
+// arguments is present. An explicit "=false" is treated as disabled.
+func hasEnabledAWFArg(args []string, names ...string) bool {
+	for _, arg := range args {
+		name, value, hasValue := strings.Cut(arg, "=")
+		for _, candidate := range names {
+			if name == candidate && (!hasValue || !strings.EqualFold(value, "false")) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func appendUniqueRole(roles []string, role string) []string {
@@ -205,7 +280,7 @@ func validateNoConflictingAWFImageSelectors(workflowData *WorkflowData, firewall
 			)
 		}
 	}
-	return validateNoConflictingAWFImageArgs(workflowData, firewallConfig)
+	return validateNoConflictingAWFImageArgs(workflowData)
 }
 
 // awfImageSelectorArgs lists generic AWF arguments that select images through
@@ -222,14 +297,8 @@ var awfImageSelectorArgs = []string{
 
 // validateNoConflictingAWFImageArgs rejects raw AWF arguments that select images
 // through legacy controls when sandbox.agent.images is configured.
-func validateNoConflictingAWFImageArgs(workflowData *WorkflowData, firewallConfig *FirewallConfig) error {
-	var args []string
-	if agentConfig := getAgentConfig(workflowData); agentConfig != nil {
-		args = append(args, agentConfig.Args...)
-	}
-	if firewallConfig != nil {
-		args = append(args, firewallConfig.Args...)
-	}
+func validateNoConflictingAWFImageArgs(workflowData *WorkflowData) error {
+	args := customAWFArgs(workflowData)
 	for _, arg := range args {
 		name := arg
 		if idx := strings.Index(name, "="); idx >= 0 {

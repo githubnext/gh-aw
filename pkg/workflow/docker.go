@@ -19,6 +19,8 @@ var dockerLog = logger.New("workflow:docker")
 func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actionMode ActionMode) []string {
 	var images []string
 	imageSet := make(map[string]struct{}) // Use a set to avoid duplicates
+	var authoritativeAWFImages []string
+	authoritativeAWFImageSet := make(map[string]struct{})
 
 	// Check for GitHub tool (uses Docker image)
 	if rawGithubTool, hasGitHub := tools["github"]; hasGitHub {
@@ -85,54 +87,30 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	// Collect AWF (firewall) container images when firewall is enabled
 	// AWF uses three containers: squid (proxy), agent, and api-proxy (for engines with LLM gateway support)
 	if isFirewallEnabled(workflowData) {
-		// Get the firewall version for image tags
 		firewallConfig := getFirewallConfig(workflowData)
 		awfImageTag := getAWFImageTag(firewallConfig)
-
-		// When sandbox.agent.images pins a role to a specific literal reference,
-		// that reference — not the default registry/tag — is what AWF actually
-		// launches (see sandbox_agent_images.go). Use it here too so the pre-pull
-		// step and lock-file manifest match what container.images selects, and so
-		// aw.json container_pins (which only targets default-registry references)
-		// isn't mistakenly credited with substituting an image that AWF never uses.
 		sandboxImages := getSandboxAgentImages(workflowData)
-		addAWFRoleImage := func(role, defaultImage string) {
-			image := defaultImage
-			if pinned, ok := sandboxImages[role]; ok && pinned != "" {
-				image = pinned
+
+		// Use the same enabled-role ledger as manifest completeness validation so
+		// every AWF consumer is predownloaded under --skip-pull. A closed manifest
+		// is authoritative: its literal references bypass aw.json container_pins.
+		for _, role := range requiredAWFImageRoles(workflowData) {
+			image := defaultAWFImageForRole(role, awfImageTag)
+			if sandboxImages != nil {
+				image = sandboxImages[role]
+				if image != "" && !setutil.Contains(authoritativeAWFImageSet, image) {
+					authoritativeAWFImages = append(authoritativeAWFImages, image)
+					authoritativeAWFImageSet[image] = struct{}{}
+					dockerLog.Printf("Added authoritative AWF %s container: %s", role, image)
+				}
+				continue
 			}
-			if !setutil.Contains(imageSet, image) {
-				images = append(images, image)
-				imageSet[image] = struct {
-				}{}
-				dockerLog.Printf("Added AWF %s container: %s", role, image)
+			if image == "" || setutil.Contains(imageSet, image) {
+				continue
 			}
-		}
-
-		// Add squid (proxy) container
-		addAWFRoleImage(awfImageRoleSquid, constants.DefaultFirewallRegistry+"/squid:"+awfImageTag)
-
-		// Add default agent container
-		addAWFRoleImage(awfImageRoleAgent, constants.DefaultFirewallRegistry+"/agent:"+awfImageTag)
-
-		// Add api-proxy sidecar container (required for all engines — LLM gateway is mandatory)
-		// The api-proxy holds LLM API keys securely and proxies requests through Squid
-		// Each engine uses its own dedicated port for communication
-		if workflowData != nil && workflowData.AI != "" {
-			addAWFRoleImage(awfImageRoleAPIProxy, constants.DefaultFirewallRegistry+"/api-proxy:"+awfImageTag)
-		}
-
-		// Add cli-proxy sidecar container when the cli-proxy is needed.
-		// Without this, --skip-pull causes AWF to fail because the cli-proxy image was never pulled.
-		if isCliProxyNeeded(workflowData) {
-			addAWFRoleImage(awfImageRoleCliProxy, constants.DefaultFirewallRegistry+"/cli-proxy:"+awfImageTag)
-		}
-
-		// Add build-tools sysroot image for ARC/DinD topology.
-		// AWF uses this as an init container to populate the sysroot volume with
-		// system binaries (gcc, make, libraries) that are invisible on the DinD daemon's FS.
-		if isArcDindTopology(workflowData) {
-			addAWFRoleImage(awfImageRoleBuildTools, constants.DefaultFirewallRegistry+"/build-tools:"+awfImageTag)
+			images = append(images, image)
+			imageSet[image] = struct{}{}
+			dockerLog.Printf("Added AWF %s container: %s", role, image)
 		}
 	}
 
@@ -197,12 +175,24 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 
 	// Sort for stable output
 	sort.Strings(images)
-	dockerLog.Printf("Collected %d Docker images from tools", len(images))
+	sort.Strings(authoritativeAWFImages)
+	dockerLog.Printf("Collected %d Docker images from tools", len(images)+len(authoritativeAWFImages))
 
 	// Apply digest pins from the action cache when available.
 	// Each pinned ref replaces the bare tag with "tag@sha256:…" so that the pull
 	// is bound to a specific immutable manifest and not just to a mutable tag.
 	pinnedImages, imagePins := applyContainerPins(images, workflowData)
+
+	// Closed AWF manifest references are already literal digest pins and must
+	// remain unchanged. Keep them separate from normal image mapping so a non-AWF
+	// container using the same source reference can still be redirected and both
+	// runtime images are predownloaded.
+	pinnedImages = mergeDockerImages(pinnedImages, authoritativeAWFImages)
+	authoritativePins := make([]GHAWManifestContainer, 0, len(authoritativeAWFImages))
+	for _, image := range authoritativeAWFImages {
+		authoritativePins = append(authoritativePins, GHAWManifestContainer{Image: image})
+	}
+	imagePins = mergeDockerImagePins(imagePins, authoritativePins)
 
 	// Store pinned image refs and full pin info in WorkflowData so they can be
 	// included in the compiled lock file header and gh-aw-manifest for auditability.
@@ -229,16 +219,6 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 	}
 
 	for i, img := range images {
-		// Images already carrying a "@sha256:" digest are already immutable, fully
-		// resolved literals — most notably sandbox.agent.images role overrides,
-		// which AWF treats as a closed manifest. aw.json container_pins only
-		// targets bare default-registry tags, so it must not rewrite these.
-		if strings.Contains(img, "@sha256:") {
-			result[i] = img
-			pins[i] = GHAWManifestContainer{Image: img}
-			continue
-		}
-
 		// Apply container_pins mapping from aw.json before digest resolution so that
 		// redirected registries are pre-downloaded and recorded in the manifest.
 		img = applyContainerPinMappingFromData(img, workflowData)
