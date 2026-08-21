@@ -898,6 +898,40 @@ This is a test workflow.`,
 	}
 }
 
+func TestParseWorkflowWithSplitEngineModels(t *testing.T) {
+	workflowPath := filepath.Join(testutil.TempDir(t, "split-engine-model-test"), "workflow.md")
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+strict: false
+engine:
+  id: codex
+model: openai/gpt-4o-mini
+safe-outputs:
+  threat-detection:
+    engine:
+      id: copilot
+      model: gpt-5-mini
+---
+
+# Test Workflow
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	workflowData, err := NewCompiler().ParseWorkflowFile(workflowPath)
+	if err != nil {
+		t.Fatalf("ParseWorkflowFile failed: %v", err)
+	}
+
+	assert.Equal(t, "openai/gpt-4o-mini", workflowData.Model)
+	if assert.NotNil(t, workflowData.SafeOutputs) && assert.NotNil(t, workflowData.SafeOutputs.ThreatDetection) {
+		assert.Equal(t, "gpt-5-mini", workflowData.SafeOutputs.ThreatDetection.Model)
+	}
+}
+
 func TestEngineConfigurationWithModel(t *testing.T) {
 	tests := []struct {
 		name           string

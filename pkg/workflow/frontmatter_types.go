@@ -431,8 +431,8 @@ type FrontmatterConfig struct {
 	CheckoutDisabled           bool              `json:"-"`                  // true when checkout: false is set in frontmatter
 	CheckoutExplicitlyDisabled bool              `json:"-"`                  // true only when checkout: false is explicitly written by the user in frontmatter
 
-	// Model is the top-level LLM model override. When set, it takes precedence over
-	// engine.model. Use this field instead of engine.model.
+	// Model is the top-level LLM model default. An engine.model value overrides it
+	// for that engine instance.
 	// Example: model: gpt-5.4
 	Model string `json:"model,omitempty"`
 
