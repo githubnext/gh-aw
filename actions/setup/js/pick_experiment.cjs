@@ -161,11 +161,11 @@ function hasCounts(counts) {
 
 function mergeContinualState(target, source) {
   if (!isPlainObject(source)) {
-    throw new Error("Invalid continual experiment state");
+    throw new Error("Invalid continual experiment state: expected an object");
   }
   for (const [name, value] of Object.entries(source)) {
     if (!isPlainObject(value) || !Number.isInteger(value.current_stage) || value.current_stage < 0) {
-      throw new Error("Invalid continual experiment stage");
+      throw new Error(`Invalid continual experiment stage for "${name}": current_stage must be a non-negative integer`);
     }
     const currentStage = target[name]?.current_stage ?? 0;
     target[name] = { current_stage: Math.max(currentStage, value.current_stage) };
