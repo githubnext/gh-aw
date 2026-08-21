@@ -152,6 +152,8 @@ func TestSingleQuotedJS(t *testing.T) {
 		{"generate_aw_info.cjs", `'generate_aw_info.cjs'`},
 		{`a'b`, `'a\'b'`},
 		{`a\b`, `'a\\b'`},
+		{`a"b`, `'a"b'`},
+		{`a\"b`, `'a\\"b'`},
 		{"a\nb", `'a\nb'`},
 		{"a\rb", `'a\rb'`},
 	}

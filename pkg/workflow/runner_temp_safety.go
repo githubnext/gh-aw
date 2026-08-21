@@ -22,11 +22,13 @@ var (
 
 // singleQuotedJS renders s as a single-quoted JavaScript string literal for
 // embedding in generated workflow scripts. strconv.Quote escapes backslashes and
-// control characters; only the quote character itself differs between Go's
-// double-quoted syntax and the single-quoted form emitted here.
+// control characters; only the quote characters need adjusting, since JavaScript
+// single-quoted strings escape ' rather than ".
 func singleQuotedJS(s string) string {
 	body := strconv.Quote(s)
-	body = strings.ReplaceAll(body[1:len(body)-1], `'`, `\'`)
+	body = body[1 : len(body)-1]
+	body = strings.ReplaceAll(body, `\"`, `"`)
+	body = strings.ReplaceAll(body, `'`, `\'`)
 	return "'" + body + "'"
 }
 
