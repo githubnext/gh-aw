@@ -1226,7 +1226,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: read
-      discussions: write
       issues: write
       pull-requests: write
     concurrency:
@@ -1962,7 +1961,6 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped'
     runs-on: ubuntu-slim
     permissions:
-      discussions: write
       issues: write
       pull-requests: write
     timeout-minutes: 45
