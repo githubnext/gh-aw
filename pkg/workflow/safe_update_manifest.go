@@ -71,6 +71,7 @@ type GHAWManifest struct {
 	HasPullRequestTarget        bool                                 `json:"has_pull_request_target,omitempty"`   // whether on: includes pull_request_target
 	MemoryValidationScripts     []GHAWManifestMemoryValidationScript `json:"memory_validation_scripts,omitempty"` // custom repo/cache memory validation scripts, hashed
 	ThreatDetectionSuppressions []ThreatDetectionSuppression         `json:"threat_detection_suppressions,omitempty"`
+	Artifacts                   []ArtifactInventoryEntry             `json:"artifacts,omitempty"` // artifacts created and downloaded by workflow jobs
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference

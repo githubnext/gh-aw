@@ -155,6 +155,12 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
 		return "", nil, nil, fmt.Errorf("failed to build and validate jobs: %w", err)
 	}
+	if c.artifactManager == nil {
+		c.artifactManager = NewArtifactManager()
+	}
+	if err := c.artifactManager.AnalyzeJobs(c.jobManager.GetAllJobs()); err != nil {
+		return "", nil, nil, fmt.Errorf("artifact validation failed: %w", err)
+	}
 
 	// Pre-allocate builder capacity based on estimated workflow size.
 	// Copilot/Claude workflows with safe-outputs typically compile to ~70–90 KB.

@@ -65,6 +65,11 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// skills detected at compile time so that subsequent compilations can perform safe update
 	// enforcement.
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.Plugins, data.RawFrontmatter["on"])
+	var artifactInventory []ArtifactInventoryEntry
+	if c.artifactManager != nil {
+		artifactInventory = c.artifactManager.Inventory()
+	}
+	manifest.Artifacts = artifactInventory
 	if data.ParsedFrontmatter != nil {
 		manifest.ThreatDetectionSuppressions = data.ParsedFrontmatter.ThreatDetectionSuppressions
 	} else {
@@ -184,6 +189,22 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		yaml.WriteString("# Container images used:\n")
 		for _, img := range data.DockerImages {
 			fmt.Fprintf(yaml, "#   - %s\n", img)
+		}
+	}
+
+	if len(artifactInventory) > 0 {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Artifacts:\n")
+		for _, artifact := range artifactInventory {
+			fmt.Fprintf(yaml, "#   - name: %q\n", artifact.Name)
+			fmt.Fprintf(yaml, "#     created: %t\n", artifact.Created)
+			fmt.Fprintf(yaml, "#     downloaded: %t\n", artifact.Downloaded)
+			if len(artifact.CreatedIn) > 0 {
+				fmt.Fprintf(yaml, "#     created-in: %s\n", strings.Join(artifact.CreatedIn, ", "))
+			}
+			if len(artifact.DownloadedIn) > 0 {
+				fmt.Fprintf(yaml, "#     downloaded-in: %s\n", strings.Join(artifact.DownloadedIn, ", "))
+			}
 		}
 	}
 
