@@ -160,13 +160,13 @@ func TestSingleQuotedJS(t *testing.T) {
 		{`a\b`, `'a\\b'`},
 		{`a"b`, `'a"b'`},
 		{`a\"b`, `'a\\"b'`},
-		{"a\ab", `'a\u0007b'`},
+		{"a\ab", `'a\ab'`},
 		{"a\bb", `'a\bb'`},
 		{"a\fb", `'a\fb'`},
 		{"a\nb", `'a\nb'`},
 		{"a\rb", `'a\rb'`},
 		{"a\tb", `'a\tb'`},
-		{"a\vb", `'a\u000bb'`},
+		{"a\vb", `'a\vb'`},
 		{"a`b", "'a`b'"},
 	}
 	for _, tt := range tests {
