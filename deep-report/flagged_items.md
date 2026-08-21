@@ -112,3 +112,16 @@
 - Filed frontmatter version/include schema gap (#53613), docs quick-wins bundle (#53614, now fixed), PR Sous Chef consolidation (#53615, now in-progress).
 - Commented (not filed) on #53464 for a 4th+ MCP-toolset-unavailability occurrence.
 - Declined: Sergo/ESLint Refiner (self-filed already), lint-monster (updates own tracker), Firewall report/escape test (fully compliant).
+
+## Flagged Items (2026-08-20, ~23:36Z cycle, window since 18:32:59Z baseline #54319, 8 new discussions: 54323,54340,54344,54350,54352,54357,54358,54377)
+
+- **[new, filed, P0/critical]** Codex-engine fleet-wide outage: 18/18 runs failed (0%) across 10 workflows including AI Moderator — root cause fix (#41253) applied narrowly in 2026-06, never generalized. Corroborated independently by Detection Analysis Report same day (#54358, #54377).
+- **[new, filed]** Daily Rendering Scripts Verifier missing `node` ecosystem in `network.allowed` — verified live, caused 2.4M blocked requests + 30-min timeout (#54358).
+- **[new, filed]** Lockfile Statistics Analysis missing `python` ecosystem in `network.allowed` — verified live, blocks PyYAML install, forces regex fallback losing job-count/permissions/discussion-category/MCP-tool-name data (#54344).
+- **[declined, already tracked]** Auto-Triage Issues pi-engine crash (#54310) — same signature as open cross-engine segfault #54186.
+- **[declined, chronic/unstuck, not re-filed]** Ponytail Reviewer / Daily Go Test Parallelizer low success + "instrument Copilot CLI stderr" ask — 5+ prior closed attempts never stuck (recurrence 25 per #54358); flagged as standing pattern in known_patterns instead of a 6th re-file.
+- **[declined, already tracked]** 3 oversized test files reconfirmed by Daily Code Metrics (#54323) — already open #54106.
+- **[declined, already tracked]** Daily Performance Summary pagination/window-collapse (3rd occurrence) — already open #54105.
+- **[declined, already fixed]** 45-day audit-workflows cadence gap referenced in #54358 — predates #53252's fix (closed 2026-08-17); today's on-schedule run is the recovery evidence.
+- **[watch]** Copilot PR Prompt Analysis success rate drifted to 78.3% (from ~81-82% in July) — no single code fix identified, watch trend.
+- **[declined, healthy]** Daily Team Evolution (#54340, high-velocity human-AI collaboration, no concerns), Daily Regulatory Report (#54357, no critical cross-report discrepancies, only expected scope-mismatch notes).

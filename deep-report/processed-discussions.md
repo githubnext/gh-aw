@@ -54,3 +54,8 @@ Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:
 - 2026-08-11: 51816–52081 range (30 discussions)
 - 2026-08-10: 50761–51801 range (34 discussions)
 - 2026-08-17 06:26Z and 12:22Z cycles: incorrectly reported "zero new discussions" due to the (since-fixed) stale day-keyed cache bug — not a true quiet period, see known_patterns.md.
+
+## Discussions mined for code-quality tasks (processed through 2026-08-20 ~23:36Z)
+
+### Processed 2026-08-20 ~23:36Z cycle (full — all 8 new/updated discussions read; window since 18:32:59Z baseline #54319)
+54323, 54340, 54344, 54350, 54352, 54357, 54358, 54377 — all read in full, no sampling shortfall. 3 code-quality/infra tasks extracted and filed (codex binary path fleet-wide fix, 2 verified network-allowlist gaps). Chronic "instrument Copilot CLI stderr" ask (5+ prior closed attempts) deliberately not re-filed — see known_patterns.md.

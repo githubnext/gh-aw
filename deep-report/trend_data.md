@@ -102,3 +102,16 @@ Next cycle checks: (a) do the 7 newly-filed issues get picked up at the usual fa
 ## Trend Data (2026-08-18, 06:23Z cycle) — condensed
 
 Baseline 2026-08-18T00:31Z. 4 new issues filed + 1 comment. 20-run live sample: 2 errors (1 driver_exit_failure, 1 agent_logic_failure) out of 20 — both PR Sous Chef's own most-recent runs were "success", consistent with a separate `safe_outputs`-step-only failure mode. 16 open duplicate PR Sous Chef issues discovered as a side effect of investigation.
+
+## Trend Data (2026-08-20, ~23:36Z cycle)
+
+Window since 18:32:59Z baseline (#54319), 8 new discussions (54323, 54340, 54344, 54350, 54352, 54357, 54358, 54377), all read in full.
+
+- **Issue activity**: 3 new issues filed (1 P0 fleet-wide codex-engine fix, 2 verified network-allowlist gaps) + 0 comments. Deliberately did not re-file a 6th "instrument Copilot CLI stderr" ask given 5 prior closed attempts never stuck (see known_patterns).
+- **Issue backlog** (from weekly-issues-data snapshot, last 7 days): 198 open / 302 closed. Unlabeled open: 3 — healthy, consistent with standing decline-to-file pattern.
+- **Fleet health**: 80.6% raw / 80.7% adjusted success rate over 444 runs (24h), down from 86.25% on 2026-07-06 (45-day gap between full audits) — the drop is driven almost entirely by the new codex-engine outage (0% on 18 runs), not a broad-based decline. copilot 85.7%, claude 87.7%, pi 93.1%.
+- **First-time baselines established this cycle**: Daily Code Metrics (quality score 72/100, Grade C, first day of tracking), Lockfile Statistics (286 lockfiles, 60% copilot/21% claude/5% codex engine mix), Detection Analysis Report (90.7% of runs detection-enabled, 0 misconfigured workflows).
+- **Copilot PR Prompt Analysis**: success rate 78.3% today vs. ~81-82% in early July — a real but unexplained drift; Bug Fix category (233 PRs, largest) has the lowest success rate (69.5%) of named categories.
+- **Cross-report corroboration**: Agentic Workflow Audit (#54358) and Detection Analysis Report (#54377), generated independently the same day, both flagged AI Moderator (codex, 0% success), Ponytail Reviewer, and Daily Go Test Parallelizer as low-success outliers — treated as elevated-confidence signal per known_patterns.
+
+Next cycle checks: (a) does the codex fleet-wide fix land and restore the 10 affected workflows, (b) do the 2 network-allowlist fixes land and stop the block-storm/PyYAML-install failures, (c) does the Copilot PR Prompt success-rate drift (81%→78.3%) continue or stabilize, (d) does the fleet success rate recover toward ~86% once codex is fixed.
