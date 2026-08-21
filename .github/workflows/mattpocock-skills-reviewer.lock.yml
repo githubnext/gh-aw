@@ -327,7 +327,7 @@ jobs:
             await main();
       - name: Upgrade gh CLI for frontmatter skills
         run: bash "${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh" "2.90.0"
-      - name: Install frontmatter skill 1
+      - name: "Install frontmatter skill: mattpocock/skills/diagnosing-bugs"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -343,7 +343,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'install_frontmatter_skills.cjs'));
             await main();
-      - name: Install frontmatter skill 2
+      - name: "Install frontmatter skill: mattpocock/skills/tdd"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -359,7 +359,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'install_frontmatter_skills.cjs'));
             await main();
-      - name: Install frontmatter skill 3
+      - name: "Install frontmatter skill: mattpocock/skills/improve-codebase-architecture"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -375,7 +375,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'install_frontmatter_skills.cjs'));
             await main();
-      - name: Install frontmatter skill 4
+      - name: "Install frontmatter skill: mattpocock/skills/grill-with-docs"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -391,7 +391,7 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'install_frontmatter_skills.cjs'));
             await main();
-      - name: Install frontmatter skill 5
+      - name: "Install frontmatter skill: mattpocock/skills/codebase-design"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_INFO_ENGINE_ID: "copilot"
