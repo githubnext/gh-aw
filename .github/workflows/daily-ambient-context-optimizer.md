@@ -218,7 +218,7 @@ Prefer higher-cost runs first by using `aic`, then `effective_tokens`, `token_us
 
 ### Step 3 — Enrich a subset with audits
 
-Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer cost context and references.
+Run the `audit` MCP tool for the **2 most expensive sampled runs** so you have richer cost context and references. Record each enriched run's `working_set` block (`measurement_state`, `rebuild_factor`, `peak_input_tokens`, `cumulative_input_tokens`) — the Working-Set Rebuild Factor (WSRF) is a direct signal of how much ambient context is being re-sent across turns and complements the first-request char/token metrics gathered in Step 1.
 
 ### Step 4 — Closed PR Deduplication Guard
 
@@ -265,6 +265,7 @@ Include at least:
 - `request_input_tokens` when a matching API proxy token-usage entry is available
 - `prompt_chars` when `prompt.txt` exists
 - `request_prompt_char_delta` (`request_chars - prompt_chars` when both exist)
+- `working_set_rebuild_factor` (WSRF, from the `audit` MCP tool's `working_set.rebuild_factor`) when the run was enriched with an audit in Step 3; omit for runs that were not audited
 
 ## Deterministic Analysis
 
@@ -335,7 +336,7 @@ When one or more are missing, include a recommendation to enable them and rewrit
 
 After the deterministic Python script finishes, perform a deeper review yourself for **at most 2 sampled runs** (only when at least 2 sampled runs exist):
 
-1. For each selected run, review `run-<id>.json` alongside the deterministic analysis metrics already computed.
+1. For each selected run, review `run-<id>.json` alongside the deterministic analysis metrics already computed, including `working_set_rebuild_factor` (WSRF) when present.
 2. Identify at most 3 opportunities per run, each described with `category`, `finding`, `evidence`, and `impact`.
 3. Base findings only on the compact structured metrics already gathered — never re-read raw full prompt text.
 4. Aggregate and deduplicate opportunities across the sampled runs, then do final prioritization.
@@ -371,6 +372,7 @@ Prioritize recommendations that:
 4. move deterministic data gathering out of the main prompt
 5. enable `gh-proxy` and `cli-proxy` when missing, then rewrite raw CLI-oriented problem wording to explicit `agentic-workflows` MCP-tool calls
 6. move large inline output templates (issue body, discussion body, report formats) into `## skill:` blocks so they are loaded on demand rather than unconditionally inflating the first request
+7. when an audited run shows a high WSRF (context repeatedly rebuilt near the peak invocation size rather than growing incrementally), prioritize recommendations that stop resending large static context on every turn
 
 Do not recommend changes that would obviously weaken safety or remove necessary task context.
 
@@ -428,6 +430,7 @@ Any agent implementing workflow-file recommendations **must** complete every ite
 | Merged optimizer PRs (7d) | ... |
 | Closed optimizer PRs (7d) | ... |
 | Optimizer PR close-rate (7d) | ... |
+| WSRF (audited runs) | ... |
 
 <details>
 <summary><b>Per-Run First-Request Metrics</b></summary>
