@@ -3,8 +3,10 @@
 package workflow
 
 import (
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -698,6 +700,10 @@ Test workflow`
 	}
 	if !strings.Contains(detectionSection, "wire_api = \"responses\"") {
 		t.Error("Codex external detector path must use the Responses API")
+	}
+	expectedCopilotBaseURL := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CopilotLLMGatewayPort))
+	if !strings.Contains(detectionSection, `base_url = "`+expectedCopilotBaseURL+`"`) {
+		t.Errorf("Codex external detector path must use the reflected Copilot provider endpoint %q", expectedCopilotBaseURL)
 	}
 	if !strings.Contains(detectionSection, `export CODEX_API_KEY="$`+constants.CopilotBYOKDummyAPIKeyEnvVar+`" &&`) {
 		t.Error("Codex external detector path must activate the BYOK proxy route")

@@ -3,6 +3,7 @@ package workflow
 
 import (
 	"fmt"
+	"net"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,7 +20,14 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 	const emptyMCPServersJSON = `{"mcpServers":{}}`
 	shellCodexConfigPath := constants.ShellMcpConfigDir + "/config.toml"
 	codexHomeConfigPath := constants.TmpMcpConfigDir + "/config.toml"
-	codexAPIBase := NewCodexEngine().getOpenAIProxyProviderBaseURL()
+	detectionData := buildExternalDetectorWorkflowData(data, "codex")
+	detectionData.Model = data.Model
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
+		detectionData.Model = data.SafeOutputs.ThreatDetection.Model
+	}
+	provider := NewCodexEngine().ResolveLLMProvider(detectionData)
+	profile := llmProviderProfileFor(provider)
+	codexAPIBase := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(profile.gatewayPort))
 	codexWSSBase := codexProxyWebsocketBaseURL(codexAPIBase)
 	codexConfig := buildExternalDetectorCodexConfig(codexAPIBase, codexWSSBase)
 	codexConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_DETECTION_CONFIG", codexConfig)

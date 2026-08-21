@@ -596,6 +596,25 @@ func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 	}
 }
 
+func TestValidateCodexCopilotAwfVersion(t *testing.T) {
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{ID: "codex"},
+		Model:        "copilot/auto",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: "v0.25.2"},
+		},
+	}
+
+	if err := validateCodexCopilotAwfVersion(workflowData); err == nil || !strings.Contains(err.Error(), "requires AWF v0.25.3 or newer") {
+		t.Fatalf("Expected legacy AWF version error, got %v", err)
+	}
+
+	workflowData.NetworkPermissions.Firewall.Version = "v0.25.3"
+	if err := validateCodexCopilotAwfVersion(workflowData); err != nil {
+		t.Fatalf("Expected minimum supported AWF version to pass, got %v", err)
+	}
+}
+
 func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
