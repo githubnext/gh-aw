@@ -940,8 +940,15 @@ safe-outputs:
 	if err != nil {
 		t.Fatalf("ReadFile lock file failed: %v", err)
 	}
-	assert.Contains(t, string(lockFile), `"agent_model":"openai/gpt-4o-mini"`)
-	assert.Contains(t, string(lockFile), `"detection_agent_model":"gpt-5-mini"`)
+	metadata, legacy, err := ExtractMetadataFromLockFile(string(lockFile))
+	if err != nil {
+		t.Fatalf("ExtractMetadataFromLockFile failed: %v", err)
+	}
+	if metadata == nil || legacy {
+		t.Fatal("Expected compiled lock file to contain structured metadata")
+	}
+	assert.Equal(t, "openai/gpt-4o-mini", metadata.AgentModel)
+	assert.Equal(t, "gpt-5-mini", metadata.DetectionAgentModel)
 }
 
 func TestEngineConfigurationWithModel(t *testing.T) {
