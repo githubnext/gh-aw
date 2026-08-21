@@ -91,6 +91,32 @@ func IsAuthError(output string) bool {
 	return matched
 }
 
+// IsInsufficientScopesError reports whether err indicates that a GitHub
+// GraphQL API request was rejected because the authenticated token is
+// missing required OAuth/PAT scopes. The gh CLI and GitHub GraphQL API
+// surface this as the literal "INSUFFICIENT_SCOPES" error type.
+// It returns false when err is nil.
+func IsInsufficientScopesError(err error) bool {
+	matched := containsErrorSubstring(err, "insufficient_scopes")
+	if matched {
+		errorutilLog.Printf("Classified error as insufficient scopes: %v", err)
+	}
+	return matched
+}
+
+// IsAlreadyMergedError reports whether err indicates that a `gh pr merge`
+// operation failed because the pull request was already merged. The gh CLI
+// only surfaces this state via error text such as "already merged" or the
+// GraphQL "MERGED" state literal.
+// It returns false when err is nil.
+func IsAlreadyMergedError(err error) bool {
+	matched := containsErrorSubstring(err, "already merged", "merged")
+	if matched {
+		errorutilLog.Printf("Classified error as already-merged: %v", err)
+	}
+	return matched
+}
+
 // containsErrorSubstring reports whether err contains any of the provided
 // substrings after lowercasing the full error message for case-insensitive
 // matching.

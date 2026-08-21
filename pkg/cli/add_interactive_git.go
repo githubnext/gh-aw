@@ -11,6 +11,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -18,8 +19,7 @@ func isAlreadyMergedGHError(err error) bool {
 	if err == nil {
 		return false
 	}
-	//nolint:errstringmatch // gh pr merge reports already-merged states only via CLI text.
-	return strings.Contains(err.Error(), "already merged") || strings.Contains(err.Error(), "MERGED")
+	return errorutil.IsAlreadyMergedError(err)
 }
 
 type mergeAction string
