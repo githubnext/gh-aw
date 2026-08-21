@@ -483,6 +483,17 @@
       "avg_agent_duration_minutes": 29,
       "success_rate": 0.875,
       "note": "rolling 24h window from 08-19T18:19:52Z; author app/copilot-swe-agent only; 11 of 19 PRs still open (all <24h old, oldest ~23.7h, #54068); success_rate over 8 completed (small sample); avg_duration created->merged; 30 human comments across 19 PRs via per-PR REST API (9 PRs had >=1, top #54120 with 7); success_rate roughly stable 80.8%->87.5% (+6.7pp, small n=8 sample, low confidence); avg_duration down sharply 214->29min (-86.4%); avg_comments up sharply 0.26->1.58; volume down sharply 42->19 (-54.8%); 1 closure (#54099, Claude-engine reference docs) was substantive, not a WIP placeholder; no PRs open >24h"
+    },
+    {
+      "date": "2026-08-21",
+      "total_prs": 68,
+      "merged_prs": 37,
+      "closed_prs": 10,
+      "open_prs": 21,
+      "avg_comments": 0.43,
+      "avg_agent_duration_minutes": 168.9,
+      "success_rate": 0.787,
+      "note": "rolling 24h window from 2026-08-20T18:19:25Z; author app/copilot-swe-agent only; 21 of 68 PRs still open (all <24h old, none >24h); success_rate over 47 completed; avg_duration created->merged; 29 human issue comments across 68 PRs via per-PR REST API (top #54398/#54365/#54341 with 3 each; bot comments from Copilot/gh-aw-bot/github-actions excluded); 2 of 10 closures were [WIP] placeholder closures (#54493, #54349), other 8 had substantive bodies; success_rate down 87.5%->78.7% (-8.8pp, ~10% relative decline, small-n caveat on 08-20 baseline of 8 completed); avg_duration up sharply 29->168.9min (+482%, 08-20 value was an outlier low); avg_comments down 1.58->0.43 (-72.8%); volume up sharply 19->68 (+258%)"
     }
   ],
   "last_updated": "2026-08-20"
