@@ -4,6 +4,8 @@ run-name: "Squad — ${{ github.event.inputs.command || github.event.comment.bod
 description: Cast, connect, or adopt a Squad AI team for your repository
 emoji: "🤖"
 private: false
+features:
+  gh-aw-detection: true
 on:
   bots: ["github-actions[bot]"]
   slash_command:

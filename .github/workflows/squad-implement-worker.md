@@ -3,6 +3,8 @@ name: Squad Implement Worker
 run-name: "Squad implement — ${{ github.event.inputs.issue_number || github.event.pull_request.head.ref }}"
 description: Implement one Squad issue or continue its parent epic after merge
 private: false
+features:
+  gh-aw-detection: true
 on:
   bots: ["github-actions[bot]"]
   workflow_dispatch:
