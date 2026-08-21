@@ -175,7 +175,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 				return nil
 			}
 			// Other exit codes are actual errors
-			return fmt.Errorf("runner-guard failed with exit code %d; expected 0 (clean) or 1 (findings reported). Example: rerun with --verbose to see the scanner output", exitCode)
+			return fmt.Errorf("runner-guard failed with exit code %d; expected 0 (clean) or 1 (findings reported). Example: rerun with gh aw --verbose to see the scanner output", exitCode)
 		}
 		// Non-ExitError errors (e.g., command not found)
 		return fmt.Errorf("runner-guard failed to start; a working docker installation is required. Example: run docker info to check the daemon: %w", err)
