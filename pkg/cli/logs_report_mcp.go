@@ -78,6 +78,8 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 
 		// Aggregate tool summaries
 		for _, summary := range pr.MCPToolUsage.Summary {
+			summary.syncFieldsFromBase()
+			summary.syncBaseFromFields()
 			key := summary.ServerName + ":" + summary.ToolName
 
 			if existing, exists := toolSummaryMap[key]; exists {
@@ -117,9 +119,11 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 						existing.MaxDuration = summary.MaxDuration
 					}
 				}
+				existing.syncBaseFromFields()
 			} else {
 				// Create new summary entry (copy to avoid mutation)
 				newSummary := summary
+				newSummary.syncBaseFromFields()
 				toolSummaryMap[key] = &newSummary
 			}
 		}

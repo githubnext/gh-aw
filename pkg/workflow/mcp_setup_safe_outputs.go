@@ -56,6 +56,9 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 			}},
 		})
 		if err != nil {
+			// Build-time invariant: fileRenderConfig above is a fixed struct literal of
+			// strings, which json.Marshal always serialises successfully; this branch is
+			// unreachable in practice.
 			panic(fmt.Sprintf("BUG: failed to marshal generated file render config: %v", err))
 		}
 		yaml.WriteString("      - name: Generate Safe Outputs Config\n")
