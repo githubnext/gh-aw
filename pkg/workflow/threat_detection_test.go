@@ -3606,3 +3606,55 @@ func TestSetupThreatDetectionPromptSummarySuppressedOnExternalPath(t *testing.T)
 		}
 	})
 }
+
+// TestBuildExternalDetectorExecutionStepEmitsTimeoutMinutes verifies that the external
+// detector execution step is bounded by a step-level timeout, matching the inline
+// detection path. Without it the detection job only relies on GH_AW_TIMEOUT_MINUTES,
+// which the binary can only honour once it is running.
+func TestBuildExternalDetectorExecutionStepEmitsTimeoutMinutes(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildExternalDetectorExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty steps")
+	}
+	joined := strings.Join(steps, "")
+
+	if !strings.Contains(joined, "        timeout-minutes: 20\n") {
+		t.Errorf("expected external detector execution step to declare timeout-minutes: 20;\ngot:\n%s", joined)
+	}
+	if !strings.Contains(joined, "GH_AW_TIMEOUT_MINUTES: 20") {
+		t.Errorf("expected external detector execution step to keep GH_AW_TIMEOUT_MINUTES aligned with the step timeout;\ngot:\n%s", joined)
+	}
+}
+
+// TestBuildInstallAWFForExternalDetectorStepUsesRootless verifies that the detection
+// job installs the AWF binary in the same mode used to invoke it, matching the agent job.
+func TestBuildInstallAWFForExternalDetectorStepUsesRootless(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	lines := compiler.buildInstallAWFForExternalDetectorStep(data)
+	if len(lines) == 0 {
+		t.Fatal("expected non-empty AWF install step")
+	}
+	joined := strings.Join(lines, "")
+
+	if !strings.Contains(joined, "install_awf_binary.sh") {
+		t.Fatalf("expected AWF install step to invoke install_awf_binary.sh;\ngot:\n%s", joined)
+	}
+	if !strings.Contains(joined, "--rootless") {
+		t.Errorf("expected detection AWF install to pass --rootless like the agent job;\ngot:\n%s", joined)
+	}
+}
