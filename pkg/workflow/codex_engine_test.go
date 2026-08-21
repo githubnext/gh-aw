@@ -242,6 +242,28 @@ func TestCodexEngineExecutionDumpsInternalLogsOnFailure(t *testing.T) {
 	})
 }
 
+func TestCodexEngineErrorDetectionUsesGitHubScript(t *testing.T) {
+	var yaml strings.Builder
+	compiler := &Compiler{}
+
+	compiler.generateDetectAgentErrorsStep(&yaml, &WorkflowData{}, NewCodexEngine())
+
+	step := yaml.String()
+	for _, expected := range []string{
+		"uses: actions/github-script@",
+		"setupGlobals(core, github, context, exec, io, getOctokit);",
+		"const { main } = require('${{ runner.temp }}/gh-aw/actions/detect_agent_errors.cjs');",
+		"await main();",
+	} {
+		if !strings.Contains(step, expected) {
+			t.Errorf("Expected Detect agent errors step to contain %q, got:\n%s", expected, step)
+		}
+	}
+	if strings.Contains(step, "run: node") {
+		t.Errorf("Expected Detect agent errors step not to invoke node directly, got:\n%s", step)
+	}
+}
+
 func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	engine := NewCodexEngine()
 

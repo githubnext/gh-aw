@@ -582,6 +582,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  main,
   detectErrors,
   extractMissingModelPricingModelName,
   isCAPIQuotaExceededError,
