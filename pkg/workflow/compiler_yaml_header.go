@@ -75,6 +75,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		manifest.ThreatDetectionSuppressions = suppressions
 	}
 	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
+	manifest.MCPServers = collectMCPServersForManifest(data)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {

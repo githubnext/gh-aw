@@ -1,3 +1,5 @@
+//go:build !integration
+
 package workflow
 
 import (
@@ -126,5 +128,50 @@ func TestValidateNoRunnerTempInExecutableBodiesRejectsScriptRegression(t *testin
 
 	if err := validateNoRunnerTempInExecutableBodies(input); err == nil {
 		t.Fatal("expected unsafe runner.temp expression in script body to be rejected")
+	}
+}
+
+func TestRewriteRunnerTempRejectsEscapedActionPath(t *testing.T) {
+	input := `steps:
+  - uses: actions/github-script@v7
+    with:
+      script: |
+        const { main } = require('${{ runner.temp }}/gh-aw/actions/evil\'); process.exit(1); //.cjs');
+`
+
+	got := rewriteRunnerTempInExecutableBodies(input)
+
+	if !strings.Contains(got, "${{ runner.temp }}/gh-aw/actions/evil\\'") {
+		t.Fatalf("expected escaped action path to remain unre-written for validation:\n%s", got)
+	}
+	if _, err := finalizeRunnerTempSafety(input); err == nil {
+		t.Fatal("expected escaped action path to fail closed during validation")
+	}
+}
+
+func TestSingleQuotedJS(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"generate_aw_info.cjs", `'generate_aw_info.cjs'`},
+		{`a'b`, `'a\'b'`},
+		{`a\'b`, `'a\\\'b'`},
+		{`a\b`, `'a\\b'`},
+		{`a"b`, `'a"b'`},
+		{`a\"b`, `'a\\"b'`},
+		{"a\ab", `'a\ab'`},
+		{"a\bb", `'a\bb'`},
+		{"a\fb", `'a\fb'`},
+		{"a\nb", `'a\nb'`},
+		{"a\rb", `'a\rb'`},
+		{"a\tb", `'a\tb'`},
+		{"a\vb", `'a\vb'`},
+		{"a`b", "'a`b'"},
+	}
+	for _, tt := range tests {
+		if got := singleQuotedJS(tt.in); got != tt.want {
+			t.Errorf("singleQuotedJS(%q) = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }

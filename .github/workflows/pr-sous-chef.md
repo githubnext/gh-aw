@@ -120,7 +120,7 @@ steps:
         # CheckRun statuses are UPPERCASE in the GraphQL response.
         # WAITING check runs are left eligible here so the agent can inspect the
         # associated workflow run and approve it through the approve_workflow_run
-        # safe output when it belongs to the allowed CJS/CGO workflows. Other
+        # safe output when it belongs to the allowed CJS/CGO/CWI workflows. Other
         # short-running pending checks still gate nudges.
         # Checks that have been running for more than 1 hour are ignored so that
         # long-running agentic checks (Q, coding agents) do not permanently block
@@ -295,7 +295,7 @@ safe-outputs:
     github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   approve-workflow-run:
     max: 8
-    allowed-workflows: [cjs.yml, cgo.yml]
+    allowed-workflows: [cjs.yml, cgo.yml, CWI.yml]
     allowed-pull-requests: ${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}
     fork: false
     github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -391,12 +391,12 @@ Skip when **any** of these hold (candidate prefilter eliminates most; these are 
 For each PR that is not skipped:
 
 0. **Approve allowed action-required workflow runs**
-   - If the compact JSON `failed_checks` list contains `ACTION_REQUIRED`, inspect the PR's waiting workflow runs and call `safeoutputs approve_workflow_run --run_id <RUN_ID>` only for matching CJS/CGO runs.
-   - To find run IDs, query `gh run list --repo "$EXPR_GITHUB_REPOSITORY" --branch <headRefName> --json databaseId,path,status,event,headBranch,headSha --jq '[.[] | select((.status == "waiting" or .status == "action_required") and (.path == ".github/workflows/cjs.yml" or .path == ".github/workflows/cgo.yml"))]'`; then keep only runs whose `headBranch` matches the PR head branch and whose `headSha` matches the PR `headRefOid` when present.
-   - Only approve workflow runs whose workflow file is exactly `cjs.yml` or `cgo.yml`; never approve any other action-required workflow.
+   - If the compact JSON `failed_checks` list contains `ACTION_REQUIRED`, inspect the PR's waiting workflow runs and call `safeoutputs approve_workflow_run --run_id <RUN_ID>` only for matching CJS/CGO/CWI runs.
+   - To find run IDs, query `gh run list --repo "$EXPR_GITHUB_REPOSITORY" --branch <headRefName> --json databaseId,path,status,event,headBranch,headSha --jq '[.[] | select((.status == "waiting" or .status == "action_required") and (.path == ".github/workflows/cjs.yml" or .path == ".github/workflows/cgo.yml" or .path == ".github/workflows/CWI.yml"))]'`; then keep only runs whose `headBranch` matches the PR head branch and whose `headSha` matches the PR `headRefOid` when present.
+   - Only approve workflow runs whose workflow file is exactly `cjs.yml`, `cgo.yml`, or `CWI.yml`; never approve any other action-required workflow.
    - Only approve workflow runs associated with the current eligible PR. The safe output is additionally scoped to the eligible PR numbers from the prefilter.
    - Increment `approved_workflow_runs` for each successful approval.
-   - If approval succeeds for all action-required `CJS`/`CGO` runs on the PR and there is no other forward-progress nudge to post, do not add a `@copilot` nudge comment for that PR.
+   - If approval succeeds for all action-required `CJS`/`CGO`/`CWI` runs on the PR and there is no other forward-progress nudge to post, do not add a `@copilot` nudge comment for that PR.
    - If approval fails, record `{pr_number: <N>, skip_reason: "approve_workflow_run_failed"}` in the `skipped` array and continue with the remaining PR workflow.
 
 1. **Run formatters and push if needed**
@@ -411,7 +411,7 @@ For each PR that is not skipped:
    - Otherwise, attempt `update_pull_request` with `update_branch: true` and a minimal append body marker including `pr-sous-chef` and the run URL.
 
 3. **Post one combined nudge comment when forward-progress nudge is still needed** (at most ONE `add_comment` per PR per run)
-   - Skip this step when the approval step already approved all action-required `CJS`/`CGO` runs for the PR and there is no other forward-progress nudge to post.
+   - Skip this step when the approval step already approved all action-required `CJS`/`CGO`/`CWI` runs for the PR and there is no other forward-progress nudge to post.
    - When posting, always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
    - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
    - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
