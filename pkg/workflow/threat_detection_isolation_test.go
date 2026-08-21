@@ -700,6 +700,9 @@ Test workflow`
 	if !strings.Contains(detectionSection, `export CODEX_API_KEY="$`+constants.CopilotBYOKDummyAPIKeyEnvVar+`" &&`) {
 		t.Error("Codex external detector path must activate the BYOK proxy route")
 	}
+	if !strings.Contains(detectionSection, "--exclude-env COPILOT_GITHUB_TOKEN") {
+		t.Error("Codex external detector path must keep the GitHub token out of the sandbox")
+	}
 }
 
 // TestExternalDetectorCodexConfigModelProviderAtRoot verifies that the top-level

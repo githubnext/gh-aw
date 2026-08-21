@@ -101,6 +101,17 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 		sandboxConfig.Agent.DisableReason = justification
 		sandboxValidationLog.Printf("sandbox.agent: false permitted by %s justification: %q", constants.DangerouslyDisableSandboxAgentFeatureFlag, justification)
+
+		if workflowData.EngineConfig != nil &&
+			workflowData.EngineConfig.ID == string(constants.CodexEngine) &&
+			NewCodexEngine().ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+			return NewValidationError(
+				"sandbox.agent",
+				"false",
+				"Codex with a copilot/* model requires the agent sandbox for BYOK inference routing",
+				"Enable the agent sandbox or select a non-Copilot model.",
+			)
+		}
 	}
 
 	// Validate mounts syntax if specified in agent config
