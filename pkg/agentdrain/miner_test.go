@@ -269,6 +269,7 @@ func TestTokenize(t *testing.T) {
 }
 
 func TestTrainEmptyLine(t *testing.T) {
+	t.Parallel()
 	m, err := NewMiner(DefaultConfig())
 	require.NoError(t, err, "NewMiner should succeed for empty-line training test")
 
@@ -279,6 +280,7 @@ func TestTrainEmptyLine(t *testing.T) {
 }
 
 func TestNewMaskerInvalidPattern(t *testing.T) {
+	t.Parallel()
 	masker, err := NewMasker([]MaskRule{
 		{
 			Name:        "invalid",

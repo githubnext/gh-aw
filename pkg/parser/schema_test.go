@@ -2487,6 +2487,41 @@ func TestMainWorkflowSchema_SandboxAgentRuntime(t *testing.T) {
 	}
 }
 
+func TestMainWorkflowSchema_SandboxAgentImagesCanonicalReferences(t *testing.T) {
+	t.Parallel()
+
+	frontmatterWithImage := func(image string) map[string]any {
+		return map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"id": "awf",
+					"images": map[string]any{
+						"squid": image,
+					},
+				},
+			},
+		}
+	}
+
+	valid := "registry.example.com/approved/squid:v0.28.4@sha256:" + strings.Repeat("a", 64)
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterWithImage(valid), "/tmp/gh-aw/sandbox-agent-images-valid-test.md"); err != nil {
+		t.Fatalf("expected canonical digest-pinned image to pass schema validation: %v", err)
+	}
+
+	for _, invalid := range []string{
+		"approved/squid:v1@sha256:" + strings.Repeat("a", 64),
+		"registry.example.com/Approved/squid:v1@sha256:" + strings.Repeat("a", 64),
+		"registry.example.com/approved/squid:.v1@sha256:" + strings.Repeat("a", 64),
+		"registry.example.com/approved/squid:" + strings.Repeat("a", 129) + "@sha256:" + strings.Repeat("a", 64),
+	} {
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterWithImage(invalid), "/tmp/gh-aw/sandbox-agent-images-invalid-test.md"); err == nil {
+			t.Errorf("expected non-canonical image reference %q to fail schema validation", invalid)
+		}
+	}
+}
+
 // TestValidateWithSchema_YAMLIntegerTypes verifies that validateWithSchema accepts
 // YAML-native integer types (uint64/int64) when the schema expects number/integer.
 func TestValidateWithSchema_YAMLIntegerTypes(t *testing.T) {
