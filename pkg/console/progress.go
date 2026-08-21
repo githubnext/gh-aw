@@ -101,6 +101,8 @@ func (p *ProgressBar) Update(current int64) string {
 			}
 			return fmt.Sprintf("Processing... (%s)", formatBytes(current))
 		}
+		// Use a manual pulse because this synchronous renderer has no tea.Program loop
+		// to drive bubbles' spring animation.
 		// In TTY mode, show a pulsing indicator by cycling between 30% and 70%
 		// This creates a visual "breathing" effect that's more noticeable
 		// Using sine wave-like progression: 30% -> 50% -> 70% -> 50% -> 30%
