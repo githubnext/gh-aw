@@ -1702,6 +1702,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
+        continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.3
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"

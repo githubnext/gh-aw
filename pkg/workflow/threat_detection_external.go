@@ -232,9 +232,17 @@ func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []
 		return nil
 	}
 
+	continueOnError, continueOnErrorExpr := resolveThreatDetectionContinueOnError(data)
 	lines := make([]string, 0, len(step))
 	for _, line := range step {
 		lines = append(lines, line+"\n")
+		if strings.Contains(line, "- name: Install AWF binary") {
+			if continueOnErrorExpr != nil {
+				lines = append(lines, fmt.Sprintf("        continue-on-error: %s\n", *continueOnErrorExpr))
+			} else if continueOnError {
+				lines = append(lines, "        continue-on-error: true\n")
+			}
+		}
 	}
 	return lines
 }

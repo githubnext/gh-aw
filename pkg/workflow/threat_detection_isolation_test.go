@@ -224,6 +224,10 @@ Test workflow`
 	if !strings.Contains(installStepBlock, "continue-on-error: true") {
 		t.Error("Install threat-detect binary step must set continue-on-error: true in warn mode")
 	}
+	awfInstallStepBlock := extractInstallAWFStepBlock(t, detectionSection)
+	if !strings.Contains(awfInstallStepBlock, "continue-on-error: true") {
+		t.Error("Install AWF binary step must set continue-on-error: true in warn mode")
+	}
 	if !strings.Contains(detectionSection, "install_copilot_cli.sh") {
 		t.Error("External detector path must emit engine installation step for copilot")
 	}
@@ -353,10 +357,18 @@ Test workflow`
 // (from its "- name:" line up to, but not including, the next step's "- name:" line) within
 // the given detection job section.
 func extractInstallThreatDetectStepBlock(t *testing.T, detectionSection string) string {
+	return extractStepBlock(t, detectionSection, "Install threat-detect binary")
+}
+
+func extractInstallAWFStepBlock(t *testing.T, detectionSection string) string {
+	return extractStepBlock(t, detectionSection, "Install AWF binary")
+}
+
+func extractStepBlock(t *testing.T, detectionSection, stepName string) string {
 	t.Helper()
-	installStepIdx := strings.Index(detectionSection, "Install threat-detect binary")
+	installStepIdx := strings.Index(detectionSection, stepName)
 	if installStepIdx == -1 {
-		t.Fatal("Could not find 'Install threat-detect binary' step in detection section")
+		t.Fatalf("Could not find %q step in detection section", stepName)
 	}
 	installStepBlock := detectionSection[installStepIdx:]
 	if nextStepIdx := strings.Index(installStepBlock[1:], "\n      - name:"); nextStepIdx != -1 {
@@ -421,6 +433,10 @@ func TestExternalDetectorInstallStepContinueOnErrorStrictMode(t *testing.T) {
 	if strings.Contains(installStepBlock, "continue-on-error") {
 		t.Error("Install threat-detect binary step must NOT set continue-on-error in strict mode")
 	}
+	awfInstallStepBlock := extractInstallAWFStepBlock(t, detectionSection)
+	if strings.Contains(awfInstallStepBlock, "continue-on-error") {
+		t.Error("Install AWF binary step must NOT set continue-on-error in strict mode")
+	}
 }
 
 // TestExternalDetectorInstallStepContinueOnErrorExpressionMode verifies that when
@@ -431,6 +447,10 @@ func TestExternalDetectorInstallStepContinueOnErrorExpressionMode(t *testing.T) 
 	installStepBlock := extractInstallThreatDetectStepBlock(t, detectionSection)
 	if !strings.Contains(installStepBlock, "continue-on-error: ${{ inputs.coe }}") {
 		t.Error("Install threat-detect binary step must emit the configured continue-on-error expression")
+	}
+	awfInstallStepBlock := extractInstallAWFStepBlock(t, detectionSection)
+	if !strings.Contains(awfInstallStepBlock, "continue-on-error: ${{ inputs.coe }}") {
+		t.Error("Install AWF binary step must emit the configured continue-on-error expression")
 	}
 }
 
