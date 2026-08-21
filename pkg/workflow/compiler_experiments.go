@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -586,15 +585,16 @@ func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentName
 }
 
 func experimentHarnessVersion(data *WorkflowData) string {
-	manifest := strings.Join([]string{
-		data.FrontmatterHash,
-		data.MarkdownContent,
-		data.AI,
-		data.Model,
-		data.CompiledVersion,
-	}, "\x00")
-	sum := sha256.Sum256([]byte(manifest))
-	return fmt.Sprintf("sha256:%x", sum)
+	switch {
+	case data.FrontmatterHash == "" && data.BodyHash == "":
+		return "unknown"
+	case data.FrontmatterHash == "":
+		return data.BodyHash
+	case data.BodyHash == "":
+		return data.FrontmatterHash
+	default:
+		return data.FrontmatterHash + ":" + data.BodyHash
+	}
 }
 
 // generateExperimentArtifactUploadStep generates the artifact upload step shared by both storage modes.

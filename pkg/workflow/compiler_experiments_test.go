@@ -155,6 +155,8 @@ func TestGenerateExperimentSteps_CacheStorage(t *testing.T) {
 func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
 	c := &Compiler{}
 	data := &WorkflowData{
+		FrontmatterHash: "frontmatter-hash",
+		BodyHash:        "body-hash",
 		Experiments: map[string][]string{
 			"style": {"concise", "detailed"},
 		},
@@ -162,7 +164,14 @@ func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
 	steps := c.generateExperimentSteps(data)
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, `{"style":["concise","detailed"]}`, "spec JSON should be embedded in the step")
-	assert.Contains(t, joined, "GH_AW_HARNESS_VERSION", "assignment should include a behaviorally relevant harness fingerprint")
+	assert.Contains(t, joined, "GH_AW_HARNESS_VERSION: frontmatter-hash:body-hash", "assignment should use the compiled workflow hashes")
+}
+
+func TestExperimentHarnessVersionUsesAvailableCompiledHashes(t *testing.T) {
+	assert.Equal(t, "frontmatter-hash:body-hash", experimentHarnessVersion(&WorkflowData{FrontmatterHash: "frontmatter-hash", BodyHash: "body-hash"}))
+	assert.Equal(t, "frontmatter-hash", experimentHarnessVersion(&WorkflowData{FrontmatterHash: "frontmatter-hash"}))
+	assert.Equal(t, "body-hash", experimentHarnessVersion(&WorkflowData{BodyHash: "body-hash"}))
+	assert.Equal(t, "unknown", experimentHarnessVersion(&WorkflowData{}))
 }
 
 func TestGenerateExperimentSteps_SingleQuoteEscaping(t *testing.T) {

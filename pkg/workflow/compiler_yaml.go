@@ -150,6 +150,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
 	// step generators, etc.) can derive stable heredoc delimiters from it.
 	data.FrontmatterHash = frontmatterHash
+	data.BodyHash = bodyHash
 
 	// Build all jobs and validate dependencies
 	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
