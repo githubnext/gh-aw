@@ -16,6 +16,9 @@ tools:
   bash: true
 timeout-minutes: 15
 strict: true
+network:
+  allowed:
+    - python
 imports:
   - uses: shared/daily-audit-base.md
     with:
