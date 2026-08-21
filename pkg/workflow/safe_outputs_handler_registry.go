@@ -297,6 +297,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddDefault("fork", c.Fork).
+			AddDefault("comment", c.Comment).
 			AddTemplatableJSONSlice("allowed_pull_requests", c.AllowedPullRequests).
 			AddStringSlice("allowed_workflows", c.AllowedWorkflows).
 			AddStringSlice("protected_files", getAllManifestFiles()).

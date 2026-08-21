@@ -17,7 +17,9 @@ import (
 )
 
 func TestNewAuditRunConfig(t *testing.T) {
+	t.Parallel()
 	t.Run("populates config from options", func(t *testing.T) {
+		t.Parallel()
 		cfg, err := newAuditRunConfig(42, AuditOptions{
 			Owner:      "octo",
 			Repo:       "repo",
@@ -47,18 +49,21 @@ func TestNewAuditRunConfig(t *testing.T) {
 	})
 
 	t.Run("rejects invalid artifact sets", func(t *testing.T) {
+		t.Parallel()
 		_, err := newAuditRunConfig(1, AuditOptions{ArtifactSets: []string{"not-an-artifact-set"}})
 		require.Error(t, err)
 	})
 }
 
 func TestResolveAuditOutputDir(t *testing.T) {
+	t.Parallel()
 	dir := resolveAuditOutputDir("logs", 99)
 	assert.True(t, filepath.IsAbs(dir))
 	assert.Equal(t, "run-99", filepath.Base(dir))
 }
 
 func TestEnsureAuditNotCancelled(t *testing.T) {
+	t.Parallel()
 	require.NoError(t, ensureAuditNotCancelled(context.Background()))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -69,6 +74,7 @@ func TestEnsureAuditNotCancelled(t *testing.T) {
 }
 
 func TestAuditRunConfigJobOptions(t *testing.T) {
+	t.Parallel()
 	cfg := auditRunConfig{
 		runID:      5,
 		jobID:      6,
@@ -93,6 +99,7 @@ func TestAuditRunConfigJobOptions(t *testing.T) {
 }
 
 func TestAuditRunConfigAuditOptions(t *testing.T) {
+	t.Parallel()
 	cfg := auditRunConfig{
 		owner:      "octo",
 		repo:       "repo",
@@ -115,6 +122,7 @@ func TestAuditRunConfigAuditOptions(t *testing.T) {
 }
 
 func TestCacheRecoveryError(t *testing.T) {
+	t.Parallel()
 	err := cacheRecoveryError("GitHub API access denied.", 1234, "/tmp/run-1234", errors.New("boom"))
 	require.Error(t, err)
 	msg := err.Error()
@@ -157,17 +165,21 @@ func TestPrepareRunForAnalysis(t *testing.T) {
 }
 
 func TestShouldSkipForEvals(t *testing.T) {
+	t.Parallel()
 	t.Run("no skip when evals filtering is disabled", func(t *testing.T) {
+		t.Parallel()
 		cfg := auditRunConfig{runID: 1, outputDir: t.TempDir()}
 		assert.False(t, shouldSkipForEvals(context.Background(), cfg, WorkflowRun{}))
 	})
 
 	t.Run("skips when no evals results are present", func(t *testing.T) {
+		t.Parallel()
 		cfg := auditRunConfig{runID: 1, outputDir: t.TempDir(), evalsOnly: true}
 		assert.True(t, shouldSkipForEvals(context.Background(), cfg, WorkflowRun{}))
 	})
 
 	t.Run("does not skip when evals are present locally", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "evals.jsonl"), []byte("{}"), 0o600))
 

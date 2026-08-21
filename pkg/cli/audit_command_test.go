@@ -11,6 +11,7 @@ import (
 )
 
 func TestApplyAuditRepoFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		repoFlag      string
@@ -60,6 +61,7 @@ func TestApplyAuditRepoFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			components := tt.components
 			err := applyAuditRepoFlag(tt.repoFlag, &components)
 			if tt.expectError {
@@ -74,7 +76,9 @@ func TestApplyAuditRepoFlag(t *testing.T) {
 }
 
 func TestResolveAuditCommandArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("positional args pass through", func(t *testing.T) {
+		t.Parallel()
 		args, handled, err := resolveAuditCommandArgs([]string{"123"}, false)
 		require.NoError(t, err)
 		assert.False(t, handled)
@@ -82,12 +86,14 @@ func TestResolveAuditCommandArgs(t *testing.T) {
 	})
 
 	t.Run("no args without stdin is an error", func(t *testing.T) {
+		t.Parallel()
 		_, handled, err := resolveAuditCommandArgs(nil, false)
 		require.Error(t, err)
 		assert.False(t, handled)
 	})
 
 	t.Run("stdin with positional args is an error", func(t *testing.T) {
+		t.Parallel()
 		_, handled, err := resolveAuditCommandArgs([]string{"123"}, true)
 		require.Error(t, err)
 		assert.False(t, handled)
@@ -95,7 +101,9 @@ func TestResolveAuditCommandArgs(t *testing.T) {
 }
 
 func TestGetAuditCommandOptions(t *testing.T) {
+	t.Parallel()
 	t.Run("defaults", func(t *testing.T) {
+		t.Parallel()
 		cmd := NewAuditCommand()
 		opts, err := getAuditCommandOptions(cmd)
 		require.NoError(t, err)
@@ -107,6 +115,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 	})
 
 	t.Run("evals with narrowed artifacts adds the usage artifact set", func(t *testing.T) {
+		t.Parallel()
 		cmd := NewAuditCommand()
 		require.NoError(t, cmd.Flags().Set("evals", "true"))
 		require.NoError(t, cmd.Flags().Set("artifacts", "agent"))
@@ -117,6 +126,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 	})
 
 	t.Run("evals with default artifacts keeps the default set", func(t *testing.T) {
+		t.Parallel()
 		cmd := NewAuditCommand()
 		require.NoError(t, cmd.Flags().Set("evals", "true"))
 		opts, err := getAuditCommandOptions(cmd)
@@ -125,6 +135,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 	})
 
 	t.Run("variant without experiment is rejected", func(t *testing.T) {
+		t.Parallel()
 		cmd := NewAuditCommand()
 		require.NoError(t, cmd.Flags().Set("variant", "b"))
 		_, err := getAuditCommandOptions(cmd)
@@ -132,6 +143,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 	})
 
 	t.Run("invalid runtime is rejected", func(t *testing.T) {
+		t.Parallel()
 		cmd := NewAuditCommand()
 		require.NoError(t, cmd.Flags().Set("runtime", "not-a-runtime"))
 		_, err := getAuditCommandOptions(cmd)
@@ -140,6 +152,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 }
 
 func TestRegisterAuditCommandFlags(t *testing.T) {
+	t.Parallel()
 	cmd := NewAuditCommand()
 	for _, name := range []string{"output", "json", "repo", "parse", "format", "artifacts", "stdin", "experiment", "variant", "runtime", "evals"} {
 		assert.NotNil(t, cmd.Flags().Lookup(name), "expected flag %q to be registered", name)
