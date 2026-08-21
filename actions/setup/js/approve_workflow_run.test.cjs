@@ -6,6 +6,7 @@ const mockGetWorkflow = vi.fn();
 const mockApproveWorkflowRun = vi.fn();
 const mockListFiles = vi.fn();
 const mockGetPullRequest = vi.fn();
+const mockCreateComment = vi.fn();
 
 global.core = {
   info: vi.fn(),
@@ -28,6 +29,9 @@ global.github = {
     pulls: {
       get: mockGetPullRequest,
       listFiles: mockListFiles,
+    },
+    issues: {
+      createComment: mockCreateComment,
     },
   },
   paginate: vi.fn(async (method, params) => (await method(params)).data),
@@ -54,6 +58,7 @@ describe("approve_workflow_run", () => {
     mockApproveWorkflowRun.mockResolvedValue({ status: 201 });
     mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: false } } } });
     mockListFiles.mockResolvedValue({ data: [] });
+    mockCreateComment.mockResolvedValue({ data: { id: 999, html_url: "https://github.com/test-owner/test-repo/issues/42#issuecomment-999" } });
   });
 
   it("approves an eligible pull request workflow run", async () => {
@@ -72,6 +77,41 @@ describe("approve_workflow_run", () => {
       repo: "test-repo",
       run_id: 123,
     });
+  });
+
+  it("posts a comment on the pull request after approving by default", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    await handler({ run_id: 123 }, {});
+
+    expect(mockCreateComment).toHaveBeenCalledTimes(1);
+    const call = mockCreateComment.mock.calls[0][0];
+    expect(call.owner).toBe("test-owner");
+    expect(call.repo).toBe("test-repo");
+    expect(call.issue_number).toBe(42);
+    expect(call.body).toContain(pendingPullRequestRun.html_url);
+    expect(call.body).toContain("gh-aw-agentic-workflow");
+  });
+
+  it("does not post a comment when comment is disabled", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, comment: false });
+
+    await handler({ run_id: 123 }, {});
+
+    expect(mockCreateComment).not.toHaveBeenCalled();
+  });
+
+  it("does not fail approval when posting the comment errors", async () => {
+    mockCreateComment.mockRejectedValueOnce(new Error("comment failed"));
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to post approval comment"));
   });
 
   it("accepts a decimal run ID string", async () => {

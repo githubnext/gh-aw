@@ -126,9 +126,15 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ApproveWorkflowRun") {
 				return nil
 			}
+			// pull-requests write is only needed when the handler posts a comment on the
+			// pull request associated with the approved run; otherwise read is sufficient.
+			pullRequestsLevel := PermissionRead
+			if safeOutputs.ApproveWorkflowRun != nil && safeOutputs.ApproveWorkflowRun.Comment {
+				pullRequestsLevel = PermissionWrite
+			}
 			return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 				PermissionActions:      PermissionWrite,
-				PermissionPullRequests: PermissionRead,
+				PermissionPullRequests: pullRequestsLevel,
 			})
 		},
 	},

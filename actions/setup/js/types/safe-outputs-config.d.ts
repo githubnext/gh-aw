@@ -77,6 +77,7 @@ interface MarkPullRequestAsReadyForReviewConfig extends SafeOutputConfig {
  */
 interface ApproveWorkflowRunConfig extends SafeOutputConfig {
   fork?: boolean;
+  comment?: boolean;
   "allowed-workflows": string[];
 }
 
