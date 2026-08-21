@@ -516,10 +516,10 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "HideComment") {
 				return nil
 			}
-			if safeOutputs.HideComment.Discussions != nil && !*safeOutputs.HideComment.Discussions {
-				return NewPermissionsIssuesWrite()
+			if safeOutputs.HideComment.Discussions != nil && *safeOutputs.HideComment.Discussions {
+				return NewPermissionsIssuesWriteDiscussionsWrite()
 			}
-			return NewPermissionsIssuesWriteDiscussionsWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
