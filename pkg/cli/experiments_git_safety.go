@@ -63,6 +63,7 @@ func isHexObjectIDPrefix(ref string) bool {
 // isSafeGitRefName validates a refname with check-ref-format-equivalent rules.
 func isSafeGitRefName(ref string) bool {
 	hasInvalidShape := ref == "" ||
+		ref == "@" ||
 		strings.HasPrefix(ref, "/") ||
 		strings.HasSuffix(ref, "/") ||
 		strings.HasSuffix(ref, ".")

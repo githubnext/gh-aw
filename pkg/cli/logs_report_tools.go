@@ -2,6 +2,7 @@ package cli
 
 import (
 	"cmp"
+	"encoding/json"
 	"slices"
 	"strings"
 
@@ -9,13 +10,111 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+// ToolUsageStatsBase contains the identity and metrics shared by tool usage summaries.
+type ToolUsageStatsBase struct {
+	ToolName      string
+	CallCount     int
+	MaxOutputSize int
+	MaxDuration   string
+}
+
+func (b *ToolUsageStatsBase) syncFromFields(toolName string, callCount int, maxOutputSize int, maxDuration string) {
+	*b = ToolUsageStatsBase{
+		ToolName:      toolName,
+		CallCount:     callCount,
+		MaxOutputSize: maxOutputSize,
+		MaxDuration:   maxDuration,
+	}
+}
+
+func (b *ToolUsageStatsBase) syncFields(toolName *string, callCount *int, maxOutputSize *int, maxDuration *string) {
+	if *toolName == "" {
+		*toolName = b.ToolName
+	}
+	if *callCount == 0 {
+		*callCount = b.CallCount
+	}
+	if *maxOutputSize == 0 {
+		*maxOutputSize = b.MaxOutputSize
+	}
+	if *maxDuration == "" {
+		*maxDuration = b.MaxDuration
+	}
+}
+
 // ToolUsageSummary contains aggregated tool usage statistics
 type ToolUsageSummary struct {
-	Name          string `json:"name" console:"header:Tool"`
-	TotalCalls    int    `json:"total_calls" console:"header:Total Calls,format:number"`
-	Runs          int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
-	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:filesize,default:N/A,omitempty"`
-	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,default:N/A,omitempty"`
+	ToolUsageStatsBase `json:"-" console:"-"`
+	Name               string `json:"name" console:"header:Tool"`
+	TotalCalls         int    `json:"total_calls" console:"header:Total Calls,format:number"`
+	Runs               int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
+	MaxOutputSize      int    `json:"max_output_size,omitempty" console:"header:Max Output,format:filesize,default:N/A,omitempty"`
+	MaxDuration        string `json:"max_duration,omitempty" console:"header:Max Duration,default:N/A,omitempty"`
+}
+
+// MarshalJSON preserves the generic tool usage report schema.
+func (s ToolUsageSummary) MarshalJSON() ([]byte, error) {
+	normalized := s
+	normalized.syncFieldsFromBase()
+	return json.Marshal(struct {
+		Name          string `json:"name"`
+		TotalCalls    int    `json:"total_calls"`
+		Runs          int    `json:"runs"`
+		MaxOutputSize int    `json:"max_output_size,omitempty"`
+		MaxDuration   string `json:"max_duration,omitempty"`
+	}{
+		Name:          normalized.Name,
+		TotalCalls:    normalized.TotalCalls,
+		Runs:          normalized.Runs,
+		MaxOutputSize: normalized.MaxOutputSize,
+		MaxDuration:   normalized.MaxDuration,
+	})
+}
+
+// UnmarshalJSON preserves support for both the legacy generic schema ("name",
+// "total_calls") and the MCP-style schema ("tool_name", "call_count").
+// Keep this shadow struct aligned with ToolUsageSummary and ToolUsageStatsBase;
+// TestToolUsageSummaryUnmarshalJSONCompatibility guards this contract.
+func (s *ToolUsageSummary) UnmarshalJSON(data []byte) error {
+	var summary struct {
+		Name          string `json:"name"`
+		ToolName      string `json:"tool_name"`
+		TotalCalls    *int   `json:"total_calls"`
+		CallCount     *int   `json:"call_count"`
+		Runs          int    `json:"runs"`
+		MaxOutputSize int    `json:"max_output_size"`
+		MaxDuration   string `json:"max_duration"`
+	}
+	if err := json.Unmarshal(data, &summary); err != nil {
+		return err
+	}
+
+	if summary.Name != "" {
+		s.Name = summary.Name
+	} else {
+		s.Name = summary.ToolName
+	}
+	switch {
+	case summary.TotalCalls != nil:
+		s.TotalCalls = *summary.TotalCalls
+	case summary.CallCount != nil:
+		s.TotalCalls = *summary.CallCount
+	default:
+		s.TotalCalls = 0
+	}
+	s.MaxOutputSize = summary.MaxOutputSize
+	s.MaxDuration = summary.MaxDuration
+	s.Runs = summary.Runs
+	s.syncBaseFromFields()
+	return nil
+}
+
+func (s *ToolUsageSummary) syncBaseFromFields() {
+	s.syncFromFields(s.Name, s.TotalCalls, s.MaxOutputSize, s.MaxDuration)
+}
+
+func (s *ToolUsageSummary) syncFieldsFromBase() {
+	s.syncFields(&s.Name, &s.TotalCalls, &s.MaxOutputSize, &s.MaxDuration)
 }
 
 // toolNameStopWords is a set of common English words that should never be treated as tool names.
@@ -101,6 +200,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 						existing.MaxDuration = maxDur
 					}
 				}
+				existing.syncBaseFromFields()
 			} else {
 				info := &ToolUsageSummary{
 					Name:          displayKey,
@@ -111,6 +211,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 				if toolCall.MaxDuration > 0 {
 					info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
 				}
+				info.syncBaseFromFields()
 				toolStats[displayKey] = info
 			}
 		}

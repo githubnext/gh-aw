@@ -110,6 +110,7 @@ type MetricsData struct {
 	TokenUsage     int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
 	AIC            float64                `json:"aic,omitempty"`
 	AmbientContext *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
+	WorkingSet     *WorkingSetMetrics     `json:"working_set,omitempty" console:"-"`
 	ActionMinutes  float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	Turns          int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount     int                    `json:"error_count" console:"header:Errors"`
@@ -172,16 +173,25 @@ type MCPToolUsageData struct {
 
 // MCPToolSummary contains aggregated statistics for a single MCP tool
 type MCPToolSummary struct {
-	ServerName      string `json:"server_name" console:"header:Server"`
-	ToolName        string `json:"tool_name" console:"header:Tool"`
-	CallCount       int    `json:"call_count" console:"header:Calls"`
-	TotalInputSize  int    `json:"total_input_size" console:"header:Total Input,format:number"`
-	TotalOutputSize int    `json:"total_output_size" console:"header:Total Output,format:number"`
-	MaxInputSize    int    `json:"max_input_size" console:"header:Max Input,format:number"`
-	MaxOutputSize   int    `json:"max_output_size" console:"header:Max Output,format:number"`
-	AvgDuration     string `json:"avg_duration,omitempty" console:"header:Avg Duration,omitempty"`
-	MaxDuration     string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
-	ErrorCount      int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
+	ServerName         string `json:"server_name" console:"header:Server"`
+	ToolUsageStatsBase `json:"-" console:"-"`
+	ToolName           string `json:"tool_name" console:"header:Tool"`
+	CallCount          int    `json:"call_count" console:"header:Calls"`
+	TotalInputSize     int    `json:"total_input_size" console:"header:Total Input,format:number"`
+	TotalOutputSize    int    `json:"total_output_size" console:"header:Total Output,format:number"`
+	MaxInputSize       int    `json:"max_input_size" console:"header:Max Input,format:number"`
+	MaxOutputSize      int    `json:"max_output_size" console:"header:Max Output,format:number"`
+	AvgDuration        string `json:"avg_duration,omitempty" console:"header:Avg Duration,omitempty"`
+	MaxDuration        string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+	ErrorCount         int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
+}
+
+func (s *MCPToolSummary) syncFieldsFromBase() {
+	s.syncFields(&s.ToolName, &s.CallCount, &s.MaxOutputSize, &s.MaxDuration)
+}
+
+func (s *MCPToolSummary) syncBaseFromFields() {
+	s.syncFromFields(s.ToolName, s.CallCount, s.MaxOutputSize, s.MaxDuration)
 }
 
 // MCPToolCall represents a single MCP tool call with full details
@@ -330,6 +340,7 @@ func buildAuditMetrics(processedRun ProcessedRun, metrics LogMetrics) (MetricsDa
 	fallbackMetrics, inferredEngineID := lookupFallbackMetrics(run.LogsPath, metricsData)
 	applyFallbackMetrics(&metricsData, processedRun, metrics, fallbackMetrics)
 	populateAuditMetricContext(&metricsData, processedRun.TokenUsage)
+	metricsData.WorkingSet = processedRun.WorkingSet
 	return metricsData, inferredEngineID
 }
 

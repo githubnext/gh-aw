@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -183,6 +184,30 @@ func runGitIn(t *testing.T, dir string, args ...string) {
 	)
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %s failed: %s", strings.Join(args, " "), string(out))
+}
+
+func TestIsAlreadyMergedGHError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil error", err: nil, want: false},
+		{name: "already merged phrase", err: errors.New("GraphQL: Pull request is already merged (mergePullRequest)"), want: true},
+		{name: "MERGED state literal", err: errors.New("pull request state is MERGED"), want: true},
+		{name: "unrelated error", err: errors.New("network timeout"), want: false},
+		{name: "merge failure wording", err: errors.New("GraphQL: Pull request could not be merged (mergePullRequest)"), want: false},
+		{name: "not merged wording", err: errors.New("pull request is not merged"), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := isAlreadyMergedGHError(tt.err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestBuildMergeOptions(t *testing.T) {

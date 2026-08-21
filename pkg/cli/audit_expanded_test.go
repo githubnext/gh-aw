@@ -639,7 +639,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 			},
 		},
 		Summary: []MCPToolSummary{
-			{ServerName: "github", ToolName: "search_code", CallCount: 10},
+			{ServerName: "github", ToolUsageStatsBase: ToolUsageStatsBase{ToolName: "search_code", CallCount: 10}},
 		},
 	}
 

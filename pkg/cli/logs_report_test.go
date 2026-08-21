@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,109 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+func TestToolUsageSummariesShareStatsBase(t *testing.T) {
+	t.Parallel()
+
+	for _, typ := range []reflect.Type{
+		reflect.TypeFor[ToolUsageSummary](),
+		reflect.TypeFor[MCPToolSummary](),
+	} {
+		field, ok := typ.FieldByName("ToolUsageStatsBase")
+		if !ok || !field.Anonymous {
+			t.Fatalf("%s must embed ToolUsageStatsBase", typ.Name())
+		}
+	}
+}
+
+func TestToolUsageSummaryJSONSchemas(t *testing.T) {
+	t.Parallel()
+
+	stats := ToolUsageStatsBase{
+		ToolName:      "github.issue_read",
+		CallCount:     3,
+		MaxOutputSize: 1024,
+		MaxDuration:   "2s",
+	}
+
+	genericData, err := json.Marshal(ToolUsageSummary{ToolUsageStatsBase: stats, Runs: 2})
+	if err != nil {
+		t.Fatalf("failed to marshal generic tool summary: %v", err)
+	}
+	var generic map[string]any
+	if err := json.Unmarshal(genericData, &generic); err != nil {
+		t.Fatalf("failed to decode generic tool summary: %v", err)
+	}
+	if generic["name"] != stats.ToolName || generic["total_calls"] != float64(stats.CallCount) || generic["runs"] != float64(2) {
+		t.Fatalf("unexpected generic tool summary JSON: %s", genericData)
+	}
+	if _, ok := generic["tool_name"]; ok {
+		t.Fatalf("generic tool summary must preserve its legacy JSON schema: %s", genericData)
+	}
+	var decodedGeneric ToolUsageSummary
+	if err := json.Unmarshal(genericData, &decodedGeneric); err != nil {
+		t.Fatalf("failed to unmarshal generic tool summary: %v", err)
+	}
+	if decodedGeneric.ToolUsageStatsBase != stats || decodedGeneric.Runs != 2 {
+		t.Fatalf("unexpected generic tool summary round trip: %+v", decodedGeneric)
+	}
+
+	mcpSummary := MCPToolSummary{
+		ServerName:    "github",
+		ToolName:      stats.ToolName,
+		CallCount:     stats.CallCount,
+		MaxOutputSize: stats.MaxOutputSize,
+		MaxDuration:   stats.MaxDuration,
+	}
+	mcpSummary.syncBaseFromFields()
+	mcpData, err := json.Marshal(mcpSummary)
+	if err != nil {
+		t.Fatalf("failed to marshal MCP tool summary: %v", err)
+	}
+	var mcp map[string]any
+	if err := json.Unmarshal(mcpData, &mcp); err != nil {
+		t.Fatalf("failed to decode MCP tool summary: %v", err)
+	}
+	if mcp["server_name"] != "github" || mcp["tool_name"] != stats.ToolName || mcp["call_count"] != float64(stats.CallCount) {
+		t.Fatalf("unexpected MCP tool summary JSON: %s", mcpData)
+	}
+}
+
+func TestToolUsageSummaryUnmarshalJSONCompatibility(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{
+			name: "legacy generic schema",
+			raw:  `{"name":"github.issue_read","total_calls":3,"runs":2,"max_output_size":1024,"max_duration":"2s"}`,
+		},
+		{
+			name: "mcp style schema",
+			raw:  `{"tool_name":"github.issue_read","call_count":3,"runs":2,"max_output_size":1024,"max_duration":"2s"}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var summary ToolUsageSummary
+			if err := json.Unmarshal([]byte(tc.raw), &summary); err != nil {
+				t.Fatalf("failed to unmarshal %s schema: %v", tc.name, err)
+			}
+			if summary.Name != "github.issue_read" || summary.TotalCalls != 3 {
+				t.Fatalf("unexpected compatibility fields: %+v", summary)
+			}
+			base := summary.ToolUsageStatsBase
+			if base.ToolName != summary.Name || base.CallCount != summary.TotalCalls {
+				t.Fatalf("base fields drifted from compatibility fields: %+v", summary)
+			}
+		})
+	}
+}
 
 // TestRenderLogsConsoleUnified tests the unified console rendering
 func TestRenderLogsConsoleUnified(t *testing.T) {
@@ -48,16 +152,16 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 			{
 				Name:          "github-mcp-server",
 				TotalCalls:    1500,
-				Runs:          5,
 				MaxOutputSize: 2500000,
 				MaxDuration:   "1m30s",
+				Runs:          5,
 			},
 			{
 				Name:          "playwright",
 				TotalCalls:    500,
-				Runs:          3,
 				MaxOutputSize: 512000,
 				MaxDuration:   "45s",
+				Runs:          3,
 			},
 		},
 		MissingTools: []MissingToolSummary{
