@@ -48,6 +48,11 @@ safe-outputs:
     allowed:
       - agentic-campaign
       - z_campaign_security-alert-burndown
+  create-issue:
+    title-prefix: "[code-scanning-fixer-diagnostic] "
+    labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
+    expires: "3d"
+    max: 1
 timeout-minutes: 20
 features:
   gh-aw-detection: true
@@ -85,13 +90,18 @@ You are a security-focused code analysis agent that automatically fixes code sca
 - Edit files: use the `edit` tool
 - Do not use the Copilot `read` tool for temporary files; use allowed shell readers such as `cat`, `head`, or `sed`
 - Create pull request: emit a `create-pull-request` safe output after edits
+- Report a stalled prior attempt: emit a `create-issue` safe output (diagnostic only, never a fix)
+
+**Self-Assessment Checkpoint**: This workflow has a hard 20-minute timeout. A hang or timeout during the fix-attempt phase (steps 5-6) previously produced zero output and zero visibility. To avoid that:
+- Before starting the expensive analyze-and-fix work on a selected alert, immediately record an `in_progress` checkpoint in cache memory (step 3.5). This is cheap and happens before any risk of hanging.
+- On the *next* run, if a stale `in_progress` checkpoint is found for an alert with no later outcome recorded, that is evidence the previous run hung or timed out mid-fix. Report it via a diagnostic `create-issue` describing what was known about the alert, then skip that alert this run instead of silently retrying it with no visibility.
 
 ## Mission
 
 Your goal is to:
-1. **Check cache for previously fixed or oversized alerts**: Avoid fixing the same alert multiple times or retrying a known oversized patch
+1. **Check cache for previously fixed, oversized, or stalled alerts**: Avoid fixing the same alert multiple times, retrying a known oversized patch, or silently re-attempting an alert that previously hung
 2. **List all open alerts**: Find every open code scanning alert and rank them in reverse importance/severity priority (highest first)
-3. **Select an unfixed alert**: Pick the highest-priority unfixed alert that hasn't been fixed recently
+3. **Select an unfixed alert**: Pick the highest-priority unfixed alert that hasn't been fixed recently, and checkpoint it as in-progress before starting the expensive work
 4. **Analyze the vulnerability**: Understand the security issue and its context
 5. **Generate a fix**: Create code changes that address the security issue
 6. **Create Pull Request**: Submit a pull request with the fix
@@ -99,14 +109,20 @@ Your goal is to:
 
 ## Workflow Steps
 
-### 1. Check Cache for Previously Fixed Alerts
+### 1. Check Cache for Previously Fixed, Oversized, or Stalled Alerts
 
 Before selecting an alert, check the cache memory for prior outcomes:
 - Read the file `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl` 
-- This file contains JSON lines. Successful fixes use: `{"alert_number": 123, "fixed_at": "2024-01-15T10:30:00Z", "pr_number": 456}`. Oversized patches use: `{"alert_number": 123, "fingerprint": "...", "outcome": "patch_too_large", "patch_bytes": 42416128, "max_patch_bytes": 4194304, "recorded_at": "2024-01-15T10:30:00Z"}`
+- This file contains JSON lines. Successful fixes use: `{"alert_number": 123, "fixed_at": "2024-01-15T10:30:00Z", "pr_number": 456}`. Oversized patches use: `{"alert_number": 123, "fingerprint": "...", "outcome": "patch_too_large", "patch_bytes": 42416128, "max_patch_bytes": 4194304, "recorded_at": "2024-01-15T10:30:00Z"}`. In-progress checkpoints use: `{"alert_number": 123, "fingerprint": "...", "outcome": "in_progress", "started_at": "2024-01-15T10:30:00Z"}`. Stalled reports use: `{"alert_number": 123, "fingerprint": "...", "outcome": "stalled_reported", "recorded_at": "2024-01-15T10:30:00Z", "issue_number": 789}`
 - If the file doesn't exist, treat it as empty (no alerts fixed yet)
 - Use the latest record for each alert number
 - Build a set of successfully fixed alert numbers and a map of oversized alert fingerprints
+- **Detect a stalled prior attempt**: if the latest record for an alert number is `in_progress` (no later `fixed_at`, `patch_too_large`, or `stalled_reported` record supersedes it) and its `started_at` is more than 30 minutes in the past, treat that run as hung/timed out:
+  - Re-fetch the alert's current details (step 4) to describe what is known about it
+  - Emit a `create-issue` safe output titled with the alert number and rule ID, summarizing: the alert that stalled, when the previous attempt started, and a note that it needs manual review or a retry
+  - Append `{"alert_number": ..., "fingerprint": ..., "outcome": "stalled_reported", "recorded_at": "...", "issue_number": ...}` to `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl` so the same stall is not reported again
+  - Exclude that alert from selection this run (step 3); it may be reconsidered on a future run once reported
+  - Only report one stalled alert per run, then continue to step 2 to look for other unfixed alerts to work on this run
 
 ### 2. List All Open Alerts
 
@@ -124,8 +140,15 @@ Use the `gh` CLI to list all open code scanning alerts:
 From the list of open alerts (sorted highest priority first):
 - Exclude any alert numbers with a successful-fix record
 - For every remaining alert, derive a stable fingerprint from its rule ID, location path and line, and alert message. Exclude an alert when its latest cache record has `outcome: "patch_too_large"` and the same fingerprint. This deduplicates a patch-size failure indefinitely, but allows a changed alert to be reconsidered.
+- Exclude an alert whose latest cache record is `outcome: "in_progress"` and `started_at` is within the last 30 minutes (a run may still be in flight); if it was already reported in step 1 as stalled, it is excluded by having a newer `stalled_reported` record superseding it and may be reconsidered on a later run
 - Select the first alert from the filtered list (highest-priority unfixed alert)
 - If no unfixed alerts remain, exit gracefully with message: "No unfixed code scanning alerts found. All alerts have been addressed!"
+
+### 3.5. Checkpoint: Record In-Progress Before the Expensive Work
+
+Immediately after selecting the alert, and **before** doing any analysis or fix generation:
+- Append `{"alert_number": [alert-number], "fingerprint": "[fingerprint]", "outcome": "in_progress", "started_at": "[current-timestamp]"}` to `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl`
+- This is a cheap, fast write that happens before steps 4-6, which are the steps most likely to hang or exceed the workflow timeout. If this run times out afterward, the next run's step 1 stall-detection will find this checkpoint and report the partial diagnostic that this run failed to produce.
 
 ### 4. Get Alert Details
 
@@ -221,6 +244,6 @@ create-pull-request:
 After successfully creating the pull request:
 - Append a new line to `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl`
 - Use the format: `{"alert_number": [alert-number], "fixed_at": "[current-timestamp]", "pr_number": [pr-number]}`
-- This ensures the alert won't be selected again in future runs
+- This ensures the alert won't be selected again in future runs, and supersedes the `in_progress` checkpoint recorded in step 3.5
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
