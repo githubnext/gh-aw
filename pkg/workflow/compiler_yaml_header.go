@@ -64,13 +64,13 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// The manifest records all secrets, external actions, container images, and frontmatter
 	// skills detected at compile time so that subsequent compilations can perform safe update
 	// enforcement.
-	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
+	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.Plugins, data.RawFrontmatter["on"])
 	if data.ParsedFrontmatter != nil {
 		manifest.ThreatDetectionSuppressions = data.ParsedFrontmatter.ThreatDetectionSuppressions
 	} else {
 		suppressions, err := parseThreatDetectionSuppressions(data.RawFrontmatter["threat-detection-suppress"])
 		if err != nil {
-			return fmt.Errorf("invalid threat-detection-suppress: %w", err)
+			return fmt.Errorf("threat-detection-suppress value is not recognized, expected a list of suppression identifiers: %w", err)
 		}
 		manifest.ThreatDetectionSuppressions = suppressions
 	}

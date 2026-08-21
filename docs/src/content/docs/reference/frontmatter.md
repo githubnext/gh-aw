@@ -107,6 +107,24 @@ imports:
 
 See [Imports](/gh-aw/reference/imports/) for complete documentation on syntax, shared components, APM package dependencies, and composition patterns.
 
+### Import Schema (`import-schema:`)
+
+Declares typed inputs accepted by a shared workflow when another workflow imports it with `uses:`/`with:` (or `inputs:`). The compiler validates required inputs, rejects unknown inputs, applies defaults, and exposes values through `${{ github.aw.import-inputs.<name> }}` expressions.
+
+```yaml wrap
+import-schema:
+  branch:
+    type: string
+    required: true
+    description: "Branch to analyze"
+  mode:
+    type: choice
+    options: [quick, full]
+    default: quick
+```
+
+Supported scalar types are `string`, `number`, `boolean`, `choice`, and `array`. Object inputs support one level of declared `properties`, referenced as `${{ github.aw.import-inputs.<name>.<property> }}`. See [Imports](/gh-aw/reference/imports/) for import input examples.
+
 ### Custom Steps and Jobs (`pre-steps:`, `steps:`, `pre-agent-steps:`, `post-steps:`, `jobs:`)
 
 Add deterministic steps before or after agentic execution, or define full custom GitHub Actions jobs that run before the agent. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/) for complete documentation.
@@ -287,6 +305,29 @@ for terminology, and
 [`mattpocock-skills-reviewer.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/mattpocock-skills-reviewer.md)
 for a full workflow example using `skills:`.
 
+### Agent Plugins (`plugins:`)
+
+:::caution[Experimental]
+Agent Plugins support is experimental and may change. Compiling a workflow that uses `plugins:` emits a warning.
+:::
+
+Installs [Agent Plugins](https://agent-plugins.org) through the selected agentic engine. Each entry identifies a GitHub repository and, optionally, the path to a plugin within that repository:
+
+```yaml wrap
+engine: copilot
+plugins:
+  - octo-org/agent-plugin@v1
+  - octo-org/agent-plugins/plugins/example@main
+```
+
+Entries use `owner/repository[/path]@ref` syntax. The ref is required and may be a branch, tag, or full 40-character lowercase commit SHA. During compilation, gh-aw resolves every branch or tag to a commit SHA. Compilation fails if a reference cannot be resolved, so generated workflows never install a plugin from a moving ref.
+
+The agent job checks out each pinned plugin immediately after installing the engine, then makes it available the way the engine expects: GitHub Copilot CLI runs `copilot plugin install`, Claude Code loads each plugin directory through `--plugin-dir`, and OpenAI Codex CLI registers a local, single-plugin marketplace for each checkout (reading the plugin's declared name from its `plugin.json` manifest) and runs `codex plugin marketplace add` followed by `codex plugin add`. Imported engine definitions declare their own handling with a `behaviors.plugins` block, so the shared Cursor and Kiro engines stage plugins in the folder their CLI scans. Using `plugins:` with an engine that has no Agent Plugins support is a compile-time error.
+
+Shared agentic workflows may also declare plugins. When the same plugin path is declared more than once, identical refs are deduplicated and compatible semantic versions are merged to the highest version. Incompatible major versions or conflicting non-semver refs fail compilation.
+
+Plugin repositories must be public. The checkout step always uses the workflow's default `github.token`, which cannot read private repositories; unlike `skills:`, `plugins:` does not currently support per-entry `github-token`/`github-app` credentials.
+
 ### MCP Scripts (`mcp-scripts:`)
 
 Enables defining custom MCP tools inline using JavaScript or shell scripts. See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for complete documentation on creating custom tools with controlled secret access.
@@ -364,6 +405,16 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 >
 > Use engine-specific secret configuration instead of the `env:` section to pass secrets securely.
 
+### Excluded Environment Variables (`excluded-env:`)
+
+Lists environment variable names that must be excluded from the AWF agent container even when the compiler cannot infer that they contain sensitive values. Names are deduplicated and merged with automatically excluded variables detected from `secrets.*` and `needs.*.outputs.*` references.
+
+```yaml wrap
+excluded-env:
+  - MY_DISPATCH_TOKEN
+  - GH_TOKEN
+```
+
 ### Turn Limit (`max-turns:`)
 
 Caps the number of chat iterations (model responses and tool calls) the AWF proxy allows for a single workflow run, across all supported engines. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime.
@@ -373,6 +424,14 @@ max-turns: 20
 ```
 
 The top-level `max-runs:` field is a **deprecated** alias for `max-turns:` and is only accepted as a fallback for backward compatibility. Migrate existing workflows with `gh aw fix`. See [Cost Management](/gh-aw/reference/cost-management/#cap-turns-per-run) for more details.
+
+### Turn Cache Miss Limit (`max-turn-cache-misses:`)
+
+Sets the maximum consecutive AWF cache misses allowed before the API proxy blocks further requests. The value maps to `apiProxy.maxCacheMisses`, must be a positive integer, and defaults to `5` when neither frontmatter nor the `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` environment override provides a value.
+
+```yaml wrap
+max-turn-cache-misses: 5
+```
 
 ### AI Credits Guardrail (`max-ai-credits:`)
 
@@ -571,11 +630,13 @@ source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 
 ### Redirect (`redirect:`)
 
-Specifies a new canonical location, using the same `owner/repo/path@ref` format as `source:`, when a workflow has been moved or renamed. `gh aw add`, `gh aw add-wizard`, and `gh aw update` follow redirect chains transitively (up to a depth limit) to the resolved location, rewrite the local `source` field accordingly, and report redirect loops as errors. `gh aw compile` emits an informational message when a `redirect` is configured.
+Specifies a new canonical location, using the same `owner/repo/path@ref` format as `source:`, when a workflow has been moved or renamed. `gh aw add`, `gh aw add-wizard`, and `gh aw update` follow redirect chains transitively (up to a depth limit) to the resolved location, rewrite the local `source` field accordingly, and report redirect loops as errors.
 
 ```yaml wrap
 redirect: "githubnext/agentics/workflows/new-workflow-name.md@main"
 ```
+
+`gh aw compile` only treats a file as a redirect-only placeholder when `redirect:` is present and `on:` is absent. In that placeholder case, compilation is skipped successfully and an informational message tells the user to run `gh aw update` to resolve the full workflow. A workflow that contains both `redirect:` and `on:` is compiled as a normal workflow; the redirect metadata remains available to `gh aw add` and `gh aw update`.
 
 Use `gh aw update --no-redirect` to fail the update instead of following the redirect — useful for auditing or controlling exactly when redirects are applied.
 
