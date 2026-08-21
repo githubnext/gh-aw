@@ -18,6 +18,7 @@ import (
 func TestBuildLogsData(t *testing.T) {
 	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
+	workingSetFactor := 2.5
 
 	// Create sample processed runs
 	processedRuns := []ProcessedRun{
@@ -61,6 +62,14 @@ func TestBuildLogsData(t *testing.T) {
 			},
 			MissingTools: []MissingToolReport{},
 			MCPFailures:  []MCPFailureReport{},
+			WorkingSet: &WorkingSetMetrics{
+				MeasurementState:      "measured",
+				RebuildFactor:         &workingSetFactor,
+				CumulativeInputTokens: 2500,
+				PeakInputTokens:       1000,
+				RebuildExcessTokens:   1500,
+				Invocations:           3,
+			},
 		},
 		{
 			Run: WorkflowRun{
@@ -153,6 +162,9 @@ func TestBuildLogsData(t *testing.T) {
 	}
 	if logsData.Runs[0].TaskDomain == nil || logsData.Runs[0].TaskDomain.Name != "triage" {
 		t.Fatalf("Expected first run to include task domain, got %+v", logsData.Runs[0].TaskDomain)
+	}
+	if logsData.Runs[0].WorkingSet == nil || logsData.Runs[0].WorkingSet.RebuildFactor == nil || *logsData.Runs[0].WorkingSet.RebuildFactor != 2.5 {
+		t.Fatalf("Expected first run to include working-set rebuild metrics, got %+v", logsData.Runs[0].WorkingSet)
 	}
 	if logsData.Runs[0].BehaviorFingerprint == nil || logsData.Runs[0].BehaviorFingerprint.ResourceProfile != "lean" {
 		t.Fatalf("Expected first run to include behavior fingerprint, got %+v", logsData.Runs[0].BehaviorFingerprint)

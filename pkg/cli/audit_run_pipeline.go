@@ -202,6 +202,7 @@ func processedRunFromSummary(summary *RunSummary, runOutputDir string) Processed
 		Noops:                   summary.Noops,
 		MCPFailures:             summary.MCPFailures,
 		TokenUsage:              summary.TokenUsage,
+		WorkingSet:              summary.WorkingSet,
 		GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
 		JobDetails:              summary.JobDetails,
 	}
@@ -292,9 +293,9 @@ func downloadAuditArtifactsIfNeeded(ctx context.Context, cfg auditRunConfig, run
 		return true, nil
 	}
 	if isPermissionError(err) {
-		return false, cacheRecoveryError("failed to download artifacts due to permissions and no local cache found.", cfg.runID, cfg.outputDir, err)
+		return false, cacheRecoveryError("could not download artifacts due to permissions and no local cache was found; expected a token with actions:read access or a local cache directory.", cfg.runID, cfg.outputDir, err)
 	}
-	return false, fmt.Errorf("failed to download artifacts: %w", err)
+	return false, fmt.Errorf("could not download artifacts, expected the run to have completed and artifacts to still be available: %w", err)
 }
 
 func downloadLegacyEvalsArtifactIfNeeded(ctx context.Context, cfg auditRunConfig) {

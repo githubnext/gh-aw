@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const req = createRequire(import.meta.url);
-const { parseFirewallLogs, parseSafeOutputsManifest, parseExperimentsData, MANIFEST_FILE_PATH } = req("./generate_usage_activity_summary.cjs");
+const { parseFirewallLogs, parseSafeOutputsManifest, parseExperimentsData, calculateWorkingSetFromJSONL, parseWorkingSetMetrics, MANIFEST_FILE_PATH } = req("./generate_usage_activity_summary.cjs");
 
 describe("generate_usage_activity_summary.cjs", () => {
   /** Unique directory for each test to avoid cross-test interference */
@@ -204,6 +204,77 @@ describe("generate_usage_activity_summary.cjs", () => {
       fs.writeFileSync(path.join(experimentStateDir, "assignments.json"), "not json");
       const result = parseExperimentsData();
       expect(result).toBeNull();
+    });
+  });
+
+  describe("working-set rebuild metrics", () => {
+    const record = inputTokens => JSON.stringify({ input_tokens: inputTokens, cache_read_tokens: 999999, cache_write_tokens: 888888 });
+
+    it.each([
+      { name: "one invocation", inputs: [100_000], cumulative: 100_000, peak: 100_000, excess: 0, factor: 1 },
+      { name: "two identical invocations", inputs: [100_000, 100_000], cumulative: 200_000, peak: 100_000, excess: 100_000, factor: 2 },
+      { name: "increasing invocations", inputs: [10_000, 20_000, 40_000], cumulative: 70_000, peak: 40_000, excess: 30_000, factor: 1.75 },
+      { name: "many small calls plus one large call", inputs: [1_000, 1_000, 1_000, 100_000], cumulative: 103_000, peak: 100_000, excess: 3_000, factor: 1.03 },
+      { name: "paper-inspired fixture", inputs: [100_000, 150_000, 200_000, 200_000, 224_000], cumulative: 874_000, peak: 224_000, excess: 650_000, factor: 3.9017857142857144 },
+    ])("$name", ({ inputs, cumulative, peak, excess, factor }) => {
+      const { workingSet } = calculateWorkingSetFromJSONL(inputs.map(record).join("\n"));
+      expect(workingSet).toEqual({
+        measurement_state: "measured",
+        rebuild_factor: factor,
+        cumulative_input_tokens: cumulative,
+        peak_input_tokens: peak,
+        rebuild_excess_tokens: excess,
+        invocations: inputs.length,
+      });
+    });
+
+    it("uses canonical input_tokens without adding cache token fields", () => {
+      const { workingSet } = calculateWorkingSetFromJSONL([record(10), record(20)].join("\n"));
+      expect(workingSet.cumulative_input_tokens).toBe(30);
+      expect(workingSet.rebuild_factor).toBe(1.5);
+    });
+
+    it("counts valid zero-token records without fabricating a factor", () => {
+      const { workingSet } = calculateWorkingSetFromJSONL([record(0), record(0)].join("\n"));
+      expect(workingSet).toEqual({
+        measurement_state: "unavailable",
+        cumulative_input_tokens: 0,
+        peak_input_tokens: 0,
+        rebuild_excess_tokens: 0,
+        invocations: 2,
+      });
+      expect(workingSet).not.toHaveProperty("rebuild_factor");
+    });
+
+    it("marks mixed malformed and valid records partial", () => {
+      const { workingSet, ignoredRecords } = calculateWorkingSetFromJSONL(`${record(50)}\nnot-json\n${JSON.stringify({ output_tokens: 3 })}\n${record(100)}`);
+      expect(ignoredRecords).toBe(2);
+      expect(workingSet.measurement_state).toBe("partial");
+      expect(workingSet.rebuild_factor).toBe(1.5);
+      expect(workingSet.invocations).toBe(2);
+    });
+
+    it("returns unavailable for missing and empty files", () => {
+      const missingPath = path.join(os.tmpdir(), `missing-token-usage-${Date.now()}.jsonl`);
+      expect(parseWorkingSetMetrics(missingPath).workingSet.measurement_state).toBe("unavailable");
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "empty-token-usage-"));
+      const emptyPath = path.join(tmpDir, "token_usage.jsonl");
+      fs.writeFileSync(emptyPath, "");
+      try {
+        expect(parseWorkingSetMetrics(emptyPath).workingSet.measurement_state).toBe("unavailable");
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("handles cumulative counts above the safe integer boundary without overflow", () => {
+      const large = Number.MAX_SAFE_INTEGER;
+      const { workingSet } = calculateWorkingSetFromJSONL([record(large), record(large)].join("\n"));
+      expect(workingSet.rebuild_factor).toBe(2);
+      expect(Number.isFinite(workingSet.rebuild_factor)).toBe(true);
+      expect(workingSet.rebuild_factor).toBeGreaterThanOrEqual(1);
+      expect(workingSet.cumulative_input_tokens).toBe(Number(BigInt(large) * 2n));
     });
   });
 });

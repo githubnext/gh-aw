@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -43,7 +44,7 @@ func parseManifestSourceSpec(source string) (*RepoSpec, bool, error) {
 		return nil, false, nil
 	}
 	if err != nil {
-		return nil, true, fmt.Errorf("invalid manifest source %q: %w", source, err)
+		return nil, true, fmt.Errorf("manifest source %q is not valid: %w; expected format like \"owner/repo\" or \"owner/repo/path\"", source, err)
 	}
 	if repoSpec == nil {
 		return nil, false, nil
@@ -201,7 +202,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		return successes, failures
 	}
 	assetEngine := resolveManifestAssetEngine(grouped, opts)
-	if err := reconcileManifestManagedAssets(ctx, repoSpec.RepoSlug, currentPkg, latestPkg, assetEngine); err != nil {
+	if err := reconcileManifestManagedAssets(ctx, repoSpec, currentPkg, latestPkg, assetEngine, opts); err != nil {
 		failures = append(failures, updateFailure{Name: source, Error: err.Error()})
 	}
 	successes = append(successes, groupedSuccesses...)
@@ -211,39 +212,55 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 
 // reconcileManifestManagedAssets installs package-owned action workflows, skills, and
 // agents that were added to the latest manifest. These assets do not carry source
-// frontmatter, so their package ownership is derived from the package manifest itself.
-func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolvedRepositoryPackage, latestPkg *resolvedRepositoryPackage, engineOverride string) error {
+// frontmatter, so their package ownership is derived from ownership records tracked
+// under .github/aw/packages. Existing destinations are only overwritten when they are
+// tracked as owned by this package (and unmodified locally, or opts.Force is set);
+// otherwise the reconciliation fails rather than clobbering an unrelated file.
+func reconcileManifestManagedAssets(ctx context.Context, repoSpec *RepoSpec, currentPkg *resolvedRepositoryPackage, latestPkg *resolvedRepositoryPackage, engineOverride string, opts UpdateWorkflowsOptions) error {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return fmt.Errorf("failed to find repository root for package assets: %w", err)
+		return fmt.Errorf("unable to find repository root for package assets: %w", err)
 	}
-	owner, repository, err := splitRepositoryPackageSlug(repo)
+	owner, repository, err := splitRepositoryPackageSlug(repoSpec.RepoSlug)
 	if err != nil {
 		return err
 	}
+	packageBase := repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath)
+
+	warnUpstreamRemovedSkillsAndAgents(currentPkg, latestPkg)
 
 	for _, installable := range latestPkg.InstallationSource {
 		if !isActionWorkflowPath(installable.SourcePath) {
 			continue
 		}
-		destPath := filepath.Join(gitRoot, filepath.FromSlash(installable.DestinationPath))
+		destination := filepath.ToSlash(filepath.Clean(installable.DestinationPath))
+		destPath := filepath.Join(gitRoot, filepath.FromSlash(destination))
+		fileExists := false
 		if _, err := os.Stat(destPath); err == nil {
-			updateManifestLog.Printf("Skipping new package action workflow because destination already exists: %s", destPath)
-			continue
+			fileExists = true
 		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to inspect new package action workflow destination %s: %w", destPath, err)
+			return fmt.Errorf("unable to inspect new package action workflow destination %s: %w", destPath, err)
+		}
+		if fileExists {
+			if err := ensurePackageAssetOverwriteAllowed(gitRoot, destination, packageBase, opts.Force); err != nil {
+				return err
+			}
 		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, installable.SourcePath, latestPkg.ResolvedRef, "")
 		if err != nil {
-			return fmt.Errorf("failed to download new package action workflow %s: %w", installable.SourcePath, err)
+			return fmt.Errorf("unable to download new package action workflow %s: %w", installable.SourcePath, err)
 		}
 		if err := os.MkdirAll(filepath.Dir(destPath), constants.DirPermPublic); err != nil {
-			return fmt.Errorf("failed to create package action workflow directory: %w", err)
+			return fmt.Errorf("unable to create package action workflow directory: %w", err)
 		}
 		if err := os.WriteFile(destPath, content, constants.FilePermPublic); err != nil {
-			return fmt.Errorf("failed to install new package action workflow %s: %w", installable.DestinationPath, err)
+			return fmt.Errorf("unable to install new package action workflow %s: %w", installable.DestinationPath, err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added package action workflow: "+filepath.Base(destPath)))
+		if fileExists {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated package action workflow: "+filepath.Base(destPath)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added package action workflow: "+filepath.Base(destPath)))
+		}
 	}
 
 	for _, skill := range latestPkg.SkillFiles {
@@ -251,15 +268,18 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 		if err != nil {
 			return err
 		}
-		if _, err := os.Stat(destPath); err == nil {
-			updateManifestLog.Printf("Skipping new package skill because destination already exists: %s", destPath)
-			continue
-		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to inspect new package skill destination %s: %w", destPath, err)
+		if fileutil.FileExists(destPath) {
+			destination, err := filepath.Rel(gitRoot, destPath)
+			if err != nil {
+				return fmt.Errorf("unable to resolve relative destination for package skill %s: %w", skill.SourcePath, err)
+			}
+			if err := ensurePackageAssetOverwriteAllowed(gitRoot, filepath.ToSlash(destination), packageBase, opts.Force); err != nil {
+				return err
+			}
 		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, skill.SourcePath, latestPkg.ResolvedRef, "")
 		if err != nil {
-			return fmt.Errorf("failed to download new package skill %s: %w", skill.SourcePath, err)
+			return fmt.Errorf("unable to download new package skill %s: %w", skill.SourcePath, err)
 		}
 		resolved := &ResolvedWorkflow{
 			Content:            content,
@@ -270,27 +290,86 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 		if err := addSkillFileWithTracking(resolved, nil, AddOptions{
 			EngineOverride: engineOverride,
 			Quiet:          false,
+			Force:          true,
 		}, gitRoot); err != nil {
-			return fmt.Errorf("failed to install new package skill %s: %w", skill.SourcePath, err)
+			return fmt.Errorf("unable to install new package skill %s: %w", skill.SourcePath, err)
 		}
 	}
 
 	for _, agent := range latestPkg.AgentFiles {
-		destPath := packageAgentDestinationPath(gitRoot, agent, engineOverride)
-		if _, err := os.Stat(destPath); err == nil {
-			updateManifestLog.Printf("Skipping new package agent because destination already exists: %s", destPath)
-			continue
-		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to inspect new package agent destination %s: %w", destPath, err)
+		agentsDir := filepath.Join(gitRoot, workflow.GetEngineSubAgentDir(engineOverride))
+		destPath := filepath.Join(agentsDir, filepath.Base(agent))
+		if fileutil.FileExists(destPath) {
+			destination, err := filepath.Rel(gitRoot, destPath)
+			if err != nil {
+				return fmt.Errorf("unable to resolve relative destination for package agent %s: %w", agent, err)
+			}
+			if err := ensurePackageAssetOverwriteAllowed(gitRoot, filepath.ToSlash(destination), packageBase, opts.Force); err != nil {
+				return err
+			}
 		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, agent, latestPkg.ResolvedRef, "")
 		if err != nil {
-			return fmt.Errorf("failed to download new package agent %s: %w", agent, err)
+			return fmt.Errorf("unable to download new package agent %s: %w", agent, err)
 		}
 		resolved := &ResolvedWorkflow{Content: content, Spec: &WorkflowSpec{WorkflowPath: agent}, IsPackageAgentFile: true}
-		if err := addAgentFileWithTracking(resolved, nil, AddOptions{EngineOverride: engineOverride}, gitRoot); err != nil {
-			return fmt.Errorf("failed to install new package agent %s: %w", agent, err)
+		if err := addAgentFileWithTracking(resolved, nil, AddOptions{EngineOverride: engineOverride, Force: true}, gitRoot); err != nil {
+			return fmt.Errorf("unable to install new package agent %s: %w", agent, err)
 		}
+	}
+	return nil
+}
+
+// warnUpstreamRemovedSkillsAndAgents reports skill and agent files that were present in
+// the currently-installed package manifest but are no longer listed in the latest
+// manifest. These assets are intentionally left untouched (not deleted) since the
+// removal may be transient or unintended upstream; the local copy is kept and a warning
+// is printed so the user can decide whether to remove it manually.
+func warnUpstreamRemovedSkillsAndAgents(currentPkg, latestPkg *resolvedRepositoryPackage) {
+	if currentPkg == nil || latestPkg == nil {
+		return
+	}
+
+	latestSkillSources := make(map[string]bool, len(latestPkg.SkillFiles))
+	for _, skill := range latestPkg.SkillFiles {
+		latestSkillSources[skill.SourcePath] = true
+	}
+	for _, skill := range currentPkg.SkillFiles {
+		if latestSkillSources[skill.SourcePath] {
+			continue
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+			"Skill %q was removed from the upstream package; skipping update and keeping the local copy. Remove it manually if it is no longer needed.",
+			skill.SourcePath)))
+	}
+
+	latestAgentSources := make(map[string]bool, len(latestPkg.AgentFiles))
+	for _, agent := range latestPkg.AgentFiles {
+		latestAgentSources[agent] = true
+	}
+	for _, agent := range currentPkg.AgentFiles {
+		if latestAgentSources[agent] {
+			continue
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+			"Agent %q was removed from the upstream package; skipping update and keeping the local copy. Remove it manually if it is no longer needed.",
+			agent)))
+	}
+}
+
+// ensurePackageAssetOverwriteAllowed returns an error unless the given destination is
+// safe to overwrite: either the caller passed opts.Force, or the destination is tracked
+// as owned by packageBase and has not been modified locally since it was installed.
+func ensurePackageAssetOverwriteAllowed(gitRoot, destination, packageBase string, force bool) error {
+	if force {
+		return nil
+	}
+	owned, drifted := packageOwnershipAllowsOverwrite(gitRoot, destination, packageBase)
+	if !owned {
+		return fmt.Errorf("package asset %q already exists and is not tracked as owned by %s; use --force to overwrite", destination, packageBase)
+	}
+	if drifted {
+		return fmt.Errorf("package asset %q has local modifications; use --force to overwrite", destination)
 	}
 	return nil
 }
@@ -319,23 +398,19 @@ func packageSkillDestinationPath(gitRoot string, skill resolvedPackageSkillFile,
 	}
 	relPath, err := resolveSkillRelativePath(resolved)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve destination for package skill %s: %w", skill.SourcePath, err)
+		return "", fmt.Errorf("unable to resolve destination for package skill %s: %w", skill.SourcePath, err)
 	}
 	return filepath.Join(gitRoot, workflow.GetEngineSkillDir(engineOverride), skill.SkillName, relPath), nil
-}
-
-func packageAgentDestinationPath(gitRoot, sourcePath, engineOverride string) string {
-	return filepath.Join(gitRoot, workflow.GetEngineSubAgentDir(engineOverride), filepath.Base(sourcePath))
 }
 
 func removeManifestManagedWorkflow(workflowPath string) error {
 	updateManifestLog.Printf("Removing manifest-managed workflow no longer in manifest: %s", filepath.Base(workflowPath))
 	if err := os.Remove(workflowPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove workflow %s: %w", filepath.Base(workflowPath), err)
+		return fmt.Errorf("unable to remove workflow %s: %w", filepath.Base(workflowPath), err)
 	}
 	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
 	if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove lock file %s: %w", filepath.Base(lockPath), err)
+		return fmt.Errorf("unable to remove lock file %s: %w", filepath.Base(lockPath), err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed workflow no longer listed in manifest: "+filepath.Base(workflowPath)))
 	return nil
@@ -346,7 +421,7 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 	sourceSpecCurrent := sourceSpecWithRef(&SourceSpec{Repo: update.repo, Path: update.currentPath}, update.currentRef)
 	newContent, err := downloadWorkflowContentFn(ctx, update.repo, update.latestPath, update.latestRef, opts.Verbose)
 	if err != nil {
-		return fmt.Errorf("failed to download workflow %s/%s@%s: %w", update.repo, update.latestPath, update.latestRef, err)
+		return fmt.Errorf("unable to download workflow %s/%s@%s: %w", update.repo, update.latestPath, update.latestRef, err)
 	}
 
 	if !opts.Force && update.currentRef == update.latestRef && update.currentPath == update.latestPath {
@@ -371,12 +446,12 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 		} else {
 			currentContent, err := os.ReadFile(update.wf.Path)
 			if err != nil {
-				return fmt.Errorf("failed to read current workflow: %w", err)
+				return fmt.Errorf("unable to read current workflow: %w", err)
 			}
 			newSourceSpec := sourceSpecWithRef(&SourceSpec{Repo: update.repo, Path: update.latestPath}, update.latestRef)
 			mergedContent, conflicts, mergeErr := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), sourceSpecCurrent, newSourceSpec, update.wf.Path, opts.Verbose)
 			if mergeErr != nil {
-				return fmt.Errorf("failed to merge workflow content: %w", mergeErr)
+				return fmt.Errorf("unable to merge workflow content: %w", mergeErr)
 			}
 			finalContent = mergedContent
 			hasConflicts = conflicts
@@ -398,7 +473,7 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 
 	finalContent, err = UpdateFieldInFrontmatter(finalContent, "source", update.manifestSource)
 	if err != nil {
-		return fmt.Errorf("failed to update source frontmatter: %w", err)
+		return fmt.Errorf("unable to update source frontmatter: %w", err)
 	}
 
 	if opts.NoStopAfter {
@@ -415,15 +490,15 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 
 	if !opts.DisableSecurityScanner {
 		if findings := workflow.ScanMarkdownSecurity(finalContent); len(findings) > 0 {
-			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", update.wf.Name, len(findings))
+			return fmt.Errorf("workflow '%s' has %d security scan issue(s); review the findings and resolve them before updating, or pass --no-security-scanner to skip this check", update.wf.Name, len(findings))
 		}
 	}
 
 	if err := fetchManifestManagedDependencies(ctx, newContent, update.repo, update.latestPath, update.latestRef, filepath.Dir(update.wf.Path), opts.Verbose); err != nil {
-		return fmt.Errorf("failed to update workflow dependencies: %w", err)
+		return fmt.Errorf("unable to update workflow dependencies: %w", err)
 	}
 	if err := os.WriteFile(update.wf.Path, []byte(finalContent), constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write updated workflow: %w", err)
+		return fmt.Errorf("unable to write updated workflow: %w", err)
 	}
 	if hasConflicts {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", update.wf.Name, shortRef(update.currentRef), shortRef(update.latestRef))))
@@ -432,7 +507,7 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", update.wf.Name, shortRef(update.currentRef), shortRef(update.latestRef))))
 	if !opts.NoCompile {
 		if err := compileWorkflowsForUpdate(ctx, []string{update.wf.Path}, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve); err != nil {
-			return fmt.Errorf("failed to compile updated workflow: %w", err)
+			return fmt.Errorf("unable to compile updated workflow: %w", err)
 		}
 	}
 	return nil
@@ -442,12 +517,12 @@ func addManifestManagedWorkflow(ctx context.Context, targetDir, name, repo, late
 	updateManifestLog.Printf("Adding new manifest-managed workflow %s from %s/%s@%s", name, repo, latestPath, latestRef)
 	newContent, err := downloadWorkflowContentFn(ctx, repo, latestPath, latestRef, opts.Verbose)
 	if err != nil {
-		return fmt.Errorf("failed to download new manifest workflow %s/%s@%s: %w", repo, latestPath, latestRef, err)
+		return fmt.Errorf("unable to download new manifest workflow %s/%s@%s: %w", repo, latestPath, latestRef, err)
 	}
 
 	content, err := UpdateFieldInFrontmatter(string(newContent), "source", manifestSource)
 	if err != nil {
-		return fmt.Errorf("failed to add source frontmatter for %s: %w", name, err)
+		return fmt.Errorf("unable to add source frontmatter for %s: %w", name, err)
 	}
 	if opts.NoStopAfter {
 		cleanedContent, err := RemoveFieldFromOnTrigger(content, "stop-after")
@@ -462,21 +537,21 @@ func addManifestManagedWorkflow(ctx context.Context, targetDir, name, repo, late
 	}
 	if !opts.DisableSecurityScanner {
 		if findings := workflow.ScanMarkdownSecurity(content); len(findings) > 0 {
-			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", name, len(findings))
+			return fmt.Errorf("workflow '%s' has %d security scan issue(s); review the findings and resolve them before adding, or pass --no-security-scanner to skip this check", name, len(findings))
 		}
 	}
 
 	destPath := filepath.Join(targetDir, name+".md")
 	if err := fetchManifestManagedDependencies(ctx, []byte(content), repo, latestPath, latestRef, targetDir, opts.Verbose); err != nil {
-		return fmt.Errorf("failed to install workflow dependencies: %w", err)
+		return fmt.Errorf("unable to install workflow dependencies: %w", err)
 	}
 	if err := os.WriteFile(destPath, []byte(content), constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write new manifest workflow %s: %w", destPath, err)
+		return fmt.Errorf("unable to write new manifest workflow %s: %w", destPath, err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added new workflow from manifest: "+filepath.Base(destPath)))
 	if !opts.NoCompile {
 		if err := compileWorkflowsForUpdate(ctx, []string{destPath}, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve); err != nil {
-			return fmt.Errorf("failed to compile new manifest workflow: %w", err)
+			return fmt.Errorf("unable to compile new manifest workflow: %w", err)
 		}
 	}
 	return nil
