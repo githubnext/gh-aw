@@ -7,8 +7,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// Workflow step merge helpers for workflow builder.
-
+// processAndMergeSteps handles the merging of imported steps with main workflow steps.
 func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	workflowBuilderLog.Print("Processing and merging custom steps")
 
