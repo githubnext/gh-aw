@@ -60,6 +60,17 @@ describe("require-http-response-error-listener", () => {
     });
   });
 
+  it("valid: bindings from a shadowed require or reassigned after initialization are ignored", () => {
+    cjsRuleTester.run("require-http-response-error-listener", requireHttpResponseErrorListenerRule, {
+      valid: [
+        `function factory(require) { const http = require("http"); http.request(options, res => { res.on("end", () => {}); }); }`,
+        `const require = createRequire("./x.cjs"); const http = require("http"); http.request(options, res => { res.on("end", () => {}); });`,
+        `let http = require("http"); http = makeClient(); http.request(options, res => { res.on("end", () => {}); });`,
+      ],
+      invalid: [],
+    });
+  });
+
   it("valid: nested error listener registrations count", () => {
     cjsRuleTester.run("require-http-response-error-listener", requireHttpResponseErrorListenerRule, {
       valid: [`const http = require("http"); http.request(options, res => { setImmediate(() => { res.on("error", reject); }); res.on("end", () => {}); });`],

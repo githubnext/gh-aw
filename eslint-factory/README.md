@@ -999,6 +999,6 @@ req.on("error", reject);
 ```
 
 **Out of scope:**
-- `http`/`https` identifiers that are not statically bound through `require("http")` / `require("https")` / `require("node:http")` / `require("node:https")`
+- `http`/`https` identifiers that are not statically bound through `require("http")` / `require("https")` / `require("node:http")` / `require("node:https")`, including bindings created by a locally shadowed `require` or reassigned after initialization
 - Request calls without a response callback, or callbacks whose response parameter is destructured
 - `fetch`-based HTTP calls (covered by `require-fetch-try-catch` and `require-fetch-timeout`) and non-standard HTTP client libraries

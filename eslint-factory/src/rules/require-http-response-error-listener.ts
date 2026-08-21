@@ -5,34 +5,53 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 const HTTP_MODULE_SPECIFIERS = new Set(["http", "https", "node:http", "node:https"]);
 const REQUEST_METHODS = new Set(["request", "get"]);
 
+/** Resolves `name` to the variable it denotes at `scopeNode`, or null when it is not declared in any enclosing scope. */
+function resolveVariable(name: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): TSESLint.Scope.Variable | null {
+  let scope: ReturnType<typeof sourceCode.getScope> | null = sourceCode.getScope(scopeNode);
+  while (scope) {
+    const variable = scope.set.get(name);
+    if (variable) return variable;
+    scope = scope.upper;
+  }
+  return null;
+}
+
+/** Returns true when `require` at this location is not shadowed by a local declaration (parameter, variable, function, ...). */
+function isModuleRequireIdentifier(callee: TSESTree.Identifier, sourceCode: TSESLint.SourceCode): boolean {
+  const variable = resolveVariable(callee.name, callee, sourceCode);
+  // Undeclared, or the implicit CommonJS/global `require` (declared by the environment, so it has no definitions).
+  return variable === null || variable.defs.length === 0;
+}
+
 /** Returns true when the node is `require("http")` / `require("https")` / `require("node:http")` / `require("node:https")`. */
-function isRequireHttpModule(node: TSESTree.Node | null | undefined): boolean {
+function isRequireHttpModule(node: TSESTree.Node | null | undefined, sourceCode: TSESLint.SourceCode): boolean {
   if (!node) return false;
   if (node.type !== AST_NODE_TYPES.CallExpression) return false;
   if (node.callee.type !== AST_NODE_TYPES.Identifier || node.callee.name !== "require") return false;
+  if (!isModuleRequireIdentifier(node.callee, sourceCode)) return false;
   const firstArg = node.arguments[0];
   if (!firstArg || firstArg.type !== AST_NODE_TYPES.Literal) return false;
   return typeof firstArg.value === "string" && HTTP_MODULE_SPECIFIERS.has(firstArg.value);
 }
 
-/** Returns true when `name` resolves to a variable bound to Node's `http`/`https` module via `require(...)`. */
+/** Returns true when `name` resolves to a variable bound to Node's `http`/`https` module via `require(...)` and never reassigned. */
 function isHttpModuleBinding(name: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
-  let scope: ReturnType<typeof sourceCode.getScope> | null = sourceCode.getScope(scopeNode);
-  while (scope) {
-    const variable = scope.set.get(name);
-    if (variable && variable.defs.length > 0) {
-      for (const def of variable.defs) {
-        if (def.type !== "Variable") continue;
-        const declarator = def.node as TSESTree.VariableDeclarator;
-        if (declarator.id.type === AST_NODE_TYPES.Identifier && isRequireHttpModule(declarator.init)) {
-          return true;
-        }
-      }
-      return false;
-    }
-    scope = scope.upper;
+  const variable = resolveVariable(name, scopeNode, sourceCode);
+  if (!variable || variable.defs.length === 0) return false;
+  // Any write other than a `require("http")`-style initializer means the binding may no longer denote the module.
+  for (const reference of variable.references) {
+    if (!reference.isWrite()) continue;
+    if (!isRequireHttpModule(reference.writeExpr, sourceCode)) return false;
   }
-  return false;
+  let bound = false;
+  for (const def of variable.defs) {
+    if (def.type !== "Variable") return false;
+    const declarator = def.node as TSESTree.VariableDeclarator;
+    if (declarator.id.type !== AST_NODE_TYPES.Identifier) return false;
+    if (!isRequireHttpModule(declarator.init, sourceCode)) return false;
+    bound = true;
+  }
+  return bound;
 }
 
 /** Returns true when `call` is `<http>.request(...)` / `<http>.get(...)` on a resolved http/https module binding. */
