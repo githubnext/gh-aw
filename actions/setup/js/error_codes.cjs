@@ -45,6 +45,9 @@ const ERR_SYSTEM = "ERR_SYSTEM";
 /** @type {string} Safe output validation/input errors (legacy numeric taxonomy) */
 const SAFE_OUTPUT_E001 = "E001";
 
+/** @type {string} Safe output API/operation guard failures (legacy numeric taxonomy) */
+const SAFE_OUTPUT_E007 = "E007";
+
 /** @type {string} Safe output lock file frontmatter hash mismatch (legacy numeric taxonomy) */
 const SAFE_OUTPUT_E009 = "E009";
 
@@ -69,6 +72,7 @@ module.exports = {
   ERR_PARSE,
   ERR_SYSTEM,
   SAFE_OUTPUT_E001,
+  SAFE_OUTPUT_E007,
   SAFE_OUTPUT_E009,
   SAFE_OUTPUT_E010,
   SAFE_OUTPUT_E099,
