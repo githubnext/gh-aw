@@ -127,8 +127,12 @@ func TestArgumentTypeUnmarshalsToTypedEnum(t *testing.T) {
 	if arg.Type != ArgumentTypePositional {
 		t.Errorf("Expected argument type '%s', got '%s'", ArgumentTypePositional, arg.Type)
 	}
-	if arg.Type == ArgumentTypeNamed {
-		t.Errorf("Expected argument type not to be '%s'", ArgumentTypeNamed)
+	var named Argument
+	if err := json.Unmarshal([]byte(`{"type":"named","name":"--port","value":"8080"}`), &named); err != nil {
+		t.Fatalf("Failed to unmarshal argument: %v", err)
+	}
+	if named.Type != ArgumentTypeNamed {
+		t.Errorf("Expected argument type '%s', got '%s'", ArgumentTypeNamed, named.Type)
 	}
 }
 
