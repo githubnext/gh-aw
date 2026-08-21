@@ -38,6 +38,7 @@ type importAccumulator struct {
 	envSources                 map[string]string // env var name → source import path (for conflict detection and header listing)
 	observabilityConfigs       []string          // observability config JSON blobs from all imports (merged into endpoint array)
 	engines                    []string
+	plugins                    []string
 	safeOutputs                []string
 	mcpScripts                 []string
 	bots                       []string
@@ -241,13 +242,13 @@ func (acc *importAccumulator) extractToolsContent(rawContent string, item import
 	if wasSubstituted {
 		toolsContent, err := extractToolsFromContent(rawContent)
 		if err != nil {
-			return "", fmt.Errorf("failed to extract tools from '%s': %w", item.fullPath, err)
+			return "", fmt.Errorf("tools content in '%s' is not recognized, expected a 'Tools:' section with a valid YAML block: %w", item.fullPath, err)
 		}
 		return toolsContent, nil
 	}
 	toolsContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
 	if err != nil {
-		return "", fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
+		return "", fmt.Errorf("imported file '%s' could not be processed, expected a readable markdown file with valid frontmatter: %w", item.fullPath, err)
 	}
 	return toolsContent, nil
 }
@@ -265,7 +266,7 @@ func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath
 	parserLog.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
 	markdownContent, err := ExtractMarkdownContent(rawContent)
 	if err != nil {
-		return fmt.Errorf("failed to extract markdown from imported file '%s': %w", fullPath, err)
+		return fmt.Errorf("markdown content in imported file '%s' is not recognized, expected content after the frontmatter delimiters: %w", fullPath, err)
 	}
 	appendMarkdownWithSeparator(&acc.markdownBuilder, markdownContent)
 	acc.promptImports = append(acc.promptImports, PromptImportEntry{Markdown: markdownContent})
@@ -395,6 +396,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
 
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
+	acc.plugins = append(acc.plugins, parseStringSliceField(fm["plugins"], false)...)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
 	acc.appendYAMLBuilderField(fm, "steps", &acc.stepsBuilder)
@@ -955,6 +957,7 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		MergedTools:                      acc.toolsBuilder.String(),
 		MergedMCPServers:                 acc.mcpServersBuilder.String(),
 		MergedEngines:                    acc.engines,
+		MergedPlugins:                    acc.plugins,
 		MergedSafeOutputs:                acc.safeOutputs,
 		MergedMCPScripts:                 acc.mcpScripts,
 		MergedMarkdown:                   acc.markdownBuilder.String(),

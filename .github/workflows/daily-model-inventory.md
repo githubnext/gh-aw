@@ -228,7 +228,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Create placeholder for Copilot billing models
+      - name: Create placeholder for GitHub Copilot billing models
         id: fetch
         shell: bash
         run: |
@@ -250,7 +250,7 @@ jobs:
         shell: bash
         run: cat /tmp/gh-aw/agent/model-inventory/copilot-billing/models.json 2>/dev/null || echo "(no models.json)"
 
-      - name: Upload Copilot billing models artifact
+      - name: Upload GitHub Copilot billing models artifact
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:

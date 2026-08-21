@@ -49,6 +49,7 @@ func NewCopilotEngine() *CopilotEngine {
 				WebSearch:            false, // Copilot CLI does not have built-in web-search support
 				BareMode:             true,  // Copilot CLI supports --no-custom-instructions
 				BashCommandAllowlist: true,  // Copilot enforces tools.bash allowlist via --allow-tool shell(cmd)
+				Plugins:              true,  // Copilot CLI supports Agent Plugins
 			},
 			dedicatedLLMGatewayPort: constants.CopilotLLMGatewayPort,
 		},
@@ -135,6 +136,18 @@ func (e *CopilotEngine) GetSupportedEnvVarKeys() []string {
 		constants.CopilotProviderBearerToken,
 		constants.CopilotProviderWireAPI,
 	}
+}
+
+// GetPluginInstallationSteps installs pinned Agent Plugins through the Copilot CLI.
+func (e *CopilotEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	commandName := "copilot"
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+	}
+	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{
+		Command:     commandName,
+		InstallArgs: []string{"plugin", "install"},
+	})
 }
 
 // GetInstallationSteps is implemented in copilot_engine_installation.go

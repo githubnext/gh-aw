@@ -43,10 +43,10 @@ func buildRunnerGuardContainerScanPath(scanPath string) (string, error) {
 	}
 	cleanPath := filepath.Clean(scanPath)
 	if !filepath.IsLocal(cleanPath) {
-		return "", fmt.Errorf("runner-guard scan path must stay local to the repository. Got: %q", scanPath)
+		return "", fmt.Errorf("runner-guard scan path must stay local to the repository. Expected a relative path inside the repository. Example: .github/workflows. Got: %q", scanPath)
 	}
 	if containsControlCharacters(cleanPath) {
-		return "", fmt.Errorf("runner-guard scan path contains invalid control characters. Got: %q", scanPath)
+		return "", fmt.Errorf("runner-guard scan path contains invalid control characters. Expected a plain relative path. Example: .github/workflows. Got: %q", scanPath)
 	}
 	return "./" + filepath.ToSlash(cleanPath), nil
 }
@@ -64,7 +64,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 
 	gitRoot, err = fileutil.ValidateAbsolutePath(gitRoot)
 	if err != nil {
-		return fmt.Errorf("invalid git root %q: %w", gitRoot, err)
+		return fmt.Errorf("git root %q is not a valid absolute path; runner-guard requires an absolute repository root. Example: run gh aw from inside a git checkout: %w", gitRoot, err)
 	}
 
 	// Determine the scan path: use workflowDir relative to gitRoot when possible,
@@ -73,14 +73,14 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	if workflowDir != "" {
 		absWorkflowDir, err := filepath.Abs(workflowDir)
 		if err != nil {
-			return fmt.Errorf("failed to resolve workflow directory %q: %w", workflowDir, err)
+			return fmt.Errorf("workflow directory %q could not be resolved to an absolute path; expected an existing directory. Example: .github/workflows: %w", workflowDir, err)
 		}
 		if err := fileutil.ValidatePathWithinBase(gitRoot, absWorkflowDir); err != nil {
-			return fmt.Errorf("workflow directory %q must stay within git root %q: %w", workflowDir, gitRoot, err)
+			return fmt.Errorf("workflow directory %q must stay within git root %q; expected a directory inside the repository. Example: .github/workflows: %w", workflowDir, gitRoot, err)
 		}
 		relDir, relErr := filepath.Rel(gitRoot, absWorkflowDir)
 		if relErr != nil {
-			return fmt.Errorf("failed to compute relative path for workflow directory %q: %w", workflowDir, relErr)
+			return fmt.Errorf("workflow directory %q could not be expressed relative to git root %q; expected a directory inside the repository. Example: .github/workflows: %w", workflowDir, gitRoot, relErr)
 		}
 		if !filepath.IsLocal(relDir) {
 			return fmt.Errorf("workflow directory %q resolved to non-local relative path %q", workflowDir, relDir)
@@ -93,7 +93,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	// produce a scanPath beginning with "-", which runner-guard could interpret as a flag.
 	containerScanPath, err := buildRunnerGuardContainerScanPath(scanPath)
 	if err != nil {
-		return fmt.Errorf("invalid runner-guard scan path: %w", err)
+		return fmt.Errorf("runner-guard scan path is invalid; expected a relative path inside the repository. Example: .github/workflows: %w", err)
 	}
 
 	// Build the Docker command
@@ -104,11 +104,11 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	}
 	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
 	if err != nil {
-		return fmt.Errorf("invalid docker mount path: %w", err)
+		return fmt.Errorf("docker mount path for git root %q is invalid; expected an absolute host path. Example: /home/user/repo: %w", gitRoot, err)
 	}
 	runnerGuardImageRef, err := validateDockerImageRef(RunnerGuardImage)
 	if err != nil {
-		return fmt.Errorf("invalid runner-guard scanner image reference %q: %w", RunnerGuardImage, err)
+		return fmt.Errorf("runner-guard scanner image reference %q is invalid; expected a registry reference. Example: ghcr.io/owner/image:tag: %w", RunnerGuardImage, err)
 	}
 	// #nosec G204 -- gitRoot is validated as an absolute path above (from git rev-parse, a trusted
 	// source). containerScanPath is derived from filepath.Rel(gitRoot, workflowDir), cleaned with
@@ -175,10 +175,10 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 				return nil
 			}
 			// Other exit codes are actual errors
-			return fmt.Errorf("runner-guard failed with exit code %d", exitCode)
+			return fmt.Errorf("runner-guard failed with exit code %d; expected 0 (clean) or 1 (findings reported). Example: rerun with gh aw --verbose to see the scanner output", exitCode)
 		}
 		// Non-ExitError errors (e.g., command not found)
-		return fmt.Errorf("runner-guard failed: %w", err)
+		return fmt.Errorf("runner-guard failed to start; a working docker installation is required. Example: run docker info to check the daemon: %w", err)
 	}
 
 	return nil
@@ -214,7 +214,7 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 
 	var output runnerGuardOutput
 	if err := json.Unmarshal([]byte(stdout), &output); err != nil {
-		return 0, fmt.Errorf("failed to parse runner-guard JSON output: %w", err)
+		return 0, fmt.Errorf("runner-guard JSON output could not be parsed; expected a JSON object. Example: {\"findings\":[]}: %w", err)
 	}
 
 	totalFindings := len(output.Findings)
@@ -229,6 +229,10 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	// Drop findings that carry an inline runner-guard suppression comment near the reported
 	// location in the compiled workflow.
 	output.Findings = filterRunnerGuardIgnoredFindings(output.Findings, gitRoot)
+
+	// Drop RGS-012 findings for Copilot allow-tool declarations that only document local curl
+	// permissions. The declarations are not executable curl calls and cannot exfiltrate secrets.
+	output.Findings = filterCopilotLocalAllowToolFindings(output.Findings, gitRoot)
 
 	// Drop RGS-012 findings for the compiler-generated gVisor install step, which downloads a
 	// pinned, SHA-512-verified artifact and never exfiltrates secrets.
