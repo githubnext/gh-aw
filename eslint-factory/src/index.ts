@@ -50,6 +50,8 @@ import { noEmptyCatchBlockRule } from "./rules/no-empty-catch-block";
 import { requireLastIndexResetBeforeGlobalExecLoopRule } from "./rules/require-lastindex-reset-before-global-exec-loop";
 import { requirePageCounterIncrementInWhileTrueLoopRule } from "./rules/require-page-counter-increment-in-while-true-loop";
 import { noMathMinMaxArraySpreadRule } from "./rules/no-math-minmax-array-spread";
+import { requireErrorCodeForGithubApiThrowRule } from "./rules/require-error-code-for-github-api-throw";
+import { requireHttpResponseErrorListenerRule } from "./rules/require-http-response-error-listener";
 
 const plugin = {
   meta: {
@@ -109,6 +111,8 @@ const plugin = {
     "require-lastindex-reset-before-global-exec-loop": requireLastIndexResetBeforeGlobalExecLoopRule,
     "require-page-counter-increment-in-while-true-loop": requirePageCounterIncrementInWhileTrueLoopRule,
     "no-math-minmax-array-spread": noMathMinMaxArraySpreadRule,
+    "require-error-code-for-github-api-throw": requireErrorCodeForGithubApiThrowRule,
+    "require-http-response-error-listener": requireHttpResponseErrorListenerRule,
   },
 };
 
