@@ -38,6 +38,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
 | [`require-error-code-in-thrown-error`](#require-error-code-in-thrown-error) | Require standardized error codes in thrown errors when `error_codes.cjs` is imported |
+| [`require-error-code-for-github-api-throw`](#require-error-code-for-github-api-throw) | Require standardized error codes for `throw new Error(...)` after GitHub API calls |
 | [`require-fetch-response-body-try-catch`](#require-fetch-response-body-try-catch) | Require try/catch around `.json()` or `.text()` on Responses from `fetch(...)` |
 | [`require-fetch-timeout`](#require-fetch-timeout) | Require `fetch(...)` calls to include a non-nullish abort `signal` option |
 | [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
@@ -892,6 +893,24 @@ const { ERR_API } = require("./error_codes.cjs");
 throw new Error(`${ERR_API}: failed to fetch`);
 ```
 
+### `require-error-code-for-github-api-throw`
+
+In files that already import `./error_codes.cjs`, require `throw new Error(...)` messages to include a standardized code when an earlier call in the same function uses `githubClient.rest.*`, `.paginate(...)`, or `.graphql(...)`.
+
+**Flagged form:**
+```js
+const { ERR_API } = require("./error_codes.cjs");
+await githubClient.rest.pulls.get({ owner, repo, pull_number });
+throw new Error("failed to fetch pull request");
+```
+
+**Safe alternative:**
+```js
+const { ERR_API } = require("./error_codes.cjs");
+await githubClient.rest.pulls.get({ owner, repo, pull_number });
+throw new Error(`${ERR_API}: failed to fetch pull request`);
+```
+
 ### `require-invalid-date-check-before-compare`
 
 Require validation of `new Date(...)` and `Date.parse(...)` results before relational comparisons. Invalid dates and NaN timestamps compare as neither greater nor less than other values, silently defeating time-window checks.
@@ -964,3 +983,41 @@ while (true) {
   page++;
 }
 ```
+
+### `require-http-response-error-listener`
+
+Require the response object passed to `http.request()` / `http.get()` / `https.request()` / `https.get()` callbacks to register an `'error'` event listener.
+
+Why: Node emits `'error'` on the `IncomingMessage` (the response) — not on the request — for socket-level failures that occur while the body is streamed, such as reset connections, decompression failures, or aborted sockets. A `req.on("error", ...)` listener does not catch those, so the unhandled response `'error'` event becomes an uncaught exception that crashes the action.
+
+**Flagged form:**
+```js
+const http = require("http");
+const req = http.request(options, res => {
+  let data = "";
+  res.on("data", chunk => {
+    data += chunk;
+  });
+  res.on("end", () => resolve(data));
+});
+req.on("error", reject);
+```
+
+**Safe alternative:**
+```js
+const http = require("http");
+const req = http.request(options, res => {
+  let data = "";
+  res.on("data", chunk => {
+    data += chunk;
+  });
+  res.on("end", () => resolve(data));
+  res.on("error", reject);
+});
+req.on("error", reject);
+```
+
+**Out of scope:**
+- `http`/`https` identifiers that are not statically bound through `require("http")` / `require("https")` / `require("node:http")` / `require("node:https")`, including bindings created by a locally shadowed `require` or reassigned after initialization
+- Request calls without a response callback, or callbacks whose response parameter is destructured
+- `fetch`-based HTTP calls (covered by `require-fetch-try-catch` and `require-fetch-timeout`) and non-standard HTTP client libraries

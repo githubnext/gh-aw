@@ -32,18 +32,18 @@
         },
         "fields": {
           "type": "array",
-          "description": "Optional issue fields to set after creating the issue (e.g., Priority, Iteration, Start Date).",
+          "description": "Optional issue fields to set after creating the issue (e.g., Priority, Tags, Start Date).",
           "items": {
             "type": "object",
             "required": ["name", "value"],
             "properties": {
               "name": {
                 "type": "string",
-                "description": "Issue field name exactly as configured in the repository (e.g., \"Priority\", \"Iteration\")."
+                "description": "Issue field name exactly as configured in the repository (e.g., \"Priority\", \"Tags\")."
               },
               "value": {
                 "type": ["string", "number"],
-                "description": "Field value. Use string for text, single-select, iteration, and date (YYYY-MM-DD) fields; use number for numeric fields."
+                "description": "Field value. Use string for text, single-select, date (YYYY-MM-DD), and multi-select fields (comma-separated option names, e.g. \"Bug, Regression\"); use number for numeric fields."
               }
             },
             "additionalProperties": false

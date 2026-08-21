@@ -458,7 +458,9 @@ func TestFindVersionBySHA_ReturnsVersionForKnownSHA(t *testing.T) {
 }
 
 func TestGetLatestActionPinReference_ReturnsFormattedReferenceOrEmpty(t *testing.T) {
+	t.Parallel()
 	t.Run("returns formatted reference for known repo", func(t *testing.T) {
+		t.Parallel()
 		pins := GetActionPinsByRepo("actions/checkout")
 		require.NotEmpty(t, pins, "prerequisite: embedded pins must exist for actions/checkout")
 
@@ -467,11 +469,13 @@ func TestGetLatestActionPinReference_ReturnsFormattedReferenceOrEmpty(t *testing
 	})
 
 	t.Run("returns empty string for unknown repo", func(t *testing.T) {
+		t.Parallel()
 		assert.Empty(t, getLatestActionPinReference("does-not-exist/unknown"))
 	})
 }
 
 func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
+	t.Parallel()
 	pin, ok := GetContainerPin("node:lts-alpine")
 	require.True(t, ok, "Expected embedded container pin for node:lts-alpine")
 	assert.Equal(t, "node:lts-alpine", pin.Image, "Expected image name to match key")
@@ -480,6 +484,7 @@ func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 }
 
 func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
+	t.Parallel()
 	var mcpgImages []string
 	for image := range getCachedActionPins().containers {
 		if strings.HasPrefix(image, "ghcr.io/github/gh-aw-mcpg:") {
@@ -490,7 +495,9 @@ func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
 	slices.Sort(mcpgImages)
 
 	for _, image := range mcpgImages {
+		image := image
 		t.Run(image, func(t *testing.T) {
+			t.Parallel()
 			pin, ok := GetContainerPin(image)
 			require.True(t, ok, "Expected embedded container pin for %s", image)
 			assert.Equal(t, image, pin.Image, "Expected image name to match key")
@@ -501,13 +508,16 @@ func TestGetContainerPin_MCPGatewayVersionsArePinned(t *testing.T) {
 }
 
 func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {
+	t.Parallel()
 	images := []string{
 		constants.DefaultMCPGatewayContainer + ":" + string(constants.DefaultMCPGatewayVersion),
 		"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 	}
 
 	for _, image := range images {
+		image := image
 		t.Run(image, func(t *testing.T) {
+			t.Parallel()
 			pin, ok := GetContainerPin(image)
 			require.True(t, ok, "Expected embedded container pin for %s", image)
 			assert.Equal(t, image, pin.Image, "Expected image name to match key")
@@ -518,6 +528,7 @@ func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {
 }
 
 func TestGetActionPins_CacheCorrectnessOnRepeatedCalls(t *testing.T) {
+	t.Parallel()
 	first := getActionPins()
 	second := getActionPins()
 
@@ -526,6 +537,7 @@ func TestGetActionPins_CacheCorrectnessOnRepeatedCalls(t *testing.T) {
 }
 
 func TestGetCachedActionPins_InitializesCache(t *testing.T) {
+	t.Parallel()
 	cache := getCachedActionPins()
 
 	require.NotNil(t, cache, "Expected cache accessor to return initialized data")
@@ -594,7 +606,9 @@ func TestRecordPinResolutionFailure_NilSafety(t *testing.T) {
 }
 
 func TestResolveActionPinFromHardcodedPins_StrictModeNoFallback(t *testing.T) {
+	t.Parallel()
 	t.Run("strict mode does not fall back when no exact match", func(t *testing.T) {
+		t.Parallel()
 		ctx := &PinContext{StrictMode: true, Warnings: make(map[string]bool)}
 
 		result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v999", false, ctx)
@@ -604,6 +618,7 @@ func TestResolveActionPinFromHardcodedPins_StrictModeNoFallback(t *testing.T) {
 	})
 
 	t.Run("strict mode resolves exact version match", func(t *testing.T) {
+		t.Parallel()
 		latestPin, ok := GetLatestActionPinByRepo("actions/checkout")
 		require.True(t, ok, "prerequisite: embedded pin must exist for actions/checkout")
 
@@ -751,7 +766,9 @@ func TestResolveNonStrictHardcodedPin_FallsBackToHighestWhenNoCompatible(t *test
 }
 
 func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
+	t.Parallel()
 	t.Run("returns false immediately when SkipHardcodedFallback is set and version is a tag", func(t *testing.T) {
+		t.Parallel()
 		ctx := &PinContext{SkipHardcodedFallback: true, Warnings: make(map[string]bool)}
 
 		// actions/checkout has hardcoded pins, but SkipHardcodedFallback should prevent version→SHA lookup
@@ -762,6 +779,7 @@ func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
 	})
 
 	t.Run("allows SHA→version lookup even when SkipHardcodedFallback is set", func(t *testing.T) {
+		t.Parallel()
 		// This is the regression test for the non-deterministic pinning bug.
 		// When a workflow already pins an action with a SHA (e.g. @9c091bb... # v7.0.0)
 		// and SkipHardcodedFallback is true (e.g. because GH_HOST is a non-github.com host),
@@ -781,6 +799,7 @@ func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
 	})
 
 	t.Run("allows hardcoded pins when SkipHardcodedFallback is not set", func(t *testing.T) {
+		t.Parallel()
 		ctx := &PinContext{SkipHardcodedFallback: false, Warnings: make(map[string]bool)}
 
 		// actions/checkout has hardcoded pins and should resolve

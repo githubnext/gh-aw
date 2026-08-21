@@ -509,6 +509,26 @@ func TestComputeRequiredFieldAdditionsDisabledByDefault(t *testing.T) {
 	assert.Empty(t, additions)
 }
 
+func TestComputeRequiredFieldAdditionsSubmitPRReviewEventRequiredWhenCommentDisallowed(t *testing.T) {
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"APPROVE"},
+		},
+	})
+
+	assert.Equal(t, []string{"event"}, additions["submit_pull_request_review"])
+}
+
+func TestComputeRequiredFieldAdditionsSubmitPRReviewEventOptionalWhenCommentAllowed(t *testing.T) {
+	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"COMMENT", "REQUEST_CHANGES"},
+		},
+	})
+
+	assert.NotContains(t, additions, "submit_pull_request_review")
+}
+
 func TestComputeRequiredFieldAdditionsIssueIntentDefaultDisabled(t *testing.T) {
 	additions := computeRequiredFieldAdditions(&SafeOutputsConfig{
 		CloseIssues:   &CloseIssuesConfig{},
@@ -586,6 +606,54 @@ func TestComputePropertyInjectionsNilConfig(t *testing.T) {
 func TestComputePropertyInjectionsNilCloseIssues(t *testing.T) {
 	injections := computePropertyInjections(&SafeOutputsConfig{})
 	assert.Empty(t, injections)
+}
+
+// TestComputePropertyInjectionsNilSubmitPRReview verifies that nil submit-pull-request-review
+// does not add submit_pull_request_review property injections.
+func TestComputePropertyInjectionsNilSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: nil,
+	})
+	assert.NotContains(t, injections, "submit_pull_request_review")
+}
+
+// TestComputePropertyInjectionsAllowedEventsSubmitPRReview verifies that a configured
+// allowed-events list narrows the submit_pull_request_review event enum in the tool schema.
+func TestComputePropertyInjectionsAllowedEventsSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"COMMENT"},
+		},
+	})
+
+	require.Contains(t, injections, "submit_pull_request_review")
+	prop, ok := injections["submit_pull_request_review"]["event"].(map[string]any)
+	require.True(t, ok, "event should be a property map")
+	assert.Equal(t, []string{"COMMENT"}, prop["enum"])
+}
+
+// TestComputePropertyInjectionsAllowedEventsMultipleSubmitPRReview verifies multiple allowed
+// events are all present in the narrowed enum.
+func TestComputePropertyInjectionsAllowedEventsMultipleSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			AllowedEvents: []string{"COMMENT", "REQUEST_CHANGES"},
+		},
+	})
+
+	prop, ok := injections["submit_pull_request_review"]["event"].(map[string]any)
+	require.True(t, ok, "event should be a property map")
+	assert.Equal(t, []string{"COMMENT", "REQUEST_CHANGES"}, prop["enum"])
+}
+
+// TestComputePropertyInjectionsNoAllowedEventsSubmitPRReview verifies that no injection
+// happens when allowed-events is not configured, so the static schema's full enum applies.
+func TestComputePropertyInjectionsNoAllowedEventsSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{},
+	})
+
+	assert.NotContains(t, injections, "submit_pull_request_review", "no allowed-events should not inject an event enum")
 }
 
 // TestPreprocessStateReasonListSlice verifies that a []any slice is converted to allowed-state-reason.
