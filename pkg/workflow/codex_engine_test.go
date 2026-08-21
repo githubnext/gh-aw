@@ -21,6 +21,110 @@ func TestCodexEngine_ResolveLLMProvider_DefaultOpenAI(t *testing.T) {
 	}
 }
 
+func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		expected LLMProvider
+	}{
+		{
+			name:     "copilot-large selects GitHub",
+			data:     &WorkflowData{Model: "copilot-large", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderGitHub,
+		},
+		{
+			name:     "model matching is case insensitive",
+			data:     &WorkflowData{Model: " COPILOT-LARGE ", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderGitHub,
+		},
+		{
+			name:     "other model keeps OpenAI default",
+			data:     &WorkflowData{Model: "gpt-5-codex", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderOpenAI,
+		},
+		{
+			name: "explicit provider overrides model",
+			data: &WorkflowData{
+				Model:        "copilot-large",
+				EngineConfig: &EngineConfig{ID: "codex", LLMProvider: LLMProviderOpenAI},
+			},
+			expected: LLMProviderOpenAI,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if actual := engine.ResolveLLMProvider(tt.data); actual != tt.expected {
+				t.Fatalf("expected provider %q, got %q", tt.expected, actual)
+			}
+		})
+	}
+}
+
+func TestCodexEngineCopilotLargeUsesGitHubInference(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		Model:        "copilot-large",
+		EngineConfig: &EngineConfig{ID: "codex"},
+		SafeOutputs:  &SafeOutputsConfig{},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	stepContent := strings.Join([]string(engine.GetExecutionSteps(workflowData, "test-log")[0]), "\n")
+	expected := []string{
+		`GH_AW_LLM_PROVIDER: github`,
+		`AWF_REFLECT_ENABLED: 1`,
+		`api.githubcopilot.com`,
+		`COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
+		`OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
+		`GH_AW_MODEL_AGENT_CODEX: copilot-large`,
+		`${GH_AW_MODEL_AGENT_CODEX:+ --model "$GH_AW_MODEL_AGENT_CODEX"}`,
+	}
+	for _, value := range expected {
+		if !strings.Contains(stepContent, value) {
+			t.Errorf("expected execution step to contain %q, got:\n%s", value, stepContent)
+		}
+	}
+	if strings.Contains(stepContent, "secrets.CODEX_API_KEY") || strings.Contains(stepContent, "secrets.OPENAI_API_KEY") {
+		t.Errorf("GitHub inference must not use OpenAI credentials, got:\n%s", stepContent)
+	}
+
+	secrets := engine.GetRequiredSecretNames(workflowData)
+	if len(secrets) != 1 || secrets[0] != "COPILOT_GITHUB_TOKEN" {
+		t.Fatalf("expected only COPILOT_GITHUB_TOKEN, got %v", secrets)
+	}
+}
+
+func TestCodexEngineCopilotLargeUsesGitHubActionsToken(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		Model:        "copilot-large",
+		EngineConfig: &EngineConfig{ID: "codex"},
+		Permissions:  "permissions:\n  copilot-requests: write",
+		SafeOutputs:  &SafeOutputsConfig{},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	stepContent := strings.Join([]string(engine.GetExecutionSteps(workflowData, "test-log")[0]), "\n")
+	if !strings.Contains(stepContent, `OPENAI_API_KEY: ${{ github.token }}`) {
+		t.Errorf("expected GitHub Actions token for Codex BYOK, got:\n%s", stepContent)
+	}
+	if secrets := engine.GetRequiredSecretNames(workflowData); len(secrets) != 0 {
+		t.Fatalf("expected no inference secret with copilot-requests permission, got %v", secrets)
+	}
+	if step := engine.GetSecretValidationStep(workflowData); len(step) != 0 {
+		t.Fatalf("expected secret validation to be skipped, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
 func TestCodexEngine(t *testing.T) {
 	engine := NewCodexEngine()
 
