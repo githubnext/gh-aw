@@ -1,3 +1,18 @@
+## Flagged Items (2026-08-21, ~12:24Z cycle, window since 06:32:17Z baseline #54459, 9 new discussions: 54464,54469,54471,54472,54480,54501,54505,54506,54520)
+
+- **[new, filed]** Orphan-escalation assignee-login mismatch (`copilot-swe-agent` vs real `Copilot`) in `copilot-session-insights.md:203` — verified live via `gh api .../pulls` (#54464).
+- **[new, filed]** Shared Python chart env GLIBC mismatch (`shared/python-dataviz.md` targets system CPython needing 2.38, sandbox has 2.35) — 2 independent reports hit it today (#54501, #54520); working fix already exists in `daily-agentrx-trace-optimizer.md`, never generalized.
+- **[new, filed]** `OutcomeResult`/`OutcomeStatus` duplicate enums in pkg/cli, both embedded in same `OutcomeReport` struct — Typist Cluster 1 (#54506).
+- **[new, filed]** `copilot_setup.go` reinvents a 2nd GHA workflow object model instead of reusing `pkg/workflow` types — Typist Cluster 4 (#54506).
+- **[new, filed]** `AccessLogEntry`/`FirewallLogEntry`/`AuditLogEntry` overlap with inconsistent `Status` typing (string vs int) — Typist Cluster 2 (#54506).
+- **[new, filed]** 4 implicit string enums (`SafeOutputsURLsPolicy`, `ReactionType`, `MCPParamType`, `RunnerTopology`) — Typist Categories 1&3 (#54506).
+- **[new, filed]** `NumericID` type needed for `RunID`/`RunNumber any` fields in `logs_models.go` (int64/string in sibling structs) — Typist Category 2 (#54506).
+- **[new, comment]** 3rd overlapping tool-usage-stats struct (`ToolUsageInfo`) added to existing consolidation issue #53997 rather than filed separately — Typist Cluster 3 (#54506).
+- **[declined, already tracked]** Auto-triage staleness screening (#54480 Prompt Clustering, 1000-PR sample, Cluster 3 51.3% merge) — already open #54232.
+- **[declined, already tracked, chronic]** `get_teams` MCP permission gap (#54520, 3rd consecutive occurrence) — already open #54231, declining a 3rd re-file per standing chronic-pattern policy.
+- **[declined, already tracked, chronic]** CGO 2/2 failures in today's fully-executed bundles (#54464 BWLI) — 5+ existing open `[CGO][FUZZ]` auto-filed issues already cover this.
+- **[declined, healthy]** Terminal Stylist (#54471, console/Lipgloss/Huh fully consistent), Daily Status (#54472), arXiv research digest (#54469, 3 leads logged, no code action), Constraint Solving POTD (#54505) — informational/no action.
+
 ## Flagged Items (2026-08-20, ~17:50Z cycle, window since 12:31:42Z baseline #54233, 10 new discussions: 54237,54241,54270,54271,54272,54274,54277,54278,54290,54297)
 
 - **[new, filed]** Code Scanning Fixer 0% success (2/2 runs), $75.35 for 0 outputs, no self-assessment/partial-progress checkpoint — distinct from open #54187 (model config) and #54063 (firewall) (#54237).

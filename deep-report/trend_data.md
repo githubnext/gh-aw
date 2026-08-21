@@ -1,3 +1,16 @@
+## Trend Data (2026-08-21, ~12:24Z cycle)
+
+Window since 06:32:17Z baseline (#54459), 9 new discussions (54464, 54469, 54471, 54472, 54480, 54501, 54505, 54506, 54520), all read in full.
+
+- **Issue activity**: 7 new issues filed (5 Typist Go-type findings, 1 live-verified detector bug, 1 cross-workflow infra fix) + 1 comment (consolidation note on #53997). 2 candidate findings declined as already-tracked/chronic (#54232 staleness screening, #54231 get_teams — 3rd occurrence).
+- **MCP tool usefulness** (#54520, first-ever baseline run): avg 3.7/5. Best: `list_pull_requests`/`list_workflows`/`get_label`/workflow-context block (5/5). Worst: `get_teams` (1/5, permission denied — matches the chronic #54231 pattern).
+- **PR merge clustering** (#54480, 1,000 PRs, 17-day window): 76.6% overall, consistent with prior cycle's 77.2% baseline — auto-triage cluster still the outlier (51.3% vs 76.6%), reconfirming already-open #54232.
+- **Copilot session data**: 38% completion rate (2nd-highest ever recorded) after a 44-day snapshot gap, but the orphan-escalation detector behind the 0%-orphan streak was found to be silently broken (filed).
+- **Infra/tooling gap discovered**: GLIBC 2.35-vs-2.38 mismatch breaks Python charting (matplotlib/pandas) for ~15 daily-report workflows sharing `python-dataviz.md` — 2 independent reports hit it same-day; a working fix already exists elsewhere in the repo (`daily-agentrx-trace-optimizer.md`), generalization filed.
+- **No firewall discussion this window** — quiet cycle on that front.
+
+Next cycle checks: (a) do the 2 detector/infra fixes (orphan-escalation login, GLIBC chart env) land and actually restore working detection/charts, (b) do the 5 Typist findings get picked up given #53997's slow progress on a near-identical prior finding, (c) does the auto-triage cluster's 51.3% merge rate move once/if #54232 is addressed.
+
 ## Trend Data (2026-08-20, ~17:50Z cycle)
 
 Window since 12:31:42Z baseline (#54233), 10 new discussions (54237, 54241, 54270, 54271, 54272, 54274, 54277, 54278, 54290, 54297), all read in full.

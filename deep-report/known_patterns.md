@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-21, ~12:24Z cycle, baseline #54459)
+
+### New pattern: a codebase can already contain the fix for a cross-workflow gap — search laterally, not just for dedup
+Two independent reports today (#54501 API Consumption, #54520 MCP Structural Analysis) hit the identical GLIBC 2.35-vs-2.38 CPython mismatch and each worked around it locally (hand-built SVGs, skipped charts) without recognizing it as a shared-import problem. A `grep` for "glibc" across `.github/workflows/*.md` turned up `daily-agentrx-trace-optimizer.md`, which had already solved the *exact same root cause* for its own Python dependency (portable uv-managed CPython under `/tmp/gh-aw`) — just never generalized to `shared/python-dataviz.md`, the actual shared import ~15 other workflows use. **Lesson: when 2+ reports in the same cycle hit what looks like an environment/infra limitation, grep the workflow tree for the same keyword before assuming it's unfixable — a working pattern may already exist elsewhere in the repo, just not propagated to the shared/common path.**
+
+### New pattern: verify a report's own root-cause claim against the actual API when it's cheap to do so
+#54464 (Copilot Session Insights) *itself* flagged that its orphan-escalation assignee check might not be working ("this repo's actual Copilot-assignment login is `Copilot`... confirmed directly from `gh api .../pulls`"). Rather than taking the report's own claim at face value, ran the same `gh api repos/.../pulls` query directly this cycle — confirmed true (every assigned PR shows `Copilot`, never `copilot-swe-agent`) before filing. **Lesson: when a source report claims to have already verified something via a live API call, it's cheap and worth re-running that exact call yourself before filing — either it confirms the finding cleanly (as here) or it catches a report that only claimed to verify but didn't.**
+
 ## DeepReport Memory (2026-08-20, ~17:50Z cycle, baseline #54233)
 
 ### New pattern: a report's own quantitative claim can be flatly wrong — always spot-check the numbers, not just whether the files exist
