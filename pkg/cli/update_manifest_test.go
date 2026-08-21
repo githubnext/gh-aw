@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -41,7 +42,7 @@ func TestReconcileManifestManagedAssets_AddsPackageOwnedAssets(t *testing.T) {
 		}
 	}
 
-	err := reconcileManifestManagedAssets(context.Background(), "owner/repo",
+	err := reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"},
 		&resolvedRepositoryPackage{},
 		&resolvedRepositoryPackage{
 			ResolvedRef: "v2.0.0",
@@ -56,6 +57,7 @@ func TestReconcileManifestManagedAssets_AddsPackageOwnedAssets(t *testing.T) {
 			AgentFiles: []string{"agents/reviewer.md"},
 		},
 		"copilot",
+		UpdateWorkflowsOptions{},
 	)
 	require.NoError(t, err)
 	workflowPath := filepath.Join(tmpDir, ".github", "workflows", "new.yml")
@@ -102,7 +104,7 @@ func TestReconcileManifestManagedAssets_BranchTrackingInstallsMissingAssets(t *t
 		}},
 		AgentFiles: []string{"agents/reviewer.md"},
 	}
-	err := reconcileManifestManagedAssets(context.Background(), "owner/repo", currentAndLatest, currentAndLatest, "copilot")
+	err := reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"}, currentAndLatest, currentAndLatest, "copilot", UpdateWorkflowsOptions{})
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tmpDir, ".github", "workflows", "new.yml"))
@@ -126,6 +128,24 @@ func TestReconcileManifestManagedAssets_RefreshesExistingPackageOwnedAssets(t *t
 	require.NoError(t, os.WriteFile(existingSkillPath, []byte("#!/bin/sh\necho old\n"), 0o644))
 	require.NoError(t, os.WriteFile(existingAgentPath, []byte("# Old Reviewer\n"), 0o644))
 
+	packageBase := "owner/repo"
+	record := packageOwnershipRecord{
+		SchemaVersion: packageOwnershipSchemaVersion,
+		Package:       packageBase,
+		Source:        packageBase + "@v1.0.0",
+		Installer:     "gh-aw test",
+		Files: []packageOwnershipFileEntry{
+			{Source: ".github/workflows/new.yml", Destination: ".github/workflows/new.yml", SHA256: sha256Bytes([]byte("name: old action\n"))},
+			{Source: "skills/review/scripts/check.sh", Destination: filepath.ToSlash(filepath.Join(workflow.GetEngineSkillDir(engine), "review", "scripts", "check.sh")), SHA256: sha256Bytes([]byte("#!/bin/sh\necho old\n"))},
+			{Source: "agents/reviewer.md", Destination: filepath.ToSlash(filepath.Join(workflow.GetEngineSubAgentDir(engine), "reviewer.md")), SHA256: sha256Bytes([]byte("# Old Reviewer\n"))},
+		},
+	}
+	recordPath := packageOwnershipRecordPath(tmpDir, packageBase)
+	require.NoError(t, os.MkdirAll(filepath.Dir(recordPath), 0o755))
+	recordData, err := json.Marshal(record)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(recordPath, recordData, 0o644))
+
 	originalDownload := downloadPackageFileFromGitHubForHost
 	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
 	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
@@ -144,7 +164,7 @@ func TestReconcileManifestManagedAssets_RefreshesExistingPackageOwnedAssets(t *t
 		}
 	}
 
-	err := reconcileManifestManagedAssets(context.Background(), "owner/repo",
+	err = reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: packageBase},
 		&resolvedRepositoryPackage{},
 		&resolvedRepositoryPackage{
 			ResolvedRef: "v2.0.0",
@@ -159,6 +179,7 @@ func TestReconcileManifestManagedAssets_RefreshesExistingPackageOwnedAssets(t *t
 			AgentFiles: []string{"agents/reviewer.md"},
 		},
 		engine,
+		UpdateWorkflowsOptions{},
 	)
 	require.NoError(t, err)
 
@@ -173,6 +194,41 @@ func TestReconcileManifestManagedAssets_RefreshesExistingPackageOwnedAssets(t *t
 	agentContent, readErr := os.ReadFile(existingAgentPath)
 	require.NoError(t, readErr)
 	assert.Equal(t, "# New Reviewer\n", string(agentContent))
+}
+
+func TestReconcileManifestManagedAssets_RefusesToOverwriteUnownedAsset(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "manifest-assets-collision-*")
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
+	t.Chdir(tmpDir)
+
+	existingWorkflowPath := filepath.Join(tmpDir, ".github", "workflows", "new.yml")
+	require.NoError(t, os.MkdirAll(filepath.Dir(existingWorkflowPath), 0o755))
+	require.NoError(t, os.WriteFile(existingWorkflowPath, []byte("name: unrelated workflow\n"), 0o644))
+
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		return []byte("name: new action\n"), nil
+	}
+
+	err := reconcileManifestManagedAssets(context.Background(), &RepoSpec{RepoSlug: "owner/repo"},
+		&resolvedRepositoryPackage{},
+		&resolvedRepositoryPackage{
+			ResolvedRef: "v2.0.0",
+			InstallationSource: []resolvedPackageInstallable{{
+				SourcePath:      ".github/workflows/new.yml",
+				DestinationPath: ".github/workflows/new.yml",
+			}},
+		},
+		"copilot",
+		UpdateWorkflowsOptions{},
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not tracked as owned")
+
+	workflowContent, readErr := os.ReadFile(existingWorkflowPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "name: unrelated workflow\n", string(workflowContent), "unowned file must not be overwritten")
 }
 
 func TestResolveManifestAssetEngine(t *testing.T) {

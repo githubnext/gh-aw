@@ -76,7 +76,7 @@ func updateFrontmatterRepoRefsInContentWithResolver(
 	for i, rawRef := range rawRefs {
 		switch typed := rawRef.(type) {
 		case string:
-			updated, updatedRef, err := updateSkillRefValue(ctx, typed, allowMajor, verbose, coolDown, resolver)
+			updated, updatedRef, err := updateSkillRefValue(ctx, fieldName, typed, allowMajor, verbose, coolDown, resolver)
 			if err != nil {
 				return false, content, err
 			}
@@ -92,7 +92,7 @@ func updateFrontmatterRepoRefsInContentWithResolver(
 			if !ok {
 				continue
 			}
-			updated, updatedRef, err := updateSkillRefValue(ctx, skillRef, allowMajor, verbose, coolDown, resolver)
+			updated, updatedRef, err := updateSkillRefValue(ctx, fieldName, skillRef, allowMajor, verbose, coolDown, resolver)
 			if err != nil {
 				return false, content, err
 			}
@@ -120,6 +120,7 @@ func updateFrontmatterRepoRefsInContentWithResolver(
 
 func updateSkillRefValue(
 	ctx context.Context,
+	fieldName string,
 	skillRef string,
 	allowMajor, verbose bool,
 	coolDown time.Duration,
@@ -143,7 +144,7 @@ func updateSkillRefValue(
 	latestRef, err := resolver(ctx, repo, currentRef, allowMajor, verbose, coolDown)
 	if err != nil {
 		if verbose {
-			updateLog.Printf("Skipping skill update for %s@%s: %v", spec, currentRef, err)
+			updateLog.Printf("Skipping %s update for %s@%s: %v", fieldName, spec, currentRef, err)
 		}
 		return false, skillRef, nil
 	}

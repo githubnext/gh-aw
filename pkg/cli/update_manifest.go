@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -201,7 +202,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		return successes, failures
 	}
 	assetEngine := resolveManifestAssetEngine(grouped, opts)
-	if err := reconcileManifestManagedAssets(ctx, repoSpec.RepoSlug, currentPkg, latestPkg, assetEngine); err != nil {
+	if err := reconcileManifestManagedAssets(ctx, repoSpec, currentPkg, latestPkg, assetEngine, opts); err != nil {
 		failures = append(failures, updateFailure{Name: source, Error: err.Error()})
 	}
 	successes = append(successes, groupedSuccesses...)
@@ -211,27 +212,37 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 
 // reconcileManifestManagedAssets installs package-owned action workflows, skills, and
 // agents that were added to the latest manifest. These assets do not carry source
-// frontmatter, so their package ownership is derived from the package manifest itself.
-func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolvedRepositoryPackage, latestPkg *resolvedRepositoryPackage, engineOverride string) error {
+// frontmatter, so their package ownership is derived from ownership records tracked
+// under .github/aw/packages. Existing destinations are only overwritten when they are
+// tracked as owned by this package (and unmodified locally, or opts.Force is set);
+// otherwise the reconciliation fails rather than clobbering an unrelated file.
+func reconcileManifestManagedAssets(ctx context.Context, repoSpec *RepoSpec, _ *resolvedRepositoryPackage, latestPkg *resolvedRepositoryPackage, engineOverride string, opts UpdateWorkflowsOptions) error {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find repository root for package assets: %w", err)
 	}
-	owner, repository, err := splitRepositoryPackageSlug(repo)
+	owner, repository, err := splitRepositoryPackageSlug(repoSpec.RepoSlug)
 	if err != nil {
 		return err
 	}
+	packageBase := repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath)
 
 	for _, installable := range latestPkg.InstallationSource {
 		if !isActionWorkflowPath(installable.SourcePath) {
 			continue
 		}
-		destPath := filepath.Join(gitRoot, filepath.FromSlash(installable.DestinationPath))
+		destination := filepath.ToSlash(filepath.Clean(installable.DestinationPath))
+		destPath := filepath.Join(gitRoot, filepath.FromSlash(destination))
 		fileExists := false
 		if _, err := os.Stat(destPath); err == nil {
 			fileExists = true
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to inspect new package action workflow destination %s: %w", destPath, err)
+		}
+		if fileExists {
+			if err := ensurePackageAssetOverwriteAllowed(gitRoot, destination, packageBase, opts.Force); err != nil {
+				return err
+			}
 		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, installable.SourcePath, latestPkg.ResolvedRef, "")
 		if err != nil {
@@ -251,9 +262,18 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 	}
 
 	for _, skill := range latestPkg.SkillFiles {
-		_, err := packageSkillDestinationPath(gitRoot, skill, engineOverride)
+		destPath, err := packageSkillDestinationPath(gitRoot, skill, engineOverride)
 		if err != nil {
 			return err
+		}
+		if fileutil.FileExists(destPath) {
+			destination, err := filepath.Rel(gitRoot, destPath)
+			if err != nil {
+				return fmt.Errorf("failed to resolve relative destination for package skill %s: %w", skill.SourcePath, err)
+			}
+			if err := ensurePackageAssetOverwriteAllowed(gitRoot, filepath.ToSlash(destination), packageBase, opts.Force); err != nil {
+				return err
+			}
 		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, skill.SourcePath, latestPkg.ResolvedRef, "")
 		if err != nil {
@@ -275,6 +295,17 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 	}
 
 	for _, agent := range latestPkg.AgentFiles {
+		agentsDir := filepath.Join(gitRoot, workflow.GetEngineSubAgentDir(engineOverride))
+		destPath := filepath.Join(agentsDir, filepath.Base(agent))
+		if fileutil.FileExists(destPath) {
+			destination, err := filepath.Rel(gitRoot, destPath)
+			if err != nil {
+				return fmt.Errorf("failed to resolve relative destination for package agent %s: %w", agent, err)
+			}
+			if err := ensurePackageAssetOverwriteAllowed(gitRoot, filepath.ToSlash(destination), packageBase, opts.Force); err != nil {
+				return err
+			}
+		}
 		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repository, agent, latestPkg.ResolvedRef, "")
 		if err != nil {
 			return fmt.Errorf("failed to download new package agent %s: %w", agent, err)
@@ -283,6 +314,23 @@ func reconcileManifestManagedAssets(ctx context.Context, repo string, _ *resolve
 		if err := addAgentFileWithTracking(resolved, nil, AddOptions{EngineOverride: engineOverride, Force: true}, gitRoot); err != nil {
 			return fmt.Errorf("failed to install new package agent %s: %w", agent, err)
 		}
+	}
+	return nil
+}
+
+// ensurePackageAssetOverwriteAllowed returns an error unless the given destination is
+// safe to overwrite: either the caller passed opts.Force, or the destination is tracked
+// as owned by packageBase and has not been modified locally since it was installed.
+func ensurePackageAssetOverwriteAllowed(gitRoot, destination, packageBase string, force bool) error {
+	if force {
+		return nil
+	}
+	owned, drifted := packageOwnershipAllowsOverwrite(gitRoot, destination, packageBase)
+	if !owned {
+		return fmt.Errorf("package asset %q already exists and is not tracked as owned by %s; use --force to overwrite", destination, packageBase)
+	}
+	if drifted {
+		return fmt.Errorf("package asset %q has local modifications; use --force to overwrite", destination)
 	}
 	return nil
 }
