@@ -12,6 +12,7 @@ const {
   readDedupedTokenUsage,
   getSummaryTitle,
   buildStepSummarySection,
+  buildWorkingSetDetailsSection,
   renderTokenTableAsPlainText,
   TOKEN_USAGE_AUDIT_PATH,
   TOKEN_USAGE_PATH,
@@ -255,6 +256,8 @@ describe("parse_token_usage", () => {
       const stepSummary = originalReadFileSync(stepSummaryPath, "utf8");
       expect(stepSummary).toContain("<summary>Token Usage</summary>");
       expect(stepSummary).toContain("Per-request AI credits and token totals");
+      expect(stepSummary).toContain("Working-Set Rebuild Factor (WSRF): 1.00× (measured)");
+      expect(stepSummary).toContain("- Cumulative input tokens: 100");
       expect(stepSummary).toContain("| ΔAI Credits | AI Credits |");
       expect(fs.appendFileSync).toHaveBeenCalledWith(stepSummaryPath, expect.any(String), "utf8");
       expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
@@ -547,6 +550,37 @@ describe("parse_token_usage", () => {
       expect(section).toContain("<details>");
       expect(section).toContain("<summary>Token Usage</summary>");
       expect(section).toContain("Per-request AI credits and token totals");
+    });
+
+    test("buildWorkingSetDetailsSection renders measured WSRF details", () => {
+      const section = buildWorkingSetDetailsSection({
+        measurement_state: "measured",
+        rebuild_factor: 3.9017857142857144,
+        cumulative_input_tokens: 874000,
+        peak_input_tokens: 224000,
+        rebuild_excess_tokens: 650000,
+        invocations: 5,
+      });
+
+      expect(section).toContain("Working-Set Rebuild Factor (WSRF): 3.90× (measured)");
+      expect(section).toContain("- State: `measured`");
+      expect(section).toContain("- Cumulative input tokens: 874,000");
+      expect(section).toContain("- Peak invocation input tokens: 224,000");
+      expect(section).toContain("- Rebuild excess tokens: 650,000");
+      expect(section).toContain("- Invocations: 5");
+    });
+
+    test("buildWorkingSetDetailsSection renders unavailable state when no factor exists", () => {
+      const section = buildWorkingSetDetailsSection({
+        measurement_state: "unavailable",
+        cumulative_input_tokens: 0,
+        peak_input_tokens: 0,
+        rebuild_excess_tokens: 0,
+        invocations: 0,
+      });
+
+      expect(section).toContain("Working-Set Rebuild Factor (WSRF): unavailable (unavailable)");
+      expect(section).toContain("- State: `unavailable`");
     });
 
     test("renderTokenTableAsPlainText strips table separator lines and pipes", () => {
