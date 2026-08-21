@@ -226,7 +226,7 @@ Output a JSON array of candidate linter ideas (same schema as discussion-miner).
 ## agent: `linter-writer`
 ---
 description: Implements a new Go analysis linter package following the pkg/linters/largefunc conventions
-model: claude-sonnet-5
+model: large
 ---
 You are a Go engineer implementing a custom `go/analysis` linter.
 
