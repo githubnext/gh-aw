@@ -1,3 +1,16 @@
+## Extracted code-quality tasks (2026-08-21 ~18:26Z cycle)
+
+7 filed, 0 comments, window since 12:35Z baseline #54534 (9 new discussions):
+1. Actionable repo-slug validation errors (repoutil.go + 3 pkg/cli sites) — discussion #54543. Filed.
+2. shell_completion.go bashrc/zshrc path error guidance — discussion #54543. Filed.
+3. Adopt NewValidationError for duplicate-name errors in pkg/parser — discussion #54543. Filed.
+4. Include file path in pkg/parser wrapper errors (workflow_update.go, frontmatter_hash.go) — discussion #54543. Filed.
+5. Document CLAUDE_CODE_OAUTH_TOKEN actual failure mode — discussion #54536. Filed.
+6. Worked example for non-Copilot engine scaffolding in cli.md — discussion #54536. Filed.
+7. Tone down ci-doctor.md status messages — discussion #54554. Filed.
+
+Not filed (already self-filed/tracked, confirmed via `gh api search/issues` dedup search): Daily Go Test Parallelizer 43% success (#54541, self-filed same run); AI Moderator/Ponytail Reviewer/Auto-Triage (#54541, all already tracked #54477/#54242/#54502/#54402/#54186); 2 CodeQL warnings from commit #54370 (#54559, self-filed same run, batched). Declined as healthy/informational: Daily Issues Report, Copilot PR Merged Report, Repository Chronicle, Daily Secrets Analysis (#54553/#54556/#54561/#54572).
+
 ## Extracted code-quality tasks (2026-08-20 ~17:50Z cycle)
 
 7 filed, 0 comments, window since 12:31:42Z baseline #54233 (10 new discussions):

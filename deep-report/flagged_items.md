@@ -1,3 +1,17 @@
+## Flagged Items (2026-08-21, ~18:26Z cycle, window since 12:35Z baseline #54534, 9 new discussions: 54536,54541,54543,54553,54554,54556,54559,54561,54572)
+
+- **[new, filed]** repo-slug validation errors give no expected format/example — `pkg/repoutil/repoutil.go:20` + 3 pkg/cli sites, verified live — Repository Quality Improvement (#54543).
+- **[new, filed]** `shell_completion.go:209,281` bashrc/zshrc path errors lack reason/fix guidance — same report.
+- **[new, filed]** `pkg/parser` has 0 `NewValidationError` usages; 2 duplicate-name sites verified (inline_skill_extractor.go:118, sub_agent_extractor.go:238) — same report.
+- **[new, filed]** `workflow_update.go`/`frontmatter_hash.go` wrapper errors omit in-scope file path — same report's 509-wrapper-count finding, sampled+verified.
+- **[new, filed]** `CLAUDE_CODE_OAUTH_TOKEN` docs say "unsupported/ignored" but never describe the actual failure symptom a `claude login` user hits — Claude Code User Docs Review (#54536), distinct from closed #46613.
+- **[new, filed]** No worked example for non-Copilot `gh aw init` agent scaffolding despite cli.md documenting the instruction — same report, distinct from closed #35509 (added the flag itself).
+- **[new, filed]** `ci-doctor.md` stacks 4 hospital-emoji across 3 status messages, failure message anthropomorphizes instead of stating outcome — User Experience Analysis Report (#54554).
+- **[declined, already self-filed]** Daily Go Test Parallelizer 43% success — Agent Performance Report (#54541) states it already filed this same run.
+- **[declined, already tracked]** AI Moderator 0% (#54477/#54242), Ponytail Reviewer 35% (#54502/#54402), Auto-Triage 50% (correlates #54186) — all #54541, not re-filed.
+- **[declined, already self-filed]** 2 new CodeQL warnings from commit #54370 — UK AI Resilience (#54559) states 1 batched issue already created this run.
+- **[declined, healthy/informational]** Daily Issues Report (#54553), Copilot PR Merged Report (#54556), Repository Chronicle (#54561), Daily Secrets Analysis (#54572, 100% redaction coverage) — no action.
+
 ## Flagged Items (2026-08-21, ~12:24Z cycle, window since 06:32:17Z baseline #54459, 9 new discussions: 54464,54469,54471,54472,54480,54501,54505,54506,54520)
 
 - **[new, filed]** Orphan-escalation assignee-login mismatch (`copilot-swe-agent` vs real `Copilot`) in `copilot-session-insights.md:203` — verified live via `gh api .../pulls` (#54464).

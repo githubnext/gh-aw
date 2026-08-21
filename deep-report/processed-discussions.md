@@ -1,3 +1,8 @@
+## Discussions mined for code-quality tasks (processed through 2026-08-21 ~18:26Z)
+
+### Processed 2026-08-21 ~18:26Z cycle (full — all 9 new/updated discussions read; window since 12:35Z baseline #54534)
+54536, 54541, 54543, 54553, 54554, 54556, 54559, 54561, 54572 — all read in full, no sampling shortfall. 7 code-quality/docs tasks extracted and filed (4 error-message-actionability fixes from #54543, 2 Claude docs gaps from #54536, 1 ci-doctor.md tone cleanup from #54554). Daily Go Test Parallelizer/CodeQL findings already self-filed by their source workflows this same run.
+
 ## Discussions mined for code-quality tasks (processed through 2026-08-20 ~17:50Z)
 
 ### Processed 2026-08-20 ~17:50Z cycle (full — all 10 new/updated discussions read; window since 12:31:42Z baseline #54233)
