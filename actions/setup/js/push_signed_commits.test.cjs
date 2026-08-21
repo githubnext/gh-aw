@@ -2322,6 +2322,56 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).not.toHaveBeenCalled();
     });
 
+    it("should allow request_review protected-files policy against synthesized GraphQL payload", async () => {
+      execGit(["checkout", "-b", "protected-payload-request-review-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "CODEOWNERS"), "* @octocat\n");
+      execGit(["add", "CODEOWNERS"], { cwd: workDir });
+      execGit(["commit", "-m", "Touch CODEOWNERS"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "protected-payload-request-review-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        validationConfig: {
+          protected_files: ["CODEOWNERS"],
+          protected_files_policy: "request_review",
+        },
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+    });
+
+    it("should allow fallback-to-issue protected-files policy against synthesized GraphQL payload", async () => {
+      execGit(["checkout", "-b", "protected-payload-fallback-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "CODEOWNERS"), "* @octocat\n");
+      execGit(["add", "CODEOWNERS"], { cwd: workDir });
+      execGit(["commit", "-m", "Touch CODEOWNERS"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "protected-payload-fallback-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+        validationConfig: {
+          protected_files: ["CODEOWNERS"],
+          protected_files_policy: "fallback-to-issue",
+        },
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+    });
+
     it("should enforce max-patch-files against synthesized GraphQL payload", async () => {
       execGit(["checkout", "-b", "max-files-payload-branch"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "alpha.txt"), "alpha\n");
