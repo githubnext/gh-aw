@@ -168,6 +168,10 @@ lint_go_packages() {
     fi
 }
 
+lint_custom_go_packages() {
+    make --no-print-directory golint-custom LINTER_PACKAGES="${go_packages[*]}"
+}
+
 lint_javascript() {
     (cd eslint-factory && npm run build --silent)
 
@@ -214,6 +218,7 @@ test_go_packages() {
 
 if [ "${#go_packages[@]}" -gt 0 ]; then
     start_job "Go lint (${#go_packages[@]} package(s))" lint_go_packages
+    start_job "custom Go linters (${#go_packages[@]} package(s))" lint_custom_go_packages
 fi
 if [ "${#setup_js_files[@]}" -gt 0 ] || [ "${#eslint_factory_files[@]}" -gt 0 ]; then
     start_job "JavaScript lint" lint_javascript
