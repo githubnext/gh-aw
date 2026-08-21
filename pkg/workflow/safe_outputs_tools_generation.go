@@ -397,7 +397,7 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 		}
 		result, err := json.Marshal(empty)
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal empty tools meta: %w", err)
+			return "", fmt.Errorf("marshal empty tools metadata to JSON for default safe-outputs behavior: %w", err)
 		}
 		return string(result), nil
 	}
@@ -454,7 +454,7 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 	result, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
 		safeOutputsConfigLog.Printf("Failed to marshal tools meta: %v", err)
-		return "", fmt.Errorf("failed to marshal tools meta: %w", err)
+		return "", fmt.Errorf("marshal tools metadata to JSON for runtime schema injection; verify safe-outputs values are JSON-serializable: %w", err)
 	}
 
 	safeOutputsConfigLog.Printf("Successfully generated tools meta JSON: %d description suffixes, %d repo params, %d dynamic tools",
