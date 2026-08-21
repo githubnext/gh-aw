@@ -433,12 +433,16 @@ func (e *CodexEngine) defaultDomains(workflowData *WorkflowData) []string {
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {
 	base := "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath
 	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
-		base += " && export CODEX_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""
+		base += " && " + codexBYOKAPIKeyExport()
 	}
 	if workflowData.IsDetectionRun {
 		return base + " && " + detectionSchemaWriteCmd
 	}
 	return base
+}
+
+func codexBYOKAPIKeyExport() string {
+	return "export CODEX_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""
 }
 
 func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewallEnabled, modelConfigured bool, modelEnvVar string) map[string]string {

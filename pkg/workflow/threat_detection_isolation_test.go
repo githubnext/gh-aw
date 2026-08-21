@@ -638,6 +638,9 @@ func TestExternalDetectorPathPreparesCodexConfig(t *testing.T) {
 	workflowContent := `---
 on: push
 engine: codex
+model: copilot/auto
+permissions:
+  copilot-requests: write
 safe-outputs:
   create-issue:
 features:
@@ -693,6 +696,9 @@ Test workflow`
 	}
 	if !strings.Contains(detectionSection, "wire_api = \"responses\"") {
 		t.Error("Codex external detector path must use the Responses API")
+	}
+	if !strings.Contains(detectionSection, `export CODEX_API_KEY="$`+constants.CopilotBYOKDummyAPIKeyEnvVar+`" &&`) {
+		t.Error("Codex external detector path must activate the BYOK proxy route")
 	}
 }
 

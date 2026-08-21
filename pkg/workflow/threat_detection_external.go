@@ -203,6 +203,9 @@ type externalDetectorPathSetup struct {
 // PATH in the container command. Non-ARC topologies also need a host-side copy
 // into that mounted directory; ARC/DinD already stages Copilot there during install.
 func (c *Compiler) buildExternalDetectorPathSetup(data *WorkflowData, engineID string) externalDetectorPathSetup {
+	if engineID == "codex" && NewCodexEngine().ResolveLLMProvider(data) == LLMProviderGitHub {
+		return externalDetectorPathSetup{commandPrefix: codexBYOKAPIKeyExport() + " && "}
+	}
 	if engineID != "copilot" {
 		return externalDetectorPathSetup{}
 	}
