@@ -64,6 +64,7 @@ module.exports = [
       "gh-aw-custom/require-lastindex-reset-before-global-exec-loop": "warn",
       "gh-aw-custom/require-page-counter-increment-in-while-true-loop": "warn",
       "gh-aw-custom/no-math-minmax-array-spread": "warn",
+      "gh-aw-custom/require-http-response-error-listener": "warn",
     },
   },
   {

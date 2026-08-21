@@ -7949,6 +7949,11 @@ safe-outputs:
     # (optional)
     fork: true
 
+    # Post a comment on the pull request associated with the approved workflow run
+    # announcing that the run has started. Defaults to true; set to false to disable.
+    # (optional)
+    comment: true
+
     # Additional pull request numbers whose pending workflow runs may be approved. The
     # triggering pull request is always allowed. Supports a list of strings or a
     # GitHub Actions expression that resolves to a list.
