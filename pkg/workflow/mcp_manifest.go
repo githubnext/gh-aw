@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"reflect"
 	"sort"
 	"strings"
 
@@ -27,6 +26,8 @@ func collectMCPServersForManifest(data *WorkflowData) []GHAWManifestMCPServer {
 		}
 	}
 
+	// collectMCPTools intentionally excludes GitHub when gh-proxy is configured,
+	// because that mode exposes GitHub access through the gh CLI rather than MCP.
 	for _, toolName := range collectMCPTools(data) {
 		switch toolName {
 		case "cache-memory":
@@ -151,24 +152,20 @@ func stringsFromAnySlice(value any) []string {
 		return anySliceToStrings(items)
 	case []string:
 		return append([]string(nil), items...)
+	case string:
+		if items != "" {
+			return []string{items}
+		}
+		return []string{"*"}
 	default:
-		return nil
+		return []string{"*"}
 	}
 }
 
-func normalizedMapKeys(value any) []string {
-	if value == nil {
-		return nil
-	}
-	mapValue := reflect.ValueOf(value)
-	if mapValue.Kind() != reflect.Map {
-		return nil
-	}
-	keys := make([]string, 0, mapValue.Len())
-	for _, key := range mapValue.MapKeys() {
-		if key.Kind() == reflect.String {
-			keys = append(keys, stringutil.NormalizeSafeOutputIdentifier(key.String()))
-		}
+func normalizedMapKeys[V any](value map[string]V) []string {
+	keys := make([]string, 0, len(value))
+	for key := range value {
+		keys = append(keys, stringutil.NormalizeSafeOutputIdentifier(key))
 	}
 	return keys
 }

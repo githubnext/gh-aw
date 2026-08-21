@@ -315,6 +315,24 @@ func TestCollectMCPServersForManifestGitHubToolsets(t *testing.T) {
 	assert.NotContains(t, servers[0].Tools, "get_me")
 }
 
+func TestCollectMCPServersForManifestGitHubGHProxy(t *testing.T) {
+	servers := collectMCPServersForManifest(&WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode": "gh-proxy",
+			},
+		},
+	})
+
+	assert.Empty(t, servers)
+}
+
+func TestStringsFromAnySlice(t *testing.T) {
+	assert.Equal(t, []string{"tool"}, stringsFromAnySlice("tool"))
+	assert.Equal(t, []string{"*"}, stringsFromAnySlice(""))
+	assert.Equal(t, []string{"*"}, stringsFromAnySlice(42))
+}
+
 func TestGHAWManifestMCPServersAlwaysSerialized(t *testing.T) {
 	json, err := (&GHAWManifest{
 		Version:    1,
