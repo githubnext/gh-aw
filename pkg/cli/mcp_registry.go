@@ -132,7 +132,7 @@ func (c *MCPRegistryClient) SearchServers(ctx context.Context, query string) ([]
 
 		// Only include active servers (check in _meta)
 		if meta, ok := serverResp.Meta["io.modelcontextprotocol.registry/official"].(map[string]any); ok {
-			if status, ok := meta["status"].(string); ok && status != StatusActive {
+			if status, ok := meta["status"].(string); ok && ServerStatus(status) != StatusActive {
 				continue
 			}
 		}

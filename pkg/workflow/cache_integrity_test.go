@@ -243,7 +243,7 @@ func TestGenerateIntegrityAwareCacheKey(t *testing.T) {
 	tests := []struct {
 		name           string
 		cacheID        string
-		integrityLevel string
+		integrityLevel GitHubIntegrityLevel
 		policyHash     string
 		expected       string
 	}{
@@ -290,7 +290,7 @@ func TestCacheIntegrityLevel(t *testing.T) {
 	tests := []struct {
 		name     string
 		cfg      *GitHubToolConfig
-		expected string
+		expected GitHubIntegrityLevel
 	}{
 		{name: "nil config", cfg: nil, expected: defaultCacheIntegrityLevel},
 		{name: "empty config", cfg: &GitHubToolConfig{}, expected: defaultCacheIntegrityLevel},

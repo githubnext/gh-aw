@@ -109,7 +109,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 // The step also performs pre-agent security sanitization: it strips execute bits from all
 // working-tree files and, when allowed extensions are configured, removes files with
 // disallowed extensions before the agent can access them.
-func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemoryEntry, cacheDir, integrityLevel string, useBackwardCompatiblePaths bool) {
+func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemoryEntry, cacheDir string, integrityLevel GitHubIntegrityLevel, useBackwardCompatiblePaths bool) {
 	if useBackwardCompatiblePaths {
 		builder.WriteString("      - name: Setup cache-memory git repository\n")
 	} else {

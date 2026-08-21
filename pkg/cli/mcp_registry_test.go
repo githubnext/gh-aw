@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -115,5 +116,27 @@ func TestNewMCPRegistryClient_CustomURL(t *testing.T) {
 	client := NewMCPRegistryClient(customURL)
 	if client.registryURL != customURL {
 		t.Errorf("Expected custom registry URL '%s', got '%s'", customURL, client.registryURL)
+	}
+}
+
+func TestArgumentTypeUnmarshalsToTypedEnum(t *testing.T) {
+	var arg Argument
+	if err := json.Unmarshal([]byte(`{"type":"positional","value":"notion-mcp"}`), &arg); err != nil {
+		t.Fatalf("Failed to unmarshal argument: %v", err)
+	}
+	if arg.Type != ArgumentTypePositional {
+		t.Errorf("Expected argument type '%s', got '%s'", ArgumentTypePositional, arg.Type)
+	}
+	if arg.Type == ArgumentTypeNamed {
+		t.Errorf("Expected argument type not to be '%s'", ArgumentTypeNamed)
+	}
+}
+
+func TestServerStatusConstants(t *testing.T) {
+	if ServerStatus("active") != StatusActive {
+		t.Errorf("Expected 'active' to equal StatusActive '%s'", StatusActive)
+	}
+	if ServerStatus("inactive") != StatusInactive {
+		t.Errorf("Expected 'inactive' to equal StatusInactive '%s'", StatusInactive)
 	}
 }

@@ -68,7 +68,7 @@ type Transport struct {
 
 // Argument represents a command line argument
 type Argument struct {
-	Type        string         `json:"type"`
+	Type        ArgumentType   `json:"type"`
 	Value       string         `json:"value,omitempty"`
 	Name        string         `json:"name,omitempty"`      // For named arguments
 	ValueHint   string         `json:"valueHint,omitempty"` // For positional arguments
@@ -103,14 +103,20 @@ type Remote struct {
 	Variables map[string]any        `json:"variables,omitempty"`
 }
 
+// ServerStatus represents the lifecycle status of a server in the registry
+type ServerStatus string
+
 // Status constants for server status
 const (
-	StatusActive   = "active"
-	StatusInactive = "inactive"
+	StatusActive   ServerStatus = "active"
+	StatusInactive ServerStatus = "inactive"
 )
+
+// ArgumentType represents the kind of a command line argument
+type ArgumentType string
 
 // Argument type constants
 const (
-	ArgumentTypePositional = "positional"
-	ArgumentTypeNamed      = "named"
+	ArgumentTypePositional ArgumentType = "positional"
+	ArgumentTypeNamed      ArgumentType = "named"
 )

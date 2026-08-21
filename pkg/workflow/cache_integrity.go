@@ -14,7 +14,7 @@ import (
 var cacheIntegrityLog = logger.New("workflow:cache_integrity")
 
 // defaultCacheIntegrityLevel is the integrity level used when no guard policy is configured.
-const defaultCacheIntegrityLevel = "none"
+const defaultCacheIntegrityLevel GitHubIntegrityLevel = GitHubIntegrityNone
 
 // noPolicySentinel is the policy hash used for workflows without an allow-only policy.
 const noPolicySentinel = "nopolicy"
@@ -161,13 +161,13 @@ func canonicalReposScope(repos GitHubReposScope) string {
 	}
 }
 
-// cacheIntegrityLevel returns the integrity level string for cache key generation.
+// cacheIntegrityLevel returns the integrity level used for cache key generation.
 // Returns defaultCacheIntegrityLevel when no guard policy is configured.
-func cacheIntegrityLevel(github *GitHubToolConfig) string {
+func cacheIntegrityLevel(github *GitHubToolConfig) GitHubIntegrityLevel {
 	if github == nil || github.MinIntegrity == "" {
 		return defaultCacheIntegrityLevel
 	}
-	return string(github.MinIntegrity)
+	return github.MinIntegrity
 }
 
 // computeIntegrityCacheKey returns the effective cache key for a cache entry, incorporating
@@ -214,7 +214,7 @@ func computeIntegrityCacheKey(cache CacheMemoryEntry, githubConfig *GitHubToolCo
 //
 //	memory-unapproved-7e4d9f12-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
 //	memory-none-nopolicy-session-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
-func generateIntegrityAwareCacheKey(cacheID, integrityLevel, policyHash string) string {
+func generateIntegrityAwareCacheKey(cacheID string, integrityLevel GitHubIntegrityLevel, policyHash string) string {
 	var key string
 	if cacheID == "default" || cacheID == "" {
 		key = fmt.Sprintf(
