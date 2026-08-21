@@ -201,14 +201,16 @@ describe("render_detection_log.cjs", () => {
       expect(out).toContain("line 5");
     });
 
-    it("renders a bounded suffix when an oversized log has no newlines", async () => {
-      fs.writeFileSync(logPath, Buffer.alloc(1024 * 1024 + 1, "z"));
+    it("omits an oversized partial line that cannot be safely redacted", async () => {
+      const fakeToken = "ghp_" + "A".repeat(36);
+      fs.writeFileSync(logPath, Buffer.concat([Buffer.from(fakeToken), Buffer.alloc(1024 * 1024, "z")]));
 
       await module.renderLogFromFile(logPath, "Tail", { tailLines: 200 });
 
       const out = capturedStdout();
-      expect(out).toContain("z".repeat(100));
-      expect(out.length).toBeLessThan(1024 * 1024 + 500);
+      expect(out).toContain("Log tail omitted: final line exceeds");
+      expect(out).not.toContain(fakeToken.slice(1));
+      expect(out).not.toContain("z".repeat(100));
     });
   });
 });

@@ -85,9 +85,7 @@ async function renderLogFromFile(filePath, groupTitle, options) {
         content = buf.slice(0, bytesRead).toString("utf8");
         if (tailLines) {
           const firstNewline = content.indexOf("\n");
-          if (firstNewline !== -1) {
-            content = content.slice(firstNewline + 1);
-          }
+          content = firstNewline === -1 ? `[Log tail omitted: final line exceeds ${MAX_LOG_BYTES} bytes]\n` : content.slice(firstNewline + 1);
         }
       } finally {
         fs.closeSync(fd);
