@@ -637,8 +637,10 @@ func TestExternalDetectorPathPreparesCodexConfig(t *testing.T) {
 
 	workflowContent := `---
 on: push
-engine: codex
-model: copilot/auto
+engine:
+  id: codex
+  model-provider: github
+model: auto
 permissions:
   copilot-requests: write
 safe-outputs:

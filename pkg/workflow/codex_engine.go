@@ -379,6 +379,9 @@ func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, log
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
 		}
+		if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+			codexCommandWithSetup = codexBYOKAPIKeyExport() + " && " + codexCommandWithSetup
+		}
 		return BuildAWFCommand(AWFCommandConfig{
 			EngineName:         "codex",
 			EngineCommand:      codexCommandWithSetup,
@@ -432,9 +435,6 @@ func (e *CodexEngine) defaultDomains(workflowData *WorkflowData) []string {
 
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {
 	base := "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath
-	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
-		base += " && " + codexBYOKAPIKeyExport()
-	}
 	if workflowData.IsDetectionRun {
 		return base + " && " + detectionSchemaWriteCmd
 	}
