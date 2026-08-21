@@ -374,7 +374,7 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 		}
 		result, err := json.Marshal(empty)
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal empty tools meta: %w", err)
+			return "", fmt.Errorf("unable to marshal empty tools meta to JSON; expected the empty ToolsMeta struct (with empty maps/slices) to be serializable: %w", err)
 		}
 		return string(result), nil
 	}
@@ -430,8 +430,8 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 
 	result, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
-		safeOutputsConfigLog.Printf("Failed to marshal tools meta: %v", err)
-		return "", fmt.Errorf("failed to marshal tools meta: %w", err)
+		safeOutputsConfigLog.Printf("Error marshaling tools meta: %v", err)
+		return "", fmt.Errorf("unable to marshal tools meta to JSON; expected all computed fields (description suffixes, repo params, dynamic tools) to be serializable: %w", err)
 	}
 
 	safeOutputsConfigLog.Printf("Successfully generated tools meta JSON: %d description suffixes, %d repo params, %d dynamic tools",
