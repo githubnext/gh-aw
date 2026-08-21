@@ -38,6 +38,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
 | [`require-error-code-in-thrown-error`](#require-error-code-in-thrown-error) | Require standardized error codes in thrown errors when `error_codes.cjs` is imported |
+| [`require-error-code-for-github-api-throw`](#require-error-code-for-github-api-throw) | Require standardized error codes for `throw new Error(...)` after GitHub API calls |
 | [`require-fetch-response-body-try-catch`](#require-fetch-response-body-try-catch) | Require try/catch around `.json()` or `.text()` on Responses from `fetch(...)` |
 | [`require-fetch-timeout`](#require-fetch-timeout) | Require `fetch(...)` calls to include a non-nullish abort `signal` option |
 | [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
@@ -890,6 +891,24 @@ throw new Error("failed to fetch");
 ```js
 const { ERR_API } = require("./error_codes.cjs");
 throw new Error(`${ERR_API}: failed to fetch`);
+```
+
+### `require-error-code-for-github-api-throw`
+
+In files that already import `./error_codes.cjs`, require `throw new Error(...)` messages to include a standardized code when an earlier call in the same function uses `githubClient.rest.*`, `.paginate(...)`, or `.graphql(...)`.
+
+**Flagged form:**
+```js
+const { ERR_API } = require("./error_codes.cjs");
+await githubClient.rest.pulls.get({ owner, repo, pull_number });
+throw new Error("failed to fetch pull request");
+```
+
+**Safe alternative:**
+```js
+const { ERR_API } = require("./error_codes.cjs");
+await githubClient.rest.pulls.get({ owner, repo, pull_number });
+throw new Error(`${ERR_API}: failed to fetch pull request`);
 ```
 
 ### `require-invalid-date-check-before-compare`
