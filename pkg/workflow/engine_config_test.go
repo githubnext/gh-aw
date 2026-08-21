@@ -944,7 +944,10 @@ safe-outputs:
 	if err != nil {
 		t.Fatalf("ExtractMetadataFromLockFile failed: %v", err)
 	}
-	if metadata == nil || legacy {
+	if metadata == nil {
+		t.Fatal("Expected compiled lock file to contain metadata")
+	}
+	if legacy {
 		t.Fatal("Expected compiled lock file to contain structured metadata")
 	}
 	assert.Equal(t, "openai/gpt-4o-mini", metadata.AgentModel)
