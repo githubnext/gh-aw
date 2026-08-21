@@ -2131,7 +2131,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
           ["gh-aw.working_set.invocations", "invocations"],
         ]) {
           const value = workingSet[fieldName];
-          if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+          // Use the same finite-number acceptance as buildAttr's own encoding
+          // logic (rather than Number.isSafeInteger) so that legitimate large
+          // token counters from high-volume runs are still emitted -
+          // buildAttr already falls back to doubleValue for values that
+          // exceed safe-integer precision instead of dropping them.
+          if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
             attributes.push(buildAttr(attributeName, value));
           }
         }

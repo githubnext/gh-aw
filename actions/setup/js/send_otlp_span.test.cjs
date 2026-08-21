@@ -3644,6 +3644,41 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.working_set.invocations"].intValue).toBe(5);
   });
 
+  it("emits working-set token counters that exceed Number.MAX_SAFE_INTEGER on high-volume runs", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "conclusion";
+
+    const hugeCumulativeInputTokens = Number.MAX_SAFE_INTEGER + 10_000;
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/usage/activity/summary.json") {
+        return JSON.stringify({
+          working_set: {
+            measurement_state: "measured",
+            rebuild_factor: 4.2,
+            cumulative_input_tokens: hugeCumulativeInputTokens,
+            peak_input_tokens: 224000,
+            rebuild_excess_tokens: hugeCumulativeInputTokens - 224000,
+            invocations: 50000,
+          },
+        });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(attribute => [attribute.key, attribute.value]));
+    expect(attrs["gh-aw.working_set.cumulative_input_tokens"]).toBeDefined();
+    expect(attrs["gh-aw.working_set.cumulative_input_tokens"].intValue).toBe(hugeCumulativeInputTokens);
+    expect(attrs["gh-aw.working_set.rebuild_excess_tokens"]).toBeDefined();
+    expect(attrs["gh-aw.working_set.invocations"].intValue).toBe(50000);
+  });
+
   it("emits only working-set measurement state when unavailable", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
