@@ -149,3 +149,216 @@ func TestGetBlockMappingKey(t *testing.T) {
 		})
 	}
 }
+
+func TestLowercaseDiscussionTriggerTypesInLines(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		lines        []string
+		wantModified bool
+		wantLines    []string
+	}{
+		{
+			name:         "empty input is not modified",
+			lines:        []string{},
+			wantModified: false,
+			wantLines:    []string{},
+		},
+		{
+			name: "no on block leaves lines untouched",
+			lines: []string{
+				"name: test",
+				"jobs:",
+				"  build:",
+			},
+			wantModified: false,
+			wantLines: []string{
+				"name: test",
+				"jobs:",
+				"  build:",
+			},
+		},
+		{
+			name: "on block without discussion trigger is untouched",
+			lines: []string{
+				"on:",
+				"  push:",
+				"    branches: [main]",
+			},
+			wantModified: false,
+			wantLines: []string{
+				"on:",
+				"  push:",
+				"    branches: [main]",
+			},
+		},
+		{
+			name: "discussion block-list types are lowercased",
+			lines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - Created",
+				"      - Answered",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - created",
+				"      - answered",
+			},
+		},
+		{
+			name: "discussion inline array types are lowercased",
+			lines: []string{
+				"on:",
+				"  discussion:",
+				"    types: [Created, Answered]",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				"  discussion:",
+				"    types: [created, answered]",
+			},
+		},
+		{
+			name: "discussion_comment trigger is also handled",
+			lines: []string{
+				"on:",
+				"  discussion_comment:",
+				"    types:",
+				"      - Created",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				"  discussion_comment:",
+				"    types:",
+				"      - created",
+			},
+		},
+		{
+			name: "already lowercase types are not modified",
+			lines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - created",
+			},
+			wantModified: false,
+			wantLines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - created",
+			},
+		},
+		{
+			name: "comment and blank lines inside on block are ignored",
+			lines: []string{
+				"on:",
+				"  # a comment",
+				"",
+				"  discussion:",
+				"    types:",
+				"      - Created",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				"  # a comment",
+				"",
+				"  discussion:",
+				"    types:",
+				"      - created",
+			},
+		},
+		{
+			name: "trigger block ends when a sibling key is reached",
+			lines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - Created",
+				"  push:",
+				"    branches: [main]",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - created",
+				"  push:",
+				"    branches: [main]",
+			},
+		},
+		{
+			name: "on block ends when a top level key is reached",
+			lines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - Created",
+				"jobs:",
+				"  build:",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - created",
+				"jobs:",
+				"  build:",
+			},
+		},
+		{
+			name: "empty types key switches into list-item mode",
+			lines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - Answered",
+				"      - Created",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				"  discussion:",
+				"    types:",
+				"      - answered",
+				"      - created",
+			},
+		},
+		{
+			name: "quoted trigger keys are recognized",
+			lines: []string{
+				"on:",
+				`  "discussion":`,
+				"    types:",
+				"      - Created",
+			},
+			wantModified: true,
+			wantLines: []string{
+				"on:",
+				`  "discussion":`,
+				"    types:",
+				"      - created",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			gotLines, gotModified := lowercaseDiscussionTriggerTypesInLines(tt.lines)
+			assert.Equal(t, tt.wantModified, gotModified)
+			assert.Equal(t, tt.wantLines, gotLines)
+		})
+	}
+}
