@@ -50,6 +50,7 @@ func assertSecretValueNotLogged(t *testing.T, stdout, stderr, secretValue string
 }
 
 func TestValidateMultiSecretLogsPresentSecretLength(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, err := runValidateMultiSecret(t, map[string]string{
 		"TEST_SECRET": "super-secret-token",
 	}, "TEST_SECRET")
@@ -64,6 +65,7 @@ func TestValidateMultiSecretLogsPresentSecretLength(t *testing.T) {
 }
 
 func TestValidateMultiSecretRejectsPlaceholderValues(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name   string
 		value  string
@@ -75,6 +77,7 @@ func TestValidateMultiSecretRejectsPlaceholderValues(t *testing.T) {
 		{name: "whitespace", value: "   ", length: 3},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			stdout, stderr, err := runValidateMultiSecret(t, map[string]string{
 				"TEST_SECRET": tc.value,
 			}, "TEST_SECRET")
@@ -94,6 +97,7 @@ func TestValidateMultiSecretRejectsPlaceholderValues(t *testing.T) {
 }
 
 func TestValidateMultiSecretRejectsInvalidSecretBeforeFallback(t *testing.T) {
+	t.Parallel()
 	stdout, stderr, err := runValidateMultiSecret(t, map[string]string{
 		"PRIMARY_SECRET":  "null",
 		"FALLBACK_SECRET": "valid-fallback-token",

@@ -4709,6 +4709,19 @@ describe("create_pull_request - stacked pull requests", () => {
     expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ base: "release/1.0" }));
   });
 
+  it("rejects a stacked pull request targeting a repo outside the allowlist before checking the base branch", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, allowed_repos: ["test-owner/test-repo"] });
+
+    const result = await handler({ title: "Test PR", body: "Test body", repo: "other-owner/other-repo", base: "release/1.0" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("is not in the allowed-repos list");
+    // The base-branch existence check must never run against an unvalidated repo.
+    expect(global.github.rest.repos.getBranch).not.toHaveBeenCalled();
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
   it("rejects a circular stacked pull request dependency", async () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ allow_empty: true, max: 3, preserve_branch_name: true });

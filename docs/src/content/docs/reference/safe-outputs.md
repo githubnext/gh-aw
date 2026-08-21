@@ -141,7 +141,7 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for compre
 |-----------|------|----------|-------------|---------|
 | `fields` | `array<object>` | No | Optional issue field updates to apply immediately after issue creation. | `[{"name":"Priority","value":"P1"}]` |
 | `fields[].name` | `string` | Yes (when item exists) | Issue field display name. Match the repository field label (case-insensitive matching is supported). | `"Priority"` |
-| `fields[].value` | `string \| number` | Yes (when item exists) | Field value. Use a number for numeric fields; otherwise use a string (single select, iteration title, date `YYYY-MM-DD`, text). | `"Sprint 42"` |
+| `fields[].value` | `string \| number` | Yes (when item exists) | Field value. Use a number for numeric fields; otherwise use a string (single select, date `YYYY-MM-DD`, text). For multi-select fields, pass a comma-separated list of option names to select multiple options. | `"Sprint 42"` |
 
 ```json
 {
@@ -150,7 +150,7 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for compre
   "body": "Intermittent failure detected in CI.",
   "fields": [
     { "name": "Priority", "value": "High" },
-    { "name": "Iteration", "value": "Sprint 42" },
+    { "name": "Tags", "value": "Bug, Regression" },
     { "name": "Story Points", "value": 3 }
   ]
 }
@@ -348,6 +348,7 @@ safe-outputs:
   hide-comment:
     max: 5                    # max comments (default: 5)
     target-repo: "owner/repo" # cross-repository
+    discussions: true         # request discussions:write permission (default: false)
 ```
 
 ### Add Labels (`add-labels:`)

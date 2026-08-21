@@ -43,7 +43,7 @@ Then follow a progressive interview — ask one question at a time, advance only
 
 1. **Goal** — confirm workflow name (kebab-case), brief description, optional emoji.
 2. **Repository survey for maintenance workflows** — before choosing a portfolio or cadence, inspect the target repository using [maintainer.md](maintainer.md). Infer project type, contribution and validation rules, repository layout, recent activity, issue and pull request state, labels, releases, and CI health. Summarize the observed signals and derive an initial low-risk strategy; ask only for policy or capacity information that cannot be inferred.
-3. **Trigger** — ask "When should this run?" and map to an `on:` block (see trigger mapping in [designer-mappings.md](designer-mappings.md)).
+3. **Trigger** — ask "When should this run?" and map to an `on:` block (see trigger mapping in [designer-mappings.md](designer-mappings.md)). For scheduled workflows that create issues or pull requests, also choose how previous results are handled using [Choose the previous-result strategy](#choose-the-previous-result-strategy).
 4. **Scope** — ask what it reads and what it creates or updates; map to `permissions:`, `tools:`, and `safe-outputs:`.
 5. **Data strategy** — ask whether GitHub data should be pre-fetched with `gh` + `jq` (DataOps default); map to `steps:`.
 6. **Guardrails** — ask whether it should block, advise, or silently log; guide toward `noop` and safe-output behavior.
@@ -156,6 +156,16 @@ Use the smallest trigger that matches the request. See the [Decision Matrix](tri
 | Coverage analysis | `pull_request` or CI-linked triggers with explicit fallback | [Coverage-analysis guidance](create-agentic-workflow-trigger-details.md#coverage-analysis-guidance) |
 
 Use [triggers.md](triggers.md), [workflow-patterns.md](workflow-patterns.md), and [create-agentic-workflow-trigger-details.md](create-agentic-workflow-trigger-details.md) for detailed trigger-selection patterns.
+
+#### Choose the previous-result strategy
+
+For every daily or scheduled workflow that creates issues or pull requests, choose the strategy that best matches the workflow's goal:
+
+- **Wait for the previous result** when only one active result should exist. Configure `on.skip-if-match` to skip the entire agent execution while the issue or pull request created by an earlier run remains open. The workflow resumes after that item is closed or merged.
+- **Replace previous results** when the newest result supersedes older reports. For issues, configure `safe-outputs.create-issue.close-older-issues: true` and use `close-older-key` when an explicit matching key is needed.
+- **Keep previous results** when each run should produce a distinct item or preserve a history of work. Instruct the agent to search for and review existing issues or pull requests before acting, then select a materially different scope so it does not repeat previous work. Treat those existing items as the workflow's memory.
+
+Do not default every scheduled workflow to the same strategy. Base the choice on whether the workflow needs a single active item, a latest-only result, or a continuing series of distinct results, and include the selected behavior in the generated workflow.
 
 ### 3. Keep permissions read-only
 

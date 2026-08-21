@@ -23,6 +23,7 @@ safe-outputs:
     max: 2
     staged: true
     fork: true
+    comment: false
     allowed-pull-requests:
       - "42"
     allowed-workflows:
@@ -44,6 +45,7 @@ Approve eligible workflow runs.
 	require.NotNil(t, data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.Equal(t, TemplatableBool("true"), *data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.True(t, data.SafeOutputs.ApproveWorkflowRun.Fork)
+	assert.False(t, data.SafeOutputs.ApproveWorkflowRun.Comment)
 	assert.Equal(t, []string{"42"}, data.SafeOutputs.ApproveWorkflowRun.AllowedPullRequests)
 	assert.Equal(t, []string{"pull-request-*.yaml"}, data.SafeOutputs.ApproveWorkflowRun.AllowedWorkflows)
 	assert.Equal(t, []string{"AGENTS.md"}, data.SafeOutputs.ApproveWorkflowRun.ProtectedFilesExclude)
@@ -61,6 +63,21 @@ func TestApproveWorkflowRunDefaultConfiguration(t *testing.T) {
 	require.NotNil(t, config)
 	assert.Equal(t, new("1"), config.Max)
 	assert.False(t, config.Fork)
+	assert.True(t, config.Comment)
+}
+
+func TestApproveWorkflowRunCommentDisabled(t *testing.T) {
+	config := NewCompiler().parseApproveWorkflowRunConfig(map[string]any{
+		"approve-workflow-run": map[string]any{
+			"comment": false,
+		},
+	})
+
+	require.NotNil(t, config)
+	assert.False(t, config.Comment)
+
+	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{ApproveWorkflowRun: config})
+	assert.Equal(t, false, handlerConfig["comment"])
 }
 
 func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {

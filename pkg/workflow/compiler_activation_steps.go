@@ -197,6 +197,22 @@ func (c *Compiler) addActivationVersionCheckStep(ctx *activationJobBuildContext)
 	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("check_version_updates.cjs"))
 }
 
+// frontmatterSkillStepName builds a human-readable step name for installing a
+// frontmatter skill, including the skill identifier (with any trailing
+// "@<sha>" pin stripped) so a reader doesn't have to cross-reference the
+// workflow's skills: frontmatter list to map index -> skill. Falls back to the
+// numbered form when the skill identifier is empty.
+func frontmatterSkillStepName(skill string, stepNumber int) string {
+	identifier := strings.TrimSpace(skill)
+	if identifier == "" {
+		return fmt.Sprintf("Install frontmatter skill %d", stepNumber)
+	}
+	if at := strings.LastIndex(identifier, "@"); at > 0 {
+		identifier = identifier[:at]
+	}
+	return fmt.Sprintf("%q", "Install frontmatter skill: "+identifier)
+}
+
 func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) {
 	skillRefs := append([]SkillReference(nil), ctx.data.SkillReferences...)
 	if len(skillRefs) == 0 && len(ctx.data.Skills) > 0 {
@@ -245,7 +261,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 				tokenExpr = stepTokenExpr
 			}
 		}
-		ctx.steps = append(ctx.steps, fmt.Sprintf("      - name: Install frontmatter skill %d\n", i+1))
+		ctx.steps = append(ctx.steps, fmt.Sprintf("      - name: %s\n", frontmatterSkillStepName(skillRef.Skill, i+1)))
 		ctx.steps = append(ctx.steps, "        env:\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", tokenExpr))
 		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_INFO_ENGINE_ID", engineID))

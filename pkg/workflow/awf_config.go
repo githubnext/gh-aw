@@ -114,11 +114,11 @@ func validateAWFConfigJSON(configJSON string) error {
 	}
 	var doc any
 	if err := json.Unmarshal([]byte(configJSON), &doc); err != nil {
-		return fmt.Errorf("failed to parse AWF config JSON: %w", err)
+		return fmt.Errorf("invalid AWF config JSON: expected generated output to be valid JSON for schema validation; parse error: %w. This indicates a compiler bug; please report it", err)
 	}
 	normalizeTemplatableModelFallbackEnabled(doc)
 	if err := schema.Validate(doc); err != nil {
-		return fmt.Errorf("AWF config schema validation failed: %w", err)
+		return fmt.Errorf("invalid AWF config JSON: expected generated output to satisfy the embedded schema; review the referenced field path and fix that workflow/frontmatter value: %w", err)
 	}
 	return nil
 }
@@ -589,6 +589,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			enabledDisplay = mf.Enabled.String()
 		}
 		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s", enabledDisplay)
+	} else if hasCustomLLMAPITarget(config.WorkflowData) {
+		// Custom OpenAI/Anthropic-compatible providers (e.g. OpenRouter, internal LLM
+		// routers, Azure OpenAI) expose model identifiers that are absent from the
+		// built-in AWF model catalog. Letting AWF rewrite the requested model then
+		// yields HTTP 404 model_not_found upstream, so pass the configured model
+		// through verbatim unless the workflow explicitly opts back in.
+		disabled := TemplatableBool("false")
+		apiProxy.ModelFallback = &AWFModelFallbackConfig{Enabled: &disabled}
+		awfConfigLog.Print("API proxy: modelFallback disabled by default: custom LLM API target configured")
 	}
 
 	if pricing := extractDefaultAiCreditsPricing(config.WorkflowData); pricing != nil {
@@ -755,14 +764,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
+		return "", fmt.Errorf("invalid AWF config values: expected generated output to be JSON-serializable; encountered serialization error: %w. This indicates a compiler bug; please report it", err)
 	}
 
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonStr))
 
 	if config.WorkflowData != nil && config.WorkflowData.ValidateAWFConfig {
 		if err := validateAWFConfigJSON(jsonStr); err != nil {
-			return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
+			return "", fmt.Errorf("invalid generated AWF config: expected awf-config JSON to satisfy the embedded schema; review the referenced field path and fix that workflow/frontmatter value: %w", err)
 		}
 	}
 
@@ -925,6 +934,20 @@ func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 	return &AWFModelFallbackConfig{
 		Enabled: mf,
 	}
+}
+
+// hasCustomLLMAPITarget reports whether the workflow routes the agentic engine to a
+// custom OpenAI-compatible or Anthropic-compatible provider through an engine.env base
+// URL (OPENAI_BASE_URL / ANTHROPIC_BASE_URL). Such providers (OpenRouter, internal LLM
+// routers, Azure OpenAI deployments) use model identifiers that are not present in the
+// AWF built-in model catalog.
+func hasCustomLLMAPITarget(workflowData *WorkflowData) bool {
+	for _, envVar := range []string{"OPENAI_BASE_URL", "ANTHROPIC_BASE_URL"} {
+		if engineEnvHasNonEmptyValue(workflowData, envVar) {
+			return true
+		}
+	}
+	return false
 }
 
 // extractDefaultAiCreditsPricing returns an AiCreditsPricingConfig if the workflow has

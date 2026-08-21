@@ -1104,6 +1104,100 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"modelFallback"`, "apiProxy should omit modelFallback when not configured")
 	})
 
+	t.Run("model-fallback is disabled by default for a custom anthropic API target", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com,openrouter.ai",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+					Env: map[string]string{
+						"ANTHROPIC_BASE_URL": "https://openrouter.ai/api/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback":{"enabled":false}`, "apiProxy should disable modelFallback for custom Anthropic providers")
+	})
+
+	t.Run("model-fallback is disabled by default for a custom openai API target", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			AllowedDomains: "github.com,llm-router.internal.example.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "codex",
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://llm-router.internal.example.com/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback":{"enabled":false}`, "apiProxy should disable modelFallback for custom OpenAI-compatible providers")
+	})
+
+	t.Run("model-fallback is disabled by default for expression-valued custom API targets", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com,openrouter.ai",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+					Env: map[string]string{
+						"ANTHROPIC_BASE_URL": "${{ vars.LLM_URL }}",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback":{"enabled":false}`, "apiProxy should disable modelFallback for expression-valued custom API targets")
+	})
+
+	t.Run("explicit model-fallback overrides the custom API target default", func(t *testing.T) {
+		enabled := TemplatableBool("true")
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com,openrouter.ai",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+					Env: map[string]string{
+						"ANTHROPIC_BASE_URL": "https://openrouter.ai/api/v1",
+					},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ModelFallback: &enabled,
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback":{"enabled":true}`, "explicit sandbox.agent.model-fallback should win over the custom-target default")
+	})
+
 	t.Run("default-ai-credits-pricing is emitted for BYOK self-hosted model at zero cost", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",

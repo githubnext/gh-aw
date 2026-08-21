@@ -134,10 +134,22 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "hide-comment default - includes discussions permission",
+			name: "hide-comment default - excludes discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				HideComment: &HideCommentConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
+			},
+		},
+		{
+			name: "hide-comment with discussions:true - includes discussions permission",
+			safeOutputs: &SafeOutputsConfig{
+				HideComment: &HideCommentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Discussions:          ptrBool(true),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -415,10 +427,24 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "approve-workflow-run requires actions write and pull-requests read",
+			name: "approve-workflow-run with comment enabled requires actions write and pull-requests write",
 			safeOutputs: &SafeOutputsConfig{
 				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Comment:              true,
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionActions:      PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "approve-workflow-run with comment disabled requires actions write and pull-requests read",
+			safeOutputs: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Comment:              false,
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{

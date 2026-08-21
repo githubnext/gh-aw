@@ -142,6 +142,12 @@ Test workflow`
 	if !strings.Contains(detectionSection, "GITHUB_STEP_SUMMARY: "+constants.ThreatDetectionStepSummaryPath) {
 		t.Errorf("Detection execution step should set GITHUB_STEP_SUMMARY to %q", constants.ThreatDetectionStepSummaryPath)
 	}
+	if strings.Contains(detectionSection, "touch "+AgentStepSummaryPath) {
+		t.Errorf("Detection execution step must not create unused agent step summary %q", AgentStepSummaryPath)
+	}
+	if strings.Contains(detectionSection, AgentStepSummaryPath) {
+		t.Errorf("Detection execution step must not reference unused agent step summary %q", AgentStepSummaryPath)
+	}
 
 	// Test 2: A dedicated echo step for the detection step summary must be present.
 	if !strings.Contains(detectionSection, "Echo detection step summary") {
@@ -155,6 +161,26 @@ Test workflow`
 	}
 	if !strings.Contains(agentSection, "GITHUB_STEP_SUMMARY: "+AgentStepSummaryPath) {
 		t.Errorf("Agent job should still use AgentStepSummaryPath %q for GITHUB_STEP_SUMMARY", AgentStepSummaryPath)
+	}
+}
+
+func TestCopilotStepSummaryPath(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		want         string
+	}{
+		{name: "agent", want: AgentStepSummaryPath},
+		{name: "external detection", workflowData: &WorkflowData{IsDetectionRun: true}, want: AgentStepSummaryPath},
+		{name: "inline detection", workflowData: &WorkflowData{IsDetectionRun: true, Features: map[string]any{"gh-aw-detection": false}}, want: constants.ThreatDetectionStepSummaryPath},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := copilotStepSummaryPath(tt.workflowData); got != tt.want {
+				t.Errorf("copilotStepSummaryPath() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -322,7 +348,7 @@ Test workflow`
 		if uploadStepEnd != -1 {
 			uploadStep = detectionSection[uploadStepStart : uploadStepStart+1+uploadStepEnd]
 		}
-		if !strings.Contains(uploadStep, "          path: "+constants.ThreatDetectionResultPath+"\n") {
+		if !strings.Contains(uploadStep, "            "+constants.ThreatDetectionResultPath+"\n") {
 			t.Errorf("External detector path must upload %s", constants.ThreatDetectionResultPath)
 		}
 		// The raw engine log (detection.log) and step-summary must NOT be uploaded on the

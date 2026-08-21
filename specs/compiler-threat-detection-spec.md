@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.24
+**Version**: 1.0.25
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.25` | `v0.87.1` (or newer) | No new CTR rules; the CTR-025 mapping is re-confirmed against the merged `fix-threat-detection-system-block-false-positive` changeset (`stripFrameworkSystemBlock`/`SYSTEM_BLOCK_REMOVED_MARKER` in `actions/setup/js/setup_threat_detection.cjs`), which matches the existing Section 7.1 mapping with no drift. No `.lock.yml` schema changes. |
 | `1.0.24` | `v0.87.1` (or newer) | No new CTR rules; extends existing rule mappings (CTR-005, CTR-006/CTR-009, CTR-007, CTR-012) to cover recently-hardened implementation sites reviewed in this cycle (safe-output field allowlisting, agent-import-path shell escaping, URL-authority userinfo bypass in the markdown/content sanitizer, and generalized wildcard-target validation). No `.lock.yml` schema changes. |
 | `1.0.23` | `v0.87.1` (or newer) | Adds normative coverage for framework self-prompt misattribution handling (CTR-025) in threat-detection setup by stripping only the leading framework-generated `<system>...</system>` block before analysis; no `.lock.yml` schema changes (runtime-only detection setup behavior). |
 | `1.0.22` | `v0.87.0` (or newer) | Adds validated `threat-detection-suppress` handling and the `threat_detection_suppressions` manifest field, plus optimizer suppression and failure-safeguard conformance coverage. |
@@ -415,6 +416,13 @@ These optimizer-protocol IDs cover Section 6 norms; they do not add or replace t
 ---
 
 ## 10. Change Log
+
+### 1.0.25 (2026-08-21)
+
+- Daily optimizer review cycle. Reviewed pending changesets and outstanding work since the 1.0.24 audit (`.changeset/*.md` staged for the next release plus `HEAD` at `c9199e1`): `fix-threat-detection-system-block-false-positive` (already-implemented CTR-025 behavior — `stripFrameworkSystemBlock`/`SYSTEM_BLOCK_REMOVED_MARKER` in `actions/setup/js/setup_threat_detection.cjs` strips only the leading framework `<system>` block; re-verified against current source, mapping unchanged), `patch-fix-github-env-high-vulnerability` (in-progress/staged hardening replacing framework-controlled `>> $GITHUB_ENV` writes with step-scoped `$GITHUB_OUTPUT` in select runtime-setup and GHES-host wiring; several `$GITHUB_ENV` writes for non-secret, compiler-controlled runtime paths remain by design — evaluated as CTR-004/CTR-017 scope hardening, not a new threat class), `patch-exclude-secret-env-vars-from-agent-container` (extends CTR-017 secret-leakage mitigation via AWF `--exclude-env`, no new rule), `patch-prevent-mcp-secret-masking` (extends CTR-017 mapping — MCP-safe git auth env separated from Actions secret masking), `patch-fix-multi-repo-configure-git-credentials-template-injection` (extends CTR-006 mapping — `${{ github.event.inputs.* }}` now passed through `GH_AW_SUBREPO_N` env vars instead of being inlined into the generated `git remote set-url` shell command, confirmed implemented in `pkg/workflow/checkout_step_generator.go`), `patch-document-bypasspermissions-security-boundary` and `hint-jq-file-injection-safe-outputs-prompt` (documentation-only, no compiler detection logic), and `patch-cross-repo-private-callee-auth-guidance` (improved diagnostic messaging, no new detectable pattern).
+- No `threat-detection-suppress` annotations were found in any live (non-fixture, non-test) workflow source in this review window, so no SLA-breach or expiration findings apply.
+- No new threat class was identified requiring a new `CTR-*` rule; all reviewed items either extend existing rule mappings (CTR-004, CTR-006, CTR-017) or fall outside compiler-detectable scope (documentation, diagnostics wording).
+- Updated Section 2 spec-to-implementation sync table with version 1.0.25 entry.
 
 ### 1.0.24 (2026-08-18)
 

@@ -255,6 +255,32 @@ describe("run_validate_workflows", () => {
     expect(createCall.body).not.toMatch(/@malicious-user(?!`)/);
   });
 
+  it("prepareValidationOutput returns output unchanged when under the length limit", async () => {
+    const { prepareValidationOutput } = await import("./run_validate_workflows.cjs");
+    const result = prepareValidationOutput("short output");
+    expect(result).toBe("short output");
+  });
+
+  it("prepareValidationOutput truncates output over the default length limit", async () => {
+    const { prepareValidationOutput } = await import("./run_validate_workflows.cjs");
+    const longOutput = "y".repeat(60000);
+    const result = prepareValidationOutput(longOutput);
+    expect(result).toContain("... (output truncated)");
+    expect(result.length).toBeLessThan(longOutput.length);
+  });
+
+  it("prepareValidationOutput respects a custom max length", async () => {
+    const { prepareValidationOutput } = await import("./run_validate_workflows.cjs");
+    const result = prepareValidationOutput("abcdefghij", 5);
+    expect(result).toBe("abcde\n\n... (output truncated)");
+  });
+
+  it("prepareValidationOutput sanitizes @mentions", async () => {
+    const { prepareValidationOutput } = await import("./run_validate_workflows.cjs");
+    const result = prepareValidationOutput("Error: @malicious-user triggered a warning");
+    expect(result).not.toMatch(/@malicious-user(?!`)/);
+  });
+
   it("should sanitize output containing @mentions in comment body", async () => {
     mockExec.exec.mockImplementation(async (_cmd, _args, options) => {
       if (options?.listeners?.stderr) {

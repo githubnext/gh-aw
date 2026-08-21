@@ -217,7 +217,7 @@ safe-outputs:
     expires: ${{ inputs.expires-days }}
 ```
 
-Fields that influence permission computation (`add-comment.discussions`, `create-pull-request.fallback-as-issue`) remain literal booleans.
+Fields that influence permission computation (`add-comment.discussions`, `hide-comment.discussions`, `create-pull-request.fallback-as-issue`) remain literal booleans.
 
 - `timeout-minutes:` - Timeout for the safe-outputs job in minutes (integer, default: `45`)
   - Increase for workflows with many sequential safe-output operations (e.g. `push-to-pull-request-branch` against large repositories)

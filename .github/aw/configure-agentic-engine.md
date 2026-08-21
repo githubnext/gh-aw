@@ -148,6 +148,7 @@ engine:
 - `behaviors.execution` defines the command, fixed args, model binding, MCP binding, and timestamp behavior.
 - `behaviors.mcp.config-path` points to the file where rendered MCP configuration should be written.
 - `behaviors.log-parser` supplies a JavaScript `parseLog(logContent)` function (not exported directly — a shared wrapper handles exports and bootstrap) run in the post-agent log-parsing step. It must return `{markdown, logEntries, mcpFailures, maxTurnsHit}` so behavior-defined engines produce normalized events files like built-in engine parsers.
+- `behaviors.plugins` (experimental) opts the engine into top-level `plugins:` (Agent Plugins) support; omit it to make `plugins:` a compile-time error for this engine. Set `directory` (folder the engine CLI scans for staged plugins, workspace- or home-relative) and/or `command-name`/`install-args` (CLI invoked as `<command-name> <install-args...> <local-plugin-path>`) — see the shared Cursor and Kiro engine definitions for examples.
 
 ## Auth and provider rules
 

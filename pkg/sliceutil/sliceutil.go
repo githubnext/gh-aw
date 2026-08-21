@@ -37,11 +37,7 @@ func Map[T, U any](slice []T, transform func(T) U) []U {
 // The order of elements is not guaranteed as map iteration order is undefined.
 // This is a pure function that does not modify the input map.
 func MapKeys[K comparable, V any](m map[K]V) []K {
-	result := make([]K, 0, len(m))
-	for key := range m {
-		result = append(result, key)
-	}
-	return result
+	return slices.Collect(maps.Keys(m))
 }
 
 // FilterMapKeys returns map keys that match the given predicate.
@@ -92,25 +88,7 @@ func Deduplicate[T comparable](slice []T) []T {
 // MergeUnique returns a deduplicated slice that starts with base and appends any
 // items from extra that are not already present in base. Order is preserved.
 func MergeUnique[T comparable](base []T, extra ...T) []T {
-	capacity := len(base)
-	if len(extra) <= int(^uint(0)>>1)-capacity {
-		capacity += len(extra)
-	}
-
-	seen := make(map[T]struct{}, capacity)
-	result := make([]T, 0, capacity)
-	for _, item := range base {
-		if _, exists := seen[item]; !exists {
-			seen[item] = struct{}{}
-			result = append(result, item)
-		}
-	}
-	for _, item := range extra {
-		if _, exists := seen[item]; !exists {
-			seen[item] = struct{}{}
-			result = append(result, item)
-		}
-	}
+	result := Deduplicate(slices.Concat(base, extra))
 	if sliceutilLog.Enabled() {
 		sliceutilLog.Printf("MergeUnique: base=%d extra=%d result=%d", len(base), len(extra), len(result))
 	}

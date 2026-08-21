@@ -107,6 +107,24 @@ imports:
 
 See [Imports](/gh-aw/reference/imports/) for complete documentation on syntax, shared components, APM package dependencies, and composition patterns.
 
+### Import Schema (`import-schema:`)
+
+Declares typed inputs accepted by a shared workflow when another workflow imports it with `uses:`/`with:` (or `inputs:`). The compiler validates required inputs, rejects unknown inputs, applies defaults, and exposes values through `${{ github.aw.import-inputs.<name> }}` expressions.
+
+```yaml wrap
+import-schema:
+  branch:
+    type: string
+    required: true
+    description: "Branch to analyze"
+  mode:
+    type: choice
+    options: [quick, full]
+    default: quick
+```
+
+Supported scalar types are `string`, `number`, `boolean`, `choice`, and `array`. Object inputs support one level of declared `properties`, referenced as `${{ github.aw.import-inputs.<name>.<property> }}`. See [Imports](/gh-aw/reference/imports/) for import input examples.
+
 ### Custom Steps and Jobs (`pre-steps:`, `steps:`, `pre-agent-steps:`, `post-steps:`, `jobs:`)
 
 Add deterministic steps before or after agentic execution, or define full custom GitHub Actions jobs that run before the agent. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/) for complete documentation.
@@ -387,6 +405,16 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 >
 > Use engine-specific secret configuration instead of the `env:` section to pass secrets securely.
 
+### Excluded Environment Variables (`excluded-env:`)
+
+Lists environment variable names that must be excluded from the AWF agent container even when the compiler cannot infer that they contain sensitive values. Names are deduplicated and merged with automatically excluded variables detected from `secrets.*` and `needs.*.outputs.*` references.
+
+```yaml wrap
+excluded-env:
+  - MY_DISPATCH_TOKEN
+  - GH_TOKEN
+```
+
 ### Turn Limit (`max-turns:`)
 
 Caps the number of chat iterations (model responses and tool calls) the AWF proxy allows for a single workflow run, across all supported engines. Defaults to `500` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime.
@@ -396,6 +424,14 @@ max-turns: 20
 ```
 
 The top-level `max-runs:` field is a **deprecated** alias for `max-turns:` and is only accepted as a fallback for backward compatibility. Migrate existing workflows with `gh aw fix`. See [Cost Management](/gh-aw/reference/cost-management/#cap-turns-per-run) for more details.
+
+### Turn Cache Miss Limit (`max-turn-cache-misses:`)
+
+Sets the maximum consecutive AWF cache misses allowed before the API proxy blocks further requests. The value maps to `apiProxy.maxCacheMisses`, must be a positive integer, and defaults to `5` when neither frontmatter nor the `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` environment override provides a value.
+
+```yaml wrap
+max-turn-cache-misses: 5
+```
 
 ### AI Credits Guardrail (`max-ai-credits:`)
 
@@ -594,11 +630,13 @@ source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 
 ### Redirect (`redirect:`)
 
-Specifies a new canonical location, using the same `owner/repo/path@ref` format as `source:`, when a workflow has been moved or renamed. `gh aw add`, `gh aw add-wizard`, and `gh aw update` follow redirect chains transitively (up to a depth limit) to the resolved location, rewrite the local `source` field accordingly, and report redirect loops as errors. `gh aw compile` emits an informational message when a `redirect` is configured.
+Specifies a new canonical location, using the same `owner/repo/path@ref` format as `source:`, when a workflow has been moved or renamed. `gh aw add`, `gh aw add-wizard`, and `gh aw update` follow redirect chains transitively (up to a depth limit) to the resolved location, rewrite the local `source` field accordingly, and report redirect loops as errors.
 
 ```yaml wrap
 redirect: "githubnext/agentics/workflows/new-workflow-name.md@main"
 ```
+
+`gh aw compile` only treats a file as a redirect-only placeholder when `redirect:` is present and `on:` is absent. In that placeholder case, compilation is skipped successfully and an informational message tells the user to run `gh aw update` to resolve the full workflow. A workflow that contains both `redirect:` and `on:` is compiled as a normal workflow; the redirect metadata remains available to `gh aw add` and `gh aw update`.
 
 Use `gh aw update --no-redirect` to fail the update instead of following the redirect — useful for auditing or controlling exactly when redirects are applied.
 

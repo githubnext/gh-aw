@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -204,7 +205,7 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedModel:         "gpt-4o",
 		},
 		{
-			name: "object format - top-level model overrides engine.model",
+			name: "object format - engine.model overrides top-level model",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
 					"id":    "codex",
@@ -214,7 +215,7 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex"},
-			expectedModel:         "gpt-5",
+			expectedModel:         "gpt-4o",
 		},
 		{
 			// Empty top-level model: "" must NOT override engine.model.
@@ -896,6 +897,61 @@ This is a test workflow.`,
 			}
 		})
 	}
+}
+
+func TestParseWorkflowWithSplitEngineModels(t *testing.T) {
+	workflowPath := filepath.Join(testutil.TempDir(t, "split-engine-model-test"), "workflow.md")
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+strict: false
+engine:
+  id: codex
+model: openai/gpt-4o-mini
+safe-outputs:
+  threat-detection:
+    engine:
+      id: copilot
+      model: gpt-5-mini
+---
+
+# Test Workflow
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	workflowData, err := NewCompiler().ParseWorkflowFile(workflowPath)
+	if err != nil {
+		t.Fatalf("ParseWorkflowFile failed: %v", err)
+	}
+
+	assert.Equal(t, "openai/gpt-4o-mini", workflowData.Model)
+	if assert.NotNil(t, workflowData.SafeOutputs) && assert.NotNil(t, workflowData.SafeOutputs.ThreatDetection) {
+		assert.Equal(t, "gpt-5-mini", workflowData.SafeOutputs.ThreatDetection.Model)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+	lockFile, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	if err != nil {
+		t.Fatalf("ReadFile lock file failed: %v", err)
+	}
+	metadata, legacy, err := ExtractMetadataFromLockFile(string(lockFile))
+	if err != nil {
+		t.Fatalf("ExtractMetadataFromLockFile failed: %v", err)
+	}
+	if metadata == nil {
+		t.Fatal("Expected compiled lock file to contain metadata")
+	}
+	if legacy {
+		t.Fatal("Expected compiled lock file to contain structured metadata")
+	}
+	assert.Equal(t, "openai/gpt-4o-mini", metadata.AgentModel)
+	assert.Equal(t, "gpt-5-mini", metadata.DetectionAgentModel)
 }
 
 func TestEngineConfigurationWithModel(t *testing.T) {

@@ -2,6 +2,14 @@ package cli
 
 import "strings"
 
+var generatedSafeOutputJobIDs = map[string]struct{}{
+	"activation":       {},
+	"conclusion":       {},
+	"push_evals_state": {},
+	"safe_outputs":     {},
+	"unlock":           {},
+}
+
 const (
 	// runnerGuardIgnoreLookBehind catches findings reported on a command immediately after an
 	// inline suppression comment in block-style run scripts.
@@ -36,6 +44,48 @@ func filterRunnerGuardIgnoredFindings(findings []runnerGuardFinding, gitRoot str
 	}
 
 	return filtered
+}
+
+// filterGeneratedSafeOutputPermissionFindings removes RGS-005 findings for compiler-generated
+// jobs whose write permissions are calculated from lifecycle and safe-output configuration.
+// Agent jobs are intentionally not included: their declared permissions must remain read-only.
+func filterGeneratedSafeOutputPermissionFindings(findings []runnerGuardFinding, gitRoot string) []runnerGuardFinding {
+	filtered := make([]runnerGuardFinding, 0, len(findings))
+	fileLinesByPath := make(map[string][]string)
+
+	for _, finding := range findings {
+		if finding.RuleID != "RGS-005" {
+			filtered = append(filtered, finding)
+			continue
+		}
+		if _, ok := generatedSafeOutputJobIDs[finding.JobID]; !ok {
+			filtered = append(filtered, finding)
+			continue
+		}
+
+		resolvedPath := resolveRunnerGuardFilePath(gitRoot, finding.File)
+		lines, ok := fileLinesByPath[resolvedPath]
+		if !ok {
+			lines = readWorkflowLines(resolvedPath)
+			fileLinesByPath[resolvedPath] = lines
+		}
+		if !isGeneratedGhAwWorkflow(lines) {
+			filtered = append(filtered, finding)
+			continue
+		}
+		runnerGuardLog.Printf("Suppressing RGS-005 for compiler-generated safe-output job %s in %s", finding.JobID, finding.File)
+	}
+
+	return filtered
+}
+
+func isGeneratedGhAwWorkflow(lines []string) bool {
+	for _, line := range lines {
+		if strings.Contains(line, "To regenerate this workflow, run:") {
+			return true
+		}
+	}
+	return false
 }
 
 func hasRunnerGuardInlineIgnore(lines []string, lineNum int, ruleID string) bool {

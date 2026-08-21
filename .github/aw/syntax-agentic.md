@@ -21,7 +21,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 - **`on.bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array; e.g. `[dependabot[bot], renovate[bot], github-actions[bot]]`). The bot must be active (installed) on the repository to trigger.
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`; strongly recommended)
   - Prefer `strict: true`; `strict: false` is dangerous, should be extremely rare, and must be carefully security reviewed before use
-- **`model:`** - Top-level LLM model override applied to the agentic engine (string). Takes precedence over `engine.model` when both are set. Accepts full model IDs (e.g. `claude-3-5-sonnet-20241022`, `gpt-5.4`) and aliases (e.g. `small`, `large`). The engine-level `engine.model` is a deprecated alias — prefer this top-level field; run `gh aw fix` to migrate.
+- **`model:`** - Default LLM model for the agentic engine (string). A nested `engine.model` takes precedence for that engine instance. Accepts full model IDs (e.g. `claude-3-5-sonnet-20241022`, `gpt-5.4`) and aliases (e.g. `small`, `large`).
 - **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field.
 - **`max-runs:`** - Deprecated legacy alias for the AWF invocation cap (`apiProxy.maxRuns`, defaults to `500` when omitted). Use `max-turns` instead; run `gh aw fix` to migrate.
 - **`max-ai-credits:`** - Per-run AI Credits (AIC) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `1000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
@@ -315,6 +315,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         model-fallback: false       # Optional: disable model fallback (default true); set false for BYOK Azure OpenAI to prevent deployment-name rewriting
         token-steering: false       # Optional: disable API proxy token steering to preserve the configured provider and model
     ```
+
+  - When `engine.env` sets `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` (custom provider endpoints, e.g. OpenRouter), `model-fallback` is disabled automatically so provider-specific model slugs pass through verbatim; set it explicitly to override.
 
   - To disable the agent firewall while keeping MCP gateway enabled, you must provide the dangerous-disable justification feature:
 
