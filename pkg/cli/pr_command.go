@@ -24,7 +24,12 @@ import (
 
 var prLog = logger.New("cli:pr_command")
 
-// PullRequest represents a GitHub pull request.
+// PullRequest represents a GitHub pull request across transfer and automerge flows.
+// Callers should treat this as a superset model:
+//   - transfer paths populate repository/branch/author fields.
+//   - automerge paths typically populate only number/title/draft/mergeability/timestamps.
+//
+// Fields that are not returned by a given GH API query are intentionally left as zero values.
 type PullRequest struct {
 	Number      int       `json:"number"`
 	Title       string    `json:"title"`

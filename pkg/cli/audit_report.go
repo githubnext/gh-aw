@@ -172,13 +172,41 @@ type MCPToolUsageData struct {
 
 // MCPToolSummary contains aggregated statistics for a single MCP tool
 type MCPToolSummary struct {
-	ServerName string `json:"server_name" console:"header:Server"`
-	ToolUsageStatsBase
-	TotalInputSize  int    `json:"total_input_size" console:"header:Total Input,format:number"`
-	TotalOutputSize int    `json:"total_output_size" console:"header:Total Output,format:number"`
-	MaxInputSize    int    `json:"max_input_size" console:"header:Max Input,format:number"`
-	AvgDuration     string `json:"avg_duration,omitempty" console:"header:Avg Duration,omitempty"`
-	ErrorCount      int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
+	ServerName         string `json:"server_name" console:"header:Server"`
+	ToolUsageStatsBase `json:"-" console:"-"`
+	ToolName           string `json:"tool_name" console:"header:Tool"`
+	CallCount          int    `json:"call_count" console:"header:Calls"`
+	TotalInputSize     int    `json:"total_input_size" console:"header:Total Input,format:number"`
+	TotalOutputSize    int    `json:"total_output_size" console:"header:Total Output,format:number"`
+	MaxInputSize       int    `json:"max_input_size" console:"header:Max Input,format:number"`
+	MaxOutputSize      int    `json:"max_output_size" console:"header:Max Output,format:number"`
+	AvgDuration        string `json:"avg_duration,omitempty" console:"header:Avg Duration,omitempty"`
+	MaxDuration        string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+	ErrorCount         int    `json:"error_count,omitempty" console:"header:Errors,omitempty"`
+}
+
+func (s *MCPToolSummary) syncFieldsFromBase() {
+	if s.ToolName == "" {
+		s.ToolName = s.ToolUsageStatsBase.ToolName
+	}
+	if s.CallCount == 0 {
+		s.CallCount = s.ToolUsageStatsBase.CallCount
+	}
+	if s.MaxOutputSize == 0 {
+		s.MaxOutputSize = s.ToolUsageStatsBase.MaxOutputSize
+	}
+	if s.MaxDuration == "" {
+		s.MaxDuration = s.ToolUsageStatsBase.MaxDuration
+	}
+}
+
+func (s *MCPToolSummary) syncBaseFromFields() {
+	s.ToolUsageStatsBase = ToolUsageStatsBase{
+		ToolName:      s.ToolName,
+		CallCount:     s.CallCount,
+		MaxOutputSize: s.MaxOutputSize,
+		MaxDuration:   s.MaxDuration,
+	}
 }
 
 // MCPToolCall represents a single MCP tool call with full details

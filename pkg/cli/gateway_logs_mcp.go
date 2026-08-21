@@ -196,11 +196,9 @@ func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageD
 		// Tool-level stats
 		for toolName, toolMetrics := range serverMetrics.Tools {
 			summary := MCPToolSummary{
-				ServerName: serverName,
-				ToolUsageStatsBase: ToolUsageStatsBase{
-					ToolName:  toolName,
-					CallCount: toolMetrics.CallCount,
-				},
+				ServerName:      serverName,
+				ToolName:        toolName,
+				CallCount:       toolMetrics.CallCount,
 				TotalInputSize:  toolMetrics.TotalInputSize,
 				TotalOutputSize: toolMetrics.TotalOutputSize,
 				MaxInputSize:    0, // Will be calculated below
@@ -224,6 +222,12 @@ func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageD
 						summary.MaxOutputSize = tc.OutputSize
 					}
 				}
+			}
+			summary.ToolUsageStatsBase = ToolUsageStatsBase{
+				ToolName:      summary.ToolName,
+				CallCount:     summary.CallCount,
+				MaxOutputSize: summary.MaxOutputSize,
+				MaxDuration:   summary.MaxDuration,
 			}
 
 			mcpData.Summary = append(mcpData.Summary, summary)

@@ -62,7 +62,14 @@ func TestToolUsageSummaryJSONSchemas(t *testing.T) {
 		t.Fatalf("unexpected generic tool summary round trip: %+v", decodedGeneric)
 	}
 
-	mcpData, err := json.Marshal(MCPToolSummary{ServerName: "github", ToolUsageStatsBase: stats})
+	mcpData, err := json.Marshal(MCPToolSummary{
+		ServerName:         "github",
+		ToolName:           stats.ToolName,
+		CallCount:          stats.CallCount,
+		MaxOutputSize:      stats.MaxOutputSize,
+		MaxDuration:        stats.MaxDuration,
+		ToolUsageStatsBase: stats,
+	})
 	if err != nil {
 		t.Fatalf("failed to marshal MCP tool summary: %v", err)
 	}
@@ -72,6 +79,42 @@ func TestToolUsageSummaryJSONSchemas(t *testing.T) {
 	}
 	if mcp["server_name"] != "github" || mcp["tool_name"] != stats.ToolName || mcp["call_count"] != float64(stats.CallCount) {
 		t.Fatalf("unexpected MCP tool summary JSON: %s", mcpData)
+	}
+}
+
+func TestToolUsageSummaryUnmarshalJSONCompatibility(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{
+			name: "legacy generic schema",
+			raw:  `{"name":"github.issue_read","total_calls":3,"runs":2,"max_output_size":1024,"max_duration":"2s"}`,
+		},
+		{
+			name: "mcp style schema",
+			raw:  `{"tool_name":"github.issue_read","call_count":3,"runs":2,"max_output_size":1024,"max_duration":"2s"}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var summary ToolUsageSummary
+			if err := json.Unmarshal([]byte(tc.raw), &summary); err != nil {
+				t.Fatalf("failed to unmarshal %s schema: %v", tc.name, err)
+			}
+			if summary.Name != "github.issue_read" || summary.TotalCalls != 3 {
+				t.Fatalf("unexpected compatibility fields: %+v", summary)
+			}
+			base := summary.ToolUsageStatsBase
+			if base.ToolName != summary.Name || base.CallCount != summary.TotalCalls {
+				t.Fatalf("base fields drifted from compatibility fields: %+v", summary)
+			}
+		})
 	}
 }
 
@@ -106,22 +149,18 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		},
 		ToolUsage: []ToolUsageSummary{
 			{
-				ToolUsageStatsBase: ToolUsageStatsBase{
-					ToolName:      "github-mcp-server",
-					CallCount:     1500,
-					MaxOutputSize: 2500000,
-					MaxDuration:   "1m30s",
-				},
-				Runs: 5,
+				Name:          "github-mcp-server",
+				TotalCalls:    1500,
+				MaxOutputSize: 2500000,
+				MaxDuration:   "1m30s",
+				Runs:          5,
 			},
 			{
-				ToolUsageStatsBase: ToolUsageStatsBase{
-					ToolName:      "playwright",
-					CallCount:     500,
-					MaxOutputSize: 512000,
-					MaxDuration:   "45s",
-				},
-				Runs: 3,
+				Name:          "playwright",
+				TotalCalls:    500,
+				MaxOutputSize: 512000,
+				MaxDuration:   "45s",
+				Runs:          3,
 			},
 		},
 		MissingTools: []MissingToolSummary{
