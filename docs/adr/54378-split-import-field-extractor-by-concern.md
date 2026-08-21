@@ -1,7 +1,7 @@
 # ADR-54378: Split import_field_extractor.go into Concern-Focused Files
 
 **Date**: 2026-08-21
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, app/copilot-swe-agent
 
 ---
@@ -47,4 +47,4 @@ Create `pkg/parser/extractor/engine`, `pkg/parser/extractor/activation`, etc. Th
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Implemented in PR #54378.*

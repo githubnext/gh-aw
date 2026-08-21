@@ -141,26 +141,6 @@ func sanitizeModelProvidersForCosts(providers any, importPath string, warnings *
 	return sanitizedProviders, true
 }
 
-func parseStringSliceField(value any, keepEmpty bool) []string {
-	values, ok := value.([]any)
-	if !ok {
-		return nil
-	}
-	result := make([]string, 0, len(values))
-	for _, v := range values {
-		if s, ok := v.(string); ok {
-			if s == "" && !keepEmpty {
-				continue
-			}
-			result = append(result, s)
-		}
-	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
-}
-
 func isModelPolicyKey(key string) bool {
 	return key == modelPolicyAllowedKey || key == modelPolicyBlockedKey
 }

@@ -242,13 +242,13 @@ func (acc *importAccumulator) extractToolsContent(rawContent string, item import
 	if wasSubstituted {
 		toolsContent, err := extractToolsFromContent(rawContent)
 		if err != nil {
-			return "", fmt.Errorf("failed to extract tools from '%s': %w", item.fullPath, err)
+			return "", fmt.Errorf("could not extract tools from import %q; ensure the imported content has a valid tools block: %w", item.fullPath, err)
 		}
 		return toolsContent, nil
 	}
 	toolsContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
 	if err != nil {
-		return "", fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
+		return "", fmt.Errorf("could not process import %q for tools extraction; ensure the imported workflow path and section are valid: %w", item.fullPath, err)
 	}
 	return toolsContent, nil
 }
@@ -266,7 +266,7 @@ func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath
 	parserLog.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
 	markdownContent, err := ExtractMarkdownContent(rawContent)
 	if err != nil {
-		return fmt.Errorf("failed to extract markdown from imported file '%s': %w", fullPath, err)
+		return fmt.Errorf("could not extract markdown from import %q; ensure the file contains valid markdown after frontmatter: %w", fullPath, err)
 	}
 	appendMarkdownWithSeparator(&acc.markdownBuilder, markdownContent)
 	acc.promptImports = append(acc.promptImports, PromptImportEntry{Markdown: markdownContent})

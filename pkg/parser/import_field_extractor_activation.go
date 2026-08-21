@@ -47,29 +47,6 @@ func (acc *importAccumulator) mergeAmbientFolders(fm map[string]any) {
 	})
 }
 
-func mergeJSONStringListField(
-	fm map[string]any,
-	field, emptyValue string,
-	seen map[string]bool,
-	merged *[]string,
-	extractor func(map[string]any, string) (string, error),
-) {
-	content, err := extractor(fm, field)
-	if err != nil || content == "" || content == emptyValue {
-		return
-	}
-	var imported []string
-	if jsonErr := json.Unmarshal([]byte(content), &imported); jsonErr != nil {
-		return
-	}
-	for _, value := range imported {
-		if !seen[value] {
-			seen[value] = true
-			*merged = append(*merged, value)
-		}
-	}
-}
-
 func (acc *importAccumulator) extractActivationSkipMatchFields(fm map[string]any, fullPath string) {
 	if acc.skipIfMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
