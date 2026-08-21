@@ -608,6 +608,15 @@ func TestComputePropertyInjectionsNilCloseIssues(t *testing.T) {
 	assert.Empty(t, injections)
 }
 
+// TestComputePropertyInjectionsNilSubmitPRReview verifies that nil submit-pull-request-review
+// does not add submit_pull_request_review property injections.
+func TestComputePropertyInjectionsNilSubmitPRReview(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		SubmitPullRequestReview: nil,
+	})
+	assert.NotContains(t, injections, "submit_pull_request_review")
+}
+
 // TestComputePropertyInjectionsAllowedEventsSubmitPRReview verifies that a configured
 // allowed-events list narrows the submit_pull_request_review event enum in the tool schema.
 func TestComputePropertyInjectionsAllowedEventsSubmitPRReview(t *testing.T) {
