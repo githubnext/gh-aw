@@ -26,3 +26,5 @@
 {"id":"analysis_produced","question":"Was an analysis produced comparing agent responses across different automation tasks?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-19T15:46:36.534Z","runid":"32271275799"}
 {"id":"personas_generated","question":"Did the agent generate software personas for exploring custom agent behavior?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-20T15:47:30.027Z","runid":"32387400439"}
 {"id":"analysis_produced","question":"Was an analysis produced comparing agent responses across different automation tasks?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-20T15:47:30.027Z","runid":"32387400439"}
+{"id":"personas_generated","question":"Did the agent generate software personas for exploring custom agent behavior?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-21T15:47:29.280Z","runid":"32498727831"}
+{"id":"analysis_produced","question":"Was an analysis produced comparing agent responses across different automation tasks?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-21T15:47:29.280Z","runid":"32498727831"}
