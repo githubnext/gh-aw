@@ -14,18 +14,17 @@ var discussionLog = logger.New("workflow:create_discussion")
 type CreateDiscussionsConfig struct {
 	BaseSafeOutputConfig          `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig `yaml:",inline"`
-	TitlePrefix                   string   `yaml:"title-prefix,omitempty"`
-	Category                      string   `yaml:"category,omitempty"`                // Discussion category ID or name
-	MinBodyLength                 int      `yaml:"min-body-length,omitempty"`         // Minimum required discussion body length before footer/markers
-	Labels                        []string `yaml:"labels,omitempty"`                  // Labels to attach to discussions and match when closing older ones
-	TargetRepoSlug                string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
-	AllowedRepos                  []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
-	CloseOlderDiscussions         *string  `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
-	CloseOlderKey                 string   `yaml:"close-older-key,omitempty"`         // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
-	RequiredCategory              string   `yaml:"required-category,omitempty"`       // Required category for matching when close-older-discussions is enabled
-	Expires                       int      `yaml:"expires,omitempty"`                 // Hours until the discussion expires and should be automatically closed
-	FallbackToIssue               *bool    `yaml:"fallback-to-issue,omitempty"`       // When true (default), fallback to create-issue if discussion creation fails due to permissions.
-	Footer                        *string  `yaml:"footer,omitempty"`                  // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	TitlePrefix                   string           `yaml:"title-prefix,omitempty"`
+	Category                      string           `yaml:"category,omitempty"`        // Discussion category ID or name
+	MinBodyLength                 int              `yaml:"min-body-length,omitempty"` // Minimum required discussion body length before footer/markers
+	Labels                        []string         `yaml:"labels,omitempty"`          // Labels to attach to discussions and match when closing older ones
+	TargetRepoSlug                string           `yaml:"target-repo,omitempty"`     // Target repository in format "owner/repo" for cross-repository discussions
+	AllowedRepos                  []string         `yaml:"allowed-repos,omitempty"`   // List of additional repositories that discussions can be created in
+	CloseOlderConfig              `yaml:",inline"` // Shared close-older settings; Enabled is sourced from close-older-discussions.
+	RequiredCategory              string           `yaml:"required-category,omitempty"` // Required category for matching when close-older-discussions is enabled
+	Expires                       int              `yaml:"expires,omitempty"`           // Hours until the discussion expires and should be automatically closed
+	FallbackToIssue               *bool            `yaml:"fallback-to-issue,omitempty"` // When true (default), fallback to create-issue if discussion creation fails due to permissions.
+	Footer                        *string          `yaml:"footer,omitempty"`            // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseCreateDiscussionsConfig handles create-discussion configuration
@@ -34,7 +33,7 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 		outputMap,
 		"create-discussion",
 		CreateParseOptions{
-			BoolFields:    []string{"close-older-discussions", "footer"},
+			BoolFields:    []string{"close-older-discussions", "close-older-enabled", "footer"},
 			IntFields:     []string{"max"},
 			HandleExpires: true,
 		},
@@ -44,7 +43,10 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 			// For backward compatibility, handle nil/empty config
 			return &CreateDiscussionsConfig{}
 		},
-		nil,
+		func(configData map[string]any) bool {
+			setCloseOlderEnabledAlias(configData, "close-older-discussions")
+			return true
+		},
 		func(_ map[string]any, config *CreateDiscussionsConfig, expiresDisabled bool) {
 			// Set default max if not specified
 			if config.Max == nil {
@@ -94,7 +96,7 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 	if len(config.AllowedRepos) > 0 {
 		discussionLog.Printf("Allowed repos configured: %v", config.AllowedRepos)
 	}
-	if config.CloseOlderDiscussions != nil {
+	if config.CloseOlderConfig.Enabled != nil {
 		discussionLog.Print("Close older discussions flag set")
 		if config.RequiredCategory != "" {
 			discussionLog.Printf("Required category for close older discussions: %q", config.RequiredCategory)

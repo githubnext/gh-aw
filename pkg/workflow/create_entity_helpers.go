@@ -13,6 +13,21 @@ type CreateParseOptions struct {
 	HandleExpires bool
 }
 
+// CloseOlderConfig holds shared close-older settings across create entity handlers.
+type CloseOlderConfig struct {
+	Enabled *string `yaml:"close-older-enabled,omitempty"` // Internal canonical key; populated from entity-specific close-older-* keys before unmarshaling.
+	Key     string  `yaml:"close-older-key,omitempty"`     // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
+}
+
+func setCloseOlderEnabledAlias(configData map[string]any, sourceKey string) {
+	if configData == nil {
+		return
+	}
+	if value, exists := configData[sourceKey]; exists {
+		configData["close-older-enabled"] = value
+	}
+}
+
 // parseCreateEntityConfig parses create-* config scaffolding shared by issue/discussion/PR handlers.
 //
 // Parameters:
