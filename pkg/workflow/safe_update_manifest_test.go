@@ -328,6 +328,8 @@ func TestCollectMCPServersForManifestGitHubGHProxy(t *testing.T) {
 }
 
 func TestStringsFromAnySlice(t *testing.T) {
+	assert.Equal(t, []string{"first", "second"}, stringsFromAnySlice([]any{"first", "second"}))
+	assert.Equal(t, []string{"first", "second"}, stringsFromAnySlice([]string{"first", "second"}))
 	assert.Equal(t, []string{"tool"}, stringsFromAnySlice("tool"))
 	assert.Equal(t, []string{"*"}, stringsFromAnySlice(""))
 	assert.Equal(t, []string{"*"}, stringsFromAnySlice(42))
