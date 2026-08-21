@@ -338,6 +338,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"reasoning_depth":{"variants":["shallow","baseline","deep"],"description":"Tests whether lighter or more reflective planning instructions produce better agent-ready sub-issues for /plan requests.","hypothesis":"H0: no change in plan quality score or success rate. H1: deep improves quality score by \u003e=8%, or shallow reduces run cost/latency by \u003e=15% with no material quality loss.","metric":"plan_quality_score","secondary_metrics":["run_duration_ms","issue_creation_count","output_token_estimate"],"guardrail_metrics":[{"name":"workflow_success_rate","direction":"min","threshold":"0.95"},{"name":"empty_plan_rate","direction":"min","threshold":"0.02"}],"min_samples":137,"weight":[34,33,33],"issue":42941,"start_date":"2026-07-02"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:906d9338aae894d75b1f54d851212f019477923694adf8f9a7050450bae00b0c
         with:
           script: |
             const path = require('path');

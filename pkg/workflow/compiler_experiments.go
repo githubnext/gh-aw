@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -221,9 +222,56 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 				}
 			}
 		}
+		if continualRaw, ok := v["continual"].(map[string]any); ok {
+			cfg.Continual = extractContinualExperimentConfig(continualRaw)
+		}
 		return cfg
 	}
 	return nil
+}
+
+func extractContinualExperimentConfig(raw map[string]any) *ContinualExperimentConfig {
+	seed, _ := raw["seed"].(string)
+	objectiveRaw, ok := raw["objective"].(map[string]any)
+	if seed == "" || !ok {
+		return nil
+	}
+	metric, _ := objectiveRaw["metric"].(string)
+	if metric == "" {
+		return nil
+	}
+	cfg := &ContinualExperimentConfig{Seed: seed}
+	cfg.Objective.Metric = metric
+	cfg.Objective.Direction, _ = objectiveRaw["direction"].(string)
+	cfg.Objective.MinimumImprovement, _ = extractFloatField(objectiveRaw["minimum_improvement"])
+	if decisionRaw, ok := raw["decision"].(map[string]any); ok {
+		cfg.Decision.MinimumObservations, _ = extractIntField(decisionRaw["minimum_observations"])
+		cfg.Decision.Confidence, _ = extractFloatField(decisionRaw["confidence"])
+		cfg.Decision.RegressionTolerance, _ = extractFloatField(decisionRaw["regression_tolerance"])
+		cfg.Decision.AllowCostPromotion, _ = decisionRaw["allow_cost_promotion"].(bool)
+	}
+	if segmentsRaw, ok := raw["segments"].(map[string]any); ok {
+		cfg.Segments.Critical = parseStringSliceAny(segmentsRaw["critical"], nil)
+		cfg.Segments.Diagnostic = parseStringSliceAny(segmentsRaw["diagnostic"], nil)
+	}
+	cfg.Ramp = extractIntSlice(raw["ramp"])
+	cfg.CurrentStage, _ = extractIntField(raw["current_stage"])
+	return cfg
+}
+
+func extractFloatField(val any) (float64, bool) {
+	switch n := val.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	default:
+		return 0, false
+	}
 }
 
 // extractIntField converts a numeric any value to int.
@@ -276,7 +324,15 @@ func extractGuardrailMetrics(raw any) []GuardrailMetric {
 		if name == "" || threshold == "" {
 			continue
 		}
-		result = append(result, GuardrailMetric{Name: name, Direction: direction, Threshold: threshold})
+		maxRegression, _ := extractFloatField(m["max_regression"])
+		segment, _ := m["segment"].(string)
+		result = append(result, GuardrailMetric{
+			Name:          name,
+			Direction:     direction,
+			Threshold:     threshold,
+			MaxRegression: maxRegression,
+			Segment:       segment,
+		})
 	}
 	return result
 }
@@ -367,12 +423,22 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 		if cfg == nil {
 			continue
 		}
-		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(cfg.Metric)
+		metric := cfg.Metric
+		if cfg.Continual != nil {
+			if len(cfg.Variants) != 2 {
+				return fmt.Errorf("experiments.%s.continual: exactly two variants are required (control, candidate)", experimentName)
+			}
+			if err := validateContinualRamp(experimentName, cfg.Continual); err != nil {
+				return err
+			}
+			metric = cfg.Continual.Objective.Metric
+		}
+		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(metric)
 		if !referencesEval {
 			continue
 		}
 		if referencedEvalID == "" {
-			return fmt.Errorf("experiments.%s.metric: eval reference must include a non-empty eval id", experimentName)
+			return fmt.Errorf("experiments.%s: eval reference must include a non-empty eval id", experimentName)
 		}
 		if _, ok := evalIDs[referencedEvalID]; !ok {
 			if len(evalIDs) == 0 {
@@ -382,6 +448,20 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 		}
 	}
 
+	return nil
+}
+
+func validateContinualRamp(name string, cfg *ContinualExperimentConfig) error {
+	previous := 0
+	for _, percentage := range cfg.Ramp {
+		if percentage <= previous || percentage > 100 {
+			return fmt.Errorf("experiments.%s.continual.ramp: percentages must be strictly increasing and at most 100", name)
+		}
+		previous = percentage
+	}
+	if len(cfg.Ramp) > 0 && cfg.CurrentStage >= len(cfg.Ramp) {
+		return fmt.Errorf("experiments.%s.continual.current_stage: must index a configured ramp stage", name)
+	}
 	return nil
 }
 
@@ -486,6 +566,7 @@ func (c *Compiler) generateExperimentRepoSteps(data *WorkflowData, experimentNam
 // generatePickExperimentStep generates the "Pick experiment variants" step shared by both storage modes.
 func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentNames []string) []string {
 	specJSON := buildExperimentSpecJSON(data.Experiments, data.ExperimentConfigs, experimentNames)
+	harnessVersion := experimentHarnessVersion(data)
 	return []string{
 		"      - name: Pick experiment variants\n",
 		"        id: pick-experiment\n",
@@ -494,6 +575,7 @@ func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentName
 		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", strings.ReplaceAll(specJSON, "'", "''")),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
+		fmt.Sprintf("          GH_AW_HARNESS_VERSION: %s\n", harnessVersion),
 		"        with:\n",
 		"          script: |\n",
 		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
@@ -501,6 +583,18 @@ func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentName
 		"            const { main } = require('" + SetupActionDestination + "/pick_experiment.cjs');\n",
 		"            await main();\n",
 	}
+}
+
+func experimentHarnessVersion(data *WorkflowData) string {
+	manifest := strings.Join([]string{
+		data.FrontmatterHash,
+		data.MarkdownContent,
+		data.AI,
+		data.Model,
+		data.CompiledVersion,
+	}, "\x00")
+	sum := sha256.Sum256([]byte(manifest))
+	return fmt.Sprintf("sha256:%x", sum)
 }
 
 // generateExperimentArtifactUploadStep generates the artifact upload step shared by both storage modes.

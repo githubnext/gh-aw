@@ -286,6 +286,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prompt_style":{"variants":["concise","detailed","step_by_step"],"description":"Tests whether the current exhaustive multi-phase prompt can be trimmed without losing categorization accuracy or issue quality.","hypothesis":"H0: no change in issue categorization accuracy across prompt styles. H1: concise style reduces token cost by ≥15% with \u003c5% drop in accuracy.","metric":"issue_categorization_accuracy","secondary_metrics":["effective_token_count","run_duration_ms","issues_created_count"],"guardrail_metrics":[{"name":"empty_output_rate","threshold":"\u003c=0.05"},{"name":"run_success_rate","threshold":"\u003e=0.85"}],"min_samples":30,"weight":[34,33,33],"start_date":"2026-05-27","analysis_type":"mann_whitney","tags":["prompt-engineering","cost-optimization","dependabot"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:f1f1aba676f3a2d96024b6783c79b1cdecd4f1053d2278c4b6b5f5146ec2f841
         with:
           script: |
             const path = require('path');

@@ -303,6 +303,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"model_size":{"variants":["claude-sonnet-4.6","claude-haiku-4.5"],"description":"Tests whether Claude Haiku detects and corrects documentation gaps with equivalent quality at lower token cost versus Claude Sonnet.","hypothesis":"H0: no change in issue/PR creation rate or run success rate. H1: Claude Haiku reduces AI credit usage \u003e=30% with equivalent run success rate (\u003e=0.90).","metric":"ai_credits_total","secondary_metrics":["run_success_rate","run_duration_ms"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.90"},{"name":"empty_output_rate","threshold":"\u003c=0.10"}],"min_samples":20,"weight":[50,50],"start_date":"2026-06-04"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:7dfc3ea85d0122003175501a0897291177e760d05dc8a835e1cf7215de6a2db3
         with:
           script: |
             const path = require('path');

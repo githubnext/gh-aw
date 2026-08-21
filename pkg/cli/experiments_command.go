@@ -206,11 +206,13 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	}
 
 	var metricEvalResults map[string]MetricEvalResults
+	var evalRecords []evalResultRecord
 	if config.RepoOverride != "" {
-		metricEvalResults = loadRemoteMetricEvalResults(config.RepoOverride, details.WorkflowID)
+		evalRecords = loadRemoteEvalRecords(config.RepoOverride, details.WorkflowID)
 	} else {
-		metricEvalResults = loadLocalMetricEvalResults(details.WorkflowID)
+		evalRecords = loadLocalEvalRecords(details.WorkflowID)
 	}
+	metricEvalResults = summarizeMetricEvalRecords(evalRecords)
 
 	// Compute statistical analyses for each named experiment.
 	details.Analyses = computeExperimentAnalyses(
@@ -219,6 +221,15 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 		frontmatterResult.Evals,
 		metricEvalResults,
 	)
+	for i := range details.Analyses {
+		name := details.Analyses[i].ExperimentName
+		cfg := frontmatterResult.ExperimentConfigs[name]
+		if cfg == nil || cfg.Continual == nil {
+			continue
+		}
+		ledger := buildExperimentOutcomeLedger(name, cfg.Continual.Objective.Metric, details.allRuns, evalRecords)
+		details.Analyses[i].Continual = evaluateContinualExperiment(name, cfg, ledger)
+	}
 
 	if config.JSONOutput {
 		jsonBytes, err := marshalIndentJSONOrWrap(details, "experiment details")

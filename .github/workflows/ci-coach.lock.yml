@@ -284,6 +284,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prompt_style":{"variants":["detailed","concise"],"description":"Tests whether a condensed goal-oriented prompt produces equivalent or better CI optimization proposals compared to the current verbose phase-structured prompt","hypothesis":"H0: no change in PR merge rate or proposal quality. H1: concise prompt reduces token usage ≥25% without degrading proposal quality","metric":"token_count_per_run","secondary_metrics":["pr_created_rate","run_duration_ms","output_word_count"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.85"},{"name":"empty_output_rate","threshold":"\u003c=0.05"}],"min_samples":20,"weight":[50,50],"issue":32335,"start_date":"2026-05-15","analysis_type":"mann_whitney"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:2617ce27f3f1039226927139fda5fed719197cd8ff1d93a293cf8272d757ca24
         with:
           script: |
             const path = require('path');

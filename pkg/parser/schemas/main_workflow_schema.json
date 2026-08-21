@@ -3126,6 +3126,17 @@
                         }
                       ],
                       "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05') or a numeric value when paired with direction. If any guardrail fails for any variant the experiment is automatically abandoned."
+                    },
+                    "max_regression": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "Largest tolerated candidate-minus-control regression for a continual experiment."
+                    },
+                    "segment": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*=[^=]{1,64}$",
+                      "description": "Optional bounded pre-treatment segment selector in feature=value form."
                     }
                   },
                   "additionalProperties": false
@@ -3166,6 +3177,109 @@
                   }
                 },
                 "additionalProperties": false
+              },
+              "continual": {
+                "type": "object",
+                "required": ["seed", "objective"],
+                "properties": {
+                  "seed": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable non-secret seed for deterministic assignment."
+                  },
+                  "objective": {
+                    "type": "object",
+                    "required": ["metric"],
+                    "properties": {
+                      "metric": {
+                        "type": "string",
+                        "description": "Primary binary quality metric, normally eval:<id> or evals.<id>."
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": ["maximize"],
+                        "default": "maximize"
+                      },
+                      "minimum_improvement": {
+                        "type": "number",
+                        "minimum": -1,
+                        "maximum": 1,
+                        "default": 0
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "decision": {
+                    "type": "object",
+                    "properties": {
+                      "minimum_observations": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 20
+                      },
+                      "confidence": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.5,
+                        "exclusiveMaximum": 1,
+                        "default": 0.95
+                      },
+                      "regression_tolerance": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "default": 0
+                      },
+                      "allow_cost_promotion": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "segments": {
+                    "type": "object",
+                    "properties": {
+                      "critical": {
+                        "type": "array",
+                        "maxItems": 4,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "enum": ["event", "trigger_mode", "task_type", "complexity", "language", "tool_profile"]
+                        }
+                      },
+                      "diagnostic": {
+                        "type": "array",
+                        "maxItems": 4,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "enum": ["event", "trigger_mode", "task_type", "complexity", "language", "tool_profile"]
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "ramp": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    "description": "Explicit candidate percentages. Stages never advance automatically."
+                  },
+                  "current_stage": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Opt-in guarded online control/candidate experiment. The first variant is control and the second is candidate."
               }
             },
             "additionalProperties": false,

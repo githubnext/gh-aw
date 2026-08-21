@@ -26,7 +26,7 @@ type evalResultRecord struct {
 	Timestamp string `json:"timestamp"`
 }
 
-func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults {
+func loadLocalEvalRecords(workflowID string) []evalResultRecord {
 	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 	ref := "origin/" + branchName
 	if !gitRefExists(ref) {
@@ -49,21 +49,25 @@ func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults 
 	if err != nil {
 		return nil
 	}
-	return summarizeMetricEvalResults(out)
+	return parseEvalResultRecords(out)
 }
 
-func loadRemoteMetricEvalResults(repoOverride, workflowID string) map[string]MetricEvalResults {
+func loadRemoteEvalRecords(repoOverride, workflowID string) []evalResultRecord {
 	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, constants.EvalsResultFilename, "")
 	if err != nil {
 		return nil
 	}
-	return summarizeMetricEvalResults(decoded)
+	return parseEvalResultRecords(decoded)
 }
 
 func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
+	return summarizeMetricEvalRecords(parseEvalResultRecords(data))
+}
+
+func parseEvalResultRecords(data []byte) []evalResultRecord {
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	results := map[string]MetricEvalResults{}
+	var records []evalResultRecord
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -76,6 +80,14 @@ func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
 		if record.ID == "" {
 			continue
 		}
+		records = append(records, record)
+	}
+	return records
+}
+
+func summarizeMetricEvalRecords(records []evalResultRecord) map[string]MetricEvalResults {
+	results := map[string]MetricEvalResults{}
+	for _, record := range records {
 		summary := results[record.ID]
 		summary.Total++
 		switch strings.ToUpper(strings.TrimSpace(record.Answer)) {

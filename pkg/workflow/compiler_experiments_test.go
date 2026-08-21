@@ -39,6 +39,7 @@ func TestBuildExperimentSpecJSONWithConfigs(t *testing.T) {
 	experiments := map[string][]string{
 		"style": {"concise", "detailed"},
 	}
+
 	configs := map[string]*ExperimentConfig{
 		"style": {
 			Variants:    []string{"concise", "detailed"},
@@ -56,6 +57,29 @@ func TestBuildExperimentSpecJSONWithConfigs(t *testing.T) {
 	assert.Contains(t, got, `"start_date"`, "should include start_date key")
 	assert.Contains(t, got, `"end_date"`, "should include end_date key")
 	assert.Contains(t, got, "concise", "should include variant value")
+}
+
+func TestBuildExperimentSpecJSONWithContinualConfig(t *testing.T) {
+	experiments := map[string][]string{"optimization": {"control", "candidate"}}
+	configs := map[string]*ExperimentConfig{
+		"optimization": {
+			Variants: experiments["optimization"],
+			Continual: &ContinualExperimentConfig{
+				Seed:      "stable-seed",
+				Objective: ContinualObjectiveConfig{Metric: "eval:quality", MinimumImprovement: 0.02},
+				Decision:  ContinualDecisionConfig{MinimumObservations: 20, Confidence: 0.95},
+				Ramp:      []int{10, 25, 50},
+			},
+		},
+	}
+	got := buildExperimentSpecJSON(experiments, configs, []string{"optimization"})
+	assert.JSONEq(t, `{"optimization":{"variants":["control","candidate"],"continual":{"seed":"stable-seed","objective":{"metric":"eval:quality","minimum_improvement":0.02},"decision":{"minimum_observations":20,"confidence":0.95},"ramp":[10,25,50]}}}`, got)
+}
+
+func TestValidateContinualRamp(t *testing.T) {
+	require.NoError(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{5, 20, 50}}))
+	require.Error(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{20, 10}}))
+	require.Error(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{10}, CurrentStage: 1}))
 }
 
 func TestBuildExperimentSpecJSONEscaping(t *testing.T) {
@@ -138,6 +162,7 @@ func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
 	steps := c.generateExperimentSteps(data)
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, `{"style":["concise","detailed"]}`, "spec JSON should be embedded in the step")
+	assert.Contains(t, joined, "GH_AW_HARNESS_VERSION", "assignment should include a behaviorally relevant harness fingerprint")
 }
 
 func TestGenerateExperimentSteps_SingleQuoteEscaping(t *testing.T) {

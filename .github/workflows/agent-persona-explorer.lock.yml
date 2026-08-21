@@ -291,6 +291,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"sub_agent_strategy":{"variants":["per_scenario","batch"],"description":"Test whether batch scenario testing reduces token costs vs. per-scenario sub-agent calls","hypothesis":"H0: no change in effective_tokens or duration. H1: batch reduces tokens by ≥20% and duration by ≥15% without quality loss","metric":"effective_tokens","secondary_metrics":["run_duration_minutes","scenarios_tested","output_quality_score"],"guardrail_metrics":[{"name":"issue_created","threshold":"==1"},{"name":"scenarios_analyzed","threshold":"\u003e=3"}],"min_samples":14,"weight":[50,50],"start_date":"2026-05-22","analysis_type":"t_test","tags":["cost_optimization","token_efficiency","sub_agents"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:2f79dc641d45a467a052e67ecafc0803a1b5d6737a723c0c17fd9634e8ad6087
         with:
           script: |
             const path = require('path');

@@ -299,6 +299,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prompt_style":{"variants":["concise","verbose"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:fddc5fd11c23e6062ff37d40f74c229c2e0b04af651a81ac8279cba77e0cfae9
         with:
           script: |
             const path = require('path');

@@ -294,6 +294,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"tone_style":{"variants":["formal","conversational"],"description":"Test whether conversational tone improves discussion engagement","hypothesis":"H0: no change in engagement. H1: conversational tone increases discussion views+reactions+comments by 20%+ while maintaining analysis quality","metric":"discussion_engagement_score","secondary_metrics":["discussion_views","discussion_reactions","discussion_comments","output_length_tokens"],"guardrail_metrics":[{"name":"analysis_completeness","threshold":"\u003e=0.9"},{"name":"technical_accuracy","threshold":"\u003e=0.95"}],"min_samples":10,"weight":[50,50],"issue":34032,"start_date":"2026-05-23","analysis_type":"mann_whitney","tags":["ux","engagement","prompt_engineering"],"notify":{"issue":34032}}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:32a929171295be16a930240208c10bcf7b7609cf1ed13e7c886f190879543515
         with:
           script: |
             const path = require('path');

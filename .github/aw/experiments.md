@@ -289,6 +289,65 @@ experiments:
 5. **Analyse** — once min sample size reached, compare distributions; for eval-backed metrics, use `gh aw experiments analyze <workflow>` to inspect the resolved question and current eval outcomes.
 6. **Conclude** — rewrite baseline to winning variant, remove `experiments:`, recompile.
 
+## Guarded Continual Experiments
+
+Use `continual:` for an opt-in control/candidate experiment on future executions that
+would occur naturally. The first variant is the incumbent control and the second is
+the candidate. Existing experiments without this block keep their current behavior.
+
+```yaml
+experiments:
+  optimize_tool_use:
+    variants: [control, candidate]
+    continual:
+      seed: tool-use-v1
+      objective:
+        metric: eval:quality
+        direction: maximize
+        minimum_improvement: 0.02
+      decision:
+        minimum_observations: 20
+        confidence: 0.95
+        regression_tolerance: 0.02
+        allow_cost_promotion: true
+      segments:
+        critical: [event, trigger_mode]
+      ramp: [10, 25, 50]
+      current_stage: 0
+```
+
+Assignment uses a SHA-256 hash of the explicit seed, experiment, repository,
+workflow, and run ID. It occurs in activation before agent execution. This makes a
+run auditable and reproducible without using model output or another post-treatment
+signal. Run ID is the assignment unit; repeated jobs in one run receive the same
+treatment, while separate naturally occurring runs are separate observations.
+
+The existing bounded experiment ledger records schema version, assignment
+probability and unit, harness fingerprint, and bounded pre-treatment features.
+`gh aw experiments analyze` joins those records to existing eval evidence by run ID
+and emits compact outcome records rather than copying full trajectories. `UNKNOWN`
+or missing evals do not count as success or failure.
+
+The analyzer uses Beta(1,1) posteriors for binary quality and a normal approximation
+to the posterior difference. It returns `PROMOTE`, `CONTINUE`, `REJECT`, or
+`INSUFFICIENT_DATA`. Quality gates run before the optional lower-AIC preference.
+Critical segment checks use only configured bounded pre-treatment features and can
+reject a globally better candidate that materially regresses in a segment.
+
+Ramp stages are recommendations, not automatic traffic changes. Authors must
+explicitly update `current_stage`, preserving normal review and compilation gates.
+The compiler validates the entire conditional workflow, permissions, tools, imports,
+and safe-output policy before any variant can execute; variants cannot grant
+capabilities dynamically. The harness fingerprint covers compiled prompt/frontmatter,
+engine, model, imports after expansion, and compiler version, but not transient state.
+
+Online controls reduce incremental inference and tool cost because evaluation reuses
+future production traffic and existing eval artifacts; no historical trace replay is
+required. Concurrent controls also reduce bias from environmental drift. Statistical
+non-regression is not proof that unseen behavior cannot regress, and sparse segments,
+interference between simultaneous experiments, delayed outcomes, and non-independent
+assignment units remain limitations.
+
 ---
 
 ## Anti-Patterns

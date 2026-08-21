@@ -333,3 +333,62 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |
 | `end_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) after which the experiment is inactive. The control variant is returned after this date without incrementing any counter. |
+| `continual` | `object` | | Opt-in deterministic control/candidate assignment, sequential quality decisions, critical segments, and explicit canary stages. |
+
+## Guarded continual optimization
+
+A continual experiment evaluates a candidate on a bounded share of future,
+naturally occurring executions. It does not replay historical traces. The first
+variant is the incumbent control and the second is the candidate.
+
+```yaml
+experiments:
+  optimize_tool_use:
+    variants: [control, candidate]
+    continual:
+      seed: tool-use-v1
+      objective:
+        metric: eval:quality
+        direction: maximize
+        minimum_improvement: 0.02
+      decision:
+        minimum_observations: 20
+        confidence: 0.95
+        regression_tolerance: 0.02
+        allow_cost_promotion: true
+      segments:
+        critical: [event, trigger_mode]
+      ramp: [10, 25, 50]
+      current_stage: 0
+```
+
+Assignment happens in activation before agent execution. A SHA-256 hash of the
+explicit seed, experiment, repository, workflow, and run ID selects a weighted
+variant. The run ID is the assignment unit, so all jobs in a run receive the same
+treatment. The persisted assignment includes its probability, assignment unit,
+bounded pre-treatment features, and a harness fingerprint covering the compiled
+workflow prompt and configuration, expanded imports, engine, model, and compiler
+version.
+
+`gh aw experiments analyze` joins assignments to existing binary eval records by
+run ID and emits a versioned compact outcome ledger. Missing and `UNKNOWN` evals
+are excluded. The decision uses Beta(1,1) binary-quality posteriors and a normal
+approximation to the posterior difference. It can return `PROMOTE`, `CONTINUE`,
+`REJECT`, or `INSUFFICIENT_DATA`. Quality and critical-segment retention dominate
+the optional lower-AIC preference.
+
+Critical and diagnostic segment names are bounded to avoid an uncontrolled
+cross-product. Critical segments can reject a candidate that improves globally but
+regresses materially for one pre-treatment class. Segment values must not come
+from model output.
+
+Canary stages never advance automatically. A promotion result recommends the next
+configured percentage; changing `current_stage` still requires the normal source
+review, compilation, permissions, tool, import, safe-output, and security gates.
+Variants cannot dynamically add capabilities.
+
+This approach bounds incremental inference and tool cost to candidate traffic on
+runs that would happen anyway. Concurrent controls help distinguish candidate
+effects from environmental drift. Statistical non-regression is not proof that no
+unseen behavior can regress. Sparse segments, delayed outcomes, simultaneous
+experiment interactions, and correlated run-level observations remain limitations.

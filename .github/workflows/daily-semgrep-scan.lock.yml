@@ -278,6 +278,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"semgrep_output_format":{"variants":["bullet_list","structured_sections","prose","ste"],"description":"Tests whether the structure of Semgrep findings output (bullet list vs. grouped sections vs. prose vs. Simplified Technical English (STE)) affects code scanning alert creation rate and output completeness.","hypothesis":"H0: no change in alert creation rate across formats. H1: structured_sections produces ≥15% more alerts successfully created vs. baseline bullet_list; ste improves completeness via clearer, simpler language.","metric":"alert_creation_rate","secondary_metrics":["run_duration_ms","output_length_chars","findings_reported","eval:output_format_adherence"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.85"}],"min_samples":30,"weight":[25,25,25,25],"issue":32795,"start_date":"2026-05-17","analysis_type":"proportion_test","tags":["security","output-quality","semgrep"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:12d9ac0b2df6544c40cd2aa3236bb29d4522b3010d584902103c1e2bbda0b0c1
         with:
           script: |
             const path = require('path');

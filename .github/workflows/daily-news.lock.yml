@@ -289,6 +289,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prompt_style":{"variants":["detailed","concise"],"description":"Tests whether a concise directive produces equivalent discussion quality to the current verbose 5-phase prompt","hypothesis":"H0: no change in output quality. H1: concise prompt reduces token usage by ≥20% with no significant drop in output completeness score","metric":"effective_token_count","secondary_metrics":["output_length_chars","run_duration_ms","chart_generated"],"guardrail_metrics":[{"name":"discussion_creation_success_rate","threshold":"\u003e=0.90"},{"name":"chart_upload_success_rate","threshold":"\u003e=0.80"}],"min_samples":30,"weight":[50,50],"issue":31190,"start_date":"2026-05-12","analysis_type":"mann_whitney","tags":["prompt-engineering","cost-efficiency","daily-workflows"],"notify":{"issue":31190}}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:e00d668634aa4a1a1ef5ba87d0c33120cc37990b3ca6ac193580639de9349e46
         with:
           script: |
             const path = require('path');

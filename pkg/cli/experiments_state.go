@@ -19,10 +19,20 @@ type ExperimentState struct {
 
 // ExperimentRunRecord represents a single workflow run in the JSONL ledger.
 type ExperimentRunRecord struct {
+	SchemaVersion  int                       `json:"schema_version,omitempty"`
 	RunID          string                    `json:"run_id"`
 	Timestamp      string                    `json:"timestamp"`
+	HarnessVersion string                    `json:"harness_version,omitempty"`
 	Assignments    map[string]string         `json:"assignments"`
+	Assignment     map[string]AssignmentInfo `json:"assignment,omitempty"`
+	Features       map[string]string         `json:"features,omitempty"`
 	BaselineCounts map[string]map[string]int `json:"baseline_counts,omitempty"`
+}
+
+type AssignmentInfo struct {
+	Probability   float64 `json:"probability"`
+	Unit          string  `json:"unit"`
+	Deterministic bool    `json:"deterministic"`
 }
 
 // ExperimentVariantStats holds counts for all variants of one named A/B experiment.
@@ -51,6 +61,7 @@ type ExperimentDetails struct {
 	// Analyses holds the statistical analysis for each named experiment.
 	// Populated by RunExperimentsAnalyze; absent in list output.
 	Analyses []ExperimentAnalysis `json:"analyses,omitempty"`
+	allRuns  []ExperimentRunRecord
 }
 
 func experimentStateFilenames() []string {
@@ -191,6 +202,7 @@ func experimentDetailsFromState(workflowID, branchName string, state *Experiment
 		TotalRuns:   experimentTotalRuns(state),
 		Experiments: experiments,
 		RecentRuns:  recentRuns,
+		allRuns:     state.Runs,
 	}
 }
 

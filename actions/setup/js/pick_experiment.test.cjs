@@ -20,7 +20,7 @@ const mockCore = {
 
 global.core = mockCore;
 
-const { pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, main } = await import("./pick_experiment.cjs");
+const { pickVariant, pickVariantWeighted, pickVariantDeterministic, continualWeights, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, main } = await import("./pick_experiment.cjs");
 
 describe("pick_experiment", () => {
   /** @type {string} */
@@ -724,6 +724,25 @@ describe("pick_experiment", () => {
       for (let i = 0; i < 20; i++) {
         expect(pickVariantWeighted(["A", "B"], [0, 100])).toBe("B");
       }
+    });
+
+    describe("continual deterministic assignment", () => {
+      it("returns the same treatment for the same explicit key", () => {
+        const first = pickVariantDeterministic(["control", "candidate"], [90, 10], "seed:repo:workflow:run");
+        for (let i = 0; i < 20; i++) {
+          expect(pickVariantDeterministic(["control", "candidate"], [90, 10], "seed:repo:workflow:run")).toBe(first);
+        }
+      });
+
+      it("honors zero and full candidate allocations", () => {
+        expect(pickVariantDeterministic(["control", "candidate"], [100, 0], "key")).toBe("control");
+        expect(pickVariantDeterministic(["control", "candidate"], [0, 100], "key")).toBe("candidate");
+      });
+
+      it("derives weights from the explicit canary stage", () => {
+        const cfg = { continual: { ramp: [5, 20, 50], current_stage: 1 } };
+        expect(continualWeights(cfg, ["control", "candidate"])).toEqual([80, 20]);
+      });
     });
 
     it("always selects the only non-zero-weight variant when one weight is 0", () => {

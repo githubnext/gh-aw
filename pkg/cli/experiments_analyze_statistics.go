@@ -77,6 +77,9 @@ type ExperimentAnalysis struct {
 
 	// Rationale is a one-sentence explanation of the recommendation.
 	Rationale string `json:"rationale"`
+
+	// Continual contains guarded control/candidate outcome analysis when enabled.
+	Continual *ContinualExperimentAnalysis `json:"continual,omitempty"`
 }
 
 // VariantAnalysis holds per-variant statistics for one experiment.
@@ -403,6 +406,14 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 		parts := make([]string, 0, len(a.Guardrails))
 		for _, g := range a.Guardrails {
 			parts = append(parts, fmt.Sprintf("%s %s", g.Name, g.Threshold))
+		}
+		if a.Continual != nil {
+			fmt.Fprintf(os.Stderr, "  Continual  : %s (quality delta %.3f, promote probability %.3f)\n",
+				a.Continual.Decision, a.Continual.QualityDelta, a.Continual.ImprovementProbability)
+			if a.Continual.RecommendedCandidatePercent > 0 {
+				fmt.Fprintf(os.Stderr, "  Next canary: %d%% candidate (explicit configuration change required)\n",
+					a.Continual.RecommendedCandidatePercent)
+			}
 		}
 		fmt.Fprintf(os.Stderr, "  Guardrails : %s\n", strings.Join(parts, "  •  "))
 		fmt.Fprintln(os.Stderr, "               (pass/fail evaluation requires per-run outcome metric data)")

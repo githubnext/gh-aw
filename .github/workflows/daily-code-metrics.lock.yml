@@ -294,6 +294,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"output_format":{"variants":["full_detail","executive_summary","ste"],"description":"Tests whether a concise executive summary report or a Simplified Technical English (STE) report drives higher reader engagement than the current full-detail 6-chart report.","hypothesis":"H0: no change in discussion engagement rate. H1: executive_summary variant increases discussion reactions+comments by ≥20% due to improved readability; ste variant improves readability further via simplified language.","metric":"discussion_engagement_score","secondary_metrics":["output_token_count","run_duration_seconds","chart_count","eval:output_format_adherence"],"guardrail_metrics":[{"name":"report_empty_rate","threshold":"\u003c=0"},{"name":"quality_score_present","threshold":"\u003e=1"}],"min_samples":20,"weight":[34,33,33],"issue":1,"start_date":"2026-05-16"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:12064d5b356e51abe07eabba9637cbd5fa67864e5a8d0e872e78915e9e3f3344
         with:
           script: |
             const path = require('path');

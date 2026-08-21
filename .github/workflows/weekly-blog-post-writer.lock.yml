@@ -291,6 +291,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prefetch_strategy":{"variants":["lazy","eager"],"description":"Tests whether pre-fetching GitHub releases and merged PRs in setup steps reduces agent turn count and run duration vs. letting the agent fetch lazily via tools","hypothesis":"H0: no change in agent_turn_count. H1: eager pre-fetching reduces agent turns by ≥20% and duration by ≥15% by eliminating tool round-trips for data gathering","metric":"agent_turn_count","secondary_metrics":["run_duration_ms","pr_creation_rate"],"guardrail_metrics":[{"name":"pr_creation_success_rate","direction":"min","threshold":"0.8"}],"min_samples":10,"weight":[50,50],"issue":38590,"start_date":"2026-06-11"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:9908433014b8491d25c1d33d5bee71cc83a71f8f94b6f4297c70cccc68c61b90
         with:
           script: |
             const path = require('path');

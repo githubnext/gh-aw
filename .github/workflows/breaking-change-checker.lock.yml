@@ -287,6 +287,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"tone_variant":{"variants":["neutral","urgent"],"description":"Measure whether a more urgent compatibility-reporting tone improves issue triage engagement versus a neutral engineering tone.","hypothesis":"H0: no change in issue_engagement_rate. H1: urgent increases issue_engagement_rate by \u003e=7 percentage points without degrading run_success_rate.","metric":"issue_engagement_rate","secondary_metrics":["issue_comment_count_72h","time_to_first_assignee_action_hours"],"guardrail_metrics":[{"name":"run_success_rate","direction":"min","threshold":"0.9"},{"name":"empty_output_rate","direction":"min","threshold":"0"}],"min_samples":194,"weight":[50,50],"issue":42467,"start_date":"2026-06-30"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: sha256:4fa9b04bb940498aabe07c82001a12e30cebb1c32cc9e2de301ba8ded137d204
         with:
           script: |
             const path = require('path');

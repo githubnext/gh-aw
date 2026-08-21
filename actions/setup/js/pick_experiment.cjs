@@ -28,6 +28,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** Maximum number of per-run ledger records retained in state.runs for summaries. */
@@ -41,6 +42,10 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {Record<string, string>} assignments - Maps experiment name → selected variant
  * @property {Record<string, Record<string, number>>} [baseline_counts]
  *   Optional cumulative counts that existed before the recorded run history began.
+ * @property {number} [schema_version]
+ * @property {string} [harness_version]
+ * @property {Record<string, {probability: number, unit: string, deterministic: boolean}>} [assignment]
+ * @property {Record<string, string>} [features]
  */
 
 /**
@@ -73,6 +78,7 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {string} [analysis_type]               - Statistical test: t_test | mann_whitney | proportion_test | bayesian_ab
  * @property {string[]} [tags]                      - Free-form labels for dashboard filtering
  * @property {{discussion?: number, issue?: number}} [notify] - Where to post significance alerts
+ * @property {{seed: string, objective: object, decision?: object, segments?: object, ramp?: number[], current_stage?: number}} [continual]
  */
 
 /**
@@ -335,6 +341,7 @@ function pickVariantWeighted(variants, weight) {
     // All weights are zero – fall back to first variant (control).
     return variants[0];
   }
+
   let rnd = Math.random() * total;
   for (let i = 0; i < variants.length; i++) {
     rnd -= weight[i];
@@ -347,6 +354,44 @@ function pickVariantWeighted(variants, weight) {
     if (weight[i] > 0) return variants[i];
   }
   return variants[0];
+}
+
+/**
+ * Deterministically select a weighted variant from an explicit pre-treatment assignment unit.
+ *
+ * @param {string[]} variants
+ * @param {number[]} weight
+ * @param {string} key
+ * @returns {string}
+ */
+function pickVariantDeterministic(variants, weight, key) {
+  const total = weight.reduce((a, b) => a + b, 0);
+  if (total <= 0) return variants[0];
+  const digest = crypto.createHash("sha256").update(key).digest();
+  const bucket = digest.readBigUInt64BE(0);
+  let point = Number(bucket % BigInt(total));
+  for (let i = 0; i < variants.length; i++) {
+    if (point < weight[i]) return variants[i];
+    point -= weight[i];
+  }
+  return variants[0];
+}
+
+/**
+ * @param {ExperimentConfig} cfg
+ * @param {string[]} variants
+ * @returns {number[]}
+ */
+function continualWeights(cfg, variants) {
+  const continual = cfg.continual;
+  const ramp = continual?.ramp;
+  if (!Array.isArray(ramp) || ramp.length === 0 || variants.length !== 2) {
+    return cfg.weight && cfg.weight.length === variants.length ? cfg.weight : variants.map(() => 1);
+  }
+  const stageValue = continual?.current_stage;
+  const stage = Number.isInteger(stageValue) ? (stageValue ?? 0) : 0;
+  const candidate = ramp[Math.min(stage, ramp.length - 1)] ?? 0;
+  return [100 - candidate, candidate];
 }
 
 /**
@@ -545,6 +590,8 @@ async function main() {
 
   /** @type {Record<string, string>} */
   const assignments = {};
+  /** @type {Record<string, {probability: number, unit: string, deterministic: boolean}>} */
+  const assignmentMetadata = {};
 
   for (const name of experimentNames) {
     const cfg = configs[name];
@@ -564,13 +611,24 @@ async function main() {
     }
 
     let selected;
-    if (cfg.weight && cfg.weight.length === variants.length) {
+    const weights = continualWeights(cfg, variants);
+    const assignmentUnit = [name, process.env.GITHUB_REPOSITORY || "", process.env.GITHUB_WORKFLOW_REF || process.env.GITHUB_WORKFLOW || "", process.env.GITHUB_RUN_ID || ""].join(":");
+    if (cfg.continual?.seed) {
+      selected = pickVariantDeterministic(variants, weights, `${cfg.continual.seed}:${assignmentUnit}`);
+    } else if (cfg.weight && cfg.weight.length === variants.length) {
       selected = pickVariantWeighted(variants, cfg.weight);
     } else {
       selected = pickVariant(name, variants, state);
     }
     recordVariant(name, selected, state);
     assignments[name] = selected;
+    const selectedIndex = variants.indexOf(selected);
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    assignmentMetadata[name] = {
+      probability: totalWeight > 0 ? weights[selectedIndex] / totalWeight : 1,
+      unit: assignmentUnit,
+      deterministic: Boolean(cfg.continual?.seed),
+    };
 
     // Expose the selected variant as a step output (individual per experiment).
     // Downstream jobs access this via needs.activation.outputs.<name>.
@@ -591,7 +649,18 @@ async function main() {
     if (!state.runs) {
       state.runs = [];
     }
-    state.runs.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+    state.runs.push({
+      schema_version: 2,
+      run_id: runId,
+      timestamp,
+      harness_version: process.env.GH_AW_HARNESS_VERSION || "",
+      assignments: { ...assignments },
+      assignment: assignmentMetadata,
+      features: {
+        event: process.env.GITHUB_EVENT_NAME || "unknown",
+        trigger_mode: process.env.GITHUB_EVENT_NAME === "schedule" ? "scheduled" : "reactive",
+      },
+    });
     // Prune in-memory run history so summaries stay small even when state.jsonl is append-only.
     if (state.runs.length > MAX_RUN_HISTORY) {
       state.runs = state.runs.slice(-MAX_RUN_HISTORY);
@@ -628,4 +697,15 @@ async function main() {
   await writeSummary(assignments, configs, state, core);
 }
 
-module.exports = { main, pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig };
+module.exports = {
+  main,
+  pickVariant,
+  pickVariantWeighted,
+  pickVariantDeterministic,
+  continualWeights,
+  loadState,
+  saveState,
+  recordVariant,
+  isWithinDateWindow,
+  normalizeConfig,
+};
