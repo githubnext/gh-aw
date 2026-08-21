@@ -49,3 +49,26 @@ func TestTopReviewWorkflowsHaveHeadAwarePRDataCacheKeys(t *testing.T) {
 	assert.Contains(t, text, "test-prefetch-unavailable.txt", "Test Quality Sentinel should write a fallback marker when prefetch data is unavailable")
 	assert.Contains(t, text, "Test Quality Sentinel skipped because pre-fetch PR data was unavailable", "Test Quality Sentinel prompt should instruct the agent to noop with the fallback reason")
 }
+
+func TestImpeccableSkillsReviewerHasDeterministicSkillSelectionGuidance(t *testing.T) {
+	repoRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		t.Skipf("Skipping test: not in a git repository: %v", err)
+	}
+
+	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "impeccable-skills-reviewer.md")
+	content, err := os.ReadFile(workflowPath)
+	require.NoError(t, err, "Should read impeccable-skills-reviewer workflow")
+
+	text := string(content)
+	assert.Contains(t, text, "pbakaus/impeccable/.agents/skills/impeccable@19786e7a225c3688e558f8694a7c8c6a8a25d840", "Impeccable reviewer should install the pinned skill")
+	assert.Contains(t, text, "using the first matching row", "Impeccable reviewer should select modes deterministically")
+	assert.Contains(t, text, "`tests_only`")
+	assert.Contains(t, text, "`bug_fix`")
+	assert.Contains(t, text, "`new_feature`")
+	assert.Contains(t, text, "`refactor_cleanup`")
+	assert.Contains(t, text, "`documentation`")
+	assert.Contains(t, text, "`mixed_unclear`")
+	assert.Contains(t, text, "Select 1–2 Impeccable modes", "Impeccable reviewer should limit selected modes")
+	assert.Contains(t, text, "If the Impeccable skill cannot be found or read, do not abort", "Impeccable reviewer should continue when skill discovery fails")
+}

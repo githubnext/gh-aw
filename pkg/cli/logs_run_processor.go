@@ -623,7 +623,7 @@ func runContainsSafeOutputType(runDir string, safeOutputType string, verbose boo
 	}
 
 	if err := json.Unmarshal(content, &safeOutput); err != nil {
-		return false, fmt.Errorf("failed to parse agent_output.json: %w", err)
+		return false, fmt.Errorf("could not parse agent_output.json, expected valid JSON with an \"items\" array: %w", err)
 	}
 
 	// Check each item for the specified type

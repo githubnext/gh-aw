@@ -31,6 +31,8 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
   - shared/pr-diff-data-fetch.md
+skills:
+  - pbakaus/impeccable/.agents/skills/impeccable@19786e7a225c3688e558f8694a7c8c6a8a25d840
 tools:
   cli-proxy: true
   github:
@@ -84,6 +86,17 @@ A successful review:
 - **PR Title**: "${{ github.event.pull_request.title }}"
 - **Author**: ${{ github.actor }}
 
+## Available Impeccable Review Modes
+
+The installed `/impeccable` skill provides these review-relevant modes:
+
+- **`audit`** — check accessibility, performance, responsive behavior, and technical UI quality
+- **`critique`** — evaluate UX, hierarchy, information architecture, and cognitive load
+- **`harden`** — find missing error, empty, loading, internationalization, and other edge states
+- **`distill`** — identify unnecessary visual or interaction complexity
+- **`extract`** — identify reusable components, tokens, and design-system patterns
+- **`clarify`** — improve labels, UX copy, validation, and error messages
+
 ## Process
 
 1. Verify the required pre-fetched PR files exist and are non-empty before reviewing:
@@ -102,15 +115,28 @@ A successful review:
 
    **Do not** call `gh pr diff`, `gh pr view`, or `get_review_comments` — all data is pre-fetched and available on disk.
 
-3. List installed skills and inspect the skill docs you need:
+3. Locate the installed Impeccable skill:
 
    ```bash
-   find /tmp/gh-aw/.github/skills "${RUNNER_TEMP}/gh-aw/.github/skills" -name "SKILL.md" 2>/dev/null | head -40
+   find /tmp/gh-aw "${RUNNER_TEMP}/gh-aw" -path "*/impeccable/SKILL.md" 2>/dev/null | head -1
    ```
 
-4. Select the most relevant skills for the detected change type and risk areas.
+   Use the inline mode guidance above by default. Read the installed `SKILL.md` only when that guidance is insufficient.
 
-   If no external skills are installed, perform a normal high-signal review focused on correctness and security.
+4. Select 1–2 Impeccable modes using the first matching row:
+
+   | Signal in the changed files or PR title/body | `change_type` | Impeccable modes |
+   | --- | --- | --- |
+   | Only test files (`*.test.*`, `*.spec.*`, `test/**`, `tests/**`) | `tests_only` | `audit` |
+   | Fix, bug, regression, broken, crash, or error-state changes | `bug_fix` | `harden`, `audit` |
+   | New UI, component, page, flow, or feature | `new_feature` | `critique`, `audit` |
+   | Refactor, cleanup, design-system, token, or shared-component changes | `refactor_cleanup` | `distill`, `extract` |
+   | Only documentation or copy changes | `documentation` | `clarify` |
+   | Anything else | `mixed_unclear` | `critique`, `audit` |
+
+   Prioritize non-generated changed files with the largest `additions + deletions` in `pr-meta.json`, most-changed first.
+
+   **Fallback:** If the Impeccable skill cannot be found or read, do not abort. Apply the same table and inline mode guidance directly. If no row or mode fits the changed UI, perform a normal high-signal review focused on correctness and security.
 
 5. Add up to 10 high-impact inline review comments using `create-pull-request-review-comment`.
 
