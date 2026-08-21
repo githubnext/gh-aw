@@ -161,7 +161,7 @@ func evaluateContinualExperiment(name string, cfg *workflow.ExperimentConfig, le
 		result.State = "VALIDATED"
 		result.Decision = "PROMOTE"
 		result.Rationale = "candidate satisfies quality and critical-segment retention thresholds"
-		result.RecommendedCandidatePercent = nextRampStage(cfg.Continual)
+		result.RecommendedCandidatePercent = automaticRampPercent(cfg.Continual, candidate.Count, minimum)
 		return result
 	}
 	result.Decision = "CONTINUE"
@@ -270,13 +270,16 @@ func costEquivalentPromotion(cfg *workflow.ExperimentConfig, control, candidate 
 	return controlOK && candidateOK && controlCost > 0 && candidateCost <= controlCost*0.8
 }
 
-func nextRampStage(cfg *workflow.ContinualExperimentConfig) int {
+func automaticRampPercent(cfg *workflow.ContinualExperimentConfig, candidateObservations, minimumObservations int) int {
 	if len(cfg.Ramp) == 0 {
 		return 0
 	}
-	next := cfg.CurrentStage + 1
-	if next >= len(cfg.Ramp) {
-		next = len(cfg.Ramp) - 1
+	if minimumObservations <= 0 {
+		minimumObservations = defaultMinSamples
 	}
-	return cfg.Ramp[next]
+	stage := candidateObservations / minimumObservations
+	if stage >= len(cfg.Ramp) {
+		stage = len(cfg.Ramp) - 1
+	}
+	return cfg.Ramp[stage]
 }

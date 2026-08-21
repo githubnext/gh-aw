@@ -254,7 +254,6 @@ func extractContinualExperimentConfig(raw map[string]any) *ContinualExperimentCo
 		cfg.Segments.Diagnostic = parseStringSliceAny(segmentsRaw["diagnostic"], nil)
 	}
 	cfg.Ramp = extractIntSlice(raw["ramp"])
-	cfg.CurrentStage, _ = extractIntField(raw["current_stage"])
 	return cfg
 }
 
@@ -457,9 +456,6 @@ func validateContinualRamp(name string, cfg *ContinualExperimentConfig) error {
 			return fmt.Errorf("experiments.%s.continual.ramp: percentages must be strictly increasing and at most 100", name)
 		}
 		previous = percentage
-	}
-	if len(cfg.Ramp) > 0 && cfg.CurrentStage >= len(cfg.Ramp) {
-		return fmt.Errorf("experiments.%s.continual.current_stage: must index a configured ramp stage", name)
 	}
 	return nil
 }

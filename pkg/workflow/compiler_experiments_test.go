@@ -79,7 +79,6 @@ func TestBuildExperimentSpecJSONWithContinualConfig(t *testing.T) {
 func TestValidateContinualRamp(t *testing.T) {
 	require.NoError(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{5, 20, 50}}))
 	require.Error(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{20, 10}}))
-	require.Error(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{10}, CurrentStage: 1}))
 }
 
 func TestBuildExperimentSpecJSONEscaping(t *testing.T) {

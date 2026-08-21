@@ -333,9 +333,13 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |
 | `end_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) after which the experiment is inactive. The control variant is returned after this date without incrementing any counter. |
-| `continual` | `object` | | Opt-in deterministic control/candidate assignment, sequential quality decisions, critical segments, and explicit canary stages. |
+| `continual` | `object` | | Experimental opt-in deterministic control/candidate assignment, sequential quality decisions, critical segments, and automatic canary stages. |
 
 ## Guarded continual optimization
+
+:::caution[Experimental]
+Continual experiments are experimental and may change in future releases.
+:::
 
 A continual experiment evaluates a candidate on a bounded share of future,
 naturally occurring executions. It does not replay historical traces. The first
@@ -359,7 +363,6 @@ experiments:
       segments:
         critical: [event, trigger_mode]
       ramp: [10, 25, 50]
-      current_stage: 0
 ```
 
 Assignment happens in activation before agent execution. A SHA-256 hash of the
@@ -382,10 +385,11 @@ cross-product. Critical segments can reject a candidate that improves globally b
 regresses materially for one pre-treatment class. Segment values must not come
 from model output.
 
-Canary stages never advance automatically. A promotion result recommends the next
-configured percentage; changing `current_stage` still requires the normal source
-review, compilation, permissions, tool, import, safe-output, and security gates.
-Variants cannot dynamically add capabilities.
+The activation job computes the canary stage at runtime from persisted assignment
+counts. After each `minimum_observations` tranche of candidate assignments, traffic
+advances to the next configured percentage and remains at the final stage. Existing
+compilation, permissions, tool, import, safe-output, and security gates remain in
+force; variants cannot dynamically add capabilities.
 
 This approach bounds incremental inference and tool cost to candidate traffic on
 runs that would happen anyway. Concurrent controls help distinguish candidate

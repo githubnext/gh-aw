@@ -164,12 +164,11 @@ type ContinualSegmentsConfig struct {
 // ContinualExperimentConfig opts an existing A/B experiment into guarded online evaluation.
 // The first declared variant remains control and the second is the candidate.
 type ContinualExperimentConfig struct {
-	Seed         string                   `json:"seed"`
-	Objective    ContinualObjectiveConfig `json:"objective"`
-	Decision     ContinualDecisionConfig  `json:"decision,omitzero"`
-	Segments     ContinualSegmentsConfig  `json:"segments,omitzero"`
-	Ramp         []int                    `json:"ramp,omitempty"`
-	CurrentStage int                      `json:"current_stage,omitempty"`
+	Seed      string                   `json:"seed"`
+	Objective ContinualObjectiveConfig `json:"objective"`
+	Decision  ContinualDecisionConfig  `json:"decision,omitzero"`
+	Segments  ContinualSegmentsConfig  `json:"segments,omitzero"`
+	Ramp      []int                    `json:"ramp,omitempty"`
 }
 
 // ExperimentNotify specifies where to post significance alerts when an experiment reaches

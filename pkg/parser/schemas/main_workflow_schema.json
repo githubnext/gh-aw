@@ -3270,16 +3270,11 @@
                       "minimum": 1,
                       "maximum": 100
                     },
-                    "description": "Explicit candidate percentages. Stages never advance automatically."
-                  },
-                  "current_stage": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "default": 0
+                    "description": "Candidate percentages applied in order at runtime. The stage advances after each minimum_observations tranche of candidate assignments."
                   }
                 },
                 "additionalProperties": false,
-                "description": "Opt-in guarded online control/candidate experiment. The first variant is control and the second is candidate."
+                "description": "Experimental opt-in guarded online control/candidate experiment. The first variant is control and the second is candidate. Using this field emits a compile-time warning."
               }
             },
             "additionalProperties": false,

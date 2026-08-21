@@ -291,9 +291,10 @@ experiments:
 
 ## Guarded Continual Experiments
 
-Use `continual:` for an opt-in control/candidate experiment on future executions that
-would occur naturally. The first variant is the incumbent control and the second is
-the candidate. Existing experiments without this block keep their current behavior.
+`continual:` is experimental. Use it for an opt-in control/candidate experiment on
+future executions that would occur naturally. The first variant is the incumbent
+control and the second is the candidate. Existing experiments without this block
+keep their current behavior.
 
 ```yaml
 experiments:
@@ -313,7 +314,6 @@ experiments:
       segments:
         critical: [event, trigger_mode]
       ramp: [10, 25, 50]
-      current_stage: 0
 ```
 
 Assignment uses a SHA-256 hash of the explicit seed, experiment, repository,
@@ -334,8 +334,9 @@ to the posterior difference. It returns `PROMOTE`, `CONTINUE`, `REJECT`, or
 Critical segment checks use only configured bounded pre-treatment features and can
 reject a globally better candidate that materially regresses in a segment.
 
-Ramp stages are recommendations, not automatic traffic changes. Authors must
-explicitly update `current_stage`, preserving normal review and compilation gates.
+The activation job advances ramp stages automatically at runtime after each
+`minimum_observations` tranche of candidate assignments. Normal compilation,
+permissions, tooling, and safe-output gates remain unchanged.
 The compiler validates the entire conditional workflow, permissions, tools, imports,
 and safe-output policy before any variant can execute; variants cannot grant
 capabilities dynamically. The harness fingerprint covers compiled prompt/frontmatter,

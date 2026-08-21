@@ -78,7 +78,7 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {string} [analysis_type]               - Statistical test: t_test | mann_whitney | proportion_test | bayesian_ab
  * @property {string[]} [tags]                      - Free-form labels for dashboard filtering
  * @property {{discussion?: number, issue?: number}} [notify] - Where to post significance alerts
- * @property {{seed: string, objective: object, decision?: object, segments?: object, ramp?: number[], current_stage?: number}} [continual]
+ * @property {{seed: string, objective: object, decision?: {minimum_observations?: number}, segments?: object, ramp?: number[]}} [continual]
  */
 
 /**
@@ -380,17 +380,24 @@ function pickVariantDeterministic(variants, weight, key) {
 /**
  * @param {ExperimentConfig} cfg
  * @param {string[]} variants
+ * @param {ExperimentState} state
+ * @param {string} name
  * @returns {number[]}
  */
-function continualWeights(cfg, variants) {
+function continualWeights(cfg, variants, state = { counts: {} }, name = "") {
   const continual = cfg.continual;
   const ramp = continual?.ramp;
   if (!Array.isArray(ramp) || ramp.length === 0 || variants.length !== 2) {
     return cfg.weight && cfg.weight.length === variants.length ? cfg.weight : variants.map(() => 1);
   }
-  const stageValue = continual?.current_stage;
-  const stage = Number.isInteger(stageValue) ? (stageValue ?? 0) : 0;
-  const candidate = ramp[Math.min(stage, ramp.length - 1)] ?? 0;
+  const configuredMinimum = continual?.decision?.minimum_observations ?? cfg.min_samples;
+  let minimumObservations = 20;
+  if (typeof configuredMinimum === "number" && Number.isInteger(configuredMinimum) && configuredMinimum > 0) {
+    minimumObservations = configuredMinimum;
+  }
+  const candidateObservations = state.counts?.[name]?.[variants[1]] ?? 0;
+  const stage = Math.min(Math.floor(candidateObservations / minimumObservations), ramp.length - 1);
+  const candidate = ramp[stage] ?? 0;
   return [100 - candidate, candidate];
 }
 
@@ -611,7 +618,7 @@ async function main() {
     }
 
     let selected;
-    const weights = continualWeights(cfg, variants);
+    const weights = continualWeights(cfg, variants, state, name);
     const assignmentUnit = [name, process.env.GITHUB_REPOSITORY || "", process.env.GITHUB_WORKFLOW_REF || process.env.GITHUB_WORKFLOW || "", process.env.GITHUB_RUN_ID || ""].join(":");
     if (cfg.continual?.seed) {
       selected = pickVariantDeterministic(variants, weights, `${cfg.continual.seed}:${assignmentUnit}`);

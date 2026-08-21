@@ -100,6 +100,14 @@ func TestEvaluateContinualExperimentCanPromoteEquivalentCheaperCandidate(t *test
 	assert.Equal(t, "PROMOTE", result.Decision)
 }
 
+func TestAutomaticRampPercentDefaultsMinimumObservations(t *testing.T) {
+	cfg := &workflow.ContinualExperimentConfig{Ramp: []int{10, 25, 50}}
+	assert.Equal(t, 10, automaticRampPercent(cfg, 19, 0))
+	assert.Equal(t, 25, automaticRampPercent(cfg, 20, 0))
+	assert.Equal(t, 50, automaticRampPercent(cfg, 40, 0))
+	assert.Equal(t, 50, automaticRampPercent(cfg, 100, 0))
+}
+
 func TestBuildExperimentOutcomeLedgerJoinsByRunIDAndSkipsUnknown(t *testing.T) {
 	runs := []ExperimentRunRecord{
 		{RunID: "1", HarnessVersion: "sha256:a", Assignments: map[string]string{"optimization": "control"}, Features: map[string]string{"event": "issues"}},

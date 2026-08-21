@@ -739,9 +739,12 @@ describe("pick_experiment", () => {
         expect(pickVariantDeterministic(["control", "candidate"], [0, 100], "key")).toBe("candidate");
       });
 
-      it("derives weights from the explicit canary stage", () => {
-        const cfg = { continual: { ramp: [5, 20, 50], current_stage: 1 } };
-        expect(continualWeights(cfg, ["control", "candidate"])).toEqual([80, 20]);
+      it("advances canary weights from persisted candidate observations", () => {
+        const cfg = { continual: { ramp: [5, 20, 50], decision: { minimum_observations: 10 } } };
+        expect(continualWeights(cfg, ["control", "candidate"], { counts: {} }, "optimization")).toEqual([95, 5]);
+        expect(continualWeights(cfg, ["control", "candidate"], { counts: { optimization: { candidate: 10 } } }, "optimization")).toEqual([80, 20]);
+        expect(continualWeights(cfg, ["control", "candidate"], { counts: { optimization: { candidate: 20 } } }, "optimization")).toEqual([50, 50]);
+        expect(continualWeights(cfg, ["control", "candidate"], { counts: { optimization: { candidate: 100 } } }, "optimization")).toEqual([50, 50]);
       });
     });
 
