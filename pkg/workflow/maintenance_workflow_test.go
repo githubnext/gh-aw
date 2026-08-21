@@ -980,7 +980,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "FORECAST_STEP_OUTCOME: ${{ steps.generate_forecast_report.outcome }}") {
 		t.Errorf("Job forecast_report issue generation step should pass forecast step outcome to create_forecast_issue.cjs in:\n%s", yaml)
 	}
-	if !strings.Contains(yaml, "const { main } = require('${{ runner.temp }}/gh-aw/actions/create_forecast_issue.cjs');") {
+	if !strings.Contains(yaml, "const { main } = require(path.join(actionsDir, 'create_forecast_issue.cjs'));") {
 		t.Errorf("Job forecast_report issue generation step should call create_forecast_issue.cjs in:\n%s", yaml)
 	}
 	if !strings.Contains(yaml, "setupGlobals(core, github, context, exec, io, getOctokit);") {
@@ -1566,7 +1566,7 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 	t.Run("dev mode uses custom default branch from buildMaintenanceWorkflowYAML", func(t *testing.T) {
 		// Call buildMaintenanceWorkflowYAML directly to test the branch substitution
 		// without needing a live GitHub API call (FetchDefaultBranch falls back to "main" with no slug)
-		yaml := buildMaintenanceWorkflowYAML(context.Background(), buildMaintenanceWorkflowYAMLOptions{
+		yaml, err := buildMaintenanceWorkflowYAML(context.Background(), buildMaintenanceWorkflowYAMLOptions{
 			cronSchedule:   "37 */2 * * *",
 			scheduleDesc:   "Every 2 hours",
 			minExpiresDays: 1,
@@ -1575,6 +1575,9 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 			version:        "v1.0.0",
 			defaultBranch:  "develop",
 		})
+		if err != nil {
+			t.Fatalf("Expected maintenance workflow YAML: %v", err)
+		}
 		if !strings.Contains(yaml, "      - develop") {
 			t.Errorf("Push trigger should use the provided default branch 'develop', got:\n%s", yaml[:min(500, len(yaml))])
 		}

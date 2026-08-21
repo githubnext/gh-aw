@@ -19,6 +19,9 @@ tools:
     toolsets: [repos, issues, pull_requests]
 strict: false
 
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Example: Properly Provisioned Permissions

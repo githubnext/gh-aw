@@ -85,7 +85,7 @@ Create an issue.
 	}
 
 	// Check that the script uses require to load the parse_threat_detection_results.cjs file
-	if !strings.Contains(detectionSection, "require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs')") {
+	if !strings.Contains(detectionSection, "require(path.join(actionsDir, 'parse_threat_detection_results.cjs'))") {
 		t.Error("Detection conclusion step doesn't use require to load parse_threat_detection_results.cjs")
 	}
 	if !strings.Contains(detectionSection, "id: parse_detection_token_usage") {
@@ -94,7 +94,7 @@ Create an issue.
 	if !strings.Contains(detectionSection, "GH_AW_TOKEN_USAGE_SUMMARY_TITLE: Threat Detection Token Usage") {
 		t.Error("Detection token usage step missing threat detection summary title")
 	}
-	if !strings.Contains(detectionSection, "require('${{ runner.temp }}/gh-aw/actions/parse_token_usage.cjs')") {
+	if !strings.Contains(detectionSection, "require(path.join(actionsDir, 'parse_token_usage.cjs'))") {
 		t.Error("Detection token usage step doesn't use require to load parse_token_usage.cjs")
 	}
 

@@ -112,7 +112,7 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 	}
 
 	ctx := ctxutil.OrBackground(opts.Context)
-	content := buildAutoUpdateWorkflowYAML(
+	content, err := buildAutoUpdateWorkflowYAML(
 		cronSchedule,
 		setupActionRef,
 		githubScriptPin,
@@ -120,6 +120,9 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		getCLICmdPrefix(actionMode),
 		opts.CustomCron != "",
 	)
+	if err != nil {
+		return fmt.Errorf("failed to finalize auto-update workflow YAML: %w", err)
+	}
 
 	autoUpdateWorkflowLog.Printf("Writing auto-update workflow to %s", outputFile)
 	if err := fileutil.EnsureParentDir(outputFile, constants.DirPermPublic); err != nil {
@@ -162,7 +165,7 @@ func buildAutoUpdateSeed(repoSlug string, actionMode ActionMode) string {
 func buildAutoUpdateWorkflowYAML(
 	cronSchedule, setupActionRef, githubScriptPin, installCLISteps, cliCmdPrefix string,
 	isCustomCron bool,
-) string {
+) (string, error) {
 	var customInstructions string
 	if isCustomCron {
 		customInstructions = `Alternative regeneration methods:
@@ -192,7 +195,7 @@ The weekly schedule is deterministically scattered based on the repository slug.
 
 	header := GenerateWorkflowHeader("", "pkg/workflow/auto_update_workflow.go", customInstructions)
 
-	return header + `name: Agentic Auto-Upgrade
+	yaml := header + `name: Agentic Auto-Upgrade
 
 on:
   schedule:
@@ -229,4 +232,9 @@ jobs:
             const { mainNotifyIssue } = require('${{ runner.temp }}/gh-aw/actions/run_operation_update_upgrade.cjs');
             await mainNotifyIssue();
 `
+	finalYAML, err := finalizeRunnerTempSafety(yaml)
+	if err != nil {
+		return "", fmt.Errorf("runner temp safety: %w", err)
+	}
+	return finalYAML, nil
 }

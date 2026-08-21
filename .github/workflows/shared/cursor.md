@@ -12,6 +12,8 @@ engine:
   behaviors:
     supported-env-var-keys:
       - CURSOR_API_KEY
+    plugins:
+      directory: ~/.cursor/plugins/local
     manifest:
       files:
         - AGENTS.md

@@ -144,6 +144,14 @@ For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
 Commands are organized by workflow lifecycle: creating, building, testing, monitoring, and managing workflows.
 
+Use this table to choose between the similarly named setup commands:
+
+| Command | Best fit |
+|---------|----------|
+| [`gh aw add-wizard`](#add-wizard) | Guided, interactive setup for an existing workflow, including prompts for engine auth and secrets |
+| [`gh aw add`](#add) | Direct, non-interactive installation of an existing local, remote, or packaged workflow |
+| [`gh aw new`](#new) | Scaffold a new workflow template in this repository before writing custom instructions |
+
 ### Getting Workflows
 
 #### `init`

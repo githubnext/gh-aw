@@ -50,6 +50,24 @@ describe("no-json-stringify-set-or-map", () => {
     });
   });
 
+  it("valid: same-name non-Set binding is not flagged when another scope has a Set", () => {
+    cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
+      valid: [
+        `
+          function tracksSetWithoutStringify() {
+            const seen = new Set([1, 2]);
+            return seen.size;
+          }
+          function stringifyObject() {
+            const seen = { other: true };
+            JSON.stringify(seen);
+          }
+        `,
+      ],
+      invalid: [],
+    });
+  });
+
   it("invalid: JSON.stringify on a const Set binding", () => {
     cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
       valid: [],
@@ -84,6 +102,40 @@ describe("no-json-stringify-set-or-map", () => {
         },
         {
           code: `JSON.stringify(new Map([["k", "v"]]));`,
+          errors: [{ messageId: "jsonStringifySetOrMap" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: same-name bindings in different scopes only flag the Set/Map binding", () => {
+    cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `
+            function withSet() {
+              const seen = new Set([1, 2]);
+              JSON.stringify(seen);
+            }
+            function withObject() {
+              const seen = { other: true };
+              JSON.stringify(seen);
+            }
+          `,
+          errors: [{ messageId: "jsonStringifySetOrMap" }],
+        },
+        {
+          code: `
+            function withObject() {
+              const seen = { other: true };
+              JSON.stringify(seen);
+            }
+            function withSet() {
+              const seen = new Set([1, 2]);
+              JSON.stringify(seen);
+            }
+          `,
           errors: [{ messageId: "jsonStringifySetOrMap" }],
         },
       ],

@@ -41,6 +41,19 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 	}
 	capabilities := def.Behaviors.Capabilities.ToRuntimeCapabilities()
 	capabilities.MCP = true
+	// Declaring a plugins behavior block is what enables Agent Plugins for the engine:
+	// without it the compiler has no way to make plugins visible to the CLI.
+	capabilities.Plugins = def.Behaviors.Plugins != nil
+	if plugins := def.Behaviors.Plugins; plugins != nil {
+		if plugins.Directory == "" && len(plugins.InstallArgs) == 0 {
+			return nil, fmt.Errorf("engine definition %q declares behaviors.plugins without 'directory' or 'install-args'", def.ID)
+		}
+		if plugins.Directory != "" {
+			if _, ok := resolvePluginDirectory(plugins.Directory); !ok {
+				return nil, fmt.Errorf("engine definition %q declares an unsupported behaviors.plugins.directory %q; use a workspace-relative or '~/' path without '..' segments", def.ID, plugins.Directory)
+			}
+		}
+	}
 	if def.MCP != nil {
 		capabilities.MCP = *def.MCP
 	}
@@ -234,6 +247,30 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 		})
 	}
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+}
+
+// GetPluginInstallationSteps checks out pinned Agent Plugins and makes them available to
+// the engine, either by staging them in the engine's plugin folder or by running the
+// engine CLI's plugin installation command, as declared in the plugins behavior.
+func (e *BehaviorDefinedEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	behavior := e.behavior()
+	if behavior == nil || behavior.Plugins == nil {
+		return nil
+	}
+
+	commandName := behavior.Plugins.CommandName
+	if commandName == "" && behavior.Execution != nil {
+		commandName = behavior.Execution.CommandName
+	}
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		commandName = workflowData.EngineConfig.Command
+	}
+
+	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{
+		Command:     commandName,
+		InstallArgs: behavior.Plugins.InstallArgs,
+		Directory:   behavior.Plugins.Directory,
+	})
 }
 
 func (e *BehaviorDefinedEngine) GetAgentManifestFiles() []string {
@@ -787,7 +824,7 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	}
 	var engineData any
 	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
-		return nil, fmt.Errorf("failed to parse engine JSON: %w", err)
+		return nil, fmt.Errorf("engine JSON is not recognized, expected a valid JSON object describing the engine: %w", err)
 	}
 	dataMap, ok := engineData.(map[string]any)
 	if !ok {
@@ -803,11 +840,11 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	}
 	yamlBytes, err := yaml.Marshal(dataMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert engine JSON to yaml: %w", err)
+		return nil, fmt.Errorf("engine JSON could not be converted to YAML, expected values that marshal cleanly (e.g. no unsupported types): %w", err)
 	}
 	var def EngineDefinition
 	if err := yaml.Unmarshal(yamlBytes, &def); err != nil {
-		return nil, fmt.Errorf("failed to parse engine definition: %w", err)
+		return nil, fmt.Errorf("engine definition is not recognized, expected fields matching the EngineDefinition schema: %w", err)
 	}
 	if def.RuntimeID == "" {
 		def.RuntimeID = def.ID

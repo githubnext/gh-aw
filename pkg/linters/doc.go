@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 66 active analyzers:
+// All 67 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
 //   - appendoneelement — flags append(s, []T{x}...) calls where a single-element slice literal is spread and can be simplified to append(s, x)
@@ -32,6 +32,7 @@
 //   - lenstringzero — flags len(s) == 0 / len(s) != 0 on string values that should use s == "" / s != ""
 //   - logfatallibrary — reports log.Fatal, log.Fatalf, and log.Fatalln calls inside library packages where they implicitly call os.Exit and bypass deferred cleanup
 //   - manualmutexunlock — flags non-deferred mutex Unlock() calls
+//   - manualpathconcat — flags manual "/" separator string concatenation used to build paths that should use filepath.Join or path.Join
 //   - mapclearloop — reports range-over-map loops that delete every entry and can be replaced with clear(m)
 //   - mapdeletecheck — reports redundant map membership checks before delete(m, k) calls since delete is already a no-op for missing keys
 //   - nilctxpassed — flags function calls where nil is passed as a context.Context argument

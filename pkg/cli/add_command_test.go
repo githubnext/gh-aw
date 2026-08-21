@@ -942,6 +942,108 @@ func TestAddWorkflowWithTracking_ActionWorkflow_Force(t *testing.T) {
 	assert.Equal(t, newContent, written)
 }
 
+func TestAddWorkflowsWithTracking_PackageResourceWritesOwnershipRecord(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-package-resource-*")
+	setupMinimalGitRepo(t, tempDir)
+
+	resourceContent := []byte("name: Bug report\n")
+	workflows := []*ResolvedWorkflow{
+		{
+			Spec: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					RepoSlug:    "owner/repo",
+					Version:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PackagePath: "packages/repo-assist",
+				},
+				WorkflowPath:           "packages/repo-assist/templates/bug.yml",
+				WorkflowName:           "bug",
+				DestinationPath:        ".github/ISSUE_TEMPLATE/bug.yml",
+				FromRepositoryManifest: true,
+				IsPackageResourceFile:  true,
+			},
+			Content: resourceContent,
+			SourceInfo: &FetchedWorkflow{
+				Content:    resourceContent,
+				CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				IsLocal:    false,
+				SourcePath: "packages/repo-assist/templates/bug.yml",
+			},
+			IsPackageResourceFile: true,
+		},
+	}
+
+	err := addWorkflowsWithTracking(context.Background(), workflows, NewFileTracker(), AddOptions{
+		NoGitattributes:        true,
+		DisableSecurityScanner: true,
+		Quiet:                  true,
+	})
+	require.NoError(t, err)
+
+	resourcePath := filepath.Join(tempDir, ".github", "ISSUE_TEMPLATE", "bug.yml")
+	written, err := os.ReadFile(resourcePath)
+	require.NoError(t, err)
+	assert.Equal(t, resourceContent, written)
+
+	recordFiles, err := filepath.Glob(filepath.Join(tempDir, ".github", "aw", "packages", "*.json"))
+	require.NoError(t, err)
+	require.Len(t, recordFiles, 1)
+	record, err := os.ReadFile(recordFiles[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(record), `"source": "owner/repo/packages/repo-assist@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`)
+	assert.Contains(t, string(record), `"destination": ".github/ISSUE_TEMPLATE/bug.yml"`)
+	assert.Contains(t, string(record), `"sha256":`)
+}
+
+func TestAddWorkflowsWithTracking_PackageResourceRejectsLocalDrift(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-package-resource-drift-*")
+	setupMinimalGitRepo(t, tempDir)
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug:    "owner/repo",
+			Version:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			PackagePath: "packages/repo-assist",
+		},
+		WorkflowPath:           "packages/repo-assist/policy/controls.json",
+		WorkflowName:           "controls",
+		DestinationPath:        ".github/aw/policy/controls.json",
+		FromRepositoryManifest: true,
+		IsPackageResourceFile:  true,
+	}
+	first := []*ResolvedWorkflow{{
+		Spec:                  spec,
+		Content:               []byte(`{"version":1}`),
+		SourceInfo:            &FetchedWorkflow{Content: []byte(`{"version":1}`), CommitSHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+		IsPackageResourceFile: true,
+	}}
+	err := addWorkflowsWithTracking(context.Background(), first, NewFileTracker(), AddOptions{
+		NoGitattributes:        true,
+		DisableSecurityScanner: true,
+		Quiet:                  true,
+	})
+	require.NoError(t, err)
+
+	resourcePath := filepath.Join(tempDir, ".github", "aw", "policy", "controls.json")
+	require.NoError(t, os.WriteFile(resourcePath, []byte(`{"local":true}`), 0644))
+
+	second := []*ResolvedWorkflow{{
+		Spec:                  spec,
+		Content:               []byte(`{"version":2}`),
+		SourceInfo:            &FetchedWorkflow{Content: []byte(`{"version":2}`), CommitSHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+		IsPackageResourceFile: true,
+	}}
+	err = addWorkflowsWithTracking(context.Background(), second, NewFileTracker(), AddOptions{
+		NoGitattributes:        true,
+		DisableSecurityScanner: true,
+		Quiet:                  true,
+	})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "local modifications")
+	written, readErr := os.ReadFile(resourcePath)
+	require.NoError(t, readErr)
+	assert.Equal(t, `{"local":true}`, string(written))
+}
+
 func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-add-workflows-rollback-*")
 	workflowsDir := setupMinimalGitRepo(t, tempDir)

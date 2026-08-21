@@ -56,7 +56,7 @@ jobs:
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
 
   verify-integration-build:
     needs: [checkout-cache]
@@ -72,7 +72,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -170,7 +170,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -324,7 +324,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: List unit tests in codebase
@@ -394,7 +394,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -422,7 +422,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
     - name: Set up Node.js
       id: setup-node
@@ -516,7 +516,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -613,7 +613,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Check for ANSI escape sequences in YAML files
@@ -1075,7 +1075,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -1241,7 +1241,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Check validator file sizes
@@ -1279,7 +1279,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -1371,6 +1371,45 @@ jobs:
     - name: Run custom linters
       run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -logfatallibrary -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -errortypeassertion -execcommandwithoutcontext -sprintfint -stringsindexcontains -stringscountcontains -bytesbufferstring -ioutildeprecated -mapclearloop -mapdeletecheck -sprintfbool -appendoneelement -timenowsub -stringsjoinone -writebytestring -lenstringsplit -stringreplaceminusone -osgetenvlibrary -ossetenvlibrary -stringsindexhasprefix -contextcancelnotdeferred -ctxbackground -wgdonenotdeferred -goroutinemissingrecover -trimleftright -walkfuncerrshadow -uncheckedflushreturn -bytescomparestring -nilctxpassed -stringbytesroundtrip -fileclosenotdeferred -timesleepnocontext -sprintferrorsnew -globwalkignorederror -appendbytestring -sortslice -deferinloop -regexpdynamicpattern -test=false"
 
+    - name: Determine errormessage lint scope
+      id: errormessage-scope
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_REF: origin/${{ github.base_ref }}
+        BEFORE_SHA: ${{ github.event.before }}
+      run: |
+        set -euo pipefail
+        files=""
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+            files=$(git diff --name-only "$BASE_REF...HEAD" -- '*.go' | tr '\n' ',' | sed 's/,$//')
+          else
+            echo "Base ref $BASE_REF not found, falling back to all Go files"
+            files=$(git ls-files '*.go' | tr '\n' ',' | sed 's/,$//')
+          fi
+        elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+          if git rev-parse --verify "$BEFORE_SHA^{commit}" >/dev/null 2>&1; then
+            # Push events compare the before and after commit trees directly;
+            # PR events use base...HEAD above to match GitHub's pull request diff.
+            files=$(git diff --name-only "$BEFORE_SHA" HEAD -- '*.go' | tr '\n' ',' | sed 's/,$//')
+          else
+            echo "Before SHA $BEFORE_SHA not found, skipping push diff"
+          fi
+        fi
+
+        echo "files=$files" >> "$GITHUB_OUTPUT"
+        if [ -n "$files" ]; then
+          echo "linting files: $files"
+        else
+          echo "No changed Go files to lint"
+        fi
+
+    - name: Run errormessage linter on changed files
+      if: steps.errormessage-scope.outputs.files != ''
+      env:
+        CHANGED_GO_FILES: ${{ steps.errormessage-scope.outputs.files }}
+      run: /tmp/gh-aw-linters -errormessage -errormessage.changed-files="$CHANGED_GO_FILES" ./...
+
     - name: Run custom linters (wasm)
       run: GOOS=js GOARCH=wasm make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -logfatallibrary -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -errortypeassertion -execcommandwithoutcontext -sprintfint -stringsindexcontains -stringscountcontains -bytesbufferstring -ioutildeprecated -mapclearloop -mapdeletecheck -sprintfbool -appendoneelement -timenowsub -stringsjoinone -writebytestring -lenstringsplit -stringreplaceminusone -osgetenvlibrary -ossetenvlibrary -stringsindexhasprefix -ctxbackground -wgdonenotdeferred -goroutinemissingrecover -trimleftright -walkfuncerrshadow -uncheckedflushreturn -bytescomparestring -nilctxpassed -stringbytesroundtrip -fileclosenotdeferred -timesleepnocontext -sprintferrorsnew -globwalkignorederror -appendbytestring -sortslice -deferinloop -regexpdynamicpattern -test=false" LINTER_PACKAGES="./pkg/console ./pkg/parser ./pkg/styles ./pkg/tty ./pkg/workflow"
 
@@ -1392,7 +1431,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -1419,7 +1458,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -1522,7 +1561,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -1658,7 +1697,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -1735,7 +1774,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Download gh-aw binary
@@ -1763,7 +1802,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -2326,7 +2365,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Set up Go
@@ -2464,7 +2503,7 @@ jobs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
         path: .
-        key: checkout-cgo-${{ github.sha }}
+        key: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
         fail-on-cache-miss: true
 
     - name: Run Safe Outputs Conformance Checker
@@ -2537,8 +2576,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      actions: read
+      actions: write
     steps:
+    - name: Delete checkout cache
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
+        CACHE_KEY: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+      run: |
+        cache_id=$(gh cache list --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
+        if [ -n "$cache_id" ]; then
+          gh cache delete "$cache_id"
+        fi
     - name: Summarize job and step durations
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
       with:
