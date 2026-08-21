@@ -45,42 +45,19 @@ This document is governed by the GitHub Agentic Workflows project specifications
 
 ### 1.1 Purpose
 
-The MCP Gateway serves as a protocol translation layer between MCP clients expecting HTTP-based communication and MCP servers running in containers or accessible via HTTP. It enables:
+The MCP Gateway is a protocol translation layer between HTTP-based MCP clients and MCP servers that run either in containers or behind HTTP endpoints. It provides protocol translation, a unified HTTP endpoint, server isolation, authentication, and health monitoring.
 
-- **Protocol Translation**: Converting between containerized stdio servers and HTTP transports
-- **Unified Access**: Single HTTP endpoint for multiple MCP servers
-- **Server Isolation**: Enforcing boundaries between server instances through containerization
-- **Authentication**: Token-based access control
-- **Health Monitoring**: Service availability endpoints
-
-The gateway requires that stdio-based MCP servers MUST be containerized. Direct command execution (stdio+command without containerization) is NOT supported because it cannot provide the necessary isolation and portability guarantees.
+Stdio-based MCP servers MUST be containerized. Direct command execution (`stdio` plus `command` without containerization) is NOT supported because it does not provide the required isolation or portability guarantees.
 
 ### 1.2 Scope
 
-This specification covers:
+This specification covers gateway configuration and semantics, protocol translation, server lifecycle management, authentication, health monitoring, and error handling.
 
-- Gateway configuration format and semantics
-- Protocol translation behavior
-- Server lifecycle management
-- Authentication mechanisms
-- Health monitoring interfaces
-- Error handling requirements
-
-This specification does NOT cover:
-
-- Model Context Protocol (MCP) core protocol semantics
-- Individual MCP server implementations
-- Client-side MCP implementations
-- User interfaces or interactive features (e.g., elicitation)
+It does NOT cover MCP core protocol semantics, individual server implementations, client implementations, or interactive user-facing features such as elicitation.
 
 ### 1.3 Design Goals
 
-The gateway MUST be designed for:
-
-- **Headless Operation**: No user interaction required during runtime
-- **Fail-Fast Behavior**: Immediate failure with diagnostic information
-- **Forward Compatibility**: Graceful rejection of unknown configuration features
-- **Security**: Isolation between servers and secure credential handling
+The gateway MUST support headless operation, fail fast with diagnostic information, reject unknown configuration features gracefully, and maintain server isolation with secure credential handling.
 
 ---
 
@@ -1897,13 +1874,7 @@ A conforming implementation MUST pass the following test categories:
 
 ### 11.3 Test Execution
 
-Implementations SHOULD provide:
-
-1. Automated test runner
-2. Test result reporting in standard format (e.g., TAP, JUnit)
-3. Test fixtures for common scenarios
-4. Performance benchmarks
-5. Conformance report generation
+Implementations SHOULD provide an automated test runner, standard test result reporting (for example TAP or JUnit), reusable fixtures for common scenarios, performance benchmarks, and conformance report generation.
 
 ---
 
@@ -2040,11 +2011,7 @@ The `registry` field documents the MCP server's installation location in an MCP 
 }
 ```
 
-**Notes**:
-- The `registry` field is informational and does not affect server execution
-- It can be used with both stdio (containerized) and HTTP servers
-- Registry-aware tooling can use this field for discovery and version management
-- The field complements other configuration fields like `container`, `entrypointArgs`, or `url`
+The `registry` field is informational and does not affect server execution. It can be used with both stdio (containerized) and HTTP servers, and helps registry-aware tooling with discovery and version management alongside fields such as `container`, `entrypointArgs`, and `url`.
 
 #### A.6 Gateway with OpenTelemetry Tracing
 
