@@ -52,14 +52,6 @@ type MCPScriptToolConfig struct {
 	Timeout      int                        // Timeout in seconds for tool execution (default: 60)
 }
 
-// MCPScriptParam holds the configuration for a tool input parameter
-type MCPScriptParam struct {
-	Type        MCPParamType // JSON schema type (string, number, boolean, array, object)
-	Description string       // Description of the parameter
-	Required    bool         // Whether the parameter is required
-	Default     any          // Default value
-}
-
 type MCPParamType string
 
 const (
@@ -69,6 +61,14 @@ const (
 	MCPParamTypeArray   MCPParamType = "array"
 	MCPParamTypeObject  MCPParamType = "object"
 )
+
+// MCPScriptParam holds the configuration for a tool input parameter
+type MCPScriptParam struct {
+	Type        MCPParamType // JSON schema type (string, number, boolean, array, object)
+	Description string       // Description of the parameter
+	Required    bool         // Whether the parameter is required
+	Default     any          // Default value
+}
 
 // MCPScriptsMode constants define the available transport modes
 const (
