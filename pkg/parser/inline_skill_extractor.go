@@ -115,6 +115,11 @@ func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineS
 func validateUniqueInlineSkillNames(markdown string, allStarts [][]int) error {
 	return validateUniqueInlineSectionNames(markdown, allStarts, func(name string) error {
 		inlineSkillLog.Printf("Duplicate inline skill name: %q", name)
-		return fmt.Errorf("duplicate inline skill name %q", name)
+		return NewValidationError(
+			"skills",
+			name,
+			"duplicate name already defined",
+			fmt.Sprintf("Rename one of the duplicate skills or remove the extra `%s` definition.", name),
+		)
 	})
 }
