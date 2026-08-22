@@ -12,8 +12,8 @@ func TestGitHubMCPOptionsEmbedCommonOptions(t *testing.T) {
 		name       string
 		optionType reflect.Type
 	}{
-		{name: "docker", optionType: reflect.TypeOf(GitHubMCPDockerOptions{})},
-		{name: "remote", optionType: reflect.TypeOf(GitHubMCPRemoteOptions{})},
+		{name: "docker", optionType: reflect.TypeFor[GitHubMCPDockerOptions]()},
+		{name: "remote", optionType: reflect.TypeFor[GitHubMCPRemoteOptions]()},
 	}
 
 	for _, tt := range tests {
