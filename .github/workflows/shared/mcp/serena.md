@@ -39,8 +39,12 @@ mcp-servers:
       - "codex"
       - "--project"
       - \${GITHUB_WORKSPACE}
+    env:
+      GOROOT: \${GOROOT}
+      PATH: \${GOROOT}/bin:\${PATH}
     mounts:
       - \${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw
+      - \${RUNNER_TOOL_CACHE}:\${RUNNER_TOOL_CACHE}:ro
 ---
 
 ## Serena Code Analysis
