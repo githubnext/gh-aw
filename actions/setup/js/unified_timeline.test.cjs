@@ -403,6 +403,13 @@ describe("collectFirewallEvents", () => {
     expect(events[0].kind).toBe(KIND_NET_BLOCKED);
   });
 
+  it("classifies entries with a numeric-string 4xx/5xx status as net_blocked", () => {
+    const auditPath = path.join(tmpDir, "audit.jsonl");
+    writeJsonl(auditPath, [{ ts: 1705312800.0, host: "blocked.example.com", status: "407" }]);
+    const events = collectFirewallEvents({ auditJsonlPath: auditPath });
+    expect(events[0].kind).toBe(KIND_NET_BLOCKED);
+  });
+
   it("skips entries with missing ts", () => {
     const auditPath = path.join(tmpDir, "audit.jsonl");
     writeJsonl(auditPath, [{ host: "no-ts.example.com" }, { ts: 1705312800.0, host: "ok.example.com" }]);

@@ -411,6 +411,23 @@ func TestParseAuditJSONL(t *testing.T) {
 		assert.Equal(t, "407", entries[0].Status, "Status should be normalized to string")
 	})
 
+	t.Run("unsupported status type preserves record with empty status", func(t *testing.T) {
+		dir := t.TempDir()
+		jsonlPath := filepath.Join(dir, "audit.jsonl")
+		lines := `{"ts":1.0,"host":"a.com:443","status":true,"method":"CONNECT","decision":"TCP_TUNNEL","url":"a.com:443"}
+{"ts":2.0,"host":"b.com:443","status":200}
+`
+		require.NoError(t, os.WriteFile(jsonlPath, []byte(lines), 0644))
+
+		entries, err := parseAuditJSONL(jsonlPath)
+		require.NoError(t, err, "Should parse JSONL without error")
+		require.Len(t, entries, 2, "Should preserve both entries instead of dropping the malformed-status one")
+		assert.Equal(t, "a.com:443", entries[0].Host, "Host should still be populated")
+		assert.Equal(t, "CONNECT", entries[0].Method, "Method should still be populated")
+		assert.Empty(t, entries[0].Status, "Status should fall back to empty string")
+		assert.Equal(t, "200", entries[1].Status, "Second entry should parse normally")
+	})
+
 	t.Run("malformed lines skipped", func(t *testing.T) {
 		dir := t.TempDir()
 		jsonlPath := filepath.Join(dir, "audit.jsonl")

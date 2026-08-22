@@ -293,6 +293,18 @@ function collectGatewayEvents(opts = {}) {
 }
 
 /**
+ * Coerces a firewall status value (JSON number or numeric string) to a number
+ * for blocked-status classification, returning NaN when not numeric.
+ * @param {unknown} status
+ * @returns {number}
+ */
+function toStatusNumber(status) {
+  if (typeof status === "number") return status;
+  if (typeof status === "string" && status.trim() !== "") return Number(status);
+  return NaN;
+}
+
+/**
  * Reads audit.jsonl from the AWF firewall and returns timeline events.
  * @param {{auditJsonlPath?: string}} [opts]
  * @returns {{source: string, kind: string, time: Date, detail: string, status: string}[]}
@@ -329,7 +341,10 @@ function collectFirewallEvents(opts = {}) {
 
     // Decision field: "TCP_TUNNEL:HIER_DIRECT" or "TCP_DENIED:..." etc.
     const decision = entry.decision ?? entry.squid_request_status ?? "";
-    const blocked = /denied|blocked|reject/i.test(decision) || (typeof status === "number" && status >= 400 && status < 600);
+    // Status may arrive as a JSON number or a numeric string (e.g. "407");
+    // normalize both so blocked classification is consistent across producers.
+    const statusNum = toStatusNumber(status);
+    const blocked = /denied|blocked|reject/i.test(decision) || (!Number.isNaN(statusNum) && statusNum >= 400 && statusNum < 600);
 
     const detail = truncate([host, method].filter(Boolean).join(" "), 48);
     const statusStr = status ? String(status) : blocked ? "blocked" : "allowed";

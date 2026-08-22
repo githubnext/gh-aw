@@ -72,7 +72,8 @@ func (a *AuditLogEntry) UnmarshalJSON(data []byte) error {
 	}
 	status, err := networkStatusFromJSON(wire.Status)
 	if err != nil {
-		return err
+		firewallPolicyLog.Printf("invalid audit status for host=%s: %v", wire.Host, err)
+		status = ""
 	}
 
 	a.NetworkLogEntry = NetworkLogEntry{

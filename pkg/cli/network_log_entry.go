@@ -17,20 +17,11 @@ type NetworkLogEntry struct {
 }
 
 func networkStatusCode(status string) (int, bool) {
-	if statusCode, err := strconv.Atoi(status); err == nil {
-		return statusCode, true
+	statusCode, err := strconv.Atoi(status)
+	if err != nil {
+		return 0, false
 	}
-
-	// Squid access logs combine the proxy decision and HTTP status (for example,
-	// "TCP_MISS/200"). Keep the shared parser capable of handling that format
-	// even when the current numeric-status call sites use plain status codes.
-	if idx := strings.LastIndex(status, "/"); idx != -1 && idx+1 < len(status) {
-		if statusCode, err := strconv.Atoi(status[idx+1:]); err == nil {
-			return statusCode, true
-		}
-	}
-
-	return 0, false
+	return statusCode, true
 }
 
 func networkStatusCodeOrZero(status string) int {
