@@ -68,9 +68,6 @@ evals:
   - id: findings_scoped
     question: Does the agent output show that the review findings are limited to changes in the pull request diff rather than unrelated code?
 
-sandbox:
-  agent:
-    runtime: docker-sbx
 ---
 
 # PR Code Quality Reviewer 🔎
