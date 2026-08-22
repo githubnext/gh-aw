@@ -1379,17 +1379,23 @@ jobs:
       # - timeout: 5m prevents hanging
       # - modules-download-mode: readonly uses cached modules only
     - name: Run golangci-lint
+      env:
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_BASE_REF: ${{ github.base_ref }}
       run: |
         export PATH="$PATH:$(go env GOPATH)/bin"
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
+        if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
           # Incremental linting on PRs - only check changed files
-          # This provides 50-75% faster linting on typical PRs
-          BASE_REF="origin/${{ github.base_ref }}"
-          if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
-            echo "Using incremental lint against $BASE_REF"
-            make golint-incremental BASE_REF="$BASE_REF"
+          # This provides 50-75% faster linting on typical PRs.
+          # The checkout is shallow (and restored from cache), so "origin/<base>"
+          # is usually missing. resolve-base-commit.sh fetches/deepens history as
+          # needed and falls back to HEAD~1, so incremental linting still applies.
+          BASE_REF="origin/$GITHUB_BASE_REF"
+          if BASE_COMMIT=$(bash scripts/resolve-base-commit.sh --base-ref "$BASE_REF") && [ -n "$BASE_COMMIT" ]; then
+            echo "Using incremental lint against $BASE_REF ($BASE_COMMIT)"
+            make golint-incremental BASE_REF="$BASE_COMMIT"
           else
-            echo "⚠️ Base ref $BASE_REF not found, falling back to full lint"
+            echo "Base ref $BASE_REF could not be resolved, falling back to full lint"
             make golint
           fi
         else

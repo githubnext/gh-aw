@@ -15,10 +15,11 @@ import (
 
 func TestExtractDriveMemoryConfig(t *testing.T) {
 	tests := []struct {
-		name       string
-		raw        any
-		wantDrives int
-		wantErr    string
+		name         string
+		raw          any
+		wantDrives   int
+		wantErr      string
+		wantDiskSize string
 	}{
 		{name: "null enables default", raw: nil, wantDrives: 1},
 		{name: "true enables default", raw: true, wantDrives: 1},
@@ -64,6 +65,28 @@ func TestExtractDriveMemoryConfig(t *testing.T) {
 			raw:     []any{"notes"},
 			wantErr: "array entries must be objects",
 		},
+		{
+			name:       "disk size without suffix",
+			raw:        map[string]any{"disk-size": "500"},
+			wantDrives: 1,
+		},
+		{
+			name:    "disk size with invalid suffix",
+			raw:     map[string]any{"disk-size": "1GB"},
+			wantErr: "invalid drive-memory disk-size",
+		},
+		{
+			name:         "disk size with lowercase suffix is normalized",
+			raw:          map[string]any{"disk-size": "100m"},
+			wantDrives:   1,
+			wantDiskSize: "100M",
+		},
+		{
+			name:         "disk size with surrounding whitespace is trimmed",
+			raw:          map[string]any{"disk-size": "  100M  "},
+			wantDrives:   1,
+			wantDiskSize: "100M",
+		},
 	}
 
 	for _, tt := range tests {
@@ -81,6 +104,9 @@ func TestExtractDriveMemoryConfig(t *testing.T) {
 			require.Len(t, config.Drives, tt.wantDrives)
 			if tt.wantDrives > 0 {
 				assert.NotEmpty(t, config.Drives[0].DriveName)
+			}
+			if tt.wantDiskSize != "" {
+				assert.Equal(t, tt.wantDiskSize, config.Drives[0].DiskSize)
 			}
 		})
 	}
