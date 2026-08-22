@@ -102,6 +102,11 @@ func (c *Compiler) generateDriveMemoryRestoreLines(data *WorkflowData) []string 
 		return nil
 	}
 	var builder strings.Builder
+	generateDriveMemorySteps(&builder, driveMemoryRestoreOnlyData(data), c.getActionPin)
+	return splitGeneratedStepLines(builder.String())
+}
+
+func driveMemoryRestoreOnlyData(data *WorkflowData) *WorkflowData {
 	restoreData := &WorkflowData{
 		DriveMemoryConfig: &DriveMemoryConfig{Drives: make([]DriveMemoryEntry, len(data.DriveMemoryConfig.Drives))},
 		ParsedTools:       data.ParsedTools,
@@ -110,8 +115,7 @@ func (c *Compiler) generateDriveMemoryRestoreLines(data *WorkflowData) []string 
 		drive.RestoreOnly = true
 		restoreData.DriveMemoryConfig.Drives[i] = drive
 	}
-	generateDriveMemorySteps(&builder, restoreData, c.getActionPin)
-	return splitGeneratedStepLines(builder.String())
+	return restoreData
 }
 
 func splitGeneratedStepLines(raw string) []string {

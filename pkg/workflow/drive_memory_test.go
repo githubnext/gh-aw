@@ -54,6 +54,16 @@ func TestExtractDriveMemoryConfig(t *testing.T) {
 			raw:     []any{map[string]any{"id": "../../outside"}},
 			wantErr: "invalid drive-memory id",
 		},
+		{
+			name:    "unsafe drive name",
+			raw:     map[string]any{"drive-name": "../outside"},
+			wantErr: "invalid drive-memory drive-name",
+		},
+		{
+			name:    "non-object array entry",
+			raw:     []any{"notes"},
+			wantErr: "array entries must be objects",
+		},
 	}
 
 	for _, tt := range tests {
@@ -191,6 +201,7 @@ func TestGenerateDriveMemorySteps(t *testing.T) {
 	persistYAML := persist.String()
 	assert.Contains(t, persistYAML, "actions/gh-drives-preview/commit@")
 	assert.Contains(t, persistYAML, "if: success()")
+	assert.NotContains(t, persistYAML, "if: always()")
 	assert.NotContains(t, persistYAML, "shared-reference")
 
 	prompt := buildDriveMemoryPromptSection(data.DriveMemoryConfig)
@@ -198,6 +209,15 @@ func TestGenerateDriveMemorySteps(t *testing.T) {
 	assert.Contains(t, prompt.Content, "/tmp/gh-aw/drive-memory/")
 	assert.Contains(t, prompt.Content, "/tmp/gh-aw/drive-memory-reference/")
 	assert.Contains(t, prompt.Content, "read-only")
+}
+
+func TestCopilotDriveMemoryAddDirWithoutCacheMemory(t *testing.T) {
+	args := (&CopilotEngine{}).buildCopilotFeatureArgs(&WorkflowData{
+		DriveMemoryConfig: &DriveMemoryConfig{Drives: []DriveMemoryEntry{{ID: "notes"}}},
+	}, nil)
+
+	assert.Contains(t, args, "--add-dir")
+	assert.Contains(t, args, "/tmp/gh-aw/drive-memory-notes/")
 }
 
 func TestDriveMemoryRestorePreservesIntegrityLevel(t *testing.T) {

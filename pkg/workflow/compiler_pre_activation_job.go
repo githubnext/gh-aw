@@ -300,15 +300,7 @@ func (c *Compiler) generatePreActivationDriveMemoryRestoreSteps(builder *strings
 	if data.DriveMemoryConfig == nil || len(data.DriveMemoryConfig.Drives) == 0 {
 		return
 	}
-	restoreData := &WorkflowData{
-		DriveMemoryConfig: &DriveMemoryConfig{Drives: make([]DriveMemoryEntry, len(data.DriveMemoryConfig.Drives))},
-		ParsedTools:       data.ParsedTools,
-	}
-	for i, drive := range data.DriveMemoryConfig.Drives {
-		drive.RestoreOnly = true
-		restoreData.DriveMemoryConfig.Drives[i] = drive
-	}
-	generateDriveMemorySteps(builder, restoreData, c.getActionPin)
+	generateDriveMemorySteps(builder, driveMemoryRestoreOnlyData(data), c.getActionPin)
 }
 
 func generatePreActivationCacheMemoryRestoreSteps(builder *strings.Builder, data *WorkflowData) {

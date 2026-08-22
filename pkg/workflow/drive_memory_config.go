@@ -93,6 +93,9 @@ func parseDriveMemoryEntry(raw map[string]any, defaultID string) (DriveMemoryEnt
 		entry.DriveName = id
 	}
 	if driveName, ok := raw["drive-name"].(string); ok && driveName != "" {
+		if !isValidCacheID(driveName) {
+			return entry, fmt.Errorf("invalid drive-memory drive-name %q: must contain only letters, digits, underscores, or hyphens (1-64 characters)", driveName)
+		}
 		entry.DriveName = driveName
 	}
 	if description, ok := raw["description"].(string); ok {
@@ -150,7 +153,7 @@ func parseDriveMemoryEntries(values []any) ([]DriveMemoryEntry, error) {
 	for _, value := range values {
 		raw, ok := value.(map[string]any)
 		if !ok {
-			continue
+			return nil, errors.New("tools.drive-memory array entries must be objects")
 		}
 		entry, err := parseDriveMemoryEntry(raw, "default")
 		if err != nil {

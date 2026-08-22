@@ -88,6 +88,8 @@ func generateDriveMemoryGitSetupStep(builder *strings.Builder, drive DriveMemory
 		escaped := strings.ReplaceAll(strings.Join(drive.AllowedExtensions, ":"), "'", "''")
 		fmt.Fprintf(builder, "          GH_AW_ALLOWED_EXTENSIONS: '%s'\n", escaped)
 	}
+	// Drive and cache memory use the same git initialization contract: GH_AW_CACHE_DIR
+	// points to a writable worktree and GH_AW_MIN_INTEGRITY controls the minimum level.
 	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\"\n")
 }
 
