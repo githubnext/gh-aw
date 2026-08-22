@@ -12,6 +12,7 @@ const {
   safeParseJsonl,
   safeParseJson,
   readFirstAvailable,
+  readEvalSummary,
   deepFreeze,
   deepClone,
   runGrader,
@@ -97,6 +98,39 @@ describe("trace_graders", () => {
       expect(safeParseJson('{"a":1}')).toEqual({ a: 1 });
     });
 
+    // --- readEvalSummary ---
+    describe("readEvalSummary", () => {
+      const evalsPath = "/tmp/gh-aw/evals.jsonl";
+
+      afterEach(() => {
+        if (fs.existsSync(evalsPath)) {
+          fs.unlinkSync(evalsPath);
+        }
+      });
+
+      it("returns null when evals file is absent", () => {
+        if (fs.existsSync(evalsPath)) {
+          fs.unlinkSync(evalsPath);
+        }
+        expect(readEvalSummary()).toBeNull();
+      });
+
+      it("summarizes YES/NO/UNKNOWN answers", () => {
+        fs.writeFileSync(evalsPath, [JSON.stringify({ id: "q1", answer: "YES" }), JSON.stringify({ id: "q2", answer: "no" }), JSON.stringify({ id: "q3", answer: "MAYBE" })].join("\n") + "\n", "utf8");
+        expect(readEvalSummary()).toEqual({
+          total: 3,
+          yes: 1,
+          no: 1,
+          unknown: 1,
+          byQuestion: {
+            q1: "YES",
+            q2: "NO",
+            q3: "UNKNOWN",
+          },
+        });
+      });
+    });
+
     it("returns null for invalid JSON", () => {
       expect(safeParseJson("not json")).toBeNull();
     });
@@ -131,7 +165,11 @@ describe("trace_graders", () => {
 
     it("computes success rate", () => {
       const trace = makeTrace({
-        toolCalls: [{ name: "a", success: true }, { name: "b", success: false }, { name: "c", success: true }],
+        toolCalls: [
+          { name: "a", success: true },
+          { name: "b", success: false },
+          { name: "c", success: true },
+        ],
       });
       expect(gradeToolSuccessRate(trace)).toBeCloseTo(2 / 3);
     });
@@ -151,7 +189,11 @@ describe("trace_graders", () => {
 
     it("counts failures", () => {
       const trace = makeTrace({
-        toolCalls: [{ name: "a", success: true }, { name: "b", success: false }, { name: "c", error: "err" }],
+        toolCalls: [
+          { name: "a", success: true },
+          { name: "b", success: false },
+          { name: "c", error: "err" },
+        ],
       });
       expect(gradeToolFailureCount(trace)).toBe(2);
     });

@@ -6,6 +6,7 @@ const path = require("path");
 const cp = require("child_process");
 const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { readExperimentAssignments } = require("./experiment_helpers.cjs");
 
 // --- Constants ---
 const TMP_GH_AW = "/tmp/gh-aw";
@@ -24,6 +25,7 @@ const MCP_GATEWAY_LOG_PATHS = [path.join(TMP_GH_AW, "mcp-logs/gateway.jsonl"), p
 const AGENT_OUTPUT_PATH = path.join(TMP_GH_AW, "agent_output.json");
 const AGENT_LOG_PATH = path.join(TMP_GH_AW, "agent.log");
 const AGENT_LOG_JSONL_PATH = path.join(TMP_GH_AW, "agent_log.jsonl");
+const EVALS_RESULTS_PATH = path.join(TMP_GH_AW, "evals.jsonl");
 
 // Safety limits
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -132,6 +134,44 @@ function deepClone(obj) {
 }
 
 /**
+ * Build a compact summary of eval outputs for cross-linking with grader results.
+ * @returns {{total:number, yes:number, no:number, unknown:number, byQuestion:Record<string, string>}|null}
+ */
+function readEvalSummary() {
+  const content = safeReadFile(EVALS_RESULTS_PATH);
+  if (!content) {
+    return null;
+  }
+  const records = safeParseJsonl(content);
+  if (records.length === 0) {
+    return null;
+  }
+  const summary = {
+    total: 0,
+    yes: 0,
+    no: 0,
+    unknown: 0,
+    byQuestion: {},
+  };
+  for (const record of records) {
+    if (!record || typeof record !== "object") {
+      continue;
+    }
+    const id = typeof record.id === "string" ? record.id : "";
+    const answerRaw = typeof record.answer === "string" ? record.answer.toUpperCase() : "UNKNOWN";
+    const answer = answerRaw === "YES" || answerRaw === "NO" ? answerRaw : "UNKNOWN";
+    summary.total += 1;
+    if (answer === "YES") summary.yes += 1;
+    else if (answer === "NO") summary.no += 1;
+    else summary.unknown += 1;
+    if (id) {
+      summary.byQuestion[id] = answer;
+    }
+  }
+  return summary.total > 0 ? summary : null;
+}
+
+/**
  * @typedef {object} PreprocessedTrace
  * @property {any[]} tokenUsageEntries - Parsed token-usage JSONL records
  * @property {object|null} agentUsage - Parsed agent_usage.json
@@ -203,9 +243,9 @@ function preprocessTrace() {
   }));
 
   // Extract files and artifacts from agent output
-  const ao = agentOutput && typeof agentOutput === "object" ? /** @type {{files?: any[], outputs?: any[], items?: any[]}} */ (agentOutput) : null;
-  const files = ao && Array.isArray(ao.files) ? ao.files : [];
-  const artifacts = ao && Array.isArray(ao.outputs) ? ao.outputs : ao && Array.isArray(ao.items) ? ao.items : [];
+  const ao = agentOutput !== null && typeof agentOutput === "object" ? agentOutput : null;
+  const files = ao && "files" in ao && Array.isArray(ao.files) ? ao.files : [];
+  const artifacts = ao && "outputs" in ao && Array.isArray(ao.outputs) ? ao.outputs : ao && "items" in ao && Array.isArray(ao.items) ? ao.items : [];
 
   return {
     tokenUsageEntries,
@@ -465,9 +505,9 @@ function executeCustomGraderInSubprocess(id, script, trace, meta) {
     env: safeEnv,
   });
 
-  const procError = /** @type {NodeJS.ErrnoException | undefined} */ (proc.error);
+  const procError = proc.error;
   if (procError) {
-    if (procError.code === "ETIMEDOUT") {
+    if (typeof procError.message === "string" && /ETIMEDOUT|timed out/i.test(procError.message)) {
       throw new Error(`script worker timed out after ${timeoutMs}ms`);
     }
     throw procError;
@@ -620,6 +660,10 @@ async function main(manifestB64, execSpecB64) {
       failed,
       errors: errorCount,
     },
+    context: {
+      experiments: readExperimentAssignments() || undefined,
+      evals: readEvalSummary() || undefined,
+    },
     results,
   };
 
@@ -668,6 +712,7 @@ module.exports = {
   safeParseJsonl,
   safeParseJson,
   readFirstAvailable,
+  readEvalSummary,
   deepFreeze,
   deepClone,
   runGrader,
