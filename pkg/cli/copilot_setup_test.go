@@ -231,8 +231,10 @@ func TestWorkflowFileMarshaling(t *testing.T) {
 		Jobs: map[string]workflow.WorkflowFileJob{
 			"test-job": {
 				RunsOn: "ubuntu-latest",
-				Permissions: map[string]any{
-					"contents": "read",
+				Permissions: &workflow.WorkflowFilePermissions{
+					Scopes: map[string]string{
+						"contents": "read",
+					},
 				},
 				Steps: []workflow.WorkflowStep{
 					{
