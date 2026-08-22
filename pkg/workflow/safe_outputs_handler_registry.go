@@ -75,8 +75,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			// Shared CloseOlderConfig.Enabled is remapped here to this handler's
 			// entity-specific env key name; the other create-* handlers below map the
 			// same shared field to their own entity-specific keys.
-			AddTemplatableBool("close_older_issues", c.CloseOlderConfig.Enabled).
-			AddIfNotEmpty("close_older_key", c.CloseOlderConfig.Key).
+			AddTemplatableBool("close_older_issues", c.Enabled).
+			AddIfNotEmpty("close_older_key", c.Key).
 			AddTemplatableBool("group_by_day", c.GroupByDay).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "create-issue", c.GitHubToken)).
@@ -121,8 +121,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
-			AddTemplatableBool("close_older_discussions", c.CloseOlderConfig.Enabled).
-			AddIfNotEmpty("close_older_key", c.CloseOlderConfig.Key).
+			AddTemplatableBool("close_older_discussions", c.Enabled).
+			AddIfNotEmpty("close_older_key", c.Key).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
 			AddIfPositive("expires", c.Expires).
 			AddBoolPtr("fallback_to_issue", c.FallbackToIssue).
@@ -593,8 +593,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddBoolPtr("signed_commits", c.SignedCommits).
 			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
-			AddTemplatableBool("close_older_pull_requests", c.CloseOlderConfig.Enabled).
-			AddIfNotEmpty("close_older_key", c.CloseOlderConfig.Key).
+			AddTemplatableBool("close_older_pull_requests", c.Enabled).
+			AddIfNotEmpty("close_older_key", c.Key).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		if c.PreCreate {
 			builder.

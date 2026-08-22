@@ -45,7 +45,7 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 		},
 		nil,
 		func(configData map[string]any, config *CreateDiscussionsConfig, expiresDisabled bool) {
-			config.CloseOlderConfig.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-discussions")
+			config.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-discussions")
 
 			// Set default max if not specified
 			if config.Max == nil {
@@ -95,7 +95,7 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 	if len(config.AllowedRepos) > 0 {
 		discussionLog.Printf("Allowed repos configured: %v", config.AllowedRepos)
 	}
-	if config.CloseOlderConfig.Enabled != nil {
+	if config.Enabled != nil {
 		discussionLog.Print("Close older discussions flag set")
 		if config.RequiredCategory != "" {
 			discussionLog.Printf("Required category for close older discussions: %q", config.RequiredCategory)

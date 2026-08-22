@@ -25,10 +25,10 @@ func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 // value, including GitHub Actions expressions like "${{ ... }}", is treated as enabled.
 // Used for compile-time permission calculation.
 func isCloseOlderPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
-	if config == nil || config.CloseOlderConfig.Enabled == nil {
+	if config == nil || config.Enabled == nil {
 		return false
 	}
-	v := *config.CloseOlderConfig.Enabled
+	v := *config.Enabled
 	return v != "" && v != "false" && v != "0"
 }
 
@@ -203,7 +203,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 			return true
 		},
 		func(configData map[string]any, config *CreatePullRequestsConfig, expiresDisabled bool) {
-			config.CloseOlderConfig.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-pull-requests")
+			config.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-pull-requests")
 
 			if expiresDisabled {
 				createPRLog.Print("Pull request expiration disabled")

@@ -19,9 +19,9 @@ func TestParseCreateIssuesConfigMapsCloseOlderConfig(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	require.NotNil(t, config.CloseOlderConfig.Enabled)
-	assert.Equal(t, "true", *config.CloseOlderConfig.Enabled)
-	assert.Equal(t, "issue-key", config.CloseOlderConfig.Key)
+	require.NotNil(t, config.Enabled)
+	assert.Equal(t, "true", *config.Enabled)
+	assert.Equal(t, "issue-key", config.Key)
 }
 
 func TestParseCreateDiscussionsConfigMapsCloseOlderConfig(t *testing.T) {
@@ -34,9 +34,9 @@ func TestParseCreateDiscussionsConfigMapsCloseOlderConfig(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	require.NotNil(t, config.CloseOlderConfig.Enabled)
-	assert.Equal(t, "${{ true }}", *config.CloseOlderConfig.Enabled)
-	assert.Equal(t, "discussion-key", config.CloseOlderConfig.Key)
+	require.NotNil(t, config.Enabled)
+	assert.Equal(t, "${{ true }}", *config.Enabled)
+	assert.Equal(t, "discussion-key", config.Key)
 }
 
 func TestParseCreatePullRequestsConfigMapsCloseOlderConfig(t *testing.T) {
@@ -49,9 +49,9 @@ func TestParseCreatePullRequestsConfigMapsCloseOlderConfig(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	require.NotNil(t, config.CloseOlderConfig.Enabled)
-	assert.Equal(t, "true", *config.CloseOlderConfig.Enabled)
-	assert.Equal(t, "pull-request-key", config.CloseOlderConfig.Key)
+	require.NotNil(t, config.Enabled)
+	assert.Equal(t, "true", *config.Enabled)
+	assert.Equal(t, "pull-request-key", config.Key)
 }
 
 func TestParseCreateIssuesConfigNoCloseOlderWhenAbsent(t *testing.T) {
@@ -61,8 +61,8 @@ func TestParseCreateIssuesConfigNoCloseOlderWhenAbsent(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	assert.Nil(t, config.CloseOlderConfig.Enabled, "Enabled should be nil when not set")
-	assert.Empty(t, config.CloseOlderConfig.Key)
+	assert.Nil(t, config.Enabled, "Enabled should be nil when not set")
+	assert.Empty(t, config.Key)
 }
 
 func TestParseCreateIssuesConfigCloseOlderExplicitFalse(t *testing.T) {
@@ -74,8 +74,8 @@ func TestParseCreateIssuesConfigCloseOlderExplicitFalse(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	require.NotNil(t, config.CloseOlderConfig.Enabled, "Enabled should be set (not nil) when explicitly false")
-	assert.Equal(t, "false", *config.CloseOlderConfig.Enabled)
+	require.NotNil(t, config.Enabled, "Enabled should be set (not nil) when explicitly false")
+	assert.Equal(t, "false", *config.Enabled)
 }
 
 func TestParseCreateDiscussionsConfigNoCloseOlderWhenAbsent(t *testing.T) {
@@ -85,8 +85,8 @@ func TestParseCreateDiscussionsConfigNoCloseOlderWhenAbsent(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	assert.Nil(t, config.CloseOlderConfig.Enabled, "Enabled should be nil when not set")
-	assert.Empty(t, config.CloseOlderConfig.Key)
+	assert.Nil(t, config.Enabled, "Enabled should be nil when not set")
+	assert.Empty(t, config.Key)
 }
 
 func TestParseCreatePullRequestsConfigNoCloseOlderWhenAbsent(t *testing.T) {
@@ -96,8 +96,8 @@ func TestParseCreatePullRequestsConfigNoCloseOlderWhenAbsent(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	assert.Nil(t, config.CloseOlderConfig.Enabled, "Enabled should be nil when not set")
-	assert.Empty(t, config.CloseOlderConfig.Key)
+	assert.Nil(t, config.Enabled, "Enabled should be nil when not set")
+	assert.Empty(t, config.Key)
 }
 
 // TestParseCreateIssuesConfigCloseOlderEnabledIsNotAPublicKey verifies that the internal
@@ -113,5 +113,5 @@ func TestParseCreateIssuesConfigCloseOlderEnabledIsNotAPublicKey(t *testing.T) {
 	})
 
 	require.NotNil(t, config)
-	assert.Nil(t, config.CloseOlderConfig.Enabled, "close-older-enabled must not be a supported public YAML key")
+	assert.Nil(t, config.Enabled, "close-older-enabled must not be a supported public YAML key")
 }

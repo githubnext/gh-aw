@@ -48,7 +48,7 @@ func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssu
 			return true
 		},
 		func(configData map[string]any, config *CreateIssuesConfig, expiresDisabled bool) {
-			config.CloseOlderConfig.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-issues")
+			config.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-issues")
 
 			// Set default max if not specified
 			if config.Max == nil {
