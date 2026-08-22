@@ -664,20 +664,22 @@ func TestGenerateLockMetadataAgentFieldsOmittedWhenEmpty(t *testing.T) {
 
 func TestLockMetadataToJSONWithAgentFields(t *testing.T) {
 	metadata := &LockMetadata{
-		SchemaVersion:           LockSchemaV3,
-		FrontmatterHash:         "test123",
-		Strict:                  true,
-		EngineBaseURLCustomized: true,
-		AgentID:                 "claude",
-		AgentModel:              "claude-sonnet-4.5",
-		DetectionAgentID:        "copilot",
-		DetectionAgentModel:     "gpt-5.1-codex-mini",
-		EngineVersions: map[string]string{
-			"claude":      "2.1.160",
-			"copilot":     "1.0.57",
-			"copilot-sdk": "1.0.0",
+		SchemaVersion:   LockSchemaV3,
+		FrontmatterHash: "test123",
+		Strict:          true,
+		AgentMetadataInfo: AgentMetadataInfo{
+			EngineBaseURLCustomized: true,
+			AgentID:                 "claude",
+			AgentModel:              "claude-sonnet-4.5",
+			DetectionAgentID:        "copilot",
+			DetectionAgentModel:     "gpt-5.1-codex-mini",
+			EngineVersions: map[string]string{
+				"claude":      "2.1.160",
+				"copilot":     "1.0.57",
+				"copilot-sdk": "1.0.0",
+			},
+			AgentImageRunner: `["self-hosted","linux"]`,
 		},
-		AgentImageRunner: `["self-hosted","linux"]`,
 	}
 
 	json, err := metadata.ToJSON()
