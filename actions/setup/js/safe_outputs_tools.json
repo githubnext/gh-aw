@@ -820,11 +820,11 @@
       "properties": {
         "label_to_remove": {
           "type": "string",
-          "description": "Label name to remove from the issue or pull request."
+          "description": "Label name to remove from the issue or pull request, e.g. 'triage'."
         },
         "label_to_add": {
           "type": "string",
-          "description": "Label name to add to the issue or pull request."
+          "description": "Label name to add to the issue or pull request, e.g. 'in-progress'."
         },
         "item_number": {
           "type": ["number", "string"],

@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -82,9 +83,7 @@ func buildDynamicWorkflowSampleEntry(toolName string, sample map[string]any) (Sa
 	args := map[string]any{}
 	if rawInputs, ok := sample["inputs"]; ok {
 		if inputs, ok := rawInputs.(map[string]any); ok {
-			for k, v := range inputs {
-				args[k] = v
-			}
+			maps.Copy(args, inputs)
 		}
 	}
 	if len(args) == 0 {
