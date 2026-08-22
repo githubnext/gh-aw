@@ -361,8 +361,8 @@ func TestAWFSupportsFilesystemAllowWrite(t *testing.T) {
 		want           bool
 	}{
 		{
-			name: "default version supports filesystem.allowWrite",
-			want: true,
+			name: "default version does not support filesystem.allowWrite",
+			want: false,
 		},
 		{
 			name:           "exact minimum version supports filesystem.allowWrite",
