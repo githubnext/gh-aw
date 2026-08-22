@@ -12,6 +12,8 @@ network:
   allowed:
     - defaults
     - github
+skills:
+  - cathrynlavery/diagram-design/skills/diagram-design@648c2a597839301e06df1e7434a08bde9f42eed3
 tools:
   cache-memory:
     retention-days: 30
@@ -56,7 +58,7 @@ Create one small, useful diagram for the next eligible documentation page. Keep 
 
 ## Create the diagram
 
-1. Clone `https://github.com/cathrynlavery/diagram-design.git` into `/tmp/gh-aw/agent/diagram-design` and check out commit `648c2a597839301e06df1e7434a08bde9f42eed3`. Read its `skills/diagram-design/SKILL.md` and use its layout guidance; do not add the clone, its skill, or dependencies to this repository.
+1. Read and apply the installed `diagram-design` skill's layout guidance.
 2. Choose the smallest diagram-design layout that explains one concrete concept from the selected page. Prefer 3–7 labelled elements and one clear relationship or flow. Do not make a decorative diagram or repeat prose without adding understanding.
 3. Create `docs/src/assets/diagrams/<page-slug>-<YYYY-MM-DD>.svg`. The SVG must be self-contained: no JavaScript, external images, web fonts, or network references.
 4. Match GitHub Primer aesthetics rather than diagram-design's default palette:
