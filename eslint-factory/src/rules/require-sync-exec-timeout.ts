@@ -235,10 +235,10 @@ function characterizedParameterSpreadSuppliesTimeout(spread: TSESTree.SpreadElem
   if (isReassignedBefore(parameterVariable, spread.argument)) return null;
 
   const binding = getFunctionBindingVariable(containingFunction, sourceCode);
-  if (!binding) return false;
+  if (!binding) return null;
 
   const directCalls = getDirectCalls(binding);
-  if (directCalls.length === 0) return false;
+  if (directCalls.length === 0) return null;
 
   return directCalls.every(call => callSiteArgumentSuppliesTimeout(call.arguments[defaultObject.paramIndex], sourceCode));
 }
