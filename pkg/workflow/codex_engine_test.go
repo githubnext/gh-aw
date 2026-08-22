@@ -211,8 +211,11 @@ func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, "CODEX_HOME: /tmp/gh-aw/mcp-config") {
-		t.Errorf("Expected CODEX_HOME to use writable /tmp path, got:\n%s", stepContent)
+	if !strings.Contains(stepContent, "CODEX_HOME: "+constants.CodexHomeDirExpr) {
+		t.Errorf("Expected CODEX_HOME to use workspace path for MCP helper aliases, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `ln -sfn "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config/logs`) {
+		t.Errorf("Expected execution command to mirror Codex logs to /tmp for diagnostics, got:\n%s", stepContent)
 	}
 }
 

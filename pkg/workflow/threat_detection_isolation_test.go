@@ -673,7 +673,7 @@ Test workflow`
 	if !strings.Contains(detectionSection, string(constants.ShellMcpServersJsonPath)) {
 		t.Error("Codex external detector path must create an empty mcp-servers.json for Codex")
 	}
-	if !strings.Contains(detectionSection, string(constants.TmpMcpConfigDir)+"/config.toml") {
+	if !strings.Contains(detectionSection, constants.CodexHomeDirExpr+"/config.toml") {
 		t.Error("Codex external detector path must create a writable CODEX_HOME config.toml")
 	}
 	if !strings.Contains(detectionSection, "model_provider = \"openai-proxy\"") {

@@ -374,7 +374,8 @@ func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, log
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-mkdir -p "$CODEX_HOME/logs"
+mkdir -p "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config
+ln -sfn "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config/logs
 %s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
 	}
 	return fmt.Sprintf(`set -o pipefail
@@ -382,7 +383,8 @@ printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-mkdir -p "$CODEX_HOME/logs"
+mkdir -p "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config
+ln -sfn "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config/logs
 %s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
 }
 
@@ -398,7 +400,7 @@ func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
 }
 
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {
-	base := "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath
+	base := "mkdir -p \"$CODEX_HOME/logs\" /tmp/gh-aw/mcp-config && ln -sfn \"$CODEX_HOME/logs\" /tmp/gh-aw/mcp-config/logs && touch " + AgentStepSummaryPath
 	if workflowData.IsDetectionRun {
 		return base + " && " + detectionSchemaWriteCmd
 	}
@@ -409,7 +411,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 	effectiveGitHubToken := getEffectiveGitHubToken("")
 	env := map[string]string{
 		"CODEX_API_KEY":                "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
-		"CODEX_HOME":                   constants.TmpMcpConfigDir,
+		"CODEX_HOME":                   constants.CodexHomeDirExpr,
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GH_AW_MCP_CONFIG":             constants.CodexMcpConfigTomlPath,
 		"GH_AW_PROMPT":                 constants.AwPromptsFile,

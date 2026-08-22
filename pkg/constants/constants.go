@@ -595,6 +595,10 @@ const McpServersJsonPathExpr = GhAwRootDir + "/mcp-config/mcp-servers.json"
 // CodexMcpConfigTomlPath is the Codex MCP config TOML file path in Actions expression form.
 const CodexMcpConfigTomlPath = GhAwRootDir + "/mcp-config/config.toml"
 
+// CodexHomeDirExpr is the writable CODEX_HOME directory for Codex runs.
+// Use github.workspace instead of /tmp so Codex can create MCP helper aliases.
+const CodexHomeDirExpr = "${{ github.workspace }}/.gh-aw/codex-home"
+
 // System path constants
 //
 // Well-known host system paths used by CLI tools and shell completion.

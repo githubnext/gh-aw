@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,8 +191,8 @@ func TestCollectMCPEnvironmentVariables_CodexEngineIncludesCODEXHOME(t *testing.
 
 	envVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, false)
 
-	assert.Equal(t, "/tmp/gh-aw/mcp-config", envVars["CODEX_HOME"],
-		"CODEX_HOME should be set to /tmp/gh-aw/mcp-config for Codex engine")
+	assert.Equal(t, constants.CodexHomeDirExpr, envVars["CODEX_HOME"],
+		"CODEX_HOME should use the workspace-backed Codex home for Codex engine")
 }
 
 // TestCollectMCPEnvironmentVariables_NonCodexEngineExcludesCODEXHOME verifies that

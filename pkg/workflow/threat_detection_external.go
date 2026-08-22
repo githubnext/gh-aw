@@ -18,7 +18,7 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 
 	const emptyMCPServersJSON = `{"mcpServers":{}}`
 	shellCodexConfigPath := constants.ShellMcpConfigDir + "/config.toml"
-	codexHomeConfigPath := constants.TmpMcpConfigDir + "/config.toml"
+	codexHomeConfigPath := constants.CodexHomeDirExpr + "/config.toml"
 	codexAPIBase := NewCodexEngine().getOpenAIProxyProviderBaseURL()
 	codexWSSBase := codexProxyWebsocketBaseURL(codexAPIBase)
 	codexConfig := buildExternalDetectorCodexConfig(codexAPIBase, codexWSSBase)
@@ -28,7 +28,7 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 		"      - name: Prepare Codex config for threat-detect\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
-		fmt.Sprintf("          mkdir -p %q %q %q\n", constants.ShellMcpConfigDir, constants.TmpMcpConfigDir, constants.TmpMcpConfigLogsDir),
+		fmt.Sprintf("          mkdir -p %q %q %q\n", constants.ShellMcpConfigDir, constants.CodexHomeDirExpr, constants.TmpMcpConfigLogsDir),
 		fmt.Sprintf("          printf '%%s\\n' %q > %q\n", emptyMCPServersJSON, constants.ShellMcpServersJsonPath),
 		"          # Point Codex at the AWF OpenAI proxy and disable websocket startup.\n",
 		fmt.Sprintf("          cat > %q << %s\n", shellCodexConfigPath, codexConfigDelimiter), //nolint:generatedyamlheredoc // Legacy detector config rendering remains to be migrated.
