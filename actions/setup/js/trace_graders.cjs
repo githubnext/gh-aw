@@ -203,7 +203,7 @@ function preprocessTrace() {
   }));
 
   // Extract files and artifacts from agent output
-  const ao = /** @type {any} */ agentOutput;
+  const ao = agentOutput && typeof agentOutput === "object" ? /** @type {{files?: any[], outputs?: any[], items?: any[]}} */ (agentOutput) : null;
   const files = ao && Array.isArray(ao.files) ? ao.files : [];
   const artifacts = ao && Array.isArray(ao.outputs) ? ao.outputs : ao && Array.isArray(ao.items) ? ao.items : [];
 
@@ -465,11 +465,12 @@ function executeCustomGraderInSubprocess(id, script, trace, meta) {
     env: safeEnv,
   });
 
-  if (proc.error) {
-    if (/** @type {any} */ proc.error.code === "ETIMEDOUT") {
+  const procError = /** @type {NodeJS.ErrnoException | undefined} */ (proc.error);
+  if (procError) {
+    if (procError.code === "ETIMEDOUT") {
       throw new Error(`script worker timed out after ${timeoutMs}ms`);
     }
-    throw proc.error;
+    throw procError;
   }
 
   if (proc.status !== 0) {
