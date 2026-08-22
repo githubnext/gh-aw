@@ -155,10 +155,12 @@ func TestNumericIDRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 
 	for _, jsonData := range []string{`"not-a-number"`, `9223372036854775808`, `true`} {
-		var id NumericID
-		if err := json.Unmarshal([]byte(jsonData), &id); err == nil {
-			t.Errorf("Expected %s to be rejected", jsonData)
-		}
+		t.Run(jsonData, func(t *testing.T) {
+			var id NumericID
+			if err := json.Unmarshal([]byte(jsonData), &id); err == nil {
+				t.Errorf("Expected %s to be rejected", jsonData)
+			}
+		})
 	}
 }
 
