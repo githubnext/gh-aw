@@ -39,6 +39,7 @@ has_symlinked_git_metadata() {
 
 harden_repo_memory_git_state() {
   local repo_root="$1"
+  local safe_origin_url="$2"
 
   if [ ! -d "$repo_root/.git" ] && [ ! -L "$repo_root/.git" ]; then
     return 0
@@ -68,6 +69,11 @@ harden_repo_memory_git_state() {
   git -C "$repo_root" config user.email "github-actions[bot]@users.noreply.github.com"
   git -C "$repo_root" config core.hooksPath /dev/null
   git -C "$repo_root" config core.fsmonitor false
+
+  # Never leave a credential-embedded remote URL persisted in .git/config
+  if [ -n "$safe_origin_url" ] && git -C "$repo_root" remote get-url origin >/dev/null 2>&1; then
+    git -C "$repo_root" remote set-url origin "$safe_origin_url"
+  fi
 }
 
 # Validate required environment variables
@@ -104,13 +110,23 @@ fi
 # Extract host from server URL (remove https:// or http:// prefix)
 SERVER_HOST="${GITHUB_SERVER_URL#https://}"
 SERVER_HOST="${SERVER_HOST#http://}"
-ORIGIN_URL="https://x-access-token:${GH_TOKEN}@${SERVER_HOST}/${TARGET_REPO}.git"
+SAFE_ORIGIN_URL="https://${SERVER_HOST}/${TARGET_REPO}.git"
+
+# Authenticate via a transient HTTP extra header instead of embedding the
+# token in the remote URL, so the credential is never written to .git/config.
+# The header is passed via GIT_CONFIG_* environment variables (rather than
+# `git -c ...`) so it never appears in the process argument list.
+AUTH_HEADER="Authorization: Basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0="http.extraheader"
+export GIT_CONFIG_VALUE_0="$AUTH_HEADER"
 
 # Try to clone the branch (don't fail if it doesn't exist)
 set +e
-git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null
+git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null
 CLONE_EXIT_CODE=$?
 set -e
+unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
 
 if [ $CLONE_EXIT_CODE -ne 0 ]; then
   # Clone failed - branch doesn't exist
@@ -124,9 +140,9 @@ if [ $CLONE_EXIT_CODE -ne 0 ]; then
     fi
     git init
     git checkout --orphan "$BRANCH_NAME"
-    harden_repo_memory_git_state "$MEMORY_DIR"
     git remote remove origin >/dev/null 2>&1 || true
-    git remote add origin "$ORIGIN_URL"
+    git remote add origin "$SAFE_ORIGIN_URL"
+    harden_repo_memory_git_state "$MEMORY_DIR" "$SAFE_ORIGIN_URL"
   else
     echo "Branch $BRANCH_NAME does not exist and create-orphan is false, skipping"
     mkdir -p "$MEMORY_DIR"
@@ -139,16 +155,18 @@ else
     echo "WARNING: Detected symlinked repo-memory git metadata; recloning branch"
     cd ..
     rm -rf "$MEMORY_DIR"
-    if ! git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null; then
+    if ! GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.extraheader" GIT_CONFIG_VALUE_0="$AUTH_HEADER" \
+      git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null; then
       echo "ERROR: failed to re-clone repo-memory branch after symlink metadata detection" >&2
       exit 1
     fi
     cd "$MEMORY_DIR"
   fi
-  harden_repo_memory_git_state "$MEMORY_DIR"
   git remote remove origin >/dev/null 2>&1 || true
-  git remote add origin "$ORIGIN_URL"
+  git remote add origin "$SAFE_ORIGIN_URL"
+  harden_repo_memory_git_state "$MEMORY_DIR" "$SAFE_ORIGIN_URL"
 fi
+unset AUTH_HEADER
 
 # Ensure memory directory exists
 mkdir -p "$MEMORY_DIR"
