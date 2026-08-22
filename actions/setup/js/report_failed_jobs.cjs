@@ -15,9 +15,10 @@ const FAILED_JOBS_ISSUE_EXPIRES_HOURS = 24 * 7; // 1 week
 /**
  * Known builtin job names whose failures are already reported
  * by the handle_agent_failure step (the agent job) or are framework-internal
- * (conclusion = current job, pre_activation/activation = reported via agent failure issue flags).
+ * (conclusion = current job, pre_activation/activation = reported via agent failure issue flags,
+ * safe-outputs/safe_outputs and detection = handled by dedicated conclusion reporting).
  */
-const BUILTIN_REPORTED_JOB_NAMES = new Set(["agent", "conclusion", "activation", "pre_activation", "pre-activation"]);
+const BUILTIN_REPORTED_JOB_NAMES = new Set(["agent", "conclusion", "activation", "pre_activation", "pre-activation", "safe_outputs", "safe-outputs", "detection"]);
 
 /**
  * Check whether an error is a GitHub permission error for issues write.
