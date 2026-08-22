@@ -278,13 +278,16 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
       const isCreatePullRequestTool = tool.name === "create_pull_request" && config.create_pull_request;
       // Enrich create_pull_request tool description when target-repo is configured
       if (safetyWarning || isCreatePullRequestTool) {
+        // The handler is a function and cannot be structurally cloned, so it is
+        // separated out and re-attached to the clone below.
+        const { handler, ...cloneableTool } = tool;
         try {
-          toolToRegister = JSON.parse(JSON.stringify(tool));
+          toolToRegister = structuredClone(cloneableTool);
         } catch (err) {
           throw new Error("Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
         }
-        if (tool.handler) {
-          toolToRegister.handler = tool.handler;
+        if (handler) {
+          toolToRegister.handler = handler;
         }
         if (safetyWarning) {
           toolToRegister.description += safetyWarning;

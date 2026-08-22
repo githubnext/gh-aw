@@ -317,7 +317,7 @@ async function main() {
       // Deep copy to avoid modifying the original
       let enhancedTool;
       try {
-        enhancedTool = JSON.parse(JSON.stringify(tool));
+        enhancedTool = structuredClone(tool);
       } catch (err) {
         throw new Error(`${ERR_CONFIG}: ` + "Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
       }

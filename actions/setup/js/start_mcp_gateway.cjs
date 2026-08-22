@@ -322,6 +322,7 @@ function httpGet(url, timeoutMs) {
   return new Promise((resolve, reject) => {
     const req = http.get(url, { timeout: timeoutMs }, res => {
       let data = "";
+      res.on("error", reject);
       res.on("data", chunk => (data += chunk));
       res.on("end", () => resolve({ statusCode: res.statusCode || 0, body: data }));
     });
