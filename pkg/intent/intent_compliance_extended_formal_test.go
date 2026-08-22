@@ -35,9 +35,10 @@ func TestFormalFixture_ExplicitIntentWinsEvenWithMatchingLabels(t *testing.T) {
 	pr := buildFixturePullRequest(fixture)
 	pr.Labels = []string{"bug", "priority-high"}
 
-	labelOnlyPR := pr
+	labelOnlyPR := buildFixturePullRequest(fixture)
 	labelOnlyPR.ExplicitIntent = nil
 	labelOnlyPR.ClosingIssues = nil
+	labelOnlyPR.Labels = []string{"bug", "priority-high"}
 	labelOnly := matchingResolver().ResolvePullRequest(labelOnlyPR)
 	assert.Equal(t, intent.SourceArtifactLabels, labelOnly.Source)
 	assert.Equal(t, intent.AttributionMapped, labelOnly.Status)
