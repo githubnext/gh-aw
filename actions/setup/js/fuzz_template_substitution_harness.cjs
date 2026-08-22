@@ -63,7 +63,12 @@ function interpolateVariables(content, variables) {
  * @returns {Promise<{result: string, error: string | null, stages: {afterSubstitution: string, afterInterpolation: string, afterTemplate: string}}>} Test result
  */
 async function testTemplateSubstitution(template, substitutions, variables) {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fuzz-template-"));
+  let tempDir;
+  try {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fuzz-template-"));
+  } catch (error) {
+    throw new Error("Failed to create fuzz harness temporary directory", { cause: error });
+  }
   const testFile = path.join(tempDir, "test.txt");
 
   try {
