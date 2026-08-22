@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
 // ValidationError represents an input validation error in parser package checks.
@@ -12,14 +11,12 @@ type ValidationError struct {
 	Value      string
 	Reason     string
 	Suggestion string
-	Timestamp  time.Time
 }
 
 // Error implements the error interface.
 func (e *ValidationError) Error() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
-		e.Timestamp.Format(time.RFC3339), e.Field)
+	fmt.Fprintf(&b, "Validation failed for field '%s'", e.Field)
 
 	if e.Value != "" {
 		fmt.Fprintf(&b, "\n\nValue: %s", e.Value)
@@ -41,6 +38,5 @@ func NewValidationError(field, value, reason, suggestion string) *ValidationErro
 		Value:      value,
 		Reason:     reason,
 		Suggestion: suggestion,
-		Timestamp:  time.Now(),
 	}
 }
