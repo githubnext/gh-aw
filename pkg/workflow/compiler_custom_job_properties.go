@@ -110,6 +110,7 @@ func extractCustomJobTimeoutMinutes(job *Job, jobName string, configMap map[stri
 	}
 
 	isGeneratedJob := jobName == string(constants.AgentJobName) || jobName == string(constants.DetectionJobName)
+	const maxLosslessIntFloat64 = float64(1 << 53)
 	timeoutMustBePositiveIntegerErr := func(got any) error {
 		return fmt.Errorf("job '%s' timeout-minutes must be a positive integer, got %v", jobName, got)
 	}
@@ -122,22 +123,26 @@ func extractCustomJobTimeoutMinutes(job *Job, jobName string, configMap map[stri
 		job.TimeoutMinutes = v
 		job.TimeoutMinutesExpression = ""
 	case int64:
-		if v <= 0 || v > int64(^uint(0)>>1) {
+		if v <= 0 || int64(int(v)) != v {
 			return timeoutMustBePositiveIntegerErr(v)
 		}
 		job.TimeoutMinutes = int(v)
 		job.TimeoutMinutesExpression = ""
 	case uint64:
-		if v == 0 || v > uint64(^uint(0)>>1) {
+		if v == 0 || uint64(int(v)) != v {
 			return timeoutMustBePositiveIntegerErr(v)
 		}
 		job.TimeoutMinutes = int(v)
 		job.TimeoutMinutesExpression = ""
 	case float64:
-		if v <= 0 || math.Trunc(v) != v || v > float64(^uint(0)>>1) {
+		if v <= 0 || math.Trunc(v) != v || v > maxLosslessIntFloat64 {
 			return timeoutMustBePositiveIntegerErr(v)
 		}
-		job.TimeoutMinutes = int(v)
+		minutes64 := int64(v)
+		if minutes64 <= 0 || int64(int(minutes64)) != minutes64 {
+			return timeoutMustBePositiveIntegerErr(v)
+		}
+		job.TimeoutMinutes = int(minutes64)
 		job.TimeoutMinutesExpression = ""
 	case string:
 		if strings.TrimSpace(v) == "" {
