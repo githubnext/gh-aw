@@ -75,6 +75,7 @@ func TestBuildAWFCommand_IncludesChrootInjectScript(t *testing.T) {
 				},
 			},
 		}
+
 		command := BuildAWFCommand(config)
 		assert.Contains(t, command, awfArcDindChrootBinariesSourcePath,
 			"command should include the expected binariesSourcePath constant")
@@ -113,6 +114,12 @@ func TestBuildAWFCommand_IncludesChrootInjectScript(t *testing.T) {
 		assert.NotContains(t, command, "binariesSourcePath",
 			"command should NOT include chroot inject script for old AWF version")
 	})
+}
+
+func TestBuildArcDindChrootConfigPatchBodyBashWritesConfigOnce(t *testing.T) {
+	body := buildArcDindChrootConfigPatchBodyBash()
+
+	assert.Equal(t, 1, strings.Count(body, `> "${RUNNER_TEMP}/gh-aw/awf-config.json"`))
 }
 
 func TestRewriteArcDindPath(t *testing.T) {

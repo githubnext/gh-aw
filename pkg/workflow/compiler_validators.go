@@ -210,6 +210,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating default AI credits pricing values", validateFn: func() error { return validateDefaultAiCreditsPricing(workflowData) }},
 		{logMessage: "Validating tools.github.bounded-queries configuration", validateFn: func() error { return validateBoundedQueriesConfig(workflowData) }},
 		{logMessage: "Validating enclaves configuration", validateFn: func() error { return validateEnclavesConfig(workflowData) }},
+		{logMessage: "Validating drive-memory runtime", validateFn: func() error { return validateDriveMemoryRuntime(workflowData) }},
 	}
 	// This validation is intentionally outside the table below because strict mode
 	// turns the same validation result into either an error or a warning.
@@ -377,6 +378,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: detectionConfigured && isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 		{enabled: len(workflowData.LSP) > 0, message: "Using experimental feature: lsp"},
 		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
+		{enabled: workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0, message: "Using experimental feature: drive-memory"},
 		{enabled: hasContinualExperiment(workflowData.ExperimentConfigs), message: "Using experimental feature: continual experiments"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.PreCreate, message: "Using experimental feature: create-pull-request pre-create"},
 	}

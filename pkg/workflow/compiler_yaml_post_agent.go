@@ -237,6 +237,12 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// This ensures artifacts are uploaded after the agent has finished modifying the cache
 	generateCacheMemoryArtifactUpload(yaml, data, c.getActionPin)
 
+	// Commit and validate drive-memory changes, then either publish them directly or
+	// stage them for the post-detection update job.
+	generateDriveMemoryGitCommitSteps(yaml, data)
+	generateDriveMemoryValidation(yaml, data)
+	generateDriveMemoryPersistence(yaml, data, c.getActionPin)
+
 	// Add safe-outputs assets artifact upload (after agent execution)
 	// This creates a separate artifact for assets that will be downloaded by upload_assets job
 	generateSafeOutputsAssetsArtifactUpload(yaml, data, c.getActionPin)
