@@ -35,6 +35,7 @@ model: claude-sonnet-4-6
 engine:
   id: claude
 safe-outputs:
+  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   add-comment:
     max: 2
     hide-older-comments: true
