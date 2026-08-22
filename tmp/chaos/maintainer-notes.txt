@@ -1,0 +1,1 @@
+scenario ad6280: cautious maintainer staged subset
