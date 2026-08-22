@@ -100,3 +100,4 @@
 {"run_id":"32313830115","timestamp":"2026-08-19T23:35:05.715Z","assignments":{"reasoning_depth":"iterative"}}
 {"run_id":"32429330769","timestamp":"2026-08-20T23:36:37.638Z","assignments":{"reasoning_depth":"iterative"}}
 {"run_id":"32537420613","timestamp":"2026-08-21T23:35:57.619Z","assignments":{"reasoning_depth":"iterative"}}
+{"run_id":"32605572913","timestamp":"2026-08-22T23:34:39.270Z","harness_version":"b724c9e62e015dd8caecd3ed6fd4e50b7f4bd422821ccb07d0d28c81209a3021:32c75e3a53064075d92d2958ca82d761ee82163728d1faf3b005d3582091a16b","assignments":{"reasoning_depth":"iterative"}}
