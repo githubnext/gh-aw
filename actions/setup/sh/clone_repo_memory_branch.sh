@@ -114,13 +114,19 @@ SAFE_ORIGIN_URL="https://${SERVER_HOST}/${TARGET_REPO}.git"
 
 # Authenticate via a transient HTTP extra header instead of embedding the
 # token in the remote URL, so the credential is never written to .git/config.
-AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+# The header is passed via GIT_CONFIG_* environment variables (rather than
+# `git -c ...`) so it never appears in the process argument list.
+AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0="http.extraheader"
+export GIT_CONFIG_VALUE_0="$AUTH_HEADER"
 
 # Try to clone the branch (don't fail if it doesn't exist)
 set +e
-git -c http.extraheader="$AUTH_HEADER" clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null
+git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null
 CLONE_EXIT_CODE=$?
 set -e
+unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
 
 if [ $CLONE_EXIT_CODE -ne 0 ]; then
   # Clone failed - branch doesn't exist
@@ -149,7 +155,8 @@ else
     echo "WARNING: Detected symlinked repo-memory git metadata; recloning branch"
     cd ..
     rm -rf "$MEMORY_DIR"
-    if ! git -c http.extraheader="$AUTH_HEADER" clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null; then
+    if ! GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.extraheader" GIT_CONFIG_VALUE_0="$AUTH_HEADER" \
+      git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null; then
       echo "ERROR: failed to re-clone repo-memory branch after symlink metadata detection" >&2
       exit 1
     fi
