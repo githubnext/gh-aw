@@ -30,7 +30,7 @@ const workflowCallRef = "${{ steps.resolve-host-repo.outputs.target_checkout_ref
 // callee repository in cross-repo scenarios.
 const sameRepoCondition = "steps.resolve-host-repo.outputs.target_repo == github.repository"
 
-func TestActivationArtifactUploadRunsAlways(t *testing.T) {
+func TestActivationArtifactUploadRunsAfterSuccessOrFailure(t *testing.T) {
 	compiler := NewCompiler()
 	job, err := compiler.buildActivationJob(&WorkflowData{Name: "Test Workflow"}, false, "", "test.lock.yml")
 	require.NoError(t, err)
@@ -38,8 +38,8 @@ func TestActivationArtifactUploadRunsAlways(t *testing.T) {
 
 	steps := strings.Join(job.Steps, "")
 	uploadStep := extractWorkflowStepByName(t, steps, "Upload activation artifact")
-	assert.Contains(t, uploadStep, "if: always()")
-	assert.NotContains(t, uploadStep, "if: success()")
+	assert.Contains(t, uploadStep, "if: success() || failure()")
+	assert.NotContains(t, uploadStep, "if: always()")
 }
 
 func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {

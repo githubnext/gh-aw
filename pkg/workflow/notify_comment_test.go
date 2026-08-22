@@ -1458,6 +1458,24 @@ func TestConclusionJobIncludesEvalsInUsageArtifact(t *testing.T) {
 	}
 }
 
+func TestUsageArtifactDownloadsUseExactNamesWithDownloadArtifactV3(t *testing.T) {
+	steps := strings.Join(buildUsageArtifactUploadSteps("", true, func(string) string {
+		return "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0"
+	}), "")
+
+	for _, artifactName := range []string{constants.SafeOutputItemsArtifactName, constants.EvalsArtifactName} {
+		if !strings.Contains(steps, "name: "+artifactName) {
+			t.Errorf("Expected download-artifact v3 usage download to use exact name for %q.\nGenerated steps:\n%s", artifactName, steps)
+		}
+		if strings.Contains(steps, "pattern: "+artifactName) {
+			t.Errorf("Expected download-artifact v3 usage download not to use pattern for %q.\nGenerated steps:\n%s", artifactName, steps)
+		}
+	}
+	if strings.Contains(steps, "merge-multiple: true") {
+		t.Errorf("Expected download-artifact v3 usage downloads not to use merge-multiple.\nGenerated steps:\n%s", steps)
+	}
+}
+
 // TestConclusionJobNeedsPreActivationFromMessages tests that pre_activation is automatically
 // added to the conclusion job's needs when any message template references
 // needs.pre_activation.outputs.*, and that it is not duplicated.

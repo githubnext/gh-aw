@@ -140,15 +140,15 @@ func (c *Compiler) buildPushEvalsStateJob(data *WorkflowData) (*Job, error) {
 	steps = append(steps, c.generateGitConfigurationSteps()...)
 
 	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName
+	downloadAction := c.getActionPin("actions/download-artifact")
 	steps = append(steps,
 		"      - name: Download evals artifact\n",
-		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
+		fmt.Sprintf("        uses: %s\n", downloadAction),
 		"        continue-on-error: true\n",
 		"        with:\n",
-		fmt.Sprintf("          pattern: %s\n", evalsArtifactName),
-		"          merge-multiple: true\n",
-		fmt.Sprintf("          path: %s\n", evalsStateDir),
 	)
+	steps = append(steps, downloadArtifactInputLines(evalsArtifactName, downloadAction)...)
+	steps = append(steps, fmt.Sprintf("          path: %s\n", evalsStateDir))
 
 	branchName := evalsBranchName(data.WorkflowID)
 	steps = append(steps,

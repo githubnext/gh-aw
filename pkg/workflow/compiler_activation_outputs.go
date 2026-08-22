@@ -164,7 +164,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 		"          cp -a \"${RUNNER_TEMP}/gh-aw/aw-prompts/.\" /tmp/gh-aw/aw-prompts/\n",
 	)
 	ctx.steps = append(ctx.steps, "      - name: "+constants.ActivationUploadArtifactStepName+"\n")
-	ctx.steps = append(ctx.steps, "        if: always()\n")
+	ctx.steps = append(ctx.steps, "        if: success() || failure()\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")))
 	ctx.steps = append(ctx.steps, "        with:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          name: %s\n", activationArtifactName))

@@ -163,6 +163,34 @@ func TestBuildPushExperimentsStateJob_RepoStorage(t *testing.T) {
 	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should use push_experiment_state.cjs helper")
 }
 
+func TestBuildPushExperimentsStateJob_GHESUsesExactArtifactName(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.SetGHESCompat(true)
+	compiler.configureGHESCompatibility()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:               "Test Workflow",
+		WorkflowID:         "my-workflow",
+		AI:                 "copilot",
+		RunsOn:             "runs-on: ubuntu-latest",
+		ExperimentsStorage: ExperimentsStorageRepo,
+		Experiments: map[string][]string{
+			"prompt_style": {"concise", "detailed"},
+		},
+	}
+
+	job, err := compiler.buildPushExperimentsStateJob(data)
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsYAML := strings.Join(job.Steps, "\n")
+	assert.Contains(t, stepsYAML, "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0")
+	assert.Contains(t, stepsYAML, "name: myworkflow-experiment")
+	assert.NotContains(t, stepsYAML, "pattern: myworkflow-experiment")
+	assert.NotContains(t, stepsYAML, "merge-multiple: true")
+}
+
 // TestBuildPushExperimentsStateJob_CacheStorage verifies that buildPushExperimentsStateJob
 // returns nil when experiments use cache storage (no extra job needed).
 func TestBuildPushExperimentsStateJob_CacheStorage(t *testing.T) {
@@ -280,6 +308,35 @@ func TestBuildPushEvalsStateJob_WithEvals(t *testing.T) {
 	assert.Contains(t, stepsYAML, "GH_AW_STATE_FILES: evals.jsonl", "steps should configure evals filename")
 	assert.NotContains(t, stepsYAML, "GH_AW_STATE_APPEND_FILES", "steps should use the state file itself for append-only history")
 	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should reuse push_experiment_state.cjs helper")
+}
+
+func TestBuildPushEvalsStateJob_GHESUsesExactArtifactName(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.SetGHESCompat(true)
+	compiler.configureGHESCompatibility()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:       "Test Workflow",
+		WorkflowID: "my-workflow",
+		AI:         "copilot",
+		RunsOn:     "runs-on: ubuntu-latest",
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "builds", Question: "Does it build?"},
+			},
+		},
+	}
+
+	job, err := compiler.buildPushEvalsStateJob(data)
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsYAML := strings.Join(job.Steps, "\n")
+	assert.Contains(t, stepsYAML, "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0")
+	assert.Contains(t, stepsYAML, "name: evals")
+	assert.NotContains(t, stepsYAML, "pattern: evals")
+	assert.NotContains(t, stepsYAML, "merge-multiple: true")
 }
 
 func TestBuildMemoryManagementJobs_PushEvalsIncludedInConclusion(t *testing.T) {

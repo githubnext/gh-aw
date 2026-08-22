@@ -396,7 +396,7 @@ jobs:
           mkdir -p /tmp/gh-aw/aw-prompts
           cp -a "${RUNNER_TEMP}/gh-aw/aw-prompts/." /tmp/gh-aw/aw-prompts/
       - name: Upload activation artifact
-        if: always()
+        if: success() || failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: activation
@@ -1175,8 +1175,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: detection
-          merge-multiple: true
+          name: detection
           path: /tmp/gh-aw/threat-detection/
       - name: Download Safe Outputs Items Manifest
         id: download-safe-outputs-manifest
@@ -1463,8 +1462,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: activation
-          merge-multiple: true
+          name: activation
           path: /tmp/gh-aw
       - name: Download agent output artifact
         id: download-agent-output

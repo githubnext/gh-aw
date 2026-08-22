@@ -169,30 +169,30 @@ func conclusionMayCreateIssue(data *WorkflowData) bool {
 func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
 	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
+	safeOutputsDownloadAction := pinAction("actions/download-artifact")
 	steps := []string{
 		"      - name: Download Safe Outputs Items Manifest\n",
 		"        id: download-safe-outputs-manifest\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
-		fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
+		fmt.Sprintf("        uses: %s\n", safeOutputsDownloadAction),
 		"        with:\n",
-		fmt.Sprintf("          pattern: %s\n", safeOutputsItemsArtifactName),
-		"          merge-multiple: true\n",
-		"          path: /tmp/gh-aw/\n",
 	}
+	steps = append(steps, downloadArtifactInputLines(safeOutputsItemsArtifactName, safeOutputsDownloadAction)...)
+	steps = append(steps, "          path: /tmp/gh-aw/\n")
 	if hasEvals {
 		evalsArtifactName := prefix + constants.EvalsArtifactName
+		evalsDownloadAction := pinAction("actions/download-artifact")
 		steps = append(steps,
 			"      - name: Download evals artifact\n",
 			"        id: download-evals-artifact\n",
 			"        if: always()\n",
 			"        continue-on-error: true\n",
-			fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
+			fmt.Sprintf("        uses: %s\n", evalsDownloadAction),
 			"        with:\n",
-			fmt.Sprintf("          pattern: %s\n", evalsArtifactName),
-			"          merge-multiple: true\n",
-			"          path: /tmp/gh-aw/evals/\n",
 		)
+		steps = append(steps, downloadArtifactInputLines(evalsArtifactName, evalsDownloadAction)...)
+		steps = append(steps, "          path: /tmp/gh-aw/evals/\n")
 	}
 	steps = append(steps,
 		"      - name: Collect usage artifact files\n",
