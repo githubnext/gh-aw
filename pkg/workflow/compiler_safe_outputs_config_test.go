@@ -896,6 +896,23 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"replace_label"},
 		},
 		{
+			name: "create_report_incomplete_issue config",
+			safeOutputs: &SafeOutputsConfig{
+				ReportIncomplete: &ReportIncompleteConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+					TitlePrefix: "[Incomplete] ",
+					Labels:      []string{"incomplete"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"report_incomplete", "create_report_incomplete_issue"},
+		},
+		{
 			name: "mentions config",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
