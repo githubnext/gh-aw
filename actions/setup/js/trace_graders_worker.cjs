@@ -8,7 +8,11 @@ const vm = require("vm");
  */
 function deepClone(obj) {
   if (obj === null || obj === undefined) return obj;
-  return JSON.parse(JSON.stringify(obj));
+  try {
+    return structuredClone(obj);
+  } catch {
+    return obj;
+  }
 }
 
 /**
@@ -136,4 +140,8 @@ async function main() {
   }
 }
 
-main();
+main().catch(err => {
+  const message = err instanceof Error ? err.message : String(err);
+  process.stdout.write(JSON.stringify({ ok: false, error: message }));
+  process.exitCode = 1;
+});

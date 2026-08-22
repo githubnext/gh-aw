@@ -21,7 +21,7 @@ const TOKEN_USAGE_PATHS = [
   path.join(TMP_GH_AW, "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl"),
 ];
 const AGENT_USAGE_PATH = path.join(TMP_GH_AW, "agent_usage.json");
-const MCP_GATEWAY_LOG_PATHS = [path.join(TMP_GH_AW, "mcp-logs/gateway.jsonl"), path.join(TMP_GH_AW, "mcp-logs/mcp-gateway.jsonl")];
+const MCP_GATEWAY_LOG_PATHS = [path.join(TMP_GH_AW, "mcp-logs/gateway.jsonl"), path.join(TMP_GH_AW, "mcp-logs/mcp-gateway.jsonl"), path.join(TMP_GH_AW, "mcp-logs/rpc-messages.jsonl")];
 const AGENT_OUTPUT_PATH = path.join(TMP_GH_AW, "agent_output.json");
 const AGENT_LOG_PATH = path.join(TMP_GH_AW, "agent.log");
 const AGENT_LOG_JSONL_PATH = path.join(TMP_GH_AW, "agent_log.jsonl");
@@ -54,6 +54,7 @@ function safeReadFile(filePath) {
     }
     return fs.readFileSync(filePath, "utf-8");
   } catch {
+    // Intentionally ignore unreadable/missing files in fallback path probes.
     return null;
   }
 }
@@ -72,7 +73,7 @@ function safeParseJsonl(content) {
     try {
       results.push(JSON.parse(trimmed));
     } catch {
-      // skip malformed lines
+      continue;
     }
   }
   return results;
@@ -90,6 +91,14 @@ function safeParseJson(content) {
   } catch {
     return null;
   }
+}
+
+/**
+ * @param {any} v
+ * @returns {v is Record<string, any>}
+ */
+function isRecord(v) {
+  return v !== null && typeof v === "object";
 }
 
 /**
@@ -130,7 +139,11 @@ function deepFreeze(obj) {
  */
 function deepClone(obj) {
   if (obj === null || obj === undefined) return obj;
-  return JSON.parse(JSON.stringify(obj));
+  try {
+    return structuredClone(obj);
+  } catch {
+    return obj;
+  }
 }
 
 /**
@@ -211,8 +224,24 @@ function preprocessTrace() {
   const agentOutputContent = safeReadFile(AGENT_OUTPUT_PATH);
   const agentOutput = agentOutputContent ? safeParseJson(agentOutputContent) : null;
 
-  // Extract tool calls from MCP gateway entries
-  const toolCalls = mcpGatewayEntries.filter(e => e.type === "tool_call" || e.method === "tools/call" || e.event === "tool_call");
+  // Extract tool calls from MCP gateway entries.
+  // Also support rpc fallback records that expose tool_name/payload.tool_name.
+  const toolCalls = mcpGatewayEntries
+    .filter(e => {
+      const payload = isRecord(e.payload) ? e.payload : null;
+      return e.type === "tool_call" || e.method === "tools/call" || e.event === "tool_call" || typeof e.tool_name === "string" || (payload !== null && typeof payload.tool_name === "string");
+    })
+    .map(e => {
+      const payload = isRecord(e.payload) ? e.payload : null;
+      const toolName = typeof e.tool_name === "string" ? e.tool_name : payload !== null && typeof payload.tool_name === "string" ? payload.tool_name : undefined;
+      const args = payload !== null ? (payload.arguments ?? payload.params) : undefined;
+      return {
+        ...e,
+        name: e.name || e.tool || toolName,
+        tool: e.tool || toolName,
+        arguments: e.arguments ?? args,
+      };
+    });
 
   // Gateway request/response pairs
   const gatewayRequests = mcpGatewayEntries.filter(e => e.type === "request" || e.type === "response" || e.method);
@@ -391,6 +420,18 @@ function evaluateThreshold(value, direction, threshold) {
  */
 
 /**
+ * Escape values for step summary rendering.
+ * @param {any} value
+ * @returns {string}
+ */
+function sanitizeSummaryText(value) {
+  return String(value ?? "")
+    .replace(/\r?\n/g, " ")
+    .replace(/[<>&`]/g, ch => (ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch === "&" ? "&amp;" : "'"))
+    .trim();
+}
+
+/**
  * Normalize a grader result from either built-in number or custom object return.
  * @param {string} id
  * @param {any} rawResult - number or {value, unit?, passed?, severity?, details?, message?}
@@ -523,7 +564,7 @@ function executeCustomGraderInSubprocess(id, script, trace, meta) {
   try {
     parsed = JSON.parse(proc.stdout || "{}");
   } catch (err) {
-    throw new Error(`invalid script worker output: ${getErrorMessage(err)}`);
+    throw new Error(`invalid script worker output: ${getErrorMessage(err)}`, { cause: err });
   }
 
   if (!parsed || parsed.ok !== true) {
@@ -684,7 +725,7 @@ async function main(manifestB64, execSpecB64) {
     const rows = tableResults.map(r => {
       const statusIcon = r.status === "pass" ? "✅" : r.status === "fail" ? "❌" : "⚠️";
       const val = r.value !== null ? String(Number(r.value.toFixed(4))) : "—";
-      return [statusIcon, r.name, r.source, val, r.unit || "—"];
+      return [statusIcon, sanitizeSummaryText(r.name), r.source, val, sanitizeSummaryText(r.unit || "—")];
     });
     core.summary.addTable([
       [
@@ -699,7 +740,7 @@ async function main(manifestB64, execSpecB64) {
   }
   const errResults = results.filter(r => r.error);
   if (errResults.length > 0) {
-    const errLines = errResults.map(r => `- **${r.id}**: ${r.error}`).join("\n");
+    const errLines = errResults.map(r => `- **${sanitizeSummaryText(r.id)}**: runtime error (see step logs)`).join("\n");
     core.summary.addDetails("Grader Errors", errLines);
   }
   await core.summary.write({ overwrite: false });

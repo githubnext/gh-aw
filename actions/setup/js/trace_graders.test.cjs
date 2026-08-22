@@ -560,6 +560,17 @@ describe("trace_graders", () => {
 
   // --- trace.steps and enriched fields ---
   describe("preprocessTrace enrichment", () => {
+    const mcpLogsDir = "/tmp/gh-aw/mcp-logs";
+    const gatewayPath = path.join(mcpLogsDir, "gateway.jsonl");
+    const altGatewayPath = path.join(mcpLogsDir, "mcp-gateway.jsonl");
+    const rpcMessagesPath = path.join(mcpLogsDir, "rpc-messages.jsonl");
+
+    afterEach(() => {
+      for (const p of [gatewayPath, altGatewayPath, rpcMessagesPath]) {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      }
+    });
+
     it("extracts steps from token usage entries", () => {
       // Mock safeReadFile to return test data - use the preprocessTrace's logic
       const trace = makeTrace({
@@ -584,6 +595,16 @@ describe("trace_graders", () => {
       });
       expect(trace.retryEvents.length).toBe(1);
       expect(trace.errorEvents.length).toBe(1);
+    });
+
+    it("reads rpc-messages fallback and normalizes tool_name records", () => {
+      fs.mkdirSync(mcpLogsDir, { recursive: true });
+      fs.writeFileSync(rpcMessagesPath, [JSON.stringify({ event: "rpc", tool_name: "github-mcp-server-search_code", payload: { tool_name: "github-mcp-server-search_code", arguments: { query: "foo" } } })].join("\n") + "\n", "utf8");
+
+      const trace = preprocessTrace();
+      expect(trace.toolCalls.length).toBeGreaterThan(0);
+      expect(trace.toolCalls[0].name).toBe("github-mcp-server-search_code");
+      expect(trace.toolCalls[0].arguments).toEqual({ query: "foo" });
     });
   });
 
