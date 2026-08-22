@@ -45,7 +45,7 @@ jobs:
 # Test Workflow`,
 			wantErrContains: []string{
 				"failed to generate YAML",
-				"failed to build and validate jobs",
+				"workflow compilation requires valid jobs and dependencies",
 			},
 		},
 	}
@@ -159,7 +159,7 @@ func TestGenerateYAML_FrontmatterHashFailure(t *testing.T) {
 	_, _, _, err := compiler.generateYAML(data, missingPath)
 
 	require.Error(t, err, "Expected error when frontmatter hash computation fails")
-	require.ErrorContains(t, err, "could not compute stable frontmatter hash",
+	require.ErrorContains(t, err, "requires a stable frontmatter hash",
 		"Error should mention frontmatter hash failure")
 }
 
@@ -191,8 +191,8 @@ jobs:
 # Test`,
 			wantErrContains: []string{
 				"failed to generate YAML",
-				"failed to build and validate jobs",
-				"job dependency validation failed",
+				"workflow compilation requires valid jobs and dependencies",
+				"job dependency validation expected each needs entry to reference an existing job id",
 			},
 		},
 	}

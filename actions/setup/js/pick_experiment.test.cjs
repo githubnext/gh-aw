@@ -20,7 +20,7 @@ const mockCore = {
 
 global.core = mockCore;
 
-const { pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, main } = await import("./pick_experiment.cjs");
+const { pickVariant, pickVariantWeighted, pickVariantDeterministic, continualWeights, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig, main } = await import("./pick_experiment.cjs");
 
 describe("pick_experiment", () => {
   /** @type {string} */
@@ -165,6 +165,17 @@ describe("pick_experiment", () => {
 
       expect(loaded.counts).toEqual({ f: { A: 2, B: 2 } });
       expect(loaded.runs).toEqual(runs);
+    });
+
+    it("restores the latest continual stage from jsonl state", () => {
+      const file = path.join(tmpDir, "state.jsonl");
+      const runs = [
+        { run_id: "123", timestamp: "2026-01-01T00:00:00.000Z", assignments: { f: "A" }, continual_state: { f: { current_stage: 2 } } },
+        { run_id: "124", timestamp: "2026-01-01T01:00:00.000Z", assignments: { f: "B" }, continual_state: { f: { current_stage: 1 } } },
+      ];
+      fs.writeFileSync(file, `${runs.map(run => JSON.stringify(run)).join("\n")}\n`, "utf8");
+
+      expect(loadState(file).continual).toEqual({ f: { current_stage: 2 } });
     });
 
     it("migrates legacy json state to a jsonl run ledger with baseline counts", () => {
@@ -450,6 +461,26 @@ describe("pick_experiment", () => {
       vi.restoreAllMocks();
     });
 
+    it("logs continual assignment decisions with ramp context", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { optimization: { control: 10, candidate: 10 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        optimization: {
+          variants: ["control", "candidate"],
+          min_samples: 10,
+          continual: { seed: "test-seed", ramp: [5, 20, 50] },
+        },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/^Continual experiment "optimization": assignment decision; ramp stage 2\/3 \(10\/10 candidate observations\); weights control=80, candidate=20; selected variant "(control|candidate)"$/)
+      );
+    });
+
     it("uses control variant when today is before start_date", async () => {
       const stateFile = path.join(tmpDir, "state.json");
       // Use a far-future start_date to ensure we're always before it.
@@ -726,6 +757,38 @@ describe("pick_experiment", () => {
       }
     });
 
+    describe("continual deterministic assignment", () => {
+      it("returns the same treatment for the same explicit key", () => {
+        const first = pickVariantDeterministic(["control", "candidate"], [90, 10], "seed:repo:workflow:run");
+        for (let i = 0; i < 20; i++) {
+          expect(pickVariantDeterministic(["control", "candidate"], [90, 10], "seed:repo:workflow:run")).toBe(first);
+        }
+      });
+
+      it("honors zero and full candidate allocations", () => {
+        expect(pickVariantDeterministic(["control", "candidate"], [100, 0], "key")).toBe("control");
+        expect(pickVariantDeterministic(["control", "candidate"], [0, 100], "key")).toBe("candidate");
+      });
+
+      it("advances canary weights from persisted candidate observations", () => {
+        const cfg = { min_samples: 10, continual: { ramp: [5, 20, 50] } };
+        const state = { counts: { optimization: { candidate: 10 } } };
+        expect(continualWeights(cfg, ["control", "candidate"], state, "optimization")).toEqual([80, 20]);
+        expect(state.continual).toEqual({ optimization: { current_stage: 1 } });
+        expect(cfg.continual).not.toHaveProperty("current_stage");
+      });
+
+      it("does not regress a stage persisted in experiment state", () => {
+        const cfg = { min_samples: 10, continual: { ramp: [5, 20, 50] } };
+        const state = {
+          counts: { optimization: { candidate: 5 } },
+          continual: { optimization: { current_stage: 2 } },
+        };
+        expect(continualWeights(cfg, ["control", "candidate"], state, "optimization")).toEqual([50, 50]);
+        expect(state.continual.optimization.current_stage).toBe(2);
+      });
+    });
+
     it("always selects the only non-zero-weight variant when one weight is 0", () => {
       for (let i = 0; i < 20; i++) {
         expect(pickVariantWeighted(["A", "B"], [100, 0])).toBe("A");
@@ -836,6 +899,27 @@ describe("pick_experiment", () => {
       expect(state.runs).toHaveLength(2);
       expect(state.runs[0].run_id).toBe("1");
       expect(state.runs[1].run_id).toBe("2");
+    });
+
+    it("persists continual stage in the branch state ledger", async () => {
+      const stateFile = path.join(tmpDir, "state.jsonl");
+      fs.writeFileSync(stateFile, `${JSON.stringify({ run_id: "1", timestamp: "2026-01-01T00:00:00.000Z", assignments: { optimization: "candidate" }, baseline_counts: { optimization: { candidate: 9 } } })}\n`, "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        optimization: {
+          variants: ["control", "candidate"],
+          min_samples: 10,
+          continual: { seed: "test-seed", ramp: [5, 20] },
+        },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      process.env.GITHUB_RUN_ID = "2";
+
+      await main();
+
+      const state = loadState(stateFile);
+      expect(state.continual).toEqual({ optimization: { current_stage: 1 } });
+      expect(state.runs.at(-1)?.continual_state).toEqual({ optimization: { current_stage: 1 } });
     });
 
     it("does not append a run record when no experiments are assigned", async () => {
