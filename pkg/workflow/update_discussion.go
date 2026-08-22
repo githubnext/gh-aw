@@ -13,10 +13,9 @@ var updateDiscussionLog = logger.New("workflow:update_discussion")
 type UpdateDiscussionsConfig struct {
 	UpdateEntityConfig            `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig `yaml:",inline"`
-	Title                         *bool   `yaml:"title,omitempty"`  // Allow updating discussion title - presence indicates field can be updated
-	Body                          *bool   `yaml:"body,omitempty"`   // Allow updating discussion body - presence indicates field can be updated
-	Labels                        *bool   `yaml:"labels,omitempty"` // Allow updating discussion labels - presence indicates field can be updated
-	Footer                        *string `yaml:"footer,omitempty"` // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	Title                         *bool `yaml:"title,omitempty"`  // Allow updating discussion title - presence indicates field can be updated
+	Body                          *bool `yaml:"body,omitempty"`   // Allow updating discussion body - presence indicates field can be updated
+	Labels                        *bool `yaml:"labels,omitempty"` // Allow updating discussion labels - presence indicates field can be updated
 }
 
 // parseUpdateDiscussionsConfig handles update-discussion configuration
