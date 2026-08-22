@@ -247,7 +247,7 @@ func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithM
 
 	// Note: we use --allowed-tools (not the simpler --tools from v2.0.31+) because it provides
 	// fine-grained control: Bash(git:*), MCP tool prefixes, path-specific tools, etc.
-	allowedTools = e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
+	allowedTools = e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.DriveMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}

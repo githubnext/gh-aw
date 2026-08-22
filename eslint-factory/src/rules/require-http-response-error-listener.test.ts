@@ -38,6 +38,27 @@ describe("require-http-response-error-listener", () => {
           code: `const http = require("node:http"); http.request(options, function (res) { res.resume(); });`,
           errors: [{ messageId: "missingResponseErrorListener" }],
         },
+        {
+          code: `
+            const https = require("https");
+            const http = require("http");
+            const protocol = url.startsWith("https") ? https : http;
+            protocol
+              .get(url, res => {
+                if (res.statusCode !== 200) {
+                  reject(new Error(\`Failed to fetch URL \${url}: HTTP \${res.statusCode}\`));
+                  return;
+                }
+                let data = "";
+                res.on("data", chunk => { data += chunk; });
+                res.on("end", () => { resolve(data); });
+              })
+              .on("error", err => {
+                reject(new Error(\`Failed to fetch URL \${url}: \${err.message}\`));
+              });
+          `,
+          errors: [{ messageId: "missingResponseErrorListener" }],
+        },
       ],
     });
   });

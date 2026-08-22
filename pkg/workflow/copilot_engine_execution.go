@@ -278,11 +278,17 @@ func (e *CopilotEngine) buildCopilotFeatureArgs(workflowData *WorkflowData, copi
 		copilotExecLog.Printf("Adding %d tool permission arguments", len(toolArgs))
 	}
 	copilotArgs = append(copilotArgs, toolArgs...)
-	// if cache-memory tool is used, --add-dir for each cache
+	// Add --add-dir for each configured memory backend.
 	if workflowData.CacheMemoryConfig != nil {
 		for _, cache := range workflowData.CacheMemoryConfig.Caches {
 			cacheDir := cacheMemoryDirFor(cache.ID) + "/"
 			copilotArgs = append(copilotArgs, "--add-dir", cacheDir)
+		}
+	}
+	// Drive-memory is exposed through /tmp symlinks outside the repository workspace.
+	if workflowData.DriveMemoryConfig != nil {
+		for _, drive := range workflowData.DriveMemoryConfig.Drives {
+			copilotArgs = append(copilotArgs, "--add-dir", driveMemoryDirFor(drive.ID)+"/")
 		}
 	}
 	// Add --allow-all-paths when edit tool is enabled to allow write on all paths

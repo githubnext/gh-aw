@@ -70,6 +70,8 @@ func (r *ActionResolver) MarkCompilerGeneratedActionsAsUsed() {
 		"actions/github-script",
 		"actions/upload-artifact",
 		"actions/download-artifact",
+		"actions/gh-drives-preview/checkout",
+		"actions/gh-drives-preview/commit",
 		"actions/create-github-app-token",
 		"github/codeql-action/upload-sarif",
 	}
