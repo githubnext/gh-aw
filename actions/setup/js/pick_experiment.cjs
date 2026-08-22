@@ -211,7 +211,7 @@ function loadState(stateFile) {
     return state;
   } catch (err) {
     // When state.jsonl is absent, fall back to state.json for cache-mode compatibility.
-    if (stateFile.endsWith(".jsonl") && err && /** @type {any} */ err.code === "ENOENT") {
+    if (stateFile.endsWith(".jsonl") && typeof err === "object" && err !== null && "code" in err && err.code === "ENOENT") {
       const legacyFile = stateFile.replace(/\.jsonl$/, ".json");
       return loadState(legacyFile);
     }

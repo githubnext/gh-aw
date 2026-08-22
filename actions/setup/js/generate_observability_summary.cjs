@@ -45,7 +45,7 @@ function countBlockedRequests() {
         const entry = JSON.parse(line);
         if (entry && entry.type === "DIFC_FILTERED") total++;
       } catch {
-        // skip malformed lines
+        // Malformed line — ignored.
       }
     }
   }

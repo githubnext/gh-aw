@@ -5,6 +5,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const { generateCompactSchema } = require("./generate_compact_schema.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Writes large content to a file and returns metadata
@@ -17,7 +18,7 @@ function writeLargeContentToFile(content) {
   try {
     fs.mkdirSync(logsDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${logsDir}: ${err.message}`, { cause: err });
+    throw new Error(`Failed to create directory ${logsDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // Generate SHA256 hash of content
@@ -30,7 +31,7 @@ function writeLargeContentToFile(content) {
   try {
     fs.writeFileSync(filepath, content, "utf8");
   } catch (err) {
-    throw new Error(`Failed to write file ${filepath}: ${err.message}`, { cause: err });
+    throw new Error(`Failed to write file ${filepath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const description = generateCompactSchema(content);

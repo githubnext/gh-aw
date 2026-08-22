@@ -62,7 +62,7 @@ function readJSONL(filePath) {
       try {
         items.push(JSON.parse(trimmed));
       } catch {
-        // skip invalid lines
+        // Invalid NDJSON line — ignored.
       }
     }
     return items;

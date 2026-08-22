@@ -71,6 +71,7 @@ const path = require("path");
 const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
 const { parseUnknownModelAICreditsAndModelFromAuditLog, parseMaxCacheMissesExceededFromEventLog } = require("./ai_credits_context.cjs");
 const { renderLogFromFile } = require("./render_detection_log.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
@@ -406,7 +407,7 @@ function writeOutputs(results) {
   try {
     fs.appendFileSync(outputFile, lines.join("\n") + "\n");
   } catch (err) {
-    process.stderr.write(`[detect-agent-errors] Failed to write to GITHUB_OUTPUT: ${String(err)}\n`);
+    process.stderr.write(`[detect-agent-errors] Failed to write to GITHUB_OUTPUT: ${getErrorMessage(err)}\n`);
   }
 }
 
@@ -496,7 +497,7 @@ async function main() {
     try {
       logContent = fs.readFileSync(LOG_FILE, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${LOG_FILE}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${LOG_FILE}: ${getErrorMessage(err)}`, { cause: err });
     }
   } else {
     process.stderr.write(`[detect-agent-errors] Log file not found: ${LOG_FILE}\n`);
@@ -577,7 +578,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    process.stderr.write(`[detect-agent-errors] Unhandled error: ${err && err.stack ? err.stack : String(err)}\n`);
+    process.stderr.write(`[detect-agent-errors] Unhandled error: ${getErrorMessage(err)}\n`);
   });
 }
 

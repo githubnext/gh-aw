@@ -54,7 +54,7 @@ async function main() {
   try {
     needs = JSON.parse(process.env.GH_AW_NEEDS || "{}");
   } catch (error) {
-    core.warning(`Unable to parse downstream job results: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Unable to parse downstream job results: ${getErrorMessage(error)}`);
     needs = {};
   }
   const results = Object.values(needs)

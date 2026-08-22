@@ -154,7 +154,7 @@ function extractMCPGatewayTokens(configPaths) {
         addAuthorizationValue(server?.headers?.Authorization);
       }
     } catch {
-      // Silently skip unreadable or malformed files — absence of the gateway
+      // Unreadable or malformed files are ignored — absence of the gateway
       // config is normal when the MCP gateway is not used by a workflow.
     }
   }

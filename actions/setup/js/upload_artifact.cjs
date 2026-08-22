@@ -283,7 +283,7 @@ function copyDirectoryToStaging(sourceDir, destRelDir) {
       try {
         canonicalDir = fs.realpathSync(srcFull);
       } catch (err) {
-        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${err instanceof Error ? err.message : String(err)}` };
+        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${getErrorMessage(err)}` };
       }
       const sensitiveErr = validateSourcePath(canonicalDir);
       if (sensitiveErr) {
@@ -298,7 +298,7 @@ function copyDirectoryToStaging(sourceDir, destRelDir) {
       try {
         canonicalFile = fs.realpathSync(srcFull);
       } catch (err) {
-        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${err instanceof Error ? err.message : String(err)}` };
+        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${getErrorMessage(err)}` };
       }
       const sensitiveErr = validateSourcePath(canonicalFile);
       if (sensitiveErr) {
@@ -340,7 +340,7 @@ function autoCopyToStaging(reqPath) {
     try {
       canonical = fs.realpathSync(reqPath);
     } catch (err) {
-      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${reqPath}: ${err instanceof Error ? err.message : String(err)}` };
+      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${reqPath}: ${getErrorMessage(err)}` };
     }
     const sensitiveErr = validateSourcePath(canonical);
     if (sensitiveErr) {
@@ -388,7 +388,7 @@ function autoCopyToStaging(reqPath) {
     try {
       canonical = fs.realpathSync(candidate);
     } catch (err) {
-      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${candidate}: ${err instanceof Error ? err.message : String(err)}` };
+      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${candidate}: ${getErrorMessage(err)}` };
     }
     const sensitiveErr = validateSourcePath(canonical);
     if (sensitiveErr) {
