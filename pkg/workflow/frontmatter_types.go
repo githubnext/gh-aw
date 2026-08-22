@@ -441,6 +441,11 @@ type FrontmatterConfig struct {
 	// engine-config / runs-on overrides.
 	Evals any `json:"evals,omitempty"`
 
+	// Graders configures deterministic trace graders that compute metrics from
+	// post-agent trace files. Can be {} for zero-config (all built-ins) or a map
+	// of grader IDs with optional enabled/script overrides.
+	Graders any `json:"graders,omitempty"`
+
 	// ExcludedEnv lists additional environment variable names that must be excluded from
 	// the agent container via AWF's --exclude-env flag.  Use this when an env var is set
 	// from a source that the compiler cannot automatically detect as credential-bearing

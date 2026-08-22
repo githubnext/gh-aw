@@ -1,0 +1,679 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const crypto = require("crypto");
+const { getErrorMessage } = require("./error_helpers.cjs");
+
+// --- Constants ---
+const TMP_GH_AW = "/tmp/gh-aw";
+const GRADERS_DIR = path.join(TMP_GH_AW, "agent", "graders");
+const MANIFEST_PATH = path.join(GRADERS_DIR, "grader_manifest.json");
+const RESULTS_PATH = path.join(GRADERS_DIR, "grader_results.json");
+
+// Trace source file paths
+const TOKEN_USAGE_PATHS = [
+  path.join(TMP_GH_AW, "sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl"),
+  path.join(TMP_GH_AW, "sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl"),
+  path.join(TMP_GH_AW, "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl"),
+];
+const AGENT_USAGE_PATH = path.join(TMP_GH_AW, "agent_usage.json");
+const MCP_GATEWAY_LOG_PATHS = [path.join(TMP_GH_AW, "mcp-logs/gateway.jsonl"), path.join(TMP_GH_AW, "mcp-logs/mcp-gateway.jsonl")];
+const AGENT_OUTPUT_PATH = path.join(TMP_GH_AW, "agent_output.json");
+const AGENT_LOG_PATH = path.join(TMP_GH_AW, "agent.log");
+const AGENT_LOG_JSONL_PATH = path.join(TMP_GH_AW, "agent_log.jsonl");
+
+// Safety limits
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_LINE_LENGTH = 1024 * 1024; // 1 MB per line
+const SCRIPT_TIMEOUT_MS = 5000; // 5 seconds per custom grader
+
+const GRADER_VERSION = 1;
+const IMPLEMENTATION_ID = "gh-aw/trace-graders";
+
+// --- Trace preprocessing ---
+
+/**
+ * Safely read a file if it exists and is within size limits.
+ * @param {string} filePath
+ * @returns {string|null}
+ */
+function safeReadFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const stat = fs.statSync(filePath);
+    if (stat.size > MAX_FILE_SIZE) {
+      core.warning(`Graders: skipping oversized file ${filePath} (${stat.size} bytes)`);
+      return null;
+    }
+    return fs.readFileSync(filePath, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Safely parse JSONL, skipping malformed or oversized lines.
+ * @param {string} content
+ * @returns {object[]}
+ */
+function safeParseJsonl(content) {
+  const results = [];
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.length > MAX_LINE_LENGTH) continue;
+    try {
+      results.push(JSON.parse(trimmed));
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return results;
+}
+
+/**
+ * Safely parse JSON, returning null on failure.
+ * @param {string} content
+ * @returns {object|null}
+ */
+function safeParseJson(content) {
+  if (content.length > MAX_FILE_SIZE) return null;
+  try {
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the first available file from a list of candidate paths.
+ * @param {string[]} paths
+ * @returns {string|null}
+ */
+function readFirstAvailable(paths) {
+  for (const p of paths) {
+    const content = safeReadFile(p);
+    if (content !== null) return content;
+  }
+  return null;
+}
+
+/**
+ * Deep-freeze an object recursively. Returns the same object.
+ * @template T
+ * @param {T} obj
+ * @returns {T}
+ */
+function deepFreeze(obj) {
+  if (obj === null || typeof obj !== "object") return obj;
+  Object.freeze(obj);
+  for (const key of Object.getOwnPropertyNames(obj)) {
+    const v = /** @type {any} */ (obj)[key];
+    if (v !== null && typeof v === "object" && !Object.isFrozen(v)) {
+      deepFreeze(v);
+    }
+  }
+  return obj;
+}
+
+/**
+ * Deep clone via JSON round-trip (safe for plain data objects).
+ * @param {any} obj
+ * @returns {any}
+ */
+function deepClone(obj) {
+  if (obj === null || obj === undefined) return obj;
+  return JSON.parse(JSON.stringify(obj));
+}
+
+/**
+ * @typedef {object} PreprocessedTrace
+ * @property {object[]} tokenUsageEntries - Parsed token-usage JSONL records
+ * @property {object|null} agentUsage - Parsed agent_usage.json
+ * @property {object[]} mcpGatewayEntries - Parsed MCP gateway log records
+ * @property {object|null} agentOutput - Parsed agent_output.json
+ * @property {object[]} toolCalls - Extracted tool call records from MCP gateway
+ * @property {object[]} gatewayRequests - Request/response pairs from gateway
+ * @property {object[]} retryEvents - Detected retry events
+ * @property {object[]} errorEvents - Detected error events
+ * @property {object[]} steps - Extracted execution steps (LLM requests)
+ * @property {number} totalInputTokens - Sum of input tokens
+ * @property {number} totalOutputTokens - Sum of output tokens
+ * @property {number} totalDurationMs - Sum of duration_ms from token usage
+ * @property {number} totalRequests - Count of token usage entries (LLM requests)
+ * @property {object[]} files - Files mentioned in agent output
+ * @property {object[]} artifacts - Artifacts/outputs from agent
+ */
+
+/**
+ * Single preprocessing pass over all trace files.
+ * @returns {PreprocessedTrace}
+ */
+function preprocessTrace() {
+  // Token usage
+  const tokenContent = readFirstAvailable(TOKEN_USAGE_PATHS);
+  const tokenUsageEntries = tokenContent ? safeParseJsonl(tokenContent) : [];
+
+  // Agent usage
+  const agentUsageContent = safeReadFile(AGENT_USAGE_PATH);
+  const agentUsage = agentUsageContent ? safeParseJson(agentUsageContent) : null;
+
+  // MCP gateway logs
+  const gatewayContent = readFirstAvailable(MCP_GATEWAY_LOG_PATHS);
+  const mcpGatewayEntries = gatewayContent ? safeParseJsonl(gatewayContent) : [];
+
+  // Agent output
+  const agentOutputContent = safeReadFile(AGENT_OUTPUT_PATH);
+  const agentOutput = agentOutputContent ? safeParseJson(agentOutputContent) : null;
+
+  // Extract tool calls from MCP gateway entries
+  const toolCalls = mcpGatewayEntries.filter(e => e.type === "tool_call" || e.method === "tools/call" || e.event === "tool_call");
+
+  // Gateway request/response pairs
+  const gatewayRequests = mcpGatewayEntries.filter(e => e.type === "request" || e.type === "response" || e.method);
+
+  // Retry events
+  const retryEvents = mcpGatewayEntries.filter(e => e.retry === true || e.event === "retry" || (typeof e.message === "string" && /retry|retrying/i.test(String(e.message))));
+
+  // Error events
+  const errorEvents = mcpGatewayEntries.filter(e => e.level === "error" || e.type === "error" || e.event === "error");
+
+  // Aggregate token counts
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalDurationMs = 0;
+  for (const entry of tokenUsageEntries) {
+    totalInputTokens += Number(entry.input_tokens) || 0;
+    totalOutputTokens += Number(entry.output_tokens) || 0;
+    totalDurationMs += Number(entry.duration_ms) || 0;
+  }
+
+  // Steps: each token usage entry represents an LLM request/step
+  const steps = tokenUsageEntries.map((entry, i) => ({
+    index: i,
+    inputTokens: Number(entry.input_tokens) || 0,
+    outputTokens: Number(entry.output_tokens) || 0,
+    durationMs: Number(entry.duration_ms) || 0,
+    model: entry.model || null,
+  }));
+
+  // Extract files and artifacts from agent output
+  const ao = /** @type {any} */ (agentOutput);
+  const files = ao && Array.isArray(ao.files) ? ao.files : [];
+  const artifacts = ao && Array.isArray(ao.outputs) ? ao.outputs : ao && Array.isArray(ao.items) ? ao.items : [];
+
+  return {
+    tokenUsageEntries,
+    agentUsage,
+    mcpGatewayEntries,
+    agentOutput,
+    toolCalls,
+    gatewayRequests,
+    retryEvents,
+    errorEvents,
+    steps,
+    totalInputTokens,
+    totalOutputTokens,
+    totalDurationMs,
+    totalRequests: tokenUsageEntries.length,
+    files,
+    artifacts,
+  };
+}
+
+// --- Built-in graders ---
+
+/** @type {Record<string, {unit: string, direction: string, threshold?: number, min?: number, max?: number}>} */
+const BUILTIN_META = {
+  "tool-success-rate": { unit: "ratio", direction: "higher_is_better", threshold: 0.8, min: 0, max: 1 },
+  "tool-failure-count": { unit: "count", direction: "lower_is_better", threshold: 5 },
+  retries: { unit: "count", direction: "lower_is_better", threshold: 10 },
+  loops: { unit: "count", direction: "lower_is_better", threshold: 3 },
+  "trajectory-efficiency": { unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
+  "execution-step-count": { unit: "count", direction: "lower_is_better" },
+  "execution-duration": { unit: "ms", direction: "lower_is_better" },
+  "context-growth": { unit: "factor", direction: "lower_is_better" },
+  "artifact-production": { unit: "count", direction: "higher_is_better" },
+};
+
+/**
+ * @param {PreprocessedTrace} trace
+ * @returns {number} Success rate of tool calls (0-1), or 1 if no tool calls
+ */
+function gradeToolSuccessRate(trace) {
+  if (trace.toolCalls.length === 0) return 1;
+  const successes = trace.toolCalls.filter(t => t.success === true || (t.success !== false && t.status !== "error" && t.status !== "failure" && t.error === undefined)).length;
+  return successes / trace.toolCalls.length;
+}
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeToolFailureCount(trace) {
+  return trace.toolCalls.filter(t => t.success === false || t.status === "error" || t.status === "failure" || t.error !== undefined).length;
+}
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeRetries(trace) {
+  return trace.retryEvents.length;
+}
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeLoops(trace) {
+  let loops = 0;
+  let prevKey = "";
+  for (const t of trace.toolCalls) {
+    const key = `${String(t.name || t.tool)}:${JSON.stringify(t.arguments || t.params || "")}`;
+    if (key === prevKey) loops++;
+    prevKey = key;
+  }
+  return loops;
+}
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeTrajectoryEfficiency(trace) {
+  if (trace.toolCalls.length === 0) return 1;
+  const uniqueTools = new Set(trace.toolCalls.map(t => String(t.name || t.tool || "")));
+  return Math.min(1, uniqueTools.size / trace.toolCalls.length);
+}
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeExecutionStepCount(trace) { return trace.totalRequests; }
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeExecutionDuration(trace) { return trace.totalDurationMs; }
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeContextGrowth(trace) {
+  if (trace.tokenUsageEntries.length < 2) return 1;
+  const first = trace.tokenUsageEntries[0];
+  const firstTokens = (Number(first.input_tokens) || 0) + (Number(first.output_tokens) || 0);
+  if (firstTokens === 0) return 1;
+  const totalTokens = trace.totalInputTokens + trace.totalOutputTokens;
+  return totalTokens / firstTokens;
+}
+
+/** @param {PreprocessedTrace} trace @returns {number} */
+function gradeArtifactProduction(trace) {
+  return trace.artifacts.length;
+}
+
+/** @type {Record<string, (trace: PreprocessedTrace) => number>} */
+const BUILTIN_GRADERS = {
+  "tool-success-rate": gradeToolSuccessRate,
+  "tool-failure-count": gradeToolFailureCount,
+  retries: gradeRetries,
+  loops: gradeLoops,
+  "trajectory-efficiency": gradeTrajectoryEfficiency,
+  "execution-step-count": gradeExecutionStepCount,
+  "execution-duration": gradeExecutionDuration,
+  "context-growth": gradeContextGrowth,
+  "artifact-production": gradeArtifactProduction,
+};
+
+// --- Execution ---
+
+/**
+ * Evaluate a grader's pass/fail against its threshold.
+ * @param {number} value
+ * @param {string} direction
+ * @param {number|undefined} threshold
+ * @returns {boolean|null} null if no threshold set
+ */
+function evaluateThreshold(value, direction, threshold) {
+  if (threshold === undefined || threshold === null) return null;
+  if (direction === "higher_is_better") return value >= threshold;
+  if (direction === "lower_is_better") return value <= threshold;
+  return null;
+}
+
+/**
+ * @typedef {object} GraderResult
+ * @property {string} id
+ * @property {string} name
+ * @property {number|null} value
+ * @property {string} unit
+ * @property {boolean|null} passed
+ * @property {string} status - "pass" | "fail" | "error" | "unavailable"
+ * @property {string} [severity]
+ * @property {string} [details]
+ * @property {string} [message]
+ * @property {string} [error]
+ * @property {string} source - "builtin" | "inline"
+ * @property {{id: string, version: number, digest?: string}} implementation
+ */
+
+/**
+ * Normalize a grader result from either built-in number or custom object return.
+ * @param {string} id
+ * @param {any} rawResult - number or {value, unit?, passed?, severity?, details?, message?}
+ * @param {{name: string, unit: string, direction: string, threshold?: number, source: string, digest?: string}} meta
+ * @returns {GraderResult}
+ */
+function normalizeResult(id, rawResult, meta) {
+  /** @type {GraderResult} */
+  const base = {
+    id,
+    name: meta.name || id,
+    value: null,
+    unit: meta.unit || "",
+    passed: null,
+    status: "error",
+    source: meta.source,
+    implementation: { id: IMPLEMENTATION_ID, version: GRADER_VERSION, ...(meta.digest ? { digest: meta.digest } : {}) },
+  };
+
+  if (rawResult === null || rawResult === undefined) {
+    base.status = "unavailable";
+    base.message = "grader returned null/undefined";
+    return base;
+  }
+
+  let value;
+  if (typeof rawResult === "object" && rawResult !== null && !Array.isArray(rawResult)) {
+    // Object result from custom script
+    value = rawResult.value;
+    if (rawResult.unit) base.unit = String(rawResult.unit);
+    if (rawResult.severity) base.severity = String(rawResult.severity);
+    if (rawResult.details) base.details = String(rawResult.details);
+    if (rawResult.message) base.message = String(rawResult.message);
+    if (typeof rawResult.passed === "boolean") base.passed = rawResult.passed;
+  } else {
+    value = rawResult;
+  }
+
+  if (typeof value !== "number" || !isFinite(value)) {
+    base.status = "error";
+    base.error = `grader ${id} returned non-finite value: ${value}`;
+    return base;
+  }
+
+  base.value = value;
+
+  // Evaluate threshold if not already set by custom script
+  if (base.passed === null) {
+    base.passed = evaluateThreshold(value, meta.direction, meta.threshold);
+  }
+
+  // Determine status
+  if (base.passed === true) base.status = "pass";
+  else if (base.passed === false) base.status = "fail";
+  else base.status = "pass"; // no threshold = informational pass
+
+  return base;
+}
+
+/**
+ * Run a single built-in grader safely.
+ * @param {string} id
+ * @param {PreprocessedTrace} trace
+ * @param {{name: string, unit: string, direction: string, threshold?: number, source: string}} meta
+ * @returns {GraderResult}
+ */
+function runBuiltinGrader(id, trace, meta) {
+  const fn = BUILTIN_GRADERS[id];
+  if (!fn) {
+    return { ...normalizeResult(id, null, meta), status: "error", error: `grader ${id}: no implementation found` };
+  }
+  try {
+    const value = fn(trace);
+    return normalizeResult(id, value, meta);
+  } catch (err) {
+    const result = normalizeResult(id, null, meta);
+    result.status = "error";
+    result.error = `grader ${id} runtime error: ${getErrorMessage(err)}`;
+    return result;
+  }
+}
+
+/**
+ * Run a custom inline script in a node:vm sandbox.
+ * Script receives {trace, run, workflow, config, helpers} and should return {value, ...} or a number.
+ * @param {string} id
+ * @param {string} script
+ * @param {PreprocessedTrace} trace
+ * @param {{name: string, unit: string, direction: string, threshold?: number, source: string, digest?: string, config?: object}} meta
+ * @returns {GraderResult}
+ */
+function runCustomGrader(id, script, trace, meta) {
+  try {
+    // Build the frozen sandbox context — no require, process, fetch, Date, Math.random
+    const frozenTrace = deepFreeze(deepClone(trace));
+    const runCtx = deepFreeze({
+      graderCount: 0, // filled by caller
+    });
+    const workflowCtx = deepFreeze({});
+    const config = deepFreeze(deepClone(meta.config || {}));
+    const helpers = deepFreeze({
+      clamp: (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.max(lo, Math.min(hi, v)),
+      ratio: (/** @type {number} */ num, /** @type {number} */ den) => (den === 0 ? 0 : num / den),
+      sum: (/** @type {number[]} */ arr) => arr.reduce((a, b) => a + b, 0),
+    });
+
+    // Wrap script as function body
+    const wrappedScript = `(function(trace, run, workflow, config, helpers) { "use strict"; ${script} })`;
+
+    const sandbox = {
+      Math: Object.freeze({ ...Math, random: undefined }),
+      JSON: Object.freeze({ parse: JSON.parse, stringify: JSON.stringify }),
+      Array,
+      Object,
+      String,
+      Number,
+      Boolean,
+      RegExp,
+      Map,
+      Set,
+      isFinite,
+      isNaN,
+      parseInt,
+      parseFloat,
+      undefined,
+      NaN,
+      Infinity,
+    };
+    const ctx = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
+
+    const fn = vm.runInContext(wrappedScript, ctx, { timeout: SCRIPT_TIMEOUT_MS, filename: `grader:${id}` });
+    const rawResult = fn(frozenTrace, runCtx, workflowCtx, config, helpers);
+    return normalizeResult(id, rawResult, meta);
+  } catch (err) {
+    const result = normalizeResult(id, null, meta);
+    result.status = "error";
+    result.error = `grader ${id} runtime error: ${getErrorMessage(err)}`;
+    return result;
+  }
+}
+
+/**
+ * Legacy adapter for existing tests. Runs a grader by id.
+ * @param {string} id
+ * @param {boolean} builtin
+ * @param {string} [script]
+ * @param {PreprocessedTrace} trace
+ * @param {object} [config]
+ * @returns {{ value: number|null, error: string|null }}
+ */
+function runGrader(id, builtin, script, trace, config) {
+  const meta = { name: id, unit: "", direction: "", source: builtin ? "builtin" : "inline", config };
+  /** @type {GraderResult} */
+  let result;
+  if (builtin && BUILTIN_GRADERS[id]) {
+    result = runBuiltinGrader(id, trace, meta);
+  } else if (script) {
+    result = runCustomGrader(id, script, trace, meta);
+  } else {
+    return { value: null, error: `grader ${id}: no implementation found` };
+  }
+  return { value: result.value, error: result.error || null };
+}
+
+/**
+ * Main entry point. Called from the github-script step with manifest JSON and base64 exec spec.
+ * @param {string} manifestJson - JSON string of grader manifest
+ * @param {string} [execSpecB64] - Base64-encoded JSON array of {id, script}
+ */
+async function main(manifestJson, execSpecB64) {
+  /** @type {{version: number, graders: any[]}} */
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestJson);
+  } catch (err) {
+    core.setFailed(`Graders: failed to parse manifest: ${getErrorMessage(err)}`);
+    return;
+  }
+
+  // Decode execution spec (custom scripts)
+  /** @type {Record<string, string>} */
+  const scriptMap = {};
+  if (execSpecB64) {
+    try {
+      const specJson = Buffer.from(execSpecB64, "base64").toString("utf-8");
+      const specs = JSON.parse(specJson);
+      for (const s of specs) {
+        if (s.id && s.script) scriptMap[s.id] = s.script;
+      }
+    } catch (err) {
+      core.warning(`Graders: failed to parse exec spec: ${getErrorMessage(err)}`);
+    }
+  }
+
+  // Write manifest file
+  try {
+    fs.mkdirSync(GRADERS_DIR, { recursive: true });
+    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+  } catch (err) {
+    core.warning(`Graders: failed to write manifest: ${getErrorMessage(err)}`);
+  }
+
+  // Filter to enabled graders
+  const graders = manifest.graders || [];
+  const enabledGraders = graders.filter(g => g.enabled);
+  if (enabledGraders.length === 0) {
+    core.info("Graders: no enabled graders, skipping");
+    return;
+  }
+
+  // Single preprocessing pass
+  core.info(`Graders: preprocessing trace files for ${enabledGraders.length} grader(s)...`);
+  const trace = preprocessTrace();
+
+  // Run all graders
+  /** @type {GraderResult[]} */
+  const results = [];
+  for (const grader of enabledGraders) {
+    const meta = {
+      name: grader.name || grader.id,
+      unit: grader.unit || "",
+      direction: grader.direction || "",
+      threshold: grader.threshold,
+      source: grader.source || "builtin",
+      digest: grader.digest,
+      config: grader.config,
+    };
+    /** @type {GraderResult} */
+    let result;
+    if (grader.source === "builtin" && BUILTIN_GRADERS[grader.id]) {
+      result = runBuiltinGrader(grader.id, trace, meta);
+    } else if (scriptMap[grader.id]) {
+      result = runCustomGrader(grader.id, scriptMap[grader.id], trace, meta);
+    } else {
+      result = normalizeResult(grader.id, null, meta);
+      result.status = "unavailable";
+      result.error = `grader ${grader.id}: no implementation available`;
+    }
+    results.push(result);
+    if (result.error) {
+      core.warning(`Grader ${grader.id}: ${result.error}`);
+    }
+  }
+
+  // Build normalized output — NO timestamp for deterministic byte-equivalence
+  const passed = results.filter(r => r.status === "pass").length;
+  const failed = results.filter(r => r.status === "fail").length;
+  const errorCount = results.filter(r => r.status === "error").length;
+
+  const output = {
+    version: GRADER_VERSION,
+    run: {
+      graderCount: results.length,
+      passed,
+      failed,
+      errors: errorCount,
+    },
+    results,
+  };
+
+  // Write results
+  try {
+    fs.writeFileSync(RESULTS_PATH, JSON.stringify(output, null, 2));
+    core.info(`Graders: wrote results to ${RESULTS_PATH}`);
+  } catch (err) {
+    core.warning(`Graders: failed to write results: ${getErrorMessage(err)}`);
+  }
+
+  // Step summary
+  core.summary.addHeading("Trace Graders", 3);
+  const tableResults = results.filter(r => r.status !== "unavailable");
+  if (tableResults.length > 0) {
+    const rows = tableResults.map(r => {
+      const statusIcon = r.status === "pass" ? "✅" : r.status === "fail" ? "❌" : "⚠️";
+      const val = r.value !== null ? String(Number(r.value.toFixed(4))) : "—";
+      return [statusIcon, r.name, r.source, val, r.unit || "—"];
+    });
+    core.summary.addTable([
+      [
+        { data: "", header: true },
+        { data: "Grader", header: true },
+        { data: "Source", header: true },
+        { data: "Value", header: true },
+        { data: "Unit", header: true },
+      ],
+      ...rows,
+    ]);
+  }
+  const errResults = results.filter(r => r.error);
+  if (errResults.length > 0) {
+    const errLines = errResults.map(r => `- **${r.id}**: ${r.error}`).join("\n");
+    core.summary.addDetails("Grader Errors", errLines);
+  }
+  await core.summary.write({ overwrite: false });
+
+  core.info(`Graders: ${passed} passed, ${failed} failed, ${errorCount} errors`);
+}
+
+module.exports = {
+  main,
+  preprocessTrace,
+  safeReadFile,
+  safeParseJsonl,
+  safeParseJson,
+  readFirstAvailable,
+  deepFreeze,
+  deepClone,
+  runGrader,
+  runBuiltinGrader,
+  runCustomGrader,
+  normalizeResult,
+  evaluateThreshold,
+  BUILTIN_GRADERS,
+  BUILTIN_META,
+  GRADER_VERSION,
+  IMPLEMENTATION_ID,
+  GRADERS_DIR,
+  MANIFEST_PATH,
+  RESULTS_PATH,
+  MAX_FILE_SIZE,
+  MAX_LINE_LENGTH,
+  SCRIPT_TIMEOUT_MS,
+  gradeToolSuccessRate,
+  gradeToolFailureCount,
+  gradeRetries,
+  gradeLoops,
+  gradeTrajectoryEfficiency,
+  gradeExecutionStepCount,
+  gradeExecutionDuration,
+  gradeContextGrowth,
+  gradeArtifactProduction,
+};
