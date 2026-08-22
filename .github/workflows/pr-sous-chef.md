@@ -57,6 +57,11 @@ steps:
       filtered_checks_pending=0
       filtered_last_comment_from_sous_chef=0
       filtered_cooldown=0
+      zero_diff_age_hours="${ZERO_DIFF_AGE_HOURS:-24}"
+      if ! [[ "$zero_diff_age_hours" =~ ^[0-9]+$ ]]; then
+        echo "Invalid ZERO_DIFF_AGE_HOURS; defaulting to 24" >&2
+        zero_diff_age_hours=24
+      fi
 
       # statusCheckRollup is fetched here alongside other PR fields so that the
       # per-PR pending-checks filter below can classify check state without
@@ -75,7 +80,7 @@ steps:
           --state open \
           --search "is:pr is:open -is:draft sort:updated-desc" \
           --limit "$pr_limit" \
-          --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus,statusCheckRollup \
+          --json number,title,url,headRefOid,headRefName,createdAt,updatedAt,changedFiles,author,mergeStateStatus,statusCheckRollup \
           > "$candidate_file" 2>&1
         pr_list_status=$?
         set -e
@@ -197,7 +202,8 @@ steps:
 
       jq --argjson filtered_checks_pending "$filtered_checks_pending" \
          --argjson filtered_last_comment_from_sous_chef "$filtered_last_comment_from_sous_chef" \
-         --argjson filtered_cooldown "$filtered_cooldown" '{
+         --argjson filtered_cooldown "$filtered_cooldown" \
+         --argjson zero_diff_age_hours "$zero_diff_age_hours" '{
         fetched: (length),
         generated_at: (now | todate),
         filtered_checks_pending: $filtered_checks_pending,
@@ -209,7 +215,14 @@ steps:
           url,
           headRefOid,
           headRefName,
+          createdAt,
           updatedAt,
+          changedFiles,
+          zero_diff_stalled: (
+            (.changedFiles // -1) == 0 and
+            (.createdAt != null) and
+            ((.createdAt | fromdateiso8601) <= (now - ($zero_diff_age_hours * 3600)))
+          ),
           author: (.author.login // "unknown"),
           mergeStateStatus,
           failed_checks: ((.statusCheckRollup // []) | if type == "array" then . else [] end | map(select(
@@ -229,8 +242,10 @@ steps:
         > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json
       eligible_count="$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
       fetched_count="$(jq '.fetched' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
+      zero_diff_stalled_count="$(jq '[.prs[] | select(.zero_diff_stalled)] | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
       eligible_pull_request_numbers="$(jq -c '[.prs[]?.number | tostring]' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo '[]')"
       echo "eligible_count=$eligible_count" >> "$GITHUB_OUTPUT"
+      echo "zero_diff_stalled_count=$zero_diff_stalled_count" >> "$GITHUB_OUTPUT"
       echo "eligible_pull_request_numbers=$eligible_pull_request_numbers" >> "$GITHUB_OUTPUT"
 
       # Write prefilter summary to the step summary for visibility
@@ -243,6 +258,7 @@ steps:
         echo "| Filtered (checks pending) | $filtered_checks_pending |"
         echo "| Filtered (last comment from sous-chef) | $filtered_last_comment_from_sous_chef |"
         echo "| Filtered (cooldown) | $filtered_cooldown |"
+        echo "| Zero-diff stalled (>${zero_diff_age_hours}h) | $zero_diff_stalled_count |"
         echo "| **Eligible for nudge** | **$eligible_count** |"
       } >> "$GITHUB_STEP_SUMMARY"
   - name: Setup Go
@@ -368,6 +384,7 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 4. Process at most 4 nudges per run.
 5. Prioritize which PRs to nudge, in this order:
    - `mergeStateStatus == "CONFLICTING"` first (explicit merge-conflict unblock request).
+   - PRs with `zero_diff_stalled == true` next (no files changed after 24 hours by default).
    - PRs with unresolved review threads where at least one thread already has a follow-up response from the PR author or `@copilot` but remains unresolved.
    - Remaining PRs by most-recent `updatedAt`.
    If two PRs are still tied, prioritize the lower PR number first for deterministic behavior and stable reruns.
@@ -414,6 +431,7 @@ For each PR that is not skipped:
    - Skip this step when the approval step already approved all action-required `CJS`/`CGO`/`CWI` runs for the PR and there is no other forward-progress nudge to post.
    - When posting, always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
    - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
+   - **If `zero_diff_stalled`**: state that no files have changed since the PR was opened and ask `@copilot` to either push the implementation or close the stalled PR; increment `zero_diff_stalled`.
    - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
    - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
@@ -453,6 +471,7 @@ Then include the run counts as a compact table:
 | skipped_checks_running | N |
 | skipped_last_comment_from_sous_chef | N |
 | skipped_cooldown | N |
+| zero_diff_stalled | N |
 | nudged | N |
 | branch_update_attempts | N |
 | formatter_pushes | N |
@@ -463,7 +482,7 @@ Then include the run counts as a compact table:
 
 If any PRs were nudged, include a collapsible list of their numbers and titles.
 
-If `create_issue` is unavailable, fall back to `noop` with a condensed message, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; approved_workflow_runs=1; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
+If `create_issue` is unavailable, fall back to `noop` with a condensed message, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; zero_diff_stalled=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; approved_workflow_runs=1; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
 
 ## Formatting Requirements
 

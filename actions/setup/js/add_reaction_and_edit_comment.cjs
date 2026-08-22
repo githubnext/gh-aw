@@ -196,7 +196,6 @@ async function main() {
       return;
     }
     const errorMessage = getErrorMessage(error);
-    core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
     core.setFailed(`${ERR_API}: Failed to process reaction and comment creation: ${errorMessage}`);
   }
 }

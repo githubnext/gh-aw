@@ -300,6 +300,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"model_size":{"variants":["claude-sonnet-4.6","claude-haiku-4.5"],"description":"Tests whether Claude Haiku achieves similar documentation update quality at lower token cost compared to Claude Sonnet.","hypothesis":"H0: no change in PR creation rate or run success rate. H1: Claude Haiku reduces AI credit usage \u003e=30% with equivalent run success rate (\u003e=0.90).","metric":"ai_credits_total","secondary_metrics":["run_success_rate","run_duration_ms"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.90"},{"name":"empty_output_rate","threshold":"\u003c=0.10"}],"min_samples":20,"weight":[50,50],"start_date":"2026-06-04"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: e56f5484942a095a9ec1f97eae0d838b60d5269c4ac971a1620e8410cec9809a:4ef43e5b84d15ba88982697469656a3af666486718a0e89d57a7f755926a79ad
         with:
           script: |
             const path = require('path');
@@ -1627,7 +1628,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4 --rootless
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -1642,6 +1643,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        timeout-minutes: 20
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

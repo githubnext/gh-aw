@@ -134,6 +134,13 @@ type GuardrailMetric struct {
 	Threshold string `json:"threshold"`
 }
 
+// ContinualExperimentConfig opts an existing A/B experiment into automatic traffic ramping.
+// The first declared variant remains control and the second is the candidate.
+type ContinualExperimentConfig struct {
+	Seed string `json:"seed"`
+	Ramp []int  `json:"ramp"`
+}
+
 // ExperimentNotify specifies where to post significance alerts when an experiment reaches
 // statistical significance.
 type ExperimentNotify struct {
@@ -197,6 +204,9 @@ type ExperimentConfig struct {
 
 	// Notify specifies where to post significance alerts when the experiment concludes.
 	Notify *ExperimentNotify `json:"notify,omitempty"`
+
+	// Continual enables deterministic control/candidate assignment and automatic traffic ramping.
+	Continual *ContinualExperimentConfig `json:"continual,omitempty"`
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers

@@ -201,8 +201,10 @@ func computeExperimentAnalysis(
 
 	k := len(variantNames)
 
-	// Chi-square goodness-of-fit balance test.
-	if exp.Total > 0 && k >= 2 {
+	// A single expected allocation is not available across continual ramp stages.
+	if cfg != nil && cfg.Continual != nil {
+		a.IsBalanced = true
+	} else if exp.Total > 0 && k >= 2 {
 		chi2 := 0.0
 		for i, name := range variantNames {
 			expected := float64(exp.Total) * expectedPcts[i]

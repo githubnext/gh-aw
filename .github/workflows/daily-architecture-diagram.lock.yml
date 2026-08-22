@@ -282,6 +282,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"detail_level":{"variants":["brief","comprehensive"],"description":"Tests whether a leaner output format (diagram + brief change log only) delivers equivalent reader value vs. the full report with Package Reference table and verbose summaries.","hypothesis":"H0: no change in run success rate or issue engagement. H1: brief variant reduces token usage ≥20% and run duration ≥15% with no drop in success rate.","metric":"run_duration_ms","secondary_metrics":["output_issue_body_length","run_success_rate"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.85"}],"min_samples":10,"weight":[50,50],"issue":31926,"start_date":"2026-05-19","analysis_type":"mann_whitney","tags":["output-format","cost","latency"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 02127ebbc3f6c049987911b5c89302dd47b6bef27e5530efd40abac5bb808ccf:222077f693270e01883e9e2b8a83ab3f160a0b2f88ddbe2897667a2e29cab546
         with:
           script: |
             const path = require('path');
@@ -1704,7 +1705,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4 --rootless
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -1719,6 +1720,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        timeout-minutes: 20
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

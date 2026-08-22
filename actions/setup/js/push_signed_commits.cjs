@@ -326,7 +326,9 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
     ...validationConfig,
     protected_files_policy: validationConfig.protected_files_policy ?? "request_review",
   });
-  if (protection.action !== "allow") {
+  // Only "deny" is fatal here: "fallback" and "request_review" are non-fatal outcomes that the
+  // caller (create_pull_request.cjs) already decided to tolerate and handles after the push.
+  if (protection.action === "deny") {
     throw new PushSignedCommitsPolicyViolation(`${ERR_VALIDATION}: Signed-commit payload violates file-protection policy (${protection.action}): ${protection.files.join(", ")}`);
   }
 }
@@ -484,7 +486,7 @@ async function pushSignedCommits({
       const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", firstGraphqlParentOid, "HEAD"], { cwd, ignoreReturnCode: true });
       graphqlParentIsAncestorOfHead = ancestryCheck.exitCode === 0;
     } catch {
-      // If ancestry probing fails, keep the default (true) and avoid rewrite.
+      // Ancestry probe failed — ignored, keep the default (true) and avoid rewrite.
     }
   }
   if (firstReplayParentOid && firstGraphqlParentOid && firstReplayParentOid !== firstGraphqlParentOid && !graphqlParentIsAncestorOfHead) {
@@ -548,7 +550,7 @@ async function pushSignedCommits({
           const { stdout: headOut } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
           headOid = headOut.trim();
         } catch {
-          // If HEAD cannot be resolved, fall back to the known range anchors.
+          // HEAD cannot be resolved — ignored, fall back to the known range anchors.
         }
         const fetchTargets = [firstGraphqlParentOid, firstReplayParentOid, headOid].filter(sha => typeof sha === "string" && sha.length > 0);
         core.warning(`pushSignedCommits: rebase failed due to missing objects in a shallow/partial clone; ` + `backfilling object content for ${fetchTargets.length} anchor commit(s) directly from origin by SHA and retrying once`);

@@ -284,6 +284,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prompt_compression":{"variants":["verbose","caveman"],"description":"Test whether extreme prompt compression preserves output quality for meta-orchestrator workflows","hypothesis":"H0: no change in effective_tokens. H1: caveman reduces tokens by ≥20% while maintaining quality ≥90%","metric":"effective_tokens","secondary_metrics":["run_duration_seconds","issues_created","discussion_engagement_score","assessment_completeness_score"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.90"},{"name":"output_quality_score","threshold":"\u003e=0.70"}],"min_samples":14,"weight":[50,50],"issue":33280,"start_date":"2026-05-20","analysis_type":"mann_whitney","tags":["cost_optimization","prompt_engineering","meta_orchestrator"],"notify":{"issue":33280}}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 87110e7c96fd24eee920a67c3a72c1bf1450e62e788f948848ea5937daac158d:4495b7b8ac66500dd3724fef344313a8290166c31a12a66a75fccfd436e4b5f1
         with:
           script: |
             const path = require('path');
@@ -1777,7 +1778,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4 --rootless
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -1792,6 +1793,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        timeout-minutes: 20
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

@@ -28,6 +28,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** Maximum number of per-run ledger records retained in state.runs for summaries. */
@@ -41,6 +42,8 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {Record<string, string>} assignments - Maps experiment name → selected variant
  * @property {Record<string, Record<string, number>>} [baseline_counts]
  *   Optional cumulative counts that existed before the recorded run history began.
+ * @property {string} [harness_version]
+ * @property {Record<string, {current_stage: number}>} [continual_state]
  */
 
 /**
@@ -49,6 +52,8 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  *   Maps experiment name → variant → cumulative invocation count.
  * @property {ExperimentRunRecord[]} [runs]
  *   Per-run ledger history appended on each invocation.
+ * @property {Record<string, {current_stage: number}>} [continual]
+ *   Dynamic continual experiment state persisted independently of workflow configuration.
  */
 
 /**
@@ -73,6 +78,7 @@ const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
  * @property {string} [analysis_type]               - Statistical test: t_test | mann_whitney | proportion_test | bayesian_ab
  * @property {string[]} [tags]                      - Free-form labels for dashboard filtering
  * @property {{discussion?: number, issue?: number}} [notify] - Where to post significance alerts
+ * @property {{seed: string, ramp: number[]}} [continual]
  */
 
 /**
@@ -89,6 +95,10 @@ function normalizeConfig(raw) {
   return raw;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, any>}
+ */
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -151,6 +161,26 @@ function hasCounts(counts) {
 }
 
 /**
+ * Merge persisted continual stages into target without allowing stage regression.
+ *
+ * @param {Record<string, {current_stage: number}>} target
+ * @param {unknown} source
+ * @throws {Error} When source contains invalid continual stage state.
+ */
+function mergeContinualState(target, source) {
+  if (!isPlainObject(source)) {
+    throw new Error("Invalid continual experiment state: expected an object");
+  }
+  for (const [name, value] of Object.entries(/** @type {Record<string, unknown>} */ source)) {
+    if (!isPlainObject(value) || !Number.isInteger(value.current_stage) || value.current_stage < 0) {
+      throw new Error(`Invalid continual experiment stage for "${name}": current_stage must be a non-negative integer`);
+    }
+    const currentStage = target[name]?.current_stage ?? 0;
+    target[name] = { current_stage: Math.max(currentStage, value.current_stage) };
+  }
+}
+
+/**
  * Load and parse the state file. Returns an empty state if the file does not exist
  * or cannot be parsed (e.g. first run or corrupted cache).
  *
@@ -173,7 +203,7 @@ function loadState(stateFile) {
       // Fall through to JSONL state parsing.
     }
 
-    /** @type {{ counts: Record<string, Record<string, number>>, runs: ExperimentRunRecord[] }} */
+    /** @type {ExperimentState & {runs: ExperimentRunRecord[]}} */
     const state = { counts: {}, runs: [] };
     for (const line of raw.split(/\r?\n/)) {
       const trimmed = line.trim();
@@ -189,6 +219,10 @@ function loadState(stateFile) {
       if (entry && typeof entry.run_id === "string" && typeof entry.timestamp === "string" && entry.assignments && typeof entry.assignments === "object" && !Array.isArray(entry.assignments)) {
         if (entry.baseline_counts !== undefined) {
           mergeBaselineCounts(state.counts, entry.baseline_counts);
+        }
+        if (entry.continual_state !== undefined) {
+          if (!state.continual) state.continual = {};
+          mergeContinualState(state.continual, entry.continual_state);
         }
         state.runs.push(entry);
         if (state.runs.length > MAX_RUN_HISTORY) {
@@ -211,7 +245,7 @@ function loadState(stateFile) {
     return state;
   } catch (err) {
     // When state.jsonl is absent, fall back to state.json for cache-mode compatibility.
-    if (stateFile.endsWith(".jsonl") && err && /** @type {any} */ err.code === "ENOENT") {
+    if (stateFile.endsWith(".jsonl") && typeof err === "object" && err !== null && "code" in err && err.code === "ENOENT") {
       const legacyFile = stateFile.replace(/\.jsonl$/, ".json");
       return loadState(legacyFile);
     }
@@ -335,6 +369,7 @@ function pickVariantWeighted(variants, weight) {
     // All weights are zero – fall back to first variant (control).
     return variants[0];
   }
+
   let rnd = Math.random() * total;
   for (let i = 0; i < variants.length; i++) {
     rnd -= weight[i];
@@ -347,6 +382,71 @@ function pickVariantWeighted(variants, weight) {
     if (weight[i] > 0) return variants[i];
   }
   return variants[0];
+}
+
+/**
+ * Deterministically select a weighted variant from an explicit pre-treatment assignment unit.
+ *
+ * @param {string[]} variants
+ * @param {number[]} weight
+ * @param {string} key
+ * @returns {string}
+ */
+function pickVariantDeterministic(variants, weight, key) {
+  const total = weight.reduce((a, b) => a + b, 0);
+  if (total <= 0) return variants[0];
+  const digest = crypto.createHash("sha256").update(key).digest();
+  const bucket = digest.readBigUInt64BE(0);
+  let point = Number(bucket % BigInt(total));
+  for (let i = 0; i < variants.length; i++) {
+    if (point < weight[i]) return variants[i];
+    point -= weight[i];
+  }
+  return variants[0];
+}
+
+/**
+ * @param {ExperimentConfig} cfg
+ * @param {string[]} variants
+ * @param {ExperimentState} state
+ * @param {string} name
+ * @returns {number[]}
+ */
+function continualWeights(cfg, variants, state = { counts: {} }, name = "") {
+  const continual = cfg.continual;
+  const ramp = continual?.ramp;
+  if (!Array.isArray(ramp) || ramp.length === 0 || variants.length !== 2) {
+    return cfg.weight && cfg.weight.length === variants.length ? cfg.weight : variants.map(() => 1);
+  }
+  const configuredMinimum = cfg.min_samples;
+  let minimumObservations = 20;
+  if (typeof configuredMinimum === "number" && Number.isInteger(configuredMinimum) && configuredMinimum > 0) {
+    minimumObservations = configuredMinimum;
+  }
+  const candidateObservations = state.counts?.[name]?.[variants[1]] ?? 0;
+  const observedStage = Math.min(Math.floor(candidateObservations / minimumObservations), ramp.length - 1);
+  const storedStageValue = state.continual?.[name]?.current_stage;
+  const storedStage = typeof storedStageValue === "number" && Number.isInteger(storedStageValue) && storedStageValue >= 0 ? Math.min(storedStageValue, ramp.length - 1) : 0;
+  const stage = Math.max(storedStage, observedStage);
+  if (!state.continual) state.continual = {};
+  state.continual[name] = { current_stage: stage };
+  const candidate = ramp[stage] ?? 0;
+  return [100 - candidate, candidate];
+}
+
+function logContinualDecision(name, cfg, variants, state, weights, selected, core) {
+  if (!cfg.continual) return;
+
+  const candidateObservations = state.counts?.[name]?.[variants[1]] ?? 0;
+  const allocation = variants.map((variant, index) => `${variant}=${weights[index]}`).join(", ");
+  let rampStage = "no ramp configured";
+  if (Array.isArray(cfg.continual.ramp) && cfg.continual.ramp.length > 0 && variants.length === 2) {
+    const configuredMinimum = cfg.min_samples;
+    const minimumObservations = typeof configuredMinimum === "number" && Number.isInteger(configuredMinimum) && configuredMinimum > 0 ? configuredMinimum : 20;
+    const stage = state.continual?.[name]?.current_stage ?? 0;
+    rampStage = `ramp stage ${stage + 1}/${cfg.continual.ramp.length} (${candidateObservations}/${minimumObservations} candidate observations)`;
+  }
+  core.info(`Continual experiment "${name}": assignment decision; ${rampStage}; weights ${allocation}; selected variant "${selected}"`);
 }
 
 /**
@@ -545,7 +645,6 @@ async function main() {
 
   /** @type {Record<string, string>} */
   const assignments = {};
-
   for (const name of experimentNames) {
     const cfg = configs[name];
     const variants = cfg.variants;
@@ -564,14 +663,18 @@ async function main() {
     }
 
     let selected;
-    if (cfg.weight && cfg.weight.length === variants.length) {
+    const weights = continualWeights(cfg, variants, state, name);
+    const assignmentUnit = [name, process.env.GITHUB_REPOSITORY || "", process.env.GITHUB_WORKFLOW_REF || process.env.GITHUB_WORKFLOW || "", process.env.GITHUB_RUN_ID || ""].join(":");
+    if (cfg.continual?.seed) {
+      selected = pickVariantDeterministic(variants, weights, `${cfg.continual.seed}:${assignmentUnit}`);
+    } else if (cfg.weight && cfg.weight.length === variants.length) {
       selected = pickVariantWeighted(variants, cfg.weight);
     } else {
       selected = pickVariant(name, variants, state);
     }
+    logContinualDecision(name, cfg, variants, state, weights, selected, core);
     recordVariant(name, selected, state);
     assignments[name] = selected;
-
     // Expose the selected variant as a step output (individual per experiment).
     // Downstream jobs access this via needs.activation.outputs.<name>.
     core.setOutput(name, selected);
@@ -591,7 +694,13 @@ async function main() {
     if (!state.runs) {
       state.runs = [];
     }
-    state.runs.push({ run_id: runId, timestamp, assignments: { ...assignments } });
+    state.runs.push({
+      run_id: runId,
+      timestamp,
+      harness_version: process.env.GH_AW_HARNESS_VERSION || "",
+      assignments: { ...assignments },
+      continual_state: state.continual ? structuredClone(state.continual) : undefined,
+    });
     // Prune in-memory run history so summaries stay small even when state.jsonl is append-only.
     if (state.runs.length > MAX_RUN_HISTORY) {
       state.runs = state.runs.slice(-MAX_RUN_HISTORY);
@@ -628,4 +737,15 @@ async function main() {
   await writeSummary(assignments, configs, state, core);
 }
 
-module.exports = { main, pickVariant, pickVariantWeighted, loadState, saveState, recordVariant, isWithinDateWindow, normalizeConfig };
+module.exports = {
+  main,
+  pickVariant,
+  pickVariantWeighted,
+  pickVariantDeterministic,
+  continualWeights,
+  loadState,
+  saveState,
+  recordVariant,
+  isWithinDateWindow,
+  normalizeConfig,
+};

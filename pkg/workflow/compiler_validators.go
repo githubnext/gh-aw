@@ -378,6 +378,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: len(workflowData.LSP) > 0, message: "Using experimental feature: lsp"},
 		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
 		{enabled: workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0, message: "Using experimental feature: drive-memory"},
+		{enabled: hasContinualExperiment(workflowData.ExperimentConfigs), message: "Using experimental feature: continual experiments"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.PreCreate, message: "Using experimental feature: create-pull-request pre-create"},
 	}
 	for _, warning := range warnings {
@@ -390,12 +391,22 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 			c.IncrementWarningCount()
 		}
 	}
+
 	if shouldWarnSparseInteractionCells(workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
 			"experiments: potential sparse interaction cells detected (multiple active experiments with weighted traffic). "+
 				"Reporting should include factorial K1×K2 cell diagnostics before recommending promotion."))
 		c.IncrementWarningCount()
 	}
+}
+
+func hasContinualExperiment(configs map[string]*ExperimentConfig) bool {
+	for _, config := range configs {
+		if config != nil && config.Continual != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Compiler) validateGitHubToolsAndPermissions(workflowData *WorkflowData, markdownPath string, workflowPermissions *Permissions) error {

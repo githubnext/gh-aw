@@ -44,7 +44,7 @@ function resolveShellPackageManager() {
       execFileSyncRunner("which", [manager.command], { stdio: "pipe" });
       return manager;
     } catch {
-      // Try next manager
+      // Manager not installed — ignored, try next manager.
     }
   }
 
@@ -108,7 +108,7 @@ function installDependency(logger, toolName, dependency, manager, basePath) {
       try {
         execFileSyncRunner("go", ["mod", "init", "example.com/mcp-scripts"], { cwd: basePath, stdio: "pipe", env: process.env });
       } catch {
-        // go.mod may have been created concurrently
+        // go.mod may have been created concurrently — failure is ignored.
       }
     }
     command = "go";

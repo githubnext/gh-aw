@@ -290,6 +290,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prompt_style":{"variants":["detailed","concise"],"description":"Tests whether a concise directive produces equivalent discussion quality to the current verbose 5-phase prompt","hypothesis":"H0: no change in output quality. H1: concise prompt reduces token usage by ≥20% with no significant drop in output completeness score","metric":"effective_token_count","secondary_metrics":["output_length_chars","run_duration_ms","chart_generated"],"guardrail_metrics":[{"name":"discussion_creation_success_rate","threshold":"\u003e=0.90"},{"name":"chart_upload_success_rate","threshold":"\u003e=0.80"}],"min_samples":30,"weight":[50,50],"issue":31190,"start_date":"2026-05-12","analysis_type":"mann_whitney","tags":["prompt-engineering","cost-efficiency","daily-workflows"],"notify":{"issue":31190}}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 736e614b71546b1b0d345cf8b6bc68a7297d6f66ba59689791ffb207a403ca18:617e99c42a0bd4eb545b0e29e309dcc27ed4af6c74b5d693dae40b57314076e9
         with:
           script: |
             const path = require('path');
@@ -1774,7 +1775,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4 --rootless
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -1789,6 +1790,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        timeout-minutes: 20
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

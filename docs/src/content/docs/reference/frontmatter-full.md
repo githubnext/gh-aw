@@ -2140,6 +2140,64 @@ sandbox:
     # (optional)
     memory: "example-value"
 
+    # Digest-pinned AWF infrastructure images (AWF v0.28.4+). Selects the container
+    # image used for each AWF service role instead of AWF's defaults. Every value must
+    # be a literal, registry-qualified OCI reference that carries both a tag and an
+    # immutable SHA-256 digest ('registry/repository:tag@sha256:<64 lowercase hex
+    # chars>'); GitHub Actions expressions and other dynamic values are rejected at
+    # compile time. When set, the manifest must cover every image role required by the
+    # enabled feature set, AWF fails closed instead of falling back to a default, the
+    # same references are predownloaded and recorded in lock metadata unchanged, and
+    # the Docker daemon must already be authenticated to the registry.
+    # Repository-level '.github/workflows/aw.json' 'container_pins' mappings still
+    # redirect non-AWF workflow containers and default AWF predownload references when
+    # this manifest is omitted, but they cannot configure AWF runtime roles and never
+    # redirect this authoritative manifest.
+    # (optional)
+    images:
+      # Squid forward-proxy image used for domain filtering.
+      # (optional)
+      squid: "example-value"
+
+      # Agent container image that runs the agentic engine.
+      # (optional)
+      agent: "example-value"
+
+      # API proxy sidecar image that holds provider credentials.
+      # (optional)
+      apiProxy: "example-value"
+
+      # CLI proxy sidecar image used by tools.github.mode: gh-proxy,
+      # integrity-reactions, or raw --difc-proxy-host AWF arguments.
+      # (optional)
+      cliProxy: "example-value"
+
+      # Build-tools image used as the chroot sysroot base on runner.topology: arc-dind.
+      # (optional)
+      buildTools: "example-value"
+
+      # DNS-over-HTTPS proxy image required when legacy-security raw AWF arguments
+      # enable --dns-over-https.
+      # (optional)
+      dohProxy: "example-value"
+
+      # Script enclave image.
+      # (optional)
+      enclaveScript: "example-value"
+
+      # Agent enclave image.
+      # (optional)
+      enclaveAgent: "example-value"
+
+      # Shared enclave MCP server image required whenever any enclave is enabled.
+      # (optional)
+      enclaveMcpServer: "example-value"
+
+      # Docker-in-Docker staging image required when raw AWF arguments enable directory
+      # or engine-binary pre-staging.
+      # (optional)
+      dindStaging: "example-value"
+
     # Enable or disable model fallback for unresolved model selections. Set to false
     # for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports
     # literal boolean or GitHub Actions expression.

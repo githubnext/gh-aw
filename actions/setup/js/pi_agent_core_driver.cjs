@@ -390,7 +390,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    process.stderr.write(`[pi-agent-core-driver] unhandled error: ${err instanceof Error ? err.stack : String(err)}\n`);
+    process.stderr.write(`[pi-agent-core-driver] unhandled error: ${err instanceof Error && err.stack ? err.stack : getErrorMessage(err)}\n`);
     process.exit(1);
   });
 }

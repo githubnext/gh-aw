@@ -647,18 +647,21 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 
 	// Verify new expanded sections are populated
 	t.Run("AuditEngineConfig", func(t *testing.T) {
+		t.Parallel()
 		require.NotNil(t, auditData.EngineConfig, "Engine config should be populated")
 		assert.Equal(t, "copilot", auditData.EngineConfig.EngineID, "Engine ID should match")
 		assert.Equal(t, "gpt-4", auditData.EngineConfig.Model, "Model should match")
 	})
 
 	t.Run("PromptAnalysis", func(t *testing.T) {
+		t.Parallel()
 		require.NotNil(t, auditData.PromptAnalysis, "Prompt analysis should be populated")
 		assert.Len(t, promptContent, auditData.PromptAnalysis.PromptSize, "Prompt size should match")
 		assert.Equal(t, filepath.Join("activation", "aw-prompts", "prompt.txt"), auditData.PromptAnalysis.PromptFile, "Prompt file should be a relative path")
 	})
 
 	t.Run("SessionAnalysis", func(t *testing.T) {
+		t.Parallel()
 		require.NotNil(t, auditData.SessionAnalysis, "Session analysis should be populated")
 		assert.Equal(t, 10, auditData.SessionAnalysis.TurnCount, "Turn count should match")
 		assert.NotEmpty(t, auditData.SessionAnalysis.WallTime, "Wall time should be set")
@@ -668,6 +671,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 	})
 
 	t.Run("SafeOutputSummary", func(t *testing.T) {
+		t.Parallel()
 		require.NotNil(t, auditData.SafeOutputSummary, "Safe output summary should be populated")
 		assert.Equal(t, 2, auditData.SafeOutputSummary.TotalItems, "Should have 2 total items")
 		assert.Len(t, auditData.SafeOutputSummary.ItemsByType, 2, "Should have 2 types")
@@ -675,6 +679,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 	})
 
 	t.Run("MCPServerHealth", func(t *testing.T) {
+		t.Parallel()
 		require.NotNil(t, auditData.MCPServerHealth, "MCP server health should be populated")
 		assert.Equal(t, 2, auditData.MCPServerHealth.TotalServers, "Should have 2 servers (1 from stats + 1 failed)")
 		assert.Equal(t, 1, auditData.MCPServerHealth.FailedSvrs, "Should have 1 failed server")
@@ -684,6 +689,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 
 	// Verify existing sections still work
 	t.Run("ExistingFieldsPreserved", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, int64(12345), auditData.Overview.RunID, "Run ID should be preserved")
 		assert.Equal(t, 5000, auditData.Metrics.TokenUsage, "Token usage should be preserved")
 		assert.NotNil(t, auditData.MCPToolUsage, "MCP tool usage should be preserved")

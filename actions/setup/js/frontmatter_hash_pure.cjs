@@ -39,7 +39,8 @@ async function defaultFileReader(filePath) {
  * @returns {boolean}
  */
 function parseBoolFromFrontmatter(frontmatterText, key) {
-  const pattern = new RegExp(`^${key}:\\s*(true|false)\\s*$`, "m");
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${escapedKey}:\\s*(true|false)\\s*$`, "m");
   const match = frontmatterText.match(pattern);
   return match !== null && match[1] === "true";
 }
@@ -484,7 +485,7 @@ function extractBodyHashFromLockFile(lockFileContent) {
           return metadata.body_hash;
         }
       } catch (err) {
-        // Invalid JSON
+        // Invalid JSON metadata — ignored.
       }
     }
   }
@@ -511,7 +512,7 @@ function extractHashFromLockFile(lockFileContent) {
           return metadata.frontmatter_hash;
         }
       } catch (err) {
-        // Invalid JSON, continue to check old format
+        // Invalid JSON — ignored, continue to check old format.
       }
     }
 
@@ -716,7 +717,8 @@ function createGitHubFileReader(github, owner, repo, ref) {
       // This handles the case where an import path traverses a symlinked directory
       // (e.g. .github/agents → ../.ai/agents), which the GitHub Contents API cannot
       // follow automatically. Mirrors the Go logic in remote_download_file.go.
-      const status = error.status || (error.response && error.response.status);
+      const errorObject = typeof error === "object" && error !== null ? error : null;
+      const status = errorObject ? errorObject.status || (errorObject.response && errorObject.response.status) : undefined;
       if (status === HTTP_STATUS_NOT_FOUND) {
         if (symlinkDepth >= MAX_SYMLINK_DEPTH) {
           throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: symlink chain exceeded maximum depth of ${MAX_SYMLINK_DEPTH}`);

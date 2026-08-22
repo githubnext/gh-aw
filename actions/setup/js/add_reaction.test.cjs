@@ -333,7 +333,6 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalled();
       expect(mockCore.setFailed).toHaveBeenCalled();
     });
 
@@ -348,7 +347,6 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalled();
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not found"));
     });
 
@@ -496,7 +494,6 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
     });
 
@@ -511,7 +508,6 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalled();
       expect(mockCore.setFailed).toHaveBeenCalled();
     });
 
@@ -535,7 +531,6 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
     });
 
@@ -546,7 +541,6 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
     });
 
@@ -557,7 +551,6 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
     });
   });
@@ -692,12 +685,11 @@ describe("add_reaction", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should call core.error and core.setFailed for non-locked errors", async () => {
+    it("should call core.setFailed for non-locked errors", async () => {
       const { handleReactionError } = await importHelpers();
 
       handleReactionError(new Error("Some API error"));
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction: Some API error"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`${ERR_API}: Failed to add reaction`));
     });
   });

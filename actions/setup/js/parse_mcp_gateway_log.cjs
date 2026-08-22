@@ -138,7 +138,7 @@ function parseTokenUsageJsonl(jsonlContent) {
 
       summary.entries.push({ model, provider: m.provider, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens, durationMs, deltaAIC: 0 });
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
 
@@ -327,7 +327,7 @@ function parseGatewayJsonlForDifcFiltered(jsonlContent) {
         filteredEvents.push(entry);
       }
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
   return filteredEvents;
@@ -352,7 +352,7 @@ function parseGatewayJsonlForTokenSteering(jsonlContent) {
         steeringEvents.push(entry);
       }
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
   return steeringEvents;
@@ -389,7 +389,7 @@ function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
         aliasResolutionEvents.push(entry);
       }
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
   return aliasResolutionEvents;
@@ -533,7 +533,7 @@ function parseRpcMessagesJsonl(jsonlContent) {
         other.push(entry);
       }
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
 

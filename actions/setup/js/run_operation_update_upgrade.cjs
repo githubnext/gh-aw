@@ -172,7 +172,7 @@ async function main() {
   try {
     await exec.exec("git", ["remote", "remove", "aw-push"]);
   } catch {
-    // Remote doesn't exist yet - that's fine
+    // Remote doesn't exist yet — removal failure is ignored, that's fine.
   }
   await exec.exec("git", ["remote", "add", "aw-push", remoteUrl], { silent: true });
 
@@ -270,7 +270,7 @@ async function mainNotifyIssue() {
         changedFiles.push(file);
       }
     } catch {
-      // file not in repo - skip
+      // File not in repo — ignored, skip it.
     }
   }
 

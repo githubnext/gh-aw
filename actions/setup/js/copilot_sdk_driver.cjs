@@ -31,6 +31,7 @@ const { runWithCopilotSDK, extractPromptFromArgs } = require("./copilot_sdk_sess
 const { parsePermissionConfigFromServerArgs } = require("./copilot_sdk_permissions.cjs");
 const { parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 // Re-export the session and permission helpers so that existing callers that
 // require("./copilot_sdk_driver.cjs") (e.g. copilot_harness.cjs) continue to work.
@@ -84,7 +85,7 @@ async function main() {
   try {
     prompt = fs.readFileSync(promptFile, "utf8");
   } catch (err) {
-    process.stderr.write(`[copilot-sdk-driver] error: failed to read prompt file ${promptFile}: ${err}\n`);
+    process.stderr.write(`[copilot-sdk-driver] error: failed to read prompt file ${promptFile}: ${getErrorMessage(err)}\n`);
     process.exit(1);
   }
 
@@ -145,7 +146,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    process.stderr.write(`[copilot-sdk-driver] unhandled error: ${err instanceof Error ? err.stack : String(err)}\n`);
+    process.stderr.write(`[copilot-sdk-driver] unhandled error: ${err instanceof Error && err.stack ? err.stack : getErrorMessage(err)}\n`);
     process.exit(1);
   });
 }

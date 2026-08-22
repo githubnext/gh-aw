@@ -62,7 +62,7 @@ function parseJsonl(content) {
     try {
       results.push(JSON.parse(line));
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
   return results;

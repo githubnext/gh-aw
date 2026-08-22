@@ -157,7 +157,7 @@ function getChangedBlobSizeBytes(gitOptions, files) {
         total += stats.size;
       }
     } catch {
-      // Deleted files have no expanded content to add to the limit.
+      // Stat failure is ignored: deleted files have no expanded content to add to the limit.
     }
   }
   return total;

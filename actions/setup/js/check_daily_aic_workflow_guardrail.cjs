@@ -116,7 +116,7 @@ function shouldSkipDailyAICGuardrail() {
         return true;
       }
     } catch {
-      // Malformed aw_context: skip guardrail as a safe fallback for manual dispatch.
+      // Malformed aw_context is ignored: skip the guardrail as a safe fallback for manual dispatch.
     }
     // Existing behavior: dispatch-routed runs with aw_context bypass the guardrail.
     return true;

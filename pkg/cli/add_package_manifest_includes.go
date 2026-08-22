@@ -93,6 +93,7 @@ func extractManifestIncludes(value any, manifestPath string) ([]repositoryPackag
 		seen[include] = struct{}{}
 		normalized = append(normalized, include)
 	}
+	addPackageManifestLog.Printf("Extracted %d includes entries from %s (%d warnings)", len(normalized), manifestPath, len(warnings))
 	return normalized, warnings, nil
 }
 
@@ -299,6 +300,7 @@ func extractManifestSkillDirs(value any, manifestPath string) ([]string, []strin
 		seen[dir] = struct{}{}
 		normalized = append(normalized, dir)
 	}
+	addPackageManifestLog.Printf("Extracted %d skill directories from %s (%d warnings)", len(normalized), manifestPath, len(warnings))
 	return normalized, warnings
 }
 
@@ -434,6 +436,7 @@ func normalizePackageInstallablePaths(includes []repositoryPackageInclude, packa
 			DestinationPath: destination,
 		})
 	}
+	addPackageManifestLog.Printf("Normalized %d package installable paths (package path=%q)", len(normalized), packagePath)
 	return normalized
 }
 

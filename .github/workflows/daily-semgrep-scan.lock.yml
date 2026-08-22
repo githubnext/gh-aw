@@ -278,6 +278,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"semgrep_output_format":{"variants":["bullet_list","structured_sections","prose","ste"],"description":"Tests whether the structure of Semgrep findings output (bullet list vs. grouped sections vs. prose vs. Simplified Technical English (STE)) affects code scanning alert creation rate and output completeness.","hypothesis":"H0: no change in alert creation rate across formats. H1: structured_sections produces ≥15% more alerts successfully created vs. baseline bullet_list; ste improves completeness via clearer, simpler language.","metric":"alert_creation_rate","secondary_metrics":["run_duration_ms","output_length_chars","findings_reported","eval:output_format_adherence"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.85"}],"min_samples":30,"weight":[25,25,25,25],"issue":32795,"start_date":"2026-05-17","analysis_type":"proportion_test","tags":["security","output-quality","semgrep"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 3df447548dc81377806baeb3acba364aafa06177a854cbdee6cbbefaa2e35a10:30bc3172c5efd92c06b3ca4a559ac2bfc6606411aa369c6b911f389241a89759
         with:
           script: |
             const path = require('path');
@@ -1555,7 +1556,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4 --rootless
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -1570,6 +1571,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        timeout-minutes: 20
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
