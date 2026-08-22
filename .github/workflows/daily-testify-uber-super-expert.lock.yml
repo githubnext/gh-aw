@@ -774,7 +774,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_03655fbedb6bae5d_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_788b38cb8ee3655b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -835,8 +835,7 @@ jobs:
                   "*"
                 ],
                 "env": {
-                  "GOROOT": "\${GOROOT}",
-                  "PATH": "\${GOROOT}/bin:\${PATH}"
+                  "PATH": "\${PATH}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -861,7 +860,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_03655fbedb6bae5d_EOF
+          GH_AW_MCP_CONFIG_788b38cb8ee3655b_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
