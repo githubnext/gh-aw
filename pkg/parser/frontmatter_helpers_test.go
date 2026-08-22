@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -145,6 +146,73 @@ engine: claude
 			}
 		})
 	}
+}
+
+func TestUpdateWorkflowFrontmatterErrorIncludesWorkflowPath(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	t.Run("read error", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "missing-workflow.md")
+
+		err := UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
+			return nil
+		}, false)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not read workflow file")
+		assert.Contains(t, err.Error(), strconv.Quote(workflowPath))
+	})
+
+	t.Run("parse error", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "malformed-workflow.md")
+		err := os.WriteFile(workflowPath, []byte("---\nengine: [\n---\n# Test\n"), 0644)
+		require.NoError(t, err)
+
+		err = UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
+			return nil
+		}, false)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not parse frontmatter")
+		assert.Contains(t, err.Error(), strconv.Quote(workflowPath))
+	})
+
+	t.Run("marshal error", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "unmarshalable-workflow.md")
+		err := os.WriteFile(workflowPath, []byte("---\nengine: copilot\n---\n# Test\n"), 0644)
+		require.NoError(t, err)
+
+		err = UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
+			frontmatter["unmarshalable"] = func() {}
+			return nil
+		}, false)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not marshal updated frontmatter")
+		assert.Contains(t, err.Error(), strconv.Quote(workflowPath))
+	})
+
+	t.Run("write error", func(t *testing.T) {
+		workflowPath := filepath.Join(tempDir, "readonly-workflow.md")
+		err := os.WriteFile(workflowPath, []byte("---\nengine: copilot\n---\n# Test\n"), 0644)
+		require.NoError(t, err)
+		err = os.Chmod(workflowPath, 0444)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = os.Chmod(workflowPath, 0644)
+		})
+
+		err = UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
+			frontmatter["engine"] = "claude"
+			return nil
+		}, false)
+		if err == nil {
+			t.Skip("file permissions allow writes to read-only files on this platform")
+		}
+
+		assert.Contains(t, err.Error(), "could not write updated workflow file")
+		assert.Contains(t, err.Error(), strconv.Quote(workflowPath))
+	})
 }
 
 func TestEnsureToolsSection(t *testing.T) {

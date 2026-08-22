@@ -181,7 +181,6 @@ function handleReactionError(error) {
     return;
   }
   const errorMessage = getErrorMessage(error);
-  core.error(`Failed to add reaction: ${errorMessage}`);
   core.setFailed(`${ERR_API}: Failed to add reaction: ${errorMessage}`);
 }
 

@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🧪"
-description: Daily statistical report that uses the experiments CLI command to list active experiments and the experiments analyze tool to get per-variant statistics and statistical significance, then computes per-variant success rates and durations from run artifacts, renders bar charts and an ASCII comparison table per experiment, and posts a discussion with a promote/extend/abandon recommendation; notifies tracking issues when experiments reach statistical significance or min_samples
+description: Daily statistical report that uses the experiments CLI command to list active experiments and the experiments analyze tool to get per-variant statistics and statistical significance, then computes per-variant success rates and durations from run artifacts, renders bar charts and an ASCII comparison table per experiment, posts a discussion with promote/extend/abandon recommendations, and includes a self-tuning continuation plan driven by experiments and evals with grader-ready next actions
 name: daily-experiment-report
 on:
   schedule: daily around 8:00
@@ -59,6 +59,8 @@ evals:
     question: Did the agent list active experiments and compute per-variant success rates and statistical significance?
   - id: discussion_with_recommendations_created
     question: Was a discussion created with charts, comparison tables, and promote/extend/abandon recommendations?
+  - id: self_tuning_continuation_plan_documented
+    question: Did the report include concrete next actions to continue the self-tuning feature set using experiments and evals, with grader integration readiness noted?
 ---
 
 # Daily Experiment Report
@@ -66,7 +68,9 @@ evals:
 You are a **statistical analyst** for agentic workflow A/B experiments. Your job is to aggregate
 experiment run data, compute rigorous per-variant statistics, detect statistical significance, and
 post a clear ASCII comparison table to each experiment's tracking issue (or to the workflow step
-summary if no tracking issue is configured).
+summary if no tracking issue is configured). Also continue the repository's self-tuning feature set
+by emitting explicit next actions based on experiments and evals, and keep those actions grader-ready
+for upcoming grader integration work.
 
 Experiments frequently test `output_format` style variants (for example `structured`, `prose`,
 `table`, or `ste` for Simplified Technical English). Treat these like any other variant: compare
@@ -604,6 +608,21 @@ not removed automatically; the person concluding the experiment can remove them 
 Use the `add-labels` safe-output tool to apply labels to the tracking issue.
 If a label does not exist in the repository, create it with `create_label` GitHub MCP tool
 before applying it, using a neutral gray color (e.g. `#808080`) and a short description.
+
+## Step 10 — Self-Tuning Continuation Plan (Experiments + Evals, Grader-Ready)
+
+After generating the daily report, append a short **Self-Tuning Continuation Plan** section to the
+discussion body with:
+
+1. **Top 3 experiment actions** for the next iteration (for example: promote/extend/abandon with one-line rationale).
+2. **Top 3 eval actions** (which low-scoring eval questions to tighten, and which workflow prompts they map to).
+3. **Grader-ready hooks** for the next PR:
+   - identify where grader outputs should plug into the decision path (per-run outcome record + recommendation gate),
+   - list any missing fields the workflow should capture now so grader onboarding is low-friction.
+
+Keep this section implementation-oriented and concise. The goal is continuous convergence toward a
+self-tuning AW system that uses experiments for assignment, evals for outcome quality, and graders
+for stronger decision signals as they become available.
 
 ### Output Format
 

@@ -55,6 +55,7 @@ func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
 		repoSpec.Version = parts[1]
 	}
 
+	addPackageManifestLog.Printf("Parsed repository package spec %q as repo=%s path=%q version=%q", spec, repoSpec.RepoSlug, repoSpec.PackagePath, repoSpec.Version)
 	return repoSpec, true, nil
 }
 
@@ -134,6 +135,7 @@ func resolveRepositoryPackageDefaultBranch(ctx context.Context, repoSlug, host s
 		}
 		return "", fmt.Errorf("repository %s on %s returned an empty default branch. Ensure the repository exists and is accessible", repoSlug, targetHost)
 	}
+	addPackageManifestLog.Printf("Resolved default branch for %s: %s", repoSlug, branch)
 	return branch, nil
 }
 
@@ -163,6 +165,7 @@ func isGhAwRepository(repoSlug string) bool {
 // hostname (for example "github.com" or a GHES host); when provided, gh API
 // calls are executed against that host.
 func resolveRepositoryPackageLatestRelease(ctx context.Context, repoSlug, host string) (string, error) {
+	addPackageManifestLog.Printf("Resolving latest release for %s (host=%q)", repoSlug, host)
 	deps := workflowUpdateDeps{
 		runReleasesAPI: func(innerCtx context.Context, repo string) ([]byte, error) {
 			args := []string{"api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name"}

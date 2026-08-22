@@ -221,9 +221,21 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 				}
 			}
 		}
+		if continualRaw, ok := v["continual"].(map[string]any); ok {
+			cfg.Continual = extractContinualExperimentConfig(continualRaw)
+		}
 		return cfg
 	}
 	return nil
+}
+
+func extractContinualExperimentConfig(raw map[string]any) *ContinualExperimentConfig {
+	seed, _ := raw["seed"].(string)
+	ramp := extractIntSlice(raw["ramp"])
+	if seed == "" || len(ramp) == 0 {
+		return nil
+	}
+	return &ContinualExperimentConfig{Seed: seed, Ramp: ramp}
 }
 
 // extractIntField converts a numeric any value to int.
@@ -276,7 +288,11 @@ func extractGuardrailMetrics(raw any) []GuardrailMetric {
 		if name == "" || threshold == "" {
 			continue
 		}
-		result = append(result, GuardrailMetric{Name: name, Direction: direction, Threshold: threshold})
+		result = append(result, GuardrailMetric{
+			Name:      name,
+			Direction: direction,
+			Threshold: threshold,
+		})
 	}
 	return result
 }
@@ -367,12 +383,21 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 		if cfg == nil {
 			continue
 		}
-		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(cfg.Metric)
+		metric := cfg.Metric
+		if cfg.Continual != nil {
+			if len(cfg.Variants) != 2 {
+				return fmt.Errorf("experiments.%s.continual: exactly two variants are required (control, candidate)", experimentName)
+			}
+			if err := validateContinualRamp(experimentName, cfg.Continual); err != nil {
+				return err
+			}
+		}
+		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(metric)
 		if !referencesEval {
 			continue
 		}
 		if referencedEvalID == "" {
-			return fmt.Errorf("experiments.%s.metric: eval reference must include a non-empty eval id", experimentName)
+			return fmt.Errorf("experiments.%s.metric: expected eval reference format eval:<question_id>; provide a declared eval question id", experimentName)
 		}
 		if _, ok := evalIDs[referencedEvalID]; !ok {
 			if len(evalIDs) == 0 {
@@ -382,6 +407,17 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 		}
 	}
 
+	return nil
+}
+
+func validateContinualRamp(name string, cfg *ContinualExperimentConfig) error {
+	previous := 0
+	for _, percentage := range cfg.Ramp {
+		if percentage <= previous || percentage > 100 {
+			return fmt.Errorf("experiments.%s.continual.ramp: expected strictly increasing percentages in range 1..100, for example [10,25,50]", name)
+		}
+		previous = percentage
+	}
 	return nil
 }
 
@@ -486,6 +522,7 @@ func (c *Compiler) generateExperimentRepoSteps(data *WorkflowData, experimentNam
 // generatePickExperimentStep generates the "Pick experiment variants" step shared by both storage modes.
 func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentNames []string) []string {
 	specJSON := buildExperimentSpecJSON(data.Experiments, data.ExperimentConfigs, experimentNames)
+	harnessVersion := experimentHarnessVersion(data)
 	return []string{
 		"      - name: Pick experiment variants\n",
 		"        id: pick-experiment\n",
@@ -494,12 +531,26 @@ func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentName
 		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", strings.ReplaceAll(specJSON, "'", "''")),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
+		fmt.Sprintf("          GH_AW_HARNESS_VERSION: %s\n", harnessVersion),
 		"        with:\n",
 		"          script: |\n",
 		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
 		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
 		"            const { main } = require('" + SetupActionDestination + "/pick_experiment.cjs');\n",
 		"            await main();\n",
+	}
+}
+
+func experimentHarnessVersion(data *WorkflowData) string {
+	switch {
+	case data.FrontmatterHash == "" && data.BodyHash == "":
+		return "unknown"
+	case data.FrontmatterHash == "":
+		return data.BodyHash
+	case data.BodyHash == "":
+		return data.FrontmatterHash
+	default:
+		return data.FrontmatterHash + ":" + data.BodyHash
 	}
 }
 

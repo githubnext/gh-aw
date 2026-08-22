@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -637,7 +638,7 @@ func collectSchemaPropertyPaths(schemaDoc any, currentPath string, depth int) []
 	if properties, ok := schemaMap["properties"].(map[string]any); ok {
 		for fieldName, fieldSchema := range properties {
 			results = append(results, schemaFieldLocation{FieldName: fieldName, SchemaPath: currentPath})
-			sub := collectSchemaPropertyPaths(fieldSchema, currentPath+"/"+fieldName, depth+1)
+			sub := collectSchemaPropertyPaths(fieldSchema, joinSchemaPath(currentPath, fieldName), depth+1)
 			results = append(results, sub...)
 		}
 	}
@@ -659,6 +660,10 @@ func collectSchemaPropertyPaths(schemaDoc any, currentPath string, depth int) []
 	}
 
 	return results
+}
+
+func joinSchemaPath(currentPath, fieldName string) string {
+	return path.Join("/", currentPath, fieldName)
 }
 
 // findFieldLocationsInSchema searches the entire schema for where the given field name is valid as a property.

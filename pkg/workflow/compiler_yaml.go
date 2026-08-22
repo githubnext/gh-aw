@@ -23,19 +23,19 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	// Build all jobs
 	if err := c.buildJobs(data, markdownPath); err != nil {
 		compilerYamlLog.Printf("Failed to build jobs: %v", err)
-		return fmt.Errorf("failed to build jobs: %w", err)
+		return fmt.Errorf("job generation could not complete; check that each configured job has valid step fields such as run, uses, and with: %w", err)
 	}
 
 	compilerYamlLog.Printf("Built %d jobs successfully", len(c.jobManager.GetAllJobs()))
 
 	// Validate job dependencies
 	if err := c.jobManager.ValidateDependencies(); err != nil {
-		return fmt.Errorf("job dependency validation failed: %w", err)
+		return fmt.Errorf("job dependency validation expected each needs entry to reference an existing job id (for example, needs: build): %w", err)
 	}
 
 	// Validate no duplicate steps within jobs (compiler bug detection)
 	if err := c.jobManager.ValidateDuplicateSteps(); err != nil {
-		return fmt.Errorf("duplicate step validation failed: %w", err)
+		return fmt.Errorf("duplicate step validation found repeated step names within a job; ensure each step name is unique per job: %w", err)
 	}
 
 	return nil
@@ -124,7 +124,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 			},
 		)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
+			return "", nil, nil, fmt.Errorf("workflow YAML generation requires a stable frontmatter hash for %q; ensure the workflow file is readable and frontmatter parses correctly: %w", markdownPath, err)
 		}
 		frontmatterHash = hash
 		compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
@@ -150,10 +150,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
 	// step generators, etc.) can derive stable heredoc delimiters from it.
 	data.FrontmatterHash = frontmatterHash
+	data.BodyHash = bodyHash
 
 	// Build all jobs and validate dependencies
 	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
-		return "", nil, nil, fmt.Errorf("failed to build and validate jobs: %w", err)
+		return "", nil, nil, fmt.Errorf("workflow compilation requires valid jobs and dependencies; check job definitions and needs references: %w", err)
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size.
@@ -197,7 +198,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
 	if err := c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions); err != nil {
-		return "", nil, nil, fmt.Errorf("failed to generate workflow header: %w", err)
+		return "", nil, nil, fmt.Errorf("workflow header rendering could not complete; ensure lockfile metadata inputs are valid: %w", err)
 	}
 
 	// Append the workflow body
@@ -214,7 +215,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent, err := finalizeRunnerTempSafety(yamlContent)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("failed to finalize runner temp safety in generated YAML: %w", err)
+		return "", nil, nil, fmt.Errorf("runner temp safety rewriting could not complete; ensure generated run/script steps are valid shell or JavaScript commands: %w", err)
 	}
 
 	// Normalize assembled YAML whitespace. This clears indentation-only blank lines

@@ -56,7 +56,8 @@ function loadManifest() {
     const parsed = JSON.parse(raw);
     cached = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch (err) {
-    if (err && err.code !== "ENOENT" && typeof core !== "undefined") {
+    const code = typeof err === "object" && err !== null && "code" in err ? err.code : undefined;
+    if (err && code !== "ENOENT" && typeof core !== "undefined") {
       core.debug(`checkout_manifest: failed to read ${manifestPath}: ${getErrorMessage(err)}`);
     }
     cached = {};

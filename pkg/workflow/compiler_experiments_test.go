@@ -39,6 +39,7 @@ func TestBuildExperimentSpecJSONWithConfigs(t *testing.T) {
 	experiments := map[string][]string{
 		"style": {"concise", "detailed"},
 	}
+
 	configs := map[string]*ExperimentConfig{
 		"style": {
 			Variants:    []string{"concise", "detailed"},
@@ -56,6 +57,26 @@ func TestBuildExperimentSpecJSONWithConfigs(t *testing.T) {
 	assert.Contains(t, got, `"start_date"`, "should include start_date key")
 	assert.Contains(t, got, `"end_date"`, "should include end_date key")
 	assert.Contains(t, got, "concise", "should include variant value")
+}
+
+func TestBuildExperimentSpecJSONWithContinualConfig(t *testing.T) {
+	experiments := map[string][]string{"optimization": {"control", "candidate"}}
+	configs := map[string]*ExperimentConfig{
+		"optimization": {
+			Variants: experiments["optimization"],
+			Continual: &ContinualExperimentConfig{
+				Seed: "stable-seed",
+				Ramp: []int{10, 25, 50},
+			},
+		},
+	}
+	got := buildExperimentSpecJSON(experiments, configs, []string{"optimization"})
+	assert.JSONEq(t, `{"optimization":{"variants":["control","candidate"],"continual":{"seed":"stable-seed","ramp":[10,25,50]}}}`, got)
+}
+
+func TestValidateContinualRamp(t *testing.T) {
+	require.NoError(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{5, 20, 50}}))
+	require.Error(t, validateContinualRamp("optimization", &ContinualExperimentConfig{Ramp: []int{20, 10}}))
 }
 
 func TestBuildExperimentSpecJSONEscaping(t *testing.T) {
@@ -131,6 +152,8 @@ func TestGenerateExperimentSteps_CacheStorage(t *testing.T) {
 func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
 	c := &Compiler{}
 	data := &WorkflowData{
+		FrontmatterHash: "frontmatter-hash",
+		BodyHash:        "body-hash",
 		Experiments: map[string][]string{
 			"style": {"concise", "detailed"},
 		},
@@ -138,6 +161,14 @@ func TestGenerateExperimentSteps_SpecJSON(t *testing.T) {
 	steps := c.generateExperimentSteps(data)
 	joined := strings.Join(steps, "")
 	assert.Contains(t, joined, `{"style":["concise","detailed"]}`, "spec JSON should be embedded in the step")
+	assert.Contains(t, joined, "GH_AW_HARNESS_VERSION: frontmatter-hash:body-hash", "assignment should use the compiled workflow hashes")
+}
+
+func TestExperimentHarnessVersionUsesAvailableCompiledHashes(t *testing.T) {
+	assert.Equal(t, "frontmatter-hash:body-hash", experimentHarnessVersion(&WorkflowData{FrontmatterHash: "frontmatter-hash", BodyHash: "body-hash"}))
+	assert.Equal(t, "frontmatter-hash", experimentHarnessVersion(&WorkflowData{FrontmatterHash: "frontmatter-hash"}))
+	assert.Equal(t, "body-hash", experimentHarnessVersion(&WorkflowData{BodyHash: "body-hash"}))
+	assert.Equal(t, "unknown", experimentHarnessVersion(&WorkflowData{}))
 }
 
 func TestGenerateExperimentSteps_SingleQuoteEscaping(t *testing.T) {
@@ -594,7 +625,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			evals: &EvalsConfig{
 				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
 			},
-			wantErr: "must include a non-empty eval id",
+			wantErr: "expected eval reference format eval:<question_id>",
 		},
 		{
 			name: "eval colon metric trims whitespace from id",
