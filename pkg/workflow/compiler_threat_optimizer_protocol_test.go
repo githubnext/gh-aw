@@ -165,3 +165,14 @@ func TestThreatOptimizer_TCTR030Through038_FailureDiagnostics(t *testing.T) {
 	assert.Contains(t, source, "steps.agentic_execution.outcome == 'failure'")
 	assert.Contains(t, source, "/tmp/gh-aw/agent/optimizer-diagnostic.json")
 }
+
+func TestThreatOptimizer_TCTR040_MissedCronDiagnostic(t *testing.T) {
+	source := optimizerWorkflowSource(t)
+
+	assert.Contains(t, source, `"diagnostic":"OPTIMIZER_MISSED_CRON"`)
+	for _, field := range []string{"scheduled_at", "detected_at", "lookback_hours"} {
+		assert.Contains(t, source, `"`+field+`"`)
+	}
+	assert.Contains(t, source, "missed scheduled run does not count as a completed coverage cycle")
+	assert.Contains(t, source, "follow-up sync action")
+}

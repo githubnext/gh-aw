@@ -2,6 +2,10 @@
 
 This directory maps the threat-detection rule catalog in the [Compiler Threat Detection Specification](../compiler-threat-detection-spec.md#8-compliance-testing) to its conformance test IDs. Each active `CTR-*` rule has one required `T-CTR-*` test ID. Test IDs are allocated from a single sequence shared with the Section 6 norm tests below, so a test ID number does not necessarily match its rule ID number.
 
+## Structure
+
+Baseline rule implementation and test-file locations are maintained in [spec §7.1](../compiler-threat-detection-spec.md#71-baseline-rule-mapping). Use that table as the canonical structure map for `CTR-*` rule source paths and test targets; this README only summarizes the compliance ID crosswalk.
+
 | Rule ID | Test ID |
 |---------|---------|
 | CTR-001 | T-CTR-001 |
@@ -29,6 +33,8 @@ This directory maps the threat-detection rule catalog in the [Compiler Threat De
 | CTR-023 | T-CTR-023 |
 | CTR-025 | T-CTR-039 |
 
+Note: `CTR-025` maps to `T-CTR-039` because `T-CTR-024` through `T-CTR-038` were already allocated to Section 6 false-positive and optimizer protocol norms. The shared `T-CTR-*` sequence is intentionally non-sequential with respect to `CTR-*` rule IDs.
+
 The test triggers, expected compiler actions, and stable diagnostics are defined in [Section 8.1](../compiler-threat-detection-spec.md#81-test-id-catalog). The implementation and concrete test-file mappings are defined in [Section 7.1](../compiler-threat-detection-spec.md#71-baseline-rule-mapping).
 
 ## Section 6.4 False-Positive Handling Norms
@@ -55,6 +61,7 @@ The test triggers, expected compiler actions, and stable diagnostics are defined
 | T-CTR-036 | Rate limiting applies `RATE_LIMIT_RETRY_CONFIG`. |
 | T-CTR-037 | Exhausted rate limiting emits `OPTIMIZER_RATE_LIMITED`. |
 | T-CTR-038 | Rate-limited runs remain incomplete and retry in the next window. |
+| T-CTR-040 | Missed scheduled optimizer runs emit `OPTIMIZER_MISSED_CRON`, remain incomplete, and create a follow-up sync action. |
 
 The Section 6 norm tests are implemented in `pkg/workflow/compiler_threat_optimizer_protocol_test.go`. Run them with:
 
