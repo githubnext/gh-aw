@@ -205,8 +205,8 @@ function calculateDailyAICStats(runs) {
 
   const total = values.reduce((sum, value) => sum + value, 0);
   const average = total / values.length;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = values.reduce((smallest, value) => (value < smallest ? value : smallest), values[0]);
+  const max = values.reduce((largest, value) => (value > largest ? value : largest), values[0]);
   const variance = values.length > 1 ? values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1) : 0;
 
   return {

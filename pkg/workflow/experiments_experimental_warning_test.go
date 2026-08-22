@@ -107,3 +107,54 @@ experiments:
 		})
 	}
 }
+
+func TestContinualExperimentsExperimentalWarning(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "continual-experiments-experimental-warning-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	content := `---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  contents: read
+evals:
+  - id: quality
+    question: Did the workflow produce a useful result?
+experiments:
+  optimization:
+    variants: [control, candidate]
+    continual:
+      seed: stable-seed
+      ramp: [10, 25, 50]
+---
+
+# Test Workflow
+`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	compiler := NewCompiler()
+	compiler.SetStrictMode(false)
+	err := compiler.CompileWorkflow(testFile)
+
+	w.Close()
+	os.Stderr = oldStderr
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	stderrOutput := buf.String()
+
+	if err != nil {
+		t.Fatalf("Expected compilation to succeed but it failed: %v", err)
+	}
+	expectedMessage := "Using experimental feature: continual experiments"
+	if !strings.Contains(stderrOutput, expectedMessage) {
+		t.Errorf("Expected warning containing %q, got stderr:\n%s", expectedMessage, stderrOutput)
+	}
+	if compiler.GetWarningCount() == 0 {
+		t.Error("Expected warning count > 0 but got 0")
+	}
+}

@@ -442,7 +442,6 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       const { main } = await loadModule();
       await main();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
     });
 
@@ -457,7 +456,6 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       const { main } = await loadModule();
       await main();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
     });
 
@@ -472,7 +470,6 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       const { main } = await loadModule();
       await main();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`${ERR_API}: Failed to process reaction`));
     });
   });

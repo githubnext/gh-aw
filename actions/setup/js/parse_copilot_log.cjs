@@ -571,7 +571,7 @@ function parseDebugLogFormat(logContent) {
         try {
           modelInfo = JSON.parse(modelInfoJson);
         } catch (e) {
-          // Failed to parse model info, continue without it
+          // Failed to parse model info — ignored, continue without it.
         }
       }
     }
@@ -654,7 +654,7 @@ function parseDebugLogFormat(logContent) {
               .filter(name => name !== null);
           }
         } catch (e) {
-          // Failed to parse tools, continue without them
+          // Failed to parse tools — ignored, continue without them.
         }
       }
     }
@@ -821,7 +821,7 @@ function parseDebugLogFormat(logContent) {
                 }
               }
             } catch (e) {
-              // Skip invalid JSON blocks
+              // Invalid JSON block — ignored.
             }
           }
 
@@ -965,7 +965,7 @@ function parseDebugLogFormat(logContent) {
         }
       }
     } catch (e) {
-      // Skip invalid JSON
+      // Invalid JSON — ignored.
     }
   }
 

@@ -86,7 +86,8 @@ function escapeRegExp(value) {
  */
 function redactMaskedValues(text, maskedValues) {
   if (!text || !maskedValues || maskedValues.length === 0) return text;
-  const pattern = new RegExp(`(?:${maskedValues.map(escapeRegExp).join("|")})`, "g");
+  const escapedAlternatives = maskedValues.map(escapeRegExp).join("|");
+  const pattern = new RegExp(`(?:${escapedAlternatives})`, "g");
   return text.replace(pattern, MASK_REPLACEMENT);
 }
 
