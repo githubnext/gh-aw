@@ -420,7 +420,7 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	}
 
 	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
-		if writeErr := os.WriteFile(skillPath, []byte(expected+"\n"), 0644); writeErr != nil {
+		if writeErr := os.WriteFile(skillPath, []byte(strings.TrimRight(expected, "\n")+"\n"), 0644); writeErr != nil {
 			t.Fatalf("Checked-in skill file is out of sync and auto-update failed (%v)\nexpected:\n%s\nactual:\n%s", writeErr, expected, string(actual))
 		}
 		t.Fatalf("Checked-in skill file was out of sync and has been regenerated; commit %s and re-run", skillPath)
