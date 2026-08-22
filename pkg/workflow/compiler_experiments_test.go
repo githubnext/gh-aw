@@ -625,7 +625,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			evals: &EvalsConfig{
 				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
 			},
-			wantErr: "must include a non-empty eval id",
+			wantErr: "expected eval reference format eval:<question_id>",
 		},
 		{
 			name: "eval colon metric trims whitespace from id",

@@ -397,7 +397,7 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 			continue
 		}
 		if referencedEvalID == "" {
-			return fmt.Errorf("experiments.%s: eval reference must include a non-empty eval id", experimentName)
+			return fmt.Errorf("experiments.%s.metric: expected eval reference format eval:<question_id>; provide a declared eval question id", experimentName)
 		}
 		if _, ok := evalIDs[referencedEvalID]; !ok {
 			if len(evalIDs) == 0 {
@@ -414,7 +414,7 @@ func validateContinualRamp(name string, cfg *ContinualExperimentConfig) error {
 	previous := 0
 	for _, percentage := range cfg.Ramp {
 		if percentage <= previous || percentage > 100 {
-			return fmt.Errorf("experiments.%s.continual.ramp: percentages must be strictly increasing and at most 100", name)
+			return fmt.Errorf("experiments.%s.continual.ramp: expected strictly increasing percentages in range 1..100, for example [10,25,50]", name)
 		}
 		previous = percentage
 	}
