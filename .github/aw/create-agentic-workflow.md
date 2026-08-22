@@ -30,6 +30,11 @@ Load these topic files only when relevant:
 - [release-workflow.md](release-workflow.md) for release workflows that build, test, publish a GitHub release, and generate release highlights
 - [linter-workflows.md](linter-workflows.md) for mining, refining, or applying custom linter rules
 - [agent-runtime-instructions.md](agent-runtime-instructions.md) when choosing or debugging Docker, gVisor, Docker sbx, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`
+- [skills.md](skills.md) when the user asks for specific skills or agent plugins
+
+## Skills and Plugins
+
+When the user requests specific skills or agent plugins, declare them in the built-in top-level `skills:` and `plugins:` frontmatter fields — gh-aw installs them before the agent runs. Never generate on-the-fly installation (`steps:` running `gh skill install`, `copilot plugin install`, `npx`, `curl`, or `git clone`) and never instruct the agent to install a skill or plugin from the prompt body. See [skills.md](skills.md).
 
 ## Modes
 

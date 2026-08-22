@@ -346,7 +346,7 @@ jobs:
       discussions: read
       issues: read
       pull-requests: read
-    timeout-minutes: ${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}
+    timeout-minutes: 60
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: smokecopilot
