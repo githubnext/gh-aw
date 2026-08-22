@@ -103,5 +103,6 @@ After loading the matching workflow prompt or skill, follow it directly:
 - Choose workflow architecture and patterns: `.github/aw/patterns.md`
 - Optimize token usage and cost: `.github/aw/token-optimization.md`
 - Design long-running multi-agent research workflows: `.github/aw/multi-agent-research.md`
+- Add skills or agent plugins requested by the user (`skills:` / `plugins:` frontmatter, never on-the-fly installs): `.github/aw/skills.md`
 
 When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt or skill.
