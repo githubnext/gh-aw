@@ -38,6 +38,9 @@ evals:
   - id: issues_closed_or_noop
     question: Were completed parent issues closed with a comment, or does the agent output confirm no issues were ready to close?
 
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # Sub-Issue Closer 🔒

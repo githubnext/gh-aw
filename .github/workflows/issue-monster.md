@@ -552,6 +552,9 @@ evals:
     question: Did the agent assign at least one issue to the Copilot coding agent, or correctly skip when no suitable issues were found?
   - id: single_issue_scoped
     question: Does the agent output show that at most one issue was assigned to Copilot per run?
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

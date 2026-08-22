@@ -356,6 +356,9 @@ evals:
     question: Does the agent output show a specific reason why the selected PR needs a nudge toward maintainer investigation?
   - id: pr-evaluated
     question: Does the agent output confirm that it evaluated at least one open PR for nudge eligibility?
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 # PR Sous Chef 🍳
