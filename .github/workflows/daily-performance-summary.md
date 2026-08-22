@@ -90,7 +90,7 @@ The following tools are available for querying GitHub data:
 **Use the `github-pr-query` mcp-script tool** to get PR data:
 
 ```
-github-pr-query with state: "all", limit: 1000, jq: "."
+github-pr-query with state: "all", since: "<UTC timestamp exactly 90 days before this run>", jq: "."
 ```
 
 The tool provides:
@@ -104,7 +104,7 @@ The tool provides:
 **Use the `github-issue-query` mcp-script tool** to get issue data:
 
 ```
-github-issue-query with state: "all", limit: 1000, jq: "."
+github-issue-query with state: "all", since: "<UTC timestamp exactly 90 days before this run>", jq: "."
 ```
 
 The tool provides:
@@ -118,7 +118,7 @@ The tool provides:
 **Use the `github-discussion-query` mcp-script tool** to get discussion data:
 
 ```
-github-discussion-query with limit: 1000, jq: "."
+github-discussion-query with since: "<UTC timestamp exactly 90 days before this run>", jq: "."
 ```
 
 The tool provides:
@@ -507,8 +507,9 @@ A successful run will:
 
 This workflow uses mcp-script tools imported from `shared/github-queries-mcp-script.md`:
 1. Tools are defined in the shared workflow with shell script implementations
-2. Each tool supports jq-based filtering for efficient data querying
-3. Tools are authenticated with `GITHUB_TOKEN` for GitHub API access
-4. Call tools with parameters like: `github-pr-query with state: "all", limit: 1000, jq: "."`
+2. Set `since` to the exact UTC timestamp 90 days before the run; the tools paginate by `updatedAt` through that boundary rather than using a record cap
+3. Each tool supports jq-based filtering for efficient data querying
+4. Tools are authenticated with `GITHUB_TOKEN` for GitHub API access
+5. Call tools with parameters like: `github-pr-query with state: "all", since: "YYYY-MM-DDT00:00:00Z", jq: "."`
 
 Begin your analysis now. **Use the mcp-script tools** to gather data, run Python analysis, generate charts, and create the discussion report.
