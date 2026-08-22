@@ -1,10 +1,10 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -329,22 +329,26 @@ type AwInfoSteps struct {
 type NumericID int64
 
 // UnmarshalJSON normalizes numeric and string JSON representations to an integer.
+// JSON null and empty strings are treated as unset (zero) so that historical
+// aw_info.json files, which stored these fields loosely typed, keep loading.
 func (n *NumericID) UnmarshalJSON(data []byte) error {
-	var value int64
-	if err := json.Unmarshal(data, &value); err == nil {
-		*n = NumericID(value)
+	switch string(bytes.TrimSpace(data)) {
+	case "null", `""`:
+		*n = 0
 		return nil
 	}
 
-	var text string
-	if err := json.Unmarshal(data, &text); err != nil {
-		return fmt.Errorf("numeric ID must be a number or numeric string: %w", err)
+	// json.Number accepts both a JSON number (123) and its string form ("123").
+	var number json.Number
+	if err := json.Unmarshal(data, &number); err != nil {
+		return fmt.Errorf("numeric ID should be a JSON number or numeric string, for example 123 or \"123\": %w", err)
 	}
 
-	value, err := strconv.ParseInt(text, 10, 64)
+	value, err := number.Int64()
 	if err != nil {
-		return fmt.Errorf("invalid numeric ID %q: %w", text, err)
+		return fmt.Errorf("numeric ID %q should be a whole number within the int64 range (up to 9223372036854775807): %w", number, err)
 	}
+
 	*n = NumericID(value)
 	return nil
 }

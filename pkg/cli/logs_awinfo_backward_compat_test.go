@@ -133,6 +133,24 @@ func TestAwInfoNumericIDs(t *testing.T) {
 			expectedRunID:  123456789,
 			expectedNumber: 42,
 		},
+		{
+			name:           "null values",
+			jsonData:       `{"run_id":null,"run_number":null}`,
+			expectedRunID:  0,
+			expectedNumber: 0,
+		},
+		{
+			name:           "empty strings",
+			jsonData:       `{"run_id":"","run_number":""}`,
+			expectedRunID:  0,
+			expectedNumber: 0,
+		},
+		{
+			name:           "missing values",
+			jsonData:       `{"engine_id":"copilot"}`,
+			expectedRunID:  0,
+			expectedNumber: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -154,7 +172,7 @@ func TestAwInfoNumericIDs(t *testing.T) {
 func TestNumericIDRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 
-	for _, jsonData := range []string{`"not-a-number"`, `9223372036854775808`, `true`} {
+	for _, jsonData := range []string{`"not-a-number"`, `9223372036854775808`, `true`, `1.5`, `{}`} {
 		t.Run(jsonData, func(t *testing.T) {
 			var id NumericID
 			if err := json.Unmarshal([]byte(jsonData), &id); err == nil {
