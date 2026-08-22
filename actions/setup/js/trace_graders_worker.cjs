@@ -7,8 +7,7 @@ const vm = require("vm");
  * @param {string} label
  * @returns {any}
  */
-function tryStructuredClone(value, label) {
-  if (value === null || value === undefined) return value;
+function tryStructuredCloneOrUndefined(value, label) {
   try {
     return structuredClone(value);
   } catch {
@@ -56,8 +55,8 @@ async function main() {
   }
 
   try {
-    const trace = deepFreeze(tryStructuredClone(payload.trace, "trace") ?? {});
-    const config = deepFreeze(tryStructuredClone(payload.config, "config") ?? {});
+    const trace = deepFreeze(tryStructuredCloneOrUndefined(payload.trace, "trace") ?? {});
+    const config = deepFreeze(tryStructuredCloneOrUndefined(payload.config, "config") ?? {});
     const run = deepFreeze({ graderCount: Number(payload.graderCount) || 0 });
     const workflow = deepFreeze({});
     const script = String(payload.script || "");
