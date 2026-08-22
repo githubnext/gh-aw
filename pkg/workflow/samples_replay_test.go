@@ -117,6 +117,71 @@ Trivial workflow whose only job is to be compiled with --use-samples.
 	})
 }
 
+// TestFeaturesSamplesOptInReplacesAgentStep verifies that a workflow
+// declaring `features: { samples: true }` in its own frontmatter compiles
+// into samples-mode output under a plain `gh aw compile`, without needing
+// the hidden `--use-samples` flag / SetUseSamples(true).
+func TestFeaturesSamplesOptInReplacesAgentStep(t *testing.T) {
+	const md = `---
+on:
+  workflow_dispatch:
+permissions: read-all
+engine:
+  id: claude
+features:
+  samples: true
+safe-outputs:
+  create-issue:
+    samples:
+      - title: "Deterministic test issue"
+        body: "Issue body emitted by gh-aw samples replay."
+---
+
+Trivial workflow that opts into samples replay via features.samples.
+`
+
+	tmpFile, err := os.CreateTemp("", "features-samples-*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(md); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(tmpFile.Name()); err != nil {
+		t.Fatalf("compile failed: %v", err)
+	}
+	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("ParseWorkflowFile failed: %v", err)
+	}
+	if !workflowData.UseSamples {
+		t.Fatal("Expected workflowData.UseSamples to be true from features.samples: true, without SetUseSamples")
+	}
+
+	lockPath := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+	defer os.Remove(lockPath)
+	b, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("read lock: %v", err)
+	}
+	lockContent := string(b)
+	if !strings.Contains(lockContent, "Replay safe-outputs samples (deterministic)") {
+		t.Error("Expected `Replay safe-outputs samples (deterministic)` step in lock file")
+	}
+	if !strings.Contains(lockContent, "apply_samples.cjs") {
+		t.Error("Expected lock file to invoke apply_samples.cjs driver")
+	}
+	// Threat detection must be force-disabled when features.samples is set, mirroring
+	// the --use-samples behaviour.
+	if strings.Contains(lockContent, "\n  detection:\n") {
+		t.Error("Expected no `detection:` job with features.samples: true")
+	}
+}
+
 // TestUseSamplesCreatePullRequestWithPatch is the end-to-end smoke test for
 // the create-pull-request + patch sidecar flow. It compiles a workflow whose
 // only safe-output is `create-pull-request` with a `samples` entry carrying
