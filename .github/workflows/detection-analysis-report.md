@@ -95,7 +95,7 @@ Collect per-run: `workflow_name`, `status`, `total_tokens`, `engine_id`, `detect
 3. Run has `gh-aw-detection: true` **and** the `detection` job in `job_details` itself has a failing `conclusion` (e.g. `failure`) — i.e. the detection job actually ran and a detection-specific step errored. Use `job_details` to attribute the failure precisely:
    - Look up the `agent` and `detection` jobs by name in `job_details`.
    - If the `agent` job is absent from `job_details` or has `conclusion: "skipped"`/`"cancelled"` (consistent with `TokenUsage: 0` and `ErrorCount: 0` in the run summary), the agent job never executed — this is **not** a detection-step failure; do not flag under rule 3 (it may indicate a trigger/permission issue worth noting separately, but is out of scope for this rule).
-   - Only flag rule 3 when the `detection` job (or a step within it) shows a failing conclusion while the run otherwise shows evidence of execution (e.g. `TokenUsage > 0` or `ErrorCount > 0`, or the `agent` job itself completed).
+   - Only flag rule 3 when the `detection` job (or a step within it) itself shows a failing conclusion in `job_details`. This job-level conclusion is the sole signal for rule 3 — do not fall back to `TokenUsage`/`ErrorCount` heuristics, which cannot distinguish a detection-step failure from an agent job that never started.
 4. Workflow alternates between detection-enabled and detection-disabled within the 24h window
 
 Before flagging a name-based mismatch from rule 2, check whether the workflow has an explicitly documented repository-level opt-out. Current documented opt-out:
