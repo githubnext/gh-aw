@@ -10,16 +10,13 @@ type ValidationIssue struct {
 	File    string `json:"file,omitempty"`
 }
 
-// Severity maps the issue type ("error", "warning", ...) onto the shared
-// severity vocabulary used by the scanner integrations.
-func (v ValidationIssue) Severity() scanfindings.SeverityLevel {
-	return scanfindings.ParseSeverity(v.Type)
-}
-
 // ToFinding converts the validation issue to the shared finding representation.
-func (v ValidationIssue) ToFinding() scanfindings.Finding {
+// The caller supplies severity because Type is a diagnostic category, not a
+// severity level.
+func (v ValidationIssue) ToFinding(severity scanfindings.SeverityLevel) scanfindings.Finding {
 	return scanfindings.Finding{
-		Severity: v.Severity(),
+		RuleID:   v.Type,
+		Severity: severity,
 		Message:  v.Message,
 		File:     v.File,
 		Line:     v.Line,

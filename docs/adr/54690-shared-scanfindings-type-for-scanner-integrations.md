@@ -1,8 +1,8 @@
 # ADR-54690: Shared Finding/SeverityLevel Type Across Scanner Integrations
 
 **Date**: 2026-08-22
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: copilot-swe-agent (PR author), gh-aw maintainers
 
 ---
 
@@ -43,4 +43,4 @@ Define a `Scanner` or `Finding` interface and let each integration implement it 
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Accepted on 2026-08-22 after validating the shared type and all scanner adapters.*

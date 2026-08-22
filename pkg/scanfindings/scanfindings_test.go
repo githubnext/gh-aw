@@ -191,8 +191,14 @@ func TestContextLines(t *testing.T) {
 		}
 	}
 
-	if got := ContextLines(lines, 1); len(got) != 3 {
-		t.Errorf("ContextLines(1) returned %d lines, want 3", len(got))
+	if got := ContextLines(lines, 1); len(got) != 1 || got[0] != "one" {
+		t.Errorf("ContextLines(1) = %v, want [one]", got)
+	}
+	if got := ContextLines(lines, 2); len(got) != 3 || got[1] != "two" {
+		t.Errorf("ContextLines(2) = %v, want [one two three]", got)
+	}
+	if got := ContextLines(lines, len(lines)); len(got) != 1 || got[0] != "six" {
+		t.Errorf("ContextLines(last) = %v, want [six]", got)
 	}
 	if got := ContextLines(lines, 0); got != nil {
 		t.Errorf("ContextLines(0) = %v, want nil", got)

@@ -502,7 +502,7 @@ func poutineFindingsToShared(findings []poutineFinding, rules poutineRules, file
 			RuleID:   finding.RuleID,
 			Severity: scanfindings.ParseSeverity(severityLabel),
 			Message:  message,
-			File:     filePath,
+			File:     firstNonEmpty(finding.Meta.Path, filePath),
 			Line:     lineNum,
 			Column:   1, // poutine doesn't provide column info
 			Context:  scanfindings.ContextLines(fileLines, lineNum),

@@ -201,16 +201,18 @@ func CountAtLeast(findings []Finding, min SeverityLevel) int {
 	return count
 }
 
-// ContextLines returns up to two source lines before and after the 1-based line
-// number, used to display a finding in context. It returns nil when the line is
-// out of range for the provided file lines.
+// ContextLines returns a symmetric window of up to two source lines before and
+// after the 1-based line number. The window shrinks at file boundaries to keep
+// the target line at its midpoint for context rendering. It returns nil when
+// the line is out of range for the provided file lines.
 func ContextLines(fileLines []string, line int) []string {
 	if len(fileLines) == 0 || line <= 0 || line > len(fileLines) {
 		return nil
 	}
 
-	start := max(1, line-2)
-	end := min(len(fileLines), line+2)
+	window := min(2, line-1, len(fileLines)-line)
+	start := line - window
+	end := line + window
 
 	context := make([]string, 0, end-start+1)
 	for i := start; i <= end; i++ {
