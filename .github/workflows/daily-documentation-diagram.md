@@ -13,10 +13,8 @@ network:
     - defaults
     - github
 tools:
-  drive-memory:
-    drive-name: daily-documentation-diagrams
-    disk-size: 100M
-    prefetch: true
+  cache-memory:
+    retention-days: 30
     allowed-extensions: [".json"]
   edit:
   bash:
@@ -51,10 +49,10 @@ Create one small, useful diagram for the next eligible documentation page. Keep 
 ## Select the page
 
 1. List tracked `docs/src/content/docs/**/*.mdx` files, sorted lexicographically. Exclude `index.mdx`, changelog/blog content, generated content, and pages already containing a `docs/src/assets/diagrams/` image.
-2. Read `/tmp/gh-aw/drive-memory/daily-documentation-diagrams/state.json` if it exists. Its shape is `{"last_path":"docs/src/content/docs/...mdx"}`.
+2. Read `/tmp/gh-aw/cache-memory/state.json` if it exists. Its shape is `{"last_path":"docs/src/content/docs/...mdx"}`.
 3. Select the first suitable path after `last_path`, wrapping to the first path. If the state is absent, malformed, or names a removed path, start from the first suitable path.
 4. Read only the selected page and any directly linked local reference pages needed to understand it. Skip the selected page when a diagram would not improve comprehension; continue through at most eight consecutive candidates.
-5. Always write the last candidate considered to `state.json` before finishing so the next run advances. Do not write any other drive-memory file.
+5. Always write the last candidate considered to `state.json` before finishing so the next run advances. Do not write any other cache-memory file.
 
 ## Create the diagram
 
