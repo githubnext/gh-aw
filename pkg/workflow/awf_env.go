@@ -74,6 +74,10 @@ func injectMaxTurnCacheMissesExpression(awfConfigJSON string, expr string) strin
 	for valueEnd < len(awfConfigJSON) && awfConfigJSON[valueEnd] >= '0' && awfConfigJSON[valueEnd] <= '9' {
 		valueEnd++
 	}
+	if valueEnd == idx+len(maxTurnCacheMissesKey) {
+		awfHelpersLog.Print("Warning: maxCacheMisses is not an integer in AWF config JSON; expression not injected")
+		return awfConfigJSON
+	}
 	return awfConfigJSON[:idx+len(maxTurnCacheMissesKey)] + expr + awfConfigJSON[valueEnd:]
 }
 
