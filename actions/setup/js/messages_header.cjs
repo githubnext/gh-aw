@@ -20,7 +20,14 @@ const { getMessages, getPromptPath, renderTemplate, renderTemplateFromFile, toSn
 const DEFAULT_DISCLOSURE_HEADER_TEMPLATE = "safe_outputs_disclosure_header.md";
 const DISCLOSURE_HEADER_DEFAULT_SENTINEL = "true";
 
-const DEFAULT_DISCLOSURE_HEADER = renderTemplateFromFile(getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE), {}).trimEnd();
+let defaultDisclosureHeader;
+
+function getDefaultDisclosureHeader() {
+  if (defaultDisclosureHeader === undefined) {
+    defaultDisclosureHeader = renderTemplateFromFile(getPromptPath(DEFAULT_DISCLOSURE_HEADER_TEMPLATE), {}).trimEnd();
+  }
+  return defaultDisclosureHeader;
+}
 
 /**
  * Get the body header text, using the custom template if configured.
@@ -55,7 +62,7 @@ function getDisclosureHeader(ctx) {
 
   let template = "";
   if (disclosureHeader === true || disclosureHeader === DISCLOSURE_HEADER_DEFAULT_SENTINEL) {
-    template = DEFAULT_DISCLOSURE_HEADER;
+    template = getDefaultDisclosureHeader();
   } else if (typeof disclosureHeader === "string") {
     template = disclosureHeader;
   } else {
@@ -69,6 +76,8 @@ function getDisclosureHeader(ctx) {
 module.exports = {
   getBodyHeader,
   getDisclosureHeader,
-  DEFAULT_DISCLOSURE_HEADER,
+  get DEFAULT_DISCLOSURE_HEADER() {
+    return getDefaultDisclosureHeader();
+  },
   DISCLOSURE_HEADER_DEFAULT_SENTINEL,
 };
