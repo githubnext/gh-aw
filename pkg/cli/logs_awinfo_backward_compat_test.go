@@ -112,6 +112,56 @@ func TestAwInfoBackwardCompatibility(t *testing.T) {
 	}
 }
 
+func TestAwInfoNumericIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		jsonData       string
+		expectedRunID  NumericID
+		expectedNumber NumericID
+	}{
+		{
+			name:           "numbers",
+			jsonData:       `{"run_id":123456789,"run_number":42}`,
+			expectedRunID:  123456789,
+			expectedNumber: 42,
+		},
+		{
+			name:           "numeric strings",
+			jsonData:       `{"run_id":"123456789","run_number":"42"}`,
+			expectedRunID:  123456789,
+			expectedNumber: 42,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var info AwInfo
+			if err := json.Unmarshal([]byte(tt.jsonData), &info); err != nil {
+				t.Fatalf("Failed to unmarshal JSON: %v", err)
+			}
+			if info.RunID != tt.expectedRunID {
+				t.Errorf("RunID = %d, want %d", info.RunID, tt.expectedRunID)
+			}
+			if info.RunNumber != tt.expectedNumber {
+				t.Errorf("RunNumber = %d, want %d", info.RunNumber, tt.expectedNumber)
+			}
+		})
+	}
+}
+
+func TestNumericIDRejectsInvalidValues(t *testing.T) {
+	t.Parallel()
+
+	for _, jsonData := range []string{`"not-a-number"`, `9223372036854775808`, `true`} {
+		var id NumericID
+		if err := json.Unmarshal([]byte(jsonData), &id); err == nil {
+			t.Errorf("Expected %s to be rejected", jsonData)
+		}
+	}
+}
+
 // TestAwInfoMarshaling verifies that AwInfo can be marshaled correctly
 func TestAwInfoMarshaling(t *testing.T) {
 	t.Parallel()

@@ -3,6 +3,8 @@ package cli
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -323,6 +325,30 @@ type AwInfoSteps struct {
 	Firewall string `json:"firewall,omitempty"` // Firewall type (e.g., "squid") or empty if no firewall
 }
 
+// NumericID is an integer identifier that accepts either a JSON number or its string representation.
+type NumericID int64
+
+// UnmarshalJSON normalizes numeric and string JSON representations to an integer.
+func (n *NumericID) UnmarshalJSON(data []byte) error {
+	var value int64
+	if err := json.Unmarshal(data, &value); err == nil {
+		*n = NumericID(value)
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return fmt.Errorf("numeric ID must be a number or numeric string: %w", err)
+	}
+
+	value, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid numeric ID %q: %w", text, err)
+	}
+	*n = NumericID(value)
+	return nil
+}
+
 // AwContext represents the caller-workflow identity injected by dispatch_workflow.cjs
 // into the aw_context input, and stored under the "context" key in aw_info.json.
 // All values are strings (no nested objects) as validated by generate_aw_info.cjs.
@@ -357,15 +383,15 @@ type AwInfo struct {
 	Context         *AwContext          `json:"context,omitempty"`       // aw_context data passed via workflow_dispatch inputs
 	TokenWeights    *types.TokenWeights `json:"token_weights,omitempty"` // Historical/custom model cost data stored in aw_info.json
 	// Additional fields that might be present
-	RunID      any    `json:"run_id,omitempty"`
-	RunNumber  any    `json:"run_number,omitempty"`
-	RunAttempt string `json:"run_attempt,omitempty"`
-	Repository string `json:"repository,omitempty"`
-	Ref        string `json:"ref,omitempty"`
-	SHA        string `json:"sha,omitempty"`
-	Actor      string `json:"actor,omitempty"`
-	EventName  string `json:"event_name,omitempty"`
-	TargetRepo string `json:"target_repo,omitempty"`
+	RunID      NumericID `json:"run_id,omitempty"`
+	RunNumber  NumericID `json:"run_number,omitempty"`
+	RunAttempt string    `json:"run_attempt,omitempty"`
+	Repository string    `json:"repository,omitempty"`
+	Ref        string    `json:"ref,omitempty"`
+	SHA        string    `json:"sha,omitempty"`
+	Actor      string    `json:"actor,omitempty"`
+	EventName  string    `json:"event_name,omitempty"`
+	TargetRepo string    `json:"target_repo,omitempty"`
 }
 
 // GetFirewallVersion returns the AWF firewall version, preferring the new field name
