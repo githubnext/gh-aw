@@ -7,16 +7,17 @@ import-schema:
 
 tools:
   repo-memory:
-    branch-name: memory/${{ github.aw.import-inputs.id }}
-    description: "Long-horizon checkpoint and history for ${{ github.aw.import-inputs.id }}"
-    file-glob:
-      - "state.md"
-      - "runs/**"
-      - "workspace/**"
-    allowed-extensions: [".md", ".json", ".jsonl"]
-    max-file-size: 32768
-    max-file-count: 250
-    max-patch-size: 32768
+    - id: ${{ github.aw.import-inputs.id }}
+      branch-name: memory/${{ github.aw.import-inputs.id }}
+      description: "Long-horizon checkpoint and history for ${{ github.aw.import-inputs.id }}"
+      file-glob:
+        - "state.md"
+        - "runs/**"
+        - "workspace/**"
+      allowed-extensions: [".md", ".json", ".jsonl"]
+      max-file-size: 32768
+      max-file-count: 250
+      max-patch-size: 32768
 ---
 
 <!--
@@ -30,8 +31,9 @@ imports:
 
 ## Long-horizon memory protocol
 
-Use the Repo Memory workspace at `/tmp/gh-aw/repo-memory/default/` as the only
-durable continuity between invocations. It is backed by the
+Use the Repo Memory workspace at
+`/tmp/gh-aw/repo-memory/${{ github.aw.import-inputs.id }}/` as the only durable
+continuity between invocations. It is backed by the
 `memory/${{ github.aw.import-inputs.id }}` branch and may be shared by workflows
 using the same identifier. Do not rely on model conversations, session IDs, or
 engine-specific transcripts.
@@ -66,8 +68,7 @@ workspace/
 1. Rewrite or update `state.md` so a completely fresh agent can continue.
 2. Keep `state.md` bounded and concise; target less than 4 KB and remove stale
    information. It is a current checkpoint, not a historical log.
-3. Create a short run record at
-   `runs/${{ github.run_id }}-${{ github.run_attempt }}.md` containing only
+3. Create a short run record at `runs/${{ github.run_id }}.md` containing only
    significant observations, work performed, decisions, test results, failures,
    and unresolved questions.
 4. Preserve historical evidence in `runs/`, but never dump model transcripts or
