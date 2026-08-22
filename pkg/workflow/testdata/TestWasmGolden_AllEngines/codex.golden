@@ -306,6 +306,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: 10
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: workflow

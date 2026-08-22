@@ -187,7 +187,7 @@ Inference cost scales with prompt size. Write focused prompts, avoid whole-file 
 
 ### Prevent Runaway Costs from Agents
 
-GitHub Agentic Workflows includes default guardrails: a 20-minute timeout on the agentic step, 1000 AI Credits per workflow run, and 5000 AI Credits per workflow per day (24-hour window). Override them with frontmatter (`timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) or enterprise environment variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
+GitHub Agentic Workflows includes default guardrails: a 60-minute timeout on the agentic step and generated agent/detection jobs, 1000 AI Credits per workflow run, and 5000 AI Credits per workflow per day (24-hour window). Override them with frontmatter (`timeout-minutes`, `jobs.agent.timeout-minutes`, `jobs.detection.timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) or GitHub Actions variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
 
 ### Cap AI Credits per Run
 

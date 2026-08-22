@@ -321,8 +321,8 @@ const DefaultSafeOutputsMount = GhAwRootDirShell + "/safeoutputs:" + GhAwRootDir
 
 // Timeout constants using time.Duration for type safety and clear units
 
-// DefaultAgenticWorkflowTimeout is the default timeout for agentic workflow execution
-const DefaultAgenticWorkflowTimeout = 20 * time.Minute
+// DefaultAgenticWorkflowTimeout is the default timeout for agentic workflow execution.
+const DefaultAgenticWorkflowTimeout = time.Hour
 
 // DefaultToolTimeout is the default timeout for tool/MCP server operations
 const DefaultToolTimeout = 60 * time.Second

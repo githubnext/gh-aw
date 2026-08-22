@@ -59,8 +59,8 @@ const (
 	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
-	// DefaultTimeoutMinutes is the enterprise override for top-level timeout-minutes
-	// when it is not explicitly configured in workflow frontmatter.
+	// DefaultTimeoutMinutes is the GitHub Actions variable used for the default
+	// agent and detection job timeout when it is not explicitly configured.
 	DefaultTimeoutMinutes = "GH_AW_DEFAULT_TIMEOUT_MINUTES"
 	// DefaultDetectionModel is the enterprise override for selecting the detection
 	// job model when threat-detection.engine.model is not set.
@@ -124,6 +124,12 @@ func (m *Manager) ResolveDefaultTimeoutMinutes(fallback int) int {
 // default process-environment Manager.
 func ResolveDefaultTimeoutMinutes(fallback int) int {
 	return defaultManager.ResolveDefaultTimeoutMinutes(fallback)
+}
+
+// BuildDefaultTimeoutMinutesExpression builds a vars expression that resolves
+// the default agentic workflow timeout at GitHub Actions runtime.
+func BuildDefaultTimeoutMinutesExpression(builtinDefault string) string {
+	return fmt.Sprintf("${{ vars.%s || '%s' }}", DefaultTimeoutMinutes, builtinDefault)
 }
 
 // ResolveDefaultMaxTurnCacheMisses returns fallback when the env var is unset/invalid,

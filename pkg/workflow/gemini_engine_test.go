@@ -165,7 +165,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "shell_harness.cjs", "Should run the CLI through the shared shell harness")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GEMINI_API_KEY env var")
-		assert.Contains(t, stepContent, "GH_AW_TIMEOUT_MINUTES: 20", "Should expose the step timeout to the shared harness")
+		assert.Contains(t, stepContent, "GH_AW_TIMEOUT_MINUTES: 60", "Should expose the step timeout to the shared harness")
 	})
 
 	t.Run("with model", func(t *testing.T) {

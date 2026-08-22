@@ -175,6 +175,28 @@ jobs:
 
 `jobs.<built-in>.needs` is merged with compiler-generated dependencies, and `jobs.<built-in>.if` is combined with compiler-generated conditions using logical `&&`.
 
+### Agent and Detection Job Timeouts
+
+The generated `agent` and `detection` jobs are each bounded by the top-level
+`timeout-minutes` value, which also bounds `agentic_execution`. The default is
+60 minutes. Set the `GH_AW_DEFAULT_TIMEOUT_MINUTES` GitHub Actions variable at
+the repository, organization, or enterprise level to change that default.
+
+Override either generated job independently when setup or post-processing needs
+a different budget:
+
+```yaml wrap
+jobs:
+  agent:
+    timeout-minutes: 90
+  detection:
+    timeout-minutes: 30
+```
+
+When a job reaches its timeout, GitHub Actions cancels all remaining steps in
+that job; the workflow conclusion reports the job as `timed_out`. A job-level
+timeout therefore covers setup steps as well as the agentic execution step.
+
 Example using `timeout-minutes` and `env`:
 
 ```yaml wrap

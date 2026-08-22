@@ -123,6 +123,13 @@ func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
 	)
 }
 
+func TestBuildDefaultTimeoutMinutesExpression(t *testing.T) {
+	assert.Equal(t,
+		"${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}",
+		BuildDefaultTimeoutMinutesExpression("60"),
+	)
+}
+
 func TestBuildDefaultDetectionMaxAICreditsExpression(t *testing.T) {
 	assert.Equal(t,
 		"${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}",

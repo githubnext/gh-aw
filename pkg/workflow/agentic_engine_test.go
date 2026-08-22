@@ -129,6 +129,29 @@ type negativePortEngine struct {
 	CodingAgentEngine
 }
 
+func TestResolveStepTimeoutValueUsesBuiltInJobOverride(t *testing.T) {
+	agentData := &WorkflowData{
+		TimeoutMinutes: "timeout-minutes: 60",
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"timeout-minutes": 90,
+			},
+		},
+	}
+	assert.Equal(t, "90", resolveStepTimeoutValue(agentData))
+
+	detectionData := &WorkflowData{
+		IsDetectionRun: true,
+		TimeoutMinutes: "timeout-minutes: 60",
+		Jobs: map[string]any{
+			string(constants.DetectionJobName): map[string]any{
+				"timeout-minutes": "${{ inputs.detection-timeout }}",
+			},
+		},
+	}
+	assert.Equal(t, "${{ inputs.detection-timeout }}", resolveStepTimeoutValue(detectionData))
+}
+
 func (e *negativePortEngine) getDedicatedLLMGatewayPort() int { return -1 }
 
 func TestGetGlobalEngineRegistry(t *testing.T) {

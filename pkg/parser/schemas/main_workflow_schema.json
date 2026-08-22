@@ -2864,7 +2864,7 @@
     },
     "timeout-minutes": {
       "$ref": "#/$defs/templatable_integer",
-      "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20 minutes for agentic workflows. Has sensible defaults and can typically be omitted. Custom runners support longer timeouts beyond the GitHub-hosted runner limit. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
+      "description": "Agentic execution step and generated agent/detection job timeout in minutes. Defaults to 60 minutes, or the GH_AW_DEFAULT_TIMEOUT_MINUTES GitHub Actions variable. Override an individual generated job with jobs.agent.timeout-minutes or jobs.detection.timeout-minutes. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
       "examples": [5, 10, 30]
     },
     "concurrency": {
