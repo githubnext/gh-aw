@@ -143,6 +143,30 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 			},
 			expectedTools: []string{"my_fixer", "send_event", "my_worker", "noop"},
 		},
+		{
+			name: "empty dispatch workflows fall back to generic tool name",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchWorkflow: &DispatchWorkflowConfig{Workflows: []string{}},
+				NoOp:             &NoOpConfig{},
+			},
+			expectedTools: []string{"dispatch_workflow", "noop"},
+		},
+		{
+			name: "empty repository dispatch tools fall back to generic tool name",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchRepository: &DispatchRepositoryConfig{Tools: map[string]*DispatchRepositoryToolConfig{}},
+				NoOp:               &NoOpConfig{},
+			},
+			expectedTools: []string{"dispatch_repository", "noop"},
+		},
+		{
+			name: "empty reusable workflows fall back to generic tool name",
+			safeOutputs: &SafeOutputsConfig{
+				CallWorkflow: &CallWorkflowConfig{Workflows: []string{}},
+				NoOp:         &NoOpConfig{},
+			},
+			expectedTools: []string{"call_workflow", "noop"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -162,6 +186,29 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 				"Tool names in <safe-output-tools> should match expected order and set")
 		})
 	}
+}
+
+func TestBuildSafeOutputsSectionsWorkflowBudgetsAreShared(t *testing.T) {
+	dispatchMax := "2"
+	callMax := "3"
+	sections := buildSafeOutputsSections(&SafeOutputsConfig{
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: &dispatchMax},
+			Workflows:            []string{"first-dispatch", "second-dispatch"},
+		},
+		CallWorkflow: &CallWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: &callMax},
+			Workflows:            []string{"first-call", "second-call"},
+		},
+		NoOp: &NoOpConfig{},
+	}, nil)
+
+	require.NotNil(t, sections)
+	content := sections[0].Content
+	assert.Contains(t, content, "Tools: first_dispatch, second_dispatch, first_call, second_call, noop")
+	assert.Contains(t, content, "Shared budgets: dispatch-workflow [first_dispatch, second_dispatch](max:2 total); call-workflow [first_call, second_call](max:3 total)")
+	assert.NotContains(t, content, "first_dispatch(max:2)")
+	assert.NotContains(t, content, "first_call(max:3)")
 }
 
 // TestBuildSafeOutputsSectionsCustomToolsConsistency verifies that every custom
