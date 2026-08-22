@@ -270,6 +270,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadArtifact = uploadArtifactConfig
 			}
 
+			// Handle upload-code-coverage
+			uploadCodeCoverageConfig := c.parseUploadCodeCoverageConfig(outputMap)
+			if uploadCodeCoverageConfig != nil {
+				config.UploadCodeCoverage = uploadCodeCoverageConfig
+			}
+
 			// Handle update-release
 			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
 			if updateReleaseConfig != nil {

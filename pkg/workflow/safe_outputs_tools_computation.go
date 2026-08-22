@@ -144,6 +144,10 @@ func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 		enabledTools["upload_artifact"] = struct {
 		}{}
 	}
+	if data.SafeOutputs.UploadCodeCoverage != nil {
+		enabledTools["upload_code_coverage"] = struct {
+		}{}
+	}
 	if data.SafeOutputs.MissingTool != nil {
 		enabledTools["missing_tool"] = struct {
 		}{}

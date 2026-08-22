@@ -367,6 +367,9 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	if config.Checks != "" {
 		result["checks"] = config.Checks
 	}
+	if config.CodeQuality != "" {
+		result["code-quality"] = config.CodeQuality
+	}
 	if config.Contents != "" {
 		result["contents"] = config.Contents
 	}

@@ -107,6 +107,25 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		compilerSafeOutputJobsLog.Printf("Added separate upload_code_scanning_sarif job")
 	}
 
+	// Build upload_code_coverage job as a separate job if upload-code-coverage is configured.
+	// This job runs after safe_outputs and only when the safe_outputs job exported a coverage
+	// file. It is separate so the real actions/upload-code-coverage action can be invoked with
+	// its own dedicated permissions (code-quality: write) without affecting other safe-output
+	// operations in the consolidated safe_outputs job.
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadCodeCoverage != nil &&
+		!isHandlerStaged(templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.UploadCodeCoverage.Staged) {
+		compilerSafeOutputJobsLog.Print("Building separate upload_code_coverage job")
+		codeCoverageJob, err := c.buildUploadCodeCoverageJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build upload_code_coverage job: %w", err)
+		}
+		if err := c.jobManager.AddJob(codeCoverageJob); err != nil {
+			return fmt.Errorf("failed to add upload_code_coverage job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, codeCoverageJob.Name)
+		compilerSafeOutputJobsLog.Printf("Added separate upload_code_coverage job")
+	}
+
 	// Build conditional call-workflow fan-out jobs if configured.
 	// Each allowed worker gets its own `uses:` job with an `if:` condition that
 	// checks whether safe_outputs selected it. Only one runs per execution.

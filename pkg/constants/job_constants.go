@@ -66,6 +66,7 @@ const SafeOutputsJobName JobName = "safe_outputs"
 const SafeOutputsHyphenJobName JobName = "safe-outputs"
 const UploadAssetsJobName JobName = "upload_assets"
 const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
+const UploadCodeCoverageJobName JobName = "upload_code_coverage"
 const ConclusionJobName JobName = "conclusion"
 const UnlockJobName JobName = "unlock"
 
@@ -84,6 +85,7 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(SafeOutputsHyphenJobName):   {},
 	string(UploadAssetsJobName):        {},
 	string(UploadCodeScanningJobName):  {},
+	string(UploadCodeCoverageJobName):  {},
 	string(ConclusionJobName):          {},
 	string(UnlockJobName):              {},
 }

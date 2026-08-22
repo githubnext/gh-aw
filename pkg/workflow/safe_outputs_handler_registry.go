@@ -929,6 +929,17 @@ var handlerRegistry = map[string]handlerBuilder{
 		}
 		return b.Build()
 	},
+	"upload_code_coverage": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UploadCodeCoverage == nil {
+			return nil
+		}
+		c := cfg.UploadCodeCoverage
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "upload-code-coverage", c.GitHubToken)).
+			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
+			Build()
+	},
 	"autofix_code_scanning_alert": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AutofixCodeScanningAlert == nil {
 			return nil

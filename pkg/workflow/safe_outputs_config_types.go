@@ -69,6 +69,7 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch                *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                           *UploadAssetsConfig                    `yaml:"upload-asset,omitempty"`
 	UploadArtifact                         *UploadArtifactConfig                  `yaml:"upload-artifact,omitempty"`              // Upload files as run-scoped GitHub Actions artifacts
+	UploadCodeCoverage                     *UploadCodeCoverageConfig              `yaml:"upload-code-coverage,omitempty"`         // Upload a code coverage report via actions/upload-code-coverage
 	UpdateRelease                          *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`               // Update GitHub release descriptions
 	CreateAgentSessions                    *CreateAgentSessionConfig              `yaml:"create-agent-session,omitempty"`         // Create GitHub Copilot coding agent sessions
 	UpdateProjects                         *UpdateProjectConfig                   `yaml:"update-project,omitempty"`               // Smart project board management (create/add/update)

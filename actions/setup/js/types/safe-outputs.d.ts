@@ -218,6 +218,19 @@ interface CreateCodeScanningAlertItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for uploading a code coverage report via actions/upload-code-coverage
+ */
+interface UploadCodeCoverageItem extends BaseSafeOutputItem {
+  type: "upload_code_coverage";
+  /** Path to the coverage report file (staging-relative, absolute, or workspace-relative) */
+  file: string;
+  /** Linguist language name for the coverage report (e.g. "Go", "TypeScript") */
+  language: string;
+  /** Label identifying this coverage report (e.g. "code-coverage/unit-tests") */
+  label: string;
+}
+
+/**
  * JSONL item for adding labels to an issue or PR
  */
 interface AddLabelsItem extends BaseSafeOutputItem {
@@ -511,6 +524,7 @@ type SafeOutputItem =
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
+  | UploadCodeCoverageItem
   | AddLabelsItem
   | RemoveLabelsItem
   | AddReviewerItem
@@ -557,6 +571,7 @@ export {
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
+  UploadCodeCoverageItem,
   AddLabelsItem,
   RemoveLabelsItem,
   AddReviewerItem,

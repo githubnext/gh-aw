@@ -294,6 +294,8 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.Actions = levelStr
 			case "checks":
 				config.Checks = levelStr
+			case "code-quality":
+				config.CodeQuality = levelStr
 			case "contents":
 				config.Contents = levelStr
 			case "deployments":
