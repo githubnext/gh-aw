@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -31,6 +32,7 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 		compilerYamlGradersLog.Printf("Failed to marshal grader manifest: %v", err)
 		return
 	}
+	manifestB64 := base64.StdEncoding.EncodeToString(manifestJSON)
 
 	// Build execution spec (scripts) separately, base64 encoded for safety.
 	execSpec := buildGraderExecSpec(data.Graders)
@@ -41,9 +43,6 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 	}
 	execB64 := base64.StdEncoding.EncodeToString(execJSON)
 
-	// Escape single quotes for embedding in the YAML script block
-	escapedManifest := strings.ReplaceAll(string(manifestJSON), "'", "\\'")
-
 	yaml.WriteString("      - name: Run trace graders\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
@@ -53,7 +52,7 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
-	fmt.Fprintf(yaml, "            await main('%s', '%s');\n", escapedManifest, execB64)
+	fmt.Fprintf(yaml, "            await main('%s', '%s');\n", manifestB64, execB64)
 
 	compilerYamlGradersLog.Print("Generated trace graders step")
 }
@@ -61,18 +60,18 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 // graderManifestEntry represents a single grader in the serialized manifest.
 // The manifest is an object {version:1, graders:[...]} for stable schema.
 type graderManifestEntry struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	Source      string          `json:"source"` // "builtin" or "inline"
-	Enabled     bool            `json:"enabled"`
-	Unit        string          `json:"unit,omitempty"`
-	Direction   string          `json:"direction,omitempty"`
-	Threshold   *float64        `json:"threshold,omitempty"`
-	Max         *float64        `json:"max,omitempty"`
-	Min         *float64        `json:"min,omitempty"`
-	Digest      string          `json:"digest,omitempty"`    // SHA-256 of inline script
-	Config      map[string]any  `json:"config,omitempty"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Source      string         `json:"source"` // "builtin" or "inline"
+	Enabled     bool           `json:"enabled"`
+	Unit        string         `json:"unit,omitempty"`
+	Direction   string         `json:"direction,omitempty"`
+	Threshold   *float64       `json:"threshold,omitempty"`
+	Max         *float64       `json:"max,omitempty"`
+	Min         *float64       `json:"min,omitempty"`
+	Digest      string         `json:"digest,omitempty"` // SHA-256 of inline script
+	Config      map[string]any `json:"config,omitempty"`
 }
 
 // graderManifest is the top-level manifest object written to disk.
@@ -93,9 +92,9 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest {
 		return &graderManifest{Version: 1}
 	}
 
-	builtinSet := make(map[string]bool, len(BuiltinGraderIDs))
+	builtinSet := make(map[string]struct{}, len(BuiltinGraderIDs))
 	for _, id := range BuiltinGraderIDs {
-		builtinSet[id] = true
+		builtinSet[id] = struct{}{}
 	}
 
 	ids := cfg.EnabledGraderIDs()
@@ -106,14 +105,14 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest {
 			disabledIDs = append(disabledIDs, id)
 		}
 	}
-	sortStrings(disabledIDs)
+	sort.Strings(disabledIDs)
 
 	entries := make([]graderManifestEntry, 0, len(ids)+len(disabledIDs))
 
 	addEntry := func(id string, enabled bool) {
 		g := cfg.Graders[id]
 		source := "builtin"
-		if !builtinSet[id] {
+		if _, ok := builtinSet[id]; !ok {
 			source = "inline"
 		}
 		name := g.Name
@@ -152,30 +151,19 @@ func buildGraderExecSpec(cfg *GradersConfig) []graderExecEntry {
 	if cfg == nil {
 		return nil
 	}
-	builtinSet := make(map[string]bool, len(BuiltinGraderIDs))
+	builtinSet := make(map[string]struct{}, len(BuiltinGraderIDs))
 	for _, id := range BuiltinGraderIDs {
-		builtinSet[id] = true
+		builtinSet[id] = struct{}{}
 	}
 
 	var specs []graderExecEntry
 	for _, id := range cfg.EnabledGraderIDs() {
 		g := cfg.Graders[id]
-		if !builtinSet[id] && g.Script != "" {
+		if _, ok := builtinSet[id]; !ok && g.Script != "" {
 			specs = append(specs, graderExecEntry{ID: id, Script: g.Script})
 		}
 	}
 	return specs
-}
-
-// sortStrings sorts a string slice in place.
-func sortStrings(s []string) {
-	for i := 0; i < len(s); i++ {
-		for j := i + 1; j < len(s); j++ {
-			if s[j] < s[i] {
-				s[i], s[j] = s[j], s[i]
-			}
-		}
-	}
 }
 
 // generateGraderRedactionStep emits a lightweight redaction pass that scans grader

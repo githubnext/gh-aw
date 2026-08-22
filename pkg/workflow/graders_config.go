@@ -27,15 +27,13 @@ type BuiltinGraderMeta struct {
 	Min         *float64
 }
 
-func ptrFloat(f float64) *float64 { return &f }
-
 // BuiltinGraderRegistry is the ordered list of all built-in grader definitions.
 var BuiltinGraderRegistry = []BuiltinGraderMeta{
-	{ID: "tool-success-rate", Name: "Tool Success Rate", Description: "Fraction of tool calls that succeeded", Unit: "ratio", Direction: "higher_is_better", Threshold: ptrFloat(0.8), Min: ptrFloat(0), Max: ptrFloat(1)},
-	{ID: "tool-failure-count", Name: "Tool Failure Count", Description: "Number of tool calls that failed", Unit: "count", Direction: "lower_is_better", Threshold: ptrFloat(5)},
-	{ID: "retries", Name: "Retries", Description: "Number of retry events detected in gateway logs", Unit: "count", Direction: "lower_is_better", Threshold: ptrFloat(10)},
-	{ID: "loops", Name: "Loops", Description: "Consecutive identical tool calls (same name and arguments)", Unit: "count", Direction: "lower_is_better", Threshold: ptrFloat(3)},
-	{ID: "trajectory-efficiency", Name: "Trajectory Efficiency", Description: "Ratio of unique tool names to total tool calls (higher = more diverse usage)", Unit: "ratio", Direction: "higher_is_better", Min: ptrFloat(0), Max: ptrFloat(1)},
+	{ID: "tool-success-rate", Name: "Tool Success Rate", Description: "Fraction of tool calls that succeeded", Unit: "ratio", Direction: "higher_is_better", Threshold: new(0.8), Min: new(0.0), Max: new(1.0)},
+	{ID: "tool-failure-count", Name: "Tool Failure Count", Description: "Number of tool calls that failed", Unit: "count", Direction: "lower_is_better", Threshold: new(5.0)},
+	{ID: "retries", Name: "Retries", Description: "Number of retry events detected in gateway logs", Unit: "count", Direction: "lower_is_better", Threshold: new(10.0)},
+	{ID: "loops", Name: "Loops", Description: "Consecutive identical tool calls (same name and arguments)", Unit: "count", Direction: "lower_is_better", Threshold: new(3.0)},
+	{ID: "trajectory-efficiency", Name: "Trajectory Efficiency", Description: "Ratio of unique tool names to total tool calls (higher = more diverse usage)", Unit: "ratio", Direction: "higher_is_better", Min: new(0.0), Max: new(1.0)},
 	{ID: "execution-step-count", Name: "Execution Step Count", Description: "Total LLM request count", Unit: "count", Direction: "lower_is_better"},
 	{ID: "execution-duration", Name: "Execution Duration", Description: "Total execution duration", Unit: "ms", Direction: "lower_is_better"},
 	{ID: "context-growth", Name: "Context Growth", Description: "Ratio of total tokens to first-request tokens", Unit: "factor", Direction: "lower_is_better"},
@@ -62,17 +60,17 @@ var builtinGraderMetaByID = func() map[string]*BuiltinGraderMeta {
 
 // GraderDefinition represents a single grader entry in the graders map.
 type GraderDefinition struct {
-	ID          string             // grader identifier (must be unique)
-	Enabled     *bool              // explicit enable/disable; nil means use default (true for built-ins)
-	Name        string             // human-readable name (defaults from registry for built-ins)
-	Description string             // description of the metric
-	Unit        string             // e.g. "ratio", "count", "ms", "factor"
-	Direction   string             // "higher_is_better" or "lower_is_better"
-	Threshold   *float64           // quality threshold (pass/fail boundary)
-	Max         *float64           // theoretical maximum
-	Min         *float64           // theoretical minimum
-	Script      string             // inline JS body for trusted custom graders (built-ins leave empty)
-	Config      map[string]any     // arbitrary config passed to grader at runtime
+	ID          string         // grader identifier (must be unique)
+	Enabled     *bool          // explicit enable/disable; nil means use default (true for built-ins)
+	Name        string         // human-readable name (defaults from registry for built-ins)
+	Description string         // description of the metric
+	Unit        string         // e.g. "ratio", "count", "ms", "factor"
+	Direction   string         // "higher_is_better" or "lower_is_better"
+	Threshold   *float64       // quality threshold (pass/fail boundary)
+	Max         *float64       // theoretical maximum
+	Min         *float64       // theoretical minimum
+	Script      string         // inline JS body for trusted custom graders (built-ins leave empty)
+	Config      map[string]any // arbitrary config passed to grader at runtime
 }
 
 // ScriptDigest returns the SHA-256 hex digest of the script, or "" if no script.
@@ -122,24 +120,24 @@ func (gc *GradersConfig) EnabledGraderIDs() []string {
 	if gc == nil {
 		return nil
 	}
-	enabledSet := make(map[string]bool)
+	enabledSet := make(map[string]struct{})
 	for id, g := range gc.Graders {
 		if g.Enabled == nil || *g.Enabled {
-			enabledSet[id] = true
+			enabledSet[id] = struct{}{}
 		}
 	}
 	// Stable order: built-ins first in canonical order, then custom sorted
 	var result []string
-	builtinSet := make(map[string]bool, len(BuiltinGraderIDs))
+	builtinSet := make(map[string]struct{}, len(BuiltinGraderIDs))
 	for _, bid := range BuiltinGraderIDs {
-		builtinSet[bid] = true
-		if enabledSet[bid] {
+		builtinSet[bid] = struct{}{}
+		if _, ok := enabledSet[bid]; ok {
 			result = append(result, bid)
 		}
 	}
 	var custom []string
 	for id := range enabledSet {
-		if !builtinSet[id] {
+		if _, ok := builtinSet[id]; !ok {
 			custom = append(custom, id)
 		}
 	}
@@ -191,9 +189,9 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 		return nil, errors.New("graders must be a map of grader IDs to configuration objects (or {} for all built-in defaults). Example:\ngraders:\n  tool-success-rate:\n    enabled: true")
 	}
 
-	builtinSet := make(map[string]bool, len(BuiltinGraderIDs))
+	builtinSet := make(map[string]struct{}, len(BuiltinGraderIDs))
 	for _, id := range BuiltinGraderIDs {
-		builtinSet[id] = true
+		builtinSet[id] = struct{}{}
 	}
 
 	// If empty map {}, populate all built-ins with defaults
@@ -230,12 +228,13 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 			return nil, fmt.Errorf("graders.%s must be a map or null, got %T. Example:\ngraders:\n  %s:\n    enabled: true", id, entryRaw, id)
 		}
 
-		if err := parseGraderEntryFields(def, entry, id, builtinSet[id]); err != nil {
+		_, isBuiltin := builtinSet[id]
+		if err := parseGraderEntryFields(def, entry, id, isBuiltin); err != nil {
 			return nil, err
 		}
 
 		// Custom graders must have a script
-		if !builtinSet[id] && def.Script == "" && (def.Enabled == nil || *def.Enabled) {
+		if !isBuiltin && def.Script == "" && (def.Enabled == nil || *def.Enabled) {
 			return nil, fmt.Errorf("graders.%s is not a built-in grader and requires a 'script' field. Built-in graders: %s", id, strings.Join(BuiltinGraderIDs, ", "))
 		}
 
@@ -245,7 +244,7 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 	// Add missing built-ins as defaults when at least one built-in is explicitly listed
 	hasAnyBuiltin := false
 	for id := range cfg.Graders {
-		if builtinSet[id] {
+		if _, ok := builtinSet[id]; ok {
 			hasAnyBuiltin = true
 			break
 		}

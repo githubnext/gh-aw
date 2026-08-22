@@ -224,8 +224,14 @@ func TestBuildGraderManifest(t *testing.T) {
 		},
 	}
 	entries := buildGraderManifest(cfg)
-	if len(entries) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(entries))
+	if entries == nil {
+		t.Fatal("expected non-nil manifest")
+	}
+	if entries.Version != 1 {
+		t.Fatalf("expected version 1, got %d", entries.Version)
+	}
+	if len(entries.Graders) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(entries.Graders))
 	}
 
 	// Verify JSON serialization round-trips
@@ -233,12 +239,15 @@ func TestBuildGraderManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("json marshal error: %v", err)
 	}
-	var decoded []graderManifestEntry
+	var decoded graderManifest
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("json unmarshal error: %v", err)
 	}
-	if len(decoded) != 3 {
-		t.Fatalf("expected 3 decoded entries, got %d", len(decoded))
+	if decoded.Version != 1 {
+		t.Fatalf("expected decoded version 1, got %d", decoded.Version)
+	}
+	if len(decoded.Graders) != 3 {
+		t.Fatalf("expected 3 decoded entries, got %d", len(decoded.Graders))
 	}
 }
 
@@ -278,6 +287,12 @@ func TestGenerateGradersStep_Present(t *testing.T) {
 	}
 	if !strings.Contains(output, "actions/github-script") {
 		t.Fatal("expected actions/github-script usage")
+	}
+	if !strings.Contains(output, "await main('") {
+		t.Fatal("expected main invocation with encoded payloads")
+	}
+	if strings.Contains(output, "{\"version\"") {
+		t.Fatal("expected manifest to be encoded, not embedded as raw JSON")
 	}
 }
 

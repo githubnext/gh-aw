@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
+const cp = require("child_process");
 const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
@@ -29,6 +29,8 @@ const AGENT_LOG_JSONL_PATH = path.join(TMP_GH_AW, "agent_log.jsonl");
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_LINE_LENGTH = 1024 * 1024; // 1 MB per line
 const SCRIPT_TIMEOUT_MS = 5000; // 5 seconds per custom grader
+const SCRIPT_WORKER_OVERHEAD_MS = 1000; // Allow worker startup/serialization overhead.
+const SCRIPT_WORKER_PATH = path.join(__dirname, "trace_graders_worker.cjs");
 
 const GRADER_VERSION = 1;
 const IMPLEMENTATION_ID = "gh-aw/trace-graders";
@@ -57,7 +59,7 @@ function safeReadFile(filePath) {
 /**
  * Safely parse JSONL, skipping malformed or oversized lines.
  * @param {string} content
- * @returns {object[]}
+ * @returns {any[]}
  */
 function safeParseJsonl(content) {
   const results = [];
@@ -111,7 +113,7 @@ function deepFreeze(obj) {
   if (obj === null || typeof obj !== "object") return obj;
   Object.freeze(obj);
   for (const key of Object.getOwnPropertyNames(obj)) {
-    const v = /** @type {any} */ (obj)[key];
+    const v = /** @type {any} */ obj[key];
     if (v !== null && typeof v === "object" && !Object.isFrozen(v)) {
       deepFreeze(v);
     }
@@ -131,21 +133,21 @@ function deepClone(obj) {
 
 /**
  * @typedef {object} PreprocessedTrace
- * @property {object[]} tokenUsageEntries - Parsed token-usage JSONL records
+ * @property {any[]} tokenUsageEntries - Parsed token-usage JSONL records
  * @property {object|null} agentUsage - Parsed agent_usage.json
- * @property {object[]} mcpGatewayEntries - Parsed MCP gateway log records
+ * @property {any[]} mcpGatewayEntries - Parsed MCP gateway log records
  * @property {object|null} agentOutput - Parsed agent_output.json
- * @property {object[]} toolCalls - Extracted tool call records from MCP gateway
- * @property {object[]} gatewayRequests - Request/response pairs from gateway
- * @property {object[]} retryEvents - Detected retry events
- * @property {object[]} errorEvents - Detected error events
- * @property {object[]} steps - Extracted execution steps (LLM requests)
+ * @property {any[]} toolCalls - Extracted tool call records from MCP gateway
+ * @property {any[]} gatewayRequests - Request/response pairs from gateway
+ * @property {any[]} retryEvents - Detected retry events
+ * @property {any[]} errorEvents - Detected error events
+ * @property {any[]} steps - Extracted execution steps (LLM requests)
  * @property {number} totalInputTokens - Sum of input tokens
  * @property {number} totalOutputTokens - Sum of output tokens
  * @property {number} totalDurationMs - Sum of duration_ms from token usage
  * @property {number} totalRequests - Count of token usage entries (LLM requests)
- * @property {object[]} files - Files mentioned in agent output
- * @property {object[]} artifacts - Artifacts/outputs from agent
+ * @property {any[]} files - Files mentioned in agent output
+ * @property {any[]} artifacts - Artifacts/outputs from agent
  */
 
 /**
@@ -201,7 +203,7 @@ function preprocessTrace() {
   }));
 
   // Extract files and artifacts from agent output
-  const ao = /** @type {any} */ (agentOutput);
+  const ao = /** @type {any} */ agentOutput;
   const files = ao && Array.isArray(ao.files) ? ao.files : [];
   const artifacts = ao && Array.isArray(ao.outputs) ? ao.outputs : ao && Array.isArray(ao.items) ? ao.items : [];
 
@@ -279,10 +281,14 @@ function gradeTrajectoryEfficiency(trace) {
 }
 
 /** @param {PreprocessedTrace} trace @returns {number} */
-function gradeExecutionStepCount(trace) { return trace.totalRequests; }
+function gradeExecutionStepCount(trace) {
+  return trace.totalRequests;
+}
 
 /** @param {PreprocessedTrace} trace @returns {number} */
-function gradeExecutionDuration(trace) { return trace.totalDurationMs; }
+function gradeExecutionDuration(trace) {
+  return trace.totalDurationMs;
+}
 
 /** @param {PreprocessedTrace} trace @returns {number} */
 function gradeContextGrowth(trace) {
@@ -428,7 +434,7 @@ function runBuiltinGrader(id, trace, meta) {
 }
 
 /**
- * Run a custom inline script in a node:vm sandbox.
+ * Run a custom inline script in an isolated worker subprocess.
  * Script receives {trace, run, workflow, config, helpers} and should return {value, ...} or a number.
  * @param {string} id
  * @param {string} script
@@ -436,47 +442,57 @@ function runBuiltinGrader(id, trace, meta) {
  * @param {{name: string, unit: string, direction: string, threshold?: number, source: string, digest?: string, config?: object}} meta
  * @returns {GraderResult}
  */
+function executeCustomGraderInSubprocess(id, script, trace, meta) {
+  const payload = {
+    id,
+    script,
+    trace,
+    config: meta.config || {},
+    timeoutMs: SCRIPT_TIMEOUT_MS,
+  };
+  const safeEnv = {};
+  for (const key of ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec"]) {
+    if (process.env[key]) {
+      safeEnv[key] = process.env[key];
+    }
+  }
+  const timeoutMs = SCRIPT_TIMEOUT_MS + SCRIPT_WORKER_OVERHEAD_MS;
+  const proc = cp.spawnSync(process.execPath, [SCRIPT_WORKER_PATH], {
+    input: JSON.stringify(payload),
+    encoding: "utf-8",
+    timeout: timeoutMs,
+    maxBuffer: 1024 * 1024,
+    env: safeEnv,
+  });
+
+  if (proc.error) {
+    if (/** @type {any} */ proc.error.code === "ETIMEDOUT") {
+      throw new Error(`script worker timed out after ${timeoutMs}ms`);
+    }
+    throw proc.error;
+  }
+
+  if (proc.status !== 0) {
+    const stderr = (proc.stderr || "").trim();
+    throw new Error(stderr || `script worker exited with status ${String(proc.status)}`);
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(proc.stdout || "{}");
+  } catch (err) {
+    throw new Error(`invalid script worker output: ${getErrorMessage(err)}`);
+  }
+
+  if (!parsed || parsed.ok !== true) {
+    throw new Error(parsed && typeof parsed.error === "string" ? parsed.error : "script worker returned an error");
+  }
+  return parsed.value;
+}
+
 function runCustomGrader(id, script, trace, meta) {
   try {
-    // Build the frozen sandbox context — no require, process, fetch, Date, Math.random
-    const frozenTrace = deepFreeze(deepClone(trace));
-    const runCtx = deepFreeze({
-      graderCount: 0, // filled by caller
-    });
-    const workflowCtx = deepFreeze({});
-    const config = deepFreeze(deepClone(meta.config || {}));
-    const helpers = deepFreeze({
-      clamp: (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => Math.max(lo, Math.min(hi, v)),
-      ratio: (/** @type {number} */ num, /** @type {number} */ den) => (den === 0 ? 0 : num / den),
-      sum: (/** @type {number[]} */ arr) => arr.reduce((a, b) => a + b, 0),
-    });
-
-    // Wrap script as function body
-    const wrappedScript = `(function(trace, run, workflow, config, helpers) { "use strict"; ${script} })`;
-
-    const sandbox = {
-      Math: Object.freeze({ ...Math, random: undefined }),
-      JSON: Object.freeze({ parse: JSON.parse, stringify: JSON.stringify }),
-      Array,
-      Object,
-      String,
-      Number,
-      Boolean,
-      RegExp,
-      Map,
-      Set,
-      isFinite,
-      isNaN,
-      parseInt,
-      parseFloat,
-      undefined,
-      NaN,
-      Infinity,
-    };
-    const ctx = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
-
-    const fn = vm.runInContext(wrappedScript, ctx, { timeout: SCRIPT_TIMEOUT_MS, filename: `grader:${id}` });
-    const rawResult = fn(frozenTrace, runCtx, workflowCtx, config, helpers);
+    const rawResult = executeCustomGraderInSubprocess(id, script, trace, meta);
     return normalizeResult(id, rawResult, meta);
   } catch (err) {
     const result = normalizeResult(id, null, meta);
@@ -490,7 +506,7 @@ function runCustomGrader(id, script, trace, meta) {
  * Legacy adapter for existing tests. Runs a grader by id.
  * @param {string} id
  * @param {boolean} builtin
- * @param {string} [script]
+ * @param {string|undefined} script
  * @param {PreprocessedTrace} trace
  * @param {object} [config]
  * @returns {{ value: number|null, error: string|null }}
@@ -510,14 +526,15 @@ function runGrader(id, builtin, script, trace, config) {
 }
 
 /**
- * Main entry point. Called from the github-script step with manifest JSON and base64 exec spec.
- * @param {string} manifestJson - JSON string of grader manifest
+ * Main entry point. Called from the github-script step with base64 manifest and exec spec.
+ * @param {string} manifestB64 - Base64-encoded JSON manifest
  * @param {string} [execSpecB64] - Base64-encoded JSON array of {id, script}
  */
-async function main(manifestJson, execSpecB64) {
+async function main(manifestB64, execSpecB64) {
   /** @type {{version: number, graders: any[]}} */
   let manifest;
   try {
+    const manifestJson = Buffer.from(manifestB64, "base64").toString("utf-8");
     manifest = JSON.parse(manifestJson);
   } catch (err) {
     core.setFailed(`Graders: failed to parse manifest: ${getErrorMessage(err)}`);
