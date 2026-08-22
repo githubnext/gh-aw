@@ -121,6 +121,27 @@ else
     pass "unresolvable base ref exits non-zero"
 fi
 
+# ---------------------------------------------------------------------------
+# Test 5: shallow clone whose base branch has advanced upstream requires
+# fetching the base branch to find the shared ancestor.
+# ---------------------------------------------------------------------------
+DIVERGED="$TMP_ROOT/diverged"
+git clone -q --depth=1 "file://$UPSTREAM" "$DIVERGED"
+git -C "$DIVERGED" config user.email "test@test.com"
+git -C "$DIVERGED" config user.name "Test"
+git -C "$DIVERGED" update-ref -d refs/remotes/origin/main 2>/dev/null || true
+commit_file "$DIVERGED" "feature.txt"
+commit_file "$UPSTREAM" "four.txt"
+if output=$(cd "$DIVERGED" && bash "$RESOLVE_SCRIPT" --base-ref origin/main 2>/dev/null); then
+    if [ "$output" = "$UPSTREAM_HEAD" ]; then
+        pass "shallow clone with advanced base branch finds shared ancestor"
+    else
+        fail "shallow clone with advanced base branch finds shared ancestor" "expected $UPSTREAM_HEAD, got $output"
+    fi
+else
+    fail "shallow clone with advanced base branch finds shared ancestor" "script exited non-zero"
+fi
+
 echo
 echo "Tests passed: $TESTS_PASSED"
 echo "Tests failed: $TESTS_FAILED"

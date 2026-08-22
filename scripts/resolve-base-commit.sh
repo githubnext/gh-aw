@@ -18,7 +18,7 @@ set +o histexpand
 #   2. after fetching the base branch and deepening history (increasing depths)
 #   3. after a full unshallow of the repository
 #   4. the base ref tip itself, if it exists but shares no reachable history
-#   5. HEAD^, when HEAD has a parent (single-commit-deep shallow clones)
+#   5. HEAD~1, when HEAD has a parent and no base ref is available
 #
 # Usage:
 #   resolve-base-commit.sh [--base-ref <git-ref>] [--no-fetch]
@@ -49,7 +49,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-            sed -n '3,32p' "${BASH_SOURCE[0]}"
+            sed -n '/^# resolve-base-commit\.sh/,/^# *1 - No base commit/p' "${BASH_SOURCE[0]}"
             exit 0
             ;;
         *)
@@ -89,6 +89,21 @@ fetch_base_ref() {
         "+refs/heads/${BRANCH}:refs/remotes/${REMOTE}/${BRANCH}" 2>/dev/null || return 1
 }
 
+# Deepen the shallow history of the checked-out branch itself: without it, HEAD
+# still looks parentless and no merge-base can be computed. Restrict the fetch
+# to the current branch when it is known so unrelated branches are not pulled.
+deepen_head() {
+    local depth="$1"
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    if [ -n "$current_branch" ] && [ "$current_branch" != "HEAD" ] &&
+        git fetch --no-tags --quiet "--deepen=$depth" "$REMOTE" \
+            "+refs/heads/${current_branch}:refs/remotes/${REMOTE}/${current_branch}" 2>/dev/null; then
+        return 0
+    fi
+    git fetch --no-tags --quiet "--deepen=$depth" "$REMOTE" 2>/dev/null || return 1
+}
+
 BASE_COMMIT=$(merge_base)
 
 if [ -z "$BASE_COMMIT" ] && [ "$ALLOW_FETCH" = "1" ] && [ -n "$REMOTE" ]; then
@@ -96,7 +111,7 @@ if [ -z "$BASE_COMMIT" ] && [ "$ALLOW_FETCH" = "1" ] && [ -n "$REMOTE" ]; then
         log "resolve-base-commit: fetching $BASE_REF (depth $depth) to resolve merge-base..."
         fetch_base_ref "--depth=$depth" || true
         if is_shallow; then
-            git fetch --no-tags --quiet "--deepen=$depth" "$REMOTE" 2>/dev/null || true
+            deepen_head "$depth" || true
         fi
         BASE_COMMIT=$(merge_base)
         [ -n "$BASE_COMMIT" ] && break
