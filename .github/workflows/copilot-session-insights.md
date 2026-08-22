@@ -250,7 +250,7 @@ Use this data to populate the **Orphaned Branch Escalation Alerts** section in t
   # Mean orphaned rate (percent) over the last 30 recorded days; "null" when no history exists
   jq -r '[.analyses[]? | select(.orphan_rate != null)] | sort_by(.date) | .[-30:]
          | if length == 0 then "null"
-           else ((map(.orphan_rate) | add) / length * 10 | round / 10 | tostring) end' \
+           else ((((map(.orphan_rate) | add) / length * 10) | round) / 10 | tostring) end' \
     /tmp/gh-aw/cache-memory/session-analysis/history.json 2>/dev/null
   ```
 - Report the computed value (rounded to one decimal) as the **Historical Baseline**, together with the number of recorded days it covers.
