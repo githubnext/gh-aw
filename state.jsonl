@@ -27,3 +27,4 @@
 {"run_id":"32292078224","timestamp":"2026-08-19T19:16:35.685Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
 {"run_id":"32408041563","timestamp":"2026-08-20T19:20:02.901Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
 {"run_id":"32517648666","timestamp":"2026-08-21T19:17:24.675Z","assignments":{"sub_agent_strategy":"inline_strict"}}
+{"run_id":"32593184477","timestamp":"2026-08-22T19:16:04.230Z","harness_version":"c353474561ffe102fead57525a110e5fff09f0c18923938b574aeab5cce00ed9:0daed06ad9ab37f712e54a71683b2f3c690ab0cce61735ab8ecf312216a2f4ec","assignments":{"sub_agent_strategy":"single_agent_control"}}
