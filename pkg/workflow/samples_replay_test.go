@@ -181,6 +181,11 @@ Trivial workflow that opts into samples replay via features.samples.
 	if strings.Contains(lockContent, "\n  detection:\n") {
 		t.Error("Expected no `detection:` job with features.samples: true")
 	}
+	// features.samples is documented as an internal/hidden compiler knob; it must not
+	// leak into GH_AW_INFO_FEATURES, which is runtime-visible metadata.
+	if strings.Contains(lockContent, "GH_AW_INFO_FEATURES") && strings.Contains(lockContent, `"samples"`) {
+		t.Error("Expected GH_AW_INFO_FEATURES to omit the internal `samples` feature flag")
+	}
 }
 
 // TestFeaturesSamplesFromImportEnablesReplay verifies that `features: { samples: true }`

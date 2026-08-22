@@ -77,6 +77,29 @@ func (c *Compiler) samplesEnabledFromImports(frontmatter map[string]any, importe
 	return false
 }
 
+// runtimeVisibleFeatures returns a copy of features with internal
+// compiler-only flags (currently just `samples`) removed. It is used
+// whenever WorkflowData.Features is serialized into runtime-visible
+// metadata (e.g. GH_AW_INFO_FEATURES), so that `features.samples: true`
+// stays a compiler knob rather than becoming part of the observable
+// runtime API.
+func runtimeVisibleFeatures(features map[string]any) map[string]any {
+	if len(features) == 0 {
+		return nil
+	}
+	if _, ok := features[samplesFeatureName]; !ok {
+		return features
+	}
+	result := make(map[string]any, len(features)-1)
+	for k, v := range features {
+		if k == samplesFeatureName {
+			continue
+		}
+		result[k] = v
+	}
+	return result
+}
+
 // collectSampleEntries walks the safe-outputs config and flattens every
 // configured `samples` entry into the order they will be sent to the MCP
 // server. Iteration order is deterministic (sorted by struct field name) so
