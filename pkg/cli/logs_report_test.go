@@ -16,6 +16,14 @@ import (
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
+func TestNormalizeJobNamePreservesPeriods(t *testing.T) {
+	t.Parallel()
+
+	if got := normalizeJobName(" Worker.V1 "); got != "worker.v1" {
+		t.Errorf("normalizeJobName() = %q, want %q; periods are not separators in log job-name matching", got, "worker.v1")
+	}
+}
+
 func TestToolUsageSummariesShareStatsBase(t *testing.T) {
 	t.Parallel()
 

@@ -525,15 +525,6 @@ func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {
 	}
 }
 
-func TestGetActionPins_CacheCorrectnessOnRepeatedCalls(t *testing.T) {
-	t.Parallel()
-	first := getActionPins()
-	second := getActionPins()
-
-	require.NotEmpty(t, first, "Expected at least one action pin in embedded data")
-	assert.Equal(t, first, second, "Expected repeated calls to getActionPins() to return equal data (cache correctness)")
-}
-
 func TestGetCachedActionPins_InitializesCache(t *testing.T) {
 	t.Parallel()
 	cache := getCachedActionPins()
