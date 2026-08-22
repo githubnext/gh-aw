@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/timeutil"
@@ -64,11 +65,11 @@ type AuditData struct {
 
 // Finding represents a key insight discovered during audit
 type Finding struct {
-	Category    string `json:"category"`         // e.g., "error", "performance", "cost", "tooling"
-	Severity    string `json:"severity"`         // "critical", "high", "medium", "low", "info"
-	Title       string `json:"title"`            // Brief title
-	Description string `json:"description"`      // Detailed description
-	Impact      string `json:"impact,omitempty"` // What impact this has
+	Category    string                     `json:"category"`         // e.g., "error", "performance", "cost", "tooling"
+	Severity    scanfindings.SeverityLevel `json:"severity"`         // shared severity vocabulary
+	Title       string                     `json:"title"`            // Brief title
+	Description string                     `json:"description"`      // Detailed description
+	Impact      string                     `json:"impact,omitempty"` // What impact this has
 }
 
 // Recommendation represents an actionable suggestion

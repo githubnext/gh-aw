@@ -36,6 +36,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -395,26 +396,28 @@ func grypeDisplayFindings(imageTag string, output *grypeOutput) int {
 		return 0
 	}
 
-	for _, match := range output.Matches {
+	findings := grypeFindingsToShared(imageTag, output.Matches)
+	scanfindings.Render(os.Stderr, findings)
+
+	return len(findings)
+}
+
+// grypeFindingsToShared maps grype's native vulnerability matches onto the shared
+// finding representation used by every scanner integration. Container images have
+// no source location, so the image tag is reported as the finding location.
+func grypeFindingsToShared(imageTag string, matches []grypeFinding) []scanfindings.Finding {
+	findings := make([]scanfindings.Finding, 0, len(matches))
+	for _, match := range matches {
 		vuln := match.Vulnerability
 		art := match.Artifact
 
-		severity := vuln.Severity
-		if severity == "" {
-			severity = "Unknown"
-		}
-
-		// Map severity to error type for display purposes.
-		errorType := "warning"
-		switch strings.ToLower(severity) {
-		case "critical", "high":
-			errorType = "error"
-		case "low", "negligible", "informational":
-			errorType = "info"
+		severityLabel := vuln.Severity
+		if severityLabel == "" {
+			severityLabel = "Unknown"
 		}
 
 		// Build a compact message: [Severity] CVE-ID: package@version (fix: x.y.z) (url)
-		message := fmt.Sprintf("[%s] %s: %s@%s", severity, vuln.ID, art.Name, art.Version)
+		message := fmt.Sprintf("[%s] %s: %s@%s", severityLabel, vuln.ID, art.Name, art.Version)
 		if len(vuln.Fix.Versions) > 0 {
 			message = fmt.Sprintf("%s (fix: %s)", message, strings.Join(vuln.Fix.Versions, ", "))
 		}
@@ -422,18 +425,14 @@ func grypeDisplayFindings(imageTag string, output *grypeOutput) int {
 			message = fmt.Sprintf("%s (%s)", message, vuln.DataSource)
 		}
 
-		compilerErr := console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   imageTag,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    errorType,
-			Message: message,
-		}
-
-		fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
+		findings = append(findings, scanfindings.Finding{
+			RuleID:   vuln.ID,
+			Severity: scanfindings.ParseSeverity(severityLabel),
+			Message:  message,
+			File:     imageTag,
+			Line:     1,
+			Column:   1,
+		})
 	}
-
-	return len(output.Matches)
+	return findings
 }

@@ -11,9 +11,10 @@
 package scanfindings
 
 import (
+	"cmp"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -172,21 +173,20 @@ func Render(w io.Writer, findings []Finding) {
 // severity, then by rule identifier. The ordering is stable and deterministic so
 // that scanner output can be compared across runs.
 func Sort(findings []Finding) {
-	sort.SliceStable(findings, func(i, j int) bool {
-		a, b := findings[i], findings[j]
-		if a.File != b.File {
-			return a.File < b.File
+	slices.SortStableFunc(findings, func(a, b Finding) int {
+		if c := strings.Compare(a.File, b.File); c != 0 {
+			return c
 		}
-		if a.Line != b.Line {
-			return a.Line < b.Line
+		if c := cmp.Compare(a.Line, b.Line); c != 0 {
+			return c
 		}
-		if a.Column != b.Column {
-			return a.Column < b.Column
+		if c := cmp.Compare(a.Column, b.Column); c != 0 {
+			return c
 		}
-		if a.Severity != b.Severity {
-			return a.Severity.Rank() > b.Severity.Rank()
+		if c := cmp.Compare(b.Severity.Rank(), a.Severity.Rank()); c != 0 {
+			return c
 		}
-		return a.RuleID < b.RuleID
+		return strings.Compare(a.RuleID, b.RuleID)
 	})
 }
 
