@@ -36,9 +36,6 @@ type engineSetupResult struct {
 // - Strict mode validations
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
-	if err := validateMaxTurnCacheMissesValue(result.Frontmatter["max-turn-cache-misses"]); err != nil {
-		return nil, err
-	}
 	engineSetting, engineConfig, model := c.ExtractEngineConfig(result.Frontmatter)
 	preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses := extractEngineBudgetLimits(engineConfig)
 	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
@@ -67,9 +64,6 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 	importsResult, networkPermissions, err := c.processEngineImportsAndMerge(result, cleanPath, content, markdownDir, engineSetting, networkPermissions)
 	if err != nil {
-		return nil, err
-	}
-	if err := validateImportedMaxTurnCacheMisses(importsResult.MergedMaxTurnCacheMisses); err != nil {
 		return nil, err
 	}
 	sandboxConfig = mergeImportedSandboxAgentMounts(sandboxConfig, importsResult.MergedSandboxAgentMounts)
@@ -133,17 +127,6 @@ func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int, 
 		return "", 0, 0, 0
 	}
 	return engineConfig.MaxTurns, engineConfig.MaxAICredits, engineConfig.MaxRuns, engineConfig.MaxTurnCacheMisses
-}
-
-func validateImportedMaxTurnCacheMisses(raw string) error {
-	if raw == "" {
-		return nil
-	}
-	var value any
-	if err := json.Unmarshal([]byte(raw), &value); err != nil {
-		return errors.New("max-turn-cache-misses must be a positive integer. Example: max-turn-cache-misses: 5")
-	}
-	return validateMaxTurnCacheMissesValue(value)
 }
 
 func defaultNetworkPermissions(networkPermissions *NetworkPermissions) *NetworkPermissions {

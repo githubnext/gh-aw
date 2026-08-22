@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
@@ -38,25 +37,19 @@ func parseMaxTurnCacheMissesValue(raw any) int {
 }
 
 // parsePositiveIntValue parses a strictly-positive integer from raw.
-// GitHub Actions expression strings (e.g. "${{ inputs.value }}") are treated
-// as invalid for integer-only fields.
+// Delegates to parseIntOrExpressionValue for a single int-validation path.
+// GitHub Actions expression strings (e.g. "${{ inputs.value }}") are accepted
+// but cannot be resolved to an integer at compile time, so they return 0.
 func parsePositiveIntValue(raw any, fieldName string) int {
-	value := parseIntOrExpressionValue(raw, 1, fieldName)
-	if value == "" || isExpression(value) {
+	s := parseIntOrExpressionValue(raw, 1, fieldName)
+	if s == "" || isExpression(s) {
 		return 0
 	}
-	parsed, err := strconv.Atoi(value)
+	val, err := strconv.Atoi(s)
 	if err != nil {
 		return 0
 	}
-	return parsed
-}
-
-func validateMaxTurnCacheMissesValue(raw any) error {
-	if raw == nil || parseMaxTurnCacheMissesValue(raw) > 0 {
-		return nil
-	}
-	return errors.New("max-turn-cache-misses must be a positive integer. Example: max-turn-cache-misses: 5")
+	return val
 }
 
 func parseMaxTurnsValue(raw any) string {

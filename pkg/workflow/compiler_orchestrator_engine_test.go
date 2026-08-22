@@ -299,8 +299,8 @@ imports:
 	assert.Equal(t, 7, result.engineConfig.MaxTurnCacheMisses)
 }
 
-func TestCompileWorkflowRejectsImportedMaxTurnCacheMissesExpression(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "engine-imported-invalid-max-turn-cache-misses")
+func TestCompileWorkflowAllowsImportedMaxTurnCacheMissesExpression(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-max-turn-cache-misses-expression")
 
 	sharedDir := filepath.Join(tmpDir, "shared")
 	require.NoError(t, os.MkdirAll(sharedDir, 0755))
@@ -322,11 +322,7 @@ imports:
 # Test Workflow
 `), 0644))
 
-	err := NewCompiler().CompileWorkflow(testFile)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "max-turn-cache-misses")
-	require.ErrorContains(t, err, "positive integer")
-	require.ErrorContains(t, err, "Example: max-turn-cache-misses: 5")
+	require.NoError(t, NewCompiler().CompileWorkflow(testFile))
 }
 
 // TestSetupEngineAndImports_ImportedEngineVersionDefault verifies that a shared/imported
