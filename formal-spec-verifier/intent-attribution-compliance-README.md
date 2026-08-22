@@ -1,6 +1,6 @@
 # Formal Notes: intent-attribution-compliance/README.md
 
-**Last formalized**: 2026-08-01-15-49-05
+**Last formalized**: 2026-08-22-15-35-35
 **Notation**: TLA+ / Z3-style guard conjunction
 **Issue**: (created via safe-output; number resolved post-run)
 
@@ -15,6 +15,8 @@
 | F5 | `MappedStatusPermitsRelaxedPolicy` | mapped/explicit status is not universally forced fail-closed; a matching rule may grant relaxed policy |
 | F6 | `PolicyDeterminism` | identical attribution inputs always produce identical compiled policy |
 | F7 | `SingleSourcePerRecord` | every fixture resolves to exactly one attribution source, never a blend |
+| F8 | `FailClosedIgnoresRuleConfig` | ambiguous/unlinked status ignores even a matching permissive wildcard rule (short-circuit happens before rule matching) |
+| F9 | `ExplicitLabelsDoNotOverrideMappedSource` | explicit intent stays the sole source even when present labels would independently resolve via artifact labels |
 
 ## Key Invariants
 
@@ -31,7 +33,8 @@
 
 ## Notes for Future Runs
 
+- 2026-08-22 run: extended the compliance suite with F8 (fail-closed short-circuit ignores a matching permissive wildcard rule, proving the ambiguous/unlinked branch never reaches rule matching) and F9 (explicit intent source is preserved even when present labels would independently resolve via artifact-label attribution — precedence is absolute, not signal-strength-based). New tests live in a separate file (`intent_compliance_extended_formal_test.go`) to avoid touching the existing fixture-anchored suite.
 - This formalization targets the fixture-level compliance README specifically and is complementary to the broader parent spec (`specs/intent-attribution-agent-governance.md`, formalized 2026-07-30) — predicates here are scoped to the 3 required fixture scenarios rather than the full resolver/policy surface.
 - Existing test files in `pkg/intent/` (`intent_formal_test.go`, `resolver_test.go`, `spec_test.go`) already cover general resolver/policy behavior; the new `compliance_fixtures_formal_test.go` uses distinct fixture-anchored function names (`TestFormalFixture_*`) to avoid collisions and to trace directly back to the 3 YAML fixture files by name and field values.
 - Future work: extend fixtures directory per the README's guidance (fixture files should record input artifact shape, expected attribution source/status, and expected compiled execution policy) — could add machine-readable YAML-driven test loading instead of hardcoded Go fixture builders.
-- Cross-spec dependency: `specs/replace-label-spec.md` remains unprocessed and is a good next candidate.
+- Cross-spec dependency: `specs/replace-label-spec.md` already processed (2026-08-07); consider `specs/otel-observability-spec.md` (last processed 2026-08-02, oldest by date) as a strong future candidate given rotation age.

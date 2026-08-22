@@ -65,9 +65,9 @@
     },
     "specs/intent-attribution-compliance/README.md": {
       "slug": "intent-attribution-compliance-README",
-      "last_formalized": "2026-08-01-15-49-05",
+      "last_formalized": "2026-08-22-15-35-35",
       "notation": "TLA+ / Z3-style guard conjunction",
-      "predicate_count": 7,
+      "predicate_count": 9,
       "issue_number": null
     },
     "specs/otel-observability-spec.md": {
