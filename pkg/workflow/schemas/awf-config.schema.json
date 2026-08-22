@@ -68,6 +68,30 @@
         }
       ]
     },
+    "filesystem": {
+      "type": "object",
+      "description": "Host filesystem write-boundary configuration for the agent sandbox.",
+      "additionalProperties": false,
+      "properties": {
+        "allowWrite": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "allOf": [
+              {
+                "pattern": "^/[^*?\\[\\]{}]*$"
+              },
+              {
+                "not": {
+                  "pattern": "/\\.\\.(?:/|$)"
+                }
+              }
+            ]
+          },
+          "description": "Guest-visible absolute paths that may be writable. When present, existing writable host bind mounts are made read-only outside these paths. An empty array makes all non-internal host bind mounts read-only. Paths must exist and cannot use glob patterns. This option is currently supported by Docker and gVisor compose runtimes."
+        }
+      }
+    },
     "apiProxy": {
       "type": "object",
       "description": "API proxy sidecar configuration. The sidecar injects real API credentials so the agent never has direct access to them.",
