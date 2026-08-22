@@ -298,6 +298,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"output_format":{"variants":["full_briefing","executive_brief","annotated_brief","ste"],"description":"Tests whether report verbosity, structure, or Simplified Technical English (STE) phrasing affect token cost and discussion engagement","hypothesis":"H0: no change in discussion engagement or token cost. H1: executive_brief reduces token usage by ≥20% without reducing engagement; annotated_brief improves actionability; ste improves clarity while reducing token usage.","metric":"token_count","secondary_metrics":["discussion_reactions","discussion_replies","output_char_length","run_duration_ms","eval:output_format_goal_met"],"guardrail_metrics":[{"name":"empty_output_rate","threshold":"==0"},{"name":"issue_creation_success_rate","threshold":"\u003e=0.8"}],"min_samples":15,"weight":[25,25,25,25],"start_date":"2026-05-06","analysis_type":"mann_whitney","tags":["output-format","token-cost","engagement","daily"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 12f2d38397b1413cbadea4bb8da8997b3416d82cd0e0f25dd7d07057b85b0cee:7aa5825429028c94295540bd35472aabcfc6581d25bd588944e5ded6882b2c21
         with:
           script: |
             const path = require('path');
@@ -471,6 +472,7 @@ jobs:
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
       queue: max
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -2317,6 +2319,7 @@ jobs:
     permissions:
       contents: read
       copilot-requests: write
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
@@ -2435,7 +2438,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4 --rootless
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -2452,6 +2455,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: detection
@@ -2497,7 +2501,6 @@ jobs:
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             _GH_AW_CHROOT_JSON=$(jq -c --arg src "${RUNNER_TEMP}/gh-aw" --arg user "$(id -un)" --argjson uid "$(id -u)" --argjson gid "$(id -g)" --arg home "${RUNNER_TEMP}/gh-aw/home" '.chroot={"binariesSourcePath":$src,"identity":{"user":$user,"uid":$uid,"gid":$gid,"home":$home}}' "${RUNNER_TEMP}/gh-aw/awf-config.json") || { echo "chroot config patch failed" >&2; exit 1; }
             printf '%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
-            printf '%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           fi
           GH_AW_TOOL_CACHE_MOUNT=""
           GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"
@@ -2526,8 +2529,8 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
-          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/ || true
-          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/ || true
+          if [ -d /tmp/gh-aw/sandbox/firewall/logs ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/; fi
+          if [ -d /tmp/gh-aw/sandbox/firewall/audit ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/; fi
       - name: Upload threat detection artifact
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -2685,7 +2688,7 @@ jobs:
         # - Task
         # - TodoWrite
         # - Write(/tmp/*)
-        timeout-minutes: 20
+        timeout-minutes: 45
         run: |
           set -o pipefail
           trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf "%s" "$gh_aw_exit_code" > /tmp/gh-aw/agent_execution_exit_code.txt || true; if [ "$gh_aw_exit_code" -ne 0 ]; then echo "::error::Agent execution exited with code $gh_aw_exit_code"; fi' EXIT

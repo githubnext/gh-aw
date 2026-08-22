@@ -84,6 +84,9 @@ Summarize the findings in a **${{ experiments.prompt_style }}** way.
 When `evals` are configured, `metric` can reference an eval question ID using
 `eval:<id>` (for example `eval:focused`) or `evals.<id>`.
 
+When `graders` are configured, `metric` can reference a grader result using
+`grader:<id>` (for example `grader:tool-success-rate`) or `graders.<id>`.
+
 `gh aw experiments analyze <workflow>` resolves the referenced eval question and, when
 eval result data is available, shows YES/NO/UNKNOWN totals for that eval-backed metric.
 
@@ -333,3 +336,34 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |
 | `end_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) after which the experiment is inactive. The control variant is returned after this date without incrementing any counter. |
+| `continual` | `object` | | Experimental deterministic control/candidate assignment with automatic traffic ramping. |
+
+## Continual experiment ramps
+
+:::caution[Experimental]
+Continual experiments are experimental and may change in future releases.
+:::
+
+A continual experiment assigns a candidate to a bounded share of future executions.
+The first variant is the control and the second is the candidate.
+
+```yaml
+experiments:
+  optimize_tool_use:
+    variants: [control, candidate]
+    metric: eval:quality
+    min_samples: 20
+    continual:
+      seed: tool-use-v1
+      ramp: [10, 25, 50]
+```
+
+Assignment happens in the activation job before agent execution. A SHA-256 hash of
+the seed, experiment name, repository, workflow, and run ID selects the variant.
+The activation job advances the ramp after each `min_samples` candidate assignments
+and stores the current stage on the experiment branch, leaving the workflow source
+immutable. The logs show the stage, assignment counts, weights, and selected variant.
+
+The ramp does not evaluate outcomes or promote a winner. Use the existing experiment
+analysis commands and configured metrics to decide whether to stop the experiment
+or make a variant permanent.

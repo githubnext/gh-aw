@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -126,7 +127,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 				}
 				require.NotNil(t, failureFinding,
 					"Expected an error finding with 'Failed' in title for scenario %q", tt.name)
-				assert.Equal(t, "critical", failureFinding.Severity,
+				assert.Equal(t, scanfindings.SeverityCritical, failureFinding.Severity,
 					"Expected critical severity for failure finding in scenario %q", tt.name)
 			}
 

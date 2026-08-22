@@ -221,9 +221,21 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 				}
 			}
 		}
+		if continualRaw, ok := v["continual"].(map[string]any); ok {
+			cfg.Continual = extractContinualExperimentConfig(continualRaw)
+		}
 		return cfg
 	}
 	return nil
+}
+
+func extractContinualExperimentConfig(raw map[string]any) *ContinualExperimentConfig {
+	seed, _ := raw["seed"].(string)
+	ramp := extractIntSlice(raw["ramp"])
+	if seed == "" || len(ramp) == 0 {
+		return nil
+	}
+	return &ContinualExperimentConfig{Seed: seed, Ramp: ramp}
 }
 
 // extractIntField converts a numeric any value to int.
@@ -276,7 +288,11 @@ func extractGuardrailMetrics(raw any) []GuardrailMetric {
 		if name == "" || threshold == "" {
 			continue
 		}
-		result = append(result, GuardrailMetric{Name: name, Direction: direction, Threshold: threshold})
+		result = append(result, GuardrailMetric{
+			Name:      name,
+			Direction: direction,
+			Threshold: threshold,
+		})
 	}
 	return result
 }
@@ -347,9 +363,34 @@ func ParseExperimentMetricEvalReference(metric string) (string, bool) {
 	return "", false
 }
 
+// ParseExperimentMetricGraderReference returns the referenced grader ID when metric
+// declares a grader-backed metric.
+// Supported forms:
+//   - grader:<id>
+//   - graders.<id>
+//   - graders.<id>.<suffix> (suffix reserved for future derived metrics)
+func ParseExperimentMetricGraderReference(metric string) (string, bool) {
+	trimmed := strings.TrimSpace(metric)
+	if trimmed == "" {
+		return "", false
+	}
+	if rest, ok := strings.CutPrefix(trimmed, "grader:"); ok {
+		return strings.TrimSpace(rest), true
+	}
+	if rest, ok := strings.CutPrefix(trimmed, "graders."); ok {
+		rest = strings.TrimSpace(rest)
+		if rest == "" {
+			return "", true
+		}
+		parts := strings.SplitN(rest, ".", 2)
+		return parts[0], true
+	}
+	return "", false
+}
+
 // validateExperimentMetricReferences ensures experiment metrics that reference evals
-// point to declared eval question IDs.
-func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, evals *EvalsConfig) error {
+// or graders point to declared IDs.
+func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, evals *EvalsConfig, graders *GradersConfig) error {
 	if len(configs) == 0 {
 		return nil
 	}
@@ -362,26 +403,69 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 			}
 		}
 	}
+	graderIDs := map[string]struct{}{}
+	if graders != nil {
+		for id, def := range graders.Graders {
+			if id == "" || def == nil || (def.Enabled != nil && !*def.Enabled) {
+				continue
+			}
+			graderIDs[id] = struct{}{}
+		}
+	}
 
 	for experimentName, cfg := range configs {
 		if cfg == nil {
 			continue
 		}
-		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(cfg.Metric)
-		if !referencesEval {
+		metric := cfg.Metric
+		if cfg.Continual != nil {
+			if len(cfg.Variants) != 2 {
+				return fmt.Errorf("experiments.%s.continual: exactly two variants are required (control, candidate)", experimentName)
+			}
+			if err := validateContinualRamp(experimentName, cfg.Continual); err != nil {
+				return err
+			}
+		}
+		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(metric)
+		if referencesEval {
+			if referencedEvalID == "" {
+				return fmt.Errorf("experiments.%s.metric: expected eval reference format eval:<question_id>; provide a declared eval question id", experimentName)
+			}
+			if _, ok := evalIDs[referencedEvalID]; !ok {
+				if len(evalIDs) == 0 {
+					return fmt.Errorf("experiments.%s.metric: references eval %q but no evals are declared", experimentName, referencedEvalID)
+				}
+				return fmt.Errorf("experiments.%s.metric: references unknown eval %q", experimentName, referencedEvalID)
+			}
 			continue
 		}
-		if referencedEvalID == "" {
-			return fmt.Errorf("experiments.%s.metric: eval reference must include a non-empty eval id", experimentName)
-		}
-		if _, ok := evalIDs[referencedEvalID]; !ok {
-			if len(evalIDs) == 0 {
-				return fmt.Errorf("experiments.%s.metric: references eval %q but no evals are declared", experimentName, referencedEvalID)
+
+		referencedGraderID, referencesGrader := ParseExperimentMetricGraderReference(metric)
+		if referencesGrader {
+			if referencedGraderID == "" {
+				return fmt.Errorf("experiments.%s.metric: expected grader reference format grader:<grader_id>; provide a declared grader id", experimentName)
 			}
-			return fmt.Errorf("experiments.%s.metric: references unknown eval %q", experimentName, referencedEvalID)
+			if _, ok := graderIDs[referencedGraderID]; !ok {
+				if len(graderIDs) == 0 {
+					return fmt.Errorf("experiments.%s.metric: references grader %q but no graders are declared", experimentName, referencedGraderID)
+				}
+				return fmt.Errorf("experiments.%s.metric: references unknown grader %q", experimentName, referencedGraderID)
+			}
+			continue
 		}
 	}
 
+	return nil
+}
+
+func validateContinualRamp(name string, cfg *ContinualExperimentConfig) error {
+	previous := 0
+	for _, percentage := range cfg.Ramp {
+		if percentage <= previous || percentage > 100 {
+			return fmt.Errorf("experiments.%s.continual.ramp: expected strictly increasing percentages in range 1..100, for example [10,25,50]", name)
+		}
+		previous = percentage
+	}
 	return nil
 }
 
@@ -486,6 +570,7 @@ func (c *Compiler) generateExperimentRepoSteps(data *WorkflowData, experimentNam
 // generatePickExperimentStep generates the "Pick experiment variants" step shared by both storage modes.
 func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentNames []string) []string {
 	specJSON := buildExperimentSpecJSON(data.Experiments, data.ExperimentConfigs, experimentNames)
+	harnessVersion := experimentHarnessVersion(data)
 	return []string{
 		"      - name: Pick experiment variants\n",
 		"        id: pick-experiment\n",
@@ -494,12 +579,26 @@ func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentName
 		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", strings.ReplaceAll(specJSON, "'", "''")),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
+		fmt.Sprintf("          GH_AW_HARNESS_VERSION: %s\n", harnessVersion),
 		"        with:\n",
 		"          script: |\n",
 		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
 		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
 		"            const { main } = require('" + SetupActionDestination + "/pick_experiment.cjs');\n",
 		"            await main();\n",
+	}
+}
+
+func experimentHarnessVersion(data *WorkflowData) string {
+	switch {
+	case data.FrontmatterHash == "" && data.BodyHash == "":
+		return "unknown"
+	case data.FrontmatterHash == "":
+		return data.BodyHash
+	case data.BodyHash == "":
+		return data.FrontmatterHash
+	default:
+		return data.FrontmatterHash + ":" + data.BodyHash
 	}
 }
 

@@ -37,6 +37,30 @@ func badNamedTypes() string {
 	return string([]byte(ms)) // want `string\(\[\]byte\(ms\)\) is a redundant round-trip; replace it with string\(ms\)`
 }
 
+// aliasString is an alias for the predeclared string type, so round-trips
+// through it are fully redundant.
+type aliasString = string
+
+// namedAlias is an alias for a named string type, so an outer conversion is
+// still required even though its underlying type is string.
+type namedAlias = myString
+
+func badMixedNamedTypes() {
+	s := "hello"
+	var ms myString = "hello"
+	var as aliasString = "hello"
+	var na namedAlias = "hello"
+
+	// Outer conversion is a named string type: the outer conversion must stay.
+	_ = myString([]byte(s)) // want `myString\(\[\]byte\(s\)\) is a redundant round-trip; replace it with myString\(s\)`
+	// Argument is a named string type: an outer conversion is still needed.
+	_ = string([]byte(ms)) // want `string\(\[\]byte\(ms\)\) is a redundant round-trip; replace it with string\(ms\)`
+	// Alias of the predeclared string type: both conversions can be removed.
+	_ = aliasString([]byte(as)) // want `aliasString\(\[\]byte\(as\)\) is a redundant round-trip; both conversions can be removed`
+	// Alias of a named string type: the outer conversion must stay.
+	_ = namedAlias([]byte(na)) // want `namedAlias\(\[\]byte\(na\)\) is a redundant round-trip; replace it with namedAlias\(na\)`
+}
+
 // helperString is a regular function, not a type conversion — must not be flagged.
 func helperString(b []byte) string { return string(b) }
 

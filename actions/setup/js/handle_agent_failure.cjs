@@ -1518,7 +1518,7 @@ function loadToolDenialsExceededEvents() {
             timestamp: typeof parsed.timestamp === "string" ? parsed.timestamp : "",
           });
         } catch {
-          // Skip malformed lines
+          // Malformed line — ignored.
         }
       }
     }
@@ -2669,7 +2669,7 @@ function hasAgentTerminalReasonCompleted() {
     // lines or parsing JSON.
     return /"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent);
   } catch {
-    // IO error — assume not completed
+    // IO error is ignored — assume not completed.
   }
   return false;
 }

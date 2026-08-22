@@ -28,7 +28,7 @@ function parseDifcFilteredEvents(jsonlContent) {
         filteredEvents.push(entry);
       }
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
   return filteredEvents;

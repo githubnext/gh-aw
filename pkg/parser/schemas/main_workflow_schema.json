@@ -2864,7 +2864,7 @@
     },
     "timeout-minutes": {
       "$ref": "#/$defs/templatable_integer",
-      "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20 minutes for agentic workflows. Has sensible defaults and can typically be omitted. Custom runners support longer timeouts beyond the GitHub-hosted runner limit. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
+      "description": "Agentic execution step timeout in minutes. Defaults to 20 minutes for agentic workflows, or the GH_AW_DEFAULT_TIMEOUT_MINUTES GitHub Actions variable. The generated jobs are bounded separately by jobs.agent.timeout-minutes (default 60 minutes or GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES) and jobs.detection.timeout-minutes (default 10 minutes or GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES). Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
       "examples": [5, 10, 30]
     },
     "concurrency": {
@@ -3166,6 +3166,31 @@
                   }
                 },
                 "additionalProperties": false
+              },
+              "continual": {
+                "type": "object",
+                "required": ["seed", "ramp"],
+                "properties": {
+                  "seed": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable non-secret seed for deterministic assignment."
+                  },
+                  "ramp": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    "description": "Candidate percentages applied in order at runtime. The stage advances after each min_samples tranche of candidate assignments."
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Experimental opt-in control/candidate traffic ramp. The first variant is control and the second is candidate. Using this field emits a compile-time warning."
               }
             },
             "additionalProperties": false,
@@ -3632,6 +3657,61 @@
                       "description": "Memory limit for the AWF container (e.g., '4g', '8g'). Passed as --memory-limit to AWF. If not specified, AWF's default memory limit is used.",
                       "pattern": "^[1-9][0-9]*[bkmgBKMG]$",
                       "examples": ["4g", "8g", "512m"]
+                    },
+                    "images": {
+                      "type": "object",
+                      "description": "Digest-pinned AWF infrastructure images (AWF v0.28.4+). Selects the container image used for each AWF service role instead of AWF's defaults. Every value must be a literal, registry-qualified OCI reference that carries both a tag and an immutable SHA-256 digest ('registry/repository:tag@sha256:<64 lowercase hex chars>'); GitHub Actions expressions and other dynamic values are rejected at compile time. When set, the manifest must cover every image role required by the enabled feature set, AWF fails closed instead of falling back to a default, the same references are predownloaded and recorded in lock metadata unchanged, and the Docker daemon must already be authenticated to the registry. Repository-level '.github/workflows/aw.json' 'container_pins' mappings still redirect non-AWF workflow containers and default AWF predownload references when this manifest is omitted, but they cannot configure AWF runtime roles and never redirect this authoritative manifest.",
+                      "additionalProperties": false,
+                      "minProperties": 1,
+                      "properties": {
+                        "squid": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Squid forward-proxy image used for domain filtering."
+                        },
+                        "agent": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Agent container image that runs the agentic engine."
+                        },
+                        "apiProxy": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "API proxy sidecar image that holds provider credentials."
+                        },
+                        "cliProxy": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "CLI proxy sidecar image used by tools.github.mode: gh-proxy, integrity-reactions, or raw --difc-proxy-host AWF arguments."
+                        },
+                        "buildTools": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Build-tools image used as the chroot sysroot base on runner.topology: arc-dind."
+                        },
+                        "dohProxy": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "DNS-over-HTTPS proxy image required when legacy-security raw AWF arguments enable --dns-over-https."
+                        },
+                        "enclaveScript": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Script enclave image."
+                        },
+                        "enclaveAgent": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Agent enclave image."
+                        },
+                        "enclaveMcpServer": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Shared enclave MCP server image required whenever any enclave is enabled."
+                        },
+                        "dindStaging": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Docker-in-Docker staging image required when raw AWF arguments enable directory or engine-binary pre-staging."
+                        }
+                      },
+                      "examples": [
+                        {
+                          "squid": "registry.example.com/approved/squid:v0.28.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                          "agent": "registry.example.com/approved/agent:v0.28.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                          "apiProxy": "registry.example.com/approved/api-proxy:v0.28.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                        }
+                      ]
                     },
                     "model-fallback": {
                       "$ref": "#/$defs/templatable_boolean",
@@ -4842,6 +4922,138 @@
                 "key": "memory-logs"
               }
             ]
+          ]
+        },
+        "drive-memory": {
+          "description": "Private-preview GitHub Drives configuration. Do not configure unless GitHub has explicitly enrolled the repository in the private preview.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Default configuration for enrolled preview repositories"
+            },
+            {
+              "type": "null",
+              "description": "Default configuration for enrolled preview repositories (same as true)"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for an enrolled preview repository",
+              "properties": {
+                "drive-name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "GitHub Drive name (default: 'default')"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional description shown in the agent prompt"
+                },
+                "disk-size": {
+                  "type": "string",
+                  "pattern": "^\\s*[0-9]+[KMGTkmgt]?\\s*$",
+                  "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (case-insensitive; normalized to upper case; suggested: '100M'; ignored for an existing drive)"
+                },
+                "prefetch": {
+                  "type": "boolean",
+                  "description": "Eagerly fetch existing drive contents after mounting (default: false)"
+                },
+                "restore-only": {
+                  "type": "boolean",
+                  "description": "Mount the drive without committing changes"
+                },
+                "allowed-extensions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of allowed file extensions. By default, all extensions are allowed."
+                },
+                "validation": {
+                  "type": "object",
+                  "properties": {
+                    "script": {
+                      "type": "string",
+                      "description": "JavaScript validator body that runs over the drive-memory directory before persistence"
+                    },
+                    "timeout-minutes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes"
+                    }
+                  },
+                  "required": ["script"],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "description": "Configurations for multiple drives in an enrolled preview repository",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                    "description": "Memory identifier used for the local folder"
+                  },
+                  "drive-name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "GitHub Drive name (defaults to id)"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional description shown in the agent prompt"
+                  },
+                  "disk-size": {
+                    "type": "string",
+                    "pattern": "^\\s*[0-9]+[KMGTkmgt]?\\s*$",
+                    "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (case-insensitive; normalized to upper case; suggested: '100M'; ignored for an existing drive)"
+                  },
+                  "prefetch": {
+                    "type": "boolean",
+                    "description": "Eagerly fetch existing drive contents after mounting (default: false)"
+                  },
+                  "restore-only": {
+                    "type": "boolean",
+                    "description": "Mount the drive without committing changes"
+                  },
+                  "allowed-extensions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of allowed file extensions. By default, all extensions are allowed."
+                  },
+                  "validation": {
+                    "type": "object",
+                    "properties": {
+                      "script": {
+                        "type": "string",
+                        "description": "JavaScript validator body that runs over the drive-memory directory before persistence"
+                      },
+                      "timeout-minutes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes"
+                      }
+                    },
+                    "required": ["script"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 10
+            }
           ]
         },
         "comment-memory": {
@@ -12530,6 +12742,72 @@
       "description": "Default LLM model, overridden by nested engine.model. Sets the default model used by the agentic engine for this workflow. Acts as a fallback when an engine instance does not specify its own 'model'; a nested 'engine.model' (e.g. safe-outputs.threat-detection.engine.model) takes precedence over this field for that engine instance. Supports full model IDs (e.g. 'claude-3-5-sonnet-20241022', 'gpt-5.4') and model aliases (e.g. 'small', 'large').",
       "examples": ["gpt-5.4", "claude-3-5-sonnet-20241022", "gpt-4"]
     },
+    "graders": {
+      "description": "\u26a0\ufe0f Experimental. Deterministic graders to compute post-agent metrics from execution artifacts. Map keys are grader IDs. Built-in graders can be configured by ID; custom graders require a script.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+        "description": "Grader IDs must start with a lowercase letter and contain only lowercase letters, digits, and hyphens (max 64 chars)."
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "null",
+            "description": "Enable the grader with defaults (built-ins only)."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "Whether the grader is enabled."
+              },
+              "name": {
+                "type": "string",
+                "description": "Optional display name override."
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional grader description."
+              },
+              "unit": {
+                "type": "string",
+                "description": "Metric unit label such as ratio, count, ms, or factor."
+              },
+              "direction": {
+                "type": "string",
+                "enum": ["higher_is_better", "lower_is_better"],
+                "description": "Optimization direction for threshold pass/fail."
+              },
+              "threshold": {
+                "type": "number",
+                "description": "Optional threshold used for pass/fail."
+              },
+              "min": {
+                "type": "number",
+                "description": "Optional metric minimum bound."
+              },
+              "max": {
+                "type": "number",
+                "description": "Optional metric maximum bound."
+              },
+              "config": {
+                "type": "object",
+                "description": "Optional grader-specific config object.",
+                "additionalProperties": true
+              },
+              "script": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "description": "Custom grader JavaScript script body (trusted workflows only)."
+              }
+            }
+          }
+        ]
+      }
+    },
     "evals": {
       "description": "\u26a0\ufe0f Experimental. BinEval binary evaluation questions to run after safe-outputs and before the conclusion job. Can be a plain list of questions (shorthand) or an object with questions, model, and runs-on fields.",
       "oneOf": [
@@ -14465,6 +14743,11 @@
           "enum": ["read", "write", "none"],
           "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
         },
+        "drives": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for the experimental GitHub Drives service"
+        },
         "id-token": {
           "type": "string",
           "enum": ["write", "none"],
@@ -14702,6 +14985,11 @@
           "organization-administration": "read"
         }
       ]
+    },
+    "awf_pinned_image": {
+      "type": "string",
+      "description": "Literal, registry-qualified OCI image reference containing both a tag and an immutable SHA-256 digest, e.g. 'registry.example.com/approved/squid:v0.28.4@sha256:<64 lowercase hex chars>'. Expressions and other dynamic values are not allowed.",
+      "pattern": "^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+(?::[0-9]{1,5})?|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?:[0-9]{1,5}|localhost)/[a-z0-9]+(?:(?:[._]|__|[-]+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|[-]+)[a-z0-9]+)*)*:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[a-f0-9]{64}$"
     },
     "sandbox_agent_api_target": {
       "type": "object",

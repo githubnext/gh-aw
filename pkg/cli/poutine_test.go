@@ -372,3 +372,20 @@ func TestPoutineImageIsPinnedByDigest(t *testing.T) {
 		t.Errorf("PoutineImage must be pinned by digest, got %q", PoutineImage)
 	}
 }
+
+func TestPoutineFindingsToSharedUsesFindingPath(t *testing.T) {
+	finding := poutineFinding{RuleID: "injection"}
+	finding.Meta.Path = "nested/workflow.lock.yml"
+	finding.Meta.Line = 2
+
+	findings := poutineFindingsToShared([]poutineFinding{finding}, poutineRules{
+		"injection": {Level: "error", Title: "Injection"},
+	}, "workflow.lock.yml", []string{"one", "two", "three"})
+
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	if findings[0].File != "nested/workflow.lock.yml" {
+		t.Errorf("File = %q, want finding path", findings[0].File)
+	}
+}

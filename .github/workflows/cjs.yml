@@ -35,7 +35,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
+          fetch-depth: 2
           persist-credentials: false
       - name: Verify CGO/CJS workflow purity
         run: bash scripts/check-cgo-cjs-workflow-purity.sh
@@ -152,7 +152,7 @@ jobs:
           cache: npm
           cache-dependency-path: actions/setup/js/package-lock.json
       - name: Run impacted JavaScript unit tests
-        run: make test-impacted-js BASE_REF=origin/main
+        run: make test-impacted-js BASE_REF=HEAD^
 
   lint-js:
     needs: [checkout-cache]

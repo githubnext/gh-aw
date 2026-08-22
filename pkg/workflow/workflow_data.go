@@ -44,6 +44,7 @@ type WorkflowData struct {
 	FrontmatterEmoji               string           // emoji field from frontmatter (for display in footers and UI)
 	FrontmatterYAML                string           // raw frontmatter YAML content (rendered as comment in lock file for reference)
 	FrontmatterHash                string           // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
+	BodyHash                       string           // SHA-256 hash of the markdown body (computed before job building)
 	FrontmatterFieldLines          map[string]int   // absolute 1-based line numbers of top-level frontmatter keys in the source file (populated by parser)
 	RawMarkdown                    string           // raw markdown body before include expansion, used for frontmatter hash computation without re-reading the file
 	Description                    string           // optional description rendered as comment in lock file
@@ -115,7 +116,7 @@ type WorkflowData struct {
 	LabelCommandDecentralized      bool                            // when true, label_command uses decentralized dispatch routing via agentic_commands.yml
 	LabelCommandOtherEvents        map[string]any                  // for merging label-command with other events
 	LabelCommandRemoveLabel        bool                            // whether to automatically remove the triggering label (default: true)
-	AIReaction                     string                          // AI reaction type like "eyes", "heart", etc.
+	AIReaction                     ReactionType                    // AI reaction type like "eyes", "heart", etc.
 	ReactionIssues                 *bool                           // whether reactions are allowed on issues/issue_comment triggers (default: true)
 	ReactionPullRequests           *bool                           // whether reactions are allowed on pull_request/pull_request_review_comment triggers (default: true)
 	ReactionDiscussions            *bool                           // whether reactions are allowed on discussion/discussion_comment triggers (default: true)
@@ -142,6 +143,7 @@ type WorkflowData struct {
 	Bots                           []string                        // allow list of bot identifiers that can trigger workflow
 	RateLimit                      *RateLimitConfig                // rate limiting configuration for workflow triggers
 	CacheMemoryConfig              *CacheMemoryConfig              // parsed cache-memory configuration
+	DriveMemoryConfig              *DriveMemoryConfig              // parsed drive-memory configuration
 	CommentMemoryConfig            *CommentMemoryConfig            // parsed tools.comment-memory configuration
 	RepoMemoryConfig               *RepoMemoryConfig               // parsed repo-memory configuration
 	Runtimes                       map[string]any                  // runtime version overrides from frontmatter
@@ -206,6 +208,7 @@ type WorkflowData struct {
 	ContainerPinMappings           map[string]string               // container-pin redirect table from aw.json container_pins: maps source image → replacement image
 	GHES                           bool                            // select action versions compatible with GitHub Enterprise Server
 	Evals                          *EvalsConfig                    // BinEval evaluation configuration parsed from frontmatter evals field
+	Graders                        *GradersConfig                  // Deterministic graders configuration parsed from frontmatter graders field
 	ExcludedEnv                    []string                        // additional env var names to exclude from agent container via AWF --exclude-env (from frontmatter excluded-env field)
 }
 

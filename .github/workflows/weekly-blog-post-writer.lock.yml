@@ -291,6 +291,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"prefetch_strategy":{"variants":["lazy","eager"],"description":"Tests whether pre-fetching GitHub releases and merged PRs in setup steps reduces agent turn count and run duration vs. letting the agent fetch lazily via tools","hypothesis":"H0: no change in agent_turn_count. H1: eager pre-fetching reduces agent turns by ≥20% and duration by ≥15% by eliminating tool round-trips for data gathering","metric":"agent_turn_count","secondary_metrics":["run_duration_ms","pr_creation_rate"],"guardrail_metrics":[{"name":"pr_creation_success_rate","direction":"min","threshold":"0.8"}],"min_samples":10,"weight":[50,50],"issue":38590,"start_date":"2026-06-11"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: f7fa54fbc8eec95ac8baab02d74de0f3b1d24cdbe5160c8ce6da783c5df91518:49ac631b17403d01bf974d665d1cc57be75967358a9affbcff2647625c502fda
         with:
           script: |
             const path = require('path');
@@ -453,6 +454,7 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
       queue: max
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1674,6 +1676,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
@@ -1792,7 +1795,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.4 --rootless
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -1807,6 +1810,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -1819,7 +1823,7 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_TIMEOUT_MINUTES: 20
+          GH_AW_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
           GH_AW_VERSION: dev
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
@@ -1866,7 +1870,6 @@ jobs:
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             _GH_AW_CHROOT_JSON=$(jq -c --arg src "${RUNNER_TEMP}/gh-aw" --arg user "$(id -un)" --argjson uid "$(id -u)" --argjson gid "$(id -g)" --arg home "${RUNNER_TEMP}/gh-aw/home" '.chroot={"binariesSourcePath":$src,"identity":{"user":$user,"uid":$uid,"gid":$gid,"home":$home}}' "${RUNNER_TEMP}/gh-aw/awf-config.json") || { echo "chroot config patch failed" >&2; exit 1; }
             printf '%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
-            printf '%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           fi
           GH_AW_TOOL_CACHE_MOUNT=""
           GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"
@@ -1895,8 +1898,8 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
-          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/ || true
-          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/ || true
+          if [ -d /tmp/gh-aw/sandbox/firewall/logs ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/; fi
+          if [ -d /tmp/gh-aw/sandbox/firewall/audit ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/; fi
       - name: Upload threat detection artifact
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -2041,7 +2044,7 @@ jobs:
         continue-on-error: true
         id: evals_agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -2098,7 +2101,7 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: evals
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_TIMEOUT_MINUTES: 20
+          GH_AW_TIMEOUT_MINUTES: 30
           GH_AW_VERSION: dev
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true

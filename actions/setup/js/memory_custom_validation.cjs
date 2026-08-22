@@ -11,6 +11,59 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const DEFAULT_VALIDATION_TIMEOUT_SECONDS = 60;
 const MAX_VALIDATION_OUTPUT_BYTES = 12 * 1024;
 
+function removePath(targetPath, options) {
+  try {
+    fs.rmSync(targetPath, options);
+  } catch (error) {
+    throw new Error(`Failed to remove ${targetPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+function makeDirectory(targetPath) {
+  try {
+    fs.mkdirSync(targetPath, { recursive: true });
+  } catch (error) {
+    throw new Error(`Failed to create directory ${targetPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+function writeFile(targetPath, content, options) {
+  try {
+    fs.writeFileSync(targetPath, content, options);
+  } catch (error) {
+    throw new Error(`Failed to write ${targetPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+function readDirectory(targetPath) {
+  try {
+    return fs.readdirSync(targetPath, { withFileTypes: true });
+  } catch (error) {
+    throw new Error(`Failed to read directory ${targetPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+/**
+ * @param {string} targetPath
+ * @param {BufferEncoding | undefined} [encoding]
+ * @returns {any}
+ */
+function readFile(targetPath, encoding) {
+  try {
+    return fs.readFileSync(targetPath, encoding);
+  } catch (error) {
+    throw new Error(`Failed to read ${targetPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+function makeTempDirectory() {
+  try {
+    return fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-memory-validation-"));
+  } catch (error) {
+    throw new Error(`Failed to create memory validation temporary directory: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
 /**
  * @param {string} value
  */
@@ -31,7 +84,7 @@ function getValidationMarkerPath(kind, memoryId) {
  * @param {string} memoryId
  */
 function clearValidationMarker(kind, memoryId) {
-  fs.rmSync(getValidationMarkerPath(kind, memoryId), { force: true });
+  removePath(getValidationMarkerPath(kind, memoryId), { force: true });
 }
 
 /**
@@ -40,8 +93,8 @@ function clearValidationMarker(kind, memoryId) {
  */
 function writeValidationMarker(kind, memoryId) {
   const markerPath = getValidationMarkerPath(kind, memoryId);
-  fs.mkdirSync(path.dirname(markerPath), { recursive: true });
-  fs.writeFileSync(markerPath, "ok\n", "utf8");
+  makeDirectory(path.dirname(markerPath));
+  writeFile(markerPath, "ok\n", "utf8");
   return markerPath;
 }
 
@@ -71,7 +124,7 @@ function formatJSONFiles(dirPath, maxFileSize) {
    * @param {string} currentDir
    */
   function visit(currentDir) {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    const entries = readDirectory(currentDir);
     for (const entry of entries) {
       const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
@@ -83,7 +136,7 @@ function formatJSONFiles(dirPath, maxFileSize) {
       if (!entry.isFile() || !entry.name.endsWith(".json")) {
         continue;
       }
-      const raw = fs.readFileSync(fullPath, "utf8");
+      const raw = readFile(fullPath, "utf8");
       if (!raw.trim()) {
         continue;
       }
@@ -101,7 +154,7 @@ function formatJSONFiles(dirPath, maxFileSize) {
       if (formattedSize > maxFileSize) {
         throw new Error(`Formatted JSON exceeds max file size: ${path.relative(dirPath, fullPath)} (${formattedSize} bytes > ${maxFileSize} bytes)`);
       }
-      fs.writeFileSync(fullPath, formatted, "utf8");
+      writeFile(fullPath, formatted, "utf8");
       formattedFiles.push(path.relative(dirPath, fullPath).replace(/\\/g, "/"));
     }
   }
@@ -136,7 +189,7 @@ function memoryTreeDigest(dirPath) {
    * @param {string} currentDir
    */
   function visit(currentDir) {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    const entries = readDirectory(currentDir).sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       const fullPath = path.join(currentDir, entry.name);
       const relativePath = path.relative(dirPath, fullPath).replace(/\\/g, "/");
@@ -145,7 +198,7 @@ function memoryTreeDigest(dirPath) {
         visit(fullPath);
       } else if (entry.isFile()) {
         hash.update(`file\0${relativePath}\0`);
-        hash.update(fs.readFileSync(fullPath));
+        hash.update(readFile(fullPath));
       } else if (entry.isSymbolicLink()) {
         hash.update(`symlink\0${relativePath}\0${fs.readlinkSync(fullPath)}\0`);
       } else {
@@ -164,7 +217,7 @@ function memoryTreeDigest(dirPath) {
  *   scriptBase64?: string,
  *   memoryDir: string,
  *   memoryId?: string,
- *   kind: "repo" | "cache",
+ *   kind: "repo" | "cache" | "drive",
  *   timeoutSeconds?: number,
  * }} options
  */
@@ -199,7 +252,7 @@ function runCustomMemoryValidation(options) {
       stderr: `Unable to snapshot memory before custom validation: ${getErrorMessage(error)}`,
     };
   }
-  const validationDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-memory-validation-"));
+  const validationDir = makeTempDirectory();
   const scriptPath = path.join(validationDir, "validator.cjs");
   const wrapper = `"use strict";
 const fs = require("fs");
@@ -228,7 +281,7 @@ ${script}
     process.exit(1);
   });
 `;
-  fs.writeFileSync(scriptPath, wrapper, { encoding: "utf8", mode: 0o600 });
+  writeFile(scriptPath, wrapper, { encoding: "utf8", mode: 0o600 });
   try {
     const result = childProcess.spawnSync(process.execPath, [scriptPath], {
       cwd: options.memoryDir,
@@ -256,7 +309,7 @@ ${script}
       stderr: validationError ? boundedOutput(`${stderr}${stderr ? "\n" : ""}${validationError}`) : stderr,
     };
   } finally {
-    fs.rmSync(validationDir, { recursive: true, force: true });
+    removePath(validationDir, { recursive: true, force: true });
   }
 }
 

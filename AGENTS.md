@@ -62,6 +62,7 @@ When the relevant skill is not obvious, first discover candidates locally and th
 - Code organization, file structure, WASM stubs, string patterns → `.github/skills/developer-code-organization/SKILL.md`
 - Security best practices, template injection, shell script safety, supply chain → `.github/skills/developer-security/SKILL.md`
 - Compiler internals, validation architecture, safe outputs, schema, MCP logs → `.github/skills/developer-internals/SKILL.md`
+- Adding or extending declarative agentic engines → `.github/skills/custom-engine-implementation/SKILL.md`
 - Release management, breaking CLI change rules, firewall log parsing → `.github/skills/developer-release/SKILL.md`
 - Error handling design/patterns → `.github/skills/error-recovery-patterns/SKILL.md`
 - GitHub MCP usage patterns → `.github/skills/github-mcp-server/SKILL.md`

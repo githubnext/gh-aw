@@ -263,6 +263,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"sub_agent_strategy":{"variants":["inline_strict","delegated_sequential","single_agent_control"],"description":"Measure whether inline sub-agent orchestration is the best reliability/cost tradeoff for a model-identity smoke test.","hypothesis":"H0: no change in pass_rate between inline_strict and delegated_sequential. H1: delegated_sequential improves pass_rate by \u003e= 0.15 absolute versus inline_strict. Note: single_agent_control is a synthetic negative baseline (always FAIL by design) excluded from H1 comparisons.","metric":"pass_rate","secondary_metrics":["run_duration_seconds","output_validity_rate"],"guardrail_metrics":[{"name":"empty_output_rate","direction":"min","threshold":"0.01"},{"name":"false_pass_rate","direction":"min","threshold":"0.05"}],"min_samples":30,"weight":[34,33,33],"issue":47551,"start_date":"2026-07-23","end_date":"2026-10-23"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: c353474561ffe102fead57525a110e5fff09f0c18923938b574aeab5cce00ed9:0daed06ad9ab37f712e54a71683b2f3c690ab0cce61735ab8ecf312216a2f4ec
         with:
           script: |
             const path = require('path');
@@ -410,6 +411,7 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
       queue: max
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1408,6 +1410,7 @@ jobs:
     permissions:
       contents: read
       copilot-requests: write
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
@@ -1543,7 +1546,7 @@ jobs:
         continue-on-error: true
         id: detection_agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 20
+        timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -1579,7 +1582,6 @@ jobs:
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             _GH_AW_CHROOT_JSON=$(jq -c --arg src "${RUNNER_TEMP}/gh-aw" --arg user "$(id -un)" --argjson uid "$(id -u)" --argjson gid "$(id -g)" --arg home "${RUNNER_TEMP}/gh-aw/home" '.chroot={"binariesSourcePath":$src,"identity":{"user":$user,"uid":$uid,"gid":$gid,"home":$home}}' "${RUNNER_TEMP}/gh-aw/awf-config.json") || { echo "chroot config patch failed" >&2; exit 1; }
             printf '%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
-            printf '%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           fi
           GH_AW_TOOL_CACHE_MOUNT=""
           GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"
@@ -1604,7 +1606,7 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_TIMEOUT_MINUTES: 20
+          GH_AW_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
           GH_AW_VERSION: dev
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
@@ -1644,8 +1646,8 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
-          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/ || true
-          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/ || true
+          if [ -d /tmp/gh-aw/sandbox/firewall/logs ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/; fi
+          if [ -d /tmp/gh-aw/sandbox/firewall/audit ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/; fi
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
         if: always()
@@ -1817,7 +1819,7 @@ jobs:
         continue-on-error: true
         id: evals_agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 20
+        timeout-minutes: 10
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -1878,7 +1880,7 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: evals
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_TIMEOUT_MINUTES: 20
+          GH_AW_TIMEOUT_MINUTES: 10
           GH_AW_VERSION: dev
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true

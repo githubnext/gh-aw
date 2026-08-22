@@ -4,6 +4,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -412,4 +413,21 @@ func TestUninstallShellCompletion(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateRcPath(t *testing.T) {
+	t.Run("returns cleaned path for absolute path", func(t *testing.T) {
+		homeDir := t.TempDir()
+		cleanPath, err := validateRcPath("bashrc", filepath.Join(homeDir, ".", ".bashrc"))
+		require.NoError(t, err)
+		require.Equal(t, filepath.Join(homeDir, ".bashrc"), cleanPath)
+	})
+
+	t.Run("returns actionable error for relative path", func(t *testing.T) {
+		_, err := validateRcPath("zshrc", ".zshrc")
+		require.Error(t, err)
+		require.ErrorContains(t, err, `zshrc path ".zshrc" is not an absolute path`)
+		require.ErrorContains(t, err, "expected an absolute path such as '/home/user/.zshrc'")
+		require.ErrorContains(t, err, "set $HOME to an absolute home directory and retry")
+	})
 }

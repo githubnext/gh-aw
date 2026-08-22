@@ -70,3 +70,5 @@ To add a fixture covering a specific compliance scenario:
 | `run_summary_high_et.json` | Run with very high ET (≥ 1,000,000) for overflow checks | [T-ET-006](../../docs/src/content/docs/specs/forecast-specification.md#1213-data-sampling-tests) |
 | `run_summary_cancelled.json` | Run with `conclusion: "cancelled"` (included in sample but not a Bernoulli success; ET is zero because the run did not complete) | [T-FC-035](../../docs/src/content/docs/specs/forecast-specification.md#1214-monte-carlo-engine-tests) |
 | `run_summary_partial_et.json` | In-progress run with a non-zero token usage snapshot | [T-FC-024](../../docs/src/content/docs/specs/forecast-specification.md#1213-data-sampling-tests) |
+
+Sync note (2026-08-22): `T-FC-022`, `T-FC-024`, `T-FC-035`, and `T-ET-006` still point to the canonical forecast specification anchors for §12.1.3 Data Sampling Tests and §12.1.4 Monte Carlo Engine Tests. Their fixture assertions are covered by `TestMonteCarloFixtureVariantsAreAvailable` in `pkg/cli/forecast_montecarlo_test.go`, alongside the `TestForecast*` command-path coverage in `pkg/cli/forecast_test.go`.

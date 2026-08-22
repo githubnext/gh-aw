@@ -66,10 +66,7 @@ pre-agent-steps:
         | sort -u || echo "")
 
       # 4. Top-level frontmatter keys actually used in workflow .md files
-      USED_FIELDS=$(grep -rh '^[a-z][a-z0-9_-]*:' .github/workflows/*.md 2>/dev/null \
-        | sed 's/:.*//' \
-        | grep -v '^#' \
-        | sort -u || echo "")
+      USED_FIELDS=$(bash scripts/extract-workflow-frontmatter-keys.sh .github/workflows/*.md 2>/dev/null || echo "")
 
       # 5. Schema field types for all top-level fields
       FIELD_TYPES=$(jq -r '.properties | to_entries[] |

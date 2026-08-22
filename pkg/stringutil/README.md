@@ -12,7 +12,9 @@ The `stringutil` package is organized into focused sub-files:
 
 | Sub-file | Functions |
 |----------|-----------|
-| `stringutil.go` | General string helpers |
+| `stringutil.go` | General string helpers (`Truncate`, `FormatList`, `IsPositiveInteger`) |
+| `whitespace.go` | Whitespace normalization |
+| `version.go` | Version value coercion |
 | `ansi.go` | ANSI escape-code stripping |
 | `identifiers.go` | Workflow name and path normalization |
 | `sanitize.go` | Security-sensitive string sanitization |
@@ -47,24 +49,6 @@ stringutil.Truncate("hello world", 8) // "hello..."
 stringutil.Truncate("hi", 8)          // "hi"
 ```
 
-### `NormalizeWhitespace(content string) string`
-
-Normalizes trailing whitespace in multi-line content. Trims trailing spaces and tabs from every line, then ensures the content ends with exactly one newline (or is empty). This reduces spurious diffs caused by trailing-whitespace differences.
-
-### `NormalizeLeadingWhitespace(content string) string`
-
-Removes shared leading indentation from non-empty lines in a multi-line string. This is useful for normalizing heredoc-like blocks while preserving relative indentation.
-
-### `ParseVersionValue(version any) string`
-
-Converts a `any`-typed version value (typically from YAML parsing, which may produce `int`, `float64`, or `string`) into a string. Returns an empty string for nil.
-
-```go
-stringutil.ParseVersionValue("20")    // "20"
-stringutil.ParseVersionValue(20)      // "20"
-stringutil.ParseVersionValue(20.0)    // "20"
-```
-
 ### `FormatList(items []string) string`
 
 Formats a slice of strings as a natural-language list with an Oxford comma.
@@ -76,6 +60,28 @@ stringutil.FormatList([]string{"a", "b", "c"}) // "a, b, and c"
 ### `IsPositiveInteger(s string) bool`
 
 Returns `true` if and only if `s` is a decimal integer that is strictly greater than zero, has no leading zeros, and contains no non-digit characters. Returns `false` for `""`, `"0"`, negative strings (e.g. `"-5"`), strings with leading zeros (e.g. `"007"`), and non-numeric strings.
+
+## Whitespace Normalization (`whitespace.go`)
+
+### `NormalizeWhitespace(content string) string`
+
+Normalizes trailing whitespace in multi-line content. Trims trailing spaces and tabs from every line, then ensures the content ends with exactly one newline (or is empty). This reduces spurious diffs caused by trailing-whitespace differences.
+
+### `NormalizeLeadingWhitespace(content string) string`
+
+Removes shared leading indentation from non-empty lines in a multi-line string. This is useful for normalizing heredoc-like blocks while preserving relative indentation.
+
+## Version Value Coercion (`version.go`)
+
+### `ParseVersionValue(version any) string`
+
+Converts a `any`-typed version value (typically from YAML parsing, which may produce `int`, `float64`, or `string`) into a string. Returns an empty string for nil.
+
+```go
+stringutil.ParseVersionValue("20")    // "20"
+stringutil.ParseVersionValue(20)      // "20"
+stringutil.ParseVersionValue(20.0)    // "20"
+```
 
 ## ANSI Escape Code Stripping (`ansi.go`)
 
@@ -107,6 +113,15 @@ Converts dashes **and periods** to underscores in safe-output identifiers, norma
 ```go
 stringutil.NormalizeSafeOutputIdentifier("create-issue")           // "create_issue"
 stringutil.NormalizeSafeOutputIdentifier("executor-workflow.agent") // "executor_workflow_agent"
+```
+
+### `NormalizeIdentifierToHyphens(identifier string) string`
+
+Converts underscores **and periods** to hyphens, normalizing user-facing `underscore_separated` and dot-separated formats to the hyphen-separated format conventionally used for GitHub Actions job names. This is the hyphen-canonical counterpart to `NormalizeSafeOutputIdentifier`.
+
+```go
+stringutil.NormalizeIdentifierToHyphens("create_issue")            // "create-issue"
+stringutil.NormalizeIdentifierToHyphens("executor_workflow.agent") // "executor-workflow-agent"
 ```
 
 ### `MarkdownToLockFile(mdPath string) string`
@@ -306,7 +321,7 @@ distance := stringutil.LevenshteinDistance("copiliot", "copilot")
 
 ## Design Decisions
 
-- All debug output uses namespace-prefixed loggers (`stringutil:identifiers`, `stringutil:sanitize`, `stringutil:urls`, `stringutil:pat_validation`) and is only emitted when `DEBUG=stringutil:*`.
+- All debug output uses namespace-prefixed loggers (`stringutil:identifiers`, `stringutil:sanitize`, `stringutil:urls`, `stringutil:pat_validation`, `stringutil:whitespace`, `stringutil:version`) and is only emitted when `DEBUG=stringutil:*`.
 - `SanitizeErrorMessage` is intentionally conservative: it excludes common GitHub Actions keywords to avoid over-redacting legitimate error messages.
 - `StripANSI` handles both CSI sequences (`ESC[`) and other ESC-prefixed sequences to cover the full range of ANSI escape codes found in terminal output.
 
@@ -324,7 +339,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | Types | 2 |
 | Constants | 4 |
 | Variables | 0 |
-| Functions and methods | 28 |
+| Functions and methods | 29 |
 | Additional symbols documented in this appendix | 0 |
 
 The sections above already mention every exported top-level symbol in the current source tree.

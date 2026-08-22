@@ -145,6 +145,9 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	if _, hasEdit := tools["edit"]; hasEdit {
 		copilotEngineToolsLog.Print("Edit tool enabled, adding write permission")
 		args = append(args, "--allow-tool", "write")
+	} else if workflowData != nil && workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0 {
+		copilotEngineToolsLog.Print("Drive-memory enabled, adding write permission")
+		args = append(args, "--allow-tool", "write")
 	}
 
 	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
@@ -171,10 +174,12 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Note: web-fetch is NOT included here because it needs explicit --allow-tool argument
 	builtInTools := map[string]struct {
 	}{
-		"bash":       {},
-		"edit":       {},
-		"web-search": {},
-		"playwright": {},
+		"bash":         {},
+		"edit":         {},
+		"web-search":   {},
+		"playwright":   {},
+		"cache-memory": {},
+		"drive-memory": {},
 	}
 
 	// Handle MCP server tools

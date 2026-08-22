@@ -117,6 +117,25 @@ function mergeExperimentStateJSON(baseState, remoteState, localState) {
   if (merged.runs !== undefined && !Array.isArray(merged.runs)) {
     throw new Error("Merged experiment state runs must be an array when present");
   }
+  /** @type {Record<string, {current_stage: number}>} */
+  const continual = {};
+  for (const state of [baseState, remoteState, localState]) {
+    if (state.continual === undefined) continue;
+    if (!isPlainObject(state.continual)) {
+      throw new Error("Continual experiment state must be a plain object");
+    }
+    for (const [name, value] of Object.entries(state.continual)) {
+      if (!isPlainObject(value) || !Number.isInteger(value.current_stage) || value.current_stage < 0) {
+        throw new Error("Merged continual experiment stage must be a non-negative integer");
+      }
+      continual[name] = {
+        current_stage: Math.max(continual[name]?.current_stage ?? 0, value.current_stage),
+      };
+    }
+  }
+  if (Object.keys(continual).length > 0) {
+    merged.continual = continual;
+  }
   return merged;
 }
 
@@ -555,7 +574,7 @@ async function main() {
             }
           }
         } catch {
-          // ls-remote failed; keep existing baseRef
+          // ls-remote failed — ignored, keep existing baseRef.
         }
       } else {
         core.setFailed(`Failed to push ${stateLabel} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);

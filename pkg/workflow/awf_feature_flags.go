@@ -84,6 +84,12 @@ func awfSupportsAPIProxyProviders(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFAPIProxyProvidersMinVersion)
 }
 
+// awfSupportsContainerImages returns true when the effective AWF version supports
+// the container.images manifest in awf-config.json.
+func awfSupportsContainerImages(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFContainerImagesMinVersion)
+}
+
 // awfSupportsBoundedQueries returns true when the effective AWF version supports
 // the boundedQueries section in awf-config.json.
 func awfSupportsBoundedQueries(firewallConfig *FirewallConfig) bool {

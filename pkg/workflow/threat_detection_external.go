@@ -100,11 +100,14 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		AI:                engineID,
 		ActionCache:       data.ActionCache,
 		Features:          data.Features,
+		Jobs:              data.Jobs,
 		Permissions:       data.Permissions,
+		ParsedFrontmatter: data.ParsedFrontmatter,
 		CachedPermissions: data.CachedPermissions,
 		ModelCosts:        data.ModelCosts,
 		IsDetectionRun:    true,
 		RunnerConfig:      data.RunnerConfig,
+		TimeoutMinutes:    "timeout-minutes: " + resolveDetectionJobTimeoutValue(data),
 		CompiledVersion:   data.CompiledVersion,
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
@@ -238,8 +241,13 @@ func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []
 		version = firewallConfig.Version
 	}
 
+	// Pass the detection job's own sandbox agent config so the install mode matches
+	// how AWF is invoked in this job. Passing nil would install without --rootless
+	// while the execution step still runs the rootless `awf` command, which breaks on
+	// runners where /usr/local is not writable by the runner user.
+	detectionData := buildThreatDetectionWorkflowData(data, "")
 	threatLog.Printf("Building AWF installation step for external detector (version=%s)", version)
-	step := generateAWFInstallationStep(version, nil)
+	step := generateAWFInstallationStep(version, getAgentConfig(detectionData))
 	if len(step) == 0 {
 		return nil
 	}
@@ -454,6 +462,11 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		"        id: detection_agentic_execution\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        continue-on-error: true\n",
+		// Bound the step at the workflow level as well as through
+		// GH_AW_TIMEOUT_MINUTES: the env var is only honoured once the binary is
+		// running, so a wedge before that point (image pull, AWF startup) would
+		// otherwise run until the 360 minute GitHub default.
+		"        timeout-minutes: " + resolveStepTimeoutValue(threatDetectionData) + "\n",
 	}
 	if len(envLines) == 0 {
 		steps = append(steps, "        env:\n")

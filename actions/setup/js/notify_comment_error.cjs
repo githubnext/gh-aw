@@ -117,7 +117,10 @@ async function main() {
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
-  const assignToAgentErrorCount = parseInt(process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0", 10);
+  const assignToAgentErrorCount = Number(process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0");
+  if (!Number.isFinite(assignToAgentErrorCount) || !Number.isSafeInteger(assignToAgentErrorCount) || assignToAgentErrorCount < 0) {
+    throw new Error(`${ERR_VALIDATION}: GH_AW_ASSIGNMENT_ERROR_COUNT must be a non-negative integer`);
+  }
   const safeOutputsResult = process.env.GH_AW_SAFE_OUTPUTS_RESULT;
 
   const messagesConfig = getMessages();

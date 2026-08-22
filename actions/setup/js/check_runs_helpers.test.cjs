@@ -40,6 +40,14 @@ describe("check_runs_helpers", () => {
       expect(ci?.id).toBe(2);
     });
 
+    it("replaces an invalid timestamp with a valid later same-name run", () => {
+      const { relevant } = selectLatestRelevantChecks([
+        { id: 1, name: "CI", started_at: null, app: { slug: "github-actions" } },
+        { id: 2, name: "CI", started_at: "2024-01-02T00:00:00Z", app: { slug: "github-actions" } },
+      ]);
+      expect(relevant.find(r => r.name === "CI")?.id).toBe(2);
+    });
+
     it("excludes deployment checks and reports count", () => {
       const { relevant, deploymentCheckCount } = selectLatestRelevantChecks(runs);
       expect(relevant.every(r => r.app?.slug !== "github-deployments")).toBe(true);

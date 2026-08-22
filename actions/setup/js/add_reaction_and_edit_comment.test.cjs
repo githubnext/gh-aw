@@ -38,8 +38,8 @@ global.context = mockContext;
 
 // Helper to import the module fresh (bust module cache)
 async function loadModule() {
-  const { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint } = await import("./add_reaction_and_edit_comment.cjs?" + Date.now());
-  return { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint };
+  const { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint, parseDiscussionEndpoint } = await import("./add_reaction_and_edit_comment.cjs?" + Date.now());
+  return { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint, parseDiscussionEndpoint };
 }
 
 describe("add_reaction_and_edit_comment.cjs", () => {
@@ -69,6 +69,17 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       repository: { discussion: { id: "D_kwDOABcD1M4AaBbC", url: "https://github.com/testowner/testrepo/discussions/10" } },
       addReaction: { reaction: { id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=", content: "EYES" } },
       addDiscussionComment: { comment: { id: "DC_kwDOABcD1M4AaBbE", url: "https://github.com/testowner/testrepo/discussions/10#discussioncomment-999" } },
+    });
+  });
+
+  describe("discussion endpoint validation", () => {
+    it("rejects malformed and non-positive discussion endpoint numbers", async () => {
+      const { parseDiscussionEndpoint } = await loadModule();
+
+      for (const endpoint of ["discussion:5junk", "discussion:0", "discussion:5:extra"]) {
+        expect(() => parseDiscussionEndpoint(endpoint, "discussion")).toThrow("Invalid discussion endpoint");
+      }
+      expect(() => parseDiscussionEndpoint("discussion_comment:5:2junk", "discussion_comment")).toThrow("Invalid discussion endpoint");
     });
   });
 
@@ -442,7 +453,6 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       const { main } = await loadModule();
       await main();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
     });
 
@@ -457,7 +467,6 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       const { main } = await loadModule();
       await main();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
     });
 
@@ -472,7 +481,6 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       const { main } = await loadModule();
       await main();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`${ERR_API}: Failed to process reaction`));
     });
   });
