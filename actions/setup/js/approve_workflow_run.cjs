@@ -326,8 +326,10 @@ async function main(config = {}) {
           core.warning(error);
           return { success: false, error };
         }
-        if (!isHeadRepoAllowed(await getPullRequestHeadRepo(githubClient, pullRequestNumber), allowedRepos)) {
-          const error = `Workflow run ${runId} cannot be approved because pull request #${pullRequestNumber} comes from a repository that is not in the allowed-repos list`;
+        const headRepo = await getPullRequestHeadRepo(githubClient, pullRequestNumber);
+        if (!isHeadRepoAllowed(headRepo, allowedRepos)) {
+          const hint = allowedRepos.size === 0 ? "configure allowed-repos to approve pull requests from other repositories" : `allowed repositories: ${Array.from(allowedRepos).join(", ")}`;
+          const error = `Workflow run ${runId} cannot be approved because pull request #${pullRequestNumber} comes from repository ${headRepo}, which is not in the allowed-repos list (${hint})`;
           core.warning(error);
           return { success: false, error };
         }

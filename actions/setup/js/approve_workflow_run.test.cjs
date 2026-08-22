@@ -294,7 +294,8 @@ describe("approve_workflow_run", () => {
     const result = await handler({ run_id: 123 }, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("not in the allowed-repos list");
+    expect(result.error).toContain("contributor/test-repo");
+    expect(result.error).toContain("configure allowed-repos");
     expect(mockListFiles).not.toHaveBeenCalled();
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
