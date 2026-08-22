@@ -25,7 +25,7 @@ function parseDiffGitHeader(headerLine) {
     const unquotedSep = rest.indexOf(" b/");
     const foundSeparatorIndices = [quotedSep, unquotedSep].filter(idx => idx >= 0);
     if (foundSeparatorIndices.length > 0) {
-      const sep = Math.min(...foundSeparatorIndices);
+      const sep = foundSeparatorIndices.reduce((smallest, idx) => (idx < smallest ? idx : smallest), foundSeparatorIndices[0]);
       const oldPath = rest.slice(A_PREFIX_LENGTH, sep) || null;
       const newToken = rest.slice(sep + 1).trimEnd();
       /** @type {any} */

@@ -39,7 +39,8 @@ async function defaultFileReader(filePath) {
  * @returns {boolean}
  */
 function parseBoolFromFrontmatter(frontmatterText, key) {
-  const pattern = new RegExp(`^${key}:\\s*(true|false)\\s*$`, "m");
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${escapedKey}:\\s*(true|false)\\s*$`, "m");
   const match = frontmatterText.match(pattern);
   return match !== null && match[1] === "true";
 }
