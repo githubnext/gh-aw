@@ -553,7 +553,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem != nil &&
 		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite != nil {
 		allowWrite := config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite
-		if awfSupportsFilesystemAllowWrite(firewallConfig) {
+		if isCloudHypervisorRuntime(config.WorkflowData) {
+			awfConfigLog.Print("Skipping filesystem.allowWrite: cloud-hypervisor runtime does not support it")
+		} else if awfSupportsFilesystemAllowWrite(firewallConfig) {
 			awfConfig.Filesystem = &AWFFilesystemConfig{AllowWrite: allowWrite}
 			awfConfigLog.Printf("Filesystem section: %d writable path(s)", len(allowWrite))
 		} else {

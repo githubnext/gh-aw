@@ -149,14 +149,21 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			Tools:         map[string]any{"github": map[string]any{"mode": "gh-proxy"}},
-			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeCloudHypervisor}},
+			Tools: map[string]any{"github": map[string]any{"mode": "gh-proxy"}},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+				ID:      "awf",
+				Runtime: AgentRuntimeCloudHypervisor,
+				Config: &SandboxRuntimeConfig{
+					Filesystem: &SRTFilesystemConfig{AllowWrite: []string{"/tmp/gh-aw/agent"}},
+				},
+			}},
 		},
 	}
 
 	jsonStr, err := BuildAWFConfigJSON(config)
 	require.NoError(t, err)
 	assert.NotContains(t, jsonStr, `"containerRuntime"`)
+	assert.NotContains(t, jsonStr, `"filesystem"`)
 	assert.NotContains(t, jsonStr, "host.docker.internal")
 	assert.Contains(t, jsonStr, `"isolation":true`)
 	assert.Contains(t, jsonStr, `"topologyAttach":["awmg-mcpg"]`)
