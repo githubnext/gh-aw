@@ -304,6 +304,8 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.Issues = levelStr
 			case "discussions":
 				config.Discussions = levelStr
+			case "drives":
+				config.Drives = levelStr
 			case "packages":
 				config.Packages = levelStr
 			case "pages":
