@@ -515,6 +515,7 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
+    timeout-minutes: 10
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1668,6 +1669,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: 10
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
@@ -1803,7 +1805,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 10
         env:
           GH_AW_GEMINI_BASE_CONFIG: '{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","run_shell_command"]}}'
           WORKFLOW_NAME: "Smoke Gemini"
@@ -2010,7 +2012,7 @@ jobs:
         if: always()
         continue-on-error: true
         id: evals_agentic_execution
-        timeout-minutes: 20
+        timeout-minutes: 60
         run: |
           set -o pipefail
           trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf "%s" "$gh_aw_exit_code" > /tmp/gh-aw/agent_execution_exit_code.txt || true; if [ "$gh_aw_exit_code" -ne 0 ]; then echo "::error::Agent execution exited with code $gh_aw_exit_code"; fi' EXIT
@@ -2047,7 +2049,7 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: evals
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_TIMEOUT_MINUTES: 20
+          GH_AW_TIMEOUT_MINUTES: 60
           GH_AW_VERSION: dev
           GITHUB_AW: true
           GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md

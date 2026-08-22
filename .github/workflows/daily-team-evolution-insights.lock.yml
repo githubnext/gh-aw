@@ -391,6 +391,7 @@ jobs:
     concurrency:
       group: "gh-aw-goose-${{ github.workflow }}"
       queue: max
+    timeout-minutes: 90
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1599,6 +1600,7 @@ jobs:
     permissions:
       contents: read
       copilot-requests: write
+    timeout-minutes: 90
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
@@ -1725,7 +1727,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 90
         env:
           WORKFLOW_NAME: "Daily Team Evolution Insights"
           WORKFLOW_DESCRIPTION: "Daily analysis of repository changes to extract insights about team evolution and working patterns"
