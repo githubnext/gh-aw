@@ -488,7 +488,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── Runner section ──────────────────────────────────────────────────────
 	if topology := getRunnerTopology(config.WorkflowData); topology != "" {
-		awfConfig.Runner = &AWFRunnerConfig{Topology: topology}
+		awfConfig.Runner = &AWFRunnerConfig{Topology: string(topology)}
 		awfConfigLog.Printf("Runner section: topology=%s", topology)
 	}
 
@@ -1042,9 +1042,9 @@ func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesC
 	return awfBQ
 }
 
-// getRunnerTopology extracts the runner topology string from WorkflowData.
+// getRunnerTopology extracts the runner topology from WorkflowData.
 // Returns an empty string when no topology is configured.
-func getRunnerTopology(workflowData *WorkflowData) string {
+func getRunnerTopology(workflowData *WorkflowData) RunnerTopology {
 	if workflowData == nil || workflowData.RunnerConfig == nil {
 		return ""
 	}
