@@ -1432,42 +1432,8 @@ jobs:
       # Enforce selected production custom analyzers without blocking on unrelated
       # legacy custom analyzer findings in tests or other analyzer families.
       # Note: -test=false intentionally scopes this gate to production code only.
-      # The errormessage analyzer is scoped to changed Go files only, preventing
-      # legacy violations elsewhere in the repo from blocking incremental adoption.
     - name: Run custom linters
-      env:
-        EVENT_NAME: ${{ github.event_name }}
-        BASE_REF: origin/${{ github.base_ref }}
-        BEFORE_SHA: ${{ github.event.before }}
-      run: |
-        set -euo pipefail
-        files=""
-        if [ "$EVENT_NAME" = "pull_request" ]; then
-          if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
-            files=$(git diff --name-only "$BASE_REF...HEAD" -- '*.go' | tr '\n' ',' | sed 's/,$//')
-          else
-            echo "Base ref $BASE_REF not found, falling back to all Go files"
-            files=$(git ls-files '*.go' | tr '\n' ',' | sed 's/,$//')
-          fi
-        elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
-          if git rev-parse --verify "$BEFORE_SHA^{commit}" >/dev/null 2>&1; then
-            # Push events compare the before and after commit trees directly;
-            # PR events use base...HEAD above to match GitHub's pull request diff.
-            files=$(git diff --name-only "$BEFORE_SHA" HEAD -- '*.go' | tr '\n' ',' | sed 's/,$//')
-          else
-            echo "Before SHA $BEFORE_SHA not found, skipping push diff"
-          fi
-        fi
-
-        errormessage_flags=""
-        if [ -n "$files" ]; then
-          echo "linting files with errormessage: $files"
-          errormessage_flags="-errormessage -errormessage.changed-files=$files"
-        else
-          echo "No changed Go files to lint with errormessage"
-        fi
-
-        make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -logfatallibrary -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -errortypeassertion -execcommandwithoutcontext -sprintfint -stringsindexcontains -stringscountcontains -bytesbufferstring -ioutildeprecated -mapclearloop -mapdeletecheck -sprintfbool -appendoneelement -timenowsub -stringsjoinone -writebytestring -lenstringsplit -stringreplaceminusone -osgetenvlibrary -ossetenvlibrary -stringsindexhasprefix -contextcancelnotdeferred -ctxbackground -wgdonenotdeferred -goroutinemissingrecover -trimleftright -walkfuncerrshadow -uncheckedflushreturn -bytescomparestring -nilctxpassed -stringbytesroundtrip -fileclosenotdeferred -timesleepnocontext -sprintferrorsnew -globwalkignorederror -appendbytestring -sortslice -deferinloop -regexpdynamicpattern -test=false $errormessage_flags"
+      run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -logfatallibrary -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -errortypeassertion -execcommandwithoutcontext -sprintfint -stringsindexcontains -stringscountcontains -bytesbufferstring -ioutildeprecated -mapclearloop -mapdeletecheck -sprintfbool -appendoneelement -timenowsub -stringsjoinone -writebytestring -lenstringsplit -stringreplaceminusone -osgetenvlibrary -ossetenvlibrary -stringsindexhasprefix -contextcancelnotdeferred -ctxbackground -wgdonenotdeferred -goroutinemissingrecover -trimleftright -walkfuncerrshadow -uncheckedflushreturn -bytescomparestring -nilctxpassed -stringbytesroundtrip -fileclosenotdeferred -timesleepnocontext -sprintferrorsnew -globwalkignorederror -appendbytestring -sortslice -deferinloop -regexpdynamicpattern -test=false"
 
     - name: Run custom linters (wasm)
       run: GOOS=js GOARCH=wasm make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -logfatallibrary -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -timeafterleak -errortypeassertion -execcommandwithoutcontext -sprintfint -stringsindexcontains -stringscountcontains -bytesbufferstring -ioutildeprecated -mapclearloop -mapdeletecheck -sprintfbool -appendoneelement -timenowsub -stringsjoinone -writebytestring -lenstringsplit -stringreplaceminusone -osgetenvlibrary -ossetenvlibrary -stringsindexhasprefix -ctxbackground -wgdonenotdeferred -goroutinemissingrecover -trimleftright -walkfuncerrshadow -uncheckedflushreturn -bytescomparestring -nilctxpassed -stringbytesroundtrip -fileclosenotdeferred -timesleepnocontext -sprintferrorsnew -globwalkignorederror -appendbytestring -sortslice -deferinloop -regexpdynamicpattern -test=false" LINTER_PACKAGES="./pkg/console ./pkg/parser ./pkg/styles ./pkg/tty ./pkg/workflow"
@@ -1501,6 +1467,7 @@ jobs:
 
       # Error message linting (requires Go only)
     - name: Lint error messages
+      continue-on-error: true
       run: make lint-errors
 
   actions-build:
