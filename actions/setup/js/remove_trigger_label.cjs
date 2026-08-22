@@ -124,7 +124,7 @@ async function main() {
     // Non-fatal: log a warning but do not fail the step.
     // A 404 status means the label is no longer present on the item (e.g., another concurrent
     // workflow run already removed it), which is an expected outcome in multi-workflow setups.
-    const status = error?.status;
+    const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
     if (status === 404) {
       core.info(`Label '${triggerLabel}' is no longer present on the item – already removed by another run.`);
     } else {
