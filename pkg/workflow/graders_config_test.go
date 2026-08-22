@@ -160,6 +160,32 @@ func TestParseGradersFromFrontmatter_CustomWithoutScript(t *testing.T) {
 	}
 }
 
+// TestParseGradersFromFrontmatter_ScriptLengthUsesCharacters verifies limits align to character count.
+func TestParseGradersFromFrontmatter_ScriptLengthUsesCharacters(t *testing.T) {
+	var c Compiler
+	validMultibyteScript := "return '" + strings.Repeat("é", 1366) + "'.length"
+	if _, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"unicode-ok": map[string]any{"script": validMultibyteScript},
+		},
+	}); err != nil {
+		t.Fatalf("expected multibyte script under 4096 characters to pass, got: %v", err)
+	}
+
+	tooLongScript := "return '" + strings.Repeat("a", 4097) + "'.length"
+	_, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"too-long": map[string]any{"script": tooLongScript},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for script longer than 4096 characters")
+	}
+	if !strings.Contains(err.Error(), "maximum length of 4096 characters") {
+		t.Fatalf("expected script-length error, got: %v", err)
+	}
+}
+
 // TestParseGradersFromFrontmatter_InvalidID verifies ID validation.
 func TestParseGradersFromFrontmatter_InvalidID(t *testing.T) {
 	var c Compiler

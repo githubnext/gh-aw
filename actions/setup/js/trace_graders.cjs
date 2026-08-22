@@ -479,7 +479,7 @@ function runBuiltinGrader(id, trace, meta) {
  * @param {string} id
  * @param {string} script
  * @param {PreprocessedTrace} trace
- * @param {{name: string, unit: string, direction: string, threshold?: number, source: string, digest?: string, config?: object}} meta
+ * @param {{name: string, unit: string, direction: string, threshold?: number, source: string, digest?: string, config?: object, graderCount?: number}} meta
  * @returns {GraderResult}
  */
 function executeCustomGraderInSubprocess(id, script, trace, meta) {
@@ -488,6 +488,7 @@ function executeCustomGraderInSubprocess(id, script, trace, meta) {
     script,
     trace,
     config: meta.config || {},
+    graderCount: Number(meta.graderCount) || 0,
     timeoutMs: SCRIPT_TIMEOUT_MS,
   };
   const safeEnv = {};
@@ -629,6 +630,7 @@ async function main(manifestB64, execSpecB64) {
       source: grader.source || "builtin",
       digest: grader.digest,
       config: grader.config,
+      graderCount: enabledGraders.length,
     };
     /** @type {GraderResult} */
     let result;

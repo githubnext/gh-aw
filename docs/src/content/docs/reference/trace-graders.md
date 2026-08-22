@@ -48,10 +48,10 @@ Add a trusted inline JavaScript expression that receives the preprocessed `trace
 ```yaml
 graders:
   bash-calls:
-    script: "trace.toolCalls.filter(t => t.name === 'bash').length"
+    script: "return trace.toolCalls.filter(t => t.name === 'bash').length"
 ```
 
-Custom scripts must be pure expressions (≤4 KB, no `require`, `import`, `fetch`, `eval`, or `process.exit`).
+Custom scripts must return a value and stay within 4096 characters (no `require`, `import`, `fetch`, `eval`, or `process.exit`).
 
 ## Output files
 

@@ -116,6 +116,7 @@ describe("trace_graders", () => {
       });
 
       it("summarizes YES/NO/UNKNOWN answers", () => {
+        fs.mkdirSync(path.dirname(evalsPath), { recursive: true });
         fs.writeFileSync(evalsPath, [JSON.stringify({ id: "q1", answer: "YES" }), JSON.stringify({ id: "q2", answer: "no" }), JSON.stringify({ id: "q3", answer: "MAYBE" })].join("\n") + "\n", "utf8");
         expect(readEvalSummary()).toEqual({
           total: 3,
@@ -435,6 +436,18 @@ describe("trace_graders", () => {
     it("receives config parameter", () => {
       const result = runCustomGrader("test", "return config.multiplier * 2", makeTrace(), { ...meta, config: { multiplier: 5 } });
       expect(result.value).toBe(10);
+    });
+
+    it("handles scripts containing template literals safely", () => {
+      const trace = makeTrace({ toolCalls: Array.from({ length: 12 }, () => ({ name: "a" })) });
+      const result = runCustomGrader("test", "return `${trace.toolCalls.length}`.length", trace, meta);
+      expect(result.value).toBe(2);
+      expect(result.error).toBeUndefined();
+    });
+
+    it("receives run metadata from caller", () => {
+      const result = runCustomGrader("test", "return run.graderCount", makeTrace(), { ...meta, graderCount: 7 });
+      expect(result.value).toBe(7);
     });
 
     it("can use helpers", () => {

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -362,8 +363,9 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 		if isBuiltin {
 			return fmt.Errorf("graders.%s is a built-in grader and cannot have a custom script", id)
 		}
-		if len(s) > 4096 {
-			return fmt.Errorf("graders.%s.script exceeds maximum length of 4096 characters (%d)", id, len(s))
+		scriptCharCount := utf8.RuneCountInString(s)
+		if scriptCharCount > 4096 {
+			return fmt.Errorf("graders.%s.script exceeds maximum length of 4096 characters (%d)", id, scriptCharCount)
 		}
 		forbiddenPatterns := []string{"require(", "import(", "import ", "fetch(", "eval(", "process.exit", "child_process", "execSync", "spawnSync", "Function("}
 		for _, p := range forbiddenPatterns {

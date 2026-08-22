@@ -38,18 +38,6 @@ function readStdin() {
   });
 }
 
-function makeSandboxMath() {
-  const math = {};
-  Object.defineProperties(math, Object.getOwnPropertyDescriptors(Math));
-  Object.defineProperty(math, "random", {
-    value: undefined,
-    writable: false,
-    enumerable: true,
-    configurable: false,
-  });
-  return Object.freeze(math);
-}
-
 async function main() {
   const raw = await readStdin();
   let payload;
@@ -64,33 +52,15 @@ async function main() {
   try {
     const trace = deepFreeze(deepClone(payload.trace || {}));
     const config = deepFreeze(deepClone(payload.config || {}));
-    const run = deepFreeze({ graderCount: 0 });
+    const run = deepFreeze({ graderCount: Number(payload.graderCount) || 0 });
     const workflow = deepFreeze({});
-    const helpers = deepFreeze({
-      clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)),
-      ratio: (num, den) => (den === 0 ? 0 : num / den),
-      sum: arr => arr.reduce((a, b) => a + b, 0),
-    });
-
     const script = String(payload.script || "");
-    const wrappedScript = `
-      (() => {
-        const __grader = (trace, run, workflow, config, helpers) => {
-          "use strict";
-          ${script}
-        };
-        return __grader(trace, run, workflow, config, helpers);
-      })()
-    `;
 
     const sandbox = {
       trace,
       run,
       workflow,
       config,
-      helpers,
-      Math: makeSandboxMath(),
-      JSON: Object.freeze({ parse: JSON.parse, stringify: JSON.stringify }),
       Date: undefined,
       fetch: undefined,
       require: undefined,
@@ -105,9 +75,55 @@ async function main() {
     };
     const context = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
     const timeoutMs = Number(payload.timeoutMs) || 5000;
-    const value = vm.runInContext(wrappedScript, context, {
-      timeout: timeoutMs,
+
+    const runtimeBindings = vm.runInContext(
+      `
+        "use strict";
+        (() => {
+          const m = {};
+          const descriptors = Object.getOwnPropertyDescriptors(Math);
+          for (const key of Object.keys(descriptors)) {
+            Object.defineProperty(m, key, descriptors[key]);
+          }
+          Object.defineProperty(m, "random", {
+            value: undefined,
+            writable: false,
+            enumerable: true,
+            configurable: false
+          });
+          const safeMath = Object.freeze(m);
+          const helpers = Object.freeze({
+            clamp: (v, lo, hi) => safeMath.max(lo, safeMath.min(hi, v)),
+            ratio: (num, den) => (den === 0 ? 0 : num / den),
+            sum: arr => arr.reduce((a, b) => a + b, 0)
+          });
+          return { safeMath, helpers };
+        })();
+      `,
+      context,
+      { timeout: 1000, filename: "grader:bootstrap" }
+    );
+    Object.defineProperty(context, "helpers", {
+      value: runtimeBindings.helpers,
+      writable: false,
+      enumerable: true,
+      configurable: false,
+    });
+    Object.defineProperty(context, "__math", {
+      value: runtimeBindings.safeMath,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    });
+
+    const graderFn = vm.compileFunction(`"use strict";\n${script}`, ["trace", "run", "workflow", "config", "helpers", "Math"], {
+      parsingContext: context,
       filename: `grader:${String(payload.id || "unknown")}`,
+    });
+    context.__grader = graderFn;
+    const value = vm.runInContext("__grader(trace, run, workflow, config, helpers, __math)", context, {
+      timeout: timeoutMs,
+      filename: `grader:${String(payload.id || "unknown")}:invoke`,
     });
     if (typeof value === "number" && !Number.isFinite(value)) {
       throw new Error("custom grader returned non-finite numeric value");
