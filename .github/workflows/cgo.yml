@@ -153,12 +153,15 @@ jobs:
         - name: A-C
           pattern: ^Test[A-C]
           shard: a-c
-        - name: D-L
-          pattern: ^Test[D-L]
-          shard: d-l
-        - name: M-R
-          pattern: ^Test[M-R]
-          shard: m-r
+        - name: D-G
+          pattern: ^Test[D-G]
+          shard: d-g
+        - name: H-M
+          pattern: ^Test[H-M]
+          shard: h-m
+        - name: N-R
+          pattern: ^Test[N-R]
+          shard: n-r
         - name: S-Z and other
           pattern: ^Test([S-Z]|[^A-R])
           shard: s-z
