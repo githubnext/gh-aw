@@ -112,6 +112,11 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		}
 	}
 
+	// Experimental drive memory instructions (if enabled).
+	if section := buildDriveMemoryPromptSection(data.DriveMemoryConfig); section != nil {
+		sections = append(sections, *section)
+	}
+
 	// 7. Repo memory instructions (if enabled)
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		unifiedPromptLog.Printf("Adding repo memory section: memories=%d", len(data.RepoMemoryConfig.Memories))

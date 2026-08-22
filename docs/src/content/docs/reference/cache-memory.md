@@ -5,7 +5,7 @@ sidebar:
   order: 1500
 ---
 
-Cache memory provides persistent file storage across workflow runs via GitHub Actions cache with 7-day retention. The compiler automatically configures the cache directory, restore/save operations, and progressive fallback keys at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/` (additional caches).
+Cache memory provides persistent file storage across workflow runs via GitHub Actions cache. GitHub Actions evicts unused caches after 7 days. The compiler automatically configures the cache directory, restore/save operations, and progressive fallback keys at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/` (additional caches).
 
 ## Enabling Cache Memory
 
@@ -25,8 +25,8 @@ Stores files at `/tmp/gh-aw/cache-memory/` using a workflow-scoped cache key. Us
 tools:
   cache-memory:
     key: custom-memory-${{ github.repository_owner }}
-    retention-days: 30  # 1-90 days, extends access beyond cache expiration
-    allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: empty/all files allowed)
+    retention-days: 30  # 1-90 days; controls uploaded artifact retention only
+    allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: .json, .jsonl, .txt, .md, .csv)
     validation:
       timeout-minutes: 1
       script: |
@@ -40,7 +40,7 @@ tools:
 
 ### File Type Restrictions
 
-The `allowed-extensions` field restricts which file types can be written to cache-memory. By default, all file types are allowed (empty array). When specified, only files with listed extensions can be stored.
+The `allowed-extensions` field restricts which file types can be written to cache-memory. By default, only `.json`, `.jsonl`, `.txt`, `.md`, and `.csv` files are allowed. When specified, only files with listed extensions can be stored.
 
 ```aw wrap
 ---
@@ -92,7 +92,7 @@ MCP servers can persist temporary state by reading and writing files under `/tmp
 
 ## Behavior
 
-GitHub Actions cache provides 7-day retention, a 10GB per-repository limit, and LRU eviction. Add `retention-days` to upload artifacts (1-90 days) when you need access beyond normal cache expiration.
+GitHub Actions cache evicts unused entries after 7 days and provides a 10GB per-repository limit with LRU eviction. `retention-days` controls the retention of the uploaded artifact (1-90 days); it does not extend the cache lifetime.
 
 Cache memory is branch-scoped. Runs restore from caches on the same branch and can also fall back to the default branch. On a non-default branch, the first restore often comes from the default branch; later saves then create a branch-local cache lineage.
 

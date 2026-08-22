@@ -220,16 +220,22 @@ func TestCollectMemoryValidationScripts(t *testing.T) {
 			{ID: "cache", Validation: &MemoryValidationConfig{Script: "cache validation"}},
 			{ID: "unvalidated"},
 		}},
+		DriveMemoryConfig: &DriveMemoryConfig{Drives: []DriveMemoryEntry{
+			{ID: "drive", Validation: &MemoryValidationConfig{Script: "drive validation"}},
+		}},
 	}
 
 	scripts := collectMemoryValidationScripts(data)
 
-	require.Len(t, scripts, 2)
+	require.Len(t, scripts, 3)
 	assert.Equal(t, "cache-memory:cache", scripts[0].Memory)
-	assert.Equal(t, "repo-memory:repo", scripts[1].Memory)
+	assert.Equal(t, "drive-memory:drive", scripts[1].Memory)
+	assert.Equal(t, "repo-memory:repo", scripts[2].Memory)
 	assert.Len(t, scripts[0].SHA256, 64)
 	assert.Len(t, scripts[1].SHA256, 64)
+	assert.Len(t, scripts[2].SHA256, 64)
 	assert.NotEqual(t, scripts[0].SHA256, scripts[1].SHA256)
+	assert.NotEqual(t, scripts[1].SHA256, scripts[2].SHA256)
 }
 
 func TestCollectMCPServersForManifest(t *testing.T) {
