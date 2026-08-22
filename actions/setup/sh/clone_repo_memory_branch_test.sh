@@ -130,10 +130,14 @@ echo "Test 6: Origin remote URL is scrubbed of embedded credentials"
 D="${WORKSPACE}/test6"
 mkdir -p "${D}"
 OUTPUT="$(run_script "${D}")"
-ORIGIN_URL="$(git -C "${D}" remote get-url origin)"
-assert "origin remote configured" "[ -n \"${ORIGIN_URL}\" ]"
-assert "origin url has no x-access-token" "! printf '%s' \"${ORIGIN_URL}\" | grep -q 'x-access-token'"
-assert "origin url has no embedded token" "! printf '%s' \"${ORIGIN_URL}\" | grep -q 'test-token'"
+if ! ORIGIN_URL="$(git -C "${D}" remote get-url origin)"; then
+  echo "  ✗ origin remote configured"
+  TESTS_FAILED=$((TESTS_FAILED + 3))
+else
+  assert "origin remote configured" "[ -n \"${ORIGIN_URL}\" ]"
+  assert "origin url has no x-access-token" "! printf '%s' \"${ORIGIN_URL}\" | grep -q 'x-access-token'"
+  assert "origin url has no embedded token" "! printf '%s' \"${ORIGIN_URL}\" | grep -q 'test-token'"
+fi
 echo ""
 
 echo "Tests passed: ${TESTS_PASSED}"

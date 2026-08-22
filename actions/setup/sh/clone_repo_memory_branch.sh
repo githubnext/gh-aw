@@ -166,6 +166,7 @@ else
   git remote add origin "$SAFE_ORIGIN_URL"
   harden_repo_memory_git_state "$MEMORY_DIR" "$SAFE_ORIGIN_URL"
 fi
+unset AUTH_HEADER
 
 # Ensure memory directory exists
 mkdir -p "$MEMORY_DIR"
