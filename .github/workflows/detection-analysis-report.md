@@ -77,6 +77,8 @@ Upload the chart using the `upload_asset` safe-output tool with the absolute pat
 
 Each run's `aw_info.json` contains `features["gh-aw-detection"]` (boolean), `status`, `total_tokens`, and `engine_id`. Use `features.gh-aw-detection` directly — do not infer detection status from `.lock.yml` files.
 
+Each run's `run_summary.json` contains `job_details`, an array of `{name, conclusion, steps: [{name, status, conclusion}]}` for every GitHub Actions job in the run (e.g. `agent`, `detection`, `activation`). Use this for step-level failure attribution in Rule 3 below.
+
 ### Analyze Runs
 
 In a single pass over the run directories at `/tmp/gh-aw/aw-mcp/logs`, classify and aggregate all runs:
@@ -85,12 +87,15 @@ In a single pass over the run directories at `/tmp/gh-aw/aw-mcp/logs`, classify 
 - **Detection-enabled**: value is `true`
 - **Regular**: value is `false`, absent, or unset
 
-Collect per-run: `workflow_name`, `status`, `total_tokens`, `engine_id`, `detection_enabled`.
+Collect per-run: `workflow_name`, `status`, `total_tokens`, `engine_id`, `detection_enabled`, and (from `run_summary.json.job_details`) the `agent` job's `conclusion` and the `detection` job's `conclusion`.
 
 **Flag a workflow as misconfigured** when any of the following apply:
 1. `gh-aw-detection: false` on a workflow with >3 total runs in the last 7 days
 2. Workflow name contains `audit`, `analyzer`, `report`, `detector`, `monitor`, or `inspector` but lacks `gh-aw-detection: true`
-3. Run has `gh-aw-detection: true` but detection-related steps failed
+3. Run has `gh-aw-detection: true` **and** the `detection` job in `job_details` itself has a failing `conclusion` (e.g. `failure`) — i.e. the detection job actually ran and a detection-specific step errored. Use `job_details` to attribute the failure precisely:
+   - Look up the `agent` and `detection` jobs by name in `job_details`.
+   - If the `agent` job is absent from `job_details` or has `conclusion: "skipped"`/`"cancelled"` (consistent with `TokenUsage: 0` and `ErrorCount: 0` in the run summary), the agent job never executed — this is **not** a detection-step failure; do not flag under rule 3 (it may indicate a trigger/permission issue worth noting separately, but is out of scope for this rule).
+   - Only flag rule 3 when the `detection` job (or a step within it) itself shows a failing conclusion in `job_details`. This job-level conclusion is the sole signal for rule 3 — do not fall back to `TokenUsage`/`ErrorCount` heuristics, which cannot distinguish a detection-step failure from an agent job that never started.
 4. Workflow alternates between detection-enabled and detection-disabled within the 24h window
 
 Before flagging a name-based mismatch from rule 2, check whether the workflow has an explicitly documented repository-level opt-out. Current documented opt-out:
