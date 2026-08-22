@@ -1352,13 +1352,10 @@
           "type": "string",
           "description": "Label identifying this coverage report (e.g., \"code-coverage/unit-tests\", \"code-coverage/jacoco\"). Distinguishes multiple coverage reports uploaded across different workflows or jobs."
         },
-        "secrecy": {
-          "type": "string",
-          "description": "Confidentiality level of the coverage report content (e.g., \"public\", \"internal\", \"private\")."
-        },
         "integrity": {
           "type": "string",
-          "description": "Trustworthiness level of the coverage report source (e.g., \"low\", \"medium\", \"high\")."
+          "enum": ["low", "medium", "high"],
+          "description": "Trustworthiness level of the coverage report source. Must be one of \"low\", \"medium\", or \"high\"."
         }
       },
       "additionalProperties": false

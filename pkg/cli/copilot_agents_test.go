@@ -343,6 +343,19 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
 	}
 	assert.Contains(t, content, "Design workflows from scratch via interview: `.github/aw/designer.md`")
+	assert.Contains(t, content, agenticWorkflowsOTELSkillParagraph)
+}
+
+func TestBuildAgenticWorkflowsSkillContentEnsuresOTELParagraph(t *testing.T) {
+	withMockAWMarkdownFileList(t, []string{"workflow-a.md"}, nil)
+
+	originalTemplate := agenticWorkflowsSkillTemplate
+	t.Cleanup(func() { agenticWorkflowsSkillTemplate = originalTemplate })
+	agenticWorkflowsSkillTemplate = strings.ReplaceAll(agenticWorkflowsSkillTemplate, "\n"+agenticWorkflowsOTELSkillParagraph, "")
+
+	content, err := buildAgenticWorkflowsSkillContent()
+	require.NoError(t, err)
+	assert.Contains(t, content, agenticWorkflowsOTELSkillParagraph)
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
