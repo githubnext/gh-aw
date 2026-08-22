@@ -360,6 +360,7 @@ mcp-scripts:
         [[ -n "$CURSOR" ]] && GRAPHQL_ARGS+=(-f after="$CURSOR")
         GRAPHQL_OUTPUT=$(gh api "${GRAPHQL_ARGS[@]}")
         PAGE_NODES=$(jq '.data.repository.discussions.nodes' <<< "$GRAPHQL_OUTPUT")
+        [[ "$(jq 'length' <<< "$PAGE_NODES")" -eq 0 ]] && break
         OUTPUT=$(jq -cn --argjson all "$OUTPUT" --argjson page "$PAGE_NODES" '$all + $page')
         [[ -z "$SINCE" ]] && break
         [[ "$(jq -r '.[-1].updatedAt // empty' <<< "$PAGE_NODES")" < "$SINCE" ]] && break
