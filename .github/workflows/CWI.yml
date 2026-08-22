@@ -31,7 +31,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
       - name: Cache repository checkout
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
