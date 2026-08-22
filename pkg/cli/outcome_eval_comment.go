@@ -25,7 +25,7 @@ func evalAddComment(ctx context.Context, item CreatedItemReport, repoOverride st
 	commentID := extractCommentID(item.URL)
 	if commentID == "" {
 		outcomeEvalCommentLog.Printf("Unable to extract comment ID from URL: %s", item.URL)
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "cannot extract comment ID from URL"
 		return report
 	}
@@ -35,11 +35,11 @@ func evalAddComment(ctx context.Context, item CreatedItemReport, repoOverride st
 		// 404 means deleted
 		if errorutil.IsNotFoundError(err) {
 			outcomeEvalCommentLog.Printf("Comment %s deleted (404)", commentID)
-			report.Result = OutcomeRejected
+			report.OutcomeStatus = OutcomeStatusRejected
 			report.Detail = "deleted"
 			return report
 		}
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -73,10 +73,10 @@ func evalAddComment(ctx context.Context, item CreatedItemReport, repoOverride st
 
 	switch {
 	case totalReactions > 0 || replyCount > 0:
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = fmt.Sprintf("%d reactions, %d replies", totalReactions, replyCount)
 	default:
-		report.Result = OutcomeIgnored
+		report.OutcomeStatus = OutcomeStatusIgnored
 		report.Detail = "no engagement"
 	}
 

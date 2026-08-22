@@ -23,14 +23,14 @@ func evalCreateIssue(ctx context.Context, item CreatedItemReport, repoOverride s
 	}
 	if num == 0 || repo == "" {
 		outcomeEvalIssueLog.Printf("Missing issue number or repo: num=%d, repo=%s", num, repo)
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing issue number or repo"
 		return report
 	}
 
 	data, err := ghAPIGet(ctx, fmt.Sprintf("issues/%d", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -47,7 +47,7 @@ func evalCreateIssue(ctx context.Context, item CreatedItemReport, repoOverride s
 
 	switch {
 	case state == "closed" && stateReason == "completed":
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "completed"
 		if closedAt != "" && item.Timestamp != "" {
 			report.TimeToOutcomeHours = timeBetween(item.Timestamp, closedAt)
@@ -58,10 +58,10 @@ func evalCreateIssue(ctx context.Context, item CreatedItemReport, repoOverride s
 		closedByBot := isClosedByBot(ctx, num, repo)
 		outcomeEvalIssueLog.Printf("Issue #%d closed as not_planned, closed_by_bot=%v", num, closedByBot)
 		if closedByBot {
-			report.Result = OutcomeLifecycle
+			report.OutcomeStatus = OutcomeStatusLifecycle
 			report.Detail = "closed by bot (lifecycle)"
 		} else {
-			report.Result = OutcomeRejected
+			report.OutcomeStatus = OutcomeStatusRejected
 			report.Detail = "closed as not planned"
 		}
 		if closedAt != "" && item.Timestamp != "" {
@@ -69,22 +69,22 @@ func evalCreateIssue(ctx context.Context, item CreatedItemReport, repoOverride s
 		}
 
 	case state == "closed":
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "closed"
 		if closedAt != "" && item.Timestamp != "" {
 			report.TimeToOutcomeHours = timeBetween(item.Timestamp, closedAt)
 		}
 
 	case state == "open" && report.HumanComments > 0:
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = fmt.Sprintf("open, %d human comments", report.HumanComments)
 
 	case state == "open" && int(comments) > 0:
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "open with comments"
 
 	default:
-		report.Result = OutcomeIgnored
+		report.OutcomeStatus = OutcomeStatusIgnored
 		report.Detail = "open, no engagement"
 	}
 

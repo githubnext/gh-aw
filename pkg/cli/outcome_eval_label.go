@@ -25,7 +25,7 @@ func evalReplaceLabel(ctx context.Context, item CreatedItemReport, repoOverride 
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" || item.BeforeState == nil || item.AfterState == nil {
-		report.Result = OutcomeUnknown
+		report.OutcomeStatus = OutcomeStatusUnknown
 		report.Detail = "missing execution state"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusUnknown,
@@ -43,7 +43,7 @@ func evalReplaceLabel(ctx context.Context, item CreatedItemReport, repoOverride 
 	removed := labelSetDiff(beforeLabels, afterLabels)
 
 	if len(added) == 0 && len(removed) == 0 {
-		report.Result = OutcomeUnknown
+		report.OutcomeStatus = OutcomeStatusUnknown
 		report.Detail = "no label delta"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusUnknown,
@@ -55,7 +55,7 @@ func evalReplaceLabel(ctx context.Context, item CreatedItemReport, repoOverride 
 
 	currentState, _, err := extractCurrentIssueUpdateState(ctx, repo, num)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -67,7 +67,7 @@ func evalReplaceLabel(ctx context.Context, item CreatedItemReport, repoOverride 
 	removedStillAbsent := !labelSetContainsAny(currentLabels, removed)
 
 	if addedRetained && removedStillAbsent {
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "label replacement retained"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusAccepted,
@@ -81,7 +81,7 @@ func evalReplaceLabel(ctx context.Context, item CreatedItemReport, repoOverride 
 	addedReverted := !labelSetContainsAny(currentLabels, added)
 	removedBack := labelSetContainsAll(currentLabels, removed)
 	if addedReverted && removedBack {
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "label replacement reverted"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusRejected,
@@ -91,7 +91,7 @@ func evalReplaceLabel(ctx context.Context, item CreatedItemReport, repoOverride 
 		return report
 	}
 
-	report.Result = OutcomeRejected
+	report.OutcomeStatus = OutcomeStatusRejected
 	report.Detail = "label replacement replaced"
 	report.OutcomeEvaluation = OutcomeEvaluation{
 		OutcomeStatus:    OutcomeStatusRejected,
@@ -149,7 +149,7 @@ func evalAddLabels(ctx context.Context, item CreatedItemReport, repoOverride str
 	}
 	if num == 0 || repo == "" {
 		outcomeEvalLabelLog.Print("Missing issue number or repo, returning error outcome")
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing issue number or repo"
 		return report
 	}
@@ -157,7 +157,7 @@ func evalAddLabels(ctx context.Context, item CreatedItemReport, repoOverride str
 	labels, err := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/labels", num), repo)
 	if err != nil {
 		outcomeEvalLabelLog.Printf("Failed to fetch labels for %s#%d: %v", repo, num, err)
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -167,13 +167,13 @@ func evalAddLabels(ctx context.Context, item CreatedItemReport, repoOverride str
 	// pending rather than accepted, because the current labels could differ entirely
 	// from the ones we added. Only an empty label list is a clear rejection signal.
 	if len(labels) > 0 {
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "cannot evaluate label retention (added labels not recorded; extend manifest to include label names)"
 	} else {
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "all labels removed"
 	}
 
-	outcomeEvalLabelLog.Printf("Label evaluation result: result=%s, label_count=%d", report.Result, len(labels))
+	outcomeEvalLabelLog.Printf("Label evaluation result: result=%s, label_count=%d", report.OutcomeStatus, len(labels))
 	return report
 }

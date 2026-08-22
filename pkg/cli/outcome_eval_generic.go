@@ -24,7 +24,7 @@ func evalCloseSticky(ctx context.Context, item CreatedItemReport, repoOverride s
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing number or repo"
 		return report
 	}
@@ -36,7 +36,7 @@ func evalCloseSticky(ctx context.Context, item CreatedItemReport, repoOverride s
 
 	data, err := closeStickyGHAPIGet(ctx, endpoint, repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -44,30 +44,30 @@ func evalCloseSticky(ctx context.Context, item CreatedItemReport, repoOverride s
 	state, _ := data["state"].(string)
 	merged, _ := data["merged"].(bool)
 	if state != "closed" {
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "reopened"
 		return report
 	}
 
 	if merged {
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "merged"
 		return report
 	}
 
 	closedByBot, err := isClosedByLifecycleBot(ctx, num, repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		report.Detail = "close provenance unavailable"
 		return report
 	}
 
 	if closedByBot {
-		report.Result = OutcomeLifecycleClose
+		report.OutcomeStatus = OutcomeStatusLifecycleClose
 		report.Detail = "closed by bot (lifecycle_close)"
 	} else {
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "closed by non-bot"
 	}
 	return report
@@ -82,33 +82,33 @@ func isClosedByLifecycleBot(ctx context.Context, number int, repo string) (bool,
 func evalCloseDiscussion(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	// Discussions require GraphQL; for now return pending with a note
 	return OutcomeReport{
-		Type:      item.Type,
-		ObjectURL: item.URL,
-		Repo:      resolveItemRepo(item, repoOverride),
-		Result:    OutcomePending,
-		Detail:    "discussion outcome check requires GraphQL (not yet implemented)",
+		Type:              item.Type,
+		ObjectURL:         item.URL,
+		Repo:              resolveItemRepo(item, repoOverride),
+		OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending},
+		Detail:            "discussion outcome check requires GraphQL (not yet implemented)",
 	}
 }
 
 // evalCreateDiscussion checks whether a discussion received replies.
 func evalCreateDiscussion(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	return OutcomeReport{
-		Type:      item.Type,
-		ObjectURL: item.URL,
-		Repo:      resolveItemRepo(item, repoOverride),
-		Result:    OutcomePending,
-		Detail:    "discussion outcome check requires GraphQL (not yet implemented)",
+		Type:              item.Type,
+		ObjectURL:         item.URL,
+		Repo:              resolveItemRepo(item, repoOverride),
+		OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending},
+		Detail:            "discussion outcome check requires GraphQL (not yet implemented)",
 	}
 }
 
 // evalHideComment checks whether a hidden comment is still hidden.
 func evalHideComment(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	return OutcomeReport{
-		Type:      item.Type,
-		ObjectURL: item.URL,
-		Repo:      resolveItemRepo(item, repoOverride),
-		Result:    OutcomePending,
-		Detail:    "hidden comment check requires GraphQL (not yet implemented)",
+		Type:              item.Type,
+		ObjectURL:         item.URL,
+		Repo:              resolveItemRepo(item, repoOverride),
+		OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending},
+		Detail:            "hidden comment check requires GraphQL (not yet implemented)",
 	}
 }
 
@@ -124,23 +124,23 @@ func evalAssignMilestone(ctx context.Context, item CreatedItemReport, repoOverri
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing number or repo"
 		return report
 	}
 
 	data, err := ghAPIGet(ctx, fmt.Sprintf("issues/%d", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
 
 	if data["milestone"] != nil {
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "milestone still assigned"
 	} else {
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "milestone removed"
 	}
 	return report
@@ -149,22 +149,22 @@ func evalAssignMilestone(ctx context.Context, item CreatedItemReport, repoOverri
 // evalReviewComment checks whether a PR review comment thread was resolved or engaged.
 func evalReviewComment(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	return OutcomeReport{
-		Type:      item.Type,
-		ObjectURL: item.URL,
-		Repo:      resolveItemRepo(item, repoOverride),
-		Result:    OutcomePending,
-		Detail:    "review thread check requires GraphQL (not yet implemented)",
+		Type:              item.Type,
+		ObjectURL:         item.URL,
+		Repo:              resolveItemRepo(item, repoOverride),
+		OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending},
+		Detail:            "review thread check requires GraphQL (not yet implemented)",
 	}
 }
 
 // evalResolveThread checks whether a resolved review thread stayed resolved.
 func evalResolveThread(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	return OutcomeReport{
-		Type:      item.Type,
-		ObjectURL: item.URL,
-		Repo:      resolveItemRepo(item, repoOverride),
-		Result:    OutcomePending,
-		Detail:    "resolve thread check requires GraphQL (not yet implemented)",
+		Type:              item.Type,
+		ObjectURL:         item.URL,
+		Repo:              resolveItemRepo(item, repoOverride),
+		OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending},
+		Detail:            "resolve thread check requires GraphQL (not yet implemented)",
 	}
 }
 
@@ -180,34 +180,34 @@ func evalMarkReady(ctx context.Context, item CreatedItemReport, repoOverride str
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing number or repo"
 		return report
 	}
 
 	reviews, err := ghAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
 
 	if len(reviews) > 0 {
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = fmt.Sprintf("%d reviews submitted", len(reviews))
 	} else {
 		data, derr := ghAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
 		if derr == nil {
 			state, _ := data["state"].(string)
 			if state == "open" {
-				report.Result = OutcomePending
+				report.OutcomeStatus = OutcomeStatusPending
 				report.Detail = "awaiting review"
 			} else {
-				report.Result = OutcomeIgnored
+				report.OutcomeStatus = OutcomeStatusIgnored
 				report.Detail = "closed/merged without review"
 			}
 		} else {
-			report.Result = OutcomePending
+			report.OutcomeStatus = OutcomeStatusPending
 			report.Detail = "no reviews yet"
 		}
 	}
@@ -226,14 +226,14 @@ func evalPushToPRBranch(ctx context.Context, item CreatedItemReport, repoOverrid
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing PR number or repo"
 		return report
 	}
 
 	data, err := ghAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -244,13 +244,13 @@ func evalPushToPRBranch(ctx context.Context, item CreatedItemReport, repoOverrid
 
 	switch {
 	case merged:
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "PR merged"
 	case state == "closed":
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "PR closed without merge"
 	default:
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "PR still open"
 	}
 	return report
@@ -270,19 +270,19 @@ func evalGenericSticky(ctx context.Context, item CreatedItemReport, repoOverride
 
 	if num == 0 || repo == "" {
 		// No number to check — just report what we know
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "no object reference to check"
 		return report
 	}
 
 	_, err := genericOutcomeGHAPIGet(ctx, fmt.Sprintf("issues/%d", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
 
-	report.Result = OutcomeUnknown
+	report.OutcomeStatus = OutcomeStatusUnknown
 	report.Detail = "object still exists"
 	report.OutcomeEvaluation = OutcomeEvaluation{
 		OutcomeStatus:    OutcomeStatusUnknown,

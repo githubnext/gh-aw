@@ -71,14 +71,14 @@ func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOver
 	}
 
 	if num == 0 || repo == "" {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing PR number or repo"
 		return report
 	}
 
 	data, err := outcomeEvalPRGHAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -90,19 +90,19 @@ func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOver
 
 	switch {
 	case merged:
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "merged"
 		if mergedAt != "" && item.Timestamp != "" {
 			report.TimeToOutcomeHours = timeBetween(item.Timestamp, mergedAt)
 		}
 	case state == "closed":
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "closed without merge"
 		if closedAt != "" && item.Timestamp != "" {
 			report.TimeToOutcomeHours = timeBetween(item.Timestamp, closedAt)
 		}
 	default:
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "open"
 	}
 
@@ -117,7 +117,7 @@ func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOver
 		report.HumanReviews = len(reviews)
 	}
 
-	if report.Result == OutcomeAccepted {
+	if report.OutcomeStatus == OutcomeStatusAccepted {
 		report.ZeroTouch = report.HumanComments == 0 && report.HumanReviews == 0
 	}
 
