@@ -55,7 +55,9 @@ experiments:
       - name: empty_output_rate
         threshold: "<=0.10"
     min_samples: 20
-    weight: [50, 50]
+    continual:
+      seed: daily-doc-healer-model-size-v1
+      ramp: [10, 25, 50]
     start_date: "2026-06-04"
 timeout-minutes: 45
 tools:

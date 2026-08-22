@@ -934,7 +934,7 @@ function parseCopilotSDKServerArgsFromEnv(serverArgsEnv, options) {
     return parsed;
   } catch (parseErr) {
     const preview = serverArgsEnv.length > MAX_ENV_VAR_PREVIEW_LENGTH ? serverArgsEnv.slice(0, MAX_ENV_VAR_PREVIEW_LENGTH) + "…" : serverArgsEnv;
-    logger(`copilot-sdk driver mode: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${parseErr} (value: ${preview})`);
+    logger(`copilot-sdk driver mode: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${getErrorMessage(parseErr)} (value: ${preview})`);
     return [];
   }
 }

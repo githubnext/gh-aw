@@ -289,6 +289,34 @@ experiments:
 5. **Analyse** — once min sample size reached, compare distributions; for eval-backed metrics, use `gh aw experiments analyze <workflow>` to inspect the resolved question and current eval outcomes.
 6. **Conclude** — rewrite baseline to winning variant, remove `experiments:`, recompile.
 
+## Continual Experiment Ramps
+
+`continual:` is experimental. It provides deterministic control/candidate
+assignment with a runtime-managed traffic ramp. The first variant is the control
+and the second is the candidate. Existing experiments without this block keep
+their current behavior.
+
+```yaml
+experiments:
+  optimize_tool_use:
+    variants: [control, candidate]
+    metric: eval:quality
+    min_samples: 20
+    continual:
+      seed: tool-use-v1
+      ramp: [10, 25, 50]
+```
+
+Assignment occurs in the activation job before agent execution. It hashes the seed,
+experiment name, repository, workflow, and run ID. The activation job advances the
+ramp after each `min_samples` candidate assignments and stores the current stage on
+the experiment branch, leaving the workflow source immutable. Each decision logs
+the stage, assignment counts, active weights, and selected variant.
+
+The ramp only changes candidate traffic; it does not evaluate outcomes or promote a
+winner. Use the existing experiment analysis commands and metrics to decide whether
+to stop the experiment or make a variant permanent.
+
 ---
 
 ## Anti-Patterns
