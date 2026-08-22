@@ -43,9 +43,9 @@ async function main() {
 
   // Get configuration from environment variables
   // Use .trim() + || so that empty/whitespace-only values also fall back to defaults
-  const maxRuns = parseInt(process.env.GH_AW_RATE_LIMIT_MAX?.trim() || "5", 10);
-  const windowMinutes = parseInt(process.env.GH_AW_RATE_LIMIT_WINDOW?.trim() || "60", 10);
-  if (!Number.isFinite(maxRuns) || maxRuns <= 0 || !Number.isFinite(windowMinutes) || windowMinutes <= 0) {
+  const maxRuns = Number(process.env.GH_AW_RATE_LIMIT_MAX?.trim() || "5");
+  const windowMinutes = Number(process.env.GH_AW_RATE_LIMIT_WINDOW?.trim() || "60");
+  if (!Number.isFinite(maxRuns) || !Number.isSafeInteger(maxRuns) || maxRuns <= 0 || !Number.isFinite(windowMinutes) || !Number.isSafeInteger(windowMinutes) || windowMinutes <= 0) {
     throw new Error("Rate limit maximum and window must be positive integers");
   }
   const eventsList = process.env.GH_AW_RATE_LIMIT_EVENTS?.trim() || "";
