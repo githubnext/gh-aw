@@ -2,41 +2,31 @@ package parser
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/github/gh-aw/pkg/validationerror"
 )
 
 // ValidationError represents an input validation error in parser package checks.
+// It embeds validationerror.Payload so callers can uniformly detect structured
+// validation errors from any package via errors.As(err, &validationerror.ValidationError).
 type ValidationError struct {
-	Field      string
-	Value      string
-	Reason     string
-	Suggestion string
+	validationerror.Payload
 }
 
 // Error implements the error interface.
 func (e *ValidationError) Error() string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Validation failed for field '%s'", e.Field)
-
-	if e.Value != "" {
-		fmt.Fprintf(&b, "\n\nValue: %s", e.Value)
-	}
-
-	fmt.Fprintf(&b, "\nReason: %s", e.Reason)
-
-	if e.Suggestion != "" {
-		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
-	}
-
-	return b.String()
+	header := fmt.Sprintf("Validation failed for field '%s'", e.Field)
+	return validationerror.Format(header, e.Payload, false)
 }
 
 // NewValidationError creates a new parser validation error with context.
 func NewValidationError(field, value, reason, suggestion string) *ValidationError {
 	return &ValidationError{
-		Field:      field,
-		Value:      value,
-		Reason:     reason,
-		Suggestion: suggestion,
+		Payload: validationerror.Payload{
+			Field:      field,
+			Value:      value,
+			Reason:     reason,
+			Suggestion: suggestion,
+		},
 	}
 }

@@ -8,6 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/validationerror"
 )
 
 func TestExpandErrorMessages_UnwrapsJoinedErrors(t *testing.T) {
@@ -88,6 +91,22 @@ func TestNewValidationError_ClassifiesSeverity(t *testing.T) {
 	require.NotNil(t, err, "Validation error should be created")
 	assert.Equal(t, SeverityHigh, err.Severity, "Network strict-mode errors should be high priority")
 	assert.Equal(t, "permissions", err.Category, "Network strict-mode errors should be categorized as permissions")
+}
+
+// TestValidationError_UniformAcrossPackages verifies that workflow.WorkflowValidationError
+// and parser.ValidationError can both be detected uniformly via
+// errors.As(err, &validationerror.ValidationError), since both embed
+// validationerror.Payload.
+func TestValidationError_UniformAcrossPackages(t *testing.T) {
+	workflowErr := error(NewValidationError("engine", "copiliot", "not a valid engine", "Did you mean 'copilot'?"))
+	parserErr := error(parser.NewValidationError("skills", "docs", "duplicate name already defined", "Rename one of the duplicate skills."))
+
+	for _, err := range []error{workflowErr, parserErr} {
+		var ve validationerror.ValidationError
+		require.True(t, errors.As(err, &ve), "expected errors.As to match validationerror.ValidationError for %T", err)
+		assert.NotEmpty(t, ve.ValidationField())
+		assert.NotEmpty(t, ve.ValidationReason())
+	}
 }
 
 func TestBuildPrioritizedErrorReportFromMessages_DuplicateKeyErrorsGetSpecificSuggestion(t *testing.T) {
