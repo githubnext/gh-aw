@@ -159,9 +159,26 @@ tools:
 }
 
 func TestGitHubTokenValidationInSafeOutputs(t *testing.T) {
+	// preSteps mints the "fetch-token" step referenced by the same-job token
+	// expression below in every job that consumes it (agent and conclusion),
+	// so the token resolves in each job that produces/consumes it.
+	const preSteps = `pre-steps:
+  - id: fetch-token
+    run: echo "my-token=x" >> "$GITHUB_OUTPUT"
+jobs:
+  safe_outputs:
+    pre-steps:
+      - id: fetch-token
+        run: echo "my-token=x" >> "$GITHUB_OUTPUT"
+  conclusion:
+    pre-steps:
+      - id: fetch-token
+        run: echo "my-token=x" >> "$GITHUB_OUTPUT"
+`
 	tests := []struct {
 		name        string
 		token       string
+		preSteps    string
 		expectError bool
 	}{
 		{
@@ -177,6 +194,7 @@ func TestGitHubTokenValidationInSafeOutputs(t *testing.T) {
 		{
 			name:        "valid same-job step output token in safe-outputs",
 			token:       "${{ steps.fetch-token.outputs.my-token }}",
+			preSteps:    preSteps,
 			expectError: false,
 		},
 		{
@@ -196,7 +214,7 @@ on:
   issues:
     types: [opened]
 engine: copilot
-safe-outputs:
+` + tt.preSteps + `safe-outputs:
   github-token: ` + tt.token + `
   create-issue:
 ---
@@ -226,9 +244,22 @@ safe-outputs:
 }
 
 func TestGitHubTokenValidationInIndividualSafeOutput(t *testing.T) {
+	// preSteps mints the "fetch-token" step referenced by the same-job token
+	// expression below in every job that consumes it (agent and safe_outputs),
+	// so the token resolves in each job that produces/consumes it.
+	const preSteps = `pre-steps:
+  - id: fetch-token
+    run: echo "my-token=x" >> "$GITHUB_OUTPUT"
+jobs:
+  safe_outputs:
+    pre-steps:
+      - id: fetch-token
+        run: echo "my-token=x" >> "$GITHUB_OUTPUT"
+`
 	tests := []struct {
 		name        string
 		token       string
+		preSteps    string
 		expectError bool
 	}{
 		{
@@ -244,6 +275,7 @@ func TestGitHubTokenValidationInIndividualSafeOutput(t *testing.T) {
 		{
 			name:        "valid same-job step output token in individual safe-output",
 			token:       "${{ steps.fetch-token.outputs.my-token }}",
+			preSteps:    preSteps,
 			expectError: false,
 		},
 		{
@@ -263,7 +295,7 @@ on:
   issues:
     types: [opened]
 engine: copilot
-safe-outputs:
+` + tt.preSteps + `safe-outputs:
   create-agent-session:
     github-token: ` + tt.token + `
 ---
