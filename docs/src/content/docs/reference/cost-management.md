@@ -314,7 +314,7 @@ default_model_codex: "gpt-5.4-mini"
 gh aw env update defaults.yml --scope org --org MY_ORG
 ```
 
-`gh aw env update` shows a confirmation preview before applying changes. Pass `--yes` to skip the prompt in automation or `--dry-run` to preview without changing variables. Set a field to `null` to delete the corresponding variable from the target scope. Unknown YAML keys are rejected, `default_max_turns` and `default_timeout_minutes` must be positive integers, and `default_max_ai_credits` and `default_max_daily_ai_credits` must be non-zero integers; negative values disable the corresponding guardrail.
+`gh aw env update` shows a confirmation preview before applying changes. Pass `--yes` to skip the prompt in automation or `--dry-run` to preview without changing variables. Set a field to `null` to delete the corresponding variable from the target scope. Unknown YAML keys are rejected, `default_max_turns`, `default_timeout_minutes`, `default_agent_job_timeout_minutes`, and `default_detection_job_timeout_minutes` must be positive integers, and `default_max_ai_credits` and `default_max_daily_ai_credits` must be non-zero integers; negative values disable the corresponding guardrail.
 
 3. If you compile workflows in CI, pass compiler-read defaults into the compiler process environment, for example via `${{ vars.* }}`: `GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES`, and `GH_AW_DEFAULT_DETECTION_MODEL`.
 
