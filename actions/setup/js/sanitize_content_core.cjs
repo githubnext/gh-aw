@@ -592,7 +592,7 @@ function neutralizeCommands(s) {
         commandNames = parsed.filter(c => typeof c === "string" && c.length > 0);
       }
     } catch {
-      // invalid JSON, no commands to neutralize
+      // Invalid JSON — ignored, no commands to neutralize.
     }
   }
 

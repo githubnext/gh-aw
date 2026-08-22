@@ -264,7 +264,7 @@ function extractFromStreamJson(line) {
       }
     }
   } catch {
-    // Not valid JSON — not a stream-json line
+    // Not valid JSON — ignored, this is not a stream-json line.
   }
   return null;
 }

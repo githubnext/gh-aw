@@ -564,7 +564,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
           }
           // Non-array JSON values (objects, primitives) fall through to comma-separated parsing.
         } catch {
-          // Fall back to comma-separated parsing below.
+          // Invalid JSON — ignored, fall back to comma-separated parsing below.
         }
       }
       if (typeof value === "string") {
