@@ -119,7 +119,7 @@ func TestBuildPreActivationJob_WithReaction(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name:       "Test Workflow",
 				Command:    []string{"test"},
-				AIReaction: tt.reaction,
+				AIReaction: ReactionType(tt.reaction),
 			}
 
 			// Pre-activation job should NOT contain the reaction step any more
