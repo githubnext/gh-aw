@@ -3,7 +3,7 @@ private: true
 name: Daily Go Test Parallelizer
 description: Adds t.Parallel to safe Go tests using daily round-robin analysis
 on:
-  schedule: every 2h
+  schedule: daily
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[test-parallel]"'
 permissions:
@@ -15,9 +15,6 @@ network:
   allowed:
     - defaults
     - go
-sandbox:
-  agent:
-    runtime: cloud-hypervisor
 tools:
   cache-memory:
     retention-days: 30
