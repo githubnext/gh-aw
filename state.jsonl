@@ -77,3 +77,4 @@
 {"run_id":"32244167713","timestamp":"2026-08-19T10:45:22.278Z","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"32360442199","timestamp":"2026-08-20T10:46:00.729Z","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"32474060242","timestamp":"2026-08-21T10:45:42.599Z","assignments":{"model_size":"claude-sonnet-4.6"}}
+{"run_id":"32568314501","timestamp":"2026-08-22T10:42:51.467Z","harness_version":"e56f5484942a095a9ec1f97eae0d838b60d5269c4ac971a1620e8410cec9809a:4ef43e5b84d15ba88982697469656a3af666486718a0e89d57a7f755926a79ad","assignments":{"model_size":"claude-sonnet-4.6"}}
