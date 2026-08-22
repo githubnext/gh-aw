@@ -35,7 +35,7 @@ const SCRIPT_WORKER_OVERHEAD_MS = 1000; // Allow worker startup/serialization ov
 const SCRIPT_WORKER_PATH = path.join(__dirname, "trace_graders_worker.cjs");
 
 const GRADER_VERSION = 1;
-const IMPLEMENTATION_ID = "gh-aw/trace-graders";
+const IMPLEMENTATION_ID = "gh-aw/graders";
 
 // --- Trace preprocessing ---
 
