@@ -39,6 +39,7 @@ has_symlinked_git_metadata() {
 
 harden_repo_memory_git_state() {
   local repo_root="$1"
+  local safe_origin_url="$2"
 
   if [ ! -d "$repo_root/.git" ] && [ ! -L "$repo_root/.git" ]; then
     return 0
@@ -68,6 +69,11 @@ harden_repo_memory_git_state() {
   git -C "$repo_root" config user.email "github-actions[bot]@users.noreply.github.com"
   git -C "$repo_root" config core.hooksPath /dev/null
   git -C "$repo_root" config core.fsmonitor false
+
+  # Never leave a credential-embedded remote URL persisted in .git/config
+  if [ -n "$safe_origin_url" ] && git -C "$repo_root" remote get-url origin >/dev/null 2>&1; then
+    git -C "$repo_root" remote set-url origin "$safe_origin_url"
+  fi
 }
 
 # Validate required environment variables
@@ -105,6 +111,7 @@ fi
 SERVER_HOST="${GITHUB_SERVER_URL#https://}"
 SERVER_HOST="${SERVER_HOST#http://}"
 ORIGIN_URL="https://x-access-token:${GH_TOKEN}@${SERVER_HOST}/${TARGET_REPO}.git"
+SAFE_ORIGIN_URL="https://${SERVER_HOST}/${TARGET_REPO}.git"
 
 # Try to clone the branch (don't fail if it doesn't exist)
 set +e
@@ -124,9 +131,9 @@ if [ $CLONE_EXIT_CODE -ne 0 ]; then
     fi
     git init
     git checkout --orphan "$BRANCH_NAME"
-    harden_repo_memory_git_state "$MEMORY_DIR"
     git remote remove origin >/dev/null 2>&1 || true
     git remote add origin "$ORIGIN_URL"
+    harden_repo_memory_git_state "$MEMORY_DIR" "$SAFE_ORIGIN_URL"
   else
     echo "Branch $BRANCH_NAME does not exist and create-orphan is false, skipping"
     mkdir -p "$MEMORY_DIR"
@@ -145,9 +152,9 @@ else
     fi
     cd "$MEMORY_DIR"
   fi
-  harden_repo_memory_git_state "$MEMORY_DIR"
   git remote remove origin >/dev/null 2>&1 || true
   git remote add origin "$ORIGIN_URL"
+  harden_repo_memory_git_state "$MEMORY_DIR" "$SAFE_ORIGIN_URL"
 fi
 
 # Ensure memory directory exists

@@ -126,6 +126,16 @@ assert "outside config untouched" "grep -q 'repositoryformatversion' '${D}/outsi
 assert "outside hooks untouched" "[ -f '${D}/outside-hooks/post-checkout' ]"
 echo ""
 
+echo "Test 6: Origin remote URL is scrubbed of embedded credentials"
+D="${WORKSPACE}/test6"
+mkdir -p "${D}"
+OUTPUT="$(run_script "${D}")"
+ORIGIN_URL="$(git -C "${D}" remote get-url origin)"
+assert "origin remote configured" "[ -n '${ORIGIN_URL}' ]"
+assert "origin url has no x-access-token" "! printf '%s' '${ORIGIN_URL}' | grep -q 'x-access-token'"
+assert "origin url has no embedded token" "! printf '%s' '${ORIGIN_URL}' | grep -q 'test-token'"
+echo ""
+
 echo "Tests passed: ${TESTS_PASSED}"
 echo "Tests failed: ${TESTS_FAILED}"
 
