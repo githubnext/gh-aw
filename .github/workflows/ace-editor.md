@@ -42,6 +42,7 @@ jobs:
             });
 imports:
   - shared/otlp.md
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

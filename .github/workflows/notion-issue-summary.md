@@ -24,6 +24,7 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 strict: true
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

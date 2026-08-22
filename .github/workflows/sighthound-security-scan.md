@@ -146,6 +146,7 @@ safe-outputs:
   noop:
 imports:
   - shared/reporting.md
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

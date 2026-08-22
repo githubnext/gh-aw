@@ -16,6 +16,7 @@ permissions:
   security-events: read
   copilot-requests: write
 
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

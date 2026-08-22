@@ -15,6 +15,7 @@ network:
   allowed:
     - defaults
     - go
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

@@ -43,6 +43,7 @@ evals:
     question: Did the agent cross-check other daily report agents' outputs for consistency and anomalies?
   - id: regulatory_report_created_or_noop
     question: Was a regulatory report created with findings, or was noop used when all outputs were consistent?
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

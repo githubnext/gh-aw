@@ -95,6 +95,7 @@ evals:
   - id: tool_verbosity_goal_met
     question: Does the agent output show that the objective for experiment tool_verbosity was successfully completed?
 
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

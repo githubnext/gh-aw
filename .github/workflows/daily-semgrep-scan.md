@@ -60,6 +60,7 @@ evals:
 
 features:
   gh-aw-detection: true
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

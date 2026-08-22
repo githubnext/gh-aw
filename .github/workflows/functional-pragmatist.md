@@ -50,6 +50,7 @@ evals:
     question: Did the agent analyze the codebase for pragmatic functional programming improvements?
   - id: refactoring_pr_created_or_noop
     question: Did the agent create a focused refactoring pull request, or report that no suitable change was found?
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

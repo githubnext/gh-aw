@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
 
 
-engine: copilot
+engine: claude
 
 tools:
   cli-proxy: true

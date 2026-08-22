@@ -12,7 +12,7 @@ permissions:
   actions: read
   pull-requests: read
 engine:
-  id: copilot
+  id: claude
 strict: true
 timeout-minutes: 35
 max-turns: 60

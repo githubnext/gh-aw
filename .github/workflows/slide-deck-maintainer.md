@@ -20,7 +20,7 @@ permissions:
 concurrency:
   job-discriminator: ${{ inputs.focus || github.run_id }}
 tracker-id: slide-deck-maintainer
-engine: copilot
+engine: claude
 imports:
   - uses: shared/skip-if-issue-open.md
     with:

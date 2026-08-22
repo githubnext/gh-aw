@@ -15,7 +15,7 @@ on:
     name: ponytail
     events: [pull_request_comment, pull_request_review_comment]
 engine:
-  id: copilot
+  id: claude
 permissions:
   contents: read
   pull-requests: read

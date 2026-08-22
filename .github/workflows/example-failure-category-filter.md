@@ -19,6 +19,7 @@ safe-outputs:
   create-issue:
 imports:
   - shared/reporting.md
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

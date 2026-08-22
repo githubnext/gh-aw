@@ -16,6 +16,7 @@ imports:
   - shared/mcp-pagination.md
   - shared/otlp.md
   - shared/reporting.md
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

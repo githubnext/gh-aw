@@ -28,6 +28,7 @@ safe-outputs:
   upload-asset:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

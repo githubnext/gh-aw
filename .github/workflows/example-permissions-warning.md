@@ -19,6 +19,7 @@ tools:
     toolsets: [repos, issues, pull_requests]
 strict: false
 
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

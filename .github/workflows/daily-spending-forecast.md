@@ -89,6 +89,7 @@ safe-outputs:
   mentions: false
   allowed-github-references: []
 timeout-minutes: 45
+engine: claude
 sandbox:
   agent:
     runtime: cloud-hypervisor

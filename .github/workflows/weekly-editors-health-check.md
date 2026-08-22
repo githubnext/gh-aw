@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 strict: true
 tracker-id: weekly-editors-health-check
-engine: copilot
+engine: claude
 timeout-minutes: 30
 
 network:
