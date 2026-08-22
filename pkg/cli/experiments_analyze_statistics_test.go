@@ -331,6 +331,22 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 		assert.InDelta(t, 30.0, a.Variants[1].ExpectedPct, 0.1, "variant expected 30%")
 	})
 
+	t.Run("continual ramp skips fixed-allocation balance check", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Name:     "optimization",
+			Variants: map[string]int{"candidate": 2, "control": 18},
+			Total:    20,
+		}
+		cfg := &workflow.ExperimentConfig{
+			Variants:  []string{"control", "candidate"},
+			Continual: &workflow.ContinualExperimentConfig{Seed: "stable-seed", Ramp: []int{10, 25}},
+		}
+		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		assert.True(t, a.IsBalanced, "changing ramp allocations should not be tested against a fixed split")
+		assert.Zero(t, a.ChiSquare)
+		assert.Zero(t, a.PValue)
+	})
+
 	t.Run("metric from config (plain)", func(t *testing.T) {
 		exp := ExperimentVariantStats{
 			Name:     "perf",
