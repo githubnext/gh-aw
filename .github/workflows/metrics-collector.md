@@ -77,17 +77,20 @@ If you see any `.md` files at the root (e.g. `agent-performance-latest.md`, `sha
   ```
   Parameters (first call):
   - start_date: "-1d" (last 24 hours)
-  - count: 80
-  - timeout: 3
+  - count: 20
+  - timeout: 1
   - Include all workflows (no workflow_name filter)
   ```
 - **Pagination loop (required)**: the `logs` tool returns a `continuation` field when it stops
   early (timeout or count limit). While a `continuation` field is present in the returned data,
   issue another `logs` call using the parameters it provides (notably `before_run_id`, plus the
-  original `start_date`) with `count: 80` and `timeout: 3`, and accumulate the runs from every
+  original `start_date`) with `count: 20` and `timeout: 1`, and accumulate the runs from every
   batch. Stop only when there is no `continuation` field **and** the oldest collected run is at or
   before the 24h window start. Do not stop after a fixed number of batches if the oldest collected
   run is still newer than the window start; that produces a partial ~10h snapshot.
+- If a bounded `logs` call fails with the MCP gateway's 60-second context deadline instead of
+  returning a continuation, switch immediately to the GitHub API fallback. Retrying progressively
+  smaller counts has shown the same deadline failure and only consumes the collection budget.
 - If the logs tool continues returning `continuation` after the oldest collected run reaches the
   24h window start, stop paginating and ignore the remaining older cursor because the requested
   window is complete.
@@ -97,7 +100,10 @@ If you see any `.md` files at the root (e.g. `agent-performance-latest.md`, `sha
   - Total runs in last 24 hours
   - Successful runs (conclusion: "success")
   - Failed runs (conclusion: "failure", "cancelled", "timed_out")
-  - Calculate success rate: `successful / total`
+  - Skipped runs (conclusion: "skipped")
+  - Approval-gated runs (conclusion: "action_required")
+  - Executed runs: `successful + failed`
+  - Calculate success rate: `successful / executed`; use `null` when `executed` is 0
   - Token usage and costs (if available in logs)
   - Execution duration statistics
 
@@ -136,6 +142,17 @@ item shape, aggregate the counts per workflow, and set `"safe_outputs_source":
 "github_api_fallback"` alongside a `collection_note` explaining the truncation. When API fallback
 cannot determine outcome status, set those items to `"pending"` rather than omitting the
 `safe_output_outcomes` breakdown. The same fallback applies to `engagement` fields.
+
+**Workflow Runs Fallback (GitHub API)**:
+
+When the logs-based path is truncated or unavailable, paginate `list_workflow_runs` across the full
+collection window and classify each run by its `conclusion`. Count `success` as `successful`;
+`failure`, `cancelled`, and `timed_out` as `failed`; and count `skipped` and `action_required`
+separately. Set `executed` to `successful + failed` and calculate `success_rate` as
+`successful / executed`; when `executed` is 0, set `success_rate` to `null`. Never treat skipped or
+approval-gated runs as failures. Include all counts in every workflow's `workflow_runs` object,
+including zero values, and set `"data_source": "github_api_fallback"` plus a `collection_note`
+describing why fallback was used.
 
 **Additional Metrics via GitHub API**:
 - Use GitHub MCP server (default toolset) to supplement with:
@@ -190,6 +207,9 @@ Create a JSON object following this schema:
         "total": 7,
         "successful": 6,
         "failed": 1,
+        "skipped": 0,
+        "action_required": 0,
+        "executed": 7,
         "success_rate": 0.857,
         "avg_duration_seconds": 180,
         "total_tokens": 45000,
@@ -295,7 +315,8 @@ find /tmp/gh-aw/repo-memory/default/metrics/daily/ -name "*.json" -mtime +30 -de
 - Sum of all safe outputs (issues + PRs + comments + discussions) across all workflows
 
 **Overall Success Rate**:
-- Calculate: `(sum of successful runs across all workflows) / (sum of total runs across all workflows)`
+- Calculate: `(sum of successful runs across all workflows) / (sum of executed runs across all workflows)`
+- Set it to `null` when the ecosystem has no executed runs
 
 **Total Resource Usage**:
 - Sum total tokens used across all workflows
@@ -307,11 +328,12 @@ find /tmp/gh-aw/repo-memory/default/metrics/daily/ -name "*.json" -mtime +30 -de
 
 **Primary data source**: Use the agentic-workflows tool for all workflow run metrics:
 1. Start with `status` tool to get workflow inventory
-2. Use `logs` tool with `start_date: "-1d"`, `count: 80`, and `timeout: 3`, then follow the
+2. Use `logs` tool with `start_date: "-1d"`, `count: 20`, and `timeout: 1`, then follow the
    `continuation` field (using its `before_run_id`) until the oldest collected run reaches the
-   24h window start
-3. Extract metrics from the accumulated log data (success/failure, tokens, costs, safe outputs,
-   typed safe-output counts, and outcome breakdowns)
+   24h window start. On a 60-second context-deadline error, switch directly to the GitHub API
+   fallback instead of retrying smaller counts.
+3. Extract metrics from the accumulated log data (success/failure/skipped/action-required, tokens,
+   costs, safe outputs, typed safe-output counts, and outcome breakdowns)
 
 **Secondary data source**: Use GitHub MCP server for engagement metrics only:
 - Reactions on issues/PRs created by workflows
@@ -328,7 +350,7 @@ find /tmp/gh-aw/repo-memory/default/metrics/daily/ -name "*.json" -mtime +30 -de
   covered the window and found no outputs.
 - If token/cost data is unavailable, omit or set to null
 - Always include workflows in the metrics even if they have no activity (helps detect stalled workflows)
-- **If the agentic-workflows `logs` tool is unavailable**, collect what you can from the GitHub API directly (workflow runs via `list_workflow_runs`) and set `"data_source": "github_api_fallback"` in the JSON
+- **If the agentic-workflows `logs` tool is unavailable**, collect what you can from the GitHub API directly using the Workflow Runs Fallback rules above and set `"data_source": "github_api_fallback"` in the JSON
 - Set `"collection_status": "complete"` only when workflow run counts and safe-output breakdowns
   cover the full 24h window through logs data and/or the GitHub API fallback. Set
   `"collection_status": "partial"` only when both logs pagination and fallback collection fail to
@@ -456,7 +478,25 @@ STORED_DATE=$(jq -r '.timestamp' /tmp/gh-aw/repo-memory/default/metrics/latest.j
 TODAY=$(date +%Y-%m-%d)
 echo "Stored date: $STORED_DATE | Today: $TODAY"
 
-# Step 5: List all metrics files that will be committed
+# Step 5: Validate workflow-run classification and success-rate semantics
+jq -e '
+  all(.workflows[]?.workflow_runs;
+    has("skipped") and
+    has("action_required") and
+    has("executed") and
+    .executed == ((.successful // 0) + (.failed // 0)) and
+    (if .executed == 0 then
+       .success_rate == null
+     else
+       ((.success_rate - (.successful / .executed)) | fabs) < 0.001
+     end)
+  )
+' /tmp/gh-aw/repo-memory/default/metrics/latest.json >/dev/null || {
+  echo "ERROR: workflow run classifications or success rates are inconsistent"
+  exit 1
+}
+
+# Step 6: List all metrics files that will be committed
 echo "Files to be committed:"
 find /tmp/gh-aw/repo-memory/default/metrics -type f | sort
 ```
