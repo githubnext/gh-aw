@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,13 +18,13 @@ func TestParseYamllintLine(t *testing.T) {
 		issue, err := parseYamllintLine("./.github/workflows/test.lock.yml:7:9: [error] wrong indentation: expected 8 but found 10 (indentation)")
 
 		require.NoError(t, err)
-		assert.Equal(t, yamllintIssue{
-			File:    "./.github/workflows/test.lock.yml",
-			Line:    7,
-			Column:  9,
-			Level:   "error",
-			Message: "wrong indentation: expected 8 but found 10",
-			Rule:    "indentation",
+		assert.Equal(t, scanfindings.Finding{
+			RuleID:   "indentation",
+			Severity: scanfindings.SeverityHigh,
+			Message:  "[error] wrong indentation: expected 8 but found 10 (indentation)",
+			File:     "./.github/workflows/test.lock.yml",
+			Line:     7,
+			Column:   9,
 		}, issue)
 	})
 
@@ -31,13 +32,13 @@ func TestParseYamllintLine(t *testing.T) {
 		issue, err := parseYamllintLine("./test.lock.yml:1:1: [warning] missing document start \"---\" (document-start)")
 
 		require.NoError(t, err)
-		assert.Equal(t, yamllintIssue{
-			File:    "./test.lock.yml",
-			Line:    1,
-			Column:  1,
-			Level:   "warning",
-			Message: "missing document start \"---\"",
-			Rule:    "document-start",
+		assert.Equal(t, scanfindings.Finding{
+			RuleID:   "document-start",
+			Severity: scanfindings.SeverityMedium,
+			Message:  "[warning] missing document start \"---\" (document-start)",
+			File:     "./test.lock.yml",
+			Line:     1,
+			Column:   1,
 		}, issue)
 	})
 

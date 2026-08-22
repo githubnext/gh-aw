@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +56,7 @@ func createTestProcessedRun(opts ...func(*ProcessedRun)) ProcessedRun {
 func assertFindingExists(t *testing.T, findings []Finding, category, severity string, msgAndArgs ...any) {
 	t.Helper()
 	for _, f := range findings {
-		if f.Category == category && f.Severity == severity {
+		if f.Category == category && f.Severity.String() == severity {
 			return // Found it!
 		}
 	}
@@ -142,7 +143,7 @@ func TestGenerateFindings(t *testing.T) {
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should generate an error finding")
-				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
 				assert.Contains(t, finding.Title, "Failed", "Error finding should have 'Failed' in title")
 				assert.Contains(t, finding.Description, "Test error", "Error finding description should include the first error message")
 			},
@@ -179,7 +180,7 @@ func TestGenerateFindings(t *testing.T) {
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should generate an error finding")
-				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
 				assert.Equal(t, "Workflow 'Test Workflow' failed with 1 error(s)", finding.Description,
 					"Description should match standard format without error message suffix when no errors available")
 			},
@@ -202,7 +203,7 @@ func TestGenerateFindings(t *testing.T) {
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should generate an error finding")
-				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
 				assert.Contains(t, finding.Description, "2 error(s)",
 					"Description should reflect the actual number of errors, not metrics.ErrorCount")
 				assert.NotContains(t, finding.Description, "0 error(s)",
@@ -224,7 +225,7 @@ func TestGenerateFindings(t *testing.T) {
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should still generate an error finding")
-				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
 				assert.Contains(t, finding.Description, "before agent activation",
 					"Description should indicate pre-activation failure when no logs are available")
 				assert.Contains(t, finding.Description, "no error logs",
@@ -1162,7 +1163,7 @@ func TestFindingSeverityOrdering(t *testing.T) {
 	// Should have critical, high, and medium findings
 	severityCounts := make(map[string]int)
 	for _, f := range findings {
-		severityCounts[f.Severity]++
+		severityCounts[f.Severity.String()]++
 	}
 
 	assert.NotZero(t, severityCounts["critical"],

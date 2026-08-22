@@ -5,6 +5,7 @@ import { createRequire } from "module";
 const EVALS_DIR = "/tmp/gh-aw/evals";
 const EVALS_LOG_PATH = `${EVALS_DIR}/evals.log`;
 const EVALS_OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
+const EXPERIMENT_ASSIGNMENTS_PATH = "/tmp/gh-aw/experiments/assignments.json";
 const require = createRequire(import.meta.url);
 const { MODEL_FALLBACK_ENV_VAR } = require("./model_fallback.cjs");
 const { setupMain, parseMain, extractAssistantTextFromJsonlLog } = require("./run_evals.cjs");
@@ -32,6 +33,9 @@ describe("run_evals.cjs", () => {
     if (fs.existsSync(EVALS_OUTPUT_PATH)) {
       fs.unlinkSync(EVALS_OUTPUT_PATH);
     }
+    if (fs.existsSync(EXPERIMENT_ASSIGNMENTS_PATH)) {
+      fs.unlinkSync(EXPERIMENT_ASSIGNMENTS_PATH);
+    }
   });
 
   afterEach(() => {
@@ -41,6 +45,9 @@ describe("run_evals.cjs", () => {
     }
     if (fs.existsSync(EVALS_OUTPUT_PATH)) {
       fs.unlinkSync(EVALS_OUTPUT_PATH);
+    }
+    if (fs.existsSync(EXPERIMENT_ASSIGNMENTS_PATH)) {
+      fs.unlinkSync(EXPERIMENT_ASSIGNMENTS_PATH);
     }
   });
 
@@ -62,6 +69,20 @@ describe("run_evals.cjs", () => {
       timestamp: expect.any(String),
       runid: "123456789",
     });
+  });
+
+  it("includes experiment assignments in eval records when available", async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
+    vi.stubEnv("GH_AW_EVALS_MODEL", "small");
+    vi.stubEnv("GITHUB_RUN_ID", "123456789");
+    fs.mkdirSync("/tmp/gh-aw/experiments", { recursive: true });
+    fs.writeFileSync("/tmp/gh-aw/experiments/assignments.json", JSON.stringify({ prompt_style: "concise" }) + "\n", "utf8");
+    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: YES\n", "utf8");
+
+    await parseMain();
+
+    const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
+    expect(JSON.parse(line).experiments).toEqual({ prompt_style: "concise" });
   });
 
   it('falls back to "unknown" when the workflow run id is absent', async () => {

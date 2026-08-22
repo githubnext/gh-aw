@@ -1,0 +1,227 @@
+package scanfindings
+
+import (
+	"bytes"
+	"strings"
+	"testing"
+)
+
+func TestParseSeverity(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want SeverityLevel
+	}{
+		{"Critical", SeverityCritical},
+		{"critical", SeverityCritical},
+		{"High", SeverityHigh},
+		{"error", SeverityHigh},
+		{"Medium", SeverityMedium},
+		{"warning", SeverityMedium},
+		{"moderate", SeverityMedium},
+		{"Low", SeverityLow},
+		{"Negligible", SeverityLow},
+		{"Informational", SeverityInfo},
+		{"note", SeverityInfo},
+		{"info", SeverityInfo},
+		{" High ", SeverityHigh},
+		{"Unknown", SeverityUnknown},
+		{"", SeverityUnknown},
+		{"bogus", SeverityUnknown},
+	}
+
+	for _, tt := range tests {
+		if got := ParseSeverity(tt.raw); got != tt.want {
+			t.Errorf("ParseSeverity(%q) = %q, want %q", tt.raw, got, tt.want)
+		}
+	}
+}
+
+func TestSeverityErrorType(t *testing.T) {
+	tests := []struct {
+		severity SeverityLevel
+		want     string
+	}{
+		{SeverityCritical, "error"},
+		{SeverityHigh, "error"},
+		{SeverityMedium, "warning"},
+		{SeverityLow, "info"},
+		{SeverityInfo, "info"},
+		{SeverityUnknown, "warning"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.severity.ErrorType(); got != tt.want {
+			t.Errorf("%q.ErrorType() = %q, want %q", tt.severity, got, tt.want)
+		}
+	}
+}
+
+func TestSeverityAtLeast(t *testing.T) {
+	if !SeverityCritical.AtLeast(SeverityHigh) {
+		t.Error("critical should be at least high")
+	}
+	if !SeverityHigh.AtLeast(SeverityHigh) {
+		t.Error("high should be at least high")
+	}
+	if SeverityMedium.AtLeast(SeverityHigh) {
+		t.Error("medium should not be at least high")
+	}
+	if SeverityUnknown.AtLeast(SeverityInfo) {
+		t.Error("unknown should not be at least info")
+	}
+}
+
+func TestFindingCompilerError(t *testing.T) {
+	finding := Finding{
+		RuleID:   "template-injection",
+		Severity: SeverityHigh,
+		Message:  "[High] template-injection: bad",
+		File:     "workflow.lock.yml",
+		Line:     12,
+		Column:   4,
+	}
+
+	compilerErr := finding.CompilerError()
+	if compilerErr.Type != "error" {
+		t.Errorf("expected type error, got %q", compilerErr.Type)
+	}
+	if compilerErr.Position.File != "workflow.lock.yml" || compilerErr.Position.Line != 12 || compilerErr.Position.Column != 4 {
+		t.Errorf("unexpected position: %+v", compilerErr.Position)
+	}
+	if compilerErr.Message != finding.Message {
+		t.Errorf("unexpected message: %q", compilerErr.Message)
+	}
+}
+
+func TestFindingCompilerErrorDefaultsPosition(t *testing.T) {
+	compilerErr := Finding{Message: "no location"}.CompilerError()
+	if compilerErr.Position.Line != 1 || compilerErr.Position.Column != 1 {
+		t.Errorf("expected line and column to default to 1, got %+v", compilerErr.Position)
+	}
+}
+
+func TestFormatMessage(t *testing.T) {
+	tests := []struct {
+		severity, rule, description string
+		want                        string
+	}{
+		{"High", "RGS-001", "Unsafe runner", "[High] RGS-001: Unsafe runner"},
+		{"warning", "rule", "", "[warning] rule"},
+		{"", "rule", "detail", "rule: detail"},
+		{"error", "", "detail", "[error] detail"},
+	}
+
+	for _, tt := range tests {
+		if got := FormatMessage(tt.severity, tt.rule, tt.description); got != tt.want {
+			t.Errorf("FormatMessage(%q, %q, %q) = %q, want %q", tt.severity, tt.rule, tt.description, got, tt.want)
+		}
+	}
+}
+
+func TestSort(t *testing.T) {
+	findings := []Finding{
+		{File: "b.yml", Line: 1, Severity: SeverityLow},
+		{File: "a.yml", Line: 10, Column: 2, Severity: SeverityMedium},
+		{File: "a.yml", Line: 10, Column: 1, Severity: SeverityLow},
+		{File: "a.yml", Line: 2, Severity: SeverityInfo},
+	}
+
+	Sort(findings)
+
+	want := []struct {
+		file   string
+		line   int
+		column int
+	}{
+		{"a.yml", 2, 0},
+		{"a.yml", 10, 1},
+		{"a.yml", 10, 2},
+		{"b.yml", 1, 0},
+	}
+
+	for i, w := range want {
+		got := findings[i]
+		if got.File != w.file || got.Line != w.line || got.Column != w.column {
+			t.Errorf("finding %d = %s:%d:%d, want %s:%d:%d", i, got.File, got.Line, got.Column, w.file, w.line, w.column)
+		}
+	}
+}
+
+func TestSortOrdersBySeverityWithinSameLocation(t *testing.T) {
+	findings := []Finding{
+		{File: "a.yml", Line: 1, Column: 1, Severity: SeverityLow, RuleID: "low"},
+		{File: "a.yml", Line: 1, Column: 1, Severity: SeverityCritical, RuleID: "critical"},
+	}
+
+	Sort(findings)
+
+	if findings[0].RuleID != "critical" {
+		t.Errorf("expected critical finding first, got %q", findings[0].RuleID)
+	}
+}
+
+func TestCountAtLeast(t *testing.T) {
+	findings := []Finding{
+		{Severity: SeverityCritical},
+		{Severity: SeverityHigh},
+		{Severity: SeverityMedium},
+		{Severity: SeverityUnknown},
+	}
+
+	if got := CountAtLeast(findings, SeverityHigh); got != 2 {
+		t.Errorf("CountAtLeast(high) = %d, want 2", got)
+	}
+	// Unknown severities rank below info and are therefore excluded.
+	if got := CountAtLeast(findings, SeverityInfo); got != 3 {
+		t.Errorf("CountAtLeast(info) = %d, want 3", got)
+	}
+}
+
+func TestContextLines(t *testing.T) {
+	lines := []string{"one", "two", "three", "four", "five", "six"}
+
+	got := ContextLines(lines, 4)
+	want := []string{"two", "three", "four", "five", "six"}
+	if len(got) != len(want) {
+		t.Fatalf("ContextLines(4) returned %d lines, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("ContextLines(4)[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+
+	if got := ContextLines(lines, 1); len(got) != 1 || got[0] != "one" {
+		t.Errorf("ContextLines(1) = %v, want [one]", got)
+	}
+	if got := ContextLines(lines, 2); len(got) != 3 || got[1] != "two" {
+		t.Errorf("ContextLines(2) = %v, want [one two three]", got)
+	}
+	if got := ContextLines(lines, len(lines)); len(got) != 1 || got[0] != "six" {
+		t.Errorf("ContextLines(last) = %v, want [six]", got)
+	}
+	if got := ContextLines(lines, 0); got != nil {
+		t.Errorf("ContextLines(0) = %v, want nil", got)
+	}
+	if got := ContextLines(lines, len(lines)+1); got != nil {
+		t.Errorf("ContextLines(out of range) = %v, want nil", got)
+	}
+	if got := ContextLines(nil, 1); got != nil {
+		t.Errorf("ContextLines(nil) = %v, want nil", got)
+	}
+}
+
+func TestRender(t *testing.T) {
+	var buf bytes.Buffer
+	Render(&buf, []Finding{
+		{Severity: SeverityHigh, Message: "boom", File: "a.yml", Line: 3, Column: 2},
+	})
+
+	output := buf.String()
+	if !strings.Contains(output, "a.yml:3:2") {
+		t.Errorf("expected rendered position in output, got %q", output)
+	}
+	if !strings.Contains(output, "boom") {
+		t.Errorf("expected message in output, got %q", output)
+	}
+}

@@ -28,7 +28,7 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 	// Parse URL sanitization policy
 	if urls, exists := outputMap["urls"]; exists {
 		if urlsStr, ok := urls.(string); ok {
-			config.URLs = urlsStr
+			config.URLs = SafeOutputsURLsPolicy(urlsStr)
 		}
 	}
 

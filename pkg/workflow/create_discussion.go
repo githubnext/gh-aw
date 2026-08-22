@@ -24,7 +24,6 @@ type CreateDiscussionsConfig struct {
 	RequiredCategory              string           `yaml:"required-category,omitempty"` // Required category for matching when close-older-discussions is enabled
 	Expires                       int              `yaml:"expires,omitempty"`           // Hours until the discussion expires and should be automatically closed
 	FallbackToIssue               *bool            `yaml:"fallback-to-issue,omitempty"` // When true (default), fallback to create-issue if discussion creation fails due to permissions.
-	Footer                        *string          `yaml:"footer,omitempty"`            // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseCreateDiscussionsConfig handles create-discussion configuration

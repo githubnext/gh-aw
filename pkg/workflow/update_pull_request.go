@@ -18,7 +18,6 @@ type UpdatePullRequestsConfig struct {
 	UpdateBranch           *bool   `yaml:"update-branch,omitempty"` // When true, update PR branch with latest base branch changes before applying other updates. Defaults to false.
 	UpdateBranchStacks     *bool   `yaml:"sync-stack,omitempty"`    // When true, allow stacked-PR stack-sync fallback if update-branch endpoint is unsupported. Defaults to true.
 	Operation              *string `yaml:"operation,omitempty"`     // Default operation for body updates: "append", "prepend", or "replace" (defaults to "replace")
-	Footer                 *string `yaml:"footer,omitempty"`        // Controls whether AI-generated footer is added. When false, visible footer is omitted.
 }
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration

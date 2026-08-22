@@ -91,11 +91,14 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		AI:                engineID,
 		ActionCache:       data.ActionCache,
 		Features:          data.Features,
+		Jobs:              data.Jobs,
 		Permissions:       data.Permissions,
+		ParsedFrontmatter: data.ParsedFrontmatter,
 		CachedPermissions: data.CachedPermissions,
 		ModelCosts:        data.ModelCosts,
 		IsDetectionRun:    true,
 		RunnerConfig:      data.RunnerConfig,
+		TimeoutMinutes:    "timeout-minutes: " + resolveDetectionJobTimeoutValue(data),
 		CompiledVersion:   data.CompiledVersion,
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{

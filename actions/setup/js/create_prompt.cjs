@@ -28,7 +28,7 @@ function parseConfig(value) {
   try {
     parsed = JSON.parse(value);
   } catch (error) {
-    throw new Error(`${ERR_PARSE}: Invalid GH_AW_PROMPT_CONFIG: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_PARSE}: Invalid GH_AW_PROMPT_CONFIG: ${getErrorMessage(error)}`, { cause: error });
   }
   if (!parsed || !Array.isArray(parsed.items)) {
     throw new Error(`${ERR_CONFIG}: GH_AW_PROMPT_CONFIG must contain an items array`);
@@ -83,7 +83,11 @@ function writePromptFile(promptPath, content) {
   const fd = fs.openSync(promptPath, flags, 0o600);
   try {
     fs.fchmodSync(fd, 0o600);
-    fs.writeFileSync(fd, content, "utf8");
+    try {
+      fs.writeFileSync(fd, content, "utf8");
+    } catch (error) {
+      throw new Error(`${ERR_SYSTEM}: Failed to write prompt file ${promptPath}: ${getErrorMessage(error)}`, { cause: error });
+    }
   } finally {
     fs.closeSync(fd);
   }
@@ -131,7 +135,7 @@ function renderPrompt(config, env, promptsDir) {
     try {
       result += fs.readFileSync(promptFile, "utf8");
     } catch (error) {
-      throw new Error(`${ERR_SYSTEM}: Failed to read prompt file: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_SYSTEM}: Failed to read prompt file: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 
