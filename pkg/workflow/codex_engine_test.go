@@ -35,6 +35,11 @@ func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
 			expected: LLMProviderGitHub,
 		},
 		{
+			name:     "concrete copilot model selects GitHub",
+			data:     &WorkflowData{Model: "copilot/gpt-5.4", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderGitHub,
+		},
+		{
 			name:     "model matching is case insensitive",
 			data:     &WorkflowData{Model: " COPILOT/AUTO ", EngineConfig: &EngineConfig{ID: "codex"}},
 			expected: LLMProviderGitHub,
@@ -63,6 +68,22 @@ func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if actual := engine.ResolveLLMProvider(tt.data); actual != tt.expected {
 				t.Fatalf("expected provider %q, got %q", tt.expected, actual)
+			}
+		})
+	}
+}
+
+func TestCodexModelID(t *testing.T) {
+	tests := map[string]string{
+		"copilot/auto":    "auto",
+		"copilot/gpt-5.4": "gpt-5.4",
+		"gpt-5-codex":     "gpt-5-codex",
+	}
+
+	for model, expected := range tests {
+		t.Run(model, func(t *testing.T) {
+			if actual := codexModelID(model); actual != expected {
+				t.Fatalf("expected model ID %q, got %q", expected, actual)
 			}
 		})
 	}

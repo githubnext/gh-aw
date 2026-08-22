@@ -27,7 +27,6 @@ const {
   getConfiguredProviderPortFromReflect,
   validateCodexOpenAIBaseURLFromReflect,
   configureCodexProviderFromReflect,
-  resolveCodexModelForProvider,
   hasNoopInSafeOutputs,
   resolveRetryConfig,
   resolvePostResultWatchdogIdleTimeoutMs,
@@ -232,41 +231,6 @@ describe("codex_harness.cjs", () => {
         } finally {
           fs.rmSync(tmpDir, { recursive: true, force: true });
         }
-      });
-    });
-
-    describe("resolveCodexModelForProvider", () => {
-      it("resolves Copilot auto to a concrete reflected model", () => {
-        const result = resolveCodexModelForProvider({
-          configuredModel: "auto",
-          provider: "github",
-          awfConfigData: {
-            apiProxy: {
-              models: {
-                auto: ["copilot/auto", "large"],
-                large: ["copilot/gpt-5.4"],
-              },
-            },
-          },
-          reflectData: {
-            endpoints: [{ provider: "copilot", configured: true, models: ["gpt-5.4"] }],
-          },
-        });
-
-        expect(result).toBe("gpt-5.4");
-      });
-
-      it("leaves OpenAI model names unchanged", () => {
-        const result = resolveCodexModelForProvider({
-          configuredModel: "auto",
-          provider: "openai",
-          awfConfigData: { apiProxy: { models: { auto: ["copilot/gpt-5.4"] } } },
-          reflectData: {
-            endpoints: [{ provider: "copilot", configured: true, models: ["gpt-5.4"] }],
-          },
-        });
-
-        expect(result).toBe("auto");
       });
     });
 
