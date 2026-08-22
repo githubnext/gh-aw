@@ -260,9 +260,6 @@
         "discussions": {
           "$ref": "#/definitions/permissions-level"
         },
-        "drives": {
-          "$ref": "#/definitions/permissions-level"
-        },
         "id-token": {
           "$ref": "#/definitions/permissions-level"
         },
