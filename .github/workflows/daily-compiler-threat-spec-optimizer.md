@@ -167,8 +167,10 @@ Do not emit a noop or create/update a pull request from incomplete threat-covera
   `{"diagnostic":"OPTIMIZER_TIMEOUT","last_completed_step":"","unevaluated_rules":[],"failed_at":"<UTC timestamp>"}`
 - Apply `RATE_LIMIT_RETRY_CONFIG` to primary or secondary GitHub rate limits. If retries are exhausted, emit:
   `{"diagnostic":"OPTIMIZER_RATE_LIMITED","endpoints":[],"retry_after":"","failed_at":"<UTC timestamp>"}`
+- If the previous scheduled UTC window has no completed optimizer run, emit:
+  `{"diagnostic":"OPTIMIZER_MISSED_CRON","scheduled_at":"<UTC timestamp>","detected_at":"<UTC timestamp>","lookback_hours":48}`
 
-Each diagnostic field shown above is required. A failed or rate-limited run does not count as a completed coverage cycle.
+Each diagnostic field shown above is required. A failed, rate-limited, or missed scheduled run does not count as a completed coverage cycle. Surface a missed scheduled window as a follow-up sync action.
 
 The compiler enforces the workflow schedule, timeout, and the post-agent timeout handler. API retry,
 rate-limit, partial-artifact, and same-day retry behavior is enforced by the optimizer prompt and is

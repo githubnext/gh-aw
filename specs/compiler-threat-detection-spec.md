@@ -238,7 +238,7 @@ New threat categories do not immediately become normative rules. This section de
 
 ### 6.6 Optimizer Failure Safeguards
 
-The daily optimizer process (Section 6) is itself subject to failure. This section specifies normative behavior for the three principal failure modes: API unavailability, runner timeout, and rate-limit or quota exhaustion. These safeguards mirror the pattern established in the AWF Config Canonical Sources Specification §7.
+The daily optimizer process (Section 6) is itself subject to failure. This section specifies normative behavior for the four principal failure modes: API unavailability, runner timeout, rate-limit or quota exhaustion, and a missed scheduled run. These safeguards mirror the pattern established in the AWF Config Canonical Sources Specification §7.
 
 **Failure Mode 1 — API Unavailability**
 
@@ -264,6 +264,10 @@ When the GitHub API returns secondary rate-limit (`403` with `Retry-After` heade
 1. The optimizer **MUST** apply the `RATE_LIMIT_RETRY_CONFIG` retry policy (as defined in `actions/setup/js/error_recovery.cjs`) before emitting a terminal failure. (T-CTR-036)
 2. If all retries are exhausted and the rate limit is not recovered, the optimizer **MUST** emit an `OPTIMIZER_RATE_LIMITED` diagnostic entry recording the affected endpoints and the `Retry-After` or `x-ratelimit-reset` value. (T-CTR-037)
 3. The optimizer **MUST NOT** count a rate-limited run as a completed threat-coverage cycle; the run **MUST** be retried in the next scheduled window. (T-CTR-038)
+
+**Failure Mode 4 — Missed Scheduled Run**
+
+When the daily optimizer job itself does not run during its scheduled UTC window, the next successful optimizer invocation or external scheduler audit **MUST** emit an `OPTIMIZER_MISSED_CRON` diagnostic entry recording the missed `scheduled_at` window, the `detected_at` timestamp, and the lookback horizon used to detect the gap. A missed scheduled window **MUST NOT** count as a completed threat-coverage cycle and **SHOULD** be surfaced as a follow-up sync action. (T-CTR-040)
 
 ---
 
@@ -394,6 +398,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 | **T-CTR-036** | §6.6 mode 3 item 1 | Rate limiting applies `RATE_LIMIT_RETRY_CONFIG`. |
 | **T-CTR-037** | §6.6 mode 3 item 2 | Exhausted rate limiting produces a complete `OPTIMIZER_RATE_LIMITED` diagnostic. |
 | **T-CTR-038** | §6.6 mode 3 item 3 | Rate-limited evaluation is incomplete and retries in the next scheduled window. |
+| **T-CTR-040** | §6.6 mode 4 | A missed scheduled optimizer run emits `OPTIMIZER_MISSED_CRON`, does not count as completed coverage, and creates a follow-up sync action. |
 
 These optimizer-protocol IDs cover Section 6 norms; they do not add or replace the one-to-one core CTR rule mappings in Section 8.1.
 
