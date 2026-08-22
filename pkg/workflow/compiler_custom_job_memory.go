@@ -104,6 +104,7 @@ func (c *Compiler) generateDriveMemoryRestoreLines(data *WorkflowData) []string 
 	var builder strings.Builder
 	restoreData := &WorkflowData{
 		DriveMemoryConfig: &DriveMemoryConfig{Drives: make([]DriveMemoryEntry, len(data.DriveMemoryConfig.Drives))},
+		ParsedTools:       data.ParsedTools,
 	}
 	for i, drive := range data.DriveMemoryConfig.Drives {
 		drive.RestoreOnly = true

@@ -43,6 +43,9 @@ func generateDriveMemorySteps(builder *strings.Builder, data *WorkflowData, pinA
 		} else {
 			builder.WriteString("          write: true\n")
 		}
+		if threatDetectionEnabled && !drive.RestoreOnly {
+			generateDriveMemoryBaselineSteps(builder, data, drive, mountPath, pinAction)
+		}
 
 		fmt.Fprintf(builder, "      - name: Link drive-memory directory (%s)\n", drive.ID)
 		builder.WriteString("        shell: bash\n")
@@ -55,6 +58,25 @@ func generateDriveMemorySteps(builder *strings.Builder, data *WorkflowData, pinA
 
 		generateDriveMemoryGitSetupStep(builder, drive, memoryDir, integrityLevel)
 	}
+}
+
+func generateDriveMemoryBaselineSteps(builder *strings.Builder, data *WorkflowData, drive DriveMemoryEntry, mountPath string, pinAction func(string) string) {
+	fmt.Fprintf(builder, "      - name: Capture drive-memory baseline (%s)\n", drive.ID)
+	fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/github-script"))
+	builder.WriteString("        env:\n")
+	fmt.Fprintf(builder, "          MEMORY_DIR: ${{ github.workspace }}/%s\n", mountPath)
+	fmt.Fprintf(builder, "          BASELINE_PATH: %s\n", driveMemoryBaselinePathFor(drive.ID))
+	builder.WriteString("        with:\n")
+	builder.WriteString("          script: |\n")
+	builder.WriteString("            const fs = require('fs');\n")
+	builder.WriteString("            const { memoryTreeDigest } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');\n")
+	builder.WriteString("            fs.writeFileSync(process.env.BASELINE_PATH, memoryTreeDigest(process.env.MEMORY_DIR) + '\\n', 'utf8');\n")
+	fmt.Fprintf(builder, "      - name: Upload drive-memory baseline (%s)\n", drive.ID)
+	fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
+	builder.WriteString("        with:\n")
+	fmt.Fprintf(builder, "          name: %sdrive-memory-baseline-%s\n", artifactPrefixExprForDownstreamJob(data), drive.ID)
+	fmt.Fprintf(builder, "          path: %s\n", driveMemoryBaselinePathFor(drive.ID))
+	builder.WriteString("          retention-days: 1\n")
 }
 
 func generateDriveMemoryGitSetupStep(builder *strings.Builder, drive DriveMemoryEntry, memoryDir, integrityLevel string) {
@@ -137,6 +159,7 @@ func generateDriveMemoryPersistence(builder *strings.Builder, data *WorkflowData
 			fmt.Fprintf(builder, "          name: %sdrive-memory-%s\n", prefix, drive.ID)
 			builder.WriteString("          include-hidden-files: true\n")
 			fmt.Fprintf(builder, "          path: ${{ github.workspace }}/%s\n", driveMemoryMountPathFor(drive.ID))
+			builder.WriteString("          retention-days: 1\n")
 			continue
 		}
 
@@ -174,6 +197,10 @@ func buildDriveMemoryPromptSection(config *DriveMemoryConfig) *PromptSection {
 
 func generateDriveMemoryArtifactName(data *WorkflowData, id string) string {
 	return artifactPrefixExprForAgentDownstreamJob(data) + "drive-memory-" + id
+}
+
+func generateDriveMemoryBaselineArtifactName(data *WorkflowData, id string) string {
+	return artifactPrefixExprForAgentDownstreamJob(data) + "drive-memory-baseline-" + id
 }
 
 func (c *Compiler) buildUpdateDriveMemoryJob(data *WorkflowData, threatDetectionEnabled bool) (*Job, error) {
@@ -224,6 +251,8 @@ func (c *Compiler) buildDriveMemoryUpdateSteps(data *WorkflowData, drive DriveMe
 	mountPath := driveMemoryMountPathFor(drive.ID)
 	steps := []string{
 		c.buildDriveMemoryUpdateCheckoutStep(drive, mountPath),
+		c.buildDriveMemoryBaselineDownloadStep(data, drive),
+		c.buildDriveMemoryConflictCheckStep(drive, mountPath),
 		buildDriveMemoryClearStep(drive, mountPath),
 		c.buildDriveMemoryDownloadStep(data, drive, mountPath),
 	}
@@ -245,6 +274,33 @@ func (c *Compiler) buildDriveMemoryUpdateCheckoutStep(drive DriveMemoryEntry, mo
 		fmt.Fprintf(&step, "          disk-size: %q\n", drive.DiskSize)
 	}
 	step.WriteString("          write: true\n")
+	return step.String()
+}
+
+func (c *Compiler) buildDriveMemoryBaselineDownloadStep(data *WorkflowData, drive DriveMemoryEntry) string {
+	var step strings.Builder
+	fmt.Fprintf(&step, "      - name: Download drive-memory baseline (%s)\n", drive.ID)
+	fmt.Fprintf(&step, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
+	step.WriteString("        with:\n")
+	fmt.Fprintf(&step, "          name: %s\n", generateDriveMemoryBaselineArtifactName(data, drive.ID))
+	fmt.Fprintf(&step, "          path: ${{ runner.temp }}/gh-aw/drive-memory-baseline-%s\n", drive.ID)
+	return step.String()
+}
+
+func (c *Compiler) buildDriveMemoryConflictCheckStep(drive DriveMemoryEntry, mountPath string) string {
+	var step strings.Builder
+	fmt.Fprintf(&step, "      - name: Check drive-memory for concurrent updates (%s)\n", drive.ID)
+	fmt.Fprintf(&step, "        uses: %s\n", c.getActionPin("actions/github-script"))
+	step.WriteString("        env:\n")
+	fmt.Fprintf(&step, "          MEMORY_DIR: ${{ github.workspace }}/%s\n", mountPath)
+	fmt.Fprintf(&step, "          BASELINE_PATH: ${{ runner.temp }}/gh-aw/drive-memory-baseline-%s/%s\n", drive.ID, driveMemoryBaselineFilenameFor(drive.ID))
+	step.WriteString("        with:\n")
+	step.WriteString("          script: |\n")
+	step.WriteString("            const fs = require('fs');\n")
+	step.WriteString("            const { memoryTreeDigest } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');\n")
+	step.WriteString("            const expected = fs.readFileSync(process.env.BASELINE_PATH, 'utf8').trim();\n")
+	step.WriteString("            const actual = memoryTreeDigest(process.env.MEMORY_DIR);\n")
+	step.WriteString("            if (actual !== expected) core.setFailed('Drive memory changed during threat detection; refusing to overwrite a newer version');\n")
 	return step.String()
 }
 

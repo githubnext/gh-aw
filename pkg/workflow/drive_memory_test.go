@@ -95,6 +95,65 @@ func TestDriveMemoryEmitsExperimentalWarning(t *testing.T) {
 	assert.Positive(t, compiler.GetWarningCount())
 }
 
+func TestValidateDriveMemoryRuntime(t *testing.T) {
+	driveConfig := &DriveMemoryConfig{Drives: defaultDriveMemoryEntries()}
+	tests := []struct {
+		name    string
+		data    *WorkflowData
+		wantErr string
+	}{
+		{
+			name: "default runner",
+			data: &WorkflowData{DriveMemoryConfig: driveConfig},
+		},
+		{
+			name: "ubuntu-latest runner",
+			data: &WorkflowData{DriveMemoryConfig: driveConfig, RunsOn: "runs-on: ubuntu-latest"},
+		},
+		{
+			name:    "unsupported runner",
+			data:    &WorkflowData{DriveMemoryConfig: driveConfig, RunsOn: "runs-on: windows-latest"},
+			wantErr: "requires runs-on: ubuntu-latest",
+		},
+		{
+			name:    "main job container",
+			data:    &WorkflowData{DriveMemoryConfig: driveConfig, Container: "container: node:24"},
+			wantErr: "cannot be used with a job container",
+		},
+		{
+			name: "custom restore job runner",
+			data: &WorkflowData{
+				DriveMemoryConfig: driveConfig,
+				Jobs: map[string]any{
+					"reader": map[string]any{"restore-memory": true, "runs-on": "self-hosted"},
+				},
+			},
+			wantErr: "jobs.reader.restore-memory requires runs-on: ubuntu-latest",
+		},
+		{
+			name: "custom restore job container",
+			data: &WorkflowData{
+				DriveMemoryConfig: driveConfig,
+				Jobs: map[string]any{
+					"reader": map[string]any{"restore-memory": true, "container": "node:24"},
+				},
+			},
+			wantErr: "jobs.reader.restore-memory cannot use drive-memory with a job container",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateDriveMemoryRuntime(tt.data)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func TestGenerateDriveMemorySteps(t *testing.T) {
 	data := &WorkflowData{
 		DriveMemoryConfig: &DriveMemoryConfig{Drives: []DriveMemoryEntry{
@@ -139,6 +198,23 @@ func TestGenerateDriveMemorySteps(t *testing.T) {
 	assert.Contains(t, prompt.Content, "/tmp/gh-aw/drive-memory/")
 	assert.Contains(t, prompt.Content, "/tmp/gh-aw/drive-memory-reference/")
 	assert.Contains(t, prompt.Content, "read-only")
+}
+
+func TestDriveMemoryRestorePreservesIntegrityLevel(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		DriveMemoryConfig: &DriveMemoryConfig{Drives: defaultDriveMemoryEntries()},
+		ParsedTools: &ToolsConfig{GitHub: &GitHubToolConfig{
+			MinIntegrity: GitHubIntegrityApproved,
+		}},
+	}
+
+	steps := strings.Join(compiler.generateDriveMemoryRestoreLines(data), "")
+	assert.Contains(t, steps, "GH_AW_MIN_INTEGRITY: approved")
+
+	var preActivation strings.Builder
+	compiler.generatePreActivationDriveMemoryRestoreSteps(&preActivation, data)
+	assert.Contains(t, preActivation.String(), "GH_AW_MIN_INTEGRITY: approved")
 }
 
 func TestCompileDriveMemoryWorkflow(t *testing.T) {
@@ -200,11 +276,15 @@ Use drive memory.
 	updateSection := extractJobSection(lockYAML, updateDriveMemoryJobName)
 
 	assert.Contains(t, agentSection, "write: false")
+	assert.Contains(t, agentSection, "Capture drive-memory baseline")
 	assert.Contains(t, agentSection, "Upload drive-memory data as artifact")
+	assert.Contains(t, agentSection, "Upload drive-memory baseline")
 	assert.Contains(t, agentSection, "drives: read")
 	assert.NotContains(t, agentSection, "actions/gh-drives-preview/commit@")
 	assert.Contains(t, updateSection, "runs-on: ubuntu-latest")
 	assert.Contains(t, updateSection, "drives: write")
+	assert.Contains(t, updateSection, "Check drive-memory for concurrent updates")
+	assert.Contains(t, updateSection, "refusing to overwrite a newer version")
 	assert.Contains(t, updateSection, "Download drive-memory artifact")
 	assert.Contains(t, updateSection, "actions/gh-drives-preview/commit@")
 }

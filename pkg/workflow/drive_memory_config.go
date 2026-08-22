@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
@@ -52,6 +53,18 @@ func driveMemoryMountPathFor(id string) string {
 
 func driveMemoryValidationStepID(id string) string {
 	return memoryValidationStepID("validate_drive_memory", id)
+}
+
+func driveMemoryBaselineFilenameFor(id string) string {
+	safeID := id
+	if !isValidCacheID(safeID) {
+		safeID = memoryValidationStepID("invalid", id)
+	}
+	return fmt.Sprintf("drive-memory-baseline-%s.sha256", safeID)
+}
+
+func driveMemoryBaselinePathFor(id string) string {
+	return "/tmp/gh-aw/" + driveMemoryBaselineFilenameFor(id)
 }
 
 func driveHasValidationStep(drive DriveMemoryEntry) bool {
@@ -155,6 +168,7 @@ func (c *Compiler) extractDriveMemoryConfig(toolsConfig *ToolsConfig) (*DriveMem
 	if toolsConfig == nil || toolsConfig.DriveMemory == nil {
 		return nil, nil
 	}
+
 	config := &DriveMemoryConfig{}
 	value := toolsConfig.DriveMemory.Raw
 	if value == nil {
@@ -184,4 +198,33 @@ func (c *Compiler) extractDriveMemoryConfig(toolsConfig *ToolsConfig) (*DriveMem
 		return config, nil
 	}
 	return nil, nil
+}
+
+func validateDriveMemoryRuntime(data *WorkflowData) error {
+	if data == nil || data.DriveMemoryConfig == nil || len(data.DriveMemoryConfig.Drives) == 0 {
+		return nil
+	}
+	if data.Container != "" {
+		return fmt.Errorf("tools.drive-memory requires the ubuntu-latest host runner and cannot be used with a job container")
+	}
+	if runsOn := strings.TrimSpace(data.RunsOn); runsOn != "" && runsOn != "runs-on: ubuntu-latest" {
+		return fmt.Errorf("tools.drive-memory requires runs-on: ubuntu-latest during the GitHub Drives private preview")
+	}
+	for jobName, rawJob := range data.Jobs {
+		job, ok := rawJob.(map[string]any)
+		if !ok {
+			continue
+		}
+		restoreMemory, _ := job["restore-memory"].(bool)
+		if !restoreMemory {
+			continue
+		}
+		if container, exists := job["container"]; exists && container != nil {
+			return fmt.Errorf("jobs.%s.restore-memory cannot use drive-memory with a job container", jobName)
+		}
+		if runsOn, exists := job["runs-on"]; exists && runsOn != "ubuntu-latest" {
+			return fmt.Errorf("jobs.%s.restore-memory requires runs-on: ubuntu-latest when drive-memory is configured", jobName)
+		}
+	}
+	return nil
 }

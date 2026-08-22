@@ -60,7 +60,7 @@ The `default` entry is exposed at `/tmp/gh-aw/drive-memory/`; named entries use 
 
 ## Persistence and threat detection
 
-Without threat detection, the compiler checks out each drive before the agent and commits validated changes afterward. With threat detection enabled, the agent receives a non-publishing checkout and the compiler stages drive contents as an artifact. A separate `update_drive_memory` job publishes the artifact only after detection succeeds.
+Without threat detection, the compiler checks out each drive before the agent and commits validated changes afterward. With threat detection enabled, the agent receives a non-publishing checkout and the compiler stages drive contents as an artifact. A separate `update_drive_memory` job publishes the artifact only after detection succeeds. Before replacing the drive, that job verifies it has not changed since the agent checked it out; concurrent updates cause the publish to fail instead of being overwritten.
 
 Drive names are repository-wide and branch-aware according to the preview service. GitHub Drives allows one active writer for a drive, so overlapping runs that write the same drive can contend for the writer lease.
 

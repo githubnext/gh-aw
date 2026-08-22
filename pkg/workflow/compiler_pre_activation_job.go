@@ -302,6 +302,7 @@ func (c *Compiler) generatePreActivationDriveMemoryRestoreSteps(builder *strings
 	}
 	restoreData := &WorkflowData{
 		DriveMemoryConfig: &DriveMemoryConfig{Drives: make([]DriveMemoryEntry, len(data.DriveMemoryConfig.Drives))},
+		ParsedTools:       data.ParsedTools,
 	}
 	for i, drive := range data.DriveMemoryConfig.Drives {
 		drive.RestoreOnly = true
