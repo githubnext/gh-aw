@@ -90,7 +90,7 @@ func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineS
 	allStarts := inlineSkillSeparatorRegex.FindAllStringSubmatchIndex(markdown, -1)
 	if len(allStarts) == 0 {
 		if err := validateNoInlineSectionEndMarkers(markdown, inlineSkillEndRegex); err != nil {
-			return "", nil, fmt.Errorf("invalid inline skill end marker: %w", err)
+			return "", nil, fmt.Errorf("inline skill end marker should reference a valid skill name: %w", err)
 		}
 		inlineSkillLog.Print("No inline skill markers found")
 		return markdown, nil, nil
@@ -106,7 +106,7 @@ func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineS
 		return InlineSkill{Name: name, Content: content}
 	})
 	if err != nil {
-		return "", nil, fmt.Errorf("invalid inline skill end marker: %w", err)
+		return "", nil, fmt.Errorf("inline skill end marker should reference a valid skill name: %w", err)
 	}
 	inlineSkillLog.Printf("Extraction complete: %d skill(s), main markdown length: %d", len(skills), len(mainMarkdown))
 	return mainMarkdown, skills, nil
