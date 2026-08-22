@@ -11,6 +11,7 @@ import (
 // missing/malformed tools, github, and toolsets keys, plus each supported
 // toolsets value type ([]string, []any, string) with trimming/filtering.
 func TestExtractGitHubToolsets(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		frontmatter  map[string]any
@@ -125,6 +126,7 @@ func TestExtractGitHubToolsets(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, ok := extractGitHubToolsets(tt.frontmatter)
 			if ok != tt.wantOK {
 				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
