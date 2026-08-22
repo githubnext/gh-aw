@@ -47,5 +47,14 @@ for artifact_pattern in aw-*.patch aw-*.bundle; do
   done
 done
 
+# Copy grader manifest and results if present (deterministic graders)
+GRADER_SOURCE_DIR="${SOURCE_DIR}/agent/graders"
+if [ -d "${GRADER_SOURCE_DIR}" ]; then
+  GRADER_DETECTION_DIR="${DETECTION_DIR}/agent/graders"
+  mkdir -p "${GRADER_DETECTION_DIR}"
+  copy_optional_file "${GRADER_SOURCE_DIR}/grader_manifest.json" "${GRADER_DETECTION_DIR}/grader_manifest.json"
+  copy_optional_file "${GRADER_SOURCE_DIR}/grader_results.json" "${GRADER_DETECTION_DIR}/grader_results.json"
+fi
+
 echo "Prepared threat detection files:"
 ls -la "${DETECTION_DIR}"

@@ -4176,8 +4176,8 @@ tools:
     # (optional)
     description: "Description of the workflow"
 
-    # Drive size used when creating the drive (default: '10G'; ignored for an existing
-    # drive)
+    # Drive size used when creating the drive, as a number with an optional K, M, G,
+    # or T suffix (suggested: '100M'; ignored for an existing drive)
     # (optional)
     disk-size: "example-value"
 

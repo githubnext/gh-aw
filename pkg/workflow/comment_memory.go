@@ -11,7 +11,6 @@ type CommentMemoryConfig struct {
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in owner/repo format
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // Additional allowed repositories
 	MemoryID             string   `yaml:"memory-id,omitempty"`     // Default memory identifier when item does not provide memory_id
-	Footer               *string  `yaml:"footer,omitempty"`        // Footer visibility control ("true"/"false" templatable string); nil defaults to visible footer
 }
 
 const commentMemoryHandlerKey = "comment_memory"

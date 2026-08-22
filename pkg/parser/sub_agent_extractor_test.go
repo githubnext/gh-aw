@@ -214,7 +214,10 @@ func TestExtractInlineSubAgents_DuplicateNameError(t *testing.T) {
 	_, _, err := ExtractInlineSubAgents(markdown)
 
 	require.Error(t, err, "duplicate agent name should produce an error")
-	require.ErrorContains(t, err, "duplicate", "error should mention duplicate")
+	require.ErrorContains(t, err, "Validation failed for field 'sub-agents'")
+	require.ErrorContains(t, err, "Value: planner")
+	require.ErrorContains(t, err, "Reason: duplicate name already defined")
+	require.ErrorContains(t, err, "Suggestion: Rename one of the duplicate sub-agents or remove the extra `planner` definition.")
 	require.ErrorContains(t, err, "planner", "error should include the duplicate name")
 }
 

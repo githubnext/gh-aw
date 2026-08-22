@@ -29,7 +29,7 @@ imports:
 tools:
   drive-memory:
     drive-name: smoke-drive
-    disk-size: 1GB
+    disk-size: 100M
     prefetch: true
     allowed-extensions: [".txt"]
   bash:

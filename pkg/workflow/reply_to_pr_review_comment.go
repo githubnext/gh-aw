@@ -12,7 +12,6 @@ type ReplyToPullRequestReviewCommentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
 	SafeOutputFilterConfig `yaml:",inline"`
-	Footer                 *string `yaml:"footer,omitempty"` // Whether to add AI-generated footer to replies
 }
 
 // parseReplyToPullRequestReviewCommentConfig handles reply-to-pull-request-review-comment configuration

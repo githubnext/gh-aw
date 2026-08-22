@@ -1222,7 +1222,12 @@ function isOnOrAfter(timestamp, threshold) {
   if (!threshold) return true;
   const a = Date.parse(timestamp);
   const b = Date.parse(threshold);
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  if (!Number.isFinite(a)) {
+    return false;
+  }
+  if (!Number.isFinite(b)) {
+    return false;
+  }
   return a >= b;
 }
 

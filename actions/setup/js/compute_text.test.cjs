@@ -238,6 +238,13 @@ const mockCore = {
             const outputCall = mockCore.setOutput.mock.calls[0];
             (expect(outputCall[1]).toContain("`@user`"), expect(outputCall[1]).toContain("fixes #123"), expect(outputCall[1]).toContain("/redacted"));
           }),
+          it("should log multiline content safely without workflow command annotations", async () => {
+            ((mockContext.eventName = "pull_request"), (mockContext.payload = { pull_request: { title: "Annotation example", body: "Before\n##[error]should not become annotation" } }), await testMain());
+            const textLog = mockCore.info.mock.calls.map(call => call[0]).find(msg => msg.startsWith("text: "));
+            expect(textLog).toContain("\\n##[error]");
+            expect(textLog).not.toContain("\n##[error]");
+            expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Annotation example\n\nBefore\n##[error]should not become annotation");
+          }),
           it("should handle missing title and body gracefully", async () => {
             ((mockContext.eventName = "issues"),
               (mockContext.payload = { issue: {} }),

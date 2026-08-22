@@ -5,8 +5,39 @@ description: Maps every compiler-generated job to its purpose, dependencies, and
 # Compiler-generated jobs
 
 Generated job IDs are reserved. Built-in job configuration may add
-`setup-steps`, `pre-steps`, `needs`, and `if`; it cannot replace compiler-managed
-permissions or authentication.
+`setup-steps`, `pre-steps`, `needs`, `if`, and — for `agent` and `detection` only —
+`timeout-minutes`; it cannot replace compiler-managed permissions or authentication.
+
+## Job timeouts
+
+The generated `agent` and `detection` jobs carry their own `timeout-minutes`,
+resolved independently from the top-level `timeout-minutes` that bounds the
+`agentic_execution` step. Each default is overrideable with a GitHub Actions
+variable at repository, organization, or enterprise scope.
+
+| Timeout | Frontmatter override | Default variable | Built-in default |
+|---|---|---|---|
+| `agent` job (all steps) | `jobs.agent.timeout-minutes` | `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES` | 60 minutes |
+| `detection` job and its execution step | `jobs.detection.timeout-minutes` | `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES` | 10 minutes |
+| `agentic_execution` step | top-level `timeout-minutes` | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | 20 minutes |
+
+The step default is never used as the agent job budget. When top-level
+`timeout-minutes` is an explicit literal larger than the built-in agent job
+default, the agent job default is raised to that value so an explicit step
+budget is not truncated by the implicit job budget.
+
+```yaml
+timeout-minutes: 25   # agentic_execution step
+
+jobs:
+  agent:
+    timeout-minutes: 90
+  detection:
+    timeout-minutes: 30
+```
+
+Other generated jobs are not bounded by these values; `safe-outputs.timeout-minutes`
+covers the safe-outputs job.
 
 ## Credential configuration
 

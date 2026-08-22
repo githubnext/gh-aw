@@ -67,17 +67,18 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	compilerMainJobLog.Printf("Built main job: steps=%d, needs=%v, outputs=%d", len(steps), depends, len(outputs))
 	return &Job{
-		Name:        string(constants.AgentJobName),
-		If:          jobCondition,
-		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
-		Environment: c.indentYAMLLines(data.Environment, "    "),
-		Container:   c.indentYAMLLines(data.Container, "    "),
-		Services:    c.indentYAMLLines(data.Services, "    "),
-		Permissions: c.indentYAMLLines(permissions, "    "),
-		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
-		Env:         env,
-		Steps:       steps,
-		Needs:       depends,
-		Outputs:     outputs,
+		Name:                     string(constants.AgentJobName),
+		If:                       jobCondition,
+		RunsOn:                   c.indentYAMLLines(data.RunsOn, "    "),
+		Environment:              c.indentYAMLLines(data.Environment, "    "),
+		Container:                c.indentYAMLLines(data.Container, "    "),
+		Services:                 c.indentYAMLLines(data.Services, "    "),
+		Permissions:              c.indentYAMLLines(permissions, "    "),
+		Concurrency:              c.indentYAMLLines(agentConcurrency, "    "),
+		Env:                      env,
+		Steps:                    steps,
+		Needs:                    depends,
+		Outputs:                  outputs,
+		TimeoutMinutesExpression: resolveAgentJobTimeoutValue(data),
 	}, nil
 }

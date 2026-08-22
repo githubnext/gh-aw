@@ -87,6 +87,6 @@ func TestGetRunnerTopology(t *testing.T) {
 		wd := &WorkflowData{
 			RunnerConfig: &RunnerConfig{Topology: "arc-dind"},
 		}
-		assert.Equal(t, "arc-dind", getRunnerTopology(wd))
+		assert.Equal(t, RunnerTopologyArcDind, getRunnerTopology(wd))
 	})
 }
