@@ -116,7 +116,7 @@ SAFE_ORIGIN_URL="https://${SERVER_HOST}/${TARGET_REPO}.git"
 # token in the remote URL, so the credential is never written to .git/config.
 # The header is passed via GIT_CONFIG_* environment variables (rather than
 # `git -c ...`) so it never appears in the process argument list.
-AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+AUTH_HEADER="Authorization: Basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
 export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0="http.extraheader"
 export GIT_CONFIG_VALUE_0="$AUTH_HEADER"
