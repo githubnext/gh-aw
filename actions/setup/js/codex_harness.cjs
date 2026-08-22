@@ -56,7 +56,9 @@ const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 const { applyModelFallback, injectModelFlagAfterExec } = require("./model_fallback.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
+const { resolveConfiguredCopilotModel, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
 
+const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
 // Pattern to detect OpenAI rate-limit errors.
 // Matches the JSON error type field ("rate_limit_exceeded"), the HTTP status code
 // ("429 Too Many Requests"), the client-side exception class ("RateLimitError"), and
@@ -501,6 +503,31 @@ function configureCodexProviderFromReflect(options) {
 }
 
 /**
+ * Resolve model aliases before Codex sends a request to the Copilot BYOK endpoint.
+ * @param {{
+ *   configuredModel: string,
+ *   provider?: string,
+ *   awfConfigData: any,
+ *   reflectData: object|null,
+ *   logger?: (message: string) => void,
+ * }} options
+ * @returns {string}
+ */
+function resolveCodexModelForProvider(options) {
+  const configuredModel = String(options.configuredModel || "").trim();
+  const provider = normalizeReflectProviderName(options.provider);
+  if (!["github", "copilot", "github-copilot"].includes(provider)) {
+    return configuredModel;
+  }
+  return resolveConfiguredCopilotModel({
+    configuredModel,
+    aliasMap: options.awfConfigData?.apiProxy?.models,
+    reflectData: options.reflectData,
+    logger: options.logger,
+  });
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -550,8 +577,43 @@ async function main() {
     process.exit(1);
   }
 
+  // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
+  // This is best-effort: failures are logged but do not affect the agent run.
+  // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. no api-proxy running in sandbox or test mode).
+  /** @type {any} */
+  let awfReflectData = null;
+  if (process.env.AWF_REFLECT_ENABLED === "1") {
+    const reflectResult = await fetchAWFReflect({ logger: log });
+    if (reflectResult.ok && reflectResult.reflectData) {
+      awfReflectData = reflectResult.reflectData;
+    }
+  }
+
   const codexModelEnvVar = getCodexModelEnvVar(process.env);
-  const resolvedModel = codexModelEnvVar ? applyModelFallback(process.env, codexModelEnvVar, log) : "";
+  let resolvedModel = codexModelEnvVar ? applyModelFallback(process.env, codexModelEnvVar, log) : "";
+  if (resolvedModel) {
+    let awfConfigData = null;
+    try {
+      awfConfigData = JSON.parse(fs.readFileSync(AWF_CONFIG_PATH, "utf8"));
+    } catch (error) {
+      log(`awf-config load error: ${getErrorMessage(error)}`);
+    }
+    try {
+      resolvedModel = resolveCodexModelForProvider({
+        configuredModel: resolvedModel,
+        provider: process.env.GH_AW_LLM_PROVIDER,
+        awfConfigData,
+        reflectData: awfReflectData,
+        logger: log,
+      });
+    } catch (error) {
+      if (!(error instanceof ModelAliasResolutionError)) {
+        throw error;
+      }
+      log(`fatal: ${getErrorMessage(error)}; refusing to start Codex with an unresolved model alias`);
+      process.exit(1);
+    }
+  }
   resolvedArgs = injectModelFlagAfterExec(resolvedArgs, resolvedModel);
 
   // Safe arg list for logging: when --prompt-file was present, the last element of
@@ -564,12 +626,6 @@ async function main() {
   // Codex output machine-readable in CI without affecting the stderr progress stream.
   resolvedArgs = injectJsonFlag(resolvedArgs);
 
-  // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
-  // This is best-effort: failures are logged but do not affect the agent run.
-  // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. no api-proxy running in sandbox or test mode).
-  if (process.env.AWF_REFLECT_ENABLED === "1") {
-    await fetchAWFReflect({ logger: log });
-  }
   const codexHome = process.env.CODEX_HOME || "";
   let codexEnv = codexChildEnv;
   const providerConfig = configureCodexProviderFromReflect({
@@ -787,6 +843,7 @@ if (typeof module !== "undefined" && module.exports) {
     getConfiguredProviderPortFromReflect,
     validateCodexOpenAIBaseURLFromReflect,
     configureCodexProviderFromReflect,
+    resolveCodexModelForProvider,
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     resolveRetryConfig,
