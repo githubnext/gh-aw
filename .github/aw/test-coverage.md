@@ -39,6 +39,10 @@ tools:
 safe-outputs:
   add-comment:
     hide-older-comments: true
+  upload-artifact:
+    max-uploads: 1
+    allowed-paths:
+      - "coverage/**"
 ```
 
 ## Fallback: Run Tests
@@ -48,6 +52,7 @@ Use **only when** no prior CI artifact exists or CI doesn't upload coverage. Sup
 - infer the repository ecosystem from project files before running fallback coverage
 - configure `network.allowed` to include `defaults` plus the inferred ecosystem(s) (for example `node`, `python`, `go`)
 - never run fallback coverage with `network: defaults` alone
+- stage freshly generated reports under `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/coverage/` and call `upload_artifact` with `name: "coverage-report"` and `path: "coverage"`
 
 Example fallback network config:
 
