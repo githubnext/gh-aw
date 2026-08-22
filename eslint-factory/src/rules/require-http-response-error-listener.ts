@@ -40,7 +40,7 @@ function isHttpModuleExpression(node: TSESTree.Node | null | undefined, sourceCo
   if (isRequireHttpModule(node, sourceCode)) return true;
   if (node.type === AST_NODE_TYPES.Identifier) return isHttpModuleBinding(node.name, node, sourceCode, visited);
   if (node.type !== AST_NODE_TYPES.ConditionalExpression) return false;
-  return isHttpModuleExpression(node.consequent, sourceCode, new Set(visited)) && isHttpModuleExpression(node.alternate, sourceCode, new Set(visited));
+  return isHttpModuleExpression(node.consequent, sourceCode, visited) && isHttpModuleExpression(node.alternate, sourceCode, visited);
 }
 
 /** Returns true when `name` resolves to a variable bound to Node's `http`/`https` module and never reassigned. */
