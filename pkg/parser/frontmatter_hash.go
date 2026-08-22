@@ -150,7 +150,7 @@ func ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath string, parsed
 	// Read file content using the provided file reader
 	content, err := fileReader(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file %q: %w", filePath, err)
+		return "", fmt.Errorf("could not read file %q; ensure the path exists and is readable, then retry: %w", filePath, err)
 	}
 
 	return computeFrontmatterHashFromContent(string(content), parsedFrontmatter, filePath, cache, fileReader)
@@ -165,7 +165,7 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 	// Read file content using the provided file reader
 	content, err := fileReader(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file %q: %w", filePath, err)
+		return "", fmt.Errorf("could not read file %q; ensure the path exists and is readable, then retry: %w", filePath, err)
 	}
 
 	// Parse frontmatter once from content; treat inlined-imports as false if parsing fails
@@ -185,7 +185,7 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 	// Extract frontmatter and markdown as text (no YAML parsing)
 	frontmatterText, markdown, err := extractFrontmatterAndBodyText(content)
 	if err != nil {
-		return "", fmt.Errorf("failed to extract frontmatter from %q: %w", filePath, err)
+		return "", fmt.Errorf("could not extract frontmatter from %q; ensure the workflow frontmatter has a closing delimiter, then retry: %w", filePath, err)
 	}
 
 	// Get base directory for resolving imports
@@ -542,7 +542,7 @@ func ComputeBodyHashFromParsedContent(markdownBody, frontmatterText, baseDir str
 	})
 	importedBodies, err := collectImportedBodies(frontmatterText, baseDir, visited, fileReader)
 	if err != nil {
-		return "", fmt.Errorf("failed to process imports for body hash: %w", err)
+		return "", fmt.Errorf("could not process imports for body hash; ensure imported workflow files exist and are readable, then retry: %w", err)
 	}
 
 	allParts := []string{normalizedBody}
@@ -569,12 +569,12 @@ func ComputeBodyHashFromParsedContent(markdownBody, frontmatterText, baseDir str
 func ComputeBodyHashFromFile(filePath string) (string, error) {
 	content, err := DefaultFileReader(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
+		return "", fmt.Errorf("could not read file %q; ensure the path exists and is readable, then retry: %w", filePath, err)
 	}
 
 	frontmatterText, markdownBody, err := extractFrontmatterAndBodyText(string(content))
 	if err != nil {
-		return "", fmt.Errorf("failed to extract frontmatter: %w", err)
+		return "", fmt.Errorf("could not extract frontmatter from %q; ensure the workflow frontmatter has a closing delimiter, then retry: %w", filePath, err)
 	}
 
 	baseDir := filepath.Dir(filePath)
@@ -592,7 +592,7 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 	})
 	importedFiles, importedFrontmatterTexts, err := processImportsTextBased(frontmatterText, baseDir, visited, fileReader)
 	if err != nil {
-		return "", fmt.Errorf("failed to process imports: %w", err)
+		return "", fmt.Errorf("could not process imports; ensure imported workflow files exist and are readable, then retry: %w", err)
 	}
 
 	// Build canonical representation from text

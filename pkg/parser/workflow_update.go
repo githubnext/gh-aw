@@ -24,13 +24,13 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 	// Read the workflow file
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
-		return fmt.Errorf("failed to read workflow file %q: %w", workflowPath, err)
+		return fmt.Errorf("could not read workflow file %q; ensure the path exists and is readable, then retry: %w", workflowPath, err)
 	}
 
 	// Parse frontmatter using existing helper
 	result, err := ExtractFrontmatterFromContent(string(content))
 	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter in %q: %w", workflowPath, err)
+		return fmt.Errorf("could not parse frontmatter in %q; ensure the workflow frontmatter is valid YAML, then retry: %w", workflowPath, err)
 	}
 
 	// Ensure frontmatter map exists
@@ -46,18 +46,18 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 	// Convert back to YAML
 	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
 	if err != nil {
-		return fmt.Errorf("failed to marshal updated frontmatter for %q: %w", workflowPath, err)
+		return fmt.Errorf("could not marshal updated frontmatter for %q; ensure updated values are YAML-serializable, then retry: %w", workflowPath, err)
 	}
 
 	// Reconstruct the file content
 	updatedContent, err := ReconstructWorkflowFile(string(updatedFrontmatter), result.Markdown)
 	if err != nil {
-		return fmt.Errorf("failed to reconstruct workflow file %q: %w", workflowPath, err)
+		return fmt.Errorf("could not reconstruct workflow file %q; ensure frontmatter and markdown content are valid, then retry: %w", workflowPath, err)
 	}
 
 	// Write the updated content back to the file
 	if err := os.WriteFile(workflowPath, []byte(updatedContent), constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write updated workflow file %q: %w", workflowPath, err)
+		return fmt.Errorf("could not write updated workflow file %q; ensure the path is writable, then retry: %w", workflowPath, err)
 	}
 
 	workflowUpdateLog.Printf("Successfully updated workflow file: %s", workflowPath)
