@@ -32,6 +32,8 @@ Key read permission scopes include:
 - `packages` (package management)
 - `pages` (GitHub Pages management)
 - `statuses` (commit status management)
+- `attestations` (artifact attestations)
+- `models` (access to GitHub Copilot models; `read` or `none` only)
 
 See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) for the complete list.
 
@@ -48,7 +50,7 @@ Certain permission scopes require [additional authentication](/gh-aw/reference/g
 
 **Repository-level** (repository configuration and access):
 `administration`, `environments`, `git-signing`, `workflows`, `repository-hooks`,
-`single-file`, `codespaces`, `repository-custom-properties`
+`single-file`, `codespaces`, `repository-custom-properties`, `secret-scanning-alerts`
 
 **Organization-level** (organization membership and settings):
 `organization-projects`, `members`, `organization-administration`, `team-discussions`,
