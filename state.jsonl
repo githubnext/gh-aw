@@ -47,3 +47,4 @@
 {"run_id":"32068657813","timestamp":"2026-08-17T20:59:23.899Z","assignments":{"log_fetch_strategy":"lazy"}}
 {"run_id":"32185152778","timestamp":"2026-08-18T20:59:13.415Z","assignments":{"log_fetch_strategy":"lazy"}}
 {"run_id":"32526170352","timestamp":"2026-08-21T20:58:42.189Z","assignments":{"log_fetch_strategy":"eager"}}
+{"run_id":"32598169844","timestamp":"2026-08-22T20:58:09.319Z","harness_version":"72dd9ff3c9a709239c1b6f7768348b04718c4b59188080c79c0147534e3489f6:85e630101dca304a0a6190480c4d4b2d977bf0daa7a3eb3837acd2b801edb771","assignments":{"log_fetch_strategy":"eager"},"continual_state":{"log_fetch_strategy":{"current_stage":1}}}
