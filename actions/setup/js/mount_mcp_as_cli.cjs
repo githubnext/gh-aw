@@ -244,7 +244,7 @@ function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS
 
     const req = http.request(options, res => {
       let data = "";
-      res.on("error", err => reject(err));
+      res.on("error", reject);
       res.on("data", chunk => {
         data += chunk;
       });
