@@ -15,6 +15,10 @@ mcp-scripts:
         type: number
         description: "Maximum number of issues to fetch (default: 30)"
         required: false
+      since:
+        type: string
+        description: "ISO 8601 date or timestamp. When set, paginate by updatedAt until this boundary instead of applying limit."
+        required: false
       jq:
         type: string
         description: "jq filter expression to apply to output. If not provided, returns schema info instead of full data."
@@ -28,13 +32,40 @@ mcp-scripts:
       REPO="${INPUT_REPO:-}"
       STATE="${INPUT_STATE:-open}"
       LIMIT="${INPUT_LIMIT:-30}"
+      SINCE="${INPUT_SINCE:-}"
       JQ_FILTER="${INPUT_JQ:-}"
       
       # JSON fields to fetch
       JSON_FIELDS="number,title,state,author,createdAt,updatedAt,closedAt,body,labels,assignees,comments,milestone,url"
       
-      # Build and execute gh command
-      if [[ -n "$REPO" ]]; then
+      # Fetch all items updated in a date window. REST results are ordered by
+      # updated time, so stop only after reaching the requested boundary.
+      if [[ -n "$SINCE" ]]; then
+        if ! date -d "$SINCE" --iso-8601=seconds >/dev/null 2>&1; then
+          echo "Error: since must be an ISO 8601 date or timestamp" >&2
+          exit 1
+        fi
+        SINCE=$(date -u -d "$SINCE" '+%Y-%m-%dT%H:%M:%SZ')
+        if [[ -n "$REPO" ]]; then
+          API_PATH="repos/${REPO}/issues"
+        else
+          API_PATH="repos/${GITHUB_REPOSITORY}/issues"
+        fi
+        PAGE=1
+        OUTPUT="[]"
+        while :; do
+          PAGE_OUTPUT=$(gh api "${API_PATH}?state=${STATE}&sort=updated&direction=desc&per_page=100&page=${PAGE}")
+          [[ "$(jq 'length' <<< "$PAGE_OUTPUT")" -eq 0 ]] && break
+          OUTPUT=$(jq -cn --argjson all "$OUTPUT" --argjson page "$PAGE_OUTPUT" '$all + $page')
+          [[ "$(jq -r '.[-1].updated_at' <<< "$PAGE_OUTPUT")" < "$SINCE" ]] && break
+          PAGE=$((PAGE + 1))
+        done
+        OUTPUT=$(jq --arg since "$SINCE" '[.[] | select(.pull_request == null and .updated_at >= $since) | {
+          number, title, state: (.state | ascii_upcase), author: .user, createdAt: .created_at,
+          updatedAt: .updated_at, closedAt: .closed_at, body, labels, assignees,
+          comments: {totalCount: .comments}, milestone, url: .html_url
+        }]' <<< "$OUTPUT")
+      elif [[ -n "$REPO" ]]; then
         OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
       else
         OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
@@ -108,6 +139,10 @@ mcp-scripts:
         type: number
         description: "Maximum number of PRs to fetch (default: 30)"
         required: false
+      since:
+        type: string
+        description: "ISO 8601 date or timestamp. When set, paginate by updatedAt until this boundary instead of applying limit."
+        required: false
       jq:
         type: string
         description: "jq filter expression to apply to output. If not provided, returns schema info instead of full data."
@@ -121,13 +156,43 @@ mcp-scripts:
       REPO="${INPUT_REPO:-}"
       STATE="${INPUT_STATE:-open}"
       LIMIT="${INPUT_LIMIT:-30}"
+      SINCE="${INPUT_SINCE:-}"
       JQ_FILTER="${INPUT_JQ:-}"
       
       # JSON fields to fetch
       JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
       
-      # Build and execute gh command
-      if [[ -n "$REPO" ]]; then
+      # Fetch all items updated in a date window. REST results are ordered by
+      # updated time, so stop only after reaching the requested boundary.
+      if [[ -n "$SINCE" ]]; then
+        if ! date -d "$SINCE" --iso-8601=seconds >/dev/null 2>&1; then
+          echo "Error: since must be an ISO 8601 date or timestamp" >&2
+          exit 1
+        fi
+        SINCE=$(date -u -d "$SINCE" '+%Y-%m-%dT%H:%M:%SZ')
+        if [[ -n "$REPO" ]]; then
+          API_PATH="repos/${REPO}/pulls"
+        else
+          API_PATH="repos/${GITHUB_REPOSITORY}/pulls"
+        fi
+        REST_STATE="$STATE"
+        [[ "$STATE" == "merged" ]] && REST_STATE="closed"
+        PAGE=1
+        OUTPUT="[]"
+        while :; do
+          PAGE_OUTPUT=$(gh api "${API_PATH}?state=${REST_STATE}&sort=updated&direction=desc&per_page=100&page=${PAGE}")
+          [[ "$(jq 'length' <<< "$PAGE_OUTPUT")" -eq 0 ]] && break
+          OUTPUT=$(jq -cn --argjson all "$OUTPUT" --argjson page "$PAGE_OUTPUT" '$all + $page')
+          [[ "$(jq -r '.[-1].updated_at' <<< "$PAGE_OUTPUT")" < "$SINCE" ]] && break
+          PAGE=$((PAGE + 1))
+        done
+        OUTPUT=$(jq --arg since "$SINCE" --arg state "$STATE" '[.[] | select(.updated_at >= $since and ($state != "merged" or .merged_at != null)) | {
+          number, title, state: (.state | ascii_upcase), author: .user, createdAt: .created_at,
+          updatedAt: .updated_at, mergedAt: .merged_at, closedAt: .closed_at,
+          headRefName: .head.ref, baseRefName: .base.ref, isDraft: .draft, labels, assignees,
+          additions, deletions, changedFiles: .changed_files, url: .html_url
+        }]' <<< "$OUTPUT")
+      elif [[ -n "$REPO" ]]; then
         OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
       else
         OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
@@ -203,6 +268,10 @@ mcp-scripts:
         type: number
         description: "Maximum number of discussions to fetch (default: 30)"
         required: false
+      since:
+        type: string
+        description: "ISO 8601 date or timestamp. When set, paginate by updatedAt until this boundary instead of applying limit."
+        required: false
       jq:
         type: string
         description: "jq filter expression to apply to output. If not provided, returns schema info instead of full data."
@@ -215,6 +284,7 @@ mcp-scripts:
       # Default values
       REPO="${INPUT_REPO:-}"
       LIMIT="${INPUT_LIMIT:-30}"
+      SINCE="${INPUT_SINCE:-}"
       JQ_FILTER="${INPUT_JQ:-}"
       
       # Parse repository owner and name
@@ -233,11 +303,21 @@ mcp-scripts:
         exit 1
       fi
       
+      if [[ -n "$SINCE" ]] && ! date -d "$SINCE" --iso-8601=seconds >/dev/null 2>&1; then
+        echo "Error: since must be an ISO 8601 date or timestamp" >&2
+        exit 1
+      fi
+      [[ -n "$SINCE" ]] && SINCE=$(date -u -d "$SINCE" '+%Y-%m-%dT%H:%M:%SZ')
+
       # Build GraphQL query for discussions
       GRAPHQL_QUERY=$(cat <<QUERY
-      {
-        repository(owner: "$OWNER", name: "$NAME") {
-          discussions(first: $LIMIT, orderBy: {field: CREATED_AT, direction: DESC}) {
+      query(\$owner: String!, \$name: String!, \$first: Int!, \$after: String) {
+        repository(owner: \$owner, name: \$name) {
+          discussions(first: \$first, after: \$after, orderBy: {field: UPDATED_AT, direction: DESC}) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
             nodes {
               number
               title
@@ -269,11 +349,26 @@ mcp-scripts:
       QUERY
       )
       
-      # Execute GraphQL query via gh api
-      GRAPHQL_OUTPUT=$(gh api graphql -f query="$GRAPHQL_QUERY")
-      
+      # Paginate to the date boundary when requested; otherwise preserve the
+      # existing limit-based behavior for callers that do not specify a window.
+      PAGE_SIZE="$LIMIT"
+      [[ -n "$SINCE" ]] && PAGE_SIZE=100
+      CURSOR=""
+      OUTPUT="[]"
+      while :; do
+        GRAPHQL_ARGS=(graphql -f query="$GRAPHQL_QUERY" -f owner="$OWNER" -f name="$NAME" -F first="$PAGE_SIZE")
+        [[ -n "$CURSOR" ]] && GRAPHQL_ARGS+=(-f after="$CURSOR")
+        GRAPHQL_OUTPUT=$(gh api "${GRAPHQL_ARGS[@]}")
+        PAGE_NODES=$(jq '.data.repository.discussions.nodes' <<< "$GRAPHQL_OUTPUT")
+        OUTPUT=$(jq -cn --argjson all "$OUTPUT" --argjson page "$PAGE_NODES" '$all + $page')
+        [[ -z "$SINCE" ]] && break
+        [[ "$(jq -r '.[-1].updatedAt // empty' <<< "$PAGE_NODES")" < "$SINCE" ]] && break
+        [[ "$(jq -r '.data.repository.discussions.pageInfo.hasNextPage' <<< "$GRAPHQL_OUTPUT")" == "true" ]] || break
+        CURSOR=$(jq -r '.data.repository.discussions.pageInfo.endCursor' <<< "$GRAPHQL_OUTPUT")
+      done
+
       # Transform GraphQL output to match gh discussion list format
-      OUTPUT=$(echo "$GRAPHQL_OUTPUT" | jq '[.data.repository.discussions.nodes[] | {
+      OUTPUT=$(echo "$OUTPUT" | jq --arg since "$SINCE" '[.[] | select($since == "" or .updatedAt >= $since) | {
         number: .number,
         title: .title,
         author: .author,
@@ -338,107 +433,3 @@ mcp-scripts:
       EOF
       fi
 ---
-<!--
-## GitHub Queries Safe Input Tools
-
-This shared workflow provides mcp-script tools for querying GitHub issues, pull requests, and discussions with built-in jq filtering support.
-
-### Available Tools
-
-1. **github-issue-query** - Query GitHub issues
-2. **github-pr-query** - Query GitHub pull requests  
-3. **github-discussion-query** - Query GitHub discussions
-
-### Usage
-
-Import this shared workflow to get access to all query tools:
-
-```yaml
-imports:
-  - shared/github-queries-mcp-script.md
-```
-
-### Tool Parameters
-
-#### github-issue-query
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| repo | string | current repo | Repository in owner/repo format |
-| state | string | open | Issue state: open, closed, all |
-| limit | number | 30 | Maximum issues to return |
-| jq | string | - | jq filter expression (if omitted, returns schema info) |
-
-#### github-pr-query
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| repo | string | current repo | Repository in owner/repo format |
-| state | string | open | PR state: open, closed, merged, all |
-| limit | number | 30 | Maximum PRs to return |
-| jq | string | - | jq filter expression (if omitted, returns schema info) |
-
-#### github-discussion-query
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| repo | string | current repo | Repository in owner/repo format |
-| limit | number | 30 | Maximum discussions to return |
-| jq | string | - | jq filter expression (if omitted, returns schema info) |
-
-### Smart Schema Response
-
-When called **without** the `jq` parameter, each tool returns:
-- Schema information describing the data structure
-- Item count and data size
-- Suggested jq queries for common operations
-
-This prevents overwhelming the agent with large datasets and helps understand the data structure before querying.
-
-Use `jq: "."` to get all data, or use specific jq expressions for filtered results.
-
-### Example Queries
-
-**Get all open issues:**
-```
-github-issue-query with jq: "."
-```
-
-**Get issue numbers and titles:**
-```
-github-issue-query with jq: ".[] | {number, title}"
-```
-
-**Get merged PRs:**
-```
-github-pr-query with state: "merged", jq: "."
-```
-
-**Get PRs by author:**
-```
-github-pr-query with jq: ".[] | select(.author.login == \"username\")"
-```
-
-**Get unanswered discussions:**
-```
-github-discussion-query with jq: ".[] | select(.answer == null) | {number, title}"
-```
-
-### Output Fields
-
-#### Issues
-number, title, state, author, createdAt, updatedAt, closedAt, body, labels, assignees, comments, milestone, url
-
-#### Pull Requests
-number, title, state, author, createdAt, updatedAt, mergedAt, closedAt, headRefName, baseRefName, isDraft, reviewDecision, additions, deletions, changedFiles, labels, assignees, reviewRequests, url
-
-#### Discussions
-number, title, author, createdAt, updatedAt, body, category, labels, comments, answer, url
-
-### Source
-
-These tools are based on the skills scripts in `.github/skills/`:
-- `.github/skills/github-issue-query/query-issues.sh`
-- `.github/skills/github-pr-query/query-prs.sh`
-- `.github/skills/github-discussion-query/query-discussions.sh`
--->
