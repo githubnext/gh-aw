@@ -64,6 +64,21 @@ func TestExtractDriveMemoryConfig(t *testing.T) {
 			raw:     []any{"notes"},
 			wantErr: "array entries must be objects",
 		},
+		{
+			name:       "disk size without suffix",
+			raw:        map[string]any{"disk-size": "500"},
+			wantDrives: 1,
+		},
+		{
+			name:    "disk size with invalid suffix",
+			raw:     map[string]any{"disk-size": "1GB"},
+			wantErr: "invalid drive-memory disk-size",
+		},
+		{
+			name:    "disk size with lowercase suffix",
+			raw:     map[string]any{"disk-size": "100m"},
+			wantErr: "invalid drive-memory disk-size",
+		},
 	}
 
 	for _, tt := range tests {

@@ -20,6 +20,17 @@ The compiler checks out each drive before the agent and commits validated change
 
 Drive names are repository-wide and branch-aware according to the preview service. GitHub Drives allows one active writer for a drive, so overlapping runs that write the same drive can contend for the writer lease.
 
+## Drive size
+
+`disk-size` sets the size used when creating a new drive; it is ignored for an existing drive. The value must be a number with an optional `K`, `M`, `G`, or `T` suffix (for example `100M`). Suffixes such as `1GB` are rejected at compile time. A drive of `100M` is enough for typical memory files:
+
+```yaml
+tools:
+  drive-memory:
+    drive-name: my-drive
+    disk-size: 100M
+```
+
 ## Limitations
 
 - GitHub-hosted `ubuntu-latest` is the supported preview runner.
