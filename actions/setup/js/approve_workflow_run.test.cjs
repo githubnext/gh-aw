@@ -56,7 +56,7 @@ describe("approve_workflow_run", () => {
     mockGetWorkflowRun.mockResolvedValue({ data: pendingPullRequestRun });
     mockGetWorkflow.mockResolvedValue({ data: { path: ".github/workflows/test.yaml" } });
     mockApproveWorkflowRun.mockResolvedValue({ status: 201 });
-    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: false } } } });
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { full_name: "test-owner/test-repo" } } } });
     mockListFiles.mockResolvedValue({ data: [] });
     mockCreateComment.mockResolvedValue({ data: { id: 999, html_url: "https://github.com/test-owner/test-repo/issues/42#issuecomment-999" } });
   });
@@ -275,23 +275,10 @@ describe("approve_workflow_run", () => {
     expect(mockGetPullRequest).not.toHaveBeenCalled();
   });
 
-  it("rejects fork pull requests by default", async () => {
-    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: true } } } });
+  it("approves pull requests opened from a branch in the current repository", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { ref: "copilot/fix-bug", repo: { full_name: "test-owner/test-repo" } } } });
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main(externalTokenConfig);
-
-    const result = await handler({ run_id: 123 }, {});
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("set fork: true");
-    expect(mockListFiles).not.toHaveBeenCalled();
-    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
-  });
-
-  it("allows fork pull requests when explicitly enabled", async () => {
-    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: true } } } });
-    const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main({ ...externalTokenConfig, fork: true });
 
     const result = await handler({ run_id: 123 }, {});
 
@@ -299,12 +286,47 @@ describe("approve_workflow_run", () => {
     expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects a run when any associated pull request is from a fork by default", async () => {
+  it("rejects fork pull requests by default", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { full_name: "contributor/test-repo" } } } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not in the allowed-repos list");
+    expect(mockListFiles).not.toHaveBeenCalled();
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("allows fork pull requests listed in allowed-repos", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { full_name: "contributor/test-repo" } } } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_repos: ["contributor/test-repo"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows fork pull requests matching an allowed-repos wildcard pattern", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { full_name: "contributor/test-repo" } } } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_repos: ["contributor/*"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a run when any associated pull request comes from a disallowed repository", async () => {
     mockGetWorkflowRun.mockResolvedValue({
       data: { ...pendingPullRequestRun, pull_requests: [{ number: 42 }, { number: 43 }] },
     });
     mockGetPullRequest.mockImplementation(async ({ pull_number: pullRequestNumber }) => ({
-      data: { head: { repo: { fork: pullRequestNumber === 43 } } },
+      data: { head: { repo: { full_name: pullRequestNumber === 43 ? "contributor/test-repo" : "test-owner/test-repo" } } },
     }));
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main({ ...externalTokenConfig, allowed_pull_requests: ["43"] });
@@ -312,11 +334,11 @@ describe("approve_workflow_run", () => {
     const result = await handler({ run_id: 123 }, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("set fork: true");
+    expect(result.error).toContain("not in the allowed-repos list");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 
-  it("rejects pull requests with an unavailable fork repository", async () => {
+  it("rejects pull requests with an unavailable head repository", async () => {
     mockGetPullRequest.mockResolvedValue({ data: { head: { repo: null } } });
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main(externalTokenConfig);
@@ -325,11 +347,11 @@ describe("approve_workflow_run", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("E007: Cannot approve pull request");
-    expect(result.error).toContain("fork repository is unavailable");
+    expect(result.error).toContain("head repository is unavailable");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 
-  it("rejects pull requests with an unverifiable fork status", async () => {
+  it("rejects pull requests with an unverifiable head repository", async () => {
     mockGetPullRequest.mockResolvedValue({ data: { head: { repo: {} } } });
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main(externalTokenConfig);
@@ -337,7 +359,7 @@ describe("approve_workflow_run", () => {
     const result = await handler({ run_id: 123 }, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("E007: Unable to verify fork status");
+    expect(result.error).toContain("E007: Unable to verify the head repository");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 

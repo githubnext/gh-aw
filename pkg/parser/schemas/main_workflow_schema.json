@@ -7150,9 +7150,13 @@
                     }
                   ]
                 },
-                "fork": {
-                  "type": "boolean",
-                  "description": "Allow approval of workflow runs associated with fork pull requests. Defaults to false."
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Repositories in format 'owner/repo' whose pull requests may have their workflow runs approved, in addition to the current repository which is always allowed. Use this to allow fork pull requests. Supports wildcard patterns such as 'org/*'."
                 },
                 "comment": {
                   "type": "boolean",
