@@ -288,22 +288,22 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Build safe outputs jobs if configured
 	if err := c.buildSafeOutputsJobs(data, string(constants.AgentJobName), markdownPath); err != nil {
-		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
+		return fmt.Errorf("safe outputs jobs could not be built: %w. Check the safe-outputs configuration for valid job types", err)
 	}
 
 	// Build BinEval evals job if evals are declared in frontmatter.
 	if evalsJob, err := c.buildEvalsJob(data); err != nil {
-		return fmt.Errorf("failed to build evals job: %w", err)
+		return fmt.Errorf("evals job could not be built: %w. Check that the evals frontmatter section is a valid object", err)
 	} else if evalsJob != nil {
 		if err := c.jobManager.AddJob(evalsJob); err != nil {
-			return fmt.Errorf("failed to add evals job: %w", err)
+			return fmt.Errorf("evals job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 		}
 	}
 
 	// Apply jobs.<builtin-job>.pre-steps customizations to already-created built-in jobs
 	// before processing non-built-in custom jobs.
 	if err := c.applyBuiltinJobPreSteps(data); err != nil {
-		return fmt.Errorf("failed to apply built-in job pre-steps: %w", err)
+		return fmt.Errorf("built-in job pre-steps could not be applied: %w. Check that pre-steps is an array of valid step objects", err)
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
@@ -311,7 +311,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		compilerJobsLog.Printf("Building %d custom jobs from frontmatter", len(data.Jobs))
 	}
 	if err := c.buildCustomJobs(data, activationJobCreated); err != nil {
-		return fmt.Errorf("failed to build custom jobs: %w", err)
+		return fmt.Errorf("custom jobs could not be built: %w. Check the jobs section in frontmatter for valid job definitions", err)
 	}
 
 	// Build memory management jobs (repo-memory and cache-memory)
@@ -322,7 +322,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Apply additive jobs.<built-in>.needs augmentations once all jobs are created,
 	// so referenced custom/imported jobs can be validated against the final job set.
 	if err := c.applyBuiltinJobAugmentations(data); err != nil {
-		return fmt.Errorf("failed to apply built-in job needs augmentations: %w", err)
+		return fmt.Errorf("built-in job needs augmentations could not be applied: %w. Check that jobs referenced in needs actually exist in the workflow", err)
 	}
 
 	// Final pass: ensure conclusion job depends on ALL remaining workflow jobs.
@@ -336,6 +336,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Job-level permissions override the workflow-level block, so this must be applied
 	// to each job individually after all jobs have been created.
 	c.ensureOTLPOIDCJobPermissions(data)
+
+	// Final pass: same-job `steps.<id>.outputs.*` token expressions must be produced by a
+	// step of the job that consumes them, otherwise the token is empty at runtime.
+	if err := c.validateSafeOutputStepTokenReferences(data); err != nil {
+		return err
+	}
 
 	compilerJobsLog.Print("Successfully built all jobs for workflow")
 	return nil
@@ -401,10 +407,10 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
-			return false, false, fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
+			return false, false, fmt.Errorf("%s job could not be built: %w. Check the activation-related frontmatter fields (roles, if, stop-time, etc.)", constants.PreActivationJobName, err)
 		}
 		if err := c.jobManager.AddJob(preActivationJob); err != nil {
-			return false, false, fmt.Errorf("failed to add %s job: %w", constants.PreActivationJobName, err)
+			return false, false, fmt.Errorf("%s job could not be added: %w. Check that no other job in the workflow reuses its name", constants.PreActivationJobName, err)
 		}
 		compilerJobsLog.Printf("Successfully added pre-activation job: %s", constants.PreActivationJobName)
 		preActivationJobCreated = true
@@ -422,10 +428,10 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 		compilerJobsLog.Print("Building activation job")
 		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
 		if err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("failed to build activation job: %w", err)
+			return preActivationJobCreated, false, fmt.Errorf("activation job could not be built: %w. Check the workflow triggers and activation-related frontmatter fields", err)
 		}
 		if err := c.jobManager.AddJob(activationJob); err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("failed to add activation job: %w", err)
+			return preActivationJobCreated, false, fmt.Errorf("activation job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 		}
 		compilerJobsLog.Print("Successfully added activation job")
 		activationJobCreated = true
@@ -439,10 +445,10 @@ func (c *Compiler) buildMainJobWrapper(data *WorkflowData, activationJobCreated 
 	compilerJobsLog.Print("Building main job")
 	mainJob, err := c.buildMainJob(data, activationJobCreated)
 	if err != nil {
-		return fmt.Errorf("failed to build main job: %w", err)
+		return fmt.Errorf("main job could not be built: %w. Check the engine and steps configuration in frontmatter", err)
 	}
 	if err := c.jobManager.AddJob(mainJob); err != nil {
-		return fmt.Errorf("failed to add main job: %w", err)
+		return fmt.Errorf("main job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 	}
 	compilerJobsLog.Printf("Successfully added main job: %s", string(constants.AgentJobName))
 	return nil
@@ -495,7 +501,7 @@ func (c *Compiler) buildPushRepoMemoryJobWrapper(data *WorkflowData, threatDetec
 	compilerJobsLog.Print("Building push_repo_memory job")
 	pushRepoMemoryJob, err := c.buildPushRepoMemoryJob(data, threatDetectionEnabled)
 	if err != nil {
-		return "", fmt.Errorf("failed to build push_repo_memory job: %w", err)
+		return "", fmt.Errorf("push_repo_memory job could not be built: %w. Check the repo-memory configuration in frontmatter", err)
 	}
 
 	if pushRepoMemoryJob == nil {
@@ -507,7 +513,7 @@ func (c *Compiler) buildPushRepoMemoryJobWrapper(data *WorkflowData, threatDetec
 	// and its condition checks needs.detection.result == 'success'
 
 	if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
-		return "", fmt.Errorf("failed to add push_repo_memory job: %w", err)
+		return "", fmt.Errorf("push_repo_memory job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 	}
 
 	compilerJobsLog.Printf("Successfully added push_repo_memory job: %s", pushRepoMemoryJob.Name)
@@ -528,7 +534,7 @@ func (c *Compiler) buildUpdateCacheMemoryJobWrapper(data *WorkflowData, threatDe
 	compilerJobsLog.Print("Building update_cache_memory job")
 	updateCacheMemoryJob, err := c.buildUpdateCacheMemoryJob(data, threatDetectionEnabled)
 	if err != nil {
-		return "", fmt.Errorf("failed to build update_cache_memory job: %w", err)
+		return "", fmt.Errorf("update_cache_memory job could not be built: %w. Check the cache-memory configuration in frontmatter", err)
 	}
 
 	if updateCacheMemoryJob == nil {
@@ -536,7 +542,7 @@ func (c *Compiler) buildUpdateCacheMemoryJobWrapper(data *WorkflowData, threatDe
 	}
 
 	if err := c.jobManager.AddJob(updateCacheMemoryJob); err != nil {
-		return "", fmt.Errorf("failed to add update_cache_memory job: %w", err)
+		return "", fmt.Errorf("update_cache_memory job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 	}
 
 	compilerJobsLog.Printf("Successfully added update_cache_memory job: %s", updateCacheMemoryJob.Name)
@@ -553,14 +559,14 @@ func (c *Compiler) buildPushExperimentsStateJobWrapper(data *WorkflowData) (stri
 	compilerJobsLog.Print("Building push_experiments_state job")
 	job, err := c.buildPushExperimentsStateJob(data)
 	if err != nil {
-		return "", fmt.Errorf("failed to build push_experiments_state job: %w", err)
+		return "", fmt.Errorf("push_experiments_state job could not be built: %w. Check the experiments configuration in frontmatter", err)
 	}
 	if job == nil {
 		return "", nil
 	}
 
 	if err := c.jobManager.AddJob(job); err != nil {
-		return "", fmt.Errorf("failed to add push_experiments_state job: %w", err)
+		return "", fmt.Errorf("push_experiments_state job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 	}
 
 	compilerJobsLog.Printf("Successfully added push_experiments_state job: %s", job.Name)
@@ -577,14 +583,14 @@ func (c *Compiler) buildPushEvalsStateJobWrapper(data *WorkflowData) (string, er
 	compilerJobsLog.Print("Building push_evals_state job")
 	job, err := c.buildPushEvalsStateJob(data)
 	if err != nil {
-		return "", fmt.Errorf("failed to build push_evals_state job: %w", err)
+		return "", fmt.Errorf("push_evals_state job could not be built: %w. Check the evals configuration in frontmatter", err)
 	}
 	if job == nil {
 		return "", nil
 	}
 
 	if err := c.jobManager.AddJob(job); err != nil {
-		return "", fmt.Errorf("failed to add push_evals_state job: %w", err)
+		return "", fmt.Errorf("push_evals_state job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 	}
 
 	compilerJobsLog.Printf("Successfully added push_evals_state job: %s", job.Name)

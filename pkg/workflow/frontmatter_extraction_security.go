@@ -1,6 +1,11 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var frontmatterExtractionSecurityLog = logger.New("workflow:frontmatter_extraction_security")
 
@@ -292,6 +297,23 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 				}
 			}
 			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.allow-host-ports: %v", agentConfig.AllowHostPorts)
+		}
+	}
+
+	// Extract images (digest-pinned AWF infrastructure image manifest)
+	if imagesVal, hasImages := agentObj["images"]; hasImages {
+		if imagesObj, ok := imagesVal.(map[string]any); ok {
+			agentConfig.Images = make(map[string]string, len(imagesObj))
+			for role, value := range imagesObj {
+				if valueStr, ok := value.(string); ok {
+					agentConfig.Images[role] = strings.TrimSpace(valueStr)
+					continue
+				}
+				// Preserve non-string values as their formatted form so validation
+				// can report an actionable error instead of silently dropping them.
+				agentConfig.Images[role] = fmt.Sprintf("%v", value)
+			}
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.images: %d role(s)", len(agentConfig.Images))
 		}
 	}
 

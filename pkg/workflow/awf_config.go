@@ -391,6 +391,13 @@ type AWFContainerConfig struct {
 	// "gvisor" enables gVisor's runsc runtime for additional kernel-level isolation.
 	// AWF translates "gvisor" → "runsc" internally.
 	ContainerRuntime string `json:"containerRuntime,omitempty"`
+
+	// Images is the closed manifest of digest-pinned AWF infrastructure images,
+	// keyed by AWF image role (squid, agent, apiProxy, ...). Mapped from the
+	// sandbox.agent.images frontmatter field. When present, AWF fails closed
+	// instead of falling back to the official registry, and it cannot be combined
+	// with legacy image selectors such as imageTag or agentImage.
+	Images map[string]string `json:"images,omitempty"`
 }
 
 // AWFLoggingConfig is the "logging" section of the AWF config file.
@@ -700,6 +707,13 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	// ── Container section ─────────────────────────────────────────────────────
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
+	// A custom image manifest (sandbox.agent.images) is a closed set of digest-pinned
+	// references. AWF rejects it alongside imageTag, which would select a different
+	// effective image, so the compiler-owned tag is suppressed when it is configured.
+	containerImages := getSandboxAgentImages(config.WorkflowData)
+	if len(containerImages) > 0 {
+		awfImageTag = ""
+	}
 	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
 	agentTimeout := 0
 	if isDockerSbxRuntime(config.WorkflowData) || isCloudHypervisorRuntime(config.WorkflowData) {
@@ -713,11 +727,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 		agentRuntime = ""
 	}
-	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" || agentTimeout > 0 {
+	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" || agentTimeout > 0 || len(containerImages) > 0 {
 		container := &AWFContainerConfig{
 			ImageTag:         awfImageTag,
 			AgentTimeout:     agentTimeout,
 			ContainerRuntime: agentRuntime,
+			Images:           containerImages,
 		}
 		// NOTE: dockerHostPathPrefix is intentionally NOT set for arc-dind topology.
 		// With sysroot-stage active, the Docker daemon can access all needed paths:
@@ -736,6 +751,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 		if agentTimeout > 0 {
 			awfConfigLog.Printf("Container section: agentTimeout=%d", agentTimeout)
+		}
+		if len(containerImages) > 0 {
+			awfConfigLog.Printf("Container section: custom image manifest with %d role(s)", len(containerImages))
 		}
 	}
 

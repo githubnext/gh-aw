@@ -1644,3 +1644,113 @@ func TestConclusionJobActionsWritePermissionForDailyAICCache(t *testing.T) {
 		}
 	})
 }
+
+// TestConclusionJobIssuesWritePermissionDerivedFromConfig verifies that the conclusion job's
+// issues: write (and actions: read) permissions are derived from the resolved safe-outputs
+// configuration rather than emitted unconditionally. See github/gh-aw#54548.
+func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
+	falseVal := "false"
+	falseTemplatable := TemplatableBool("false")
+
+	t.Run("no issues: write or actions: read when all conclusion issue-writing paths are disabled", func(t *testing.T) {
+		compiler := NewCompiler()
+		falseReportFailedJobs := false
+		trueVal := "true"
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				ReportFailedJobs:     &falseReportFailedJobs,
+				ReportFailureAsIssue: &falseTemplatable,
+				MissingTool: &MissingToolConfig{
+					CreateIssue: &trueVal,
+				},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if strings.Contains(job.Permissions, "issues: write") {
+			t.Errorf("conclusion job should NOT have 'issues: write' when every issue-creating mechanism is disabled, got: %q", job.Permissions)
+		}
+		if strings.Contains(job.Permissions, "actions: read") {
+			t.Errorf("conclusion job should NOT have 'actions: read' when report-failed-jobs is disabled, got: %q", job.Permissions)
+		}
+	})
+
+	t.Run("issues: write present when report-failed-jobs remains enabled by default", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				ReportFailureAsIssue: &falseTemplatable,
+				MissingTool: &MissingToolConfig{
+					CreateIssue: &falseVal,
+				},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if !strings.Contains(job.Permissions, "issues: write") {
+			t.Errorf("conclusion job should have 'issues: write' when report-failed-jobs defaults to enabled, got: %q", job.Permissions)
+		}
+		if !strings.Contains(job.Permissions, "actions: read") {
+			t.Errorf("conclusion job should have 'actions: read' when report-failed-jobs defaults to enabled, got: %q", job.Permissions)
+		}
+	})
+
+	t.Run("issues: read from safe-outputs is upgraded to issues: write when a conclusion issue path is enabled", func(t *testing.T) {
+		compiler := NewCompiler()
+		falseReportFailedJobs := false
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				ReportFailedJobs: &falseReportFailedJobs,
+				CreateProjects: &CreateProjectsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if !strings.Contains(job.Permissions, "issues: write") {
+			t.Errorf("conclusion job should upgrade from 'issues: read' to 'issues: write' when report-failure-as-issue is enabled, got: %q", job.Permissions)
+		}
+	})
+
+	t.Run("issues: write present when detection reporting is enabled", func(t *testing.T) {
+		compiler := NewCompiler()
+		falseReportFailedJobs := false
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				ReportFailedJobs:     &falseReportFailedJobs,
+				ReportFailureAsIssue: &falseTemplatable,
+				ThreatDetection:      &ThreatDetectionConfig{},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if !strings.Contains(job.Permissions, "issues: write") {
+			t.Errorf("conclusion job should have 'issues: write' when detection reporting is enabled, got: %q", job.Permissions)
+		}
+	})
+}

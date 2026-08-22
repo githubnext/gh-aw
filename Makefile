@@ -488,6 +488,7 @@ bundle-js:
 .PHONY: test-scripts
 test-scripts: build
 	@echo "Running Bash script tests..."
+	bash scripts/extract-workflow-frontmatter-keys_test.sh
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
