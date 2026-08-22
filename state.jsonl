@@ -108,3 +108,4 @@
 {"run_id":"32212100001","timestamp":"2026-08-19T03:26:13.393Z","assignments":{"prompt_style":"concise"}}
 {"run_id":"32328181340","timestamp":"2026-08-20T03:26:03.963Z","assignments":{"prompt_style":"detailed"}}
 {"run_id":"32443500200","timestamp":"2026-08-21T03:28:48.027Z","assignments":{"prompt_style":"concise"}}
+{"run_id":"32548794945","timestamp":"2026-08-22T03:23:04.727Z","harness_version":"330169f88b1219fdd7992b55a777994bad5266feb974b93843d287503b15827e:d0f15b1d54e236c4e9495b898113f2f1a90d574c572b200714683d63e8b47cb4","assignments":{"prompt_style":"detailed"}}
