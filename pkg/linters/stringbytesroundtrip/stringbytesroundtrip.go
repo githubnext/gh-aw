@@ -135,13 +135,24 @@ func reportWastefulCloneRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExp
 	)
 }
 
+// isStringType reports whether t is a string basic type. Callers pass an
+// already-.Underlying()-resolved type, so this also matches named string types.
 func isStringType(t types.Type) bool {
 	basic, ok := t.(*types.Basic)
 	return ok && basic.Kind() == types.String
 }
 
+// isExactString reports whether t is the predeclared string type, not a named
+// type whose underlying type is string. Unlike isStringType, which expects an
+// already-.Underlying()-resolved type, isExactString must be given the raw type
+// so it can tell string from `type MyString string`. That distinction matters
+// because only a predeclared string can have both conversions removed; a named
+// string type still needs an outer conversion.
 func isExactString(t types.Type) bool {
-	return isStringType(t)
+	if _, named := t.(*types.Named); named {
+		return false
+	}
+	return isStringType(t.Underlying())
 }
 
 func isByteSliceType(t types.Type) bool {
