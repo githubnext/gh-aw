@@ -187,6 +187,46 @@ func TestCollectSampleEntries_SidecarPartitioning(t *testing.T) {
 	}
 }
 
+func TestCollectSampleEntries_DynamicWorkflowSamplesUseWorkflowToolName(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"workflow_name": "dispatch-worker",
+						"inputs": map[string]any{
+							"sentinel": "dispatch-sample",
+						},
+						"ref": "main",
+					},
+				},
+			},
+		},
+		CallWorkflow: &CallWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"workflow_name": "call-worker",
+						"inputs": map[string]any{
+							"sentinel": "call-sample",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	entries := collectSampleEntries(cfg)
+	require.Len(t, entries, 2)
+
+	// Sorted by struct field name, so CallWorkflow entry precedes DispatchWorkflow.
+	assert.Equal(t, "call_worker", entries[0].Tool)
+	assert.Equal(t, map[string]any{"sentinel": "call-sample"}, entries[0].Arguments)
+
+	assert.Equal(t, "dispatch_worker", entries[1].Tool)
+	assert.Equal(t, map[string]any{"sentinel": "dispatch-sample", "ref": "main"}, entries[1].Arguments)
+}
+
 // TestValidateSafeOutputsSamples_RuntimeExpressionsBypassValidation verifies
 // that sample values containing `${{ ... }}` GitHub Actions expressions
 // (e.g. `item_number: ${{ github.event.inputs.issue_number }}`) bypass
@@ -402,6 +442,17 @@ func TestValidateSafeOutputsSamples_DynamicToolsDeferredToRuntime(t *testing.T) 
 						"inputs": map[string]any{
 							"value": "ok",
 						},
+					},
+				},
+			},
+		},
+		ReplaceLabel: &ReplaceLabelConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Samples: []map[string]any{
+					{
+						"item_number":     "${{ github.event.issue.number }}",
+						"label_to_remove": "old",
+						"label_to_add":    "new",
 					},
 				},
 			},
