@@ -65,7 +65,9 @@ experiments:
     analysis_type: mann_whitney
     tags: [daily, log-fetching, efficiency, claude]
     min_samples: 20
-    weight: [50, 50]
+    continual:
+      seed: daily-safe-output-log-fetch-v1
+      ramp: [10, 25, 50]
     start_date: "2026-06-09"
 
 evals:

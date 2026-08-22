@@ -306,6 +306,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"model_size":{"variants":["gpt-5.4","gpt-5.4-mini"],"description":"Compares codex-compatible models for cache issue detection quality and efficiency.","hypothesis":"H0: no change in issue creation rate or run success rate. H1: gpt-5.4-mini reduces AI Credits while keeping run success rate \u003e=0.90.","metric":"ai_credits_total","secondary_metrics":["run_success_rate","run_duration_ms"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.90"},{"name":"empty_output_rate","threshold":"\u003c=0.10"}],"min_samples":20,"weight":[50,50],"start_date":"2026-06-04"}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 5dd3d926597c4204f3bb4e64d3fed3489991c6b4727225a789f36a2446aec9db:c3fa22c41e07ded28ee1ddadc4b64062cfcac4b6c28487ae67a6986e2e7e06cd
         with:
           script: |
             const path = require('path');

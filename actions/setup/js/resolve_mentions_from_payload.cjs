@@ -150,7 +150,7 @@ async function fetchTeamMembers(teamEntry, defaultOrg, github, core) {
     core.info(`[MENTIONS] Fetched ${logins.length} member(s) from team ${org}/${teamSlug}`);
     return logins;
   } catch (error) {
-    const status = /** @type {any} */ error?.status;
+    const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
     const isRateLimit = status === 429 || (status === 403 && /rate.?limit/i.test(getErrorMessage(error)));
     const isPermission = !isRateLimit && (status === 403 || status === 404);
 

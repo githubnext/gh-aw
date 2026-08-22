@@ -294,6 +294,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"output_format":{"variants":["structured","prose","ste"],"description":"Test whether a prose-style discussion summary or a Simplified Technical English (STE) summary reduces AI credit consumption vs. the current table-centric structured format without sacrificing completeness.","hypothesis":"H0: no change in ai_credits_used. H1: prose or ste format reduces ai_credits_used by \u003e=15% while keeping empty_discussion_rate \u003c=5%","metric":"ai_credits_used","secondary_metrics":["run_duration_seconds","output_length_chars","eval:output_format_adherence"],"guardrail_metrics":[{"name":"empty_discussion_rate","direction":"min","threshold":"0.05"}],"min_samples":30,"weight":[34,33,33],"start_date":"2026-06-08","analysis_type":"t_test","tags":["cost-efficiency","output-quality","daily-report"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 1f7eb41b1d456a3036f068af919fdd4f5a5e68db6020f79aef8d2378d685b0cc:9d693426dda1352e48bc88b32dbbcd0d1fa3fc25ea6c3124ff96697658504b07
         with:
           script: |
             const path = require('path');
