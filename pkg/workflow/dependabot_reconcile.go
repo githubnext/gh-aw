@@ -131,13 +131,12 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 	}
 
 	managedPatterns := []string{c.effectiveActionsRepo() + "/*"}
-	legacyManagedPatterns := []string{c.effectiveActionsRepo(), c.effectiveActionsRepo() + "/**"}
 	changed := false
 	originalStr := string(original)
-	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, append(managedPatterns, legacyManagedPatterns...))
+	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
 
 	for i, updateAny := range updates {
-		result := reconcileGithubActionsIgnoreEntry(updateAny, managedPatterns, legacyManagedPatterns, managedPatternsWithComment)
+		result := reconcileGithubActionsIgnoreEntry(updateAny, managedPatterns, managedPatternsWithComment)
 		if result.changed {
 			changed = true
 		}
@@ -174,7 +173,7 @@ type reconcileGithubActionsIgnoreResult struct {
 
 // reconcileGithubActionsIgnoreEntry adds compiler-managed ignore rules to a single
 // dependabot.yml update entry if it targets the github-actions ecosystem.
-func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns, legacyManagedPatterns []string, managedPatternsWithComment map[string]struct{}) reconcileGithubActionsIgnoreResult {
+func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, managedPatternsWithComment map[string]struct{}) reconcileGithubActionsIgnoreResult {
 	updateMap, ok := dependabotToStringAnyMap(updateAny)
 	if !ok {
 		return reconcileGithubActionsIgnoreResult{}
@@ -208,10 +207,6 @@ func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns, legacyMan
 		dependencyName, _ := ignoreEntryMap["dependency-name"].(string)
 		if !ok || dependencyName == "" {
 			reconciledIgnoreEntries = append(reconciledIgnoreEntries, ignoreEntryAny)
-			continue
-		}
-		if slices.Contains(legacyManagedPatterns, dependencyName) && setutil.Contains(managedPatternsWithComment, dependencyName) {
-			changed = true
 			continue
 		}
 		for _, pattern := range managedPatterns {
