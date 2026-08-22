@@ -33,7 +33,6 @@ Key read permission scopes include:
 - `pages` (GitHub Pages management)
 - `statuses` (commit status management)
 - `attestations` (artifact attestations)
-- `models` (access to GitHub Copilot models; `read` or `none` only)
 
 See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) for the complete list.
 
