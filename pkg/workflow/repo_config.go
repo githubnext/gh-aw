@@ -120,6 +120,11 @@ func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
 	return *m.LabelTriggers
 }
 
+// normalizeMaintenanceJobName normalizes a maintenance job name for
+// case/whitespace-insensitive comparison, converting underscores and periods
+// to hyphens via stringutil.NormalizeIdentifierToHyphens. The known
+// maintenance job names (see validDisabledMaintenanceJobs) never contain
+// periods, so this is not a behavior change for supported job names.
 func normalizeMaintenanceJobName(name string) string {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	return stringutil.NormalizeIdentifierToHyphens(normalized)
