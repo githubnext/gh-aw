@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -64,7 +65,7 @@ func driveMemoryBaselineFilenameFor(id string) string {
 }
 
 func driveMemoryBaselinePathFor(id string) string {
-	return "/tmp/gh-aw/" + driveMemoryBaselineFilenameFor(id)
+	return tmpSafePrefix + driveMemoryBaselineFilenameFor(id)
 }
 
 func driveHasValidationStep(drive DriveMemoryEntry) bool {
@@ -205,10 +206,10 @@ func validateDriveMemoryRuntime(data *WorkflowData) error {
 		return nil
 	}
 	if data.Container != "" {
-		return fmt.Errorf("tools.drive-memory requires the ubuntu-latest host runner and cannot be used with a job container")
+		return errors.New("tools.drive-memory requires the ubuntu-latest host runner and cannot be used with a job container")
 	}
 	if runsOn := strings.TrimSpace(data.RunsOn); runsOn != "" && runsOn != "runs-on: ubuntu-latest" {
-		return fmt.Errorf("tools.drive-memory requires runs-on: ubuntu-latest during the GitHub Drives private preview")
+		return errors.New("tools.drive-memory requires runs-on: ubuntu-latest during the GitHub Drives private preview")
 	}
 	for jobName, rawJob := range data.Jobs {
 		job, ok := rawJob.(map[string]any)

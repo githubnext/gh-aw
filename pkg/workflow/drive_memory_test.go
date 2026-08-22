@@ -344,3 +344,14 @@ func TestDriveMemoryThreatDetectionJob(t *testing.T) {
 	assert.Contains(t, job.Permissions, "drives: write")
 	assert.Contains(t, strings.Join(job.Steps, "\n"), "actions/gh-drives-preview/commit@")
 }
+
+func TestDriveMemoryUpdateCheckoutStepIDsAreUnique(t *testing.T) {
+	compiler := NewCompiler()
+	steps := strings.Join([]string{
+		compiler.buildDriveMemoryUpdateCheckoutStep(DriveMemoryEntry{ID: "a-b"}, ".gh-aw-drive-memory-a-b"),
+		compiler.buildDriveMemoryUpdateCheckoutStep(DriveMemoryEntry{ID: "a_b"}, ".gh-aw-drive-memory-a_b"),
+	}, "\n")
+
+	assert.Contains(t, steps, "id: checkout_drive_612d62")
+	assert.Contains(t, steps, "id: checkout_drive_615f62")
+}

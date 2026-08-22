@@ -4886,7 +4886,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of allowed file extensions. Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                  "description": "List of allowed file extensions. By default, all extensions are allowed."
                 },
                 "validation": {
                   "type": "object",
@@ -4947,7 +4947,7 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "List of allowed file extensions. Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                    "description": "List of allowed file extensions. By default, all extensions are allowed."
                   },
                   "validation": {
                     "type": "object",

@@ -4122,8 +4122,7 @@ tools:
     # (optional)
     restore-only: true
 
-    # List of allowed file extensions. Default: [".json", ".jsonl", ".txt", ".md",
-    # ".csv"]
+    # List of allowed file extensions. By default, all extensions are allowed.
     # (optional)
     allowed-extensions: []
       # Array of strings

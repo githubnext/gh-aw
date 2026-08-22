@@ -265,7 +265,7 @@ func (c *Compiler) buildDriveMemoryUpdateSteps(data *WorkflowData, drive DriveMe
 func (c *Compiler) buildDriveMemoryUpdateCheckoutStep(drive DriveMemoryEntry, mountPath string) string {
 	var step strings.Builder
 	fmt.Fprintf(&step, "      - name: Checkout drive-memory for update (%s)\n", drive.ID)
-	fmt.Fprintf(&step, "        id: %s\n", strings.ReplaceAll("checkout_drive_"+drive.ID, "-", "_"))
+	fmt.Fprintf(&step, "        id: %s\n", memoryValidationStepID("checkout_drive", drive.ID))
 	fmt.Fprintf(&step, "        uses: %s\n", c.getActionPin("actions/gh-drives-preview/checkout"))
 	step.WriteString("        with:\n")
 	fmt.Fprintf(&step, "          drive-name: %q\n", drive.DriveName)
