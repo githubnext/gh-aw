@@ -644,6 +644,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | `audit_cross_run.go` | `CrossRunAuditReport` | `type CrossRunAuditReport struct { ... }` | CrossRunAuditReport summarizes trends and comparisons across multiple workflow runs. |
 | `audit_diff.go` | `DiffEntryBase` | `type DiffEntryBase struct { ... }` | DiffEntryBase contains shared status/anomaly fields used by diff entries. |
 | `domain_buckets.go` | `AnalysisBase` | `type AnalysisBase struct { ... }` | AnalysisBase provides shared domain/request counters for firewall and domain analyses. |
+| `network_log_entry.go` | `NetworkLogEntry` | `type NetworkLogEntry struct { ... }` | NetworkLogEntry contains fields shared by one-line network request logs. |
 | `logs_report_firewall.go` | `FirewallSummaryBase` | `type FirewallSummaryBase struct { ... }` | FirewallSummaryBase is the shared summary schema for firewall report rendering. |
 | `experiments_analyze_statistics.go` | `MetricEvalResults` | `type MetricEvalResults struct { ... }` | MetricEvalResults tracks yes/no/unknown evaluation outcomes for one metric. |
 | `logs_models.go` | `SkillActivation` | `type SkillActivation struct { ... }` | SkillActivation captures skill invocation telemetry extracted from logs. |

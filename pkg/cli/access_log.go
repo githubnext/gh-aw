@@ -19,13 +19,10 @@ var accessLogLog = logger.New("cli:access_log")
 
 // AccessLogEntry represents a parsed squid access log entry
 type AccessLogEntry struct {
+	NetworkLogEntry
 	Timestamp string
 	Duration  string
-	ClientIP  string
-	Status    string
 	Size      string
-	Method    string
-	URL       string
 	User      string
 	Hierarchy string
 	Type      string
@@ -173,13 +170,15 @@ func parseSquidLogLine(line string) (*AccessLogEntry, error) {
 	}
 
 	return &AccessLogEntry{
+		NetworkLogEntry: NetworkLogEntry{
+			Client: fields[2],
+			Status: fields[3],
+			Method: fields[5],
+			URL:    fields[6],
+		},
 		Timestamp: fields[0],
 		Duration:  fields[1],
-		ClientIP:  fields[2],
-		Status:    fields[3],
 		Size:      fields[4],
-		Method:    fields[5],
-		URL:       fields[6],
 		User:      fields[7],
 		Hierarchy: fields[8],
 		Type:      fields[9],

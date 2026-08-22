@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -116,16 +115,12 @@ var (
 // FirewallLogEntry represents a parsed firewall log entry
 // Format: timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
 type FirewallLogEntry struct {
-	Timestamp    string
-	ClientIPPort string
-	Domain       string
-	DestIPPort   string
-	Proto        string
-	Method       string
-	Status       string
-	Decision     string
-	URL          string
-	UserAgent    string
+	NetworkLogEntry
+	Timestamp  string
+	Domain     string
+	DestIPPort string
+	Proto      string
+	UserAgent  string
 }
 
 // FirewallAnalysis represents analysis of firewall logs
@@ -195,16 +190,18 @@ func parseFirewallLogLine(line string) *FirewallLogEntry {
 	userAgent = strings.Trim(userAgent, `"`)
 
 	return &FirewallLogEntry{
-		Timestamp:    timestamp,
-		ClientIPPort: clientIPPort,
-		Domain:       domain,
-		DestIPPort:   destIPPort,
-		Proto:        fields[4],
-		Method:       fields[5],
-		Status:       status,
-		Decision:     decision,
-		URL:          fields[8],
-		UserAgent:    userAgent,
+		NetworkLogEntry: NetworkLogEntry{
+			Client:   clientIPPort,
+			Method:   fields[5],
+			Status:   status,
+			Decision: decision,
+			URL:      fields[8],
+		},
+		Timestamp:  timestamp,
+		Domain:     domain,
+		DestIPPort: destIPPort,
+		Proto:      fields[4],
+		UserAgent:  userAgent,
 	}
 }
 
@@ -212,7 +209,7 @@ func parseFirewallLogLine(line string) *FirewallLogEntry {
 // This mirrors the logic from the JavaScript parser
 func isRequestAllowed(decision, status string) bool {
 	// Check status code first
-	if statusCode, err := strconv.Atoi(status); err == nil {
+	if statusCode, ok := networkStatusCode(status); ok {
 		if statusCode == http.StatusOK || statusCode == http.StatusPartialContent || statusCode == http.StatusNotModified {
 			return true
 		}
@@ -267,7 +264,7 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 		// These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
 		// and are not actual external network requests.
 		// Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
-		if strings.HasPrefix(entry.ClientIPPort, "::1:") && entry.Domain == "-" && (entry.DestIPPort == "-:-" || entry.DestIPPort == "-") {
+		if strings.HasPrefix(entry.Client, "::1:") && entry.Domain == "-" && (entry.DestIPPort == "-:-" || entry.DestIPPort == "-") {
 			continue
 		}
 

@@ -48,15 +48,45 @@ type FirewallPolicyRule struct {
 // Each record includes a _schema field (e.g. "audit/v0.26.0") that identifies the
 // record type and AWF version for forward-compatible consumers.
 type AuditLogEntry struct {
+	NetworkLogEntry
 	Schema    string  `json:"_schema,omitempty"` // Self-describing record type, e.g. "audit/v0.26.0"
 	Timestamp float64 `json:"ts"`
-	Client    string  `json:"client,omitempty"`
 	Host      string  `json:"host"`
 	Dest      string  `json:"dest,omitempty"`
-	Method    string  `json:"method,omitempty"`
-	Status    int     `json:"status"`
-	Decision  string  `json:"decision,omitempty"`
-	URL       string  `json:"url,omitempty"`
+}
+
+func (a *AuditLogEntry) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		Schema    string          `json:"_schema,omitempty"`
+		Timestamp float64         `json:"ts"`
+		Client    string          `json:"client,omitempty"`
+		Host      string          `json:"host"`
+		Dest      string          `json:"dest,omitempty"`
+		Method    string          `json:"method,omitempty"`
+		Status    json.RawMessage `json:"status"`
+		Decision  string          `json:"decision,omitempty"`
+		URL       string          `json:"url,omitempty"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	status, err := networkStatusFromJSON(wire.Status)
+	if err != nil {
+		return err
+	}
+
+	a.NetworkLogEntry = NetworkLogEntry{
+		Client:   wire.Client,
+		Method:   wire.Method,
+		Status:   status,
+		Decision: wire.Decision,
+		URL:      wire.URL,
+	}
+	a.Schema = wire.Schema
+	a.Timestamp = wire.Timestamp
+	a.Host = wire.Host
+	a.Dest = wire.Dest
+	return nil
 }
 
 // EnrichedRequest represents a firewall request enriched with policy rule attribution.
@@ -235,12 +265,13 @@ func isEntryHTTPS(entry AuditLogEntry) bool {
 // isEntryAllowed determines the observed outcome of a request.
 // This mirrors the classification logic used by the firewall log parser.
 func isEntryAllowed(entry AuditLogEntry) bool {
-	status := entry.Status
-	if status == http.StatusOK || status == http.StatusPartialContent || status == http.StatusNotModified {
-		return true
-	}
-	if status == http.StatusForbidden || status == http.StatusProxyAuthRequired {
-		return false
+	if statusCode, ok := networkStatusCode(entry.Status); ok {
+		if statusCode == http.StatusOK || statusCode == http.StatusPartialContent || statusCode == http.StatusNotModified {
+			return true
+		}
+		if statusCode == http.StatusForbidden || statusCode == http.StatusProxyAuthRequired {
+			return false
+		}
 	}
 	decision := entry.Decision
 	if strings.Contains(decision, "TCP_TUNNEL") ||
@@ -349,7 +380,9 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 		var enriched EnrichedRequest
 		enriched.Timestamp = entry.Timestamp
 		enriched.Host = host
-		enriched.Status = entry.Status
+		if statusCode, ok := networkStatusCode(entry.Status); ok {
+			enriched.Status = statusCode
+		}
 
 		if rule != nil {
 			enriched.RuleID = rule.ID

@@ -167,21 +167,21 @@ func TestFindMatchingRule(t *testing.T) {
 	}
 
 	t.Run("matches first rule - allowed HTTPS", func(t *testing.T) {
-		entry := AuditLogEntry{Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Host: "api.github.com:443"}
 		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should find a matching rule")
 		assert.Equal(t, "allow-github", rule.ID, "Should match allow-github rule")
 	})
 
 	t.Run("matches second rule", func(t *testing.T) {
-		entry := AuditLogEntry{Host: "registry.npmjs.org:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Host: "registry.npmjs.org:443"}
 		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should find a matching rule")
 		assert.Equal(t, "allow-npm", rule.ID, "Should match allow-npm rule")
 	})
 
 	t.Run("aclName all catches unmatched denied traffic", func(t *testing.T) {
-		entry := AuditLogEntry{Host: "evil.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "403", Decision: "NONE_NONE"}, Host: "evil.com:443"}
 		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should find the catch-all deny rule")
 		assert.Equal(t, "deny-all", rule.ID, "Should match deny-all rule via aclName 'all'")
@@ -190,13 +190,13 @@ func TestFindMatchingRule(t *testing.T) {
 	t.Run("aclName all skipped for allowed traffic", func(t *testing.T) {
 		// If a domain doesn't match specific rules but traffic was allowed,
 		// the deny-all rule should NOT match (action mismatch)
-		entry := AuditLogEntry{Host: "unknown.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Host: "unknown.com:443"}
 		rule := findMatchingRule(entry, rules)
 		assert.Nil(t, rule, "deny-all rule should not match allowed traffic")
 	})
 
 	t.Run("first matching rule wins", func(t *testing.T) {
-		entry := AuditLogEntry{Host: "github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Host: "github.com:443"}
 		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should find a matching rule")
 		assert.Equal(t, "allow-github", rule.ID, "First matching rule should win")
@@ -204,7 +204,7 @@ func TestFindMatchingRule(t *testing.T) {
 
 	t.Run("observed-decision validation - allow rule skipped for denied traffic", func(t *testing.T) {
 		// Domain matches allow-github, but traffic was denied — allow rule shouldn't be credited
-		entry := AuditLogEntry{Host: "api.github.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "403", Decision: "NONE_NONE"}, Host: "api.github.com:443"}
 		rule := findMatchingRule(entry, rules)
 		// Falls through to deny-all since allow-github action doesn't match observed denial
 		require.NotNil(t, rule, "Should fall through to deny-all")
@@ -234,14 +234,14 @@ func TestProtocolMatching(t *testing.T) {
 	}
 
 	t.Run("HTTPS rule matches CONNECT request", func(t *testing.T) {
-		entry := AuditLogEntry{Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Host: "api.github.com:443"}
 		rule := findMatchingRule(entry, rules)
 		require.NotNil(t, rule, "Should match HTTPS rule")
 		assert.Equal(t, "allow-https-only", rule.ID, "HTTPS rule should match CONNECT request")
 	})
 
 	t.Run("HTTPS rule skipped for HTTP request", func(t *testing.T) {
-		entry := AuditLogEntry{Host: "api.github.com:80", Method: "GET", Status: 403, Decision: "NONE_NONE"}
+		entry := AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "GET", Status: "403", Decision: "NONE_NONE"}, Host: "api.github.com:80"}
 		rule := findMatchingRule(entry, rules)
 		// HTTPS-only rule skipped for GET → falls through to deny-all
 		require.NotNil(t, rule, "Should fall through to deny-all")
@@ -251,10 +251,10 @@ func TestProtocolMatching(t *testing.T) {
 
 func TestIsEntryHTTPS(t *testing.T) {
 	t.Parallel()
-	assert.True(t, isEntryHTTPS(AuditLogEntry{Method: "CONNECT"}), "CONNECT should be HTTPS")
-	assert.True(t, isEntryHTTPS(AuditLogEntry{Method: "connect"}), "connect (lowercase) should be HTTPS")
-	assert.False(t, isEntryHTTPS(AuditLogEntry{Method: "GET"}), "GET should not be HTTPS")
-	assert.False(t, isEntryHTTPS(AuditLogEntry{Method: ""}), "Empty method should not be HTTPS")
+	assert.True(t, isEntryHTTPS(AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT"}}), "CONNECT should be HTTPS")
+	assert.True(t, isEntryHTTPS(AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "connect"}}), "connect (lowercase) should be HTTPS")
+	assert.False(t, isEntryHTTPS(AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: "GET"}}), "GET should not be HTTPS")
+	assert.False(t, isEntryHTTPS(AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Method: ""}}), "Empty method should not be HTTPS")
 }
 
 func TestIsEntryAllowed(t *testing.T) {
@@ -264,13 +264,13 @@ func TestIsEntryAllowed(t *testing.T) {
 		entry    AuditLogEntry
 		expected bool
 	}{
-		{"status 200 is allowed", AuditLogEntry{Status: 200}, true},
-		{"status 206 is allowed", AuditLogEntry{Status: 206}, true},
-		{"status 304 is allowed", AuditLogEntry{Status: 304}, true},
-		{"status 403 is denied", AuditLogEntry{Status: 403}, false},
-		{"status 407 is denied", AuditLogEntry{Status: 407}, false},
-		{"TCP_TUNNEL decision is allowed", AuditLogEntry{Status: 0, Decision: "TCP_TUNNEL:HIER_DIRECT"}, true},
-		{"NONE_NONE decision is denied", AuditLogEntry{Status: 0, Decision: "NONE_NONE:HIER_NONE"}, false},
+		{"status 200 is allowed", AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Status: "200"}}, true},
+		{"status 206 is allowed", AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Status: "206"}}, true},
+		{"status 304 is allowed", AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Status: "304"}}, true},
+		{"status 403 is denied", AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Status: "403"}}, false},
+		{"status 407 is denied", AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Status: "407"}}, false},
+		{"TCP_TUNNEL decision is allowed", AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Status: "0", Decision: "TCP_TUNNEL:HIER_DIRECT"}}, true},
+		{"NONE_NONE decision is denied", AuditLogEntry{NetworkLogEntry: NetworkLogEntry{Status: "0", Decision: "NONE_NONE:HIER_NONE"}}, false},
 	}
 
 	for _, tt := range tests {
@@ -378,11 +378,11 @@ func TestParseAuditJSONL(t *testing.T) {
 		// Check first entry
 		assert.InDelta(t, 1761074374.646, entries[0].Timestamp, 0.001, "Timestamp should match")
 		assert.Equal(t, "api.github.com:443", entries[0].Host, "Host should match")
-		assert.Equal(t, 200, entries[0].Status, "Status should match")
+		assert.Equal(t, "200", entries[0].Status, "Status should match")
 
 		// Check denied entry
 		assert.Equal(t, "evil.com:443", entries[1].Host, "Second host should match")
-		assert.Equal(t, 403, entries[1].Status, "Second status should be 403")
+		assert.Equal(t, "403", entries[1].Status, "Second status should be 403")
 	})
 
 	t.Run("empty lines skipped", func(t *testing.T) {
@@ -460,10 +460,10 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 	}
 
 	entries := []AuditLogEntry{
-		{Timestamp: 1761074374.646, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
-		{Timestamp: 1761074375.100, Host: "github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
-		{Timestamp: 1761074376.200, Host: "registry.npmjs.org:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
-		{Timestamp: 1761074377.300, Host: "evil.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"},
+		{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 1761074374.646, Host: "api.github.com:443"},
+		{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 1761074375.100, Host: "github.com:443"},
+		{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 1761074376.200, Host: "registry.npmjs.org:443"},
+		{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "403", Decision: "NONE_NONE"}, Timestamp: 1761074377.300, Host: "evil.com:443"},
 	}
 
 	analysis := enrichWithPolicyRules(entries, manifest)
@@ -502,9 +502,9 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 
 	t.Run("entries with empty host skipped", func(t *testing.T) {
 		emptyEntries := []AuditLogEntry{
-			{Timestamp: 1.0, Host: "", Status: 200},
-			{Timestamp: 2.0, Host: "-", Status: 200},
-			{Timestamp: 3.0, Host: "valid.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"},
+			{NetworkLogEntry: NetworkLogEntry{Status: "200"}, Timestamp: 1.0, Host: ""},
+			{NetworkLogEntry: NetworkLogEntry{Status: "200"}, Timestamp: 2.0, Host: "-"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "403", Decision: "NONE_NONE"}, Timestamp: 3.0, Host: "valid.com:443"},
 		}
 		result := enrichWithPolicyRules(emptyEntries, manifest)
 		// valid.com is denied → matches deny-all via aclName "all"
@@ -515,8 +515,8 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 
 	t.Run("error:transaction-end-before-headers entries filtered", func(t *testing.T) {
 		squidEntries := []AuditLogEntry{
-			{Timestamp: 1.0, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL", URL: "api.github.com:443"},
-			{Timestamp: 2.0, Host: "api.github.com:443", Method: "CONNECT", Status: 0, Decision: "NONE_NONE", URL: "error:transaction-end-before-headers"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL", URL: "api.github.com:443"}, Timestamp: 1.0, Host: "api.github.com:443"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "0", Decision: "NONE_NONE", URL: "error:transaction-end-before-headers"}, Timestamp: 2.0, Host: "api.github.com:443"},
 		}
 		result := enrichWithPolicyRules(squidEntries, manifest)
 		assert.Equal(t, 1, result.TotalRequests, "Squid error entries should be filtered out")
@@ -533,11 +533,11 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 		}
 		unattribEntries := []AuditLogEntry{
 			// Allowed request that matches the allow-github rule
-			{Timestamp: 1.0, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 1.0, Host: "api.github.com:443"},
 			// Allowed request that does NOT match any rule — should be (unattributed-allow)
-			{Timestamp: 2.0, Host: "unknown.example.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 2.0, Host: "unknown.example.com:443"},
 			// Denied request that does NOT match any rule — should be (implicit-deny)
-			{Timestamp: 3.0, Host: "evil.com:443", Method: "CONNECT", Status: 403, Decision: "NONE_NONE"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "403", Decision: "NONE_NONE"}, Timestamp: 3.0, Host: "evil.com:443"},
 		}
 		result := enrichWithPolicyRules(unattribEntries, limitedManifest)
 		assert.Equal(t, 3, result.TotalRequests, "Should process all 3 entries")
@@ -550,9 +550,9 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 
 	t.Run("unique domains case normalized", func(t *testing.T) {
 		caseEntries := []AuditLogEntry{
-			{Timestamp: 1.0, Host: "API.GITHUB.COM:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
-			{Timestamp: 2.0, Host: "api.github.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
-			{Timestamp: 3.0, Host: "Api.GitHub.com:443", Method: "CONNECT", Status: 200, Decision: "TCP_TUNNEL"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 1.0, Host: "API.GITHUB.COM:443"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 2.0, Host: "api.github.com:443"},
+			{NetworkLogEntry: NetworkLogEntry{Method: "CONNECT", Status: "200", Decision: "TCP_TUNNEL"}, Timestamp: 3.0, Host: "Api.GitHub.com:443"},
 		}
 		result := enrichWithPolicyRules(caseEntries, manifest)
 		assert.Equal(t, 1, result.UniqueDomains, "Mixed-case hosts for same domain should count as 1 unique domain")
