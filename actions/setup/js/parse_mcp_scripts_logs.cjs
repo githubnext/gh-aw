@@ -413,7 +413,7 @@ if (typeof module !== "undefined" && module.exports) {
 // Run main if called directly
 if (require.main === module) {
   main().catch(err => {
-    console.error(getErrorMessage(err));
+    console.error(err instanceof Error && err.stack ? err.stack : getErrorMessage(err));
     process.exitCode = 1;
   });
 }

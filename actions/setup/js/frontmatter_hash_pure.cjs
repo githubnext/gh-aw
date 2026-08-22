@@ -716,7 +716,7 @@ function createGitHubFileReader(github, owner, repo, ref) {
       // This handles the case where an import path traverses a symlinked directory
       // (e.g. .github/agents → ../.ai/agents), which the GitHub Contents API cannot
       // follow automatically. Mirrors the Go logic in remote_download_file.go.
-      const errorObject = typeof error === "object" && error !== null ? /** @type {any} */ error : null;
+      const errorObject = typeof error === "object" && error !== null ? error : null;
       const status = errorObject ? errorObject.status || (errorObject.response && errorObject.response.status) : undefined;
       if (status === HTTP_STATUS_NOT_FOUND) {
         if (symlinkDepth >= MAX_SYMLINK_DEPTH) {

@@ -146,7 +146,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    process.stderr.write(`[copilot-sdk-driver] unhandled error: ${getErrorMessage(err)}\n`);
+    process.stderr.write(`[copilot-sdk-driver] unhandled error: ${err instanceof Error && err.stack ? err.stack : getErrorMessage(err)}\n`);
     process.exit(1);
   });
 }

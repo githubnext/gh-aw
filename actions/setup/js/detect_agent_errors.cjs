@@ -578,7 +578,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    process.stderr.write(`[detect-agent-errors] Unhandled error: ${getErrorMessage(err)}\n`);
+    process.stderr.write(`[detect-agent-errors] Unhandled error: ${err instanceof Error && err.stack ? err.stack : getErrorMessage(err)}\n`);
   });
 }
 
