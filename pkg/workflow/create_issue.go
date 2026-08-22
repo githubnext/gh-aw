@@ -25,7 +25,6 @@ type CreateIssuesConfig struct {
 	GroupByDay                    *string               `yaml:"group-by-day,omitempty"`         // When true, if an open issue was already created today (UTC), post new content as a comment on it instead of creating a duplicate. Works best with close-older-issues: true.
 	Expires                       int                   `yaml:"expires,omitempty"`              // Hours until the issue expires and should be automatically closed
 	Group                         *string               `yaml:"group,omitempty"`                // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
-	Footer                        *string               `yaml:"footer,omitempty"`               // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseCreateIssuesConfig handles create-issue configuration

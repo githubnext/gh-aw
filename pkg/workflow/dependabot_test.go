@@ -406,8 +406,8 @@ updates:
 	}
 
 	updatedStr := string(updated)
-	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions"`) {
-		t.Fatal("managed github/gh-aw-actions ignore entry should be added")
+	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions/*"`) {
+		t.Fatal("managed github/gh-aw-actions wildcard ignore entry should be added")
 	}
 }
 
@@ -473,8 +473,8 @@ updates:
 	if !strings.Contains(updatedStr, `dependency-name: "actions/checkout"`) {
 		t.Fatal("user-defined ignore entry should be preserved")
 	}
-	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions"`) {
-		t.Fatal("managed github/gh-aw-actions ignore entry should be added")
+	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions/*"`) {
+		t.Fatal("managed github/gh-aw-actions wildcard ignore entry should be added")
 	}
 	if !strings.Contains(updatedStr, managedDependabotIgnoreComment) {
 		t.Fatal("managed ignore entry should include the compiler-managed inline comment")
@@ -512,17 +512,16 @@ updates:
 	if !strings.Contains(updatedStr, "ignore:") {
 		t.Fatal("ignore block should still be present")
 	}
-	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions"`) {
-		t.Fatal("managed github/gh-aw-actions ignore entry should be added when ignore is null")
+	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions/*"`) {
+		t.Fatal("managed github/gh-aw-actions wildcard ignore entry should be added when ignore is null")
 	}
 }
 
-func TestReconcileManagedDependabotIgnores_MigratesLegacyWildcardPattern(t *testing.T) {
+func TestReconcileManagedDependabotIgnores_DoesNotDuplicateExistingWildcard(t *testing.T) {
 	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
-	// Simulate an existing dependabot.yml with the old /**  pattern added by a previous compiler version.
 	original := `version: 2
 updates:
   - package-ecosystem: github-actions
@@ -530,15 +529,13 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      - dependency-name: "github/gh-aw-actions/**" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
-      - dependency-name: "actions/checkout"
+      - dependency-name: "github/gh-aw-actions/*" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
 `
 	if err := os.WriteFile(dependabotPath, []byte(original), 0644); err != nil {
 		t.Fatalf("failed to write test dependabot.yml: %v", err)
 	}
 
-	err := compiler.ReconcileManagedDependabotIgnores(dependabotPath)
-	if err != nil {
+	if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
@@ -546,18 +543,73 @@ updates:
 	if err != nil {
 		t.Fatalf("failed to read updated dependabot.yml: %v", err)
 	}
+	if string(updated) != original {
+		t.Fatal("existing compiler-managed wildcard ignore entry should not be duplicated or rewritten")
+	}
+}
 
+func TestReconcileManagedDependabotIgnores_UsesCustomActionsRepoWildcard(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.SetActionsRepo("owner/repo")
+	tempDir := testutil.TempDir(t, "test-*")
+	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
+
+	original := `version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/.github/workflows"
+    schedule:
+      interval: weekly
+`
+	if err := os.WriteFile(dependabotPath, []byte(original), 0644); err != nil {
+		t.Fatalf("failed to write test dependabot.yml: %v", err)
+	}
+
+	if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	updated, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read updated dependabot.yml: %v", err)
+	}
+	if !strings.Contains(string(updated), `dependency-name: "owner/repo/*"`) {
+		t.Fatal("custom actions repository wildcard ignore entry should be added")
+	}
+}
+
+func TestReconcileManagedDependabotIgnores_PreservesUserAuthoredExactPattern(t *testing.T) {
+	compiler := NewCompiler()
+	tempDir := testutil.TempDir(t, "test-*")
+	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
+
+	original := `version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/.github/workflows"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "github/gh-aw-actions"
+`
+	if err := os.WriteFile(dependabotPath, []byte(original), 0644); err != nil {
+		t.Fatalf("failed to write test dependabot.yml: %v", err)
+	}
+
+	if err := compiler.ReconcileManagedDependabotIgnores(dependabotPath); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	updated, err := os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read updated dependabot.yml: %v", err)
+	}
 	updatedStr := string(updated)
-	// The correct (non-wildcard) entry must be present so DependaBot respects the rule.
-	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions"`) {
-		t.Fatal("correct managed github/gh-aw-actions ignore entry should be added alongside the legacy entry")
+	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions"`+"\n") {
+		t.Fatal("user-authored exact ignore entry should be preserved")
 	}
-	// User-defined entries must be preserved.
-	if !strings.Contains(updatedStr, `dependency-name: "actions/checkout"`) {
-		t.Fatal("user-defined ignore entry should be preserved during migration")
-	}
-	if !strings.Contains(updatedStr, managedDependabotIgnoreComment) {
-		t.Fatal("managed ignore entry should include the compiler-managed inline comment")
+	if !strings.Contains(updatedStr, `dependency-name: "github/gh-aw-actions/*"`) {
+		t.Fatal("managed wildcard ignore entry should be added alongside user-authored exact entry")
 	}
 }
 

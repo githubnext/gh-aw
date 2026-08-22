@@ -65,6 +65,31 @@ func NormalizeSafeOutputIdentifier(identifier string) string {
 	return result
 }
 
+// NormalizeIdentifierToHyphens converts underscores and periods to hyphens.
+// This is the hyphen-canonical counterpart to NormalizeSafeOutputIdentifier,
+// standardizing identifiers to the hyphen-separated format conventionally used
+// for GitHub Actions job names.
+//
+// Both underscore-separated and hyphen-separated formats are valid inputs.
+// Periods are also replaced since job names should not contain them.
+//
+// This function performs normalization only - it assumes the input is already
+// a valid identifier and does NOT perform character validation, case
+// conversion, or whitespace trimming.
+//
+// Examples:
+//
+//	NormalizeIdentifierToHyphens("create_issue")          // returns "create-issue"
+//	NormalizeIdentifierToHyphens("create-issue")          // returns "create-issue" (unchanged)
+//	NormalizeIdentifierToHyphens("add_comment")           // returns "add-comment"
+//	NormalizeIdentifierToHyphens("update_pr")             // returns "update-pr"
+//	NormalizeIdentifierToHyphens("executor_workflow.agent") // returns "executor-workflow-agent"
+func NormalizeIdentifierToHyphens(identifier string) string {
+	result := strings.ReplaceAll(identifier, "_", "-")
+	result = strings.ReplaceAll(result, ".", "-")
+	return result
+}
+
 // MarkdownToLockFile converts a workflow markdown file path to its compiled lock file path.
 // This is the standard transformation for agentic workflow files.
 //

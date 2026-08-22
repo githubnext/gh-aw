@@ -321,8 +321,18 @@ const DefaultSafeOutputsMount = GhAwRootDirShell + "/safeoutputs:" + GhAwRootDir
 
 // Timeout constants using time.Duration for type safety and clear units
 
-// DefaultAgenticWorkflowTimeout is the default timeout for agentic workflow execution
+// DefaultAgenticWorkflowTimeout is the default timeout for the agentic execution step.
 const DefaultAgenticWorkflowTimeout = 20 * time.Minute
+
+// DefaultAgentJobTimeout is the default timeout for the generated agent job.
+// It bounds the whole job (setup, execution and teardown steps) and is
+// independent from DefaultAgenticWorkflowTimeout, which only bounds the
+// agentic execution step.
+const DefaultAgentJobTimeout = time.Hour
+
+// DefaultDetectionJobTimeout is the default timeout for the generated threat
+// detection job and its agentic execution step.
+const DefaultDetectionJobTimeout = 10 * time.Minute
 
 // DefaultToolTimeout is the default timeout for tool/MCP server operations
 const DefaultToolTimeout = 60 * time.Second

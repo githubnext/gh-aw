@@ -204,7 +204,7 @@ async function gitExecSilent(gitArgs, cwd) {
   try {
     await exec.exec("git", gitArgs, { silent: true, listeners, ...(cwd ? { cwd } : {}) });
   } catch (err) {
-    throw new Error(`git-config-credential failed: ${stderrBuf.trim() || getErrorMessage(err)}`);
+    throw new Error(`git-config-credential failed: ${stderrBuf.trim() || getErrorMessage(err)}`, { cause: err });
   }
 }
 

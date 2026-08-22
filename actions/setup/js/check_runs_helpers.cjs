@@ -40,7 +40,20 @@ function selectLatestRelevantChecks(checkRuns, options = {}) {
       continue;
     }
     const existing = latestByName.get(run.name);
-    if (!existing || new Date(run.started_at ?? 0) > new Date(existing.started_at ?? 0)) {
+    if (!existing) {
+      latestByName.set(run.name, run);
+      continue;
+    }
+    const runStartedAt = Date.parse(run.started_at ?? "");
+    const existingStartedAt = Date.parse(existing.started_at ?? "");
+    if (!Number.isFinite(runStartedAt)) {
+      continue;
+    }
+    if (!Number.isFinite(existingStartedAt)) {
+      latestByName.set(run.name, run);
+      continue;
+    }
+    if (runStartedAt > existingStartedAt) {
       latestByName.set(run.name, run);
     }
   }

@@ -18,6 +18,8 @@ import (
 // contain a SKILL.md file but are not already covered by the manifest. Each skill folder
 // is traversed recursively so that all nested files are included.
 func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref, host string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
+	addPackageManifestLog.Printf("Resolving skill files for %s/%s (path=%q, ref=%s, %d explicit dirs)", owner, repo, packagePath, ref, len(explicitSkillDirs))
+
 	// Step 1: resolve manifest skills first (explicit dirs).
 	manifestSkillDirs := normalizeManifestSkillDirs(explicitSkillDirs, packagePath)
 	skillDirs, warnings, err := resolvePackageSkillDirs(ctx, owner, repo, packagePath, ref, host, manifestSkillDirs)
@@ -61,6 +63,7 @@ func resolvePackageSkillDirs(ctx context.Context, owner, repo, packagePath, ref,
 		if len(manifestSkillDirs) == 0 {
 			return nil, nil, err
 		}
+		addPackageManifestLog.Printf("Skills auto-scan failed, proceeding with %d manifest-declared dirs only: %v", len(manifestSkillDirs), err)
 		warnings = append(warnings, fmt.Sprintf("failed to auto-scan skills directory, proceeding with manifest skills only: %v", err))
 	}
 
@@ -164,6 +167,7 @@ func scanPackageSkillDirs(ctx context.Context, owner, repo, packagePath, ref, ho
 			}
 		}
 	}
+	addPackageManifestLog.Printf("Auto-scan found %d skill directories under %s/%s (path=%q)", len(skillDirs), owner, repo, packagePath)
 	return skillDirs, nil
 }
 

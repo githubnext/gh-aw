@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 )
 
 var runnerGuardLog = logger.New("cli:runner_guard")
@@ -299,53 +300,36 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 			fileLines = strings.Split(string(fileContent), "\n")
 		}
 
-		for _, finding := range findings {
-			lineNum := finding.Line
-			if lineNum == 0 {
-				lineNum = 1
-			}
-
-			// Create context lines around the finding
-			var context []string
-			if len(fileLines) > 0 && lineNum > 0 && lineNum <= len(fileLines) {
-				startLine := max(1, lineNum-2)
-				endLine := min(len(fileLines), lineNum+2)
-				for i := startLine; i <= endLine; i++ {
-					if i-1 < len(fileLines) {
-						context = append(context, fileLines[i-1])
-					}
-				}
-			}
-
-			// Map severity to error type
-			errorType := "warning"
-			switch strings.ToLower(finding.Severity) {
-			case "critical", "high", "error":
-				errorType = "error"
-			case "note", "info":
-				errorType = "info"
-			}
-
-			// Build message
-			message := fmt.Sprintf("[%s] %s: %s", finding.Severity, finding.RuleID, finding.Name)
-			if finding.Description != "" {
-				message = fmt.Sprintf("%s - %s", message, finding.Description)
-			}
-
-			compilerErr := console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   finding.File,
-					Line:   lineNum,
-					Column: 1,
-				},
-				Type:    errorType,
-				Message: message,
-				Context: context,
-			}
-
-			fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
-		}
+		scanfindings.Render(os.Stderr, runnerGuardFindingsToShared(findings, fileLines))
 	}
 
 	return totalFindings, nil
+}
+
+// runnerGuardFindingsToShared maps runner-guard's native findings onto the shared
+// finding representation used by every scanner integration.
+func runnerGuardFindingsToShared(findings []runnerGuardFinding, fileLines []string) []scanfindings.Finding {
+	shared := make([]scanfindings.Finding, 0, len(findings))
+	for _, finding := range findings {
+		lineNum := finding.Line
+		if lineNum == 0 {
+			lineNum = 1
+		}
+
+		message := scanfindings.FormatMessage(finding.Severity, finding.RuleID, finding.Name)
+		if finding.Description != "" {
+			message = fmt.Sprintf("%s - %s", message, finding.Description)
+		}
+
+		shared = append(shared, scanfindings.Finding{
+			RuleID:   finding.RuleID,
+			Severity: scanfindings.ParseSeverity(finding.Severity),
+			Message:  message,
+			File:     finding.File,
+			Line:     lineNum,
+			Column:   1,
+			Context:  scanfindings.ContextLines(fileLines, lineNum),
+		})
+	}
+	return shared
 }

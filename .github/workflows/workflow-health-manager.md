@@ -56,9 +56,11 @@ pre-agent-steps:
       mkdir -p /tmp/gh-aw/agent
       METRICS_FILE="/tmp/gh-aw/repo-memory/default/metrics/latest.json"
       if [ -f "$METRICS_FILE" ]; then
-        jq '[.workflow_runs | to_entries[]
-             | select(.value.success_rate < 0.8)]
-            | sort_by(.value.success_rate) | .[0:20]' \
+        jq '[.workflows // {} | to_entries[]
+             | (.value.workflow_runs.executed //
+                ((.value.workflow_runs.successful // 0) + (.value.workflow_runs.failed // 0))) as $executed
+             | select($executed > 0 and (.value.workflow_runs.success_rate // 0) < 0.8)]
+            | sort_by(.value.workflow_runs.success_rate) | .[0:20]' \
           "$METRICS_FILE" > /tmp/gh-aw/agent/failing-workflows.json 2>/dev/null \
           || echo '[]' > /tmp/gh-aw/agent/failing-workflows.json
       else
@@ -112,8 +114,20 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 **Monitor workflow execution:**
 - Load shared metrics from: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
 - Use workflow_runs data for each workflow:
-  - Total runs, successful runs, failed runs
-  - Success rate (already calculated)
+  - Total, executed, successful, failed, skipped, and action-required runs
+  - Success rate (already calculated from executed runs only)
+- Exclude workflows with zero executed runs from failure-rate scoring. Treat high skipped counts as
+  trigger-gating behavior and high action-required counts as approval gating, not execution failures.
+- Exclude command- and mention-triggered workflows (frontmatter `slash_command`, `command`, or
+  `mention`, for example `q`) from execution-rate scoring. They start a run for every issue,
+  comment, or discussion event and the generated `pre_activation`/`activation` jobs stop runs whose
+  body does not start with the command, so a low activated-run ratio with a very short average
+  runtime (roughly 5-30s) is designed behavior. Score only their activated runs and label the rest
+  "command gating (expected)".
+- Re-verify any root cause carried over from `shared-alerts.md` or `workflow-health-latest.md` before
+  repeating it. If the note names a PR or issue as the pending fix and that PR/issue is already
+  merged or closed while the metric is unchanged, the attribution is stale: remove or replace it in
+  `shared-alerts.md` and re-diagnose from the workflow's trigger configuration and recent run logs.
 - Query recent workflow runs (past 7 days) for detailed error analysis
 - Track success/failure rates from metrics data
 - Identify workflows with:
@@ -175,7 +189,7 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
   - Identify workflows with declining quality
 - Calculate workflow reliability score (0-100):
   - Compilation success: +20 points
-  - Recent runs successful (from metrics): +30 points
+  - Recent executed runs successful (from metrics): +30 points
   - No timeout issues: +20 points
   - Proper error handling: +15 points
   - Up-to-date documentation: +15 points
@@ -252,6 +266,8 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
    - Workflows affecting multiple campaigns
    - Systemic issues requiring campaign-level attention
    - Health patterns that affect agent performance
+   - Remove or replace notes whose cited fix (PR/issue) is already merged or closed without the
+     metric improving, so later runs do not repeat a stale root cause
 
 **Format for memory files:**
 - Use markdown format only
@@ -274,7 +290,7 @@ Pre-computed data is available in `/tmp/gh-aw/agent/` and is the authoritative s
 ### Phase 2: Health Assessment (7 minutes)
 
 4. **Use pre-loaded metrics:**
-   - `/tmp/gh-aw/agent/failing-workflows.json` contains the top-20 workflows with <80% success rate (pre-filtered from `metrics/latest.json`). Use this as your starting point.
+   - `/tmp/gh-aw/agent/failing-workflows.json` contains the top-20 workflows with executed runs and <80% success rate (pre-filtered from `metrics/latest.json`). Use this as your starting point.
    - For trend analysis, load daily metrics directly: `/tmp/gh-aw/repo-memory/default/metrics/daily/*.json`
 
 5. **Query workflow runs:**

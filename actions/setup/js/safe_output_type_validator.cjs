@@ -42,9 +42,13 @@ const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 280;
 // https://docs.github.com/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue
 const ISSUE_CLOSING_KEYWORDS = "fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved";
 const ISSUE_REFERENCE_PATTERN = "(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+";
+// eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- ISSUE_CLOSING_KEYWORDS and ISSUE_REFERENCE_PATTERN are intentional regex fragments (alternation and character classes), not user input
 const ISSUE_CLOSING_WHOLE_SPAN_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b\\s+${ISSUE_REFERENCE_PATTERN})\``, "gi");
+// eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- ISSUE_CLOSING_KEYWORDS and ISSUE_REFERENCE_PATTERN are intentional regex fragments (alternation and character classes), not user input
 const ISSUE_CLOSING_BOTH_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)\`(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
+// eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- ISSUE_CLOSING_KEYWORDS and ISSUE_REFERENCE_PATTERN are intentional regex fragments (alternation and character classes), not user input
 const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)\`(\\s+)(${ISSUE_REFERENCE_PATTERN})`, "gi");
+// eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- ISSUE_CLOSING_KEYWORDS and ISSUE_REFERENCE_PATTERN are intentional regex fragments (alternation and character classes), not user input
 const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 const ISSUE_INTENT_LABEL_TYPES = new Set(["add_labels", "remove_labels", "update_issue"]);
@@ -564,7 +568,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
           }
           // Non-array JSON values (objects, primitives) fall through to comma-separated parsing.
         } catch {
-          // Fall back to comma-separated parsing below.
+          // Invalid JSON — ignored, fall back to comma-separated parsing below.
         }
       }
       if (typeof value === "string") {

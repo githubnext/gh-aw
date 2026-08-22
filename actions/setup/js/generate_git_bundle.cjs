@@ -321,7 +321,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
           execGitSync(["rev-parse", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd, suppressLogs: true });
           branchExistsLocally = true;
         } catch {
-          // Branch really is absent from the local refs
+          // Branch really is absent from the local refs — probe failure is ignored.
         }
         const branchErrorMessage = describeGitFailure(getErrorMessage(branchError), cwd);
         if (branchExistsLocally) {
@@ -461,7 +461,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
                     break;
                   }
                 } catch {
-                  // Try next ref
+                  // Merge-base failed for this ref — ignored, try next ref.
                 }
               }
 

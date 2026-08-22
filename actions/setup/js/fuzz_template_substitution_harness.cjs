@@ -48,7 +48,8 @@ function renderMarkdownTemplate(markdown) {
 function interpolateVariables(content, variables) {
   let result = content;
   for (const [varName, value] of Object.entries(variables)) {
-    const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+    const escapedVarName = varName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`\\$\\{${escapedVarName}\\}`, "g");
     result = result.replace(pattern, value);
   }
   return result;
@@ -62,7 +63,12 @@ function interpolateVariables(content, variables) {
  * @returns {Promise<{result: string, error: string | null, stages: {afterSubstitution: string, afterInterpolation: string, afterTemplate: string}}>} Test result
  */
 async function testTemplateSubstitution(template, substitutions, variables) {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fuzz-template-"));
+  let tempDir;
+  try {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fuzz-template-"));
+  } catch (error) {
+    throw new Error("Failed to create fuzz harness temporary directory", { cause: error });
+  }
   const testFile = path.join(tempDir, "test.txt");
 
   try {

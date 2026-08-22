@@ -271,7 +271,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               defaultBranchRef = defaultBranch;
               debugLog(`Strategy 1 (full): Using local branch ${defaultBranch} as fallback base ref`);
             } catch {
-              // No local branch fallback either
+              // No local branch fallback either — ignored.
             }
           }
 
@@ -370,7 +370,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           execGitSync(["rev-parse", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd, suppressLogs: true });
           branchExistsLocally = true;
         } catch {
-          // Branch really is absent from the local refs
+          // Branch really is absent from the local refs — probe failure is ignored.
         }
         const branchErrorMessage = describeGitFailure(getErrorMessage(branchError), cwd);
         if (branchExistsLocally) {
@@ -539,7 +539,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
                     }
                   }
                 } catch {
-                  // Try next ref
+                  // Candidate ref could not be measured — ignored, try next ref.
                 }
               }
 
@@ -623,7 +623,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${defaultBranch}`], { cwd });
           baseBranchRemoteRef = `refs/remotes/origin/${defaultBranch}`;
         } catch {
-          // origin/<defaultBranch> not available locally; skip the adjustment
+          // origin/<defaultBranch> not available locally — ignored, skip the adjustment.
         }
         if (baseBranchRemoteRef) {
           // Only adjust the diff base when baseCommitSha is an ancestor of the local
@@ -653,7 +653,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               execGitSync(["merge-base", "--is-ancestor", "--", mb, baseCommitSha], { cwd });
               mbIsAncestorOfBase = true;
             } catch {
-              // mb is not an ancestor of baseCommitSha
+              // mb is not an ancestor of baseCommitSha — probe failure is ignored.
             }
             if (!mbIsAncestorOfBase) {
               debugLog(`Strategy 1 (incremental): agent merged ${defaultBranch} ahead of PR head; using merge-base ${mb} as diff base instead of PR head ${baseCommitSha}`);

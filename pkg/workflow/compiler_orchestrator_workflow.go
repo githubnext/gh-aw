@@ -425,11 +425,18 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.CacheMemoryConfig = cacheMemoryConfig
 
-	// Extract repo-memory config and check for errors
+	// Extract experimental drive-memory config and check for errors.
 	toolsConfig, err := ParseToolsConfig(tools)
 	if err != nil {
 		return err
 	}
+	driveMemoryConfig, err := c.extractDriveMemoryConfig(toolsConfig)
+	if err != nil {
+		return err
+	}
+	workflowData.DriveMemoryConfig = driveMemoryConfig
+
+	// Extract repo-memory config and check for errors
 	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig, workflowData.WorkflowID)
 	if err != nil {
 		return err
@@ -560,7 +567,14 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return fmt.Errorf("invalid evals configuration: %w", err)
 	}
 	workflowData.Evals = evalsConfig
-	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals); err != nil {
+
+	// Extract deterministic graders configuration.
+	gradersConfig, err := c.parseGradersFromFrontmatter(frontmatter)
+	if err != nil {
+		return fmt.Errorf("invalid graders configuration: %w", err)
+	}
+	workflowData.Graders = gradersConfig
+	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals, workflowData.Graders); err != nil {
 		return fmt.Errorf("invalid experiments configuration: %w", err)
 	}
 

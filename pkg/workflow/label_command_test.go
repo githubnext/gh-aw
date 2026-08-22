@@ -239,7 +239,7 @@ Deploy the application because label "deploy" was added.
 	require.NoError(t, err, "ParseWorkflowFile() should not error")
 
 	// Verify AIReaction defaults to "eyes" for label_command workflows
-	assert.Equal(t, "eyes", workflowData.AIReaction, "AIReaction should default to 'eyes' for label_command workflows")
+	assert.Equal(t, ReactionTypeEyes, workflowData.AIReaction, "AIReaction should default to 'eyes' for label_command workflows")
 
 	// Verify StatusComment defaults to true for label_command workflows
 	require.NotNil(t, workflowData.StatusComment, "StatusComment should not be nil for label_command workflows")

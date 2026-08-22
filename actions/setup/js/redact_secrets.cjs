@@ -154,7 +154,7 @@ function extractMCPGatewayTokens(configPaths) {
         addAuthorizationValue(server?.headers?.Authorization);
       }
     } catch {
-      // Silently skip unreadable or malformed files — absence of the gateway
+      // Unreadable or malformed files are ignored — absence of the gateway
       // config is normal when the MCP gateway is not used by a workflow.
     }
   }
@@ -343,4 +343,40 @@ async function main() {
   }
 }
 
-module.exports = { main, redactSecrets, redactBuiltInPatterns, redactStepSummaryContent, extractMCPGatewayTokens, BUILT_IN_PATTERNS, MCP_GATEWAY_CONFIG_PATHS };
+/**
+ * Targeted redaction pass for files in a specific directory. Used by the
+ * post-graders redaction step to scan grader output files that were written
+ * after the initial full-workspace redaction pass.
+ *
+ * @param {string} dir - Absolute directory path to scan
+ */
+async function redactFilesInDir(dir) {
+  try {
+    const secretNames = (process.env.GH_AW_SECRET_NAMES || "").split(",").filter(n => n.trim());
+    /** @type {string[]} */
+    const secretValues = [];
+    for (const secretName of secretNames) {
+      const value = process.env[`SECRET_${secretName.trim()}`];
+      if (typeof value === "string" && value.trim() !== "") {
+        secretValues.push(value.trim());
+      }
+    }
+    secretValues.push(...extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS));
+
+    const targetExtensions = [".json"];
+    const files = findFiles(dir, targetExtensions);
+    if (files.length === 0) return;
+
+    let totalRedactions = 0;
+    for (const file of files) {
+      totalRedactions += processFile(file, secretValues);
+    }
+    if (totalRedactions > 0) {
+      core.info(`Grader output redaction: ${totalRedactions} redaction(s) in ${dir}`);
+    }
+  } catch (error) {
+    core.warning(`Grader output redaction failed: ${getErrorMessage(error)}`);
+  }
+}
+
+module.exports = { main, redactFilesInDir, redactSecrets, redactBuiltInPatterns, redactStepSummaryContent, extractMCPGatewayTokens, BUILT_IN_PATTERNS, MCP_GATEWAY_CONFIG_PATHS };

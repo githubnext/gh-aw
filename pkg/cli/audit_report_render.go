@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/scanfindings"
 )
 
 // renderJSON outputs the audit data as JSON
@@ -237,7 +238,7 @@ func renderConsoleFindings(findings []Finding) {
 	}
 	fmt.Fprintln(os.Stderr, "  findings:")
 	for _, finding := range findings {
-		fmt.Fprintf(os.Stderr, "    [%s] %s: %s\n", strings.ToUpper(finding.Severity), finding.Title, finding.Description)
+		fmt.Fprintf(os.Stderr, "    [%s] %s: %s\n", strings.ToUpper(finding.Severity.String()), finding.Title, finding.Description)
 	}
 }
 
@@ -440,7 +441,7 @@ func renderConsoleLogsPath(logsPath string) {
 func filterActionableFindings(findings []Finding) []Finding {
 	var result []Finding
 	for _, f := range findings {
-		if f.Severity == "critical" || f.Severity == "high" || f.Severity == "medium" || f.Severity == "low" {
+		if f.Severity.AtLeast(scanfindings.SeverityLow) {
 			result = append(result, f)
 		}
 	}

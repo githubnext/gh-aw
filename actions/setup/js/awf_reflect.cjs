@@ -748,7 +748,12 @@ function endpointBaseUrl(endpoint) {
  * @returns {string}
  */
 function deriveBaseUrlFromModelsURL(modelsUrl, env = process.env, readFileSync = fs.readFileSync) {
-  const parsed = new URL(modelsUrl);
+  let parsed;
+  try {
+    parsed = new URL(modelsUrl);
+  } catch (error) {
+    throw new Error(`Invalid models URL: ${modelsUrl}`, { cause: error });
+  }
   const basePath = parsed.pathname.replace(/\/models\/?$/i, "");
   return rewriteAPIProxyURLForHostBridge(`${parsed.origin}${basePath}`, env, readFileSync);
 }

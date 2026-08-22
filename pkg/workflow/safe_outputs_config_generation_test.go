@@ -1137,13 +1137,15 @@ func TestGenerateSafeOutputsConfigReplyToPullRequestReviewCommentWithTarget(t *t
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max:    strPtr("10"),
+					Footer: &footerTrue,
+				},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
 					Target:         "pull_request",
 					TargetRepoSlug: "org/other-repo",
 					AllowedRepos:   []string{"org/other-repo"},
 				},
-				Footer: &footerTrue,
 			},
 		},
 	}
