@@ -24,9 +24,11 @@ type CloseOlderConfig struct {
 }
 
 // closeOlderEnabledFromConfigData reads the close-older enabled value from sourceKey in
-// configData (already normalized to a string form by preprocessBoolFieldAsString) and
-// returns a pointer suitable for CloseOlderConfig.Enabled, or nil when sourceKey was not
-// set. Intended to be called from postUnmarshal callbacks, once per entity handler.
+// configData (normalized to a string form by preprocessBoolFieldAsString, which callers
+// must have already run for sourceKey) and returns a pointer suitable for
+// CloseOlderConfig.Enabled, or nil when sourceKey was not set. Also tolerates a raw bool
+// (e.g. if called before preprocessing) as a defensive fallback. Intended to be called
+// from postUnmarshal callbacks, once per entity handler.
 func closeOlderEnabledFromConfigData(configData map[string]any, sourceKey string) *string {
 	if configData == nil {
 		return nil
@@ -35,11 +37,18 @@ func closeOlderEnabledFromConfigData(configData map[string]any, sourceKey string
 	if !exists {
 		return nil
 	}
-	str, ok := value.(string)
-	if !ok {
+	switch v := value.(type) {
+	case string:
+		return &v
+	case bool:
+		str := "false"
+		if v {
+			str = "true"
+		}
+		return &str
+	default:
 		return nil
 	}
-	return &str
 }
 
 // parseCreateEntityConfig parses create-* config scaffolding shared by issue/discussion/PR handlers.
