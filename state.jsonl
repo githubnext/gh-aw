@@ -44,3 +44,4 @@
 {"run_id":"32527867880","timestamp":"2026-08-21T21:18:53.291Z","assignments":{"prompt_style":"concise"}}
 {"run_id":"32534749381","timestamp":"2026-08-21T22:54:59.735Z","assignments":{"prompt_style":"concise"}}
 {"run_id":"32537958554","timestamp":"2026-08-21T23:45:03.190Z","assignments":{"prompt_style":"detailed"}}
+{"run_id":"32553765299","timestamp":"2026-08-22T05:13:30.105Z","harness_version":"2fb53accb7896aa3daf383d7d3ddcf785eb370b5f5caaadf19c8bc4797035b01:f5760af3e92cca4ecbee7e8300afccf764d96da4adf9535762ef45eb6fb19b55","assignments":{"prompt_style":"concise"}}
