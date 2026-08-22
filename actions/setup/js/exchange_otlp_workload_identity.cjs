@@ -31,18 +31,24 @@ async function main() {
   }
   maskSecret(oidcToken);
 
-  const response = await fetch("https://sts.googleapis.com/v1/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
-      requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
-      subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
-      subject_token: oidcToken,
-      audience: process.env.GH_AW_OTLP_WIF_AUDIENCE || "",
-      scope: CLOUD_PLATFORM_SCOPE,
-    }),
-  });
+  let response;
+  try {
+    response = await fetch("https://sts.googleapis.com/v1/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
+        subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
+        subject_token: oidcToken,
+        audience: process.env.GH_AW_OTLP_WIF_AUDIENCE || "",
+        scope: CLOUD_PLATFORM_SCOPE,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    throw new Error("Google workload identity token exchange request failed", { cause: error });
+  }
   if (!response.ok) {
     throw new Error(
       `Google workload identity token exchange failed with HTTP ${response.status} ${response.statusText}. Verify observability.otlp.workload-identity.audience matches the workload identity provider resource and that the provider trusts this repository`
@@ -50,7 +56,12 @@ async function main() {
   }
 
   /** @type {any} */
-  const stsPayload = await response.json();
+  let stsPayload;
+  try {
+    stsPayload = await response.json();
+  } catch (error) {
+    throw new Error("Failed to parse Google workload identity token exchange response", { cause: error });
+  }
   let accessToken = stsPayload.access_token;
   if (!accessToken) {
     throw new Error("Google workload identity token exchange returned no access token");
@@ -59,18 +70,29 @@ async function main() {
 
   const serviceAccount = process.env.GH_AW_OTLP_WIF_SERVICE_ACCOUNT;
   if (serviceAccount) {
-    const impersonationResponse = await fetch(`https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${encodeURIComponent(serviceAccount)}:generateAccessToken`, {
-      method: "POST",
-      headers: { authorization: "Bearer " + accessToken, "content-type": "application/json" },
-      body: JSON.stringify({ scope: [CLOUD_PLATFORM_SCOPE] }),
-    });
+    let impersonationResponse;
+    try {
+      impersonationResponse = await fetch(`https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${encodeURIComponent(serviceAccount)}:generateAccessToken`, {
+        method: "POST",
+        headers: { authorization: "Bearer " + accessToken, "content-type": "application/json" },
+        body: JSON.stringify({ scope: [CLOUD_PLATFORM_SCOPE] }),
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      throw new Error("Google service account impersonation request failed", { cause: error });
+    }
     if (!impersonationResponse.ok) {
       throw new Error(
         `Google service account impersonation failed with HTTP ${impersonationResponse.status} ${impersonationResponse.statusText}. Verify observability.otlp.workload-identity.service-account exists and grants roles/iam.workloadIdentityUser to the federated principal`
       );
     }
     /** @type {any} */
-    const impersonationPayload = await impersonationResponse.json();
+    let impersonationPayload;
+    try {
+      impersonationPayload = await impersonationResponse.json();
+    } catch (error) {
+      throw new Error("Failed to parse Google service account impersonation response", { cause: error });
+    }
     accessToken = impersonationPayload.accessToken;
     if (!accessToken) {
       throw new Error("Google service account impersonation returned no access token");

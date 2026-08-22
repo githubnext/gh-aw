@@ -260,9 +260,6 @@
         "discussions": {
           "$ref": "#/definitions/permissions-level"
         },
-        "drives": {
-          "$ref": "#/definitions/permissions-level"
-        },
         "id-token": {
           "$ref": "#/definitions/permissions-level"
         },
@@ -294,6 +291,9 @@
         "copilot-requests": {
           "type": "string",
           "enum": ["write", "none"]
+        },
+        "drives": {
+          "$ref": "#/definitions/permissions-level"
         },
         "vulnerability-alerts": {
           "type": "string",

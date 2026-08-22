@@ -328,15 +328,15 @@ func resolveCentralizedEventReaction(wd *WorkflowData, eventName string) string 
 	switch eventName {
 	case "issues", "issue_comment":
 		if shouldIncludeIssueReactions(wd) {
-			return wd.AIReaction
+			return string(wd.AIReaction)
 		}
 	case "pull_request", "pull_request_comment", "pull_request_review_comment":
 		if shouldIncludePullRequestReactions(wd) {
-			return wd.AIReaction
+			return string(wd.AIReaction)
 		}
 	case "discussion", "discussion_comment":
 		if shouldIncludeDiscussionReactions(wd) {
-			return wd.AIReaction
+			return string(wd.AIReaction)
 		}
 	}
 

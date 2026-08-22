@@ -18,7 +18,7 @@ func TestParseOnSection(t *testing.T) {
 		markdownPath                string
 		expectedError               bool
 		expectedCommand             []string
-		expectedReaction            string
+		expectedReaction            ReactionType
 		expectedLockAgent           bool
 		expectedOn                  string
 		expectedCentralized         bool
@@ -870,7 +870,7 @@ func TestParseOnSectionWithParsedFrontmatter(t *testing.T) {
 	tests := []struct {
 		name              string
 		parsedFrontmatter *FrontmatterConfig
-		expectedReaction  string
+		expectedReaction  ReactionType
 		expectedError     bool
 	}{
 		{
@@ -1161,7 +1161,7 @@ func TestParseOnSectionReactionMapFormat(t *testing.T) {
 
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/test.md")
 	require.NoError(t, err, "reaction map format should be accepted")
-	assert.Equal(t, "heart", workflowData.AIReaction, "reaction type should be parsed from reaction.type")
+	assert.Equal(t, ReactionTypeHeart, workflowData.AIReaction, "reaction type should be parsed from reaction.type")
 	require.NotNil(t, workflowData.ReactionIssues, "reaction issue target flag should be set")
 	assert.True(t, *workflowData.ReactionIssues, "reaction issues target should default to true")
 	require.NotNil(t, workflowData.ReactionPullRequests, "reaction pull request target flag should be set")

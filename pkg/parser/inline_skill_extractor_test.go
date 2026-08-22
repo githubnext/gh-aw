@@ -177,7 +177,10 @@ func TestExtractInlineSkills_DuplicateNameError(t *testing.T) {
 	_, _, err := ExtractInlineSkills(markdown)
 
 	require.Error(t, err, "duplicate skill name should produce an error")
-	require.ErrorContains(t, err, "duplicate", "error should mention duplicate")
+	require.ErrorContains(t, err, "Validation failed for field 'skills'")
+	require.ErrorContains(t, err, "Value: planner")
+	require.ErrorContains(t, err, "Reason: duplicate name already defined")
+	require.ErrorContains(t, err, "Suggestion: Rename one of the duplicate skills or remove the extra `planner` definition.")
 	require.ErrorContains(t, err, "planner", "error should include the duplicate name")
 }
 

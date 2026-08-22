@@ -211,8 +211,10 @@ func TestFooterInHandlerConfig(t *testing.T) {
 		Name: "Test",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-				Footer:               strPtr("false"),
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max:    strPtr("1"),
+					Footer: strPtr("false"),
+				},
 			},
 		},
 	}

@@ -28,7 +28,22 @@ function expectRestEndpoint(endpoint, endpointName, eventName) {
   if (!isRestEndpoint(endpoint)) {
     throw new Error(`${ERR_VALIDATION}: Unexpected ${endpointName} endpoint shape for event: ${eventName}`);
   }
+
   return endpoint;
+}
+
+/**
+ * @param {string} endpoint
+ * @param {"discussion"|"discussion_comment"} eventName
+ * @returns {number}
+ */
+function parseDiscussionEndpoint(endpoint, eventName) {
+  const match = endpoint.match(eventName === "discussion" ? /^discussion:([1-9]\d*)$/ : /^discussion_comment:([1-9]\d*):[1-9]\d*$/);
+  const discussionNumber = Number(match?.[1]);
+  if (!Number.isSafeInteger(discussionNumber)) {
+    throw new Error(`${ERR_VALIDATION}: Invalid discussion endpoint: ${endpoint}`);
+  }
+  return discussionNumber;
 }
 
 /**
@@ -262,8 +277,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
       if (typeof endpoint !== "string") {
         throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
       }
-      // Parse discussion number from special format: "discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID"
-      const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+      const discussionNumber = parseDiscussionEndpoint(endpoint, eventName);
       const discussionId = await getDiscussionNodeId(eventRepo.owner, eventRepo.repo, discussionNumber);
       // For discussion_comment events, thread the reply under the triggering comment.
       // GitHub Discussions only supports two nesting levels, so resolve the top-level parent node ID.
@@ -291,4 +305,4 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   }
 }
 
-module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction, expectRestEndpoint };
+module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction, expectRestEndpoint, parseDiscussionEndpoint };

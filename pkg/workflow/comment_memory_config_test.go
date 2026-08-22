@@ -54,13 +54,13 @@ func TestCommentMemoryToolConfig(t *testing.T) {
 `,
 			expectedCommentMemory: &CommentMemoryConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: strPtr("3"),
+					Max:    strPtr("3"),
+					Footer: strPtr("false"),
 				},
 				MemoryID:       "triage",
 				Target:         "42",
 				TargetRepoSlug: "github/docs",
 				AllowedRepos:   []string{"github/docs", "github/gh-aw"},
-				Footer:         strPtr("false"),
 			},
 		},
 	}

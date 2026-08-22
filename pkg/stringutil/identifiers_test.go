@@ -176,6 +176,101 @@ func TestNormalizeSafeOutputIdentifier(t *testing.T) {
 	}
 }
 
+func TestNormalizeIdentifierToHyphens(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		identifier string
+		expected   string
+	}{
+		{
+			name:       "underscore-separated to hyphen",
+			identifier: "create_issue",
+			expected:   "create-issue",
+		},
+		{
+			name:       "already hyphen-separated",
+			identifier: "create-issue",
+			expected:   "create-issue",
+		},
+		{
+			name:       "multiple underscores",
+			identifier: "add_comment_to_issue",
+			expected:   "add-comment-to-issue",
+		},
+		{
+			name:       "mixed dashes and underscores",
+			identifier: "update-pr_status",
+			expected:   "update-pr-status",
+		},
+		{
+			name:       "no dashes or underscores",
+			identifier: "createissue",
+			expected:   "createissue",
+		},
+		{
+			name:       "single underscore",
+			identifier: "add_comment",
+			expected:   "add-comment",
+		},
+		{
+			name:       "trailing underscore",
+			identifier: "update_",
+			expected:   "update-",
+		},
+		{
+			name:       "leading underscore",
+			identifier: "_create",
+			expected:   "-create",
+		},
+		{
+			name:       "consecutive underscores",
+			identifier: "create__issue",
+			expected:   "create--issue",
+		},
+		{
+			name:       "empty string",
+			identifier: "",
+			expected:   "",
+		},
+		{
+			name:       "only underscores",
+			identifier: "___",
+			expected:   "---",
+		},
+		{
+			name:       "period in workflow name",
+			identifier: "executor_workflow.agent",
+			expected:   "executor-workflow-agent",
+		},
+		{
+			name:       "period only",
+			identifier: "my.workflow",
+			expected:   "my-workflow",
+		},
+		{
+			name:       "multiple periods",
+			identifier: "my.workflow.agent",
+			expected:   "my-workflow-agent",
+		},
+		{
+			name:       "period and underscores",
+			identifier: "my_workflow.agent",
+			expected:   "my-workflow-agent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := NormalizeIdentifierToHyphens(tt.identifier)
+			if result != tt.expected {
+				t.Errorf("NormalizeIdentifierToHyphens(%q) = %q, want %q", tt.identifier, result, tt.expected)
+			}
+		})
+	}
+}
+
 func BenchmarkNormalizeWorkflowName(b *testing.B) {
 	name := "weekly-research-workflow.lock.yml"
 	for b.Loop() {
@@ -187,6 +282,13 @@ func BenchmarkNormalizeSafeOutputIdentifier(b *testing.B) {
 	identifier := "create-pull-request-review-comment"
 	for b.Loop() {
 		NormalizeSafeOutputIdentifier(identifier)
+	}
+}
+
+func BenchmarkNormalizeIdentifierToHyphens(b *testing.B) {
+	identifier := "create_pull_request_review_comment"
+	for b.Loop() {
+		NormalizeIdentifierToHyphens(identifier)
 	}
 }
 
