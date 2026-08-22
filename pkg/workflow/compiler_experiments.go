@@ -363,9 +363,34 @@ func ParseExperimentMetricEvalReference(metric string) (string, bool) {
 	return "", false
 }
 
+// ParseExperimentMetricGraderReference returns the referenced grader ID when metric
+// declares a grader-backed metric.
+// Supported forms:
+//   - grader:<id>
+//   - graders.<id>
+//   - graders.<id>.<suffix> (suffix reserved for future derived metrics)
+func ParseExperimentMetricGraderReference(metric string) (string, bool) {
+	trimmed := strings.TrimSpace(metric)
+	if trimmed == "" {
+		return "", false
+	}
+	if rest, ok := strings.CutPrefix(trimmed, "grader:"); ok {
+		return strings.TrimSpace(rest), true
+	}
+	if rest, ok := strings.CutPrefix(trimmed, "graders."); ok {
+		rest = strings.TrimSpace(rest)
+		if rest == "" {
+			return "", true
+		}
+		parts := strings.SplitN(rest, ".", 2)
+		return parts[0], true
+	}
+	return "", false
+}
+
 // validateExperimentMetricReferences ensures experiment metrics that reference evals
-// point to declared eval question IDs.
-func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, evals *EvalsConfig) error {
+// or graders point to declared IDs.
+func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, evals *EvalsConfig, graders *GradersConfig) error {
 	if len(configs) == 0 {
 		return nil
 	}
@@ -376,6 +401,15 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 			if q.ID != "" {
 				evalIDs[q.ID] = struct{}{}
 			}
+		}
+	}
+	graderIDs := map[string]struct{}{}
+	if graders != nil {
+		for id, def := range graders.Graders {
+			if id == "" || def == nil || (def.Enabled != nil && !*def.Enabled) {
+				continue
+			}
+			graderIDs[id] = struct{}{}
 		}
 	}
 
@@ -393,17 +427,31 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 			}
 		}
 		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(metric)
-		if !referencesEval {
+		if referencesEval {
+			if referencedEvalID == "" {
+				return fmt.Errorf("experiments.%s.metric: expected eval reference format eval:<question_id>; provide a declared eval question id", experimentName)
+			}
+			if _, ok := evalIDs[referencedEvalID]; !ok {
+				if len(evalIDs) == 0 {
+					return fmt.Errorf("experiments.%s.metric: references eval %q but no evals are declared", experimentName, referencedEvalID)
+				}
+				return fmt.Errorf("experiments.%s.metric: references unknown eval %q", experimentName, referencedEvalID)
+			}
 			continue
 		}
-		if referencedEvalID == "" {
-			return fmt.Errorf("experiments.%s.metric: expected eval reference format eval:<question_id>; provide a declared eval question id", experimentName)
-		}
-		if _, ok := evalIDs[referencedEvalID]; !ok {
-			if len(evalIDs) == 0 {
-				return fmt.Errorf("experiments.%s.metric: references eval %q but no evals are declared", experimentName, referencedEvalID)
+
+		referencedGraderID, referencesGrader := ParseExperimentMetricGraderReference(metric)
+		if referencesGrader {
+			if referencedGraderID == "" {
+				return fmt.Errorf("experiments.%s.metric: expected grader reference format grader:<grader_id>; provide a declared grader id", experimentName)
 			}
-			return fmt.Errorf("experiments.%s.metric: references unknown eval %q", experimentName, referencedEvalID)
+			if _, ok := graderIDs[referencedGraderID]; !ok {
+				if len(graderIDs) == 0 {
+					return fmt.Errorf("experiments.%s.metric: references grader %q but no graders are declared", experimentName, referencedGraderID)
+				}
+				return fmt.Errorf("experiments.%s.metric: references unknown grader %q", experimentName, referencedGraderID)
+			}
+			continue
 		}
 	}
 

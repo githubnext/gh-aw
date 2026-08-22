@@ -560,9 +560,6 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return fmt.Errorf("invalid evals configuration: %w", err)
 	}
 	workflowData.Evals = evalsConfig
-	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals); err != nil {
-		return fmt.Errorf("invalid experiments configuration: %w", err)
-	}
 
 	// Extract deterministic trace graders configuration.
 	gradersConfig, err := c.parseGradersFromFrontmatter(frontmatter)
@@ -570,6 +567,9 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return fmt.Errorf("invalid graders configuration: %w", err)
 	}
 	workflowData.Graders = gradersConfig
+	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals, workflowData.Graders); err != nil {
+		return fmt.Errorf("invalid experiments configuration: %w", err)
+	}
 
 	return nil
 }
