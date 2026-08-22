@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // SampleEntry is the per-call payload consumed by apply_samples.cjs.
@@ -39,6 +41,11 @@ func collectSampleEntries(config *SafeOutputsConfig) []SampleEntry {
 		}
 		sidecarKeys := sampleSidecarFields[toolName]
 		for _, sample := range base.Samples {
+			if dynamicEntry, ok := buildDynamicWorkflowSampleEntry(toolName, sample); ok {
+				entries = append(entries, dynamicEntry)
+				continue
+			}
+
 			args := make(map[string]any, len(sample))
 			var sidecars map[string]any
 			for k, v := range sample {
@@ -59,6 +66,45 @@ func collectSampleEntries(config *SafeOutputsConfig) []SampleEntry {
 		}
 	}
 	return entries
+}
+
+func buildDynamicWorkflowSampleEntry(toolName string, sample map[string]any) (SampleEntry, bool) {
+	if toolName != "dispatch_workflow" && toolName != "call_workflow" {
+		return SampleEntry{}, false
+	}
+
+	workflowName, _ := sample["workflow_name"].(string)
+	workflowName = strings.TrimSpace(workflowName)
+	if workflowName == "" {
+		return SampleEntry{}, false
+	}
+
+	args := map[string]any{}
+	if rawInputs, ok := sample["inputs"]; ok {
+		if inputs, ok := rawInputs.(map[string]any); ok {
+			for k, v := range inputs {
+				args[k] = v
+			}
+		}
+	}
+	if len(args) == 0 {
+		for k, v := range sample {
+			if k == "workflow_name" || k == "inputs" {
+				continue
+			}
+			args[k] = v
+		}
+	}
+	if toolName == "dispatch_workflow" {
+		if ref, ok := sample["ref"]; ok {
+			args["ref"] = ref
+		}
+	}
+
+	return SampleEntry{
+		Tool:      stringutil.NormalizeSafeOutputIdentifier(workflowName),
+		Arguments: args,
+	}, true
 }
 
 // collectSampleRepoTokens walks the workflow's checkout configs and returns
