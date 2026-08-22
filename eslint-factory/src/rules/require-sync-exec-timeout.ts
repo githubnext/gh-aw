@@ -15,6 +15,8 @@ const SYNC_EXEC_METHODS: ReadonlySet<SyncExecMethod> = new Set(["execSync", "exe
 // Index of the options-object argument for each method when all parameters are supplied:
 // execSync(cmd, opts), execFileSync(cmd, args?, opts), spawnSync(cmd, args?, opts).
 const OPTIONS_ARG_INDEX: Record<SyncExecMethod, number> = { execSync: 1, execFileSync: 2, spawnSync: 2 };
+type FunctionWithParams = TSESTree.ArrowFunctionExpression | TSESTree.FunctionDeclaration | TSESTree.FunctionExpression;
+type NodeWithParent = TSESTree.Node & { parent?: TSESTree.Node };
 
 function getOptionsArgument(node: TSESTree.CallExpression, method: SyncExecMethod): TSESTree.CallExpressionArgument | undefined {
   if (method === "execSync") return node.arguments[OPTIONS_ARG_INDEX.execSync];
@@ -81,6 +83,166 @@ function resolveSyncExecBinding(identifierName: string, scopeNode: TSESTree.Node
   return null;
 }
 
+function resolveIdentifierVariable(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): TSESLint.Scope.Variable | null {
+  let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
+  while (scope) {
+    const variable = scope.set.get(identifierName);
+    if (variable) return variable;
+    scope = scope.upper;
+  }
+  return null;
+}
+
+function getParent(node: TSESTree.Node): TSESTree.Node | undefined {
+  return (node as NodeWithParent).parent;
+}
+
+function isFunctionWithParams(node: TSESTree.Node | undefined): node is FunctionWithParams {
+  return node?.type === AST_NODE_TYPES.ArrowFunctionExpression || node?.type === AST_NODE_TYPES.FunctionDeclaration || node?.type === AST_NODE_TYPES.FunctionExpression;
+}
+
+function getContainingFunction(node: TSESTree.Node): FunctionWithParams | null {
+  let current: TSESTree.Node | undefined = getParent(node);
+  while (current) {
+    if (isFunctionWithParams(current)) return current;
+    current = getParent(current);
+  }
+  return null;
+}
+
+function isPositiveTimeoutProperty(prop: TSESTree.Property): boolean {
+  const isTimeoutProp = (!prop.computed && prop.key.type === AST_NODE_TYPES.Identifier && prop.key.name === "timeout") || (!prop.computed && prop.key.type === AST_NODE_TYPES.Literal && prop.key.value === "timeout");
+  if (!isTimeoutProp) return false;
+
+  const value = prop.value;
+  const isMissingTimeout =
+    (value.type === AST_NODE_TYPES.Literal && (value.value == null || (typeof value.value === "number" && value.value <= 0))) ||
+    (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "-" && value.argument.type === AST_NODE_TYPES.Literal && typeof value.argument.value === "number") ||
+    (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined");
+  return !isMissingTimeout;
+}
+
+function hasPositiveTimeoutProperty(objectExpression: TSESTree.ObjectExpression): boolean {
+  return objectExpression.properties.some(prop => prop.type === AST_NODE_TYPES.Property && isPositiveTimeoutProperty(prop));
+}
+
+function objectArgumentSuppliesTimeout(objectExpression: TSESTree.ObjectExpression): boolean {
+  if (hasPositiveTimeoutProperty(objectExpression)) return true;
+
+  // Call-site spread sources can be shared or externally-computed options. Keep
+  // the rule conservative unless the local object is plainly missing timeout.
+  return objectExpression.properties.some(prop => prop.type === AST_NODE_TYPES.SpreadElement);
+}
+
+function isReassignedBefore(variable: TSESLint.Scope.Variable, node: TSESTree.Node): boolean {
+  const nodeStart = node.range?.[0];
+  if (nodeStart == null) return variable.references.some(ref => ref.isWrite() && !ref.init);
+
+  return variable.references.some(ref => {
+    if (!ref.isWrite() || ref.init) return false;
+    const refStart = ref.identifier.range?.[0];
+    return refStart == null || refStart < nodeStart;
+  });
+}
+
+function resolveStaticObjectInitializer(identifier: TSESTree.Identifier, sourceCode: TSESLint.SourceCode): { init: TSESTree.ObjectExpression; variable: TSESLint.Scope.Variable } | null {
+  const variable = resolveIdentifierVariable(identifier.name, identifier, sourceCode);
+  if (!variable || variable.defs.length !== 1) return null;
+
+  const def = variable.defs[0];
+  if (def.type !== "Variable") return null;
+
+  const declarator = def.node as TSESTree.VariableDeclarator;
+  if (declarator.init?.type !== AST_NODE_TYPES.ObjectExpression) return null;
+  if (isReassignedBefore(variable, identifier)) return null;
+
+  return { init: declarator.init, variable };
+}
+
+function callSiteArgumentSuppliesTimeout(argument: TSESTree.CallExpressionArgument | undefined, sourceCode: TSESLint.SourceCode): boolean {
+  if (!argument) return false;
+  if (argument.type === AST_NODE_TYPES.ObjectExpression) return objectArgumentSuppliesTimeout(argument);
+
+  if (argument.type === AST_NODE_TYPES.Identifier) {
+    const staticObject = resolveStaticObjectInitializer(argument, sourceCode);
+    if (!staticObject) return true;
+    return objectArgumentSuppliesTimeout(staticObject.init);
+  }
+
+  // Non-object expressions are not statically inspectable; preserve the prior
+  // conservative behavior.
+  return true;
+}
+
+function getParamDefaultObject(functionNode: FunctionWithParams, paramName: string): { objectExpression: TSESTree.ObjectExpression; paramIndex: number } | null {
+  for (let index = 0; index < functionNode.params.length; index += 1) {
+    const param = functionNode.params[index];
+    if (param.type !== AST_NODE_TYPES.AssignmentPattern) continue;
+    if (param.left.type !== AST_NODE_TYPES.Identifier || param.left.name !== paramName) continue;
+    if (param.right.type !== AST_NODE_TYPES.ObjectExpression) continue;
+    return { objectExpression: param.right, paramIndex: index };
+  }
+
+  return null;
+}
+
+function getFunctionBindingVariable(functionNode: FunctionWithParams, sourceCode: TSESLint.SourceCode): TSESLint.Scope.Variable | null {
+  if (functionNode.type === AST_NODE_TYPES.FunctionDeclaration && functionNode.id) {
+    return resolveIdentifierVariable(functionNode.id.name, functionNode.id, sourceCode);
+  }
+
+  let current: TSESTree.Node = functionNode;
+  let parent = getParent(current);
+  while (parent) {
+    if (parent.type === AST_NODE_TYPES.VariableDeclarator && parent.id.type === AST_NODE_TYPES.Identifier) {
+      return resolveIdentifierVariable(parent.id.name, parent.id, sourceCode);
+    }
+    if (parent.type === AST_NODE_TYPES.AssignmentExpression && parent.left.type === AST_NODE_TYPES.Identifier) {
+      return resolveIdentifierVariable(parent.left.name, parent.left, sourceCode);
+    }
+    current = parent;
+    parent = getParent(current);
+  }
+
+  return null;
+}
+
+function getDirectCalls(binding: TSESLint.Scope.Variable): TSESTree.CallExpression[] {
+  const calls: TSESTree.CallExpression[] = [];
+  for (const reference of binding.references) {
+    if (reference.isWrite()) continue;
+    const identifier = reference.identifier;
+    const parent = getParent(identifier);
+    if (parent?.type === AST_NODE_TYPES.CallExpression && parent.callee === identifier) {
+      calls.push(parent);
+    }
+  }
+  return calls;
+}
+
+function characterizedParameterSpreadSuppliesTimeout(spread: TSESTree.SpreadElement, sourceCode: TSESLint.SourceCode): boolean | null {
+  if (spread.argument.type !== AST_NODE_TYPES.Identifier) return null;
+
+  const parameterVariable = resolveIdentifierVariable(spread.argument.name, spread.argument, sourceCode);
+  if (!parameterVariable || !parameterVariable.defs.some(def => def.type === "Parameter")) return null;
+
+  const containingFunction = getContainingFunction(spread);
+  if (!containingFunction) return null;
+
+  const defaultObject = getParamDefaultObject(containingFunction, spread.argument.name);
+  if (!defaultObject) return null;
+  if (hasPositiveTimeoutProperty(defaultObject.objectExpression)) return true;
+  if (isReassignedBefore(parameterVariable, spread.argument)) return null;
+
+  const binding = getFunctionBindingVariable(containingFunction, sourceCode);
+  if (!binding) return null;
+
+  const directCalls = getDirectCalls(binding);
+  if (directCalls.length === 0) return null;
+
+  return directCalls.every(call => callSiteArgumentSuppliesTimeout(call.arguments[defaultObject.paramIndex], sourceCode));
+}
+
 /**
  * Returns the resolved sync-exec method name for a CallExpression, or null if it
  * doesn't resolve to one of execSync/execFileSync/spawnSync from `child_process`.
@@ -110,7 +272,7 @@ function resolveSyncExecMethod(node: TSESTree.CallExpression, sourceCode: TSESLi
 }
 
 /** Returns true when the options-object argument for the call statically carries a positive `timeout` property. */
-function hasTimeoutOption(node: TSESTree.CallExpression, method: SyncExecMethod): boolean {
+function hasTimeoutOption(node: TSESTree.CallExpression, method: SyncExecMethod, sourceCode: TSESLint.SourceCode): boolean {
   const optionsArg = getOptionsArgument(node, method);
   if (!optionsArg) return false;
 
@@ -120,18 +282,14 @@ function hasTimeoutOption(node: TSESTree.CallExpression, method: SyncExecMethod)
   if (optionsArg.type !== AST_NODE_TYPES.ObjectExpression) return true;
 
   for (const prop of optionsArg.properties) {
-    if (prop.type === AST_NODE_TYPES.SpreadElement) return true;
+    if (prop.type === AST_NODE_TYPES.SpreadElement) {
+      const spreadSuppliesTimeout = characterizedParameterSpreadSuppliesTimeout(prop, sourceCode);
+      if (spreadSuppliesTimeout !== false) return true;
+      continue;
+    }
     if (prop.type !== AST_NODE_TYPES.Property) continue;
 
-    const isTimeoutProp = (!prop.computed && prop.key.type === AST_NODE_TYPES.Identifier && prop.key.name === "timeout") || (!prop.computed && prop.key.type === AST_NODE_TYPES.Literal && prop.key.value === "timeout");
-    if (!isTimeoutProp) continue;
-
-    const value = prop.value;
-    const isMissingTimeout =
-      (value.type === AST_NODE_TYPES.Literal && (value.value == null || (typeof value.value === "number" && value.value <= 0))) ||
-      (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "-" && value.argument.type === AST_NODE_TYPES.Literal && typeof value.argument.value === "number") ||
-      (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined");
-    if (!isMissingTimeout) return true;
+    if (isPositiveTimeoutProperty(prop)) return true;
   }
 
   return false;
@@ -162,7 +320,7 @@ export const requireSyncExecTimeoutRule = createRule({
       CallExpression(node) {
         const method = resolveSyncExecMethod(node, sourceCode);
         if (!method) return;
-        if (hasTimeoutOption(node, method)) return;
+        if (hasTimeoutOption(node, method, sourceCode)) return;
 
         const argText = node.arguments.length > 0 ? sourceCode.getText(node.arguments[0]) : "";
 
