@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -47,8 +46,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	}
 
 	if data.TimeoutMinutes == "" {
-		defaultTimeoutMinutes := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
-		data.TimeoutMinutes = "timeout-minutes: " + compilerenv.BuildDefaultTimeoutMinutesExpression(defaultTimeoutMinutes)
+		defaultTimeoutMinutes := int(constants.DefaultAgenticWorkflowTimeout / time.Minute)
+		data.TimeoutMinutes = "timeout-minutes: " + compilerenv.BuildTimeoutMinutesExpression(compilerenv.DefaultTimeoutMinutes, defaultTimeoutMinutes)
 	}
 
 	if data.RunsOn == "" {

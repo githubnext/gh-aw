@@ -815,7 +815,12 @@ func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {
 	}
 
 	if rawTimeout != "" {
-		awfConfigLog.Printf("Container section: non-numeric timeout-minutes %q (e.g. a GitHub Actions expression) cannot be emitted in integer-only agentTimeout; using default %d", rawTimeout, defaultTimeout)
+		// agentTimeout is integer-only, so an expression-backed timeout (e.g. the
+		// vars.GH_AW_DEFAULT_TIMEOUT_MINUTES default) cannot be emitted here.
+		// Omitting it keeps the sandbox bounded by the step/job timeout instead of
+		// terminating the agent earlier than the runtime value requests.
+		awfConfigLog.Printf("Container section: non-numeric timeout-minutes %q (e.g. a GitHub Actions expression) cannot be emitted in integer-only agentTimeout; omitting agentTimeout so the step timeout governs", rawTimeout)
+		return 0
 	}
 	return defaultTimeout
 }

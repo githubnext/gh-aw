@@ -60,8 +60,15 @@ const (
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
 	// DefaultTimeoutMinutes is the GitHub Actions variable used for the default
-	// agent and detection job timeout when it is not explicitly configured.
+	// agentic execution step timeout when top-level timeout-minutes is not set.
 	DefaultTimeoutMinutes = "GH_AW_DEFAULT_TIMEOUT_MINUTES"
+	// DefaultAgentJobTimeoutMinutes is the GitHub Actions variable used for the
+	// default generated agent job timeout when jobs.agent.timeout-minutes is not set.
+	DefaultAgentJobTimeoutMinutes = "GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES"
+	// DefaultDetectionJobTimeoutMinutes is the GitHub Actions variable used for the
+	// default generated detection job timeout when jobs.detection.timeout-minutes
+	// is not set.
+	DefaultDetectionJobTimeoutMinutes = "GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES"
 	// DefaultDetectionModel is the enterprise override for selecting the detection
 	// job model when threat-detection.engine.model is not set.
 	DefaultDetectionModel = "GH_AW_DEFAULT_DETECTION_MODEL"
@@ -126,10 +133,11 @@ func ResolveDefaultTimeoutMinutes(fallback int) int {
 	return defaultManager.ResolveDefaultTimeoutMinutes(fallback)
 }
 
-// BuildDefaultTimeoutMinutesExpression builds a vars expression that resolves
-// the default agentic workflow timeout at GitHub Actions runtime.
-func BuildDefaultTimeoutMinutesExpression(builtinDefault string) string {
-	return fmt.Sprintf("${{ vars.%s || '%s' }}", DefaultTimeoutMinutes, builtinDefault)
+// BuildTimeoutMinutesExpression builds a GitHub Actions expression that resolves
+// a default timeout from an Actions variable at runtime, falling back to the
+// compiled-in default when the variable is unset.
+func BuildTimeoutMinutesExpression(varName string, builtinDefault int) string {
+	return fmt.Sprintf("${{ vars.%s || '%d' }}", varName, builtinDefault)
 }
 
 // ResolveDefaultMaxTurnCacheMisses returns fallback when the env var is unset/invalid,

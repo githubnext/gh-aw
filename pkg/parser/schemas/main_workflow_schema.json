@@ -2864,7 +2864,7 @@
     },
     "timeout-minutes": {
       "$ref": "#/$defs/templatable_integer",
-      "description": "Agentic execution step and generated agent/detection job timeout in minutes. Defaults to 60 minutes, or the GH_AW_DEFAULT_TIMEOUT_MINUTES GitHub Actions variable. Override an individual generated job with jobs.agent.timeout-minutes or jobs.detection.timeout-minutes. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
+      "description": "Agentic execution step timeout in minutes. Defaults to 20 minutes for agentic workflows, or the GH_AW_DEFAULT_TIMEOUT_MINUTES GitHub Actions variable. The generated jobs are bounded separately by jobs.agent.timeout-minutes (default 60 minutes or GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES) and jobs.detection.timeout-minutes (default 10 minutes or GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES). Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
       "examples": [5, 10, 30]
     },
     "concurrency": {

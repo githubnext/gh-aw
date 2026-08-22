@@ -200,7 +200,7 @@ func TestPiEngine_GetExecutionSteps_Basic(t *testing.T) {
 	assert.Contains(t, stepText, "pi_provider.cjs", "Step should load the provider extension")
 	assert.Contains(t, stepText, "pi_steering_extension.cjs", "Step should automatically load the steering extension")
 	assert.Contains(t, stepText, "shell_harness.cjs", "Step should run Pi through the shared shell harness")
-	assert.Contains(t, stepText, "GH_AW_TIMEOUT_MINUTES: 60", "Step should expose the timeout to the shared harness")
+	assert.Contains(t, stepText, "GH_AW_TIMEOUT_MINUTES: 20", "Step should expose the timeout to the shared harness")
 }
 
 func TestPiEngine_GetExecutionSteps_WithModel(t *testing.T) {

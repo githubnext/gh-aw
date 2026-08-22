@@ -259,9 +259,9 @@ func TestSpec_NetworkPorts_Values(t *testing.T) {
 // Spec section: "## Runtime Configuration"
 func TestSpec_RuntimeConfiguration_Timeouts(t *testing.T) {
 	t.Parallel()
-	// From spec: DefaultAgenticWorkflowTimeout // time.Hour
-	assert.Equal(t, time.Hour, constants.DefaultAgenticWorkflowTimeout,
-		"DefaultAgenticWorkflowTimeout should be 60 minutes as documented")
+	// From spec: DefaultAgenticWorkflowTimeout // 20 * time.Minute
+	assert.Equal(t, 20*time.Minute, constants.DefaultAgenticWorkflowTimeout,
+		"DefaultAgenticWorkflowTimeout should be 20 minutes as documented")
 
 	// From spec: DefaultToolTimeout // 60 * time.Second
 	assert.Equal(t, 60*time.Second, constants.DefaultToolTimeout,

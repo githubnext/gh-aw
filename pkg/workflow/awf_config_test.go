@@ -24,7 +24,7 @@ func TestResolveAWFContainerAgentTimeoutMinutes(t *testing.T) {
 		assert.Equal(t, 30, got)
 	})
 
-	t.Run("falls back to default when timeout-minutes is omitted or non-numeric", func(t *testing.T) {
+	t.Run("falls back to default when timeout-minutes is omitted", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultTimeoutMinutes, "")
 		tests := []struct {
 			name string
@@ -32,7 +32,6 @@ func TestResolveAWFContainerAgentTimeoutMinutes(t *testing.T) {
 		}{
 			{name: "nil workflow data", data: nil},
 			{name: "empty timeout", data: &WorkflowData{}},
-			{name: "expression timeout", data: &WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout-minutes }}"}},
 		}
 
 		for _, tt := range tests {
@@ -43,22 +42,18 @@ func TestResolveAWFContainerAgentTimeoutMinutes(t *testing.T) {
 		}
 	})
 
-	t.Run("uses GH_AW_DEFAULT_TIMEOUT_MINUTES override for omitted and non-numeric values", func(t *testing.T) {
+	t.Run("omits agentTimeout when timeout-minutes is an expression", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultTimeoutMinutes, "45")
-		tests := []struct {
-			name string
-			data *WorkflowData
-		}{
-			{name: "missing timeout", data: &WorkflowData{}},
-			{name: "expression timeout", data: &WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout-minutes }}"}},
-		}
+		// An expression cannot be evaluated at compile time, so no fixed inner
+		// timeout may override the expression-backed step timeout.
+		got := resolveAWFContainerAgentTimeoutMinutes(&WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout-minutes }}"})
+		assert.Zero(t, got)
+	})
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				got := resolveAWFContainerAgentTimeoutMinutes(tt.data)
-				assert.Equal(t, 45, got)
-			})
-		}
+	t.Run("uses GH_AW_DEFAULT_TIMEOUT_MINUTES override when timeout-minutes is omitted", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultTimeoutMinutes, "45")
+		got := resolveAWFContainerAgentTimeoutMinutes(&WorkflowData{})
+		assert.Equal(t, 45, got)
 	})
 }
 

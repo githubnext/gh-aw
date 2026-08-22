@@ -79,6 +79,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Steps:                    steps,
 		Needs:                    depends,
 		Outputs:                  outputs,
-		TimeoutMinutesExpression: resolveStepTimeoutValue(data),
+		TimeoutMinutesExpression: resolveAgentJobTimeoutValue(data),
 	}, nil
 }

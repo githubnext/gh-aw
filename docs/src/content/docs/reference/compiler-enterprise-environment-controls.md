@@ -16,7 +16,9 @@ Use these variables to set organization- or repository-wide defaults without edi
 | `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default threat-detection AWF `apiProxy.maxAiCredits` budget | `safe-outputs.threat-detection.max-ai-credits` is not set |
 | `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default `max-daily-ai-credits` guardrail threshold | `max-daily-ai-credits` is not set in frontmatter or any imported workflow |
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
-| `GH_AW_DEFAULT_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default top-level and generated agent/detection job `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
+| `GH_AW_DEFAULT_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default `agentic_execution` step `timeout-minutes` (20 minutes) | `timeout-minutes` is not set in frontmatter |
+| `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default generated `agent` job `timeout-minutes` (60 minutes) | `jobs.agent.timeout-minutes` is not set in frontmatter |
+| `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default generated `detection` job `timeout-minutes` (10 minutes) | `jobs.detection.timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_DETECTION_MODEL` | Compiler process environment | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
 | `GH_AW_DEFAULT_UTC` | Compiler process environment | Default project home UTC offset for rendered CLI timestamps | `utc` is not set in `.github/workflows/aw.json` |
 | `GH_AW_DEFAULT_MODEL_COPILOT` | GitHub Actions `vars.*` at runtime | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
@@ -89,12 +91,17 @@ For daily AI credits workflow guardrails, precedence is:
 
 The compiler emits `${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}` when no frontmatter or imported value is set, so the organization variable is resolved at workflow run time by the GitHub Actions runner — not at compile time. A value of `-1` in frontmatter explicitly disables the guardrail. Positive values accept `K`/`M` suffixes such as `100M`.
 
-For agent and detection job timeouts, precedence is:
+For the generated `agent` job timeout, precedence is:
 
-1. `jobs.agent.timeout-minutes` or `jobs.detection.timeout-minutes`
-2. Top-level `timeout-minutes` in workflow frontmatter
-3. `vars.GH_AW_DEFAULT_TIMEOUT_MINUTES`
-4. Built-in compiler default of 60 minutes
+1. `jobs.agent.timeout-minutes` in workflow frontmatter
+2. `vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES`
+3. Built-in compiler default of 60 minutes
+
+The generated `detection` job timeout follows the same chain with
+`jobs.detection.timeout-minutes`, `vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES`,
+and a built-in default of 10 minutes. The `agentic_execution` step timeout uses
+top-level `timeout-minutes`, `vars.GH_AW_DEFAULT_TIMEOUT_MINUTES`, and a built-in
+default of 20 minutes.
 
 For detection engine selection, precedence is:
 
@@ -148,6 +155,8 @@ Set an organization-wide GitHub Actions variable for the timeout and compiler pr
 
 ```bash
 gh variable set GH_AW_DEFAULT_TIMEOUT_MINUTES --org my-org --body "30"
+gh variable set GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES --org my-org --body "90"
+gh variable set GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES --org my-org --body "15"
 export GH_AW_DEFAULT_MAX_TURNS=12
 export GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES=7
 export GH_AW_DEFAULT_DETECTION_MODEL=gpt-5.5-mini

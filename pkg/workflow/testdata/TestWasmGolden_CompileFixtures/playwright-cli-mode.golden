@@ -304,7 +304,7 @@ jobs:
     if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
     runs-on: ubuntu-latest
     permissions: read-all
-    timeout-minutes: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: playwrightclimode
@@ -513,7 +513,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}
+        timeout-minutes: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -571,7 +571,7 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}
+          GH_AW_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}
           GH_AW_VERSION: dev
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
@@ -594,7 +594,7 @@ jobs:
         continue-on-error: true
         env:
           GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}
-          GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}
+          GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |

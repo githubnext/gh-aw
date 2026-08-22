@@ -767,26 +767,17 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 }
 
 // resolveStepTimeoutValue returns the timeout value string to emit on an
-// agentic_execution step and its containing agent or detection job.
+// agentic_execution step.  It never resolves job-level overrides: the agent job
+// timeout is bounded independently by resolveAgentJobTimeoutValue.
 func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 	defaultValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 	if workflowData == nil {
 		return defaultValue
 	}
-	jobName := string(constants.AgentJobName)
+	// The detection step is the only step of the detection job, so it shares that
+	// job's budget instead of the top-level agentic step timeout.
 	if workflowData.IsDetectionRun {
-		jobName = string(constants.DetectionJobName)
-	}
-	if jobConfig, ok := workflowData.Jobs[jobName].(map[string]any); ok {
-		job := &Job{}
-		if err := extractCustomJobTimeoutMinutes(job, jobName, jobConfig); err == nil {
-			if job.TimeoutMinutesExpression != "" {
-				return job.TimeoutMinutesExpression
-			}
-			if job.TimeoutMinutes > 0 {
-				return strconv.Itoa(job.TimeoutMinutes)
-			}
-		}
+		return resolveDetectionJobTimeoutValue(workflowData)
 	}
 	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.TimeoutMinutes != nil {
 		if v := workflowData.ParsedFrontmatter.TimeoutMinutes.String(); v != "" {

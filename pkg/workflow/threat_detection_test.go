@@ -3626,7 +3626,7 @@ func TestBuildExternalDetectorExecutionStepEmitsTimeoutMinutes(t *testing.T) {
 	}
 	joined := strings.Join(steps, "")
 
-	expectedTimeout := resolveStepTimeoutValue(data)
+	expectedTimeout := resolveDetectionJobTimeoutValue(data)
 	if !strings.Contains(joined, "        timeout-minutes: "+expectedTimeout+"\n") {
 		t.Errorf("expected external detector execution step to declare timeout-minutes: %s;\ngot:\n%s", expectedTimeout, joined)
 	}

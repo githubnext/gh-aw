@@ -205,7 +205,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		Permissions:              permissions,
 		Steps:                    steps,
 		Outputs:                  outputs,
-		TimeoutMinutesExpression: resolveStepTimeoutValue(data),
+		TimeoutMinutesExpression: resolveDetectionJobTimeoutValue(data),
 	}
 
 	threatLog.Printf("Built detection job with %d steps, depends on: %v", len(steps), needs)

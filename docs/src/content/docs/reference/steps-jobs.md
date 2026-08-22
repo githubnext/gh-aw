@@ -177,10 +177,20 @@ jobs:
 
 ### Agent and Detection Job Timeouts
 
-The generated `agent` and `detection` jobs are each bounded by the top-level
-`timeout-minutes` value, which also bounds `agentic_execution`. The default is
-60 minutes. Set the `GH_AW_DEFAULT_TIMEOUT_MINUTES` GitHub Actions variable at
-the repository, organization, or enterprise level to change that default.
+The generated `agent` and `detection` jobs are bounded by their own
+`timeout-minutes` values, independently from the top-level `timeout-minutes`
+that bounds the `agentic_execution` step:
+
+| Timeout | Default | GitHub Actions variable |
+| --- | --- | --- |
+| `agent` job | 60 minutes | `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES` |
+| `detection` job and its execution step | 10 minutes | `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES` |
+| `agentic_execution` step (top-level `timeout-minutes`) | 20 minutes | `GH_AW_DEFAULT_TIMEOUT_MINUTES` |
+
+Set those variables at the repository, organization, or enterprise level to
+change the defaults without editing frontmatter. When top-level
+`timeout-minutes` requests a longer agentic step than the default agent job
+budget, the default agent job budget is raised to match it.
 
 Override either generated job independently when setup or post-processing needs
 a different budget:

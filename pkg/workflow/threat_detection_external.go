@@ -98,7 +98,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		ModelCosts:        data.ModelCosts,
 		IsDetectionRun:    true,
 		RunnerConfig:      data.RunnerConfig,
-		TimeoutMinutes:    data.TimeoutMinutes,
+		TimeoutMinutes:    "timeout-minutes: " + resolveDetectionJobTimeoutValue(data),
 		CompiledVersion:   data.CompiledVersion,
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{

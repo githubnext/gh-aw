@@ -128,7 +128,7 @@ func TestDefaultTimeoutMinutesConstantValue(t *testing.T) {
 	// This test ensures the constant is set to the expected value
 	// If this test fails, it means the constant was changed and documentation
 	// should be updated accordingly
-	expectedDefault := 60
+	expectedDefault := 20
 	actualDefault := int(constants.DefaultAgenticWorkflowTimeout / time.Minute)
 	if actualDefault != expectedDefault {
 		t.Errorf("DefaultAgenticWorkflowTimeout constant is %d minutes, but test expects %d. "+
@@ -146,7 +146,7 @@ func TestSchemaDocumentationMatchesConstant(t *testing.T) {
 	}
 
 	// Check that the schema mentions the correct default value
-	expectedText := "Defaults to 60 minutes"
+	expectedText := "Defaults to 20 minutes for agentic workflows"
 	if !strings.Contains(string(schemaContent), expectedText) {
 		t.Errorf("Schema documentation does not mention the correct default timeout.\n"+
 			"Expected to find: %q\n"+
