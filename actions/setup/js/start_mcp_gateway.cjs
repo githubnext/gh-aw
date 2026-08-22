@@ -348,8 +348,14 @@ function assertNotSymlink(p) {
       core.setFailed(`ERROR: ${p} is a symlink — possible symlink attack, aborting`);
       return false;
     }
-  } catch {
-    // Path does not exist yet — ignored, that's fine.
+  } catch (error) {
+    const errorCode = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+    if (errorCode === "ENOENT") {
+      // Path does not exist yet — ignored, that's fine.
+      return true;
+    }
+    core.setFailed(`ERROR: failed to inspect ${p} for symlink safety: ${getErrorMessage(error)}`);
+    return false;
   }
   return true;
 }
