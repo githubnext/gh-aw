@@ -567,7 +567,14 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return fmt.Errorf("invalid evals configuration: %w", err)
 	}
 	workflowData.Evals = evalsConfig
-	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals); err != nil {
+
+	// Extract deterministic graders configuration.
+	gradersConfig, err := c.parseGradersFromFrontmatter(frontmatter)
+	if err != nil {
+		return fmt.Errorf("invalid graders configuration: %w", err)
+	}
+	workflowData.Graders = gradersConfig
+	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals, workflowData.Graders); err != nil {
 		return fmt.Errorf("invalid experiments configuration: %w", err)
 	}
 

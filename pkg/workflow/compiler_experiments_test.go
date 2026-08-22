@@ -564,11 +564,37 @@ func TestParseExperimentMetricEvalReference(t *testing.T) {
 	}
 }
 
+func TestParseExperimentMetricGraderReference(t *testing.T) {
+	tests := []struct {
+		name      string
+		metric    string
+		wantID    string
+		wantMatch bool
+	}{
+		{name: "empty metric", metric: "", wantID: "", wantMatch: false},
+		{name: "normal metric", metric: "aic", wantID: "", wantMatch: false},
+		{name: "grader colon format", metric: "grader:loops", wantID: "loops", wantMatch: true},
+		{name: "grader dotted format", metric: "graders.loops", wantID: "loops", wantMatch: true},
+		{name: "grader dotted with suffix", metric: "graders.loops.value", wantID: "loops", wantMatch: true},
+		{name: "grader empty id", metric: "grader:", wantID: "", wantMatch: true},
+		{name: "graders empty id", metric: "graders.", wantID: "", wantMatch: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotID, gotMatch := ParseExperimentMetricGraderReference(tt.metric)
+			assert.Equal(t, tt.wantID, gotID)
+			assert.Equal(t, tt.wantMatch, gotMatch)
+		})
+	}
+}
+
 func TestValidateExperimentMetricReferences(t *testing.T) {
 	tests := []struct {
 		name    string
 		configs map[string]*ExperimentConfig
 		evals   *EvalsConfig
+		graders *GradersConfig
 		wantErr string
 	}{
 		{
@@ -577,6 +603,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 				"prompt_style": {Metric: "aic"},
 			},
 			evals:   nil,
+			graders: nil,
 			wantErr: "",
 		},
 		{
@@ -587,6 +614,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			evals: &EvalsConfig{
 				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
 			},
+			graders: nil,
 			wantErr: "",
 		},
 		{
@@ -597,6 +625,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			evals: &EvalsConfig{
 				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
 			},
+			graders: nil,
 			wantErr: "",
 		},
 		{
@@ -607,6 +636,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			evals: &EvalsConfig{
 				Questions: []EvalDefinition{{ID: "tests", Question: "Do tests pass?"}},
 			},
+			graders: nil,
 			wantErr: `references unknown eval "builds"`,
 		},
 		{
@@ -615,6 +645,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 				"prompt_style": {Metric: "eval:builds"},
 			},
 			evals:   nil,
+			graders: nil,
 			wantErr: `references eval "builds" but no evals are declared`,
 		},
 		{
@@ -625,6 +656,7 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			evals: &EvalsConfig{
 				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
 			},
+			graders: nil,
 			wantErr: "expected eval reference format eval:<question_id>",
 		},
 		{
@@ -635,13 +667,88 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			evals: &EvalsConfig{
 				Questions: []EvalDefinition{{ID: "builds", Question: "Does it build?"}},
 			},
+			graders: nil,
+			wantErr: "",
+		},
+		{
+			name: "grader metric references existing grader",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "grader:loops"},
+			},
+			evals: nil,
+			graders: &GradersConfig{
+				Graders: map[string]*GraderDefinition{
+					"loops": {ID: "loops"},
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "grader dotted metric references existing grader",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "graders.loops.value"},
+			},
+			evals: nil,
+			graders: &GradersConfig{
+				Graders: map[string]*GraderDefinition{
+					"loops": {ID: "loops"},
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "grader reference rejected when grader id is unknown",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "grader:loops"},
+			},
+			evals: nil,
+			graders: &GradersConfig{
+				Graders: map[string]*GraderDefinition{
+					"retries": {ID: "retries"},
+				},
+			},
+			wantErr: `references unknown grader "loops"`,
+		},
+		{
+			name: "grader reference rejected when graders are not declared",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "grader:loops"},
+			},
+			evals:   nil,
+			graders: nil,
+			wantErr: `references grader "loops" but no graders are declared`,
+		},
+		{
+			name: "grader reference requires non empty id",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "grader:"},
+			},
+			evals: nil,
+			graders: &GradersConfig{
+				Graders: map[string]*GraderDefinition{
+					"loops": {ID: "loops"},
+				},
+			},
+			wantErr: "expected grader reference format grader:<grader_id>",
+		},
+		{
+			name: "grader colon metric trims whitespace from id",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {Metric: "grader: loops "},
+			},
+			evals: nil,
+			graders: &GradersConfig{
+				Graders: map[string]*GraderDefinition{
+					"loops": {ID: "loops"},
+				},
+			},
 			wantErr: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExperimentMetricReferences(tt.configs, tt.evals)
+			err := validateExperimentMetricReferences(tt.configs, tt.evals, tt.graders)
 			if tt.wantErr == "" {
 				assert.NoError(t, err)
 				return
