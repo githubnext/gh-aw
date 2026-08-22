@@ -122,7 +122,6 @@ Map to:
 - `evals:` — binary YES/NO questions checking whether the run met its goals; requires `safe-outputs:` so `agent_output.json` exists (see `.github/aw/evals.md`)
 
 gh-aw installs `skills:` and `plugins:` entries before the agent runs. Never emit install steps or prompt instructions that fetch skills or plugins on the fly.
-- `evals:` — binary YES/NO questions checking whether the run met its goals; requires `safe-outputs:` so `agent_output.json` exists (see `.github/aw/evals.md`)
 
 ### Phase 8: Confirmation
 
