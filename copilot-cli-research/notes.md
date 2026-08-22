@@ -156,3 +156,13 @@
 - Only commit since last run touching related paths (659a35a) is unrelated: hide-comment discussions default flip, not a Copilot CLI change.
 - No new Copilot CLI Go features detected in codebase since last run (same module set unchanged).
 - DECISION: Filed noop per established policy (run 31354820498+) — only file new issue when (a) new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run.
+
+## Run 32550226221 (2026-08-22)
+- Total workflows 287 (up from 286). Narrow `engine: copilot` count: 34 (down from 38 - recheck: some workflows migrated to `id: copilot` extended block form only, not a real drop in copilot usage; broad combined count `engine: copilot` + `id: copilot` = 134).
+- --share flag: real usage still 0 — 20th+ consecutive run confirming persistent non-issue.
+- engine.args: reconfirmed still 0 real usages.
+- New feature detected: commit df691a4 added a large "Squad" AI-team-of-agents feature: `.github/agents/squad.agent.md` (1102 lines) plus `squad.md`, `squad-plan.md`, `squad-implement-worker.md`, `squad-game-planner.md` workflows and an extensive `.squad/` template/scaffolding tree. squad.agent.md is wired in via `imports: shared/squad.md` rather than a bare `agent: squad` field, so it is NOT a new orphaned custom agent (still 4 orphans unchanged: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer). This is a new orchestration/product feature layered on top of existing engines, not a new Copilot CLI capability itself.
+- disable-builtin-mcps: flat at 2 real usages (auto-triage-issues.md + this research workflow's own doc example).
+- copilot-sdk: true adoption: 69 (flat vs last run).
+- No new Copilot CLI Go source changes detected (same module set unchanged).
+- DECISION: Filed noop per established policy (run 31354820498+) — only file new issue when (a) new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run; the Squad feature is notable but out-of-scope for Copilot-CLI-specific tracking.
