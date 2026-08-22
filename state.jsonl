@@ -136,3 +136,4 @@
 {"run_id":"31732552415","timestamp":"2026-08-13T18:48:29.438Z","assignments":{"caveman":"no","subagent_model":"large"}}
 {"run_id":"31974723462","timestamp":"2026-08-16T21:52:23.291Z","assignments":{"caveman":"no","subagent_model":"large"}}
 {"run_id":"32375448656","timestamp":"2026-08-20T13:39:59.281Z","assignments":{"caveman":"yes","subagent_model":"small"}}
+{"run_id":"32577785372","timestamp":"2026-08-22T14:08:42.320Z","harness_version":"ce0760ee05cbaa856e9f62cba05c70a21ffead0357daf9bd02996aca9f4097e1:82e14f6429d21faf3948e53f0ca2f5afe0985627b5dd8c0b751b5dd7e3502bc3","assignments":{"caveman":"yes","subagent_model":"small"}}
