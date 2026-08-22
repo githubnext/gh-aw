@@ -146,7 +146,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 		outputMap,
 		"create-pull-request",
 		CreateParseOptions{
-			BoolFields:    []string{"draft", "allow-empty", "footer", "auto-close-issue", "close-older-pull-requests", "close-older-enabled"},
+			BoolFields:    []string{"draft", "allow-empty", "footer", "auto-close-issue", "close-older-pull-requests"},
 			IntFields:     []string{"max"},
 			HandleExpires: true,
 		},
@@ -157,7 +157,6 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 			return &CreatePullRequestsConfig{}
 		},
 		func(configData map[string]any) bool {
-			setCloseOlderEnabledAlias(configData, "close-older-pull-requests")
 			coerceStringOrArrayFields(configData, createPRStringOrArrayFields, createPRLog)
 
 			// Pre-process protected-files: supports string enum OR object form {policy, exclude}.
@@ -204,6 +203,8 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 			return true
 		},
 		func(configData map[string]any, config *CreatePullRequestsConfig, expiresDisabled bool) {
+			config.CloseOlderConfig.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-pull-requests")
+
 			if expiresDisabled {
 				createPRLog.Print("Pull request expiration disabled")
 			}

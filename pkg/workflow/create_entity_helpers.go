@@ -15,17 +15,31 @@ type CreateParseOptions struct {
 
 // CloseOlderConfig holds shared close-older settings across create entity handlers.
 type CloseOlderConfig struct {
-	Enabled *string `yaml:"close-older-enabled,omitempty"` // Internal canonical key; populated from entity-specific close-older-* keys before unmarshaling.
-	Key     string  `yaml:"close-older-key,omitempty"`     // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
+	// Enabled is intentionally not a YAML field (yaml:"-"): it must not be settable
+	// directly from workflow frontmatter. It is populated after unmarshaling via
+	// closeOlderEnabledFromConfigData, keeping each entity's canonical key
+	// (e.g. close-older-issues) as the sole public YAML surface.
+	Enabled *string `yaml:"-"`
+	Key     string  `yaml:"close-older-key,omitempty"` // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
 }
 
-func setCloseOlderEnabledAlias(configData map[string]any, sourceKey string) {
+// closeOlderEnabledFromConfigData reads the close-older enabled value from sourceKey in
+// configData (already normalized to a string form by preprocessBoolFieldAsString) and
+// returns a pointer suitable for CloseOlderConfig.Enabled, or nil when sourceKey was not
+// set. Intended to be called from postUnmarshal callbacks, once per entity handler.
+func closeOlderEnabledFromConfigData(configData map[string]any, sourceKey string) *string {
 	if configData == nil {
-		return
+		return nil
 	}
-	if value, exists := configData[sourceKey]; exists {
-		configData["close-older-enabled"] = value
+	value, exists := configData[sourceKey]
+	if !exists {
+		return nil
 	}
+	str, ok := value.(string)
+	if !ok {
+		return nil
+	}
+	return &str
 }
 
 // parseCreateEntityConfig parses create-* config scaffolding shared by issue/discussion/PR handlers.

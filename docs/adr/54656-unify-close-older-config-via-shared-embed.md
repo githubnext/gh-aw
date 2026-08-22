@@ -12,7 +12,7 @@
 
 ### Decision
 
-We will introduce a shared `CloseOlderConfig` struct in `pkg/workflow/create_entity_helpers.go` containing canonical `Enabled *string` and `Key string` fields, and embed it inline into `CreateIssuesConfig`, `CreateDiscussionsConfig`, and `CreatePullRequestsConfig`. Existing public YAML keys (`close-older-issues`, `close-older-discussions`, `close-older-pull-requests`) are preserved through parse-time aliasing via `setCloseOlderEnabledAlias`, which copies the entity-specific value to the internal canonical key `close-older-enabled` before YAML unmarshaling. All downstream consumers are updated to read from `CloseOlderConfig.Enabled` and `CloseOlderConfig.Key`.
+We will introduce a shared `CloseOlderConfig` struct in `pkg/workflow/create_entity_helpers.go` containing canonical `Enabled *string` and `Key string` fields, and embed it inline into `CreateIssuesConfig`, `CreateDiscussionsConfig`, and `CreatePullRequestsConfig`. Existing public YAML keys (`close-older-issues`, `close-older-discussions`, `close-older-pull-requests`) are preserved: `Enabled` is tagged `yaml:"-"` so it is never directly settable from workflow frontmatter, and is instead populated after unmarshaling via `closeOlderEnabledFromConfigData`, which reads the already-preprocessed entity-specific value out of the raw config map. All downstream consumers are updated to read from `CloseOlderConfig.Enabled` and `CloseOlderConfig.Key`.
 
 ### Alternatives Considered
 
@@ -37,7 +37,7 @@ Replace the three entity-specific YAML keys with a single `close-older-enabled` 
 - Parser coverage for all three aliasing paths is validated by dedicated tests in `create_close_older_config_test.go`.
 
 #### Negative
-- Parse-time aliasing introduces non-obvious indirection: the internal canonical YAML key (`close-older-enabled`) differs from the public YAML API keys, and the mapping happens via `setCloseOlderEnabledAlias` before unmarshaling — a reader unfamiliar with this pattern may be confused by `BoolFields` including both the public and canonical keys.
+- Post-unmarshal population introduces a small amount of indirection: `Enabled` is not set by YAML unmarshaling directly but by an explicit call to `closeOlderEnabledFromConfigData` in each handler's `postUnmarshal` callback, reading the already-preprocessed entity-specific key. A reader unfamiliar with this pattern may be confused that `CloseOlderConfig.Enabled` has no YAML tag despite being populated from YAML input.
 - The embed uses `yaml:",inline"`, which means YAML tags on `CloseOlderConfig` fields coexist in the same namespace as the parent struct's tags; tag conflicts in future fields require care.
 
 #### Neutral

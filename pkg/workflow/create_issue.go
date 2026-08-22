@@ -33,7 +33,7 @@ func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssu
 		outputMap,
 		"create-issue",
 		CreateParseOptions{
-			BoolFields:    []string{"close-older-issues", "close-older-enabled", "group", "footer", "group-by-day"},
+			BoolFields:    []string{"close-older-issues", "group", "footer", "group-by-day"},
 			IntFields:     []string{"max"},
 			HandleExpires: true,
 		},
@@ -44,11 +44,12 @@ func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssu
 			return &CreateIssuesConfig{}
 		},
 		func(configData map[string]any) bool {
-			setCloseOlderEnabledAlias(configData, "close-older-issues")
 			coerceStringOrArrayFields(configData, []string{"assignees"}, createIssueLog)
 			return true
 		},
-		func(_ map[string]any, config *CreateIssuesConfig, expiresDisabled bool) {
+		func(configData map[string]any, config *CreateIssuesConfig, expiresDisabled bool) {
+			config.CloseOlderConfig.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-issues")
+
 			// Set default max if not specified
 			if config.Max == nil {
 				config.Max = defaultIntStr(1)

@@ -33,7 +33,7 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 		outputMap,
 		"create-discussion",
 		CreateParseOptions{
-			BoolFields:    []string{"close-older-discussions", "close-older-enabled", "footer"},
+			BoolFields:    []string{"close-older-discussions", "footer"},
 			IntFields:     []string{"max"},
 			HandleExpires: true,
 		},
@@ -43,11 +43,10 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 			// For backward compatibility, handle nil/empty config
 			return &CreateDiscussionsConfig{}
 		},
-		func(configData map[string]any) bool {
-			setCloseOlderEnabledAlias(configData, "close-older-discussions")
-			return true
-		},
-		func(_ map[string]any, config *CreateDiscussionsConfig, expiresDisabled bool) {
+		nil,
+		func(configData map[string]any, config *CreateDiscussionsConfig, expiresDisabled bool) {
+			config.CloseOlderConfig.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-discussions")
+
 			// Set default max if not specified
 			if config.Max == nil {
 				config.Max = defaultIntStr(1)

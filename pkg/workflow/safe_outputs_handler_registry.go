@@ -72,6 +72,9 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("assignees", c.Assignees).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableBool("group", c.Group).
+			// Shared CloseOlderConfig.Enabled is remapped here to this handler's
+			// entity-specific env key name; the other create-* handlers below map the
+			// same shared field to their own entity-specific keys.
 			AddTemplatableBool("close_older_issues", c.CloseOlderConfig.Enabled).
 			AddIfNotEmpty("close_older_key", c.CloseOlderConfig.Key).
 			AddTemplatableBool("group_by_day", c.GroupByDay).
@@ -117,6 +120,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("labels", c.Labels).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
 			AddTemplatableBool("close_older_discussions", c.CloseOlderConfig.Enabled).
 			AddIfNotEmpty("close_older_key", c.CloseOlderConfig.Key).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
@@ -588,6 +592,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("recreate_ref", c.RecreateRef).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddBoolPtr("signed_commits", c.SignedCommits).
+			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
 			AddTemplatableBool("close_older_pull_requests", c.CloseOlderConfig.Enabled).
 			AddIfNotEmpty("close_older_key", c.CloseOlderConfig.Key).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
