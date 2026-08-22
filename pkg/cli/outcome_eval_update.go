@@ -37,7 +37,7 @@ func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverrid
 	}
 	if num == 0 || repo == "" {
 		outcomeEvalUpdateLog.Printf("Missing execution state: num=%d, repo=%s", num, repo)
-		report.Result = OutcomeUnknown
+		report.OutcomeStatus = OutcomeStatusUnknown
 		report.Detail = "missing execution state"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusUnknown,
@@ -47,7 +47,7 @@ func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverrid
 		return report
 	}
 	if item.BeforeState == nil || item.AfterState == nil {
-		report.Result = OutcomeUnknown
+		report.OutcomeStatus = OutcomeStatusUnknown
 		report.Detail = "missing execution state"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusUnknown,
@@ -59,7 +59,7 @@ func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverrid
 
 	currentState, merged, err := load(ctx, repo, num)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -68,7 +68,7 @@ func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverrid
 	outcomeEvalUpdateLog.Printf("State comparison for %s #%d: changed=%d, retained=%d, reverted=%d, replaced=%d, merged=%v",
 		objectKind, num, len(comparison.Changed), len(comparison.Retained), len(comparison.Reverted), len(comparison.Replaced), merged)
 	if len(comparison.Changed) == 0 {
-		report.Result = OutcomeUnknown
+		report.OutcomeStatus = OutcomeStatusUnknown
 		report.Detail = "no persisted state delta"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusUnknown,
@@ -80,7 +80,7 @@ func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverrid
 
 	switch {
 	case len(comparison.Retained) == len(comparison.Changed):
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		if strongOnMerge && merged {
 			report.Detail = objectKind + " update retained and merged"
 			report.OutcomeEvaluation = OutcomeEvaluation{
@@ -98,7 +98,7 @@ func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverrid
 		}
 		return report
 	case len(comparison.Reverted) == len(comparison.Changed):
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = objectKind + " update reverted"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusRejected,
@@ -107,7 +107,7 @@ func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverrid
 		}
 		return report
 	default:
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = objectKind + " update replaced"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusRejected,
