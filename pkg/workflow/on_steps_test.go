@@ -239,6 +239,7 @@ on:
       run: echo "checking..."
 tools:
   cache-memory: true
+  drive-memory: true
   repo-memory: true
   comment-memory: true
 engine: copilot
@@ -290,6 +291,8 @@ Test on.steps with memory stores restored in pre-activation
 		// Memory stores should be restored before on.steps run in pre-activation.
 		assert.Contains(t, lockContentStr, "# restore-memory: true # Restore-memory enables pre-activation memory restore")
 		assert.Contains(t, preActivationSection, "Restore cache-memory file share data")
+		assert.Contains(t, preActivationSection, "Checkout drive-memory file share (default)")
+		assert.Contains(t, preActivationSection, "runs-on: ubuntu-latest")
 		assert.Contains(t, preActivationSection, "Clone repo-memory branch (default)")
 		assert.Contains(t, preActivationSection, "Write comment-memory configuration")
 		assert.Contains(t, preActivationSection, "Prepare comment memory files")
@@ -310,6 +313,7 @@ Test on.steps with memory stores restored in pre-activation
 
 		// Pre-activation must not include write-back/commit steps.
 		assert.NotContains(t, preActivationSection, "Commit cache-memory changes")
+		assert.NotContains(t, preActivationSection, "actions/gh-drives-preview/commit@")
 		assert.NotContains(t, preActivationSection, "Push repo-memory changes")
 		assert.Contains(t, preActivationSection, "uses: "+getActionPin("actions/cache/restore"))
 		assert.NotContains(t, preActivationSection, "uses: actions/cache@")

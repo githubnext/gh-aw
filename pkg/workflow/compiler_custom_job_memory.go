@@ -14,6 +14,7 @@ var customJobMemoryLog = logger.New("workflow:compiler_custom_job_memory")
 // No write-back or commit steps are ever emitted for restore-memory.
 type restoreMemoryConfig struct {
 	CacheMemory   bool
+	DriveMemory   bool
 	RepoMemory    bool
 	CommentMemory bool
 }
@@ -39,14 +40,15 @@ func extractRestoreMemoryConfig(configMap map[string]any, jobName string, data *
 
 	cfg := &restoreMemoryConfig{
 		CacheMemory:   data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0,
+		DriveMemory:   data.DriveMemoryConfig != nil && len(data.DriveMemoryConfig.Drives) > 0,
 		RepoMemory:    data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0,
 		CommentMemory: data.CommentMemoryConfig != nil,
 	}
 
-	if !cfg.CacheMemory && !cfg.RepoMemory && !cfg.CommentMemory {
+	if !cfg.CacheMemory && !cfg.DriveMemory && !cfg.RepoMemory && !cfg.CommentMemory {
 		return nil, fmt.Errorf("jobs.%s.restore-memory: no memory stores are configured in tools", jobName)
 	}
-	customJobMemoryLog.Printf("restore-memory enabled for job %s: cache=%t repo=%t comment=%t", jobName, cfg.CacheMemory, cfg.RepoMemory, cfg.CommentMemory)
+	customJobMemoryLog.Printf("restore-memory enabled for job %s: cache=%t drive=%t repo=%t comment=%t", jobName, cfg.CacheMemory, cfg.DriveMemory, cfg.RepoMemory, cfg.CommentMemory)
 	return cfg, nil
 }
 
@@ -65,10 +67,10 @@ func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, jobName str
 
 	// repo-memory and comment-memory rely on scripts installed by the gh-aw setup action.
 	// Inject the setup step before any memory steps so those scripts are available.
-	if cfg.RepoMemory || cfg.CommentMemory {
+	if cfg.DriveMemory || cfg.RepoMemory || cfg.CommentMemory {
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef == "" && !c.actionMode.IsScript() {
-			return nil, nil, fmt.Errorf("jobs.%s.restore-memory: repo-memory/comment-memory require the setup action but no action ref was found", jobName)
+			return nil, nil, fmt.Errorf("jobs.%s.restore-memory: drive-memory/repo-memory/comment-memory require the setup action but no action ref was found", jobName)
 		}
 		setupLines = append(setupLines, c.generateCheckoutActionsFolder(data)...)
 		// Pass empty trace IDs — custom jobs do not inherit the activation span.
@@ -78,9 +80,13 @@ func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, jobName str
 	if cfg.CacheMemory {
 		memoryLines = append(memoryLines, generateCacheMemoryRestoreLines(data)...)
 	}
+	if cfg.DriveMemory {
+		memoryLines = append(memoryLines, c.generateDriveMemoryRestoreLines(data)...)
+	}
 	if cfg.RepoMemory {
 		memoryLines = append(memoryLines, generateRepoMemoryRestoreLines(data)...)
 	}
+
 	if cfg.CommentMemory {
 		if configLines, ok := c.generateCommentMemoryEarlyConfigLines(data); ok {
 			memoryLines = append(memoryLines, configLines...)
@@ -89,6 +95,38 @@ func (c *Compiler) buildRestoreMemorySteps(cfg *restoreMemoryConfig, jobName str
 	}
 
 	return setupLines, memoryLines, nil
+}
+
+func (c *Compiler) generateDriveMemoryRestoreLines(data *WorkflowData) []string {
+	if data.DriveMemoryConfig == nil {
+		return nil
+	}
+	var builder strings.Builder
+	generateDriveMemorySteps(&builder, driveMemoryRestoreOnlyData(data), c.getActionPin)
+	return splitGeneratedStepLines(builder.String())
+}
+
+func driveMemoryRestoreOnlyData(data *WorkflowData) *WorkflowData {
+	restoreData := &WorkflowData{
+		DriveMemoryConfig: &DriveMemoryConfig{Drives: make([]DriveMemoryEntry, len(data.DriveMemoryConfig.Drives))},
+		ParsedTools:       data.ParsedTools,
+	}
+	for i, drive := range data.DriveMemoryConfig.Drives {
+		drive.RestoreOnly = true
+		restoreData.DriveMemoryConfig.Drives[i] = drive
+	}
+	return restoreData
+}
+
+func splitGeneratedStepLines(raw string) []string {
+	parts := strings.SplitAfter(raw, "\n")
+	lines := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part != "" {
+			lines = append(lines, part)
+		}
+	}
+	return lines
 }
 
 // generateCacheMemoryRestoreLines produces read-only cache-memory restore steps for a
@@ -161,14 +199,7 @@ func generateRepoMemoryRestoreLines(data *WorkflowData) []string {
 	// SplitAfter keeps each line's trailing newline, so no phantom extra newline is
 	// appended (unlike strings.Split + "\n" which adds a spurious blank line for the
 	// empty trailing element produced by a newline-terminated string).
-	parts := strings.SplitAfter(raw, "\n")
-	lines := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p != "" {
-			lines = append(lines, p)
-		}
-	}
-	return lines
+	return splitGeneratedStepLines(raw)
 }
 
 // generateCommentMemoryRestoreLines produces a read-only comment-memory prepare step
