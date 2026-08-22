@@ -23,6 +23,7 @@ Run `gh aw compile --dependabot` to compile all workflows and generate manifests
 - No-op if `.github/dependabot.yml` does not exist
 - No-op if there is no `package-ecosystem: github-actions` update block
 - Preserves user-defined `ignore` entries
+- The wildcard reflects the repository that provides the reusable actions: `github/gh-aw-actions/*` by default, or `<owner>/<repo>/*` when `gh aw compile --actions-repo <owner>/<repo>` overrides the actions repository
 
 ```yaml
 updates:
