@@ -203,7 +203,13 @@ async function main(config = {}) {
 
     if (processedCount >= maxCount) {
       core.warning(`Skipping ${HANDLER_TYPE}: max count of ${maxCount} reached`);
-      return { success: false, error: `Max count of ${maxCount} reached` };
+      return {
+        success: false,
+        skipped: true,
+        reasonCode: "MAX_COUNT_REACHED",
+        reason: "Max count reached",
+        error: `Max count of ${maxCount} reached`,
+      };
     }
 
     try {
@@ -220,9 +226,13 @@ async function main(config = {}) {
       }
 
       if (run.status !== "waiting") {
-        const error = `Workflow run ${runId} is not awaiting approval (status: ${run.status || "none"})`;
-        core.warning(error);
-        return { success: false, error };
+        // Benign race: by the time the safe_outputs job runs, the workflow run may have
+        // already been approved (by a human or an earlier run) and moved past the
+        // "waiting" state. There is nothing left to do, so report this as a skipped
+        // no-op instead of a failure that would fail the whole safe outputs step.
+        const reason = `Workflow run ${runId} is not awaiting approval (status: ${run.status || "none"})`;
+        core.warning(reason);
+        return { success: false, skipped: true, reasonCode: "NOT_AWAITING_APPROVAL", reason, error: reason };
       }
 
       const workflowId = parsePositiveInt(run.workflow_id);

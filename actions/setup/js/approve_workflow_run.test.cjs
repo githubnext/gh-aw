@@ -149,7 +149,7 @@ describe("approve_workflow_run", () => {
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 
-  it("rejects runs that are not awaiting approval", async () => {
+  it("skips runs that are not awaiting approval instead of failing", async () => {
     mockGetWorkflowRun.mockResolvedValue({
       data: { ...pendingPullRequestRun, status: "completed" },
     });
@@ -160,6 +160,9 @@ describe("approve_workflow_run", () => {
     const result = await handler({ run_id: 123 }, {});
 
     expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.reasonCode).toBe("NOT_AWAITING_APPROVAL");
+    expect(result.reason).toContain("not awaiting approval");
     expect(result.error).toContain("not awaiting approval");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
@@ -472,6 +475,8 @@ describe("approve_workflow_run", () => {
     const result = await handler({ run_id: 124 }, {});
 
     expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.reasonCode).toBe("MAX_COUNT_REACHED");
     expect(result.error).toContain("Max count of 1 reached");
   });
 
