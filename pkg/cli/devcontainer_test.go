@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/testutil"
 )
@@ -118,10 +119,22 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 		t.Error("Expected postCreateCommand to be set")
 	}
 
-	// Test that running again doesn't fail (idempotency)
+	unchangedModTime := time.Unix(123456789, 0)
+	if err := os.Chtimes(devcontainerPath, unchangedModTime, unchangedModTime); err != nil {
+		t.Fatalf("Failed to set devcontainer timestamp: %v", err)
+	}
+
+	// Test that running again doesn't rewrite unchanged content
 	err = ensureDevcontainerConfig(false, []string{})
 	if err != nil {
 		t.Fatalf("ensureDevcontainerConfig() should be idempotent, but failed: %v", err)
+	}
+	info, err := os.Stat(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to stat devcontainer.json: %v", err)
+	}
+	if !info.ModTime().Equal(unchangedModTime) {
+		t.Errorf("Expected unchanged devcontainer.json timestamp to remain %v, got %v", unchangedModTime, info.ModTime())
 	}
 }
 
