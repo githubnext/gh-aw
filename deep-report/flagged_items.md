@@ -1,3 +1,13 @@
+## Flagged Items (2026-08-22, ~00:30Z cycle, window since 18:26Z baseline #54587, 9 new discussions: 54577,54595,54613,54614,54616,54617,54623,54638,54655)
+
+- **[new, filed]** Detection Analysis Report Rule 3 can't distinguish detection-step failures from full agent-job non-execution — 21/254 detection-enabled runs this window show `TokenUsage:0`/`ErrorCount:0` (#54655).
+- **[declined, already tracked, chronic]** Codex fleet-wide `driver_exit` failures — 2/3 sampled failures in a live 30-run log check this cycle, already open P0 #54393.
+- **[declined, already tracked]** Agent Job Health Monitor timeout (50.2m, 271964 tokens) — already open #54660.
+- **[declined, chronic, generic]** Comment density 9.44% + 468 large files >500 LOC — Daily Code Metrics first-ever baseline (#54595); 8+ prior "comment density" issues closed over months without sticking, no specific file pointers given this time either.
+- **[declined, already tracked]** Oversized test files reconfirmed generically — already open #54106.
+- **[declined, already tracked, chronic]** AI Moderator 7/7 failures, Code Scanning Fixer 2/2 failures (both referenced in #54655's Rule 3 caveat) — already open #54242/#26474 and #54544 respectively.
+- **[declined, healthy/informational]** Copilot Agent PR Analysis (#54577, small-sample reversion, no new signal), Lockfile Statistics (#54614), Daily Team Evolution (#54613), Copilot PR Prompt Pattern Analysis (#54616, informational reconfirmation), Daily Performance Summary (#54617, no critical issues), Regulatory Report (#54623, no data-integrity discrepancies across ~95 reports), ESLint Monster (#54638, self-contained remediation PRs) — no action.
+
 ## Flagged Items (2026-08-21, ~18:26Z cycle, window since 12:35Z baseline #54534, 9 new discussions: 54536,54541,54543,54553,54554,54556,54559,54561,54572)
 
 - **[new, filed]** repo-slug validation errors give no expected format/example — `pkg/repoutil/repoutil.go:20` + 3 pkg/cli sites, verified live — Repository Quality Improvement (#54543).

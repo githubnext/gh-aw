@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-22, ~00:30Z cycle, baseline #54587)
+
+### New pattern: some generic quality asks are chronically un-stickable — recognize the signature and stop re-filing
+`gh api search/issues` for "comment density" returned 8+ closed issues spanning 2026-06 through 2026-08 (#12367, #12374, #13039, #13659, #13881, #14359, #46575, #47130, #47175, #48198, #50815 and more), each closed after a superficial pass, with the metric drifting back down each time a new baseline report runs (currently 9.44%, "below 10% target"). Today's Daily Code Metrics baseline (#54595) repeated the same generic recommendation ("add comments", "refactor large files") with zero specific file/line pointers — same shape as the 8 prior asks. **Lesson: a repeat-closed-without-sticking history plus a generic (non-file-specific) recommendation is a strong signal to decline rather than re-file a 9th time; if this metric is worth fixing, it needs a structural fix (CI gate, godoc lint rule) rather than another one-off ask — flag that distinction in the report rather than filing more of the same shape.**
+
+### New pattern: an unusually quiet cycle (thin harvest) is itself worth reporting honestly, not padded to hit a task quota
+This cycle's 9 new discussions were dominated by healthy/informational reports (team evolution, lockfile stats, performance summary, regulatory cross-check, prompt-pattern analysis) plus already-self-contained agent work (ESLint Monster's 3 PR streams) and already-tracked chronic failures (Codex outage #54393, Agent Job Health Monitor #54660, AI Moderator #54242, Code Scanning Fixer #54544). Only 1 genuinely new, non-duplicate, specific finding survived the dedup gate. **Lesson: the "exactly 7 tasks" target is a ceiling for quick wins, not a quota to force — when the dedup gate legitimately kills 6 of 7 candidate categories, file fewer and say so plainly in the brief rather than stretching declined/chronic/vague items into new issues.**
+
 ## DeepReport Memory (2026-08-21, ~18:26Z cycle, baseline #54534)
 
 ### New pattern: a "closed" issue can be genuinely superseded rather than a candidate for re-filing — check whether the new finding is a *refinement* of what the old one left incomplete

@@ -1,3 +1,16 @@
+## Trend Data (2026-08-22, ~00:30Z cycle)
+
+Window since 18:26Z baseline (#54587), 9 new discussions (54577, 54595, 54613, 54614, 54616, 54617, 54623, 54638, 54655), all read in full.
+
+- **Issue activity**: 1 new issue filed (detection-analysis step-level attribution gap) + 0 comments — quietest cycle in recent memory; 6 of 7 candidate categories killed by the dedup/chronic-pattern gate (see [[known_patterns]]).
+- **Fleet health (live 30-run log sample, last ~1h)**: 27/30 success (90%), 3 driver_exit failures — 2 Codex-engine (fleet-wide outage, already tracked #54393), 1 Claude-engine (Agent Job Health Monitor timeout, already tracked #54660). `agenticworkflows logs` needed a reduced `count`/explicit `timeout` param to avoid the default 60s context-deadline-exceeded failure (chronic sandbox constraint, previously closed #49275 — recurs but not independently actionable from here).
+- **Repo-wide code quality baseline (first-ever Daily Code Metrics run, #54595)**: 73.33/100 quality score, 1.96:1 test-to-source ratio (top-tier), 9.44% comment density (below 10% target, chronic unstuck pattern), 468 files >500 LOC, high 7-day churn (3,342 files/469 commits, +62,075 net LOC) flagged as informational not a defect.
+- **Fleet shape (Lockfile Statistics, #54614)**: 286 lockfiles, avg 233 LOC/workflow, 279/286 (97.6%) carry `workflow_dispatch`, 192 use `schedule`; `create-discussion` used by 91 workflows, 78 of those file into the `audits` category.
+- **Prompt-success correlation (Copilot PR Prompt Pattern Analysis, #54616, 30-day/1000-PR sample)**: merged-PR prompts average 168 words vs 230 for closed PRs; Refactoring category highest success (90.9%), Testing category lowest (74.4%) — reconfirms a pattern noted in prior cycles.
+- **Repository velocity (Daily Performance Summary, #54617, 90-day)**: 73.7% PR merge rate, 4.8h avg merge time, 62.3% issue close rate, 14.0h avg issue resolution — no critical performance issues.
+- **Cross-report data integrity (Regulatory Report, #54623)**: ~95 reports reviewed over 48h, no critical data-integrity discrepancies found; only expected scope-mismatch notes (different sampling windows across reports).
+- **Issues snapshot**: 151 open / 349 closed of 500 sampled (7-day window); top labels agentic-workflows(246)/automation(174)/cookie(150)/code-quality(83)/improvement(75); 1 unlabeled issue; 0 open >7 days — healthy triage hygiene continues.
+
 ## Trend Data (2026-08-21, ~18:26Z cycle)
 
 Window since 12:35Z baseline (#54534), 9 new discussions (54536, 54541, 54543, 54553, 54554, 54556, 54559, 54561, 54572), all read in full.

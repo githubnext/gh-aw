@@ -1,3 +1,10 @@
+## Extracted code-quality tasks (2026-08-22 ~00:30Z cycle)
+
+1 filed, 0 comments, window since 18:26Z baseline #54587 (9 new discussions):
+1. Add step-level failure attribution to Detection Analysis Report (Rule 3 blind spot) — discussion #54655. Filed.
+
+Declined (chronic/generic, not filed): comment density 9.44% + 468 large files >500 LOC — discussion #54595, 8+ prior closed issues with the same generic shape.
+
 ## Extracted code-quality tasks (2026-08-21 ~18:26Z cycle)
 
 7 filed, 0 comments, window since 12:35Z baseline #54534 (9 new discussions):
