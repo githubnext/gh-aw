@@ -247,7 +247,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
           await exec.exec("git", ["remote", "remove", "ci-trigger"]);
           core.info("Removed pre-existing ci-trigger remote");
         } catch {
-          // Remote doesn't exist yet, that's fine
+          // Remote doesn't exist yet — removal failure is ignored, that's fine.
         }
         await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
         await exec.exec("git", ["commit", "--allow-empty", "-m", message]);

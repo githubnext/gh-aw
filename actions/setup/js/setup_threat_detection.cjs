@@ -137,7 +137,7 @@ async function main() {
       }
     }
   } catch {
-    // Directory may not exist or be readable
+    // Directory may not exist or be readable — ignored, no patch files.
   }
 
   if (patchFiles.length === 0 && hasPatch) {

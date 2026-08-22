@@ -236,7 +236,8 @@ async function main(config = {}) {
         });
         review = data;
       } catch (getReviewError) {
-        if (getReviewError?.status === 404) {
+        const getReviewErrorStatus = typeof getReviewError === "object" && getReviewError !== null && "status" in getReviewError ? getReviewError.status : undefined;
+        if (getReviewErrorStatus === 404) {
           return {
             success: true,
             skipped: true,

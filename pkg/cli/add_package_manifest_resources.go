@@ -38,6 +38,7 @@ func extractManifestResources(value any, manifestPath string) ([]repositoryPacka
 		seenDestinations[key] = resource.Source
 		resources = append(resources, resource)
 	}
+	addPackageManifestLog.Printf("Extracted %d resources entries from %s", len(resources), manifestPath)
 	return resources, nil
 }
 
@@ -109,6 +110,7 @@ func normalizeLocalPackageResourcePaths(resources []repositoryPackageResource, p
 	for _, resource := range resources {
 		absolutePath := filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(resource.Source)))
 		if err := validateLocalPackageMappingSource(absolutePath, packageDir, resource.Source); err != nil {
+			addPackageManifestLog.Printf("Rejecting local resource source %q outside package dir %q: %v", resource.Source, packageDir, err)
 			return nil, err
 		}
 		normalized = append(normalized, resolvedPackageResource{

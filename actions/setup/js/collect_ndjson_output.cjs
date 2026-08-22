@@ -446,7 +446,7 @@ async function main() {
         }
       }
     } catch {
-      // If we can't read the directory, assume no patch
+      // Directory cannot be read — ignored, assume no patch is present.
     }
     if (hasPatch) {
       core.info(`Found ${patchFiles.length} patch/bundle file(s): ${patchFiles.join(", ")}`);

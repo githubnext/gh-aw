@@ -1023,7 +1023,7 @@ function parseOTLPEndpoints() {
       return valid;
     }
   } catch {
-    // Invalid JSON — no endpoints available.
+    // Invalid JSON — ignored, no endpoints available.
   }
   return [];
 }

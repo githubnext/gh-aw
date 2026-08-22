@@ -30,6 +30,8 @@ type repositoryPackageManifest struct {
 }
 
 func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
+	addPackageManifestLog.Printf("Parsing package manifest %s (%d bytes)", manifestPath, len(content))
+
 	root, name, err := parseRepositoryPackageManifestRoot(manifestPath, content)
 	if err != nil {
 		return nil, nil, err
@@ -101,6 +103,7 @@ func populateRepositoryPackageManifestVersions(manifest *repositoryPackageManife
 		}
 		currentVersion = semverutil.NormalizeGitDescribeSemver(currentVersion)
 		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
+			addPackageManifestLog.Printf("Manifest min-version %s exceeds current gh-aw version %s", manifest.MinVersion, currentVersion)
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s). Upgrade gh-aw, or lower min-version in aw.yml to a version at or below the current one. Example:\nmin-version: %s", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion, currentVersion)
 		}
 	}
@@ -203,6 +206,7 @@ func validateManifestInstallableWorkflowPrivacy(manifestPath string, installatio
 
 		privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(content))
 		if hasPrivate && privateValue {
+			addPackageManifestLog.Printf("Rejecting manifest %s: installable workflow %s sets private: true", manifestPath, installationSource)
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added. Remove 'private: true' from the workflow frontmatter or exclude it from the manifest. Example:\n---\nprivate: false\n---", manifestPath, installationSource)
 		}
 	}

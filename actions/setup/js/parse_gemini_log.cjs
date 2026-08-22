@@ -49,7 +49,7 @@ function parseGeminiLog(logContent) {
     try {
       rawEntries.push(JSON.parse(trimmed));
     } catch (_e) {
-      // Skip non-JSON lines
+      // Non-JSON line — ignored.
     }
   }
 
