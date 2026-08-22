@@ -220,6 +220,22 @@ func TestCopilotDriveMemoryAddDirWithoutCacheMemory(t *testing.T) {
 	assert.Contains(t, args, "/tmp/gh-aw/drive-memory-notes/")
 }
 
+func TestDriveMemoryPersistenceWithoutValidationUsesDefaultSuccessCondition(t *testing.T) {
+	data := &WorkflowData{
+		DriveMemoryConfig: &DriveMemoryConfig{Drives: []DriveMemoryEntry{{
+			ID:        "default",
+			DriveName: "agent-state",
+		}}},
+	}
+
+	var persist strings.Builder
+	generateDriveMemoryPersistence(&persist, data, func(action string) string { return action + "@test-pin" })
+
+	assert.Contains(t, persist.String(), "Commit drive-memory file share (default)")
+	assert.Contains(t, persist.String(), "actions/gh-drives-preview/commit@test-pin")
+	assert.NotContains(t, persist.String(), "if:")
+}
+
 func TestDriveMemoryRestorePreservesIntegrityLevel(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{
