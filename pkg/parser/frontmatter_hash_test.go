@@ -5,6 +5,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -93,6 +94,35 @@ func TestComputeFrontmatterHashFromFile_NonExistent(t *testing.T) {
 	hash, err := ComputeFrontmatterHashFromFile("/nonexistent/file.md", cache)
 	require.Error(t, err, "Should error for nonexistent file")
 	assert.Empty(t, hash, "Hash should be empty on error")
+	assert.Contains(t, err.Error(), strconv.Quote("/nonexistent/file.md"), "Error should include the quoted file path")
+}
+
+func TestComputeFrontmatterHashFromFileWithParsedFrontmatter_ReadErrorIncludesPath(t *testing.T) {
+	filePath := "/test/missing-workflow.md"
+	customReader := func(filePath string) ([]byte, error) {
+		return nil, os.ErrNotExist
+	}
+
+	hash, err := ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath, map[string]any{}, nil, customReader)
+
+	require.Error(t, err, "Should error when custom reader cannot read file")
+	assert.Empty(t, hash, "Hash should be empty on error")
+	assert.Contains(t, err.Error(), "could not read file")
+	assert.Contains(t, err.Error(), strconv.Quote(filePath), "Error should include the quoted file path")
+}
+
+func TestComputeFrontmatterHashFromFileWithReader_MalformedFrontmatterIncludesPath(t *testing.T) {
+	filePath := "/test/malformed-workflow.md"
+	customReader := func(filePath string) ([]byte, error) {
+		return []byte("---\nengine: copilot\n"), nil
+	}
+
+	hash, err := ComputeFrontmatterHashFromFileWithReader(filePath, nil, customReader)
+
+	require.Error(t, err, "Should error when frontmatter is not closed")
+	assert.Empty(t, hash, "Hash should be empty on error")
+	assert.Contains(t, err.Error(), "could not extract frontmatter")
+	assert.Contains(t, err.Error(), strconv.Quote(filePath), "Error should include the quoted file path")
 }
 
 func TestComputeFrontmatterHashFromFile_ValidFile(t *testing.T) {
