@@ -19,6 +19,34 @@ type SampleEntry struct {
 	Sidecars map[string]any `json:"sidecars,omitempty"`
 }
 
+// samplesFeatureName is the frontmatter feature flag that opts a single
+// workflow into deterministic samples replay without passing the hidden
+// `gh aw compile --use-samples` flag. It exists so that a workflow which is
+// designed around `samples:` (e.g. the repository's own smoke tests) keeps a
+// stable compiled lock file under a plain `gh aw compile`.
+const samplesFeatureName = "samples"
+
+// samplesFeatureEnabled reports whether the workflow frontmatter declares
+// `features: { samples: true }`.
+func samplesFeatureEnabled(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false
+	}
+	features, ok := frontmatter["features"].(map[string]any)
+	if !ok {
+		return false
+	}
+	enabled, ok := features[samplesFeatureName].(bool)
+	return ok && enabled
+}
+
+// samplesEnabled reports whether samples replay is active for the workflow
+// being compiled, either through the hidden `--use-samples` CLI flag or
+// through the per-workflow `features.samples: true` opt-in.
+func (c *Compiler) samplesEnabled(frontmatter map[string]any) bool {
+	return c.useSamples || samplesFeatureEnabled(frontmatter)
+}
+
 // collectSampleEntries walks the safe-outputs config and flattens every
 // configured `samples` entry into the order they will be sent to the MCP
 // server. Iteration order is deterministic (sorted by struct field name) so
