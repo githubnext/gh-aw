@@ -594,14 +594,19 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 		tools = append(tools, toolWithMaxBudget("set_issue_field", safeOutputs.SetIssueField.Max))
 	}
 	if safeOutputs.DispatchWorkflow != nil {
-		tools = append(tools, toolWithMaxBudget("dispatch_workflow", safeOutputs.DispatchWorkflow.Max))
+		for _, workflowName := range safeOutputs.DispatchWorkflow.Workflows {
+			tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(workflowName), safeOutputs.DispatchWorkflow.Max))
+		}
 	}
 	if safeOutputs.DispatchRepository != nil {
-		// dispatch_repository uses per-tool max values (map-of-tools pattern); no top-level max.
-		tools = append(tools, "dispatch_repository")
+		for _, toolName := range sliceutil.SortedKeys(safeOutputs.DispatchRepository.Tools) {
+			tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(toolName), safeOutputs.DispatchRepository.Tools[toolName].Max))
+		}
 	}
 	if safeOutputs.CallWorkflow != nil {
-		tools = append(tools, toolWithMaxBudget("call_workflow", safeOutputs.CallWorkflow.Max))
+		for _, workflowName := range safeOutputs.CallWorkflow.Workflows {
+			tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(workflowName), safeOutputs.CallWorkflow.Max))
+		}
 	}
 	if safeOutputs.MissingTool != nil {
 		tools = append(tools, toolWithMaxBudget("missing_tool", safeOutputs.MissingTool.Max))

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBuildSafeOutputsSectionsCustomTools verifies that custom jobs, scripts, and actions
+// TestBuildSafeOutputsSectionsCustomTools verifies that custom and workflow-derived tools
 // defined in safe-outputs are included in the compiled <safe-output-tools> prompt block.
 // This prevents silent drift between the runtime configuration surface and the
 // agent-facing compiled instructions.
@@ -124,6 +124,24 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 			},
 			expectedTools: []string{"create_issue", "noop", "custom_job", "custom_script", "custom_action"},
 		},
+		{
+			name: "workflow-derived tools appear instead of generic tool names",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchWorkflow: &DispatchWorkflowConfig{
+					Workflows: []string{"my-fixer"},
+				},
+				DispatchRepository: &DispatchRepositoryConfig{
+					Tools: map[string]*DispatchRepositoryToolConfig{
+						"send-event": {},
+					},
+				},
+				CallWorkflow: &CallWorkflowConfig{
+					Workflows: []string{"my-worker"},
+				},
+				NoOp: &NoOpConfig{},
+			},
+			expectedTools: []string{"my_fixer", "send_event", "my_worker", "noop"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -161,6 +179,17 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		Actions: map[string]*SafeOutputActionConfig{
 			"action-x": {Description: "Action X"},
 		},
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			Workflows: []string{"dispatch-target"},
+		},
+		DispatchRepository: &DispatchRepositoryConfig{
+			Tools: map[string]*DispatchRepositoryToolConfig{
+				"repository-target": {},
+			},
+		},
+		CallWorkflow: &CallWorkflowConfig{
+			Workflows: []string{"call-target"},
+		},
 	}
 
 	sections := buildSafeOutputsSections(config, nil)
@@ -191,6 +220,26 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		normalized := stringutil.NormalizeSafeOutputIdentifier(actionName)
 		assert.True(t, actualToolSet[normalized],
 			"Custom action %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", actionName, normalized)
+	}
+
+	for _, workflowName := range config.DispatchWorkflow.Workflows {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
+		assert.True(t, actualToolSet[normalized],
+			"Dispatch workflow %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", workflowName, normalized)
+	}
+	assert.NotContains(t, actualToolSet, "dispatch_workflow",
+		"The untyped dispatch_workflow tool should not appear when typed workflow tools are configured")
+
+	for toolName := range config.DispatchRepository.Tools {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(toolName)
+		assert.True(t, actualToolSet[normalized],
+			"Dispatch repository tool %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", toolName, normalized)
+	}
+
+	for _, workflowName := range config.CallWorkflow.Workflows {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
+		assert.True(t, actualToolSet[normalized],
+			"Call workflow %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", workflowName, normalized)
 	}
 }
 
