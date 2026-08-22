@@ -17,11 +17,13 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 		{
 			name: "Claude-style config without tools or env",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "default",
+					AllowedTools: nil,
+				},
 				AuthorizationValue: "Bearer ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				IncludeToolsField:  false,
-				AllowedTools:       nil,
 				IncludeEnvSection:  false,
 			},
 			expectedOutput: []string{
@@ -40,11 +42,13 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 		{
 			name: "Claude-style config with read-only",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           true,
-				Toolsets:           "repos,issues",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     true,
+					Toolsets:     "repos,issues",
+					AllowedTools: nil,
+				},
 				AuthorizationValue: "Bearer ${{ secrets.CUSTOM_PAT }}",
 				IncludeToolsField:  false,
-				AllowedTools:       nil,
 				IncludeEnvSection:  false,
 			},
 			expectedOutput: []string{
@@ -63,11 +67,13 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 		{
 			name: "Copilot-style config with tools and env",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "default",
+					AllowedTools: []string{"list_issues", "create_issue"},
+				},
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
 				IncludeToolsField:  true,
-				AllowedTools:       []string{"list_issues", "create_issue"},
 				IncludeEnvSection:  true,
 			},
 			expectedOutput: []string{
@@ -92,11 +98,13 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 		{
 			name: "Copilot-style config with wildcard tools",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           false,
-				Toolsets:           "all",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "all",
+					AllowedTools: nil, // Empty array should result in wildcard
+				},
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
 				IncludeToolsField:  true,
-				AllowedTools:       nil, // Empty array should result in wildcard
 				IncludeEnvSection:  true,
 			},
 			expectedOutput: []string{
@@ -117,11 +125,13 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 		{
 			name: "Copilot-style config with read-only and specific tools",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           true,
-				Toolsets:           "repos",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     true,
+					Toolsets:     "repos",
+					AllowedTools: []string{"list_repositories", "get_repository"},
+				},
 				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
 				IncludeToolsField:  true,
-				AllowedTools:       []string{"list_repositories", "get_repository"},
 				IncludeEnvSection:  true,
 			},
 			expectedOutput: []string{
@@ -145,11 +155,13 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 		{
 			name: "No toolsets configured",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           false,
-				Toolsets:           "",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "",
+					AllowedTools: nil,
+				},
 				AuthorizationValue: "Bearer ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				IncludeToolsField:  false,
-				AllowedTools:       nil,
 				IncludeEnvSection:  false,
 			},
 			expectedOutput: []string{
@@ -194,11 +206,13 @@ func TestRenderGitHubMCPRemoteConfigHeaderOrder(t *testing.T) {
 	// Test that headers are sorted alphabetically for deterministic output
 	var yaml strings.Builder
 	RenderGitHubMCPRemoteConfig(&yaml, GitHubMCPRemoteOptions{
-		ReadOnly:           true,
-		Toolsets:           "repos,issues",
+		GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+			ReadOnly:     true,
+			Toolsets:     "repos,issues",
+			AllowedTools: nil,
+		},
 		AuthorizationValue: "Bearer token",
 		IncludeToolsField:  false,
-		AllowedTools:       nil,
 		IncludeEnvSection:  false,
 	})
 	output := yaml.String()
@@ -225,11 +239,13 @@ func TestRenderGitHubMCPRemoteConfigToolsCommas(t *testing.T) {
 	// Test that tools array is properly formatted with commas
 	var yaml strings.Builder
 	RenderGitHubMCPRemoteConfig(&yaml, GitHubMCPRemoteOptions{
-		ReadOnly:           false,
-		Toolsets:           "default",
+		GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+			ReadOnly:     false,
+			Toolsets:     "default",
+			AllowedTools: []string{"tool1", "tool2", "tool3"},
+		},
 		AuthorizationValue: "Bearer token",
 		IncludeToolsField:  true,
-		AllowedTools:       []string{"tool1", "tool2", "tool3"},
 		IncludeEnvSection:  true,
 	})
 	output := yaml.String()

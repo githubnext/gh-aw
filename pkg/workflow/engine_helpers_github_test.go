@@ -17,12 +17,14 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 		{
 			name: "Claude engine configuration (no type field, with effective token)",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "default",
+					AllowedTools: nil,
+				},
 				DockerImageVersion: "latest",
 				CustomArgs:         nil,
 				IncludeTypeField:   false,
-				AllowedTools:       nil,
 				EffectiveToken:     "${{ secrets.GITHUB_TOKEN }}",
 			},
 			expected: []string{
@@ -42,12 +44,14 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 		{
 			name: "Copilot engine configuration (with type field, no effective token)",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "default",
+					AllowedTools: []string{"create_issue", "issue_read"},
+				},
 				DockerImageVersion: "latest",
 				CustomArgs:         nil,
 				IncludeTypeField:   true,
-				AllowedTools:       []string{"create_issue", "issue_read"},
 				EffectiveToken:     "",
 			},
 			expected: []string{
@@ -67,12 +71,14 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 		{
 			name: "Read-only mode enabled",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           true,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     true,
+					Toolsets:     "default",
+					AllowedTools: nil,
+				},
 				DockerImageVersion: "v1.0.0",
 				CustomArgs:         nil,
 				IncludeTypeField:   false,
-				AllowedTools:       nil,
 				EffectiveToken:     "",
 			},
 			expected: []string{
@@ -90,12 +96,14 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 		{
 			name: "Custom args provided",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "default",
+					AllowedTools: nil,
+				},
 				DockerImageVersion: "latest",
 				CustomArgs:         []string{"--verbose", "--debug"},
 				IncludeTypeField:   false,
-				AllowedTools:       nil,
 				EffectiveToken:     "",
 			},
 			expected: []string{
@@ -111,12 +119,14 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 		{
 			name: "Copilot with wildcard tools (no allowed tools specified)",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "default",
+					AllowedTools: nil, // When nil, should default to wildcard
+				},
 				DockerImageVersion: "latest",
 				CustomArgs:         nil,
 				IncludeTypeField:   true,
-				AllowedTools:       nil, // When nil, should default to wildcard
 				EffectiveToken:     "",
 			},
 			expected: []string{
@@ -131,12 +141,14 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 		{
 			name: "Custom toolsets",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Toolsets:           "repos,issues,pull_requests",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Toolsets:     "repos,issues,pull_requests",
+					AllowedTools: nil,
+				},
 				DockerImageVersion: "latest",
 				CustomArgs:         nil,
 				IncludeTypeField:   false,
-				AllowedTools:       nil,
 				EffectiveToken:     "",
 			},
 			expected: []string{
@@ -176,12 +188,14 @@ func TestRenderGitHubMCPDockerConfig_OutputStructure(t *testing.T) {
 	// Test that the output has the expected JSON structure
 	var yaml strings.Builder
 	RenderGitHubMCPDockerConfig(&yaml, GitHubMCPDockerOptions{
-		ReadOnly:           true,
-		Toolsets:           "default",
+		GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+			ReadOnly:     true,
+			Toolsets:     "default",
+			AllowedTools: []string{"tool1", "tool2"},
+		},
 		DockerImageVersion: "latest",
 		CustomArgs:         []string{"--test"},
 		IncludeTypeField:   true,
-		AllowedTools:       []string{"tool1", "tool2"},
 		EffectiveToken:     "",
 	})
 

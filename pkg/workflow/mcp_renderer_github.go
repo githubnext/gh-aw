@@ -66,17 +66,19 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		}
 
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
-			ReadOnly:              readOnly,
-			Lockdown:              lockdown,
-			LockdownFromStep:      false,
-			GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
-			Toolsets:              toolsets,
-			Features:              features,
-			AuthorizationValue:    authValue,
-			IncludeToolsField:     r.options.IncludeCopilotFields,
-			AllowedTools:          getGitHubAllowedTools(githubTool),
-			IncludeEnvSection:     r.options.IncludeCopilotFields,
-			GuardPolicies:         explicitGuardPolicies,
+			GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+				ReadOnly:              readOnly,
+				Lockdown:              lockdown,
+				LockdownFromStep:      false,
+				GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
+				Toolsets:              toolsets,
+				Features:              features,
+				AllowedTools:          getGitHubAllowedTools(githubTool),
+				GuardPolicies:         explicitGuardPolicies,
+			},
+			AuthorizationValue: authValue,
+			IncludeToolsField:  r.options.IncludeCopilotFields,
+			IncludeEnvSection:  r.options.IncludeCopilotFields,
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
@@ -86,19 +88,21 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		mcpRendererLog.Printf("GitHub MCP local docker mode: image_version=%s, custom_args=%d", githubDockerImageVersion, len(customArgs))
 
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
-			ReadOnly:              readOnly,
-			Lockdown:              lockdown,
-			LockdownFromStep:      false,
-			GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
-			Toolsets:              toolsets,
-			Features:              features,
-			DockerImageVersion:    githubDockerImageVersion,
-			CustomArgs:            customArgs,
-			IncludeTypeField:      r.options.IncludeCopilotFields,
-			AllowedTools:          getGitHubAllowedTools(githubTool),
-			EffectiveToken:        "", // Token passed via env
-			GuardPolicies:         explicitGuardPolicies,
-			ContainerPinMappings:  r.options.ContainerPinMappings,
+			GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+				ReadOnly:              readOnly,
+				Lockdown:              lockdown,
+				LockdownFromStep:      false,
+				GuardPoliciesFromStep: shouldUseStepOutputForGuardPolicy,
+				Toolsets:              toolsets,
+				Features:              features,
+				AllowedTools:          getGitHubAllowedTools(githubTool),
+				GuardPolicies:         explicitGuardPolicies,
+			},
+			DockerImageVersion:   githubDockerImageVersion,
+			CustomArgs:           customArgs,
+			IncludeTypeField:     r.options.IncludeCopilotFields,
+			EffectiveToken:       "", // Token passed via env
+			ContainerPinMappings: r.options.ContainerPinMappings,
 		})
 	}
 

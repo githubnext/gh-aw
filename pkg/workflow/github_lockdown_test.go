@@ -114,12 +114,14 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 		{
 			name: "Docker mode with lockdown enabled",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Lockdown:           true,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Lockdown:     true,
+					Toolsets:     "default",
+					AllowedTools: nil,
+				},
 				DockerImageVersion: "latest",
 				IncludeTypeField:   true,
-				AllowedTools:       nil,
 			},
 			expected: []string{
 				`"type": "stdio"`,
@@ -132,12 +134,14 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 		{
 			name: "Docker mode with lockdown disabled",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Lockdown:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Lockdown:     false,
+					Toolsets:     "default",
+					AllowedTools: nil,
+				},
 				DockerImageVersion: "latest",
 				IncludeTypeField:   true,
-				AllowedTools:       nil,
 			},
 			expected: []string{
 				`"type": "stdio"`,
@@ -151,12 +155,14 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 		{
 			name: "Docker mode with lockdown and read-only both enabled",
 			options: GitHubMCPDockerOptions{
-				ReadOnly:           true,
-				Lockdown:           true,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     true,
+					Lockdown:     true,
+					Toolsets:     "default",
+					AllowedTools: nil,
+				},
 				DockerImageVersion: "v1.0.0",
 				IncludeTypeField:   false,
-				AllowedTools:       nil,
 			},
 			expected: []string{
 				`"GITHUB_READ_ONLY": "1"`,
@@ -200,12 +206,14 @@ func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
 		{
 			name: "Remote mode with lockdown enabled",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           false,
-				Lockdown:           true,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Lockdown:     true,
+					Toolsets:     "default",
+					AllowedTools: []string{"*"},
+				},
 				AuthorizationValue: "Bearer test-token",
 				IncludeToolsField:  true,
-				AllowedTools:       []string{"*"},
 				IncludeEnvSection:  false,
 			},
 			expected: []string{
@@ -221,12 +229,14 @@ func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
 		{
 			name: "Remote mode with lockdown disabled",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           false,
-				Lockdown:           false,
-				Toolsets:           "default",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     false,
+					Lockdown:     false,
+					Toolsets:     "default",
+					AllowedTools: []string{"*"},
+				},
 				AuthorizationValue: "Bearer test-token",
 				IncludeToolsField:  true,
-				AllowedTools:       []string{"*"},
 				IncludeEnvSection:  false,
 			},
 			expected: []string{
@@ -242,12 +252,14 @@ func TestRenderGitHubMCPRemoteConfigWithLockdown(t *testing.T) {
 		{
 			name: "Remote mode with lockdown and read-only both enabled",
 			options: GitHubMCPRemoteOptions{
-				ReadOnly:           true,
-				Lockdown:           true,
-				Toolsets:           "repos,issues",
+				GitHubMCPCommonOptions: GitHubMCPCommonOptions{
+					ReadOnly:     true,
+					Lockdown:     true,
+					Toolsets:     "repos,issues",
+					AllowedTools: nil,
+				},
 				AuthorizationValue: "Bearer test-token",
 				IncludeToolsField:  false,
-				AllowedTools:       nil,
 				IncludeEnvSection:  false,
 			},
 			expected: []string{

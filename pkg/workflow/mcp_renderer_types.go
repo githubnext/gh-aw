@@ -63,8 +63,8 @@ type JSONMCPConfigOptions struct {
 	GatewayConfig *MCPGatewayRuntimeConfig
 }
 
-// GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
-type GitHubMCPDockerOptions struct {
+// GitHubMCPCommonOptions defines shared configuration for GitHub MCP rendering.
+type GitHubMCPCommonOptions struct {
 	// ReadOnly enables read-only mode for GitHub API operations
 	ReadOnly bool
 	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
@@ -77,20 +77,25 @@ type GitHubMCPDockerOptions struct {
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// Features is a comma-separated list of GitHub MCP feature flags to enable (e.g. "fields_param").
-	// Emitted as GITHUB_FEATURES env var for the Docker container.
+	// Emitted as GITHUB_FEATURES env var for Docker or X-MCP-Features header for remote mode.
 	Features string
+	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
+	AllowedTools []string
+	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
+	GuardPolicies map[string]any
+}
+
+// GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
+type GitHubMCPDockerOptions struct {
+	GitHubMCPCommonOptions
 	// DockerImageVersion specifies the GitHub MCP server Docker image version
 	DockerImageVersion string
 	// CustomArgs are additional arguments to append to the Docker command
 	CustomArgs []string
 	// IncludeTypeField indicates whether to include the "type": "stdio" field (Copilot needs it, Claude doesn't)
 	IncludeTypeField bool
-	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
-	AllowedTools []string
 	// EffectiveToken is the GitHub token to use (Claude uses this, Copilot uses env passthrough)
 	EffectiveToken string
-	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
-	GuardPolicies map[string]any
 	// ContainerPinMappings maps source container image references to their SHA-pinned replacements.
 	// When set, the GitHub MCP server container reference is redirected to the mapped private
 	// registry mirror (digest stripped for MCP Gateway compatibility). Nil → no redirect.
@@ -99,30 +104,13 @@ type GitHubMCPDockerOptions struct {
 
 // GitHubMCPRemoteOptions defines configuration for GitHub MCP remote mode rendering
 type GitHubMCPRemoteOptions struct {
-	// ReadOnly enables read-only mode for GitHub API operations
-	ReadOnly bool
-	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
-	Lockdown bool
-	// LockdownFromStep indicates if lockdown value should be read from step output
-	LockdownFromStep bool
-	// GuardPoliciesFromStep indicates if guard policy values should be read from step outputs
-	// (GITHUB_MCP_GUARD_MIN_INTEGRITY and GITHUB_MCP_GUARD_REPOS env vars)
-	GuardPoliciesFromStep bool
-	// Toolsets specifies the GitHub toolsets to enable
-	Toolsets string
-	// Features is a comma-separated list of GitHub MCP feature flags to enable (e.g. "fields_param").
-	// Emitted as X-MCP-Features header for the hosted endpoint.
-	Features string
+	GitHubMCPCommonOptions
 	// AuthorizationValue is the value for the Authorization header
 	// For Claude: "Bearer {effectiveToken}"
 	// For Copilot: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
 	AuthorizationValue string
 	// IncludeToolsField indicates whether to include the "tools" field (Copilot needs it, Claude doesn't)
 	IncludeToolsField bool
-	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
-	AllowedTools []string
 	// IncludeEnvSection indicates whether to include the env section (Copilot needs it, Claude doesn't)
 	IncludeEnvSection bool
-	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
-	GuardPolicies map[string]any
 }
