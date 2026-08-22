@@ -4950,8 +4950,8 @@
                 },
                 "disk-size": {
                   "type": "string",
-                  "pattern": "^[0-9]+[KMGT]?$",
-                  "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (suggested: '100M'; ignored for an existing drive)"
+                  "pattern": "^\\s*[0-9]+[KMGTkmgt]?\\s*$",
+                  "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (case-insensitive; normalized to upper case; suggested: '100M'; ignored for an existing drive)"
                 },
                 "prefetch": {
                   "type": "boolean",
@@ -5011,8 +5011,8 @@
                   },
                   "disk-size": {
                     "type": "string",
-                    "pattern": "^[0-9]+[KMGT]?$",
-                    "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (suggested: '100M'; ignored for an existing drive)"
+                    "pattern": "^\\s*[0-9]+[KMGTkmgt]?\\s*$",
+                    "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (case-insensitive; normalized to upper case; suggested: '100M'; ignored for an existing drive)"
                   },
                   "prefetch": {
                     "type": "boolean",

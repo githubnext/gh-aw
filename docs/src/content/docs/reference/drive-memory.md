@@ -22,7 +22,7 @@ Drive names are repository-wide and branch-aware according to the preview servic
 
 ## Drive size
 
-`disk-size` sets the size used when creating a new drive; it is ignored for an existing drive. The value must be a number with an optional `K`, `M`, `G`, or `T` suffix (for example `100M`). Suffixes such as `1GB` are rejected at compile time. A drive of `100M` is enough for typical memory files:
+`disk-size` sets the size used when creating a new drive; it is ignored for an existing drive. The value must be a number with an optional `K`, `M`, `G`, or `T` suffix (for example `100M`). Suffixes such as `1GB` are rejected at compile time. Leading/trailing whitespace is trimmed and lowercase suffixes (for example `100m`) are normalized to upper case automatically. A drive of `100M` is enough for typical memory files:
 
 ```yaml
 tools:
