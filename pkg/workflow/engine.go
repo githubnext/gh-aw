@@ -42,29 +42,30 @@ func toEngineEnvValueString(value any) (string, bool) {
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID                 string
-	Version            string
-	LLMProvider        LLMProvider // Inference provider override for this engine (engine.provider / engine.model-provider)
-	PermissionMode     string
-	MaxTurns           string
-	MaxToolDenials     string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
-	MaxRuns            int    // Maximum number of LLM invocations per run (AWF apiProxy.maxRuns)
-	MaxTurnCacheMisses int    // Maximum number of consecutive cache misses per run (AWF apiProxy.maxCacheMisses)
-	MaxContinuations   int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
-	MaxAICredits       int64  // Maximum allowed AI credits per run for AWF apiProxy firewall enforcement
-	Concurrency        string // Agent job-level concurrency configuration (YAML format)
-	UserAgent          string
-	Command            string // Custom executable path (when set, skip installation steps)
-	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
-	Driver             string // Custom driver script filename or command. For the copilot engine (engine.driver), supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name. For the pi engine (engine.driver), supports .js/.cjs/.mjs or a bare basename resolved from the setup-action directory.
-	InlineDriver       *InlineEngineDriver
-	Env                map[string]string
-	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
-	Config             string
-	Args               []string
-	Agent              string // Agent identifier for copilot --agent flag (copilot engine only)
-	APITarget          string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
-	Bare               bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
+	ID                           string
+	Version                      string
+	LLMProvider                  LLMProvider // Inference provider override for this engine (engine.provider / engine.model-provider)
+	PermissionMode               string
+	MaxTurns                     string
+	MaxToolDenials               string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
+	MaxRuns                      int    // Maximum number of LLM invocations per run (AWF apiProxy.maxRuns)
+	MaxTurnCacheMisses           int    // Maximum number of consecutive cache misses per run (AWF apiProxy.maxCacheMisses)
+	MaxTurnCacheMissesExpression string // GitHub Actions expression for AWF apiProxy.maxCacheMisses
+	MaxContinuations             int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
+	MaxAICredits                 int64  // Maximum allowed AI credits per run for AWF apiProxy firewall enforcement
+	Concurrency                  string // Agent job-level concurrency configuration (YAML format)
+	UserAgent                    string
+	Command                      string // Custom executable path (when set, skip installation steps)
+	HarnessScript                string // Custom Node.js harness script filename (replaces engine default harness script when supported)
+	Driver                       string // Custom driver script filename or command. For the copilot engine (engine.driver), supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name. For the pi engine (engine.driver), supports .js/.cjs/.mjs or a bare basename resolved from the setup-action directory.
+	InlineDriver                 *InlineEngineDriver
+	Env                          map[string]string
+	Auth                         *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
+	Config                       string
+	Args                         []string
+	Agent                        string // Agent identifier for copilot --agent flag (copilot engine only)
+	APITarget                    string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
+	Bare                         bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
 	InlineProviderID   string // engine.provider.id  (e.g. "openai", "anthropic")
@@ -183,12 +184,13 @@ type EngineNetworkConfig struct {
 }
 
 type engineTopLevelConfig struct {
-	maxTurns           string
-	maxToolDenials     string
-	maxAICredits       int64
-	maxTurnCacheMisses int
-	maxRuns            int
-	model              string
+	maxTurns                     string
+	maxToolDenials               string
+	maxAICredits                 int64
+	maxTurnCacheMisses           int
+	maxTurnCacheMissesExpression string
+	maxRuns                      int
+	model                        string
 }
 
 // GetMaxAICredits returns the configured engine AI credits budget, falling back to the default.
@@ -236,11 +238,12 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 func parseTopLevelEngineConfig(frontmatter map[string]any) engineTopLevelConfig {
 	topLevel := engineTopLevelConfig{
-		maxTurns:           parseMaxTurnsValue(frontmatter["max-turns"]),
-		maxToolDenials:     parseMaxToolDenialsValue(frontmatter["max-tool-denials"]),
-		maxAICredits:       parseMaxAICreditsValue(frontmatter["max-ai-credits"]),
-		maxTurnCacheMisses: parseMaxTurnCacheMissesValue(frontmatter["max-turn-cache-misses"]),
-		maxRuns:            parseMaxRunsValue(frontmatter["max-turns"]),
+		maxTurns:                     parseMaxTurnsValue(frontmatter["max-turns"]),
+		maxToolDenials:               parseMaxToolDenialsValue(frontmatter["max-tool-denials"]),
+		maxAICredits:                 parseMaxAICreditsValue(frontmatter["max-ai-credits"]),
+		maxTurnCacheMisses:           parseMaxTurnCacheMissesValue(frontmatter["max-turn-cache-misses"]),
+		maxTurnCacheMissesExpression: parseMaxTurnCacheMissesExpression(frontmatter["max-turn-cache-misses"]),
+		maxRuns:                      parseMaxRunsValue(frontmatter["max-turns"]),
 	}
 	if topLevel.maxRuns == 0 {
 		topLevel.maxRuns = parseMaxRunsValue(frontmatter["max-runs"])
@@ -252,12 +255,13 @@ func parseTopLevelEngineConfig(frontmatter map[string]any) engineTopLevelConfig 
 func extractStringEngineConfig(engineStr string, topLevel engineTopLevelConfig) (string, *EngineConfig, string) {
 	engineLog.Printf("Found engine in string format: %s", engineStr)
 	return engineStr, &EngineConfig{
-		ID:                 engineStr,
-		MaxTurns:           topLevel.maxTurns,
-		MaxToolDenials:     topLevel.maxToolDenials,
-		MaxRuns:            topLevel.maxRuns,
-		MaxTurnCacheMisses: topLevel.maxTurnCacheMisses,
-		MaxAICredits:       topLevel.maxAICredits,
+		ID:                           engineStr,
+		MaxTurns:                     topLevel.maxTurns,
+		MaxToolDenials:               topLevel.maxToolDenials,
+		MaxRuns:                      topLevel.maxRuns,
+		MaxTurnCacheMisses:           topLevel.maxTurnCacheMisses,
+		MaxTurnCacheMissesExpression: topLevel.maxTurnCacheMissesExpression,
+		MaxAICredits:                 topLevel.maxAICredits,
 	}, topLevel.model
 }
 
@@ -327,6 +331,7 @@ func applyInlineEngineFields(config *EngineConfig, engineObj map[string]any, top
 	config.MaxToolDenials = topLevel.maxToolDenials
 	config.MaxRuns = topLevel.maxRuns
 	config.MaxTurnCacheMisses = topLevel.maxTurnCacheMisses
+	config.MaxTurnCacheMissesExpression = topLevel.maxTurnCacheMissesExpression
 	config.MaxAICredits = topLevel.maxAICredits
 }
 
@@ -635,18 +640,20 @@ func applyEngineTopLevelOverrides(config *EngineConfig, topLevel engineTopLevelC
 	}
 	config.MaxRuns = topLevel.maxRuns
 	config.MaxTurnCacheMisses = topLevel.maxTurnCacheMisses
+	config.MaxTurnCacheMissesExpression = topLevel.maxTurnCacheMissesExpression
 	config.MaxAICredits = topLevel.maxAICredits
 }
 
 func buildTopLevelOnlyEngineConfig(topLevel engineTopLevelConfig) (string, *EngineConfig, string) {
 	if topLevel.maxTurns != "" || topLevel.maxToolDenials != "" || topLevel.maxAICredits != 0 ||
-		topLevel.maxRuns > 0 || topLevel.maxTurnCacheMisses > 0 || topLevel.model != "" {
+		topLevel.maxRuns > 0 || topLevel.maxTurnCacheMisses > 0 || topLevel.maxTurnCacheMissesExpression != "" || topLevel.model != "" {
 		return "", &EngineConfig{
-			MaxTurns:           topLevel.maxTurns,
-			MaxToolDenials:     topLevel.maxToolDenials,
-			MaxRuns:            topLevel.maxRuns,
-			MaxTurnCacheMisses: topLevel.maxTurnCacheMisses,
-			MaxAICredits:       topLevel.maxAICredits,
+			MaxTurns:                     topLevel.maxTurns,
+			MaxToolDenials:               topLevel.maxToolDenials,
+			MaxRuns:                      topLevel.maxRuns,
+			MaxTurnCacheMisses:           topLevel.maxTurnCacheMisses,
+			MaxTurnCacheMissesExpression: topLevel.maxTurnCacheMissesExpression,
+			MaxAICredits:                 topLevel.maxAICredits,
 		}, topLevel.model
 	}
 	engineLog.Print("No engine configuration found in frontmatter")

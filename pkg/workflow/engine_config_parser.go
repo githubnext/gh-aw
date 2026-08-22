@@ -36,6 +36,16 @@ func parseMaxTurnCacheMissesValue(raw any) int {
 	return parsePositiveIntValue(raw, "max-turn-cache-misses")
 }
 
+// parseMaxTurnCacheMissesExpression preserves a GitHub Actions expression for
+// max-turn-cache-misses so it can be emitted into the generated workflow.
+func parseMaxTurnCacheMissesExpression(raw any) string {
+	value := parseIntOrExpressionValue(raw, 1, "max-turn-cache-misses")
+	if isExpression(value) {
+		return value
+	}
+	return ""
+}
+
 // parsePositiveIntValue parses a strictly-positive integer from raw.
 // Delegates to parseIntOrExpressionValue for a single int-validation path.
 // GitHub Actions expression strings (e.g. "${{ inputs.value }}") are accepted

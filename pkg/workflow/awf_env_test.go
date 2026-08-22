@@ -23,6 +23,13 @@ func TestInjectMaxAICreditsExpressionWithoutMaxRunsLeavesJSONUnchanged(t *testin
 	}
 }
 
+func TestInjectMaxTurnCacheMissesExpression(t *testing.T) {
+	configJSON := `{"apiProxy":{"maxCacheMisses":5}}`
+
+	got := injectMaxTurnCacheMissesExpression(configJSON, "${GH_AW_MAX_TURN_CACHE_MISSES}")
+	assert.Contains(t, got, `"maxCacheMisses":${GH_AW_MAX_TURN_CACHE_MISSES}`)
+}
+
 func TestApplyDefaultMaxAICreditsEnvToMapHandlesNilMap(t *testing.T) {
 	assert.NotPanics(t, func() {
 		applyDefaultMaxAICreditsEnvToMap(nil, nil)

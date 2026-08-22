@@ -17,15 +17,16 @@ import (
 var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
-	awfDockerHostVarName       = "GH_AW_DOCKER_HOST"
-	awfToolCacheMountVarName   = "GH_AW_TOOL_CACHE_MOUNT"
-	awfMaxAICreditsVarName     = "GH_AW_MAX_AI_CREDITS"
-	awfConfigRuntimePathExpr   = "${RUNNER_TEMP}/gh-aw/awf-config.json"
-	awfModelsJSONPathExpr      = "/tmp/gh-aw/models.json"
-	awfArcDindRootPathExpr     = "${RUNNER_TEMP}/gh-aw"
-	awfArcDindHomePathExpr     = "${RUNNER_TEMP}/gh-aw/home"
-	awfArcDindProxyLogsDirExpr = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
-	awfArcDindAuditDirExpr     = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"
+	awfDockerHostVarName         = "GH_AW_DOCKER_HOST"
+	awfToolCacheMountVarName     = "GH_AW_TOOL_CACHE_MOUNT"
+	awfMaxAICreditsVarName       = "GH_AW_MAX_AI_CREDITS"
+	awfMaxTurnCacheMissesVarName = "GH_AW_MAX_TURN_CACHE_MISSES"
+	awfConfigRuntimePathExpr     = "${RUNNER_TEMP}/gh-aw/awf-config.json"
+	awfModelsJSONPathExpr        = "/tmp/gh-aw/models.json"
+	awfArcDindRootPathExpr       = "${RUNNER_TEMP}/gh-aw"
+	awfArcDindHomePathExpr       = "${RUNNER_TEMP}/gh-aw/home"
+	awfArcDindProxyLogsDirExpr   = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs"
+	awfArcDindAuditDirExpr       = "${RUNNER_TEMP}/gh-aw/sandbox/firewall/audit"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host so AWF connects to the correct daemon.

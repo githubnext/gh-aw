@@ -107,10 +107,15 @@ func engineEnvHasNonEmptyValue(workflowData *WorkflowData, key string) bool {
 // process_runner.cjs) and by shell-based engine command prefixes so the engine spawns in
 // the user-specified working directory rather than the default GITHUB_WORKSPACE.
 func applyEngineCwdEnv(env map[string]string, workflowData *WorkflowData) {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Cwd == "" {
+	if workflowData == nil || workflowData.EngineConfig == nil {
 		return
 	}
-	env["GH_AW_ENGINE_CWD"] = workflowData.EngineConfig.Cwd
+	if workflowData.EngineConfig.Cwd != "" {
+		env["GH_AW_ENGINE_CWD"] = workflowData.EngineConfig.Cwd
+	}
+	if workflowData.EngineConfig.MaxTurnCacheMissesExpression != "" {
+		env[awfMaxTurnCacheMissesVarName] = workflowData.EngineConfig.MaxTurnCacheMissesExpression
+	}
 }
 
 // applyEngineVersionEnv sets the GH_AW_ENGINE_VERSION environment variable in the given

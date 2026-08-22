@@ -61,6 +61,22 @@ func injectMaxAICreditsExpression(awfConfigJSON string, expr string) string {
 	return awfConfigJSON[:valueEnd] + `,"maxAiCredits":` + expr + awfConfigJSON[valueEnd:]
 }
 
+// injectMaxTurnCacheMissesExpression replaces the apiProxy maxCacheMisses
+// integer with a GitHub Actions expression.
+func injectMaxTurnCacheMissesExpression(awfConfigJSON string, expr string) string {
+	const maxTurnCacheMissesKey = `"maxCacheMisses":`
+	idx := strings.Index(awfConfigJSON, maxTurnCacheMissesKey)
+	if idx == -1 {
+		awfHelpersLog.Print("Warning: could not find maxCacheMisses in AWF config JSON; expression not injected")
+		return awfConfigJSON
+	}
+	valueEnd := idx + len(maxTurnCacheMissesKey)
+	for valueEnd < len(awfConfigJSON) && awfConfigJSON[valueEnd] >= '0' && awfConfigJSON[valueEnd] <= '9' {
+		valueEnd++
+	}
+	return awfConfigJSON[:idx+len(maxTurnCacheMissesKey)] + expr + awfConfigJSON[valueEnd:]
+}
+
 // ComputeAWFExcludeEnvVarNames returns the list of environment variable names that must be
 // excluded from the agent container's visible environment via AWF's --exclude-env flag.
 //

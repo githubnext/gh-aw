@@ -39,6 +39,9 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	if err != nil {
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
+		if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.MaxTurnCacheMissesExpression != "" {
+			awfConfigJSON = injectMaxTurnCacheMissesExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxTurnCacheMissesVarName))
+		}
 		configFileSetup = buildAWFConfigFileSetup(config, awfConfigJSON)
 		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
 		awfHelpersLog.Print("Using AWF config file (--config flag)")
@@ -183,7 +186,8 @@ func appendArcDindMountSettings(expandableArgs, arcDindDockerHostProbe string, i
 
 func buildAWFConfigFileSetup(config AWFCommandConfig, awfConfigJSON string) string {
 	maxAICreditsExportLine, updatedAWFConfigJSON := buildMaxAICreditsExport(config, awfConfigJSON)
-	printfArg := buildAWFConfigPrintfArg(updatedAWFConfigJSON, maxAICreditsExportLine != "")
+	preserveMaxTurnCacheMisses := config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.MaxTurnCacheMissesExpression != ""
+	printfArg := buildAWFConfigPrintfArg(updatedAWFConfigJSON, maxAICreditsExportLine != "", preserveMaxTurnCacheMisses)
 	configFileSetup := buildConfigFilePrintfLine(printfArg)
 	if maxAICreditsExportLine != "" {
 		configFileSetup = maxAICreditsExportLine + "\n" + configFileSetup
@@ -230,10 +234,13 @@ func buildMaxAICreditsExport(config AWFCommandConfig, awfConfigJSON string) (str
 	return fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr), awfConfigJSON
 }
 
-func buildAWFConfigPrintfArg(awfConfigJSON string, hasMaxAICreditsExport bool) string {
+func buildAWFConfigPrintfArg(awfConfigJSON string, hasMaxAICreditsExport, preserveMaxTurnCacheMisses bool) string {
 	preservedVars := make([]string, 0, 2)
 	if hasMaxAICreditsExport {
 		preservedVars = append(preservedVars, awfMaxAICreditsVarName)
+	}
+	if preserveMaxTurnCacheMisses {
+		preservedVars = append(preservedVars, awfMaxTurnCacheMissesVarName)
 	}
 	if strings.Contains(awfConfigJSON, awfArcDindRootPathExpr) {
 		preservedVars = append(preservedVars, "RUNNER_TEMP")

@@ -37,7 +37,7 @@ type engineSetupResult struct {
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
 	engineSetting, engineConfig, model := c.ExtractEngineConfig(result.Frontmatter)
-	preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses := extractEngineBudgetLimits(engineConfig)
+	preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses, preservedMaxTurnCacheMissesExpression := extractEngineBudgetLimits(engineConfig)
 	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 		return nil, err
 	}
@@ -73,15 +73,16 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 	engineConfig, model = c.applyEngineImportDefaults(engineImportDefaultsOptions{
-		engineConfig:                engineConfig,
-		model:                       model,
-		engineSetting:               engineSetting,
-		importsResult:               importsResult,
-		importedEngineDefinitions:   importedEngineDefinitions,
-		preservedMaxTurns:           preservedMaxTurns,
-		preservedMaxAICredits:       preservedMaxAICredits,
-		preservedMaxRuns:            preservedMaxRuns,
-		preservedMaxTurnCacheMisses: preservedMaxTurnCacheMisses,
+		engineConfig:                          engineConfig,
+		model:                                 model,
+		engineSetting:                         engineSetting,
+		importsResult:                         importsResult,
+		importedEngineDefinitions:             importedEngineDefinitions,
+		preservedMaxTurns:                     preservedMaxTurns,
+		preservedMaxAICredits:                 preservedMaxAICredits,
+		preservedMaxRuns:                      preservedMaxRuns,
+		preservedMaxTurnCacheMisses:           preservedMaxTurnCacheMisses,
+		preservedMaxTurnCacheMissesExpression: preservedMaxTurnCacheMissesExpression,
 	})
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
@@ -122,11 +123,11 @@ func frontmatterDeclaresImports(frontmatter map[string]any) bool {
 	return false
 }
 
-func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int, int) {
+func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int, int, string) {
 	if engineConfig == nil {
-		return "", 0, 0, 0
+		return "", 0, 0, 0, ""
 	}
-	return engineConfig.MaxTurns, engineConfig.MaxAICredits, engineConfig.MaxRuns, engineConfig.MaxTurnCacheMisses
+	return engineConfig.MaxTurns, engineConfig.MaxAICredits, engineConfig.MaxRuns, engineConfig.MaxTurnCacheMisses, engineConfig.MaxTurnCacheMissesExpression
 }
 
 func defaultNetworkPermissions(networkPermissions *NetworkPermissions) *NetworkPermissions {
@@ -355,15 +356,16 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 }
 
 type engineImportDefaultsOptions struct {
-	engineConfig                *EngineConfig
-	model                       string
-	engineSetting               string
-	importsResult               *parser.ImportsResult
-	importedEngineDefinitions   []string
-	preservedMaxTurns           string
-	preservedMaxAICredits       int64
-	preservedMaxRuns            int
-	preservedMaxTurnCacheMisses int
+	engineConfig                          *EngineConfig
+	model                                 string
+	engineSetting                         string
+	importsResult                         *parser.ImportsResult
+	importedEngineDefinitions             []string
+	preservedMaxTurns                     string
+	preservedMaxAICredits                 int64
+	preservedMaxRuns                      int
+	preservedMaxTurnCacheMisses           int
+	preservedMaxTurnCacheMissesExpression string
 }
 
 // applyEngineImportDefaults merges import-derived engine defaults into engineConfig.
@@ -387,6 +389,9 @@ func (c *Compiler) applyEngineImportDefaults(opts engineImportDefaultsOptions) (
 	}
 	if opts.preservedMaxTurnCacheMisses > 0 {
 		engineConfig.MaxTurnCacheMisses = opts.preservedMaxTurnCacheMisses
+	}
+	if opts.preservedMaxTurnCacheMissesExpression != "" {
+		engineConfig.MaxTurnCacheMissesExpression = opts.preservedMaxTurnCacheMissesExpression
 	}
 	if engineConfig.MaxTurns == "" && opts.importsResult.MergedMaxTurns != "" {
 		var importedMaxTurns any
@@ -424,12 +429,15 @@ func (c *Compiler) applyEngineImportDefaults(opts engineImportDefaultsOptions) (
 			}
 		}
 	}
-	if engineConfig.MaxTurnCacheMisses <= 0 && opts.importsResult.MergedMaxTurnCacheMisses != "" {
+	if engineConfig.MaxTurnCacheMisses <= 0 && engineConfig.MaxTurnCacheMissesExpression == "" && opts.importsResult.MergedMaxTurnCacheMisses != "" {
 		var importedMaxTurnCacheMisses any
 		if err := json.Unmarshal([]byte(opts.importsResult.MergedMaxTurnCacheMisses), &importedMaxTurnCacheMisses); err == nil {
 			if parsed := parseMaxTurnCacheMissesValue(importedMaxTurnCacheMisses); parsed > 0 {
 				engineConfig.MaxTurnCacheMisses = parsed
 				orchestratorEngineLog.Printf("Applied max-turn-cache-misses from import")
+			} else if expression := parseMaxTurnCacheMissesExpression(importedMaxTurnCacheMisses); expression != "" {
+				engineConfig.MaxTurnCacheMissesExpression = expression
+				orchestratorEngineLog.Printf("Applied max-turn-cache-misses expression from import")
 			}
 		}
 	}

@@ -2,7 +2,11 @@
 
 package workflow
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestParsePositiveIntValues(t *testing.T) {
 	t.Parallel()
@@ -33,6 +37,14 @@ func TestParsePositiveIntValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseMaxTurnCacheMissesExpression(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "${{ inputs.max_turn_cache_misses }}", parseMaxTurnCacheMissesExpression(" ${{ inputs.max_turn_cache_misses }} "))
+	assert.Empty(t, parseMaxTurnCacheMissesExpression(5))
+	assert.Empty(t, parseMaxTurnCacheMissesExpression("invalid"))
 }
 
 func TestParseIntOrExpressionValues(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
@@ -323,6 +324,10 @@ imports:
 `), 0644))
 
 	require.NoError(t, NewCompiler().CompileWorkflow(testFile))
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), "GH_AW_MAX_TURN_CACHE_MISSES: ${{ inputs.max_turn_cache_misses }}")
+	assert.Contains(t, string(lockContent), "${GH_AW_MAX_TURN_CACHE_MISSES}")
 }
 
 // TestSetupEngineAndImports_ImportedEngineVersionDefault verifies that a shared/imported
