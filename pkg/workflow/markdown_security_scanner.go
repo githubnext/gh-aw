@@ -30,6 +30,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -59,6 +60,20 @@ type SecurityFinding struct {
 	Description string
 	Line        int    // 1-based line number where the issue was found, 0 if unknown
 	Snippet     string // Short excerpt of the problematic content
+}
+
+// ToFinding converts the security finding to the shared finding representation
+// used by the scanner integrations. Markdown security findings are hard
+// rejections, so they are always reported at high severity.
+func (f SecurityFinding) ToFinding(filePath string) scanfindings.Finding {
+	return scanfindings.Finding{
+		RuleID:   string(f.Category),
+		Severity: scanfindings.SeverityHigh,
+		Message:  fmt.Sprintf("[%s] %s", f.Category, f.Description),
+		File:     filePath,
+		Line:     f.Line,
+		Column:   1,
+	}
 }
 
 // countCategories counts unique security finding categories
@@ -149,18 +164,17 @@ func FormatSecurityFindings(findings []SecurityFinding, filePath string) string 
 
 	// Format each finding using formatCompilerErrorWithPosition for consistency
 	for _, f := range findings {
-		line := f.Line
-		if line <= 0 {
-			line = 1 // Default to line 1 if unknown
-		}
+		// Render through the shared finding representation so markdown security
+		// findings use the same severity vocabulary as the scanner integrations.
+		compilerErr := f.ToFinding(filePath).CompilerError()
 
 		// Create a formatted error for this finding
 		findingErr := formatCompilerErrorWithPosition(
-			filePath,
-			line,
-			1, // Column 1 (we don't have column info)
-			"error",
-			fmt.Sprintf("[%s] %s", f.Category, f.Description),
+			compilerErr.Position.File,
+			compilerErr.Position.Line,
+			compilerErr.Position.Column,
+			compilerErr.Type,
+			compilerErr.Message,
 			nil,
 		)
 

@@ -36,8 +36,25 @@ function readExperimentAssignments() {
     }
     return null;
   } catch {
-    return null;
+    // Fall through to environment-variable fallback.
   }
+
+  /** @type {Record<string, string>} */
+  const fromEnv = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith("GH_AW_EXPERIMENTS_")) {
+      continue;
+    }
+    const name = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
+    if (!name || typeof value !== "string" || value.length === 0) {
+      continue;
+    }
+    fromEnv[name] = value;
+  }
+  if (Object.keys(fromEnv).length > 0) {
+    return fromEnv;
+  }
+  return null;
 }
 
 module.exports = { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH };

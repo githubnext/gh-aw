@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 )
 
 var yamllintLog = logger.New("cli:yamllint")
@@ -22,16 +23,6 @@ var yamllintLog = logger.New("cli:yamllint")
 // yamllintDefaultConfig is the inline yamllint configuration used for lock files.
 // It disables rules that produce excessive noise on generated YAML output.
 const yamllintDefaultConfig = `{extends: default, rules: {line-length: disable, document-start: disable, truthy: {check-keys: false}, comments: {require-starting-space: true, min-spaces-from-content: 1}}}`
-
-// yamllintIssue represents a single issue from yamllint parsable output.
-type yamllintIssue struct {
-	File    string
-	Line    int
-	Column  int
-	Level   string
-	Message string
-	Rule    string
-}
 
 // yamllintParsableRegex matches a single line of yamllint --format parsable output:
 //
@@ -202,22 +193,7 @@ func parseAndDisplayYamllintOutput(stdout string) (int, error) {
 
 		totalIssues++
 
-		errorType := "warning"
-		if issue.Level == "error" {
-			errorType = "error"
-		}
-
-		compilerErr := console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   issue.File,
-				Line:   issue.Line,
-				Column: issue.Column,
-			},
-			Type:    errorType,
-			Message: fmt.Sprintf("[%s] %s (%s)", issue.Level, issue.Message, issue.Rule),
-		}
-
-		fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
+		scanfindings.Render(os.Stderr, []scanfindings.Finding{issue})
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -227,30 +203,34 @@ func parseAndDisplayYamllintOutput(stdout string) (int, error) {
 	return totalIssues, nil
 }
 
-// parseYamllintLine parses a single line of yamllint --format parsable output.
+// parseYamllintLine parses a single line of yamllint --format parsable output
+// into the shared finding representation.
 // Expected format: {file}:{line}:{col}: [{level}] {message} ({rule})
-func parseYamllintLine(line string) (yamllintIssue, error) {
+func parseYamllintLine(line string) (scanfindings.Finding, error) {
 	matches := yamllintParsableRegex.FindStringSubmatch(line)
 	if matches == nil {
-		return yamllintIssue{}, fmt.Errorf("line does not match yamllint parsable format: %q", line)
+		return scanfindings.Finding{}, fmt.Errorf("line does not match yamllint parsable format: %q", line)
 	}
 
 	lineNum, err := strconv.Atoi(matches[2])
 	if err != nil {
-		return yamllintIssue{}, fmt.Errorf("failed to parse line number %q: %w", matches[2], err)
+		return scanfindings.Finding{}, fmt.Errorf("failed to parse line number %q: %w", matches[2], err)
 	}
 
 	colNum, err := strconv.Atoi(matches[3])
 	if err != nil {
-		return yamllintIssue{}, fmt.Errorf("failed to parse column number %q: %w", matches[3], err)
+		return scanfindings.Finding{}, fmt.Errorf("failed to parse column number %q: %w", matches[3], err)
 	}
 
-	return yamllintIssue{
-		File:    matches[1],
-		Line:    lineNum,
-		Column:  colNum,
-		Level:   matches[4],
-		Message: matches[5],
-		Rule:    matches[6],
+	level := matches[4]
+	rule := matches[6]
+
+	return scanfindings.Finding{
+		RuleID:   rule,
+		Severity: scanfindings.ParseSeverity(level),
+		Message:  fmt.Sprintf("[%s] %s (%s)", level, matches[5], rule),
+		File:     matches[1],
+		Line:     lineNum,
+		Column:   colNum,
 	}, nil
 }

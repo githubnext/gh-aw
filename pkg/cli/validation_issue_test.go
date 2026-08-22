@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/scanfindings"
 )
 
 func TestValidationIssueJSONCompatibility(t *testing.T) {
@@ -76,5 +78,22 @@ func TestValidationIssueJSONCompatibility(t *testing.T) {
 	}
 	if auditIssue["line"] != float64(12) {
 		t.Fatalf("expected audit line to be serialized, got %#v", auditIssue["line"])
+	}
+}
+
+func TestValidationIssueToFindingUsesSuppliedSeverity(t *testing.T) {
+	issue := ValidationIssue{
+		Type:    "schema_validation",
+		Message: "Unknown property",
+		File:    "workflow.md",
+		Line:    5,
+	}
+
+	finding := issue.ToFinding(scanfindings.SeverityHigh)
+	if finding.RuleID != issue.Type {
+		t.Errorf("RuleID = %q, want %q", finding.RuleID, issue.Type)
+	}
+	if finding.Severity != scanfindings.SeverityHigh {
+		t.Errorf("Severity = %q, want %q", finding.Severity, scanfindings.SeverityHigh)
 	}
 }

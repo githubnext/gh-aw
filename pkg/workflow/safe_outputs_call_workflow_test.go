@@ -23,10 +23,11 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					Max: strPtr("1"),
 				},
-				Workflows: []string{"spring-boot-bugfix", "frontend-dep-upgrade"},
+				Workflows: []string{"spring-boot-bugfix", "frontend-dep-upgrade", "worker.v1"},
 				WorkflowFiles: map[string]string{
 					"spring-boot-bugfix":   "./.github/workflows/spring-boot-bugfix.lock.yml",
 					"frontend-dep-upgrade": "./.github/workflows/frontend-dep-upgrade.lock.yml",
+					"worker.v1":            "./.github/workflows/worker.v1.lock.yml",
 				},
 			},
 		},
@@ -34,9 +35,10 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 
 	jobNames, err := compiler.buildCallWorkflowJobs(workflowData, "")
 	require.NoError(t, err, "Should not error building call-workflow jobs")
-	assert.Len(t, jobNames, 2, "Should generate 2 fan-out jobs")
+	assert.Len(t, jobNames, 3, "Should generate 3 fan-out jobs")
 	assert.Contains(t, jobNames, "call-spring-boot-bugfix", "Should generate job for spring-boot-bugfix")
 	assert.Contains(t, jobNames, "call-frontend-dep-upgrade", "Should generate job for frontend-dep-upgrade")
+	assert.Contains(t, jobNames, "call-worker-v1", "Should generate a hyphenated job ID for worker.v1")
 
 	// Check that the jobs were added to the job manager
 	job, exists := compiler.jobManager.GetJob("call-spring-boot-bugfix")
@@ -50,6 +52,13 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 	// (including the canonical payload) are forwarded.
 	_, hasPayload := job.With["payload"]
 	assert.False(t, hasPayload, "Should not pass payload when worker inputs are unknown")
+
+	dottedJob, exists := compiler.jobManager.GetJob("call-worker-v1")
+	require.True(t, exists, "call-worker-v1 job should exist in job manager")
+	assert.Equal(t, "needs.safe_outputs.outputs.call_workflow_name == 'worker.v1'", dottedJob.If,
+		"Should retain the dotted workflow name in the dispatch condition")
+	assert.Equal(t, "./.github/workflows/worker.v1.lock.yml", dottedJob.Uses,
+		"Should retain the dotted workflow name in the workflow path")
 }
 
 // TestBuildCallWorkflowJobs_NoConfig returns nil when call-workflow is not configured
@@ -142,6 +151,7 @@ func TestSanitizeJobName(t *testing.T) {
 	}{
 		{"spring-boot-bugfix", "spring-boot-bugfix"},
 		{"frontend_dep_upgrade", "frontend-dep-upgrade"},
+		{"worker.v1", "worker-v1"},
 		{"worker123", "worker123"},
 	}
 

@@ -321,6 +321,11 @@ type UpdateEntityParseOptions struct {
 	Logger       *logger.Logger          // Logger for this entity type
 	Fields       []UpdateEntityFieldSpec // Field specifications to parse
 	CustomParser func(map[string]any)    // Optional custom field parser
+	// AfterBaseParse is called with the parsed base config before entity-specific
+	// fields are parsed. This lets callers copy the base config into their own
+	// struct first, so field specs that point at promoted base fields (such as
+	// Footer) are not overwritten afterwards.
+	AfterBaseParse func(*UpdateEntityConfig)
 }
 
 // parseUpdateEntityConfigWithFields is a generic helper that reduces scaffolding duplication
@@ -356,6 +361,12 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 		return nil, nil
 	}
 
+	// Let the caller copy the base config before entity-specific fields are parsed,
+	// so field specs writing to promoted base fields are not clobbered afterwards.
+	if opts.AfterBaseParse != nil {
+		opts.AfterBaseParse(baseConfig)
+	}
+
 	// Parse entity-specific bool fields according to specs
 	for _, field := range opts.Fields {
 		if field.Mode == FieldParsingTemplatableBool {
@@ -384,10 +395,10 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 // It handles the complete parsing flow:
 //  1. Creates entity-specific config struct
 //  2. Builds field specs with pointers to config fields
-//  3. Calls parseUpdateEntityConfigWithFields
+//  3. Calls parseUpdateEntityConfigWithFields, which copies the base config into
+//     the entity-specific struct before parsing entity-specific fields
 //  4. Checks for nil result (early return)
-//  5. Copies base config into entity-specific struct
-//  6. Returns typed config
+//  5. Returns typed config
 //
 // Type parameters:
 //   - T: The entity-specific config type (must embed UpdateEntityConfig)
@@ -443,6 +454,12 @@ func parseUpdateEntityConfigTyped[T any, PT interface {
 		ConfigKey:  configKey,
 		Logger:     logger,
 		Fields:     fields,
+		// Assign the base config through the promoted setter on the embedded
+		// UpdateEntityConfig before entity-specific fields are parsed, so field
+		// specs targeting promoted base fields (e.g. Footer) survive.
+		AfterBaseParse: func(baseConfig *UpdateEntityConfig) {
+			PT(cfg).setUpdateEntityConfig(*baseConfig)
+		},
 	}
 
 	// Add custom parser wrapper if provided
@@ -452,14 +469,12 @@ func parseUpdateEntityConfigTyped[T any, PT interface {
 		}
 	}
 
-	// Parse base config and entity-specific fields
+	// Parse base config and entity-specific fields; the base config is assigned to
+	// cfg via AfterBaseParse before entity-specific fields are parsed.
 	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, opts)
 	if baseConfig == nil {
 		return nil
 	}
-
-	// Assign the base config through the promoted setter on the embedded UpdateEntityConfig
-	PT(cfg).setUpdateEntityConfig(*baseConfig)
 
 	return cfg
 }

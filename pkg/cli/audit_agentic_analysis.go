@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -431,7 +432,7 @@ func generateAgenticAssessmentFindings(assessments []AgenticAssessment) []Findin
 		}
 		findings = append(findings, Finding{
 			Category:    category,
-			Severity:    assessment.Severity,
+			Severity:    scanfindings.ParseSeverity(assessment.Severity),
 			Title:       prettifyAssessmentKind(assessment.Kind),
 			Description: assessment.Summary,
 			Impact:      impact,

@@ -767,20 +767,17 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 }
 
 // resolveStepTimeoutValue returns the timeout value string to emit on an
-// agentic_execution step's timeout-minutes field.  Resolution uses the
-// following precedence:
-//  1. ParsedFrontmatter.TimeoutMinutes — the already-typed value; supports
-//     both integer literals and GitHub Actions expressions.
-//  2. WorkflowData.TimeoutMinutes — the raw extracted YAML string (e.g.
-//     "timeout-minutes: 30"); the "timeout-minutes:" prefix is stripped before
-//     use.  Only positive integers and GitHub Actions expressions are accepted;
-//     any other value is rejected to prevent malformed YAML output.
-//  3. DefaultAgenticWorkflowTimeout — used when workflowData is nil or neither
-//     of the above sources yields a valid non-empty value.
+// agentic_execution step.  It never resolves job-level overrides: the agent job
+// timeout is bounded independently by resolveAgentJobTimeoutValue.
 func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 	defaultValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 	if workflowData == nil {
 		return defaultValue
+	}
+	// The detection step is the only step of the detection job, so it shares that
+	// job's budget instead of the top-level agentic step timeout.
+	if workflowData.IsDetectionRun {
+		return resolveDetectionJobTimeoutValue(workflowData)
 	}
 	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.TimeoutMinutes != nil {
 		if v := workflowData.ParsedFrontmatter.TimeoutMinutes.String(); v != "" {
