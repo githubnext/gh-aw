@@ -54,6 +54,19 @@ async function main() {
   const formatJSON = process.env.FORMAT_JSON === "true";
   const validationScriptBase64 = process.env.VALIDATION_SCRIPT_B64 || "";
   const validationTimeoutSeconds = parseInt(process.env.VALIDATION_TIMEOUT_SECONDS || "60", 10);
+  if (
+    !Number.isFinite(maxFileSize) ||
+    maxFileSize <= 0 ||
+    !Number.isFinite(maxFileCount) ||
+    maxFileCount <= 0 ||
+    !Number.isFinite(maxPatchSize) ||
+    maxPatchSize <= 0 ||
+    !Number.isFinite(validationTimeoutSeconds) ||
+    validationTimeoutSeconds <= 0
+  ) {
+    core.setFailed("Memory size, count, patch size, and validation timeout limits must be positive integers");
+    return;
+  }
 
   // Parse allowed extensions with error handling
   let allowedExtensions = [".json", ".jsonl", ".txt", ".md", ".csv"];

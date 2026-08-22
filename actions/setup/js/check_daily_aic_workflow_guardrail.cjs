@@ -115,8 +115,9 @@ function shouldSkipDailyAICGuardrail() {
       if (isLabelCommand || isSlashCommand) {
         return true;
       }
-    } catch {
+    } catch (error) {
       // Malformed aw_context: skip guardrail as a safe fallback for manual dispatch.
+      core.debug(`Skipping malformed dispatch context: ${getErrorMessage(error)}`);
     }
     // Existing behavior: dispatch-routed runs with aw_context bypass the guardrail.
     return true;
@@ -277,7 +278,12 @@ async function getRunAIC(artifactClient, runId, token, owner, repo) {
     artifactId: artifact.id,
     artifactName: artifact.name,
   });
-  const downloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), `gh-aw-daily-guardrail-${runId}-`));
+  let downloadRoot;
+  try {
+    downloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), `gh-aw-daily-guardrail-${runId}-`));
+  } catch (error) {
+    throw new Error(`Failed to create temporary artifact directory for run ${runId}: ${getErrorMessage(error)}`, { cause: error });
+  }
   const download = await artifactClient.downloadArtifact(artifact.id, {
     path: downloadRoot,
     findBy: {

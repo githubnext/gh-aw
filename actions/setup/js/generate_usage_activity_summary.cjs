@@ -489,7 +489,12 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
 
   // Let read errors propagate so the caller can distinguish "unreadable file"
   // from "file present but no items" — both previously collapsed to null.
-  const content = fs.readFileSync(manifestPath, "utf-8");
+  let content;
+  try {
+    content = fs.readFileSync(manifestPath, "utf-8");
+  } catch (error) {
+    throw new Error(`Failed to read safe output manifest ${manifestPath}`, { cause: error });
+  }
 
   const itemsByType = {};
   let totalItems = 0;

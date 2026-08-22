@@ -118,6 +118,9 @@ async function main() {
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const assignToAgentErrorCount = parseInt(process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0", 10);
+  if (!Number.isFinite(assignToAgentErrorCount) || assignToAgentErrorCount < 0) {
+    throw new Error(`${ERR_VALIDATION}: GH_AW_ASSIGNMENT_ERROR_COUNT must be a non-negative integer`);
+  }
   const safeOutputsResult = process.env.GH_AW_SAFE_OUTPUTS_RESULT;
 
   const messagesConfig = getMessages();

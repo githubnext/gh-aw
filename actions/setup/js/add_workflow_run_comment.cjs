@@ -420,6 +420,9 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     }
     // Parse discussion number from special format: "discussion:NUMBER"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+    if (!Number.isFinite(discussionNumber)) {
+      throw new Error(`${ERR_VALIDATION}: Invalid discussion endpoint: ${endpoint}`);
+    }
     return postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
   }
 
@@ -429,6 +432,9 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     }
     // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+    if (!Number.isFinite(discussionNumber)) {
+      throw new Error(`${ERR_VALIDATION}: Invalid discussion endpoint: ${endpoint}`);
+    }
 
     // GitHub Discussions only supports two nesting levels, so resolve the top-level parent's node ID
     const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);

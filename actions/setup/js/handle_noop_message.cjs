@@ -173,8 +173,9 @@ async function main() {
     }
 
     const maxCount = parseInt(process.env.GH_AW_NOOP_MAX || "0", 10);
+    const limitedMaxCount = Number.isFinite(maxCount) && maxCount > 0 ? maxCount : 0;
     const allNoopItems = (result.items || []).filter(/** @param {any} item */ item => item.type === "noop");
-    const noopItems = maxCount > 0 ? allNoopItems.slice(0, maxCount) : allNoopItems;
+    const noopItems = limitedMaxCount > 0 ? allNoopItems.slice(0, limitedMaxCount) : allNoopItems;
 
     if (noopItems.length === 0) {
       core.info("No noop items found in agent output");

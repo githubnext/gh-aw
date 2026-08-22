@@ -265,6 +265,9 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
       }
       // Parse discussion number from special format: "discussion:NUMBER" or "discussion_comment:NUMBER:COMMENT_ID"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+      if (!Number.isFinite(discussionNumber)) {
+        throw new Error(`${ERR_VALIDATION}: Invalid discussion endpoint: ${endpoint}`);
+      }
       const discussionId = await getDiscussionNodeId(eventRepo.owner, eventRepo.repo, discussionNumber);
       // For discussion_comment events, thread the reply under the triggering comment.
       // GitHub Discussions only supports two nesting levels, so resolve the top-level parent node ID.
