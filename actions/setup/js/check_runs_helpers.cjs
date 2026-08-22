@@ -50,6 +50,7 @@ function selectLatestRelevantChecks(checkRuns, options = {}) {
       continue;
     }
     if (!Number.isFinite(existingStartedAt)) {
+      latestByName.set(run.name, run);
       continue;
     }
     if (runStartedAt > existingStartedAt) {
