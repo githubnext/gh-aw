@@ -75,7 +75,16 @@ F4_SafestPolicyOnIndeterminate(a) ≜
     (propose_only, none, approval_required=true, auto_merge=false, max_attempts=1)
 
 F5_MappedStatusPermitsRelaxedPolicy(a) ≜
-  Resolve(a).status = mapped ⇒ Compile(Resolve(a)) ≠ safest_policy
+  Resolve(a).status = mapped ∧ ∃ matching_policy_rule(a) ⇒
+  Compile(Resolve(a)) ≠ safest_policy
+
+F8_FailClosedIgnoresRuleConfig(a) ≜
+  Resolve(a).status ∈ {ambiguous, unlinked} ⇒
+  Compile(Resolve(a), permissive_wildcard_rule) = safest_policy
+
+F9_ExplicitLabelsDoNotOverrideMappedSource(a) ≜
+  Explicit(a) ≠ null ∧ |Labels(a)| > 0 ⇒
+  Resolve(a).status = mapped ∧ Resolve(a).source = explicit_metadata
 
 F6_PolicyDeterminism(a) ≜
   Resolve(a) = Resolve(a) ∧ Compile(Resolve(a)) = Compile(Resolve(a))
@@ -105,7 +114,11 @@ context that was supplied to policy compilation.
 | `F3_UnlinkedFailsClosed` | `TestFormalFixture_UnlinkedPullRequestFailsClosed` | No explicit intent, no closing issues, and no labels resolve to `status=unlinked`, `source=none` |
 | `F4_SafestPolicyOnIndeterminate` (ambiguous branch) | `TestFormalFixture_AmbiguousResolvesToSafestPolicy` | Ambiguous attribution compiles to the safest execution policy tuple |
 | `F4_SafestPolicyOnIndeterminate` (unlinked branch) | `TestFormalFixture_UnlinkedResolvesToSafestPolicy` | Unlinked attribution compiles to the same safest execution policy tuple |
+| `F8_FailClosedIgnoresRuleConfig` (ambiguous) | `TestFormalFixture_AmbiguousIgnoresPermissiveRuleConfig` | Ambiguous status ignores a matching permissive wildcard rule that grants bounded autonomy, any-branch writes, and auto-merge |
+| `F8_FailClosedIgnoresRuleConfig` (unlinked) | `TestFormalFixture_UnlinkedIgnoresPermissiveRuleConfig` | Unlinked status ignores the same permissive wildcard rule |
+| `F9_ExplicitLabelsDoNotOverrideMappedSource` | `TestFormalFixture_ExplicitIntentWinsEvenWithMatchingLabels` | Explicit intent source and mapped status hold even when independently resolvable labels (`bug`, `priority-high`) are attached |
 | `F5_MappedStatusPermitsRelaxedPolicy` | `TestFormalFixture_MappedExplicitStatusIsNotFailClosed` | Explicitly mapped status is not forced into fail-closed policy when a permissive rule applies |
+| `F5_MappedStatusPermitsRelaxedPolicy` (converse, empty-rule edge) | `TestFormalFixture_NoRulesMatchYieldsSafestPolicyForMappedStatus` | Mapped status with zero matching rules still falls back to the safest default |
 | `F6_PolicyDeterminism` | `TestFormalFixture_PolicyDeterminismAcrossRepeatedResolution` | Resolving the same fixture input twice yields byte-identical attribution and policy |
 | `F7_SingleSourcePerRecord` | `TestFormalFixture_SingleSourcePerRecordAcrossAllFixtures` | Each required fixture resolves to exactly one attribution source, never a blend |
 | Edge case: order independence | `TestFormalFixture_AmbiguousOrderIndependence` | Reordering the two closing issues does not change the ambiguous outcome |
@@ -127,6 +140,7 @@ go test ./pkg/intent/... -run FormalFixture
 The formal compliance suite is implemented in:
 
 - `pkg/intent/compliance_fixtures_formal_test.go`
+- `pkg/intent/intent_compliance_extended_formal_test.go`
 
 The suite:
 
@@ -134,3 +148,5 @@ The suite:
 - adapts each fixture into real `intent.PullRequestData` inputs
 - verifies attribution precedence and ambiguous/unlinked handling
 - verifies that fail-closed policy compilation applies only to indeterminate attribution states
+- verifies that indeterminate attribution ignores matching permissive rules
+- verifies that explicit attribution takes precedence over independently resolvable labels
