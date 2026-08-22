@@ -65,10 +65,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
 
+	runsOn := c.formatFrameworkJobRunsOn(data)
+	if data.OnRestoreMemory && data.DriveMemoryConfig != nil && len(data.DriveMemoryConfig.Drives) > 0 {
+		runsOn = "runs-on: ubuntu-latest"
+	}
 	return &Job{
 		Name:        string(constants.PreActivationJobName),
 		If:          jobIfCondition,
-		RunsOn:      c.formatFrameworkJobRunsOn(data),
+		RunsOn:      runsOn,
 		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions: permissions,
 		Steps:       steps,
@@ -260,6 +264,12 @@ func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, step
 		steps = append(steps, cacheMemorySteps.String())
 	}
 
+	var driveMemorySteps strings.Builder
+	c.generatePreActivationDriveMemoryRestoreSteps(&driveMemorySteps, data)
+	if driveMemorySteps.Len() > 0 {
+		steps = append(steps, driveMemorySteps.String())
+	}
+
 	var repoMemorySteps strings.Builder
 	generateRepoMemorySteps(&repoMemorySteps, data)
 	if repoMemorySteps.Len() > 0 {
@@ -284,6 +294,13 @@ func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, step
 	}
 
 	return steps
+}
+
+func (c *Compiler) generatePreActivationDriveMemoryRestoreSteps(builder *strings.Builder, data *WorkflowData) {
+	if data.DriveMemoryConfig == nil || len(data.DriveMemoryConfig.Drives) == 0 {
+		return
+	}
+	generateDriveMemorySteps(builder, driveMemoryRestoreOnlyData(data), c.getActionPin)
 }
 
 func generatePreActivationCacheMemoryRestoreSteps(builder *strings.Builder, data *WorkflowData) {

@@ -11,12 +11,14 @@ on:
   pull_request:
     paths:
       - 'docs/**'
+      - '!docs/adr/**'
       - '.github/workflows/docs.yml'
   push:
     branches:
       - main
     paths:
       - 'docs/**'
+      - '!docs/adr/**'
       - 'cmd/gh-aw-wasm/**'
       - 'scripts/bundle-wasm-docs.sh'
       - '.github/workflows/docs.yml'

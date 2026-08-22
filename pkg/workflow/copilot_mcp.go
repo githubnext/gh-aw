@@ -10,9 +10,9 @@ import (
 var copilotMCPLog = logger.New("workflow:copilot_mcp")
 
 // copilotMCPToolFilter returns true for MCP tools that should be included in the Copilot MCP config.
-// Cache-memory is excluded because it is handled as a simple file share, not an MCP server.
+// File-backed memory tools are excluded because they are not MCP servers.
 func copilotMCPToolFilter(toolName string) bool {
-	return toolName != "cache-memory"
+	return toolName != "cache-memory" && toolName != "drive-memory"
 }
 
 // RenderMCPConfig generates MCP server configuration for Copilot CLI
