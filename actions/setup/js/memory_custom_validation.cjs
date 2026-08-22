@@ -164,7 +164,7 @@ function memoryTreeDigest(dirPath) {
  *   scriptBase64?: string,
  *   memoryDir: string,
  *   memoryId?: string,
- *   kind: "repo" | "cache",
+ *   kind: "repo" | "cache" | "drive",
  *   timeoutSeconds?: number,
  * }} options
  */

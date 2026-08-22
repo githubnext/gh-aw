@@ -6,7 +6,7 @@ const { validateMemoryFiles } = require("./validate_memory_files.cjs");
 /**
  * @param {{ error: (message: string) => void, info: (message: string) => void, setFailed: (message: string) => void }} core
  * @param {{
- *   kind: "repo" | "cache",
+ *   kind: "repo" | "cache" | "drive",
  *   formatJSON?: boolean,
  *   requireValidationScript?: boolean,
  *   writeMarker?: boolean,
