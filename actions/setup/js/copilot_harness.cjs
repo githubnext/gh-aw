@@ -197,6 +197,76 @@ function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
 }
 
+/**
+ * Format an inference endpoint for diagnostics without exposing URL credentials,
+ * query parameters, or fragments.
+ * @param {unknown} endpoint
+ * @returns {string}
+ */
+function formatInferenceEndpointForLog(endpoint) {
+  if (typeof endpoint !== "string" || !endpoint.trim()) {
+    return "(not set)";
+  }
+  try {
+    const parsed = new URL(endpoint);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "(invalid endpoint)";
+    }
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return "(invalid endpoint)";
+  }
+}
+
+/**
+ * Log the resolved Copilot inference routing without logging authentication values.
+ * @param {{
+ *   copilotSDKMode: boolean,
+ *   configuredModel: string,
+ *   resolvedModel: string,
+ *   primaryProviderName: string,
+ *   providers: Array<{ name: string, type: string, baseUrl: string, wireApi?: string }>,
+ *   models: Array<{ id: string, provider: string }>,
+ *   logger?: (message: string) => void,
+ * }} options
+ */
+function logCopilotInferenceConfiguration(options) {
+  const logger = options.logger ?? log;
+  const configuredModel = options.configuredModel || "(not set)";
+
+  if (!options.copilotSDKMode) {
+    logger(`inference routing: mode=cli configuredModel=${JSON.stringify(configuredModel)} endpoint=managed-by-copilot-cli`);
+    return;
+  }
+
+  const resolvedModel = options.resolvedModel || "(not resolved)";
+  const primaryProvider = options.providers.find(provider => provider.name === options.primaryProviderName) ?? options.providers[0];
+  logger(
+    `inference routing: mode=sdk-byok source=awf-reflect configuredModel=${JSON.stringify(configuredModel)}` +
+      ` resolvedModel=${JSON.stringify(resolvedModel)} providerCount=${options.providers.length}` +
+      ` modelRouteCount=${options.models.length}`
+  );
+
+  for (const [index, provider] of options.providers.entries()) {
+    const modelCount = options.models.filter(model => model.provider === provider.name).length;
+    logger(
+      `inference provider ${index + 1}/${options.providers.length}: name=${JSON.stringify(provider.name)}` +
+        ` type=${JSON.stringify(provider.type)} wireApi=${JSON.stringify(provider.wireApi || "(default)")}` +
+        ` endpoint=${JSON.stringify(formatInferenceEndpointForLog(provider.baseUrl))}` +
+        ` modelCount=${modelCount} selected=${provider === primaryProvider}`
+    );
+  }
+
+  logger(
+    `inference endpoint selected: model=${JSON.stringify(resolvedModel)}` +
+      ` provider=${JSON.stringify(primaryProvider?.name || "(unresolved)")}` +
+      ` type=${JSON.stringify(primaryProvider?.type || "(unknown)")}` +
+      ` wireApi=${JSON.stringify(primaryProvider?.wireApi || "(default)")}` +
+      ` endpoint=${JSON.stringify(formatInferenceEndpointForLog(primaryProvider?.baseUrl))}`
+  );
+  logger("inference handoff: SDK driver receives all reflected provider routes; Copilot sidecar receives the selected primary route; authentication values are omitted");
+}
+
 const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
 
 /**
@@ -1085,6 +1155,7 @@ async function main() {
   let providerWireApi = "";
   let resolvedModel = "";
   let multiProviderJson = "";
+  let primaryProviderName = "";
   if (copilotSDKMode) {
     const configuredModel = process.env.COPILOT_MODEL || "";
     const modelsJson = loadModelsJson();
@@ -1098,7 +1169,7 @@ async function main() {
     multiProviderJson = JSON.stringify({ model: multiProvider.model, providers: multiProvider.providers, models: multiProvider.models });
     // Set the primary provider's details as COPILOT_PROVIDER_* env vars for the headless sidecar
     // (which still reads those to configure its own sub-agent sessions).
-    const primaryProviderName = multiProvider.models.find(m => m.id === resolvedModel)?.provider ?? multiProvider.providers[0]?.name;
+    primaryProviderName = multiProvider.models.find(m => m.id === resolvedModel)?.provider ?? multiProvider.providers[0]?.name ?? "";
     const primaryProvider = multiProvider.providers.find(p => p.name === primaryProviderName) ?? multiProvider.providers[0];
     providerBaseUrl = primaryProvider?.baseUrl ?? "";
     providerType = primaryProvider?.type ?? "openai";
@@ -1113,6 +1184,14 @@ async function main() {
     }
 
     log(`copilot-sdk driver mode: multi-provider config resolved (${multiProvider.providers.length} providers, ${multiProvider.models.length} models, model=${resolvedModel})`);
+    logCopilotInferenceConfiguration({
+      copilotSDKMode,
+      configuredModel,
+      resolvedModel,
+      primaryProviderName,
+      providers: multiProvider.providers,
+      models: multiProvider.models,
+    });
 
     const uniqueProviderBaseUrls = [...new Set(multiProvider.providers.map(provider => String(provider.baseUrl || "").trim()).filter(Boolean))];
     if (uniqueProviderBaseUrls.length === 0) {
@@ -1130,6 +1209,15 @@ async function main() {
         process.exit(1);
       }
     }
+  } else {
+    logCopilotInferenceConfiguration({
+      copilotSDKMode,
+      configuredModel: process.env.COPILOT_MODEL || "",
+      resolvedModel,
+      primaryProviderName,
+      providers: [],
+      models: [],
+    });
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -1615,6 +1703,8 @@ if (typeof module !== "undefined" && module.exports) {
     applyModelFallback,
     applyCopilotModelAliasResolution,
     applyCopilotWireAPI,
+    formatInferenceEndpointForLog,
+    logCopilotInferenceConfiguration,
     loadAwfConfigData,
     resolveLongRunTokenThreshold,
   };
