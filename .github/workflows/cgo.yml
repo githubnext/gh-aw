@@ -48,7 +48,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
       with:
-        fetch-depth: 1
+        fetch-depth: 2
         persist-credentials: false
     - name: Verify CGO/CJS workflow purity
       run: bash scripts/check-cgo-cjs-workflow-purity.sh
@@ -406,7 +406,7 @@ jobs:
     - name: Run impacted Go unit tests
       env:
         GH_TOKEN: ${{ github.token }}
-      run: make test-impacted-go BASE_REF=origin/main CI_COVERAGE_SOURCE_BRANCH=main
+      run: make test-impacted-go BASE_REF=HEAD^ CI_COVERAGE_SOURCE_BRANCH=main
 
   build:
     needs: [checkout-cache]

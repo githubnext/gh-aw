@@ -425,11 +425,18 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.CacheMemoryConfig = cacheMemoryConfig
 
-	// Extract repo-memory config and check for errors
+	// Extract experimental drive-memory config and check for errors.
 	toolsConfig, err := ParseToolsConfig(tools)
 	if err != nil {
 		return err
 	}
+	driveMemoryConfig, err := c.extractDriveMemoryConfig(toolsConfig)
+	if err != nil {
+		return err
+	}
+	workflowData.DriveMemoryConfig = driveMemoryConfig
+
+	// Extract repo-memory config and check for errors
 	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig, workflowData.WorkflowID)
 	if err != nil {
 		return err
