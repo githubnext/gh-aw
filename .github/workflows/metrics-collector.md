@@ -30,6 +30,9 @@ timeout-minutes: 30
 safe-outputs:
   noop:
 
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

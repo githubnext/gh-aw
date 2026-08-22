@@ -50,6 +50,9 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 # Instructions Janitor

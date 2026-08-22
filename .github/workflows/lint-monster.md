@@ -80,6 +80,9 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

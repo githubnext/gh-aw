@@ -16,10 +16,6 @@ permissions:
   security-events: read
   copilot-requests: write
 
-sandbox:
-  agent:
-    runtime: cloud-hypervisor
-
 tools:
   github:
     toolsets: [all]

@@ -400,7 +400,7 @@ The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through th
 
 ### Preferred way to install skills in workflows
 
-Use the `skills:` frontmatter field as the preferred way to install external skills for workflow runs. This installs skills during activation and persists them correctly between jobs.
+Use the `skills:` frontmatter field as the preferred way to install external skills for workflow runs. This installs skills during activation and persists them correctly between jobs. Use the top-level `plugins:` field the same way for agent plugins. Never add on-the-fly installation steps or ask the agent to install a skill or plugin from the prompt.
 
 Use `imports:` for workflow prompt/context files (including local custom agent files), not as the primary skill installation path.
 
@@ -410,6 +410,8 @@ engine:
   id: copilot
 skills:
   - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+plugins:
+  - octo-org/agent-plugin@v1
 imports:
   - .github/agents/code-reviewer.md
 

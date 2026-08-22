@@ -100,6 +100,9 @@ evals:
     question: Did the agent analyze recent issues and identify related issue relationships?
   - id: sub_issues_linked_or_noop
     question: Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 {{#if experiments.prompt_style == 'detailed'}}

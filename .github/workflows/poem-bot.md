@@ -156,6 +156,9 @@ evals:
     question: Does the agent output confirm the poem is related to the requested theme or topic?
   - id: poem-present
     question: Does the agent output include actual poem text (lines of verse) rather than only a description?
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # Poem Bot - A Creative Agentic Workflow

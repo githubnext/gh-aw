@@ -72,8 +72,11 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("assignees", c.Assignees).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableBool("group", c.Group).
-			AddTemplatableBool("close_older_issues", c.CloseOlderIssues).
-			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
+			// Shared CloseOlderConfig.Enabled is remapped here to this handler's
+			// entity-specific env key name; the other create-* handlers below map the
+			// same shared field to their own entity-specific keys.
+			AddTemplatableBool("close_older_issues", c.Enabled).
+			AddIfNotEmpty("close_older_key", c.Key).
 			AddTemplatableBool("group_by_day", c.GroupByDay).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "create-issue", c.GitHubToken)).
@@ -117,8 +120,9 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("labels", c.Labels).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddTemplatableBool("close_older_discussions", c.CloseOlderDiscussions).
-			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
+			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
+			AddTemplatableBool("close_older_discussions", c.Enabled).
+			AddIfNotEmpty("close_older_key", c.Key).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
 			AddIfPositive("expires", c.Expires).
 			AddBoolPtr("fallback_to_issue", c.FallbackToIssue).
@@ -588,8 +592,9 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("recreate_ref", c.RecreateRef).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
 			AddBoolPtr("signed_commits", c.SignedCommits).
-			AddTemplatableBool("close_older_pull_requests", c.CloseOlderPullRequests).
-			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
+			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
+			AddTemplatableBool("close_older_pull_requests", c.Enabled).
+			AddIfNotEmpty("close_older_key", c.Key).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		if c.PreCreate {
 			builder.

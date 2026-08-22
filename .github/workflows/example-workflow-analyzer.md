@@ -25,6 +25,9 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # Weekly Workflow Analysis

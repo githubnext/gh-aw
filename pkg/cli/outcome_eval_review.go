@@ -26,7 +26,7 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 	}
 	outcomeReviewLog.Printf("Evaluating add-reviewer outcome: repo=%s, pr=%d", repo, num)
 	if num == 0 || repo == "" {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing PR number or repo"
 		return report
 	}
@@ -36,14 +36,14 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 
 	reviews, err := outcomeReviewGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
 
 	requested, err := outcomeReviewGHAPIGet(ctx, fmt.Sprintf("pulls/%d/requested_reviewers", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -88,7 +88,7 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 
 	switch {
 	case approvedReviewer != "":
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = fmt.Sprintf("requested reviewer %s approved", approvedReviewer)
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusAccepted,
@@ -97,7 +97,7 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 		}
 		return report
 	case submittedReviewer != "":
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = fmt.Sprintf("requested reviewer %s submitted a review", submittedReviewer)
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusAccepted,
@@ -110,7 +110,7 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 	// We cannot cheaply verify team membership for each reviewer from this endpoint,
 	// so any submitted post-request review counts as medium-evidence team activity.
 	if len(requestedTeams) > 0 && hasReviewAfterTimestamp(reviews, item.Timestamp) {
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "team review request received a review"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusAccepted,
@@ -124,7 +124,7 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 	currentTeams := extractTeamSlugs(requested["teams"])
 	stillPending := intersectsFold(requestedReviewers, currentUsers) || intersectsFold(requestedTeams, currentTeams)
 	if stillPending {
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "review request still pending"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusPending,
@@ -135,7 +135,7 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 	}
 
 	if len(requestedReviewers) > 0 || len(requestedTeams) > 0 {
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "review request removed without submitted review"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusRejected,
@@ -145,7 +145,7 @@ func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride s
 		return report
 	}
 
-	report.Result = OutcomeUnknown
+	report.OutcomeStatus = OutcomeStatusUnknown
 	report.Detail = "no persisted reviewer request metadata"
 	report.OutcomeEvaluation = OutcomeEvaluation{
 		OutcomeStatus:    OutcomeStatusUnknown,
@@ -166,20 +166,20 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 	}
 	outcomeReviewLog.Printf("Evaluating submit-review outcome: repo=%s, pr=%d", repo, num)
 	if num == 0 || repo == "" {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing PR number or repo"
 		return report
 	}
 
 	pr, err := outcomeReviewGHAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
 	reviews, err := outcomeReviewGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -191,7 +191,7 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 	}
 	if review == nil {
 		outcomeReviewLog.Printf("Submitted review not found for PR #%d (reviewID=%d, reviews=%d)", num, reviewID, len(reviews))
-		report.Result = OutcomeUnknown
+		report.OutcomeStatus = OutcomeStatusUnknown
 		report.Detail = "submitted review not found"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusUnknown,
@@ -208,7 +208,7 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 
 	switch {
 	case reviewState == "DISMISSED": //nolint:tolowerequalfold
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "review dismissed by repo admin"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusRejected,
@@ -217,7 +217,7 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 		}
 		return report
 	case prMerged && reviewState == "APPROVED": //nolint:tolowerequalfold
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "approved review followed by merge"
 		report.TimeToOutcomeHours = timeBetween(item.Timestamp, outcomeString(pr["merged_at"]))
 		report.OutcomeEvaluation = OutcomeEvaluation{
@@ -229,7 +229,7 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 	case prMerged && reviewState == "CHANGES_REQUESTED": //nolint:tolowerequalfold
 		commits, err := outcomeReviewGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/commits", num), repo)
 		if err == nil && hasCommitAfterTimestamp(commits, reviewSubmittedAt) {
-			report.Result = OutcomeAccepted
+			report.OutcomeStatus = OutcomeStatusAccepted
 			report.Detail = "changes requested, updated, and merged"
 			report.TimeToOutcomeHours = timeBetween(item.Timestamp, outcomeString(pr["merged_at"]))
 			report.OutcomeEvaluation = OutcomeEvaluation{
@@ -240,7 +240,7 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 			return report
 		}
 	case prState == "closed" && !prMerged:
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "PR closed without merge after review submission"
 		report.TimeToOutcomeHours = timeBetween(item.Timestamp, outcomeString(pr["closed_at"]))
 		report.OutcomeEvaluation = OutcomeEvaluation{
@@ -250,7 +250,7 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 		}
 		return report
 	case prState == "open" && isLatestReview(reviews, review):
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "review is latest review on open PR"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusPending,
@@ -260,7 +260,7 @@ func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, re
 		return report
 	}
 
-	report.Result = OutcomeUnknown
+	report.OutcomeStatus = OutcomeStatusUnknown
 	report.Detail = "review outcome could not be determined"
 	report.OutcomeEvaluation = OutcomeEvaluation{
 		OutcomeStatus:    OutcomeStatusUnknown,
