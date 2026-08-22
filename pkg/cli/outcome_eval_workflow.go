@@ -53,14 +53,14 @@ func evalDispatchWorkflow(ctx context.Context, item CreatedItemReport, repoOverr
 
 	if runID <= 0 {
 		// No run ID available — workflow may not have been dispatched or ID not captured
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "no run ID available; dispatch may still be queued"
 		return report
 	}
 
 	data, err := workflowOutcomeGHAPIGet(ctx, fmt.Sprintf("actions/runs/%d", runID), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -71,19 +71,19 @@ func evalDispatchWorkflow(ctx context.Context, item CreatedItemReport, repoOverr
 
 	switch {
 	case status == "completed" && conclusion == "success":
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "workflow run completed with success"
 	case status == "completed" && (conclusion == "failure" || conclusion == "timed_out" || conclusion == "cancelled" || conclusion == "action_required"):
 		// action_required means the run is blocked and requires manual intervention;
 		// treat it as rejected rather than ignored since it does not self-resolve.
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "workflow run completed with " + conclusion
 	case status == "completed":
 		// neutral and skipped indicate the run did not contribute meaningful output.
-		report.Result = OutcomeIgnored
+		report.OutcomeStatus = OutcomeStatusIgnored
 		report.Detail = "workflow run completed with " + conclusion
 	default:
-		report.Result = OutcomePending
+		report.OutcomeStatus = OutcomeStatusPending
 		report.Detail = "workflow run status: " + status
 	}
 	return report
@@ -91,15 +91,15 @@ func evalDispatchWorkflow(ctx context.Context, item CreatedItemReport, repoOverr
 
 // evalUpdateDiscussion checks whether a discussion edit stuck.
 // Full evaluation requires GraphQL (same pattern as evalCloseDiscussion).
-// Until the GraphQL evaluator is implemented this returns OutcomeIgnored so that
+// Until the GraphQL evaluator is implemented this returns OutcomeStatusIgnored so that
 // callers do not retry indefinitely.
 // Spec: specs/safe-output-outcome-evaluation.md §12
 func evalUpdateDiscussion(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	return OutcomeReport{
-		Type:      item.Type,
-		ObjectURL: item.URL,
-		Repo:      resolveItemRepo(item, repoOverride),
-		Result:    OutcomeIgnored,
-		Detail:    "discussion update check requires GraphQL (not yet implemented); outcome is advisory only",
+		Type:              item.Type,
+		ObjectURL:         item.URL,
+		Repo:              resolveItemRepo(item, repoOverride),
+		OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored},
+		Detail:            "discussion update check requires GraphQL (not yet implemented); outcome is advisory only",
 	}
 }

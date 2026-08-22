@@ -26,9 +26,6 @@ network:
     - defaults
     - github
 
-sandbox:
-  agent:
-    runtime: gvisor
 tools:
   cli-proxy: true
   cache-memory: true

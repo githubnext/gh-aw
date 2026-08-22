@@ -22,9 +22,6 @@ permissions:
   copilot-requests: write
 features:
   gh-aw-detection: true
-sandbox:
-  agent:
-    runtime: cloud-hypervisor
 imports:
   - uses: shared/pr-review-base.md
     with:
