@@ -171,6 +171,7 @@ func TestCountAtLeast(t *testing.T) {
 	if got := CountAtLeast(findings, SeverityHigh); got != 2 {
 		t.Errorf("CountAtLeast(high) = %d, want 2", got)
 	}
+	// Unknown severities rank below info and are therefore excluded.
 	if got := CountAtLeast(findings, SeverityInfo); got != 3 {
 		t.Errorf("CountAtLeast(info) = %d, want 3", got)
 	}
