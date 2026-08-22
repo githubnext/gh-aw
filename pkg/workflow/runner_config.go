@@ -24,7 +24,7 @@ func extractRunnerConfig(frontmatter map[string]any) *RunnerConfig {
 
 	config := &RunnerConfig{}
 	if topology, ok := runnerObj["topology"].(string); ok {
-		config.Topology = topology
+		config.Topology = RunnerTopology(topology)
 		runnerConfigLog.Printf("Runner topology: %s", topology)
 	}
 

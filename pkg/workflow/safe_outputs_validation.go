@@ -12,9 +12,11 @@ import (
 
 var safeOutputsDomainsValidationLog = logger.New("workflow:safe_outputs_domains_validation")
 
+type SafeOutputsURLsPolicy string
+
 const (
-	SafeOutputsURLsPolicyAllowedOnly         = "allowed-only"
-	SafeOutputsURLsPolicyAllowedOrCodeRegion = "allowed-or-code-region"
+	SafeOutputsURLsPolicyAllowedOnly         SafeOutputsURLsPolicy = "allowed-only"
+	SafeOutputsURLsPolicyAllowedOrCodeRegion SafeOutputsURLsPolicy = "allowed-or-code-region"
 )
 
 // validateSafeOutputsURLs validates the urls policy in safe-outputs.

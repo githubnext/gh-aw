@@ -54,11 +54,21 @@ type MCPScriptToolConfig struct {
 
 // MCPScriptParam holds the configuration for a tool input parameter
 type MCPScriptParam struct {
-	Type        string // JSON schema type (string, number, boolean, array, object)
-	Description string // Description of the parameter
-	Required    bool   // Whether the parameter is required
-	Default     any    // Default value
+	Type        MCPParamType // JSON schema type (string, number, boolean, array, object)
+	Description string       // Description of the parameter
+	Required    bool         // Whether the parameter is required
+	Default     any          // Default value
 }
+
+type MCPParamType string
+
+const (
+	MCPParamTypeString  MCPParamType = "string"
+	MCPParamTypeNumber  MCPParamType = "number"
+	MCPParamTypeBoolean MCPParamType = "boolean"
+	MCPParamTypeArray   MCPParamType = "array"
+	MCPParamTypeObject  MCPParamType = "object"
+)
 
 // MCPScriptsMode constants define the available transport modes
 const (
@@ -102,12 +112,12 @@ func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScrip
 			for paramName, paramValue := range inputsMap {
 				if paramMap, ok := paramValue.(map[string]any); ok {
 					param := &MCPScriptParam{
-						Type: "string", // default type
+						Type: MCPParamTypeString, // default type
 					}
 
 					if t, exists := paramMap["type"]; exists {
 						if tStr, ok := t.(string); ok {
-							param.Type = tStr
+							param.Type = MCPParamType(tStr)
 						}
 					}
 
