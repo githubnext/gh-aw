@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -70,12 +71,7 @@ func (c *Compiler) samplesEnabledFromImports(frontmatter map[string]any, importe
 	if c.samplesEnabled(frontmatter) {
 		return true
 	}
-	for _, features := range importedFeatures {
-		if samplesFeatureEnabledInMap(features) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(importedFeatures, samplesFeatureEnabledInMap)
 }
 
 // runtimeVisibleFeatures returns a copy of features with internal
