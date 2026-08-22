@@ -122,6 +122,17 @@ func InstallShellCompletion(verbose bool, rootCmd CommandProvider) error {
 	}
 }
 
+// validateRcPath cleans a shell rc file path (for example ~/.bashrc) and ensures it is
+// absolute before it is read. It returns the cleaned path or an actionable error.
+func validateRcPath(rcName string, rcPath string) (string, error) {
+	cleanPath := filepath.Clean(rcPath)
+	if !filepath.IsAbs(cleanPath) {
+		shellCompletionLog.Printf("Invalid %s path (not absolute): %s", rcName, rcPath)
+		return "", fmt.Errorf("%s path %q is not an absolute path — expected an absolute path such as '/home/user/.%s'; set $HOME to an absolute home directory and retry", rcName, rcPath, rcName)
+	}
+	return cleanPath, nil
+}
+
 // installBashCompletion installs bash completion
 func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 	shellCompletionLog.Print("Installing bash completion")
@@ -203,10 +214,9 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 	if strings.HasPrefix(completionPath, homeDir) {
 		// For user-level installations, check if .bashrc sources the completion directory
 		// Clean and validate the path to prevent path traversal
-		cleanBashrcPath := filepath.Clean(bashrcPath)
-		if !filepath.IsAbs(cleanBashrcPath) {
-			shellCompletionLog.Printf("Invalid bashrc path (not absolute): %s", bashrcPath)
-			return fmt.Errorf("invalid bashrc path: %s", bashrcPath)
+		cleanBashrcPath, err := validateRcPath("bashrc", bashrcPath)
+		if err != nil {
+			return err
 		}
 		// #nosec G304 -- bashrcPath is constructed from trusted os.UserHomeDir() and a constant filename
 		bashrcContent, err := os.ReadFile(cleanBashrcPath)
@@ -275,10 +285,9 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 	// Check if .zshrc configures fpath
 	zshrcPath := filepath.Join(homeDir, ".zshrc")
 	// Clean and validate the path to prevent path traversal
-	cleanZshrcPath := filepath.Clean(zshrcPath)
-	if !filepath.IsAbs(cleanZshrcPath) {
-		shellCompletionLog.Printf("Invalid zshrc path (not absolute): %s", zshrcPath)
-		return fmt.Errorf("invalid zshrc path: %s", zshrcPath)
+	cleanZshrcPath, err := validateRcPath("zshrc", zshrcPath)
+	if err != nil {
+		return err
 	}
 	// #nosec G304 -- zshrcPath is constructed from trusted os.UserHomeDir() and a constant filename
 	zshrcContent, err := os.ReadFile(cleanZshrcPath)
