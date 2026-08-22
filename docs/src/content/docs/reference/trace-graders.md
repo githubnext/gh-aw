@@ -5,6 +5,8 @@ description: Deterministic metrics computed from agent execution traces
 
 Graders compute deterministic metrics from post-agent execution trace files (token usage, MCP gateway logs, agent output) without LLM calls or network access. Results are persisted in the agent artifact for downstream consumption by detection jobs and reporting tools.
 
+For normative requirements, see the [Graders Specification](/gh-aw/specs/graders-specification/).
+
 :::caution[Experimental]
 Graders are an experimental feature.
 :::
