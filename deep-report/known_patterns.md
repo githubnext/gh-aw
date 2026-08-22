@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-22, ~05:45Z cycle, baseline #54675)
+
+### New pattern: a closed "root-cause" issue doesn't mean the problem stopped — check whether the failure signature still recurs before treating a topic as resolved
+Issue #53615 ("PR Sous Chef: root-cause chronic safe_outputs job failures") was closed 2026-08-18, but fresh `[aw] Failed jobs: PR Sous Chef` issues with the same `safe_outputs` job signature kept appearing through today (#54685, run #32543132845). Today's Safe Output Health Monitor (first-ever run) independently found the same failure mode and added a sharper, testable root-cause hypothesis (single bad item in a multi-type batch aborts the whole step) that the closed issue never had. **Lesson: before declining a re-flagged chronic pattern as "already tracked," check the linked issue's actual state and whether newer discussions offer a materially more specific/actionable hypothesis than what got the prior issue closed — closure isn't proof of resolution, and the dedup gate should compare specificity, not just topic overlap.**
+
+### New pattern: a merged fix can be undone in practice by a tooling gap one layer up — check both the producer and the consumer
+PR #47855 (merged 2026-07-25) added safe-output step stdout/stderr capture specifically so failures could be root-caused from artifacts. Today's Safe Output Health Monitor still couldn't retrieve that log text — not because the fix regressed, but because the `agenticworkflows`/`logs` MCP tool's artifact-set options never got updated to expose the new files. **Lesson: when a report says "we couldn't get X data," check whether a fix for producing X already exists and is just unreachable by the *consuming* tool, rather than assuming X was never captured — these are two different, separately-fileable gaps (produce vs. surface).**
+
 ## DeepReport Memory (2026-08-22, ~00:30Z cycle, baseline #54587)
 
 ### New pattern: some generic quality asks are chronically un-stickable — recognize the signature and stop re-filing

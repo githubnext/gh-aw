@@ -1,3 +1,18 @@
+## Flagged Items (2026-08-22, ~05:45Z cycle, window since 00:30Z baseline #54675, 8 new discussions: 54693,54698,54700,54719,54725,54736,54737,54738)
+
+- **[new, filed]** PR Sous Chef `safe_outputs` step aborts whole batch on one invalid item, ~8% recurring failure rate — Safe Output Health Monitor (#54725) Work Item 1; re-flagged despite prior #53615 closure since the pattern never actually stopped (still-open #54685 today) and this report adds a specific testable hypothesis.
+- **[new, filed]** Audit/logs MCP tooling can't read the safe-output step logs that #47855 already bundles on disk — same report, Work Item 2; producer-side fix landed, consumer-side gap remains.
+- **[new, filed]** permissions schema missing `secret-scanning-alerts` enum entry — Schema Consistency Checker (#54737) finding #1.
+- **[new, filed]** permissions.md missing `attestations`/`models`/`secret-scanning-alerts` docs — same report, finding #2.
+- **[new, filed]** cache-memory.md wrong default allowed-extensions + retention-days semantics (combined 1 issue) — same report, findings #3-4.
+- **[new, filed]** regression check for permissions.go ↔ schema enum drift — same report, recommendation #5.
+- **[declined, already self-filed]** lenstringzero (Sergo #54719) — #54717/#54721. stringbytesroundtrip.isExactString (same report) — #54718/#54722.
+- **[declined, already self-filed]** require-http-response-error-listener ternary FN (ESLint Refiner #54736) — #54734. require-sync-exec-timeout spread FN (same report) — #54735/#54749.
+- **[declined, already self-consolidated]** LintMonster's 678 largefunc findings (#54700) — workflow created its own tracker issue this run.
+- **[declined, chronic infra, already tracked]** GitHub Remote MCP Auth Test toolset gap (#54738) — 16th+ occurrence, already open #54739; prior deep-report durable-fix issue #53464 closed 2026-08-xx without effect.
+- **[declined, subsumed]** Compiler Code Quality Report's 3 file-level long-function/test-ratio findings (#54698) — covered by LintMonster's same-cycle consolidated tracker.
+- **[declined, healthy/informational]** Daily Firewall Report (#54693, 98.96% allow rate, Sentry intermittent-allowlist-gap is informational only) — no action.
+
 ## Flagged Items (2026-08-22, ~00:30Z cycle, window since 18:26Z baseline #54587, 9 new discussions: 54577,54595,54613,54614,54616,54617,54623,54638,54655)
 
 - **[new, filed]** Detection Analysis Report Rule 3 can't distinguish detection-step failures from full agent-job non-execution — 21/254 detection-enabled runs this window show `TokenUsage:0`/`ErrorCount:0` (#54655).
