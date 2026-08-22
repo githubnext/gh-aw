@@ -111,13 +111,17 @@ If no preference, suggest default:
 
 Map to `engine:` only when not default.
 
-### Phase 7b: Skills, LSP & Evals (optional)
+### Phase 7b: Skills, Plugins, LSP & Evals (optional)
 
-Ask only when relevant: **"Does the agent need extra domain knowledge, language-server code intelligence, or automated success checks?"**
+Ask only when relevant: **"Does the agent need extra domain knowledge, agent plugins, language-server code intelligence, or automated success checks?"**
 
 Map to:
 - `skills:` — pinned external skills (`owner/repo/skill@sha`) or local paths (`.github/skills/<name>`) when the agent needs domain knowledge (see `.github/aw/skills.md`)
+- `plugins:` — pinned agent plugins (`owner/repo[/path]@ref`) when the user names specific plugins; experimental and unsupported by `gemini`/`pi` (see `.github/aw/skills.md`)
 - `lsp:` — language servers for code intelligence; **experimental** and only valid with `engine: copilot` (see `.github/aw/lsp.md`)
+- `evals:` — binary YES/NO questions checking whether the run met its goals; requires `safe-outputs:` so `agent_output.json` exists (see `.github/aw/evals.md`)
+
+gh-aw installs `skills:` and `plugins:` entries before the agent runs. Never emit install steps or prompt instructions that fetch skills or plugins on the fly.
 - `evals:` — binary YES/NO questions checking whether the run met its goals; requires `safe-outputs:` so `agent_output.json` exists (see `.github/aw/evals.md`)
 
 ### Phase 8: Confirmation
@@ -195,6 +199,8 @@ network:
     - <additional entries if needed>
 skills:
   - <owner/repo/skill@sha or .github/skills/<name> — only if domain knowledge is needed>
+plugins:
+  - <owner/repo[/path]@ref — only if the user asked for specific agent plugins>
 lsp:
   <language-key>:                 # optional, engine: copilot only (experimental)
     command: <server-executable>
@@ -235,6 +241,8 @@ Before final output, run this internal self-check:
 - [ ] For batch processing (>5 items), sub-agent pattern is suggested
 - [ ] Network entries use valid ecosystem identifiers (no `npm`/`pypi`/`docker`-style invalid shorthands)
 - [ ] `skills:` entries are pinned (`owner/repo/skill@sha`) or local paths, and only added when domain knowledge is needed
+- [ ] `plugins:` entries are pinned (`owner/repo[/path]@ref`) and only added when the user asked for specific agent plugins
+- [ ] Skills and plugins are declared in frontmatter — no on-the-fly install steps or prompt-driven installation
 - [ ] `lsp:` is only used with `engine: copilot` (experimental; omit otherwise)
 - [ ] `evals:` questions are binary YES/NO and `safe-outputs:` is declared so `agent_output.json` exists
 - [ ] For each third-party service/MCP integration, required secrets/env vars are listed

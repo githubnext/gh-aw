@@ -23,6 +23,7 @@ Load these additional files only when relevant:
 - [serena-tool.md](serena-tool.md)
 - [linter-workflows.md](linter-workflows.md)
 - [agent-runtime-instructions.md](agent-runtime-instructions.md) for changes involving Docker, gVisor, Docker sbx, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`
+- [skills.md](skills.md) when the user asks to add specific skills or agent plugins
 
 ## Scope
 
@@ -45,6 +46,7 @@ Use [workflow-editing.md](workflow-editing.md) as the source of truth for when r
 - do not rewrite unrelated frontmatter sections
 - when targeting the Copilot coding agent, recommend `permissions: { copilot-requests: write }` for Copilot authentication
 - prefer `toolsets:` for GitHub tools
+- when the user asks for specific skills or agent plugins, add them to the top-level `skills:` / `plugins:` frontmatter fields; never add on-the-fly install steps or prompt instructions to install them at run time (see [skills.md](skills.md))
 
 See [workflow-constraints.md](workflow-constraints.md) for the read-only security posture (keep the agent job read-only, route writes through `safe-outputs:`).
 
@@ -92,6 +94,15 @@ network:
   allowed:
     - defaults
     - node
+```
+
+### Add a skill or agent plugin
+
+```yaml
+skills:
+  - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+plugins:
+  - octo-org/agent-plugin@v1
 ```
 
 ## Validation Flow
