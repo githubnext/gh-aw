@@ -227,8 +227,8 @@ func (c *Compiler) buildCopyDetectionFirewallLogsStep(data *WorkflowData) []stri
 		"        continue-on-error: true\n",
 		"        run: |\n",
 		fmt.Sprintf("          mkdir -p %s\n", detectionFirewallLogsDir),
-		fmt.Sprintf("          [ -d %s ] && mkdir -p %s/logs && cp -r %s/. %s/logs/ || true\n", proxyLogsDir, detectionFirewallLogsDir, proxyLogsDir, detectionFirewallLogsDir),
-		fmt.Sprintf("          [ -d %s ] && mkdir -p %s/audit && cp -r %s/. %s/audit/ || true\n", auditDir, detectionFirewallLogsDir, auditDir, detectionFirewallLogsDir),
+		fmt.Sprintf("          if [ -d %s ]; then mkdir -p %s/logs && cp -r %s/. %s/logs/; fi\n", proxyLogsDir, detectionFirewallLogsDir, proxyLogsDir, detectionFirewallLogsDir),
+		fmt.Sprintf("          if [ -d %s ]; then mkdir -p %s/audit && cp -r %s/. %s/audit/; fi\n", auditDir, detectionFirewallLogsDir, auditDir, detectionFirewallLogsDir),
 	}
 }
 
