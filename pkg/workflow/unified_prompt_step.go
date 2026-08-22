@@ -608,8 +608,12 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 		}
 	}
 	if safeOutputs.CallWorkflow != nil {
-		for _, workflowName := range safeOutputs.CallWorkflow.Workflows {
-			tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(workflowName), safeOutputs.CallWorkflow.Max))
+		if len(safeOutputs.CallWorkflow.Workflows) == 0 {
+			tools = append(tools, toolWithMaxBudget("call_workflow", safeOutputs.CallWorkflow.Max))
+		} else {
+			for _, workflowName := range safeOutputs.CallWorkflow.Workflows {
+				tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(workflowName), safeOutputs.CallWorkflow.Max))
+			}
 		}
 	}
 	if safeOutputs.MissingTool != nil {
