@@ -1,66 +1,22 @@
 ---
 title: Drive Memory
-description: Experimental persistent workflow memory backed by GitHub Drives.
+description: Private-preview GitHub Drives integration reference.
 sidebar:
   order: 1510
 ---
 
-Drive memory provides persistent file storage across workflow runs using the experimental [GitHub Drives preview](https://github.com/actions/gh-drives-preview). The repository must be enrolled in the preview, and the workflow must run on a Linux runner with FUSE support.
+Drive memory is an experimental, feature-gated integration backed by the [GitHub Drives preview](https://github.com/actions/gh-drives-preview). Do not configure it unless GitHub has explicitly enrolled the repository in the private preview.
 
 > [!CAUTION]
-> Drive memory and the underlying GitHub Drives service are experimental. The configuration and storage behavior may change without notice.
+> Drive memory and the underlying GitHub Drives service are experimental. This
+> reference records behavior for enrolled preview repositories and is not a
+> recommendation for general use.
 
-## Enable drive memory
+## Preview behavior
 
-```aw wrap
----
-tools:
-  drive-memory: true
----
-```
+For enrolled preview repositories, the compiler mounts configured drives into the agent at `/tmp/gh-aw/drive-memory/` (or `/tmp/gh-aw/drive-memory-{id}/` for named entries). It grants the generated job `contents: read`, `id-token: write`, and the required `drives` permission.
 
-The compiler mounts the `default` drive and exposes it to the agent at `/tmp/gh-aw/drive-memory/`. It automatically grants the generated job `contents: read`, `id-token: write`, and the required `drives` permission.
-
-## Configure a drive
-
-```aw wrap
----
-tools:
-  drive-memory:
-    drive-name: agent-memory
-    disk-size: 20G
-    prefetch: true
-    description: Long-lived notes and state
-    allowed-extensions: [".json", ".jsonl", ".txt", ".md"]
----
-```
-
-- `drive-name` selects the persistent drive. It defaults to `default`.
-- `disk-size` sets the size when the drive is first created and defaults to `10G`.
-- `prefetch` eagerly downloads existing content after mounting.
-- `restore-only` mounts with `drives: read` and never commits local changes.
-- `description`, `allowed-extensions`, and `validation` behave like their [cache-memory](/gh-aw/reference/cache-memory/) equivalents.
-
-## Multiple drives
-
-```aw wrap
----
-tools:
-  drive-memory:
-    - id: notes
-      drive-name: agent-notes
-    - id: reference
-      drive-name: shared-reference
-      restore-only: true
-      prefetch: true
----
-```
-
-The `default` entry is exposed at `/tmp/gh-aw/drive-memory/`; named entries use `/tmp/gh-aw/drive-memory-{id}/`.
-
-## Persistence and threat detection
-
-Without threat detection, the compiler checks out each drive before the agent and commits validated changes afterward. With threat detection enabled, the agent receives a non-publishing checkout and the compiler stages drive contents as an artifact. A separate `update_drive_memory` job publishes the artifact only after detection succeeds. Before replacing the drive, that job verifies it has not changed since the agent checked it out; concurrent updates cause the publish to fail instead of being overwritten.
+The compiler checks out each drive before the agent and commits validated changes afterward. With threat detection enabled, it stages drive contents as an artifact; a separate `update_drive_memory` job publishes it only after detection succeeds and verifies the drive has not changed since checkout.
 
 Drive names are repository-wide and branch-aware according to the preview service. GitHub Drives allows one active writer for a drive, so overlapping runs that write the same drive can contend for the writer lease.
 

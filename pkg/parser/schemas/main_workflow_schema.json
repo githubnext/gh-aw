@@ -4845,19 +4845,19 @@
           ]
         },
         "drive-memory": {
-          "description": "Experimental GitHub Drives memory configuration for persistent file storage. Requires repository enrollment in the GitHub Drives private preview and a Linux runner.",
+          "description": "Private-preview GitHub Drives configuration. Do not configure unless GitHub has explicitly enrolled the repository in the private preview.",
           "oneOf": [
             {
               "type": "boolean",
-              "description": "Enable drive-memory with default settings"
+              "description": "Default configuration for enrolled preview repositories"
             },
             {
               "type": "null",
-              "description": "Enable drive-memory with default settings (same as true)"
+              "description": "Default configuration for enrolled preview repositories (same as true)"
             },
             {
               "type": "object",
-              "description": "Drive-memory configuration object",
+              "description": "Configuration for an enrolled preview repository",
               "properties": {
                 "drive-name": {
                   "type": "string",
@@ -4911,7 +4911,7 @@
             },
             {
               "type": "array",
-              "description": "Array of drive-memory configurations for multiple drives",
+              "description": "Configurations for multiple drives in an enrolled preview repository",
               "items": {
                 "type": "object",
                 "properties": {
@@ -4974,24 +4974,6 @@
               "minItems": 1,
               "maxItems": 10
             }
-          ],
-          "examples": [
-            true,
-            {
-              "drive-name": "agent-memory",
-              "disk-size": "20G",
-              "prefetch": true
-            },
-            [
-              {
-                "id": "notes",
-                "drive-name": "agent-notes"
-              },
-              {
-                "id": "reference",
-                "restore-only": true
-              }
-            ]
           ]
         },
         "comment-memory": {

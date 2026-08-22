@@ -4088,19 +4088,18 @@ tools:
   cache-memory: []
     # Array items: object
 
-  # Experimental GitHub Drives memory configuration for persistent file storage.
-  # Requires repository enrollment in the GitHub Drives private preview and a Linux
-  # runner.
+  # Private-preview GitHub Drives configuration. Do not configure unless GitHub has
+  # explicitly enrolled the repository in the private preview.
   # (optional)
   # Accepted formats:
 
-  # Format 1: Enable drive-memory with default settings
+  # Format 1: Default configuration for enrolled preview repositories
   drive-memory: true
 
-  # Format 2: Enable drive-memory with default settings (same as true)
+  # Format 2: Default configuration for enrolled preview repositories (same as true)
   drive-memory: null
 
-  # Format 3: Drive-memory configuration object
+  # Format 3: Configuration for an enrolled preview repository
   drive-memory:
     # GitHub Drive name (default: 'default')
     # (optional)
@@ -4139,7 +4138,7 @@ tools:
       # (optional)
       timeout-minutes: 1
 
-  # Format 4: Array of drive-memory configurations for multiple drives
+  # Format 4: Configurations for multiple drives in an enrolled preview repository
   drive-memory: []
     # Array items: object
 

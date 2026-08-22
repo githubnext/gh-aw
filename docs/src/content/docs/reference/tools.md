@@ -89,16 +89,14 @@ tools:
 
 See **[Cache Memory Reference](/gh-aw/reference/cache-memory/)** for complete configuration options and usage examples.
 
-### Drive Memory (`drive-memory:`) — Experimental
+### Drive Memory (`drive-memory:`) — Private Preview
 
-Persistent memory backed by the GitHub Drives preview.
+Drive memory is an experimental, feature-gated GitHub Drives integration. Do not
+configure it unless GitHub has explicitly enrolled the repository in the private
+preview.
 
-```yaml wrap
-tools:
-  drive-memory:
-```
-
-See **[Drive Memory Reference](/gh-aw/reference/drive-memory/)** for enrollment requirements, configuration, and limitations.
+The [Drive Memory Reference](/gh-aw/reference/drive-memory/) records the preview
+behavior for enrolled repositories; it is not a recommendation for general use.
 
 ### Repo Memory (`repo-memory:`)
 
