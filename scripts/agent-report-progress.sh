@@ -58,9 +58,8 @@ wait_for_jobs() {
 }
 
 BASE_REF="${BASE_REF:-origin/main}"
-BASE_COMMIT=$(git merge-base "$BASE_REF" HEAD 2>/dev/null || true)
+BASE_COMMIT=$(bash "$(dirname "${BASH_SOURCE[0]}")/resolve-base-commit.sh" --base-ref "$BASE_REF" || true)
 if [ -z "$BASE_COMMIT" ]; then
-    echo "Error: unable to determine merge-base from BASE_REF=$BASE_REF." >&2
     echo "Set BASE_REF explicitly, for example: BASE_REF=origin/main make agent-report-progress" >&2
     exit 1
 fi

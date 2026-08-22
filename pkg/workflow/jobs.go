@@ -37,6 +37,7 @@ var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
 	pushEvalsStateJobName:                       {},
 	pushRepoMemoryJobName:                       {},
 	updateCacheMemoryJobName:                    {},
+	updateDriveMemoryJobName:                    {},
 }
 
 // Job represents a GitHub Actions job with all its properties

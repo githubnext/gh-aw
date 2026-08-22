@@ -37,4 +37,15 @@ describe("validateMemoryStep", () => {
     expect(messages).toContain("Custom cache-memory validation stdout:\nvalid\n");
     expect(fs.existsSync(getValidationMarkerPath("cache", "default"))).toBe(true);
   });
+
+  it("validates drive content", () => {
+    fs.writeFileSync(path.join(tempDir, "state.json"), "{}");
+    const core = {
+      info: () => {},
+      error: () => {},
+      setFailed: () => {},
+    };
+
+    expect(validateMemoryStep(core, { kind: "drive" })).toBe(true);
+  });
 });
