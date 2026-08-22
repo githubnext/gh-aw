@@ -60,9 +60,6 @@ func TestDetectionJobLevelCondition(t *testing.T) {
 	}
 }
 
-// main engine config is never propagated to the detection engine config,
-// regardless of whether a model is explicitly configured.
-
 // TestDetectionJobPermissionsIndentation verifies that the detection job's permissions block
 // is correctly indented in the rendered YAML output.
 // Regression test for the indentation bug where c.indentYAMLLines was called on
