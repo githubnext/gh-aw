@@ -82,43 +82,56 @@ func (p *ProgressBar) Update(current int64) string {
 	p.current = current
 	p.updateCount++ // Increment counter for animation
 
-	if progressLog.Enabled() && p.updateCount%100 == 0 {
-		// Log every 100 updates to avoid excessive logging
-		if p.indeterminate {
-			progressLog.Printf("Progress update: current=%d bytes, indeterminate mode", current)
-		} else {
-			percent := float64(current) / float64(p.total) * 100
-			progressLog.Printf("Progress update: current=%d bytes, total=%d bytes, percent=%.1f%%", current, p.total, percent)
-		}
-	}
+	p.logUpdate(current)
 
-	// Handle indeterminate mode
 	if p.indeterminate {
-		if !p.ttyCheck() {
-			// Fallback for non-TTY: "Processing... (512MB)"
-			if current == 0 {
-				return "Processing..."
-			}
-			return fmt.Sprintf("Processing... (%s)", formatBytes(current))
-		}
-		// Use a manual pulse because this synchronous renderer has no tea.Program loop
-		// to drive bubbles' spring animation.
-		// In TTY mode, show a pulsing indicator by cycling between 30% and 70%
-		// This creates a visual "breathing" effect that's more noticeable
-		// Using sine wave-like progression: 30% -> 50% -> 70% -> 50% -> 30%
-		pulseStep := p.updateCount % 8 // 8 steps for smoother animation
-		var pulsePercent float64
-		if pulseStep < 4 {
-			// Rising: 30% -> 70%
-			pulsePercent = 0.3 + 0.4*float64(pulseStep)/3.0
-		} else {
-			// Falling: 70% -> 30%
-			pulsePercent = 0.7 - 0.4*float64(pulseStep-4)/3.0
-		}
-		return p.progress.ViewAs(pulsePercent)
+		return p.renderIndeterminate(current)
 	}
+	return p.renderDeterminate(current)
+}
 
-	// Handle determinate mode with edge case: avoid division by zero
+// logUpdate emits a debug log entry every 100 updates to avoid excessive logging.
+func (p *ProgressBar) logUpdate(current int64) {
+	if !progressLog.Enabled() || p.updateCount%100 != 0 {
+		return
+	}
+	if p.indeterminate {
+		progressLog.Printf("Progress update: current=%d bytes, indeterminate mode", current)
+		return
+	}
+	percent := float64(current) / float64(p.total) * 100
+	progressLog.Printf("Progress update: current=%d bytes, total=%d bytes, percent=%.1f%%", current, p.total, percent)
+}
+
+// renderIndeterminate renders the progress indicator when the total size is unknown.
+func (p *ProgressBar) renderIndeterminate(current int64) string {
+	if !p.ttyCheck() {
+		// Fallback for non-TTY: "Processing... (512MB)"
+		if current == 0 {
+			return "Processing..."
+		}
+		return fmt.Sprintf("Processing... (%s)", formatBytes(current))
+	}
+	// Use a manual pulse because this synchronous renderer has no tea.Program loop
+	// to drive bubbles' spring animation.
+	// In TTY mode, show a pulsing indicator by cycling between 30% and 70%
+	// This creates a visual "breathing" effect that's more noticeable
+	// Using sine wave-like progression: 30% -> 50% -> 70% -> 50% -> 30%
+	pulseStep := p.updateCount % 8 // 8 steps for smoother animation
+	var pulsePercent float64
+	if pulseStep < 4 {
+		// Rising: 30% -> 70%
+		pulsePercent = 0.3 + 0.4*float64(pulseStep)/3.0
+	} else {
+		// Falling: 70% -> 30%
+		pulsePercent = 0.7 - 0.4*float64(pulseStep-4)/3.0
+	}
+	return p.progress.ViewAs(pulsePercent)
+}
+
+// renderDeterminate renders the progress indicator when the total size is known.
+func (p *ProgressBar) renderDeterminate(current int64) string {
+	// Handle edge case: avoid division by zero
 	if p.total == 0 {
 		if p.ttyCheck() {
 			return p.progress.ViewAs(1.0)
