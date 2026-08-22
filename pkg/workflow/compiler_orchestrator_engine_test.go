@@ -299,6 +299,36 @@ imports:
 	assert.Equal(t, 7, result.engineConfig.MaxTurnCacheMisses)
 }
 
+func TestCompileWorkflowRejectsImportedMaxTurnCacheMissesExpression(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-invalid-max-turn-cache-misses")
+
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "common.md"), []byte(`---
+max-turn-cache-misses: "${{ inputs.max_turn_cache_misses }}"
+---
+
+# Shared Workflow
+`), 0644))
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(`---
+on: push
+engine: copilot
+imports:
+  - shared/common.md
+---
+
+# Test Workflow
+`), 0644))
+
+	err := NewCompiler().CompileWorkflow(testFile)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "max-turn-cache-misses")
+	require.ErrorContains(t, err, "positive integer")
+	require.ErrorContains(t, err, "Example: max-turn-cache-misses: 5")
+}
+
 // TestSetupEngineAndImports_ImportedEngineVersionDefault verifies that a shared/imported
 // engine definition's top-level `version` field is applied as the default
 // EngineConfig.Version when the workflow's own `engine:` frontmatter selects the same
