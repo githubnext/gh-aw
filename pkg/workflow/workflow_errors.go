@@ -26,6 +26,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/validationerror"
 )
 
 var errorHelpersLog = logger.New("workflow:error_helpers")
@@ -34,15 +35,14 @@ var errorHelpersLog = logger.New("workflow:error_helpers")
 // File and Line are optional; zero values mean "location unknown".
 type FieldLocation = console.ErrorPosition
 
-// WorkflowValidationError represents an error that occurred during input validation
+// WorkflowValidationError represents an error that occurred during input validation.
+// It embeds validationerror.Payload so callers can uniformly detect structured
+// validation errors from any package via errors.As(err, &validationerror.ValidationError).
 type WorkflowValidationError struct {
-	Field      string
-	Value      string
-	Reason     string
-	Suggestion string
-	Severity   ErrorSeverity
-	Category   string
-	Timestamp  time.Time
+	validationerror.Payload
+	Severity  ErrorSeverity
+	Category  string
+	Timestamp time.Time
 	// Location context (optional — zero values mean location unknown)
 	File   string
 	Line   int
@@ -51,30 +51,16 @@ type WorkflowValidationError struct {
 
 // Error implements the error interface
 func (e *WorkflowValidationError) Error() string {
-	var b strings.Builder
-
+	var header string
 	if e.Line > 0 {
 		// When a source location is known, omit the timestamp so the compiler's
 		// file:line:col: prefix is not cluttered with a redundant timestamp.
-		fmt.Fprintf(&b, "Validation failed for field '%s'", e.Field)
+		header = fmt.Sprintf("Validation failed for field '%s'", e.Field)
 	} else {
-		fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
+		header = fmt.Sprintf("[%s] Validation failed for field '%s'",
 			e.Timestamp.Format(time.RFC3339), e.Field)
 	}
-
-	if e.Value != "" {
-		// Truncate long values
-		truncatedValue := stringutil.Truncate(e.Value, 100)
-		fmt.Fprintf(&b, "\n\nValue: %s", truncatedValue)
-	}
-
-	fmt.Fprintf(&b, "\nReason: %s", e.Reason)
-
-	if e.Suggestion != "" {
-		fmt.Fprintf(&b, "\nSuggestion: %s", e.Suggestion)
-	}
-
-	return b.String()
+	return validationerror.Format(header, e.Payload, true)
 }
 
 // NewValidationError creates a new validation error with context
@@ -84,13 +70,15 @@ func NewValidationError(field, value, reason, suggestion string) *WorkflowValida
 	}
 	severity, category := classifyValidationSeverity(field, reason)
 	return &WorkflowValidationError{
-		Field:      field,
-		Value:      value,
-		Reason:     reason,
-		Suggestion: suggestion,
-		Severity:   severity,
-		Category:   category,
-		Timestamp:  time.Now(),
+		Payload: validationerror.Payload{
+			Field:      field,
+			Value:      value,
+			Reason:     reason,
+			Suggestion: suggestion,
+		},
+		Severity:  severity,
+		Category:  category,
+		Timestamp: time.Now(),
 	}
 }
 
