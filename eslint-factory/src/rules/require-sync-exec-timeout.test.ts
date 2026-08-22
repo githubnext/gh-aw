@@ -44,6 +44,8 @@ describe("require-sync-exec-timeout", () => {
         `const { execSync } = require("child_process"); execSync("git status", { timeout: userConfig.timeout });`,
         `const { execSync } = require("child_process"); const opts = { timeout: 5000 }; execSync("git status", opts);`,
         `const { execSync } = require("child_process"); const base = {}; execSync("git status", { ...base });`,
+        `const { execFileSync } = require("child_process"); const runGit = (args, execOptions) => execFileSync("git", args, { encoding: "utf8", ...execOptions }); runGit(["status"], { stdio: "pipe" });`,
+        `const { execFileSync } = require("child_process"); const runGit = (args, execOptions = {}) => execFileSync("git", args, { encoding: "utf8", ...execOptions }); runGit(["status"], { stdio: "pipe", timeout: 5000 });`,
       ],
       invalid: [],
     });
@@ -110,6 +112,10 @@ describe("require-sync-exec-timeout", () => {
         },
         {
           code: `const { execFileSync } = require("child_process"); execFileSync("git", { encoding: "utf8" });`,
+          errors: [{ messageId: "requireTimeout" }],
+        },
+        {
+          code: `const { execFileSync } = require("child_process"); const runGit = (args, execOptions = {}) => execFileSync("git", args, { encoding: "utf8", ...execOptions }); runGit(["status"], { stdio: "pipe" });`,
           errors: [{ messageId: "requireTimeout" }],
         },
       ],
