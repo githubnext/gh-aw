@@ -158,7 +158,7 @@ func TestConclusionJob(t *testing.T) {
 			compiler := NewCompiler()
 			workflowData := &WorkflowData{
 				Name:       "Test Workflow",
-				AIReaction: tt.aiReaction,
+				AIReaction: ReactionType(tt.aiReaction),
 				Command:    tt.command,
 			}
 
@@ -871,7 +871,7 @@ func TestStatusCommentDecoupling(t *testing.T) {
 			// Test activation job
 			workflowData := &WorkflowData{
 				Name:          "Test Workflow",
-				AIReaction:    tt.aiReaction,
+				AIReaction:    ReactionType(tt.aiReaction),
 				StatusComment: tt.statusComment,
 				SafeOutputs: &SafeOutputsConfig{
 					MissingTool: &MissingToolConfig{},

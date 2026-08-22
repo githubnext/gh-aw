@@ -132,6 +132,20 @@ const SafeOutputsFilename = "safeoutputs.jsonl"
 // consume structured token data without parsing the step summary or GITHUB_OUTPUT.
 const TokenUsageFilename = "agent_usage.json"
 
+// GraderManifestFilename is the filename of the grader manifest JSON written to /tmp/gh-aw/agent/graders/
+// by trace_graders.cjs. Lists which graders were configured and their enabled state.
+const GraderManifestFilename = "grader_manifest.json"
+
+// GraderResultsFilename is the filename of the normalized grader results JSON written to /tmp/gh-aw/agent/graders/
+// by trace_graders.cjs. Contains deterministic metric values computed from trace files.
+const GraderResultsFilename = "grader_results.json"
+
+// GradersDir is the subdirectory under TmpGhAwAgentDir where grader output files are written.
+const GradersDir = TmpGhAwDir + "/agent/graders"
+
+// GradersDirSlash is GradersDir with a trailing slash.
+const GradersDirSlash = GradersDir + "/"
+
 // GithubRateLimitsFilename is the filename of the GitHub API rate-limit log written to /tmp/gh-aw/.
 // Each line is a JSON object recording the x-ratelimit-* headers (or rate-limit API snapshot)
 // captured during github.rest API calls, enabling post-run analysis of rate-limit consumption.

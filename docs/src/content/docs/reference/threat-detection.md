@@ -426,7 +426,7 @@ The protection list is composed of four sources:
 |-------|----------|
 | **AI detection always fails** | Review custom prompt for overly strict instructions, check if legitimate patterns trigger detection, adjust prompt context, or temporarily disable to test |
 | **Custom steps not running** | Verify YAML indentation, ensure steps array is properly formatted, review compilation output, check if AI detection failed first |
-| **Large patches cause timeouts** | Increase `timeout-minutes`, configure `max-patch-size`, truncate content before analysis, or split changes into smaller PRs |
+| **Large patches cause timeouts** | Increase `jobs.detection.timeout-minutes` (10 minutes by default, or `vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES`), configure `max-patch-size`, truncate content before analysis, or split changes into smaller PRs |
 | **False positives** | Refine prompt with specific exclusions, adjust tool thresholds, add workflow context explaining patterns, review detection logs |
 
 ## Related Documentation

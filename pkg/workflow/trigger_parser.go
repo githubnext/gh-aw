@@ -823,7 +823,7 @@ func parseOnMapPreamble(onMap map[string]any, workflowData *WorkflowData) (hasRe
 		if !isValidReaction(reactionStr) {
 			return false, false, false, fmt.Errorf("reaction value '%s' is not supported. Valid reactions are: %v. Example: reaction: eyes", reactionStr, getValidReactions())
 		}
-		workflowData.AIReaction = reactionStr
+		workflowData.AIReaction = ReactionType(reactionStr)
 		workflowData.ReactionIssues = reactionIssues
 		workflowData.ReactionPullRequests = reactionPullRequests
 		workflowData.ReactionDiscussions = reactionDiscussions

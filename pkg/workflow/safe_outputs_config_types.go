@@ -24,6 +24,7 @@ type BaseSafeOutputConfig struct {
 	GitHubToken              string           `yaml:"github-token,omitempty"`               // GitHub token for this specific output type
 	GitHubApp                *GitHubAppConfig `yaml:"github-app,omitempty"`                 // GitHub App credentials for minting a per-handler installation access token
 	Staged                   *TemplatableBool `yaml:"staged,omitempty"`                     // Templatable preview-only mode for this specific output type
+	Footer                   *string          `yaml:"footer,omitempty"`                     // Controls AI-generated footer behavior. Values vary by handler; false omits the visible footer but keeps XML markers.
 	IssueIntent              *bool            `yaml:"issue-intent,omitempty"`               // When true, enable issue-intent rationale/confidence guidance and schema requirements for this output type.
 	NormalizeClosingKeywords *bool            `yaml:"normalize-closing-keywords,omitempty"` // When true for this output type, strip backticks from recognized issue-closing keywords in body fields.
 	// Samples carries deterministic replay samples for the hidden
@@ -90,7 +91,7 @@ type SafeOutputsConfig struct {
 	Jobs                                   map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
 	Scripts                                map[string]*SafeScriptConfig           `yaml:"scripts,omitempty"`                      // Custom inline handlers that run in the safe-output handler loop
 	GitHubApp                              *GitHubAppConfig                       `yaml:"github-app,omitempty"`                   // GitHub App credentials for token minting
-	URLs                                   string                                 `yaml:"urls,omitempty"`                         // URL sanitization policy: SafeOutputsURLsPolicyAllowedOnly (default) or SafeOutputsURLsPolicyAllowedOrCodeRegion
+	URLs                                   SafeOutputsURLsPolicy                  `yaml:"urls,omitempty"`                         // URL sanitization policy: SafeOutputsURLsPolicyAllowedOnly (default) or SafeOutputsURLsPolicyAllowedOrCodeRegion
 	Data                                   any                                    `yaml:"data,omitempty"`                         // Structured data mode for body-based safe outputs: false/omitted (disabled), true (allow any object), object (inline schema), or GitHub Actions expression string
 	DataEnabled                            bool                                   `yaml:"-"`                                      // Internal flag controlling whether `data` is allowed for body-based safe outputs
 	NormalizedDataSchema                   map[string]any                         `yaml:"-"`                                      // Internal normalized schema derived from inline `data` object schemas

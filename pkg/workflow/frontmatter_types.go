@@ -6,8 +6,10 @@ import (
 
 var frontmatterTypesLog = logger.New("workflow:frontmatter_types")
 
+type RunnerTopology string
+
 // RunnerTopologyArcDind is the topology value for ARC runners with Docker-in-Docker sidecars.
-const RunnerTopologyArcDind = "arc-dind"
+const RunnerTopologyArcDind RunnerTopology = "arc-dind"
 
 // RunnerConfig represents runner topology configuration from the workflow frontmatter.
 // The topology field is the single stable contract between gh-aw and AWF for runner
@@ -16,7 +18,7 @@ const RunnerTopologyArcDind = "arc-dind"
 type RunnerConfig struct {
 	// Topology identifies the runner execution topology.
 	// Supported values: "arc-dind" (ARC with Docker-in-Docker sidecar).
-	Topology string `json:"topology,omitempty" yaml:"topology,omitempty"`
+	Topology RunnerTopology `json:"topology,omitempty" yaml:"topology,omitempty"`
 }
 
 // RuntimeConfig represents the configuration for a single runtime
@@ -58,6 +60,7 @@ type GitHubActionsPermissionsConfig struct {
 	IDToken             string `json:"id-token,omitempty"`
 	Issues              string `json:"issues,omitempty"`
 	Discussions         string `json:"discussions,omitempty"`
+	Drives              string `json:"drives,omitempty"`
 	Packages            string `json:"packages,omitempty"`
 	Pages               string `json:"pages,omitempty"`
 	PullRequests        string `json:"pull-requests,omitempty"`
@@ -451,6 +454,11 @@ type FrontmatterConfig struct {
 	// Can be a plain list (shorthand) or an object with a questions list and optional
 	// engine-config / runs-on overrides.
 	Evals any `json:"evals,omitempty"`
+
+	// Graders configures deterministic graders that compute metrics from
+	// post-agent trace files. Can be {} for zero-config (all built-ins) or a map
+	// of grader IDs with optional enabled/script overrides.
+	Graders any `json:"graders,omitempty"`
 
 	// ExcludedEnv lists additional environment variable names that must be excluded from
 	// the agent container via AWF's --exclude-env flag.  Use this when an env var is set

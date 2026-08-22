@@ -173,7 +173,7 @@ jobs:
     if: needs.build.outputs.outcome == 'failure'
 ```
 
-`jobs.<built-in>.needs` is merged with compiler-generated dependencies, and `jobs.<built-in>.if` is combined with compiler-generated conditions using logical `&&`.
+`jobs.<built-in>.needs` is merged with compiler-generated dependencies, and `jobs.<built-in>.if` is combined with compiler-generated conditions using logical `&&`. `jobs.<built-in>.timeout-minutes` is accepted for the `agent` and `detection` jobs only; see [Agent and Detection Job Timeouts](#agent-and-detection-job-timeouts).
 
 Example using `timeout-minutes` and `env`:
 
@@ -188,6 +188,38 @@ jobs:
       - uses: actions/checkout@v6
       - run: npm ci && npm run build
 ```
+
+### Agent and Detection Job Timeouts
+
+The generated `agent` and `detection` jobs are bounded by their own
+`timeout-minutes` values, independently from the top-level `timeout-minutes`
+that bounds the `agentic_execution` step:
+
+| Timeout | Default | GitHub Actions variable |
+| --- | --- | --- |
+| `agent` job | 60 minutes | `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES` |
+| `detection` job and its execution step | 10 minutes | `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES` |
+| `agentic_execution` step (top-level `timeout-minutes`) | 20 minutes | `GH_AW_DEFAULT_TIMEOUT_MINUTES` |
+
+Set those variables at the repository, organization, or enterprise level to
+change the defaults without editing frontmatter. When top-level
+`timeout-minutes` requests a longer agentic step than the default agent job
+budget, the default agent job budget is raised to match it.
+
+Override either generated job independently when setup or post-processing needs
+a different budget:
+
+```yaml wrap
+jobs:
+  agent:
+    timeout-minutes: 90
+  detection:
+    timeout-minutes: 30
+```
+
+When a job reaches its timeout, GitHub Actions cancels all remaining steps in
+that job; the workflow conclusion reports the job as `timed_out`. A job-level
+timeout therefore covers setup steps as well as the agentic execution step.
 
 ### Job Outputs
 

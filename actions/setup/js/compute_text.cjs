@@ -10,6 +10,15 @@ const { sanitizeIncomingText, writeRedactedDomainsLog } = require("./sanitize_in
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseAllowedBots, isAllowedBot } = require("./check_permissions_utils.cjs");
 
+/**
+ * Converts multiline content to a single line for safe workflow logging.
+ * @param {string} content
+ * @returns {string}
+ */
+function formatForWorkflowLog(content) {
+  return String(content).replace(/\r?\n/g, "\\n");
+}
+
 async function main() {
   let text = "";
   let title = "";
@@ -188,9 +197,9 @@ async function main() {
   const sanitizedBody = sanitizeIncomingText(body);
 
   // Display sanitized outputs in logs
-  core.info(`text: ${sanitizedText}`);
-  core.info(`title: ${sanitizedTitle}`);
-  core.info(`body: ${sanitizedBody}`);
+  core.info(`text: ${formatForWorkflowLog(sanitizedText)}`);
+  core.info(`title: ${formatForWorkflowLog(sanitizedTitle)}`);
+  core.info(`body: ${formatForWorkflowLog(sanitizedBody)}`);
 
   // Set the sanitized outputs
   core.setOutput("text", sanitizedText);

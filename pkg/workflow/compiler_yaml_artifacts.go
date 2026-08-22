@@ -75,6 +75,15 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 		constants.TmpGhAwDirSlash + constants.SafeOutputsFilename,
 	}
 
+	// Include grader manifest/results in the fallback so detection and downstream
+	// jobs have reliable access even when the large unified artifact times out.
+	if data.Graders != nil && data.Graders.HasGraders() {
+		paths = append(paths,
+			constants.GradersDirSlash+constants.GraderManifestFilename,
+			constants.GradersDirSlash+constants.GraderResultsFilename,
+		)
+	}
+
 	c.stepOrderTracker.RecordArtifactUpload("Upload agent output fallback artifact", paths)
 
 	yaml.WriteString("      # Small dedicated copy of the agent output so safe-output processing\n")

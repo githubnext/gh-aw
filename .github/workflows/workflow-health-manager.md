@@ -118,6 +118,16 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
   - Success rate (already calculated from executed runs only)
 - Exclude workflows with zero executed runs from failure-rate scoring. Treat high skipped counts as
   trigger-gating behavior and high action-required counts as approval gating, not execution failures.
+- Exclude command- and mention-triggered workflows (frontmatter `slash_command`, `command`, or
+  `mention`, for example `q`) from execution-rate scoring. They start a run for every issue,
+  comment, or discussion event and the generated `pre_activation`/`activation` jobs stop runs whose
+  body does not start with the command, so a low activated-run ratio with a very short average
+  runtime (roughly 5-30s) is designed behavior. Score only their activated runs and label the rest
+  "command gating (expected)".
+- Re-verify any root cause carried over from `shared-alerts.md` or `workflow-health-latest.md` before
+  repeating it. If the note names a PR or issue as the pending fix and that PR/issue is already
+  merged or closed while the metric is unchanged, the attribution is stale: remove or replace it in
+  `shared-alerts.md` and re-diagnose from the workflow's trigger configuration and recent run logs.
 - Query recent workflow runs (past 7 days) for detailed error analysis
 - Track success/failure rates from metrics data
 - Identify workflows with:
@@ -256,6 +266,8 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
    - Workflows affecting multiple campaigns
    - Systemic issues requiring campaign-level attention
    - Health patterns that affect agent performance
+   - Remove or replace notes whose cited fix (PR/issue) is already merged or closed without the
+     metric improving, so later runs do not repeat a stale root cause
 
 **Format for memory files:**
 - Use markdown format only

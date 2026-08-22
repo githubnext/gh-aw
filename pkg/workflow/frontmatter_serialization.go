@@ -385,6 +385,9 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	if config.Discussions != "" {
 		result["discussions"] = config.Discussions
 	}
+	if config.Drives != "" {
+		result["drives"] = config.Drives
+	}
 	if config.Packages != "" {
 		result["packages"] = config.Packages
 	}

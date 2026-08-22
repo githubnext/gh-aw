@@ -53,6 +53,7 @@ function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, opti
   } else {
     core.info(`Successfully created comment with workflow link`);
   }
+
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment URL: ${commentUrl}`);
   core.info(`Comment Repo: ${eventRepo.owner}/${eventRepo.repo}`);
@@ -64,6 +65,20 @@ function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, opti
     url: commentUrl,
     repo: eventRepo,
   };
+}
+
+/**
+ * @param {string} endpoint
+ * @param {"discussion"|"discussion_comment"} eventName
+ * @returns {number}
+ */
+function parseDiscussionEndpoint(endpoint, eventName) {
+  const match = endpoint.match(eventName === "discussion" ? /^discussion:([1-9]\d*)$/ : /^discussion_comment:([1-9]\d*):[1-9]\d*$/);
+  const discussionNumber = Number(match?.[1]);
+  if (!Number.isSafeInteger(discussionNumber)) {
+    throw new Error(`${ERR_VALIDATION}: Invalid discussion endpoint: ${endpoint}`);
+  }
+  return discussionNumber;
 }
 
 /**
@@ -418,8 +433,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     if (typeof endpoint !== "string") {
       throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
     }
-    // Parse discussion number from special format: "discussion:NUMBER"
-    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+    const discussionNumber = parseDiscussionEndpoint(endpoint, eventName);
     return postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
   }
 
@@ -427,8 +441,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
     if (typeof endpoint !== "string") {
       throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
     }
-    // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
-    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+    const discussionNumber = parseDiscussionEndpoint(endpoint, eventName);
 
     // GitHub Discussions only supports two nesting levels, so resolve the top-level parent's node ID
     const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);
@@ -449,4 +462,4 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   return setCommentOutputs(createResponse.data.id, createResponse.data.html_url, eventRepo);
 }
 
-module.exports = { main, addCommentWithWorkflowLink, buildCommentBody, postDiscussionComment, createOrReuseStatusComment };
+module.exports = { main, addCommentWithWorkflowLink, buildCommentBody, postDiscussionComment, createOrReuseStatusComment, parseDiscussionEndpoint };

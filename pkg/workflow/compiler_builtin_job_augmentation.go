@@ -159,10 +159,9 @@ func extractBuiltinJobIfAugmentation(jobName string, configMap map[string]any) (
 	return ifCondition, nil
 }
 
-// applyBuiltinJobAugmentations merges jobs.<built-in>.needs and jobs.<built-in>.if into
+// applyBuiltinJobAugmentations merges supported jobs.<built-in> fields into
 // compiler-generated jobs. needs entries are added additively; if conditions are combined
-// with compiler-generated conditions via logical AND. Both augmentations are additive-only
-// and never remove compiler-computed behavior.
+// with compiler-generated conditions via logical AND.
 func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 	if data == nil || data.Jobs == nil {
 		return nil
@@ -189,7 +188,11 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 			return err
 		}
 		_, hasPermissions := configMap["permissions"]
-		if len(augmentedNeeds) == 0 && augmentedIf == "" && !hasPermissions {
+		_, hasTimeout := configMap["timeout-minutes"]
+		if hasTimeout && targetJobName != string(constants.AgentJobName) && targetJobName != string(constants.DetectionJobName) {
+			return fmt.Errorf("jobs.%s.timeout-minutes is supported only for the generated agent and detection jobs", configuredJobName)
+		}
+		if len(augmentedNeeds) == 0 && augmentedIf == "" && !hasPermissions && !hasTimeout {
 			continue
 		}
 
@@ -200,10 +203,12 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 			if len(augmentedNeeds) == 0 {
 				if augmentedIf != "" {
 					augmentedField = configuredJobName + ".if"
+				} else if hasTimeout {
+					augmentedField = configuredJobName + ".timeout-minutes"
 				} else {
 					augmentedField = configuredJobName + ".permissions"
 				}
-			} else if augmentedIf != "" || hasPermissions {
+			} else if augmentedIf != "" || hasPermissions || hasTimeout {
 				augmentedField = configuredJobName
 			}
 			return fmt.Errorf("jobs.%s requires an existing built-in job %q, but this workflow does not generate it. Add the corresponding trigger/feature, or rename the job", augmentedField, targetJobName)
@@ -211,6 +216,11 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 
 		if hasPermissions {
 			if err := applyBuiltinJobPermissionsAugmentation(configuredJobName, targetJobName, configMap, targetJob); err != nil {
+				return err
+			}
+		}
+		if hasTimeout {
+			if err := extractCustomJobTimeoutMinutes(targetJob, configuredJobName, configMap); err != nil {
 				return err
 			}
 		}

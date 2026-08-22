@@ -4,6 +4,7 @@ import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
 
+import { getSetupTimeoutMs } from "./child_process_timeouts.cjs";
 import { buildCheckoutManifest, readManifestEntriesFromEnv, resolveDefaultBranch } from "./build_checkout_manifest.cjs";
 
 function execGit(args, options = {}) {
@@ -86,6 +87,27 @@ describe("build_checkout_manifest.cjs", () => {
     expect(ghCalls).toHaveLength(0);
   });
 
+  it("passes a timeout to local git default branch lookup", () => {
+    const workspace = createTempDir("checkout-manifest-workspace-");
+    tempDirs.push(workspace);
+    const checkoutPath = "target";
+    const repoDir = path.join(workspace, checkoutPath);
+    fs.mkdirSync(path.join(repoDir, ".git"), { recursive: true });
+    /** @type {any} */
+    let gitOptions = null;
+
+    const defaultBranch = resolveDefaultBranch("owner/repo", checkoutPath, {
+      workspace,
+      runGit: (_args, options) => {
+        gitOptions = options;
+        return "origin/main\n";
+      },
+    });
+
+    expect(defaultBranch).toBe("main");
+    expect(gitOptions?.timeout).toBe(getSetupTimeoutMs("gitBranch"));
+  });
+
   it("falls back to gh api when local git default branch is unavailable", () => {
     const workspace = createTempDir("checkout-manifest-workspace-");
     tempDirs.push(workspace);
@@ -103,6 +125,7 @@ describe("build_checkout_manifest.cjs", () => {
 
     expect(defaultBranch).toBe("trunk");
     expect(ghOptions?.env?.GH_TOKEN).toBe("${{ secrets.CROSS_REPO_PAT }}");
+    expect(ghOptions?.timeout).toBe(getSetupTimeoutMs("outcomeGh"));
   });
 
   it("writes manifest with lowercase keys", () => {

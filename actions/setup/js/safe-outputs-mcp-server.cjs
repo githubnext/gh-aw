@@ -27,7 +27,10 @@ logger.debug("Successfully required safe_outputs_mcp_server_http.cjs");
 // Log directory is configured via GH_AW_MCP_LOG_DIR environment variable
 if (require.main === module) {
   logger.debug("In require.main === module block");
-  const port = parseInt(process.env.GH_AW_SAFE_OUTPUTS_PORT || "3001", 10);
+  const port = Number(process.env.GH_AW_SAFE_OUTPUTS_PORT || "3001");
+  if (!Number.isFinite(port) || !Number.isSafeInteger(port) || port <= 0 || port > 65535) {
+    throw new Error("GH_AW_SAFE_OUTPUTS_PORT must be a valid port number");
+  }
   const logDir = process.env.GH_AW_MCP_LOG_DIR;
   logger.debug(`Port: ${port}, LogDir: ${logDir}`);
   logger.debug("Calling startHttpServer...");

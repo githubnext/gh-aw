@@ -111,7 +111,7 @@ The YAML frontmatter supports these fields:
   runner:
     topology: arc-dind
   ```
-- **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). Expressions are useful in compiled workflows that define `workflow_call` inputs, for example `timeout-minutes: ${{ inputs.timeout }}`. This setting applies to the workflow being compiled, not to plain GitHub Actions caller jobs that use job-level `uses:` (GitHub does not allow `timeout-minutes` on those caller jobs).
+- **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to `${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES }}` or 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). It bounds the `agentic_execution` step only; the generated `agent` and `detection` jobs have their own timeouts (see [jobs.md](jobs.md)). Expressions are useful in compiled workflows that define `workflow_call` inputs, for example `timeout-minutes: ${{ inputs.timeout }}`. This setting applies to the workflow being compiled, not to plain GitHub Actions caller jobs that use job-level `uses:` (GitHub does not allow `timeout-minutes` on those caller jobs).
 - **`concurrency:`** - Concurrency control (string or object)
   - **`queue:`** - Pending run queue behavior for the concurrency group (`single` or `max`, defaults to `single`). `single` keeps one pending run and replaces older pending runs; `max` allows up to 100 pending runs in FIFO order (useful for conclusion jobs that must not be dropped).
 

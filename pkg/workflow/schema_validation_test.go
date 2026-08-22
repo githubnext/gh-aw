@@ -229,6 +229,21 @@ jobs:
 			expectError: false,
 		},
 		{
+			name: "drives permission in job permissions passes",
+			yamlContent: `
+name: Test
+on: push
+jobs:
+  test:
+    permissions:
+      drives: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`,
+			expectError: false,
+		},
+		{
 			name: "issue field activity types pass",
 			yamlContent: `
 name: Test

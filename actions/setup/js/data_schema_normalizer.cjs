@@ -152,7 +152,12 @@ function resolveDataSchema(rawSchema, path) {
     return normalized;
   }
   if (typeof rawSchema === "string") {
-    const parsed = JSON.parse(rawSchema);
+    let parsed;
+    try {
+      parsed = JSON.parse(rawSchema);
+    } catch (error) {
+      throw new Error(`${path}: invalid JSON schema`, { cause: error });
+    }
     if (!isPlainObject(parsed)) {
       throw new Error(`${path}: string JSON must decode to an object schema`);
     }

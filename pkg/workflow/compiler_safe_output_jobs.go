@@ -210,7 +210,7 @@ func (c *Compiler) buildCallWorkflowJobs(data *WorkflowData, markdownPath string
 
 	for _, workflowName := range config.Workflows {
 		// Build the job name: "call-{sanitized-workflow-name}"
-		// sanitizeJobName normalizes underscores to hyphens (NormalizeSafeOutputIdentifier + dash conversion)
+		// sanitizeJobName normalizes underscores and periods to hyphens.
 		sanitizedName := sanitizeJobName(workflowName)
 		jobName := "call-" + sanitizedName
 

@@ -635,6 +635,50 @@ func TestApplyBuiltinJobNeedsAugmentations_AddsIfCondition(t *testing.T) {
 	assert.Equal(t, "needs.build.outputs.outcome == 'failure'", agentJob.If)
 }
 
+func TestApplyBuiltinJobAugmentations_OverridesTimeoutMinutes(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{
+		Name:                     string(constants.AgentJobName),
+		TimeoutMinutesExpression: "${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}",
+	}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"timeout-minutes": 90,
+			},
+		},
+	}
+
+	require.NoError(t, compiler.applyBuiltinJobAugmentations(data))
+	assert.Equal(t, 90, agentJob.TimeoutMinutes)
+	assert.Empty(t, agentJob.TimeoutMinutesExpression)
+}
+
+func TestApplyBuiltinJobAugmentations_RejectsTimeoutMinutesExpression(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	detectionJob := &Job{
+		Name:                     string(constants.DetectionJobName),
+		TimeoutMinutesExpression: "${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}",
+	}
+	require.NoError(t, compiler.jobManager.AddJob(detectionJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.DetectionJobName): map[string]any{
+				"timeout-minutes": "${{ inputs.detection-timeout }}",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be a positive integer")
+}
+
 func TestApplyBuiltinJobNeedsAugmentations_CombinesIfCondition(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()

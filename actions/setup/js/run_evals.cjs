@@ -36,6 +36,7 @@ const path = require("path");
 const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
+const { readExperimentAssignments } = require("./experiment_helpers.cjs");
 const { resolveModelWithFallback } = require("./model_fallback.cjs");
 
 const EVALS_DIR = "/tmp/gh-aw/evals";
@@ -127,6 +128,7 @@ async function parseMain() {
   const questionsRaw = process.env.GH_AW_EVALS_QUESTIONS;
   const model = resolveModelWithFallback(process.env, "GH_AW_EVALS_MODEL") || "";
   const runID = process.env.GITHUB_RUN_ID || "unknown";
+  const experimentAssignments = readExperimentAssignments();
 
   /** @type {Array<{id: string, question: string}>} */
   let questions = [];
@@ -185,6 +187,7 @@ async function parseMain() {
       model,
       timestamp,
       runid: runID,
+      experiments: experimentAssignments || undefined,
     };
     results.push(record);
     core.info(`Q[${q.id}]: ${answer}`);

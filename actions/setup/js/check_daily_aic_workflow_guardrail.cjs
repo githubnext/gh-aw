@@ -277,7 +277,12 @@ async function getRunAIC(artifactClient, runId, token, owner, repo) {
     artifactId: artifact.id,
     artifactName: artifact.name,
   });
-  const downloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), `gh-aw-daily-guardrail-${runId}-`));
+  let downloadRoot;
+  try {
+    downloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), `gh-aw-daily-guardrail-${runId}-`));
+  } catch (error) {
+    throw new Error(`Failed to create temporary artifact directory for run ${runId}: ${getErrorMessage(error)}`, { cause: error });
+  }
   const download = await artifactClient.downloadArtifact(artifact.id, {
     path: downloadRoot,
     findBy: {

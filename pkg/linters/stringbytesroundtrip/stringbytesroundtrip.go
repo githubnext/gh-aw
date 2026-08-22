@@ -135,13 +135,23 @@ func reportWastefulCloneRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExp
 	)
 }
 
+// isStringType reports whether t is a string basic type. Callers pass an
+// already-.Underlying()-resolved type, so this also matches named string types.
 func isStringType(t types.Type) bool {
 	basic, ok := t.(*types.Basic)
 	return ok && basic.Kind() == types.String
 }
 
+// isExactString reports whether t denotes the predeclared string type, not a
+// named type whose underlying type is string. Unlike isStringType, which
+// expects an already-.Underlying()-resolved type, isExactString must be given
+// the raw type so it can tell string from `type MyString string`. Aliases are
+// resolved first, because an alias may denote either the predeclared string
+// (`type A = string`) or a named string type (`type A = MyString`). That
+// distinction matters because only the predeclared string can have both
+// conversions removed; a named string type still needs an outer conversion.
 func isExactString(t types.Type) bool {
-	return isStringType(t)
+	return isStringType(types.Unalias(t))
 }
 
 func isByteSliceType(t types.Type) bool {

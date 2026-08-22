@@ -70,6 +70,27 @@ func TestBuildEvalsJobNeedsWithDetection(t *testing.T) {
 	assert.Contains(t, strings.Join(job.Steps, ""), "id: parse-mcp-gateway\n")
 }
 
+func TestBuildEvalsJobWrapperAddsJob(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "q1", Question: "Does it build?"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	err := compiler.buildEvalsJobWrapper(data)
+	require.NoError(t, err)
+
+	job, exists := compiler.jobManager.GetJob(string(constants.EvalsJobName))
+	require.True(t, exists)
+	assert.Equal(t, string(constants.EvalsJobName), job.Name)
+	assert.Contains(t, job.Needs, string(constants.AgentJobName))
+}
+
 func TestBuildEvalsJobRestoresSetupActionInDevMode(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{

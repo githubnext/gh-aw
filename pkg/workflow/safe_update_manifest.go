@@ -227,6 +227,11 @@ func collectMemoryValidationScripts(data *WorkflowData) []GHAWManifestMemoryVali
 			add("cache-memory", cache.ID, cache.Validation)
 		}
 	}
+	if data.DriveMemoryConfig != nil {
+		for _, drive := range data.DriveMemoryConfig.Drives {
+			add("drive-memory", drive.ID, drive.Validation)
+		}
+	}
 	slices.SortFunc(scripts, func(a, b GHAWManifestMemoryValidationScript) int {
 		return strings.Compare(a.Memory, b.Memory)
 	})
