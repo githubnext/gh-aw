@@ -199,8 +199,8 @@ jq -n \
     . as $pr |
     ($gate_counts[$pr.head_branch] // 0) as $gates |
 
-    # Check agent assignment: look for copilot-swe-agent in assignees
-    ([$pr.assignees[] | select(. == "copilot-swe-agent")] | length == 0) as $no_agent |
+    # Check agent assignment: look for Copilot in assignees
+    ([$pr.assignees[] | select(. == "Copilot")] | length == 0) as $no_agent |
 
     # Only include PRs with >= 5 gates and no agent assigned
     select($gates >= 5 and $no_agent) |

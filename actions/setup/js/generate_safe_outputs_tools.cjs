@@ -314,10 +314,13 @@ async function main() {
   const filteredTools = allTools
     .filter(tool => enabledToolNames.has(tool.name))
     .map(tool => {
-      // Deep copy to avoid modifying the original
+      // Deep copy to avoid modifying the original. `tool` here is parsed straight from the
+      // JSON tools-source file (see toolsSourcePath above), so it can never carry a function-valued
+      // `handler` field — unlike safe_outputs_tools_loader.cjs, which clones live tool objects that
+      // do carry handlers and must strip them before cloning.
       let enhancedTool;
       try {
-        enhancedTool = JSON.parse(JSON.stringify(tool));
+        enhancedTool = structuredClone(tool);
       } catch (err) {
         throw new Error(`${ERR_CONFIG}: ` + "Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
       }

@@ -486,7 +486,7 @@ async function pushSignedCommits({
       const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", firstGraphqlParentOid, "HEAD"], { cwd, ignoreReturnCode: true });
       graphqlParentIsAncestorOfHead = ancestryCheck.exitCode === 0;
     } catch {
-      // If ancestry probing fails, keep the default (true) and avoid rewrite.
+      // Ancestry probe failed — ignored, keep the default (true) and avoid rewrite.
     }
   }
   if (firstReplayParentOid && firstGraphqlParentOid && firstReplayParentOid !== firstGraphqlParentOid && !graphqlParentIsAncestorOfHead) {
@@ -550,7 +550,7 @@ async function pushSignedCommits({
           const { stdout: headOut } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { cwd });
           headOid = headOut.trim();
         } catch {
-          // If HEAD cannot be resolved, fall back to the known range anchors.
+          // HEAD cannot be resolved — ignored, fall back to the known range anchors.
         }
         const fetchTargets = [firstGraphqlParentOid, firstReplayParentOid, headOid].filter(sha => typeof sha === "string" && sha.length > 0);
         core.warning(`pushSignedCommits: rebase failed due to missing objects in a shallow/partial clone; ` + `backfilling object content for ${fetchTargets.length} anchor commit(s) directly from origin by SHA and retrying once`);
