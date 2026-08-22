@@ -25,7 +25,6 @@ type AddCommentsConfig struct {
 	Issues                 *bool    `yaml:"issues,omitempty"`                    // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
 	PullRequests           *bool    `yaml:"pull-requests,omitempty"`             // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
 	Discussions            *bool    `yaml:"discussions,omitempty"`               // When true, includes discussions:write permission. Default (nil or false) excludes discussions:write.
-	Footer                 *string  `yaml:"footer,omitempty"`                    // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseCommentsConfig handles add-comment configuration

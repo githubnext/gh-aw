@@ -47,13 +47,30 @@ async function main() {
   const memoryId = process.env.MEMORY_ID;
   const targetRepo = process.env.TARGET_REPO;
   const branchName = process.env.BRANCH_NAME;
-  const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
-  const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
-  const maxPatchSize = parseInt(process.env.MAX_PATCH_SIZE || "10240", 10);
+  const maxFileSize = Number(process.env.MAX_FILE_SIZE || "10240");
+  const maxFileCount = Number(process.env.MAX_FILE_COUNT || "100");
+  const maxPatchSize = Number(process.env.MAX_PATCH_SIZE || "10240");
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
   const formatJSON = process.env.FORMAT_JSON === "true";
   const validationScriptBase64 = process.env.VALIDATION_SCRIPT_B64 || "";
-  const validationTimeoutSeconds = parseInt(process.env.VALIDATION_TIMEOUT_SECONDS || "60", 10);
+  const validationTimeoutSeconds = Number(process.env.VALIDATION_TIMEOUT_SECONDS || "60");
+  if (
+    !Number.isFinite(maxFileSize) ||
+    !Number.isSafeInteger(maxFileSize) ||
+    maxFileSize <= 0 ||
+    !Number.isFinite(maxFileCount) ||
+    !Number.isSafeInteger(maxFileCount) ||
+    maxFileCount <= 0 ||
+    !Number.isFinite(maxPatchSize) ||
+    !Number.isSafeInteger(maxPatchSize) ||
+    maxPatchSize <= 0 ||
+    !Number.isFinite(validationTimeoutSeconds) ||
+    !Number.isSafeInteger(validationTimeoutSeconds) ||
+    validationTimeoutSeconds <= 0
+  ) {
+    core.setFailed("Memory size, count, patch size, and validation timeout limits must be positive integers");
+    return;
+  }
 
   // Parse allowed extensions with error handling
   let allowedExtensions = [".json", ".jsonl", ".txt", ".md", ".csv"];

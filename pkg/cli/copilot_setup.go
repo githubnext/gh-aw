@@ -352,29 +352,6 @@ func validateCopilotSetupStepsTriggers(doc map[string]any) error {
 	return fmt.Errorf("'on' section must include one of %s", strings.Join(copilotSetupStepsSupportedTriggers, ", "))
 }
 
-// CopilotWorkflowStep represents a GitHub Actions workflow step for Copilot setup scaffolding
-type CopilotWorkflowStep struct {
-	Name string         `yaml:"name,omitempty"`
-	Uses string         `yaml:"uses,omitempty"`
-	Run  string         `yaml:"run,omitempty"`
-	With map[string]any `yaml:"with,omitempty"`
-	Env  map[string]any `yaml:"env,omitempty"`
-}
-
-// WorkflowJob represents a GitHub Actions workflow job
-type WorkflowJob struct {
-	RunsOn      any                   `yaml:"runs-on,omitempty"`
-	Permissions map[string]any        `yaml:"permissions,omitempty"`
-	Steps       []CopilotWorkflowStep `yaml:"steps,omitempty"`
-}
-
-// Workflow represents a GitHub Actions workflow file
-type Workflow struct {
-	Name string                 `yaml:"name,omitempty"`
-	On   any                    `yaml:"on,omitempty"`
-	Jobs map[string]WorkflowJob `yaml:"jobs,omitempty"`
-}
-
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
 func ensureCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string) error {
 	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, false)
