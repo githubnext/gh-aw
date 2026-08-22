@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/workflow"
 	"gopkg.in/yaml.v3"
 )
@@ -330,7 +331,17 @@ func grantDisplayFindings(imageTag string, output *grantOutput) (int, error) {
 		return 0, nil
 	}
 
-	total := 0
+	findings := grantFindingsToShared(imageTag, output)
+	scanfindings.Render(os.Stderr, findings)
+
+	return len(findings), nil
+}
+
+// grantFindingsToShared maps grant's denied license packages onto the shared
+// finding representation used by every scanner integration. Container images have
+// no source location, so the image tag is reported as the finding location.
+func grantFindingsToShared(imageTag string, output *grantOutput) []scanfindings.Finding {
+	var findings []scanfindings.Finding
 	for _, target := range output.Run.Targets {
 		for _, pkg := range target.Evaluation.Findings.Packages {
 			if pkg.Decision != "deny" {
@@ -354,22 +365,17 @@ func grantDisplayFindings(imageTag string, output *grantOutput) (int, error) {
 				}
 			}
 
-			message := fmt.Sprintf("license policy violation: %s (%s)", grantPackageRef(pkg), licenses)
-			compilerErr := console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   imageTag,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: message,
-			}
-			fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
-			total++
+			findings = append(findings, scanfindings.Finding{
+				RuleID:   "license-policy",
+				Severity: scanfindings.SeverityHigh,
+				Message:  fmt.Sprintf("license policy violation: %s (%s)", grantPackageRef(pkg), licenses),
+				File:     imageTag,
+				Line:     1,
+				Column:   1,
+			})
 		}
 	}
-
-	return total, nil
+	return findings
 }
 
 func grantPackageRef(pkg grantPackageFinding) string {

@@ -130,7 +130,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 		return nil
 	}
 
-	managedPatterns := []string{c.effectiveActionsRepo()}
+	managedPatterns := []string{c.effectiveActionsRepo() + "/*"}
 	changed := false
 	originalStr := string(original)
 	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
@@ -201,16 +201,14 @@ func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, 
 	}
 
 	managedPresent := make(map[string]struct{}, len(managedPatterns))
+	reconciledIgnoreEntries := make([]any, 0, len(ignoreEntries))
 	for _, ignoreEntryAny := range ignoreEntries {
 		ignoreEntryMap, ok := dependabotToStringAnyMap(ignoreEntryAny)
-		if !ok {
-			continue
-		}
 		dependencyName, _ := ignoreEntryMap["dependency-name"].(string)
-		if dependencyName == "" {
+		if !ok || dependencyName == "" {
+			reconciledIgnoreEntries = append(reconciledIgnoreEntries, ignoreEntryAny)
 			continue
 		}
-
 		for _, pattern := range managedPatterns {
 			if dependencyName == pattern {
 				managedPresent[pattern] = struct{}{}
@@ -219,17 +217,16 @@ func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, 
 				}
 			}
 		}
+		reconciledIgnoreEntries = append(reconciledIgnoreEntries, ignoreEntryAny)
 	}
-
 	for _, pattern := range managedPatterns {
 		if setutil.Contains(managedPresent, pattern) {
 			continue
 		}
-		ignoreEntries = append(ignoreEntries, map[string]any{"dependency-name": pattern})
+		reconciledIgnoreEntries = append(reconciledIgnoreEntries, map[string]any{"dependency-name": pattern})
 		changed = true
 	}
-
-	updateMap["ignore"] = ignoreEntries
+	updateMap["ignore"] = reconciledIgnoreEntries
 	return reconcileGithubActionsIgnoreResult{updateMap: updateMap, changed: changed, writeBack: true}
 }
 
@@ -322,8 +319,14 @@ func managedPatternsWithInlineComment(content string, managedPatterns []string) 
 		if !strings.Contains(line, "dependency-name:") || !strings.Contains(line, managedDependabotIgnoreComment) {
 			continue
 		}
+		beforeComment, _, _ := strings.Cut(line, "#")
+		_, rawDependencyName, found := strings.Cut(beforeComment, "dependency-name:")
+		if !found {
+			continue
+		}
+		dependencyName := strings.Trim(strings.TrimSpace(rawDependencyName), `"'`)
 		for _, pattern := range managedPatterns {
-			if strings.Contains(line, pattern) {
+			if dependencyName == pattern {
 				result[pattern] = struct {
 				}{}
 			}

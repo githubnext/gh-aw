@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -13,7 +14,20 @@ const (
 	driveMemoryDirPrefix        = "/tmp/gh-aw/drive-memory-"
 	defaultDriveMemoryMountPath = ".gh-aw-drive-memory"
 	driveMemoryMountPathPrefix  = ".gh-aw-drive-memory-"
+	// defaultDriveMemoryDiskSize is the suggested drive size when creating a new drive.
+	defaultDriveMemoryDiskSize = "100M"
 )
+
+// driveDiskSizePattern matches the disk sizes accepted by the GitHub Drives checkout
+// action: a number with an optional K, M, G, or T suffix (e.g. "100M").
+var driveDiskSizePattern = regexp.MustCompile(`^[0-9]+[KMGT]?$`)
+
+// normalizeDriveDiskSize trims surrounding whitespace and uppercases the size
+// suffix so common variants (e.g. "100m", " 100M ") match the upper-case-only
+// format required by the GitHub Drives checkout action.
+func normalizeDriveDiskSize(diskSize string) string {
+	return strings.ToUpper(strings.TrimSpace(diskSize))
+}
 
 // DriveMemoryConfig holds configuration for drive-memory functionality.
 type DriveMemoryConfig struct {
@@ -102,6 +116,10 @@ func parseDriveMemoryEntry(raw map[string]any, defaultID string) (DriveMemoryEnt
 		entry.Description = description
 	}
 	if diskSize, ok := raw["disk-size"].(string); ok {
+		diskSize = normalizeDriveDiskSize(diskSize)
+		if diskSize != "" && !driveDiskSizePattern.MatchString(diskSize) {
+			return entry, fmt.Errorf("invalid drive-memory disk-size %q: must be a number with an optional K, M, G, or T suffix (e.g. %q)", diskSize, defaultDriveMemoryDiskSize)
+		}
 		entry.DiskSize = diskSize
 	}
 	if prefetch, ok := raw["prefetch"].(bool); ok {

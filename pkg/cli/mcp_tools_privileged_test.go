@@ -631,6 +631,25 @@ func TestAuditTool_ExperimentVariantFlags(t *testing.T) {
 	assert.Contains(t, joined, "--variant concise", "audit command should include --variant flag")
 }
 
+func TestAuditTool_VariantWithoutExperimentFails(t *testing.T) {
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, func(context.Context, ...string) *exec.Cmd {
+		t.Fatal("audit command should not execute")
+		return nil
+	}, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_ids_or_urls": []string{"1234567890"},
+			"variant":         "concise",
+		},
+	})
+	require.ErrorContains(t, err, "--variant requires --experiment")
+}
+
 // TestAuditTool_ExperimentFlagWithoutVariant verifies that --experiment is forwarded
 // even when --variant is not provided.
 func TestAuditTool_ExperimentFlagWithoutVariant(t *testing.T) {

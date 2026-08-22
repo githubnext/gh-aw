@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -10,6 +12,8 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -127,6 +131,45 @@ func TestEngineRegistry_Register(t *testing.T) {
 // because Go only allows method declarations on package-level types.
 type negativePortEngine struct {
 	CodingAgentEngine
+}
+
+func TestTopLevelTimeoutMinutesAppliesToAgentExecutionStep(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "top-level-timeout")
+	workflowPath := filepath.Join(tmpDir, "top-level-timeout.md")
+	workflow := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+timeout-minutes: 60
+---
+
+# Test workflow
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflow), 0o644))
+	require.NoError(t, NewCompiler().CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "top-level-timeout.lock.yml"))
+	require.NoError(t, err)
+
+	var lock map[string]any
+	require.NoError(t, yaml.Unmarshal(lockContent, &lock))
+	jobs, ok := lock["jobs"].(map[string]any)
+	require.True(t, ok)
+	agent, ok := jobs[string(constants.AgentJobName)].(map[string]any)
+	require.True(t, ok)
+	steps, ok := agent["steps"].([]any)
+	require.True(t, ok)
+
+	for _, rawStep := range steps {
+		step, ok := rawStep.(map[string]any)
+		if !ok || step["id"] != "agentic_execution" {
+			continue
+		}
+		assert.Equal(t, uint64(60), step["timeout-minutes"])
+		return
+	}
+	t.Fatal("agentic_execution step not found")
 }
 
 func (e *negativePortEngine) getDedicatedLLMGatewayPort() int { return -1 }

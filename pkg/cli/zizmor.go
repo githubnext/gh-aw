@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/setutil"
 )
 
@@ -222,7 +223,7 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int,
 					}{}
 					fileFindings[filePath] = append(fileFindings[filePath], finding)
 					totalWarnings++
-					if finding.Determinations.Severity == "High" || finding.Determinations.Severity == "Critical" {
+					if scanfindings.ParseSeverity(finding.Determinations.Severity).AtLeast(scanfindings.SeverityHigh) {
 						highSeverityCount++
 					}
 				}
@@ -269,63 +270,42 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int,
 			fileLines = strings.Split(string(fileContent), "\n")
 		}
 
-		// Display detailed findings using CompilerError format
-		for _, finding := range findings {
-			severity := finding.Determinations.Severity
-			ident := finding.Ident
-			desc := finding.Desc
-			url := finding.URL
-
-			// Find the primary location (first location in the list)
-			if len(finding.Locations) > 0 {
-				loc := finding.Locations[0]
-				row := loc.Concrete.Location.StartPoint.Row
-				col := loc.Concrete.Location.StartPoint.Column
-				// Zizmor uses 0-based indexing, convert to 1-based for user display
-				lineNum := row + 1
-				colNum := col + 1
-
-				// Create context lines around the error
-				var context []string
-				if len(fileLines) > 0 && lineNum > 0 && lineNum <= len(fileLines) {
-					startLine := max(1, lineNum-2)
-					endLine := min(len(fileLines), lineNum+2)
-
-					for i := startLine; i <= endLine; i++ {
-						if i-1 < len(fileLines) {
-							context = append(context, fileLines[i-1])
-						}
-					}
-				}
-
-				// Map severity to error type
-				errorType := "warning"
-				if severity == "High" || severity == "Critical" {
-					errorType = "error"
-				}
-
-				// Build message with URL link if available
-				message := fmt.Sprintf("[%s] %s: %s", severity, ident, desc)
-				if url != "" {
-					message = fmt.Sprintf("%s (%s)", message, url)
-				}
-
-				// Create and format CompilerError
-				compilerErr := console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   filePath,
-						Line:   lineNum,
-						Column: colNum,
-					},
-					Type:    errorType,
-					Message: message,
-					Context: context,
-				}
-
-				fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
-			}
-		}
+		// Display detailed findings using the shared finding representation
+		scanfindings.Render(os.Stderr, zizmorFindingsToShared(filePath, findings, fileLines))
 	}
 
 	return totalWarnings, highSeverityCount, nil
+}
+
+// zizmorFindingsToShared maps zizmor's native findings onto the shared finding
+// representation used by every scanner integration.
+func zizmorFindingsToShared(filePath string, findings []zizmorFinding, fileLines []string) []scanfindings.Finding {
+	shared := make([]scanfindings.Finding, 0, len(findings))
+	for _, finding := range findings {
+		// Use the primary location (first location in the list)
+		if len(finding.Locations) == 0 {
+			continue
+		}
+		loc := finding.Locations[0]
+		// Zizmor uses 0-based indexing, convert to 1-based for user display
+		lineNum := loc.Concrete.Location.StartPoint.Row + 1
+		colNum := loc.Concrete.Location.StartPoint.Column + 1
+
+		// Build message with URL link if available
+		message := scanfindings.FormatMessage(finding.Determinations.Severity, finding.Ident, finding.Desc)
+		if finding.URL != "" {
+			message = fmt.Sprintf("%s (%s)", message, finding.URL)
+		}
+
+		shared = append(shared, scanfindings.Finding{
+			RuleID:   finding.Ident,
+			Severity: scanfindings.ParseSeverity(finding.Determinations.Severity),
+			Message:  message,
+			File:     filePath,
+			Line:     lineNum,
+			Column:   colNum,
+			Context:  scanfindings.ContextLines(fileLines, lineNum),
+		})
+	}
+	return shared
 }

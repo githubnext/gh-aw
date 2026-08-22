@@ -26,6 +26,8 @@ default_max_ai_credits: "5M"
 default_max_daily_ai_credits: "15M"
 default_max_turns: "12"
 default_timeout_minutes: "30"
+default_agent_job_timeout_minutes: "90"
+default_detection_job_timeout_minutes: "15"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
@@ -87,12 +89,14 @@ Examples using this runtime path include
 `GH_AW_DEFAULT_MAX_AI_CREDITS`,
 `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`,
 `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`,
+`GH_AW_DEFAULT_TIMEOUT_MINUTES`,
+`GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES`,
+`GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES`,
 and `GH_AW_DEFAULT_MODEL_*`.
 
 > [!IMPORTANT]
 > Some defaults are compile-time values.
 > `GH_AW_DEFAULT_MAX_TURNS`,
-> `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
 > `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES`,
 > `GH_AW_DEFAULT_DETECTION_MODEL`, and
 > `GH_AW_DEFAULT_UTC` are read by the compiler process.
@@ -108,7 +112,6 @@ jobs:
       - name: Compile workflows
         env:
           GH_AW_DEFAULT_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS }}
-          GH_AW_DEFAULT_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES }}
           GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES: ${{ vars.GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES }}
           GH_AW_DEFAULT_DETECTION_MODEL: ${{ vars.GH_AW_DEFAULT_DETECTION_MODEL }}
           GH_AW_DEFAULT_UTC: ${{ vars.GH_AW_DEFAULT_UTC }}

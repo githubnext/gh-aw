@@ -70,8 +70,8 @@ Test workflow with invalid reaction value.
 func TestNumericReactionParsing(t *testing.T) {
 	testCases := []struct {
 		name             string
-		reactionInYAML   string // How it appears in YAML
-		expectedReaction string // Expected AIReaction value
+		reactionInYAML   string       // How it appears in YAML
+		expectedReaction ReactionType // Expected AIReaction value
 	}{
 		{
 			name:             "plus one without quotes becomes +1",

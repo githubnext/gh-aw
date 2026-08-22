@@ -345,8 +345,10 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 			Name: "Test",
 			SafeOutputs: &SafeOutputsConfig{
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					Footer:               &footerValue,
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max:    strPtr("1"),
+						Footer: &footerValue,
+					},
 				},
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
