@@ -40,7 +40,7 @@ global.getOctokit = vi.fn(() => global.github);
 
 const pendingPullRequestRun = {
   event: "pull_request",
-  status: "waiting",
+  status: "action_required",
   conclusion: null,
   html_url: "https://github.com/test-owner/test-repo/actions/runs/123",
   workflow_id: 456,
@@ -165,6 +165,45 @@ describe("approve_workflow_run", () => {
     expect(result.reason).toContain("not awaiting approval");
     expect(result.error).toContain("not awaiting approval");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("approves runs held in the waiting state", async () => {
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, status: "waiting" },
+    });
+
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("approves completed runs whose conclusion is action_required", async () => {
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, status: "completed", conclusion: "action_required" },
+    });
+
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies pending-approval states", () => {
+    const { isAwaitingApproval } = require("./approve_workflow_run.cjs");
+
+    expect(isAwaitingApproval({ status: "action_required", conclusion: null })).toBe(true);
+    expect(isAwaitingApproval({ status: "waiting", conclusion: null })).toBe(true);
+    expect(isAwaitingApproval({ status: "completed", conclusion: "action_required" })).toBe(true);
+    expect(isAwaitingApproval({ status: "completed", conclusion: "success" })).toBe(false);
+    expect(isAwaitingApproval({ status: "in_progress", conclusion: null })).toBe(false);
+    expect(isAwaitingApproval({})).toBe(false);
   });
 
   it("matches allowed workflow filenames after normalizing the extension", async () => {

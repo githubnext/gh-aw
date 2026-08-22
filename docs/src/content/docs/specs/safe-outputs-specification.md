@@ -3155,7 +3155,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 1. **Input Validation**: `run_id` MUST be a positive safe integer.
 2. **Staged Preview**: When `staged` is true, the handler MUST return a preview without reading GitHub state or consuming the configured max limit.
-3. **Eligibility**: Before approval, the handler MUST fetch the run and verify `event` is `pull_request`, the `pull_requests` array is non-empty, and `status` is `waiting`.
+3. **Eligibility**: Before approval, the handler MUST fetch the run and verify `event` is `pull_request`, the `pull_requests` array is non-empty, and the run is still awaiting approval. A run is awaiting approval when its `status` is `action_required` or `waiting`, or when its `conclusion` is `action_required`. A run that is no longer awaiting approval MUST be reported as a skipped no-op rather than a failure, because it is a benign race with a concurrent approval.
 4. **Allowed Workflows**: The handler MUST fetch the workflow metadata and permit the run only when the workflow filename matches an `allowed-workflows` wildcard pattern. It MUST compare filenames rather than paths and MUST treat `.yml` and `.yaml` extensions as equivalent.
 5. **Authorization**: A run is eligible only when every associated pull request is either the pull request that triggered the workflow or is listed in `allowed-pull-requests`. This permits all pending workflow runs for the triggering or explicitly allowed pull requests without authorizing mixed runs that include another pull request.
 6. **Forks and Events**: The handler MUST reject `pull_request_target` events. It MUST reject an associated fork pull request unless `fork` is explicitly true.
@@ -3179,7 +3179,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Live approvals MUST use an explicit external `github-token` or a GitHub App token; implementations MUST NOT use the default `github.token`.
 - The handler MUST reject `pull_request_target` events, and associated fork pull requests unless `fork` is explicitly true.
-- The handler MUST reject a run that is not a pull request run, is not from an allowed workflow, has any associated pull request that is not authorized, has modified protected files, or is not waiting for approval.
+- The handler MUST reject a run that is not a pull request run, is not from an allowed workflow, has any associated pull request that is not authorized, or has modified protected files. A run that is no longer awaiting approval MUST be skipped rather than rejected as a failure.
 - The handler MUST be classified as an Abort type for warn-mode threat-detection failures.
 
 **Required Permissions**:

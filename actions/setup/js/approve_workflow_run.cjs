@@ -22,6 +22,33 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const HANDLER_TYPE = "approve_workflow_run";
 
 /**
+ * Workflow run states that the "approve a workflow run for a fork pull request"
+ * endpoint can act on.
+ *
+ * A fork pull request run that is held for maintainer approval is reported by the
+ * REST API with status "action_required". Some runs are additionally reported as
+ * "waiting" while GitHub is still gating them, so both states are accepted here.
+ * Any other status means there is nothing left to approve.
+ *
+ * @type {Set<string>}
+ */
+const APPROVABLE_RUN_STATUSES = new Set(["action_required", "waiting"]);
+
+/**
+ * Determine whether a workflow run is still awaiting approval.
+ *
+ * The pending-approval state is surfaced either on the run's `status` or, for runs
+ * that GitHub has already marked as completed pending an approval decision, on the
+ * run's `conclusion`.
+ *
+ * @param {{status?: string | null, conclusion?: string | null}} run
+ * @returns {boolean}
+ */
+function isAwaitingApproval(run) {
+  return APPROVABLE_RUN_STATUSES.has(run?.status || "") || run?.conclusion === "action_required";
+}
+
+/**
  * @param {unknown} value
  * @returns {number | undefined}
  */
@@ -225,10 +252,10 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
-      if (run.status !== "waiting") {
+      if (!isAwaitingApproval(run)) {
         // Benign race: by the time the safe_outputs job runs, the workflow run may have
         // already been approved (by a human or an earlier run) and moved past the
-        // "waiting" state. There is nothing left to do, so report this as a skipped
+        // pending-approval state. There is nothing left to do, so report this as a skipped
         // no-op instead of a failure that would fail the whole safe outputs step.
         const reason = `Workflow run ${runId} is not awaiting approval (status: ${run.status || "none"})`;
         core.warning(reason);
@@ -326,6 +353,7 @@ module.exports = {
   parsePositiveInt,
   normalizeWorkflowFilename,
   isAllowedWorkflow,
+  isAwaitingApproval,
   getModifiedPullRequestFiles,
   isForkPullRequest,
   buildApprovalCommentBody,
