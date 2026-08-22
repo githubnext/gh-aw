@@ -70,6 +70,30 @@ func TestBuildAuditJobsWithoutWorkflowLogs(t *testing.T) {
 	assert.Empty(t, jobs[0].Steps[0].ErrorExcerpt)
 }
 
+func TestBuildAuditJobsMatchesDuplicateStepNamesByOccurrence(t *testing.T) {
+	t.Parallel()
+	logsPath := t.TempDir()
+	writeStepLog(t, logsPath, "build", "10_Test.txt", "##[error]second test failed\n")
+	writeStepLog(t, logsPath, "build", "2_Test.txt", "first test passed\n")
+
+	jobDetails := []JobInfoWithDuration{{
+		JobInfo: JobInfo{
+			Name:       "build",
+			Conclusion: "failure",
+			Steps: []JobStep{
+				{Name: "Test", Conclusion: "success"},
+				{Name: "Test", Conclusion: "failure"},
+			},
+		},
+	}}
+
+	jobs := buildAuditJobs(jobDetails, logsPath)
+	require.Len(t, jobs, 1)
+	require.Len(t, jobs[0].Steps, 2)
+	assert.Empty(t, jobs[0].Steps[0].ErrorExcerpt)
+	assert.Equal(t, "##[error]second test failed", jobs[0].Steps[1].ErrorExcerpt)
+}
+
 func TestExtractStepFailureExcerptFallsBackToTail(t *testing.T) {
 	t.Parallel()
 	logsPath := t.TempDir()
@@ -80,6 +104,16 @@ func TestExtractStepFailureExcerptFallsBackToTail(t *testing.T) {
 	excerpt := extractStepFailureExcerpt(path)
 	assert.Contains(t, excerpt, "TypeError: undefined is not a function")
 	assert.Contains(t, excerpt, "first line")
+}
+
+func TestExtractStepFailureExcerptDoesNotFallBackToFilteredError(t *testing.T) {
+	t.Parallel()
+	logsPath := t.TempDir()
+	writeStepLog(t, logsPath, "agent", "1_Run Agent.txt",
+		`2024-01-01T10:00:00.1234567Z ##[error]{"type":"user","message":{"content":[{"type":"tool_result","content":"secret tool result"}]}}`+"\n")
+
+	path := filepath.Join(logsPath, "workflow-logs", "agent", "1_Run Agent.txt")
+	assert.Empty(t, extractStepFailureExcerpt(path))
 }
 
 func TestExtractStepFailureExcerptTruncatesLongTail(t *testing.T) {

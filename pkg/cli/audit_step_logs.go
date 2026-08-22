@@ -10,9 +10,11 @@
 package cli
 
 import (
+	"cmp"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -54,15 +56,19 @@ func attachStepErrorExcerpts(jobs []JobData, logsPath string) {
 			continue
 		}
 		stepLogs := indexStepLogFiles(jobDir)
+		stepLogOffsets := make(map[string]int, len(stepLogs))
 		for j := range jobs[i].Steps {
+			stepName := normalizeLogName(jobs[i].Steps[j].Name)
+			stepPaths := stepLogs[stepName]
+			stepLogOffset := stepLogOffsets[stepName]
+			stepLogOffsets[stepName] = stepLogOffset + 1
 			if !isFailureConclusion(jobs[i].Steps[j].Conclusion) {
 				continue
 			}
-			stepPath, found := stepLogs[normalizeLogName(jobs[i].Steps[j].Name)]
-			if !found {
+			if stepLogOffset >= len(stepPaths) {
 				continue
 			}
-			excerpt := extractStepFailureExcerpt(stepPath)
+			excerpt := extractStepFailureExcerpt(stepPaths[stepLogOffset])
 			if excerpt != "" {
 				jobs[i].Steps[j].ErrorExcerpt = excerpt
 				auditReportLog.Printf("Attached error excerpt for step %s/%s", jobs[i].Name, jobs[i].Steps[j].Name)
@@ -82,13 +88,18 @@ func hasFailedStep(jobs []JobData) bool {
 	return false
 }
 
-// indexStepLogFiles maps normalized step names to their log file path within a job directory.
-func indexStepLogFiles(jobDir string) map[string]string {
+type numberedStepLog struct {
+	number int
+	path   string
+}
+
+// indexStepLogFiles maps normalized step names to their log file paths in step-number order.
+func indexStepLogFiles(jobDir string) map[string][]string {
 	entries, err := os.ReadDir(jobDir)
 	if err != nil {
 		return nil
 	}
-	index := make(map[string]string, len(entries))
+	numberedLogs := make(map[string][]numberedStepLog, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".txt") {
 			continue
@@ -98,9 +109,22 @@ func indexStepLogFiles(jobDir string) map[string]string {
 			continue
 		}
 		key := normalizeLogName(stepName)
-		if _, exists := index[key]; !exists {
-			index[key] = filepath.Join(jobDir, entry.Name())
+		numberedLogs[key] = append(numberedLogs[key], numberedStepLog{
+			number: num,
+			path:   filepath.Join(jobDir, entry.Name()),
+		})
+	}
+
+	index := make(map[string][]string, len(numberedLogs))
+	for name, logs := range numberedLogs {
+		slices.SortFunc(logs, func(a, b numberedStepLog) int {
+			return cmp.Compare(a.number, b.number)
+		})
+		paths := make([]string, len(logs))
+		for i, log := range logs {
+			paths[i] = log.path
 		}
+		index[name] = paths
 	}
 	return index
 }
@@ -134,8 +158,10 @@ func extractStepFailureExcerpt(path string) string {
 	}
 
 	var errorLines []string
+	sawErrorAnnotation := false
 	for line := range strings.SplitSeq(tail, "\n") {
 		if strings.Contains(line, "##[error]") {
+			sawErrorAnnotation = true
 			stripped := stripGHALogTimestamps(line)
 			if stripped != "" && !isAgentToolResultAnnotation(stripped) {
 				errorLines = append(errorLines, stripped)
@@ -144,6 +170,9 @@ func extractStepFailureExcerpt(path string) string {
 	}
 	if len(errorLines) > 0 {
 		return stringutil.Truncate(strings.Join(errorLines, "\n"), maxStepErrorExcerptLen)
+	}
+	if sawErrorAnnotation {
+		return ""
 	}
 
 	content := strings.TrimSpace(stripGHALogTimestamps(tail))
