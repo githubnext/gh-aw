@@ -112,11 +112,8 @@ async function main() {
 
   // Calculate time threshold
   const windowMs = windowMinutes * 60 * 1000;
-  const thresholdTime = new Date(Date.now() - windowMs);
-  if (Number.isNaN(thresholdTime.getTime())) {
-    throw new Error("Failed to calculate rate limit threshold");
-  }
-  const thresholdISO = thresholdTime.toISOString();
+  const thresholdTimestamp = Date.now() - windowMs;
+  const thresholdISO = new Date(thresholdTimestamp).toISOString();
 
   core.info(`   Time window: runs created after ${thresholdISO}`);
 
@@ -168,7 +165,7 @@ async function main() {
           core.warning(`Skipping run ${run.id} with invalid creation date`);
           continue;
         }
-        if (runCreatedAt < thresholdTime) {
+        if (runCreatedAt.getTime() < thresholdTimestamp) {
           core.info(`   Stopping pagination - run ${run.id} created before threshold (${run.created_at})`);
           hasMore = false;
           break;
