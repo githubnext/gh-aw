@@ -33,12 +33,19 @@ const (
 
 // LockMetadata represents the structured metadata embedded in lock files
 type LockMetadata struct {
-	SchemaVersion           LockSchemaVersion `json:"schema_version"`
-	FrontmatterHash         string            `json:"frontmatter_hash,omitempty"`
-	BodyHash                string            `json:"body_hash,omitempty"`
-	StopTime                string            `json:"stop_time,omitempty"`
-	CompilerVersion         string            `json:"compiler_version,omitempty"`
-	Strict                  bool              `json:"strict,omitempty"`
+	SchemaVersion   LockSchemaVersion `json:"schema_version"`
+	FrontmatterHash string            `json:"frontmatter_hash,omitempty"`
+	BodyHash        string            `json:"body_hash,omitempty"`
+	StopTime        string            `json:"stop_time,omitempty"`
+	CompilerVersion string            `json:"compiler_version,omitempty"`
+	Strict          bool              `json:"strict,omitempty"`
+	// AgentMetadataInfo is embedded so agent fields are declared once and
+	// serialized inline in the lock metadata JSON.
+	AgentMetadataInfo
+}
+
+// AgentMetadataInfo holds agent and detection agent information for embedding in lock file metadata
+type AgentMetadataInfo struct {
 	EngineBaseURLCustomized bool              `json:"engine_base_url_customized,omitempty"`
 	AgentID                 string            `json:"agent_id,omitempty"`
 	AgentModel              string            `json:"agent_model,omitempty"`
@@ -46,17 +53,6 @@ type LockMetadata struct {
 	DetectionAgentModel     string            `json:"detection_agent_model,omitempty"`
 	EngineVersions          map[string]string `json:"engine_versions,omitempty"`
 	AgentImageRunner        string            `json:"agent_image_runner,omitempty"`
-}
-
-// AgentMetadataInfo holds agent and detection agent information for embedding in lock file metadata
-type AgentMetadataInfo struct {
-	AgentID                 string
-	AgentModel              string
-	DetectionAgentID        string
-	DetectionAgentModel     string
-	EngineBaseURLCustomized bool
-	EngineVersions          map[string]string
-	AgentImageRunner        string
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
@@ -83,7 +79,7 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 		jsonStr := matches[1]
 		var metadata LockMetadata
 		if err := json.Unmarshal([]byte(jsonStr), &metadata); err != nil {
-			return nil, false, fmt.Errorf("failed to parse lock metadata JSON: %w", err)
+			return nil, false, fmt.Errorf("lock metadata JSON should be a single valid JSON object; recompile the workflow with gh aw compile to regenerate the lock file: %w", err)
 		}
 		lockSchemaLog.Printf("Extracted metadata from lock file: schema=%s", metadata.SchemaVersion)
 		return &metadata, false, nil
@@ -123,18 +119,12 @@ func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, a
 	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", hashInfo.BodyHash != "")
 
 	metadata := &LockMetadata{
-		SchemaVersion:           LockSchemaV4,
-		FrontmatterHash:         hashInfo.FrontmatterHash,
-		BodyHash:                hashInfo.BodyHash,
-		StopTime:                stopTime,
-		Strict:                  strict,
-		EngineBaseURLCustomized: agentInfo.EngineBaseURLCustomized,
-		AgentID:                 agentInfo.AgentID,
-		AgentModel:              agentInfo.AgentModel,
-		DetectionAgentID:        agentInfo.DetectionAgentID,
-		DetectionAgentModel:     agentInfo.DetectionAgentModel,
-		EngineVersions:          agentInfo.EngineVersions,
-		AgentImageRunner:        agentInfo.AgentImageRunner,
+		SchemaVersion:     LockSchemaV4,
+		FrontmatterHash:   hashInfo.FrontmatterHash,
+		BodyHash:          hashInfo.BodyHash,
+		StopTime:          stopTime,
+		Strict:            strict,
+		AgentMetadataInfo: agentInfo,
 	}
 
 	// Include compiler version only for release builds
@@ -150,7 +140,7 @@ func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, a
 func (m *LockMetadata) ToJSON() (string, error) {
 	bytes, err := json.Marshal(m)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize lock metadata: %w", err)
+		return "", fmt.Errorf("lock metadata should contain JSON-serializable values; check metadata field values before writing the lock file: %w", err)
 	}
 	return string(bytes), nil
 }
