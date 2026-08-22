@@ -333,7 +333,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
-			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig, nil, nil)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig, nil, nil, nil)
 
 			// Parse expected and actual results into sets for comparison
 			expectedTools := make(map[string]struct{})
@@ -384,7 +384,7 @@ func TestClaudeEngineComputeAllowedToolsDeduplicatesNormalizedBashEntries(t *tes
 		t.Fatalf("extract cache-memory config: %v", err)
 	}
 
-	result := engine.computeAllowedClaudeToolsString(tools, nil, cacheMemoryConfig, nil, nil)
+	result := engine.computeAllowedClaudeToolsString(tools, nil, cacheMemoryConfig, nil, nil, nil)
 	expected := "Bash(jq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite"
 	if result != expected {
 		t.Fatalf("unexpected allowed tools\nwant: %s\ngot:  %s", expected, result)
@@ -472,7 +472,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
-			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig, nil, nil)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig, nil, nil, nil)
 
 			// Split both expected and result into slices and check each tool is present
 			expectedTools := strings.Split(tt.expected, ",")
@@ -520,7 +520,7 @@ func TestClaudeEngineComputeAllowedToolsWithSandboxAllowWrite(t *testing.T) {
 		},
 	}
 
-	got := engine.computeAllowedClaudeToolsString(map[string]any{}, nil, cacheMemoryConfig, nil, sandboxConfig)
+	got := engine.computeAllowedClaudeToolsString(map[string]any{}, nil, cacheMemoryConfig, nil, nil, sandboxConfig)
 	want := "Edit(/tmp/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/*),NotebookRead,Read,Read(/tmp/*),Task,TodoWrite,Write(/tmp/*)"
 	if got != want {
 		t.Fatalf("unexpected allowed tools\nwant: %s\ngot:  %s", want, got)
@@ -540,7 +540,7 @@ func TestClaudeEngineAddsTmpByDefault(t *testing.T) {
 		},
 	}
 
-	got := engine.computeAllowedClaudeToolsString(map[string]any{}, nil, cacheMemoryConfig, nil, sandboxConfig)
+	got := engine.computeAllowedClaudeToolsString(map[string]any{}, nil, cacheMemoryConfig, nil, nil, sandboxConfig)
 	want := "Edit(/tmp/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/*),NotebookRead,Read,Read(/tmp/*),Task,TodoWrite,Write(/tmp/*)"
 	if got != want {
 		t.Fatalf("unexpected allowed tools\nwant: %s\ngot:  %s", want, got)

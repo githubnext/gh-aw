@@ -1435,6 +1435,10 @@ on:
     # (optional)
     discussions: "read"
 
+    # Permission for the experimental GitHub Drives service
+    # (optional)
+    drives: "read"
+
     # Permission level for OIDC token requests (write/none only - read is not
     # supported). Allows workflows to request JWT tokens for cloud provider
     # authentication.
@@ -1573,6 +1577,10 @@ permissions:
   # create/update discussions, none: no access)
   # (optional)
   discussions: "read"
+
+  # Permission for the experimental GitHub Drives service
+  # (optional)
+  drives: "read"
 
   # Permission level for OIDC token requests (write/none only - read is not
   # supported). Allows workflows to request JWT tokens for cloud provider
@@ -4136,6 +4144,59 @@ tools:
 
   # Format 4: Array of cache-memory configurations for multiple caches
   cache-memory: []
+    # Array items: object
+
+  # Private-preview GitHub Drives configuration. Do not configure unless GitHub has
+  # explicitly enrolled the repository in the private preview.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Default configuration for enrolled preview repositories
+  drive-memory: true
+
+  # Format 2: Default configuration for enrolled preview repositories (same as true)
+  drive-memory: null
+
+  # Format 3: Configuration for an enrolled preview repository
+  drive-memory:
+    # GitHub Drive name (default: 'default')
+    # (optional)
+    drive-name: "example-value"
+
+    # Optional description shown in the agent prompt
+    # (optional)
+    description: "Description of the workflow"
+
+    # Drive size used when creating the drive (default: '10G'; ignored for an existing
+    # drive)
+    # (optional)
+    disk-size: "example-value"
+
+    # Eagerly fetch existing drive contents after mounting (default: false)
+    # (optional)
+    prefetch: true
+
+    # Mount the drive without committing changes
+    # (optional)
+    restore-only: true
+
+    # List of allowed file extensions. By default, all extensions are allowed.
+    # (optional)
+    allowed-extensions: []
+      # Array of strings
+
+    # (optional)
+    validation:
+      # JavaScript validator body that runs over the drive-memory directory before
+      # persistence
+      script: "example-value"
+
+      # Maximum validator runtime in minutes
+      # (optional)
+      timeout-minutes: 1
+
+  # Format 4: Configurations for multiple drives in an enrolled preview repository
+  drive-memory: []
     # Array items: object
 
   # Comment memory configuration for managed comment persistence

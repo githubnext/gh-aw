@@ -110,10 +110,8 @@ func buildArcDindChrootConfigPatchBody() string {
 func buildArcDindChrootConfigPatchBodyBash() string {
 	return fmt.Sprintf(
 		`  _GH_AW_CHROOT_JSON=$(jq -c --arg src "%s" --arg user "$(id -un)" --argjson uid "$(id -u)" --argjson gid "$(id -g)" --arg home "%s" '.chroot={"binariesSourcePath":$src,"identity":{"user":$user,"uid":$uid,"gid":$gid,"home":$home}}' "${RUNNER_TEMP}/gh-aw/awf-config.json") || { echo "chroot config patch failed" >&2; exit 1; }
-  printf '%%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
-  printf '%%s\n' "$_GH_AW_CHROOT_JSON" > "%s/awf-config.json"`,
+  printf '%%s\n' "$_GH_AW_CHROOT_JSON" > "${RUNNER_TEMP}/gh-aw/awf-config.json"`,
 		awfArcDindChrootBinariesSourcePath,
 		awfArcDindChrootIdentityHome,
-		awfArcDindChrootBinariesSourcePath,
 	)
 }

@@ -76,6 +76,7 @@ type ToolsConfig struct {
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
+	DriveMemory      *DriveMemoryToolConfig      `yaml:"drive-memory,omitempty"`
 	CommentMemory    *CommentMemoryToolConfig    `yaml:"comment-memory,omitempty"`
 	RepoMemory       *RepoMemoryToolConfig       `yaml:"repo-memory,omitempty"`
 	Timeout          *TemplatableInt32           `yaml:"timeout,omitempty"`
@@ -216,6 +217,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	}
 	if t.CacheMemory != nil {
 		result["cache-memory"] = t.CacheMemory.Raw
+	}
+	if t.DriveMemory != nil {
+		result["drive-memory"] = t.DriveMemory.Raw
 	}
 	if t.CommentMemory != nil {
 		result["comment-memory"] = t.CommentMemory.Raw
@@ -505,6 +509,12 @@ type CacheMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
+// DriveMemoryToolConfig represents the configuration for drive-memory.
+type DriveMemoryToolConfig struct {
+	// Can be boolean, object, or array - handled by drive_memory_config.go.
+	Raw any `yaml:"-"`
+}
+
 // CommentMemoryToolConfig represents the configuration for comment-memory.
 // This is handled separately by comment_memory.go.
 type CommentMemoryToolConfig struct {
@@ -594,6 +604,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
 		return t.CacheMemory != nil
+	case "drive-memory":
+		return t.DriveMemory != nil
 	case "comment-memory":
 		return t.CommentMemory != nil
 	case "repo-memory":
@@ -640,6 +652,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.CacheMemory != nil {
 		names = append(names, "cache-memory")
+	}
+	if t.DriveMemory != nil {
+		names = append(names, "drive-memory")
 	}
 	if t.CommentMemory != nil {
 		names = append(names, "comment-memory")
