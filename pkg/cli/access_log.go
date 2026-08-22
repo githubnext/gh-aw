@@ -171,10 +171,10 @@ func parseSquidLogLine(line string) (*AccessLogEntry, error) {
 
 	return &AccessLogEntry{
 		NetworkLogEntry: NetworkLogEntry{
-			Client: fields[2],
-			Status: fields[3],
-			Method: fields[5],
-			URL:    fields[6],
+			ClientAddr: fields[2],
+			Status:     fields[3],
+			Method:     fields[5],
+			URL:        fields[6],
 		},
 		Timestamp: fields[0],
 		Duration:  fields[1],

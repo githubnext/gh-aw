@@ -178,10 +178,10 @@ func TestParseSquidLogLine(t *testing.T) {
 			line: "1701234567.123 180 192.168.1.100 TCP_MISS/200 1234 GET http://example.com/api - HIER_DIRECT/93.184.216.34 text/html",
 			expected: &AccessLogEntry{
 				NetworkLogEntry: NetworkLogEntry{
-					Client: "192.168.1.100",
-					Status: "TCP_MISS/200",
-					Method: "GET",
-					URL:    "http://example.com/api",
+					ClientAddr: "192.168.1.100",
+					Status:     "TCP_MISS/200",
+					Method:     "GET",
+					URL:        "http://example.com/api",
 				},
 				Timestamp: "1701234567.123",
 				Duration:  "180",
@@ -197,10 +197,10 @@ func TestParseSquidLogLine(t *testing.T) {
 			line: "1701234568.456 250 192.168.1.100 TCP_DENIED/403 0 CONNECT github.com:443 - HIER_NONE/- -",
 			expected: &AccessLogEntry{
 				NetworkLogEntry: NetworkLogEntry{
-					Client: "192.168.1.100",
-					Status: "TCP_DENIED/403",
-					Method: "CONNECT",
-					URL:    "github.com:443",
+					ClientAddr: "192.168.1.100",
+					Status:     "TCP_DENIED/403",
+					Method:     "CONNECT",
+					URL:        "github.com:443",
 				},
 				Timestamp: "1701234568.456",
 				Duration:  "250",
@@ -241,7 +241,7 @@ func TestParseSquidLogLine(t *testing.T) {
 				require.NotNil(t, result, "should return parsed entry")
 				assert.Equal(t, tt.expected.Timestamp, result.Timestamp, "timestamp should match")
 				assert.Equal(t, tt.expected.Duration, result.Duration, "duration should match")
-				assert.Equal(t, tt.expected.Client, result.Client, "client should match")
+				assert.Equal(t, tt.expected.ClientAddr, result.ClientAddr, "client should match")
 				assert.Equal(t, tt.expected.Status, result.Status, "status should match")
 				assert.Equal(t, tt.expected.Size, result.Size, "size should match")
 				assert.Equal(t, tt.expected.Method, result.Method, "method should match")

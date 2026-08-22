@@ -400,6 +400,17 @@ func TestParseAuditJSONL(t *testing.T) {
 		assert.Len(t, entries, 2, "Should parse 2 entries, skipping empty line")
 	})
 
+	t.Run("quoted status is normalized", func(t *testing.T) {
+		dir := t.TempDir()
+		jsonlPath := filepath.Join(dir, "audit.jsonl")
+		require.NoError(t, os.WriteFile(jsonlPath, []byte(`{"ts":1.0,"host":"a.com:443","status":"407"}`), 0644))
+
+		entries, err := parseAuditJSONL(jsonlPath)
+		require.NoError(t, err, "Should parse JSONL without error")
+		require.Len(t, entries, 1, "Should parse one entry")
+		assert.Equal(t, "407", entries[0].Status, "Status should be normalized to string")
+	})
+
 	t.Run("malformed lines skipped", func(t *testing.T) {
 		dir := t.TempDir()
 		jsonlPath := filepath.Join(dir, "audit.jsonl")

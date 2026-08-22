@@ -14,52 +14,44 @@ import (
 
 func TestParseFirewallLogLine(t *testing.T) {
 	t.Parallel()
-	type expectedFirewallLogEntry struct {
-		Timestamp  string
-		Client     string
-		Domain     string
-		DestIPPort string
-		Proto      string
-		Method     string
-		Status     string
-		Decision   string
-		URL        string
-		UserAgent  string
-	}
 	tests := []struct {
 		name     string
 		line     string
-		expected *expectedFirewallLogEntry
+		expected *FirewallLogEntry
 	}{
 		{
 			name: "valid log line with all fields",
 			line: `1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "172.30.0.20:35288",
+					Method:     "CONNECT",
+					Status:     "200",
+					Decision:   "TCP_TUNNEL:HIER_DIRECT",
+					URL:        "api.enterprise.githubcopilot.com:443",
+				},
 				Timestamp:  "1761332530.474",
-				Client:     "172.30.0.20:35288",
 				Domain:     "api.enterprise.githubcopilot.com:443",
 				DestIPPort: "140.82.112.22:443",
 				Proto:      "1.1",
-				Method:     "CONNECT",
-				Status:     "200",
-				Decision:   "TCP_TUNNEL:HIER_DIRECT",
-				URL:        "api.enterprise.githubcopilot.com:443",
 				UserAgent:  "-",
 			},
 		},
 		{
 			name: "log line with placeholder values",
 			line: `1761332530.500 - - - - - 0 NONE_NONE:HIER_NONE - "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "-",
+					Method:     "-",
+					Status:     "0",
+					Decision:   "NONE_NONE:HIER_NONE",
+					URL:        "-",
+				},
 				Timestamp:  "1761332530.500",
-				Client:     "-",
 				Domain:     "-",
 				DestIPPort: "-",
 				Proto:      "-",
-				Method:     "-",
-				Status:     "0",
-				Decision:   "NONE_NONE:HIER_NONE",
-				URL:        "-",
 				UserAgent:  "-",
 			},
 		},
@@ -81,80 +73,90 @@ func TestParseFirewallLogLine(t *testing.T) {
 		{
 			name: "non-standard client IP:port format is accepted",
 			line: `1761332530.474 Accepting api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "Accepting",
+					Method:     "CONNECT",
+					Status:     "200",
+					Decision:   "TCP_TUNNEL:HIER_DIRECT",
+					URL:        "api.github.com:443",
+				},
 				Timestamp:  "1761332530.474",
-				Client:     "Accepting",
 				Domain:     "api.github.com:443",
 				DestIPPort: "140.82.112.22:443",
 				Proto:      "1.1",
-				Method:     "CONNECT",
-				Status:     "200",
-				Decision:   "TCP_TUNNEL:HIER_DIRECT",
-				URL:        "api.github.com:443",
 				UserAgent:  "-",
 			},
 		},
 		{
 			name: "non-standard domain format is accepted",
 			line: `1761332530.474 172.30.0.20:35288 DNS 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "172.30.0.20:35288",
+					Method:     "CONNECT",
+					Status:     "200",
+					Decision:   "TCP_TUNNEL:HIER_DIRECT",
+					URL:        "api.github.com:443",
+				},
 				Timestamp:  "1761332530.474",
-				Client:     "172.30.0.20:35288",
 				Domain:     "DNS",
 				DestIPPort: "140.82.112.22:443",
 				Proto:      "1.1",
-				Method:     "CONNECT",
-				Status:     "200",
-				Decision:   "TCP_TUNNEL:HIER_DIRECT",
-				URL:        "api.github.com:443",
 				UserAgent:  "-",
 			},
 		},
 		{
 			name: "non-standard dest IP:port format is accepted",
 			line: `1761332530.474 172.30.0.20:35288 api.github.com:443 Local 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "172.30.0.20:35288",
+					Method:     "CONNECT",
+					Status:     "200",
+					Decision:   "TCP_TUNNEL:HIER_DIRECT",
+					URL:        "api.github.com:443",
+				},
 				Timestamp:  "1761332530.474",
-				Client:     "172.30.0.20:35288",
 				Domain:     "api.github.com:443",
 				DestIPPort: "Local",
 				Proto:      "1.1",
-				Method:     "CONNECT",
-				Status:     "200",
-				Decision:   "TCP_TUNNEL:HIER_DIRECT",
-				URL:        "api.github.com:443",
 				UserAgent:  "-",
 			},
 		},
 		{
 			name: "non-numeric status code is accepted",
 			line: `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT Swap TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "172.30.0.20:35288",
+					Method:     "CONNECT",
+					Status:     "Swap",
+					Decision:   "TCP_TUNNEL:HIER_DIRECT",
+					URL:        "api.github.com:443",
+				},
 				Timestamp:  "1761332530.474",
-				Client:     "172.30.0.20:35288",
 				Domain:     "api.github.com:443",
 				DestIPPort: "140.82.112.22:443",
 				Proto:      "1.1",
-				Method:     "CONNECT",
-				Status:     "Swap",
-				Decision:   "TCP_TUNNEL:HIER_DIRECT",
-				URL:        "api.github.com:443",
 				UserAgent:  "-",
 			},
 		},
 		{
 			name: "decision format without colon is accepted",
 			line: `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 Waiting api.github.com:443 "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "172.30.0.20:35288",
+					Method:     "CONNECT",
+					Status:     "200",
+					Decision:   "Waiting",
+					URL:        "api.github.com:443",
+				},
 				Timestamp:  "1761332530.474",
-				Client:     "172.30.0.20:35288",
 				Domain:     "api.github.com:443",
 				DestIPPort: "140.82.112.22:443",
 				Proto:      "1.1",
-				Method:     "CONNECT",
-				Status:     "200",
-				Decision:   "Waiting",
-				URL:        "api.github.com:443",
 				UserAgent:  "-",
 			},
 		},
@@ -166,16 +168,18 @@ func TestParseFirewallLogLine(t *testing.T) {
 		{
 			name: "line with pipe character in domain position is accepted",
 			line: `1761332530.474 172.30.0.20:35288 pinger|test 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`,
-			expected: &expectedFirewallLogEntry{
+			expected: &FirewallLogEntry{
+				NetworkLogEntry: NetworkLogEntry{
+					ClientAddr: "172.30.0.20:35288",
+					Method:     "CONNECT",
+					Status:     "200",
+					Decision:   "TCP_TUNNEL:HIER_DIRECT",
+					URL:        "api.github.com:443",
+				},
 				Timestamp:  "1761332530.474",
-				Client:     "172.30.0.20:35288",
 				Domain:     "pinger|test",
 				DestIPPort: "140.82.112.22:443",
 				Proto:      "1.1",
-				Method:     "CONNECT",
-				Status:     "200",
-				Decision:   "TCP_TUNNEL:HIER_DIRECT",
-				URL:        "api.github.com:443",
 				UserAgent:  "-",
 			},
 		},
@@ -199,8 +203,8 @@ func TestParseFirewallLogLine(t *testing.T) {
 			if result.Timestamp != tt.expected.Timestamp {
 				t.Errorf("Timestamp: got %q, want %q", result.Timestamp, tt.expected.Timestamp)
 			}
-			if result.Client != tt.expected.Client {
-				t.Errorf("Client: got %q, want %q", result.Client, tt.expected.Client)
+			if result.ClientAddr != tt.expected.ClientAddr {
+				t.Errorf("ClientAddr: got %q, want %q", result.ClientAddr, tt.expected.ClientAddr)
 			}
 			if result.Domain != tt.expected.Domain {
 				t.Errorf("Domain: got %q, want %q", result.Domain, tt.expected.Domain)

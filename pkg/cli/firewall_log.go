@@ -191,11 +191,11 @@ func parseFirewallLogLine(line string) *FirewallLogEntry {
 
 	return &FirewallLogEntry{
 		NetworkLogEntry: NetworkLogEntry{
-			Client:   clientIPPort,
-			Method:   fields[5],
-			Status:   status,
-			Decision: decision,
-			URL:      fields[8],
+			ClientAddr: clientIPPort,
+			Method:     fields[5],
+			Status:     status,
+			Decision:   decision,
+			URL:        fields[8],
 		},
 		Timestamp:  timestamp,
 		Domain:     domain,
@@ -264,7 +264,7 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 		// These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
 		// and are not actual external network requests.
 		// Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
-		if strings.HasPrefix(entry.Client, "::1:") && entry.Domain == "-" && (entry.DestIPPort == "-:-" || entry.DestIPPort == "-") {
+		if strings.HasPrefix(entry.ClientAddr, "::1:") && entry.Domain == "-" && (entry.DestIPPort == "-:-" || entry.DestIPPort == "-") {
 			continue
 		}
 

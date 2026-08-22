@@ -76,11 +76,11 @@ func (a *AuditLogEntry) UnmarshalJSON(data []byte) error {
 	}
 
 	a.NetworkLogEntry = NetworkLogEntry{
-		Client:   wire.Client,
-		Method:   wire.Method,
-		Status:   status,
-		Decision: wire.Decision,
-		URL:      wire.URL,
+		ClientAddr: wire.Client,
+		Method:     wire.Method,
+		Status:     status,
+		Decision:   wire.Decision,
+		URL:        wire.URL,
 	}
 	a.Schema = wire.Schema
 	a.Timestamp = wire.Timestamp
