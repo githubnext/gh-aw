@@ -55,7 +55,7 @@ func attachStepErrorExcerpts(jobs []JobData, logsPath string) {
 		}
 		stepLogs := indexStepLogFiles(jobDir)
 		for j := range jobs[i].Steps {
-			if !isFailedConclusion(jobs[i].Steps[j].Conclusion) {
+			if !isFailureConclusion(jobs[i].Steps[j].Conclusion) {
 				continue
 			}
 			stepPath, found := stepLogs[normalizeLogName(jobs[i].Steps[j].Name)]
@@ -74,21 +74,12 @@ func attachStepErrorExcerpts(jobs []JobData, logsPath string) {
 func hasFailedStep(jobs []JobData) bool {
 	for _, job := range jobs {
 		for _, step := range job.Steps {
-			if isFailedConclusion(step.Conclusion) {
+			if isFailureConclusion(step.Conclusion) {
 				return true
 			}
 		}
 	}
 	return false
-}
-
-func isFailedConclusion(conclusion string) bool {
-	switch strings.ToLower(conclusion) {
-	case "failure", "timed_out":
-		return true
-	default:
-		return false
-	}
 }
 
 // indexStepLogFiles maps normalized step names to their log file path within a job directory.

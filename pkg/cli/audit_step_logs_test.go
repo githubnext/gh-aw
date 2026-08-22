@@ -100,12 +100,3 @@ func TestNormalizeLogName(t *testing.T) {
 	assert.Equal(t, "process-safe-outputs", normalizeLogName("process_safe_outputs"))
 	assert.Equal(t, "safe-outputs", normalizeLogName("  safe outputs  "))
 }
-
-func TestIsFailedConclusion(t *testing.T) {
-	t.Parallel()
-	assert.True(t, isFailedConclusion("failure"))
-	assert.True(t, isFailedConclusion("timed_out"))
-	assert.False(t, isFailedConclusion("success"))
-	assert.False(t, isFailedConclusion("skipped"))
-	assert.False(t, isFailedConclusion(""))
-}
