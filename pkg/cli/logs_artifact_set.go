@@ -75,6 +75,11 @@ const (
 	// ArtifactSetEvals downloads the usage artifact, which now includes evals.jsonl
 	// produced by the evals job (copied into usage by the conclusion job).
 	ArtifactSetEvals ArtifactSet = "evals"
+
+	// ArtifactSetSafeOutputs downloads the safe-outputs-items artifact uploaded by the
+	// safe_outputs job (safe-output-items.jsonl manifest and temporary-id-map.json), which
+	// is needed to root-cause safe_outputs job failures without downloading every artifact.
+	ArtifactSetSafeOutputs ArtifactSet = "safe-outputs"
 )
 
 // artifactSetArtifacts maps each named set to the list of artifact base names it includes.
@@ -96,6 +101,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetUsage: {constants.UsageArtifactName},
 	// evals: evals results are now included in the usage artifact.
 	ArtifactSetEvals: {constants.UsageArtifactName},
+	// safe-outputs: the safe_outputs job manifest artifact.
+	ArtifactSetSafeOutputs: {constants.SafeOutputItemsArtifactName},
 }
 
 const maxArtifactHintExamples = 2

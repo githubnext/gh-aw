@@ -166,6 +166,11 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"usage"},
 		},
 		{
+			name:     "safe-outputs resolves to the safe outputs items artifact",
+			sets:     []string{"safe-outputs"},
+			expected: []string{constants.SafeOutputItemsArtifactName},
+		},
+		{
 			name:     "multiple sets are merged and deduplicated",
 			sets:     []string{"activation", "agent"},
 			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
@@ -262,7 +267,7 @@ func TestValidArtifactSetNames(t *testing.T) {
 	names := ValidArtifactSetNames()
 	require.NotEmpty(t, names, "ValidArtifactSetNames should return non-empty slice")
 
-	expected := []string{"all", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "mcp", "usage"}
+	expected := []string{"all", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "mcp", "safe-outputs", "usage"}
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
 }
 

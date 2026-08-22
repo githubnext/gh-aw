@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -265,7 +266,7 @@ func buildAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogM
 	expData := extractExperimentData(run.LogsPath)
 	overview := buildAuditOverview(run, expData)
 	metricsData, inferredEngineID := buildAuditMetrics(processedRun, metrics)
-	jobs := buildAuditJobs(processedRun.JobDetails)
+	jobs := buildAuditJobs(processedRun.JobDetails, run.LogsPath)
 	errors := extractAuditErrors(run)
 	downloadedFiles := extractDownloadedFiles(run.LogsPath)
 	toolUsage := buildAuditToolUsage(metrics, mcpToolUsage)
@@ -384,19 +385,24 @@ func populateAuditMetricContext(metricsData *MetricsData, tokenUsage *TokenUsage
 	}
 }
 
-func buildAuditJobs(jobDetails []JobInfoWithDuration) []JobData {
-	return sliceutil.Map(jobDetails, func(jobDetail JobInfoWithDuration) JobData {
+// buildAuditJobs converts job details into report data. Failed steps are annotated with
+// an excerpt of their GitHub Actions step log (when the logs were downloaded into
+// logsPath) so failures such as safe_outputs job errors are visible in the audit output.
+func buildAuditJobs(jobDetails []JobInfoWithDuration, logsPath string) []JobData {
+	jobs := sliceutil.Map(jobDetails, func(jobDetail JobInfoWithDuration) JobData {
 		job := JobData{
 			Name:       jobDetail.Name,
 			Status:     jobDetail.Status,
 			Conclusion: jobDetail.Conclusion,
-			Steps:      jobDetail.Steps,
+			Steps:      slices.Clone(jobDetail.Steps),
 		}
 		if jobDetail.Duration > 0 {
 			job.Duration = timeutil.FormatDuration(jobDetail.Duration)
 		}
 		return job
 	})
+	attachStepErrorExcerpts(jobs, logsPath)
+	return jobs
 }
 
 func extractAuditErrors(run WorkflowRun) []ValidationIssue {

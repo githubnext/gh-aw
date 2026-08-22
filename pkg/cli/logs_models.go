@@ -312,6 +312,11 @@ type JobStep struct {
 	Name       string `json:"name"`
 	Status     string `json:"status,omitempty"`
 	Conclusion string `json:"conclusion,omitempty"`
+	// ErrorExcerpt holds a truncated excerpt of the GitHub Actions step log for a
+	// failed step. It is populated from the downloaded workflow-logs/ directory so
+	// that failures (for example in the safe_outputs job) can be root-caused without
+	// opening the Actions console.
+	ErrorExcerpt string `json:"error_excerpt,omitempty"`
 }
 
 // JobInfoWithDuration extends JobInfo with calculated duration

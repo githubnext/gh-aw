@@ -50,6 +50,7 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `usage` | `usage` | Compact conclusion-job artifact for lightweight reporting and forecasting |
 | `evals` | `evals` | BinEval evaluation results (only present when `evals` are declared) |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
+| `safe-outputs` | `safe-outputs-items` | Safe output items manifest (`safe-output-items.jsonl`, `temporary-id-map.json`) for root-causing `safe_outputs` job failures |
 
 ```bash
 # Download only firewall artifacts

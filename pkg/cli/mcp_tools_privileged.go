@@ -111,7 +111,7 @@ type logsArgs struct {
 	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40, 2 minutes for 41-80, 3 minutes for 81-120, and so on)"`
 	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
-	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
+	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, safe-outputs, usage"`
 }
 
 func defaultMCPLogsToolTimeoutMinutesForCount(count int) int {
@@ -412,7 +412,7 @@ type auditArgs struct {
 	RunID        any      `json:"run_id,omitempty"          jsonschema:"Alias for run_id_or_url. Accepts run ID or run/job URL (including step anchors). String or number."`
 	RunIDOrURL   any      `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Accepts run ID or run/job URL (including step anchors). String or number."`
 	RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
-	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
+	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, safe-outputs, usage"`
 	MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	Experiment   string   `json:"experiment,omitempty"       jsonschema:"Filter to runs that include this experiment name. When set, runs whose experiment artifact does not contain an assignment for this experiment name are skipped."`
 	Variant      string   `json:"variant,omitempty"          jsonschema:"Filter to runs assigned this specific variant value. Requires experiment to be set."`
@@ -496,7 +496,7 @@ without a matching runtime are skipped.
 Single-run returns JSON with:
 - overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url, logs_path, experiment)
 - metrics: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
-- jobs: List of job details (name, status, conclusion, duration)
+- jobs: List of job details (name, status, conclusion, duration, steps with error_excerpt for failed steps)
 - downloaded_files: List of artifact files (path, size, size_formatted, description, is_directory)
 - missing_tools: Tools that were requested but not available (tool, reason, alternatives, timestamp, workflow_name, run_id, experiment_name, variant)
 - mcp_failures: MCP server failures (server_name, status, timestamp, workflow_name, run_id, experiment_name, variant)
@@ -668,7 +668,7 @@ func buildAuditErrorResult(err error, outputStr string, runItems []string) (*mcp
 type auditDiffArgs struct {
 	BaseRunID     string   `json:"base_run_id"     jsonschema:"Numeric ID of the base (reference) workflow run"`
 	CompareRunIDs []string `json:"compare_run_ids" jsonschema:"One or more numeric IDs of the comparison runs"`
-	Artifacts     []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
+	Artifacts     []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, safe-outputs, usage"`
 }
 
 // registerAuditDiffTool registers the audit-diff tool with the MCP server.
