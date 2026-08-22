@@ -1,0 +1,220 @@
+// Package scanfindings provides a shared representation of the findings reported
+// by the scanner integrations (zizmor, poutine, grype, grant, runner-guard,
+// yamllint, ...).
+//
+// Each scanner speaks its own native JSON dialect, with severities spelled in a
+// different vocabulary ("High", "error", "Negligible", "note", ...) and locations
+// shaped differently. Integrations decode their native output into their own
+// structs and then map those structs onto the shared Finding type declared here,
+// so that severity classification, ordering and rendering are implemented once
+// instead of once per tool.
+package scanfindings
+
+import (
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/console"
+)
+
+// SeverityLevel is the shared severity vocabulary used by every scanner
+// integration. Native severity labels are normalized with ParseSeverity.
+type SeverityLevel string
+
+const (
+	// SeverityUnknown is used when a tool reports no severity, or one that
+	// cannot be mapped onto the shared vocabulary.
+	SeverityUnknown SeverityLevel = "unknown"
+	// SeverityInfo covers informational findings ("info", "note", "notice").
+	SeverityInfo SeverityLevel = "info"
+	// SeverityLow covers low impact findings ("low", "negligible", "minor").
+	SeverityLow SeverityLevel = "low"
+	// SeverityMedium covers medium impact findings ("medium", "moderate", "warning").
+	SeverityMedium SeverityLevel = "medium"
+	// SeverityHigh covers high impact findings ("high", "error").
+	SeverityHigh SeverityLevel = "high"
+	// SeverityCritical covers the most severe findings ("critical").
+	SeverityCritical SeverityLevel = "critical"
+)
+
+// ParseSeverity normalizes a native scanner severity label onto the shared
+// vocabulary. Comparison is case-insensitive and unrecognized labels (including
+// the empty string) map to SeverityUnknown.
+func ParseSeverity(raw string) SeverityLevel {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "critical", "crit":
+		return SeverityCritical
+	case "high", "error", "err":
+		return SeverityHigh
+	case "medium", "moderate", "warning", "warn":
+		return SeverityMedium
+	case "low", "negligible", "minor":
+		return SeverityLow
+	case "info", "information", "informational", "note", "notice":
+		return SeverityInfo
+	default:
+		return SeverityUnknown
+	}
+}
+
+// String returns the canonical lowercase name of the severity.
+func (s SeverityLevel) String() string {
+	return string(s)
+}
+
+// Rank returns the relative ordering of a severity, with higher values meaning
+// more severe. Unknown severities rank lowest.
+func (s SeverityLevel) Rank() int {
+	switch s {
+	case SeverityCritical:
+		return 5
+	case SeverityHigh:
+		return 4
+	case SeverityMedium:
+		return 3
+	case SeverityLow:
+		return 2
+	case SeverityInfo:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// AtLeast reports whether the severity is at least as severe as min.
+func (s SeverityLevel) AtLeast(min SeverityLevel) bool {
+	return s.Rank() >= min.Rank()
+}
+
+// ErrorType maps the severity onto the console error type used when rendering a
+// finding as a console.CompilerError. Unknown severities are rendered as
+// warnings so that unclassified findings remain visible.
+func (s SeverityLevel) ErrorType() string {
+	switch s {
+	case SeverityCritical, SeverityHigh:
+		return "error"
+	case SeverityLow, SeverityInfo:
+		return "info"
+	default:
+		return "warning"
+	}
+}
+
+// Finding is the shared, tool-independent representation of a single scanner
+// finding. Message holds the already-formatted, human readable description of
+// the finding as produced by the owning integration.
+type Finding struct {
+	RuleID   string        `json:"rule_id,omitempty"`
+	Severity SeverityLevel `json:"severity,omitempty"`
+	Message  string        `json:"message"`
+	File     string        `json:"file,omitempty"`
+	Line     int           `json:"line,omitempty"`
+	Column   int           `json:"column,omitempty"`
+	// Context holds the source lines surrounding the finding, used when
+	// rendering the finding to a terminal. It is optional.
+	Context []string `json:"-"`
+}
+
+// CompilerError converts the finding into the console error format shared by all
+// scanner output. Missing line and column values default to 1 so that the
+// rendered position stays well formed.
+func (f Finding) CompilerError() console.CompilerError {
+	line := f.Line
+	if line <= 0 {
+		line = 1
+	}
+	column := f.Column
+	if column <= 0 {
+		column = 1
+	}
+
+	return console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   f.File,
+			Line:   line,
+			Column: column,
+		},
+		Type:    f.Severity.ErrorType(),
+		Message: f.Message,
+		Context: f.Context,
+	}
+}
+
+// FormatMessage builds the standard "[severity] rule: description" message used
+// by the scanner integrations. Empty parts are omitted.
+func FormatMessage(severityLabel, ruleID, description string) string {
+	var parts []string
+	if severityLabel != "" {
+		parts = append(parts, fmt.Sprintf("[%s]", severityLabel))
+	}
+	if ruleID != "" {
+		if description != "" {
+			parts = append(parts, fmt.Sprintf("%s: %s", ruleID, description))
+		} else {
+			parts = append(parts, ruleID)
+		}
+	} else if description != "" {
+		parts = append(parts, description)
+	}
+	return strings.Join(parts, " ")
+}
+
+// Render writes the findings to w using the shared console error format.
+func Render(w io.Writer, findings []Finding) {
+	for _, finding := range findings {
+		fmt.Fprint(w, console.FormatError(finding.CompilerError()))
+	}
+}
+
+// Sort orders findings by file, then line, then column, then by decreasing
+// severity, then by rule identifier. The ordering is stable and deterministic so
+// that scanner output can be compared across runs.
+func Sort(findings []Finding) {
+	sort.SliceStable(findings, func(i, j int) bool {
+		a, b := findings[i], findings[j]
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		if a.Line != b.Line {
+			return a.Line < b.Line
+		}
+		if a.Column != b.Column {
+			return a.Column < b.Column
+		}
+		if a.Severity != b.Severity {
+			return a.Severity.Rank() > b.Severity.Rank()
+		}
+		return a.RuleID < b.RuleID
+	})
+}
+
+// CountAtLeast returns the number of findings with a severity of at least min.
+func CountAtLeast(findings []Finding, min SeverityLevel) int {
+	count := 0
+	for _, finding := range findings {
+		if finding.Severity.AtLeast(min) {
+			count++
+		}
+	}
+	return count
+}
+
+// ContextLines returns up to two source lines before and after the 1-based line
+// number, used to display a finding in context. It returns nil when the line is
+// out of range for the provided file lines.
+func ContextLines(fileLines []string, line int) []string {
+	if len(fileLines) == 0 || line <= 0 || line > len(fileLines) {
+		return nil
+	}
+
+	start := max(1, line-2)
+	end := min(len(fileLines), line+2)
+
+	context := make([]string, 0, end-start+1)
+	for i := start; i <= end; i++ {
+		context = append(context, fileLines[i-1])
+	}
+	return context
+}
