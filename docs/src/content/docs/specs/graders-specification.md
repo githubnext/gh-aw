@@ -143,6 +143,7 @@ The implementation MUST recognize the following built-in grader IDs:
 - `trajectory-efficiency`
 - `execution-step-count`
 - `execution-duration`
+- `working-set-rebuild-factor`
 - `context-growth`
 - `artifact-production`
 
