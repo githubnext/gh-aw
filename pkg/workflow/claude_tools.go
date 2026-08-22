@@ -119,12 +119,12 @@ func isExplicitlyDisabledTool(tool any) bool {
 // --permission-mode acceptEdits is in use, because acceptEdits actually enforces the
 // allowlist (unlike bypassPermissions which silently ignores it).
 // Panics if callers pass a Claude-specific tools section instead of neutral tools.
-func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig, mcpScripts *MCPScriptsConfig, sandboxConfig *SandboxConfig) string {
+func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig, driveMemoryConfig *DriveMemoryConfig, mcpScripts *MCPScriptsConfig, sandboxConfig *SandboxConfig) string {
 	claudeToolsLog.Print("Computing allowed Claude tools string")
 
 	tools = e.prepareClaudeToolsForAllowedList(tools)
 	allowedTools := collectClaudeAllowedTools(tools)
-	allowedTools = appendTopLevelClaudeTools(allowedTools, tools, cacheMemoryConfig)
+	allowedTools = appendTopLevelClaudeTools(allowedTools, tools, cacheMemoryConfig, driveMemoryConfig)
 	allowedTools = appendSandboxWritableTools(allowedTools, sandboxConfig)
 	allowedTools = appendSafeOutputsTools(allowedTools, safeOutputs)
 	allowedTools = appendMCPScriptsTools(allowedTools, mcpScripts)
@@ -240,7 +240,7 @@ func isClaudeToolName(toolName string) bool {
 	return toolName != "" && toolName[0] >= 'A' && toolName[0] <= 'Z'
 }
 
-func appendTopLevelClaudeTools(allowedTools []string, tools map[string]any, cacheMemoryConfig *CacheMemoryConfig) []string {
+func appendTopLevelClaudeTools(allowedTools []string, tools map[string]any, cacheMemoryConfig *CacheMemoryConfig, driveMemoryConfig *DriveMemoryConfig) []string {
 	for toolName, toolValue := range tools {
 		if toolName == "claude" {
 			continue
@@ -248,11 +248,32 @@ func appendTopLevelClaudeTools(allowedTools []string, tools map[string]any, cach
 		switch toolName {
 		case "cache-memory":
 			allowedTools = appendCacheMemoryTools(allowedTools, cacheMemoryConfig)
+		case "drive-memory":
+			allowedTools = appendDriveMemoryTools(allowedTools, driveMemoryConfig)
 		case "agentic-workflows":
 			allowedTools = append(allowedTools, "mcp__"+string(constants.AgenticWorkflowsMCPServerID))
 		default:
 			allowedTools = appendMCPToolPermissions(allowedTools, toolName, toolValue)
 		}
+
+	}
+	return allowedTools
+}
+
+func appendDriveMemoryTools(allowedTools []string, config *DriveMemoryConfig) []string {
+	if config == nil {
+		return allowedTools
+	}
+	for _, drive := range config.Drives {
+		memoryDir := driveMemoryDirFor(drive.ID)
+		pattern := memoryDir + "/*"
+		allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Read(%s)", pattern))
+		if !drive.RestoreOnly {
+			allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Write(%s)", pattern))
+			allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("Edit(%s)", pattern))
+			allowedTools = sliceutil.MergeUnique(allowedTools, fmt.Sprintf("MultiEdit(%s)", pattern))
+		}
+		allowedTools = appendCacheMemoryBashTools(allowedTools, memoryDir)
 	}
 	return allowedTools
 }

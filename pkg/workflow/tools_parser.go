@@ -98,6 +98,7 @@ var knownTools = map[string]struct{}{
 	"playwright":        {},
 	"agentic-workflows": {},
 	"cache-memory":      {},
+	"drive-memory":      {},
 	"comment-memory":    {},
 	"repo-memory":       {},
 	"safety-prompt":     {},
@@ -151,6 +152,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	}
 	if val, exists := toolsMap["cache-memory"]; exists {
 		tools.CacheMemory = parseCacheMemoryTool(val)
+	}
+	if val, exists := toolsMap["drive-memory"]; exists {
+		tools.DriveMemory = parseDriveMemoryTool(val)
 	}
 	if val, exists := toolsMap["comment-memory"]; exists {
 		tools.CommentMemory = parseCommentMemoryTool(val)
@@ -613,6 +617,11 @@ func parseAgenticWorkflowsTool(val any) *AgenticWorkflowsToolConfig {
 func parseCacheMemoryTool(val any) *CacheMemoryToolConfig {
 	// cache-memory can be boolean, object, or array - store raw value
 	return &CacheMemoryToolConfig{Raw: val}
+}
+
+// parseDriveMemoryTool converts raw drive-memory tool configuration.
+func parseDriveMemoryTool(val any) *DriveMemoryToolConfig {
+	return &DriveMemoryToolConfig{Raw: val}
 }
 
 // parseCommentMemoryTool converts raw comment-memory tool configuration

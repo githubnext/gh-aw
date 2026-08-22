@@ -60,6 +60,10 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	compilerYamlLog.Printf("Generating cache-memory steps for workflow")
 	generateCacheMemorySteps(yaml, data)
 
+	// Mount experimental drive-memory stores before custom steps.
+	compilerYamlLog.Printf("Generating drive-memory steps for workflow")
+	generateDriveMemorySteps(yaml, data, c.getActionPin)
+
 	// Add repo-memory clone steps before custom steps so that user steps: code can read
 	// /tmp/gh-aw/repo-memory/<name>/ without an LLM turn.
 	compilerYamlLog.Printf("Generating repo-memory steps for workflow")

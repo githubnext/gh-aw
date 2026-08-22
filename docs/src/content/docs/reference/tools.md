@@ -89,6 +89,15 @@ tools:
 
 See **[Cache Memory Reference](/gh-aw/reference/cache-memory/)** for complete configuration options and usage examples.
 
+### Drive Memory (`drive-memory:`) — Private Preview
+
+Drive memory is an experimental, feature-gated GitHub Drives integration. Do not
+configure it unless GitHub has explicitly enrolled the repository in the private
+preview.
+
+The [Drive Memory Reference](/gh-aw/reference/drive-memory/) records the preview
+behavior for enrolled repositories; it is not a recommendation for general use.
+
 ### Repo Memory (`repo-memory:`)
 
 Repository-specific memory storage for maintaining context across executions.
