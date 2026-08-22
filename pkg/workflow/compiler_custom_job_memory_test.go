@@ -81,6 +81,50 @@ Reads cache memory and dispatches tasks.
 	assert.NotContains(t, yamlStr, "update_cache_memory:", "update_cache_memory job should not be created without threat detection")
 }
 
+func TestCustomJobRestoreMemoryDriveMemory(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-job-restore-drive-memory")
+
+	frontmatter := `---
+name: Orchestrator
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+tools:
+  drive-memory: true
+jobs:
+  orchestrator:
+    runs-on: ubuntu-latest
+    restore-memory: true
+    steps:
+      - name: Read memory and dispatch
+        run: echo "dispatching"
+---
+
+# Orchestrator Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test.lock.yml"))
+	require.NoError(t, err)
+	yamlStr := string(content)
+	section := extractJobSection(yamlStr, "orchestrator")
+	require.NotEmpty(t, section)
+
+	assert.Contains(t, section, "Checkout drive-memory file share (default)")
+	assert.Contains(t, section, "actions/gh-drives-preview/checkout@")
+	assert.Contains(t, section, "write: false")
+	assert.Contains(t, section, "drives: read")
+	assert.Contains(t, section, "id-token: write")
+	assert.NotContains(t, section, "actions/gh-drives-preview/commit@")
+}
+
 // TestCustomJobRestoreMemoryUsesDefaultRunsOn verifies that custom restore-memory
 // jobs inherit the workflow runner when runs-on is omitted.
 func TestCustomJobRestoreMemoryUsesDefaultRunsOn(t *testing.T) {

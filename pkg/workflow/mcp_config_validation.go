@@ -34,6 +34,7 @@ var builtInToolNames = map[string]bool{
 	"playwright":        true,
 	"agentic-workflows": true,
 	"cache-memory":      true,
+	"drive-memory":      true,
 	"comment-memory":    true,
 	"repo-memory":       true,
 	"bash":              true,
