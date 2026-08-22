@@ -173,7 +173,21 @@ jobs:
     if: needs.build.outputs.outcome == 'failure'
 ```
 
-`jobs.<built-in>.needs` is merged with compiler-generated dependencies, and `jobs.<built-in>.if` is combined with compiler-generated conditions using logical `&&`.
+`jobs.<built-in>.needs` is merged with compiler-generated dependencies, and `jobs.<built-in>.if` is combined with compiler-generated conditions using logical `&&`. `jobs.<built-in>.timeout-minutes` is accepted for the `agent` and `detection` jobs only; see [Agent and Detection Job Timeouts](#agent-and-detection-job-timeouts).
+
+Example using `timeout-minutes` and `env`:
+
+```yaml wrap
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v6
+      - run: npm ci && npm run build
+```
 
 ### Agent and Detection Job Timeouts
 
@@ -206,20 +220,6 @@ jobs:
 When a job reaches its timeout, GitHub Actions cancels all remaining steps in
 that job; the workflow conclusion reports the job as `timed_out`. A job-level
 timeout therefore covers setup steps as well as the agentic execution step.
-
-Example using `timeout-minutes` and `env`:
-
-```yaml wrap
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      NODE_ENV: production
-    steps:
-      - uses: actions/checkout@v6
-      - run: npm ci && npm run build
-```
 
 ### Job Outputs
 
