@@ -1,10 +1,12 @@
 ---
-description: Guide for using skills in agentic workflows — compiler-managed `skills:` installs plus hint, fusion, and inline strategies
+description: Guide for using skills and plugins in agentic workflows — compiler-managed `skills:`/`plugins:` installs plus hint, fusion, and inline strategies
 ---
 
 # Skills in Agentic Workflows
 
 Use skills — domain-specific knowledge files (`SKILL.md`) under `skills/` or `.github/skills/` — in workflows.
+
+**Rule:** when a user asks for a specific skill or agent plugin, declare it in the built-in top-level `skills:` or `plugins:` frontmatter fields. gh-aw resolves and installs them before the agent runs. Never install skills or plugins on the fly — no `steps:`/`post-steps:` that run `gh skill install`, `copilot plugin install`, `npx`, `curl`, or `git clone`, and no prompt text telling the agent to fetch or install a skill or plugin at run time.
 
 ---
 
@@ -47,6 +49,24 @@ skills:
 - Use `skills:` for external skill installs and `imports:` for prompt/context files you want merged into the workflow.
 
 Distinct from the prompt-side strategies below (hint / fusion / inline), which shape skill *content* into the prompt rather than installing packages.
+
+---
+
+## Frontmatter `plugins:` (Preferred for Agent Plugins)
+
+When the user asks for a specific [Agent Plugin](https://agent-plugins.org), declare it in the top-level `plugins:` array. The compiler resolves each `owner/repository[/path]@ref` to a commit SHA at compile time, and the agent job checks out and registers every plugin with the engine before the agent starts.
+
+```yaml
+plugins:
+  - octo-org/agent-plugin@v1
+  - octo-org/agent-plugins/plugins/example@main
+```
+
+- `ref` is required (branch, tag, or 40-character commit SHA); unresolvable refs fail compilation.
+- Experimental: compiling a workflow that uses `plugins:` emits a warning.
+- Supported by `copilot`, `claude`, `codex`, and imported engines that declare `engine.behaviors.plugins`; `gemini` and `pi` reject `plugins:` at compile time.
+- Plugin repositories must be public — unlike `skills:`, there is no per-entry `github-token`/`github-app`.
+- See [syntax-tools-imports.md](syntax-tools-imports.md) for the full field reference.
 
 ---
 
@@ -174,6 +194,7 @@ Report findings as inline review comments.
 
 ## Anti-Patterns
 
+- ❌ **Do not install skills or plugins on the fly** — never add `steps:`/`post-steps:` or prompt instructions that run `gh skill install`, `copilot plugin install`, `npx`, `curl`, or `git clone` to fetch a skill or plugin at run time; declare `skills:`/`plugins:` instead and let gh-aw install them before the agent runs
 - ❌ **Do not load entire skill files** when only one section is relevant — use fusion instead
 - ❌ **Do not hint without bounds** — if using the hint strategy, constrain the agent with a `maxdepth` and a relevance filter to avoid reading every SKILL.md in a large repo
 - ❌ **Do not paste skills verbatim** without adapting them to the workflow's context — fused fragments should read as natural prose, not as lifted documentation
