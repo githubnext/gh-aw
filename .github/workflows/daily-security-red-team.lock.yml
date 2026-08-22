@@ -405,7 +405,7 @@ jobs:
           mkdir -p /tmp/gh-aw/aw-prompts
           cp -a "${RUNNER_TEMP}/gh-aw/aw-prompts/." /tmp/gh-aw/aw-prompts/
       - name: Upload activation artifact
-        if: success()
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: activation
@@ -1305,7 +1305,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: detection
+          pattern: detection
+          merge-multiple: true
           path: /tmp/gh-aw/threat-detection/
       - name: Download Safe Outputs Items Manifest
         id: download-safe-outputs-manifest
@@ -1313,7 +1314,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: safe-outputs-items
+          pattern: safe-outputs-items
+          merge-multiple: true
           path: /tmp/gh-aw/
       - name: Download evals artifact
         id: download-evals-artifact
@@ -1321,7 +1323,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: evals
+          pattern: evals
+          merge-multiple: true
           path: /tmp/gh-aw/evals/
       - name: Collect usage artifact files
         if: always()
@@ -1576,7 +1579,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: activation
+          pattern: activation
+          merge-multiple: true
           path: /tmp/gh-aw
       - name: Download agent output artifact
         id: download-agent-output
@@ -1599,7 +1603,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: dailysecurityredteam-experiment
+          pattern: dailysecurityredteam-experiment
+          merge-multiple: true
           path: /tmp/gh-aw/experiments/
       - name: Checkout repository for patch context
         if: needs.agent.outputs.has_patch == 'true'
@@ -1825,7 +1830,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: dailysecurityredteam-experiment
+          pattern: dailysecurityredteam-experiment
+          merge-multiple: true
           path: /tmp/gh-aw/experiments/
       # --- BinEval Evaluations ---
       - name: Clean stale firewall files from agent artifact
@@ -2173,7 +2179,8 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         continue-on-error: true
         with:
-          name: evals
+          pattern: evals
+          merge-multiple: true
           path: /tmp/gh-aw/evals-state
       - name: Push evals results to git
         id: push_evals_state
@@ -2251,7 +2258,8 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         continue-on-error: true
         with:
-          name: dailysecurityredteam-experiment
+          pattern: dailysecurityredteam-experiment
+          merge-multiple: true
           path: /tmp/gh-aw/experiments
       - name: Push experiment state to git
         id: push_experiments_state
