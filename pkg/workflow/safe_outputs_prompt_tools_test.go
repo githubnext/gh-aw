@@ -236,12 +236,16 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		assert.True(t, actualToolSet[normalized],
 			"Dispatch repository tool %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", toolName, normalized)
 	}
+	assert.NotContains(t, actualToolSet, "dispatch_repository",
+		"The generic dispatch_repository tool should not appear when typed repository tools are configured")
 
 	for _, workflowName := range config.CallWorkflow.Workflows {
 		normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
 		assert.True(t, actualToolSet[normalized],
 			"Call workflow %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", workflowName, normalized)
 	}
+	assert.NotContains(t, actualToolSet, "call_workflow",
+		"The generic call_workflow tool should not appear when typed workflow tools are configured")
 }
 
 // TestBuildSafeOutputsSectionsMaxExpressionExtraction verifies that ${{ }} expressions
