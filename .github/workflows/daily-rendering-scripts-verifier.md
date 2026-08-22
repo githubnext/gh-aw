@@ -41,6 +41,7 @@ timeout-minutes: 30
 
 network:
   allowed:
+    - defaults
     - node
 
 imports:
