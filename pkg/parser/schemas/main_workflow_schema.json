@@ -14798,6 +14798,11 @@
           "enum": ["read", "write", "none"],
           "description": "Permission level for security events (read/write/none). Controls access to view and manage code scanning alerts and security findings."
         },
+        "secret-scanning-alerts": {
+          "type": "string",
+          "enum": ["read", "none"],
+          "description": "Permission level for secret scanning alerts (read/none). GitHub App-only permission forwarded as permission-secret-scanning-alerts input for actions/create-github-app-token."
+        },
         "statuses": {
           "type": "string",
           "enum": ["read", "write", "none"],
