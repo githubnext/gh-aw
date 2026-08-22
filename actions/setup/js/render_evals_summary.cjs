@@ -53,7 +53,7 @@ function readEvalsResults() {
         });
       }
     } catch {
-      // skip malformed lines
+      // Malformed line — ignored.
     }
   }
 

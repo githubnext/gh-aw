@@ -29,7 +29,7 @@ function parseCustomLog(logContent) {
       };
     }
   } catch (error) {
-    // Claude parser failed, continue to next strategy
+    // Claude parser failed — ignored, continue to next strategy.
   }
 
   // Try Codex parser as fallback
@@ -48,7 +48,7 @@ function parseCustomLog(logContent) {
       };
     }
   } catch (error) {
-    // Codex parser failed, continue to fallback
+    // Codex parser failed — ignored, continue to fallback.
   }
 
   // Fallback: Return basic log info if no structured format was detected

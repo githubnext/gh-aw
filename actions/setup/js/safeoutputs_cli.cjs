@@ -201,7 +201,7 @@ function hasExpectedSafeOutputs(safeOutputsPath, options) {
         return true;
       }
     } catch {
-      // Skip malformed lines — they do not represent valid entries
+      // Malformed line — ignored, it does not represent a valid entry.
     }
   }
   return false;

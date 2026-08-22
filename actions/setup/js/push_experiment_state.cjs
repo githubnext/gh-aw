@@ -574,7 +574,7 @@ async function main() {
             }
           }
         } catch {
-          // ls-remote failed; keep existing baseRef
+          // ls-remote failed — ignored, keep existing baseRef.
         }
       } else {
         core.setFailed(`Failed to push ${stateLabel} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
