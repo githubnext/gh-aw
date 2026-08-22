@@ -28,7 +28,7 @@ func (m *mockSHAResolver) ResolveSHA(_ context.Context, _, _ string) (string, er
 func TestEnsureCopilotSetupSteps(t *testing.T) {
 	tests := []struct {
 		name             string
-		existingWorkflow *Workflow
+		existingWorkflow *workflow.WorkflowFile
 		verbose          bool
 		wantErr          bool
 		validateContent  func(*testing.T, []byte)
@@ -51,13 +51,13 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 		},
 		{
 			name: "skips update when extension install already exists",
-			existingWorkflow: &Workflow{
+			existingWorkflow: &workflow.WorkflowFile{
 				Name: "Copilot Setup Steps",
 				On:   "workflow_dispatch",
-				Jobs: map[string]WorkflowJob{
+				Jobs: map[string]workflow.WorkflowFileJob{
 					"copilot-setup-steps": {
 						RunsOn: "ubuntu-latest",
-						Steps: []CopilotWorkflowStep{
+						Steps: []workflow.WorkflowStep{
 							{
 								Name: "Checkout code",
 								Uses: "actions/checkout@v5",
@@ -82,13 +82,13 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 		},
 		{
 			name: "skips update when new download+verify install already exists",
-			existingWorkflow: &Workflow{
+			existingWorkflow: &workflow.WorkflowFile{
 				Name: "Copilot Setup Steps",
 				On:   "workflow_dispatch",
-				Jobs: map[string]WorkflowJob{
+				Jobs: map[string]workflow.WorkflowFileJob{
 					"copilot-setup-steps": {
 						RunsOn: "ubuntu-latest",
-						Steps: []CopilotWorkflowStep{
+						Steps: []workflow.WorkflowStep{
 							{
 								Name: "Install gh-aw extension",
 								Run: "mkdir -p /tmp/gh-aw\n" +
@@ -116,13 +116,13 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 		},
 		{
 			name: "renders instructions for existing workflow without install step",
-			existingWorkflow: &Workflow{
+			existingWorkflow: &workflow.WorkflowFile{
 				Name: "Copilot Setup Steps",
 				On:   "workflow_dispatch",
-				Jobs: map[string]WorkflowJob{
+				Jobs: map[string]workflow.WorkflowFileJob{
 					"copilot-setup-steps": {
 						RunsOn: "ubuntu-latest",
-						Steps: []CopilotWorkflowStep{
+						Steps: []workflow.WorkflowStep{
 							{
 								Name: "Some existing step",
 								Run:  "echo 'existing'",
@@ -139,7 +139,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 			wantErr: false,
 			validateContent: func(t *testing.T, content []byte) {
 				// File should NOT be modified - should remain with only 2 steps
-				var wf Workflow
+				var wf workflow.WorkflowFile
 				if err := yaml.Unmarshal(content, &wf); err != nil {
 					t.Fatalf("Failed to unmarshal workflow YAML: %v", err)
 				}
@@ -222,19 +222,19 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 	}
 }
 
-func TestWorkflowStructMarshaling(t *testing.T) {
+func TestWorkflowFileMarshaling(t *testing.T) {
 	t.Parallel()
 
-	workflow := Workflow{
+	workflowFile := workflow.WorkflowFile{
 		Name: "Test Workflow",
 		On:   "push",
-		Jobs: map[string]WorkflowJob{
+		Jobs: map[string]workflow.WorkflowFileJob{
 			"test-job": {
 				RunsOn: "ubuntu-latest",
 				Permissions: map[string]any{
 					"contents": "read",
 				},
-				Steps: []CopilotWorkflowStep{
+				Steps: []workflow.WorkflowStep{
 					{
 						Name: "Checkout",
 						Uses: "actions/checkout@v5",
@@ -242,7 +242,7 @@ func TestWorkflowStructMarshaling(t *testing.T) {
 					{
 						Name: "Run script",
 						Run:  "echo 'test'",
-						Env: map[string]any{
+						Env: map[string]string{
 							"TEST_VAR": "value",
 						},
 					},
@@ -252,13 +252,13 @@ func TestWorkflowStructMarshaling(t *testing.T) {
 	}
 
 	// Marshal to YAML
-	data, err := yaml.Marshal(&workflow)
+	data, err := yaml.Marshal(&workflowFile)
 	if err != nil {
 		t.Fatalf("Failed to marshal workflow: %v", err)
 	}
 
 	// Unmarshal back
-	var unmarshaledWorkflow Workflow
+	var unmarshaledWorkflow workflow.WorkflowFile
 	if err := yaml.Unmarshal(data, &unmarshaledWorkflow); err != nil {
 		t.Fatalf("Failed to unmarshal workflow: %v", err)
 	}
@@ -282,17 +282,17 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 	t.Parallel()
 
 	// Verify the constant can be parsed
-	var workflow Workflow
-	if err := yaml.Unmarshal([]byte(copilotSetupStepsYAML), &workflow); err != nil {
+	var workflowFile workflow.WorkflowFile
+	if err := yaml.Unmarshal([]byte(copilotSetupStepsYAML), &workflowFile); err != nil {
 		t.Fatalf("Failed to parse copilotSetupStepsYAML constant: %v", err)
 	}
 
 	// Verify key elements
-	if workflow.Name != "Copilot Setup Steps" {
-		t.Errorf("Expected workflow name 'Copilot Setup Steps', got %q", workflow.Name)
+	if workflowFile.Name != "Copilot Setup Steps" {
+		t.Errorf("Expected workflow name 'Copilot Setup Steps', got %q", workflowFile.Name)
 	}
 
-	job, exists := workflow.Jobs["copilot-setup-steps"]
+	job, exists := workflowFile.Jobs["copilot-setup-steps"]
 	if !exists {
 		t.Fatal("Expected 'copilot-setup-steps' job to exist")
 	}
@@ -374,40 +374,40 @@ func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
 	}
 }
 
-func TestCopilotWorkflowStepStructure(t *testing.T) {
+func TestWorkflowStepYAMLStructure(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name string
-		step CopilotWorkflowStep
+		step workflow.WorkflowStep
 	}{
 		{
 			name: "step with uses",
-			step: CopilotWorkflowStep{
+			step: workflow.WorkflowStep{
 				Name: "Checkout",
 				Uses: "actions/checkout@v5",
 			},
 		},
 		{
 			name: "step with run",
-			step: CopilotWorkflowStep{
+			step: workflow.WorkflowStep{
 				Name: "Run command",
 				Run:  "echo 'test'",
 			},
 		},
 		{
 			name: "step with environment",
-			step: CopilotWorkflowStep{
+			step: workflow.WorkflowStep{
 				Name: "Run with env",
 				Run:  "echo $TEST",
-				Env: map[string]any{
+				Env: map[string]string{
 					"TEST": "value",
 				},
 			},
 		},
 		{
 			name: "step with with parameters",
-			step: CopilotWorkflowStep{
+			step: workflow.WorkflowStep{
 				Name: "Setup",
 				Uses: "actions/setup-go@v6",
 				With: map[string]any{
@@ -426,7 +426,7 @@ func TestCopilotWorkflowStepStructure(t *testing.T) {
 			}
 
 			// Unmarshal back
-			var unmarshaledStep CopilotWorkflowStep
+			var unmarshaledStep workflow.WorkflowStep
 			if err := yaml.Unmarshal(data, &unmarshaledStep); err != nil {
 				t.Fatalf("Failed to unmarshal step: %v", err)
 			}
