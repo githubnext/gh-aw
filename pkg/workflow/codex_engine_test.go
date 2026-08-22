@@ -217,6 +217,9 @@ func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
 	if !strings.Contains(stepContent, `ln -sfn "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config/logs`) {
 		t.Errorf("Expected execution command to mirror Codex logs to /tmp for diagnostics, got:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, `rm -rf /tmp/gh-aw/mcp-config/logs`) {
+		t.Errorf("Expected execution command to replace legacy /tmp logs path before linking, got:\n%s", stepContent)
+	}
 }
 
 func TestCodexEngineExecutionDumpsInternalLogsOnFailure(t *testing.T) {

@@ -676,6 +676,12 @@ Test workflow`
 	if !strings.Contains(detectionSection, constants.CodexHomeDirExpr+"/config.toml") {
 		t.Error("Codex external detector path must create a writable CODEX_HOME config.toml")
 	}
+	if !strings.Contains(detectionSection, "rm -rf \""+constants.TmpMcpConfigLogsDir+"\"") {
+		t.Error("Codex external detector path must replace legacy /tmp logs dir before linking")
+	}
+	if !strings.Contains(detectionSection, "ln -sfn \""+constants.CodexHomeDirExpr+"/logs\" \""+constants.TmpMcpConfigLogsDir+"\"") {
+		t.Error("Codex external detector path must mirror logs to legacy /tmp diagnostics path")
+	}
 	if !strings.Contains(detectionSection, "model_provider = \"openai-proxy\"") {
 		t.Error("Codex external detector path must route Codex through the AWF OpenAI proxy")
 	}

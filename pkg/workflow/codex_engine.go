@@ -376,8 +376,9 @@ printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
 mkdir -p "$CODEX_HOME/logs" %s
+rm -rf %s/logs
 ln -sfn "$CODEX_HOME/logs" %s/logs
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexTmpConfigDir, codexTmpConfigDir, schemaWritePrefix, codexCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexTmpConfigDir, codexTmpConfigDir, codexTmpConfigDir, schemaWritePrefix, codexCommand, logFile)
 	}
 	return fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
@@ -385,8 +386,9 @@ touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs" %s
+rm -rf %s/logs
 ln -sfn "$CODEX_HOME/logs" %s/logs
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexTmpConfigDir, codexTmpConfigDir, schemaWritePrefix, codexCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexTmpConfigDir, codexTmpConfigDir, codexTmpConfigDir, schemaWritePrefix, codexCommand, logFile)
 }
 
 func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
@@ -401,7 +403,7 @@ func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
 }
 
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {
-	base := fmt.Sprintf("mkdir -p \"$CODEX_HOME/logs\" %s && ln -sfn \"$CODEX_HOME/logs\" %s/logs && touch %s", constants.TmpMcpConfigDir, constants.TmpMcpConfigDir, AgentStepSummaryPath)
+	base := fmt.Sprintf("mkdir -p \"$CODEX_HOME/logs\" %s && rm -rf %s/logs && ln -sfn \"$CODEX_HOME/logs\" %s/logs && touch %s", constants.TmpMcpConfigDir, constants.TmpMcpConfigDir, constants.TmpMcpConfigDir, AgentStepSummaryPath)
 	if workflowData.IsDetectionRun {
 		return base + " && " + detectionSchemaWriteCmd
 	}
