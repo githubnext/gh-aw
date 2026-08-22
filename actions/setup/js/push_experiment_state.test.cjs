@@ -150,6 +150,16 @@ describe("push_experiment_state", () => {
     expect(mergedState.runs.map(run => run.run_id)).toEqual(["100", "200", "300"]);
   });
 
+  it("merges concurrent continual stages without adding them", () => {
+    const baseState = { counts: {}, continual: { optimization: { current_stage: 1 } } };
+    const remoteState = { counts: {}, continual: { optimization: { current_stage: 2 } } };
+    const localState = { counts: {}, continual: { optimization: { current_stage: 2 } } };
+
+    expect(mergeExperimentStateJSON(baseState, remoteState, localState).continual).toEqual({
+      optimization: { current_stage: 2 },
+    });
+  });
+
   it("mergeExperimentRuns returns runs in timestamp order regardless of input order", () => {
     const remote = [
       { run_id: "R1", timestamp: "2026-08-01T12:02:00.000Z", assignments: { f: "A" } },
