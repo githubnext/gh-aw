@@ -14,17 +14,16 @@ var discussionLog = logger.New("workflow:create_discussion")
 type CreateDiscussionsConfig struct {
 	BaseSafeOutputConfig          `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig `yaml:",inline"`
-	TitlePrefix                   string   `yaml:"title-prefix,omitempty"`
-	Category                      string   `yaml:"category,omitempty"`                // Discussion category ID or name
-	MinBodyLength                 int      `yaml:"min-body-length,omitempty"`         // Minimum required discussion body length before footer/markers
-	Labels                        []string `yaml:"labels,omitempty"`                  // Labels to attach to discussions and match when closing older ones
-	TargetRepoSlug                string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
-	AllowedRepos                  []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
-	CloseOlderDiscussions         *string  `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
-	CloseOlderKey                 string   `yaml:"close-older-key,omitempty"`         // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
-	RequiredCategory              string   `yaml:"required-category,omitempty"`       // Required category for matching when close-older-discussions is enabled
-	Expires                       int      `yaml:"expires,omitempty"`                 // Hours until the discussion expires and should be automatically closed
-	FallbackToIssue               *bool    `yaml:"fallback-to-issue,omitempty"`       // When true (default), fallback to create-issue if discussion creation fails due to permissions.
+	TitlePrefix                   string           `yaml:"title-prefix,omitempty"`
+	Category                      string           `yaml:"category,omitempty"`        // Discussion category ID or name
+	MinBodyLength                 int              `yaml:"min-body-length,omitempty"` // Minimum required discussion body length before footer/markers
+	Labels                        []string         `yaml:"labels,omitempty"`          // Labels to attach to discussions and match when closing older ones
+	TargetRepoSlug                string           `yaml:"target-repo,omitempty"`     // Target repository in format "owner/repo" for cross-repository discussions
+	AllowedRepos                  []string         `yaml:"allowed-repos,omitempty"`   // List of additional repositories that discussions can be created in
+	CloseOlderConfig              `yaml:",inline"` // Shared close-older settings; Enabled is sourced from close-older-discussions.
+	RequiredCategory              string           `yaml:"required-category,omitempty"` // Required category for matching when close-older-discussions is enabled
+	Expires                       int              `yaml:"expires,omitempty"`           // Hours until the discussion expires and should be automatically closed
+	FallbackToIssue               *bool            `yaml:"fallback-to-issue,omitempty"` // When true (default), fallback to create-issue if discussion creation fails due to permissions.
 }
 
 // parseCreateDiscussionsConfig handles create-discussion configuration
@@ -44,7 +43,9 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 			return &CreateDiscussionsConfig{}
 		},
 		nil,
-		func(_ map[string]any, config *CreateDiscussionsConfig, expiresDisabled bool) {
+		func(configData map[string]any, config *CreateDiscussionsConfig, expiresDisabled bool) {
+			config.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-discussions")
+
 			// Set default max if not specified
 			if config.Max == nil {
 				config.Max = defaultIntStr(1)
@@ -93,7 +94,7 @@ func (c *Compiler) parseCreateDiscussionsConfig(outputMap map[string]any) *Creat
 	if len(config.AllowedRepos) > 0 {
 		discussionLog.Printf("Allowed repos configured: %v", config.AllowedRepos)
 	}
-	if config.CloseOlderDiscussions != nil {
+	if config.Enabled != nil {
 		discussionLog.Print("Close older discussions flag set")
 		if config.RequiredCategory != "" {
 			discussionLog.Printf("Required category for close older discussions: %q", config.RequiredCategory)

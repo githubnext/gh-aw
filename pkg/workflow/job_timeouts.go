@@ -7,7 +7,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var jobTimeoutsLog = logger.New("workflow:job_timeouts")
@@ -17,8 +16,7 @@ var jobTimeoutsLog = logger.New("workflow:job_timeouts")
 // agentic execution and teardown), so it is resolved independently from the
 // agentic execution step timeout:
 //  1. jobs.agent.timeout-minutes
-//  2. vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES
-//  3. constants.DefaultAgentJobTimeout (60 minutes)
+//  2. constants.DefaultAgentJobTimeout (60 minutes)
 //
 // When top-level timeout-minutes explicitly requests a longer agentic step than
 // the built-in job default, the built-in default is raised to that value so an
@@ -32,22 +30,18 @@ func resolveAgentJobTimeoutValue(data *WorkflowData) string {
 		jobTimeoutsLog.Printf("Raising agent job default timeout to %d minutes to cover the configured step timeout", stepMinutes)
 		builtinDefault = stepMinutes
 	}
-	return compilerenv.BuildTimeoutMinutesExpression(compilerenv.DefaultAgentJobTimeoutMinutes, builtinDefault)
+	return strconv.Itoa(builtinDefault)
 }
 
 // resolveDetectionJobTimeoutValue returns the timeout-minutes value emitted on
 // the generated detection job and on its agentic execution step:
 //  1. jobs.detection.timeout-minutes
-//  2. vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES
-//  3. constants.DefaultDetectionJobTimeout (10 minutes)
+//  2. constants.DefaultDetectionJobTimeout (10 minutes)
 func resolveDetectionJobTimeoutValue(data *WorkflowData) string {
 	if override, ok := builtinJobTimeoutOverride(data, string(constants.DetectionJobName)); ok {
 		return override
 	}
-	return compilerenv.BuildTimeoutMinutesExpression(
-		compilerenv.DefaultDetectionJobTimeoutMinutes,
-		int(constants.DefaultDetectionJobTimeout/time.Minute),
-	)
+	return strconv.Itoa(int(constants.DefaultDetectionJobTimeout / time.Minute))
 }
 
 // builtinJobTimeoutOverride returns the jobs.<name>.timeout-minutes value
@@ -65,9 +59,6 @@ func builtinJobTimeoutOverride(data *WorkflowData, jobName string) (string, bool
 		// Invalid values are reported by the jobs.<name> validation pass.
 		jobTimeoutsLog.Printf("Ignoring invalid jobs.%s.timeout-minutes: %v", jobName, err)
 		return "", false
-	}
-	if job.TimeoutMinutesExpression != "" {
-		return job.TimeoutMinutesExpression, true
 	}
 	if job.TimeoutMinutes > 0 {
 		return strconv.Itoa(job.TimeoutMinutes), true

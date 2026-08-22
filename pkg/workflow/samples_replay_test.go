@@ -682,6 +682,84 @@ Default-auth workflow — should not need the per-repo token map.
 }
 
 // extractGHAWRepoTokensJSON pulls the literal block scalar value of
+// TestUseSamplesForwardsWorkflowInputEnvVars verifies that when a safe-outputs
+// field references a workflow_dispatch input (e.g. `target: ${{ inputs.pull_request_number }}`),
+// the compiler forwards the corresponding GH_AW_INPUT_* environment variable
+// to the "Replay safe-outputs samples (deterministic)" step so that
+// safe_outputs_config.cjs can resolve the ${GH_AW_INPUT_…} placeholder written
+// into config.json. Regression test for https://github.com/github/gh-aw/issues/54810.
+func TestUseSamplesForwardsWorkflowInputEnvVars(t *testing.T) {
+	const md = `---
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        required: true
+        type: string
+      pull_request_number:
+        required: true
+        type: number
+permissions: read-all
+engine:
+  id: claude
+safe-outputs:
+  push-to-pull-request-branch:
+    branch: ${{ inputs.branch_name }}
+    target: ${{ inputs.pull_request_number }}
+    samples:
+      - message: "sample push"
+        patch: |
+          diff --git a/sample.txt b/sample.txt
+          new file mode 100644
+          --- /dev/null
+          +++ b/sample.txt
+          @@ -0,0 +1 @@
+          +sample
+---
+
+Workflow whose safe-outputs config references workflow_dispatch inputs.
+`
+	tmpFile, err := os.CreateTemp("", "use-samples-inputs-*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(md); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetUseSamples(true)
+	if err := compiler.CompileWorkflow(tmpFile.Name()); err != nil {
+		t.Fatalf("compile failed: %v", err)
+	}
+	lockPath := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+	defer os.Remove(lockPath)
+	b, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("read lock: %v", err)
+	}
+	lock := string(b)
+
+	require.Contains(t, lock, "Replay safe-outputs samples (deterministic)")
+
+	// Locate the replay step's env block and verify it forwards the
+	// GH_AW_INPUT_PULL_REQUEST_NUMBER var referenced by `target:`.
+	replayIdx := strings.Index(lock, "Replay safe-outputs samples (deterministic)")
+	require.GreaterOrEqual(t, replayIdx, 0)
+	nextStepIdx := strings.Index(lock[replayIdx+1:], "\n      - name:")
+	var replayStep string
+	if nextStepIdx < 0 {
+		replayStep = lock[replayIdx:]
+	} else {
+		replayStep = lock[replayIdx : replayIdx+1+nextStepIdx]
+	}
+
+	assert.Contains(t, replayStep, "GH_AW_INPUT_PULL_REQUEST_NUMBER: ${{ inputs.pull_request_number }}",
+		"replay step must forward GH_AW_INPUT_PULL_REQUEST_NUMBER so safe_outputs_config.cjs can resolve the placeholder")
+}
+
 // GH_AW_REPO_TOKENS out of the compiled YAML and returns the unindented JSON
 // text. Mirrors extractGHAWSamplesJSON.
 func extractGHAWRepoTokensJSON(t *testing.T, lock string) string {

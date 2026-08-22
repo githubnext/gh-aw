@@ -64,10 +64,12 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
 						Max: strPtr("2"),
 					},
-					Category:              "general",
-					TitlePrefix:           "[Discussion] ",
-					Labels:                []string{"ai"},
-					CloseOlderDiscussions: strPtr("true"),
+					Category:    "general",
+					TitlePrefix: "[Discussion] ",
+					Labels:      []string{"ai"},
+					CloseOlderConfig: CloseOlderConfig{
+						Enabled: strPtr("true"),
+					},
 				},
 			},
 			checkContains: []string{

@@ -23,7 +23,7 @@ func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride
 	}
 	if num == 0 || repo == "" {
 		outcomeEvalAgentLog.Printf("Missing issue number or repo: num=%d, repo=%s", num, repo)
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = "missing issue number or repo"
 		return report
 	}
@@ -31,7 +31,7 @@ func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride
 	// Check issue state first
 	issueData, err := ghAPIGet(ctx, fmt.Sprintf("issues/%d", num), repo)
 	if err != nil {
-		report.Result = OutcomeError
+		report.OutcomeStatus = OutcomeStatusError
 		report.EvalError = err.Error()
 		return report
 	}
@@ -87,21 +87,21 @@ func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride
 
 				switch {
 				case merged:
-					report.Result = OutcomeAccepted
+					report.OutcomeStatus = OutcomeStatusAccepted
 					report.Detail = fmt.Sprintf("agent PR #%d merged", prNumber)
 					if mergedAt != "" && item.Timestamp != "" {
 						report.TimeToOutcomeHours = timeBetween(item.Timestamp, mergedAt)
 					}
 					return report
 				case prState == "closed":
-					report.Result = OutcomeRejected
+					report.OutcomeStatus = OutcomeStatusRejected
 					report.Detail = fmt.Sprintf("agent PR #%d closed without merge", prNumber)
 					if closedAt != "" && item.Timestamp != "" {
 						report.TimeToOutcomeHours = timeBetween(item.Timestamp, closedAt)
 					}
 					return report
 				default:
-					report.Result = OutcomePending
+					report.OutcomeStatus = OutcomeStatusPending
 					report.Detail = fmt.Sprintf("agent PR #%d open", prNumber)
 					return report
 				}
@@ -112,17 +112,17 @@ func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride
 	// No agent PR found — check if issue was resolved by other means
 	switch {
 	case state == "closed" && stateReason == "completed":
-		report.Result = OutcomeAccepted
+		report.OutcomeStatus = OutcomeStatusAccepted
 		report.Detail = "issue resolved (no agent PR found)"
 		closedAt, _ := issueData["closed_at"].(string)
 		if closedAt != "" && item.Timestamp != "" {
 			report.TimeToOutcomeHours = timeBetween(item.Timestamp, closedAt)
 		}
 	case state == "closed":
-		report.Result = OutcomeRejected
+		report.OutcomeStatus = OutcomeStatusRejected
 		report.Detail = "issue closed without resolution, no agent PR"
 	default:
-		report.Result = OutcomeIgnored
+		report.OutcomeStatus = OutcomeStatusIgnored
 		report.Detail = "no agent PR created"
 	}
 
