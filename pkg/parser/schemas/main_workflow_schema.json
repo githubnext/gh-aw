@@ -4924,6 +4924,138 @@
             ]
           ]
         },
+        "drive-memory": {
+          "description": "Private-preview GitHub Drives configuration. Do not configure unless GitHub has explicitly enrolled the repository in the private preview.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Default configuration for enrolled preview repositories"
+            },
+            {
+              "type": "null",
+              "description": "Default configuration for enrolled preview repositories (same as true)"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for an enrolled preview repository",
+              "properties": {
+                "drive-name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "GitHub Drive name (default: 'default')"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional description shown in the agent prompt"
+                },
+                "disk-size": {
+                  "type": "string",
+                  "pattern": "^\\s*[0-9]+[KMGTkmgt]?\\s*$",
+                  "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (case-insensitive; normalized to upper case; suggested: '100M'; ignored for an existing drive)"
+                },
+                "prefetch": {
+                  "type": "boolean",
+                  "description": "Eagerly fetch existing drive contents after mounting (default: false)"
+                },
+                "restore-only": {
+                  "type": "boolean",
+                  "description": "Mount the drive without committing changes"
+                },
+                "allowed-extensions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of allowed file extensions. By default, all extensions are allowed."
+                },
+                "validation": {
+                  "type": "object",
+                  "properties": {
+                    "script": {
+                      "type": "string",
+                      "description": "JavaScript validator body that runs over the drive-memory directory before persistence"
+                    },
+                    "timeout-minutes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes"
+                    }
+                  },
+                  "required": ["script"],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "description": "Configurations for multiple drives in an enrolled preview repository",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                    "description": "Memory identifier used for the local folder"
+                  },
+                  "drive-name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "GitHub Drive name (defaults to id)"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional description shown in the agent prompt"
+                  },
+                  "disk-size": {
+                    "type": "string",
+                    "pattern": "^\\s*[0-9]+[KMGTkmgt]?\\s*$",
+                    "description": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (case-insensitive; normalized to upper case; suggested: '100M'; ignored for an existing drive)"
+                  },
+                  "prefetch": {
+                    "type": "boolean",
+                    "description": "Eagerly fetch existing drive contents after mounting (default: false)"
+                  },
+                  "restore-only": {
+                    "type": "boolean",
+                    "description": "Mount the drive without committing changes"
+                  },
+                  "allowed-extensions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of allowed file extensions. By default, all extensions are allowed."
+                  },
+                  "validation": {
+                    "type": "object",
+                    "properties": {
+                      "script": {
+                        "type": "string",
+                        "description": "JavaScript validator body that runs over the drive-memory directory before persistence"
+                      },
+                      "timeout-minutes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes"
+                      }
+                    },
+                    "required": ["script"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 10
+            }
+          ]
+        },
         "comment-memory": {
           "description": "Comment memory configuration for managed comment persistence",
           "oneOf": [
@@ -14544,6 +14676,11 @@
           "type": "string",
           "enum": ["read", "write", "none"],
           "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
+        },
+        "drives": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for the experimental GitHub Drives service"
         },
         "id-token": {
           "type": "string",

@@ -306,6 +306,7 @@ func TestLoadRepoConfig_DisabledJobs(t *testing.T) {
 	require.Len(t, cfg.Maintenance.DisabledJobs, 2, "disabled_jobs should be parsed")
 	assert.True(t, cfg.Maintenance.IsJobDisabled("close-expired-entities"), "hyphenated job name should match")
 	assert.True(t, cfg.Maintenance.IsJobDisabled("label_apply_safe_outputs"), "underscored lookup should match hyphen/underscore equivalently")
+	assert.False(t, cfg.Maintenance.IsJobDisabled("close.expired.entities"), "periods should not match hyphenated job names")
 	assert.False(t, cfg.Maintenance.IsJobDisabled("create_labels"), "unlisted jobs should remain enabled")
 }
 

@@ -23,9 +23,9 @@ import (
 var pkgLog = logger.New("linters:panicinlibrarycode")
 
 // Analyzer is the panic-in-library-code analysis pass.
-var Analyzer = analyzerutil.NewAtPath("panicinlibrarycode", "reports panic() calls in library code under pkg/ that should return errors instead", "panic-in-library-code", run)
+var Analyzer = analyzerutil.NewAtPath("panicinlibrarycode", "reports panic() calls in library code under pkg/ that should return errors instead", "panic-in-library-code", analyzePanicCalls)
 
-func run(pass *analysis.Pass) (any, error) {
+func analyzePanicCalls(pass *analysis.Pass) (any, error) {
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func isInSyncOnceFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
 		}
 		parent := encl.Parent()
 		call, ok := parent.Node().(*ast.CallExpr)
-		if !ok || !containsExpr(call.Args, funcLit) {
+		if !ok || !callArgsContainExpr(call.Args, funcLit) {
 			continue
 		}
 		sel, ok := selectorExprFromCallFun(call.Fun)
@@ -148,7 +148,7 @@ func isSyncOnceConstructorCall(pass *analysis.Pass, sel *ast.SelectorExpr) bool 
 	return isSyncPackageFunc(pass, sel, "OnceValue", "OnceFunc")
 }
 
-func containsExpr(args []ast.Expr, target ast.Expr) bool {
+func callArgsContainExpr(args []ast.Expr, target ast.Expr) bool {
 	return slices.Contains(args, target)
 }
 
@@ -170,7 +170,7 @@ func panicMessageStartsWithBUG(pass *analysis.Pass, call *ast.CallExpr) bool {
 		return false
 	}
 
-	prefix, ok := stringPrefix(pass, call.Args[0])
+	prefix, ok := extractConstantStringPrefix(pass, call.Args[0])
 	if !ok {
 		return false
 	}
@@ -178,7 +178,7 @@ func panicMessageStartsWithBUG(pass *analysis.Pass, call *ast.CallExpr) bool {
 	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(prefix)), "BUG:")
 }
 
-func stringPrefix(pass *analysis.Pass, expr ast.Expr) (string, bool) {
+func extractConstantStringPrefix(pass *analysis.Pass, expr ast.Expr) (string, bool) {
 	if tv, ok := pass.TypesInfo.Types[expr]; ok && tv.Value != nil && tv.Value.Kind() == constant.String {
 		return constant.StringVal(tv.Value), true
 	}
@@ -188,7 +188,7 @@ func stringPrefix(pass *analysis.Pass, expr ast.Expr) (string, bool) {
 		if e.Op != token.ADD {
 			return "", false
 		}
-		return stringPrefix(pass, e.X)
+		return extractConstantStringPrefix(pass, e.X)
 	case *ast.CallExpr:
 		if len(e.Args) == 0 {
 			return "", false
@@ -198,7 +198,7 @@ func stringPrefix(pass *analysis.Pass, expr ast.Expr) (string, bool) {
 		if !isFmtSprintf(pass, e) {
 			return "", false
 		}
-		return stringPrefix(pass, e.Args[0])
+		return extractConstantStringPrefix(pass, e.Args[0])
 	default:
 		return "", false
 	}

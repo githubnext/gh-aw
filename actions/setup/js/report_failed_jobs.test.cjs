@@ -22,7 +22,7 @@ const mockCore = {
 };
 global.core = mockCore;
 
-const { formatFailedJobsList } = req("./report_failed_jobs.cjs");
+const { formatFailedJobsList, getFailedNonBuiltinJobs, BUILTIN_REPORTED_JOB_NAMES } = req("./report_failed_jobs.cjs");
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -66,5 +66,44 @@ describe("formatFailedJobsList", () => {
 
   it("returns empty string for empty jobs array", () => {
     expect(formatFailedJobsList([])).toBe("");
+  });
+});
+
+describe("getFailedNonBuiltinJobs", () => {
+  it("filters out builtin failed jobs including safe-outputs and detection", async () => {
+    global.context = {
+      repo: { owner: "owner", repo: "repo" },
+      runId: 123,
+    };
+    global.github = {
+      rest: {
+        actions: {
+          listJobsForWorkflowRun: vi.fn().mockResolvedValue({
+            data: {
+              jobs: [
+                { name: "agent", conclusion: "failure", html_url: "https://example.com/agent" },
+                { name: "activation", conclusion: "failure", html_url: "https://example.com/activation" },
+                { name: "safe-outputs", conclusion: "failure", html_url: "https://example.com/safe-outputs" },
+                { name: "safe_outputs", conclusion: "failure", html_url: "https://example.com/safe_outputs" },
+                { name: "detection", conclusion: "failure", html_url: "https://example.com/detection" },
+                { name: "custom-job", conclusion: "failure", html_url: "https://example.com/custom-job" },
+              ],
+            },
+          }),
+        },
+      },
+    };
+
+    const result = await getFailedNonBuiltinJobs();
+
+    expect(result).toEqual([{ name: "custom-job", html_url: "https://example.com/custom-job" }]);
+  });
+
+  it("exports builtin set with expected built-in jobs", () => {
+    expect(BUILTIN_REPORTED_JOB_NAMES.has("agent")).toBe(true);
+    expect(BUILTIN_REPORTED_JOB_NAMES.has("activation")).toBe(true);
+    expect(BUILTIN_REPORTED_JOB_NAMES.has("safe-outputs")).toBe(true);
+    expect(BUILTIN_REPORTED_JOB_NAMES.has("safe_outputs")).toBe(true);
+    expect(BUILTIN_REPORTED_JOB_NAMES.has("detection")).toBe(true);
   });
 });

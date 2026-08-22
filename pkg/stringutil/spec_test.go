@@ -337,6 +337,46 @@ func TestSpec_PublicAPI_NormalizeSafeOutputIdentifier(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_NormalizeIdentifierToHyphens validates the documented
+// behavior of NormalizeIdentifierToHyphens as described in the package README.md.
+//
+// Specification: "Converts underscores and periods to hyphens, normalizing
+// user-facing underscore-separated and dot-separated formats to the
+// hyphen-separated format conventionally used for GitHub Actions job names."
+//
+// Specification examples:
+//
+//	stringutil.NormalizeIdentifierToHyphens("create_issue")            // "create-issue"
+//	stringutil.NormalizeIdentifierToHyphens("executor_workflow.agent") // "executor-workflow-agent"
+func TestSpec_PublicAPI_NormalizeIdentifierToHyphens(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "converts underscores to hyphens (documented example)",
+			input:    "create_issue",
+			expected: "create-issue",
+		},
+		{
+			name:     "converts underscores and periods to hyphens (documented example)",
+			input:    "executor_workflow.agent",
+			expected: "executor-workflow-agent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := NormalizeIdentifierToHyphens(tt.input)
+			assert.Equal(t, tt.expected, result,
+				"NormalizeIdentifierToHyphens(%q) should match documented output", tt.input)
+		})
+	}
+}
+
 // TestSpec_PublicAPI_MarkdownToLockFile validates the documented behavior of
 // MarkdownToLockFile as described in the package README.md.
 //
