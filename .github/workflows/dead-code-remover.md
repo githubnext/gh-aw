@@ -47,6 +47,9 @@ steps:
   - name: Install deadcode analyzer
     run: go install golang.org/x/tools/cmd/deadcode@latest
 
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 # Dead Code Removal Agent

@@ -48,6 +48,9 @@ tools:
     toolsets:
     - default
 tracker-id: go-fan-daily
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # Go Fan 🐹 - Daily Go Module Reviewer

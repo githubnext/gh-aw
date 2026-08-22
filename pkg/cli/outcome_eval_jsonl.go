@@ -30,7 +30,6 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 		entry := map[string]any{
 			"run_id":                runID,
 			"type":                  r.Type,
-			"result":                r.Result,
 			"outcome_status":        eval.OutcomeStatus,
 			"evidence_strength":     eval.EvidenceStrength,
 			"signal":                eval.Signal,

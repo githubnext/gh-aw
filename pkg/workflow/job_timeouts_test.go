@@ -15,23 +15,23 @@ import (
 )
 
 func TestResolveAgentJobTimeoutValue(t *testing.T) {
-	t.Run("defaults to the agent job variable expression", func(t *testing.T) {
-		assert.Equal(t, "${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}", resolveAgentJobTimeoutValue(&WorkflowData{}))
+	t.Run("defaults to the built-in positive integer", func(t *testing.T) {
+		assert.Equal(t, "60", resolveAgentJobTimeoutValue(&WorkflowData{}))
 	})
 
 	t.Run("ignores the agentic step timeout default", func(t *testing.T) {
 		data := &WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}"}
-		assert.Equal(t, "${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}", resolveAgentJobTimeoutValue(data))
+		assert.Equal(t, "60", resolveAgentJobTimeoutValue(data))
 	})
 
 	t.Run("keeps the job default when the step timeout is shorter", func(t *testing.T) {
 		data := &WorkflowData{TimeoutMinutes: "timeout-minutes: 30"}
-		assert.Equal(t, "${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}", resolveAgentJobTimeoutValue(data))
+		assert.Equal(t, "60", resolveAgentJobTimeoutValue(data))
 	})
 
 	t.Run("raises the job default to cover a longer step timeout", func(t *testing.T) {
 		data := &WorkflowData{TimeoutMinutes: "timeout-minutes: 120"}
-		assert.Equal(t, "${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '120' }}", resolveAgentJobTimeoutValue(data))
+		assert.Equal(t, "120", resolveAgentJobTimeoutValue(data))
 	})
 
 	t.Run("uses jobs.agent.timeout-minutes when configured", func(t *testing.T) {
@@ -44,19 +44,19 @@ func TestResolveAgentJobTimeoutValue(t *testing.T) {
 		assert.Equal(t, "90", resolveAgentJobTimeoutValue(data))
 	})
 
-	t.Run("uses a jobs.agent.timeout-minutes expression when configured", func(t *testing.T) {
+	t.Run("ignores a jobs.agent.timeout-minutes expression override", func(t *testing.T) {
 		data := &WorkflowData{
 			Jobs: map[string]any{
 				string(constants.AgentJobName): map[string]any{"timeout-minutes": "${{ inputs.agent-timeout }}"},
 			},
 		}
-		assert.Equal(t, "${{ inputs.agent-timeout }}", resolveAgentJobTimeoutValue(data))
+		assert.Equal(t, "60", resolveAgentJobTimeoutValue(data))
 	})
 }
 
 func TestResolveDetectionJobTimeoutValue(t *testing.T) {
-	t.Run("defaults to the detection job variable expression", func(t *testing.T) {
-		assert.Equal(t, "${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}", resolveDetectionJobTimeoutValue(&WorkflowData{}))
+	t.Run("defaults to the built-in positive integer", func(t *testing.T) {
+		assert.Equal(t, "10", resolveDetectionJobTimeoutValue(&WorkflowData{}))
 	})
 
 	t.Run("is independent from jobs.agent.timeout-minutes", func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestResolveDetectionJobTimeoutValue(t *testing.T) {
 				string(constants.AgentJobName): map[string]any{"timeout-minutes": 90},
 			},
 		}
-		assert.Equal(t, "${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}", resolveDetectionJobTimeoutValue(data))
+		assert.Equal(t, "10", resolveDetectionJobTimeoutValue(data))
 	})
 
 	t.Run("uses jobs.detection.timeout-minutes when configured", func(t *testing.T) {
@@ -102,13 +102,13 @@ func TestGeneratedAgentJobTimeoutMinutes(t *testing.T) {
 		{
 			name:            "defaults",
 			frontmatter:     "",
-			wantJobTimeout:  "${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}",
+			wantJobTimeout:  uint64(60),
 			wantStepTimeout: "${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}",
 		},
 		{
 			name:            "top-level timeout bounds the step only",
 			frontmatter:     "timeout-minutes: 45\n",
-			wantJobTimeout:  "${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}",
+			wantJobTimeout:  uint64(60),
 			wantStepTimeout: uint64(45),
 		},
 		{
@@ -151,4 +151,42 @@ func TestGeneratedAgentJobTimeoutMinutes(t *testing.T) {
 			t.Fatal("agentic_execution step not found")
 		})
 	}
+}
+
+func TestGeneratedAgentJobTimeoutMinutes_ImportedFromSharedWorkflow(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-job-timeout-imported")
+	sharedPath := filepath.Join(tmpDir, "shared-timeout.md")
+	sharedWorkflow := `---
+jobs:
+  agent:
+    timeout-minutes: 75
+---
+`
+	require.NoError(t, os.WriteFile(sharedPath, []byte(sharedWorkflow), 0o644))
+
+	mainWorkflowPath := filepath.Join(tmpDir, "agent-job-timeout-imported.md")
+	mainWorkflow := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+imports:
+  - ./shared-timeout.md
+---
+
+# Test workflow
+`
+	require.NoError(t, os.WriteFile(mainWorkflowPath, []byte(mainWorkflow), 0o644))
+	require.NoError(t, NewCompiler().CompileWorkflow(mainWorkflowPath))
+
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "agent-job-timeout-imported.lock.yml"))
+	require.NoError(t, err)
+
+	var lock map[string]any
+	require.NoError(t, yaml.Unmarshal(lockContent, &lock))
+	jobs, ok := lock["jobs"].(map[string]any)
+	require.True(t, ok)
+	agent, ok := jobs[string(constants.AgentJobName)].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, uint64(75), agent["timeout-minutes"])
 }

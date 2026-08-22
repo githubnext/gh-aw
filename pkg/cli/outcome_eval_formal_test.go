@@ -22,14 +22,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestFormalOutcomeDomainInvariant verifies that every OutcomeResult produced by
+// TestFormalOutcomeDomainInvariant verifies that every OutcomeStatus produced by
 // the evaluation engine is within the six outcome categories defined in the spec,
 // or is a recognized internal state that must be normalized before external emission.
 //
 // Formal predicate (TLA+):
 //
 //	OutcomeDomain ≜
-//	  ∀ r ∈ OutcomeResult :
+//	  ∀ r ∈ OutcomeStatus :
 //	    r ∈ {"accepted","rejected","ignored","pending","lifecycle","lifecycle_close"}
 //	    ∨ r ∈ {"unknown","error"}  (* internal-only; normalized before OTel emission *)
 //
@@ -49,27 +49,28 @@ func TestFormalOutcomeDomainInvariant(t *testing.T) {
 	internalOnly := map[string]bool{
 		"unknown": true,
 		"error":   true,
+		"skipped": true,
 	}
 
-	// Every declared OutcomeResult constant must be in the spec domain or internal.
-	allResults := []OutcomeResult{
-		OutcomeAccepted, OutcomeRejected, OutcomeIgnored, OutcomePending,
-		OutcomeLifecycle, OutcomeLifecycleClose, OutcomeUnknown, OutcomeError,
+	// Every declared OutcomeStatus constant must be in the spec domain or internal.
+	allResults := []OutcomeStatus{
+		OutcomeStatusAccepted, OutcomeStatusRejected, OutcomeStatusIgnored, OutcomeStatusPending,
+		OutcomeStatusLifecycle, OutcomeStatusLifecycleClose, OutcomeStatusUnknown, OutcomeStatusSkipped, OutcomeStatusError,
 	}
 	for _, r := range allResults {
 		s := string(r)
 		assert.True(t, specDomain[s] || internalOnly[s],
-			"P1: OutcomeResult %q must be in spec domain or recognized internal state", s)
+			"P1: OutcomeStatus %q must be in spec domain or recognized internal state", s)
 	}
 
 	// ComputeOutcomeSummary must count each spec-defined outcome correctly.
 	reports := []OutcomeReport{
-		{Type: "create_pull_request", Result: OutcomeAccepted},
-		{Type: "create_issue", Result: OutcomeRejected},
-		{Type: "add_comment", Result: OutcomeIgnored},
-		{Type: "add_labels", Result: OutcomePending},
-		{Type: "close_issue", Result: OutcomeLifecycle},
-		{Type: "close_pull_request", Result: OutcomeLifecycleClose},
+		{Type: "create_pull_request", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted}},
+		{Type: "create_issue", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected}},
+		{Type: "add_comment", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored}},
+		{Type: "add_labels", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending}},
+		{Type: "close_issue", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle}},
+		{Type: "close_pull_request", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycleClose}},
 	}
 	summary := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
 	assert.Equal(t, 6, summary.Total, "P1: total must cover the six spec-defined non-internal outcomes")
@@ -89,7 +90,7 @@ func TestFormalOutcomeDomainInvariant(t *testing.T) {
 //	  item:CreatedItemReport → apiErr:HTTPError →
 //	  Tot OutcomeReport
 //	  (requires apiErr.status ∈ {500, 502, 503, 429})
-//	  (ensures fun r → r.Result ≠ OutcomeAccepted ∧ r.Result ≠ OutcomeRejected)
+//	  (ensures fun r → r.OutcomeStatus ≠ OutcomeStatusAccepted ∧ r.OutcomeStatus ≠ OutcomeStatusRejected)
 //
 // Specification reference: specs/safe-output-outcome-evaluation.md §Norms (rules 2, 4)
 func TestFormalAPIFailurePending(t *testing.T) {
@@ -114,9 +115,9 @@ func TestFormalAPIFailurePending(t *testing.T) {
 			item := CreatedItemReport{Type: "close_issue", Number: 99, Repo: "owner/repo"}
 			report := evalCloseSticky(context.Background(), item, "owner/repo")
 
-			assert.NotEqual(t, OutcomeAccepted, report.Result,
+			assert.NotEqual(t, OutcomeStatusAccepted, report.OutcomeStatus,
 				"P2: API error %q must not yield accepted", tc.errText)
-			assert.NotEqual(t, OutcomeRejected, report.Result,
+			assert.NotEqual(t, OutcomeStatusRejected, report.OutcomeStatus,
 				"P2: API error %q must not yield rejected", tc.errText)
 		})
 	}
@@ -139,9 +140,9 @@ func TestFormal404Classification(t *testing.T) {
 	// Persistent object: "deleted" detail maps to rejected (persistent 404 classification).
 	t.Run("persistent object deleted → rejected", func(t *testing.T) {
 		report := OutcomeReport{
-			Type:   "create_issue",
-			Result: OutcomeRejected,
-			Detail: "deleted",
+			Type:              "create_issue",
+			OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected},
+			Detail:            "deleted",
 		}
 		eval := normalizeOutcomeEvaluation(report)
 		assert.Equal(t, OutcomeStatusRejected, eval.OutcomeStatus,
@@ -153,9 +154,9 @@ func TestFormal404Classification(t *testing.T) {
 	// Transient target: "no engagement" maps to ignored (transient 404 classification).
 	t.Run("transient target no engagement → ignored", func(t *testing.T) {
 		report := OutcomeReport{
-			Type:   "add_comment",
-			Result: OutcomeIgnored,
-			Detail: "no engagement",
+			Type:              "add_comment",
+			OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored},
+			Detail:            "no engagement",
 		}
 		eval := normalizeOutcomeEvaluation(report)
 		assert.Equal(t, OutcomeStatusIgnored, eval.OutcomeStatus,
@@ -171,7 +172,7 @@ func TestFormal404Classification(t *testing.T) {
 		}
 		item := CreatedItemReport{Type: "close_issue", Number: 99, Repo: "owner/repo"}
 		report := evalCloseSticky(context.Background(), item, "owner/repo")
-		assert.NotEqual(t, OutcomeAccepted, report.Result,
+		assert.NotEqual(t, OutcomeStatusAccepted, report.OutcomeStatus,
 			"P3: 404 API error must not yield accepted")
 	})
 }
@@ -228,25 +229,25 @@ func TestFormalPRMergeAcceptance(t *testing.T) {
 	cases := []struct {
 		name       string
 		pr         map[string]any
-		wantResult OutcomeResult
+		wantResult OutcomeStatus
 		wantDetail string
 	}{
 		{
 			name:       "merged PR → accepted",
 			pr:         map[string]any{"merged": true, "state": "closed"},
-			wantResult: OutcomeAccepted,
+			wantResult: OutcomeStatusAccepted,
 			wantDetail: "merged",
 		},
 		{
 			name:       "closed PR without merge → rejected",
 			pr:         map[string]any{"merged": false, "state": "closed"},
-			wantResult: OutcomeRejected,
+			wantResult: OutcomeStatusRejected,
 			wantDetail: "closed without merge",
 		},
 		{
 			name:       "open PR → pending",
 			pr:         map[string]any{"merged": false, "state": "open"},
-			wantResult: OutcomePending,
+			wantResult: OutcomeStatusPending,
 			wantDetail: "open",
 		},
 	}
@@ -269,11 +270,11 @@ func TestFormalPRMergeAcceptance(t *testing.T) {
 			report := evalCreatePullRequest(context.Background(), CreatedItemReport{
 				Type: "create_pull_request", Number: 1, Repo: "owner/repo",
 			}, "owner/repo")
-			assert.Equal(t, tc.wantResult, report.Result,
+			assert.Equal(t, tc.wantResult, report.OutcomeStatus,
 				"P5: PR state must yield %s", tc.wantResult)
 			assert.Equal(t, tc.wantDetail, report.Detail,
 				"P5: PR state must set detail %q", tc.wantDetail)
-			if tc.wantResult != OutcomeAccepted {
+			if tc.wantResult != OutcomeStatusAccepted {
 				assert.False(t, report.ZeroTouch,
 					"P5: a non-accepted PR must not be marked zero-touch")
 			}
@@ -294,7 +295,7 @@ func TestFormalAPIErrorNotTerminal(t *testing.T) {
 		Type: "create_pull_request", Number: 1, Repo: "owner/repo",
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeError, report.Result,
+	assert.Equal(t, OutcomeStatusError, report.OutcomeStatus,
 		"P14: an API error must not produce a terminal outcome")
 	assert.NotEmpty(t, report.EvalError, "P14: an API error must be recorded")
 }
@@ -359,7 +360,7 @@ func TestFormalZeroTouchRequiresNoReviews(t *testing.T) {
 				Type: "create_pull_request", Number: 1, Repo: "owner/repo",
 			}, "owner/repo")
 
-			assert.Equal(t, OutcomeAccepted, report.Result, "P15: test PR must be accepted")
+			assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus, "P15: test PR must be accepted")
 			assert.Equal(t, tc.wantZeroTouch, report.ZeroTouch,
 				"P15: zero_touch requires no non-bot comments and no reviews")
 		})
@@ -382,28 +383,28 @@ func TestFormalZeroTouchRequiresNoReviews(t *testing.T) {
 func TestFormalIssueBotCloseLifecycle(t *testing.T) {
 	cases := []struct {
 		name       string
-		result     OutcomeResult
+		result     OutcomeStatus
 		detail     string
 		wantStatus OutcomeStatus
 		wantSignal string
 	}{
 		{
 			name:       "bot closed not_planned → lifecycle signal",
-			result:     OutcomeLifecycle,
+			result:     OutcomeStatusLifecycle,
 			detail:     "closed by bot (lifecycle)",
 			wantStatus: OutcomeStatusLifecycle,
 			wantSignal: "lifecycle",
 		},
 		{
 			name:       "human closed not_planned → rejected",
-			result:     OutcomeRejected,
+			result:     OutcomeStatusRejected,
 			detail:     "closed as not planned",
 			wantStatus: OutcomeStatusRejected,
 			wantSignal: "closed_not_planned",
 		},
 		{
 			name:       "resolved as completed → accepted",
-			result:     OutcomeAccepted,
+			result:     OutcomeStatusAccepted,
 			detail:     "completed",
 			wantStatus: OutcomeStatusAccepted,
 			wantSignal: "completed",
@@ -412,9 +413,9 @@ func TestFormalIssueBotCloseLifecycle(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			report := OutcomeReport{
-				Type:   "create_issue",
-				Result: tc.result,
-				Detail: tc.detail,
+				Type:              "create_issue",
+				OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: tc.result},
+				Detail:            tc.detail,
 			}
 			eval := normalizeOutcomeEvaluation(report)
 			assert.Equal(t, tc.wantStatus, eval.OutcomeStatus,
@@ -560,7 +561,7 @@ func TestFormalCloseStickyReopenRejection(t *testing.T) {
 		name       string
 		state      string
 		events     []map[string]any
-		wantResult OutcomeResult
+		wantResult OutcomeStatus
 		wantDetail string
 	}{
 		{
@@ -569,7 +570,7 @@ func TestFormalCloseStickyReopenRejection(t *testing.T) {
 			events: []map[string]any{
 				{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}},
 			},
-			wantResult: OutcomeLifecycleClose,
+			wantResult: OutcomeStatusLifecycleClose,
 			wantDetail: "closed by bot (lifecycle_close)",
 		},
 		{
@@ -578,19 +579,19 @@ func TestFormalCloseStickyReopenRejection(t *testing.T) {
 			events: []map[string]any{
 				{"event": "closed", "actor": map[string]any{"login": "octocat"}},
 			},
-			wantResult: OutcomeRejected,
+			wantResult: OutcomeStatusRejected,
 			wantDetail: "closed by non-bot",
 		},
 		{
 			name:       "reopened → rejected",
 			state:      "open",
-			wantResult: OutcomeRejected,
+			wantResult: OutcomeStatusRejected,
 			wantDetail: "reopened",
 		},
 		{
 			name:       "missing close event provenance → error",
 			state:      "closed",
-			wantResult: OutcomeError,
+			wantResult: OutcomeStatusError,
 			wantDetail: "close provenance unavailable",
 		},
 	}
@@ -614,7 +615,7 @@ func TestFormalCloseStickyReopenRejection(t *testing.T) {
 			item := CreatedItemReport{Type: "close_issue", Number: 99, Repo: "owner/repo"}
 			report := evalCloseSticky(context.Background(), item, "owner/repo")
 
-			assert.Equal(t, tc.wantResult, report.Result,
+			assert.Equal(t, tc.wantResult, report.OutcomeStatus,
 				"P9: state=%q must yield %s", tc.state, tc.wantResult)
 			assert.Equal(t, tc.wantDetail, report.Detail,
 				"P9: state=%q must set detail %q", tc.state, tc.wantDetail)
@@ -638,7 +639,7 @@ func TestFormalCloseStickyRejectsMergedPullRequest(t *testing.T) {
 
 	report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_pull_request", Number: 99, Repo: "owner/repo"}, "owner/repo")
 
-	assert.Equal(t, OutcomeRejected, report.Result, "P9: merged PR must be rejected for close_pull_request")
+	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus, "P9: merged PR must be rejected for close_pull_request")
 	assert.Equal(t, "merged", report.Detail, "P9: merged PR must record merged detail")
 	assert.Empty(t, report.EvalError, "P9: merged PR classification must not depend on close provenance lookup")
 }
@@ -652,19 +653,19 @@ func TestFormalLifecycleNormalizationFallbacks(t *testing.T) {
 	}{
 		{
 			name:       "lifecycle result fallback without detail",
-			report:     OutcomeReport{Type: "close_issue", Result: OutcomeLifecycle},
+			report:     OutcomeReport{Type: "close_issue", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle}},
 			wantStatus: OutcomeStatusLifecycle,
 			wantSignal: "lifecycle",
 		},
 		{
 			name:       "lifecycle_close result fallback without detail",
-			report:     OutcomeReport{Type: "close_issue", Result: OutcomeLifecycleClose},
+			report:     OutcomeReport{Type: "close_issue", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycleClose}},
 			wantStatus: OutcomeStatusLifecycleClose,
 			wantSignal: "lifecycle_close",
 		},
 		{
 			name:       "lifecycle_close detail maps before generic bot close",
-			report:     OutcomeReport{Type: "close_issue", Result: OutcomeUnknown, Detail: "closed by bot (lifecycle_close)"},
+			report:     OutcomeReport{Type: "close_issue", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusUnknown}, Detail: "closed by bot (lifecycle_close)"},
 			wantStatus: OutcomeStatusLifecycleClose,
 			wantSignal: "lifecycle_close",
 		},
@@ -698,9 +699,9 @@ func TestFormalLifecycleNormalizationFallbacks(t *testing.T) {
 func TestFormalDerivedMetricsConsistency(t *testing.T) {
 	t.Run("acceptance_rate = accepted / (accepted + rejected)", func(t *testing.T) {
 		reports := []OutcomeReport{
-			{Type: "create_pull_request", Result: OutcomeAccepted},
-			{Type: "create_pull_request", Result: OutcomeAccepted},
-			{Type: "create_issue", Result: OutcomeRejected},
+			{Type: "create_pull_request", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted}},
+			{Type: "create_pull_request", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted}},
+			{Type: "create_issue", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected}},
 		}
 		summary := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
 		// 2 accepted, 1 rejected → acceptance_rate = 2/3
@@ -710,10 +711,10 @@ func TestFormalDerivedMetricsConsistency(t *testing.T) {
 
 	t.Run("waste_rate = rejected / total", func(t *testing.T) {
 		reports := []OutcomeReport{
-			{Type: "create_pull_request", Result: OutcomeAccepted},
-			{Type: "create_issue", Result: OutcomeRejected},
-			{Type: "add_comment", Result: OutcomeIgnored},
-			{Type: "add_labels", Result: OutcomePending},
+			{Type: "create_pull_request", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted}},
+			{Type: "create_issue", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected}},
+			{Type: "add_comment", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored}},
+			{Type: "add_labels", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending}},
 		}
 		summary := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
 		// 1 rejected / 4 total → waste_rate = 0.25
@@ -731,8 +732,8 @@ func TestFormalDerivedMetricsConsistency(t *testing.T) {
 
 	t.Run("division-by-zero safety: only pending outcomes", func(t *testing.T) {
 		reports := []OutcomeReport{
-			{Type: "add_labels", Result: OutcomePending},
-			{Type: "add_labels", Result: OutcomePending},
+			{Type: "add_labels", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending}},
+			{Type: "add_labels", OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending}},
 		}
 		summary := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
 		assert.InDelta(t, 0.0, summary.AcceptanceRate, 1e-12,
@@ -752,7 +753,7 @@ func TestFormalDerivedMetricsConsistency(t *testing.T) {
 //	  (requires True)
 //	  (ensures fun r →
 //	    r.Type ≠ "" ∧
-//	    r.Result ∈ KnownOutcomeResults ∧
+//	    r.OutcomeStatus ∈ KnownOutcomeStatuses ∧
 //	    normalizeOutcomeEvaluation(r).OutcomeStatus ≠ "" ∧
 //	    normalizeOutcomeEvaluation(r).EvidenceStrength ≠ "")
 //
@@ -765,9 +766,9 @@ func TestFormalOTelGracefulDegradation(t *testing.T) {
 		return nil, errors.New("transport error: connection refused")
 	}
 
-	validResults := map[OutcomeResult]bool{
-		OutcomeAccepted: true, OutcomeRejected: true, OutcomeIgnored: true,
-		OutcomePending: true, OutcomeLifecycle: true, OutcomeLifecycleClose: true, OutcomeUnknown: true, OutcomeError: true,
+	validResults := map[OutcomeStatus]bool{
+		OutcomeStatusAccepted: true, OutcomeStatusRejected: true, OutcomeStatusIgnored: true,
+		OutcomeStatusPending: true, OutcomeStatusLifecycle: true, OutcomeStatusLifecycleClose: true, OutcomeStatusUnknown: true, OutcomeStatusError: true,
 	}
 
 	items := []CreatedItemReport{
@@ -781,8 +782,8 @@ func TestFormalOTelGracefulDegradation(t *testing.T) {
 			// P11: outcome must always be produced — never discarded on transport failure.
 			assert.NotEmpty(t, report.Type,
 				"P11: report.Type must be set regardless of transport availability")
-			assert.True(t, validResults[report.Result],
-				"P11: result %q must be a recognized OutcomeResult even when transport fails", report.Result)
+			assert.True(t, validResults[report.OutcomeStatus],
+				"P11: result %q must be a recognized OutcomeStatus even when transport fails", report.OutcomeStatus)
 
 			// The outcome must always be normalizable (audit log entry is always writable).
 			eval := normalizeOutcomeEvaluation(report)
@@ -826,7 +827,7 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			return []map[string]any{{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}}}, nil
 		}
 		report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
-		assert.Equal(t, OutcomeLifecycleClose, report.Result,
+		assert.Equal(t, OutcomeStatusLifecycleClose, report.OutcomeStatus,
 			"P12 Class A: lifecycle-bot-closed issue must be lifecycle_close")
 	})
 
@@ -844,7 +845,7 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			return nil, nil
 		}
 		report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
-		assert.Equal(t, OutcomeRejected, report.Result,
+		assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus,
 			"P12 Class A: reopened issue must be rejected")
 	})
 
@@ -860,15 +861,15 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			AfterState:  map[string]any{"title": "New title", "body_hash": mutableBodyHash(""), "state": "open", "labels": []any{}, "assignees": []any{}},
 		}
 		report := evalUpdateIssue(context.Background(), item, "o/r")
-		assert.Equal(t, OutcomeAccepted, report.Result,
+		assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus,
 			"P12 Class A: retained update must be accepted")
 	})
 
 	t.Run("Class B: lifecycle bot-close carries lifecycle signal", func(t *testing.T) {
 		report := OutcomeReport{
-			Type:   "close_issue",
-			Result: OutcomeLifecycle,
-			Detail: "closed by bot (lifecycle)",
+			Type:              "close_issue",
+			OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle},
+			Detail:            "closed by bot (lifecycle)",
 		}
 		eval := normalizeOutcomeEvaluation(report)
 		assert.Equal(t, "lifecycle", eval.Signal,
@@ -882,9 +883,9 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			return nil, errors.New("gh api: 500 Internal Server Error")
 		}
 		report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
-		assert.NotEqual(t, OutcomeAccepted, report.Result,
+		assert.NotEqual(t, OutcomeStatusAccepted, report.OutcomeStatus,
 			"P12 Class C: 5xx error must not yield accepted")
-		assert.NotEqual(t, OutcomeRejected, report.Result,
+		assert.NotEqual(t, OutcomeStatusRejected, report.OutcomeStatus,
 			"P12 Class C: 5xx error must not yield rejected")
 	})
 
@@ -900,9 +901,9 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			AfterState:  map[string]any{"title": "New"},
 		}
 		report := evalUpdateIssue(context.Background(), item, "o/r")
-		assert.NotEqual(t, OutcomeAccepted, report.Result,
+		assert.NotEqual(t, OutcomeStatusAccepted, report.OutcomeStatus,
 			"P12 Class C: rate limit must not yield accepted")
-		assert.NotEqual(t, OutcomeRejected, report.Result,
+		assert.NotEqual(t, OutcomeStatusRejected, report.OutcomeStatus,
 			"P12 Class C: rate limit must not yield rejected")
 	})
 }

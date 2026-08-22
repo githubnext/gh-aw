@@ -279,7 +279,9 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "close older discussions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
-					CloseOlderDiscussions: strPtr("true"),
+					CloseOlderConfig: CloseOlderConfig{
+						Enabled: strPtr("true"),
+					},
 				},
 			},
 			checkField: "create_discussion",
