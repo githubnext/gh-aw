@@ -594,8 +594,12 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 		tools = append(tools, toolWithMaxBudget("set_issue_field", safeOutputs.SetIssueField.Max))
 	}
 	if safeOutputs.DispatchWorkflow != nil {
-		for _, workflowName := range safeOutputs.DispatchWorkflow.Workflows {
-			tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(workflowName), safeOutputs.DispatchWorkflow.Max))
+		if len(safeOutputs.DispatchWorkflow.Workflows) == 0 {
+			tools = append(tools, toolWithMaxBudget("dispatch_workflow", safeOutputs.DispatchWorkflow.Max))
+		} else {
+			for _, workflowName := range safeOutputs.DispatchWorkflow.Workflows {
+				tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(workflowName), safeOutputs.DispatchWorkflow.Max))
+			}
 		}
 	}
 	if safeOutputs.DispatchRepository != nil {

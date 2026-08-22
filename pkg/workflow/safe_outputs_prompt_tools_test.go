@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -230,7 +231,7 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 	assert.NotContains(t, actualToolSet, "dispatch_workflow",
 		"The untyped dispatch_workflow tool should not appear when typed workflow tools are configured")
 
-	for toolName := range config.DispatchRepository.Tools {
+	for _, toolName := range sliceutil.SortedKeys(config.DispatchRepository.Tools) {
 		normalized := stringutil.NormalizeSafeOutputIdentifier(toolName)
 		assert.True(t, actualToolSet[normalized],
 			"Dispatch repository tool %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", toolName, normalized)
