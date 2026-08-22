@@ -197,7 +197,7 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// Emit all GITHUB_STEP_SUMMARY log-parsing steps.
 	c.generateSummarySteps(yaml, data, engine)
 
-	// Run deterministic trace graders after trace data is available.
+	// Run deterministic graders after trace data is available.
 	c.generateGradersStep(yaml, data)
 
 	// Re-scan grader output files for leaked secrets when custom grader scripts

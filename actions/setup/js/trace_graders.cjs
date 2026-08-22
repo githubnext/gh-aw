@@ -737,7 +737,7 @@ async function main(manifestB64, execSpecB64) {
   }
 
   // Step summary
-  core.summary.addHeading("Trace Graders", 3);
+  core.summary.addHeading("Graders", 3);
   const tableResults = results.filter(r => r.status !== "unavailable");
   if (tableResults.length > 0) {
     const rows = tableResults.map(r => {

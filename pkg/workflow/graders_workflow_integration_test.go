@@ -62,7 +62,7 @@ experiments:
 	require.NoError(t, err)
 	yaml := string(compiled)
 
-	assert.Contains(t, yaml, "Run trace graders")
+	assert.Contains(t, yaml, "Run graders")
 	assert.Contains(t, yaml, "trace_graders.cjs")
 	assert.Contains(t, yaml, "grader:retries")
 	assert.Contains(t, yaml, "graders.custom-score.value")

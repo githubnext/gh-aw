@@ -568,7 +568,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.Evals = evalsConfig
 
-	// Extract deterministic trace graders configuration.
+	// Extract deterministic graders configuration.
 	gradersConfig, err := c.parseGradersFromFrontmatter(frontmatter)
 	if err != nil {
 		return fmt.Errorf("invalid graders configuration: %w", err)

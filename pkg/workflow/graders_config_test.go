@@ -335,8 +335,8 @@ func TestGenerateGradersStep_Present(t *testing.T) {
 	}
 	c.generateGradersStep(&yaml, data)
 	output := yaml.String()
-	if !strings.Contains(output, "Run trace graders") {
-		t.Fatal("expected step name 'Run trace graders'")
+	if !strings.Contains(output, "Run graders") {
+		t.Fatal("expected step name 'Run graders'")
 	}
 	if !strings.Contains(output, "if: always()") {
 		t.Fatal("expected always() condition")
@@ -374,7 +374,7 @@ func TestGenerateGradersStep_BeforeArtifactUpload(t *testing.T) {
 	yaml.WriteString("      - name: Upload agent artifacts\n")
 
 	output := yaml.String()
-	graderIdx := strings.Index(output, "Run trace graders")
+	graderIdx := strings.Index(output, "Run graders")
 	uploadIdx := strings.Index(output, "Upload agent artifacts")
 	if graderIdx < 0 || uploadIdx < 0 {
 		t.Fatal("expected both steps to be present")

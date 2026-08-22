@@ -14,7 +14,7 @@ import (
 var compilerYamlGradersLog = logger.New("workflow:compiler_yaml_graders")
 
 // generateGradersStep emits an always() post-agent step that runs deterministic
-// trace graders. The step executes after secret redaction / summary steps and before
+// graders. The step executes after secret redaction / summary steps and before
 // the unified artifact upload so results are included in the agent artifact.
 //
 // The step is only emitted when graders are configured (graders: in frontmatter).
@@ -43,7 +43,7 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 	}
 	execB64 := base64.StdEncoding.EncodeToString(execJSON)
 
-	yaml.WriteString("      - name: Run trace graders\n")
+	yaml.WriteString("      - name: Run graders\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
@@ -54,7 +54,7 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
 	fmt.Fprintf(yaml, "            await main('%s', '%s');\n", manifestB64, execB64)
 
-	compilerYamlGradersLog.Print("Generated trace graders step")
+	compilerYamlGradersLog.Print("Generated graders step")
 }
 
 // graderManifestEntry represents a single grader in the serialized manifest.

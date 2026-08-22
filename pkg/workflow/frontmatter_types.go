@@ -452,7 +452,7 @@ type FrontmatterConfig struct {
 	// engine-config / runs-on overrides.
 	Evals any `json:"evals,omitempty"`
 
-	// Graders configures deterministic trace graders that compute metrics from
+	// Graders configures deterministic graders that compute metrics from
 	// post-agent trace files. Can be {} for zero-config (all built-ins) or a map
 	// of grader IDs with optional enabled/script overrides.
 	Graders any `json:"graders,omitempty"`

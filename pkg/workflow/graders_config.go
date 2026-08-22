@@ -1,4 +1,4 @@
-// Package workflow - Deterministic trace graders configuration types and parser.
+// Package workflow - Deterministic graders configuration types and parser.
 package workflow
 
 import (
@@ -83,7 +83,7 @@ func (g *GraderDefinition) ScriptDigest() string {
 	return hex.EncodeToString(h[:])
 }
 
-// GradersConfig holds the configuration for deterministic trace graders declared
+// GradersConfig holds the configuration for deterministic graders declared
 // in workflow frontmatter. Graders run as an always() post-agent step in the agent job.
 type GradersConfig struct {
 	// Graders is the map of grader ID to definition.

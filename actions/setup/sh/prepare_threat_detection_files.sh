@@ -47,7 +47,7 @@ for artifact_pattern in aw-*.patch aw-*.bundle; do
   done
 done
 
-# Copy grader manifest and results if present (deterministic trace graders)
+# Copy grader manifest and results if present (deterministic graders)
 GRADER_SOURCE_DIR="${SOURCE_DIR}/agent/graders"
 if [ -d "${GRADER_SOURCE_DIR}" ]; then
   GRADER_DETECTION_DIR="${DETECTION_DIR}/agent/graders"

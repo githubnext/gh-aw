@@ -1,12 +1,12 @@
 ---
-title: Trace Graders
+title: Graders
 description: Deterministic metrics computed from agent execution traces
 ---
 
-Trace graders compute deterministic metrics from post-agent execution trace files (token usage, MCP gateway logs, agent output) without LLM calls or network access. Results are persisted in the agent artifact for downstream consumption by detection jobs and reporting tools.
+Graders compute deterministic metrics from post-agent execution trace files (token usage, MCP gateway logs, agent output) without LLM calls or network access. Results are persisted in the agent artifact for downstream consumption by detection jobs and reporting tools.
 
 :::caution[Experimental]
-Trace graders are an experimental feature.
+Graders are an experimental feature.
 :::
 
 ## Quick start
