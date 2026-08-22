@@ -525,6 +525,10 @@ func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) 
 		default:
 		}
 
+		if args.Variant != "" && args.Experiment == "" {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "--variant requires --experiment", nil)
+		}
+
 		runItems, err := resolveAuditRunItems(args)
 		if err != nil {
 			return nil, nil, err
