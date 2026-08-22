@@ -91,3 +91,4 @@
 {"run_id":"32255047491","timestamp":"2026-08-19T12:54:14.310Z","assignments":{"prompt_compression":"verbose"}}
 {"run_id":"32371231957","timestamp":"2026-08-20T12:54:23.946Z","assignments":{"prompt_compression":"verbose"}}
 {"run_id":"32484080755","timestamp":"2026-08-21T12:54:18.370Z","assignments":{"prompt_compression":"caveman"}}
+{"run_id":"32574198032","timestamp":"2026-08-22T12:53:32.088Z","harness_version":"87110e7c96fd24eee920a67c3a72c1bf1450e62e788f948848ea5937daac158d:2e1df0801582987fdd3e068fd57e000ffac459e9747375b768dcbefe8e5f39fe","assignments":{"prompt_compression":"caveman"}}
