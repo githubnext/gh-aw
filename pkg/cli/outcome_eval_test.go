@@ -585,7 +585,6 @@ func TestEvalGenericStickyTargetExistsOnlyFallback(t *testing.T) {
 	)
 
 	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
 	assert.Equal(t, EvidenceWeak, report.EvidenceStrength)
 	assert.Equal(t, "target_exists_only", report.Signal)
 }
@@ -636,6 +635,21 @@ func TestOutcomeReportJSONCarriesSingleOutcomeStatus(t *testing.T) {
 	assert.NotContains(t, payload, "result")
 }
 
+func TestOutcomeSummaryCountsEvalErrorsFromNormalizedStatus(t *testing.T) {
+	reports := []OutcomeReport{
+		{
+			Type: "dispatch_workflow",
+			OutcomeEvaluation: OutcomeEvaluation{
+				OutcomeStatus: OutcomeStatusUnknown,
+			},
+			EvalError: "connection refused",
+		},
+	}
+
+	s := ComputeOutcomeSummary(reports, github.DefaultObjectiveMapping())
+	assert.Equal(t, 1, s.Errors)
+}
+
 func TestWriteOutcomeJSONLEmitsNormalizedFields(t *testing.T) {
 	dir := t.TempDir()
 	reports := []OutcomeReport{
@@ -661,6 +675,7 @@ func TestWriteOutcomeJSONLEmitsNormalizedFields(t *testing.T) {
 	assert.Equal(t, "unknown", entry["outcome_status"])
 	assert.Equal(t, "weak", entry["evidence_strength"])
 	assert.Equal(t, "target_exists_only", entry["signal"])
+	assert.NotContains(t, entry, "result")
 }
 
 func TestEvalAddReviewerAcceptedWithApproval(t *testing.T) {
@@ -695,7 +710,6 @@ func TestEvalAddReviewerAcceptedWithApproval(t *testing.T) {
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "review_approved", report.Signal)
 }
@@ -725,7 +739,6 @@ func TestEvalAddReviewerRejectedWhenRequestRemoved(t *testing.T) {
 		},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "review_request_removed", report.Signal)
@@ -757,7 +770,6 @@ func TestEvalSubmitPullRequestReviewDismissed(t *testing.T) {
 		Metadata:  map[string]any{"review_id": float64(101)},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "review_dismissed", report.Signal)
@@ -803,7 +815,6 @@ func TestEvalSubmitPullRequestReviewChangesRequestedMergedAfterPush(t *testing.T
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "changes_requested_addressed", report.Signal)
 }
@@ -835,7 +846,6 @@ func TestEvalSubmitPullRequestReviewPendingWhenLatestOnOpenPR(t *testing.T) {
 		Metadata:  map[string]any{"review_id": float64(101)},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "latest_review_pending", report.Signal)
@@ -870,7 +880,6 @@ func TestEvalAddReviewerPendingWhenRequestStillOutstanding(t *testing.T) {
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "awaiting_review", report.Signal)
 }
@@ -903,7 +912,6 @@ func TestEvalAddReviewerUsesLatestReviewerState(t *testing.T) {
 		},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "review_submitted", report.Signal)
@@ -959,7 +967,6 @@ func TestEvalSubmitPullRequestReviewChangesRequestedMissingCommitDatesStaysUnkno
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
 	assert.Equal(t, EvidenceWeak, report.EvidenceStrength)
 	assert.Equal(t, "unknown", report.Signal)
 }
@@ -995,7 +1002,6 @@ func TestEvalSubmitPullRequestReviewApprovedMergedUsesSharedSignal(t *testing.T)
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "review_approved", report.Signal)
 }
@@ -1027,7 +1033,6 @@ func TestEvalSubmitPullRequestReviewPendingIgnoresUnsubmittedDrafts(t *testing.T
 		Metadata:  map[string]any{"review_id": float64(101)},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "latest_review_pending", report.Signal)

@@ -50,7 +50,6 @@ func TestEvalUpdateIssueRetained(t *testing.T) {
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "state_retained", report.Signal)
 }
@@ -84,7 +83,6 @@ func TestEvalUpdateIssueReverted(t *testing.T) {
 		},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "state_reverted", report.Signal)
@@ -130,7 +128,6 @@ func TestEvalUpdatePullRequestRetainedAndMerged(t *testing.T) {
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "state_retained_and_merged", report.Signal)
 }
@@ -175,7 +172,6 @@ func TestEvalUpdatePullRequestReplaced(t *testing.T) {
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "state_replaced", report.Signal)
 }
@@ -187,7 +183,6 @@ func TestEvalRetainedUpdateMissingExecutionStateUsesEvidenceNone(t *testing.T) {
 		Repo:   "owner/repo",
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
 	assert.Equal(t, EvidenceNone, report.EvidenceStrength)
 	assert.Equal(t, "missing_execution_state", report.Signal)
@@ -219,7 +214,6 @@ func TestEvalReplaceLabelRetained(t *testing.T) {
 		},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "state_retained", report.Signal)
@@ -256,7 +250,6 @@ func TestEvalReplaceLabelRetainedWithExtraLabel(t *testing.T) {
 	}, "owner/repo")
 
 	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
-	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "state_retained", report.Signal)
 }
@@ -289,7 +282,6 @@ func TestEvalReplaceLabelReverted(t *testing.T) {
 		},
 	}, "owner/repo")
 
-	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, OutcomeStatusRejected, report.OutcomeStatus)
 	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
 	assert.Equal(t, "state_reverted", report.Signal)

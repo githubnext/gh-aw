@@ -173,7 +173,7 @@ func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMap
 		if eval.Signal == "target_exists_only" {
 			s.FallbackExistsOnlyCount++
 		}
-		switch r.OutcomeStatus {
+		switch eval.OutcomeStatus {
 		case OutcomeStatusLifecycle, OutcomeStatusLifecycleClose:
 			s.Lifecycle++
 		case OutcomeStatusError:
