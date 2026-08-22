@@ -353,3 +353,32 @@ func TestAWFSupportsAPIProxyProviders(t *testing.T) {
 		})
 	}
 }
+
+func TestAWFSupportsFilesystemAllowWrite(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name: "default version supports filesystem.allowWrite",
+			want: true,
+		},
+		{
+			name:           "exact minimum version supports filesystem.allowWrite",
+			firewallConfig: &FirewallConfig{Version: "v0.28.5"},
+			want:           true,
+		},
+		{
+			name:           "prior version does not support filesystem.allowWrite",
+			firewallConfig: &FirewallConfig{Version: "v0.28.4"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, awfSupportsFilesystemAllowWrite(tt.firewallConfig))
+		})
+	}
+}

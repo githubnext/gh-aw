@@ -90,6 +90,12 @@ func awfSupportsContainerImages(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFContainerImagesMinVersion)
 }
 
+// awfSupportsFilesystemAllowWrite returns true when the effective AWF version
+// supports filesystem.allowWrite in awf-config.json.
+func awfSupportsFilesystemAllowWrite(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFFilesystemAllowWriteMinVersion)
+}
+
 // awfSupportsBoundedQueries returns true when the effective AWF version supports
 // the boundedQueries section in awf-config.json.
 func awfSupportsBoundedQueries(firewallConfig *FirewallConfig) bool {

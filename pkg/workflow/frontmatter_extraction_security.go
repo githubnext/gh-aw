@@ -668,6 +668,7 @@ func (c *Compiler) extractSRTConfig(configVal any) *SandboxRuntimeConfig {
 			// Extract allowWrite
 			if allowWrite, hasAllowWrite := filesystemObj["allowWrite"]; hasAllowWrite {
 				if pathsSlice, ok := allowWrite.([]any); ok {
+					fsConfig.AllowWrite = []string{}
 					for _, path := range pathsSlice {
 						if pathStr, ok := path.(string); ok {
 							fsConfig.AllowWrite = append(fsConfig.AllowWrite, pathStr)

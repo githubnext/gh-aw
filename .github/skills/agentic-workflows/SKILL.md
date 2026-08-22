@@ -105,4 +105,3 @@ After loading the matching workflow prompt or skill, follow it directly:
 - Design long-running multi-agent research workflows: `.github/aw/multi-agent-research.md`
 
 When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt or skill.
-
