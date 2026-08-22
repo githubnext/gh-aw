@@ -211,6 +211,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    false,
 		IsEvalsRun:        true,
+		TimeoutMinutes:    data.TimeoutMinutes,
 		RunnerConfig:      data.RunnerConfig,    // propagate runner.topology (e.g. arc-dind) to the evals job
 		ModelMappings:     data.ModelMappings,   // propagate alias map so evals awf-config.json can resolve model aliases
 		ModelCosts:        data.ModelCosts,      // propagate pricing providers so evals awf-config.json can resolve AI-credit costs

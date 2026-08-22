@@ -187,7 +187,7 @@ Inference cost scales with prompt size. Write focused prompts, avoid whole-file 
 
 ### Prevent Runaway Costs from Agents
 
-GitHub Agentic Workflows includes default guardrails: a 20-minute timeout on the agentic step, 1000 AI Credits per workflow run, and 5000 AI Credits per workflow per day (24-hour window). Override them with frontmatter (`timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) or enterprise environment variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
+GitHub Agentic Workflows includes default guardrails: a 20-minute timeout on the agentic step, a 60-minute timeout on the generated agent job, a 10-minute timeout on the generated detection job, 1000 AI Credits per workflow run, and 5000 AI Credits per workflow per day (24-hour window). Override them with frontmatter (`timeout-minutes`, `jobs.agent.timeout-minutes`, `jobs.detection.timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) or GitHub Actions variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
 
 ### Cap AI Credits per Run
 
@@ -314,12 +314,12 @@ default_model_codex: "gpt-5.4-mini"
 gh aw env update defaults.yml --scope org --org MY_ORG
 ```
 
-`gh aw env update` shows a confirmation preview before applying changes. Pass `--yes` to skip the prompt in automation or `--dry-run` to preview without changing variables. Set a field to `null` to delete the corresponding variable from the target scope. Unknown YAML keys are rejected, `default_max_turns` and `default_timeout_minutes` must be positive integers, and `default_max_ai_credits` and `default_max_daily_ai_credits` must be non-zero integers; negative values disable the corresponding guardrail.
+`gh aw env update` shows a confirmation preview before applying changes. Pass `--yes` to skip the prompt in automation or `--dry-run` to preview without changing variables. Set a field to `null` to delete the corresponding variable from the target scope. Unknown YAML keys are rejected, `default_max_turns`, `default_timeout_minutes`, `default_agent_job_timeout_minutes`, and `default_detection_job_timeout_minutes` must be positive integers, and `default_max_ai_credits` and `default_max_daily_ai_credits` must be non-zero integers; negative values disable the corresponding guardrail.
 
-3. If you compile workflows in CI, pass compiler-read defaults into the compiler process environment, for example via `${{ vars.* }}`: `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`, `GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_TIMEOUT_MINUTES`, and `GH_AW_DEFAULT_DETECTION_MODEL`.
+3. If you compile workflows in CI, pass compiler-read defaults into the compiler process environment, for example via `${{ vars.* }}`: `GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES`, and `GH_AW_DEFAULT_DETECTION_MODEL`.
 
 > [!TIP]
-> `GH_AW_DEFAULT_MODEL_*` values are resolved at workflow runtime via `${{ vars.* }}` in compiled YAML, while timeout, max-turn, and token defaults are read by the compiler process at compile time.
+> `GH_AW_DEFAULT_MODEL_*` and the `GH_AW_DEFAULT_*_TIMEOUT_MINUTES` values are resolved at workflow runtime via `${{ vars.* }}` in compiled YAML, while max-turn and token defaults are read by the compiler process at compile time.
 
 ### Rate Limiting and Concurrency
 
