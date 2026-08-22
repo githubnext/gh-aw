@@ -22,6 +22,7 @@ func TestParsePositiveIntValues(t *testing.T) {
 		{name: "max-turn-cache-misses int", parse: parseMaxTurnCacheMissesValue, raw: 2, expected: 2},
 		{name: "max-turn-cache-misses string", parse: parseMaxTurnCacheMissesValue, raw: "7", expected: 7},
 		{name: "max-turn-cache-misses invalid", parse: parseMaxTurnCacheMissesValue, raw: "bad", expected: 0},
+		{name: "max-turn-cache-misses expression invalid", parse: parseMaxTurnCacheMissesValue, raw: "${{ inputs.max_turn_cache_misses }}", expected: 0},
 	}
 
 	for _, tt := range tests {

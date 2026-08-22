@@ -37,19 +37,25 @@ func parseMaxTurnCacheMissesValue(raw any) int {
 }
 
 // parsePositiveIntValue parses a strictly-positive integer from raw.
-// Delegates to parseIntOrExpressionValue for a single int-validation path.
-// GitHub Actions expression strings (e.g. "${{ inputs.value }}") are silently
-// treated as 0 (not configured) because these fields are integer-only.
+// GitHub Actions expression strings (e.g. "${{ inputs.value }}") are treated
+// as invalid for integer-only fields.
 func parsePositiveIntValue(raw any, fieldName string) int {
-	s := parseIntOrExpressionValue(raw, 1, fieldName)
-	if s == "" || isExpression(s) {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val >= 1 {
+		return val
+	}
+	rawStr, ok := raw.(string)
+	if !ok {
 		return 0
 	}
-	val, err := strconv.Atoi(s)
-	if err != nil {
+	trimmed := strings.TrimSpace(rawStr)
+	if trimmed == "" {
 		return 0
 	}
-	return val
+	if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= 1 {
+		return parsed
+	}
+	engineLog.Printf("Ignoring invalid %s value: %q", fieldName, rawStr)
+	return 0
 }
 
 func parseMaxTurnsValue(raw any) string {
