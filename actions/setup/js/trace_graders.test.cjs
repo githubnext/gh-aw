@@ -198,6 +198,15 @@ describe("trace_graders", () => {
       });
       expect(gradeToolFailureCount(trace)).toBe(2);
     });
+
+    it("matches success-rate complement for ambiguous calls", () => {
+      const trace = makeTrace({
+        toolCalls: [{ name: "a", success: true }, { name: "b", status: "error" }, { name: "c" }],
+      });
+      const failures = gradeToolFailureCount(trace);
+      const successRate = gradeToolSuccessRate(trace);
+      expect(successRate).toBeCloseTo((trace.toolCalls.length - failures) / trace.toolCalls.length);
+    });
   });
 
   describe("gradeRetries", () => {
@@ -491,7 +500,7 @@ describe("trace_graders", () => {
     });
 
     it("handles nested malicious JSON in JSONL", () => {
-      const hostile = '{"a": 1, "__proto__": {"polluted": true}}';
+      const hostile = '{"a":1,"constructor":{"prototype":{"polluted":true}}}';
       const result = safeParseJsonl(hostile);
       expect(result.length).toBe(1);
       expect(result[0].a).toBe(1);

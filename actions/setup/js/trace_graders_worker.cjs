@@ -3,25 +3,17 @@
 const vm = require("vm");
 
 /**
- * @param {any} obj
+ * @param {any} value
+ * @param {string} label
  * @returns {any}
  */
-function deepClone(obj) {
-  if (obj === null || obj === undefined) return obj;
+function tryStructuredClone(value, label) {
+  if (value === null || value === undefined) return value;
   try {
-    return structuredClone(obj);
+    return structuredClone(value);
   } catch {
-    if (Array.isArray(obj)) {
-      return obj.map(item => deepClone(item));
-    }
-    if (obj !== null && typeof obj === "object") {
-      const out = {};
-      for (const [k, v] of Object.entries(obj)) {
-        out[k] = deepClone(v);
-      }
-      return out;
-    }
-    return obj;
+    process.stderr.write(`grader worker: failed to structuredClone ${label}; value will default to {}\n`);
+    return undefined;
   }
 }
 
@@ -64,8 +56,8 @@ async function main() {
   }
 
   try {
-    const trace = deepFreeze(deepClone(payload.trace || {}));
-    const config = deepFreeze(deepClone(payload.config || {}));
+    const trace = deepFreeze(tryStructuredClone(payload.trace, "trace") ?? {});
+    const config = deepFreeze(tryStructuredClone(payload.config, "config") ?? {});
     const run = deepFreeze({ graderCount: Number(payload.graderCount) || 0 });
     const workflow = deepFreeze({});
     const script = String(payload.script || "");

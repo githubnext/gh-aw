@@ -160,6 +160,22 @@ func TestParseGradersFromFrontmatter_CustomWithoutScript(t *testing.T) {
 	}
 }
 
+// TestParseGradersFromFrontmatter_CustomNullRejected verifies null custom graders are rejected at parse time.
+func TestParseGradersFromFrontmatter_CustomNullRejected(t *testing.T) {
+	var c Compiler
+	_, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"my-custom": nil,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for null custom grader")
+	}
+	if !strings.Contains(err.Error(), "requires a 'script' field") {
+		t.Fatalf("expected missing-script error, got: %v", err)
+	}
+}
+
 // TestParseGradersFromFrontmatter_ScriptLengthUsesCharacters verifies limits align to character count.
 func TestParseGradersFromFrontmatter_ScriptLengthUsesCharacters(t *testing.T) {
 	var c Compiler
@@ -196,6 +212,23 @@ func TestParseGradersFromFrontmatter_InvalidID(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for invalid ID")
+	}
+}
+
+// TestParseGradersFromFrontmatter_DuplicateNormalizedID verifies whitespace variants are rejected.
+func TestParseGradersFromFrontmatter_DuplicateNormalizedID(t *testing.T) {
+	var c Compiler
+	_, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"retry-test":  map[string]any{"script": "return 1"},
+			" retry-test": map[string]any{"script": "return 2"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected duplicate normalized id error")
+	}
+	if !strings.Contains(err.Error(), "duplicate id") {
+		t.Fatalf("expected duplicate id error, got: %v", err)
 	}
 }
 

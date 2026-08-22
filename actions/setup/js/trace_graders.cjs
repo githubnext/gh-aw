@@ -321,18 +321,26 @@ const BUILTIN_META = {
 };
 
 /**
+ * @param {any} toolCall
+ * @returns {boolean}
+ */
+function isToolFailure(toolCall) {
+  return toolCall.success === false || toolCall.status === "error" || toolCall.status === "failure" || toolCall.error !== undefined;
+}
+
+/**
  * @param {PreprocessedTrace} trace
  * @returns {number} Success rate of tool calls (0-1), or 1 if no tool calls
  */
 function gradeToolSuccessRate(trace) {
   if (trace.toolCalls.length === 0) return 1;
-  const successes = trace.toolCalls.filter(t => t.success === true || (t.success !== false && t.status !== "error" && t.status !== "failure" && t.error === undefined)).length;
+  const successes = trace.toolCalls.length - trace.toolCalls.filter(isToolFailure).length;
   return successes / trace.toolCalls.length;
 }
 
 /** @param {PreprocessedTrace} trace @returns {number} */
 function gradeToolFailureCount(trace) {
-  return trace.toolCalls.filter(t => t.success === false || t.status === "error" || t.status === "failure" || t.error !== undefined).length;
+  return trace.toolCalls.filter(isToolFailure).length;
 }
 
 /** @param {PreprocessedTrace} trace @returns {number} */

@@ -206,8 +206,14 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 	}
 
 	// Parse explicit entries
+	seenNormalizedIDs := make(map[string]string, len(m))
 	for id, entryRaw := range m {
+		rawID := id
 		id = strings.TrimSpace(id)
+		if existingRawID, exists := seenNormalizedIDs[id]; exists {
+			return nil, fmt.Errorf("graders has duplicate id %q after normalization. Remove whitespace variants (for example %q and %q)", id, existingRawID, rawID)
+		}
+		seenNormalizedIDs[id] = rawID
 		if !graderIDPattern.MatchString(id) {
 			return nil, fmt.Errorf("graders has invalid id %q: must match %s. Example:\ngraders:\n  my-metric:\n    script: \"return { value: trace.toolCalls.length }\"", id, graderIDPattern.String())
 		}
@@ -219,7 +225,11 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 			def = builtinDefFromMeta(meta)
 		}
 
+		_, isBuiltin := builtinSet[id]
 		if entryRaw == nil {
+			if !isBuiltin {
+				return nil, fmt.Errorf("graders.%s is not a built-in grader and requires a 'script' field. Built-in graders: %s", id, strings.Join(BuiltinGraderIDs, ", "))
+			}
 			cfg.Graders[id] = def
 			continue
 		}
@@ -229,7 +239,6 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 			return nil, fmt.Errorf("graders.%s must be a map or null, got %T. Example:\ngraders:\n  %s:\n    enabled: true", id, entryRaw, id)
 		}
 
-		_, isBuiltin := builtinSet[id]
 		if err := parseGraderEntryFields(def, entry, id, isBuiltin); err != nil {
 			return nil, err
 		}
