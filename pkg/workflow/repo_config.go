@@ -49,6 +49,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var repoConfigLog = logger.New("workflow:repo_config")
@@ -121,7 +122,7 @@ func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
 
 func normalizeMaintenanceJobName(name string) string {
 	normalized := strings.ToLower(strings.TrimSpace(name))
-	return strings.ReplaceAll(normalized, "_", "-")
+	return stringutil.NormalizeIdentifierToHyphens(normalized)
 }
 
 // IsJobDisabled reports whether the provided maintenance job ID is explicitly

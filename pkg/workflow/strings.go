@@ -231,13 +231,11 @@ func SanitizeWorkflowIDForCacheKey(workflowID string) string {
 }
 
 // sanitizeJobName converts a workflow name to a valid GitHub Actions job name.
-// It delegates normalization to NormalizeSafeOutputIdentifier (which converts
-// hyphens to underscores), then converts underscores back to hyphens for
-// GitHub Actions job name conventions.
+// It delegates normalization to the hyphen-canonical
+// stringutil.NormalizeIdentifierToHyphens, which converts underscores and
+// periods to hyphens for GitHub Actions job name conventions.
 func sanitizeJobName(workflowName string) string {
-	normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
-	// NormalizeSafeOutputIdentifier uses underscores; convert to hyphens for job names
-	return strings.ReplaceAll(normalized, "_", "-")
+	return stringutil.NormalizeIdentifierToHyphens(workflowName)
 }
 
 // sanitizeRefForPath sanitizes a git ref for use in a file path.

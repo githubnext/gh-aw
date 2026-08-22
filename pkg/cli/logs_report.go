@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -581,7 +582,7 @@ func isSafeOutputsFailureAfterSuccessfulAgent(jobDetails []JobInfoWithDuration) 
 func normalizeJobName(name string) string {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	normalized = strings.ReplaceAll(normalized, " ", "_")
-	return strings.ReplaceAll(normalized, "-", "_")
+	return stringutil.NormalizeSafeOutputIdentifier(normalized)
 }
 
 // deriveRunClassification maps a run's AuditComparisonData to one of four
