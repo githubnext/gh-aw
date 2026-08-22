@@ -102,6 +102,17 @@ describe("add_workflow_run_comment", () => {
     return import("./add_workflow_run_comment.cjs?test=" + importCounter);
   }
 
+  describe("discussion endpoint validation", () => {
+    it("rejects malformed and non-positive discussion endpoint numbers", async () => {
+      const { parseDiscussionEndpoint } = await importAddWorkflowRunComment();
+
+      for (const endpoint of ["discussion:12junk", "discussion:0", "discussion:12:extra"]) {
+        expect(() => parseDiscussionEndpoint(endpoint, "discussion")).toThrow("Invalid discussion endpoint");
+      }
+      expect(() => parseDiscussionEndpoint("discussion_comment:5junk:2", "discussion_comment")).toThrow("Invalid discussion endpoint");
+    });
+  });
+
   // Helper function to run the script
   async function runScript() {
     const { main } = await importAddWorkflowRunComment();

@@ -84,6 +84,9 @@ Summarize the findings in a **${{ experiments.prompt_style }}** way.
 When `evals` are configured, `metric` can reference an eval question ID using
 `eval:<id>` (for example `eval:focused`) or `evals.<id>`.
 
+When `graders` are configured, `metric` can reference a grader result using
+`grader:<id>` (for example `grader:tool-success-rate`) or `graders.<id>`.
+
 `gh aw experiments analyze <workflow>` resolves the referenced eval question and, when
 eval result data is available, shows YES/NO/UNKNOWN totals for that eval-backed metric.
 

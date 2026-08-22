@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/validationerror"
 )
 
 // TestFormatCompilerError tests the formatCompilerError helper function
@@ -242,7 +244,7 @@ func TestFormatCompilerError_NilCause(t *testing.T) {
 // to 1:1.
 func TestFormatCompilerError_UsesLocationFromValidationError(t *testing.T) {
 	t.Run("uses line and column from validation error", func(t *testing.T) {
-		vErr := &WorkflowValidationError{Field: "engine", Value: "copiliot", Reason: "not a valid engine", Suggestion: "Did you mean 'copilot'?", File: "workflow.md", Line: 15, Column: 3}
+		vErr := &WorkflowValidationError{Payload: validationerror.Payload{Field: "engine", Value: "copiliot", Reason: "not a valid engine", Suggestion: "Did you mean 'copilot'?"}, File: "workflow.md", Line: 15, Column: 3}
 
 		wrapped := formatCompilerError("workflow.md", "error", vErr.Error(), vErr)
 		require.Error(t, wrapped)
@@ -256,7 +258,7 @@ func TestFormatCompilerError_UsesLocationFromValidationError(t *testing.T) {
 	})
 
 	t.Run("uses file from validation error when different from filePath", func(t *testing.T) {
-		vErr := &WorkflowValidationError{Field: "concurrency", Value: "invalid", Reason: "reason", File: "actual-source.md", Line: 7, Column: 1}
+		vErr := &WorkflowValidationError{Payload: validationerror.Payload{Field: "concurrency", Value: "invalid", Reason: "reason"}, File: "actual-source.md", Line: 7, Column: 1}
 
 		wrapped := formatCompilerError("other.md", "error", vErr.Error(), vErr)
 		require.Error(t, wrapped)

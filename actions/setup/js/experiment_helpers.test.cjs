@@ -16,6 +16,8 @@ describe("readExperimentAssignments", () => {
 
   afterEach(() => {
     readFileSpy.mockRestore();
+    delete process.env.GH_AW_EXPERIMENTS_PROMPT_STYLE;
+    delete process.env.GH_AW_EXPERIMENTS_REASONING_DEPTH;
     if (savedStateDir !== undefined) {
       process.env.GH_AW_EXPERIMENT_STATE_DIR = savedStateDir;
     } else {
@@ -66,5 +68,11 @@ describe("readExperimentAssignments", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
     expect(readExperimentAssignments()).toEqual({ mode: "fast" });
+  });
+
+  it("falls back to GH_AW_EXPERIMENTS_* environment variables when assignments file is unavailable", () => {
+    process.env.GH_AW_EXPERIMENTS_PROMPT_STYLE = "concise";
+    process.env.GH_AW_EXPERIMENTS_REASONING_DEPTH = "deep";
+    expect(readExperimentAssignments()).toEqual({ prompt_style: "concise", reasoning_depth: "deep" });
   });
 });

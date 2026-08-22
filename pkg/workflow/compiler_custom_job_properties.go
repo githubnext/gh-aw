@@ -106,16 +106,20 @@ func extractCustomJobTimeoutMinutes(job *Job, jobName string, configMap map[stri
 	switch v := timeout.(type) {
 	case int:
 		job.TimeoutMinutes = v
+		job.TimeoutMinutesExpression = ""
 	case uint64:
 		if v <= uint64(^uint(0)>>1) {
 			job.TimeoutMinutes = int(v)
+			job.TimeoutMinutesExpression = ""
 		}
 	case float64:
 		job.TimeoutMinutes = int(v)
+		job.TimeoutMinutesExpression = ""
 	case string:
 		// isExpression validates full GitHub Actions expression syntax (${{
 		// ... }}) and is defined in expression_patterns.go.
 		if isExpression(v) {
+			job.TimeoutMinutes = 0
 			job.TimeoutMinutesExpression = v
 		} else {
 			return fmt.Errorf(

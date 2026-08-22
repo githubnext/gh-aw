@@ -33,6 +33,30 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function readResponseText(response, context) {
+  try {
+    return await response.text();
+  } catch (error) {
+    throw new Error(`failed to read ${context} response body: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+async function readResponseJSON(response, context) {
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new Error(`failed to parse ${context} response body: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+function makeTempDir(prefix) {
+  try {
+    return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  } catch (error) {
+    throw new Error(`failed to create temporary directory for ${prefix}: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
 function parseURL(url, base, errorMessage) {
   try {
     return base === undefined ? new URL(url) : new URL(url, base);
@@ -108,10 +132,10 @@ async function twirpRequest(method, body) {
       });
 
       if (response.ok) {
-        return await response.json();
+        return await readResponseJSON(response, `artifact twirp ${method}`);
       }
 
-      const responseBody = await response.text();
+      const responseBody = await readResponseText(response, `artifact twirp ${method}`);
       const retryable = response.status >= 500 || response.status === 429;
       if (!retryable || attempt === DEFAULT_RETRY_ATTEMPTS) {
         throw new Error(`artifact twirp ${method} failed (${response.status}): ${responseBody || response.statusText}`);
@@ -238,7 +262,7 @@ async function uploadFileToSignedURL(filePath, signedUploadURL, contentType) {
     throw new Error(`artifact blob upload failed: ${getErrorMessage(err)}`, { cause: err });
   }
   if (!response.ok) {
-    const body = await response.text();
+    const body = await readResponseText(response, "artifact blob upload");
     throw new Error(`artifact blob upload failed (${response.status}): ${body || response.statusText}`);
   }
   return stats.size;
@@ -293,10 +317,10 @@ class DefaultArtifactClient {
         throw new Error(`failed to list artifacts: ${getErrorMessage(err)}`, { cause: err });
       }
       if (!response.ok) {
-        throw new Error(`failed to list artifacts (${response.status}): ${await response.text()}`);
+        throw new Error(`failed to list artifacts (${response.status}): ${await readResponseText(response, "list artifacts")}`);
       }
       /** @type {any} */
-      const payload = await response.json();
+      const payload = await readResponseJSON(response, "list artifacts");
       const pageArtifacts = Array.isArray(payload?.artifacts) ? payload.artifacts : [];
       for (const item of pageArtifacts) {
         artifacts.push({
@@ -372,7 +396,7 @@ class DefaultArtifactClient {
     const zipLike = isZipResponse(location, contentType);
     if (zipLike && !options.skipDecompress) {
       ensureUnzipAvailable();
-      const tempDownloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-download-"));
+      const tempDownloadDir = makeTempDir("gh-aw-artifact-download-");
       const tempZip = path.join(tempDownloadDir, "artifact.zip");
       try {
         digest = await streamToFile(blobResponse, tempZip);
@@ -420,7 +444,7 @@ class DefaultArtifactClient {
       uploadPath = files[0];
       contentType = "application/octet-stream";
     } else {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-upload-"));
+      tmpDir = makeTempDir("gh-aw-artifact-upload-");
       uploadPath = path.join(tmpDir, `${artifactName || "artifact"}.zip`);
       createZipFromFiles(files, rootDirectory, uploadPath);
     }

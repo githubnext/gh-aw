@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 )
 
 var poutineLog = logger.New("cli:poutine")
@@ -31,15 +32,21 @@ type poutineFinding struct {
 	} `json:"meta"`
 }
 
+// poutineRule describes a poutine rule definition from the JSON output
+type poutineRule struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Level       string `json:"level"` // error, warning, note
+}
+
+// poutineRules maps rule identifiers to their definitions
+type poutineRules map[string]poutineRule
+
 // poutineOutput represents the complete JSON output from poutine
 type poutineOutput struct {
 	Findings []poutineFinding `json:"findings"`
-	Rules    map[string]struct {
-		ID          string `json:"id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Level       string `json:"level"` // error, warning, note
-	} `json:"rules"`
+	Rules    poutineRules     `json:"rules"`
 }
 
 // ensurePoutineConfig creates .poutine.yml to configure allowed runners and
@@ -372,68 +379,8 @@ func parseAndDisplayPoutineOutput(stdout, targetFile string, verbose bool) (int,
 		fileLines = strings.Split(string(fileContent), "\n")
 	}
 
-	// Display detailed findings using CompilerError format
-	for _, finding := range relevantFindings {
-		// Get rule details
-		ruleInfo := output.Rules[finding.RuleID]
-		severity := ruleInfo.Level
-		if severity == "" {
-			severity = "warning" // Default to warning if not specified
-		}
-
-		title := ruleInfo.Title
-		if title == "" {
-			title = finding.RuleID
-		}
-
-		// Get line number (poutine uses 1-based indexing)
-		lineNum := finding.Meta.Line
-		if lineNum == 0 {
-			lineNum = 1 // Default to line 1 if not specified
-		}
-
-		// Create context lines around the error
-		var context []string
-		if len(fileLines) > 0 && lineNum > 0 && lineNum <= len(fileLines) {
-			startLine := max(1, lineNum-2)
-			endLine := min(len(fileLines), lineNum+2)
-
-			for i := startLine; i <= endLine; i++ {
-				if i-1 < len(fileLines) {
-					context = append(context, fileLines[i-1])
-				}
-			}
-		}
-
-		// Map severity to error type
-		errorType := "warning"
-		switch severity {
-		case "error":
-			errorType = "error"
-		case "note":
-			errorType = "info"
-		}
-
-		// Build message with details
-		message := fmt.Sprintf("[%s] %s: %s", severity, finding.RuleID, title)
-		if finding.Meta.Details != "" {
-			message = fmt.Sprintf("%s - %s", message, finding.Meta.Details)
-		}
-
-		// Create and format CompilerError
-		compilerErr := console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   finding.Meta.Path,
-				Line:   lineNum,
-				Column: 1, // poutine doesn't provide column info
-			},
-			Type:    errorType,
-			Message: message,
-			Context: context,
-		}
-
-		fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
-	}
+	// Display detailed findings using the shared finding representation
+	scanfindings.Render(os.Stderr, poutineFindingsToShared(relevantFindings, output.Rules, targetFile, fileLines))
 
 	return totalWarnings, nil
 }
@@ -515,69 +462,51 @@ func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool, gitRo
 			fileLines = strings.Split(string(fileContent), "\n")
 		}
 
-		// Display detailed findings using CompilerError format
-		for _, finding := range findings {
-			// Get rule details
-			ruleInfo := output.Rules[finding.RuleID]
-			severity := ruleInfo.Level
-			if severity == "" {
-				severity = "warning" // Default to warning if not specified
-			}
-
-			title := ruleInfo.Title
-			if title == "" {
-				title = finding.RuleID
-			}
-
-			// Get line number (poutine uses 1-based indexing)
-			lineNum := finding.Meta.Line
-			if lineNum == 0 {
-				lineNum = 1 // Default to line 1 if not specified
-			}
-
-			// Create context lines around the error
-			var context []string
-			if len(fileLines) > 0 && lineNum > 0 && lineNum <= len(fileLines) {
-				startLine := max(1, lineNum-2)
-				endLine := min(len(fileLines), lineNum+2)
-
-				for i := startLine; i <= endLine; i++ {
-					if i-1 < len(fileLines) {
-						context = append(context, fileLines[i-1])
-					}
-				}
-			}
-
-			// Map severity to error type
-			errorType := "warning"
-			switch severity {
-			case "error":
-				errorType = "error"
-			case "note":
-				errorType = "info"
-			}
-
-			// Build message with details
-			message := fmt.Sprintf("[%s] %s: %s", severity, finding.RuleID, title)
-			if finding.Meta.Details != "" {
-				message = fmt.Sprintf("%s - %s", message, finding.Meta.Details)
-			}
-
-			// Create and format CompilerError
-			compilerErr := console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   finding.Meta.Path,
-					Line:   lineNum,
-					Column: 1, // poutine doesn't provide column info
-				},
-				Type:    errorType,
-				Message: message,
-				Context: context,
-			}
-
-			fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
-		}
+		// Display detailed findings using the shared finding representation
+		scanfindings.Render(os.Stderr, poutineFindingsToShared(findings, output.Rules, filePath, fileLines))
 	}
 
 	return totalWarnings, nil
+}
+
+// poutineFindingsToShared maps poutine's native findings onto the shared finding
+// representation used by every scanner integration. Rule metadata supplies the
+// severity level and title when available.
+func poutineFindingsToShared(findings []poutineFinding, rules poutineRules, filePath string, fileLines []string) []scanfindings.Finding {
+	shared := make([]scanfindings.Finding, 0, len(findings))
+	for _, finding := range findings {
+		ruleInfo := rules[finding.RuleID]
+
+		severityLabel := ruleInfo.Level
+		if severityLabel == "" {
+			severityLabel = "warning" // Default to warning if not specified
+		}
+
+		title := ruleInfo.Title
+		if title == "" {
+			title = finding.RuleID
+		}
+
+		// Get line number (poutine uses 1-based indexing)
+		lineNum := finding.Meta.Line
+		if lineNum == 0 {
+			lineNum = 1 // Default to line 1 if not specified
+		}
+
+		message := scanfindings.FormatMessage(severityLabel, finding.RuleID, title)
+		if finding.Meta.Details != "" {
+			message = fmt.Sprintf("%s - %s", message, finding.Meta.Details)
+		}
+
+		shared = append(shared, scanfindings.Finding{
+			RuleID:   finding.RuleID,
+			Severity: scanfindings.ParseSeverity(severityLabel),
+			Message:  message,
+			File:     firstNonEmpty(finding.Meta.Path, filePath),
+			Line:     lineNum,
+			Column:   1, // poutine doesn't provide column info
+			Context:  scanfindings.ContextLines(fileLines, lineNum),
+		})
+	}
+	return shared
 }

@@ -95,6 +95,15 @@ func TestBuildCopyDetectionFirewallLogsStep(t *testing.T) {
 		if !strings.Contains(steps, "continue-on-error: true") {
 			t.Fatalf("expected continue-on-error in copy step, got:\n%s", steps)
 		}
+		if !strings.Contains(steps, "if [ -d "+constants.AWFProxyLogsDir+" ]; then") {
+			t.Fatalf("expected logs copy to be guarded by an explicit directory check, got:\n%s", steps)
+		}
+		if !strings.Contains(steps, "if [ -d "+constants.AWFAuditDir+" ]; then") {
+			t.Fatalf("expected audit copy to be guarded by an explicit directory check, got:\n%s", steps)
+		}
+		if strings.Contains(steps, "|| true") {
+			t.Fatalf("expected copy failures not to be suppressed, got:\n%s", steps)
+		}
 		if !strings.Contains(steps, "cp -r "+constants.AWFProxyLogsDir+"/. "+detectionFirewallLogsDir+"/logs/") {
 			t.Fatalf("expected logs copy to use source contents and stable destination, got:\n%s", steps)
 		}

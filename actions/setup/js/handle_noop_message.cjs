@@ -172,9 +172,13 @@ async function main() {
       return;
     }
 
-    const maxCount = parseInt(process.env.GH_AW_NOOP_MAX || "0", 10);
+    const maxCount = Number(process.env.GH_AW_NOOP_MAX || "0");
+    if (!Number.isFinite(maxCount) || !Number.isSafeInteger(maxCount) || maxCount < 0) {
+      throw new Error(`${ERR_SYSTEM}: GH_AW_NOOP_MAX must be a non-negative integer`);
+    }
+    const limitedMaxCount = maxCount;
     const allNoopItems = (result.items || []).filter(/** @param {any} item */ item => item.type === "noop");
-    const noopItems = maxCount > 0 ? allNoopItems.slice(0, maxCount) : allNoopItems;
+    const noopItems = limitedMaxCount > 0 ? allNoopItems.slice(0, limitedMaxCount) : allNoopItems;
 
     if (noopItems.length === 0) {
       core.info("No noop items found in agent output");

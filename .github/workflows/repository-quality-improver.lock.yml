@@ -402,6 +402,7 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
       queue: max
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1436,6 +1437,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
@@ -1563,7 +1565,7 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -1576,7 +1578,7 @@ jobs:
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_TIMEOUT_MINUTES: 20
+          GH_AW_TIMEOUT_MINUTES: ${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}
           GH_AW_VERSION: dev
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
@@ -1651,8 +1653,8 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
-          [ -d /tmp/gh-aw/sandbox/firewall/logs ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/ || true
-          [ -d /tmp/gh-aw/sandbox/firewall/audit ] && mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/ || true
+          if [ -d /tmp/gh-aw/sandbox/firewall/logs ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/; fi
+          if [ -d /tmp/gh-aw/sandbox/firewall/audit ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/; fi
       - name: Upload threat detection artifact
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
