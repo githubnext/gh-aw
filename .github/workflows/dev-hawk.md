@@ -53,6 +53,9 @@ evals:
     question: Does the agent output include specific insights about pull request status or CI results?
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # Dev Hawk - Development Workflow Monitor
