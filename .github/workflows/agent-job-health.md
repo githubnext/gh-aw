@@ -52,6 +52,9 @@ evals:
     question: Did the agent separate failures belonging to known chronic-failure workflows from novel failures?
   - id: schedule_heartbeat_checked
     question: Did the agent check every schedule-triggered workflow's most recent run against its expected cadence and report any blind spots?
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 # Agent Job Health Monitor

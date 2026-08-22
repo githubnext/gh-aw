@@ -67,6 +67,9 @@ evals:
     question: Was a report produced with insights on agent effectiveness and behavior patterns?
   - id: output_format_adherence
     question: Does the discussion summary match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # Copilot Agent PR Analysis

@@ -86,6 +86,9 @@ evals:
     question: Did the agent analyze the ESLint factory diagnostics and group actionable findings?
   - id: remediation_dispatched_or_noop
     question: Did the agent dispatch remediation for actionable findings, or use noop when the scan was clean?
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

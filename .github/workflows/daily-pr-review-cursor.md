@@ -11,7 +11,6 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
-    runtime: cloud-hypervisor
     id: awf
 tracker-id: daily-pr-review-cursor
 engine:
