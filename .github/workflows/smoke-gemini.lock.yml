@@ -352,6 +352,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"sub_agent_strategy":{"variants":["single_agent","sub_agents"],"description":"Test whether decomposing smoke test tasks to sub-agents reduces cost without losing reliability","hypothesis":"H0: no change in effective_tokens. H1: sub_agents reduces tokens by \u003e=20%","metric":"effective_tokens","secondary_metrics":["run_duration_seconds","success_rate"],"guardrail_metrics":[{"name":"success_rate","threshold":"\u003e=0.95"}],"min_samples":30,"weight":[50,50],"start_date":"2026-05-20","analysis_type":"mann_whitney","tags":["cost_optimization","smoke_tests"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
+          GH_AW_HARNESS_VERSION: 593f17b0e128346415e5edd6b236800560d1de692d12952ef190ff3714e6d96c:541f1c9ed958a6f5118b4e9b696810485d29f8f976353bc17bb81d3f4373b5c9
         with:
           script: |
             const path = require('path');

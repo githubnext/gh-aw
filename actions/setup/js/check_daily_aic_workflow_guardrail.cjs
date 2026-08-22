@@ -115,11 +115,8 @@ function shouldSkipDailyAICGuardrail() {
       if (isLabelCommand || isSlashCommand) {
         return true;
       }
-    } catch (error) {
-      // Malformed aw_context: skip guardrail as a safe fallback for manual dispatch.
-      if (typeof core !== "undefined") {
-        core.debug(`Skipping malformed dispatch context: ${getErrorMessage(error)}`);
-      }
+    } catch {
+      // Malformed aw_context is ignored: skip the guardrail as a safe fallback for manual dispatch.
     }
     // Existing behavior: dispatch-routed runs with aw_context bypass the guardrail.
     return true;

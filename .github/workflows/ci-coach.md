@@ -47,7 +47,9 @@ experiments:
       - name: empty_output_rate
         threshold: "<=0.05"
     min_samples: 20
-    weight: [50, 50]
+    continual:
+      seed: ci-coach-prompt-style-v1
+      ramp: [10, 25, 50]
     start_date: "2026-05-15"
     analysis_type: mann_whitney
     issue: 32335
