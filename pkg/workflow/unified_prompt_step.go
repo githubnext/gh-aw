@@ -603,8 +603,12 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 		}
 	}
 	if safeOutputs.DispatchRepository != nil {
-		for _, toolName := range sliceutil.SortedKeys(safeOutputs.DispatchRepository.Tools) {
-			tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(toolName), safeOutputs.DispatchRepository.Tools[toolName].Max))
+		if len(safeOutputs.DispatchRepository.Tools) == 0 {
+			tools = append(tools, "dispatch_repository")
+		} else {
+			for _, toolName := range sliceutil.SortedKeys(safeOutputs.DispatchRepository.Tools) {
+				tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(toolName), safeOutputs.DispatchRepository.Tools[toolName].Max))
+			}
 		}
 	}
 	if safeOutputs.CallWorkflow != nil {
