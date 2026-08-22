@@ -11,6 +11,16 @@ function deepClone(obj) {
   try {
     return structuredClone(obj);
   } catch {
+    if (Array.isArray(obj)) {
+      return obj.map(item => deepClone(item));
+    }
+    if (obj !== null && typeof obj === "object") {
+      const out = {};
+      for (const [k, v] of Object.entries(obj)) {
+        out[k] = deepClone(v);
+      }
+      return out;
+    }
     return obj;
   }
 }
@@ -141,7 +151,8 @@ async function main() {
 }
 
 main().catch(err => {
-  const message = err instanceof Error ? err.message : String(err);
-  process.stdout.write(JSON.stringify({ ok: false, error: message }));
-  process.exitCode = 1;
+  const message = err instanceof Error ? err.stack || err.message : String(err);
+  process.stdout.write(JSON.stringify({ ok: false, error: message }), () => {
+    process.exit(1);
+  });
 });

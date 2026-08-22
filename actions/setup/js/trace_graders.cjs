@@ -98,7 +98,7 @@ function safeParseJson(content) {
  * @returns {v is Record<string, any>}
  */
 function isRecord(v) {
-  return v !== null && typeof v === "object";
+  return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
 /**
@@ -142,6 +142,16 @@ function deepClone(obj) {
   try {
     return structuredClone(obj);
   } catch {
+    if (Array.isArray(obj)) {
+      return obj.map(item => deepClone(item));
+    }
+    if (obj !== null && typeof obj === "object") {
+      const out = {};
+      for (const [k, v] of Object.entries(obj)) {
+        out[k] = deepClone(v);
+      }
+      return out;
+    }
     return obj;
   }
 }
@@ -427,7 +437,7 @@ function evaluateThreshold(value, direction, threshold) {
 function sanitizeSummaryText(value) {
   return String(value ?? "")
     .replace(/\r?\n/g, " ")
-    .replace(/[<>&`]/g, ch => (ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch === "&" ? "&amp;" : "'"))
+    .replace(/[<>&]/g, ch => (ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&amp;"))
     .trim();
 }
 
