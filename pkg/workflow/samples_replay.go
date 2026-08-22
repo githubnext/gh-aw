@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -170,6 +171,25 @@ func marshalRepoTokens(m map[string]string) []byte {
 	return out
 }
 
+// writeSampleReplayInputEnvVars forwards GH_AW_INPUT_* vars referenced by the
+// safe-outputs config so the replay's safe_outputs_config.cjs can resolve
+// ${GH_AW_INPUT_…} placeholders (e.g. push-to-pull-request-branch's
+// `target: ${{ inputs.pull_request_number }}`), the same way the agentic
+// execution step does via applySafeOutputEnvToMap.
+func writeSampleReplayInputEnvVars(yaml *strings.Builder, inputEnvVars map[string]string) {
+	if len(inputEnvVars) == 0 {
+		return
+	}
+	names := make([]string, 0, len(inputEnvVars))
+	for name := range inputEnvVars {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(yaml, "          %s: %s\n", name, inputEnvVars[name])
+	}
+}
+
 // generateSamplesReplayStep emits the YAML that replaces the agentic
 // `Execute coding agent` step when the hidden `gh aw compile --use-samples`
 // flag is used. It spawns the safe-outputs MCP server over stdio and feeds it
@@ -215,6 +235,7 @@ func (c *Compiler) generateSamplesReplayStep(yaml *strings.Builder, data *Workfl
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_STDIO_LOG: %s\n", logFile)
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
+	writeSampleReplayInputEnvVars(yaml, data.SafeOutputsInputEnvVars)
 	// GITHUB_TOKEN is the fallback used by apply_samples.cjs when resolving a
 	// pull-request head ref via the REST API for issue_comment / slash_command
 	// events. For cross-repo samples whose target repository has its own

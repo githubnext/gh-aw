@@ -12,14 +12,14 @@ Generated job IDs are reserved. Built-in job configuration may add
 
 The generated `agent` and `detection` jobs carry their own `timeout-minutes`,
 resolved independently from the top-level `timeout-minutes` that bounds the
-`agentic_execution` step. Each default is overrideable with a GitHub Actions
-variable at repository, organization, or enterprise scope.
+`agentic_execution` step. Generated job timeout overrides must be positive
+integer literals.
 
-| Timeout | Frontmatter override | Default variable | Built-in default |
-|---|---|---|---|
-| `agent` job (all steps) | `jobs.agent.timeout-minutes` | `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES` | 60 minutes |
-| `detection` job and its execution step | `jobs.detection.timeout-minutes` | `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES` | 10 minutes |
-| `agentic_execution` step | top-level `timeout-minutes` | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | 20 minutes |
+| Timeout | Frontmatter override | Built-in default |
+|---|---|---|
+| `agent` job (all steps) | `jobs.agent.timeout-minutes` (positive integer) | 60 minutes |
+| `detection` job and its execution step | `jobs.detection.timeout-minutes` (positive integer) | 10 minutes |
+| `agentic_execution` step | top-level `timeout-minutes` | 20 minutes |
 
 The step default is never used as the agent job budget. When top-level
 `timeout-minutes` is an explicit literal larger than the built-in agent job
