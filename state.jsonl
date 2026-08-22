@@ -95,3 +95,4 @@
 {"run_id":"32287986769","timestamp":"2026-08-19T18:33:52.282Z","assignments":{"output_format":"ste"}}
 {"run_id":"32403883984","timestamp":"2026-08-20T18:34:51.927Z","assignments":{"output_format":"ste"}}
 {"run_id":"32513943734","timestamp":"2026-08-21T18:34:07.935Z","assignments":{"output_format":"executive_summary"}}
+{"run_id":"32591042796","timestamp":"2026-08-22T18:33:01.718Z","harness_version":"412c62c06bd8f5778dfdc8c6fd6ad554ff479e6e2287989eb336a325656eaea0:999291c33885ecbdbc7a407fb6f399b412507fb4ab69814ac9586f39db4fb4ca","assignments":{"output_format":"ste"}}
