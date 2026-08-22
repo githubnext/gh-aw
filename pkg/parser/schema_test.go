@@ -140,12 +140,17 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 func TestValidateMainWorkflowFrontmatter_TrackerIDSchemaConstraints(t *testing.T) {
 	t.Parallel()
 
-	valid := map[string]any{
-		"on":         "workflow_dispatch",
-		"tracker-id": "team-alpha_01",
+	validTrackerIDs := []string{
+		"abcd1234",
+		strings.Repeat("a", 128),
 	}
-	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err != nil {
-		t.Fatalf("expected valid tracker-id to pass schema validation: %v", err)
+	for _, trackerID := range validTrackerIDs {
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+			"on":         "workflow_dispatch",
+			"tracker-id": trackerID,
+		}, "workflow.md"); err != nil {
+			t.Fatalf("expected valid tracker-id %q to pass schema validation: %v", trackerID, err)
+		}
 	}
 
 	tests := []struct {
@@ -154,7 +159,7 @@ func TestValidateMainWorkflowFrontmatter_TrackerIDSchemaConstraints(t *testing.T
 	}{
 		{
 			name:      "too short",
-			trackerID: "short7_",
+			trackerID: "short7x",
 		},
 		{
 			name:      "too long",
