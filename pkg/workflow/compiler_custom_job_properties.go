@@ -1,7 +1,13 @@
 // Custom-job property extraction maps frontmatter fields onto Job values.
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+)
 
 func (c *Compiler) extractCustomJobProperties(job *Job, jobName string, configMap map[string]any) error {
 	if err := c.extractCustomJobCoreProperties(job, jobName, configMap); err != nil {
@@ -103,19 +109,43 @@ func extractCustomJobTimeoutMinutes(job *Job, jobName string, configMap map[stri
 		return nil
 	}
 
+	isGeneratedJob := jobName == string(constants.AgentJobName) || jobName == string(constants.DetectionJobName)
+	timeoutMustBePositiveIntegerErr := func(got any) error {
+		return fmt.Errorf("job '%s' timeout-minutes must be a positive integer, got %v", jobName, got)
+	}
+
 	switch v := timeout.(type) {
 	case int:
+		if v <= 0 {
+			return timeoutMustBePositiveIntegerErr(v)
+		}
 		job.TimeoutMinutes = v
 		job.TimeoutMinutesExpression = ""
-	case uint64:
-		if v <= uint64(^uint(0)>>1) {
-			job.TimeoutMinutes = int(v)
-			job.TimeoutMinutesExpression = ""
+	case int64:
+		if v <= 0 || v > int64(^uint(0)>>1) {
+			return timeoutMustBePositiveIntegerErr(v)
 		}
+		job.TimeoutMinutes = int(v)
+		job.TimeoutMinutesExpression = ""
+	case uint64:
+		if v == 0 || v > uint64(^uint(0)>>1) {
+			return timeoutMustBePositiveIntegerErr(v)
+		}
+		job.TimeoutMinutes = int(v)
+		job.TimeoutMinutesExpression = ""
 	case float64:
+		if v <= 0 || math.Trunc(v) != v || v > float64(^uint(0)>>1) {
+			return timeoutMustBePositiveIntegerErr(v)
+		}
 		job.TimeoutMinutes = int(v)
 		job.TimeoutMinutesExpression = ""
 	case string:
+		if strings.TrimSpace(v) == "" {
+			return timeoutMustBePositiveIntegerErr(v)
+		}
+		if isGeneratedJob {
+			return fmt.Errorf("job '%s' timeout-minutes must be a positive integer; expressions are not supported", jobName)
+		}
 		// isExpression validates full GitHub Actions expression syntax (${{
 		// ... }}) and is defined in expression_patterns.go.
 		if isExpression(v) {
@@ -128,6 +158,8 @@ func extractCustomJobTimeoutMinutes(job *Job, jobName string, configMap map[stri
 				v,
 			)
 		}
+	default:
+		return timeoutMustBePositiveIntegerErr(v)
 	}
 
 	return nil
