@@ -326,3 +326,4 @@
 {"run_id":"32542539055","timestamp":"2026-08-22T01:08:55.529Z","assignments":{"tone_variant":"assertive"}}
 {"run_id":"32558404501","timestamp":"2026-08-22T07:00:06.861Z","harness_version":"fd60ec9372d7a2c11c25463147005ad8fd098ec80bff08ba92a95efe62972c07:fe5e6a46a6290af9eca47a86fecefe177ec6c9da6ba731106fc70c8ba02d30ac","assignments":{"tone_variant":"clinical"}}
 {"run_id":"32574545445","timestamp":"2026-08-22T13:01:11.033Z","harness_version":"fd60ec9372d7a2c11c25463147005ad8fd098ec80bff08ba92a95efe62972c07:fe5e6a46a6290af9eca47a86fecefe177ec6c9da6ba731106fc70c8ba02d30ac","assignments":{"tone_variant":"assertive"}}
+{"run_id":"32592139059","timestamp":"2026-08-22T18:55:04.801Z","harness_version":"fd60ec9372d7a2c11c25463147005ad8fd098ec80bff08ba92a95efe62972c07:fe5e6a46a6290af9eca47a86fecefe177ec6c9da6ba731106fc70c8ba02d30ac","assignments":{"tone_variant":"assertive"}}
