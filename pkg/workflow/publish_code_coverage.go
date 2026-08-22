@@ -134,6 +134,7 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 	// Artifact prefix for workflow_call context: this job depends directly on the agent job,
 	// so it must use the agent-job-relative prefix expression (mirrors upload_assets).
 	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+	permissions := NewPermissionsContentsReadCodeQualityWritePRRead()
 
 	var steps []string
 
@@ -154,9 +155,40 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 	if cfg.FailOnError != nil && !*cfg.FailOnError {
 		failOnError = "false"
 	}
-	waitForProcessingTimeout := defaultCodeCoverageWaitForProcessingTimeout
-	if cfg.WaitForProcessingTimeout > 0 {
-		waitForProcessingTimeout = cfg.WaitForProcessingTimeout
+	waitForProcessingTimeout := cfg.WaitForProcessingTimeout
+
+	coverageToken := ""
+	effectiveStaticToken := cfg.GitHubToken
+	if effectiveStaticToken == "" && data.SafeOutputs != nil {
+		effectiveStaticToken = data.SafeOutputs.GitHubToken
+	}
+	if effectiveStaticToken != "" {
+		coverageToken = getEffectiveSafeOutputGitHubToken(effectiveStaticToken)
+	} else {
+		var coverageApp *GitHubAppConfig
+		if cfg.GitHubApp != nil {
+			coverageApp = cfg.GitHubApp
+		} else if data.SafeOutputs != nil {
+			coverageApp = data.SafeOutputs.GitHubApp
+		}
+		if coverageApp != nil {
+			const appTokenStepID = "upload-code-coverage-app-token"
+			for _, step := range c.buildGitHubAppTokenMintStep(coverageApp, permissions, "") {
+				step = strings.ReplaceAll(step, "safe-outputs-app-token-owner", appTokenStepID+"-owner")
+				step = strings.ReplaceAll(step, "safe-outputs-app-token", appTokenStepID)
+				steps = append(steps, step)
+			}
+			if coverageApp.shouldIgnoreMissingKey() {
+				coverageToken = combineTokenExpressions(
+					fmt.Sprintf("${{ steps.%s.outputs.token }}", appTokenStepID),
+					getEffectiveSafeOutputGitHubToken(""),
+				)
+			} else {
+				coverageToken = fmt.Sprintf("${{ steps.%s.outputs.token }}", appTokenStepID)
+			}
+		} else {
+			coverageToken = getEffectiveSafeOutputGitHubToken("")
+		}
 	}
 
 	steps = append(steps, "      - name: Upload code coverage report\n")
@@ -168,16 +200,10 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 	steps = append(steps, fmt.Sprintf("          label: ${{ needs.%s.outputs.upload_code_coverage_label }}\n", constants.SafeOutputsJobName))
 	steps = append(steps, fmt.Sprintf("          fail-on-error: %s\n", failOnError))
 	steps = append(steps, fmt.Sprintf("          wait-for-processing-timeout: %d\n", waitForProcessingTimeout))
-	if cfg.GitHubToken != "" {
-		steps = append(steps, fmt.Sprintf("          token: %s\n", getEffectiveSafeOutputGitHubToken(cfg.GitHubToken)))
-	}
+	steps = append(steps, fmt.Sprintf("          token: %s\n", coverageToken))
 
 	// The job only runs when the safe_outputs job exported a non-empty coverage file path.
 	jobCondition := fmt.Sprintf("needs.%s.outputs.upload_code_coverage_file != ''", constants.SafeOutputsJobName)
-
-	// Permissions: contents:read (baseline), code-quality:write to upload the report,
-	// pull-requests:read so the action can resolve an open PR for push-triggered workflows.
-	permissions := NewPermissionsContentsReadCodeQualityWritePRRead()
 
 	job := &Job{
 		Name:           string(constants.UploadCodeCoverageJobName),

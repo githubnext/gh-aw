@@ -146,6 +146,9 @@ func TestBuildUploadCodeCoverageJob(t *testing.T) {
 	if !strings.Contains(stepsStr, "wait-for-processing-timeout: 160") {
 		t.Error("Expected wait-for-processing-timeout: 160 to be rendered")
 	}
+	if !strings.Contains(stepsStr, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Error("Expected upload-code-coverage token fallback to be rendered")
+	}
 	if !strings.Contains(stepsStr, "Download upload-code-coverage staging") {
 		t.Error("Expected download step for staging artifact")
 	}
@@ -156,7 +159,7 @@ func TestBuildUploadCodeCoverageJob(t *testing.T) {
 
 	foundContents := false
 	foundCodeQuality := false
-	for _, line := range strings.Split(job.Permissions, "\n") {
+	for line := range strings.SplitSeq(job.Permissions, "\n") {
 		if strings.Contains(line, "contents:") && strings.Contains(line, "read") {
 			foundContents = true
 		}
@@ -173,6 +176,98 @@ func TestBuildUploadCodeCoverageJob(t *testing.T) {
 
 	if len(job.Needs) != 2 || job.Needs[0] != "agent" || job.Needs[1] != "safe_outputs" {
 		t.Errorf("Expected job.Needs = [agent, safe_outputs], got %v", job.Needs)
+	}
+}
+
+func TestBuildUploadCodeCoverageJobRespectsZeroWaitTimeout(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UploadCodeCoverage: &UploadCodeCoverageConfig{
+				FailOnError:              boolPtr(true),
+				WaitForProcessingTimeout: 0,
+			},
+		},
+	}
+
+	job, err := c.buildUploadCodeCoverageJob(data, "agent")
+	if err != nil {
+		t.Fatalf("Failed to build upload_code_coverage job: %v", err)
+	}
+
+	var stepsStr strings.Builder
+	for _, step := range job.Steps {
+		stepsStr.WriteString(step)
+	}
+	if !strings.Contains(stepsStr.String(), "wait-for-processing-timeout: 0") {
+		t.Error("Expected wait-for-processing-timeout: 0 to be rendered")
+	}
+}
+
+func TestBuildUploadCodeCoverageJobUsesSafeOutputsGitHubTokenFallback(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubToken: "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			UploadCodeCoverage: &UploadCodeCoverageConfig{
+				FailOnError:              boolPtr(true),
+				WaitForProcessingTimeout: 160,
+			},
+		},
+	}
+
+	job, err := c.buildUploadCodeCoverageJob(data, "agent")
+	if err != nil {
+		t.Fatalf("Failed to build upload_code_coverage job: %v", err)
+	}
+
+	var stepsStr strings.Builder
+	for _, step := range job.Steps {
+		stepsStr.WriteString(step)
+	}
+	if !strings.Contains(stepsStr.String(), "token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}") {
+		t.Error("Expected safe-outputs.github-token fallback token to be rendered")
+	}
+}
+
+func TestBuildUploadCodeCoverageJobMintsGitHubAppToken(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UploadCodeCoverage: &UploadCodeCoverageConfig{
+				FailOnError:              boolPtr(true),
+				WaitForProcessingTimeout: 160,
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.APP_ID }}",
+						PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, err := c.buildUploadCodeCoverageJob(data, "agent")
+	if err != nil {
+		t.Fatalf("Failed to build upload_code_coverage job: %v", err)
+	}
+
+	var stepsStr strings.Builder
+	for _, step := range job.Steps {
+		stepsStr.WriteString(step)
+	}
+	out := stepsStr.String()
+	if !strings.Contains(out, "id: upload-code-coverage-app-token") {
+		t.Error("Expected upload-code-coverage app token mint step ID")
+	}
+	if !strings.Contains(out, "uses: actions/create-github-app-token@") {
+		t.Error("Expected GitHub App token mint action step")
+	}
+	if !strings.Contains(out, "token: ${{ steps.upload-code-coverage-app-token.outputs.token }}") {
+		t.Error("Expected upload action token to use minted GitHub App token")
 	}
 }
 

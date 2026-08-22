@@ -2526,9 +2526,33 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const uploadCodeCoverageHandler = args => {
     const entry = { ...(args || {}), type: "upload_code_coverage" };
+    const stagingDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-code-coverage");
+    const coverageRoot = process.env.GITHUB_WORKSPACE ? path.join(process.env.GITHUB_WORKSPACE, "coverage") : "";
 
-    if (typeof entry.file === "string" && path.isAbsolute(entry.file)) {
-      const filePath = entry.file;
+    if (typeof entry.file === "string") {
+      let filePath = entry.file;
+      if (!path.isAbsolute(filePath)) {
+        const stagedCandidate = path.resolve(stagingDir, filePath);
+        if (fs.existsSync(stagedCandidate)) {
+          filePath = stagedCandidate;
+        } else if (process.env.GITHUB_WORKSPACE) {
+          const workspaceResolvedPath = path.resolve(process.env.GITHUB_WORKSPACE, filePath);
+          const resolvedCoverageRoot = path.resolve(process.env.GITHUB_WORKSPACE, "coverage");
+          const withinCoverageRoot = workspaceResolvedPath === resolvedCoverageRoot || workspaceResolvedPath.startsWith(resolvedCoverageRoot + path.sep);
+          if (!withinCoverageRoot) {
+            throw {
+              code: -32602,
+              message: `${ERR_VALIDATION}: upload_code_coverage: path is outside allowed source roots (GITHUB_WORKSPACE/coverage, staging directory)`,
+            };
+          }
+          filePath = workspaceResolvedPath;
+        } else {
+          throw {
+            code: -32602,
+            message: `${ERR_VALIDATION}: upload_code_coverage: GITHUB_WORKSPACE is required when file is a relative path outside staging`,
+          };
+        }
+      }
 
       if (!fs.existsSync(filePath)) {
         throw {
@@ -2571,17 +2595,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         };
       }
 
-      // Enforce allowed canonical source roots: staging dir and GITHUB_WORKSPACE.
-      const stagingDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-code-coverage");
+      // Enforce allowed canonical source roots: staging dir and GITHUB_WORKSPACE/coverage.
       const allowedRoots = [canonicalizeAllowedRoot(stagingDir)];
-      if (process.env.GITHUB_WORKSPACE) {
-        allowedRoots.push(canonicalizeAllowedRoot(process.env.GITHUB_WORKSPACE));
+      if (coverageRoot) {
+        allowedRoots.push(canonicalizeAllowedRoot(coverageRoot));
       }
       const withinAllowedRoot = allowedRoots.some(root => canonicalFilePath === root || canonicalFilePath.startsWith(root + path.sep));
       if (!withinAllowedRoot) {
         throw {
           code: -32602,
-          message: `${ERR_VALIDATION}: upload_code_coverage: path is outside allowed source roots (GITHUB_WORKSPACE, staging directory): ${canonicalFilePath}`,
+          message: `${ERR_VALIDATION}: upload_code_coverage: path is outside allowed source roots (GITHUB_WORKSPACE/coverage, staging directory): ${canonicalFilePath}`,
         };
       }
 
@@ -2593,9 +2616,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         }
       }
 
+      const canonicalStagingDir = canonicalizeAllowedRoot(stagingDir);
+      const alreadyStaged = canonicalFilePath === canonicalStagingDir || canonicalFilePath.startsWith(canonicalStagingDir + path.sep);
       const destName = path.basename(filePath);
       const destPath = path.join(stagingDir, destName);
-      if (!fs.existsSync(destPath)) {
+      if (!alreadyStaged && !fs.existsSync(destPath)) {
         try {
           fs.copyFileSync(filePath, destPath);
           fs.chmodSync(destPath, 0o600);

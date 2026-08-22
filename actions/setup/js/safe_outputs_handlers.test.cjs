@@ -709,7 +709,9 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should copy absolute-path file to staging and rewrite file to basename", () => {
-      const srcFile = path.join(testWorkspaceDir, "cobertura.xml");
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
       fs.writeFileSync(srcFile, "<coverage></coverage>");
 
       const result = handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "code-coverage/unit-tests" });
@@ -718,18 +720,14 @@ describe("safe_outputs_handlers", () => {
       expect(fs.existsSync(stagedPath)).toBe(true);
       expect(fs.readFileSync(stagedPath, "utf8")).toBe("<coverage></coverage>");
 
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "upload_code_coverage", file: "cobertura.xml", language: "Go", label: "code-coverage/unit-tests" })
-      );
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_code_coverage", file: "cobertura.xml", language: "Go", label: "code-coverage/unit-tests" }));
 
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("success");
     });
 
     it("should throw when absolute-path file does not exist", () => {
-      expect(() => handlers.uploadCodeCoverageHandler({ file: "/tmp/nonexistent-cobertura.xml", language: "Go", label: "l" })).toThrow(
-        expect.objectContaining({ message: expect.stringContaining("file not found") })
-      );
+      expect(() => handlers.uploadCodeCoverageHandler({ file: "/tmp/nonexistent-cobertura.xml", language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("file not found") }));
     });
 
     it("should throw when path is a symlink", () => {
@@ -738,22 +736,20 @@ describe("safe_outputs_handlers", () => {
       const linkPath = path.join(testWorkspaceDir, "link.xml");
       fs.symlinkSync(srcFile, linkPath);
 
-      expect(() => handlers.uploadCodeCoverageHandler({ file: linkPath, language: "Go", label: "l" })).toThrow(
-        expect.objectContaining({ message: expect.stringContaining("symlinks are not allowed") })
-      );
+      expect(() => handlers.uploadCodeCoverageHandler({ file: linkPath, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("symlinks are not allowed") }));
     });
 
     it("should throw when path is a directory", () => {
       const srcDir = path.join(testWorkspaceDir, "coverage-dir");
       fs.mkdirSync(srcDir, { recursive: true });
 
-      expect(() => handlers.uploadCodeCoverageHandler({ file: srcDir, language: "Go", label: "l" })).toThrow(
-        expect.objectContaining({ message: expect.stringContaining("must be a regular file") })
-      );
+      expect(() => handlers.uploadCodeCoverageHandler({ file: srcDir, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("must be a regular file") }));
     });
 
     it("should not overwrite existing staged file on duplicate call", () => {
-      const srcFile = path.join(testWorkspaceDir, "cobertura.xml");
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
       fs.writeFileSync(srcFile, "original");
 
       handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "l" });
@@ -766,17 +762,31 @@ describe("safe_outputs_handlers", () => {
       expect(fs.readFileSync(stagedPath, "utf8")).toBe("original");
     });
 
-    it("should pass through relative path without copying to staging", () => {
-      const result = handlers.uploadCodeCoverageHandler({ file: "already-staged.xml", language: "Go", label: "l" });
-
+    it("should accept relative path already staged in upload-code-coverage staging directory", () => {
       const stagingDir = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-code-coverage");
       const stagedFile = path.join(stagingDir, "already-staged.xml");
-      expect(fs.existsSync(stagedFile)).toBe(false);
+      fs.mkdirSync(stagingDir, { recursive: true });
+      fs.writeFileSync(stagedFile, "<coverage></coverage>");
+
+      const result = handlers.uploadCodeCoverageHandler({ file: "already-staged.xml", language: "Go", label: "l" });
 
       expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_code_coverage", file: "already-staged.xml" }));
 
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("success");
+    });
+
+    it("should resolve workspace-relative coverage path, stage file, and rewrite to basename", () => {
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
+      fs.writeFileSync(srcFile, "<coverage></coverage>");
+
+      handlers.uploadCodeCoverageHandler({ file: "coverage/cobertura.xml", language: "Go", label: "l" });
+
+      const stagedPath = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-code-coverage", "cobertura.xml");
+      expect(fs.existsSync(stagedPath)).toBe(true);
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_code_coverage", file: "cobertura.xml" }));
     });
 
     it("should reject absolute path outside GITHUB_WORKSPACE and staging directory", () => {
@@ -789,9 +799,7 @@ describe("safe_outputs_handlers", () => {
         const savedWorkspace = process.env.GITHUB_WORKSPACE;
         delete process.env.GITHUB_WORKSPACE;
         try {
-          expect(() => handlers.uploadCodeCoverageHandler({ file: outsideFile, language: "Go", label: "l" })).toThrow(
-            expect.objectContaining({ message: expect.stringContaining("outside allowed source roots") })
-          );
+          expect(() => handlers.uploadCodeCoverageHandler({ file: outsideFile, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("outside allowed source roots") }));
         } finally {
           if (savedWorkspace !== undefined) process.env.GITHUB_WORKSPACE = savedWorkspace;
         }
@@ -802,8 +810,17 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("should reject workspace file outside coverage directory", () => {
+      const srcFile = path.join(testWorkspaceDir, "not-coverage.xml");
+      fs.writeFileSync(srcFile, "<coverage></coverage>");
+
+      expect(() => handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("outside allowed source roots") }));
+    });
+
     it("should set restrictive permissions (0o600) on staged files", () => {
-      const srcFile = path.join(testWorkspaceDir, "cobertura.xml");
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
       fs.writeFileSync(srcFile, "<coverage></coverage>");
 
       handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "l" });
