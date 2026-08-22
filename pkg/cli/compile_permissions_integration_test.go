@@ -90,3 +90,26 @@ func TestCompileVulnerabilityAlertsPermissionIncluded(t *testing.T) {
 	assert.Greater(t, occurrences, 0,
 		"vulnerability-alerts: read should appear at least once in the lock file")
 }
+
+func TestCompileDefaultsToStrictMode(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	workflowPath := filepath.Join(setup.workflowsDir, "strict-default.md")
+	workflow := `---
+on: push
+permissions:
+  contents: write
+engine: copilot
+---
+
+# Strict default
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflow), 0644))
+
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
+	output, err := cmd.CombinedOutput()
+	require.Error(t, err, "compile without --strict should reject write permissions")
+	assert.Contains(t, string(output), "strict mode: write permission 'contents: write' is not allowed",
+		"compile without --strict should enable strict validation by default")
+}
