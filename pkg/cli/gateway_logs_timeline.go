@@ -272,15 +272,13 @@ func auditEntryToTimelineEvent(entry AuditLogEntry) (UnifiedTimelineEvent, bool)
 	if isEntryAllowed(entry) {
 		kind = TimelineKindNetworkAllowed
 	}
-	httpStatus, _ := networkStatusCode(entry.Status)
-
 	return UnifiedTimelineEvent{
 		Time:       t,
 		Source:     TimelineSourceFirewall,
 		Kind:       kind,
 		Host:       entry.Host,
 		HTTPMethod: entry.Method,
-		HTTPStatus: httpStatus,
+		HTTPStatus: networkStatusCodeOrZero(entry.Status),
 		Decision:   entry.Decision,
 	}, true
 }

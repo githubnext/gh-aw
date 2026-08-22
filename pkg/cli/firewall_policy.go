@@ -380,9 +380,7 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 		var enriched EnrichedRequest
 		enriched.Timestamp = entry.Timestamp
 		enriched.Host = host
-		if statusCode, ok := networkStatusCode(entry.Status); ok {
-			enriched.Status = statusCode
-		}
+		enriched.Status = networkStatusCodeOrZero(entry.Status)
 
 		if rule != nil {
 			enriched.RuleID = rule.ID

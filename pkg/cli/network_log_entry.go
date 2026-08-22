@@ -29,6 +29,11 @@ func networkStatusCode(status string) (int, bool) {
 	return 0, false
 }
 
+func networkStatusCodeOrZero(status string) int {
+	statusCode, _ := networkStatusCode(status)
+	return statusCode
+}
+
 func networkStatusFromJSON(raw json.RawMessage) (string, error) {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" || trimmed == "null" {
