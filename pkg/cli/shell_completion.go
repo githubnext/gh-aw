@@ -140,7 +140,7 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 	// Generate completion script using Cobra
 	var buf bytes.Buffer
 	if err := cmd.GenBashCompletion(&buf); err != nil {
-		return fmt.Errorf("bash completion generation error: %w. Check that the command is initialized and retry: gh aw completion bash", err)
+		return fmt.Errorf("bash completion generation error: %w; check that the command is initialized and retry: gh aw completion bash", err)
 	}
 
 	completionScript := buf.String()
@@ -184,7 +184,7 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 	if strings.HasPrefix(completionDir, homeDir) {
 		// Use restrictive permissions (0750) following principle of least privilege
 		if err := os.MkdirAll(completionDir, constants.DirPermSensitive); err != nil {
-			return fmt.Errorf("create completion directory %q error: %w. Check that the parent directory exists and is writable, then retry", completionDir, err)
+			return fmt.Errorf("create completion directory %q error: %w; check that the parent directory exists and is writable, then retry", completionDir, err)
 		}
 	}
 
@@ -197,14 +197,14 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 		completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
 		// Use restrictive permissions (0750) following principle of least privilege
 		if err := os.MkdirAll(filepath.Dir(completionPath), constants.DirPermSensitive); err != nil {
-			return fmt.Errorf("create user completion directory %q error: %w. Check that the home directory is writable, then retry", filepath.Dir(completionPath), err)
+			return fmt.Errorf("create user completion directory %q error: %w; check that the home directory is writable, then retry", filepath.Dir(completionPath), err)
 		}
 		// Use restrictive permissions (0600) following principle of least privilege
 		if err := os.WriteFile(completionPath, []byte(completionScript), constants.FilePermSensitive); err != nil {
-			return fmt.Errorf("write completion file %q error: %w. Check that the directory is writable, then retry", completionPath, err)
+			return fmt.Errorf("write completion file %q error: %w; check that the directory is writable, then retry", completionPath, err)
 		}
 	} else if err != nil {
-		return fmt.Errorf("write completion file %q error: %w. Check that the directory is writable, then retry", completionPath, err)
+		return fmt.Errorf("write completion file %q error: %w; check that the directory is writable, then retry", completionPath, err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed bash completion to: "+completionPath))
@@ -252,7 +252,7 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 	// Generate completion script using Cobra
 	var buf bytes.Buffer
 	if err := cmd.GenZshCompletion(&buf); err != nil {
-		return fmt.Errorf("zsh completion generation error: %w. Check that the command is initialized and retry: gh aw completion zsh", err)
+		return fmt.Errorf("zsh completion generation error: %w; check that the command is initialized and retry: gh aw completion zsh", err)
 	}
 
 	completionScript := buf.String()
@@ -270,14 +270,14 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 	userCompletionDir := filepath.Join(homeDir, ".zsh", "completions")
 	// Use restrictive permissions (0750) following principle of least privilege
 	if err := os.MkdirAll(userCompletionDir, constants.DirPermSensitive); err != nil {
-		return fmt.Errorf("create completion directory %q error: %w. Check that the home directory is writable, then retry", userCompletionDir, err)
+		return fmt.Errorf("create completion directory %q error: %w; check that the home directory is writable, then retry", userCompletionDir, err)
 	}
 	completionPath = filepath.Join(userCompletionDir, "_gh-aw")
 
 	// Write completion file
 	// Use restrictive permissions (0600) following principle of least privilege
 	if err := os.WriteFile(completionPath, []byte(completionScript), constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("write completion file %q error: %w. Check that the directory is writable, then retry", completionPath, err)
+		return fmt.Errorf("write completion file %q error: %w; check that the directory is writable, then retry", completionPath, err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed zsh completion to: "+completionPath))
@@ -320,7 +320,7 @@ func installFishCompletion(verbose bool, cmd *cobra.Command) error {
 	// Generate completion script using Cobra
 	var buf bytes.Buffer
 	if err := cmd.GenFishCompletion(&buf, true); err != nil {
-		return fmt.Errorf("fish completion generation error: %w. Check that the command is initialized and retry: gh aw completion fish", err)
+		return fmt.Errorf("fish completion generation error: %w; check that the command is initialized and retry: gh aw completion fish", err)
 	}
 
 	completionScript := buf.String()
@@ -335,7 +335,7 @@ func installFishCompletion(verbose bool, cmd *cobra.Command) error {
 	completionDir := filepath.Join(homeDir, ".config", "fish", "completions")
 	// Use restrictive permissions (0750) following principle of least privilege
 	if err := os.MkdirAll(completionDir, constants.DirPermSensitive); err != nil {
-		return fmt.Errorf("create completion directory %q error: %w. Check that the home directory is writable, then retry", completionDir, err)
+		return fmt.Errorf("create completion directory %q error: %w; check that the home directory is writable, then retry", completionDir, err)
 	}
 
 	completionPath := filepath.Join(completionDir, "gh-aw.fish")
@@ -343,7 +343,7 @@ func installFishCompletion(verbose bool, cmd *cobra.Command) error {
 	// Write completion file
 	// Use restrictive permissions (0600) following principle of least privilege
 	if err := os.WriteFile(completionPath, []byte(completionScript), constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("write completion file %q error: %w. Check that the directory is writable, then retry", completionPath, err)
+		return fmt.Errorf("write completion file %q error: %w; check that the directory is writable, then retry", completionPath, err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed fish completion to: "+completionPath))
@@ -367,7 +367,7 @@ func installPowerShellCompletion(verbose bool, cmd *cobra.Command) error {
 	var profileBuf bytes.Buffer
 	profileCmd.Stdout = &profileBuf
 	if err := profileCmd.Run(); err != nil {
-		return fmt.Errorf("PowerShell profile path lookup error: %w. Ensure PowerShell is installed and available on PATH, then retry", err)
+		return fmt.Errorf("PowerShell profile path lookup error: %w; ensure PowerShell is installed and available on PATH, then retry", err)
 	}
 
 	profilePath := strings.TrimSpace(profileBuf.String())
@@ -500,7 +500,7 @@ func uninstallZshCompletion(verbose bool) error {
 	shellCompletionLog.Printf("Found completion file at: %s", completionPath)
 
 	if err := os.Remove(completionPath); err != nil {
-		return fmt.Errorf("remove completion file %q error: %w. Check that the file is writable, then retry", completionPath, err)
+		return fmt.Errorf("remove completion file %q error: %w; check that the file is writable, then retry", completionPath, err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed zsh completion from: "+completionPath))
@@ -527,7 +527,7 @@ func uninstallFishCompletion(verbose bool) error {
 	shellCompletionLog.Printf("Found completion file at: %s", completionPath)
 
 	if err := os.Remove(completionPath); err != nil {
-		return fmt.Errorf("remove completion file %q error: %w. Check that the file is writable, then retry", completionPath, err)
+		return fmt.Errorf("remove completion file %q error: %w; check that the file is writable, then retry", completionPath, err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed fish completion from: "+completionPath))
@@ -551,7 +551,7 @@ func uninstallPowerShellCompletion(verbose bool) error {
 	var profileBuf bytes.Buffer
 	profileCmd.Stdout = &profileBuf
 	if err := profileCmd.Run(); err != nil {
-		return fmt.Errorf("PowerShell profile path lookup error: %w. Ensure PowerShell is installed and available on PATH, then retry", err)
+		return fmt.Errorf("PowerShell profile path lookup error: %w; ensure PowerShell is installed and available on PATH, then retry", err)
 	}
 
 	profilePath := strings.TrimSpace(profileBuf.String())
