@@ -110,12 +110,15 @@ fi
 # Extract host from server URL (remove https:// or http:// prefix)
 SERVER_HOST="${GITHUB_SERVER_URL#https://}"
 SERVER_HOST="${SERVER_HOST#http://}"
-ORIGIN_URL="https://x-access-token:${GH_TOKEN}@${SERVER_HOST}/${TARGET_REPO}.git"
 SAFE_ORIGIN_URL="https://${SERVER_HOST}/${TARGET_REPO}.git"
+
+# Authenticate via a transient HTTP extra header instead of embedding the
+# token in the remote URL, so the credential is never written to .git/config.
+AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
 
 # Try to clone the branch (don't fail if it doesn't exist)
 set +e
-git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null
+git -c http.extraheader="$AUTH_HEADER" clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null
 CLONE_EXIT_CODE=$?
 set -e
 
@@ -132,7 +135,7 @@ if [ $CLONE_EXIT_CODE -ne 0 ]; then
     git init
     git checkout --orphan "$BRANCH_NAME"
     git remote remove origin >/dev/null 2>&1 || true
-    git remote add origin "$ORIGIN_URL"
+    git remote add origin "$SAFE_ORIGIN_URL"
     harden_repo_memory_git_state "$MEMORY_DIR" "$SAFE_ORIGIN_URL"
   else
     echo "Branch $BRANCH_NAME does not exist and create-orphan is false, skipping"
@@ -146,14 +149,14 @@ else
     echo "WARNING: Detected symlinked repo-memory git metadata; recloning branch"
     cd ..
     rm -rf "$MEMORY_DIR"
-    if ! git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null; then
+    if ! git -c http.extraheader="$AUTH_HEADER" clone --depth 1 --single-branch --branch "$BRANCH_NAME" "$SAFE_ORIGIN_URL" "$MEMORY_DIR" 2>/dev/null; then
       echo "ERROR: failed to re-clone repo-memory branch after symlink metadata detection" >&2
       exit 1
     fi
     cd "$MEMORY_DIR"
   fi
   git remote remove origin >/dev/null 2>&1 || true
-  git remote add origin "$ORIGIN_URL"
+  git remote add origin "$SAFE_ORIGIN_URL"
   harden_repo_memory_git_state "$MEMORY_DIR" "$SAFE_ORIGIN_URL"
 fi
 
