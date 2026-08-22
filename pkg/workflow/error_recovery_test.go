@@ -103,7 +103,7 @@ func TestValidationError_UniformAcrossPackages(t *testing.T) {
 
 	for _, err := range []error{workflowErr, parserErr} {
 		var ve validationerror.ValidationError
-		require.True(t, errors.As(err, &ve), "expected errors.As to match validationerror.ValidationError for %T", err)
+		require.ErrorAs(t, err, &ve, "expected errors.As to match validationerror.ValidationError for %T", err)
 		assert.NotEmpty(t, ve.ValidationField())
 		assert.NotEmpty(t, ve.ValidationReason())
 	}
