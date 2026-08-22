@@ -263,9 +263,8 @@ test-js: build-js
 # Test impacted JavaScript unit tests only (excluding integration tests)
 .PHONY: test-impacted-js
 test-impacted-js: build-js
-	@BASE_COMMIT=$$(git merge-base $(BASE_REF) HEAD 2>/dev/null); \
+	@BASE_COMMIT=$$(bash scripts/resolve-base-commit.sh --base-ref $(BASE_REF)); \
 	if [ -z "$$BASE_COMMIT" ]; then \
-		echo "Error: unable to determine merge-base from BASE_REF=$(BASE_REF)."; \
 		echo "Set BASE_REF explicitly, for example: make test-impacted-js BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
@@ -289,9 +288,8 @@ test-impacted-js: build-js
 # Test impacted Go unit tests only (excluding integration tests)
 .PHONY: test-impacted-go
 test-impacted-go:
-	@BASE_COMMIT=$$(git merge-base $(BASE_REF) HEAD 2>/dev/null); \
+	@BASE_COMMIT=$$(bash scripts/resolve-base-commit.sh --base-ref $(BASE_REF)); \
 	if [ -z "$$BASE_COMMIT" ]; then \
-		echo "Error: unable to determine merge-base from BASE_REF=$(BASE_REF)."; \
 		echo "Set BASE_REF explicitly, for example: make test-impacted-go BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
@@ -490,6 +488,7 @@ test-scripts: build
 	@echo "Running Bash script tests..."
 	bash scripts/extract-workflow-frontmatter-keys_test.sh
 	bash scripts/check-stale-lock-files_test.sh
+	bash scripts/resolve-base-commit_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	@echo "✓ All Bash script tests passed"
@@ -830,7 +829,7 @@ download-github-actions-schema:
 patch-github-actions-schema:
 	@echo "Patching GitHub Actions schema with custom permissions..."
 	@tmpfile=$$(mktemp) && \
-		jq 'def append_missing($$items): reduce $$items[] as $$item (. ; if index($$item) then . else . + [$$item] end); .definitions["permissions-event"].properties += {"copilot-requests": {"type": "string", "enum": ["write", "none"]}, "vulnerability-alerts": {"type": "string", "enum": ["read", "none"]}} | (.properties.on.oneOf[] | select(.properties? and .properties.issues? and .properties.issues.properties? and .properties.issues.properties.types?).properties.issues.properties.types.items.enum) |= append_missing(["typed", "untyped", "field_added", "field_removed"]) | (.properties.on.oneOf[] | select(.properties? and .properties.issues? and .properties.issues.properties? and .properties.issues.properties.types?).properties.issues.properties.types.default) |= append_missing(["typed", "untyped", "field_added", "field_removed"])' \
+		jq 'def append_missing($$items): reduce $$items[] as $$item (. ; if index($$item) then . else . + [$$item] end); .definitions["permissions-event"].properties += {"copilot-requests": {"type": "string", "enum": ["write", "none"]}, "drives": {"$$ref": "#/definitions/permissions-level"}, "vulnerability-alerts": {"type": "string", "enum": ["read", "none"]}} | (.properties.on.oneOf[] | select(.properties? and .properties.issues? and .properties.issues.properties? and .properties.issues.properties.types?).properties.issues.properties.types.items.enum) |= append_missing(["typed", "untyped", "field_added", "field_removed"]) | (.properties.on.oneOf[] | select(.properties? and .properties.issues? and .properties.issues.properties? and .properties.issues.properties.types?).properties.issues.properties.types.default) |= append_missing(["typed", "untyped", "field_added", "field_removed"])' \
 			pkg/workflow/schemas/github-workflow.json > "$$tmpfile" && \
 		mv "$$tmpfile" pkg/workflow/schemas/github-workflow.json
 	@cd actions/setup/js && npm run format:schema >/dev/null 2>&1
