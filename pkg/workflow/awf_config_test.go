@@ -149,6 +149,71 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "ads.example.com", "should include the blocked domain")
 	})
 
+	t.Run("filesystem allowWrite is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Config: &SandboxRuntimeConfig{
+							Filesystem: &SRTFilesystemConfig{
+								AllowWrite: []string{"/tmp/gh-aw/agent"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"filesystem":{"allowWrite":["/tmp/gh-aw/agent"]}`)
+		require.NoError(t, validateAWFConfigJSON(jsonStr))
+	})
+
+	t.Run("filesystem allowWrite is omitted for an older firewall", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Version: "v0.28.4"},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Config: &SandboxRuntimeConfig{
+							Filesystem: &SRTFilesystemConfig{
+								AllowWrite: []string{"/tmp/gh-aw/agent"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"filesystem"`)
+	})
+
+	t.Run("empty filesystem allowWrite is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Config: &SandboxRuntimeConfig{
+							Filesystem: &SRTFilesystemConfig{AllowWrite: []string{}},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"filesystem":{"allowWrite":[]}`)
+	})
+
 	t.Run("network isolation emits isolation and topologyAttach", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -1683,6 +1748,11 @@ func TestValidateAWFConfigJSON_AllowsTemplatableModelFallbackEnabled(t *testing.
 func TestValidateAWFConfigJSON_AllowsMaxTurnCacheMisses(t *testing.T) {
 	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxCacheMisses":3}}`)
 	require.NoError(t, err, "maxCacheMisses should pass compile-time schema validation")
+}
+
+func TestValidateAWFConfigJSON_AllowsFilesystemAllowWrite(t *testing.T) {
+	err := validateAWFConfigJSON(`{"filesystem":{"allowWrite":[]}}`)
+	require.NoError(t, err, "filesystem.allowWrite should pass AWF config schema validation")
 }
 
 func TestValidateAWFConfigJSON_AllowsSbxContainerRuntime(t *testing.T) {

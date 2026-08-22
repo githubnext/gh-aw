@@ -161,6 +161,9 @@ type AWFConfigFile struct {
 	// Network contains network egress control configuration.
 	Network *AWFNetworkConfig `json:"network,omitempty"`
 
+	// Filesystem contains host filesystem write-boundary configuration.
+	Filesystem *AWFFilesystemConfig `json:"filesystem,omitempty"`
+
 	// Platform contains GitHub deployment metadata used by AWF auth handling.
 	Platform *AWFPlatformConfig `json:"platform,omitempty"`
 
@@ -263,6 +266,12 @@ type AWFNetworkConfig struct {
 	// TopologyAttach lists container names AWF should attach to awf-net.
 	// Maps to: --topology-attach <name> (repeatable)
 	TopologyAttach []string `json:"topologyAttach,omitempty"`
+}
+
+// AWFFilesystemConfig is the "filesystem" section of the AWF config file.
+type AWFFilesystemConfig struct {
+	// AllowWrite lists guest-visible absolute paths that may remain writable.
+	AllowWrite []string `json:"allowWrite"`
 }
 
 // AWFPlatformConfig is the "platform" section of the AWF config file.
@@ -533,6 +542,22 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		if !slices.Contains(awfConfig.Network.AllowDomains, hostDockerInternal) {
 			awfConfig.Network.AllowDomains = append(awfConfig.Network.AllowDomains, hostDockerInternal)
 			awfConfigLog.Printf("Network section: added %s for microVM runtime routing", hostDockerInternal)
+		}
+	}
+
+	// ── Filesystem section ───────────────────────────────────────────────────
+	if config.WorkflowData != nil &&
+		config.WorkflowData.SandboxConfig != nil &&
+		config.WorkflowData.SandboxConfig.Agent != nil &&
+		config.WorkflowData.SandboxConfig.Agent.Config != nil &&
+		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem != nil &&
+		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite != nil {
+		allowWrite := config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite
+		if awfSupportsFilesystemAllowWrite(firewallConfig) {
+			awfConfig.Filesystem = &AWFFilesystemConfig{AllowWrite: allowWrite}
+			awfConfigLog.Printf("Filesystem section: %d writable path(s)", len(allowWrite))
+		} else {
+			awfConfigLog.Printf("Skipping filesystem.allowWrite: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFFilesystemAllowWriteMinVersion)
 		}
 	}
 
