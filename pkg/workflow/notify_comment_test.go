@@ -1328,8 +1328,17 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "safe-outputs-items") {
 		t.Errorf("Expected safe-outputs-items artifact name to appear in the download step.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "pattern: safe-outputs-items") {
+		t.Errorf("Expected safe-outputs-items download to use a best-effort pattern instead of exact name.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "merge-multiple: true") {
+		t.Errorf("Expected best-effort artifact downloads to merge matches into the target path.\nGenerated steps:\n%s", allSteps)
+	}
 	if !strings.Contains(allSteps, "id: download-safe-outputs-manifest") {
 		t.Errorf("Expected download step to have an id field for observability.\nGenerated steps:\n%s", allSteps)
+	}
+	if strings.Contains(allSteps, "name: safe-outputs-items") {
+		t.Errorf("Expected safe-outputs-items download not to use exact artifact name downloads.\nGenerated steps:\n%s", allSteps)
 	}
 	// Verify download step appears before collect step so the manifest is available
 	// when generate_usage_activity_summary.cjs runs.
@@ -1427,8 +1436,11 @@ func TestConclusionJobIncludesEvalsInUsageArtifact(t *testing.T) {
 	if !strings.Contains(allSteps, "id: download-evals-artifact") {
 		t.Errorf("Expected evals artifact download step to have an id field.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "name: evals") {
-		t.Errorf("Expected evals artifact download step to use the evals artifact name.\nGenerated steps:\n%s", allSteps)
+	if !strings.Contains(allSteps, "pattern: evals") {
+		t.Errorf("Expected evals artifact download step to use a best-effort pattern.\nGenerated steps:\n%s", allSteps)
+	}
+	if strings.Contains(allSteps, "name: evals") {
+		t.Errorf("Expected evals artifact download step not to use exact artifact name downloads.\nGenerated steps:\n%s", allSteps)
 	}
 
 	// The evals copy command lives in the shared script file.

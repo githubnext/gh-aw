@@ -36,6 +36,25 @@ func extractWorkflowStepByName(t *testing.T, workflowYAML, stepName string) stri
 	return stepSection
 }
 
+func TestArtifactDownloadUsesPattern(t *testing.T) {
+	steps := strings.Join(buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "detection",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		StepName:     "Download detection artifact",
+		StepID:       "download-detection-artifact",
+	}, getActionPin), "")
+
+	if !strings.Contains(steps, "pattern: detection") {
+		t.Fatalf("Expected artifact download to use pattern matching.\nGenerated steps:\n%s", steps)
+	}
+	if strings.Contains(steps, "name: detection") {
+		t.Fatalf("Expected artifact download not to use exact-name downloads.\nGenerated steps:\n%s", steps)
+	}
+	if !strings.Contains(steps, "merge-multiple: true") {
+		t.Fatalf("Expected artifact download to merge matches into the target path.\nGenerated steps:\n%s", steps)
+	}
+}
+
 func TestAccessLogUploadConditional(t *testing.T) {
 	compiler := NewCompiler()
 

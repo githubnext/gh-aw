@@ -145,7 +145,8 @@ func (c *Compiler) buildPushEvalsStateJob(data *WorkflowData) (*Job, error) {
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
 		"        continue-on-error: true\n",
 		"        with:\n",
-		fmt.Sprintf("          name: %s\n", evalsArtifactName),
+		fmt.Sprintf("          pattern: %s\n", evalsArtifactName),
+		"          merge-multiple: true\n",
 		fmt.Sprintf("          path: %s\n", evalsStateDir),
 	)
 

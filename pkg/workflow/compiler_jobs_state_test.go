@@ -157,6 +157,9 @@ func TestBuildPushExperimentsStateJob_RepoStorage(t *testing.T) {
 	// Branch name should use sanitized workflow ID
 	stepsYAML := strings.Join(job.Steps, "\n")
 	assert.Contains(t, stepsYAML, "experiments/myworkflow", "steps should reference sanitized branch name")
+	assert.Contains(t, stepsYAML, "pattern: myworkflow-experiment", "experiment download should tolerate missing artifacts with pattern matching")
+	assert.Contains(t, stepsYAML, "merge-multiple: true", "experiment download should preserve direct extraction into the state directory")
+	assert.NotContains(t, stepsYAML, "name: myworkflow-experiment", "experiment download should not use exact artifact name downloads")
 	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should use push_experiment_state.cjs helper")
 }
 
@@ -271,6 +274,9 @@ func TestBuildPushEvalsStateJob_WithEvals(t *testing.T) {
 
 	stepsYAML := strings.Join(job.Steps, "\n")
 	assert.Contains(t, stepsYAML, "evals/myworkflow", "steps should reference sanitized evals branch name")
+	assert.Contains(t, stepsYAML, "pattern: evals", "evals download should tolerate missing artifacts with pattern matching")
+	assert.Contains(t, stepsYAML, "merge-multiple: true", "evals download should preserve direct extraction into the state directory")
+	assert.NotContains(t, stepsYAML, "name: evals", "evals download should not use exact artifact name downloads")
 	assert.Contains(t, stepsYAML, "GH_AW_STATE_FILES: evals.jsonl", "steps should configure evals filename")
 	assert.NotContains(t, stepsYAML, "GH_AW_STATE_APPEND_FILES", "steps should use the state file itself for append-only history")
 	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should reuse push_experiment_state.cjs helper")

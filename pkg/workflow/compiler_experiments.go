@@ -783,7 +783,8 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	fmt.Fprintf(&downloadStep, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 	downloadStep.WriteString("        continue-on-error: true\n")
 	downloadStep.WriteString("        with:\n")
-	fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
+	fmt.Fprintf(&downloadStep, "          pattern: %s\n", artifactName)
+	downloadStep.WriteString("          merge-multiple: true\n")
 	fmt.Fprintf(&downloadStep, "          path: %s\n", experimentsCacheDir)
 	steps = append(steps, downloadStep.String())
 

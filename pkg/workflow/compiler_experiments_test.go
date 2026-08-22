@@ -246,7 +246,8 @@ func TestBuildExperimentArtifactDownloadStep_NoPrefix(t *testing.T) {
 	require.NotEmpty(t, steps, "steps should be generated")
 	joined := strings.Join(steps, "")
 	// Artifact name should include the sanitized workflow ID as prefix.
-	assert.Contains(t, joined, "          name: smokecopilot-experiment\n", "artifact name should include sanitized workflow ID")
+	assert.Contains(t, joined, "          pattern: smokecopilot-experiment\n", "artifact name should include sanitized workflow ID")
+	assert.Contains(t, joined, "          merge-multiple: true\n", "download should merge matches into the cache directory")
 }
 
 // ── extractExperimentConfigsFromFrontmatter ───────────────────────────────

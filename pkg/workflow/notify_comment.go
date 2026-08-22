@@ -176,7 +176,8 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
 		"        with:\n",
-		fmt.Sprintf("          name: %s\n", safeOutputsItemsArtifactName),
+		fmt.Sprintf("          pattern: %s\n", safeOutputsItemsArtifactName),
+		"          merge-multiple: true\n",
 		"          path: /tmp/gh-aw/\n",
 	}
 	if hasEvals {
@@ -188,7 +189,8 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 			"        continue-on-error: true\n",
 			fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
 			"        with:\n",
-			fmt.Sprintf("          name: %s\n", evalsArtifactName),
+			fmt.Sprintf("          pattern: %s\n", evalsArtifactName),
+			"          merge-multiple: true\n",
 			"          path: /tmp/gh-aw/evals/\n",
 		)
 	}

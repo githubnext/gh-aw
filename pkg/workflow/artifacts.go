@@ -59,7 +59,8 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 		steps = append(steps, fmt.Sprintf("          pattern: \"{%s,%s}\"\n", config.ArtifactName, config.FallbackArtifact))
 		steps = append(steps, "          merge-multiple: true\n")
 	} else {
-		steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
+		steps = append(steps, fmt.Sprintf("          pattern: %s\n", config.ArtifactName))
+		steps = append(steps, "          merge-multiple: true\n")
 	}
 	steps = append(steps, fmt.Sprintf("          path: %s\n", config.DownloadPath))
 
