@@ -3,10 +3,11 @@
 package workflow
 
 import (
-	"github.com/github/gh-aw/pkg/constants"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestDetectionJobLevelCondition verifies that the detection job-level `if:` condition

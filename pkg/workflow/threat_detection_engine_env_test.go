@@ -3,9 +3,10 @@
 package workflow
 
 import (
-	"github.com/github/gh-aw/pkg/constants"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestBuildDetectionEngineExecutionStepPropagatesAPITarget verifies that when engine.api-target

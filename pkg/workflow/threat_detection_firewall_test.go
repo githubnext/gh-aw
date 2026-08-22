@@ -3,10 +3,11 @@
 package workflow
 
 import (
-	"github.com/github/gh-aw/pkg/constants"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 func TestCleanFirewallDirsStepPresent(t *testing.T) {

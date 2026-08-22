@@ -3,9 +3,10 @@
 package workflow
 
 import (
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 func TestExternalDetectorInheritsOpenAIBaseURL(t *testing.T) {
