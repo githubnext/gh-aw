@@ -34,24 +34,38 @@ function isRequireHttpModule(node: TSESTree.Node | null | undefined, sourceCode:
   return typeof firstArg.value === "string" && HTTP_MODULE_SPECIFIERS.has(firstArg.value);
 }
 
-/** Returns true when `name` resolves to a variable bound to Node's `http`/`https` module via `require(...)` and never reassigned. */
-function isHttpModuleBinding(name: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
+/** Returns true when `node` resolves to Node's `http`/`https` module. */
+function isHttpModuleExpression(node: TSESTree.Node | null | undefined, sourceCode: TSESLint.SourceCode, visited: Set<TSESLint.Scope.Variable>): boolean {
+  if (!node) return false;
+  if (isRequireHttpModule(node, sourceCode)) return true;
+  if (node.type === AST_NODE_TYPES.Identifier) return isHttpModuleBinding(node.name, node, sourceCode, visited);
+  if (node.type !== AST_NODE_TYPES.ConditionalExpression) return false;
+  return isHttpModuleExpression(node.consequent, sourceCode, new Set(visited)) && isHttpModuleExpression(node.alternate, sourceCode, new Set(visited));
+}
+
+/** Returns true when `name` resolves to a variable bound to Node's `http`/`https` module and never reassigned. */
+function isHttpModuleBinding(name: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode, visited = new Set<TSESLint.Scope.Variable>()): boolean {
   const variable = resolveVariable(name, scopeNode, sourceCode);
-  if (!variable || variable.defs.length === 0) return false;
-  // Any write other than a `require("http")`-style initializer means the binding may no longer denote the module.
-  for (const reference of variable.references) {
-    if (!reference.isWrite()) continue;
-    if (!isRequireHttpModule(reference.writeExpr, sourceCode)) return false;
+  if (!variable || variable.defs.length === 0 || visited.has(variable)) return false;
+  visited.add(variable);
+  try {
+    // Any write other than an HTTP module expression means the binding may no longer denote the module.
+    for (const reference of variable.references) {
+      if (!reference.isWrite()) continue;
+      if (!isHttpModuleExpression(reference.writeExpr, sourceCode, visited)) return false;
+    }
+    let bound = false;
+    for (const def of variable.defs) {
+      if (def.type !== "Variable") return false;
+      const declarator = def.node as TSESTree.VariableDeclarator;
+      if (declarator.id.type !== AST_NODE_TYPES.Identifier) return false;
+      if (!isHttpModuleExpression(declarator.init, sourceCode, visited)) return false;
+      bound = true;
+    }
+    return bound;
+  } finally {
+    visited.delete(variable);
   }
-  let bound = false;
-  for (const def of variable.defs) {
-    if (def.type !== "Variable") return false;
-    const declarator = def.node as TSESTree.VariableDeclarator;
-    if (declarator.id.type !== AST_NODE_TYPES.Identifier) return false;
-    if (!isRequireHttpModule(declarator.init, sourceCode)) return false;
-    bound = true;
-  }
-  return bound;
 }
 
 /** Returns true when `call` is `<http>.request(...)` / `<http>.get(...)` on a resolved http/https module binding. */
