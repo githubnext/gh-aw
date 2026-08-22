@@ -107,6 +107,9 @@ timeout-minutes: 20
 features:
   gh-aw-detection: true
 
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 # Copilot Agent Prompt Clustering Analysis

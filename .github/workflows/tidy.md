@@ -68,6 +68,9 @@ evals:
   - id: pr_created_or_noop
     question: Was a pull request created with formatting and tidying fixes, or was noop used when no changes were needed?
 
+sandbox:
+  agent:
+    runtime: gvisor
 ---
 
 # Code Tidying Agent

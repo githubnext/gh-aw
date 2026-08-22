@@ -20,11 +20,10 @@ type CreateIssuesConfig struct {
 	DeduplicateByTitle            *TemplatableBoolOrInt `yaml:"deduplicate-by-title,omitempty"` // When true or 0, deduplicate by exact title match. When set to a positive integer N, also allow fuzzy matches up to edit distance N. When false or omitted, disable title-based deduplication. Accepts GitHub Actions expressions.
 	TargetRepoSlug                string                `yaml:"target-repo,omitempty"`          // Target repository in format "owner/repo" for cross-repository issues
 	AllowedRepos                  []string              `yaml:"allowed-repos,omitempty"`        // List of additional repositories that issues can be created in
-	CloseOlderIssues              *string               `yaml:"close-older-issues,omitempty"`   // When true, close older issues with same title prefix or labels as "not planned"
-	CloseOlderKey                 string                `yaml:"close-older-key,omitempty"`      // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
-	GroupByDay                    *string               `yaml:"group-by-day,omitempty"`         // When true, if an open issue was already created today (UTC), post new content as a comment on it instead of creating a duplicate. Works best with close-older-issues: true.
-	Expires                       int                   `yaml:"expires,omitempty"`              // Hours until the issue expires and should be automatically closed
-	Group                         *string               `yaml:"group,omitempty"`                // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
+	CloseOlderConfig              `yaml:",inline"`      // Shared close-older settings; Enabled is sourced from close-older-issues.
+	GroupByDay                    *string               `yaml:"group-by-day,omitempty"` // When true, if an open issue was already created today (UTC), post new content as a comment on it instead of creating a duplicate. Works best with close-older-issues: true.
+	Expires                       int                   `yaml:"expires,omitempty"`      // Hours until the issue expires and should be automatically closed
+	Group                         *string               `yaml:"group,omitempty"`        // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
 }
 
 // parseCreateIssuesConfig handles create-issue configuration
@@ -47,7 +46,9 @@ func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssu
 			coerceStringOrArrayFields(configData, []string{"assignees"}, createIssueLog)
 			return true
 		},
-		func(_ map[string]any, config *CreateIssuesConfig, expiresDisabled bool) {
+		func(configData map[string]any, config *CreateIssuesConfig, expiresDisabled bool) {
+			config.Enabled = closeOlderEnabledFromConfigData(configData, "close-older-issues")
+
 			// Set default max if not specified
 			if config.Max == nil {
 				config.Max = defaultIntStr(1)

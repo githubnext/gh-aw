@@ -76,6 +76,9 @@ safe-outputs:
   noop:
 timeout-minutes: 120
 max-turns: 1000
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # Linter Miner

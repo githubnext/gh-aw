@@ -211,7 +211,7 @@ func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 	// Render the items
 	fmt.Fprintln(os.Stderr)
 	for _, r := range reports {
-		resultStr := string(r.Result)
+		resultStr := string(r.OutcomeStatus)
 		detail := r.Detail
 		if detail != "" {
 			resultStr += " (" + detail + ")"

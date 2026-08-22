@@ -20,6 +20,7 @@ const (
 	OutcomeStatusUnknown        OutcomeStatus = "unknown"
 	OutcomeStatusLifecycle      OutcomeStatus = "lifecycle"
 	OutcomeStatusLifecycleClose OutcomeStatus = "lifecycle_close"
+	OutcomeStatusError          OutcomeStatus = "error"
 )
 
 // EvidenceStrength describes how confidently the outcome can be inferred.
@@ -34,7 +35,7 @@ const (
 
 // OutcomeEvaluation is the shared normalized outcome model.
 type OutcomeEvaluation struct {
-	OutcomeStatus    OutcomeStatus    `json:"outcome_status"`
+	OutcomeStatus    OutcomeStatus    `json:"outcome_status" console:"header:Outcome"`
 	EvidenceStrength EvidenceStrength `json:"evidence_strength"`
 	Signal           string           `json:"signal,omitempty"`
 }
@@ -44,11 +45,11 @@ func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
 		return report.OutcomeEvaluation
 	}
 
-	outcomeEvaluationLog.Printf("Normalizing outcome from heuristics: type=%s, result=%s, detail=%q", report.Type, report.Result, report.Detail)
+	outcomeEvaluationLog.Printf("Normalizing outcome from heuristics: type=%s, result=%s, detail=%q", report.Type, report.OutcomeStatus, report.Detail)
 
-	if report.EvalError != "" || report.Result == OutcomeError {
+	if report.EvalError != "" || report.OutcomeStatus == OutcomeStatusError {
 		return OutcomeEvaluation{
-			OutcomeStatus:    OutcomeStatusUnknown,
+			OutcomeStatus:    OutcomeStatusError,
 			EvidenceStrength: EvidenceWeak,
 			Signal:           "evaluation_error",
 		}
@@ -90,27 +91,31 @@ func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
 	case strings.Contains(detail, "open"):
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "open"}
 	case strings.Contains(detail, "closed"):
-		if report.Result == OutcomeRejected {
+		if report.OutcomeStatus == OutcomeStatusRejected {
 			return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceStrong, Signal: "closed"}
 		}
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceStrong, Signal: "closed"}
 	}
 
-	switch report.Result {
-	case OutcomeAccepted:
+	switch report.OutcomeStatus {
+	case OutcomeStatusAccepted:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted, EvidenceStrength: EvidenceMedium, Signal: "acted_on"}
-	case OutcomeRejected:
+	case OutcomeStatusRejected:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusRejected, EvidenceStrength: EvidenceMedium, Signal: "rejected"}
-	case OutcomePending:
+	case OutcomeStatusPending:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusPending, EvidenceStrength: EvidenceMedium, Signal: "pending"}
-	case OutcomeIgnored:
+	case OutcomeStatusIgnored:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusIgnored, EvidenceStrength: EvidenceMedium, Signal: "ignored"}
-	case OutcomeLifecycle:
+	case OutcomeStatusLifecycle:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycle, EvidenceStrength: EvidenceMedium, Signal: "lifecycle"}
-	case OutcomeLifecycleClose:
+	case OutcomeStatusLifecycleClose:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusLifecycleClose, EvidenceStrength: EvidenceMedium, Signal: "lifecycle_close"}
-	case OutcomeUnknown:
+	case OutcomeStatusUnknown:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusUnknown, EvidenceStrength: EvidenceWeak, Signal: "unknown"}
+	case OutcomeStatusSkipped:
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusSkipped, EvidenceStrength: EvidenceNone, Signal: "skipped"}
+	case OutcomeStatusError:
+		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusError, EvidenceStrength: EvidenceWeak, Signal: "evaluation_error"}
 	default:
 		return OutcomeEvaluation{OutcomeStatus: OutcomeStatusUnknown, EvidenceStrength: EvidenceWeak, Signal: "unknown"}
 	}
