@@ -1,3 +1,13 @@
+## Flagged Items (2026-08-22, ~12:22Z cycle, window since 05:45Z baseline #54758, 6 new discussions excl. own prior briefing #54758: 54750,54762,54767,54768,54774,54778)
+
+- **[new, filed]** copilot-session-insights.md hardcodes a stale ~40% orphan-rate baseline (lines 247, 363) vs 43+ consecutive days of ~0% observed — 50% escalation threshold effectively dead code (#54762).
+- **[declined, duplicate]** Cluster 2 (CLI/MCP/container infra, #54774) zero-engagement PR staleness screening — identical fix already open as #54232.
+- **[declined, ambiguous efficacy]** Cluster 2 upstream-dependency-block pre-filtering (#54774) — already closed #53687 (08-18); today's evidence PRs may predate the fix, monitoring next cycle rather than re-filing.
+- **[declined, chronic, no re-file]** Conversation-transcript fetch outage, 45th+ consecutive day (#54762) — 5+ prior closed-without-effect issues; declining per standing chronic-pattern policy rather than filing a 6th.
+- **[declined, not a real gap]** Per-branch completion decomposition ask (#54762) — is one of the workflow's own randomly-rotated experimental strategies, not a missing feature.
+- **[declined, already tracked]** Codex/Pi driver_exit failures (5/50 live log sample) — already open P0 #54393.
+- **[declined, healthy]** Auto-Triage Issues Report (#54750, 100% success), Terminal Stylist (#54768, fully consistent), arXiv digest (#54767), Constraint Solving POTD (#54778) — no action.
+
 ## Flagged Items (2026-08-22, ~05:45Z cycle, window since 00:30Z baseline #54675, 8 new discussions: 54693,54698,54700,54719,54725,54736,54737,54738)
 
 - **[new, filed]** PR Sous Chef `safe_outputs` step aborts whole batch on one invalid item, ~8% recurring failure rate — Safe Output Health Monitor (#54725) Work Item 1; re-flagged despite prior #53615 closure since the pattern never actually stopped (still-open #54685 today) and this report adds a specific testable hypothesis.
