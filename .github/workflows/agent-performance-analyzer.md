@@ -114,6 +114,22 @@ Use `workflow_runs.executed` and its success rate for performance scoring. Do no
 with zero executed runs as failures; report high `skipped` or `action_required` counts separately as
 trigger or approval gating.
 
+**Command- and mention-triggered workflows:** Workflows whose frontmatter uses `slash_command`,
+`command`, or `mention` (for example `q`) are wired to `issues`, `issue_comment`, `discussion`, and
+`discussion_comment` events, so GitHub starts a run for **every** such event in the repository. The
+generated `pre_activation`/`activation` jobs then stop the run unless the body actually starts with
+the command. A low activated-run ratio plus a very short average runtime (roughly 5-30s) is the
+**designed** behavior of these workflows, not a defect. Never report their overall run count as an
+execution-success or activation-refused problem; compute their success rate over activated runs only
+and describe the remaining runs as "command gating (expected)".
+
+**Root-cause hygiene:** Before repeating a root cause carried over from shared memory
+(`shared-alerts.md`, `workflow-health-latest.md`), re-verify it against current evidence. If the note
+cites a PR or issue as the pending fix, check its current state: when it is already merged or closed
+and the metric has not moved, the attribution is stale — delete or replace it in `shared-alerts.md`
+and re-diagnose from the workflow's trigger configuration and recent run logs instead of restating
+it.
+
 ### Phase 1: Data Collection (10m)
 1. Load shared metrics/memory files (read each listed path and parse its contents; treat missing files as absent).
 2. Gather recent agent outputs (issues/PRs/discussions/comments + metadata).
@@ -372,6 +388,8 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
    - Agents affecting campaign success
    - Quality issues requiring workflow fixes
    - Performance patterns requiring campaign adjustments
+   - Remove or replace notes whose cited fix (PR/issue) is already merged or closed without the
+     metric improving, so later runs do not repeat a stale root cause
 
 **Format for memory files:**
 - Use markdown format only
@@ -414,6 +432,11 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
    - Use `workflow_runs.executed` as the denominator for success and effectiveness rates. Do not
      score workflows with zero executed runs as failures; report high `skipped` or `action_required`
      counts separately as trigger or approval gating.
+   - **Command/mention gating:** For workflows triggered by `slash_command`, `command`, or `mention`
+     (for example `q`), a run is started for every issue/comment/discussion event and stopped by the
+     `pre_activation`/`activation` jobs unless the body starts with the command. Score only their
+     activated runs; report the rest as "command gating (expected)" rather than as failures or
+     activation-refused incidents.
    - **CI vs. agentic distinction:** Workflows `CWI`, `CGO`, `CI`, `CJS`, and `CPI` are plain CI workflows, not agentic workflows. An `action_required` conclusion on a CI workflow means GitHub is waiting for a maintainer to approve a pull-request workflow run (a GitHub Actions permission gate). Do **not** count CI-workflow `action_required` as agentic activation-refused (AR). Track these separately as "CI approval-pending" and recommend approving the Copilot-bot's workflow runs at the org level rather than treating them as agent failures.
 
 4. **Build agent profiles:**
