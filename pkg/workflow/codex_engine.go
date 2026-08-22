@@ -369,23 +369,24 @@ func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, log
 	if workflowData.IsDetectionRun {
 		schemaWritePrefix = detectionSchemaWriteCmd + " && "
 	}
+	codexTmpConfigDir := constants.TmpMcpConfigDir
 	if harnessScriptName != "" {
 		return fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-mkdir -p "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config
-ln -sfn "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config/logs
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
+mkdir -p "$CODEX_HOME/logs" %s
+ln -sfn "$CODEX_HOME/logs" %s/logs
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexTmpConfigDir, codexTmpConfigDir, schemaWritePrefix, codexCommand, logFile)
 	}
 	return fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-mkdir -p "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config
-ln -sfn "$CODEX_HOME/logs" /tmp/gh-aw/mcp-config/logs
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
+mkdir -p "$CODEX_HOME/logs" %s
+ln -sfn "$CODEX_HOME/logs" %s/logs
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexTmpConfigDir, codexTmpConfigDir, schemaWritePrefix, codexCommand, logFile)
 }
 
 func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
@@ -400,7 +401,7 @@ func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
 }
 
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {
-	base := "mkdir -p \"$CODEX_HOME/logs\" /tmp/gh-aw/mcp-config && ln -sfn \"$CODEX_HOME/logs\" /tmp/gh-aw/mcp-config/logs && touch " + AgentStepSummaryPath
+	base := fmt.Sprintf("mkdir -p \"$CODEX_HOME/logs\" %s && ln -sfn \"$CODEX_HOME/logs\" %s/logs && touch %s", constants.TmpMcpConfigDir, constants.TmpMcpConfigDir, AgentStepSummaryPath)
 	if workflowData.IsDetectionRun {
 		return base + " && " + detectionSchemaWriteCmd
 	}
