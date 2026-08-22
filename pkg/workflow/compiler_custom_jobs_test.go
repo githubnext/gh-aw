@@ -657,7 +657,7 @@ func TestApplyBuiltinJobAugmentations_OverridesTimeoutMinutes(t *testing.T) {
 	assert.Empty(t, agentJob.TimeoutMinutesExpression)
 }
 
-func TestApplyBuiltinJobAugmentations_OverridesTimeoutMinutesExpression(t *testing.T) {
+func TestApplyBuiltinJobAugmentations_RejectsTimeoutMinutesExpression(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
 	detectionJob := &Job{
@@ -674,9 +674,9 @@ func TestApplyBuiltinJobAugmentations_OverridesTimeoutMinutesExpression(t *testi
 		},
 	}
 
-	require.NoError(t, compiler.applyBuiltinJobAugmentations(data))
-	assert.Zero(t, detectionJob.TimeoutMinutes)
-	assert.Equal(t, "${{ inputs.detection-timeout }}", detectionJob.TimeoutMinutesExpression)
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be a positive integer")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_CombinesIfCondition(t *testing.T) {
