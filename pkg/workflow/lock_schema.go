@@ -79,7 +79,7 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 		jsonStr := matches[1]
 		var metadata LockMetadata
 		if err := json.Unmarshal([]byte(jsonStr), &metadata); err != nil {
-			return nil, false, fmt.Errorf("failed to parse lock metadata JSON: %w", err)
+			return nil, false, fmt.Errorf("lock metadata JSON should be a single valid JSON object; recompile the workflow with gh aw compile to regenerate the lock file: %w", err)
 		}
 		lockSchemaLog.Printf("Extracted metadata from lock file: schema=%s", metadata.SchemaVersion)
 		return &metadata, false, nil
@@ -140,7 +140,7 @@ func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, a
 func (m *LockMetadata) ToJSON() (string, error) {
 	bytes, err := json.Marshal(m)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize lock metadata: %w", err)
+		return "", fmt.Errorf("lock metadata should contain JSON-serializable values; check metadata field values before writing the lock file: %w", err)
 	}
 	return string(bytes), nil
 }

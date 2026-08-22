@@ -208,7 +208,7 @@ name: test
 `,
 			lockPath:    "malformed.lock.yml",
 			expectError: true,
-			errorText:   "failed to parse lock metadata JSON",
+			errorText:   "lock metadata JSON should be a single valid JSON object",
 		},
 	}
 
