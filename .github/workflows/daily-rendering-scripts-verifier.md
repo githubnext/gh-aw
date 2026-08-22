@@ -39,6 +39,11 @@ tools:
   edit:
 timeout-minutes: 30
 
+network:
+  allowed:
+    - defaults
+    - node
+
 imports:
   - uses: shared/meta-analysis-base.md
     with:
