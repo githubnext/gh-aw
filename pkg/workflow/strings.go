@@ -34,6 +34,7 @@
 // Functions:
 //   - stringutil.NormalizeWorkflowName: Removes file extensions (.md, .lock.yml)
 //   - stringutil.NormalizeSafeOutputIdentifier: Converts dashes to underscores
+//   - stringutil.NormalizeIdentifierToHyphens: Converts underscores and periods to hyphens
 //
 // Example:
 //
@@ -231,9 +232,9 @@ func SanitizeWorkflowIDForCacheKey(workflowID string) string {
 }
 
 // sanitizeJobName converts a workflow name to a valid GitHub Actions job name.
-// It delegates normalization to the hyphen-canonical
-// stringutil.NormalizeIdentifierToHyphens, which converts underscores and
-// periods to hyphens for GitHub Actions job name conventions.
+// It delegates normalization to stringutil.NormalizeIdentifierToHyphens,
+// which converts underscores and periods to hyphens for GitHub Actions job
+// name conventions.
 func sanitizeJobName(workflowName string) string {
 	return stringutil.NormalizeIdentifierToHyphens(workflowName)
 }

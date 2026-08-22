@@ -49,7 +49,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var repoConfigLog = logger.New("workflow:repo_config")
@@ -121,13 +120,10 @@ func (m *MaintenanceConfig) IsLabelTriggerEnabled() bool {
 }
 
 // normalizeMaintenanceJobName normalizes a maintenance job name for
-// case/whitespace-insensitive comparison, converting underscores and periods
-// to hyphens via stringutil.NormalizeIdentifierToHyphens. The known
-// maintenance job names (see validDisabledMaintenanceJobs) never contain
-// periods, so this is not a behavior change for supported job names.
+// case/whitespace-insensitive comparison, converting underscores to hyphens.
 func normalizeMaintenanceJobName(name string) string {
 	normalized := strings.ToLower(strings.TrimSpace(name))
-	return stringutil.NormalizeIdentifierToHyphens(normalized)
+	return strings.ReplaceAll(normalized, "_", "-")
 }
 
 // IsJobDisabled reports whether the provided maintenance job ID is explicitly
