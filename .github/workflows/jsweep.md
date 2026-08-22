@@ -56,6 +56,9 @@ timeout-minutes: 20
 strict: true
 
 
+sandbox:
+  agent:
+    runtime: docker-sbx
 ---
 
 # jsweep - JavaScript Unbloater

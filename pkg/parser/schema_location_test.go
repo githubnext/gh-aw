@@ -180,6 +180,17 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "valid secret scanning alerts permission",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"secret-scanning-alerts": "read",
+				},
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
 			name: "invalid workflow frontmatter with location",
 			frontmatter: map[string]any{
 				"on":      "push",

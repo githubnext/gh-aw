@@ -23,42 +23,27 @@ var outcomeEvalLog = logger.New("cli:outcome_eval")
 var objectiveMappingGHAPIGetArray = ghAPIGetArray
 var objectiveMappingGHAPIGraphQL = ghAPIGraphQL
 
-// OutcomeResult classifies what happened to a safe output after execution.
-type OutcomeResult string
-
-const (
-	OutcomeAccepted       OutcomeResult = "accepted"
-	OutcomeRejected       OutcomeResult = "rejected"
-	OutcomeIgnored        OutcomeResult = "ignored"
-	OutcomePending        OutcomeResult = "pending"
-	OutcomeUnknown        OutcomeResult = "unknown"
-	OutcomeLifecycle      OutcomeResult = "lifecycle"
-	OutcomeLifecycleClose OutcomeResult = "lifecycle_close"
-	OutcomeError          OutcomeResult = "error"
-)
-
 // OutcomeReport is the result of evaluating one safe output item.
 type OutcomeReport struct {
 	OutcomeEvaluation
-	Type               string        `json:"type" console:"header:Type"`
-	ObjectURL          string        `json:"object_url,omitempty" console:"header:URL,omitempty"`
-	ObjectNumber       int           `json:"object_number,omitempty" console:"header:#,omitempty"`
-	TracedRootURL      string        `json:"traced_root_url,omitempty" console:"-"`
-	AttributionStatus  string        `json:"attribution_status,omitempty" console:"-"`
-	AttributionSource  string        `json:"attribution_source,omitempty" console:"-"`
-	Repo               string        `json:"repo,omitempty" console:"header:Repo,omitempty"`
-	Result             OutcomeResult `json:"result" console:"header:Outcome"`
-	Detail             string        `json:"detail,omitempty" console:"header:Detail,omitempty"`
-	TimeToOutcomeHours float64       `json:"time_to_outcome_hours,omitempty" console:"header:Time,omitempty"`
-	HumanComments      int           `json:"human_comments,omitempty" console:"header:Comments,omitempty"`
-	HumanEdits         int           `json:"human_edits,omitempty" console:"header:Edits,omitempty"`
-	HumanReviews       int           `json:"human_reviews,omitempty" console:"header:Reviews,omitempty"`
-	ZeroTouch          bool          `json:"zero_touch,omitempty" console:"header:Zero-touch,omitempty"`
-	ObjectiveValue     int           `json:"objective_value,omitempty" console:"header:Obj Value,omitempty"`
-	ObjectiveLabels    []string      `json:"objective_labels,omitempty" console:"-"`
-	CreatedAt          string        `json:"created_at" console:"-"`
-	CheckedAt          string        `json:"checked_at" console:"-"`
-	EvalError          string        `json:"eval_error,omitempty" console:"-"`
+	Type               string   `json:"type" console:"header:Type"`
+	ObjectURL          string   `json:"object_url,omitempty" console:"header:URL,omitempty"`
+	ObjectNumber       int      `json:"object_number,omitempty" console:"header:#,omitempty"`
+	TracedRootURL      string   `json:"traced_root_url,omitempty" console:"-"`
+	AttributionStatus  string   `json:"attribution_status,omitempty" console:"-"`
+	AttributionSource  string   `json:"attribution_source,omitempty" console:"-"`
+	Repo               string   `json:"repo,omitempty" console:"header:Repo,omitempty"`
+	Detail             string   `json:"detail,omitempty" console:"header:Detail,omitempty"`
+	TimeToOutcomeHours float64  `json:"time_to_outcome_hours,omitempty" console:"header:Time,omitempty"`
+	HumanComments      int      `json:"human_comments,omitempty" console:"header:Comments,omitempty"`
+	HumanEdits         int      `json:"human_edits,omitempty" console:"header:Edits,omitempty"`
+	HumanReviews       int      `json:"human_reviews,omitempty" console:"header:Reviews,omitempty"`
+	ZeroTouch          bool     `json:"zero_touch,omitempty" console:"header:Zero-touch,omitempty"`
+	ObjectiveValue     int      `json:"objective_value,omitempty" console:"header:Obj Value,omitempty"`
+	ObjectiveLabels    []string `json:"objective_labels,omitempty" console:"-"`
+	CreatedAt          string   `json:"created_at" console:"-"`
+	CheckedAt          string   `json:"checked_at" console:"-"`
+	EvalError          string   `json:"eval_error,omitempty" console:"-"`
 }
 
 // OutcomeSummary aggregates outcomes across multiple safe output items.
@@ -188,10 +173,10 @@ func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMap
 		if eval.Signal == "target_exists_only" {
 			s.FallbackExistsOnlyCount++
 		}
-		switch r.Result {
-		case OutcomeLifecycle, OutcomeLifecycleClose:
+		switch eval.OutcomeStatus {
+		case OutcomeStatusLifecycle, OutcomeStatusLifecycleClose:
 			s.Lifecycle++
-		case OutcomeError:
+		case OutcomeStatusError:
 			s.Errors++
 		}
 		if r.TimeToOutcomeHours > 0 {

@@ -31,7 +31,7 @@ const installScriptTempPath = "/tmp/gh-aw/install-gh-aw.sh"
 // copilotSetupStepsStaticSHA is the pinned commit SHA of install-gh-aw.sh used in the static
 // YAML test template and as the fallback when ResolveGhAwRef is unavailable.
 // Run scripts/update-install-script-hashes.sh to refresh both this value and copilotSetupStepsStaticSHA256.
-const copilotSetupStepsStaticSHA = "21a6827c430f89d3b7443074cfc8bd25b84d278f"
+const copilotSetupStepsStaticSHA = "4c53fac4c30c2d9f27ea6fab5e5ce0f15a21e78e"
 
 // copilotSetupStepsStaticSHA256 is the SHA256 hex digest of install-gh-aw.sh at copilotSetupStepsStaticSHA.
 // Run scripts/update-install-script-hashes.sh to refresh both this value and copilotSetupStepsStaticSHA.

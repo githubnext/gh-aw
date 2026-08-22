@@ -1,53 +1,52 @@
 ---
-emoji: "🌅"
-name: Archivx — Animated Workflow Visualizer
 description: Weekly animated visual summary of agentic workflow health using glowmotion
-on:
-  schedule: weekly on monday around 09:00
-  workflow_dispatch:
-permissions:
-  contents: read
-  actions: read
+emoji: 🌅
 engine: claude
-timeout-minutes: 30
-max-ai-credits: 500
-skills:
-  - SylphAI-Inc/skills/skills/glowmotion@0a3dc91bab4ca2be12882540f5812ccbbcf01e40
-tools:
-  cli-proxy: true
-  agentic-workflows:
-  bash: true
-steps:
-  - name: Download agentic workflow logs (last 7 days)
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      set -euo pipefail
-      mkdir -p /tmp/gh-aw/aw-mcp/logs
-      ./gh-aw logs --start-date -7d --count 200 -o /tmp/gh-aw/aw-mcp/logs
-safe-outputs:
-  create-discussion:
-    category: "General"
-    title-prefix: "[archivx] "
-    expires: 30d
-    max: 1
-  upload-artifact:
-    max-uploads: 1
-    retention-days: 30
-    allowed-paths:
-      - "*.html"
+evals:
+- id: animated_diagram_generated
+  question: Did the agent generate an animated HTML diagram using glowmotion?
+- id: discussion_created
+  question: Was a discussion created with the visual analysis of agentic workflow health?
 features:
   gh-aw-detection: true
+max-ai-credits: 500
+name: Archivx — Animated Workflow Visualizer
+"on":
+  schedule: weekly on monday around 09:00
+  workflow_dispatch: null
+permissions:
+  actions: read
+  contents: read
+safe-outputs:
+  create-discussion:
+    category: General
+    expires: 30d
+    max: 1
+    title-prefix: "[archivx] "
+  upload-artifact:
+    allowed-paths:
+    - "*.html"
+    max-uploads: 1
+    retention-days: 30
 sandbox:
   agent:
     runtime: cloud-hypervisor
-evals:
-  - id: animated_diagram_generated
-    question: Did the agent generate an animated HTML diagram using glowmotion?
-  - id: discussion_created
-    question: Was a discussion created with the visual analysis of agentic workflow health?
+skills:
+- SylphAI-Inc/skills/skills/glowmotion@490fda5de2427c496d34e914f68896c4c2818fac
+steps:
+- env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  name: Download agentic workflow logs (last 7 days)
+  run: |
+    set -euo pipefail
+    mkdir -p /tmp/gh-aw/aw-mcp/logs
+    ./gh-aw logs --start-date -7d --count 200 -o /tmp/gh-aw/aw-mcp/logs
+timeout-minutes: 30
+tools:
+  agentic-workflows: null
+  bash: true
+  cli-proxy: true
 ---
-
 # Archivx — Animated Workflow Visualizer
 
 You are Archivx, an animated workflow visualizer that creates premium animated HTML summaries of agentic workflow health and activity using the glowmotion skill.

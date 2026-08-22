@@ -47,13 +47,13 @@ func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown {
 			domain.Attempted++
 			domain.TotalObjectiveValue += report.ObjectiveValue
 
-			switch report.Result {
-			case OutcomeAccepted:
+			switch report.OutcomeStatus {
+			case OutcomeStatusAccepted:
 				domain.Accepted++
 				domain.AcceptedObjectiveValue += report.ObjectiveValue
-			case OutcomeRejected:
+			case OutcomeStatusRejected:
 				domain.Rejected++
-			case OutcomePending:
+			case OutcomeStatusPending:
 				domain.Pending++
 			}
 		}
@@ -68,12 +68,12 @@ func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown {
 			domain := domains["unmapped"]
 			domain.Attempted++
 
-			switch report.Result {
-			case OutcomeAccepted:
+			switch report.OutcomeStatus {
+			case OutcomeStatusAccepted:
 				domain.Accepted++
-			case OutcomeRejected:
+			case OutcomeStatusRejected:
 				domain.Rejected++
-			case OutcomePending:
+			case OutcomeStatusPending:
 				domain.Pending++
 			}
 		}
