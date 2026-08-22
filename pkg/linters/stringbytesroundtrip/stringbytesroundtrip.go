@@ -142,17 +142,16 @@ func isStringType(t types.Type) bool {
 	return ok && basic.Kind() == types.String
 }
 
-// isExactString reports whether t is the predeclared string type, not a named
-// type whose underlying type is string. Unlike isStringType, which expects an
-// already-.Underlying()-resolved type, isExactString must be given the raw type
-// so it can tell string from `type MyString string`. That distinction matters
-// because only a predeclared string can have both conversions removed; a named
-// string type still needs an outer conversion.
+// isExactString reports whether t denotes the predeclared string type, not a
+// named type whose underlying type is string. Unlike isStringType, which
+// expects an already-.Underlying()-resolved type, isExactString must be given
+// the raw type so it can tell string from `type MyString string`. Aliases are
+// resolved first, because an alias may denote either the predeclared string
+// (`type A = string`) or a named string type (`type A = MyString`). That
+// distinction matters because only the predeclared string can have both
+// conversions removed; a named string type still needs an outer conversion.
 func isExactString(t types.Type) bool {
-	if _, named := t.(*types.Named); named {
-		return false
-	}
-	return isStringType(t.Underlying())
+	return isStringType(types.Unalias(t))
 }
 
 func isByteSliceType(t types.Type) bool {
