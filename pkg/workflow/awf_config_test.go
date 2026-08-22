@@ -195,6 +195,28 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"filesystem"`)
 	})
 
+	t.Run("filesystem allowWrite is omitted for docker-sbx", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Runtime: AgentRuntimeDockerSbx,
+						Config: &SandboxRuntimeConfig{
+							Filesystem: &SRTFilesystemConfig{
+								AllowWrite: []string{"/tmp/gh-aw/agent"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"filesystem"`)
+	})
+
 	t.Run("empty filesystem allowWrite is included", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",

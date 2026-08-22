@@ -553,7 +553,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem != nil &&
 		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite != nil {
 		allowWrite := config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite
-		if awfSupportsFilesystemAllowWrite(firewallConfig) {
+		if isDockerSbxRuntime(config.WorkflowData) {
+			awfConfigLog.Printf("Skipping filesystem.allowWrite: unsupported by the docker-sbx runtime")
+		} else if awfSupportsFilesystemAllowWrite(firewallConfig) {
 			awfConfig.Filesystem = &AWFFilesystemConfig{AllowWrite: allowWrite}
 			awfConfigLog.Printf("Filesystem section: %d writable path(s)", len(allowWrite))
 		} else {
