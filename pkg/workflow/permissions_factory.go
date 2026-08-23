@@ -147,6 +147,19 @@ func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
 	})
 }
 
+// NewPermissionsContentsReadCodeQualityWritePRRead creates permissions with contents: read,
+// code-quality: write, pull-requests: read. This is the permission set required by
+// actions/upload-code-coverage: code-quality: write to upload the report, and
+// pull-requests: read so the action can look up an open PR for push-triggered workflows
+// (per its documented requirements).
+func NewPermissionsContentsReadCodeQualityWritePRRead() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:     PermissionRead,
+		PermissionCodeQuality:  PermissionWrite,
+		PermissionPullRequests: PermissionRead,
+	})
+}
+
 // Clone returns a deep copy of the Permissions object. The clone shares no underlying
 // state with the original, so callers can safely call Set() on the clone without
 // affecting the original (e.g. when reusing CachedPermissions).

@@ -42,6 +42,24 @@ func TestMainWorkflowSchema_SafeOutputConfigCoverage(t *testing.T) {
 	}
 }
 
+func TestMainWorkflowSchema_UpdatePullRequestSupportsReplaceIsland(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"safe-outputs": map[string]any{
+			"update-pull-request": map[string]any{
+				"operation": "replace-island",
+			},
+		},
+	}
+
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/update-pull-request-replace-island-test.md"); err != nil {
+		t.Fatalf("expected update-pull-request replace-island operation to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchema_SafeOutputsRejectsCommentMemory(t *testing.T) {
 	t.Parallel()
 

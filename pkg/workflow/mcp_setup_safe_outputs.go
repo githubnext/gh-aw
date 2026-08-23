@@ -43,6 +43,9 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadArtifact != nil {
 		yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts\"\n")
 	}
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadCodeCoverage != nil {
+		yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs/upload-code-coverage\"\n")
+	}
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
 		yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs/assets\"\n")
 	}

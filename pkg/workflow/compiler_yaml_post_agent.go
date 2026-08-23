@@ -252,6 +252,11 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// to be downloaded and processed by the upload_artifact job
 	generateSafeOutputsArtifactStagingUpload(yaml, data, c.getActionPin)
 
+	// Add safe-outputs upload-code-coverage staging upload (after agent execution)
+	// This creates a separate artifact for the coverage report file the model staged,
+	// to be downloaded and processed by the upload_code_coverage job
+	generateSafeOutputsCodeCoverageStagingUpload(yaml, data, c.getActionPin)
+
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 
