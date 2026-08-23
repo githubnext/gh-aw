@@ -208,6 +208,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 		}
 		a := computeExperimentAnalysis(exp, cfg, nil, nil)
 		assert.Equal(t, 5, a.MinSamples, "min_samples from config")
+		assert.Equal(t, ExperimentReadinessReady, a.Readiness, "count >= min_samples → READY")
 		assert.Equal(t, "READY_FOR_ANALYSIS", a.Recommendation, "count >= min_samples → READY")
 		for _, v := range a.Variants {
 			assert.False(t, v.BelowMinSamples, "no variant should be below min_samples=5")
@@ -563,6 +564,7 @@ func TestExperimentAnalysisJSONOutput(t *testing.T) {
 	assert.Equal(t, "H0: no change. H1: concise is better.", result["hypothesis"], "hypothesis field")
 	assert.Equal(t, "t_test", result["analysis_type"], "analysis_type field")
 	assert.EqualValues(t, 30, result["min_samples"], "min_samples field")
+	assert.Equal(t, "COLLECTING", result["readiness"], "readiness field")
 	assert.Equal(t, "EXTEND", result["recommendation"], "recommendation field (below min_samples)")
 	assert.Equal(t, "EXTEND", result["decision"], "deterministic decision field")
 	assert.Equal(t, "insufficient_samples", result["reason_code"], "structured decision reason")

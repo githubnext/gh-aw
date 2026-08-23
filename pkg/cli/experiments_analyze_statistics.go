@@ -22,6 +22,14 @@ const defaultMinSamples = 20
 // balanceSignificanceThreshold is the p-value threshold for the chi-square balance test.
 const balanceSignificanceThreshold = 0.05
 
+// ExperimentReadiness reports whether normal analysis requirements have enough usable data.
+type ExperimentReadiness string
+
+const (
+	ExperimentReadinessCollecting ExperimentReadiness = "COLLECTING"
+	ExperimentReadinessReady      ExperimentReadiness = "READY"
+)
+
 // ExperimentAnalysis holds statistical analysis results for one named A/B experiment.
 // The analysis is computed from state.jsonl/state.json counts and optional experiment configuration.
 type ExperimentAnalysis struct {
@@ -96,6 +104,9 @@ type ExperimentAnalysis struct {
 	// UsesMetricObservations distinguishes usable outcome counts from assignment counts.
 	UsesMetricObservations bool `json:"-"`
 
+	// Readiness is COLLECTING until every variant reaches min_samples, then READY.
+	Readiness ExperimentReadiness `json:"readiness"`
+
 	// Recommendation is the analysis recommendation: EXTEND or READY_FOR_ANALYSIS.
 	// EXTEND is issued when any variant is below min_samples (R-STAT-007).
 	Recommendation string `json:"recommendation"`
@@ -139,6 +150,17 @@ type VariantAnalysis struct {
 	Excluded []ExcludedObservationSummary `json:"excluded,omitempty"`
 }
 
+// GuardrailStatusCode is the stable machine-readable outcome of a guardrail evaluation.
+type GuardrailStatusCode string
+
+const (
+	GuardrailStatusInsufficientObservations GuardrailStatusCode = "insufficient_observations"
+	GuardrailStatusMissing                  GuardrailStatusCode = "missing"
+	GuardrailStatusUnsupported              GuardrailStatusCode = "unsupported"
+	GuardrailStatusFail                     GuardrailStatusCode = "fail"
+	GuardrailStatusPass                     GuardrailStatusCode = "pass"
+)
+
 // GuardrailStatus represents a declared guardrail metric threshold (R-STAT-009).
 // The Threshold field records the declared expression (e.g. ">=0.95").
 // Status, Passed, and Variants are populated after metric observations are resolved.
@@ -146,7 +168,7 @@ type GuardrailStatus struct {
 	Name      string                   `json:"name"`
 	Threshold string                   `json:"threshold"`
 	Direction string                   `json:"direction,omitempty"`
-	Status    string                   `json:"status"`
+	Status    GuardrailStatusCode      `json:"status"`
 	Passed    *bool                    `json:"passed,omitempty"`
 	Variants  []GuardrailVariantStatus `json:"variants,omitempty"`
 }
@@ -239,6 +261,7 @@ func newExperimentAnalysis(
 		ExperimentName: exp.Name,
 		TotalRuns:      exp.Total,
 		MinSamples:     defaultMinSamples,
+		Readiness:      ExperimentReadinessCollecting,
 		DecisionPolicy: ExperimentDecisionPolicy{
 			Confidence: defaultDecisionConfidence,
 		},
@@ -254,7 +277,8 @@ func newExperimentAnalysis(
 	}
 	for _, guardrail := range cfg.GuardrailMetrics {
 		a.Guardrails = append(a.Guardrails, GuardrailStatus{
-			Name: guardrail.Name, Threshold: guardrail.Threshold, Direction: guardrail.Direction, Status: "unsupported",
+			Name: guardrail.Name, Threshold: guardrail.Threshold, Direction: guardrail.Direction,
+			Status: GuardrailStatusUnsupported,
 		})
 	}
 	if cfg.Decision != nil {
@@ -333,15 +357,15 @@ func applyExperimentGuardrails(
 		}
 		switch {
 		case hasInsufficient:
-			guardrail.Status = "insufficient_observations"
+			guardrail.Status = GuardrailStatusInsufficientObservations
 		case hasUnsupported:
-			guardrail.Status = "unsupported"
+			guardrail.Status = GuardrailStatusUnsupported
 		case hasFailure:
-			guardrail.Status = "fail"
+			guardrail.Status = GuardrailStatusFail
 			passed := false
 			guardrail.Passed = &passed
 		default:
-			guardrail.Status = "pass"
+			guardrail.Status = GuardrailStatusPass
 			passed := true
 			guardrail.Passed = &passed
 		}
@@ -495,12 +519,14 @@ func applyExperimentReadiness(a *ExperimentAnalysis, usesObservations bool) {
 		}
 	}
 	if belowCount > 0 {
+		a.Readiness = ExperimentReadinessCollecting
 		a.Recommendation = "EXTEND"
 		a.Rationale = fmt.Sprintf("%d of %d variant(s) below min_samples threshold (min observed: %d / %d)",
 			belowCount, k, minObserved, a.MinSamples)
 		experimentsStatsLog.Printf("Experiment %q recommendation: EXTEND (%d/%d variants below min_samples=%d)",
 			a.ExperimentName, belowCount, k, a.MinSamples)
 	} else {
+		a.Readiness = ExperimentReadinessReady
 		a.Recommendation = "READY_FOR_ANALYSIS"
 		a.Rationale = fmt.Sprintf("all %d variants have reached min_samples (%d); outcome metric analysis is available",
 			k, a.MinSamples)
@@ -595,6 +621,7 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 	printBalanceAnalysis(a)
 	printOutcomeComparisons(a.Comparisons)
 	printGuardrails(a.Guardrails)
+	fmt.Fprintf(os.Stderr, "  Readiness  : %s\n", a.Readiness)
 	printExperimentRecommendation(a)
 	printExperimentDecision(a.ExperimentDecisionResult)
 }
@@ -738,7 +765,7 @@ func printGuardrails(guardrails []GuardrailStatus) {
 	}
 	parts := make([]string, 0, len(guardrails))
 	for _, guardrail := range guardrails {
-		parts = append(parts, fmt.Sprintf("%s %s (%s)", guardrail.Name, guardrail.Threshold, strings.ToUpper(guardrail.Status)))
+		parts = append(parts, fmt.Sprintf("%s %s (%s)", guardrail.Name, guardrail.Threshold, strings.ToUpper(string(guardrail.Status))))
 	}
 	fmt.Fprintf(os.Stderr, "  Guardrails : %s\n", strings.Join(parts, "  •  "))
 }
@@ -757,8 +784,8 @@ func printExperimentRecommendation(a ExperimentAnalysis) {
 
 func printExperimentDecision(result ExperimentDecisionResult) {
 	fmt.Fprintln(os.Stderr)
-	label := result.Decision
-	if result.Candidate != "" && (result.Decision == experimentDecisionPromote || result.Decision == experimentDecisionReject) {
+	label := string(result.Decision)
+	if result.Candidate != "" && (result.Decision == ExperimentDecisionPromote || result.Decision == ExperimentDecisionReject) {
 		label += " " + result.Candidate
 	}
 	fmt.Fprintf(os.Stderr, "  Decision   : %s\n", label)

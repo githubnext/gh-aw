@@ -680,10 +680,10 @@ state the correction method and the adjusted α threshold in the report output.
 
 ### 11.4 Minimum Sample Size Gate
 
-**R-STAT-007**: Reporting tools **MUST NOT** issue a PROMOTE recommendation for any variant
-until all variants in the experiment have accumulated at least `min_samples` runs (or 20 if
-`min_samples` is not declared). When any variant is below threshold, the recommendation
-**MUST** be EXTEND.
+**R-STAT-007**: Reporting tools **MUST NOT** issue a PROMOTE decision for any variant
+until all variants in the experiment have accumulated at least `min_samples` usable observations
+(or 20 if `min_samples` is not declared). When any variant is below threshold, readiness **MUST**
+be `COLLECTING` and the decision **MUST** be `EXTEND`.
 
 **R-STAT-008**: When weights are non-uniform (§5.2), the `min_samples` target applies to the
 **smallest expected group**. For a `weight: [70, 30]` experiment with `min_samples: 30`, the
@@ -746,6 +746,12 @@ Reporting tools MUST return `INCONCLUSIVE` for automatic decisions with more tha
 **R-STAT-017**: The decision layer MUST consume existing analysis results. It MUST NOT fetch
 observations, rerun statistical tests or graders, mutate experiment state, change traffic, or
 promote workflow sources.
+
+**R-STAT-018**: Structured analysis output MUST expose readiness independently from decision.
+Readiness is `COLLECTING` until every variant reaches `min_samples` usable observations, then
+`READY`. `READY` does not imply `PROMOTE`; a ready experiment may be `EXTEND`, `PROMOTE`, `REJECT`,
+or `INCONCLUSIVE`. The legacy `recommendation` field MAY remain `EXTEND` / `READY_FOR_ANALYSIS`
+for backward compatibility.
 
 ### 11.7 Reporting Workflow Permissions
 
@@ -950,7 +956,7 @@ Conformance at each level is verified by the following test categories.
 | T-STAT-001 | R-STAT-001 | Assignments derived from `state.runs`, not delta inference |
 | T-STAT-002 | R-STAT-005 | Bonferroni correction applied for K ≥ 3 variants |
 | T-STAT-003 | R-STAT-007 | PROMOTE withheld until all variants reach `min_samples` |
-| T-STAT-004 | R-STAT-009 | GUARDRAIL_FAILED forces ABANDON recommendation |
+| T-STAT-004 | R-STAT-009 | A failed mandatory guardrail forces a REJECT decision |
 | T-STAT-005 | R-STAT-011 | Reporting workflow declares `issues: write` |
 
 ### 14.2 Compliance Checklist

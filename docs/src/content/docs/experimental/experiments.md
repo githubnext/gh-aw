@@ -352,10 +352,21 @@ Bayesian comparisons available for grader-backed metrics are applied to the YES/
 
 ### Deterministic decisions
 
-`gh aw experiments analyze <workflow>` separates assignment, statistical analysis, decision,
-and promotion. Assignment records which variant ran. Analysis estimates effects and evidence.
-The decision layer applies the configured policy. It does not edit the workflow, change traffic,
-or promote a variant.
+`gh aw experiments analyze <workflow>` keeps each experiment stage distinct:
+
+| Stage | Question answered |
+|---|---|
+| Assignment | Which variant ran? |
+| Observation | What happened during the assigned run? |
+| Analysis | What treatment effect and evidence were estimated? |
+| Readiness | Are there enough usable observations for normal analysis? |
+| Decision | Should collection extend, or should the candidate be promoted, rejected, or remain inconclusive? |
+| Promotion | What future automation changes the workflow or traffic? |
+
+The command performs the stages through decision. It does not promote a variant, edit the workflow,
+or change traffic. `readiness` is `COLLECTING` or `READY`; the legacy `recommendation` field remains
+`EXTEND` or `READY_FOR_ANALYSIS` for compatibility. A ready experiment can still have an
+`INCONCLUSIVE` decision.
 
 For two-variant experiments, the command emits one of these decisions:
 
@@ -383,10 +394,15 @@ gh aw experiments analyze <workflow> --json
 ```
 
 Each entry in `analyses` includes `decision`, `reason_code`, `samples`, `decision_guardrails`, and
-`decision_policy`. `control`, `candidate`, `effect`, and `evidence` are emitted when those values
-are available for the decision path (for example two-variant statistical comparisons); early `EXTEND`
-and multi-variant `INCONCLUSIVE` results may omit them. Future promotion automation can consume these
-fields without rerunning statistics or interpreting grader artifacts.
+`decision_policy`, alongside the separate `readiness` field. `control`, `candidate`, `effect`, and
+`evidence` are emitted when those values are available for the decision path (for example
+two-variant statistical comparisons); early `EXTEND` and multi-variant `INCONCLUSIVE` results may
+omit them. Future promotion automation can consume these fields without rerunning statistics or
+interpreting grader artifacts.
+
+The stable automation boundary is `analyses[].readiness`, `analyses[].decision`, and
+`analyses[].reason_code`. Reporting workflows may add a presentation or interaction-safety hold,
+but must preserve the core decision rather than recomputing it.
 
 ### Filtering audit results by variant
 
