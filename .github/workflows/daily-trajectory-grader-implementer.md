@@ -3,8 +3,8 @@ private: true
 emoji: "🧮"
 name: Daily Trajectory Grader Implementer
 description: >
-  Implements exactly one grader per run from the ranked trajectory-graders
-  catalog (shared/trajectory-graders/README.md) as a new, self-contained
+  Implements exactly one grader per run from the ranked graders
+  catalog (shared/graders/README.md) as a new, self-contained
   shared agentic workflow component, and opens a draft PR with the addition.
 on:
   schedule: daily
@@ -26,8 +26,8 @@ timeout-minutes: 25
 
 tools:
   bash:
-    - "find .github/workflows/shared/trajectory-graders -maxdepth 1 -type f -name \"*.md\" | sort"
-    - "cat .github/workflows/shared/trajectory-graders/*.md"
+    - "find .github/workflows/shared/graders -maxdepth 1 -type f -name \"*.md\" | sort"
+    - "cat .github/workflows/shared/graders/*.md"
     - "cat .github/workflows/shared/aw-logs-24h-fetch-prompt.md"
     - "find .github/workflows/shared -maxdepth 1 -type f -name \"*.md\" | sort"
   edit:
@@ -38,8 +38,9 @@ safe-outputs:
     expires: 14d
     title-prefix: "[trajectory-grader] "
     labels: [automation, observability, graders, trajectory-graders]
+
     allowed-files:
-      - ".github/workflows/shared/trajectory-graders/*.md"
+      - ".github/workflows/shared/graders/*.md"
   noop:
 
 features:
@@ -50,18 +51,18 @@ features:
 
 You are a deterministic-grader engineer. Your mission is to ship exactly one
 new grader per run from the ranked catalog in
-`.github/workflows/shared/trajectory-graders/README.md`, as a new shared
+`.github/workflows/shared/graders/README.md`, as a new shared
 agentic workflow component file, without touching any other part of the
 repository.
 
 ## Step 1 — Read the catalog and the IR contract
 
-1. Read `.github/workflows/shared/trajectory-graders/README.md` in full.
-2. Read `.github/workflows/shared/trajectory-graders/trajectory-ir.md` in
+1. Read `.github/workflows/shared/graders/README.md` in full.
+2. Read `.github/workflows/shared/graders/trajectory-ir.md` in
    full — every grader you write MUST be expressed as a projection over
    this canonical Trajectory IR, not as a bespoke ad-hoc parser.
 3. List the existing grader files with
-   `find .github/workflows/shared/trajectory-graders -maxdepth 1 -type f -name "*.md" | sort`.
+   `find .github/workflows/shared/graders -maxdepth 1 -type f -name "*.md" | sort`.
    `README.md` and `trajectory-ir.md` are not graders.
 
 ## Step 2 — Select the next grader
@@ -72,7 +73,7 @@ three tables are ordered in the README (ranks are not contiguous within a
 tier — do not simply sort by rank number 1 through 25). Select the first
 grader ID that:
 
-- does **not** already have a `shared/trajectory-graders/<id>.md` file, and
+- does **not** already have a `shared/graders/<id>.md` file, and
 - is marked `Not started` in the catalog table.
 
 If every grader already has a file and the table shows all 25 as
@@ -83,7 +84,7 @@ workflow — one net-new grader per run only.
 ## Step 3 — Implement the grader as a shared component
 
 Create exactly one new file:
-`.github/workflows/shared/trajectory-graders/<selected-id>.md`
+`.github/workflows/shared/graders/<selected-id>.md`
 
 This is a plain markdown shared component (no frontmatter — follow the
 style of `shared/aw-logs-24h-fetch-prompt.md`: a short `##` heading, prose,
@@ -92,8 +93,8 @@ any workflow via:
 
 ```yaml
 imports:
-  - shared/trajectory-graders/trajectory-ir.md
-  - shared/trajectory-graders/<selected-id>.md
+  - shared/graders/trajectory-ir.md
+  - shared/graders/<selected-id>.md
 ```
 
 The file must include, in this order:
@@ -145,7 +146,7 @@ must satisfy per the
 
 ## Step 4 — Update the catalog
 
-Edit `.github/workflows/shared/trajectory-graders/README.md`:
+Edit `.github/workflows/shared/graders/README.md`:
 
 - Flip the selected grader's **Status** cell from `Not started` to
   `Implemented`.
@@ -155,8 +156,8 @@ Edit `.github/workflows/shared/trajectory-graders/README.md`:
 
 Emit exactly one `create_pull_request` safe output touching only:
 
-- `.github/workflows/shared/trajectory-graders/<selected-id>.md` (new file)
-- `.github/workflows/shared/trajectory-graders/README.md` (status flip)
+- `.github/workflows/shared/graders/<selected-id>.md` (new file)
+- `.github/workflows/shared/graders/README.md` (status flip)
 
 Title: `[trajectory-grader] Implement <selected-id>`
 
@@ -165,7 +166,7 @@ Body must include:
 - Which grader was implemented and its rank/tier.
 - Why it is distinct from existing built-in graders.
 - The required IR fields it depends on.
-- A link back to `shared/trajectory-graders/README.md` for the full catalog and remaining count (e.g. "6 of 25 implemented").
+- A link back to `shared/graders/README.md` for the full catalog and remaining count (e.g. "6 of 25 implemented").
 
 Do not modify any file outside the two listed above. Do not edit any
 `.lock.yml` file. If you cannot produce a complete, self-contained grader

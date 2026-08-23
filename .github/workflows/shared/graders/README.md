@@ -5,7 +5,7 @@ built-in graders (step count, retries, loops, duration, tool-success rate,
 trajectory efficiency — see
 [Graders reference](https://githubnext.github.io/gh-aw/reference/trace-graders/)).
 Each grader below is implemented as its own shared agentic workflow
-component under `shared/trajectory-graders/<id>.md`, built once as a
+component under `shared/graders/<id>.md`, built once as a
 projection over the [canonical Trajectory IR](trajectory-ir.md) so adding a
 new grader never requires a new trace parser.
 
@@ -23,7 +23,7 @@ because tiers reflect implementation priority: Tier 1 graders need no
 golden answer, no second model, and no task-specific annotations beyond
 the canonical Trajectory IR, so they ship first even though some of them
 rank below Tier 2 graders). When a grader ships, flip its **Status** below
-to `Implemented` in the same PR that adds `shared/trajectory-graders/<id>.md`.
+to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 
 ## Tier 1 — no golden answer, no second model, IR-only (implement first)
 
@@ -99,8 +99,8 @@ Import both the IR builder and the specific grader fragment(s) you need:
 
 ```yaml
 imports:
-  - shared/trajectory-graders/trajectory-ir.md
-  - shared/trajectory-graders/state-revisit-probability-rep.md
+  - shared/graders/trajectory-ir.md
+  - shared/graders/state-revisit-probability-rep.md
 ```
 
 Each grader fragment documents its own inputs, computation, and output
