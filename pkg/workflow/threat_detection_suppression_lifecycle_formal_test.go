@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"errors"
+	"sort"
 	"testing"
 	"time"
 
@@ -158,10 +159,17 @@ func TestFormal_DiagnosticSuppressionRequiresMatchingRule(t *testing.T) {
 // obligation on the spec and Section 7.1 mapping table rather than a
 // runtime API. Replace this stub with a real implementation once one
 // exists, and update these tests to exercise it directly.
+type ruleStatus string
+
+const (
+	ruleStatusActive     ruleStatus = "Active"
+	ruleStatusDeprecated ruleStatus = "Deprecated"
+)
+
 type deprecationRegistryRule struct {
 	ID       string
-	Status   string // "Active" or "Deprecated"
-	Required bool   // whether the rule is required for conformance gating
+	Status   ruleStatus
+	Required bool // whether the rule is required for conformance gating
 }
 
 type deprecationRegistry struct {
@@ -184,7 +192,7 @@ func (r *deprecationRegistry) deprecate(id string) {
 	if !ok {
 		return
 	}
-	rule.Status = "Deprecated"
+	rule.Status = ruleStatusDeprecated
 	rule.Required = false
 	r.rules[id] = rule
 }
@@ -192,29 +200,30 @@ func (r *deprecationRegistry) deprecate(id string) {
 func (r *deprecationRegistry) requiredRules() []string {
 	var required []string
 	for id, rule := range r.rules {
-		if rule.Status != "Deprecated" && rule.Required {
+		if rule.Status != ruleStatusDeprecated && rule.Required {
 			required = append(required, id)
 		}
 	}
+	sort.Strings(required)
 	return required
 }
 
 func TestFormal_DeprecatedRuleRetainsCatalogRow(t *testing.T) {
 	registry := newDeprecationRegistry(
-		deprecationRegistryRule{ID: "CTR-999", Status: "Active", Required: true},
+		deprecationRegistryRule{ID: "CTR-999", Status: ruleStatusActive, Required: true},
 	)
 
 	registry.deprecate("CTR-999")
 
 	rule, ok := registry.rules["CTR-999"]
 	require.True(t, ok, "deprecated rule's catalog row must be retained, not deleted")
-	require.Equal(t, "Deprecated", rule.Status)
+	require.Equal(t, ruleStatusDeprecated, rule.Status)
 }
 
 func TestFormal_DeprecatedRuleExcludedFromRequiredGate(t *testing.T) {
 	registry := newDeprecationRegistry(
-		deprecationRegistryRule{ID: "CTR-998", Status: "Active", Required: true},
-		deprecationRegistryRule{ID: "CTR-997", Status: "Active", Required: true},
+		deprecationRegistryRule{ID: "CTR-998", Status: ruleStatusActive, Required: true},
+		deprecationRegistryRule{ID: "CTR-997", Status: ruleStatusActive, Required: true},
 	)
 
 	registry.deprecate("CTR-998")
