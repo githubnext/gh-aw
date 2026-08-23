@@ -1,41 +1,43 @@
 ---
-title: "From a Conformance Failure to an ESLint Rule"
-description: "How a daily Safe Outputs conformance check found an MCP error-message bug, produced a targeted fix, and inspired a new ESLint rule."
+title: "One Small Error Message, One Big Feedback Loop"
+description: "How a daily Safe Outputs check found an MCP error-message bug, drove a repair, and inspired a new ESLint rule."
 authors:
   - copilot
 date: 2026-08-23
 metadata:
-  seoDescription: "A daily Safe Outputs check found an MCP error serialization bug, drove a targeted repair, and inspired a new ESLint rule."
+  seoDescription: "How a daily Safe Outputs check found an MCP error-message bug, drove a repair, and inspired a new ESLint rule."
 ---
 
-A small diagnostic failure can reveal a larger reliability pattern. On August 23, the [Daily Safe Outputs Conformance Checker](https://github.com/github/gh-aw/blob/main/.github/workflows/daily-safe-outputs-conformance.md) found an error-serialization problem in `gh-aw`'s MCP server path. That finding became [issue #55014](https://github.com/github/gh-aw/issues/55014), the targeted repair in [PR #55042](https://github.com/github/gh-aw/pull/55042), and a proposed preventative rule in [PR #55052](https://github.com/github/gh-aw/pull/55052).
+Most bug reports start with a person noticing something odd. This one started with a small scheduled script.
 
-The sequence is a useful example of an agentic maintenance loop: a scheduled check identifies a mismatch, an issue explains the real behavior behind it, a focused change repairs both the implementation and the check, and a separate mining workflow looks for the same risky shape elsewhere.
+On August 23, the [Daily Safe Outputs Conformance Checker](https://github.com/github/gh-aw/blob/main/.github/workflows/daily-safe-outputs-conformance.md) spotted a possible gap in `gh-aw`'s MCP error handling. The immediate symptom was not dramatic: under the wrong conditions, a user could receive `[object Object]` instead of a useful error message. But the story that followed is a good reminder of what automated maintenance can look like at its best.
 
-## The signal: MCE-006
+One check became [issue #55014](https://github.com/github/gh-aw/issues/55014), a focused repair in [PR #55042](https://github.com/github/gh-aw/pull/55042), and a preventative lint rule proposed in [PR #55052](https://github.com/github/gh-aw/pull/55052). The interesting part is not any one of those artifacts. It is the loop between them.
 
-The daily checker runs [`scripts/check-safe-outputs-conformance.sh`](https://github.com/github/gh-aw/blob/main/scripts/check-safe-outputs-conformance.sh) against the Safe Outputs implementation. Its workflow runs the script, captures its output, groups failures by check ID and severity, and creates actionable issues for important findings. High-severity failures make the script exit nonzero; the workflow can keep the resulting issue open for one day while newer runs replace stale reports.
+## A tiny signal worth following
 
-Run [#32621246743](https://github.com/github/gh-aw/actions/runs/32621246743) reported MCE-006, the check for readable serialized error messages. Initially, the checker only looked in `mcp_server_core.cjs` for direct uses of `String(e.message)` or `String(err.message)`. The core instead delegates formatting to `getErrorMessage()` in [`error_helpers.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/error_helpers.cjs), so the literal match could not distinguish a missing serialization path from a shared helper.
+Every day, the checker runs [`scripts/check-safe-outputs-conformance.sh`](https://github.com/github/gh-aw/blob/main/scripts/check-safe-outputs-conformance.sh) against the Safe Outputs implementation. It collects the results, groups failures by severity and check ID, and turns important findings into actionable issues. High-severity failures cause a nonzero exit; the issue is then short-lived, so a newer run can replace stale information instead of growing an endless backlog.
 
-That looked like a checker limitation, but the generated issue investigated the helper rather than dismissing the result. It found a real edge case: for a thrown plain object with a non-string `message`, the helper fell through to `String(error)`. A value such as `{ message: { reason: "x" } }` could therefore become the unhelpful user-facing text `[object Object]`, contrary to the Safe Outputs requirement that JSON-RPC error messages remain readable.
+Run [#32621246743](https://github.com/github/gh-aw/actions/runs/32621246743) raised MCE-006, the check for readable serialized error messages. At first glance, it looked like the checker had simply missed an abstraction: it searched `mcp_server_core.cjs` for direct calls such as `String(e.message)`, while the core delegates formatting to `getErrorMessage()` in [`error_helpers.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/error_helpers.cjs).
 
-## The repair: fix the value and teach the check
+That could have been the end of the investigation: another false positive to tune away. Instead, the generated issue followed the helper. It uncovered a real edge case. If code threw a plain object with a non-string `message`, the helper could fall back to `String(error)`. For a value like `{ message: { reason: "x" } }`, that means the person on the other end could see `[object Object]`—technically a string, but not an explanation.
 
-[PR #55042](https://github.com/github/gh-aw/pull/55042) makes the branch explicit. When a non-`Error` object has a `message` property, `getErrorMessage()` now preserves a string message or coerces that message value; only objects without a message follow the whole-object fallback. The accompanying tests cover numeric and non-primitive message values so the behavior is exercised rather than inferred.
+## Fix the bug—and improve the question
 
-The same change updates MCE-006's model of the code. The checker continues to accept direct message coercion in the MCP core, but it also recognizes the shared-helper path when the core uses `getErrorMessage()` and the helper itself safely handles non-string messages. This matters because conformance checks should follow the security property, not insist on one spelling of its implementation.
+[PR #55042](https://github.com/github/gh-aw/pull/55042) makes the intent explicit: when a non-`Error` object has a `message` property, preserve a string message or coerce that message value. Only objects without a message use the whole-object fallback. The accompanying tests cover numeric and non-primitive messages, turning the edge case into an expected behavior.
 
-## The follow-up: mine the pattern into a rule
+The repair also improves MCE-006 itself. The checker still accepts direct coercion in the MCP core, but it now recognizes the shared-helper path when `getErrorMessage()` safely handles non-string messages. That is an important distinction: good conformance checks protect a property, not a particular spelling of the implementation.
 
-The repair also provided evidence that the problem was structural rather than isolated. The scheduled [ESLint Miner](https://github.com/github/gh-aw/blob/main/.github/workflows/eslint-miner.md) workflow mines recent issues and discussions, scans `actions/setup/js`, selects one low-false-positive rule, validates it, and opens at most one draft PR. Its [August 23 run](https://github.com/github/gh-aw/actions/runs/32629340370) used the MCE-006 issue as that evidence.
+## Then ask: where else does this pattern live?
 
-The result, proposed in [PR #55052](https://github.com/github/gh-aw/pull/55052), is `no-string-fallback-for-non-string-message`. The rule detects a narrow conditional shape: code verifies that `x.message` is a string, returns that message when it is, then falls back to `String(x)` instead of `String(x.message)`. It is configured as a warning because the correct fallback can differ by call site, but the diagnostic makes the risky choice visible.
+The repair was not treated as a one-off. The scheduled [ESLint Miner](https://github.com/github/gh-aw/blob/main/.github/workflows/eslint-miner.md) mines recent issues and discussions, scans `actions/setup/js`, selects one low-false-positive rule, validates it, and opens at most one draft PR. Its [August 23 run](https://github.com/github/gh-aw/actions/runs/32629340370) used MCE-006 as the seed for a broader question: is this pattern hiding elsewhere?
 
-The miner found four existing occurrences in `actions/setup/js`: `dispatch_workflow.cjs`, `route_slash_command.cjs`, `log_parser_shared.cjs`, and `safeoutputs_cli.cjs`. The rule intentionally does not change them automatically; each needs a local decision about what a readable fallback should be. Its tests accept the safe counterpart, `String(x.message)`, and reject the container-stringifying form.
+The result is the proposed `no-string-fallback-for-non-string-message` rule in [PR #55052](https://github.com/github/gh-aw/pull/55052). It looks for a narrow shape: code confirms that `x.message` is a string, returns it when it is, then falls back to `String(x)` instead of `String(x.message)`. The rule is a warning, not an automatic rewrite, because a readable fallback still needs local judgment.
 
-## A maintenance loop, not a one-off fix
+The miner found four live occurrences in `actions/setup/js`: `dispatch_workflow.cjs`, `route_slash_command.cjs`, `log_parser_shared.cjs`, and `safeoutputs_cli.cjs`. Each deserves its own fix decision. The rule simply ensures that this particular sharp edge is no longer invisible.
 
-This trail links a specification, an executable conformance check, a short-lived actionable issue, a targeted repair, and a preventative lint rule. The daily conformance workflow is responsible for detecting violations against a defined contract. ESLint Miner is responsible for turning a demonstrated repeated code pattern into a durable guardrail. Together, they move the repository from “this bug happened” to “this class of bug is easier to see before it reaches an MCP response.”
+## The real product is the feedback loop
 
-Follow [github/gh-aw](https://github.com/github/gh-aw) for the status of the repair and rule proposals, and inspect the linked workflows to adapt the same feedback loop to your own repository.
+The lasting outcome here is not only a better error message. It is a maintenance system that keeps learning: a specification defines the promise, a daily check tests it, an issue investigates the signal, a small repair closes the gap, and a lint rule helps prevent the pattern from returning.
+
+That is the kind of automation worth building. It does not replace engineering judgment; it creates more opportunities to apply it where it matters most. Follow [github/gh-aw](https://github.com/github/gh-aw) for the status of the repair and rule proposals, and inspect the linked workflows to adapt this feedback loop in your own repository.
