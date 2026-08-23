@@ -16,6 +16,7 @@ func TestSerenaToSharedImportCodemod(t *testing.T) {
 	codemod := getSerenaToSharedImportCodemod()
 
 	t.Run("migrates tools.serena short syntax to imports", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -48,6 +49,7 @@ strict: false
 	})
 
 	t.Run("migrates tools.serena long syntax languages object to imports", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -85,6 +87,7 @@ strict: false
 	})
 
 	t.Run("removes tools.serena when shared import already exists without adding duplicate", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 imports:
@@ -126,6 +129,7 @@ tools:
 	})
 
 	t.Run("does not modify workflows without tools.serena", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 imports:
@@ -155,6 +159,7 @@ imports:
 	})
 
 	t.Run("migrates engine.tools.serena and preserves engine sibling fields", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   tools:
@@ -198,6 +203,7 @@ engine:
 	})
 
 	t.Run("preserves github/gh-aw source pin when migrating serena (does not rewrite to @main)", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 source: github/gh-aw/.github/workflows/duplicate-code-detector.md@852cb06ad52958b402ed982b69957ffc57ca0619
 engine: copilot
@@ -224,6 +230,7 @@ tools:
 	})
 
 	t.Run("storybookjs and FluidFramework: preserves pinned source and migrates tools.serena to imports", func(t *testing.T) {
+		t.Parallel()
 		// Simulates the duplicate-code-detector.md workflow used by storybookjs/storybook and
 		// microsoft/FluidFramework, both sourced from gh-aw at the same pinned commit.
 		// The codemod must migrate tools.serena without touching the source pin.
@@ -266,6 +273,7 @@ strict: true
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				result, applied, err := codemod.Apply(content, frontmatter)
 				require.NoError(t, err, "Codemod should not return an error")
 				assert.True(t, applied, "Codemod should be applied when tools.serena is present")
@@ -279,6 +287,7 @@ strict: true
 	})
 
 	t.Run("falls back to engine.tools.serena when top-level tools.serena is invalid", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   tools:
@@ -313,6 +322,7 @@ tools:
 	})
 
 	t.Run("migrates tools list form (tools: [serena]) with empty languages placeholder", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -344,6 +354,7 @@ strict: false
 	})
 
 	t.Run("migrates tools inline list form (tools: [serena]) with empty languages placeholder", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools: [serena]
@@ -368,6 +379,7 @@ strict: false
 	})
 
 	t.Run("migrates tools list form with other tools preserved", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -395,6 +407,7 @@ strict: false
 	})
 
 	t.Run("does not modify workflows with tools list that does not contain serena", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:

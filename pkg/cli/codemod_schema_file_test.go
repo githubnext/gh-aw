@@ -107,6 +107,7 @@ With multiple sections.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			codemod := getDeleteSchemaFileCodemod()
 			result, applied, err := codemod.Apply(tt.content, tt.frontmatter)
 
