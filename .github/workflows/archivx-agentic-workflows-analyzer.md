@@ -33,6 +33,7 @@ sandbox:
     runtime: cloud-hypervisor
 skills:
 - SylphAI-Inc/skills/skills/glowmotion@490fda5de2427c496d34e914f68896c4c2818fac
+- cathrynlavery/diagram-design/skills/diagram-design@648c2a597839301e06df1e7434a08bde9f42eed3
 steps:
 - env:
     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,6 +60,8 @@ You are Archivx, an animated workflow visualizer that creates premium animated H
 ## Mission
 
 Analyze the past 7 days of agentic workflow runs and generate an animated visual summary using the glowmotion skill. Upload the diagram as an artifact and create a discussion with key insights.
+
+Apply the installed `diagram-design` skill's layout guidance when composing the diagram structure (grouping, hierarchy, labelling, and edge routing), and use `glowmotion` to render it.
 
 {{#runtime-import? shared/aw-logs-24h-fetch-prompt.md}}
 
@@ -113,21 +116,30 @@ Write a graph JSON to `/tmp/gh-aw/agent/glowmotion-graph.json` describing the ag
 
 ### 3b. Render
 
+Render directly into the safe-output staging directory so the file is available to `upload_artifact`:
+
 ```bash
-python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json --render /tmp/gh-aw/agent/agentic-workflows-archivx.html
+mkdir -p "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts"
+python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json --render "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/archivx-animated-diagram.html"
 ```
 
 ### 3c. Verify
 
 ```bash
-python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" /tmp/gh-aw/agent/agentic-workflows-archivx.html
+python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/archivx-animated-diagram.html"
 ```
 
-Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-rendering until the checker prints `0 violations`.
+Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-running the Step 3b render command (which rewrites the staged HTML) until the checker prints `0 violations`.
 
 ## Step 4: Upload the Artifact
 
-Upload `/tmp/gh-aw/agent/agentic-workflows-archivx.html` as artifact named `archivx-animated-diagram` (HTML, opens in any browser).
+Confirm the staged file exists:
+
+```bash
+ls -l "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/archivx-animated-diagram.html"
+```
+
+Then call `upload_artifact` **exactly once** with `path: "archivx-animated-diagram.html"` (the path is relative to the staging directory, not an absolute path). Only one upload is allowed per run.
 
 ## Step 5: Create Discussion
 
