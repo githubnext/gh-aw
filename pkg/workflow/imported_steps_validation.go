@@ -30,6 +30,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -92,10 +93,15 @@ func (c *Compiler) validateCheckoutPersistCredentials(frontmatter map[string]any
 		return nil
 	}
 
-	const persistCredentialsExample = `      # example (keep your existing "uses:" ref):
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+	checkoutVersion := "v4"
+	if pin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout"); ok && pin.Version != "" {
+		checkoutVersion = pin.Version
+	}
+
+	persistCredentialsExample := fmt.Sprintf(`      # example (keep your existing "uses:" ref):
+      - uses: actions/checkout@%s
         with:
-          persist-credentials: false`
+          persist-credentials: false`, checkoutVersion)
 
 	msg := fmt.Sprintf(
 		"actions/checkout step(s) without 'persist-credentials: false' detected in the agent job: %s. "+
