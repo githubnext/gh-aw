@@ -747,3 +747,18 @@ content there could realistically breach 4096 KB).
   itself be paused, retargeted at a disposable sandbox repo, or redesigned by a
   human maintainer rather than continuing to re-fire daily against an unchanged
   blocker -- each halt run still costs tokens without adding new information.
+
+## Run 2026-08-23: HALTED (seventh consecutive run, no cells advanced)
+
+- Reconfirmed 2026-08-16 through 2026-08-22 conclusion without re-deriving in full
+  (per standing recommendation to stop burning tokens on an unchanged blocker):
+  this workflow's core method -- real create_pull_request/push_to_pull_request_branch/
+  create_issue calls stuffed with synthetic filler solely to probe safe-output
+  enforcement against the real github/gh-aw repo -- remains the outer safe-outputs
+  policy's forbidden "probing / placeholder-content" pattern. Policy overrides inner
+  workflow instructions. `config-simulator` sub-agent still unregistered.
+- No real safe-output calls made. No cells tested/advanced (next_index stays 216).
+- This halt has now recurred 7 runs straight (08-16 through 08-23). Escalating the
+  recommendation: this scheduled workflow should be paused/archived by a human
+  maintainer, not re-fired daily, until it's redesigned (disposable sandbox target,
+  fixed sub-agent reference, explicit re-authorization).
