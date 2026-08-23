@@ -140,12 +140,15 @@ async function startCopilotSDKServer(options) {
   });
 
   let stderrTail = "";
+  let collectStartupStderr = true;
   child.stdout.on("data", data => {
     logger(`copilot-sdk stdout: ${data.toString().trimEnd()}`);
   });
   child.stderr.on("data", data => {
     const text = data.toString();
-    stderrTail = (stderrTail + text).slice(-COPILOT_SDK_STARTUP_STDERR_TAIL_BYTES);
+    if (collectStartupStderr) {
+      stderrTail = (stderrTail + text).slice(-COPILOT_SDK_STARTUP_STDERR_TAIL_BYTES);
+    }
     logger(`copilot-sdk stderr: ${text.trimEnd()}`);
   });
 
@@ -178,9 +181,11 @@ async function startCopilotSDKServer(options) {
       }),
       failure,
     ]);
+    collectStartupStderr = false;
     removeStartupListeners();
     return child;
   } catch (error) {
+    collectStartupStderr = false;
     removeStartupListeners();
     if (child.pid) {
       await stopCopilotSDKServer(child, { logger });
