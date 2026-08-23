@@ -18,7 +18,9 @@ func Tokenize(line string) []string {
 // Returns 0 when the slices have different lengths.
 func computeSimilarity(a, b []string, paramToken string) float64 {
 	if len(a) != len(b) {
-		templateLog.Printf("Similarity: length mismatch (%d vs %d), returning 0", len(a), len(b))
+		if templateLog.Enabled() {
+			templateLog.Printf("Similarity: length mismatch (%d vs %d), returning 0", len(a), len(b))
+		}
 		return 0
 	}
 	nonParam := 0
