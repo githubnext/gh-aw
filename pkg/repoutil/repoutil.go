@@ -3,6 +3,7 @@ package repoutil
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -29,7 +30,7 @@ func SplitRepoSlug(slug string) (owner, repo string, err error) {
 func NormalizeRepoForAPI(repo string) (ownerRepo string, host string) {
 	parts := strings.SplitN(repo, "/", 3)
 	if len(parts) == 3 {
-		return parts[1] + "/" + parts[2], parts[0]
+		return path.Join(parts[1], parts[2]), parts[0]
 	}
 	return repo, ""
 }

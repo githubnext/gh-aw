@@ -93,7 +93,7 @@ func ValidateGitPath(path string) error {
 func ExtractBaseRepo(repoPath string) string {
 	parts := strings.Split(repoPath, "/")
 	if len(parts) >= 2 {
-		return parts[0] + "/" + parts[1]
+		return stdpath.Join(parts[0], parts[1])
 	}
 	return repoPath
 }
