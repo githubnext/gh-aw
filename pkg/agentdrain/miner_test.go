@@ -3,7 +3,9 @@
 package agentdrain
 
 import (
+	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +20,71 @@ func TestNewMiner(t *testing.T) {
 	m, err := NewMiner(cfg)
 	require.NoError(t, err, "NewMiner should not return an error")
 	require.NotNil(t, m, "NewMiner should return a non-nil miner")
+}
+
+func TestNewMinerRejectsInvalidAnomalyThresholds(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{
+			name: "similarity threshold above one",
+			mutate: func(cfg *Config) {
+				cfg.SimThreshold = 1.1
+			},
+		},
+		{
+			name: "NaN similarity threshold",
+			mutate: func(cfg *Config) {
+				cfg.SimThreshold = math.NaN()
+			},
+		},
+		{
+			name: "negative rare cluster threshold",
+			mutate: func(cfg *Config) {
+				cfg.RareClusterThreshold = -1
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := DefaultConfig()
+			tt.mutate(&cfg)
+
+			m, err := NewMiner(cfg)
+			require.Error(t, err)
+			assert.Nil(t, m)
+		})
+	}
+}
+
+func TestLoadJSONRefreshesAndValidatesAnomalyThresholds(t *testing.T) {
+	t.Parallel()
+	m, err := NewMiner(DefaultConfig())
+	require.NoError(t, err)
+
+	data, err := m.SaveJSON()
+	require.NoError(t, err)
+
+	var snapshot Snapshot
+	require.NoError(t, json.Unmarshal(data, &snapshot))
+	snapshot.Config.SimThreshold = 0.8
+	data, err = json.Marshal(snapshot)
+	require.NoError(t, err)
+	require.NoError(t, m.LoadJSON(data))
+	assert.InDelta(t, 0.8, m.detector.threshold, 0)
+
+	// NaN cannot round-trip through JSON (encoding/json rejects it), so the
+	// invalid-threshold path is exercised here with an out-of-range value.
+	snapshot.Config.SimThreshold = 1.1
+	data, err = json.Marshal(snapshot)
+	require.NoError(t, err)
+
+	require.Error(t, m.LoadJSON(data))
 }
 
 func TestTrain(t *testing.T) {
