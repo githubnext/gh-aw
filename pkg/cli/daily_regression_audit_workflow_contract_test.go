@@ -13,6 +13,7 @@ import (
 )
 
 func TestDailyRegressionAuditAllowsPythonJSONParsing(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	require.NoError(t, err)
 

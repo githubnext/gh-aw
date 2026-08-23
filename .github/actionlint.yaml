@@ -6,3 +6,4 @@ paths:
   .github/workflows/**/*.{yml,yaml}:
     ignore:
       - 'unknown permission scope "copilot-requests"'
+      - 'unknown permission scope "drives"'

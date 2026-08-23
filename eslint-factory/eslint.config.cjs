@@ -66,6 +66,7 @@ module.exports = [
       "gh-aw-custom/no-math-minmax-array-spread": "warn",
       "gh-aw-custom/require-error-code-for-github-api-throw": "warn",
       "gh-aw-custom/require-http-response-error-listener": "error",
+      "gh-aw-custom/no-string-fallback-for-non-string-message": "warn",
     },
   },
   {
