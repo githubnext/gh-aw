@@ -751,6 +751,10 @@ async function fetchUrlContent(url, cacheDir) {
           }
           resolve(data);
         });
+
+        res.on("error", err => {
+          reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
+        });
       })
       .on("error", err => {
         reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
@@ -1406,6 +1410,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
+  fetchUrlContent,
   closeUnterminatedInlineMarkers,
   hasFrontMatter,
   removeXMLComments,
