@@ -13,6 +13,7 @@ import (
 )
 
 func TestDecodeBase64FileContent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    func() string // build the raw API-style input
@@ -66,6 +67,7 @@ func TestDecodeBase64FileContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := decodeBase64FileContent(tt.input())
 			if tt.wantErr {
 				assert.Error(t, err, "expected an error for invalid base64 input")
@@ -80,6 +82,7 @@ func TestDecodeBase64FileContent(t *testing.T) {
 // TestDownloadWorkflowContentViaGitValidation ensures that downloadWorkflowContentViaGit
 // rejects dangerous ref/path values before spawning any git subprocess (CWE-88).
 func TestDownloadWorkflowContentViaGitValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		repo        string
@@ -134,6 +137,7 @@ func TestDownloadWorkflowContentViaGitValidation(t *testing.T) {
 	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := downloadWorkflowContentViaGit(ctx, tt.repo, tt.path, tt.ref, false)
 			require.Error(t, err, "expected validation error for invalid input")
 			assert.Contains(t, err.Error(), tt.errContains)
