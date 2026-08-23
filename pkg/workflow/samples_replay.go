@@ -3,8 +3,12 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // SampleEntry is the per-call payload consumed by apply_samples.cjs.
@@ -18,6 +22,82 @@ type SampleEntry struct {
 	// Sidecars carries fields stripped from Arguments that need out-of-band
 	// pre-staging by the driver (e.g. `patch` for create_pull_request).
 	Sidecars map[string]any `json:"sidecars,omitempty"`
+}
+
+// samplesFeatureName is the frontmatter feature flag that opts a single
+// workflow into deterministic samples replay without passing the hidden
+// `gh aw compile --use-samples` flag. It exists so that a workflow which is
+// designed around `samples:` (e.g. the repository's own smoke tests) keeps a
+// stable compiled lock file under a plain `gh aw compile`.
+const samplesFeatureName = "samples"
+
+// samplesFeatureEnabled reports whether the workflow frontmatter declares
+// `features: { samples: true }`.
+func samplesFeatureEnabled(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false
+	}
+	features, ok := frontmatter["features"].(map[string]any)
+	if !ok {
+		return false
+	}
+	return samplesFeatureEnabledInMap(features)
+}
+
+// samplesFeatureEnabledInMap reports whether an already-extracted `features`
+// map (as opposed to a raw frontmatter document) enables samples replay.
+func samplesFeatureEnabledInMap(features map[string]any) bool {
+	if features == nil {
+		return false
+	}
+	enabled, ok := features[samplesFeatureName].(bool)
+	return ok && enabled
+}
+
+// samplesEnabled reports whether samples replay is active for the workflow
+// being compiled, either through the hidden `--use-samples` CLI flag or
+// through the per-workflow `features.samples: true` opt-in declared directly
+// in the main frontmatter. It does not see `features.samples: true` declared
+// only in an imported workflow; use samplesEnabledFromImports for that, once
+// imported features have been merged into WorkflowData.Features.
+func (c *Compiler) samplesEnabled(frontmatter map[string]any) bool {
+	return c.useSamples || samplesFeatureEnabled(frontmatter)
+}
+
+// samplesEnabledFromImports reports whether samples replay is active once
+// imported `features` maps have been folded into the main frontmatter's
+// features. It mirrors samplesEnabled, but also honours `features.samples:
+// true` declared only in an imported shared workflow, which the merge in
+// mergeImportedWorkflowConfiguration performs after the main frontmatter is
+// first extracted.
+func (c *Compiler) samplesEnabledFromImports(frontmatter map[string]any, importedFeatures []map[string]any) bool {
+	if c.samplesEnabled(frontmatter) {
+		return true
+	}
+	return slices.ContainsFunc(importedFeatures, samplesFeatureEnabledInMap)
+}
+
+// runtimeVisibleFeatures returns a copy of features with internal
+// compiler-only flags (currently just `samples`) removed. It is used
+// whenever WorkflowData.Features is serialized into runtime-visible
+// metadata (e.g. GH_AW_INFO_FEATURES), so that `features.samples: true`
+// stays a compiler knob rather than becoming part of the observable
+// runtime API.
+func runtimeVisibleFeatures(features map[string]any) map[string]any {
+	if len(features) == 0 {
+		return nil
+	}
+	if _, ok := features[samplesFeatureName]; !ok {
+		return features
+	}
+	result := make(map[string]any, len(features)-1)
+	for k, v := range features {
+		if k == samplesFeatureName {
+			continue
+		}
+		result[k] = v
+	}
+	return result
 }
 
 // collectSampleEntries walks the safe-outputs config and flattens every
@@ -40,6 +120,11 @@ func collectSampleEntries(config *SafeOutputsConfig) []SampleEntry {
 		}
 		sidecarKeys := sampleSidecarFields[toolName]
 		for _, sample := range base.Samples {
+			if dynamicEntry, ok := buildDynamicWorkflowSampleEntry(toolName, sample); ok {
+				entries = append(entries, dynamicEntry)
+				continue
+			}
+
 			args := make(map[string]any, len(sample))
 			var sidecars map[string]any
 			for k, v := range sample {
@@ -60,6 +145,43 @@ func collectSampleEntries(config *SafeOutputsConfig) []SampleEntry {
 		}
 	}
 	return entries
+}
+
+func buildDynamicWorkflowSampleEntry(toolName string, sample map[string]any) (SampleEntry, bool) {
+	if toolName != "dispatch_workflow" && toolName != "call_workflow" {
+		return SampleEntry{}, false
+	}
+
+	workflowName, _ := sample["workflow_name"].(string)
+	workflowName = strings.TrimSpace(workflowName)
+	if workflowName == "" {
+		return SampleEntry{}, false
+	}
+
+	args := map[string]any{}
+	if rawInputs, ok := sample["inputs"]; ok {
+		if inputs, ok := rawInputs.(map[string]any); ok {
+			maps.Copy(args, inputs)
+		}
+	}
+	if len(args) == 0 {
+		for k, v := range sample {
+			if k == "workflow_name" || k == "inputs" {
+				continue
+			}
+			args[k] = v
+		}
+	}
+	if toolName == "dispatch_workflow" {
+		if ref, ok := sample["ref"]; ok {
+			args["ref"] = ref
+		}
+	}
+
+	return SampleEntry{
+		Tool:      stringutil.NormalizeSafeOutputIdentifier(workflowName),
+		Arguments: args,
+	}, true
 }
 
 // collectSampleRepoTokens walks the workflow's checkout configs and returns

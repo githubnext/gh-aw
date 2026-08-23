@@ -8,6 +8,7 @@
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+const { isRepoAllowed, parseAllowedRepos } = require("./repo_helpers.cjs");
 const { SAFE_OUTPUT_E007 } = require("./error_codes.cjs");
 const path = require("node:path");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
@@ -20,6 +21,33 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "approve_workflow_run";
+
+/**
+ * Workflow run states that the workflow run approval endpoint can act on.
+ *
+ * A pull request run that is held for maintainer approval (a fork pull request or an
+ * agent-initiated pull request) is reported by the REST API with status "action_required".
+ * Some runs are additionally reported as "waiting" while GitHub is still gating them, so
+ * both states are accepted here.
+ * Any other status means there is nothing left to approve.
+ *
+ * @type {Set<string>}
+ */
+const APPROVABLE_RUN_STATUSES = new Set(["action_required", "waiting"]);
+
+/**
+ * Determine whether a workflow run is still awaiting approval.
+ *
+ * The pending-approval state is surfaced either on the run's `status` or, for runs
+ * that GitHub has already marked as completed pending an approval decision, on the
+ * run's `conclusion`.
+ *
+ * @param {{status?: string | null, conclusion?: string | null}} run
+ * @returns {boolean}
+ */
+function isAwaitingApproval(run) {
+  return APPROVABLE_RUN_STATUSES.has(run?.status || "") || run?.conclusion === "action_required";
+}
 
 /**
  * @param {unknown} value
@@ -106,23 +134,46 @@ async function getModifiedPullRequestFiles(githubClient, pullRequestNumber) {
 }
 
 /**
+ * Resolve the repository that owns the head branch of a pull request.
+ *
+ * The head repository identifies where the pull request branch lives: the current
+ * repository for agent-initiated pull requests (for example `copilot/*` branches),
+ * or a fork for contributor pull requests.
+ *
  * @param {any} githubClient
  * @param {number} pullRequestNumber
- * @returns {Promise<boolean>}
+ * @returns {Promise<string>} Head repository slug in "owner/repo" format
  */
-async function isForkPullRequest(githubClient, pullRequestNumber) {
+async function getPullRequestHeadRepo(githubClient, pullRequestNumber) {
   const { data: pullRequest } = await githubClient.rest.pulls.get({
     owner: context.repo.owner,
     repo: context.repo.repo,
     pull_number: pullRequestNumber,
   });
-  if (pullRequest?.head?.repo === null) {
-    throw new Error(`${SAFE_OUTPUT_E007}: Cannot approve pull request #${pullRequestNumber}: its fork repository is unavailable`);
+  if (!pullRequest?.head?.repo) {
+    throw new Error(`${SAFE_OUTPUT_E007}: Cannot approve pull request #${pullRequestNumber}: its head repository is unavailable`);
   }
-  if (typeof pullRequest?.head?.repo?.fork !== "boolean") {
-    throw new Error(`${SAFE_OUTPUT_E007}: Unable to verify fork status for pull request #${pullRequestNumber}`);
+  const fullName = pullRequest.head.repo.full_name;
+  if (typeof fullName !== "string" || fullName === "") {
+    throw new Error(`${SAFE_OUTPUT_E007}: Unable to verify the head repository for pull request #${pullRequestNumber}`);
   }
-  return pullRequest.head.repo.fork;
+  return fullName;
+}
+
+/**
+ * Determine whether a pull request head repository may have its workflow runs approved.
+ *
+ * The current repository is always allowed, so pull requests opened from branches in this
+ * repository (including agent-initiated `copilot/*` pull requests) are approvable by default.
+ * Fork pull requests are approvable only when their repository matches an `allowed-repos` entry.
+ *
+ * @param {string} headRepo - Head repository slug in "owner/repo" format
+ * @param {Set<string>} allowedRepos - Allowed repository patterns from configuration
+ * @returns {boolean}
+ */
+function isHeadRepoAllowed(headRepo, allowedRepos) {
+  const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
+  return headRepo === currentRepo || isRepoAllowed(headRepo, allowedRepos);
 }
 
 /**
@@ -170,9 +221,13 @@ async function main(config = {}) {
   const maxCount = config.max || 1;
   const isStaged = isStagedMode(config);
   const githubToken = config["github-token"];
+  const allowedRepos = parseAllowedRepos(config.allowed_repos);
   let processedCount = 0;
 
   core.info(`Approve workflow run configuration: max=${maxCount}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed pull request repositories (in addition to the current repository): ${Array.from(allowedRepos).join(", ")}`);
+  }
 
   if (!isStaged && !githubToken) {
     const error = "approve_workflow_run requires an external github-token or GitHub App token";
@@ -203,7 +258,13 @@ async function main(config = {}) {
 
     if (processedCount >= maxCount) {
       core.warning(`Skipping ${HANDLER_TYPE}: max count of ${maxCount} reached`);
-      return { success: false, error: `Max count of ${maxCount} reached` };
+      return {
+        success: false,
+        skipped: true,
+        reasonCode: "MAX_COUNT_REACHED",
+        reason: "Max count reached",
+        error: `Max count of ${maxCount} reached`,
+      };
     }
 
     try {
@@ -219,10 +280,14 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
-      if (run.status !== "waiting") {
-        const error = `Workflow run ${runId} is not awaiting approval (status: ${run.status || "none"})`;
-        core.warning(error);
-        return { success: false, error };
+      if (!isAwaitingApproval(run)) {
+        // Benign race: by the time the safe_outputs job runs, the workflow run may have
+        // already been approved (by a human or an earlier run) and moved past the
+        // pending-approval state. There is nothing left to do, so report this as a skipped
+        // no-op instead of a failure that would fail the whole safe outputs step.
+        const reason = `Workflow run ${runId} is not awaiting approval (status: ${run.status || "none"})`;
+        core.warning(reason);
+        return { success: false, skipped: true, reasonCode: "NOT_AWAITING_APPROVAL", reason, error: reason };
       }
 
       const workflowId = parsePositiveInt(run.workflow_id);
@@ -261,8 +326,10 @@ async function main(config = {}) {
           core.warning(error);
           return { success: false, error };
         }
-        if ((await isForkPullRequest(githubClient, pullRequestNumber)) && config.fork !== true) {
-          const error = `Workflow run ${runId} cannot be approved because pull request #${pullRequestNumber} is from a fork; set fork: true to allow fork pull requests`;
+        const headRepo = await getPullRequestHeadRepo(githubClient, pullRequestNumber);
+        if (!isHeadRepoAllowed(headRepo, allowedRepos)) {
+          const hint = allowedRepos.size === 0 ? "configure allowed-repos to approve pull requests from other repositories" : `allowed repositories: ${Array.from(allowedRepos).join(", ")}`;
+          const error = `Workflow run ${runId} cannot be approved because pull request #${pullRequestNumber} comes from repository ${headRepo}, which is not in the allowed-repos list (${hint})`;
           core.warning(error);
           return { success: false, error };
         }
@@ -316,8 +383,10 @@ module.exports = {
   parsePositiveInt,
   normalizeWorkflowFilename,
   isAllowedWorkflow,
+  isAwaitingApproval,
   getModifiedPullRequestFiles,
-  isForkPullRequest,
+  getPullRequestHeadRepo,
+  isHeadRepoAllowed,
   buildApprovalCommentBody,
   postApprovalComment,
 };

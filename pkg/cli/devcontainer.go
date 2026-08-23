@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -79,11 +80,12 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 
 	// Check if file already exists at default location
 	var existingConfig *DevcontainerConfig
+	var existingData []byte
 	if _, err := os.Stat(devcontainerPath); err == nil {
 		devcontainerLog.Printf("File already exists: %s", devcontainerPath)
 
 		// Read existing config to update it
-		existingData, err := os.ReadFile(devcontainerPath)
+		existingData, err = os.ReadFile(devcontainerPath)
 		if err != nil {
 			devcontainerLog.Printf("Failed to read existing config: %v", err)
 			return fmt.Errorf("failed to read existing devcontainer.json: %w", err)
@@ -165,9 +167,6 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			devcontainerLog.Printf("Updated postCreateCommand to include gh-aw installation")
 		}
 
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Updated existing devcontainer at "+devcontainerPath))
-		}
 	} else {
 		// Create new configuration
 		devcontainerLog.Printf("Creating new devcontainer.json at default location")
@@ -192,9 +191,6 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 		}
 
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Created new devcontainer at "+devcontainerPath))
-		}
 	}
 
 	// Write config file with proper indentation
@@ -206,11 +202,27 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	// Add newline at end of file
 	data = append(data, '\n')
 
+	if existingConfig != nil && bytes.Equal(existingData, data) {
+		devcontainerLog.Printf("Content unchanged, skipping write: %s", devcontainerPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Devcontainer is up to date at "+devcontainerPath))
+		}
+		return nil
+	}
+
 	// Use owner-only read/write permissions (0600) for security best practices
 	if err := os.WriteFile(devcontainerPath, data, constants.FilePermSensitive); err != nil {
 		return fmt.Errorf("failed to write devcontainer.json: %w", err)
 	}
 	devcontainerLog.Printf("Wrote file: %s", devcontainerPath)
+
+	if verbose {
+		if existingConfig != nil {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Updated existing devcontainer at "+devcontainerPath))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Created new devcontainer at "+devcontainerPath))
+		}
+	}
 
 	return nil
 }

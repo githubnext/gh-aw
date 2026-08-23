@@ -30,6 +30,7 @@ An empty map enables all built-in graders with default settings. Omitting the `g
 | `trajectory-efficiency` | Unique tool names / total tool calls | 0–1 |
 | `execution-step-count` | Total LLM request count | integer |
 | `execution-duration` | Total execution duration (ms) | integer |
+| `working-set-rebuild-factor` | Cumulative input tokens / peak invocation input tokens | ≥1 |
 | `context-growth` | Total tokens / first-request tokens | ≥1 |
 | `artifact-production` | Count of outputs in agent_output.json | integer |
 

@@ -6,12 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestBuildSafeOutputsSectionsCustomTools verifies that custom jobs, scripts, and actions
+// TestBuildSafeOutputsSectionsCustomTools verifies that custom and workflow-derived tools
 // defined in safe-outputs are included in the compiled <safe-output-tools> prompt block.
 // This prevents silent drift between the runtime configuration surface and the
 // agent-facing compiled instructions.
@@ -124,6 +125,48 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 			},
 			expectedTools: []string{"create_issue", "noop", "custom_job", "custom_script", "custom_action"},
 		},
+		{
+			name: "workflow-derived tools appear instead of generic tool names",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchWorkflow: &DispatchWorkflowConfig{
+					Workflows: []string{"my-fixer"},
+				},
+				DispatchRepository: &DispatchRepositoryConfig{
+					Tools: map[string]*DispatchRepositoryToolConfig{
+						"send-event": {},
+					},
+				},
+				CallWorkflow: &CallWorkflowConfig{
+					Workflows: []string{"my-worker"},
+				},
+				NoOp: &NoOpConfig{},
+			},
+			expectedTools: []string{"my_fixer", "send_event", "my_worker", "noop"},
+		},
+		{
+			name: "empty dispatch workflows fall back to generic tool name",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchWorkflow: &DispatchWorkflowConfig{Workflows: []string{}},
+				NoOp:             &NoOpConfig{},
+			},
+			expectedTools: []string{"dispatch_workflow", "noop"},
+		},
+		{
+			name: "empty repository dispatch tools fall back to generic tool name",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchRepository: &DispatchRepositoryConfig{Tools: map[string]*DispatchRepositoryToolConfig{}},
+				NoOp:               &NoOpConfig{},
+			},
+			expectedTools: []string{"dispatch_repository", "noop"},
+		},
+		{
+			name: "empty reusable workflows fall back to generic tool name",
+			safeOutputs: &SafeOutputsConfig{
+				CallWorkflow: &CallWorkflowConfig{Workflows: []string{}},
+				NoOp:         &NoOpConfig{},
+			},
+			expectedTools: []string{"call_workflow", "noop"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -145,6 +188,29 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 	}
 }
 
+func TestBuildSafeOutputsSectionsWorkflowBudgetsAreShared(t *testing.T) {
+	dispatchMax := "2"
+	callMax := "3"
+	sections := buildSafeOutputsSections(&SafeOutputsConfig{
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: &dispatchMax},
+			Workflows:            []string{"first-dispatch", "second-dispatch"},
+		},
+		CallWorkflow: &CallWorkflowConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: &callMax},
+			Workflows:            []string{"first-call", "second-call"},
+		},
+		NoOp: &NoOpConfig{},
+	}, nil)
+
+	require.NotNil(t, sections)
+	content := sections[0].Content
+	assert.Contains(t, content, "Tools: first_dispatch, second_dispatch, first_call, second_call, noop")
+	assert.Contains(t, content, "Shared budgets: dispatch-workflow [first_dispatch, second_dispatch](max:2 total); call-workflow [first_call, second_call](max:3 total)")
+	assert.NotContains(t, content, "first_dispatch(max:2)")
+	assert.NotContains(t, content, "first_call(max:3)")
+}
+
 // TestBuildSafeOutputsSectionsCustomToolsConsistency verifies that every custom
 // tool type registered in the runtime configuration has a corresponding entry in
 // the compiled <safe-output-tools> prompt block — preventing silent drift.
@@ -160,6 +226,17 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		},
 		Actions: map[string]*SafeOutputActionConfig{
 			"action-x": {Description: "Action X"},
+		},
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			Workflows: []string{"dispatch-target"},
+		},
+		DispatchRepository: &DispatchRepositoryConfig{
+			Tools: map[string]*DispatchRepositoryToolConfig{
+				"repository-target": {},
+			},
+		},
+		CallWorkflow: &CallWorkflowConfig{
+			Workflows: []string{"call-target"},
 		},
 	}
 
@@ -192,6 +269,30 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		assert.True(t, actualToolSet[normalized],
 			"Custom action %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", actionName, normalized)
 	}
+
+	for _, workflowName := range config.DispatchWorkflow.Workflows {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
+		assert.True(t, actualToolSet[normalized],
+			"Dispatch workflow %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", workflowName, normalized)
+	}
+	assert.NotContains(t, actualToolSet, "dispatch_workflow",
+		"The untyped dispatch_workflow tool should not appear when typed workflow tools are configured")
+
+	for _, toolName := range sliceutil.SortedKeys(config.DispatchRepository.Tools) {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(toolName)
+		assert.True(t, actualToolSet[normalized],
+			"Dispatch repository tool %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", toolName, normalized)
+	}
+	assert.NotContains(t, actualToolSet, "dispatch_repository",
+		"The generic dispatch_repository tool should not appear when typed repository tools are configured")
+
+	for _, workflowName := range config.CallWorkflow.Workflows {
+		normalized := stringutil.NormalizeSafeOutputIdentifier(workflowName)
+		assert.True(t, actualToolSet[normalized],
+			"Call workflow %q (normalized: %q) should appear as an exact tool identifier in <safe-output-tools>", workflowName, normalized)
+	}
+	assert.NotContains(t, actualToolSet, "call_workflow",
+		"The generic call_workflow tool should not appear when typed workflow tools are configured")
 }
 
 // TestBuildSafeOutputsSectionsMaxExpressionExtraction verifies that ${{ }} expressions

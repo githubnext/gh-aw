@@ -61,3 +61,38 @@ func TestExtractSafeOutputsConfig_UseSamplesDisablesThreatDetection(t *testing.T
 		}
 	})
 }
+
+// TestSamplesFeatureFlagEnablesReplay verifies that the per-workflow
+// `features: samples: true` opt-in behaves like the hidden --use-samples flag.
+func TestSamplesFeatureFlagEnablesReplay(t *testing.T) {
+	frontmatter := map[string]any{
+		"features": map[string]any{"samples": true},
+		"safe-outputs": map[string]any{
+			"create-issue": map[string]any{
+				"samples": []any{
+					map[string]any{"title": "x", "body": "y"},
+				},
+			},
+		},
+	}
+
+	c := NewCompiler()
+	if !c.samplesEnabled(frontmatter) {
+		t.Fatal("expected features.samples: true to enable samples replay")
+	}
+
+	cfg := c.extractSafeOutputsConfig(frontmatter)
+	if cfg == nil {
+		t.Fatal("expected non-nil SafeOutputsConfig")
+	}
+	if cfg.ThreatDetection != nil {
+		t.Fatal("expected threat-detection to be force-disabled under features.samples: true")
+	}
+
+	if c.samplesEnabled(map[string]any{"features": map[string]any{"samples": false}}) {
+		t.Fatal("expected features.samples: false to leave samples replay disabled")
+	}
+	if c.samplesEnabled(map[string]any{}) {
+		t.Fatal("expected missing features.samples to leave samples replay disabled")
+	}
+}

@@ -5,7 +5,7 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
-const { calculateWorkingSetFromJSONL } = require("./generate_usage_activity_summary.cjs");
+const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 
 /**
  * Parses the firewall proxy token-usage.jsonl and appends a collapsible markdown
