@@ -28,6 +28,7 @@ concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
   cancel-in-progress: false
 engine: copilot
+model: mai-code-1-flash-picker
 network:
   allowed:
     - defaults
