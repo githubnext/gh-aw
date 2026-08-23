@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -206,9 +207,7 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 		if graderObservationSets == nil {
 			graderObservationSets = make(map[string]*graderMetricObservationSet, len(evalObservationSets))
 		}
-		for experimentName, set := range evalObservationSets {
-			graderObservationSets[experimentName] = set
-		}
+		maps.Copy(graderObservationSets, evalObservationSets)
 	}
 
 	// Compute statistical analyses for each named experiment.

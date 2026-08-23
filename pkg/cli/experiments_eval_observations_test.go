@@ -85,11 +85,11 @@ func TestBuildEvalMetricObservationSetsJoinsAssignments(t *testing.T) {
 	require.NotNil(t, set)
 	require.Len(t, set.ByVariant["control"], 1)
 	assert.Equal(t, "1", set.ByVariant["control"][0].RunID)
-	assert.Equal(t, 1.0, set.ByVariant["control"][0].Value)
+	assert.InDelta(t, 1.0, set.ByVariant["control"][0].Value, 0.0001)
 	assert.True(t, set.ByVariant["control"][0].Binary)
 	require.Len(t, set.ByVariant["candidate"], 1)
 	assert.Equal(t, "2", set.ByVariant["candidate"][0].RunID)
-	assert.Equal(t, 0.0, set.ByVariant["candidate"][0].Value)
+	assert.InDelta(t, 0.0, set.ByVariant["candidate"][0].Value, 0.0001)
 
 	controlExclusions := exclusionsByReason(set.Exclusions["control"])
 	assert.Equal(t, 1, controlExclusions[exclusionInvalidValue].Count)
@@ -130,11 +130,11 @@ func TestParseEvalAnswerValue(t *testing.T) {
 	t.Parallel()
 	value, ok := parseEvalAnswerValue("yes")
 	assert.True(t, ok)
-	assert.Equal(t, 1.0, value)
+	assert.InDelta(t, 1.0, value, 0.0001)
 
 	value, ok = parseEvalAnswerValue(" No ")
 	assert.True(t, ok)
-	assert.Equal(t, 0.0, value)
+	assert.InDelta(t, 0.0, value, 0.0001)
 
 	_, ok = parseEvalAnswerValue("UNKNOWN")
 	assert.False(t, ok)
