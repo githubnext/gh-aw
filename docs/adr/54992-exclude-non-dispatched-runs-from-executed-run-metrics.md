@@ -17,7 +17,9 @@ Prior to this change, the run-collection code filtered `skipped` and `cancelled`
 
 ### Decision
 
-We will introduce a single shared predicate `isNonDispatchedConclusion(conclusion string) bool` that returns `true` for `"skipped"` and `"action_required"`, and apply it consistently across all three run-collection and metric-computation paths: `listWorkflowRunsWithPagination` (health/logs), `isCompletedNonSkippedRun` (forecast training and validation), and any future paths that consume workflow run sets. Runs matching this predicate are excluded before they reach any metric aggregation, so success-rate, duration, and token metrics reflect only runs that actually dispatched an agentic job.
+We will introduce a single shared predicate `isNonDispatchedConclusion(conclusion string) bool` that returns `true` for `"skipped"` and `"action_required"`, and apply it consistently across all three run-collection and metric-computation paths: `listWorkflowRunsWithPagination` (health/logs), `isCompletedDispatchedRun` (forecast training and validation), and any future paths that consume workflow run sets. Runs matching this predicate are excluded before they reach any metric aggregation, so success-rate, duration, and token metrics reflect only runs that actually dispatched an agentic job.
+
+Because the exclusion happens after GitHub has applied the API batch limit, health pagination advances its cursor from the oldest *raw* run in each batch and terminates on the raw batch size rather than on the filtered result. Otherwise a batch consisting entirely of non-dispatched runs would filter down to zero and be misread as "no more runs", hiding older dispatched runs.
 
 ### Alternatives Considered
 
@@ -44,6 +46,7 @@ Change the repository's bot-actor workflow approval setting so that `Copilot`-ac
 - The fix treats the symptom (filter phantom runs) rather than the root cause (GitHub creating phantom runs for bot-actor comments). Bot-actor comment events will continue to accumulate `action_required` runs in the GitHub UI.
 
 #### Neutral
+- Health run collection now issues additional API batches when early batches are dominated by non-dispatched runs, up to the existing `MaxIterations` cap, so the reported sample size stays stable instead of collapsing to zero.
 - `cancelled` runs are filtered separately (in `listWorkflowRunsWithPagination`) and are not included in `isNonDispatchedConclusion` because cancellation can happen after a job dispatches, making it distinct from never-dispatched runs. This distinction is preserved.
 - The new test file `logs_non_dispatched_runs_test.go` documents the expected exclusion behavior and the reporting impact, providing a regression guard for future changes to run filtering.
 

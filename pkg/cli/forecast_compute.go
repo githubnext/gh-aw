@@ -87,7 +87,7 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	// Only use completed runs for metric computation.
 	completed := make([]WorkflowRun, 0, len(runs))
 	for _, r := range runs {
-		if isCompletedNonSkippedRun(r) {
+		if isCompletedDispatchedRun(r) {
 			// Compute Duration from StartedAt/UpdatedAt when not already set (gh run list
 			// does not populate the Duration field; health_command uses the same approach).
 			if r.Duration == 0 && !r.StartedAt.IsZero() && !r.UpdatedAt.IsZero() {
@@ -471,10 +471,10 @@ func emitPartialForecastResults(results []ForecastWorkflowResult, config Forecas
 	}
 }
 
-// isCompletedNonSkippedRun reports whether a run actually dispatched and completed,
+// isCompletedDispatchedRun reports whether a run actually dispatched and completed,
 // so it can be used for metric computation. Runs that never dispatched a job
 // (skipped, action_required) are excluded.
-func isCompletedNonSkippedRun(r WorkflowRun) bool {
+func isCompletedDispatchedRun(r WorkflowRun) bool {
 	return r.Status == "completed" && !isNonDispatchedConclusion(r.Conclusion)
 }
 
@@ -527,7 +527,7 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 	validationEnd := time.Now()
 	validationStart, _ := time.Parse("2006-01-02", validationStartDate)
 	for _, r := range runs {
-		if !isCompletedNonSkippedRun(r) {
+		if !isCompletedDispatchedRun(r) {
 			continue
 		}
 		// Skip runs with no timestamp — we cannot verify they belong to the
