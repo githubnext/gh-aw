@@ -34,7 +34,7 @@ type ArtifactFiltersConfig struct {
 // ArtifactDefaultsConfig holds default request settings applied when the model does not
 // specify a value explicitly.
 type ArtifactDefaultsConfig struct {
-	IfNoFiles string `yaml:"if-no-files,omitempty"` // Behaviour when no files match: "error" or "ignore"
+	IfNoFiles string `yaml:"if-no-files,omitempty"` // Behavior when no files match: "error" or "ignore"
 }
 
 // UploadArtifactConfig holds configuration for the upload-artifact safe output type.

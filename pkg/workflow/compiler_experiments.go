@@ -778,12 +778,15 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 
 	// Download the experiment artifact uploaded by the activation job.
 	artifactName := experimentArtifactDownloadName(data)
+	downloadAction := c.getActionPin("actions/download-artifact")
 	var downloadStep strings.Builder
 	downloadStep.WriteString("      - name: Download experiment artifact\n")
-	fmt.Fprintf(&downloadStep, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
+	fmt.Fprintf(&downloadStep, "        uses: %s\n", downloadAction)
 	downloadStep.WriteString("        continue-on-error: true\n")
 	downloadStep.WriteString("        with:\n")
-	fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
+	for _, line := range downloadArtifactInputLines(artifactName, downloadAction) {
+		downloadStep.WriteString(line)
+	}
 	fmt.Fprintf(&downloadStep, "          path: %s\n", experimentsCacheDir)
 	steps = append(steps, downloadStep.String())
 

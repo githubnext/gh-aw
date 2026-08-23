@@ -40,9 +40,10 @@ func run(pass *analysis.Pass) (any, error) {
 	// chain so that `a + "/" + b + "/" + c` produces a single diagnostic.
 	reported := make(map[ast.Expr]bool)
 
-	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
+	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil), (*ast.AssignStmt)(nil)}
 	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeBinaryExpr(pass, n, generatedFiles, noLintIndex, reported)
+		analyzeAssignStmt(pass, n, generatedFiles, noLintIndex)
 	})
 }
 
@@ -79,6 +80,37 @@ func analyzeBinaryExpr(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 	pass.Report(analysis.Diagnostic{
 		Pos:     bin.Pos(),
 		End:     bin.End(),
+		Message: message,
+	})
+}
+
+// analyzeAssignStmt reports compound assignments of the shape X += "/" + Y.
+func analyzeAssignStmt(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	assign, ok := n.(*ast.AssignStmt)
+	if !ok || assign.Tok != token.ADD_ASSIGN || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+		return
+	}
+	bin, ok := assign.Rhs[0].(*ast.BinaryExpr)
+	if !ok || bin.Op != token.ADD || !isSlashLiteral(bin.X) {
+		return
+	}
+	pos := pass.Fset.PositionFor(assign.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, linterName) {
+		return
+	}
+
+	leftText := astutil.NodeText(pass.Fset, assign.Lhs[0])
+	rightText := astutil.NodeText(pass.Fset, bin.Y)
+	message := `manual "/" path concatenation; use filepath.Join (or path.Join) instead`
+	if isShortOperandText(leftText) && isShortOperandText(rightText) && !containsSlashConcat(assign.Lhs[0]) {
+		message = fmt.Sprintf(`manual "/" path concatenation; use filepath.Join(%s, %s) (or path.Join) instead`, leftText, rightText)
+	}
+	pass.Report(analysis.Diagnostic{
+		Pos:     assign.Pos(),
+		End:     assign.End(),
 		Message: message,
 	})
 }

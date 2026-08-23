@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -19,6 +20,7 @@ type ArtifactDownloadConfig struct {
 	StepName         string // Optional custom step name (defaults to "Download {artifact} artifact")
 	IfCondition      string // Optional conditional expression for the step (e.g., "needs.agent.outputs.has_patch == 'true'")
 	StepID           string // Optional step ID; when set, the env-setup step is gated on this step's success
+	ContinueOnError  *bool  // Optional; nil uses the default (emit continue-on-error: true). True emits true; false omits the key.
 }
 
 // buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact.
@@ -49,15 +51,26 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 		steps = append(steps, fmt.Sprintf("        if: %s\n", config.IfCondition))
 		artifactsLog.Printf("Added conditional: %s", config.IfCondition)
 	}
-	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")))
+	continueOnError := true
+	if config.ContinueOnError != nil {
+		continueOnError = *config.ContinueOnError
+	}
+	if continueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
+	}
+	downloadAction := pinAction("actions/download-artifact")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", downloadAction))
 	steps = append(steps, "        with:\n")
 	if config.FallbackArtifact != "" {
-		// Match both artifacts with a single brace-expanded pattern and merge their contents into
-		// the download path. The primary artifact may be missing when its (best-effort) upload
-		// failed; the fallback artifact then supplies the critical files.
-		steps = append(steps, fmt.Sprintf("          pattern: \"{%s,%s}\"\n", config.ArtifactName, config.FallbackArtifact))
-		steps = append(steps, "          merge-multiple: true\n")
+		if downloadArtifactSupportsPattern(downloadAction) {
+			// Match both artifacts with a single brace-expanded pattern and merge their contents into
+			// the download path. The primary artifact may be missing when its (best-effort) upload
+			// failed; the fallback artifact then supplies the critical files.
+			steps = append(steps, fmt.Sprintf("          pattern: \"{%s,%s}\"\n", config.ArtifactName, config.FallbackArtifact))
+			steps = append(steps, "          merge-multiple: true\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
+		}
 	} else {
 		steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
 	}
@@ -87,4 +100,19 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 	}
 
 	return steps
+}
+
+func downloadArtifactSupportsPattern(actionRef string) bool {
+	version := extractActionVersion(actionRef)
+	return !strings.HasPrefix(version, "v3") && !strings.Contains(version, "# v3.")
+}
+
+func downloadArtifactInputLines(artifactName, actionRef string) []string {
+	if downloadArtifactSupportsPattern(actionRef) {
+		return []string{
+			fmt.Sprintf("          pattern: %s\n", artifactName),
+			"          merge-multiple: true\n",
+		}
+	}
+	return []string{fmt.Sprintf("          name: %s\n", artifactName)}
 }

@@ -1839,6 +1839,15 @@ features:
   # (optional)
   intentional-failure: true
 
+  # Internal hidden feature. Replace the agentic step with the deterministic
+  # safe-outputs samples replay driver for this workflow, exactly as the hidden `gh
+  # aw compile --use-samples` flag does globally. Use it for workflows that are
+  # designed around `safe-outputs.*.samples` so a plain `gh aw compile` keeps
+  # producing the samples-mode lock file. Threat detection is force-disabled when
+  # enabled.
+  # (optional)
+  samples: true
+
 # Model policy and optional pricing configuration. The policy fields
 # (allowed/blocked) are experimental and merged as unions across imports. The
 # providers field is optional and supplies pricing data merged by provider/model
@@ -19175,7 +19184,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behaviour when no files match: 'error' (default) or 'ignore'
+      # Behavior when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 
