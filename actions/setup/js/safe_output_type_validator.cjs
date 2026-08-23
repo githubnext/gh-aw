@@ -201,6 +201,7 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
  * @property {number} [minLength] - Minimum length for strings
  * @property {boolean} [positiveInteger] - Must be a positive integer
  * @property {boolean} [optionalPositiveInteger] - Optional but if present must be positive integer
+ * @property {boolean} [allowAuto] - Allows "auto" for optional positive integer fields
  * @property {boolean} [issueOrPRNumber] - Can be issue/PR number or undefined
  * @property {boolean} [issueNumberOrTemporaryId] - Can be issue number or temporary ID
  * @property {string[]} [enum] - Allowed values for the field
@@ -353,6 +354,23 @@ function validateOptionalPositiveInteger(value, fieldName, lineNum) {
 }
 
 /**
+ * Validate an optional positive integer or the "auto" sentinel.
+ * @param {any} value - Value to validate
+ * @param {string} fieldName - Field name for error messages
+ * @param {number} lineNum - Line number for error messages
+ * @returns {{isValid: boolean, normalizedValue?: number|string, error?: string}}
+ */
+function validateOptionalPositiveIntegerOrAuto(value, fieldName, lineNum) {
+  if (value === undefined || value === null) {
+    return { isValid: true };
+  }
+  if (typeof value === "string" && value.trim().toLowerCase() === "auto") {
+    return { isValid: true, normalizedValue: "auto" };
+  }
+  return validateOptionalPositiveInteger(value, fieldName, lineNum);
+}
+
+/**
  * Validate an issue/PR number field (optional, accepts number or string)
  * @param {any} value - Value to validate
  * @param {string} fieldName - Field name for error messages
@@ -449,6 +467,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
 
   // Handle optionalPositiveInteger validation
   if (validation.optionalPositiveInteger) {
+    if (validation.allowAuto) {
+      return validateOptionalPositiveIntegerOrAuto(value, `${itemType} '${fieldName}'`, lineNum);
+    }
     return validateOptionalPositiveInteger(value, `${itemType} '${fieldName}'`, lineNum);
   }
 
@@ -866,6 +887,7 @@ module.exports = {
   validateField,
   validatePositiveInteger,
   validateOptionalPositiveInteger,
+  validateOptionalPositiveIntegerOrAuto,
   validateIssueOrPRNumber,
   validateIssueNumberOrTemporaryId,
 
