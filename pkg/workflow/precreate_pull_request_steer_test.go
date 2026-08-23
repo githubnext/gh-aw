@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestApplyDefaultToolsPreCreateSteerEnablesPullRequestMCPAccess(t *testing.T) {
+func TestApplyDefaultToolsSteerEnablesPullRequestMCPAccess(t *testing.T) {
 	compiler := NewCompiler()
 	tools := map[string]any{
 		"github": map[string]any{
@@ -17,8 +17,7 @@ func TestApplyDefaultToolsPreCreateSteerEnablesPullRequestMCPAccess(t *testing.T
 	}
 	safeOutputs := &SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{
-			PreCreate:      true,
-			PreCreateSteer: true,
+			Steer: true,
 		},
 	}
 
@@ -35,13 +34,12 @@ func TestApplyDefaultToolsPreCreateSteerEnablesPullRequestMCPAccess(t *testing.T
 	assert.Contains(t, allowed, "pull_request_read")
 }
 
-func TestApplyDefaultToolsPreCreateSteerReEnablesGitHubMCP(t *testing.T) {
+func TestApplyDefaultToolsSteerReEnablesGitHubMCP(t *testing.T) {
 	compiler := NewCompiler()
 	tools := map[string]any{"github": false}
 	safeOutputs := &SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{
-			PreCreate:      true,
-			PreCreateSteer: true,
+			Steer: true,
 		},
 	}
 

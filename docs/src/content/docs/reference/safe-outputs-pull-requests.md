@@ -76,7 +76,7 @@ safe-outputs:
 
 Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, or `checkout: false`. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode) no pull request is allocated, because staged runs must not perform API side effects. The allocated pull request is always opened as a draft, regardless of the `draft` setting; when `draft: false` is configured, it is marked ready for review in the safe output phase, once the agent's changes are applied.
 
-Set `pre-create.steer: true` to let the agent read user-authored comments and review comments containing the keyword `steer` on the pre-created pull request and ingest them as feedback during the run. Steering enables the GitHub MCP pull request toolset for comment reads, and requires top-level `pull-requests: read` permission. The compiler reports an error instead of adding that permission automatically.
+Set `steer: true` to allocate the pull request before the agent starts and let the agent read user-authored comments and review comments containing the keyword `steer` on that pull request as feedback during the run. Steering enables the GitHub MCP pull request toolset for comment reads, and requires top-level `pull-requests: read` permission. The compiler reports an error instead of adding that permission automatically.
 
 ```yaml
 permissions:
@@ -85,8 +85,7 @@ permissions:
 
 safe-outputs:
   create-pull-request:
-    pre-create:
-      steer: true
+    steer: true
 ```
 
 ### Branch targeting

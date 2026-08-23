@@ -713,7 +713,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 	// File sections for tools with multi-step instructions
 	if safeOutputs.CreatePullRequests != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsCreatePRFile, IsFile: true})
-		if safeOutputs.CreatePullRequests.PreCreateSteer {
+		if safeOutputs.CreatePullRequests.Steer {
 			sections = append(sections, PromptSection{Content: safeOutputsPreCreateSteerFile, IsFile: true})
 		}
 	}

@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Add `safe-outputs.create-pull-request.pre-create.steer` to let pre-created pull request runs ingest user feedback from pull request comments.
+Add `safe-outputs.create-pull-request.steer` to pre-create a pull request and let the run ingest user feedback from pull request comments.
