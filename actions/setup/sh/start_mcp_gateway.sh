@@ -62,7 +62,11 @@ fi
 chmod 700 /tmp/gh-aw/mcp-config
 
 GATEWAY_STDOUT=/tmp/gh-aw/mcp-config/gateway-output.json
-GATEWAY_STDERR=/tmp/gh-aw/mcp-config/gateway-stderr.log
+# Keep unredacted gateway stderr outside the artifact directory. It is emitted
+# only through print_gateway_startup_diagnostics after redaction.
+GATEWAY_STDERR="$(mktemp /tmp/gh-aw-mcp-gateway-stderr.XXXXXX)"
+chmod 600 "$GATEWAY_STDERR"
+trap 'rm -f "$GATEWAY_STDERR"' EXIT
 GATEWAY_STARTUP_MARKER="${MCP_GATEWAY_STARTUP_MARKER:-/tmp/gh-aw/mcp-gateway-started}"
 rm -f "$GATEWAY_STARTUP_MARKER"
 
