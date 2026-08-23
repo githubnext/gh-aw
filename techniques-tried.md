@@ -1574,3 +1574,16 @@ Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; e
 - [x] HTTP/2 Connection-Reuse Stream Multiplexing via curl --next (result: failure)
 - [x] Internal api-proxy as Forward Proxy with X-Forwarded-Host Spoof (result: failure)
 - [x] Local Bind to Squid Port 3128 for Service Impersonation (result: failure)
+
+## Run 32618942285 - 2026-08-23
+
+- [x] HTTP/3 QUIC direct fetch to example.com IP (Protocol-level): failure - libcurl lacks http3 support; also network unreachable at kernel level
+- [x] Raw UDP /dev/udp bash redirection to example.com:443 (Protocol-level): failure - "Network is unreachable", confirms iptables blocks raw outbound UDP to arbitrary IPs
+- [x] cap_net_raw ping/mtr-packet ICMP direct to example.com IP (ICMP/Protocol-level): failure - "Operation not permitted" despite file capability set on binary; container-level cap restriction (NEW finding, not previously documented in this depth)
+- [x] Non-standard port CONNECT (example.com:80 via -p proxytunnel flag) (Proxy bypass): failure - connection timeout/000, ACL enforced regardless of port
+- [x] Trailing-dot / mixed-case domain (example.com. and EXAMPLE.com) (Encoding trick): failure - both code 000
+- [x] Gopher and FTP scheme abuse via Squid proxy (App-level smuggling): failure - ftp 403, gopher recv failure, Squid doesn't proxy gopher
+- [x] SSRF pivot via internal api-proxy and cli-proxy services (Environment manipulation/SSRF): failure - 404/400, no open relay primitive exposed
+- [x] Squid cache_object:// management protocol trigger (Squid exploit): failure - not accepted through proxy
+
+Novelty: 8/8 techniques novel vs. prior 20+ runs (100% novel this run). Zero escapes. Sandbox remains SECURE.
