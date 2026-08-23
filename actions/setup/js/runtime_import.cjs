@@ -727,22 +727,30 @@ async function fetchUrlContent(url, cacheDir) {
   // Fetch URL content
   core.info(`Fetching content from URL: ${url}`);
 
+  // Share a single abort signal across both the connection/headers phase and the body-reading
+  // phase, since fetch()'s own timeout signal is only honored until the promise resolves.
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(new Error(`Timed out after ${FETCH_URL_TIMEOUT_MS}ms`)), FETCH_URL_TIMEOUT_MS);
+
   let response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(FETCH_URL_TIMEOUT_MS) });
-  } catch (err) {
-    throw new Error(`${ERR_API}: Failed to fetch URL ${url}: ${getErrorMessage(err)}`, { cause: err });
-  }
-
-  if (!response.ok) {
-    throw new Error(`${ERR_API}: Failed to fetch URL ${url}: HTTP ${response.status}`);
-  }
-
   let data;
   try {
+    // Do not follow redirects automatically: a redirect landing on a 200 response would
+    // silently broaden the fetched origin and bypass the non-200 status check below.
+    response = await fetch(url, { signal: timeoutController.signal, redirect: "manual" });
+
+    if (!response.ok) {
+      throw new Error(`${ERR_API}: Failed to fetch URL ${url}: HTTP ${response.status}`);
+    }
+
     data = await response.text();
   } catch (err) {
+    if (err instanceof Error && err.message.startsWith(ERR_API)) {
+      throw err;
+    }
     throw new Error(`${ERR_API}: Failed to fetch URL ${url}: ${getErrorMessage(err)}`, { cause: err });
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   // Cache the content

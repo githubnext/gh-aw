@@ -2309,7 +2309,7 @@ describe("runtime_import", () => {
         res.writeHead(200);
         res.write("partial-data");
         // Destroy the underlying socket mid-response to simulate a reset connection.
-        // Node emits an 'error' event on the response object itself for this case.
+        // With builtin fetch(), response.text() rejects when the socket is destroyed mid-transfer.
         res.socket.destroy(new Error("simulated socket failure"));
       });
       await new Promise(resolve => server.listen(0, resolve));
@@ -2328,7 +2328,19 @@ describe("runtime_import", () => {
       const { port } = server.address();
       baseUrl = `http://127.0.0.1:${port}/missing.txt`;
 
-      await expect(fetchUrlContent(baseUrl, tempDir)).rejects.toThrow(/HTTP 404/);
+      await expect(fetchUrlContent(baseUrl, tempDir)).rejects.toThrow(/ERR_API.*HTTP 404/);
+    });
+
+    it("should reject a redirect response instead of following it", async () => {
+      server = http.createServer((_req, res) => {
+        res.writeHead(302, { Location: "http://127.0.0.1:1/final.txt" });
+        res.end();
+      });
+      await new Promise(resolve => server.listen(0, resolve));
+      const { port } = server.address();
+      baseUrl = `http://127.0.0.1:${port}/redirect.txt`;
+
+      await expect(fetchUrlContent(baseUrl, tempDir)).rejects.toThrow(/ERR_API.*HTTP 302/);
     });
   });
 });
