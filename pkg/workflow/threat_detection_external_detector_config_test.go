@@ -323,6 +323,7 @@ func TestResolveExternalDetectorEngineConfigInheritsVersionFromMainEngine(t *tes
 			EngineConfig: &EngineConfig{
 				ID:            "opencode",
 				Version:       "1.2.14",
+				LLMProvider:   LLMProviderGitHub,
 				Config:        "some-config",
 				Args:          []string{"--flag"},
 				HarnessScript: "harness.cjs",
@@ -336,6 +337,9 @@ func TestResolveExternalDetectorEngineConfigInheritsVersionFromMainEngine(t *tes
 		got := resolveExternalDetectorEngineConfig(data, "opencode")
 		if got.Version != "1.2.14" {
 			t.Errorf("expected Version to be inherited as 1.2.14, got %q", got.Version)
+		}
+		if got.LLMProvider != LLMProviderGitHub {
+			t.Errorf("expected LLMProvider to be inherited as github, got %q", got.LLMProvider)
 		}
 		if got.Config != "some-config" {
 			t.Errorf("expected Config to be inherited, got %q", got.Config)

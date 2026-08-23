@@ -21,11 +21,13 @@ on:
   reaction: "hooray"
   status-comment: true
 permissions:
+  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read
 name: Smoke Codex
 engine: codex
+model: copilot/auto
 imports:
   - shared/gh.md
   - shared/reporting-otlp.md

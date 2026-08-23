@@ -503,9 +503,8 @@ permissions:
 features:
   gh-aw-detection: true
 
-model: copilot/gpt-5.4
-engine:
-  id: pi
+model: copilot/mai-code-1-flash-picker
+engine: codex
 imports:
   - shared/mcp-pagination.md
   - shared/github-guard-policy.md

@@ -81,15 +81,36 @@ func (e *CodexEngine) GetModelEnvVarName() string {
 }
 
 // ResolveLLMProvider returns the effective provider for Codex inference.
-// Default is openai, overridable via engine.provider (or engine.model-provider).
+// A copilot/ model prefix selects GitHub-hosted inference. An explicit
+// engine.provider (or engine.model-provider) override always takes precedence.
 func (e *CodexEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvider {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.LLMProvider != "" {
+		return resolveEngineLLMProvider(workflowData, LLMProviderOpenAI)
+	}
+	if workflowData != nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(workflowData.Model)), "copilot/") {
+		return LLMProviderGitHub
+	}
 	return resolveEngineLLMProvider(workflowData, LLMProviderOpenAI)
 }
 
+func codexModelID(model string) string {
+	model = strings.TrimSpace(model)
+	provider, modelID, found := strings.Cut(model, "/")
+	if found && strings.EqualFold(provider, "copilot") {
+		return modelID
+	}
+	return model
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
-// This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY and mcp-scripts secrets
+// and any common MCP secrets.
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	return append([]string{"CODEX_API_KEY", "OPENAI_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
+	var secrets []string
+	provider := e.ResolveLLMProvider(workflowData)
+	if provider != LLMProviderGitHub || !hasCopilotRequestsWritePermission(workflowData) {
+		secrets = append(secrets, llmProviderSecretNames(provider)...)
+	}
+	return append(secrets, collectCommonMCPSecrets(workflowData)...)
 }
 
 // GetSupportedEnvVarKeys returns the engine.env variable names that the Codex engine
@@ -104,10 +125,14 @@ func (e *CodexEngine) GetSupportedEnvVarKeys() []string {
 // GetSecretValidationStep returns the secret validation step for the Codex engine.
 // Returns an empty step if custom command is specified.
 func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	provider := e.ResolveLLMProvider(workflowData)
 	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
-		SecretNames: []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		SecretNames: llmProviderSecretNames(provider),
 		EngineName:  "Codex",
-		DocsURL:     "https://github.github.com/gh-aw/reference/engines/#openai-codex",
+		DocsURL:     llmProviderDocsURL(provider),
+		Skip: func(workflowData *WorkflowData) bool {
+			return provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData)
+		},
 	})
 }
 
@@ -354,6 +379,9 @@ func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, log
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
 		}
+		if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+			codexCommandWithSetup = codexBYOKAPIKeyExport() + " && " + codexCommandWithSetup
+		}
 		return BuildAWFCommand(AWFCommandConfig{
 			EngineName:         "codex",
 			EngineCommand:      codexCommandWithSetup,
@@ -362,7 +390,7 @@ func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, log
 			UsesTTY:            false,
 			AllowedDomains:     e.codexAllowedDomains(workflowData),
 			PathSetup:          e.codexPathSetup(workflowData, detectionSchemaWriteCmd),
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY", "COPILOT_GITHUB_TOKEN"}),
 		})
 	}
 	schemaWritePrefix := ""
@@ -389,12 +417,20 @@ mkdir -p "$CODEX_HOME/logs"
 func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
 	allowedDomains := workflowData.CachedAllowedDomainsStr
 	if !workflowData.CachedAllowedDomainsComputed {
-		allowedDomains = GetAllowedDomainsForEngine(constants.CodexEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		allowedDomains = mergeDomainsWithNetworkToolsAndRuntimes(e.defaultDomains(workflowData), workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 	}
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 		allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
 	}
 	return allowedDomains
+}
+
+func (e *CodexEngine) defaultDomains(workflowData *WorkflowData) []string {
+	defaults := append([]string{}, CodexDefaultDomains...)
+	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+		defaults = append(defaults, CopilotDefaultDomains...)
+	}
+	return defaults
 }
 
 func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchemaWriteCmd string) string {
@@ -405,20 +441,33 @@ func (e *CodexEngine) codexPathSetup(workflowData *WorkflowData, detectionSchema
 	return base
 }
 
+func codexBYOKAPIKeyExport() string {
+	return "export CODEX_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""
+}
+
 func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewallEnabled, modelConfigured bool, modelEnvVar string) map[string]string {
 	effectiveGitHubToken := getEffectiveGitHubToken("")
+	provider := e.ResolveLLMProvider(workflowData)
 	env := map[string]string{
-		"CODEX_API_KEY":                "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"CODEX_HOME":                   constants.TmpMcpConfigDir,
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
+		"GH_AW_LLM_PROVIDER":           string(provider),
 		"GH_AW_MCP_CONFIG":             constants.CodexMcpConfigTomlPath,
 		"GH_AW_PROMPT":                 constants.AwPromptsFile,
 		"GITHUB_AW":                    "true",
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,
 		"GITHUB_STEP_SUMMARY":          AgentStepSummaryPath,
-		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"RUNNER_TEMP":                  "${{ runner.temp }}",
 		"RUST_LOG":                     "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug' || 'warn' }}",
+	}
+	if provider == LLMProviderGitHub {
+		copilotToken := llmProviderSecretExpression(provider, workflowData)
+		env["COPILOT_GITHUB_TOKEN"] = copilotToken
+		env[constants.CopilotBYOKDummyAPIKeyEnvVar] = constants.CopilotBYOKDummyAPIKey
+	} else {
+		openAIKey := llmProviderSecretExpression(provider, workflowData)
+		env["CODEX_API_KEY"] = openAIKey
+		env["OPENAI_API_KEY"] = openAIKey
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	env["GH_AW_PHASE"] = workflowRunPhase(workflowData)
@@ -431,6 +480,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 	applyTraceContextEnvToMap(env)
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
+		env["AWF_REFLECT_ENABLED"] = "1"
 	}
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
@@ -439,8 +489,9 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 		if containsExpression(workflowData.Model) {
 			env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 		}
-		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.Model)
-		env[modelEnvVar] = workflowData.Model
+		model := codexModelID(workflowData.Model)
+		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, model)
+		env[modelEnvVar] = model
 	} else {
 		env[modelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	}

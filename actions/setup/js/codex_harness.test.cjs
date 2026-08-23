@@ -24,7 +24,7 @@ const {
   buildCodexChildEnv,
   extractPortFromURL,
   extractOpenAIProxyBaseURLFromToml,
-  getConfiguredOpenAIPortFromReflect,
+  getConfiguredProviderPortFromReflect,
   validateCodexOpenAIBaseURLFromReflect,
   configureCodexProviderFromReflect,
   hasNoopInSafeOutputs,
@@ -246,21 +246,30 @@ env_key = "OPENAI_API_KEY"
       expect(extractOpenAIProxyBaseURLFromToml(toml)).toBe("http://172.30.0.30:10000");
     });
 
-    it("extracts configured OpenAI port from reflect payload", () => {
+    it("extracts configured provider port from reflect payload", () => {
       const reflect = {
         endpoints: [
           { provider: "anthropic", port: 10001, configured: true },
           { provider: "openai", port: 10000, configured: true },
+          { provider: "copilot", port: 10002, configured: true },
         ],
       };
-      expect(getConfiguredOpenAIPortFromReflect(reflect)).toBe(10000);
+      expect(getConfiguredProviderPortFromReflect(reflect)).toBe(10000);
+      expect(getConfiguredProviderPortFromReflect(reflect, "github")).toBe(10002);
     });
 
     it("returns null for malformed reflect endpoint ports", () => {
       const reflect = {
         endpoints: [{ provider: "openai", port: "not-a-number", configured: true }],
       };
-      expect(getConfiguredOpenAIPortFromReflect(reflect)).toBeNull();
+      expect(getConfiguredProviderPortFromReflect(reflect)).toBeNull();
+    });
+
+    it("returns null when the selected provider is not configured", () => {
+      const reflect = {
+        endpoints: [{ provider: "anthropic", port: 10001, configured: true }],
+      };
+      expect(getConfiguredProviderPortFromReflect(reflect, "github")).toBeNull();
     });
 
     it("fails validation when config and reflect OpenAI ports mismatch", () => {
@@ -301,6 +310,35 @@ env_key = "OPENAI_API_KEY"
         readFileSync,
       });
       expect(result.ok).toBe(true);
+    });
+
+    it("validates against the selected GitHub provider", () => {
+      const files = {
+        "/tmp/codex-config.toml": `[model_providers.openai-proxy]\nbase_url = "http://api-proxy:10002"\n`,
+        "/tmp/awf-reflect.json": JSON.stringify({ endpoints: [{ provider: "copilot", port: 10002, configured: true }] }),
+      };
+      const result = validateCodexOpenAIBaseURLFromReflect({
+        codexConfigPath: "/tmp/codex-config.toml",
+        reflectPath: "/tmp/awf-reflect.json",
+        provider: "github",
+        readFileSync: filePath => files[filePath],
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("fails strictly when /reflect has configured endpoints but none for the selected provider", () => {
+      const files = {
+        "/tmp/codex-config.toml": `[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10000"\n`,
+        "/tmp/awf-reflect.json": JSON.stringify({ endpoints: [{ provider: "anthropic", port: 10001, configured: true }] }),
+      };
+      const result = validateCodexOpenAIBaseURLFromReflect({
+        codexConfigPath: "/tmp/codex-config.toml",
+        reflectPath: "/tmp/awf-reflect.json",
+        provider: "github",
+        readFileSync: filePath => files[filePath],
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain("no configured endpoint for provider");
     });
 
     it("passes through when TOML lacks openai-proxy section", () => {

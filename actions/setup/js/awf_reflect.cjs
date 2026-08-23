@@ -1026,6 +1026,7 @@ if (typeof module !== "undefined" && module.exports) {
     inferWireApiForModel,
     deriveBaseUrlFromModelsURL,
     normalizeReflectProviderName,
+    REFLECT_PROVIDER_ALIASES,
     resolveOpenAICompatibleEndpointFromReflect,
     resolveProviderEndpointFromReflect,
     resolveMultiProviderFromReflect,
