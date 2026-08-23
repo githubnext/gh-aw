@@ -17,7 +17,7 @@ func TestApplyDefaultToolsSteerEnablesPullRequestMCPAccess(t *testing.T) {
 	}
 	safeOutputs := &SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{
-			Steer: true,
+			PreCreate: true,
 		},
 	}
 
@@ -39,7 +39,7 @@ func TestApplyDefaultToolsSteerReEnablesGitHubMCP(t *testing.T) {
 	tools := map[string]any{"github": false}
 	safeOutputs := &SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{
-			Steer: true,
+			PreCreate: true,
 		},
 	}
 

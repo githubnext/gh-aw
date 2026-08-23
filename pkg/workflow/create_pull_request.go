@@ -92,8 +92,7 @@ func isPreCreatePullRequestConfigured(config *CreatePullRequestsConfig) bool {
 func isPreCreatePullRequestSteerEnabled(data *WorkflowData) bool {
 	return data != nil &&
 		data.SafeOutputs != nil &&
-		data.SafeOutputs.CreatePullRequests != nil &&
-		data.SafeOutputs.CreatePullRequests.Steer
+		isPreCreatePullRequestConfigured(data.SafeOutputs.CreatePullRequests)
 }
 
 func validatePreCreatePullRequestSteerPermissions(data *WorkflowData, permissions *Permissions) error {
@@ -101,11 +100,11 @@ func validatePreCreatePullRequestSteerPermissions(data *WorkflowData, permission
 		return nil
 	}
 	if permissions == nil {
-		return errors.New("safe-outputs.create-pull-request.steer: true cannot be used without pull-requests: read, which is required to read pull-request comments")
+		return errors.New("safe-outputs.create-pull-request steering requires pull-requests: read, which is required to read pull-request comments")
 	}
 	level, ok := permissions.Get(PermissionPullRequests)
 	if !ok || (level != PermissionRead && level != PermissionWrite) {
-		return errors.New("safe-outputs.create-pull-request.steer: true cannot be used without pull-requests: read, which is required to read pull-request comments")
+		return errors.New("safe-outputs.create-pull-request steering requires pull-requests: read, which is required to read pull-request comments")
 	}
 	return nil
 }

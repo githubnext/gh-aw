@@ -370,7 +370,7 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 	sections := buildSafeOutputsSections(&SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{
-			Steer: true,
+			PreCreate: true,
 		},
 	}, nil)
 
@@ -384,7 +384,7 @@ func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 		}
 	}
 
-	assert.True(t, found, "Expected pre-create steering guidance file to be included when steer is enabled")
+	assert.True(t, found, "Expected pre-create steering guidance file to be included when pre-created pull request is enabled")
 }
 
 // the list of tool names in the order they appear, stripping any max-budget annotations

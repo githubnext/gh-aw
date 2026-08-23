@@ -147,7 +147,7 @@ func TestValidatePreCreatePullRequestSteerPermissions(t *testing.T) {
 		{
 			name:        "missing pull requests permission",
 			permissions: NewPermissionsContentsRead(),
-			wantErr:     "steer: true cannot be used without pull-requests: read",
+			wantErr:     "steering requires pull-requests: read",
 		},
 		{
 			name: "pull requests read",
@@ -299,5 +299,5 @@ func TestActivationPreCreateStepPassesSteerFlag(t *testing.T) {
 	require.NoError(t, err)
 
 	steps := strings.Join(job.Steps, "")
-	assert.Contains(t, steps, `GH_AW_PRE_CREATE_STEER: "true"`)
+	assert.NotContains(t, steps, "GH_AW_PRE_CREATE_STEER")
 }

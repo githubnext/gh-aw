@@ -248,7 +248,6 @@ jobs:
         env:
           GH_AW_WORKFLOW_NAME: "Daily Go Test Parallelizer"
           GH_AW_PR_TITLE_PREFIX: "[test-parallel] "
-          GH_AW_PRE_CREATE_STEER: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
