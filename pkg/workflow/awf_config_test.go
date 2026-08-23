@@ -153,6 +153,9 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Version: "v0.28.5"},
+				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
 						Config: &SandboxRuntimeConfig{
@@ -199,6 +202,9 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Version: "v0.28.5"},
+				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
 						Config: &SandboxRuntimeConfig{
