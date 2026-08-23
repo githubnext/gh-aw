@@ -142,6 +142,54 @@ function hasUpdatePullRequestFields(args) {
 }
 
 /**
+ * Split a combined title/body message when an agent incorrectly sends both values
+ * in `title` separated by newlines.
+ *
+ * Supported examples:
+ * - "My title\n\nMy body"
+ * - "Title: My title\nBody: My body"
+ *
+ * @param {Record<string, any> | null | undefined} args
+ * @returns {Record<string, any>}
+ */
+function normalizeCombinedTitleBodyArgs(args) {
+  const safeArgs = { ...(args || {}) };
+  if (typeof safeArgs.title !== "string") return safeArgs;
+  // An explicitly supplied `body` (including an empty string) is a caller-provided
+  // value and must never be overwritten by this recovery normalization.
+  if (typeof safeArgs.body === "string") return safeArgs;
+
+  const rawTitle = safeArgs.title.replace(/\r\n/g, "\n").trim();
+  if (!rawTitle.includes("\n")) return safeArgs;
+
+  const lines = rawTitle.split("\n");
+  const firstLineIndex = lines.findIndex(line => line.trim().length > 0);
+  if (firstLineIndex < 0) return safeArgs;
+
+  const firstLine = lines[firstLineIndex];
+  const remainingLines = lines.slice(firstLineIndex + 1);
+  while (remainingLines.length > 0 && remainingLines[0].trim().length === 0) {
+    remainingLines.shift();
+  }
+  if (remainingLines.length === 0) return safeArgs;
+
+  // Only treat this as the labeled form (and strip the "Title:"/"Body:" prefixes)
+  // when the first line actually starts with a "Title:" label. Otherwise a plain
+  // split may have a body that legitimately starts with the literal text "Body:".
+  const titleLabelMatch = firstLine.match(/^title\s*:\s*/i);
+  const normalizedTitle = titleLabelMatch ? firstLine.slice(titleLabelMatch[0].length).trim() : firstLine.trim();
+  if (!normalizedTitle) return safeArgs;
+
+  const remainder = remainingLines.join("\n");
+  const normalizedBody = titleLabelMatch ? remainder.replace(/^body\s*:\s*/i, "").trim() : remainder.trim();
+  if (!normalizedBody) return safeArgs;
+
+  safeArgs.title = normalizedTitle;
+  safeArgs.body = normalizedBody;
+  return safeArgs;
+}
+
+/**
  * Parse branch pattern configuration from array or comma-separated string.
  * @param {string[]|string|undefined} value
  * @returns {string[]}
@@ -661,7 +709,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Supports multi-repo scenarios via the optional 'repo' parameter
    */
   const createPullRequestHandler = async args => {
-    const entry = { ...args, type: "create_pull_request" };
+    /** @type {any} */
+    const normalizedArgs = normalizeCombinedTitleBodyArgs(args);
+    /** @type {any} */
+    const entry = { ...normalizedArgs, type: "create_pull_request" };
     if (config.create_pull_request?.require_temporary_id === true && !entry.temporary_id) {
       return buildIntentErrorResponse(buildMissingTemporaryIdError("create_pull_request", "create-pull-request"));
     }
@@ -2703,7 +2754,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * instead of a downstream Process Safe Outputs failure.
    */
   const updatePullRequestHandler = args => {
-    if (!hasUpdatePullRequestFields(args)) {
+    /** @type {any} */
+    const normalizedArgs = normalizeCombinedTitleBodyArgs(args);
+    if (!hasUpdatePullRequestFields(normalizedArgs)) {
       throw {
         code: -32602,
         message: `${ERR_VALIDATION}: update_pull_request requires at least one of: 'title', 'body', 'update_branch' fields`,
@@ -2741,7 +2794,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
     }
 
-    return defaultHandler("update_pull_request")(args || {});
+    return defaultHandler("update_pull_request")(normalizedArgs);
   };
 
   // ============================================================

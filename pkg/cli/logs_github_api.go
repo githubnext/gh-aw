@@ -364,12 +364,13 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		agenticRuns = filteredRuns
 	}
 
-	// Filter out skipped and cancelled runs — they carry no useful agentic data
-	// and should not count toward the requested run count.
+	// Filter out runs that never dispatched an agentic job — skipped and
+	// action_required runs carry no useful agentic data — along with cancelled
+	// runs. None of them should count toward the requested run count.
 	{
 		filtered := agenticRuns[:0]
 		for _, run := range agenticRuns {
-			if run.Conclusion == "skipped" || run.Conclusion == "cancelled" {
+			if isNonDispatchedConclusion(run.Conclusion) || run.Conclusion == "cancelled" {
 				continue
 			}
 			filtered = append(filtered, run)
