@@ -11044,7 +11044,7 @@
                   "properties": {
                     "if-no-files": {
                       "type": "string",
-                      "description": "Behaviour when no files match: 'error' (default) or 'ignore'",
+                      "description": "Behavior when no files match: 'error' (default) or 'ignore'",
                       "enum": ["error", "ignore"],
                       "default": "error"
                     }
