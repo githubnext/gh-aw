@@ -156,11 +156,77 @@ jobs:
         run: |
           go test -v -timeout=5m -tags 'integration' -run '^TestMCPServer_WindowsSmokeCommands$' ./pkg/cli
 
+  unit-tests:
+    name: Unit tests with coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit tests with coverage
+        shell: bash
+        run: |
+          go test -v -parallel=4 -timeout=10m -coverprofile=coverage-unit.out ./...
+
+      - name: Install gocover-cobertura
+        if: always() && hashFiles('coverage-unit.out') != ''
+        shell: bash
+        run: go install github.com/boumenot/gocover-cobertura@v1.5.0
+
+      - name: Convert unit coverage to Cobertura
+        if: always() && hashFiles('coverage-unit.out') != ''
+        shell: bash
+        run: |
+          "$(go env GOPATH)/bin/gocover-cobertura" < coverage-unit.out > coverage-unit.xml
+
+      - name: Upload coverage artifact
+        if: always() && hashFiles('coverage-unit.xml') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        with:
+          name: coverage-report-go
+          path: coverage-unit.xml
+          retention-days: 1
+
+  upload-coverage-go:
+    name: Upload Go coverage
+    needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+        with:
+          name: coverage-report-go
+      - name: Upload coverage to code coverage API
+        uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+        with:
+          file: coverage-unit.xml
+          language: Go
+          label: code-coverage-agent
+
   summarize-timing:
     name: Summarize workflow timing
     needs:
       - build-windows
       - integration
+      - unit-tests
+      - upload-coverage-go
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
