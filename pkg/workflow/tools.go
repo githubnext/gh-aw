@@ -745,6 +745,8 @@ func ensureGitHubAllowedTool(githubConfig map[string]any, tool string) {
 		return
 	}
 	if _, exists := githubConfig["allowed"]; !exists {
+		// No allowlist means the GitHub MCP server exposes all read tools, including
+		// pull_request_read, so there is nothing to add.
 		return
 	}
 	allowed, _ := parseGitHubAllowedToolsAndLimits(githubConfig["allowed"])
