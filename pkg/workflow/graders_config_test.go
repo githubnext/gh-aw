@@ -49,6 +49,22 @@ func TestParseGradersFromFrontmatter_ZeroConfig(t *testing.T) {
 	}
 }
 
+func TestBuiltinGraderRegistry_WorkingSetRebuildFactor(t *testing.T) {
+	meta, ok := builtinGraderMetaByID["working-set-rebuild-factor"]
+	if !ok {
+		t.Fatal("expected working-set-rebuild-factor to be registered")
+	}
+	if meta.Unit != "factor" {
+		t.Fatalf("expected factor unit, got %s", meta.Unit)
+	}
+	if meta.Direction != "lower_is_better" {
+		t.Fatalf("expected lower_is_better direction, got %s", meta.Direction)
+	}
+	if meta.Min == nil || *meta.Min != 1 {
+		t.Fatalf("expected minimum value 1, got %v", meta.Min)
+	}
+}
+
 // TestParseGradersFromFrontmatter_DisableOne verifies selective disable.
 func TestParseGradersFromFrontmatter_DisableOne(t *testing.T) {
 	var c Compiler

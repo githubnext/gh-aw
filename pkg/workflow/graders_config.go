@@ -37,6 +37,7 @@ var BuiltinGraderRegistry = []BuiltinGraderMeta{
 	{ID: "trajectory-efficiency", Name: "Trajectory Efficiency", Description: "Ratio of unique tool names to total tool calls (higher = more diverse usage)", Unit: "ratio", Direction: "higher_is_better", Min: new(0.0), Max: new(1.0)},
 	{ID: "execution-step-count", Name: "Execution Step Count", Description: "Total LLM request count", Unit: "count", Direction: "lower_is_better"},
 	{ID: "execution-duration", Name: "Execution Duration", Description: "Total execution duration", Unit: "ms", Direction: "lower_is_better"},
+	{ID: "working-set-rebuild-factor", Name: "Working-Set Rebuild Factor", Description: "Cumulative input tokens divided by peak invocation input tokens", Unit: "factor", Direction: "lower_is_better", Min: new(1.0)},
 	{ID: "context-growth", Name: "Context Growth", Description: "Ratio of total tokens to first-request tokens", Unit: "factor", Direction: "lower_is_better"},
 	{ID: "artifact-production", Name: "Artifact Production", Description: "Count of outputs/artifacts produced by the agent", Unit: "count", Direction: "higher_is_better"},
 }
