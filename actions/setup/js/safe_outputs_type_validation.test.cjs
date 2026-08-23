@@ -77,6 +77,7 @@ describe("Safe Output Type Validation", () => {
       tools = JSON.parse(fs.readFileSync(toolsJsonPath, "utf8")),
       updatePullRequest = tools.find(tool => tool.name === "update_pull_request");
 
+    expect(updatePullRequest).toBeDefined();
     expect(updatePullRequest.inputSchema.properties.operation.enum).toContain("replace-island");
   });
 });

@@ -184,7 +184,7 @@ When `head-repo` is set, the preferred model is an ephemeral upstream-based bran
 
 ## Pull Request Updates (`update-pull-request:`)
 
-Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island` (updates a run-specific section delimited by HTML comments).
+Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `replace` (default), `append`, `prepend`, or `replace-island` (updates a run-specific section delimited by HTML comments).
 
 ```yaml wrap
 safe-outputs:
@@ -209,7 +209,9 @@ If GitHub reports `There are no new commits on the base branch.` or `merge confl
 
 When using `target: "*"`, the agent must provide `pull_request_number` in the output to identify which pull request to update.
 
-**Operation Types**: Same as `update-issue` (`append`, `prepend`, `replace`). Title updates always replace the existing title. Disable fields by setting to `false`.
+**Operation Types**: Same as `update-issue` (`replace`, `append`, `prepend`, `replace-island`). Title updates always replace the existing title. Disable fields by setting to `false`.
+
+For `replace-island`, gh-aw automatically wraps the workflow-specific section in `<!-- gh-aw-island-start:<workflowId> -->` and `<!-- gh-aw-island-end:<workflowId> -->` markers. The first run appends a marked island; subsequent runs replace only the content between those markers.
 
 ## Close Pull Request (`close-pull-request:`)
 

@@ -226,7 +226,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"title":               {Type: "string", Sanitize: true, MaxLength: 256},
 			"body":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend"}},
+			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend", "replace-island"}},
 			"update_branch":       {Type: "boolean"},
 			"draft":               {Type: "boolean"},
 			"pull_request_number": {IssueOrPRNumber: true},
