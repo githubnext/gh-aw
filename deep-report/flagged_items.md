@@ -1,3 +1,17 @@
+## Flagged Items (2026-08-23, ~06:23Z cycle, window since 00:35:59Z baseline #54946 (recovered from own report body, memory timestamp was stale), 11 new discussions: 54937,54965,54970,54972,54984,54985,54989,54993,54999,55005,55007)
+
+- **[new, filed]** proxy.golang.org/sum.golang.org blocked 259x in Daily Safe Output Integrator + Documentation Unbloat — Daily Firewall Report (#54965); same fix pattern as #54348/#54063/#48920/#48962, just not yet applied to these 2 workflows.
+- **[new, filed]** registry.npmjs.org blocked 100% (3/3) in "Cache directory setup" workflow — same report; verified no existing open issue for this specific workflow.
+- **[new, filed]** Quick Start Guide: "frontmatter" undefined + install-method ambiguity — Documentation Noob Tester (#54985)'s own 2 stated quick wins.
+- **[new, filed]** stale inert cap_net_raw file capability on ping/mtr-packet — Firewall Escape Test (#54993, SECURE, no exploit); minor hardening cleanup.
+- **[new, filed]** all 53 eslint-factory rules registered at "warn" not "error" — ESLint Refiner (#55005); proven-correct rule (require-http-response-error-listener) caught a real crash bug (#55002) that sat unfixed because nothing gates on warnings.
+- **[new, filed]** LintMonster's "planned" path-join cleanup (pkg/gitutil, pkg/repoutil, 2 findings) was never actually filed — closed the planned-vs-filed gap.
+- **[declined, already tracked]** PR Sous Chef Process Safe Outputs batch failure, 3rd occurrence, and audit/logs step-log gap — Safe Output Health Monitor (#54989); already open #53263/#54756.
+- **[declined, chronic, no re-file]** GitHub Remote MCP Auth Test toolset unavailability (#55007) — 17th+ occurrence, durable-fix issue #54739 already closed without effect.
+- **[declined, already self-filed]** Sergo's manualpathconcat ADD_ASSIGN gap (#54984) — #54983. ESLint Refiner's 3 individual rule-quality findings (#55005) — self-filed per report (only the systemic warn/error gap filed separately).
+- **[declined, likely subsumed, unconfirmed]** Compiler Code Quality Report's extractAdditionalConfigurations 186-line function (#54972, first run) — probably covered by LintMonster's #54699 consolidated pkg/workflow function-length tracker, but not line-by-line confirmed; flagged for next-cycle spot-check if it recurs.
+- **[declined, healthy]** Auto-Triage (#54937, 100% success), LintMonster's 733 already-tracked largefunc findings (#54970), Sergo's clean re-verification of #54718-sibling fixes (#54984), Docs Noob Tester's longer-term (non-quick-win) recommendations, "copilot was here" smoke test (#54999) — no action.
+
 ## Flagged Items (2026-08-22, ~12:22Z cycle, window since 05:45Z baseline #54758, 6 new discussions excl. own prior briefing #54758: 54750,54762,54767,54768,54774,54778)
 
 - **[new, filed]** copilot-session-insights.md hardcodes a stale ~40% orphan-rate baseline (lines 247, 363) vs 43+ consecutive days of ~0% observed — 50% escalation threshold effectively dead code (#54762).

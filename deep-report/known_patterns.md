@@ -1,3 +1,14 @@
+## DeepReport Memory (2026-08-23, ~06:23Z cycle, baseline #54946)
+
+### New pattern: repo-memory's "last write wins" merge can silently drop a completed cycle — cross-check the discussion feed, not just the memory timestamp
+The recorded `last_analysis_timestamp.md` said 2026-08-22T~12:22Z, but discussion #54946 ("DeepReport Intelligence Briefing - 2026-08-23", created 00:35:59Z — nearly 12h *later*) showed a full completed cycle (7 discussions processed, 7 issues filed) that was never reflected in memory. Recovered the true baseline by reading #54946's own report body, which self-documents its processed window. **Lesson: before trusting a memory timestamp as "the last cycle," search discussions for the workflow's own prior briefing title — if one exists with a *later* createdAt than the recorded timestamp, the memory write for that cycle was lost (likely an overlapping-run repo-memory race) and the discussion itself is the more reliable source of truth for what's already been processed.**
+
+### New pattern: a source workflow's "planned new issue" language doesn't guarantee the issue was filed — verify with a live search before assuming it's tracked
+LintMonster's report (#54970) said "Planned new issue: path-join cleanup for the 2 non-function-length findings," which reads like a completed action but is phrasally non-committal. A live `gh api search/issues` for the relevant keywords found nothing — the issue was never actually created. **Lesson: distinguish a report's past-tense "filed X" (trust it, per the established pattern from 2026-08-21) from future/conditional phrasing like "planned," "should create," "next run will file" — the latter needs the same dedup-search-then-file treatment as any other candidate, since "planned" often doesn't happen.**
+
+### New pattern: a lint rule that correctly catches a real bug can still leave it unfixed indefinitely if the rule's severity never gates anything
+ESLint Refiner (#55005) found `require-http-response-error-listener` had already correctly flagged a genuine crash bug in `runtime_import.cjs` — a true positive, not a rule defect — but it sat unfixed because all 53 `eslint-factory` rules are registered at `"warn"`, and warnings don't block CI. The individual bug (#55002) was self-filed by the same workflow, but the *systemic* gap (proven-correct rules with no enforcement mechanism) is a distinct, separately-fileable issue. **Lesson: when a lint/quality tool reports "rule X correctly caught real bug Y, but Y is still unfixed," look one layer up at *why* nothing gated on it — a severity/enforcement gap is often the actual root cause and is a different (and often higher-leverage) fix than patching bug Y alone.**
+
 ## DeepReport Memory (2026-08-22, ~05:45Z cycle, baseline #54675)
 
 ### New pattern: a closed "root-cause" issue doesn't mean the problem stopped — check whether the failure signature still recurs before treating a topic as resolved
