@@ -92,10 +92,16 @@ func (c *Compiler) validateCheckoutPersistCredentials(frontmatter map[string]any
 		return nil
 	}
 
+	const persistCredentialsExample = `      # example (keep your existing "uses:" ref):
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false`
+
 	msg := fmt.Sprintf(
 		"actions/checkout step(s) without 'persist-credentials: false' detected in the agent job: %s. "+
 			"Without this setting the git token is stored in .git/config and leaked to the agent. "+
-			"Add 'persist-credentials: false' to the 'with:' block of each checkout step. "+
+			"Add 'persist-credentials: false' to the 'with:' block of each checkout step, for example:\n"+
+			persistCredentialsExample+"\n"+
 			"See: https://github.github.com/gh-aw/reference/steps/",
 		strings.Join(offendingStepNames, ", "),
 	)
