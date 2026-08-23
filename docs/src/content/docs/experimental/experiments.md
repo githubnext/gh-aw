@@ -551,7 +551,8 @@ most `1-confidence`, and it is never described as a p-value.
 
 The daily experiment report consumes this structured core decision. It does not independently
 recompute the decision policy. Its only additional outcome handling is the interaction safety hold
-described above; `ABANDON` and `GUARDRAIL_FAILED` are not core decision values.
+described above. Older reporting terminology such as `ABANDON`, and guardrail statuses such as
+`GUARDRAIL_FAILED`, are not core decision values.
 
 Existing experiment configurations remain compatible. Analysis still defaults to 20 samples per
 variant and the configured or inferred statistical method. A deterministic `decision` is emitted
