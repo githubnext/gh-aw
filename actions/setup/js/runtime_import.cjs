@@ -14,8 +14,6 @@ const { closeUnterminatedSubAgentMarkers } = require("./extract_inline_sub_agent
 
 const fs = require("fs");
 const path = require("path");
-const https = require("https");
-const http = require("http");
 
 /**
  * Makes any "## skill:"/"## agent:" block in a runtime-imported chunk of
@@ -677,6 +675,9 @@ function hasGitHubActionsMacros(content) {
   return /\$\{\{[\s\S]*?\}\}/.test(content);
 }
 
+/** @type {number} Timeout in milliseconds for fetching URL content in {@link fetchUrlContent} */
+const FETCH_URL_TIMEOUT_MS = 30_000;
+
 /**
  * Fetches content from a URL with caching
  * @param {string} url - The URL to fetch
@@ -726,36 +727,40 @@ async function fetchUrlContent(url, cacheDir) {
   // Fetch URL content
   core.info(`Fetching content from URL: ${url}`);
 
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith("https") ? https : http;
+  // Share a single abort signal across both the connection/headers phase and the body-reading
+  // phase, since fetch()'s own timeout signal is only honored until the promise resolves.
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(new Error(`Timed out after ${FETCH_URL_TIMEOUT_MS}ms`)), FETCH_URL_TIMEOUT_MS);
 
-    protocol
-      .get(url, res => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Failed to fetch URL ${url}: HTTP ${res.statusCode}`));
-          return;
-        }
+  let response;
+  let data;
+  try {
+    // Do not follow redirects automatically: a redirect landing on a 200 response would
+    // silently broaden the fetched origin and bypass the non-200 status check below.
+    response = await fetch(url, { signal: timeoutController.signal, redirect: "manual" });
 
-        let data = "";
-        res.on("data", chunk => {
-          data += chunk;
-        });
+    if (!response.ok) {
+      throw new Error(`${ERR_API}: Failed to fetch URL ${url}: HTTP ${response.status}`);
+    }
 
-        res.on("end", () => {
-          // Cache the content
-          try {
-            fs.writeFileSync(cacheFile, data, "utf8");
-          } catch (err) {
-            reject(new Error(`Failed to write file ${cacheFile}: ${getErrorMessage(err)}`, { cause: err }));
-            return;
-          }
-          resolve(data);
-        });
-      })
-      .on("error", err => {
-        reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
-      });
-  });
+    data = await response.text();
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith(ERR_API)) {
+      throw err;
+    }
+    throw new Error(`${ERR_API}: Failed to fetch URL ${url}: ${getErrorMessage(err)}`, { cause: err });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  // Cache the content
+  try {
+    fs.writeFileSync(cacheFile, data, "utf8");
+  } catch (err) {
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${cacheFile}: ${getErrorMessage(err)}`, { cause: err });
+  }
+
+  return data;
 }
 
 /**
@@ -1406,6 +1411,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
+  fetchUrlContent,
   closeUnterminatedInlineMarkers,
   hasFrontMatter,
   removeXMLComments,
