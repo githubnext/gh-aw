@@ -16,6 +16,7 @@ import (
 // TestJSONFieldNames verifies that jsonFieldNames extracts the correct JSON tag
 // names from a struct via reflection.
 func TestJSONFieldNames(t *testing.T) {
+	t.Parallel()
 	type sampleArgs struct {
 		Alpha   string   `json:"alpha,omitempty"`
 		Beta    int      `json:"beta"`
@@ -33,6 +34,7 @@ func TestJSONFieldNames(t *testing.T) {
 // TestExtractUnknownParams verifies that the error-message parser correctly
 // extracts unknown parameter names from the jsonschema-go validation error.
 func TestExtractUnknownParams(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		errMsg   string
@@ -67,6 +69,7 @@ func TestExtractUnknownParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractUnknownParams(tt.errMsg)
 			assert.Equal(t, tt.expected, got, "extracted unknown params should match")
 		})
@@ -74,6 +77,7 @@ func TestExtractUnknownParams(t *testing.T) {
 }
 
 func TestExtractUnknownParamsFromSchemaError(t *testing.T) {
+	t.Parallel()
 	type sampleArgs struct {
 		Name string `json:"name" jsonschema:"Name field"`
 	}
@@ -95,6 +99,7 @@ func TestExtractUnknownParamsFromSchemaError(t *testing.T) {
 
 // TestFindSimilarParam verifies the fuzzy matching of parameter names.
 func TestFindSimilarParam(t *testing.T) {
+	t.Parallel()
 	compileParams := []string{"actionlint", "fix", "grype", "max_tokens", "poutine", "runner-guard", "strict", "syft", "workflows", "yamllint", "zizmor"}
 
 	tests := []struct {
@@ -155,6 +160,7 @@ func TestFindSimilarParam(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := findSimilarParam(tt.unknown, tt.validParams)
 			assert.Equal(t, tt.expected, got, "similar param suggestion should match")
 		})
@@ -163,7 +169,9 @@ func TestFindSimilarParam(t *testing.T) {
 
 // TestBuildHelpfulParamError verifies the structure of the helpful error message.
 func TestBuildHelpfulParamError(t *testing.T) {
+	t.Parallel()
 	t.Run("single unknown param with suggestion", func(t *testing.T) {
+		t.Parallel()
 		msg := buildHelpfulParamError(
 			"compile",
 			[]string{"workflow-name"},
@@ -175,6 +183,7 @@ func TestBuildHelpfulParamError(t *testing.T) {
 	})
 
 	t.Run("single unknown param without suggestion", func(t *testing.T) {
+		t.Parallel()
 		msg := buildHelpfulParamError(
 			"compile",
 			[]string{"banana"},
@@ -186,6 +195,7 @@ func TestBuildHelpfulParamError(t *testing.T) {
 	})
 
 	t.Run("multiple unknown params", func(t *testing.T) {
+		t.Parallel()
 		msg := buildHelpfulParamError(
 			"compile",
 			[]string{"workflow-name", "abc"},
@@ -197,11 +207,13 @@ func TestBuildHelpfulParamError(t *testing.T) {
 	})
 
 	t.Run("empty tool name omits help line", func(t *testing.T) {
+		t.Parallel()
 		msg := buildHelpfulParamError("", []string{"workflow-name"}, []string{"workflows"})
 		assert.NotContains(t, msg, "--help", "no tool name means no help line")
 	})
 
 	t.Run("prompt param points to ad hoc evaluation mode instead of a suggestion", func(t *testing.T) {
+		t.Parallel()
 		msg := buildHelpfulParamError("status", []string{"prompt"}, []string{"pattern"})
 		assert.Contains(t, msg, "Unknown parameter 'prompt'", "should mention unknown param")
 		assert.Contains(t, msg, "agentic-workflows custom agent", "should point to the custom agent")
@@ -209,6 +221,7 @@ func TestBuildHelpfulParamError(t *testing.T) {
 	})
 
 	t.Run("scenario param points to ad hoc evaluation mode", func(t *testing.T) {
+		t.Parallel()
 		msg := buildHelpfulParamError("compile", []string{"scenario"}, []string{"workflows", "strict"})
 		assert.Contains(t, msg, "Unknown parameter 'scenario'", "should mention unknown param")
 		assert.Contains(t, msg, "ad hoc scenario evaluation", "should mention ad hoc scenario evaluation")
@@ -218,6 +231,7 @@ func TestBuildHelpfulParamError(t *testing.T) {
 // TestArgumentValidationMiddleware_TransformsAdditionalPropertiesError verifies
 // that the middleware replaces raw schema validation errors with helpful messages.
 func TestArgumentValidationMiddleware_TransformsAdditionalPropertiesError(t *testing.T) {
+	t.Parallel()
 	toolParams := map[string]toolParamEntry{
 		"compile": {"actionlint", "fix", "grype", "max_tokens", "poutine", "runner-guard", "strict", "syft", "workflows", "yamllint", "zizmor"},
 	}
@@ -260,6 +274,7 @@ func TestArgumentValidationMiddleware_TransformsAdditionalPropertiesError(t *tes
 // that the middleware does not modify tool results that are unrelated to schema
 // validation.
 func TestArgumentValidationMiddleware_PassesThroughNonValidationErrors(t *testing.T) {
+	t.Parallel()
 	toolParams := mcpToolParams()
 	middleware := argumentValidationMiddleware(toolParams)
 
@@ -287,6 +302,7 @@ func TestArgumentValidationMiddleware_PassesThroughNonValidationErrors(t *testin
 // TestArgumentValidationMiddleware_PassesThroughSuccessResults verifies that
 // successful tool results are not modified.
 func TestArgumentValidationMiddleware_PassesThroughSuccessResults(t *testing.T) {
+	t.Parallel()
 	toolParams := mcpToolParams()
 	middleware := argumentValidationMiddleware(toolParams)
 
@@ -312,6 +328,7 @@ func TestArgumentValidationMiddleware_PassesThroughSuccessResults(t *testing.T) 
 // TestArgumentValidationMiddleware_UnknownToolReturnsInternalError verifies
 // that an unregistered tool name is reported as an internal server error.
 func TestArgumentValidationMiddleware_UnknownToolReturnsInternalError(t *testing.T) {
+	t.Parallel()
 	toolParams := map[string]toolParamEntry{
 		"compile": {"workflows"},
 	}
@@ -337,6 +354,7 @@ func TestArgumentValidationMiddleware_UnknownToolReturnsInternalError(t *testing
 // TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods verifies
 // that the middleware ignores methods other than "tools/call".
 func TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods(t *testing.T) {
+	t.Parallel()
 	toolParams := mcpToolParams()
 	middleware := argumentValidationMiddleware(toolParams)
 
@@ -360,6 +378,7 @@ func TestArgumentValidationMiddleware_PassesThroughNonToolCallMethods(t *testing
 // every tool is present, has non-empty params, and that no unexpected tools
 // have been added to mcpToolParams() without also being listed here.
 func TestMCPToolParams(t *testing.T) {
+	t.Parallel()
 	params := mcpToolParams()
 
 	// This list must mirror createMCPServer in mcp_server.go.  If a new tool is
@@ -374,6 +393,7 @@ func TestMCPToolParams(t *testing.T) {
 
 	for _, tool := range expectedTools {
 		t.Run(tool, func(t *testing.T) {
+			t.Parallel()
 			toolParams, ok := params[tool]
 			require.True(t, ok, "tool '%s' should be in the parameter registry", tool)
 			assert.NotEmpty(t, toolParams, "tool '%s' should have at least one parameter", tool)

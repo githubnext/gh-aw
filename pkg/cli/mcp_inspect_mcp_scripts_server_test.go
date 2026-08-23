@@ -10,6 +10,7 @@ import (
 )
 
 func TestWaitForServerReady_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
@@ -20,6 +21,7 @@ func TestWaitForServerReady_ContextCancelled(t *testing.T) {
 }
 
 func TestWaitForServerReady_Timeout(t *testing.T) {
+	t.Parallel()
 	err := waitForServerReady(t.Context(), 65535, 10*time.Millisecond, false)
 	if !errors.Is(err, errMCPScriptsServerStartupTimeout) {
 		t.Fatalf("expected timeout error, got %v", err)
