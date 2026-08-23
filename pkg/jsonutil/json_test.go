@@ -9,15 +9,73 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestMarshalCompactNoHTMLEscape validates the documented behavior of
+// MarshalCompactNoHTMLEscape as described in the jsonutil README.md.
+//
+// Specification:
+// - Marshals v to compact JSON without HTML escaping.
+// - Characters like '&', '<', '>' are preserved as-is (not encoded to \u0026, \u003c, \u003e).
+// - Trailing newline emitted by json.Encoder is trimmed so the result matches json.Marshal style.
+// - Values that json.Marshal cannot encode (e.g. channels, functions) return an error.
 func TestMarshalCompactNoHTMLEscape(t *testing.T) {
-	input := map[string]string{
-		"expr": "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }}",
+	tests := []struct {
+		name     string
+		input    any
+		wantErr  bool
+		expected string
+	}{
+		{
+			name:     "preserves expression operators (& and |)",
+			input:    map[string]string{"expr": "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }}"},
+			expected: `{"expr":"${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }}"}`,
+		},
+		{
+			name:     "output is compact (no trailing newline)",
+			input:    map[string]string{"key": "value"},
+			expected: `{"key":"value"}`,
+		},
+		{
+			name:     "preserves angle brackets without HTML escaping",
+			input:    map[string]string{"x": "<tag>"},
+			expected: `{"x":"<tag>"}`,
+		},
+		{
+			name:     "nil input marshals to null",
+			input:    nil,
+			expected: `null`,
+		},
+		{
+			name: "nested and unicode input",
+			input: map[string]any{
+				"nested": map[string]string{"greeting": "héllo"},
+				"list":   []string{"a", "b"},
+			},
+			expected: `{"list":["a","b"],"nested":{"greeting":"héllo"}}`,
+		},
+		{
+			name:    "returns error for values json cannot encode",
+			input:   map[string]any{"ch": make(chan int)},
+			wantErr: true,
+		},
+		{
+			name:    "returns error for functions",
+			input:   func() {},
+			wantErr: true,
+		},
 	}
 
-	result, err := MarshalCompactNoHTMLEscape(input)
-	require.NoError(t, err, "marshal should succeed")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := MarshalCompactNoHTMLEscape(tt.input)
 
-	assert.Contains(t, result, "&&", "expected expression operators to be preserved")
-	assert.NotContains(t, result, "\\u0026", "expected '&' to not be HTML-escaped")
-	assert.NotContains(t, result, "\n", "expected compact JSON without trailing newline")
+			if tt.wantErr {
+				require.Error(t, err, "marshal should fail")
+				assert.Empty(t, result, "result should be empty on error")
+				return
+			}
+
+			require.NoError(t, err, "marshal should succeed")
+			assert.Equal(t, tt.expected, result, "unexpected marshal result")
+		})
+	}
 }
