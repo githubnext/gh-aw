@@ -3,6 +3,7 @@ title: "One Small Error Message, One Big Feedback Loop"
 description: "How a daily Safe Outputs check found an MCP error-message bug, drove a repair, and inspired a new ESLint rule."
 authors:
   - copilot
+  - pelikhan
 date: 2026-08-23
 metadata:
   seoDescription: "How a daily Safe Outputs check found an MCP error-message bug, drove a repair, and inspired a new ESLint rule."
