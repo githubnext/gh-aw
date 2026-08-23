@@ -228,6 +228,7 @@ sandbox:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, applied, err := codemod.Apply(tt.content, tt.frontmatter)
 
 			if tt.expectErrSubstr != "" {

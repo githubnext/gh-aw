@@ -16,6 +16,7 @@ func TestStepsRunSecretsToEnvCodemod(t *testing.T) {
 	codemod := getStepsRunSecretsToEnvCodemod()
 
 	t.Run("moves inline run secret to env binding", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -43,6 +44,7 @@ steps:
 	})
 
 	t.Run("appends missing binding to existing env block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -74,6 +76,7 @@ steps:
 	})
 
 	t.Run("supports pre-steps section", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: pull_request
 pre-steps:
@@ -99,6 +102,7 @@ pre-steps:
 	})
 
 	t.Run("supports post-steps and pre-agent-steps sections", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: pull_request
 post-steps:
@@ -135,6 +139,7 @@ pre-agent-steps:
 	})
 
 	t.Run("supports list-item-inline run key", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -158,6 +163,7 @@ steps:
 	})
 
 	t.Run("supports list-item-inline env key with run sibling", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -187,6 +193,7 @@ steps:
 	})
 
 	t.Run("hoists github token expression from run to env binding", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -210,6 +217,7 @@ steps:
 	})
 
 	t.Run("hoists env expression from run to env binding", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -233,6 +241,7 @@ steps:
 	})
 
 	t.Run("hoists complex secrets fallback expression", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -259,6 +268,7 @@ steps:
 	})
 
 	t.Run("uses distinct env bindings for different complex expressions with same secret", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -287,6 +297,7 @@ steps:
 	})
 
 	t.Run("hoists mixed expressions with deduplicated bindings", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -317,6 +328,7 @@ steps:
 	})
 
 	t.Run("does not duplicate pre-existing synthesized bindings", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -348,6 +360,7 @@ steps:
 	})
 
 	t.Run("no-op when no inline run secrets are present", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -372,6 +385,7 @@ steps:
 	})
 
 	t.Run("hoists non-secrets expression to EXPR_ env binding", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -391,6 +405,7 @@ steps:
 	})
 
 	t.Run("hoists inputs expression to EXPR_ env binding", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -410,6 +425,7 @@ steps:
 	})
 
 	t.Run("hoists steps output expression to EXPR_ env binding", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -429,6 +445,7 @@ steps:
 	})
 
 	t.Run("hoists complex non-secrets expression with hash-based name", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -449,6 +466,7 @@ steps:
 	})
 
 	t.Run("uses $env:VARNAME for PowerShell steps (pwsh)", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -475,6 +493,7 @@ steps:
 	})
 
 	t.Run("uses $env:VARNAME for PowerShell steps (powershell)", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -500,6 +519,7 @@ steps:
 	})
 
 	t.Run("uses $env:VARNAME for PowerShell steps with secrets", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -523,6 +543,7 @@ steps:
 	})
 
 	t.Run("bash step uses $VARNAME not $env:VARNAME for EXPR_ bindings", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -543,6 +564,7 @@ steps:
 	})
 
 	t.Run("does not misclassify shell from run body containing shell: pwsh", func(t *testing.T) {
+		t.Parallel()
 		// A run block whose body contains a literal "shell: pwsh" line should not
 		// cause the step to be treated as a PowerShell step.
 		content := `---
@@ -571,6 +593,7 @@ steps:
 	})
 
 	t.Run("ignores expressions inside shell comment lines in run block", func(t *testing.T) {
+		t.Parallel()
 		// Expressions inside shell comments are documentation-only and must not
 		// generate env bindings or be rewritten.
 		content := `---
@@ -607,6 +630,7 @@ steps:
 	})
 
 	t.Run("ignores expressions in shell comments but still hoists real run expressions", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 steps:
@@ -636,6 +660,7 @@ steps:
 	})
 
 	t.Run("ignores expressions inside pwsh comment lines in run block", func(t *testing.T) {
+		t.Parallel()
 		// Expressions inside # comments are documentation-only for all shells,
 		// including PowerShell.
 		content := `---
@@ -667,6 +692,7 @@ steps:
 	})
 
 	t.Run("ignores expressions in shell comments in folded run block", func(t *testing.T) {
+		t.Parallel()
 		// The comment-skip logic applies to folded-scalar (>) run blocks as well.
 		content := `---
 on: workflow_dispatch
@@ -696,6 +722,7 @@ steps:
 	})
 
 	t.Run("uses distinct bindings when different bodies collide to the same EXPR_ name", func(t *testing.T) {
+		t.Parallel()
 		// inputs.my-input and inputs.my_input both sanitize to EXPR_INPUTS_MY_INPUT.
 		// The second one must fall back to a hash-based name to avoid being silently
 		// bound to the wrong expression.
