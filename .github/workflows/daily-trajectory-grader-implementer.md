@@ -66,8 +66,11 @@ repository.
 
 ## Step 2 — Select the next grader
 
-Walk the catalog **rank order** (1 through 25, spanning Tier 1, Tier 2, then
-Tier 3 as listed in the README). Select the first grader ID that:
+Walk the catalog **tier-first, then rank-within-tier**: all of Tier 1
+top-to-bottom, then all of Tier 2, then all of Tier 3, exactly as the
+three tables are ordered in the README (ranks are not contiguous within a
+tier — do not simply sort by rank number 1 through 25). Select the first
+grader ID that:
 
 - does **not** already have a `shared/trajectory-graders/<id>.md` file, and
 - is marked `Not started` in the catalog table.

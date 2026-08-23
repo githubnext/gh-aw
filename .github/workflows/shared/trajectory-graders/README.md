@@ -15,9 +15,15 @@ usefulness as a harness/agent-evolution signal.
 
 `daily-trajectory-grader-implementer` (see
 `.github/workflows/daily-trajectory-grader-implementer.md`) implements
-exactly **one** grader per run, in rank order, until all 25 are shipped.
-When a grader ships, flip its **Status** below to `Implemented` in the same
-PR that adds `shared/trajectory-graders/<id>.md`.
+exactly **one** grader per run, until all 25 are shipped. Implementation
+order is **tier-first, then rank-within-tier**: walk Tier 1 top-to-bottom,
+then Tier 2, then Tier 3 (ranks are not contiguous within a tier — Tier 1
+is ranks 5-11, Tier 2 is ranks 1-4 and 12-19, Tier 3 is ranks 20-25 —
+because tiers reflect implementation priority: Tier 1 graders need no
+golden answer, no second model, and no task-specific annotations beyond
+the canonical Trajectory IR, so they ship first even though some of them
+rank below Tier 2 graders). When a grader ships, flip its **Status** below
+to `Implemented` in the same PR that adds `shared/trajectory-graders/<id>.md`.
 
 ## Tier 1 — no golden answer, no second model, IR-only (implement first)
 
