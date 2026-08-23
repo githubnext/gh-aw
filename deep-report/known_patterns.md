@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-23, ~12:30Z cycle, baseline #55027)
+
+### New pattern: before filing a "wire up missing metric/schema" ask, check for an existing Draft ADR that already covers adjacent (but not identical) scope
+Daily Experiment Report (#55046) asked for per-run outcome-metric capture (token_count, success_rate, guardrail_pass) so `guardrail_metrics` stop reporting `unsupported`. A search of `docs/adr/` found ADR-29985 (Draft, 2026-05-03) already covers per-run state records, OTEL export, and `notify`/`analysis_type`/`tags` schema fields for the *same* `pick_experiment.cjs`/`state.json` subsystem — but does *not* cover outcome-metric capture specifically. **Lesson: "overlapping but not identical" ADR scope is a reason to decline filing a broad issue this cycle (the right owner may already be mid-design on the adjacent piece) rather than a reason to file a duplicate — but it's also not full coverage, so flag it for a future narrower-scoped ask instead of dropping it silently.**
+
+### Reconfirmed: a report's own "legacy label" framing may describe historical state-file data, not current config — verify against the live frontmatter before treating it as a current bug
+#55046 described `dailycavemanoptimizer`/`dailydochealer`/`dailydocupdater` as having "legacy agent/small-agent variant labels" causing balance-test noise. Checking the live `.github/workflows/*.md` frontmatter showed only 2 current variants (`claude-sonnet-4.6`/`claude-haiku-4.5`) — the noise is in old `state.json`/`state.jsonl` records from prior experiment iterations, not a current-config defect. **Lesson: same class of check as the eslint/lint "verify before filing" pattern — a report describing "legacy X" may be diagnosing accumulated historical data rather than a fixable-today config bug; grep the current source before scoping a fix.**
+
 ## DeepReport Memory (2026-08-23, ~06:23Z cycle, baseline #54946)
 
 ### New pattern: repo-memory's "last write wins" merge can silently drop a completed cycle — cross-check the discussion feed, not just the memory timestamp

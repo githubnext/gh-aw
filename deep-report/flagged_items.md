@@ -1,3 +1,14 @@
+## Flagged Items (2026-08-23, ~12:30Z cycle, window since 06:23:00Z baseline #55027, 8 new discussions: 55020,55037,55046,55048,55050,55056,55060,55062)
+
+- **[new, filed]** bare `fmt.Print` instead of `fmt.Fprint(os.Stdout, ...)` in `pkg/cli/status_command.go:295` and `pkg/cli/view_command.go:168` — Terminal Stylist (#55050); verified live, no dup.
+- **[new, filed]** 0/44 workflows with active experiments declare a tracking `issue:` field — Daily Experiment Report (#55046) recommendation #3, filed for the 4 highest-value near-ready experiments (daily-security-red-team, ci-coach, daily-safe-output-optimizer, test-quality-sentinel); `issue:` confirmed as a real ADR-29618 schema field already used elsewhere.
+- **[declined, chronic, no re-file]** Copilot Session Insights conversation-transcript fetch outage (#55037), 46th+ consecutive occurrence — standing chronic policy.
+- **[declined, too large/unscoped]** Per-run outcome-metric instrumentation (token_count/success_rate/guardrail_pass) for experiments so `guardrail_metrics` stop reporting `unsupported` (#55046) — report frames as "next iteration"; overlaps Draft ADR-29985's scope but that ADR doesn't cover outcome metrics specifically; flagged for a future cycle with a narrower slice.
+- **[declined, overlaps existing]** Prompt Clustering Cluster 0 (#55056, 46.6% merge, unbounded `[WIP]` investigation drafts) — process/prompt-guidance fix overlapping already-open #54232 (stale backlog-task screening); Cluster 5 (62.3% merge, wide-blast-radius version bumps) — process recommendation, not filed.
+- **[declined, not a code gap]** "Legacy small-agent variant labels" causing balance-test noise (#55046, daily-caveman-optimizer/daily-doc-healer/daily-doc-updater) — verified current frontmatter only has 2 variants each; the noise is in historical state.json/jsonl records, not current config; not scoped enough to file.
+- **[declined, insufficient baseline]** GitHub API Consumption Report (#55060), first-ever run, only ~17.2h of real data — PR Sous Chef ~16% of API calls noted but not yet actionable; revisit once real history accumulates.
+- **[declined, healthy]** Auto-Triage (#55020, 100% success), arXiv digest (#55048, research directions only), Terminal Stylist's overall "mature/consistent" finding (#55050), Constraint Solving POTD (#55062) — no action.
+
 ## Flagged Items (2026-08-23, ~06:23Z cycle, window since 00:35:59Z baseline #54946 (recovered from own report body, memory timestamp was stale), 11 new discussions: 54937,54965,54970,54972,54984,54985,54989,54993,54999,55005,55007)
 
 - **[new, filed]** proxy.golang.org/sum.golang.org blocked 259x in Daily Safe Output Integrator + Documentation Unbloat — Daily Firewall Report (#54965); same fix pattern as #54348/#54063/#48920/#48962, just not yet applied to these 2 workflows.
