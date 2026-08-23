@@ -27,7 +27,7 @@ jobs:
 
       - name: Fetch base branch
         if: github.event_name == 'pull_request'
-        run: git fetch origin ${{ github.base_ref }} --no-tags --depth=1
+        run: git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }} --no-tags --depth=1
 
       - name: Check stale lock files
         run: |
