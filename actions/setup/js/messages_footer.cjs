@@ -100,6 +100,7 @@ function buildAICEntry(label, value, modelAlias) {
  *   aiModel: string|undefined,
  *   aiModelShort: string|undefined,
  *   compressedModelName: string|undefined,
+ *   agenticEngine: string|undefined,
  *   agentAiCredits: number|undefined,
  *   agentAiCreditsFormatted: string|undefined,
  *   agentAiCreditsSuffix: string,
@@ -114,18 +115,20 @@ function buildAICEntry(label, value, modelAlias) {
 function getAICFromEnv() {
   const aiModel = process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL || undefined;
   const compressedModelName = reduceModelNameToIdentifier(aiModel);
+  const agenticEngine = process.env.GH_AW_ENGINE_ID || undefined;
+  const agentModelIdentifier = [agenticEngine, compressedModelName].filter(Boolean).join(" · ");
   const totalAIC = parsePositiveAIC(process.env.GH_AW_AIC);
   const explicitAgentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
   const evalsAIC = parsePositiveAIC(process.env.GH_AW_EVALS_AIC);
   const threatDetectionAIC = parsePositiveAIC(process.env.GH_AW_THREAT_DETECTION_AIC);
   const agentAIC = typeof explicitAgentAIC === "number" ? explicitAgentAIC : totalAIC;
-  const agentEntry = buildAICEntry("", agentAIC, compressedModelName);
+  const agentEntry = buildAICEntry("", agentAIC, agentModelIdentifier);
   const evalsEntry = buildAICEntry("◇", evalsAIC);
   const threatDetectionEntry = buildAICEntry("⌖", threatDetectionAIC);
   const useBreakdown = threatDetectionEntry.suffix.length > 0 || evalsEntry.suffix.length > 0;
   const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) + (evalsAIC || 0) : typeof totalAIC === "number" ? totalAIC : agentAIC;
   const aiCreditsFormatted = typeof aiCredits === "number" ? formatAIC(aiCredits) : undefined;
-  const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}${evalsEntry.suffix}` : buildAICEntry("", aiCredits, compressedModelName).suffix;
+  const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}${evalsEntry.suffix}` : buildAICEntry("", aiCredits, agentModelIdentifier).suffix;
 
   return {
     aiCredits,
@@ -134,6 +137,7 @@ function getAICFromEnv() {
     aiModel,
     aiModelShort: compressedModelName,
     compressedModelName,
+    agenticEngine,
     agentAiCredits: agentEntry.value,
     agentAiCreditsFormatted: agentEntry.formatted,
     agentAiCreditsSuffix: agentEntry.suffix,
@@ -179,6 +183,7 @@ function getFooterMessage(ctx) {
     aiModel,
     aiModelShort,
     compressedModelName,
+    agenticEngine,
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
@@ -207,7 +212,7 @@ function getFooterMessage(ctx) {
   let aiCreditsSuffix = envAICSuffix;
   if (hasExplicitContextAIC) {
     aiCreditsFormatted = explicitContextAIC ? formatAIC(explicitContextAIC) : undefined;
-    aiCreditsSuffix = buildAICEntry("", explicitContextAIC, compressedModelName).suffix;
+    aiCreditsSuffix = buildAICEntry("", explicitContextAIC, [agenticEngine, compressedModelName].filter(Boolean).join(" · ")).suffix;
   }
   const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${envAmbientContextSuffix}`;
 
