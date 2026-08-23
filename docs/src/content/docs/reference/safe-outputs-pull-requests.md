@@ -184,7 +184,7 @@ When `head-repo` is set, the preferred model is an ephemeral upstream-based bran
 
 ## Pull Request Updates (`update-pull-request:`)
 
-Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `append` (default), `prepend`, or `replace`.
+Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island` (updates a run-specific section delimited by HTML comments).
 
 ```yaml wrap
 safe-outputs:

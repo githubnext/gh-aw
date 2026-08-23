@@ -9599,8 +9599,8 @@
                 },
                 "operation": {
                   "type": "string",
-                  "description": "Default operation for body updates: 'append' (add to end), 'prepend' (add to start), or 'replace' (overwrite completely). Defaults to 'replace' if not specified.",
-                  "enum": ["append", "prepend", "replace"]
+                  "description": "Default operation for body updates: 'append' (add to end), 'prepend' (add to start), 'replace' (overwrite completely), or 'replace-island' (update a run-specific section). Defaults to 'replace' if not specified.",
+                  "enum": ["append", "prepend", "replace", "replace-island"]
                 },
                 "footer": {
                   "type": "boolean",
