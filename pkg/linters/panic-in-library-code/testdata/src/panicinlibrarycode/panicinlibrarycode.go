@@ -74,21 +74,21 @@ func panicWithBUGPrefix() {
 }
 
 // ok: panic with plain "BUG:" string literal.
-func invariantCheck(x int) {
+func panicOnNegativeInvariant(x int) {
 	if x < 0 {
 		panic("BUG: x must be non-negative") // should not be flagged
 	}
 }
 
-// documentedPreconditionPanics panics if the caller passes an invalid mode.
-func documentedPreconditionPanics(mode string) {
+// panicOnEmptyModePrecondition panics if the caller passes an invalid mode.
+func panicOnEmptyModePrecondition(mode string) {
 	if mode == "" {
 		panic("invalid mode") // should not be flagged — documented panic contract
 	}
 }
 
-// registerDocumentedClosureThatPanics panics if called with an empty input.
-func registerDocumentedClosureThatPanics(input string) {
+// registerCallbackWithDocumentedPanic panics if called with an empty input.
+func registerCallbackWithDocumentedPanic(input string) {
 	callback := func() {
 		panic("callback panic should be reported") // want `avoid panic in library code; return an error instead`
 	}
@@ -103,11 +103,11 @@ func (m myInitType) panicInMethodNamedInit() {
 	panic("method init panic") // want `avoid panic in library code; return an error instead`
 }
 
-func panicSuppressedByPreviousLineNolint() {
+func panicIgnoredByPreviousLineNolint() {
 	//nolint:panicinlibrarycode
 	panic("intentional panic for compatibility")
 }
 
-func panicSuppressedBySameLineNolint() {
+func panicIgnoredBySameLineNolint() {
 	panic("intentional panic for compatibility") //nolint:panicinlibrarycode
 }
