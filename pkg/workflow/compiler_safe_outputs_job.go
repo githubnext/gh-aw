@@ -323,6 +323,7 @@ func hasHandlerManagerTypes(data *WorkflowData) bool {
 		data.SafeOutputs.AssignToAgent != nil || // assign_to_agent is now handled by the handler manager
 		data.SafeOutputs.CreateAgentSessions != nil || // create_agent_session is now handled by the handler manager
 		data.SafeOutputs.UploadArtifact != nil || // upload_artifact is handled inline in the handler loop
+		data.SafeOutputs.UploadCodeCoverage != nil || // upload_code_coverage is handled inline in the handler loop
 		len(data.SafeOutputs.Scripts) > 0 || // Custom scripts run in the handler loop
 		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
 }
@@ -443,6 +444,12 @@ func addConditionalHandlerManagerOutputs(data *WorkflowData, outputs map[string]
 		for i := range data.SafeOutputs.UploadArtifact.MaxUploads {
 			outputs[fmt.Sprintf("upload_artifact_slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.process_safe_outputs.outputs.slot_%d_tmp_id }}", i)
 		}
+	}
+	if data.SafeOutputs.UploadCodeCoverage != nil {
+		consolidatedSafeOutputsJobLog.Print("Exposing upload_code_coverage outputs from handler manager")
+		outputs["upload_code_coverage_file"] = "${{ steps.process_safe_outputs.outputs.upload_code_coverage_file }}"
+		outputs["upload_code_coverage_language"] = "${{ steps.process_safe_outputs.outputs.upload_code_coverage_language }}"
+		outputs["upload_code_coverage_label"] = "${{ steps.process_safe_outputs.outputs.upload_code_coverage_label }}"
 	}
 }
 
