@@ -93,7 +93,7 @@ func (c *Compiler) validateCheckoutPersistCredentials(frontmatter map[string]any
 	}
 
 	const persistCredentialsExample = `      # example (keep your existing "uses:" ref):
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false`
 
