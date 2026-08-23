@@ -142,6 +142,18 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 	assert.Contains(t, containerCmd.String(), " -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
 }
 
+func TestAppendMCPGatewayMountEnvFlags(t *testing.T) {
+	tools := map[string]any{
+		"serena": map[string]any{
+			"mounts": []any{`\${RUNNER_TOOL_CACHE}:\${RUNNER_TOOL_CACHE}:ro`},
+		},
+	}
+
+	var containerCmd strings.Builder
+	appendMCPGatewayMountEnvFlags(&containerCmd, tools, nil)
+	assert.Equal(t, " -e RUNNER_TOOL_CACHE", containerCmd.String())
+}
+
 // TestWriteMCPGatewayExportsIncludesAllowedMountRoots verifies the run script
 // exports MCP_GATEWAY_ALLOWED_MOUNT_ROOTS before starting the gateway.
 func TestWriteMCPGatewayExportsIncludesAllowedMountRoots(t *testing.T) {
