@@ -101,6 +101,7 @@ function buildAICEntry(label, value, modelAlias) {
  *   aiModelShort: string|undefined,
  *   compressedModelName: string|undefined,
  *   agenticEngine: string|undefined,
+ *   agentModelIdentifier: string,
  *   agentAiCredits: number|undefined,
  *   agentAiCreditsFormatted: string|undefined,
  *   agentAiCreditsSuffix: string,
@@ -138,6 +139,7 @@ function getAICFromEnv() {
     aiModelShort: compressedModelName,
     compressedModelName,
     agenticEngine,
+    agentModelIdentifier,
     agentAiCredits: agentEntry.value,
     agentAiCreditsFormatted: agentEntry.formatted,
     agentAiCreditsSuffix: agentEntry.suffix,
@@ -212,7 +214,7 @@ function getFooterMessage(ctx) {
   let aiCreditsSuffix = envAICSuffix;
   if (hasExplicitContextAIC) {
     aiCreditsFormatted = explicitContextAIC ? formatAIC(explicitContextAIC) : undefined;
-    aiCreditsSuffix = buildAICEntry("", explicitContextAIC, [agenticEngine, compressedModelName].filter(Boolean).join(" · ")).suffix;
+    aiCreditsSuffix = buildAICEntry("", explicitContextAIC, agentModelIdentifier).suffix;
   }
   const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${envAmbientContextSuffix}`;
 
