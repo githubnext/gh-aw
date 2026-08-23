@@ -154,7 +154,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Version: "v0.28.5"},
+					Firewall: &FirewallConfig{Version: string(constants.AWFFilesystemAllowWriteMinVersion)},
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -203,7 +203,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Version: "v0.28.5"},
+					Firewall: &FirewallConfig{Version: string(constants.AWFFilesystemAllowWriteMinVersion)},
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
