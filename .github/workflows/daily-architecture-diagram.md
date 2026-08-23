@@ -14,10 +14,9 @@ permissions:
 
   copilot-requests: write
 engine:
-  id: copilot
-  copilot-sdk: true
+  id: codex
+model: copilot/mai-code-1-flash-picker
 
-max-tool-denials: 3
 experiments:
   detail_level:
     variants: [brief, comprehensive]

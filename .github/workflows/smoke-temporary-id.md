@@ -19,7 +19,8 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 network:
   allowed:

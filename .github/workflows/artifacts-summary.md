@@ -11,9 +11,8 @@ permissions:
   actions: read
   copilot-requests: write
 engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
+  id: codex
+model: copilot/mai-code-1-flash-picker
 network:
   allowed:
     - defaults

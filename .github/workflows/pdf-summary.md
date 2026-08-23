@@ -30,10 +30,9 @@ permissions:
 
 
 engine:
-  id: copilot
-  copilot-sdk: true
+  id: codex
+model: copilot/mai-code-1-flash-picker
 
-max-tool-denials: 3
 imports:
   # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/reporting.md

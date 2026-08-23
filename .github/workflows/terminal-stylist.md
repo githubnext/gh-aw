@@ -9,7 +9,8 @@ on:
 permissions:
   contents: read
 
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 
 timeout-minutes: 10
 

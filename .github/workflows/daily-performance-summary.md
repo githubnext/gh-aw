@@ -16,9 +16,8 @@ sandbox:
   agent:
     id: awf
 engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
+  id: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 tracker-id: daily-performance-summary
 tools:
