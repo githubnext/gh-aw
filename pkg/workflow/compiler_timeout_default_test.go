@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,13 +15,15 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 
 	"github.com/github/gh-aw/pkg/constants"
+
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 func TestDefaultTimeoutMinutesApplied(t *testing.T) {
 	tests := []struct {
 		name            string
 		frontmatter     string
-		expectedTimeout int
+		expectedTimeout string
 		description     string
 	}{
 		{
@@ -31,8 +34,9 @@ permissions:
   contents: read
 engine: copilot
 ---`,
-			expectedTimeout: int(constants.DefaultAgenticWorkflowTimeout / time.Minute),
-			description:     "When timeout-minutes is not specified, default should be applied",
+			expectedTimeout: fmt.Sprintf("timeout-minutes: ${{ vars.%s || '%d' }}",
+				compilerenv.DefaultTimeoutMinutes, int(constants.DefaultAgenticWorkflowTimeout/time.Minute)),
+			description: "When timeout-minutes is not specified, default should be applied",
 		},
 		{
 			name: "explicit timeout specified - should use explicit value",
@@ -43,7 +47,7 @@ permissions:
 timeout-minutes: 30
 engine: copilot
 ---`,
-			expectedTimeout: 30,
+			expectedTimeout: "timeout-minutes: 30",
 			description:     "When timeout-minutes is explicitly specified, that value should be used",
 		},
 	}
@@ -74,14 +78,11 @@ engine: copilot
 			}
 
 			// Check that the expected timeout is present in the lock file
-			expectedTimeoutStr := "timeout-minutes: " + string(rune(tt.expectedTimeout+'0'))
-			if tt.expectedTimeout >= 10 {
-				expectedTimeoutStr = "timeout-minutes: " + intToString(tt.expectedTimeout)
-			}
+			expectedTimeoutStr := tt.expectedTimeout
 
 			if !strings.Contains(string(lockContent), expectedTimeoutStr) {
-				t.Errorf("%s\nExpected timeout-minutes: %d in compiled workflow, but not found\nLock file content:\n%s",
-					tt.description, tt.expectedTimeout, string(lockContent))
+				t.Errorf("%s\nExpected %q in compiled workflow, but not found\nLock file content:\n%s",
+					tt.description, expectedTimeoutStr, string(lockContent))
 			}
 
 			// Verify the timeout appears in the execution step (not just anywhere in the file)
@@ -101,27 +102,11 @@ engine: copilot
 			}
 
 			if !foundTimeoutInStep {
-				t.Errorf("%s\nExpected timeout-minutes: %d in a workflow step (not in comments)\nLock file content:\n%s",
-					tt.description, tt.expectedTimeout, string(lockContent))
+				t.Errorf("%s\nExpected %q in a workflow step (not in comments)\nLock file content:\n%s",
+					tt.description, expectedTimeoutStr, string(lockContent))
 			}
 		})
 	}
-}
-
-// Helper function to convert int to string
-func intToString(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	if n < 0 {
-		return "-" + intToString(-n)
-	}
-	result := ""
-	for n > 0 {
-		result = string(rune('0'+n%10)) + result
-		n /= 10
-	}
-	return result
 }
 
 func TestDefaultTimeoutMinutesConstantValue(t *testing.T) {
