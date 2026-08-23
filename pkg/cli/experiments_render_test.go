@@ -86,6 +86,7 @@ func TestPrintExperimentDetailsDecision(t *testing.T) {
 		}},
 	})
 
+	assert.Contains(t, output, "Readiness  : READY")
 	assert.Contains(t, output, "Decision   : PROMOTE candidate")
 	assert.Contains(t, output, "candidate materially improves the primary metric (candidate_improved)")
 }

@@ -66,7 +66,7 @@ func TestDecideExperiment(t *testing.T) {
 			name: "failed guardrail rejects before primary promotion",
 			analysis: withDecisionTestGuardrail(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-				GuardrailStatus{Name: "grader:failures", Status: "fail", Passed: &failed},
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusFail, Passed: &failed},
 			),
 			want: ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonGuardrailFailed,
 		},
@@ -74,7 +74,7 @@ func TestDecideExperiment(t *testing.T) {
 			name: "missing guardrail extends",
 			analysis: withDecisionTestGuardrail(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-				GuardrailStatus{Name: "grader:failures", Status: "missing"},
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusMissing},
 			),
 			want: ExperimentDecisionExtend, reasonCode: ExperimentDecisionReasonInsufficientObservations,
 		},
@@ -82,7 +82,7 @@ func TestDecideExperiment(t *testing.T) {
 			name: "passed guardrail allows promotion",
 			analysis: withDecisionTestGuardrail(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-				GuardrailStatus{Name: "grader:failures", Status: "pass", Passed: &passed},
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusPass, Passed: &passed},
 			),
 			want: ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved,
 		},
@@ -204,24 +204,24 @@ func TestApplyExperimentGuardrails(t *testing.T) {
 		threshold     string
 		controlValues []float64
 		candidateVals []float64
-		wantStatus    string
+		wantStatus    GuardrailStatusCode
 		wantPassed    bool
 		hasPassed     bool
 	}{
 		{
 			name: "max guardrail passes", direction: "max", threshold: ">=0.8",
 			controlValues: []float64{1, 1}, candidateVals: []float64{1, 1},
-			wantStatus: "pass", wantPassed: true, hasPassed: true,
+			wantStatus: GuardrailStatusPass, wantPassed: true, hasPassed: true,
 		},
 		{
 			name: "min guardrail fails", direction: "min", threshold: "0",
 			controlValues: []float64{0, 0}, candidateVals: []float64{1, 1},
-			wantStatus: "fail", wantPassed: false, hasPassed: true,
+			wantStatus: GuardrailStatusFail, wantPassed: false, hasPassed: true,
 		},
 		{
 			name: "missing observations do not pass", direction: "max", threshold: ">=0.8",
 			controlValues: []float64{1, 1}, candidateVals: []float64{1},
-			wantStatus: "insufficient_observations",
+			wantStatus: GuardrailStatusInsufficientObservations,
 		},
 	}
 
@@ -231,7 +231,8 @@ func TestApplyExperimentGuardrails(t *testing.T) {
 				MinSamples: 2,
 				Variants:   []VariantAnalysis{{Name: "control"}, {Name: "candidate"}},
 				Guardrails: []GuardrailStatus{{
-					Name: "grader:guardrail", Direction: test.direction, Threshold: test.threshold, Status: "unsupported",
+					Name: "grader:guardrail", Direction: test.direction, Threshold: test.threshold,
+					Status: GuardrailStatusUnsupported,
 				}},
 			}
 			set := &graderMetricObservationSet{ByVariant: map[string][]GraderMetricObservation{

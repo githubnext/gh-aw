@@ -327,14 +327,14 @@ func TestComputeGraderBackedExperimentDecision(t *testing.T) {
 		Direction: "higher_is_better",
 		ByVariant: map[string][]GraderMetricObservation{
 			"control": {
-				{RunID: "1", Variant: "control", Value: 0.5},
-				{RunID: "2", Variant: "control", Value: 0.5},
-				{RunID: "3", Variant: "control", Value: 0.5},
+				{RunID: "1", Variant: "control", Value: 0.48},
+				{RunID: "2", Variant: "control", Value: 0.50},
+				{RunID: "3", Variant: "control", Value: 0.52},
 			},
 			"candidate": {
-				{RunID: "4", Variant: "candidate", Value: 0.8},
-				{RunID: "5", Variant: "candidate", Value: 0.8},
-				{RunID: "6", Variant: "candidate", Value: 0.8},
+				{RunID: "4", Variant: "candidate", Value: 0.78},
+				{RunID: "5", Variant: "candidate", Value: 0.80},
+				{RunID: "6", Variant: "candidate", Value: 0.82},
 			},
 		},
 		Exclusions: map[string][]ExcludedObservationSummary{},
@@ -362,6 +362,15 @@ func TestComputeGraderBackedExperimentDecision(t *testing.T) {
 	require.NotNil(t, analysis.Effect)
 	assert.InDelta(t, 0.3, analysis.Effect.NormalizedAbsolute, 0.0001)
 	assert.Equal(t, map[string]int{"control": 3, "candidate": 3}, analysis.Samples)
+}
+
+func TestWelchTTestZeroVarianceFallback(t *testing.T) {
+	t.Parallel()
+
+	pValue, err := welchTTest([]float64{0.5, 0.5, 0.5}, []float64{0.8, 0.8, 0.8})
+
+	require.NoError(t, err)
+	assert.Zero(t, pValue)
 }
 
 func TestGraderReadinessUsesValidObservations(t *testing.T) {

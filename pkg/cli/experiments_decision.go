@@ -282,11 +282,11 @@ func guardrailPassSummary(guardrails []GuardrailStatus) *bool {
 
 func pendingGuardrailDecision(guardrails []GuardrailStatus) (ExperimentDecisionReasonCode, string, bool) {
 	for _, guardrail := range guardrails {
-		if guardrail.Status == "insufficient_observations" || guardrail.Status == "missing" {
+		if guardrail.Status == GuardrailStatusInsufficientObservations || guardrail.Status == GuardrailStatusMissing {
 			return ExperimentDecisionReasonInsufficientObservations,
 				fmt.Sprintf("mandatory guardrail %q lacks sufficient usable observations", guardrail.Name), true
 		}
-		if guardrail.Status == "unsupported" {
+		if guardrail.Status == GuardrailStatusUnsupported {
 			return ExperimentDecisionReasonGuardrailUnsupported,
 				fmt.Sprintf("mandatory guardrail %q is not backed by a supported metric observation", guardrail.Name), true
 		}
