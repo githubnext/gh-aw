@@ -26,7 +26,7 @@ checkout:
   fetch-depth: 0
 network:
   allowed: ["defaults", "go"]
-model: copilot/gpt-5.4
+model: copilot/mai-flash
 engine:
   id: pi
 strict: true
