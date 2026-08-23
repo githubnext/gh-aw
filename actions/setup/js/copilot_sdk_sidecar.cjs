@@ -12,6 +12,7 @@ const { sleep, isCopilotSDKEnabled } = require("./process_runner.cjs");
 // when the process errors or exits, so a generous timeout only delays genuinely hung servers.
 const COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS = 60000;
 const COPILOT_SDK_SERVER_STOP_TIMEOUT_MS = 2000;
+const COPILOT_SDK_STARTUP_STDERR_TAIL_BYTES = 8192;
 
 /**
  * @typedef {import("node:child_process").ChildProcessByStdio<null, import("node:stream").Readable, import("node:stream").Readable>} CopilotSDKServerProcess
@@ -138,30 +139,34 @@ async function startCopilotSDKServer(options) {
     cwd: process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || undefined,
   });
 
+  let stderrTail = "";
   child.stdout.on("data", data => {
     logger(`copilot-sdk stdout: ${data.toString().trimEnd()}`);
   });
   child.stderr.on("data", data => {
-    logger(`copilot-sdk stderr: ${data.toString().trimEnd()}`);
+    const text = data.toString();
+    stderrTail = (stderrTail + text).slice(-COPILOT_SDK_STARTUP_STDERR_TAIL_BYTES);
+    logger(`copilot-sdk stderr: ${text.trimEnd()}`);
   });
 
   /** @type {(err: Error) => void} */
   let onError = () => {};
   /** @type {(code: number | null, signal: NodeJS.Signals | null) => void} */
-  let onExit = () => {};
+  let onClose = () => {};
   function removeStartupListeners() {
     child.removeListener("error", onError);
-    child.removeListener("exit", onExit);
+    child.removeListener("close", onClose);
   }
   const failure = new Promise((_, reject) => {
     onError = err => reject(err);
-    onExit = (code, signal) => {
+    onClose = (code, signal) => {
       const exitCode = code !== null ? code : "unknown";
       const exitDetails = `exitCode=${exitCode}${signal ? ` signal=${signal}` : ""}`;
-      reject(new Error(`copilot-sdk headless server exited before ready (${exitDetails})`));
+      const stderrDetails = stderrTail.trim() ? `\nstderr tail:\n${stderrTail.trimEnd()}` : "";
+      reject(new Error(`copilot-sdk headless server exited before ready (${exitDetails})${stderrDetails}`));
     };
     child.once("error", onError);
-    child.once("exit", onExit);
+    child.once("close", onClose);
   });
 
   try {
