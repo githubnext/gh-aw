@@ -1015,9 +1015,14 @@ func TestValidateGitHubAppJSON(t *testing.T) {
 			want:    "",
 		},
 		{
-			name:    "client-id present but null value still counts as key",
+			name:    "client-id null is not a valid credential",
 			appJSON: `{"client-id":null,"private-key":"key"}`,
-			want:    `{"client-id":null,"private-key":"key"}`,
+			want:    "",
+		},
+		{
+			name:    "non-string private-key is rejected",
+			appJSON: `{"client-id":"abc","private-key":123}`,
+			want:    "",
 		},
 		{
 			name:    "unicode values preserved",
@@ -1027,7 +1032,6 @@ func TestValidateGitHubAppJSON(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := validateGitHubAppJSON(tt.appJSON)
@@ -1113,7 +1117,6 @@ func TestHasNodeRuntimeRunInstallScripts(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := hasNodeRuntimeRunInstallScripts(tt.fm)
