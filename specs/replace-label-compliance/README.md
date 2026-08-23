@@ -16,6 +16,9 @@ schema, gating, set-computation, staged-mode, and error invariants.
 | `rl-001-glob-semantics.yaml` | Glob pattern matching for `allowed-add`, `allowed-remove`, and `blocked` follows gobwas/glob semantics | RL-001, T-RL-020–T-RL-023 |
 | `rl-002-allowlist-enforcement.yaml` | Non-empty allowlists enforce matches while empty allowlists permit any non-blocked label | RL-002, T-RL-021b, T-RL-022b, T-RL-025 |
 | `rl-003-blocklist-ordering.yaml` | Blocklist evaluation occurs before allowlist evaluation (security boundary) | RL-003, T-RL-023–T-RL-024 |
+| _Direct test (no standalone fixture file)_ | Empty `setLabels` response fails add-presence verification (`TestFormalTransitionEdge_EmptyResponseLabels`) | RL-057, RL-058 |
+| _Direct test (no standalone fixture file)_ | Self-transition is denied unless explicitly listed (`TestFormalTransitionEdge_SelfTransitionRejectedWhenNotListed`) | Transition invariants (Q2, Q4) |
+| _Direct test (no standalone fixture file)_ | Duplicate transition entries are idempotent (`TestFormalTransitionEdge_DuplicateTransitionEntriesIdempotent`) | Transition invariants (Q2) |
 
 ## Formal Model
 
@@ -35,6 +38,13 @@ schema, gating, set-computation, staged-mode, and error invariants.
 
 Evaluation order is modeled as: blocked check → allowlist check → gates
 (required-labels/title-prefix) → staged/execute branch.
+
+### Safeguards
+
+Security-critical ordering is enforced as blocklist-before-allowlist for both
+`label_to_add` and `label_to_remove` directions. The suite's P3/P4/P11 checks
+(`TestFormalBlocklistOrdering`, `TestFormalBlocklistSymmetry`) ensure blocked
+labels are denied before any allowlist permit path is considered.
 
 ## Behavioral Coverage Map
 
