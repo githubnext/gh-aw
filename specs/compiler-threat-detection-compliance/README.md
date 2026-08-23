@@ -38,6 +38,19 @@ Note: `CTR-025` maps to `T-CTR-039` and `CTR-026` maps to `T-CTR-041` because `T
 
 The test triggers, expected compiler actions, and stable diagnostics are defined in [Section 8.1](../compiler-threat-detection-spec.md#81-test-id-catalog). The implementation and concrete test-file mappings are defined in [Section 7.1](../compiler-threat-detection-spec.md#71-baseline-rule-mapping).
 
+## Section 5.4 Deprecation Policy Annotations
+
+So that the [§5.4 Deprecation Policy](../compiler-threat-detection-spec.md#54-deprecation-policy) obligations are mechanically verifiable, a deprecated rule is annotated as follows:
+
+| Artifact | Annotation |
+|----------|------------|
+| Section 5.1 catalog entry | `- **CTR-NNN Name** [Deprecated in vX.Y.Z: reason]: ...` (row retained) |
+| Section 7.1 mapping row | `\| CTR-NNN Name [Deprecated in vX.Y.Z] \| — \| — \|` (row retained, implementation cleared) |
+| Section 8.1 test row and the crosswalk row above | annotated with `[DEPRECATED]` and dropped from the required conformance gate |
+| Section 10 change log | an entry naming the rule ID, the deprecation version, and the rationale |
+
+These annotations are verified against the specification artifacts by `pkg/workflow/threat_detection_deprecation_policy_formal_test.go`.
+
 ## Section 6.4 False-Positive Handling Norms
 
 | Test ID | Norm |
