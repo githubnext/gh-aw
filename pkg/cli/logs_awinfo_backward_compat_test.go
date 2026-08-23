@@ -85,6 +85,7 @@ func TestAwInfoBackwardCompatibility(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var info AwInfo
 			err := json.Unmarshal([]byte(tt.jsonData), &info)
 			if err != nil {
@@ -155,6 +156,7 @@ func TestAwInfoNumericIDs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var info AwInfo
 			if err := json.Unmarshal([]byte(tt.jsonData), &info); err != nil {
 				t.Fatalf("Failed to unmarshal JSON: %v", err)
@@ -174,6 +176,7 @@ func TestNumericIDRejectsInvalidValues(t *testing.T) {
 
 	for _, jsonData := range []string{`"not-a-number"`, `9223372036854775808`, `true`, `1.5`, `{}`} {
 		t.Run(jsonData, func(t *testing.T) {
+			t.Parallel()
 			var id NumericID
 			if err := json.Unmarshal([]byte(jsonData), &id); err == nil {
 				t.Errorf("Expected %s to be rejected", jsonData)
@@ -232,6 +235,7 @@ func TestAwInfoMarshaling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data, err := json.Marshal(tt.info)
 			if err != nil {
 				t.Fatalf("Failed to marshal AwInfo: %v", err)
