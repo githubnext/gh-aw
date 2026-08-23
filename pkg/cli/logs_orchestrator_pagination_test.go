@@ -8,6 +8,7 @@ import (
 )
 
 func TestShouldStopPagination(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		totalFetched int
@@ -38,6 +39,7 @@ func TestShouldStopPagination(t *testing.T) {
 }
 
 func TestSelectPaginationCursorDate(t *testing.T) {
+	t.Parallel()
 	oldestFetched := time.Date(2026, 6, 16, 10, 0, 0, 0, time.UTC)
 	filteredRuns := []WorkflowRun{
 		{CreatedAt: time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC)},
@@ -54,6 +56,7 @@ func TestSelectPaginationCursorDate(t *testing.T) {
 }
 
 func TestSelectPaginationCursorDateFallsBackToFilteredRuns(t *testing.T) {
+	t.Parallel()
 	filteredOldest := time.Date(2026, 6, 15, 18, 30, 0, 0, time.UTC)
 	filteredRuns := []WorkflowRun{
 		{CreatedAt: time.Date(2026, 6, 15, 19, 0, 0, 0, time.UTC)},
@@ -70,6 +73,7 @@ func TestSelectPaginationCursorDateFallsBackToFilteredRuns(t *testing.T) {
 }
 
 func TestSelectPaginationCursorDateNoCursor(t *testing.T) {
+	t.Parallel()
 	cursor, ok := selectPaginationCursorDate(nil, time.Time{})
 	if ok {
 		t.Fatalf("expected no cursor, got %s", cursor)
