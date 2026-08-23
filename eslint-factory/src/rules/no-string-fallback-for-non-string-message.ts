@@ -61,14 +61,14 @@ export const noStringFallbackForNonStringMessageRule = createRule({
     type: "problem",
     docs: {
       description:
-        "Disallow `typeof <x>.message === \"string\" ? <x>.message : String(<container>)` where the String() fallback stringifies a different (container) " +
+        'Disallow `typeof <x>.message === "string" ? <x>.message : String(<container>)` where the String() fallback stringifies a different (container) ' +
         "expression than the `.message` chain being tested. When `.message` exists but isn't a string, this pattern silently produces `[object Object]` " +
         "instead of coercing the message value itself (e.g. `String(<x>.message)`). Mirrors the real bug found in error_helpers.cjs's getErrorMessage().",
     },
     schema: [],
     messages: {
       stringifiesContainerInsteadOfMessage:
-        "This falls back to String({{containerExpr}}) instead of coercing {{messageChain}} itself when it exists but isn't a string — risks producing \"[object Object]\". Use String({{messageChain}}) instead.",
+        'This falls back to String({{containerExpr}}) instead of coercing {{messageChain}} itself when it exists but isn\'t a string — risks producing "[object Object]". Use String({{messageChain}}) instead.',
     },
   },
   defaultOptions: [],
