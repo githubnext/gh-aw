@@ -444,10 +444,15 @@ func TestFormal_FixtureRunner(t *testing.T) {
 	require.NoError(t, err, "failed to read compliance fixture directory")
 
 	var totalScenarios int
+	var fixtureFilesLoaded int
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
 			continue
 		}
+		fixtureFilesLoaded++
+		require.Truef(t, slices.Contains(documentedComplianceFixtures, entry.Name()),
+			"fixture runner found undocumented fixture file %s; update documentedComplianceFixtures and README table together",
+			entry.Name())
 
 		fixturePath := filepath.Join(fixtureDir, entry.Name())
 		data, err := os.ReadFile(fixturePath)
@@ -498,6 +503,8 @@ func TestFormal_FixtureRunner(t *testing.T) {
 	}
 
 	require.Positive(t, totalScenarios, "fixture runner found no scenarios — check fixture directory path")
+	require.Equalf(t, len(documentedComplianceFixtures), fixtureFilesLoaded,
+		"fixture runner must load every documented fixture file in %s", fixtureDir)
 }
 
 // documentedComplianceFixtures mirrors the "Compliance Fixtures" table in
