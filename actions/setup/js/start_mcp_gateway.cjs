@@ -81,6 +81,45 @@ function sleep(ms) {
 }
 
 /**
+ * Resolves the marker file that records a successful gateway startup.
+ * print_firewall_logs.sh reads this marker to distinguish "the gateway never
+ * completed startup" from "the gateway started but produced no auditable
+ * egress traffic" when the Squid access log is missing.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string}
+ */
+function getGatewayStartupMarkerPath(env = process.env) {
+  return env.MCP_GATEWAY_STARTUP_MARKER || "/tmp/gh-aw/mcp-gateway-started";
+}
+
+/**
+ * Removes any stale startup marker left behind by a previous run.
+ * @param {string} markerPath
+ */
+function clearGatewayStartupMarker(markerPath) {
+  try {
+    fs.rmSync(markerPath, { force: true });
+  } catch (err) {
+    core.warning(`Could not remove stale gateway startup marker ${markerPath}: ${getErrorMessage(err)}`);
+  }
+}
+
+/**
+ * Records that the gateway completed startup. Marker creation is best-effort:
+ * it only affects the wording of a downstream firewall warning.
+ * @param {string} markerPath
+ */
+function writeGatewayStartupMarker(markerPath) {
+  try {
+    fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+    fs.writeFileSync(markerPath, "", { mode: 0o600 });
+  } catch (err) {
+    core.warning(`Could not write gateway startup marker ${markerPath}: ${getErrorMessage(err)}`);
+  }
+}
+
+/**
  * Replaces the compiler marker with atomic Docker -e arguments. Runtime values
  * never enter MCP_GATEWAY_DOCKER_COMMAND, preventing Docker argument injection.
  *
@@ -607,6 +646,8 @@ async function main() {
   // -----------------------------------------------------------------------
   const logDir = "/tmp/gh-aw/mcp-logs/";
   const outputPath = path.join(configDir, "gateway-output.json");
+  const gatewayStartupMarker = getGatewayStartupMarkerPath();
+  clearGatewayStartupMarker(gatewayStartupMarker);
 
   // Clean up any stale gateway container from a previous run on this runner.
   // On persistent self-hosted runners a prior job's gateway container may still
@@ -783,6 +824,7 @@ async function main() {
   if (succeeded) {
     core.info("Gateway is ready!");
     printTiming(healthCheckStart, "Health check wait");
+    writeGatewayStartupMarker(gatewayStartupMarker);
   } else {
     core.error("");
     core.error("ERROR: Gateway failed to become ready");
@@ -1130,6 +1172,7 @@ if (require.main === module) {
 
 module.exports = {
   applyOTLPIgnoreIfMissing,
+  clearGatewayStartupMarker,
   customGatewayEnvNamesVar,
   customGatewayEnvTransportPrefix,
   customGatewayReservedEnvPrefix,
@@ -1139,7 +1182,9 @@ module.exports = {
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,
   getJSONParseErrorContext,
+  getGatewayStartupMarkerPath,
   injectCustomGatewayEnvArgs,
   normalizeSinkVisibilityEncoding,
   resolveCopilotConfigPaths,
+  writeGatewayStartupMarker,
 };

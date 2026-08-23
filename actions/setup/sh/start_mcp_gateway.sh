@@ -77,7 +77,7 @@ print_gateway_startup_diagnostics() {
   if [ -s "$GATEWAY_STDERR" ]; then
     sed -E \
       -e 's/(Bearer[[:space:]]+)[^[:space:]]+/\1[REDACTED]/Ig' \
-      -e 's/((api[_-]?key|token|secret|password|authorization)[[:space:]]*[:=][[:space:]]*)[^[:space:],}]+/\1[REDACTED]/Ig' \
+      -e 's/((api[_-]?key|token|secret|password|authorization)"?[[:space:]]*[:=][[:space:]]*"?)[^[:space:],}"]+/\1[REDACTED]/Ig' \
       "$GATEWAY_STDERR" | bash "$LOG_RENDERER" "Gateway stderr"
   else
     echo "Gateway stderr: (empty)"

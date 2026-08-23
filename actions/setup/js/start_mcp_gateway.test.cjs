@@ -1,7 +1,12 @@
 import fs from "fs";
+import os from "os";
+import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyOTLPIgnoreIfMissing,
+  clearGatewayStartupMarker,
+  getGatewayStartupMarkerPath,
+  writeGatewayStartupMarker,
   customGatewayEnvNamesVar,
   customGatewayReservedEnvPrefix,
   customGatewayEnvTransportPrefix,
@@ -29,6 +34,32 @@ describe("start_mcp_gateway logging", () => {
   it("discards the gateway child process stderr", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).toContain(`stdio: ["pipe", outputFd, "ignore"]`);
+  });
+});
+
+describe("start_mcp_gateway startup marker", () => {
+  it("defaults to the path read by print_firewall_logs.sh", () => {
+    expect(getGatewayStartupMarkerPath({})).toBe("/tmp/gh-aw/mcp-gateway-started");
+  });
+
+  it("honors the MCP_GATEWAY_STARTUP_MARKER override", () => {
+    expect(getGatewayStartupMarkerPath({ MCP_GATEWAY_STARTUP_MARKER: "/tmp/custom-marker" })).toBe("/tmp/custom-marker");
+  });
+
+  it("clears a stale marker and recreates it with owner-only permissions", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-marker-"));
+    const markerPath = path.join(dir, "nested", "mcp-gateway-started");
+    fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+    fs.writeFileSync(markerPath, "stale");
+
+    clearGatewayStartupMarker(markerPath);
+    expect(fs.existsSync(markerPath)).toBe(false);
+
+    writeGatewayStartupMarker(markerPath);
+    expect(fs.existsSync(markerPath)).toBe(true);
+    expect(fs.statSync(markerPath).mode & 0o777).toBe(0o600);
+
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });
 

@@ -314,7 +314,7 @@ test_gateway_startup_diagnostics() {
   mkdir -p "$fake_bin"
   cat > "$fake_bin/docker" << 'EOF'
 #!/usr/bin/env bash
-  echo "simulated gateway startup failure: API_TOKEN=redact-me" >&2
+  echo "simulated gateway startup failure: API_TOKEN=redact-me {\"apiKey\":\"redact-me\"}" >&2
 exit 42
 EOF
   chmod +x "$fake_bin/docker"
@@ -338,6 +338,7 @@ EOF
     grep -q "::endgroup::" <<< "$output" &&
     grep -q "simulated gateway startup failure" <<< "$output" &&
     grep -q "API_TOKEN=\[REDACTED\]" <<< "$output" &&
+    grep -q "\"apiKey\":\"\[REDACTED\]\"" <<< "$output" &&
     ! grep -q "redact-me" <<< "$output" &&
     [[ ! -e /tmp/gh-aw/mcp-config/gateway-stderr.log ]] &&
     ! compgen -G "/tmp/gh-aw-mcp-gateway-stderr.*" > /dev/null; then
