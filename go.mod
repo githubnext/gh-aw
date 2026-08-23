@@ -27,6 +27,7 @@ require (
 	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.45.0
 	golang.org/x/tools v0.49.0
+	gonum.org/v1/gonum v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -40,6 +41,7 @@ require (
 	github.com/aymanbagabas/go-udiff v0.4.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/boumenot/gocover-cobertura v1.5.0
 	github.com/buger/jsonparser v1.2.0 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/ccojocar/zxcvbn-go v1.0.4 // indirect
@@ -119,6 +121,7 @@ require (
 )
 
 tool (
+	github.com/boumenot/gocover-cobertura
 	github.com/rhysd/actionlint/cmd/actionlint
 	github.com/securego/gosec/v2/cmd/gosec
 	golang.org/x/vuln/cmd/govulncheck
