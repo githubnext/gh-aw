@@ -30,6 +30,8 @@ func TestNewLintCommand(t *testing.T) {
 		"lint command should include built-in ignore for gh-aw permission extension")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "vulnerability-alerts"`,
 		"lint command should include built-in ignore for vulnerability-alerts permission scope")
+	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "drives"`,
+		"lint command should include built-in ignore for drives permission scope")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `property "workflow_(repository|sha|ref|file_path)" is not defined in object type`,
 		"lint command should include built-in ignore for gh-aw workflow context extensions")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unexpected key "queue" for "concurrency" section`,

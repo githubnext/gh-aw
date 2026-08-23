@@ -52,6 +52,7 @@ import { requirePageCounterIncrementInWhileTrueLoopRule } from "./rules/require-
 import { noMathMinMaxArraySpreadRule } from "./rules/no-math-minmax-array-spread";
 import { requireErrorCodeForGithubApiThrowRule } from "./rules/require-error-code-for-github-api-throw";
 import { requireHttpResponseErrorListenerRule } from "./rules/require-http-response-error-listener";
+import { noStringFallbackForNonStringMessageRule } from "./rules/no-string-fallback-for-non-string-message";
 
 const plugin = {
   meta: {
@@ -113,6 +114,7 @@ const plugin = {
     "no-math-minmax-array-spread": noMathMinMaxArraySpreadRule,
     "require-error-code-for-github-api-throw": requireErrorCodeForGithubApiThrowRule,
     "require-http-response-error-listener": requireHttpResponseErrorListenerRule,
+    "no-string-fallback-for-non-string-message": noStringFallbackForNonStringMessageRule,
   },
 };
 

@@ -9,6 +9,13 @@ permissions:
   pull-requests: read
   copilot-requests: write
 
+network:
+  allowed:
+    - defaults
+    - github
+    - proxy.golang.org
+    - sum.golang.org
+
 sandbox:
   agent:
     id: awf
