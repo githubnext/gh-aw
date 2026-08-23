@@ -311,6 +311,21 @@ jobs:
         path: test-result-unit-${{ matrix.shard }}.json
         retention-days: 7
 
+    - name: Convert unit coverage to Cobertura
+      if: always() && hashFiles(format('coverage-{0}.out', matrix.shard)) != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        "$(go env GOPATH)/bin/gocover-cobertura" < coverage-${{ matrix.shard }}.out > coverage-${{ matrix.shard }}.xml
+
+    - name: Upload unit coverage to code coverage API
+      if: always() && vars.CODE_QUALITY_COVERAGE_ENABLED == 'true' && hashFiles(format('coverage-{0}.xml', matrix.shard)) != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-${{ matrix.shard }}.xml
+        language: Go
+        label: code-coverage/cgo-unit-${{ matrix.shard }}
+        fail-on-error: false
+
   canary-go:
     runs-on: ubuntu-latest
     timeout-minutes: 15
