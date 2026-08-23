@@ -2,7 +2,7 @@
 private: true
 emoji: "🧫"
 name: Daily Harness Experiment Proposer
-description: Converts compact existing workflow evidence (concluded experiment decisions/analyses, 14-day run/failure aggregates, and at most one targeted gh aw audit) into exactly one falsifiable, single-primary-dimension harness mutation wrapped in a balanced control/candidate experiment, compiles and validates the candidate, and opens a draft PR for human review. Never promotes or merges.
+description: Converts compact existing workflow evidence (concluded experiment decisions/analyses, 14-day run/failure aggregates, and at most one targeted gh aw audit) into exactly one falsifiable, single-primary-dimension harness mutation wrapped in a balanced control/candidate experiment, compiles and validates the candidate, and opens an issue carrying the exact patch for human review. Never promotes or merges.
 on:
   schedule: daily
   workflow_dispatch:
@@ -50,19 +50,6 @@ tools:
     max-patch-size: 51200
 
 safe-outputs:
-  github-app:
-    client-id: ${{ vars.APP_ID }}
-    private-key: ${{ secrets.APP_PRIVATE_KEY }}
-  create-pull-request:
-    draft: true
-    expires: 7d
-    title-prefix: "[harness-experiment-proposal] "
-    labels: [automation, experiment-proposal, harness]
-    allow-workflows: true
-    protected-files: allowed
-    allowed-files:
-      - ".github/workflows/*.md"
-      - ".github/workflows/*.lock.yml"
   create-issue:
     title-prefix: "[harness-experiment-proposal] "
     labels: [automation, experiment-proposal, harness, needs-manual-patch]
@@ -188,15 +175,15 @@ evals:
     question: Did the agent select exactly one eligible target workflow, exactly one primary_dimension (from the six-dimension harness taxonomy) with exactly one narrow subtype, and write a structured hypothesis contract (observation, mutation, mechanism, primary_metric, expected_direction, minimum_effect, guardrails, evidence, control, candidate) citing at least one — and at least two when independently available — concrete evidence entries from the pre-gathered experiments/logs evidence files, never invented?
   - id: candidate_compiled_and_validated
     question: Did the agent add a genuine balanced control/candidate experiments block (with a supported grader:/eval:-referenced primary metric and guardrails, and a decision policy) to the target workflow, then run gh aw compile with --strict (and --validate) on that single target workflow, confirming a clean compile before proposing?
-  - id: draft_pr_or_fallback_issue_emitted
-    question: Did the agent emit exactly one draft pull request with all required body sections in order (Observation, Hypothesis, Candidate Mutation, Experiment, Guardrails, Expected Economics, Interpretation, Rollback) — or, if PR creation was not possible, a fallback issue containing the exact patch/diff and an application plan — or call noop with a clear reason when no eligible, falsifiable mutation could be justified?
+  - id: proposal_issue_emitted
+    question: Did the agent emit exactly one proposal issue with all required body sections in order (Observation, Hypothesis, Candidate Mutation, Experiment, Guardrails, Expected Economics, Validation, Interpretation, Rollback) plus the exact patch/diff and an application plan — or call noop with a clear reason when no eligible, falsifiable mutation could be justified?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Harness Experiment Proposer 🧫
 
-You propose **exactly one** falsifiable, one-dimension harness mutation for **one** existing agentic workflow, wrapped in a genuine balanced control/candidate `experiments:` configuration, and open a **draft-only** pull request for human review. You never promote, merge, or reinterpret experiment decisions. You never touch source-managed (`source:`) workflows.
+You propose **exactly one** falsifiable, one-dimension harness mutation for **one** existing agentic workflow, wrapped in a genuine balanced control/candidate `experiments:` configuration, and open a **human-reviewable issue** carrying the exact patch for a human to apply. You never promote, merge, or reinterpret experiment decisions. You never touch source-managed (`source:`) workflows.
 
 ## Deterministic Preprocessing Already Done
 
@@ -222,7 +209,7 @@ Only consider workflows listed in `eligible-candidates.txt`. In addition to the 
 - **Sparse traffic** — its 14-day `run_count` in `per-workflow-summary.json` is so low that reaching `min_samples: 20` per variant is not realistic within a few months at its current schedule. Prefer targets with **recurring, frequent traffic** likely to accumulate 20 usable observations per arm within a reasonable window.
 - **Equivalent already-active experiment** — it already declares an active `experiments:` entry whose `tags`/`primary_dimension`+`subtype` (or, absent tags, its evident mutation) match the one you are about to propose. Never start a second, redundant experiment for the same dimension/subtype pair while one is still running.
 - **2 or more active experiments already** — already enforced deterministically: the filter step excludes any file with 2+ entries under its own `experiments:` block before it ever reaches `eligible-candidates.txt`, so no candidate you see here can have this problem, but never propose a second experiment for a workflow that already carries one active experiment plus your new one would make two simultaneously (check the `<active_experiment_count>` column in `eligible-candidates.txt` — 0 is preferred; 1 is acceptable only if its dimension/subtype clearly differs).
-- **Rejected pattern repeats** — `experiments-analyses.jsonl` shows an experiment on this exact `(workflow_id, primary_dimension, subtype)` combination whose latest `decision` is `REJECT` and whose `reason_code`/`reason` still applies (same class of change) — **do not repeat rejected mutations**. Consult `ledger.json` for the same rule using your own proposal history, including proposals whose PR was closed without merging.
+- **Rejected pattern repeats** — `experiments-analyses.jsonl` shows an experiment on this exact `(workflow_id, primary_dimension, subtype)` combination whose latest `decision` is `REJECT` and whose `reason_code`/`reason` still applies (same class of change) — **do not repeat rejected mutations**. Consult `ledger.json` for the same rule using your own proposal history, including proposals whose issue was closed without being applied.
 - **Authority expansion** — the candidate mutation would broaden permissions, network access, tool scope, or write authority beyond what the workflow already has (e.g. narrow→broad tool scope, adding a new write permission). Only ever propose mutations that hold authority equal to or narrower than the current baseline.
 - **Multi-dimension mutation** — the only mutation you can honestly justify touches more than one `primary_dimension` at once. Narrow it to one dimension/subtype, or skip.
 - **Prerequisite bug blocks a valid experiment** — a genuine bug must be fixed before this dimension/subtype could be tested meaningfully. That fix is a direct, deterministic change, not an experiment, and must happen (in a separate change) before this proposal is viable.
@@ -250,7 +237,7 @@ Prefer **adapting a pattern already validated as `PROMOTE`d** for a similar work
 
 ## Phase 3 — Write the Structured Hypothesis Contract
 
-Before touching any file, write out this contract (you will also paste it into the PR body). Every field must be traceable to a specific file/line in the pre-gathered evidence — never invent numbers, and never invent an evidence citation.
+Before touching any file, write out this contract (you will also paste it into the issue body). Every field must be traceable to a specific file/line in the pre-gathered evidence — never invent numbers, and never invent an evidence citation.
 
 ```yaml
 workflow_target: <path to .github/workflows/NAME.md>
@@ -278,7 +265,7 @@ hypothesis:                    # optional — include only if a directional H0/H
   h0: "No meaningful difference between control and candidate on primary_metric."
   h1: "<one falsifiable, directional claim in the same units as expected_direction/minimum_effect>"
 min_samples: 20
-rollback_plan: "<exact steps to revert if PROMOTEd change misbehaves later, e.g. 'git revert <this PR>; no other files depend on this change'>"
+rollback_plan: "<exact steps to revert if PROMOTEd change misbehaves later, e.g. 'git revert <the commit applying this patch>; no other files depend on this change'>"
 ```
 
 **Evidence rule**: cite **at least one** concrete, independent evidence entry always — never invent a number or a citation. Cite **at least two** independent evidence entries whenever a second one is genuinely available in the pre-gathered files (e.g. `per-workflow-summary.json` **and** `experiments-analyses.jsonl`, or a promoted pattern **and** the 14-day aggregate). Never fabricate a second citation just to satisfy this preference — one honest citation is required, two is preferred, none is ever invented.
@@ -346,15 +333,17 @@ Both must exit `0`. Then sanity-check the generated `.lock.yml`:
 - `git diff --stat` shows **only** `workflow_target`'s `.md` and its matching `.lock.yml` changed (no other file). If anything else changed, stop and investigate before proposing.
 - The compiled lock file contains the new experiment name, confirming the block was accepted and wired into the runtime templating logic.
 
-**If compile or validation fails for any reason**, do not attempt unlimited retries: try at most one corrective fix, re-run both commands once more, and if it still fails, `git checkout` your edit to discard it and fall back to the `create-issue` safe output (Phase 6 fallback) with the exact unified diff you attempted and a manual application plan, instead of proposing a broken PR.
+**If compile or validation fails for any reason**, do not attempt unlimited retries: try at most one corrective fix, re-run both commands once more, and if it still fails, `git checkout` your edit to discard it and still emit the `create-issue` proposal, but with the exact error encountered recorded in `Validation` (see Phase 6), instead of claiming a clean compile.
 
-## Phase 6 — Emit the Draft PR (preferred) or Fallback Issue
+## Phase 6 — Emit the Proposal Issue
 
-### Preferred: `create-pull-request`
+This workflow has no write authority over workflow files, so the proposal is always delivered as an issue carrying the exact patch for a human to apply — never as a pull request.
+
+### `create-issue`
 
 Title: `<workflow_target basename> — <primary_dimension>/<subtype> A/B harness experiment`
 
-Body — include the following sections **in this exact order** every time. `Summary` and `Validation` are optional and may be added without disturbing the relative order of the other eight (required) headings:
+Body — include the following sections **in this exact order** every time. `Summary` is optional and may be added without disturbing the relative order of the other nine (required) headings:
 
 ```markdown
 ### Summary
@@ -379,23 +368,17 @@ Table of guardrail metric (`grader:<id>`/`eval:<id>`) → threshold → why it p
 Concrete, evidence-grounded expectations: the target workflow's current run cadence/traffic (cited from `per-workflow-summary.json`), the estimated time to accumulate `min_samples: 20` usable observations per arm, and the expected cost/efficiency delta of the candidate relative to control.
 
 ### Validation
-(optional) Confirmation that `gh aw compile <target> --strict` and `--strict --validate` both exited 0, and that `git diff --stat` touched only the two expected files.
+Confirmation that `gh aw compile <target> --strict` and `--strict --validate` both exited 0, and that `git diff --stat` touched only the two expected files. If Phase 5 could not produce a clean compile, state the exact error encountered here instead.
 
 ### Interpretation
-State explicitly: this PR only *starts* the experiment; no decision is interpreted here. Once `min_samples` is reached, `gh aw experiments analyze <target>` computes the deterministic `EXTEND`/`PROMOTE`/`REJECT`/`INCONCLUSIVE` decision unchanged — this workflow never recomputes, reinterprets, or overrides that decision, and any eventual `PROMOTE` still requires a separate, human-reviewed change through the existing `daily-experiment-report` deterministic decision engine. This workflow never merges anything itself.
+State explicitly: applying this patch only *starts* the experiment; no decision is interpreted here. Once `min_samples` is reached, `gh aw experiments analyze <target>` computes the deterministic `EXTEND`/`PROMOTE`/`REJECT`/`INCONCLUSIVE` decision unchanged — this workflow never recomputes, reinterprets, or overrides that decision, and any eventual `PROMOTE` still requires a separate, human-reviewed change through the existing `daily-experiment-report` deterministic decision engine. This workflow never merges anything itself.
 
 ### Rollback
-Exact steps to revert (this PR's revert commit; confirm no other files/branches depend on this change).
-```
+Exact steps to revert (revert the commit that applied this patch; confirm no other files/branches depend on this change).
 
-### Fallback: `create-issue` (only if Phase 5 could not produce a clean compile, or `create-pull-request` itself fails)
-
-Use the same title and the same section order as above, but make `Validation` mandatory in this case and replace its content with the exact error encountered, and append:
-
-```markdown
 ### Manual Patch (apply by hand)
 ```diff
-<the exact unified diff you attempted, from `git diff`>
+<the exact unified diff you produced, from `git diff`>
 ```
 
 ### Application Plan
@@ -407,7 +390,7 @@ Use the same title and the same section order as above, but make `Validation` ma
 
 ## Phase 7 — Update the Ledger
 
-Append one entry to `/tmp/gh-aw/repo-memory/default/harness-proposals.json` (create the array if the file does not exist) recording `{"date": "<YYYY-MM-DD>", "workflow_id": "<target basename without .md>", "primary_dimension": "<primary_dimension>", "subtype": "<subtype>", "experiment_name": "<name>", "pr_or_issue": "<pr|issue>", "decision": null}`. This file is committed automatically by repo-memory after your turn — do not attempt to `git commit`/`git push` it yourself.
+Append one entry to `/tmp/gh-aw/repo-memory/default/harness-proposals.json` (create the array if the file does not exist) recording `{"date": "<YYYY-MM-DD>", "workflow_id": "<target basename without .md>", "primary_dimension": "<primary_dimension>", "subtype": "<subtype>", "experiment_name": "<name>", "pr_or_issue": "issue", "decision": null}`. This file is committed automatically by repo-memory after your turn — do not attempt to `git commit`/`git push` it yourself.
 
 ## Hard Rules (never violate)
 
@@ -418,6 +401,6 @@ Append one entry to `/tmp/gh-aw/repo-memory/default/harness-proposals.json` (cre
 - Never propose a mutation that expands permissions, network access, tool scope, or write authority beyond the workflow's current baseline (no authority expansion).
 - Never make `primary_metric` or any `guardrail_metrics`/`guardrails` entry a bare/native metric name (e.g. `run_success_rate`, `ai_credits_total`, `execution-duration` without a prefix) — every metric reference must be `grader:<id>` or `eval:<id>` so it resolves to a real observation source. Prefer, in order: a real deterministic task-quality outcome, then a workflow-specific deterministic grader, then a general built-in grader/eval; cost/efficiency may be primary only when a supported guardrail protects correctness equivalence.
 - Never compute, recompute, or reinterpret `EXTEND`/`PROMOTE`/`REJECT`/`INCONCLUSIVE` — treat any decision found in evidence as final and immutable.
-- Never promote, merge, or auto-apply anything. The PR (or fallback issue) is always draft/human-reviewable only.
+- Never promote, merge, or auto-apply anything. The proposal is always an issue carrying a patch for a human to review and apply.
 - Never select a candidate merely because `failure_count` is high, without a corroborating mechanism; never start a second experiment equivalent to one already active; never propose on a currently-broken workflow, an obvious direct fix, a workflow with no measurable success criterion, or a target whose real bug must be fixed first.
 - If nothing eligible and falsifiable can be justified, call `noop` — do not force a proposal.
