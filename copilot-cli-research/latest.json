@@ -1,14 +1,8 @@
 {
-  "timestamp": "2026-08-22T03:56:00Z",
-  "run_id": "32550226221",
-  "total_workflows": 287,
-  "copilot_workflows_narrow": 34,
-  "copilot_workflows_broad": 134,
-  "share_flag_real_usage": 0,
-  "engine_args_real_usage": 0,
-  "disable_builtin_mcps_usage": 2,
-  "copilot_sdk_true_usage": 69,
-  "orphaned_agents": ["create-safe-output-type", "custom-engine-implementation", "grumpy-reviewer", "w3c-specification-writer"],
-  "opportunities_found": 0,
-  "notable_change": "New commit df691a4 added a large 'Squad' meta-agent-team feature (.github/agents/squad.agent.md plus squad*.md workflows and .squad/ scaffolding). squad.agent.md is imported/used internally by the new squad.md workflow family (not referenced via a bare `agent:` field), so it is NOT counted as a new orphaned custom agent - the 4 previously tracked orphans are unchanged. This Squad feature is unrelated to Copilot CLI engine capabilities (no new CLI flags, engine config, or MCP integration). No new Copilot CLI Go source changes detected (module set unchanged: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_engine_installation.go, copilot_inline_driver.go, copilot_logs.go, pkg/cli/copilot_*.go). --share and engine.args remain at persistent 0 real usage (20th+ consecutive run). Filing noop again per established policy (run 31354820498+): only file a new issue when (a) a new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run."
+  "timestamp": "2026-08-23T03:58:48Z",
+  "total_workflows": 289,
+  "copilot_workflows": 39,
+  "features_available": ["--add-dir","--share","--disable-builtin-mcps","--agent","--autopilot","--allow-all-paths","--no-custom-instructions","--log-level","engine.args","engine.env","engine.agent","max-continuations","plugins","repo-memory","cache-memory","BYOK (COPILOT_PROVIDER_BASE_URL)"],
+  "features_used": ["--add-dir(1 manual)","--disable-builtin-mcps(2)","--share(1)","model(all)","cache-memory(10)","repo-memory(2)","github toolsets(23)"],
+  "opportunities_found": 8
 }
