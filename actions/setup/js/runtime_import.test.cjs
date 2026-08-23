@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import http from "http";
 const core = { info: vi.fn(), warning: vi.fn(), debug: vi.fn(), setFailed: vi.fn() };
 global.core = core;
 const {
   processRuntimeImports,
   processRuntimeImport,
+  fetchUrlContent,
   closeUnterminatedInlineMarkers,
   hasFrontMatter,
   removeXMLComments,
@@ -2274,6 +2276,71 @@ describe("runtime_import", () => {
       expect(children).toHaveLength(2);
       expect(children[0].rawContent).toBe("First");
       expect(children[1].rawContent).toBe("Second");
+    });
+  });
+
+  describe("fetchUrlContent", () => {
+    /** @type {import("http").Server} */
+    let server;
+    /** @type {string} */
+    let baseUrl;
+
+    afterEach(async () => {
+      if (server) {
+        await new Promise(resolve => server.close(resolve));
+      }
+    });
+
+    it("should resolve with the body on a successful response", async () => {
+      server = http.createServer((_req, res) => {
+        res.writeHead(200);
+        res.end("hello world");
+      });
+      await new Promise(resolve => server.listen(0, resolve));
+      const { port } = server.address();
+      baseUrl = `http://127.0.0.1:${port}/file.txt`;
+
+      const content = await fetchUrlContent(baseUrl, tempDir);
+      expect(content).toBe("hello world");
+    });
+
+    it("should reject (not crash) when the response socket errors mid-transfer", async () => {
+      server = http.createServer((_req, res) => {
+        res.writeHead(200);
+        res.write("partial-data");
+        // Destroy the underlying socket mid-response to simulate a reset connection.
+        // With builtin fetch(), response.text() rejects when the socket is destroyed mid-transfer.
+        res.socket.destroy(new Error("simulated socket failure"));
+      });
+      await new Promise(resolve => server.listen(0, resolve));
+      const { port } = server.address();
+      baseUrl = `http://127.0.0.1:${port}/file.txt`;
+
+      await expect(fetchUrlContent(baseUrl, tempDir)).rejects.toThrow(/Failed to fetch URL/);
+    });
+
+    it("should reject when the HTTP status code is not 200", async () => {
+      server = http.createServer((_req, res) => {
+        res.writeHead(404);
+        res.end("not found");
+      });
+      await new Promise(resolve => server.listen(0, resolve));
+      const { port } = server.address();
+      baseUrl = `http://127.0.0.1:${port}/missing.txt`;
+
+      await expect(fetchUrlContent(baseUrl, tempDir)).rejects.toThrow(/ERR_API.*HTTP 404/);
+    });
+
+    it("should reject a redirect response instead of following it", async () => {
+      server = http.createServer((_req, res) => {
+        res.writeHead(302, { Location: "http://127.0.0.1:1/final.txt" });
+        res.end();
+      });
+      await new Promise(resolve => server.listen(0, resolve));
+      const { port } = server.address();
+      baseUrl = `http://127.0.0.1:${port}/redirect.txt`;
+
+      await expect(fetchUrlContent(baseUrl, tempDir)).rejects.toThrow(/ERR_API.*HTTP 302/);
     });
   });
 });
