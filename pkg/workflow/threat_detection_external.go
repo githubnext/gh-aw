@@ -3,6 +3,7 @@ package workflow
 
 import (
 	"fmt"
+	"net"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,7 +20,14 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 	const emptyMCPServersJSON = `{"mcpServers":{}}`
 	shellCodexConfigPath := constants.ShellMcpConfigDir + "/config.toml"
 	codexHomeConfigPath := constants.TmpMcpConfigDir + "/config.toml"
-	codexAPIBase := NewCodexEngine().getOpenAIProxyProviderBaseURL()
+	detectionData := buildExternalDetectorWorkflowData(data, "codex")
+	detectionData.Model = data.Model
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
+		detectionData.Model = data.SafeOutputs.ThreatDetection.Model
+	}
+	provider := NewCodexEngine().ResolveLLMProvider(detectionData)
+	profile := llmProviderProfileFor(provider)
+	codexAPIBase := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(profile.gatewayPort))
 	codexWSSBase := codexProxyWebsocketBaseURL(codexAPIBase)
 	codexConfig := buildExternalDetectorCodexConfig(codexAPIBase, codexWSSBase)
 	codexConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_DETECTION_CONFIG", codexConfig)
@@ -56,7 +64,9 @@ func buildExternalDetectorCodexConfig(apiBase, wssBase string) string {
 		"          base_url = \"" + apiBase + "\"",
 		"          api_base = \"" + apiBase + "\"",
 		"          wss_base = \"" + wssBase + "\"",
-		"          env_key = \"OPENAI_API_KEY\"",
+		"          env_key = \"CODEX_API_KEY\"",
+		"          wire_api = \"responses\"",
+		"          requires_openai_auth = false",
 		"          supports_websockets = false",
 		"",
 	}, "\n")
@@ -205,6 +215,9 @@ type externalDetectorPathSetup struct {
 // PATH in the container command. Non-ARC topologies also need a host-side copy
 // into that mounted directory; ARC/DinD already stages Copilot there during install.
 func (c *Compiler) buildExternalDetectorPathSetup(data *WorkflowData, engineID string) externalDetectorPathSetup {
+	if engineID == "codex" && NewCodexEngine().ResolveLLMProvider(data) == LLMProviderGitHub {
+		return externalDetectorPathSetup{commandPrefix: codexBYOKAPIKeyExport() + " && "}
+	}
 	if engineID != "copilot" {
 		return externalDetectorPathSetup{}
 	}
@@ -377,7 +390,16 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// detection job must permit the engine's required API endpoints. Without this,
 	// engines such as Codex (which connects to api.openai.com and chatgpt.com) fail
 	// with "domain not in allowlist" and the detection job exits with code 1/2.
-	allowedDomains := GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
+	var allowedDomains string
+	if engineID == string(constants.CodexEngine) {
+		// Codex's allowed domains depend on the resolved LLM provider (e.g. GitHub-hosted
+		// inference adds CopilotDefaultDomains), which GetAllowedDomainsForEngine's static
+		// defaults do not account for. Compute domains the same way the main Codex
+		// execution path does so GitHub-hosted detection requests are not blocked.
+		allowedDomains = mergeDomainsWithNetworkToolsAndRuntimes(NewCodexEngine().defaultDomains(threatDetectionData), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
+	} else {
+		allowedDomains = GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
+	}
 	// Extend the allowlist with any custom API target domains when engine.api-target
 	// is set (e.g. GHE or a custom OpenAI-compatible endpoint).
 	if threatDetectionData.EngineConfig != nil && threatDetectionData.EngineConfig.APITarget != "" {

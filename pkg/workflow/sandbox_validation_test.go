@@ -264,6 +264,23 @@ func TestValidateSandboxConfigStoresJustification(t *testing.T) {
 		"justification must be stored on AgentSandboxConfig for audit/logging")
 }
 
+func TestValidateSandboxConfigRejectsCodexCopilotWithoutAgentSandbox(t *testing.T) {
+	workflowData := &WorkflowData{
+		Model:        "copilot/auto",
+		EngineConfig: &EngineConfig{ID: "codex"},
+		Features: map[string]any{
+			"dangerously-disable-sandbox-agent": "controlled environment with no internet access",
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{Disabled: true},
+		},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires the agent sandbox for BYOK inference routing")
+}
+
 func TestValidateAgentMemoryLimit(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -181,6 +181,9 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 	if err := validateHTTPMCPOIDCAwfVersion(workflowData); err != nil {
 		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
+	if err := validateCodexCopilotAwfVersion(workflowData); err != nil {
+		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
 
 	// Emit warning if id-token: write permission is detected
 	workflowLog.Printf("Checking for id-token: write permission")
@@ -321,6 +324,28 @@ func validateHTTPMCPOIDCAwfVersion(workflowData *WorkflowData) error {
 	}
 	return fmt.Errorf(
 		"mcp-servers.<name>.auth.type: github-oidc requires AWF %s or newer to keep Actions OIDC credentials out of the agent container.\n\nThe effective AWF version is %s. Set firewall.version to %s or newer",
+		constants.AWFExcludeEnvMinVersion,
+		effectiveVersion,
+		constants.AWFExcludeEnvMinVersion,
+	)
+}
+
+func validateCodexCopilotAwfVersion(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil ||
+		workflowData.EngineConfig.ID != string(constants.CodexEngine) ||
+		NewCodexEngine().ResolveLLMProvider(workflowData) != LLMProviderGitHub {
+		return nil
+	}
+	firewallConfig := getFirewallConfig(workflowData)
+	if awfSupportsExcludeEnv(firewallConfig) {
+		return nil
+	}
+	effectiveVersion := string(constants.DefaultFirewallVersion)
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		effectiveVersion = firewallConfig.Version
+	}
+	return fmt.Errorf(
+		"codex with the GitHub provider requires AWF %s or newer to keep GitHub credentials out of the agent container.\n\nThe effective AWF version is %s. Set firewall.version to %s or newer",
 		constants.AWFExcludeEnvMinVersion,
 		effectiveVersion,
 		constants.AWFExcludeEnvMinVersion,
