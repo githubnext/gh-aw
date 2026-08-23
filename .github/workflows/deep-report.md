@@ -79,7 +79,7 @@ tools:
 imports:
   - uses: shared/meta-analysis-base.md
     with:
-      toolsets: [all]
+      toolsets: [default, actions, discussions, search]
   - ../skills/jqschema/SKILL.md
   - shared/discussions-data-fetch.md
   - shared/mcp/agentdb.md
