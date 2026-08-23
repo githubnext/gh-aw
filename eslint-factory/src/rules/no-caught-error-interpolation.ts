@@ -88,7 +88,7 @@ export const noCaughtErrorInterpolationRule = createRule({
     hasSuggestions: true,
     docs: {
       description:
-        "Disallow directly interpolating a caught error variable in a template literal (e.g. `${err}`). " +
+        "Disallow directly stringifying a caught error variable in a template literal or string concatenation (e.g. `${err}` or `'Error: ' + err`). " +
         "For Error objects this produces the redundant 'Error: message' prefix; for non-Error throws (plain objects, strings, etc.) " +
         "it silently produces '[object Object]' or another useless string. " +
         "Use getErrorMessage(err) for consistent, safe formatting, or String(err) when getErrorMessage is unavailable. " +
@@ -98,11 +98,11 @@ export const noCaughtErrorInterpolationRule = createRule({
     schema: [],
     messages: {
       bareErrorInterpolation:
-        "Directly interpolating caught error '{{errorVar}}' in a template literal is unsafe — " +
+        "Directly stringifying caught error '{{errorVar}}' is unsafe — " +
         "for Error objects it produces 'Error: message' (redundant prefix); for non-Error throws it produces '[object Object]'. " +
         "Use ${getErrorMessage({{errorVar}})} if it is available, or ${String({{errorVar}})} as an import-free alternative.",
-      useGetErrorMessage: "Replace \\${{{errorVar}}} with \\${getErrorMessage({{errorVar}})} — ensure getErrorMessage is imported from error_helpers.cjs.",
-      useStringFallback: "Replace \\${{{errorVar}}} with \\${String({{errorVar}})} — getErrorMessage is not in scope; String() is a safe import-free alternative.",
+      useGetErrorMessage: "Wrap '{{errorVar}}' with getErrorMessage() — ensure getErrorMessage is imported from error_helpers.cjs.",
+      useStringFallback: "Wrap '{{errorVar}}' with String() — getErrorMessage is not in scope; String() is a safe import-free alternative.",
     },
   },
   defaultOptions: [],
@@ -132,6 +132,61 @@ export const noCaughtErrorInterpolationRule = createRule({
       return false;
     }
 
+    function findVariable(node: TSESTree.Node, name: string): TSESLint.Scope.Variable | null {
+      let scope: Scope | null = sourceCode.getScope(node);
+      while (scope) {
+        const variable = scope.set.get(name);
+        if (variable) return variable;
+        scope = scope.upper;
+      }
+      return null;
+    }
+
+    function isCaughtErrorIdentifier(node: TSESTree.Expression): node is TSESTree.Identifier {
+      if (!isBareIdentifierExpression(node)) return false;
+
+      const variable = findVariable(node, node.name);
+      if (!variable) return false;
+      if (variable.defs.some(isCaughtErrorVariableDef)) return true;
+
+      return variable.defs.some(def => {
+        if (def.type !== "Variable") return false;
+        const declarator = def.node;
+        if (declarator.parent.type !== AST_NODE_TYPES.VariableDeclaration || declarator.parent.kind !== "const") return false;
+        if (declarator.init?.type !== AST_NODE_TYPES.Identifier) return false;
+        const sourceVariable = findVariable(declarator.init, declarator.init.name);
+        return sourceVariable?.defs.some(isCaughtErrorVariableDef) ?? false;
+      });
+    }
+
+    function reportCaughtError(node: TSESTree.Identifier): void {
+      const errorVar = node.name;
+      const getErrorMessageAvailable = hasResolvableLocalBinding(node, "getErrorMessage");
+
+      context.report({
+        node,
+        messageId: "bareErrorInterpolation",
+        data: { errorVar },
+        suggest: [
+          getErrorMessageAvailable
+            ? ({
+                messageId: "useGetErrorMessage" as const,
+                data: { errorVar },
+                fix(fixer) {
+                  return fixer.replaceText(node, `getErrorMessage(${errorVar})`);
+                },
+              } as const)
+            : ({
+                messageId: "useStringFallback" as const,
+                data: { errorVar },
+                fix(fixer) {
+                  return fixer.replaceText(node, `String(${errorVar})`);
+                },
+              } as const),
+        ],
+      });
+    }
+
     return {
       TemplateLiteral(node) {
         // Tagged templates pass values to the tag function as-is; they are not
@@ -139,50 +194,13 @@ export const noCaughtErrorInterpolationRule = createRule({
         if (node.parent?.type === AST_NODE_TYPES.TaggedTemplateExpression) return;
 
         for (const expr of node.expressions) {
-          if (!isBareIdentifierExpression(expr)) continue;
-
-          // Resolve the identifier through the full scope chain. This correctly
-          // handles closures: an identifier inside a nested function can still
-          // resolve to an outer catch binding.
-          let scope: Scope | null = sourceCode.getScope(expr);
-          let variable: TSESLint.Scope.Variable | null = null;
-          while (scope) {
-            const v = scope.set.get(expr.name);
-            if (v) {
-              variable = v;
-              break;
-            }
-            scope = scope.upper;
-          }
-
-          if (!variable || !variable.defs.some(isCaughtErrorVariableDef)) continue;
-
-          const errorVar = expr.name;
-          const getErrorMessageAvailable = hasResolvableLocalBinding(node, "getErrorMessage");
-
-          context.report({
-            node: expr,
-            messageId: "bareErrorInterpolation",
-            data: { errorVar },
-            suggest: [
-              getErrorMessageAvailable
-                ? ({
-                    messageId: "useGetErrorMessage" as const,
-                    data: { errorVar },
-                    fix(fixer) {
-                      return fixer.replaceText(expr, `getErrorMessage(${errorVar})`);
-                    },
-                  } as const)
-                : ({
-                    messageId: "useStringFallback" as const,
-                    data: { errorVar },
-                    fix(fixer) {
-                      return fixer.replaceText(expr, `String(${errorVar})`);
-                    },
-                  } as const),
-            ],
-          });
+          if (isCaughtErrorIdentifier(expr)) reportCaughtError(expr);
         }
+      },
+      BinaryExpression(node) {
+        if (node.operator !== "+") return;
+        if (isCaughtErrorIdentifier(node.left)) reportCaughtError(node.left);
+        if (isCaughtErrorIdentifier(node.right)) reportCaughtError(node.right);
       },
     };
   },
