@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🧪"
-description: Daily statistical report that uses the experiments CLI command to list active experiments and the experiments analyze tool to get per-variant statistics and statistical significance, then computes per-variant success rates and durations from run artifacts, renders bar charts and an ASCII comparison table per experiment, posts a discussion with promote/extend/abandon recommendations, and includes a self-tuning continuation plan driven by experiments and evals with grader-ready next actions
+description: Daily statistical report that uses the experiments CLI command to list active experiments and consume deterministic core decisions, then computes descriptive success rates and durations from run artifacts, renders charts and comparison tables, posts a discussion with extend/promote/reject/inconclusive results, and includes a self-tuning continuation plan
 name: daily-experiment-report
 on:
   schedule: daily around 8:00
@@ -56,21 +56,20 @@ features:
   gh-aw-detection: true
 evals:
   - id: experiments_analyzed
-    question: Did the agent list active experiments and compute per-variant success rates and statistical significance?
+    question: Did the agent list active experiments, consume core decisions, and render descriptive per-variant metrics?
   - id: discussion_with_recommendations_created
-    question: Was a discussion created with charts, comparison tables, and promote/extend/abandon recommendations?
+    question: Was a discussion created with charts, comparison tables, and the deterministic core experiment decisions?
   - id: self_tuning_continuation_plan_documented
-    question: Did the report include concrete next actions to continue the self-tuning feature set using experiments and evals, with grader integration readiness noted?
+    question: Did the report include concrete next actions based on core decision reason codes and identify unresolved metric or interaction-analysis gaps?
 ---
 
 # Daily Experiment Report
 
-You are a **statistical analyst** for agentic workflow A/B experiments. Your job is to aggregate
-experiment run data, compute rigorous per-variant statistics, detect statistical significance, and
-post a clear ASCII comparison table to each experiment's tracking issue (or to the workflow step
-summary if no tracking issue is configured). Also continue the repository's self-tuning feature set
-by emitting explicit next actions based on experiments and evals, and keep those actions grader-ready
-for upcoming grader integration work.
+You are a **statistical reporter** for agentic workflow A/B experiments. Your job is to consume the
+deterministic decision from `gh aw experiments analyze`, aggregate descriptive run data, and post a
+clear comparison table to each experiment's tracking issue (or to the workflow step summary if no
+tracking issue is configured). Also continue the repository's self-tuning feature set by emitting
+explicit next actions based on experiment decisions and evals.
 
 Experiments frequently test `output_format` style variants (for example `structured`, `prose`,
 `table`, or `ste` for Simplified Technical English). Treat these like any other variant: compare
@@ -122,12 +121,20 @@ This returns a JSON object with:
   - `analysis_type` — declared statistical test type
   - `min_samples` — minimum runs per variant before analysis is reliable (default: 20)
   - `total_runs` — total runs for this experiment
-  - `variants` — per-variant: `name`, `count`, `observed_pct`, `expected_pct`, `min_samples_reached`
+  - `variants` — per-variant assignment counts, observation counts, means, and `below_min_samples`
   - `chi_square`, `degrees_of_freedom`, `p_value`, `is_balanced` — chi-square balance test
   - `bonferroni_alpha` — Bonferroni-corrected threshold (for K ≥ 3 variants only)
   - `guardrails` — declared metric thresholds (pass/fail requires per-run outcome data)
+  - `readiness` — `COLLECTING` or `READY`
   - `recommendation` — `EXTEND` or `READY_FOR_ANALYSIS`
   - `rationale` — one-sentence explanation
+  - `decision` — `EXTEND`, `PROMOTE`, `REJECT`, or `INCONCLUSIVE`
+  - `reason_code` and `reason` — stable machine reason and human explanation
+  - `control`, `candidate`, `samples`, `effect`, and `evidence` — normalized decision inputs when available
+  - `decision_guardrails` and `decision_policy` — guardrail summary and thresholds used by core
+
+Treat `analyses[].decision` as the canonical conclusion. Do not infer another experiment decision
+from p-values, run conclusions, descriptive metrics, or prose.
 
 Also use the GitHub MCP tools to read each workflow's frontmatter for additional fields not exposed
 by the experiments CLI:
@@ -146,9 +153,11 @@ No active experiments found in ${{ github.repository }} — nothing to report.
 
 For each workflow that has experiments, use the `experiments analyze` output from Step 1:
 
-- The `analyses[].variants` field provides per-variant counts from the git branch state.
-- The `analyses[].recommendation` field provides the CLI's readiness gate
-  (`EXTEND` when any variant is below `min_samples`, `READY_FOR_ANALYSIS` otherwise).
+- The `analyses[].variants` field provides assignment and observation details.
+- The `analyses[].samples` field provides the usable sample count consumed by the decision layer.
+- The `analyses[].readiness` field provides the explicit `COLLECTING` / `READY` state.
+- The legacy `analyses[].recommendation` field remains available for compatibility.
+- The `analyses[].decision`, `reason_code`, and `reason` fields provide the canonical conclusion.
 
 To compute **outcome metrics** (success rate, duration) that are not stored in the git branch state,
 list the **last 30 completed runs** (any final state: `success`, `failure`, `cancelled`, or
@@ -186,19 +195,23 @@ Build a per-run outcome record for every run whose variant is known:
 }
 ```
 
-## Step 3 — Compute Per-Variant Statistics
+## Step 3 — Compute Descriptive Per-Variant Statistics
 
 Use the `analyses` array from `gh aw experiments analyze` (Step 1) for the following fields — no
 recomputation is needed:
 
-- **n** (variant count): from `analyses[].variants[].count`
+- **usable n**: from `analyses[].samples`
 - **min_samples**: from `analyses[].min_samples`
-- **min_samples_reached**: from `analyses[].variants[].min_samples_reached`
+- **sample progress**: compare each usable sample count with `analyses[].min_samples`
 - **Balance test**: `chi_square`, `p_value`, `is_balanced` from the analyze output
-- **Readiness**: `recommendation` (`EXTEND` / `READY_FOR_ANALYSIS`) from the analyze output
+- **Readiness**: `readiness` (`COLLECTING` / `READY`) from the analyze output
+- **Decision**: `decision`, `reason_code`, and `reason` from the analyze output
+- **Primary evidence**: `comparisons`, `effect`, and `evidence` from the analyze output
+- **Guardrails**: `guardrails` and `decision_guardrails` from the analyze output
 
 For each experiment and each variant, additionally compute the following **outcome statistics**
-from the per-run outcome records collected in Step 2:
+from the per-run outcome records collected in Step 2. These values provide descriptive report
+context and charts only. They must not override or replace the core decision.
 
 | Statistic            | Description                                                            |
 |----------------------|------------------------------------------------------------------------|
@@ -223,62 +236,29 @@ For unlisted values interpolate linearly between the two nearest entries.
 
 **Edge cases for variance:**
 - If n < 2 for a variant, variance and CI cannot be computed — show `N/A` in those columns and
-  exclude that variant from the Welch t-test comparison.
+  omit its descriptive confidence interval.
 
-### Guardrail Metric Evaluation
+Do not evaluate guardrails again. Render the core `guardrails` values and
+`decision_guardrails.passed`. A missing or unsupported mandatory guardrail observation is already
+represented by an `EXTEND` decision and a stable reason code. Call out unsupported native metrics
+as a data-pipeline gap instead of treating them as passed.
 
-For each experiment that declares `guardrail_metrics:`, evaluate each threshold against the
-current data and record a pass/fail status:
+## Step 4 — Consume the Core Decision
 
-| Guardrail        | How to evaluate                                                   |
-|------------------|-------------------------------------------------------------------|
-| `>=0.95`         | Compute the metric value for this run window; check if ≥ 0.95   |
-| `==0`            | Check if the metric equals exactly 0 for all variants            |
-| `<=X`            | Check if the metric does not exceed X                             |
+For each `analyses[]` entry:
 
-For `success_rate` guardrails: use the computed `success_rate` per variant.
-For `empty_output_rate` and other binary metrics: infer from run conclusions where applicable.
+1. Record `readiness`, `decision`, `reason_code`, and `reason` exactly as returned.
+2. Render `control`, `candidate`, `samples`, `effect`, `evidence`, `decision_guardrails`, and
+   `decision_policy` when present.
+3. Use the core decision for the experiment recommendation. Do not recompute statistical tests,
+   practical significance, metric direction, sample gates, or guardrail precedence.
+4. Preserve `INCONCLUSIVE` as distinct from `REJECT`.
+5. If evidence fields are absent, explain the core reason code rather than guessing from descriptive
+   success-rate or duration data.
 
-If **any guardrail fails for any variant**, mark the experiment as `GUARDRAIL_FAILED` and use
-`ABANDON` as the recommendation regardless of the primary metric significance.
-
-## Step 4 — Detect Statistical Significance (p < 0.05)
-
-Compare each variant against the first (control) variant using the appropriate test:
-
-**Success rate — two-proportion z-test:**
-
-```
-p1 = successes_ctrl / n_ctrl
-p2 = successes_var  / n_var
-p_pool = (successes_ctrl + successes_var) / (n_ctrl + n_var)
-z = (p1 - p2) / sqrt(p_pool × (1 − p_pool) × (1/n_ctrl + 1/n_var))
-```
-
-Convert z to a two-tailed p-value using: p ≈ 2 × (1 − Φ(|z|)).
-For precise p-values use `scipy.stats.norm.sf(abs(z)) * 2` if Python is available.
-Fallback CDF approximations: Φ(1.282)=0.90, Φ(1.645)=0.95, Φ(1.960)=0.975,
-Φ(2.326)=0.99, Φ(2.576)=0.995. Interpolate linearly for intermediate z-values.
-
-**Duration — Welch's t-test:**
-
-```
-t  = (mean_A − mean_B) / sqrt(var_A/n_A + var_B/n_B)
-df = (var_A/n_A + var_B/n_B)^2 / ((var_A/n_A)^2/(n_A−1) + (var_B/n_B)^2/(n_B−1))
-```
-
-For precise p-values use `scipy.stats.t.sf(abs(t), df=df) * 2` if Python is available.
-
-**Zero-variance edge case:** If all runs for a variant share the same duration (variance = 0), the
-Welch t-test cannot be applied — show `N/A` for p-value and note "zero variance" in the table.
-
-The significance threshold is **p < 0.05**.
-
-**`min_samples` gate:** Use the `recommendation` field from `gh aw experiments analyze` to
-determine readiness: when the CLI returns `EXTEND` for an experiment, always use `EXTEND` as the
-recommendation (regardless of p-value) and show the per-variant progress toward `min_samples`
-from `analyses[].variants[].min_samples_reached`. Only proceed with `PROMOTE` or `ABANDON` when
-the CLI returns `READY_FOR_ANALYSIS`.
+Set `report_action` to the core decision by default. The only workflow-level override is the
+existing cross-experiment interaction safety hold described below; it does not change or relabel
+the core decision.
 
 ### Factorial Interaction Helper (K₁×K₂ cell diagnostics)
 
@@ -303,7 +283,11 @@ Required report output for each experiment pair:
 - `interaction_p_value` from the contingency test
 - `interaction_risk_status` set to `SPARSE_CELL_RISK` when any cell has `n < min_samples`
 
-If `interaction_risk_status = SPARSE_CELL_RISK`, do **not** recommend `PROMOTE`.
+If `interaction_risk_status = SPARSE_CELL_RISK` and the core decision is `PROMOTE`, do not recommend
+promotion. Keep `core_decision: PROMOTE`, set `report_action: EXTEND`, and use
+`report_reason_code: interaction_underpowered`. Explain that this is a reporting safety hold until
+interaction evidence becomes a normalized core analysis signal. Never replace the core decision
+field itself.
 
 ## Step 5 — Generate Bar Charts
 
@@ -410,14 +394,14 @@ Hypothesis : <hypothesis text if declared, else "(not specified)">
 Window     : last 30 runs  |  Analysed: <count> runs with artifacts
 min_samples: <min_samples> per variant
 
-+------------------+------+----------+----------------+--------------------+-----------+---------------+
-| Variant          |  n   | Succ %   | Mean dur (s)   | 95% CI (s)         |  p-value  | min_samples   |
-+------------------+------+----------+----------------+--------------------+-----------+---------------+
-| <control>        |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    |  (ref)    | ##/## (##%)   |
-| <variant_B>      |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    |  0.0XX *  | ##/## (##%)   |
-+------------------+------+----------+----------------+--------------------+-----------+---------------+
-Significance: * p<0.05   ** p<0.01   *** p<0.001
-p-value is two-tailed, compared against the control (first) variant.
++------------------+------+----------+----------------+--------------------+---------------+
+| Variant          |  n   | Succ %   | Mean dur (s)   | 95% CI (s)         | min_samples   |
++------------------+------+----------+----------------+--------------------+---------------+
+| <control>        |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    | ##/## (##%)   |
+| <variant_B>      |  ##  |  ##.#%   |    ###.#       | [###.# , ###.#]    | ##/## (##%)   |
++------------------+------+----------+----------------+--------------------+---------------+
+
+Evidence: <analysis_type and p_value or probability_superiority from core evidence>
 
 Guardrails:
   success_rate >=0.95 : PASS (control=0.97, variant_B=0.96)
@@ -426,23 +410,15 @@ Guardrails:
 For multi-variant experiments show pass/fail per variant per guardrail:
   success_rate >=0.95 : control=PASS(0.97), variant_B=FAIL(0.92), variant_C=PASS(0.96)
 
-Recommendation: <PROMOTE | EXTEND | ABANDON>
-Rationale     : <one sentence>
+Core decision : <PROMOTE | EXTEND | REJECT | INCONCLUSIVE>
+Reason code   : <reason_code from analyze>
+Rationale     : <reason from analyze>
+Report action : <same as core decision, or EXTEND for an interaction safety hold>
 ```
 
-**Recommendation rules** (evaluated for the best-performing non-control variant):
-
-| Condition                                                                              | Decision       |
-|----------------------------------------------------------------------------------------|----------------|
-| Any guardrail metric fails for any variant                                             | **ABANDON**    |
-| p < 0.05 AND all variants have n ≥ min_samples AND variant improves success rate      | **PROMOTE**    |
-| p < 0.05 AND variant degrades success rate vs. control                                | **ABANDON**    |
-| p ≥ 0.05 AND any variant has n < min_samples (more data needed)                       | **EXTEND**     |
-| p ≥ 0.05 AND all variants have n ≥ min_samples (no detectable effect)                 | **ABANDON**    |
-| Any variant has n < 5 (insufficient data)                                              | **EXTEND** (note insufficient data) |
-
-> **Note on statistical power:** Until all variants reach `min_samples`, tests have low power to
-> detect small effects. Use **EXTEND** to gather more data before drawing conclusions.
+The decision and rationale above must come from `gh aw experiments analyze`. Report prose may
+explain the result, but it must not translate `INCONCLUSIVE` into `REJECT`, select a different
+candidate, or apply a second significance threshold.
 
 ## Step 7 — Post Discussion
 
@@ -460,8 +436,8 @@ Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to 
 
 Use visual cues consistently:
 - Use emojis strategically (for example: `📊` charts, `✅` success, `⚠️` warnings, `❌` failures)
-- Use status badges for readiness (`🟢 READY`, `🟡 COLLECTING`, `🔴 FAILED`)
-- Bold final recommendations and wrap variant names in inline code
+- Use status badges for readiness (`🟢 READY`, `🟡 COLLECTING`)
+- Bold final decisions and wrap variant names in inline code
 
 Suggested structure:
 - Brief summary (always visible)
@@ -473,7 +449,7 @@ Suggested structure:
 ### 🧪 Daily Experiment Report — YYYY-MM-DD
 
 [1–2 sentence executive summary: N experiments analysed across M workflows,
- K reached significance (p < 0.05), list recommendations at a glance.]
+ K have decision-quality evidence, list core decisions and interaction safety holds at a glance.]
 
 ### ⚡ Quick Stats
 
@@ -481,16 +457,17 @@ Suggested structure:
 |--------|-------|
 | Active experiments | N |
 | Ready for analysis | R |
-| Statistically significant (p < 0.05) | K |
-| Recommendations | ✅ PROMOTE: P · 🟡 EXTEND: E · ❌ ABANDON: A |
+| Decisions with sufficient evidence | K |
+| Core decisions | ✅ PROMOTE: P · 🟡 EXTEND: E · ❌ REJECT: R · ⚪ INCONCLUSIVE: I |
+| Interaction safety holds | H |
 
 ---
 
 #### `<experiment_name>` · `<workflow_basename>`
 
-> **Status**: 🟢 READY / 🟡 COLLECTING / 🔴 FAILED
+> **Readiness**: 🟢 READY / 🟡 COLLECTING
 > **Variants**: `<v1>` vs `<v2>` · **Window**: last 30 runs · **Analysed**: N runs with artifacts
-> **min_samples**: <min_samples> per variant · **Significance**: p = <p-value>
+> **min_samples**: <min_samples> per variant · **Evidence**: <core evidence summary>
 
 <hypothesis if declared>
 
@@ -511,7 +488,9 @@ Suggested structure:
 
 </details>
 
-**Recommendation: PROMOTE / EXTEND / ABANDON** — <one sentence rationale>
+**Core decision: PROMOTE / EXTEND / REJECT / INCONCLUSIVE** (`<reason_code>`) — <core reason>
+
+<If an interaction safety hold applies: **Report action: EXTEND** (`interaction_underpowered`)>
 
 ---
 
@@ -522,13 +501,13 @@ Suggested structure:
 <details>
 <summary><b>View Full Experiments Table</b></summary>
 
-| Experiment | Workflow | Control | Best variant | p-value | Guardrails | Recommendation |
-|-----------|---------|---------|-------------|---------|-----------|----------------|
-| ... | ... | ... | ... | ... | PASS/FAIL | ... |
+| Experiment | Workflow | Control | Candidate | Evidence | Guardrails | Core decision | Report action |
+|-----------|---------|---------|-----------|----------|------------|---------------|---------------|
+| ... | ... | ... | ... | ... | PASS/FAIL | ... | ... |
 
 </details>
 
-> Analysis window: last 30 runs per workflow · Significance threshold: p < 0.05 (two-tailed)
+> Descriptive window: last 30 runs per workflow · Decision thresholds: from `decision_policy`
 > Run: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 ```
 
@@ -545,7 +524,7 @@ Run the `ab-testing-advisor` workflow to generate experiment campaign ideas.
 After the discussion is created, also write a one-line summary to `$GITHUB_STEP_SUMMARY`:
 
 ```
-Daily experiment report: N experiments analysed, M reached significance (p < 0.05). Discussion: <url>
+Daily experiment report: N experiments analysed, M have decision-quality evidence, H interaction holds. Discussion: <url>
 ```
 
 ## Step 8 — Notify Tracking Issues
@@ -553,7 +532,7 @@ Daily experiment report: N experiments analysed, M reached significance (p < 0.0
 For each experiment that has a `issue:` field set, post a comment to that tracking issue when any
 of the following conditions are met **for the first time today**:
 
-**Condition A — All variants reached `min_samples`:**
+**Condition A — Core readiness is `READY`:**
 Post a comment:
 ```
 🧪 **Experiment `<name>` is ready for analysis!**
@@ -565,14 +544,13 @@ All variants have reached the minimum sample size of `<min_samples>` runs:
 View the latest statistics in the [Daily Experiment Report](<discussion_url>).
 ```
 
-**Condition B — Experiment reached statistical significance (p < 0.05) with all guardrails
-passing:**
+**Condition B — Core decision is `PROMOTE` and no interaction safety hold applies:**
 Post a comment:
 ```
-📊 **Experiment `<name>` has reached statistical significance (p = <p_value>)**
+📊 **Experiment `<name>` has a deterministic promotion decision**
 
-Recommendation: **<PROMOTE | EXTEND | ABANDON>**
-<one sentence rationale>
+Decision: **PROMOTE `<candidate>`**
+Reason: `<reason_code>` — <reason>
 
 View the full report: [Daily Experiment Report](<discussion_url>)
 ```
@@ -585,7 +563,7 @@ Post a comment:
 The following guardrail metric failed:
 - `<metric_name>` expected `<threshold>`, got `<actual_value>` for variant `<variant>`
 
-Recommendation: **ABANDON** — investigate immediately.
+Decision: **REJECT** (`guardrail_failed`) — investigate immediately.
 ```
 
 Use the `add-comment` safe-output tool to post comments. Skip experiments with no
@@ -602,8 +580,8 @@ not removed automatically; the person concluding the experiment can remove them 
 | Label                           | Apply when                                                                   |
 |--------------------------------|------------------------------------------------------------------------------|
 | `experiment:active`            | `start_date <= today <= end_date` (or no dates declared)                    |
-| `experiment:ready-for-analysis`| All variants have `n >= min_samples`                                         |
-| `experiment:concluded`         | Recommendation is PROMOTE or ABANDON after reaching statistical significance |
+| `experiment:ready-for-analysis`| Core `readiness` is `READY`                                                   |
+| `experiment:concluded`         | Core `decision` is `PROMOTE` or `REJECT`                                      |
 
 Use the `add-labels` safe-output tool to apply labels to the tracking issue.
 If a label does not exist in the repository, create it with `create_label` GitHub MCP tool
@@ -614,15 +592,15 @@ before applying it, using a neutral gray color (e.g. `#808080`) and a short desc
 After generating the daily report, append a short **Self-Tuning Continuation Plan** section to the
 discussion body with:
 
-1. **Top 3 experiment actions** for the next iteration (for example: promote/extend/abandon with one-line rationale).
+1. **Top 3 experiment actions** derived from core `decision` and `reason_code`.
 2. **Top 3 eval actions** (which low-scoring eval questions to tighten, and which workflow prompts they map to).
-3. **Grader-ready hooks** for the next PR:
-   - identify where grader outputs should plug into the decision path (per-run outcome record + recommendation gate),
-   - list any missing fields the workflow should capture now so grader onboarding is low-friction.
+3. **Decision-pipeline gaps** for the next PR:
+   - identify unresolved native metrics or guardrails that produced `insufficient_observations` or `guardrail_unsupported`,
+   - identify interaction diagnostics that should become normalized core analysis signals.
 
 Keep this section implementation-oriented and concise. The goal is continuous convergence toward a
-self-tuning AW system that uses experiments for assignment, evals for outcome quality, and graders
-for stronger decision signals as they become available.
+self-tuning AW system that uses experiments for assignment, evals and graders for observations,
+core analysis for deterministic decisions, and reporting for explanation.
 
 ### Output Format
 
