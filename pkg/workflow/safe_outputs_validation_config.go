@@ -367,6 +367,20 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
 		},
 	},
+	"upload_code_coverage": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"file": {
+				Required:     true,
+				Type:         "string",
+				MaxLength:    4096,
+				Pattern:      `^(?!/)(?!.*\.\.).+$`,
+				PatternError: `must be a relative path within the upload-code-coverage staging directory (no leading "/" or ".." segments)`,
+			},
+			"language": {Required: true, Type: "string", Sanitize: true, MaxLength: 64},
+			"label":    {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+		},
+	},
 	"push_repo_memory": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{

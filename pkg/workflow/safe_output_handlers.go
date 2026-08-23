@@ -454,6 +454,11 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		ToolName:    "upload_artifact",
 	},
 	{
+		Key:         "upload-code-coverage",
+		StructField: "UploadCodeCoverage",
+		ToolName:    "upload_code_coverage",
+	},
+	{
 		Key:         "update-release",
 		StructField: "UpdateRelease",
 		ToolName:    "update_release",

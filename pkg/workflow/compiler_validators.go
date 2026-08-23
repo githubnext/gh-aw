@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -361,6 +362,10 @@ func usesSbxBoundedQueryRuntime(workflowData *WorkflowData) bool {
 }
 
 func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
+	c.emitExperimentalFeatureWarningsTo(workflowData, os.Stderr)
+}
+
+func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData, writer io.Writer) {
 	_, detectionConfigured := getFeatureValueFromFrontmatter(string(constants.GHAWDetectionFeatureFlag), workflowData, false)
 	if !detectionConfigured {
 		detectionConfigured = isFeatureInEnvironment(string(constants.GHAWDetectionFeatureFlag), false)
@@ -375,6 +380,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil, message: "Using experimental feature: merge-pull-request"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ApproveWorkflowRun != nil, message: "Using experimental feature: approve-workflow-run"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ReplaceLabel != nil, message: "Using experimental feature: replace-label"},
+		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadCodeCoverage != nil, message: "Using experimental feature: upload-code-coverage"},
 		{enabled: detectionConfigured && isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 		{enabled: len(workflowData.LSP) > 0, message: "Using experimental feature: lsp"},
 		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
@@ -387,14 +393,14 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 			if c.batchMode {
 				c.featureUsage[warning.message]++
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning.message))
+				fmt.Fprintln(writer, console.FormatWarningMessageStderr(warning.message))
 			}
 			c.IncrementWarningCount()
 		}
 	}
 
 	if shouldWarnSparseInteractionCells(workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
+		fmt.Fprintln(writer, console.FormatWarningMessageStderr(
 			"experiments: potential sparse interaction cells detected (multiple active experiments with weighted traffic). "+
 				"Reporting should include factorial K1×K2 cell diagnostics before recommending promotion."))
 		c.IncrementWarningCount()

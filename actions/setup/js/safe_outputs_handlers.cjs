@@ -2509,6 +2509,144 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Handler for upload_code_coverage tool.
+   * Spec cross-reference: not part of the numbered outcome types in Safe Output Outcome Evaluation v1.0.0.
+   *
+   * Mirrors uploadArtifactHandler: when the agent calls upload_code_coverage with an
+   * absolute path (or a workspace-relative path) for the coverage report file, this handler
+   * copies it into the upload-code-coverage staging directory
+   * ($RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage/), which is uploaded as the
+   * safe-outputs-upload-code-coverage artifact by the agent job and downloaded by the
+   * dedicated upload_code_coverage job that invokes actions/upload-code-coverage.
+   *
+   * For requests with an absolute path, the handler also rewrites entry.file to the
+   * staging-relative basename so upload_code_coverage.cjs on the safe_outputs runner
+   * resolves the file from staging rather than trying the (non-existent) absolute path.
+   * A bare filename already in staging is passed through unchanged.
+   */
+  const uploadCodeCoverageHandler = args => {
+    const entry = { ...(args || {}), type: "upload_code_coverage" };
+    const stagingDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-code-coverage");
+    const coverageRoot = process.env.GITHUB_WORKSPACE ? path.join(process.env.GITHUB_WORKSPACE, "coverage") : "";
+
+    if (typeof entry.file === "string") {
+      let filePath = entry.file;
+      if (!path.isAbsolute(filePath)) {
+        const stagedCandidate = path.resolve(stagingDir, filePath);
+        if (fs.existsSync(stagedCandidate)) {
+          filePath = stagedCandidate;
+        } else if (process.env.GITHUB_WORKSPACE) {
+          const workspaceResolvedPath = path.resolve(process.env.GITHUB_WORKSPACE, filePath);
+          const resolvedCoverageRoot = path.resolve(process.env.GITHUB_WORKSPACE, "coverage");
+          const withinCoverageRoot = workspaceResolvedPath === resolvedCoverageRoot || workspaceResolvedPath.startsWith(resolvedCoverageRoot + path.sep);
+          if (!withinCoverageRoot) {
+            throw {
+              code: -32602,
+              message: `${ERR_VALIDATION}: upload_code_coverage: path is outside allowed source roots (GITHUB_WORKSPACE/coverage, staging directory)`,
+            };
+          }
+          filePath = workspaceResolvedPath;
+        } else {
+          throw {
+            code: -32602,
+            message: `${ERR_VALIDATION}: upload_code_coverage: GITHUB_WORKSPACE is required when file is a relative path outside staging`,
+          };
+        }
+      }
+
+      if (!fs.existsSync(filePath)) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_code_coverage: file not found: ${filePath}`,
+        };
+      }
+
+      const stat = lstatGuard(filePath);
+      if (stat === null) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_code_coverage: symlinks are not allowed: ${filePath}`,
+        };
+      }
+      if (!stat.isFile()) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_code_coverage: path must be a regular file: ${filePath}`,
+        };
+      }
+
+      // Canonicalize to detect traversal escapes and symlink chains.
+      let canonicalFilePath;
+      try {
+        canonicalFilePath = fs.realpathSync(filePath);
+      } catch (err) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_code_coverage: failed to resolve canonical path for ${filePath}: ${getErrorMessage(err)}`,
+        };
+      }
+
+      // Reject sensitive paths (system dirs, .git, HOME credentials).
+      const sensitiveError = validateUploadSourcePath(canonicalFilePath);
+      if (sensitiveError) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_code_coverage: ${sensitiveError}`,
+        };
+      }
+
+      // Enforce allowed canonical source roots: staging dir and GITHUB_WORKSPACE/coverage.
+      const allowedRoots = [canonicalizeAllowedRoot(stagingDir)];
+      if (coverageRoot) {
+        allowedRoots.push(canonicalizeAllowedRoot(coverageRoot));
+      }
+      const withinAllowedRoot = allowedRoots.some(root => canonicalFilePath === root || canonicalFilePath.startsWith(root + path.sep));
+      if (!withinAllowedRoot) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_code_coverage: path is outside allowed source roots (GITHUB_WORKSPACE/coverage, staging directory): ${canonicalFilePath}`,
+        };
+      }
+
+      if (!fs.existsSync(stagingDir)) {
+        try {
+          fs.mkdirSync(stagingDir, { recursive: true });
+        } catch (err) {
+          throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stagingDir}: ${getErrorMessage(err)}`, { cause: err });
+        }
+      }
+
+      const canonicalStagingDir = canonicalizeAllowedRoot(stagingDir);
+      const alreadyStaged = canonicalFilePath === canonicalStagingDir || canonicalFilePath.startsWith(canonicalStagingDir + path.sep);
+      const destName = path.basename(filePath);
+      const destPath = path.join(stagingDir, destName);
+      if (!alreadyStaged && !fs.existsSync(destPath)) {
+        try {
+          fs.copyFileSync(filePath, destPath);
+          fs.chmodSync(destPath, 0o600);
+        } catch (err) {
+          throw new Error(`${ERR_SYSTEM}: Failed to copy file ${filePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
+        }
+      }
+
+      // Rewrite to staging-relative path so upload_code_coverage.cjs resolves it from staging.
+      entry.file = destName;
+      server.debug(`upload_code_coverage: staged ${filePath} as ${destName}`);
+    }
+
+    appendSafeOutputCounted(entry);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ result: "success" }),
+        },
+      ],
+    };
+  };
+
+  /**
    * Handler for update_issue tool
    * Spec cross-reference: Safe Output Outcome Evaluation §update_issue.
    * Per Safe Outputs Specification MCE1: Enforces context constraints during tool invocation
@@ -2850,6 +2988,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     defaultHandler,
     uploadAssetHandler,
     uploadArtifactHandler,
+    uploadCodeCoverageHandler,
     createPullRequestHandler,
     pushToPullRequestBranchHandler,
     pushRepoMemoryHandler,

@@ -374,6 +374,12 @@
           "enum": ["read", "write", "none"],
           "leaf": true
         },
+        "code-quality": {
+          "type": "string",
+          "desc": "Permission for the GitHub code coverage API (read: view coverage reports, write: upload coverage reports, none: no access). Required by the upload-code-coverage safe output.",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
         "copilot-requests": {
           "type": "string",
           "desc": "Permission level for Copilot requests (write/none only).",

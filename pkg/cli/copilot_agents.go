@@ -23,6 +23,7 @@ import (
 var copilotAgentsLog = logger.New("cli:copilot_agents")
 
 const agenticWorkflowsSkillFileListPlaceholder = "{{AW_FILE_LIST}}"
+const agenticWorkflowsOTELSkillParagraph = "When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt or skill."
 const ghAWMarkdownFilesAPIURL = "https://api.github.com/repos/github/gh-aw/contents/.github/aw?ref=main"
 const agenticWorkflowsSkillDirDescription = ".github/skills/agentic-workflows directory"
 const agenticWorkflowsAgentDirDescription = ".github/agents directory"
@@ -217,7 +218,11 @@ func buildAgenticWorkflowsSkillContent() (string, error) {
 		return "", fmt.Errorf("agentic workflows skill template is missing %s placeholder", agenticWorkflowsSkillFileListPlaceholder)
 	}
 
-	return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, fileList.String(), 1), nil
+	content := strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, fileList.String(), 1)
+	if !strings.Contains(content, agenticWorkflowsOTELSkillParagraph) {
+		content = strings.TrimRight(content, "\n") + "\n\n" + agenticWorkflowsOTELSkillParagraph + "\n"
+	}
+	return content, nil
 }
 
 type gitHubRepositoryContentEntry struct {
