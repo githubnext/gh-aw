@@ -18,7 +18,7 @@ import (
 // secretsReferencePattern matches a direct reference to a repository/organization secret,
 // such as "secrets.MY_TOKEN" inside a ${{ }} expression. The leading character class avoids
 // matching identifiers that merely end in "secrets", such as "steps.docker-sbx-secrets.outputs".
-var secretsReferencePattern = regexp.MustCompile(`(^|[^A-Za-z0-9_.\-])secrets\.[A-Za-z_][A-Za-z0-9_]*`)
+var secretsReferencePattern = regexp.MustCompile(`(^|[^-A-Za-z0-9_.])secrets\.[A-Za-z_][A-Za-z0-9_]*`)
 
 // secretOutputViolation describes a workflow output whose value references a secret.
 type secretOutputViolation struct {
@@ -220,18 +220,11 @@ jobs:
 			violations, err := findSecretReferencingOutputs([]byte(tt.yaml))
 			require.NoError(t, err)
 
-			actual := make([]string, 0, len(violations))
+			var actual []string
 			for _, violation := range violations {
 				actual = append(actual, violation.String())
 			}
-			assert.Equal(t, tt.expected, nilIfEmpty(actual))
+			assert.Equal(t, tt.expected, actual)
 		})
 	}
-}
-
-func nilIfEmpty(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	return values
 }
