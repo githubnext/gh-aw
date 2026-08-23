@@ -129,7 +129,7 @@ python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json
 python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/archivx-animated-diagram.html"
 ```
 
-Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-rendering until the checker prints `0 violations`.
+Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-running the Step 3b render command (which rewrites the staged HTML) until the checker prints `0 violations`.
 
 ## Step 4: Upload the Artifact
 
