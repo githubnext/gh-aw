@@ -27,6 +27,26 @@ type evalResultRecord struct {
 }
 
 func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults {
+	return summarizeMetricEvalResults(parseEvalResultRecords(loadLocalEvalResultsData(workflowID)))
+}
+
+func loadRemoteMetricEvalResults(repoOverride, workflowID string) map[string]MetricEvalResults {
+	return summarizeMetricEvalResults(parseEvalResultRecords(loadRemoteEvalResultsData(repoOverride, workflowID)))
+}
+
+// loadLocalEvalResultRecords returns the raw per-run eval answer records for workflowID,
+// used to attribute eval-backed experiment metrics to variants by run ID.
+func loadLocalEvalResultRecords(workflowID string) []evalResultRecord {
+	return parseEvalResultRecords(loadLocalEvalResultsData(workflowID))
+}
+
+// loadRemoteEvalResultRecords returns the raw per-run eval answer records for workflowID
+// from repoOverride, used to attribute eval-backed experiment metrics to variants by run ID.
+func loadRemoteEvalResultRecords(repoOverride, workflowID string) []evalResultRecord {
+	return parseEvalResultRecords(loadRemoteEvalResultsData(repoOverride, workflowID))
+}
+
+func loadLocalEvalResultsData(workflowID string) []byte {
 	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 	ref := "origin/" + branchName
 	if !gitRefExists(ref) {
@@ -49,21 +69,25 @@ func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults 
 	if err != nil {
 		return nil
 	}
-	return summarizeMetricEvalResults(out)
+	return out
 }
 
-func loadRemoteMetricEvalResults(repoOverride, workflowID string) map[string]MetricEvalResults {
+func loadRemoteEvalResultsData(repoOverride, workflowID string) []byte {
 	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, constants.EvalsResultFilename, "")
 	if err != nil {
 		return nil
 	}
-	return summarizeMetricEvalResults(decoded)
+	return decoded
 }
 
-func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
+// parseEvalResultRecords parses evals.jsonl content into individual per-run eval answer records.
+func parseEvalResultRecords(data []byte) []evalResultRecord {
+	if len(data) == 0 {
+		return nil
+	}
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	results := map[string]MetricEvalResults{}
+	var records []evalResultRecord
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -76,6 +100,14 @@ func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
 		if record.ID == "" {
 			continue
 		}
+		records = append(records, record)
+	}
+	return records
+}
+
+func summarizeMetricEvalResults(records []evalResultRecord) map[string]MetricEvalResults {
+	results := map[string]MetricEvalResults{}
+	for _, record := range records {
 		summary := results[record.ID]
 		summary.Total++
 		switch strings.ToUpper(strings.TrimSpace(record.Answer)) {
@@ -96,11 +128,12 @@ func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
 	return results
 }
 
-// experimentFrontmatterResult holds both the experiment configs and evals config parsed
+// experimentFrontmatterResult holds the experiment, eval, and grader configs parsed
 // from a workflow's frontmatter.
 type experimentFrontmatterResult struct {
 	ExperimentConfigs map[string]*workflow.ExperimentConfig
 	Evals             *workflow.EvalsConfig
+	Graders           *workflow.GradersConfig
 }
 
 // loadLocalExperimentConfigs reads the workflow .md file for the given experiment name
@@ -152,15 +185,12 @@ func loadLocalExperimentConfigs(experimentName string) experimentFrontmatterResu
 		return experimentFrontmatterResult{}
 	}
 
-	evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
-	if err != nil {
-		experimentsLog.Printf("Failed to parse evals config from %s: %v", filePath, err)
-		// Non-fatal: continue without evals resolution.
-	}
+	evals, graders := parseExperimentMetricConfigs(result.Frontmatter, filePath)
 
 	return experimentFrontmatterResult{
 		ExperimentConfigs: cfg.ExperimentConfigs,
 		Evals:             evals,
+		Graders:           graders,
 	}
 }
 
@@ -210,23 +240,35 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 			continue
 		}
 
-		evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
-		if err != nil {
-			experimentsLog.Printf("Failed to parse evals config from %s: %v", apiPath, err)
-			// Non-fatal: continue without evals resolution.
-		}
+		evals, graders := parseExperimentMetricConfigs(result.Frontmatter, apiPath)
 
 		if len(cfg.ExperimentConfigs) > 0 {
 			experimentsLog.Printf("Loaded remote configs from %s", apiPath)
 			return experimentFrontmatterResult{
 				ExperimentConfigs: cfg.ExperimentConfigs,
 				Evals:             evals,
+				Graders:           graders,
 			}
 		}
 	}
 
 	experimentsLog.Printf("No remote workflow file found for experiment %s", experimentName)
 	return experimentFrontmatterResult{}
+}
+
+func parseExperimentMetricConfigs(
+	frontmatter map[string]any,
+	source string,
+) (*workflow.EvalsConfig, *workflow.GradersConfig) {
+	evals, err := workflow.ParseEvalsFromFrontmatter(frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse evals config from %s: %v", source, err)
+	}
+	graders, err := workflow.ParseGradersFromFrontmatter(frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse graders config from %s: %v", source, err)
+	}
+	return evals, graders
 }
 
 // findRemoteWorkflowFilenameForExperiment lists .md files in .github/workflows/ via the
