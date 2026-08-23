@@ -10,6 +10,16 @@ function isCoreLikeIdentifier(name: string): boolean {
   return CORE_ALIASES.has(name);
 }
 
+function isProcessMemberExpression(member: TSESTree.MemberExpression, propertyName: string): boolean {
+  if (member.object.type !== AST_NODE_TYPES.Identifier || member.object.name !== "process") {
+    return false;
+  }
+  if (!member.computed) {
+    return member.property.type === AST_NODE_TYPES.Identifier && member.property.name === propertyName;
+  }
+  return member.property.type === AST_NODE_TYPES.Literal && member.property.value === propertyName;
+}
+
 /**
  * Returns true when `node` is an expression statement containing a call to
  * `core.setFailed(...)` in any recognized form:
@@ -51,14 +61,7 @@ function isProcessExitZero(node: TSESTree.Statement): node is TSESTree.Expressio
   const expr = node.expression;
   if (expr.type !== AST_NODE_TYPES.CallExpression) return false;
   const callee = expr.callee;
-  if (
-    callee.type !== AST_NODE_TYPES.MemberExpression ||
-    callee.computed ||
-    callee.object.type !== AST_NODE_TYPES.Identifier ||
-    callee.object.name !== "process" ||
-    callee.property.type !== AST_NODE_TYPES.Identifier ||
-    callee.property.name !== "exit"
-  ) {
+  if (callee.type !== AST_NODE_TYPES.MemberExpression || !isProcessMemberExpression(callee, "exit")) {
     return false;
   }
   // process.exit() with no arguments defaults to exit code 0
@@ -81,14 +84,7 @@ function isProcessExitCodeZero(node: TSESTree.Statement): node is TSESTree.Expre
   const expr = node.expression;
   if (expr.type !== AST_NODE_TYPES.AssignmentExpression || expr.operator !== "=") return false;
   const left = expr.left;
-  if (
-    left.type !== AST_NODE_TYPES.MemberExpression ||
-    left.computed ||
-    left.object.type !== AST_NODE_TYPES.Identifier ||
-    left.object.name !== "process" ||
-    left.property.type !== AST_NODE_TYPES.Identifier ||
-    left.property.name !== "exitCode"
-  ) {
+  if (left.type !== AST_NODE_TYPES.MemberExpression || !isProcessMemberExpression(left, "exitCode")) {
     return false;
   }
   const right = expr.right;
@@ -112,18 +108,51 @@ function isControlTransferStatement(node: TSESTree.Statement): boolean {
   // process.exit(...) — any call, regardless of exit code
   if (node.type === AST_NODE_TYPES.ExpressionStatement && node.expression.type === AST_NODE_TYPES.CallExpression) {
     const callee = node.expression.callee;
-    if (
-      callee.type === AST_NODE_TYPES.MemberExpression &&
-      !callee.computed &&
-      callee.object.type === AST_NODE_TYPES.Identifier &&
-      callee.object.name === "process" &&
-      callee.property.type === AST_NODE_TYPES.Identifier &&
-      callee.property.name === "exit"
-    ) {
+    if (callee.type === AST_NODE_TYPES.MemberExpression && isProcessMemberExpression(callee, "exit")) {
       return true;
     }
   }
   return false;
+}
+
+function canContinueNormally(stmt: TSESTree.Statement): boolean {
+  if (isControlTransferStatement(stmt)) return false;
+  if (stmt.type === AST_NODE_TYPES.BlockStatement) {
+    return canStatementsContinueNormally(stmt.body);
+  }
+  if (stmt.type === AST_NODE_TYPES.IfStatement) {
+    if (!stmt.alternate) return true;
+    return canContinueNormally(stmt.consequent) || canContinueNormally(stmt.alternate);
+  }
+  return true;
+}
+
+function canStatementsContinueNormally(stmts: readonly TSESTree.Statement[]): boolean {
+  for (const stmt of stmts) {
+    if (!canContinueNormally(stmt)) return false;
+  }
+  return true;
+}
+
+function statementCanSetFailedAndContinue(stmt: TSESTree.Statement, sourceCode: SourceCode): boolean {
+  if (isCoreSetFailedStatement(stmt, sourceCode)) return true;
+  if (stmt.type === AST_NODE_TYPES.BlockStatement) {
+    return statementsCanSetFailedAndContinue(stmt.body, sourceCode);
+  }
+  if (stmt.type === AST_NODE_TYPES.IfStatement) {
+    return statementCanSetFailedAndContinue(stmt.consequent, sourceCode) || (stmt.alternate ? statementCanSetFailedAndContinue(stmt.alternate, sourceCode) : false);
+  }
+  return false;
+}
+
+function statementsCanSetFailedAndContinue(stmts: readonly TSESTree.Statement[], sourceCode: SourceCode): boolean {
+  let activeSetFailedPath: boolean = false;
+  for (const stmt of stmts) {
+    const activeContinues: boolean = activeSetFailedPath && canContinueNormally(stmt);
+    const activatesSetFailed: boolean = statementCanSetFailedAndContinue(stmt, sourceCode);
+    activeSetFailedPath = activeContinues || activatesSetFailed;
+  }
+  return activeSetFailedPath;
 }
 
 export const noSetFailedThenExitZeroRule = createRule({
@@ -154,14 +183,15 @@ export const noSetFailedThenExitZeroRule = createRule({
     function checkStatements(stmts: readonly TSESTree.Statement[]): void {
       for (let i = 0; i < stmts.length - 1; i++) {
         const current = stmts[i];
-        if (!isCoreSetFailedStatement(current, sourceCode)) continue;
+        const directSetFailed = isCoreSetFailedStatement(current, sourceCode);
+        if (!directSetFailed && !statementCanSetFailedAndContinue(current, sourceCode)) continue;
 
         // Scan forward for process.exit(0), stopping at any other control-transfer statement.
         for (let j = i + 1; j < stmts.length; j++) {
           const candidate = stmts[j];
 
           if (isProcessExitZero(candidate)) {
-            const isAdjacent = j === i + 1;
+            const isAdjacent = directSetFailed && j === i + 1;
             context.report({
               node: candidate,
               messageId: "noSetFailedThenExitZero",
