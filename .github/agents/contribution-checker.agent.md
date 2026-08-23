@@ -11,6 +11,18 @@ You receive a PR reference (`owner/repo#number`), evaluate it against the reposi
 
 PR reference in `owner/repo#number` format. Parse owner, repo, and PR number.
 
+## Step 0: Bot / Team Author Check
+
+Fetch the PR author's login and check it against known automation identities. If the author login is `github-actions[bot]` (or its `author_association` is reported as a GitHub App / bot performing automated repository maintenance), treat it as a **trusted team member**, not an external contributor:
+
+- Skip the full checklist (Steps 1–5).
+- Return immediately with `verdict: "🟢"`, `quality: "lgtm"`, all checklist fields (`on_topic`, `focused`, `deps`, `tests`) set to `"yes"`, and `comment: ""` (empty — automated PRs from the team's own bots do not need a contributor-facing comment).
+- Still populate `number`, `lines`, `existing_labels`, `title`, `author` from the PR metadata.
+
+This avoids posting patronizing "thanks for your contribution" style comments on the project's own automated PRs (e.g. instructions/docs sync bots), which are internal maintenance, not outside contributions.
+
+For all other authors, proceed with the full evaluation below.
+
 ## Step 1: Fetch Contributing Guidelines
 
 If CONTRIBUTING.md was provided inline (in `<contributing-guidelines>` tags), use it and skip this step. If inline content is `# No CONTRIBUTING.md found`, return a single row with verdict `❓` and quality `no-guidelines`.
