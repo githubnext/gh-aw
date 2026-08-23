@@ -4,7 +4,7 @@ package workflow
 
 import (
 	"errors"
-	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,9 +12,12 @@ import (
 )
 
 // This formal test suite validates the suppression lifecycle norms in
-// spec §6.4 (False-Positive Handling, T-CTR-024/025/029) and the rule
-// deprecation lifecycle in spec §5.4 (Deprecation Policy) against the
-// concrete implementation in threat_detection_suppression.go.
+// spec §6.4 (False-Positive Handling, T-CTR-024/025/029) against the
+// concrete implementation in threat_detection_suppression.go and the
+// compiled lock-file manifest emitted by generateWorkflowHeader.
+//
+// The rule deprecation lifecycle (spec §5.4) is verified against the
+// specification artifacts in threat_detection_deprecation_policy_formal_test.go.
 
 func TestFormal_SuppressionRequiresRuleAndReason(t *testing.T) {
 	cases := []struct {
@@ -110,6 +113,17 @@ func TestFormal_ActiveSuppressionRetainsAuditFields(t *testing.T) {
 	require.Equal(t, "CTR-011", parsed[0].Rule)
 	require.Equal(t, "documented exception for internal domain", parsed[0].Reason)
 	require.Equal(t, "2026-12-31", parsed[0].Expires)
+
+	// T-CTR-025 requires the compiled lock file to retain the audit fields,
+	// so assert the serialized gh-aw-manifest, not just the parsed struct.
+	var header strings.Builder
+	require.NoError(t, (&Compiler{}).generateWorkflowHeader(&header, &WorkflowData{
+		RawFrontmatter: map[string]any{
+			"on":                        map[string]any{"schedule": "daily"},
+			"threat-detection-suppress": value,
+		},
+	}, "", "", nil, nil))
+	require.Contains(t, header.String(), `"threat_detection_suppressions":[{"rule":"CTR-011","reason":"documented exception for internal domain","expires":"2026-12-31"}]`)
 }
 
 func TestFormal_ExpiredSuppressionTreatedAsAbsent(t *testing.T) {
@@ -151,84 +165,4 @@ func TestFormal_DiagnosticSuppressionRequiresMatchingRule(t *testing.T) {
 		Err:  errors.New("firewall dependency missing"),
 	}
 	require.True(t, isThreatDetectionDiagnosticSuppressed(diagnosticForSuppressedRule, suppressions, now))
-}
-
-// deprecationRegistry is a stub illustrating the rule-status state machine
-// required by spec §5.4 (Deprecation Policy). No such registry currently
-// exists in pkg/workflow; §5.4 is presently a documentation/process
-// obligation on the spec and Section 7.1 mapping table rather than a
-// runtime API. Replace this stub with a real implementation once one
-// exists, and update these tests to exercise it directly.
-type ruleStatus string
-
-const (
-	ruleStatusActive     ruleStatus = "Active"
-	ruleStatusDeprecated ruleStatus = "Deprecated"
-)
-
-type deprecationRegistryRule struct {
-	ID       string
-	Status   ruleStatus
-	Required bool // whether the rule is required for conformance gating
-}
-
-type deprecationRegistry struct {
-	rules map[string]deprecationRegistryRule
-}
-
-func newDeprecationRegistry(rules ...deprecationRegistryRule) *deprecationRegistry {
-	registry := &deprecationRegistry{rules: make(map[string]deprecationRegistryRule, len(rules))}
-	for _, rule := range rules {
-		registry.rules[rule.ID] = rule
-	}
-	return registry
-}
-
-// deprecate transitions a rule's status to "Deprecated" and retains its
-// catalog row (spec §5.4: "The rule catalog entry MUST be retained (not
-// deleted)").
-func (r *deprecationRegistry) deprecate(id string) {
-	rule, ok := r.rules[id]
-	if !ok {
-		return
-	}
-	rule.Status = ruleStatusDeprecated
-	rule.Required = false
-	r.rules[id] = rule
-}
-
-func (r *deprecationRegistry) requiredRules() []string {
-	var required []string
-	for id, rule := range r.rules {
-		if rule.Status != ruleStatusDeprecated && rule.Required {
-			required = append(required, id)
-		}
-	}
-	sort.Strings(required)
-	return required
-}
-
-func TestFormal_DeprecatedRuleRetainsCatalogRow(t *testing.T) {
-	registry := newDeprecationRegistry(
-		deprecationRegistryRule{ID: "CTR-999", Status: ruleStatusActive, Required: true},
-	)
-
-	registry.deprecate("CTR-999")
-
-	rule, ok := registry.rules["CTR-999"]
-	require.True(t, ok, "deprecated rule's catalog row must be retained, not deleted")
-	require.Equal(t, ruleStatusDeprecated, rule.Status)
-}
-
-func TestFormal_DeprecatedRuleExcludedFromRequiredGate(t *testing.T) {
-	registry := newDeprecationRegistry(
-		deprecationRegistryRule{ID: "CTR-998", Status: ruleStatusActive, Required: true},
-		deprecationRegistryRule{ID: "CTR-997", Status: ruleStatusActive, Required: true},
-	)
-
-	registry.deprecate("CTR-998")
-
-	required := registry.requiredRules()
-	require.NotContains(t, required, "CTR-998", "deprecated rule must be excluded from the required conformance gate")
-	require.Contains(t, required, "CTR-997", "active rule must remain required")
 }
