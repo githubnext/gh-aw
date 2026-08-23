@@ -50,10 +50,10 @@ You are the Lockfile Statistics Analysis Agent. Analyze `.github/workflows/*.loc
 Use a single bash command that:
 
 1. Creates `/tmp/gh-aw/cache-memory/scripts` and `/tmp/gh-aw/agent`.
-2. Reuses `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v2.py` if it already exists.
+2. Reuses `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v3.py` if it already exists.
 3. Otherwise writes that script once, then executes it.
 4. Produces `/tmp/gh-aw/agent/lockfile-stats-summary.json` (compact, target ≤50KB; if larger, reduce examples before writing).
-5. If the prompt version is bumped (for example to `lockfile_stats_v3.py`), do not reuse older script versions; use the version referenced in this prompt.
+5. If the prompt version is bumped (for example to `lockfile_stats_v4.py`), do not reuse older script versions; use the version referenced in this prompt.
 
 The script must parse all `.github/workflows/*.lock.yml` files and compute aggregate metrics including:
 
@@ -64,10 +64,20 @@ The script must parse all `.github/workflows/*.lock.yml` files and compute aggre
 - safe output type counts (create-discussion/create-issue/add-comment/create-pull-request/create-pull-request-review-comment/update-issue/other)
 - discussion category counts
 - job/step/script counts and maxima
-- permission read/write distribution
+- permission read/write distribution (see "Engine and permission detection" below)
 - timeout distribution
-- engine distribution
+- engine distribution (see "Engine and permission detection" below)
 - MCP server/tool usage frequencies
+
+Engine and permission detection (must follow — compiled lockfiles do not mirror workflow frontmatter):
+
+- **Engine**: there is no top-level `engine:` key in a lockfile. Read the first-line comment `# gh-aw-metadata: {...}`, parse it as JSON, and use its `agent_id` field as the engine id. Also record `agent_model` and the `engine_versions` map when present. Fallbacks, in order, when `agent_id` is missing: the single key of `engine_versions`, then the value of a `GH_AW_ENGINE_ID: "<id>"` env entry found in the file. Count lockfiles where no engine could be resolved as `engine_unknown` and report that count.
+- **Permissions**: the top-level `permissions:` block is always emitted as `permissions: {}` and carries no signal — never derive permission stats from it. The effective permissions are emitted per job under `jobs.<name>.permissions`. Compute:
+  - `agent_job_permissions`: the `jobs.agent.permissions` map, which mirrors the workflow frontmatter `permissions:` — use it as the primary per-workflow permission scope.
+  - `permissions_by_scope`: for each scope (`contents`, `issues`, `pull-requests`, `actions`, `discussions`, ...), counts of `read` / `write` / `none` across workflows, based on the agent job.
+  - `union_job_permissions`: the union of every job's permissions per workflow (a scope is `write` if any job grants `write`), plus counts of workflows granting any `write` scope.
+  - Handle scalar forms (`permissions: read-all`, `permissions: write-all`, `permissions: {}`) as well as maps.
+  - Report `permissions_unknown` for lockfiles where no job permissions block could be parsed.
 
 Parser reliability requirements (must follow):
 
@@ -75,7 +85,8 @@ Parser reliability requirements (must follow):
 - Use `yaml.safe_load` as the primary parser.
 - Include `yaml_available` in the summary JSON.
 - If `yaml_available` is `false`, fail loudly (non-zero exit) or emit a clear warning and stop the report flow; never continue with silently empty safe-output stats.
-- If any regex/text fallback parsing is used, it must still populate `safe_output_types`, `discussion_categories`, and per-permission read/write maps.
+- If any regex/text fallback parsing is used, it must still populate `safe_output_types`, `discussion_categories`, `engine_distribution`, and per-permission read/write maps.
+- `engine_distribution`, `permissions_by_scope`, and `agent_job_permissions` must never be silently empty: if every lockfile resolves to unknown, report the failure explicitly (`engine_unknown` / `permissions_unknown` equal to the lockfile count) instead of publishing an empty distribution.
 - For MCP server/tool usage, parse `# gh-aw-manifest: ...` JSON and prefer its `mcp_servers` array. Only fall back to scraping `# - mcp__...` allowed-tool comments for legacy lockfiles without `mcp_servers`, and report the fallback count.
 
 Keep only compact examples and enforce these limits so JSON stays within target size:
@@ -97,8 +108,8 @@ If `/tmp/gh-aw/cache-memory/history/` has prior summaries, compare against lates
 
 ## Cache-memory requirements
 
-- Persist the analyzer script at `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v2.py`.
-- Treat `v2` as a schema/version marker and as the source-of-truth filename for this prompt. Bump script name (for example `lockfile_stats_v3.py`) in the prompt **and update all Step 1 script filename references (items 2 and 5)** when adding/removing metrics or changing output structure; bug fixes that preserve schema can keep the same version.
+- Persist the analyzer script at `/tmp/gh-aw/cache-memory/scripts/lockfile_stats_v3.py`.
+- Treat `v3` as a schema/version marker and as the source-of-truth filename for this prompt. Bump script name (for example `lockfile_stats_v4.py`) in the prompt **and update all Step 1 script filename references (items 2 and 5)** when adding/removing metrics or changing output structure; bug fixes that preserve schema can keep the same version.
 - Save current run summary to `/tmp/gh-aw/cache-memory/history/<YYYY-MM-DD>.json`.
 - If historical data exists, include trend deltas in the report.
 
@@ -111,7 +122,8 @@ Create one discussion with:
 - Trigger analysis
 - Safe outputs analysis
 - Structural characteristics
-- Permission patterns
+- Permission patterns (from the agent job, not the always-empty top-level `permissions: {}`)
+- Engine distribution (from `gh-aw-metadata` `agent_id`)
 - Tool & MCP patterns
 - 3-5 interesting findings
 - Historical trends (if available)
