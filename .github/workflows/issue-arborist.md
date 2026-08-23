@@ -12,7 +12,7 @@ permissions:
 
 
 engine: codex
-model: copilot/auto
+model: copilot/mai-code-1-flash-picker
 strict: true
 network:
   allowed:
