@@ -22,8 +22,9 @@ For workflows that **persist state across runs** — deduplication, incremental 
 | Baselines that must survive cache expiry (e.g. security findings, dedup lists) | `repo-memory` |
 | Human-readable wiki pages for knowledge accumulation | `repo-memory` with `wiki: true` |
 | Persist notes/state inline on the triggering issue or PR | `comment-memory` |
+| Private-preview GitHub Drives backend (enrolled repos only) | `drive-memory` — see [drive-memory.md](drive-memory.md) |
 
-**Default to `cache-memory` unless you have a specific reason to use `repo-memory`.**
+**Default to `cache-memory` unless you have a specific reason to use `repo-memory`.** Do not suggest `drive-memory` unless the repository is confirmed enrolled in the GitHub Drives private preview.
 
 ---
 
