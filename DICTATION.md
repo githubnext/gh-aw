@@ -11,6 +11,7 @@ gh-aw (GitHub Agentic Workflows) is a CLI extension for GitHub that compiles mar
 
 ## Project Glossary
 
+@copilot
 acceptEdits
 action_required
 actionlint
@@ -61,7 +62,6 @@ compilation
 compile
 compiler
 concurrency
-@copilot
 copilot
 COPILOT_GITHUB_TOKEN
 correction-ops
