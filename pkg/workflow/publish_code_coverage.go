@@ -120,7 +120,7 @@ func generateSafeOutputsCodeCoverageStagingUpload(builder *strings.Builder, data
 //     safe_outputs (for the file/language/label metadata recorded by the
 //     upload_code_coverage handler)
 //   - runs only when the safe_outputs job exported a coverage file
-//     (if: needs.safe_outputs.outputs.upload_code_coverage_file != ”)
+//     (the job condition checks that upload_code_coverage_file is non-empty)
 //   - does not perform a checkout: actions/upload-code-coverage resolves the commit/ref/PR
 //     number itself from the triggering event context
 func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName string) (*Job, error) {
