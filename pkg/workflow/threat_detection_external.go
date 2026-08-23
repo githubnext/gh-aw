@@ -391,7 +391,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// engines such as Codex (which connects to api.openai.com and chatgpt.com) fail
 	// with "domain not in allowlist" and the detection job exits with code 1/2.
 	var allowedDomains string
-	if engineID == "codex" {
+	if engineID == string(constants.CodexEngine) {
 		// Codex's allowed domains depend on the resolved LLM provider (e.g. GitHub-hosted
 		// inference adds CopilotDefaultDomains), which GetAllowedDomainsForEngine's static
 		// defaults do not account for. Compute domains the same way the main Codex
