@@ -29,6 +29,7 @@ done
 # The Go compiler sets AWF_LOGS_DIR="${RUNNER_TEMP}/gh-aw/sandbox/firewall/logs",
 # so FIREWALL_DIR resolves to "${RUNNER_TEMP}/gh-aw/sandbox/firewall".
 FIREWALL_DIR="$(dirname "${AWF_LOGS_DIR}")"
+GATEWAY_STARTUP_MARKER="${MCP_GATEWAY_STARTUP_MARKER:-/tmp/gh-aw/mcp-gateway-started}"
 
 if [[ "${ROOTLESS}" == "true" ]]; then
   # Best-effort: reclaim ownership and fix permissions (AWF cleanup may not have run).
@@ -63,5 +64,9 @@ for candidate in \
   fi
 done
 if [[ "${ACCESS_LOG_FOUND}" == "false" ]]; then
-  echo "WARNING: Squid access.log not found under ${AWF_LOGS_DIR}; egress traffic for this run cannot be audited." >&2
+  if [[ -f "${GATEWAY_STARTUP_MARKER}" ]]; then
+    echo "WARNING: Squid access.log not found under ${AWF_LOGS_DIR}; the MCP gateway started but produced no auditable egress traffic." >&2
+  else
+    echo "WARNING: Squid access.log not found under ${AWF_LOGS_DIR}; the MCP gateway did not complete startup. Inspect the Start MCP Gateway step diagnostics." >&2
+  fi
 fi

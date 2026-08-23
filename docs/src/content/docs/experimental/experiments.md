@@ -85,10 +85,16 @@ When `evals` are configured, `metric` can reference an eval question ID using
 `eval:<id>` (for example `eval:focused`) or `evals.<id>`.
 
 When `graders` are configured, `metric` can reference a grader result using
-`grader:<id>` (for example `grader:tool-success-rate`) or `graders.<id>`.
+`grader:<id>` (for example `grader:tool-success-rate`) or
+`graders.<id>.value`.
 
 `gh aw experiments analyze <workflow>` resolves the referenced eval question and, when
 eval result data is available, shows YES/NO/UNKNOWN totals for that eval-backed metric.
+It also joins per-run eval answers to persisted experiment assignments and analyzes the
+valid YES/NO observations by variant using the same statistical comparisons available
+for grader-backed metrics. For a grader-backed primary metric, it joins persisted
+experiment assignments to completed run artifacts and analyzes the valid grader values
+by variant.
 
 > [!NOTE]
 > Experiment names must be valid identifiers: start with a letter or
@@ -270,6 +276,118 @@ The `🧪 A/B Experiments` section of the audit report shows the variant chosen 
   • style = concise (cumulative: concise:5, detailed:4)
 ```
 
+### Analyze a grader-backed metric
+
+Use a deterministic grader as the primary outcome metric:
+
+```aw wrap
+---
+graders:
+  trajectory-efficiency:
+    direction: higher_is_better
+  tool-failure-count:
+    direction: lower_is_better
+
+experiments:
+  prompt_v2:
+    variants: [control, candidate]
+    metric: grader:trajectory-efficiency
+    guardrail_metrics:
+      - name: grader:tool-failure-count
+        threshold: "<=0"
+    min_samples: 20
+    analysis_type: mann_whitney
+    decision:
+      minimum_effect: 0.05
+      confidence: 0.95
+---
+
+Follow the **${{ experiments.prompt_v2 }}** instructions.
+```
+
+After assigned runs complete, analyze their grader artifacts:
+
+```bash
+gh aw experiments analyze <workflow>
+```
+
+The assignment ledger remains the source of variant attribution. The command downloads each
+assigned run's unified `agent` artifact on demand, reads `grader_results.json`, and reports
+assigned, usable, and excluded observations per variant. Missing artifacts, missing graders,
+failed graders, and invalid values are excluded rather than counted as zero. Only usable
+observations count toward `min_samples`.
+
+This analysis does not replay traces or invoke an evaluator model. A deterministic grader
+measures only the behavior encoded by that grader and is not a universal correctness metric.
+The decision layer treats grader observations like any other resolved numeric metric.
+
+### Analyze an eval-backed metric
+
+Use a BinEval question as the primary outcome metric:
+
+```aw wrap
+---
+evals:
+  questions:
+    - id: focused
+      question: Does the response stay on topic?
+
+experiments:
+  prompt_v2:
+    variants: [control, candidate]
+    metric: eval:focused
+    min_samples: 20
+---
+
+Follow the **${{ experiments.prompt_v2 }}** instructions.
+```
+
+`gh aw experiments analyze <workflow>` joins each assigned run's recorded eval answer
+(from `evals.jsonl`) to the assignment ledger by run ID and reports assigned, usable, and
+excluded YES/NO observations per variant. Runs missing an eval answer, or with an
+`UNKNOWN`/unrecognized answer, are excluded rather than counted as zero. Only usable
+observations count toward `min_samples`, and the same t-test, Mann–Whitney, proportion, or
+Bayesian comparisons available for grader-backed metrics are applied to the YES/NO outcomes.
+`UNKNOWN` answers remain excluded. They are not treated as `NO`.
+
+### Deterministic decisions
+
+`gh aw experiments analyze <workflow>` separates assignment, statistical analysis, decision,
+and promotion. Assignment records which variant ran. Analysis estimates effects and evidence.
+The decision layer applies the configured policy. It does not edit the workflow, change traffic,
+or promote a variant.
+
+For two-variant experiments, the command emits one of these decisions:
+
+| Decision | Meaning |
+|---|---|
+| `EXTEND` | More valid primary or guardrail observations are required, or analysis is not yet computable. |
+| `PROMOTE` | The candidate has sufficient statistical evidence, exceeds the practical-effect threshold, and passes all guardrails. |
+| `REJECT` | The candidate materially regresses or fails a mandatory guardrail. |
+| `INCONCLUSIVE` | Minimum samples exist, but the evidence or practical effect does not establish a winner. |
+
+The `decision` configuration uses absolute primary-metric units. `minimum_effect` defaults to
+`0`. `regression_tolerance` defaults to `minimum_effect`. `confidence` defaults to `0.95`.
+Frequentist methods require `p <= 1-confidence`; `bayesian_ab` uses the analyzer's probability
+of superiority directly. Statistical significance alone does not override `minimum_effect`.
+
+Metric direction is normalized so a positive effect is always better for the candidate.
+Grader direction supplies this metadata, while eval metrics default to higher-is-better.
+Native metric names without resolved per-run observations return `EXTEND` rather than guessing.
+Automatic decisions for experiments with more than two variants return `INCONCLUSIVE`.
+
+Use `--json` for the stable automation boundary:
+
+```bash
+gh aw experiments analyze <workflow> --json
+```
+
+Each entry in `analyses` includes `decision`, `reason_code`, `samples`, `decision_guardrails`, and
+`decision_policy`. `control`, `candidate`, `effect`, and `evidence` are emitted when those values
+are available for the decision path (for example two-variant statistical comparisons); early `EXTEND`
+and multi-variant `INCONCLUSIVE` results may omit them. Future promotion automation can consume these
+fields without rerunning statistics or interpreting grader artifacts.
+
 ### Filtering audit results by variant
 
 Use `--experiment` and `--variant` to filter audit runs to a specific variant:
@@ -332,6 +450,8 @@ Tracking issue: [#1234](https://github.com/owner/repo/issues/1234)
 | `secondary_metrics` | `string[]` | | Additional metrics to track alongside the primary metric |
 | `guardrail_metrics` | `object[]` | | List of guardrail objects with `name` (string), `threshold` (comparison string like `>=0.95` or bare number like `0.0`), and optional `direction` (`"min"` or `"max"`). When `threshold` is a bare number, `direction` governs the pass condition (≤ for `min`, ≥ for `max`). See [experiments-specification §4.4](/gh-aw/experimental/experiments-specification/#44-guardrail-metrics) for full semantics. |
 | `min_samples` | `integer` | | Minimum runs per variant required before statistical analysis is considered reliable. The step summary shows a progress bar toward this target. |
+| `analysis_type` | `string` | | Statistical method: `t_test`, `mann_whitney`, `proportion_test`, or `bayesian_ab`. |
+| `decision` | `object` | | Deterministic policy with optional non-negative `minimum_effect`, non-negative `regression_tolerance`, and `confidence` between 0 and 1. Effects use absolute primary-metric units. |
 | `weight` | `integer[]` | | Per-variant probability weights (same length as `variants`). Enables weighted-random selection; values are relative and need not sum to 100. |
 | `issue` | `integer` | | GitHub issue number that tracks this experiment's lifecycle |
 | `start_date` | `string` | | ISO-8601 date (`YYYY-MM-DD`) before which the experiment is inactive. The control variant is returned before this date without incrementing any counter. |

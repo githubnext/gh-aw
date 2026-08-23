@@ -18,6 +18,10 @@ import (
 
 var healthLog = logger.New("cli:health")
 
+// healthListWorkflowRuns is the run-listing entry point used by fetchWorkflowRuns.
+// It is a variable so that pagination behaviour can be exercised in tests.
+var healthListWorkflowRuns = listWorkflowRunsWithPagination
+
 // HealthConfig holds configuration for health command execution
 type HealthConfig struct {
 	WorkflowName string
@@ -173,25 +177,24 @@ func RunHealth(config HealthConfig) error {
 func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose bool) ([]WorkflowRun, error) {
 	healthLog.Printf("Fetching workflow runs: workflow=%s, startDate=%s", workflowName, startDate)
 
+	var oldestFetchedCreatedAt time.Time
 	opts := ListWorkflowRunsOptions{
-		WorkflowName: workflowName,
-		StartDate:    startDate,
-		Limit:        100,
-		RepoOverride: repoOverride,
-		Verbose:      verbose,
+		WorkflowName:           workflowName,
+		StartDate:              startDate,
+		Limit:                  100,
+		RepoOverride:           repoOverride,
+		OldestFetchedCreatedAt: &oldestFetchedCreatedAt,
+		Verbose:                verbose,
 	}
+	targetCount := opts.Limit
 
 	allRuns := make([]WorkflowRun, 0)
 
 	// Fetch runs in batches
 	for i := range MaxIterations {
-		runs, totalCount, err := listWorkflowRunsWithPagination(opts)
+		runs, totalFetched, err := healthListWorkflowRuns(opts)
 		if err != nil {
 			return nil, err
-		}
-
-		if len(runs) == 0 {
-			break
 		}
 
 		// Accumulate runs; duration calculation is done here since the GitHub API
@@ -203,23 +206,27 @@ func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose boo
 			allRuns = append(allRuns, run)
 		}
 
-		healthLog.Printf("Fetched batch %d: got %d runs, total agentic runs so far: %d", i+1, len(runs), len(allRuns))
+		healthLog.Printf("Fetched batch %d: got %d runs (%d before filtering), total agentic runs so far: %d", i+1, len(runs), totalFetched, len(allRuns))
 
-		// If we got fewer runs than requested, we've reached the end
-		if len(runs) < opts.Limit {
+		// If GitHub returned fewer raw runs than requested, the source is exhausted.
+		// This must be measured on the raw batch, not on the filtered result: a batch
+		// made entirely of skipped or approval-pending runs filters down to zero while
+		// older dispatched runs are still available.
+		if totalFetched < opts.Limit {
 			break
 		}
 
-		// Update pagination for next batch
-		if len(runs) > 0 {
-			lastRun := runs[len(runs)-1]
-			opts.BeforeDate = lastRun.CreatedAt.Format(time.RFC3339)
-		}
-
-		// Avoid fetching more than necessary
-		if totalCount > 0 && len(allRuns) >= totalCount {
+		// Stop once enough dispatched runs have been collected.
+		if len(allRuns) >= targetCount {
 			break
 		}
+
+		// Advance the cursor using the oldest raw run in the batch so that fully
+		// filtered batches still move the window backwards.
+		if oldestFetchedCreatedAt.IsZero() {
+			break
+		}
+		opts.BeforeDate = oldestFetchedCreatedAt.Format(time.RFC3339)
 	}
 
 	healthLog.Printf("Total workflow runs fetched: %d", len(allRuns))

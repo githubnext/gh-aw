@@ -33,7 +33,9 @@ require("./shim.cjs");
 const { spawn, execFileSync, execSync } = require("child_process");
 const fs = require("fs");
 const http = require("http");
+const os = require("os");
 const path = require("path");
+const { renderLogToStdout } = require("./render_log_to_stdout.cjs");
 const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -78,6 +80,120 @@ function printTiming(startMs, label) {
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Resolves the marker file that records a successful gateway startup.
+ * print_firewall_logs.sh reads this marker to distinguish "the gateway never
+ * completed startup" from "the gateway started but produced no auditable
+ * egress traffic" when the Squid access log is missing.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string}
+ */
+function getGatewayStartupMarkerPath(env = process.env) {
+  return env.MCP_GATEWAY_STARTUP_MARKER || "/tmp/gh-aw/mcp-gateway-started";
+}
+
+/**
+ * Removes any stale startup marker left behind by a previous run.
+ * @param {string} markerPath
+ */
+function clearGatewayStartupMarker(markerPath) {
+  try {
+    fs.rmSync(markerPath, { force: true });
+  } catch (err) {
+    core.warning(`Could not remove stale gateway startup marker ${markerPath}: ${getErrorMessage(err)}`);
+  }
+}
+
+/**
+ * Records that the gateway completed startup. Marker creation is best-effort:
+ * it only affects the wording of a downstream firewall warning.
+ * @param {string} markerPath
+ */
+function writeGatewayStartupMarker(markerPath) {
+  try {
+    fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+    fs.writeFileSync(markerPath, "", { mode: 0o600 });
+  } catch (err) {
+    core.warning(`Could not write gateway startup marker ${markerPath}: ${getErrorMessage(err)}`);
+  }
+}
+
+/**
+ * Credential shapes that may appear in gateway stderr (bearer headers and
+ * structured `key: value` / `"key": "value"` pairs). They are replaced before
+ * the stderr is written to the workflow log.
+ */
+const gatewayCredentialRedactions = [
+  { pattern: /(Bearer\s+)\S+/gi, replacement: "$1[REDACTED]" },
+  { pattern: /((?:api[_-]?key|token|secret|password|authorization)"?\s*[:=]\s*"?)[^\s,}"]+/gi, replacement: "$1[REDACTED]" },
+];
+
+/**
+ * Redacts common credential formats from gateway diagnostics output.
+ * @param {string} text
+ * @returns {string}
+ */
+function redactGatewayDiagnostics(text) {
+  let redacted = text;
+  for (const { pattern, replacement } of gatewayCredentialRedactions) {
+    redacted = redacted.replace(pattern, replacement);
+  }
+  return redacted;
+}
+
+/**
+ * Creates the file that captures raw gateway stderr. It lives outside the
+ * artifact directory and is readable only by the current user, because the
+ * unredacted stderr may contain credentials.
+ * @returns {string}
+ */
+function createGatewayStderrPath() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-mcp-gateway-"));
+  fs.chmodSync(dir, 0o700);
+  process.on("exit", () => {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // best-effort cleanup
+    }
+  });
+  return path.join(dir, "stderr.log");
+}
+
+/**
+ * Prints redacted gateway stderr in a collapsed log group. Gateway stdout is
+ * withheld because it carries the gateway configuration, which contains
+ * credentials.
+ * @param {string} stderrPath
+ * @param {string} stdoutPath
+ */
+function printGatewayStartupDiagnostics(stderrPath, stdoutPath) {
+  core.error("Gateway startup diagnostics:");
+  let stderrContent = "";
+  try {
+    stderrContent = fs.readFileSync(stderrPath, "utf8");
+  } catch {
+    stderrContent = "";
+  }
+  if (stderrContent.trim()) {
+    renderLogToStdout("Gateway stderr", redactGatewayDiagnostics(stderrContent));
+  } else {
+    core.error("Gateway stderr: (empty)");
+  }
+  let stdoutSize = 0;
+  try {
+    stdoutSize = fs.statSync(stdoutPath).size;
+  } catch {
+    stdoutSize = 0;
+  }
+  if (stdoutSize > 0) {
+    core.error("Gateway stdout was captured but is not displayed because it may contain credentials.");
+  } else {
+    core.error("Gateway stdout: (empty)");
+  }
 }
 
 /**
@@ -607,6 +723,8 @@ async function main() {
   // -----------------------------------------------------------------------
   const logDir = "/tmp/gh-aw/mcp-logs/";
   const outputPath = path.join(configDir, "gateway-output.json");
+  const gatewayStartupMarker = getGatewayStartupMarkerPath();
+  clearGatewayStartupMarker(gatewayStartupMarker);
 
   // Clean up any stale gateway container from a previous run on this runner.
   // On persistent self-hosted runners a prior job's gateway container may still
@@ -623,8 +741,7 @@ async function main() {
   }
   core.info("");
 
-  core.info(`Starting gateway with container: ${dockerCommand}`);
-  core.info(`Full docker command: ${dockerCommand}`);
+  core.info("Starting gateway container...");
   core.info("");
 
   const gatewayStartTime = nowMs();
@@ -639,9 +756,11 @@ async function main() {
   args = injectCustomGatewayEnvArgs(args);
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
+  const stderrPath = createGatewayStderrPath();
+  const stderrFd = fs.openSync(stderrPath, "w", 0o600);
 
   const child = spawn(cmd, args, {
-    stdio: ["pipe", outputFd, "ignore"],
+    stdio: ["pipe", outputFd, stderrFd],
     env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
   });
@@ -678,12 +797,7 @@ async function main() {
   } else {
     core.error("ERROR: Gateway process exited immediately after start");
     core.error("");
-    core.error("Gateway stdout output:");
-    try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
-    } catch {
-      core.error("No stdout output available");
-    }
+    printGatewayStartupDiagnostics(stderrPath, outputPath);
     core.setFailed("ERROR: Gateway process exited immediately after start");
     return;
   }
@@ -699,12 +813,7 @@ async function main() {
   if (!isProcessAlive(gatewayPid)) {
     core.error(`ERROR: Gateway process (PID: ${gatewayPid}) exited during initialization`);
     core.error("");
-    core.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
-    try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
-    } catch {
-      core.error("No stdout output available");
-    }
+    printGatewayStartupDiagnostics(stderrPath, outputPath);
     core.setFailed(`ERROR: Gateway process (PID: ${gatewayPid}) exited during initialization`);
     return;
   }
@@ -783,6 +892,7 @@ async function main() {
   if (succeeded) {
     core.info("Gateway is ready!");
     printTiming(healthCheckStart, "Health check wait");
+    writeGatewayStartupMarker(gatewayStartupMarker);
   } else {
     core.error("");
     core.error("ERROR: Gateway failed to become ready");
@@ -803,12 +913,7 @@ async function main() {
       core.error("Could not list docker containers");
     }
     core.error("");
-    core.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
-    try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
-    } catch {
-      core.error("No stdout output available");
-    }
+    printGatewayStartupDiagnostics(stderrPath, outputPath);
     core.error("");
     core.error("Checking network connectivity to gateway port...");
     try {
@@ -861,12 +966,7 @@ async function main() {
   if (outputSize === 0) {
     core.error("ERROR: Gateway did not write output configuration");
     core.error("");
-    core.error("Gateway stdout (should contain error or config):");
-    try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
-    } catch {
-      core.error("No stdout output available");
-    }
+    printGatewayStartupDiagnostics(stderrPath, outputPath);
     try {
       process.kill(gatewayPid);
     } catch {
@@ -893,8 +993,10 @@ async function main() {
   if (gatewayOutput.error) {
     core.error("ERROR: Gateway returned an error payload instead of configuration");
     core.error("");
-    core.error("Gateway error details:");
-    core.error(JSON.stringify(gatewayOutput, null, 2));
+    // Only the error field is emitted; the rest of the payload is the gateway
+    // configuration, which contains credentials.
+    core.error(`Gateway error: ${redactGatewayDiagnostics(typeof gatewayOutput.error === "string" ? gatewayOutput.error : JSON.stringify(gatewayOutput.error))}`);
+    printGatewayStartupDiagnostics(stderrPath, outputPath);
     try {
       process.kill(gatewayPid);
     } catch {
@@ -1130,6 +1232,8 @@ if (require.main === module) {
 
 module.exports = {
   applyOTLPIgnoreIfMissing,
+  clearGatewayStartupMarker,
+  createGatewayStderrPath,
   customGatewayEnvNamesVar,
   customGatewayEnvTransportPrefix,
   customGatewayReservedEnvPrefix,
@@ -1139,7 +1243,10 @@ module.exports = {
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,
   getJSONParseErrorContext,
+  getGatewayStartupMarkerPath,
   injectCustomGatewayEnvArgs,
   normalizeSinkVisibilityEncoding,
+  redactGatewayDiagnostics,
   resolveCopilotConfigPaths,
+  writeGatewayStartupMarker,
 };

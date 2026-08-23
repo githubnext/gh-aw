@@ -8,11 +8,11 @@ import (
 // getLatestActionPinReference returns the pinned reference for the latest version of the repo.
 // Returns an empty string if no pin is found.
 func getLatestActionPinReference(repo string) string {
-	pins := GetActionPinsByRepo(repo)
-	if len(pins) == 0 {
+	pin, ok := GetLatestActionPinByRepo(repo)
+	if !ok {
 		return ""
 	}
-	return FormatPinnedActionReference(repo, pins[0].SHA, pins[0].Version)
+	return FormatPinnedActionReference(repo, pin.SHA, pin.Version)
 }
 
 // FormatPinnedActionReference formats a pinned action reference with repo, SHA, and version comment.

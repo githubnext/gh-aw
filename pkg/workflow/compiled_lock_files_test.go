@@ -140,6 +140,25 @@ func TestCompiledLockFiles_SafeOutputsJobOutputs(t *testing.T) {
 	t.Logf("Validated safe_outputs job outputs for %d workflow(s)", checkedWorkflows)
 }
 
+func TestSmokeClaudeAllowsRequiredChromeServiceDomains(t *testing.T) {
+	data, err := NewCompiler().ParseWorkflowFile(filepath.Join(workflowsDir, "smoke-claude.md"))
+	require.NoError(t, err, "should parse smoke-claude workflow")
+	require.NotNil(t, data.NetworkPermissions, "smoke-claude should configure network permissions")
+
+	for _, domain := range []string{
+		"content-autofill.googleapis.com",
+		"www.google.com",
+		"accounts.google.com",
+		"android.clients.google.com",
+		"www.gstatic.com",
+	} {
+		assert.Contains(t, data.NetworkPermissions.Allowed, domain,
+			"smoke-claude should allow the Chrome service domain %s", domain)
+	}
+	assert.NotContains(t, data.NetworkPermissions.Allowed, "chrome",
+		"smoke-claude should not allow the broad chrome network ecosystem")
+}
+
 func TestCompiledLockFiles_SmokePiOmitsYoloArg(t *testing.T) {
 	lockPath := filepath.Join(workflowsDir, "smoke-pi.lock.yml")
 	lockBytes, err := os.ReadFile(lockPath)

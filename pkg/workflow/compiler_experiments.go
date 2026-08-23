@@ -201,6 +201,9 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if at, ok := v["analysis_type"].(string); ok {
 			cfg.AnalysisType = at
 		}
+		if decisionRaw, ok := v["decision"].(map[string]any); ok {
+			cfg.Decision = extractExperimentDecisionConfig(decisionRaw)
+		}
 		if tagsRaw, ok := v["tags"]; ok {
 			cfg.Tags = parseStringSliceAny(tagsRaw, nil)
 		}
@@ -227,6 +230,54 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		return cfg
 	}
 	return nil
+}
+
+func extractExperimentDecisionConfig(raw map[string]any) *ExperimentDecisionConfig {
+	cfg := &ExperimentDecisionConfig{}
+	configured := false
+	if value, ok := extractNonNegativeFloat(raw["minimum_effect"]); ok {
+		cfg.MinimumEffect = value
+		configured = true
+	}
+	if value, ok := extractNonNegativeFloat(raw["regression_tolerance"]); ok {
+		cfg.RegressionTolerance = &value
+		configured = true
+	}
+	if value, ok := extractFloat(raw["confidence"]); ok && value > 0 && value < 1 {
+		cfg.Confidence = value
+		configured = true
+	}
+	if !configured {
+		return nil
+	}
+	return cfg
+}
+
+func extractNonNegativeFloat(raw any) (float64, bool) {
+	value, ok := extractFloat(raw)
+	return value, ok && value >= 0
+}
+
+func extractFloat(raw any) (float64, bool) {
+	var value float64
+	switch number := raw.(type) {
+	case float64:
+		value = number
+	case float32:
+		value = float64(number)
+	case int:
+		value = float64(number)
+	case int64:
+		value = float64(number)
+	case uint64:
+		value = float64(number)
+	default:
+		return 0, false
+	}
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, false
+	}
+	return value, true
 }
 
 func extractContinualExperimentConfig(raw map[string]any) *ContinualExperimentConfig {
@@ -417,7 +468,6 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 		if cfg == nil {
 			continue
 		}
-		metric := cfg.Metric
 		if cfg.Continual != nil {
 			if len(cfg.Variants) != 2 {
 				return fmt.Errorf("experiments.%s.continual: exactly two variants are required (control, candidate)", experimentName)
@@ -426,35 +476,49 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 				return err
 			}
 		}
-		referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(metric)
-		if referencesEval {
-			if referencedEvalID == "" {
-				return fmt.Errorf("experiments.%s.metric: expected eval reference format eval:<question_id>; provide a declared eval question id", experimentName)
-			}
-			if _, ok := evalIDs[referencedEvalID]; !ok {
-				if len(evalIDs) == 0 {
-					return fmt.Errorf("experiments.%s.metric: references eval %q but no evals are declared", experimentName, referencedEvalID)
-				}
-				return fmt.Errorf("experiments.%s.metric: references unknown eval %q", experimentName, referencedEvalID)
-			}
-			continue
+		if err := validateExperimentMetricReference(experimentName, "metric", cfg.Metric, evalIDs, graderIDs); err != nil {
+			return err
 		}
-
-		referencedGraderID, referencesGrader := ParseExperimentMetricGraderReference(metric)
-		if referencesGrader {
-			if referencedGraderID == "" {
-				return fmt.Errorf("experiments.%s.metric: expected grader reference format grader:<grader_id>; provide a declared grader id", experimentName)
+		for _, guardrail := range cfg.GuardrailMetrics {
+			if err := validateExperimentMetricReference(
+				experimentName, "guardrail_metrics", guardrail.Name, evalIDs, graderIDs,
+			); err != nil {
+				return err
 			}
-			if _, ok := graderIDs[referencedGraderID]; !ok {
-				if len(graderIDs) == 0 {
-					return fmt.Errorf("experiments.%s.metric: references grader %q but no graders are declared", experimentName, referencedGraderID)
-				}
-				return fmt.Errorf("experiments.%s.metric: references unknown grader %q", experimentName, referencedGraderID)
-			}
-			continue
 		}
 	}
 
+	return nil
+}
+
+func validateExperimentMetricReference(
+	experimentName, field, metric string,
+	evalIDs, graderIDs map[string]struct{},
+) error {
+	referencedEvalID, referencesEval := ParseExperimentMetricEvalReference(metric)
+	if referencesEval {
+		if referencedEvalID == "" {
+			return fmt.Errorf("experiments.%s.%s: expected eval reference format eval:<question_id>; provide a declared eval question id", experimentName, field)
+		}
+		if _, ok := evalIDs[referencedEvalID]; !ok {
+			if len(evalIDs) == 0 {
+				return fmt.Errorf("experiments.%s.%s: references eval %q but no evals are declared", experimentName, field, referencedEvalID)
+			}
+			return fmt.Errorf("experiments.%s.%s: references unknown eval %q", experimentName, field, referencedEvalID)
+		}
+	}
+	referencedGraderID, referencesGrader := ParseExperimentMetricGraderReference(metric)
+	if referencesGrader {
+		if referencedGraderID == "" {
+			return fmt.Errorf("experiments.%s.%s: expected grader reference format grader:<grader_id>; provide a declared grader id", experimentName, field)
+		}
+		if _, ok := graderIDs[referencedGraderID]; !ok {
+			if len(graderIDs) == 0 {
+				return fmt.Errorf("experiments.%s.%s: references grader %q but no graders are declared", experimentName, field, referencedGraderID)
+			}
+			return fmt.Errorf("experiments.%s.%s: references unknown grader %q", experimentName, field, referencedGraderID)
+		}
+	}
 	return nil
 }
 

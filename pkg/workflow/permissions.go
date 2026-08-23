@@ -61,6 +61,7 @@ const (
 	PermissionActions             PermissionScope = "actions"
 	PermissionAttestations        PermissionScope = "attestations"
 	PermissionChecks              PermissionScope = "checks"
+	PermissionCodeQuality         PermissionScope = "code-quality"
 	PermissionContents            PermissionScope = "contents"
 	PermissionDeployments         PermissionScope = "deployments"
 	PermissionDiscussions         PermissionScope = "discussions"
@@ -135,6 +136,7 @@ func GetAllPermissionScopes() []PermissionScope {
 		PermissionActions,
 		PermissionAttestations,
 		PermissionChecks,
+		PermissionCodeQuality,
 		PermissionContents,
 		PermissionDeployments,
 		PermissionDiscussions,

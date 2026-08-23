@@ -43,6 +43,11 @@ network:
     - defaults
     - github
     - playwright
+    - content-autofill.googleapis.com
+    - www.google.com
+    - accounts.google.com
+    - android.clients.google.com
+    - www.gstatic.com
 sandbox:
   agent:
     config:

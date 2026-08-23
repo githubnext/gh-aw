@@ -14,6 +14,7 @@ func TestToolsetSingularToToolsetsCodemod(t *testing.T) {
 	codemod := getToolsetSingularToToolsetsCodemod()
 
 	t.Run("metadata is populated", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, "toolset-singular-to-toolsets", codemod.ID)
 		assert.NotEmpty(t, codemod.Name)
 		assert.NotEmpty(t, codemod.Description)
@@ -22,6 +23,7 @@ func TestToolsetSingularToToolsetsCodemod(t *testing.T) {
 	})
 
 	t.Run("renames toolset to toolsets under tools.github", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -52,6 +54,7 @@ tools:
 	})
 
 	t.Run("no-op when toolsets already present", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -77,6 +80,7 @@ tools:
 	})
 
 	t.Run("no-op when tools.github is absent", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 ---
@@ -94,6 +98,7 @@ engine: copilot
 	})
 
 	t.Run("does not rename toolset in comments", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -121,6 +126,7 @@ tools:
 	})
 
 	t.Run("no-op when toolset appears outside tools.github", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 other:
@@ -143,6 +149,7 @@ other:
 	})
 
 	t.Run("does not rename nested custom github toolset", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:

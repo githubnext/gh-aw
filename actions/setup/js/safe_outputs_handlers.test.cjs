@@ -688,6 +688,150 @@ describe("safe_outputs_handlers", () => {
     });
   });
 
+  describe("uploadCodeCoverageHandler", () => {
+    let testStagingDir;
+
+    beforeEach(() => {
+      const testId = Math.random().toString(36).substring(7);
+      testStagingDir = `/tmp/test-staging-${testId}`;
+      process.env.RUNNER_TEMP = testStagingDir;
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      try {
+        if (fs.existsSync(testStagingDir)) {
+          fs.rmSync(testStagingDir, { recursive: true, force: true });
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
+    it("should copy absolute-path file to staging and rewrite file to basename", () => {
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
+      fs.writeFileSync(srcFile, "<coverage></coverage>");
+
+      const result = handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "code-coverage/unit-tests" });
+
+      const stagedPath = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-code-coverage", "cobertura.xml");
+      expect(fs.existsSync(stagedPath)).toBe(true);
+      expect(fs.readFileSync(stagedPath, "utf8")).toBe("<coverage></coverage>");
+
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_code_coverage", file: "cobertura.xml", language: "Go", label: "code-coverage/unit-tests" }));
+
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+    });
+
+    it("should throw when absolute-path file does not exist", () => {
+      expect(() => handlers.uploadCodeCoverageHandler({ file: "/tmp/nonexistent-cobertura.xml", language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("file not found") }));
+    });
+
+    it("should throw when path is a symlink", () => {
+      const srcFile = path.join(testWorkspaceDir, "real.xml");
+      fs.writeFileSync(srcFile, "data");
+      const linkPath = path.join(testWorkspaceDir, "link.xml");
+      fs.symlinkSync(srcFile, linkPath);
+
+      expect(() => handlers.uploadCodeCoverageHandler({ file: linkPath, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("symlinks are not allowed") }));
+    });
+
+    it("should throw when path is a directory", () => {
+      const srcDir = path.join(testWorkspaceDir, "coverage-dir");
+      fs.mkdirSync(srcDir, { recursive: true });
+
+      expect(() => handlers.uploadCodeCoverageHandler({ file: srcDir, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("must be a regular file") }));
+    });
+
+    it("should not overwrite existing staged file on duplicate call", () => {
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
+      fs.writeFileSync(srcFile, "original");
+
+      handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "l" });
+
+      const stagedPath = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-code-coverage", "cobertura.xml");
+      expect(fs.readFileSync(stagedPath, "utf8")).toBe("original");
+
+      fs.writeFileSync(srcFile, "updated");
+      handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "l" });
+      expect(fs.readFileSync(stagedPath, "utf8")).toBe("original");
+    });
+
+    it("should accept relative path already staged in upload-code-coverage staging directory", () => {
+      const stagingDir = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-code-coverage");
+      const stagedFile = path.join(stagingDir, "already-staged.xml");
+      fs.mkdirSync(stagingDir, { recursive: true });
+      fs.writeFileSync(stagedFile, "<coverage></coverage>");
+
+      const result = handlers.uploadCodeCoverageHandler({ file: "already-staged.xml", language: "Go", label: "l" });
+
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_code_coverage", file: "already-staged.xml" }));
+
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+    });
+
+    it("should resolve workspace-relative coverage path, stage file, and rewrite to basename", () => {
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
+      fs.writeFileSync(srcFile, "<coverage></coverage>");
+
+      handlers.uploadCodeCoverageHandler({ file: "coverage/cobertura.xml", language: "Go", label: "l" });
+
+      const stagedPath = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-code-coverage", "cobertura.xml");
+      expect(fs.existsSync(stagedPath)).toBe(true);
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_code_coverage", file: "cobertura.xml" }));
+    });
+
+    it("should reject absolute path outside GITHUB_WORKSPACE and staging directory", () => {
+      const outsideDir = "/tmp/gh-aw-outside-coverage-" + Math.random().toString(36).substring(7);
+      try {
+        fs.mkdirSync(outsideDir, { recursive: true });
+        const outsideFile = path.join(outsideDir, "secret.xml");
+        fs.writeFileSync(outsideFile, "<coverage></coverage>");
+
+        const savedWorkspace = process.env.GITHUB_WORKSPACE;
+        delete process.env.GITHUB_WORKSPACE;
+        try {
+          expect(() => handlers.uploadCodeCoverageHandler({ file: outsideFile, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("outside allowed source roots") }));
+        } finally {
+          if (savedWorkspace !== undefined) process.env.GITHUB_WORKSPACE = savedWorkspace;
+        }
+      } finally {
+        try {
+          fs.rmSync(outsideDir, { recursive: true, force: true });
+        } catch {}
+      }
+    });
+
+    it("should reject workspace file outside coverage directory", () => {
+      const srcFile = path.join(testWorkspaceDir, "not-coverage.xml");
+      fs.writeFileSync(srcFile, "<coverage></coverage>");
+
+      expect(() => handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "l" })).toThrow(expect.objectContaining({ message: expect.stringContaining("outside allowed source roots") }));
+    });
+
+    it("should set restrictive permissions (0o600) on staged files", () => {
+      const coverageDir = path.join(testWorkspaceDir, "coverage");
+      fs.mkdirSync(coverageDir, { recursive: true });
+      const srcFile = path.join(coverageDir, "cobertura.xml");
+      fs.writeFileSync(srcFile, "<coverage></coverage>");
+
+      handlers.uploadCodeCoverageHandler({ file: srcFile, language: "Go", label: "l" });
+
+      const stagedPath = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-code-coverage", "cobertura.xml");
+      expect(fs.existsSync(stagedPath)).toBe(true);
+      const stat = fs.statSync(stagedPath);
+      expect(stat.mode & 0o777).toBe(0o600);
+    });
+  });
+
   describe("defaultHandler wildcard target validation", () => {
     it("should require explicit discussion_number when update_discussion target is '*'", () => {
       const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
@@ -871,6 +1015,55 @@ describe("safe_outputs_handlers", () => {
         expect.objectContaining({
           type: "create_pull_request",
           temporary_id: "aw_pr1",
+        })
+      );
+    });
+
+    it("should normalize a combined title/body payload passed in title", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "feature/test-change",
+        title: "Fix summary formatting\n\nInclude details and rationale.",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "create_pull_request",
+          title: "Fix summary formatting",
+          body: "Include details and rationale.",
+        })
+      );
+    });
+
+    it("should preserve an explicit empty body instead of normalizing combined title text", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "feature/test-change",
+        title: "Fix summary formatting\n\nInclude details and rationale.",
+        body: "",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "create_pull_request",
+          title: "Fix summary formatting\n\nInclude details and rationale.",
+          body: "",
         })
       );
     });
@@ -2226,6 +2419,7 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.defaultHandler).toBeDefined();
       expect(handlers.uploadAssetHandler).toBeDefined();
       expect(handlers.uploadArtifactHandler).toBeDefined();
+      expect(handlers.uploadCodeCoverageHandler).toBeDefined();
       expect(handlers.createPullRequestHandler).toBeDefined();
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
       expect(handlers.pushRepoMemoryHandler).toBeDefined();
@@ -3348,6 +3542,60 @@ describe("safe_outputs_handlers", () => {
         const data = JSON.parse(result.content[0].text);
         expect(data.result).toBe("success");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "New Title", body: "New body" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should normalize combined title/body text passed through title", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 7 } } };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "Title: New heading\nBody: Updated details\n\nSecond paragraph." });
+        expect(result).toHaveProperty("content");
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "update_pull_request",
+            title: "New heading",
+            body: "Updated details\n\nSecond paragraph.",
+          })
+        );
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should preserve an explicit empty body instead of normalizing combined title text", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 7 } } };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "Heading\nDetails", body: "" });
+        expect(result).toHaveProperty("content");
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "Heading\nDetails", body: "" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should not strip a literal Body: line from actual body content in plain split form", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 7 } } };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "New heading\n\nBody: as promised, here are the details." });
+        expect(result).toHaveProperty("content");
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "update_pull_request",
+            title: "New heading",
+            body: "Body: as promised, here are the details.",
+          })
+        );
       } finally {
         global.context = savedContext;
       }

@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"maps"
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -174,8 +176,6 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	experimentsLog.Printf("Analyzing experiment: name=%s, repo=%s, json=%v",
 		config.ExperimentName, config.RepoOverride, config.JSONOutput)
 
-	branchName := experimentsBranchPrefix + config.ExperimentName
-
 	// Load experiment configs and evals from the workflow frontmatter to enrich the statistical
 	// output with hypothesis text, analysis_type, min_samples, guardrail thresholds, and resolved
 	// eval metric questions.
@@ -183,41 +183,29 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	// defaults (min_samples=20, equal expected proportions, no hypothesis displayed).
 	// This ensures the command remains functional even when the workflow .md file is absent
 	// (e.g., when analysing experiments from a remote repository without the workflow checked out).
-	var frontmatterResult experimentFrontmatterResult
-	if config.RepoOverride != "" {
-		frontmatterResult = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
-	} else {
-		frontmatterResult = loadLocalExperimentConfigs(config.ExperimentName)
-	}
-	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(frontmatterResult.ExperimentConfigs), config.ExperimentName)
-
-	var details *ExperimentDetails
-	var err error
-
-	if config.RepoOverride != "" {
-		details, err = fetchRemoteExperimentDetails(config.RepoOverride, branchName, config.ExperimentName)
-	} else {
-		details, err = fetchLocalExperimentDetails(branchName, config.ExperimentName)
-	}
-
+	frontmatterResult, details, metricEvalResults, err := loadExperimentAnalysisInputs(config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		return nil
 	}
 
-	var metricEvalResults map[string]MetricEvalResults
-	if config.RepoOverride != "" {
-		metricEvalResults = loadRemoteMetricEvalResults(config.RepoOverride, details.WorkflowID)
-	} else {
-		metricEvalResults = loadLocalMetricEvalResults(details.WorkflowID)
+	metricObservationSets, cleanup, err := loadMetricObservationSetsForAnalysis(
+		details,
+		frontmatterResult,
+		config.RepoOverride,
+	)
+	if err != nil {
+		return err
 	}
+	defer cleanup()
 
 	// Compute statistical analyses for each named experiment.
-	details.Analyses = computeExperimentAnalyses(
+	details.Analyses = computeExperimentAnalysesWithObservationBundle(
 		details.Experiments,
 		frontmatterResult.ExperimentConfigs,
 		frontmatterResult.Evals,
 		metricEvalResults,
+		metricObservationSets,
 	)
 
 	if config.JSONOutput {
@@ -233,6 +221,127 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	return nil
 }
 
+func loadExperimentAnalysisInputs(
+	config ExperimentsAnalyzeConfig,
+) (experimentFrontmatterResult, *ExperimentDetails, map[string]MetricEvalResults, error) {
+	branchName := experimentsBranchPrefix + config.ExperimentName
+	var frontmatter experimentFrontmatterResult
+	var details *ExperimentDetails
+	var err error
+	if config.RepoOverride != "" {
+		frontmatter = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
+		details, err = fetchRemoteExperimentDetails(config.RepoOverride, branchName, config.ExperimentName)
+	} else {
+		frontmatter = loadLocalExperimentConfigs(config.ExperimentName)
+		details, err = fetchLocalExperimentDetails(branchName, config.ExperimentName)
+	}
+	if err != nil {
+		return frontmatter, nil, nil, err
+	}
+	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(frontmatter.ExperimentConfigs), config.ExperimentName)
+	if config.RepoOverride != "" {
+		return frontmatter, details, loadRemoteMetricEvalResults(config.RepoOverride, details.WorkflowID), nil
+	}
+	return frontmatter, details, loadLocalMetricEvalResults(details.WorkflowID), nil
+}
+
+// loadMetricObservationSetsForAnalysis resolves grader-backed and eval-backed experiment
+// metrics and attributes their per-run measurements to variants using the persisted
+// assignment history, returning one merged map of observation sets and a single cleanup
+// closure. An experiment's metric references exactly one of a grader or an eval, so the
+// two resolved maps never collide.
+type experimentMetricObservationSets struct {
+	Primary    map[string]*graderMetricObservationSet
+	Guardrails map[string]map[string]*graderMetricObservationSet
+}
+
+func loadMetricObservationSetsForAnalysis(
+	details *ExperimentDetails,
+	frontmatter experimentFrontmatterResult,
+	repoOverride string,
+) (*experimentMetricObservationSets, func(), error) {
+	graderSets, graderGuardrails, cleanup, err := loadGraderObservationSetsForAnalysis(details, frontmatter, repoOverride)
+	if err != nil {
+		return nil, func() {}, err
+	}
+
+	evalSets, evalGuardrails, err := loadEvalObservationSetsForAnalysis(details, frontmatter, repoOverride)
+	if err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	if graderSets == nil {
+		graderSets = make(map[string]*graderMetricObservationSet, len(evalSets))
+	}
+	maps.Copy(graderSets, evalSets)
+	if graderGuardrails == nil {
+		graderGuardrails = make(map[string]map[string]*graderMetricObservationSet, len(evalGuardrails))
+	}
+	mergeGuardrailObservationSets(graderGuardrails, evalGuardrails)
+	return &experimentMetricObservationSets{Primary: graderSets, Guardrails: graderGuardrails}, cleanup, nil
+}
+
+func loadGraderObservationSetsForAnalysis(
+	details *ExperimentDetails,
+	frontmatter experimentFrontmatterResult,
+	repoOverride string,
+) (map[string]*graderMetricObservationSet, map[string]map[string]*graderMetricObservationSet, func(), error) {
+	refs, err := resolveGraderMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Graders)
+	if err != nil {
+		return nil, nil, func() {}, err
+	}
+	guardrailRefs, err := resolveGraderGuardrailMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Graders)
+	if err != nil {
+		return nil, nil, func() {}, err
+	}
+	runRefs := observationRunReferences(refs, guardrailRefs)
+	if len(runRefs) == 0 {
+		return nil, nil, func() {}, nil
+	}
+	tempDir, err := os.MkdirTemp("", "gh-aw-experiment-graders-*")
+	if err != nil {
+		return nil, nil, func() {}, fmt.Errorf("failed to prepare grader artifact cache: %w", err)
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(tempDir)
+	}
+	source := newGitHubGraderRunArtifactSource(tempDir, repoOverride)
+	runData := loadGraderRunData(context.Background(), details.Runs, runRefs, source)
+	sets := buildGraderMetricObservationSets(details.Experiments, details.Runs, refs, runData, frontmatter.Graders)
+	guardrailSets := buildGraderGuardrailObservationSets(details, guardrailRefs, runData, frontmatter.Graders)
+	return sets, guardrailSets, cleanup, nil
+}
+
+// loadEvalObservationSetsForAnalysis resolves eval-backed experiment metrics and attributes
+// their per-run YES/NO answers to variants using the persisted assignment history, mirroring
+// the grader observation pipeline so eval-backed metrics get the same statistical comparisons.
+func loadEvalObservationSetsForAnalysis(
+	details *ExperimentDetails,
+	frontmatter experimentFrontmatterResult,
+	repoOverride string,
+) (map[string]*graderMetricObservationSet, map[string]map[string]*graderMetricObservationSet, error) {
+	refs, err := resolveEvalMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Evals)
+	if err != nil {
+		return nil, nil, err
+	}
+	guardrailRefs, err := resolveEvalGuardrailMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Evals)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(refs) == 0 && len(guardrailRefs) == 0 {
+		return nil, nil, nil
+	}
+	var evalRecords []evalResultRecord
+	if repoOverride != "" {
+		evalRecords = loadRemoteEvalResultRecords(repoOverride, details.WorkflowID)
+	} else {
+		evalRecords = loadLocalEvalResultRecords(details.WorkflowID)
+	}
+	sets := buildEvalMetricObservationSets(details.Experiments, details.Runs, refs, evalRecords)
+	guardrailSets := buildEvalGuardrailObservationSets(details, guardrailRefs, evalRecords)
+	return sets, guardrailSets, nil
+}
+
 // computeExperimentAnalyses computes statistical analyses for all named experiments.
 // configs maps experiment names to their configuration; values may be nil.
 // evals provides the eval definitions for resolving eval-backed metric references; may be nil.
@@ -242,8 +351,33 @@ func computeExperimentAnalyses(
 	evals *workflow.EvalsConfig,
 	metricEvalResults map[string]MetricEvalResults,
 ) []ExperimentAnalysis {
+	return computeExperimentAnalysesWithObservations(experiments, configs, evals, metricEvalResults, nil)
+}
+
+func computeExperimentAnalysesWithObservations(
+	experiments []ExperimentVariantStats,
+	configs map[string]*workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+	metricEvalResults map[string]MetricEvalResults,
+	graderObservationSets map[string]*graderMetricObservationSet,
+) []ExperimentAnalysis {
+	return computeExperimentAnalysesWithObservationBundle(experiments, configs, evals, metricEvalResults, &experimentMetricObservationSets{
+		Primary: graderObservationSets,
+	})
+}
+
+func computeExperimentAnalysesWithObservationBundle(
+	experiments []ExperimentVariantStats,
+	configs map[string]*workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+	metricEvalResults map[string]MetricEvalResults,
+	observationSets *experimentMetricObservationSets,
+) []ExperimentAnalysis {
 	if len(experiments) == 0 {
 		return nil
+	}
+	if observationSets == nil {
+		observationSets = &experimentMetricObservationSets{}
 	}
 	analyses := make([]ExperimentAnalysis, 0, len(experiments))
 	for _, exp := range experiments {
@@ -251,7 +385,77 @@ func computeExperimentAnalyses(
 		if configs != nil {
 			cfg = configs[exp.Name]
 		}
-		analyses = append(analyses, computeExperimentAnalysis(exp, cfg, evals, metricEvalResults))
+		analyses = append(analyses, computeExperimentAnalysisWithObservationBundle(
+			exp,
+			cfg,
+			evals,
+			metricEvalResults,
+			observationSets.Primary[exp.Name],
+			observationSets.Guardrails[exp.Name],
+		))
 	}
 	return analyses
+}
+
+func mergeGuardrailObservationSets(
+	target map[string]map[string]*graderMetricObservationSet,
+	source map[string]map[string]*graderMetricObservationSet,
+) {
+	for experimentName, sourceSets := range source {
+		if target[experimentName] == nil {
+			target[experimentName] = make(map[string]*graderMetricObservationSet)
+		}
+		maps.Copy(target[experimentName], sourceSets)
+	}
+}
+
+func observationRunReferences(
+	primary map[string]string,
+	guardrails map[string]map[string]string,
+) map[string]struct{} {
+	experimentNames := make(map[string]struct{}, len(primary)+len(guardrails))
+	for experimentName := range primary {
+		experimentNames[experimentName] = struct{}{}
+	}
+	for experimentName := range guardrails {
+		experimentNames[experimentName] = struct{}{}
+	}
+	return experimentNames
+}
+
+func buildGraderGuardrailObservationSets(
+	details *ExperimentDetails,
+	refs map[string]map[string]string,
+	runData map[string]graderRunData,
+	graders *workflow.GradersConfig,
+) map[string]map[string]*graderMetricObservationSet {
+	result := make(map[string]map[string]*graderMetricObservationSet, len(refs))
+	for experimentName, metrics := range refs {
+		result[experimentName] = make(map[string]*graderMetricObservationSet, len(metrics))
+		for metricName, graderID := range metrics {
+			sets := buildGraderMetricObservationSets(
+				details.Experiments, details.Runs, map[string]string{experimentName: graderID}, runData, graders,
+			)
+			result[experimentName][metricName] = sets[experimentName]
+		}
+	}
+	return result
+}
+
+func buildEvalGuardrailObservationSets(
+	details *ExperimentDetails,
+	refs map[string]map[string]string,
+	evalRecords []evalResultRecord,
+) map[string]map[string]*graderMetricObservationSet {
+	result := make(map[string]map[string]*graderMetricObservationSet, len(refs))
+	for experimentName, metrics := range refs {
+		result[experimentName] = make(map[string]*graderMetricObservationSet, len(metrics))
+		for metricName, evalID := range metrics {
+			sets := buildEvalMetricObservationSets(
+				details.Experiments, details.Runs, map[string]string{experimentName: evalID}, evalRecords,
+			)
+			result[experimentName][metricName] = sets[experimentName]
+		}
+	}
+	return result
 }

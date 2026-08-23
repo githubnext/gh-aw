@@ -54,6 +54,7 @@ type RuntimesConfig struct {
 type GitHubActionsPermissionsConfig struct {
 	Actions             string `json:"actions,omitempty"`
 	Checks              string `json:"checks,omitempty"`
+	CodeQuality         string `json:"code-quality,omitempty"`
 	Contents            string `json:"contents,omitempty"`
 	Deployments         string `json:"deployments,omitempty"`
 	IDToken             string `json:"id-token,omitempty"`
@@ -153,6 +154,20 @@ type ExperimentNotify struct {
 	Issue int `json:"issue,omitempty"`
 }
 
+// ExperimentDecisionConfig configures deterministic interpretation of an experiment analysis.
+type ExperimentDecisionConfig struct {
+	// MinimumEffect is the minimum absolute improvement required for promotion.
+	MinimumEffect float64 `json:"minimum_effect,omitempty"`
+
+	// RegressionTolerance is the maximum absolute regression tolerated before rejection.
+	// When omitted, MinimumEffect is used.
+	RegressionTolerance *float64 `json:"regression_tolerance,omitempty"`
+
+	// Confidence is the required evidence threshold in the open interval (0, 1).
+	// Frequentist analyses require p <= 1-confidence; Bayesian analyses use probability of superiority.
+	Confidence float64 `json:"confidence,omitempty"`
+}
+
 // ExperimentConfig represents the rich metadata for a single A/B experiment.
 // The bare-array form (e.g. prompt_style: [concise, verbose]) is normalized to this
 // struct with only the Variants field populated.
@@ -200,6 +215,9 @@ type ExperimentConfig struct {
 	// AnalysisType declares the statistical test used by automated reporting tooling.
 	// Valid values: t_test, mann_whitney, proportion_test, bayesian_ab.
 	AnalysisType string `json:"analysis_type,omitempty"`
+
+	// Decision configures deterministic interpretation of the statistical analysis.
+	Decision *ExperimentDecisionConfig `json:"decision,omitempty"`
 
 	// Tags are free-form labels for filtering experiments in dashboards.
 	Tags []string `json:"tags,omitempty"`

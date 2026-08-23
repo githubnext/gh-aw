@@ -655,6 +655,8 @@ The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an err
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
+Runs that never dispatched a job are excluded from these metrics: `skipped` runs (the activation condition evaluated to false, for example a comment that does not contain the workflow's command) and `action_required` runs (created by GitHub but held for manual approval, for example comment events authored by a bot actor). Including them would report command workflows as near-0% success even when every dispatched run succeeded.
+
 #### `checks`
 
 Classify CI check state for a pull request and emit a normalized result.

@@ -20,6 +20,7 @@ type ArtifactDownloadConfig struct {
 	StepName         string // Optional custom step name (defaults to "Download {artifact} artifact")
 	IfCondition      string // Optional conditional expression for the step (e.g., "needs.agent.outputs.has_patch == 'true'")
 	StepID           string // Optional step ID; when set, the env-setup step is gated on this step's success
+	ContinueOnError  *bool  // Optional; nil uses the default (emit continue-on-error: true). True emits true; false omits the key.
 }
 
 // buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact.
@@ -50,7 +51,13 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 		steps = append(steps, fmt.Sprintf("        if: %s\n", config.IfCondition))
 		artifactsLog.Printf("Added conditional: %s", config.IfCondition)
 	}
-	steps = append(steps, "        continue-on-error: true\n")
+	continueOnError := true
+	if config.ContinueOnError != nil {
+		continueOnError = *config.ContinueOnError
+	}
+	if continueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
+	}
 	downloadAction := pinAction("actions/download-artifact")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", downloadAction))
 	steps = append(steps, "        with:\n")

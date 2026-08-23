@@ -114,10 +114,12 @@ func (c *ActionCache) PruneOrphanedEntries(referencedKeys map[string]struct{}) i
 	// - Core workflow actions (cache, checkout, github-script)
 	// - Runtime setup actions (from runtime_definitions.go)
 	// - Security scanning actions (CodeQL)
+	// - Safe-output publishing actions (code coverage upload)
 	compilerGeneratedRepos := []string{
 		"actions/cache/",
 		"actions/checkout",
 		"actions/github-script",
+		"actions/upload-code-coverage",
 		"github/codeql-action/upload-sarif",
 	}
 

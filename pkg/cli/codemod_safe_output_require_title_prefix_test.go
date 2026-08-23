@@ -14,6 +14,7 @@ func TestSafeOutputRequireTitlePrefixCodemod(t *testing.T) {
 	codemod := getSafeOutputRequireTitlePrefixCodemod()
 
 	t.Run("renames close and push constraint keys", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   close-issue:
@@ -47,6 +48,7 @@ safe-outputs:
 	})
 
 	t.Run("does not rename create-issue title-prefix", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   create-issue:
@@ -68,6 +70,7 @@ safe-outputs:
 	})
 
 	t.Run("does not modify when required field already present", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   close-issue:
@@ -89,6 +92,7 @@ safe-outputs:
 	})
 
 	t.Run("renames push labels when required-title-prefix already present", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   push-to-pull-request-branch:
@@ -117,6 +121,7 @@ safe-outputs:
 	})
 
 	t.Run("renames nested push keys without losing active handler", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   push-to-pull-request-branch:
@@ -148,6 +153,7 @@ safe-outputs:
 	})
 
 	t.Run("only renames direct handler keys", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   push-to-pull-request-branch:

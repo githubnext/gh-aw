@@ -564,6 +564,10 @@ func TestExperimentAnalysisJSONOutput(t *testing.T) {
 	assert.Equal(t, "t_test", result["analysis_type"], "analysis_type field")
 	assert.EqualValues(t, 30, result["min_samples"], "min_samples field")
 	assert.Equal(t, "EXTEND", result["recommendation"], "recommendation field (below min_samples)")
+	assert.Equal(t, "EXTEND", result["decision"], "deterministic decision field")
+	assert.Equal(t, "insufficient_samples", result["reason_code"], "structured decision reason")
+	assert.Contains(t, result, "decision_policy", "normalized policy should be machine-readable")
+	assert.Contains(t, result, "decision_guardrails", "guardrail summary should be machine-readable")
 
 	variants, ok := result["variants"].([]any)
 	require.True(t, ok, "variants should be an array")

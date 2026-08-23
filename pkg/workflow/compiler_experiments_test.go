@@ -746,6 +746,42 @@ func TestValidateExperimentMetricReferences(t *testing.T) {
 			},
 			wantErr: "",
 		},
+		{
+			name: "grader guardrail references existing grader",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {
+					GuardrailMetrics: []GuardrailMetric{{Name: "grader:loops", Threshold: "<=1"}},
+				},
+			},
+			graders: &GradersConfig{
+				Graders: map[string]*GraderDefinition{"loops": {ID: "loops"}},
+			},
+			wantErr: "",
+		},
+		{
+			name: "grader guardrail rejects unknown grader",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {
+					GuardrailMetrics: []GuardrailMetric{{Name: "grader:loops", Threshold: "<=1"}},
+				},
+			},
+			graders: &GradersConfig{
+				Graders: map[string]*GraderDefinition{"retries": {ID: "retries"}},
+			},
+			wantErr: `guardrail_metrics: references unknown grader "loops"`,
+		},
+		{
+			name: "eval guardrail references existing eval",
+			configs: map[string]*ExperimentConfig{
+				"prompt_style": {
+					GuardrailMetrics: []GuardrailMetric{{Name: "eval:quality", Threshold: ">=0.9"}},
+				},
+			},
+			evals: &EvalsConfig{
+				Questions: []EvalDefinition{{ID: "quality", Question: "Is quality acceptable?"}},
+			},
+			wantErr: "",
+		},
 	}
 
 	for _, tt := range tests {
