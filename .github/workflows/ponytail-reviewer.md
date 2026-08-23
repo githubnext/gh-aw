@@ -15,7 +15,8 @@ on:
     name: ponytail
     events: [pull_request_comment, pull_request_review_comment]
 engine:
-  id: copilot
+  id: codex
+model: copilot/mai-code-1-flash-picker
 permissions:
   contents: read
   pull-requests: read

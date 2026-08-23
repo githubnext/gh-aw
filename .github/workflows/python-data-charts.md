@@ -10,9 +10,8 @@ permissions:
   issues: read
   pull-requests: read
 engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
+  id: codex
+model: copilot/mai-code-1-flash-picker
 tools:
   cli-proxy: true
   agentic-workflows:

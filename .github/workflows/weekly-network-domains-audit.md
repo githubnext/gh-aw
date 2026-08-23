@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
   issues: read
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 network: defaults
 strict: true
 tracker-id: weekly-network-domains-audit

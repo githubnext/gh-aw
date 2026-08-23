@@ -15,7 +15,8 @@ permissions:
   issues: read
   pull-requests: read
 
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 
 imports:
   - shared/ffmpeg.md

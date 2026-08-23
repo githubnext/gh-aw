@@ -19,7 +19,8 @@ permissions:
   issues: read
   pull-requests: read
 engine:
-  id: copilot
+  id: codex
+model: copilot/mai-code-1-flash-picker
 imports:
   - shared/otlp.md
 tools:
