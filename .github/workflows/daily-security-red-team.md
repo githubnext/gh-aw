@@ -23,6 +23,7 @@ network:
   allowed:
     - defaults
     - github
+    - node
 tools:
   cache-memory: true
   github:
