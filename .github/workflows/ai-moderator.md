@@ -125,12 +125,14 @@ pre-agent-steps:
       rm -f "$RAW_ISSUE" "$RAW_COMMENT"
       echo "Pre-fetched moderation context ($(wc -c < /tmp/gh-aw/agent/moderation-context.json) bytes)"
 evals:
-  - id: action-taken
-    question: Did the agent apply at least one label (spam, ai-generated, link-spam, or ai-inspected) or call noop?
-  - id: rationale-provided
-    question: Does the agent output include a rationale explaining why the label(s) were applied or why noop was called?
-  - id: no-unsupported-action
-    question: Does the agent output show that only allowed safe-output actions (add-labels, hide-comment, noop) were used?
+  model: evals
+  questions:
+    - id: action-taken
+      question: Did the agent apply at least one label (spam, ai-generated, link-spam, or ai-inspected) or call noop?
+    - id: rationale-provided
+      question: Does the agent output include a rationale explaining why the label(s) were applied or why noop was called?
+    - id: no-unsupported-action
+      question: Does the agent output show that only allowed safe-output actions (add-labels, hide-comment, noop) were used?
 ---
 
 # AI Moderator
