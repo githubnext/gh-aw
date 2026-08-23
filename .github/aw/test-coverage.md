@@ -39,7 +39,10 @@ tools:
 safe-outputs:
   add-comment:
     hide-older-comments: true
+  upload-code-coverage:
 ```
+
+`upload-code-coverage` is experimental and publishes a Cobertura XML coverage report to GitHub's code coverage API via [`actions/upload-code-coverage`](https://github.com/actions/upload-code-coverage). Compilation emits a warning when this feature is used. The compiler automatically grants the dedicated `code-quality: write` (and `pull-requests: read` for push-triggered workflows) permission needed by the upload job — no need to add it to the `permissions:` block above.
 
 ## Fallback: Run Tests
 
@@ -48,6 +51,7 @@ Use **only when** no prior CI artifact exists or CI doesn't upload coverage. Sup
 - infer the repository ecosystem from project files before running fallback coverage
 - configure `network.allowed` to include `defaults` plus the inferred ecosystem(s) (for example `node`, `python`, `go`)
 - never run fallback coverage with `network: defaults` alone
+- convert the freshly generated coverage report to Cobertura XML format (e.g. `coverage.py xml`, `go-cobertura`, or a JaCoCo/Istanbul Cobertura reporter), stage it under `$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage/`, and call `upload_code_coverage` with `file: "cobertura.xml"`, `language` set to the inferred ecosystem's Linguist name (e.g. `"Go"`, `"Python"`, `"JavaScript"`), and a descriptive `label` (e.g. `"code-coverage/fallback"`)
 
 Example fallback network config:
 
@@ -58,8 +62,8 @@ network:
     - node
 ```
 
-| Language | Command |
-|---|---|
-| Node.js | `npx jest --coverage --coverageReporters=json-summary` |
-| Python | `python -m pytest --cov=src --cov-report=json` |
-| Go | `go test ./... -coverprofile=/tmp/coverage.out` |
+| Language | Command | Cobertura conversion |
+|---|---|---|
+| Node.js | `npx jest --coverage --coverageReporters=cobertura` | Jest's `cobertura` reporter writes `coverage/cobertura-coverage.xml` directly |
+| Python | `python -m pytest --cov=src --cov-report=xml` | `pytest-cov`'s `--cov-report=xml` writes Cobertura-format `coverage.xml` directly |
+| Go | `go test ./... -coverprofile=/tmp/coverage.out` | convert with `gocover-cobertura < /tmp/coverage.out > cobertura.xml` |

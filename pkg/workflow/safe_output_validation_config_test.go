@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -98,6 +99,30 @@ func TestApproveWorkflowRunValidationConfig(t *testing.T) {
 	}
 	if runID := parsedConfig.Fields["run_id"]; !runID.Required || !runID.PositiveInteger {
 		t.Errorf("approve_workflow_run generated run_id = %+v, want required positive integer", runID)
+	}
+}
+
+func TestUpdatePullRequestValidationConfigSupportsReplaceIsland(t *testing.T) {
+	config, ok := ValidationConfig["update_pull_request"]
+	if !ok {
+		t.Fatal("update_pull_request not found in ValidationConfig")
+	}
+	operation := config.Fields["operation"]
+	if !slices.Contains(operation.Enum, "replace-island") {
+		t.Fatalf("update_pull_request operation enum = %v, want replace-island", operation.Enum)
+	}
+
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"update_pull_request"}, nil, false, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSONWithDataSchema() error = %v", err)
+	}
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+	parsedOperation := parsed["update_pull_request"].Fields["operation"]
+	if !slices.Contains(parsedOperation.Enum, "replace-island") {
+		t.Fatalf("generated update_pull_request operation enum = %v, want replace-island", parsedOperation.Enum)
 	}
 }
 

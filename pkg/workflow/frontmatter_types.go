@@ -54,6 +54,7 @@ type RuntimesConfig struct {
 type GitHubActionsPermissionsConfig struct {
 	Actions             string `json:"actions,omitempty"`
 	Checks              string `json:"checks,omitempty"`
+	CodeQuality         string `json:"code-quality,omitempty"`
 	Contents            string `json:"contents,omitempty"`
 	Deployments         string `json:"deployments,omitempty"`
 	IDToken             string `json:"id-token,omitempty"`

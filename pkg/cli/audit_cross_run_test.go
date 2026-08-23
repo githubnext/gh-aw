@@ -208,7 +208,6 @@ func TestBuildCrossRunAuditReport_DomainInventorySorted(t *testing.T) {
 }
 
 func TestRenderCrossRunReportJSON(t *testing.T) {
-	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed:    2,
 		RunsWithData:    1,
@@ -251,8 +250,8 @@ func TestRenderCrossRunReportJSON(t *testing.T) {
 
 	err := renderCrossRunReportJSON(report)
 
-	w.Close()
 	os.Stdout = oldStdout
+	w.Close()
 
 	require.NoError(t, err, "renderCrossRunReportJSON should not error")
 
@@ -269,7 +268,6 @@ func TestRenderCrossRunReportJSON(t *testing.T) {
 }
 
 func TestRenderCrossRunReportMarkdown(t *testing.T) {
-	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed:    1,
 		RunsWithData:    1,
@@ -312,8 +310,8 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 
 	renderCrossRunReportMarkdown(report)
 
-	w.Close()
 	os.Stdout = oldStdout
+	w.Close()
 
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(r)
@@ -634,7 +632,6 @@ func TestBuildMetricsTrend_NoSpikes(t *testing.T) {
 }
 
 func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
-	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed:    2,
 		RunsWithData:    2,
@@ -717,8 +714,8 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 
 	renderCrossRunReportMarkdown(report)
 
-	w.Close()
 	os.Stdout = oldStdout
+	w.Close()
 
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -841,7 +838,6 @@ func TestBuildCrossRunAuditReport_IncludesDrain3Insights(t *testing.T) {
 }
 
 func TestRenderCrossRunReportMarkdown_IncludesDrain3Section(t *testing.T) {
-	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed: 1,
 		Drain3Insights: []ObservabilityInsight{
@@ -867,8 +863,8 @@ func TestRenderCrossRunReportMarkdown_IncludesDrain3Section(t *testing.T) {
 
 	renderCrossRunReportMarkdown(report)
 
-	w.Close()
 	os.Stdout = oldStdout
+	w.Close()
 
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)

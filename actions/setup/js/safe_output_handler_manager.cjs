@@ -86,6 +86,7 @@ const HANDLER_MAP = {
   create_project_status_update: "./create_project_status_update.cjs",
   update_project: "./update_project.cjs",
   upload_artifact: "./upload_artifact.cjs",
+  upload_code_coverage: "./upload_code_coverage.cjs",
 };
 
 /**
@@ -186,6 +187,7 @@ const THREAT_WARNING_ABORT_TYPES = new Set([
   "update_project",
   "upload_asset",
   "upload_artifact",
+  "upload_code_coverage",
   "dispatch_workflow",
   "dispatch_repository",
   "call_workflow",
@@ -675,7 +677,7 @@ function skipReviewResultsForPR(results, repo, prNumber, skipReason) {
 }
 
 /** Types whose failures are surfaced as warnings rather than failing the safe_outputs job. */
-const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]);
+const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact", "upload_code_coverage"]);
 
 /**
  * Determine whether a failed result should be reported without failing the safe_outputs job.

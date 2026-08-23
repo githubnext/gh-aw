@@ -164,6 +164,14 @@ interface CreateCodeScanningAlertConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for uploading a code coverage report via actions/upload-code-coverage
+ */
+interface UploadCodeCoverageConfig extends SafeOutputConfig {
+  "fail-on-error"?: boolean;
+  "wait-for-processing-timeout"?: number;
+}
+
+/**
  * Configuration for adding code scanning autofixes
  */
 interface AutofixCodeScanningAlertConfig extends SafeOutputConfig {
@@ -369,6 +377,7 @@ type SpecificSafeOutputConfig =
   | CreatePullRequestReviewCommentConfig
   | SubmitPullRequestReviewConfig
   | CreateCodeScanningAlertConfig
+  | UploadCodeCoverageConfig
   | AutofixCodeScanningAlertConfig
   | AddLabelsConfig
   | AddReviewerConfig
@@ -407,6 +416,7 @@ export {
   CreatePullRequestReviewCommentConfig,
   SubmitPullRequestReviewConfig,
   CreateCodeScanningAlertConfig,
+  UploadCodeCoverageConfig,
   AutofixCodeScanningAlertConfig,
   AddLabelsConfig,
   AddReviewerConfig,
