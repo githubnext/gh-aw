@@ -541,8 +541,10 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// Get existing github tool configuration
 	githubTool := tools["github"]
 
+	steerPullRequestComments := isPreCreatePullRequestSteerEnabled(&WorkflowData{SafeOutputs: safeOutputs})
+
 	// Check if github is explicitly disabled (github: false)
-	if githubTool == false {
+	if githubTool == false && !steerPullRequestComments {
 		// Remove the github tool entirely when set to false
 		delete(tools, "github")
 	} else {
@@ -576,6 +578,10 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 				existingAllowed = append(existingAllowed, string(tool))
 			}
 			githubConfig["allowed"] = existingAllowed
+		}
+		if steerPullRequestComments {
+			ensureGitHubToolset(githubConfig, "pull_requests")
+			ensureGitHubAllowedTool(githubConfig, "pull_request_read")
 		}
 		tools["github"] = githubConfig
 	}
@@ -715,4 +721,46 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	}
 
 	return tools
+}
+
+func ensureGitHubToolset(githubConfig map[string]any, toolset string) {
+	if githubConfig == nil || toolset == "" {
+		return
+	}
+	toolsetsValue, exists := githubConfig["toolsets"]
+	if !exists {
+		return
+	}
+	toolsets := parseStringSliceAny(toolsetsValue, toolsLog)
+	for _, existing := range toolsets {
+		if existing == toolset || existing == "all" || existing == "default" || existing == "action-friendly" {
+			return
+		}
+	}
+	githubConfig["toolsets"] = appendStringAny(toolsets, toolset)
+}
+
+func ensureGitHubAllowedTool(githubConfig map[string]any, tool string) {
+	if githubConfig == nil || tool == "" {
+		return
+	}
+	if _, exists := githubConfig["allowed"]; !exists {
+		return
+	}
+	allowed, _ := parseGitHubAllowedToolsAndLimits(githubConfig["allowed"])
+	for _, existing := range allowed {
+		if existing == tool || existing == "*" {
+			return
+		}
+	}
+	githubConfig["allowed"] = appendStringAny(allowed, tool)
+}
+
+func appendStringAny(values []string, value string) []any {
+	result := make([]any, 0, len(values)+1)
+	for _, existing := range values {
+		result = append(result, existing)
+	}
+	result = append(result, value)
+	return result
 }

@@ -138,6 +138,46 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 	}
 }
 
+func TestValidatePreCreatePullRequestSteerPermissions(t *testing.T) {
+	tests := []struct {
+		name        string
+		permissions *Permissions
+		wantErr     string
+	}{
+		{
+			name:        "missing pull requests permission",
+			permissions: NewPermissionsContentsRead(),
+			wantErr:     "steer: true cannot be used without pull-requests: read",
+		},
+		{
+			name: "pull requests read",
+			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionPullRequests: PermissionRead,
+			}),
+		},
+		{
+			name: "pull requests write implies read",
+			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionPullRequests: PermissionWrite,
+			}),
+		},
+	}
+
+	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, PreCreateSteer: true},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePreCreatePullRequestSteerPermissions(data, tt.permissions)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func stagedTrue() *TemplatableBool {
 	value := TemplatableBool("true")
 	return &value
@@ -243,4 +283,21 @@ func TestActivationPreCreateStepOmitsEmptyTitlePrefix(t *testing.T) {
 
 	steps := strings.Join(job.Steps, "")
 	assert.NotContains(t, steps, "GH_AW_PR_TITLE_PREFIX")
+}
+
+func TestActivationPreCreateStepPassesSteerFlag(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		Name:            "Pre-create steer test",
+		MarkdownContent: "# Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, PreCreateSteer: true},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	require.NoError(t, err)
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, `GH_AW_PRE_CREATE_STEER: "true"`)
 }

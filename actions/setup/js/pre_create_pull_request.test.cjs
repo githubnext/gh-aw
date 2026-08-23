@@ -53,6 +53,7 @@ describe("pre_create_pull_request", () => {
     process.env.GITHUB_RUN_ATTEMPT = "2";
     delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
     delete process.env.GH_AW_PR_TITLE_PREFIX;
+    delete process.env.GH_AW_PRE_CREATE_STEER;
     delete process.env.GITHUB_BASE_REF;
   });
 
@@ -124,14 +125,24 @@ describe("pre_create_pull_request", () => {
     expect(title).not.toContain("Content truncated");
   });
 
-  it("explains that the pull request is in progress and that steering is unsupported", async () => {
+  it("explains that the pull request is in progress and that steering is disabled", async () => {
     const { main } = await import("./pre_create_pull_request.cjs");
     await main();
 
     const body = global.github.rest.pulls.create.mock.calls[0][0].body;
     expect(body).toContain("work in progress");
-    expect(body).toContain("Steering is not supported yet");
+    expect(body).toContain("Steering is not enabled");
     expect(body).toContain("Test workflow");
+  });
+
+  it("explains that steering is enabled when configured", async () => {
+    process.env.GH_AW_PRE_CREATE_STEER = "true";
+    const { main } = await import("./pre_create_pull_request.cjs");
+    await main();
+
+    const body = global.github.rest.pulls.create.mock.calls[0][0].body;
+    expect(body).toContain("Steering is enabled");
+    expect(body).toContain("keyword `steer`");
   });
 
   it("always creates the allocated pull request as a draft, even when the draft policy is disabled", async () => {

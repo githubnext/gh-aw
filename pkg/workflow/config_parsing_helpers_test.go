@@ -255,6 +255,28 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	}
 }
 
+func TestParsePullRequestsConfigWithPreCreateSteer(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"pre-create": map[string]any{
+				"steer": true,
+			},
+		},
+	}
+
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if !result.PreCreate {
+		t.Fatal("expected pre-create to be enabled for object-form config")
+	}
+	if !result.PreCreateSteer {
+		t.Fatal("expected pre-create steer to be enabled")
+	}
+}
+
 func TestParseIssuesConfigWithSingleStringAssignee(t *testing.T) {
 	compiler := &Compiler{}
 	outputMap := map[string]any{

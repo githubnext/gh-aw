@@ -82,6 +82,28 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 	return nil
 }
 
+func isPreCreatePullRequestSteerEnabled(data *WorkflowData) bool {
+	return data != nil &&
+		data.SafeOutputs != nil &&
+		data.SafeOutputs.CreatePullRequests != nil &&
+		data.SafeOutputs.CreatePullRequests.PreCreate &&
+		data.SafeOutputs.CreatePullRequests.PreCreateSteer
+}
+
+func validatePreCreatePullRequestSteerPermissions(data *WorkflowData, permissions *Permissions) error {
+	if !isPreCreatePullRequestSteerEnabled(data) {
+		return nil
+	}
+	if permissions == nil {
+		return errors.New("safe-outputs.create-pull-request.pre-create.steer: true cannot be used without pull-requests: read, which is required to read pull-request comments")
+	}
+	level, ok := permissions.Get(PermissionPullRequests)
+	if !ok || (level != PermissionRead && level != PermissionWrite) {
+		return errors.New("safe-outputs.create-pull-request.pre-create.steer: true cannot be used without pull-requests: read, which is required to read pull-request comments")
+	}
+	return nil
+}
+
 // isTemplatableStagedExpression reports whether a staged value is a GitHub Actions
 // expression that can only be resolved at runtime.
 func isTemplatableStagedExpression(value *TemplatableBool) bool {
@@ -94,6 +116,7 @@ type CreatePullRequestsConfig struct {
 	SafeOutputAllowedLabelsConfig  `yaml:",inline"`
 	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
 	PreCreate                      bool             `yaml:"pre-create,omitempty"`    // Experimental. Pre-create a draft pull request in the activation job and reuse it for the agent output.
+	PreCreateSteer                 bool             `yaml:"-"`                       // Experimental. When pre-create is object-form with steer: true, steer the agent from pull request comments.
 	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
 	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
 	Labels                         []string         `yaml:"labels,omitempty"`
@@ -141,6 +164,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 	}
 
 	var protectedFilesExclude []string
+	preCreateSteer := false
 	config := parseCreateEntityConfig(
 		outputMap,
 		"create-pull-request",
@@ -157,6 +181,16 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 		},
 		func(configData map[string]any) bool {
 			coerceStringOrArrayFields(configData, createPRStringOrArrayFields, createPRLog)
+			if preCreate, ok := configData["pre-create"].(map[string]any); ok {
+				if steer, exists := preCreate["steer"]; exists {
+					if steerBool, ok := steer.(bool); ok {
+						preCreateSteer = steerBool
+					} else {
+						createPRLog.Printf("Invalid pre-create.steer value type %T, ignoring", steer)
+					}
+				}
+				configData["pre-create"] = true
+			}
 
 			// Pre-process protected-files: supports string enum OR object form {policy, exclude}.
 			// Object form is preprocessed to extract the policy (stored back as string) and
@@ -215,6 +249,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 
 			// Apply the exclude list extracted from the object-form protected-files field.
 			config.ProtectedFilesExclude = protectedFilesExclude
+			config.PreCreateSteer = preCreateSteer
 
 			// Set default max if not explicitly configured (default is 1)
 			if config.Max == nil {

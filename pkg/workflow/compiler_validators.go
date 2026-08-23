@@ -154,6 +154,9 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	if err := c.validateCoreToolConfiguration(workflowData, markdownPath); err != nil {
 		return err
 	}
+	if err := validatePreCreatePullRequestSteerPermissions(workflowData, workflowPermissions); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
 	if err := c.validateConcurrencyConfiguration(workflowData, markdownPath); err != nil {
 		return err
 	}
