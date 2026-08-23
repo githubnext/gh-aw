@@ -703,7 +703,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Supports multi-repo scenarios via the optional 'repo' parameter
    */
   const createPullRequestHandler = async args => {
+    /** @type {any} */
     const normalizedArgs = normalizeCombinedTitleBodyArgs(args);
+    /** @type {any} */
     const entry = { ...normalizedArgs, type: "create_pull_request" };
     if (config.create_pull_request?.require_temporary_id === true && !entry.temporary_id) {
       return buildIntentErrorResponse(buildMissingTemporaryIdError("create_pull_request", "create-pull-request"));
@@ -2608,6 +2610,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * instead of a downstream Process Safe Outputs failure.
    */
   const updatePullRequestHandler = args => {
+    /** @type {any} */
     const normalizedArgs = normalizeCombinedTitleBodyArgs(args);
     if (!hasUpdatePullRequestFields(normalizedArgs)) {
       throw {
