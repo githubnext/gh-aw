@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -102,6 +103,26 @@ func TestParseUploadCodeCoverageConfig(t *testing.T) {
 				t.Errorf("Max = %q, want %q", gotMax, wantMax)
 			}
 		})
+	}
+}
+
+func TestUploadCodeCoverageExperimentalWarning(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			UploadCodeCoverage: &UploadCodeCoverageConfig{},
+		},
+	}
+
+	c := NewCompiler()
+	var buf bytes.Buffer
+	c.emitExperimentalFeatureWarningsTo(data, &buf)
+
+	expectedMessage := "Using experimental feature: upload-code-coverage"
+	if !strings.Contains(buf.String(), expectedMessage) {
+		t.Fatalf("expected warning containing %q, got stderr:\n%s", expectedMessage, buf.String())
+	}
+	if c.GetWarningCount() == 0 {
+		t.Fatal("expected warning count > 0")
 	}
 }
 

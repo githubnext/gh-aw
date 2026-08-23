@@ -11068,7 +11068,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for uploading a code coverage report via actions/upload-code-coverage",
+              "description": "⚠️ Experimental. Configuration for uploading a code coverage report via actions/upload-code-coverage",
               "properties": {
                 "fail-on-error": {
                   "type": "boolean",
@@ -11133,7 +11133,7 @@
               "description": "Enable code coverage report uploads with default configuration"
             }
           ],
-          "description": "Enable AI agents to upload a code coverage report (e.g. a Cobertura XML file) to GitHub's code coverage API via actions/upload-code-coverage. The agent stages the report file and calls the tool with file/language/label; a separate job performs the actual upload with dedicated code-quality: write permissions."
+          "description": "⚠️ Experimental. Enable AI agents to upload a code coverage report (e.g. a Cobertura XML file) to GitHub's code coverage API via actions/upload-code-coverage. Using this field emits a compile-time warning. The agent stages the report file and calls the tool with file/language/label; a separate job performs the actual upload with dedicated code-quality: write permissions."
         },
         "update-release": {
           "oneOf": [
