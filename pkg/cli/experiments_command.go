@@ -189,7 +189,7 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 		return nil
 	}
 
-	graderObservationSets, cleanup, err := loadGraderObservationSetsForAnalysis(
+	metricObservationSets, cleanup, err := loadMetricObservationSetsForAnalysis(
 		details,
 		frontmatterResult,
 		config.RepoOverride,
@@ -199,24 +199,13 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	}
 	defer cleanup()
 
-	evalObservationSets, err := loadEvalObservationSetsForAnalysis(details, frontmatterResult, config.RepoOverride)
-	if err != nil {
-		return err
-	}
-	if len(evalObservationSets) > 0 {
-		if graderObservationSets == nil {
-			graderObservationSets = make(map[string]*graderMetricObservationSet, len(evalObservationSets))
-		}
-		maps.Copy(graderObservationSets, evalObservationSets)
-	}
-
 	// Compute statistical analyses for each named experiment.
 	details.Analyses = computeExperimentAnalysesWithObservations(
 		details.Experiments,
 		frontmatterResult.ExperimentConfigs,
 		frontmatterResult.Evals,
 		metricEvalResults,
-		graderObservationSets,
+		metricObservationSets,
 	)
 
 	if config.JSONOutput {
@@ -256,6 +245,36 @@ func loadExperimentAnalysisInputs(
 	return frontmatter, details, loadLocalMetricEvalResults(details.WorkflowID), nil
 }
 
+// loadMetricObservationSetsForAnalysis resolves grader-backed and eval-backed experiment
+// metrics and attributes their per-run measurements to variants using the persisted
+// assignment history, returning one merged map of observation sets and a single cleanup
+// closure. An experiment's metric references exactly one of a grader or an eval, so the
+// two resolved maps never collide.
+func loadMetricObservationSetsForAnalysis(
+	details *ExperimentDetails,
+	frontmatter experimentFrontmatterResult,
+	repoOverride string,
+) (map[string]*graderMetricObservationSet, func(), error) {
+	graderSets, cleanup, err := loadGraderObservationSetsForAnalysis(details, frontmatter, repoOverride)
+	if err != nil {
+		return nil, func() {}, err
+	}
+
+	evalSets, err := loadEvalObservationSetsForAnalysis(details, frontmatter, repoOverride)
+	if err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	if len(evalSets) == 0 {
+		return graderSets, cleanup, nil
+	}
+	if graderSets == nil {
+		graderSets = make(map[string]*graderMetricObservationSet, len(evalSets))
+	}
+	maps.Copy(graderSets, evalSets)
+	return graderSets, cleanup, nil
+}
+
 func loadGraderObservationSetsForAnalysis(
 	details *ExperimentDetails,
 	frontmatter experimentFrontmatterResult,
@@ -277,7 +296,7 @@ func loadGraderObservationSetsForAnalysis(
 	}
 	source := newGitHubGraderRunArtifactSource(tempDir, repoOverride)
 	runData := loadGraderRunData(context.Background(), details.Runs, refs, source)
-	sets := buildGraderMetricObservationSets(details.Experiments, details.Runs, refs, runData)
+	sets := buildGraderMetricObservationSets(details.Experiments, details.Runs, refs, runData, frontmatter.Graders)
 	return sets, cleanup, nil
 }
 

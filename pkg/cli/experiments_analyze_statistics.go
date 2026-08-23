@@ -115,6 +115,11 @@ type VariantAnalysis struct {
 	// Mean is the arithmetic mean of usable grader measurements.
 	Mean *float64 `json:"mean,omitempty"`
 
+	// Observations lists the usable grader/eval measurements for this variant, preserving
+	// run and grader/eval provenance (run ID, metric ID, status, and value) for each
+	// included measurement.
+	Observations []GraderMetricObservation `json:"observations,omitempty"`
+
 	// Excluded summarizes assigned runs that did not yield a usable grader measurement.
 	Excluded []ExcludedObservationSummary `json:"excluded,omitempty"`
 }
@@ -260,6 +265,7 @@ func buildVariantAnalyses(
 			if len(observations) > 0 {
 				mean := meanGraderObservations(observations)
 				variant.Mean = &mean
+				variant.Observations = observations
 			}
 		}
 		variants = append(variants, variant)

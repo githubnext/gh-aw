@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -18,6 +19,7 @@ import (
 const maxGraderResultsBytes = 10 * 1024 * 1024
 
 const (
+	exclusionArtifactTooLarge             = "artifact too large"
 	exclusionArtifactUnavailable          = "artifact unavailable"
 	exclusionAssignmentHistoryUnavailable = "assignment history unavailable"
 	exclusionDuplicateAssignment          = "duplicate assignment"
@@ -49,7 +51,11 @@ type ExcludedObservationSummary struct {
 }
 
 type graderMetricObservationSet struct {
-	GraderID   string
+	// MetricID identifies the grader or eval question backing this observation set.
+	MetricID string
+	// Direction is the declared grader direction ("higher_is_better" or "lower_is_better").
+	// Empty (treated as higher_is_better) for eval-backed metrics.
+	Direction  string
 	ByVariant  map[string][]GraderMetricObservation
 	Exclusions map[string][]ExcludedObservationSummary
 }
@@ -168,7 +174,7 @@ func readGraderResultsArtifact(runDir string) graderRunData {
 		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
 	if info.Size() > maxGraderResultsBytes {
-		return graderRunData{ExclusionReason: exclusionMalformedArtifact}
+		return graderRunData{ExclusionReason: exclusionArtifactTooLarge}
 	}
 	data, err := os.ReadFile(resultsPath) // #nosec G304 -- path is beneath a tool-created temporary directory
 	if err != nil {
@@ -191,7 +197,7 @@ func resolveGraderMetricReferences(configs map[string]*workflow.ExperimentConfig
 		if !isGrader {
 			continue
 		}
-		if graderID == "" {
+		if graderID == "" || !hasValidGraderMetricSuffix(cfg.Metric) {
 			return nil, fmt.Errorf("experiments.%s.metric: expected grader reference format grader:<grader_id> or graders.<grader_id>.value", experimentName)
 		}
 		if graders == nil {
@@ -207,6 +213,19 @@ func resolveGraderMetricReferences(configs map[string]*workflow.ExperimentConfig
 		refs[experimentName] = graderID
 	}
 	return refs, nil
+}
+
+// hasValidGraderMetricSuffix rejects dotted grader references with a suffix other than
+// "value" (e.g. "graders.score.passed" or a typo such as "graders.score.vaule"), since this
+// implementation only supports primary .value metrics.
+func hasValidGraderMetricSuffix(metric string) bool {
+	trimmed := strings.TrimSpace(metric)
+	rest, ok := strings.CutPrefix(trimmed, "graders.")
+	if !ok {
+		return true
+	}
+	parts := strings.SplitN(strings.TrimSpace(rest), ".", 2)
+	return len(parts) < 2 || parts[1] == "value"
 }
 
 func loadGraderRunData(ctx context.Context, runs []ExperimentRunRecord, refs map[string]string, source graderRunArtifactSource) map[string]graderRunData {
@@ -241,64 +260,85 @@ func buildGraderMetricObservationSets(
 	runs []ExperimentRunRecord,
 	refs map[string]string,
 	runData map[string]graderRunData,
+	graders *workflow.GradersConfig,
 ) map[string]*graderMetricObservationSet {
-	assignedCounts, sets, recordedCounts, seen := initializeGraderObservationSets(experiments, refs)
+	state := initializeGraderObservationSets(experiments, refs, graders)
 	for _, run := range runs {
 		for experimentName, graderID := range refs {
-			appendGraderObservation(run, experimentName, graderID, sets, recordedCounts, seen, runData)
+			appendGraderObservation(run, experimentName, graderID, state, runData)
 		}
 	}
-	addMissingAssignmentHistory(assignedCounts, sets, recordedCounts)
-	return sets
+	addMissingAssignmentHistory(state)
+	return state.sets
+}
+
+// graderObservationState bundles the mutable state accumulated while joining assignment
+// history with grader (or eval) run data into per-variant observation sets.
+type graderObservationState struct {
+	assignedCounts map[string]map[string]int
+	sets           map[string]*graderMetricObservationSet
+	recordedCounts map[string]map[string]int
+	seen           map[string]map[string]struct{}
 }
 
 func initializeGraderObservationSets(
 	experiments []ExperimentVariantStats,
 	refs map[string]string,
-) (
-	map[string]map[string]int,
-	map[string]*graderMetricObservationSet,
-	map[string]map[string]int,
-	map[string]map[string]struct{},
-) {
-	assignedCounts := make(map[string]map[string]int, len(experiments))
-	for _, exp := range experiments {
-		assignedCounts[exp.Name] = exp.Variants
+	graders *workflow.GradersConfig,
+) *graderObservationState {
+	state := &graderObservationState{
+		assignedCounts: make(map[string]map[string]int, len(experiments)),
+		sets:           make(map[string]*graderMetricObservationSet, len(refs)),
+		recordedCounts: make(map[string]map[string]int, len(refs)),
+		seen:           make(map[string]map[string]struct{}, len(refs)),
 	}
-	sets := make(map[string]*graderMetricObservationSet, len(refs))
-	recordedCounts := make(map[string]map[string]int, len(refs))
-	seen := make(map[string]map[string]struct{}, len(refs))
-	for experimentName, graderID := range refs {
-		sets[experimentName] = &graderMetricObservationSet{
-			GraderID: graderID, ByVariant: make(map[string][]GraderMetricObservation),
+	for _, exp := range experiments {
+		state.assignedCounts[exp.Name] = exp.Variants
+	}
+	for experimentName, metricID := range refs {
+		state.sets[experimentName] = &graderMetricObservationSet{
+			MetricID:   metricID,
+			Direction:  graderDirection(graders, metricID),
+			ByVariant:  make(map[string][]GraderMetricObservation),
 			Exclusions: make(map[string][]ExcludedObservationSummary),
 		}
-		recordedCounts[experimentName] = make(map[string]int)
-		seen[experimentName] = make(map[string]struct{})
+		state.recordedCounts[experimentName] = make(map[string]int)
+		state.seen[experimentName] = make(map[string]struct{})
 	}
-	return assignedCounts, sets, recordedCounts, seen
+	return state
+}
+
+// graderDirection returns the declared direction ("higher_is_better" or "lower_is_better")
+// for a grader ID, or "" (treated as higher_is_better) when graders is nil or the grader
+// is not declared (e.g. for eval-backed metric IDs, which have no direction).
+func graderDirection(graders *workflow.GradersConfig, graderID string) string {
+	if graders == nil {
+		return ""
+	}
+	if def, ok := graders.Graders[graderID]; ok && def != nil {
+		return def.Direction
+	}
+	return ""
 }
 
 func appendGraderObservation(
 	run ExperimentRunRecord,
 	experimentName string,
 	graderID string,
-	sets map[string]*graderMetricObservationSet,
-	recordedCounts map[string]map[string]int,
-	seen map[string]map[string]struct{},
+	state *graderObservationState,
 	runData map[string]graderRunData,
 ) {
 	variant, assigned := run.Assignments[experimentName]
 	if !assigned {
 		return
 	}
-	recordedCounts[experimentName][variant]++
-	set := sets[experimentName]
-	if _, duplicate := seen[experimentName][run.RunID]; duplicate {
+	state.recordedCounts[experimentName][variant]++
+	set := state.sets[experimentName]
+	if _, duplicate := state.seen[experimentName][run.RunID]; duplicate {
 		addObservationExclusion(set, variant, exclusionDuplicateAssignment, run.RunID, 1)
 		return
 	}
-	seen[experimentName][run.RunID] = struct{}{}
+	state.seen[experimentName][run.RunID] = struct{}{}
 	data, ok := runData[run.RunID]
 	if !ok || data.ExclusionReason != "" {
 		reason := data.ExclusionReason
@@ -316,18 +356,14 @@ func appendGraderObservation(
 	set.ByVariant[variant] = append(set.ByVariant[variant], observation)
 }
 
-func addMissingAssignmentHistory(
-	assignedCounts map[string]map[string]int,
-	sets map[string]*graderMetricObservationSet,
-	recordedCounts map[string]map[string]int,
-) {
-	for experimentName, variants := range assignedCounts {
-		set, ok := sets[experimentName]
+func addMissingAssignmentHistory(state *graderObservationState) {
+	for experimentName, variants := range state.assignedCounts {
+		set, ok := state.sets[experimentName]
 		if !ok {
 			continue
 		}
 		for variant, assigned := range variants {
-			missingHistory := assigned - recordedCounts[experimentName][variant]
+			missingHistory := assigned - state.recordedCounts[experimentName][variant]
 			if missingHistory > 0 {
 				addObservationExclusion(set, variant, exclusionAssignmentHistoryUnavailable, "", missingHistory)
 			}

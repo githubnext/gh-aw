@@ -61,6 +61,20 @@ func TestResolveGraderMetricReferences(t *testing.T) {
 		}, graders)
 		require.ErrorContains(t, err, "expected grader reference format")
 	})
+
+	t.Run("rejects unsupported dotted suffix", func(t *testing.T) {
+		_, err := resolveGraderMetricReferences(map[string]*workflow.ExperimentConfig{
+			"test": {Metric: "graders.score.passed"},
+		}, graders)
+		require.ErrorContains(t, err, "expected grader reference format")
+	})
+
+	t.Run("rejects misspelled value suffix", func(t *testing.T) {
+		_, err := resolveGraderMetricReferences(map[string]*workflow.ExperimentConfig{
+			"test": {Metric: "graders.score.vaule"},
+		}, graders)
+		require.ErrorContains(t, err, "expected grader reference format")
+	})
 }
 
 func TestExtractGraderObservation(t *testing.T) {
@@ -189,6 +203,17 @@ func TestReadGraderResultsArtifact(t *testing.T) {
 		data := readGraderResultsArtifact(runDir)
 		assert.Equal(t, exclusionMalformedArtifact, data.ExclusionReason)
 	})
+
+	t.Run("oversized artifact is excluded as too large", func(t *testing.T) {
+		runDir := t.TempDir()
+		resultsDir := filepath.Join(runDir, "graders")
+		require.NoError(t, os.MkdirAll(resultsDir, 0o755))
+		oversized := make([]byte, maxGraderResultsBytes+1)
+		require.NoError(t, os.WriteFile(filepath.Join(resultsDir, "grader_results.json"), oversized, 0o644))
+
+		data := readGraderResultsArtifact(runDir)
+		assert.Equal(t, exclusionArtifactTooLarge, data.ExclusionReason)
+	})
 }
 
 func TestBuildGraderMetricObservationSetsJoinsAssignments(t *testing.T) {
@@ -215,6 +240,7 @@ func TestBuildGraderMetricObservationSetsJoinsAssignments(t *testing.T) {
 		runs,
 		map[string]string{"prompt": "score"},
 		runData,
+		nil,
 	)
 	set := sets["prompt"]
 	require.NotNil(t, set)
@@ -234,7 +260,7 @@ func TestBuildGraderMetricObservationSetsJoinsAssignments(t *testing.T) {
 func TestComputeGraderBackedExperimentAnalysis(t *testing.T) {
 	t.Parallel()
 	set := &graderMetricObservationSet{
-		GraderID: "trajectory-efficiency",
+		MetricID: "trajectory-efficiency",
 		ByVariant: map[string][]GraderMetricObservation{
 			"control": {
 				{RunID: "1", Variant: "control", Value: 0.6},
@@ -270,6 +296,10 @@ func TestComputeGraderBackedExperimentAnalysis(t *testing.T) {
 	assert.Equal(t, 3, variants["control"].ObservationCount)
 	assert.InDelta(t, 0.7, *variants["control"].Mean, 0.0001)
 	assert.InDelta(t, 0.9, *variants["candidate"].Mean, 0.0001)
+	require.Len(t, variants["control"].Observations, 3)
+	assert.Equal(t, "1", variants["control"].Observations[0].RunID)
+	require.Len(t, variants["candidate"].Observations, 3)
+	assert.Equal(t, "4", variants["candidate"].Observations[0].RunID)
 	require.Len(t, analysis.Comparisons, 1)
 	assert.Equal(t, "control", analysis.Comparisons[0].ControlVariant)
 	assert.Equal(t, "candidate", analysis.Comparisons[0].Variant)
@@ -283,6 +313,11 @@ func TestComputeGraderBackedExperimentAnalysis(t *testing.T) {
 	assert.Equal(t, "trajectory-efficiency", jsonResult["metric_grader_id"])
 	assert.Equal(t, "continuous", jsonResult["metric_type"])
 	assert.Contains(t, jsonResult, "comparisons")
+	variantsJSON, ok := jsonResult["variants"].([]any)
+	require.True(t, ok)
+	firstVariant, ok := variantsJSON[0].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, firstVariant, "observations")
 }
 
 func TestGraderReadinessUsesValidObservations(t *testing.T) {
@@ -295,7 +330,7 @@ func TestGraderReadinessUsesValidObservations(t *testing.T) {
 		return result
 	}
 	set := &graderMetricObservationSet{
-		GraderID: "score",
+		MetricID: "score",
 		ByVariant: map[string][]GraderMetricObservation{
 			"control":   observations("control", 7),
 			"candidate": observations("candidate", 8),
@@ -378,6 +413,31 @@ func TestGraderStatisticalMethods(t *testing.T) {
 		_, err := twoProportionTest([]float64{0.2}, []float64{0.8})
 		require.ErrorContains(t, err, "0/1")
 	})
+}
+
+func TestComputeGraderMetricComparisonsBayesianDirection(t *testing.T) {
+	t.Parallel()
+	cfg := &workflow.ExperimentConfig{
+		Variants:     []string{"control", "candidate"},
+		AnalysisType: "bayesian_ab",
+	}
+	byVariant := map[string][]GraderMetricObservation{
+		"control":   {{Value: 0}, {Value: 0}, {Value: 1}},
+		"candidate": {{Value: 1}, {Value: 1}, {Value: 1}},
+	}
+
+	higherIsBetter := &graderMetricObservationSet{Direction: "higher_is_better", ByVariant: byVariant}
+	comparisons := computeGraderMetricComparisons(cfg, higherIsBetter, []string{"control", "candidate"}, "binary")
+	require.Len(t, comparisons, 1)
+	require.NotNil(t, comparisons[0].ProbabilitySuperiority)
+	assert.Greater(t, *comparisons[0].ProbabilitySuperiority, 0.5)
+
+	lowerIsBetter := &graderMetricObservationSet{Direction: "lower_is_better", ByVariant: byVariant}
+	invertedComparisons := computeGraderMetricComparisons(cfg, lowerIsBetter, []string{"control", "candidate"}, "binary")
+	require.Len(t, invertedComparisons, 1)
+	require.NotNil(t, invertedComparisons[0].ProbabilitySuperiority)
+	assert.InDelta(t, 1-*comparisons[0].ProbabilitySuperiority, *invertedComparisons[0].ProbabilitySuperiority, 0.0001)
+	assert.Less(t, *invertedComparisons[0].ProbabilitySuperiority, 0.5)
 }
 
 func exclusionsByReason(exclusions []ExcludedObservationSummary) map[string]ExcludedObservationSummary {

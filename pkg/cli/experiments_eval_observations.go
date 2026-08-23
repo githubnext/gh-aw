@@ -57,7 +57,7 @@ func buildEvalMetricObservationSets(
 	refs map[string]string,
 	evalRecords []evalResultRecord,
 ) map[string]*graderMetricObservationSet {
-	assignedCounts, sets, recordedCounts, seen := initializeGraderObservationSets(experiments, refs)
+	state := initializeGraderObservationSets(experiments, refs, nil)
 
 	byRunAndEval := make(map[string]map[string]evalResultRecord, len(evalRecords))
 	for _, record := range evalRecords {
@@ -74,33 +74,31 @@ func buildEvalMetricObservationSets(
 
 	for _, run := range runs {
 		for experimentName, evalID := range refs {
-			appendEvalObservation(run, experimentName, evalID, sets, recordedCounts, seen, byRunAndEval)
+			appendEvalObservation(run, experimentName, evalID, state, byRunAndEval)
 		}
 	}
-	addMissingAssignmentHistory(assignedCounts, sets, recordedCounts)
-	return sets
+	addMissingAssignmentHistory(state)
+	return state.sets
 }
 
 func appendEvalObservation(
 	run ExperimentRunRecord,
 	experimentName string,
 	evalID string,
-	sets map[string]*graderMetricObservationSet,
-	recordedCounts map[string]map[string]int,
-	seen map[string]map[string]struct{},
+	state *graderObservationState,
 	byRunAndEval map[string]map[string]evalResultRecord,
 ) {
 	variant, assigned := run.Assignments[experimentName]
 	if !assigned {
 		return
 	}
-	recordedCounts[experimentName][variant]++
-	set := sets[experimentName]
-	if _, duplicate := seen[experimentName][run.RunID]; duplicate {
+	state.recordedCounts[experimentName][variant]++
+	set := state.sets[experimentName]
+	if _, duplicate := state.seen[experimentName][run.RunID]; duplicate {
 		addObservationExclusion(set, variant, exclusionDuplicateAssignment, run.RunID, 1)
 		return
 	}
-	seen[experimentName][run.RunID] = struct{}{}
+	state.seen[experimentName][run.RunID] = struct{}{}
 
 	records, ok := byRunAndEval[run.RunID]
 	if !ok {

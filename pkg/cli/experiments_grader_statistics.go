@@ -104,6 +104,12 @@ func computeGraderMetricComparisons(
 			if err != nil {
 				comparison.Error = err.Error()
 			} else {
+				if set.Direction == "lower_is_better" {
+					// betaBinomialProbability always computes P(variant > control); for a
+					// lower-is-better metric "superiority" means the variant is smaller, so
+					// invert to report P(variant < control).
+					probability = 1 - probability
+				}
 				comparison.ProbabilitySuperiority = &probability
 			}
 		default:
