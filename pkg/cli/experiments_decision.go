@@ -95,6 +95,10 @@ func DecideExperiment(analysis ExperimentAnalysis) ExperimentDecisionResult {
 			"one or more variants have fewer usable observations than min_samples")
 	}
 
+	if guardrailDecision, decided := decideGuardrails(result, analysis.Guardrails); decided {
+		return guardrailDecision
+	}
+
 	comparison := decisionComparison(analysis.Comparisons)
 	if comparison == nil {
 		return result.withDecision(ExperimentDecisionExtend, ExperimentDecisionReasonInsufficientObservations,
@@ -102,10 +106,6 @@ func DecideExperiment(analysis ExperimentAnalysis) ExperimentDecisionResult {
 	}
 	result.Control = comparison.ControlVariant
 	result.Candidate = comparison.Variant
-
-	if guardrailDecision, decided := decideGuardrails(result, analysis.Guardrails); decided {
-		return guardrailDecision
-	}
 
 	if comparison.Error != "" {
 		return result.withDecision(ExperimentDecisionExtend, ExperimentDecisionReasonAnalysisUnavailable,

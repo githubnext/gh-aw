@@ -681,9 +681,9 @@ state the correction method and the adjusted α threshold in the report output.
 ### 11.4 Minimum Sample Size Gate
 
 **R-STAT-007**: Reporting tools **MUST NOT** issue a PROMOTE decision for any variant
-until all variants in the experiment have accumulated at least `min_samples` runs (or 20 if
-`min_samples` is not declared). When any variant is below threshold, readiness **MUST** be
-`COLLECTING` and the decision **MUST** be `EXTEND`.
+until all variants in the experiment have accumulated at least `min_samples` usable observations
+(or 20 if `min_samples` is not declared). When any variant is below threshold, readiness **MUST**
+be `COLLECTING` and the decision **MUST** be `EXTEND`.
 
 **R-STAT-008**: When weights are non-uniform (§5.2), the `min_samples` target applies to the
 **smallest expected group**. For a `weight: [70, 30]` experiment with `min_samples: 30`, the
@@ -748,9 +748,10 @@ observations, rerun statistical tests or graders, mutate experiment state, chang
 promote workflow sources.
 
 **R-STAT-018**: Structured analysis output MUST expose readiness independently from decision.
-Readiness is `COLLECTING` until every variant reaches `min_samples`, then `READY`. `READY` does not
-imply `PROMOTE`; a ready experiment may be `PROMOTE`, `REJECT`, or `INCONCLUSIVE`. The legacy
-`recommendation` field MAY remain `EXTEND` / `READY_FOR_ANALYSIS` for backward compatibility.
+Readiness is `COLLECTING` until every variant reaches `min_samples` usable observations, then
+`READY`. `READY` does not imply `PROMOTE`; a ready experiment may be `EXTEND`, `PROMOTE`, `REJECT`,
+or `INCONCLUSIVE`. The legacy `recommendation` field MAY remain `EXTEND` / `READY_FOR_ANALYSIS`
+for backward compatibility.
 
 ### 11.7 Reporting Workflow Permissions
 

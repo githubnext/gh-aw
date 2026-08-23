@@ -555,7 +555,7 @@ Reason: `<reason_code>` — <reason>
 View the full report: [Daily Experiment Report](<discussion_url>)
 ```
 
-**Condition C — A guardrail metric failed:**
+**Condition C — Core decision is `REJECT` with reason code `guardrail_failed`:**
 Post a comment:
 ```
 ⚠️ **Guardrail violation in experiment `<name>`**
@@ -563,7 +563,7 @@ Post a comment:
 The following guardrail metric failed:
 - `<metric_name>` expected `<threshold>`, got `<actual_value>` for variant `<variant>`
 
-Decision: **REJECT** (`guardrail_failed`) — investigate immediately.
+Decision: **<decision>** (`<reason_code>`) — <reason>
 ```
 
 Use the `add-comment` safe-output tool to post comments. Skip experiments with no
@@ -581,7 +581,7 @@ not removed automatically; the person concluding the experiment can remove them 
 |--------------------------------|------------------------------------------------------------------------------|
 | `experiment:active`            | `start_date <= today <= end_date` (or no dates declared)                    |
 | `experiment:ready-for-analysis`| Core `readiness` is `READY`                                                   |
-| `experiment:concluded`         | Core `decision` is `PROMOTE` or `REJECT`                                      |
+| `experiment:concluded`         | Core `decision` is `REJECT`, or core `decision` and `report_action` are both `PROMOTE` |
 
 Use the `add-labels` safe-output tool to apply labels to the tracking issue.
 If a label does not exist in the repository, create it with `create_label` GitHub MCP tool

@@ -71,6 +71,14 @@ func TestDecideExperiment(t *testing.T) {
 			want: ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonGuardrailFailed,
 		},
 		{
+			name: "failed guardrail rejects without primary comparison",
+			analysis: withoutDecisionTestComparison(withDecisionTestGuardrail(
+				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusFail, Passed: &failed},
+			)),
+			want: ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonGuardrailFailed,
+		},
+		{
 			name: "missing guardrail extends",
 			analysis: withDecisionTestGuardrail(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
@@ -185,6 +193,11 @@ func readyDecisionTestAnalysis(
 
 func withDecisionTestGuardrail(analysis ExperimentAnalysis, guardrail GuardrailStatus) ExperimentAnalysis {
 	analysis.Guardrails = []GuardrailStatus{guardrail}
+	return analysis
+}
+
+func withoutDecisionTestComparison(analysis ExperimentAnalysis) ExperimentAnalysis {
+	analysis.Comparisons = nil
 	return analysis
 }
 
