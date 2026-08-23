@@ -463,7 +463,7 @@ func printExperimentMetadata(a ExperimentAnalysis) {
 }
 
 func printVariantProgress(a ExperimentAnalysis) {
-	if a.MetricGraderID != "" {
+	if a.MetricType != "" {
 		fmt.Fprintf(os.Stderr, "\n  %-20s %8s  %8s  %10s  %s\n", "Variant", "Assigned", "Observed", "Mean", "Progress")
 		fmt.Fprintf(os.Stderr, "  %s\n", strings.Repeat("─", 66))
 		for _, v := range a.Variants {
@@ -493,7 +493,7 @@ func printVariantProgress(a ExperimentAnalysis) {
 }
 
 func printObservationExclusions(a ExperimentAnalysis) {
-	if a.MetricGraderID == "" {
+	if a.MetricType == "" {
 		return
 	}
 	printedHeader := false

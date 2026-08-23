@@ -27,6 +27,26 @@ type evalResultRecord struct {
 }
 
 func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults {
+	return summarizeMetricEvalResults(parseEvalResultRecords(loadLocalEvalResultsData(workflowID)))
+}
+
+func loadRemoteMetricEvalResults(repoOverride, workflowID string) map[string]MetricEvalResults {
+	return summarizeMetricEvalResults(parseEvalResultRecords(loadRemoteEvalResultsData(repoOverride, workflowID)))
+}
+
+// loadLocalEvalResultRecords returns the raw per-run eval answer records for workflowID,
+// used to attribute eval-backed experiment metrics to variants by run ID.
+func loadLocalEvalResultRecords(workflowID string) []evalResultRecord {
+	return parseEvalResultRecords(loadLocalEvalResultsData(workflowID))
+}
+
+// loadRemoteEvalResultRecords returns the raw per-run eval answer records for workflowID
+// from repoOverride, used to attribute eval-backed experiment metrics to variants by run ID.
+func loadRemoteEvalResultRecords(repoOverride, workflowID string) []evalResultRecord {
+	return parseEvalResultRecords(loadRemoteEvalResultsData(repoOverride, workflowID))
+}
+
+func loadLocalEvalResultsData(workflowID string) []byte {
 	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 	ref := "origin/" + branchName
 	if !gitRefExists(ref) {
@@ -49,21 +69,25 @@ func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults 
 	if err != nil {
 		return nil
 	}
-	return summarizeMetricEvalResults(out)
+	return out
 }
 
-func loadRemoteMetricEvalResults(repoOverride, workflowID string) map[string]MetricEvalResults {
+func loadRemoteEvalResultsData(repoOverride, workflowID string) []byte {
 	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
 	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, constants.EvalsResultFilename, "")
 	if err != nil {
 		return nil
 	}
-	return summarizeMetricEvalResults(decoded)
+	return decoded
 }
 
-func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
+// parseEvalResultRecords parses evals.jsonl content into individual per-run eval answer records.
+func parseEvalResultRecords(data []byte) []evalResultRecord {
+	if len(data) == 0 {
+		return nil
+	}
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	results := map[string]MetricEvalResults{}
+	var records []evalResultRecord
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -76,6 +100,14 @@ func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
 		if record.ID == "" {
 			continue
 		}
+		records = append(records, record)
+	}
+	return records
+}
+
+func summarizeMetricEvalResults(records []evalResultRecord) map[string]MetricEvalResults {
+	results := map[string]MetricEvalResults{}
+	for _, record := range records {
 		summary := results[record.ID]
 		summary.Total++
 		switch strings.ToUpper(strings.TrimSpace(record.Answer)) {

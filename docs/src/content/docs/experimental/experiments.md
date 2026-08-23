@@ -90,8 +90,11 @@ When `graders` are configured, `metric` can reference a grader result using
 
 `gh aw experiments analyze <workflow>` resolves the referenced eval question and, when
 eval result data is available, shows YES/NO/UNKNOWN totals for that eval-backed metric.
-For a grader-backed primary metric, it joins persisted experiment assignments to completed
-run artifacts and analyzes the valid grader values by variant.
+It also joins per-run eval answers to persisted experiment assignments and analyzes the
+valid YES/NO observations by variant using the same statistical comparisons available
+for grader-backed metrics. For a grader-backed primary metric, it joins persisted
+experiment assignments to completed run artifacts and analyzes the valid grader values
+by variant.
 
 > [!NOTE]
 > Experiment names must be valid identifiers: start with a letter or
@@ -307,6 +310,34 @@ observations count toward `min_samples`.
 
 This analysis does not replay traces or invoke an evaluator model. A deterministic grader
 measures only the behavior encoded by that grader and is not a universal correctness metric.
+
+### Analyze an eval-backed metric
+
+Use a BinEval question as the primary outcome metric:
+
+```aw wrap
+---
+evals:
+  questions:
+    - id: focused
+      question: Does the response stay on topic?
+
+experiments:
+  prompt_v2:
+    variants: [control, candidate]
+    metric: eval:focused
+    min_samples: 20
+---
+
+Follow the **${{ experiments.prompt_v2 }}** instructions.
+```
+
+`gh aw experiments analyze <workflow>` joins each assigned run's recorded eval answer
+(from `evals.jsonl`) to the assignment ledger by run ID and reports assigned, usable, and
+excluded YES/NO observations per variant. Runs missing an eval answer, or with an
+`UNKNOWN`/unrecognized answer, are excluded rather than counted as zero. Only usable
+observations count toward `min_samples`, and the same t-test, Mann–Whitney, proportion, or
+Bayesian comparisons available for grader-backed metrics are applied to the YES/NO outcomes.
 Grader-backed secondary and guardrail metrics are not analyzed yet.
 
 ### Filtering audit results by variant

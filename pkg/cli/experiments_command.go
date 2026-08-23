@@ -198,6 +198,19 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	}
 	defer cleanup()
 
+	evalObservationSets, err := loadEvalObservationSetsForAnalysis(details, frontmatterResult, config.RepoOverride)
+	if err != nil {
+		return err
+	}
+	if len(evalObservationSets) > 0 {
+		if graderObservationSets == nil {
+			graderObservationSets = make(map[string]*graderMetricObservationSet, len(evalObservationSets))
+		}
+		for experimentName, set := range evalObservationSets {
+			graderObservationSets[experimentName] = set
+		}
+	}
+
 	// Compute statistical analyses for each named experiment.
 	details.Analyses = computeExperimentAnalysesWithObservations(
 		details.Experiments,
@@ -267,6 +280,30 @@ func loadGraderObservationSetsForAnalysis(
 	runData := loadGraderRunData(context.Background(), details.Runs, refs, source)
 	sets := buildGraderMetricObservationSets(details.Experiments, details.Runs, refs, runData)
 	return sets, cleanup, nil
+}
+
+// loadEvalObservationSetsForAnalysis resolves eval-backed experiment metrics and attributes
+// their per-run YES/NO answers to variants using the persisted assignment history, mirroring
+// the grader observation pipeline so eval-backed metrics get the same statistical comparisons.
+func loadEvalObservationSetsForAnalysis(
+	details *ExperimentDetails,
+	frontmatter experimentFrontmatterResult,
+	repoOverride string,
+) (map[string]*graderMetricObservationSet, error) {
+	refs, err := resolveEvalMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Evals)
+	if err != nil {
+		return nil, err
+	}
+	if len(refs) == 0 {
+		return nil, nil
+	}
+	var evalRecords []evalResultRecord
+	if repoOverride != "" {
+		evalRecords = loadRemoteEvalResultRecords(repoOverride, details.WorkflowID)
+	} else {
+		evalRecords = loadLocalEvalResultRecords(details.WorkflowID)
+	}
+	return buildEvalMetricObservationSets(details.Experiments, details.Runs, refs, evalRecords), nil
 }
 
 // computeExperimentAnalyses computes statistical analyses for all named experiments.
