@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -21,6 +22,82 @@ type SampleEntry struct {
 	// Sidecars carries fields stripped from Arguments that need out-of-band
 	// pre-staging by the driver (e.g. `patch` for create_pull_request).
 	Sidecars map[string]any `json:"sidecars,omitempty"`
+}
+
+// samplesFeatureName is the frontmatter feature flag that opts a single
+// workflow into deterministic samples replay without passing the hidden
+// `gh aw compile --use-samples` flag. It exists so that a workflow which is
+// designed around `samples:` (e.g. the repository's own smoke tests) keeps a
+// stable compiled lock file under a plain `gh aw compile`.
+const samplesFeatureName = "samples"
+
+// samplesFeatureEnabled reports whether the workflow frontmatter declares
+// `features: { samples: true }`.
+func samplesFeatureEnabled(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false
+	}
+	features, ok := frontmatter["features"].(map[string]any)
+	if !ok {
+		return false
+	}
+	return samplesFeatureEnabledInMap(features)
+}
+
+// samplesFeatureEnabledInMap reports whether an already-extracted `features`
+// map (as opposed to a raw frontmatter document) enables samples replay.
+func samplesFeatureEnabledInMap(features map[string]any) bool {
+	if features == nil {
+		return false
+	}
+	enabled, ok := features[samplesFeatureName].(bool)
+	return ok && enabled
+}
+
+// samplesEnabled reports whether samples replay is active for the workflow
+// being compiled, either through the hidden `--use-samples` CLI flag or
+// through the per-workflow `features.samples: true` opt-in declared directly
+// in the main frontmatter. It does not see `features.samples: true` declared
+// only in an imported workflow; use samplesEnabledFromImports for that, once
+// imported features have been merged into WorkflowData.Features.
+func (c *Compiler) samplesEnabled(frontmatter map[string]any) bool {
+	return c.useSamples || samplesFeatureEnabled(frontmatter)
+}
+
+// samplesEnabledFromImports reports whether samples replay is active once
+// imported `features` maps have been folded into the main frontmatter's
+// features. It mirrors samplesEnabled, but also honours `features.samples:
+// true` declared only in an imported shared workflow, which the merge in
+// mergeImportedWorkflowConfiguration performs after the main frontmatter is
+// first extracted.
+func (c *Compiler) samplesEnabledFromImports(frontmatter map[string]any, importedFeatures []map[string]any) bool {
+	if c.samplesEnabled(frontmatter) {
+		return true
+	}
+	return slices.ContainsFunc(importedFeatures, samplesFeatureEnabledInMap)
+}
+
+// runtimeVisibleFeatures returns a copy of features with internal
+// compiler-only flags (currently just `samples`) removed. It is used
+// whenever WorkflowData.Features is serialized into runtime-visible
+// metadata (e.g. GH_AW_INFO_FEATURES), so that `features.samples: true`
+// stays a compiler knob rather than becoming part of the observable
+// runtime API.
+func runtimeVisibleFeatures(features map[string]any) map[string]any {
+	if len(features) == 0 {
+		return nil
+	}
+	if _, ok := features[samplesFeatureName]; !ok {
+		return features
+	}
+	result := make(map[string]any, len(features)-1)
+	for k, v := range features {
+		if k == samplesFeatureName {
+			continue
+		}
+		result[k] = v
+	}
+	return result
 }
 
 // collectSampleEntries walks the safe-outputs config and flattens every
