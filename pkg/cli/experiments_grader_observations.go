@@ -126,13 +126,16 @@ func (s *githubGraderRunArtifactSource) downloadGraderArtifact(ctx context.Conte
 	if err != nil {
 		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
-	agentArtifacts := make([]string, 0, 1)
+	graderArtifacts := make([]string, 0, 2)
 	for _, name := range names {
-		if artifactMatchesFilter(name, []string{constants.AgentArtifactName}) {
-			agentArtifacts = append(agentArtifacts, name)
+		if artifactMatchesFilter(name, []string{
+			constants.AgentArtifactName,
+			constants.AgentOutputFallbackArtifactName,
+		}) {
+			graderArtifacts = append(graderArtifacts, name)
 		}
 	}
-	if len(agentArtifacts) == 0 {
+	if len(graderArtifacts) == 0 {
 		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
 
@@ -143,10 +146,13 @@ func (s *githubGraderRunArtifactSource) downloadGraderArtifact(ctx context.Conte
 		repo:      s.repo,
 		hostname:  s.hostname,
 	}
-	if err := downloadArtifactsByName(ctx, opts, agentArtifacts); err != nil {
+	if err := downloadArtifactsByName(ctx, opts, graderArtifacts); err != nil {
 		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
 	if err := flattenUnifiedArtifact(runDir, false); err != nil {
+		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
+	}
+	if err := flattenAgentOutputFallbackArtifact(runDir, false); err != nil {
 		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
 	return readGraderResultsArtifact(runDir)
@@ -377,6 +383,9 @@ func extractGraderObservation(artifact *graderResultsArtifact, runID, variant, g
 
 	var value float64
 	var binary bool
+	if string(match.Value) == "null" || len(match.Value) == 0 {
+		return GraderMetricObservation{}, exclusionInvalidValue
+	}
 	if err := json.Unmarshal(match.Value, &value); err != nil {
 		var boolValue bool
 		if err := json.Unmarshal(match.Value, &boolValue); err != nil {

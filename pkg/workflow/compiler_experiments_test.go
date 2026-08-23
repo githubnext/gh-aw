@@ -576,8 +576,6 @@ func TestParseExperimentMetricGraderReference(t *testing.T) {
 		{name: "grader colon format", metric: "grader:loops", wantID: "loops", wantMatch: true},
 		{name: "grader dotted format", metric: "graders.loops", wantID: "loops", wantMatch: true},
 		{name: "grader dotted with suffix", metric: "graders.loops.value", wantID: "loops", wantMatch: true},
-		{name: "grader dotted with unsupported suffix", metric: "graders.loops.score", wantID: "", wantMatch: true},
-		{name: "grader dotted with extra suffix", metric: "graders.loops.value.mean", wantID: "", wantMatch: true},
 		{name: "grader empty id", metric: "grader:", wantID: "", wantMatch: true},
 		{name: "graders empty id", metric: "graders.", wantID: "", wantMatch: true},
 	}

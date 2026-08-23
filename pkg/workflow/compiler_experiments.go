@@ -368,7 +368,7 @@ func ParseExperimentMetricEvalReference(metric string) (string, bool) {
 // Supported forms:
 //   - grader:<id>
 //   - graders.<id>
-//   - graders.<id>.value
+//   - graders.<id>.<suffix> (suffix reserved for future derived metrics)
 func ParseExperimentMetricGraderReference(metric string) (string, bool) {
 	trimmed := strings.TrimSpace(metric)
 	if trimmed == "" {
@@ -382,11 +382,8 @@ func ParseExperimentMetricGraderReference(metric string) (string, bool) {
 		if rest == "" {
 			return "", true
 		}
-		parts := strings.Split(rest, ".")
-		if len(parts) == 1 || (len(parts) == 2 && parts[1] == "value") {
-			return parts[0], true
-		}
-		return "", true
+		parts := strings.SplitN(rest, ".", 2)
+		return parts[0], true
 	}
 	return "", false
 }

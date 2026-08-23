@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -55,7 +57,7 @@ func TestResolveGraderMetricReferences(t *testing.T) {
 
 	t.Run("rejects malformed reference", func(t *testing.T) {
 		_, err := resolveGraderMetricReferences(map[string]*workflow.ExperimentConfig{
-			"test": {Metric: "graders.score.mean"},
+			"test": {Metric: "grader:"},
 		}, graders)
 		require.ErrorContains(t, err, "expected grader reference format")
 	})
@@ -107,6 +109,11 @@ func TestExtractGraderObservation(t *testing.T) {
 			wantReason: exclusionInvalidValue,
 		},
 		{
+			name:       "null value",
+			artifact:   graderArtifact(graderResult("score", "pass", "null")),
+			wantReason: exclusionInvalidValue,
+		},
+		{
 			name: "duplicate grader result",
 			artifact: graderArtifact(
 				graderResult("score", "pass", "1"),
@@ -129,6 +136,59 @@ func TestExtractGraderObservation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadGraderResultsArtifact(t *testing.T) {
+	t.Parallel()
+	t.Run("loads unified agent grader results", func(t *testing.T) {
+		runDir := t.TempDir()
+		resultsDir := filepath.Join(runDir, "agent", "graders")
+		require.NoError(t, os.MkdirAll(resultsDir, 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(resultsDir, "grader_results.json"),
+			[]byte(`{"version":1,"results":[{"id":"score","status":"pass","value":0.75}]}`),
+			0o644,
+		))
+
+		data := readGraderResultsArtifact(runDir)
+		require.NotNil(t, data.Artifact)
+		assert.Empty(t, data.ExclusionReason)
+	})
+
+	t.Run("loads fallback artifact grader results", func(t *testing.T) {
+		runDir := t.TempDir()
+		resultsDir := filepath.Join(runDir, "agent-output-fallback", "agent", "graders")
+		require.NoError(t, os.MkdirAll(resultsDir, 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(resultsDir, "grader_results.json"),
+			[]byte(`{"version":1,"results":[]}`),
+			0o644,
+		))
+		require.NoError(t, flattenAgentOutputFallbackArtifact(runDir, false))
+
+		data := readGraderResultsArtifact(runDir)
+		require.NotNil(t, data.Artifact)
+		assert.Empty(t, data.ExclusionReason)
+	})
+
+	t.Run("missing artifact is excluded", func(t *testing.T) {
+		data := readGraderResultsArtifact(t.TempDir())
+		assert.Equal(t, exclusionArtifactUnavailable, data.ExclusionReason)
+	})
+
+	t.Run("malformed artifact is excluded", func(t *testing.T) {
+		runDir := t.TempDir()
+		resultsDir := filepath.Join(runDir, "graders")
+		require.NoError(t, os.MkdirAll(resultsDir, 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(resultsDir, "grader_results.json"),
+			[]byte(`{"version":1,"results":`),
+			0o644,
+		))
+
+		data := readGraderResultsArtifact(runDir)
+		assert.Equal(t, exclusionMalformedArtifact, data.ExclusionReason)
+	})
 }
 
 func TestBuildGraderMetricObservationSetsJoinsAssignments(t *testing.T) {
@@ -215,6 +275,14 @@ func TestComputeGraderBackedExperimentAnalysis(t *testing.T) {
 	assert.Equal(t, "candidate", analysis.Comparisons[0].Variant)
 	assert.InDelta(t, 0.2, analysis.Comparisons[0].Delta, 0.0001)
 	assert.NotNil(t, analysis.Comparisons[0].PValue)
+
+	jsonBytes, err := json.Marshal(analysis)
+	require.NoError(t, err)
+	var jsonResult map[string]any
+	require.NoError(t, json.Unmarshal(jsonBytes, &jsonResult))
+	assert.Equal(t, "trajectory-efficiency", jsonResult["metric_grader_id"])
+	assert.Equal(t, "continuous", jsonResult["metric_type"])
+	assert.Contains(t, jsonResult, "comparisons")
 }
 
 func TestGraderReadinessUsesValidObservations(t *testing.T) {
@@ -275,6 +343,7 @@ func TestLoadGraderRunDataDeduplicatesRunIDs(t *testing.T) {
 		loads: map[string]int{},
 		data:  map[string]graderRunData{"1": {Artifact: graderArtifact()}},
 	}
+
 	runs := []ExperimentRunRecord{
 		{RunID: "1", Assignments: map[string]string{"prompt": "control"}},
 		{RunID: "1", Assignments: map[string]string{"prompt": "control"}},
@@ -283,6 +352,32 @@ func TestLoadGraderRunDataDeduplicatesRunIDs(t *testing.T) {
 	result := loadGraderRunData(context.Background(), runs, map[string]string{"prompt": "score"}, source)
 	require.Contains(t, result, "1")
 	assert.Equal(t, 1, source.loads["1"])
+}
+
+func TestGraderStatisticalMethods(t *testing.T) {
+	t.Parallel()
+	t.Run("welch t test", func(t *testing.T) {
+		pValue, err := welchTTest([]float64{0.6, 0.7, 0.8}, []float64{0.8, 0.9, 1.0})
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, pValue, 0.0)
+		assert.LessOrEqual(t, pValue, 1.0)
+	})
+	t.Run("proportion test", func(t *testing.T) {
+		pValue, err := twoProportionTest([]float64{0, 0, 1, 0}, []float64{1, 1, 1, 0})
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, pValue, 0.0)
+		assert.LessOrEqual(t, pValue, 1.0)
+	})
+	t.Run("bayesian ab", func(t *testing.T) {
+		probability, err := betaBinomialProbability([]float64{0, 0, 1}, []float64{1, 1, 1})
+		require.NoError(t, err)
+		assert.Greater(t, probability, 0.5)
+		assert.LessOrEqual(t, probability, 1.0)
+	})
+	t.Run("proportion rejects continuous values", func(t *testing.T) {
+		_, err := twoProportionTest([]float64{0.2}, []float64{0.8})
+		require.ErrorContains(t, err, "0/1")
+	})
 }
 
 func exclusionsByReason(exclusions []ExcludedObservationSummary) map[string]ExcludedObservationSummary {

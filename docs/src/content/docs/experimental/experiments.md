@@ -85,10 +85,13 @@ When `evals` are configured, `metric` can reference an eval question ID using
 `eval:<id>` (for example `eval:focused`) or `evals.<id>`.
 
 When `graders` are configured, `metric` can reference a grader result using
-`grader:<id>` (for example `grader:tool-success-rate`) or `graders.<id>`.
+`grader:<id>` (for example `grader:tool-success-rate`) or
+`graders.<id>.value`.
 
 `gh aw experiments analyze <workflow>` resolves the referenced eval question and, when
 eval result data is available, shows YES/NO/UNKNOWN totals for that eval-backed metric.
+For a grader-backed primary metric, it joins persisted experiment assignments to completed
+run artifacts and analyzes the valid grader values by variant.
 
 > [!NOTE]
 > Experiment names must be valid identifiers: start with a letter or
@@ -269,6 +272,42 @@ The `🧪 A/B Experiments` section of the audit report shows the variant chosen 
   • caveman = yes (cumulative: no:4, yes:5)
   • style = concise (cumulative: concise:5, detailed:4)
 ```
+
+### Analyze a grader-backed metric
+
+Use a deterministic grader as the primary outcome metric:
+
+```aw wrap
+---
+graders:
+  trajectory-efficiency:
+    direction: higher_is_better
+
+experiments:
+  prompt_v2:
+    variants: [control, candidate]
+    metric: grader:trajectory-efficiency
+    min_samples: 20
+---
+
+Follow the **${{ experiments.prompt_v2 }}** instructions.
+```
+
+After assigned runs complete, analyze their grader artifacts:
+
+```bash
+gh aw experiments analyze <workflow>
+```
+
+The assignment ledger remains the source of variant attribution. The command downloads each
+assigned run's unified `agent` artifact on demand, reads `grader_results.json`, and reports
+assigned, usable, and excluded observations per variant. Missing artifacts, missing graders,
+failed graders, and invalid values are excluded rather than counted as zero. Only usable
+observations count toward `min_samples`.
+
+This analysis does not replay traces or invoke an evaluator model. A deterministic grader
+measures only the behavior encoded by that grader and is not a universal correctness metric.
+Grader-backed secondary and guardrail metrics are not analyzed yet.
 
 ### Filtering audit results by variant
 
