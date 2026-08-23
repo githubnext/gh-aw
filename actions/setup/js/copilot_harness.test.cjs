@@ -998,7 +998,9 @@ describe("copilot_harness.cjs", () => {
       });
 
       await Promise.resolve();
+      const stderrObserved = new Promise(resolve => child.stderr.once("data", resolve));
       child.stderr.write("native assertion failed before listen\npanic details\n");
+      await stderrObserved;
       child.emit("close", null, "SIGABRT");
 
       await expect(startPromise).rejects.toThrow("copilot-sdk headless server exited before ready (exitCode=unknown signal=SIGABRT)\nstderr tail:\nnative assertion failed before listen\npanic details");
