@@ -59,6 +59,13 @@ func (m *Miner) Train(line string) (*MatchResult, error) {
 // trainTokens updates the miner state for tokens. Caller must hold m.mu.
 func (m *Miner) trainTokens(tokens []string, stage string) *MatchResult {
 	result, _ := m.findBestMatchingCluster(tokens)
+	return m.applyMatch(tokens, stage, result)
+}
+
+// applyMatch merges tokens into the cluster identified by result, or creates a
+// new cluster when result is nil. result must be the inference outcome for the
+// same tokens. Caller must hold m.mu.
+func (m *Miner) applyMatch(tokens []string, stage string, result *MatchResult) *MatchResult {
 	if result != nil {
 		// Merge and update existing cluster.
 		c, _ := m.store.get(result.ClusterID)
@@ -142,8 +149,12 @@ func (m *Miner) TrainEvent(evt AgentEvent) (*MatchResult, error) {
 	return m.trainTokens(tokens, evt.Stage), nil
 }
 
-// AnalyzeEvent performs inference on the event, builds an AnomalyReport, and
-// then calls TrainEvent to update the miner. Returns the match result and report.
+// AnalyzeEvent prepares the event once, then under a single write lock runs
+// inference, updates the miner state directly, and builds an AnomalyReport.
+// The write lock spans the whole operation so the isNew decision cannot become
+// stale relative to the cluster the event is trained into; inference is not
+// taken under a read lock because its result is reused for the mutation.
+// Returns the match result and report.
 func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error) {
 	minerLog.Printf("AnalyzeEvent: stage=%s", evt.Stage)
 	tokens, err := m.prepare(evt)
@@ -155,7 +166,7 @@ func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, erro
 	defer m.mu.Unlock()
 	inferResult, _ := m.findBestMatchingCluster(tokens)
 	isNew := inferResult == nil
-	result := m.trainTokens(tokens, evt.Stage)
+	result := m.applyMatch(tokens, evt.Stage, inferResult)
 	cluster, _ := m.store.get(result.ClusterID)
 	report := m.detector.Analyze(result, isNew, cluster)
 	return result, report, nil

@@ -5,6 +5,7 @@ package agentdrain
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"testing"
@@ -32,6 +33,12 @@ func TestNewMinerRejectsInvalidAnomalyThresholds(t *testing.T) {
 			name: "similarity threshold above one",
 			mutate: func(cfg *Config) {
 				cfg.SimThreshold = 1.1
+			},
+		},
+		{
+			name: "NaN similarity threshold",
+			mutate: func(cfg *Config) {
+				cfg.SimThreshold = math.NaN()
 			},
 		},
 		{
@@ -71,6 +78,8 @@ func TestLoadJSONRefreshesAndValidatesAnomalyThresholds(t *testing.T) {
 	require.NoError(t, m.LoadJSON(data))
 	assert.InDelta(t, 0.8, m.detector.threshold, 0)
 
+	// NaN cannot round-trip through JSON (encoding/json rejects it), so the
+	// invalid-threshold path is exercised here with an out-of-range value.
 	snapshot.Config.SimThreshold = 1.1
 	data, err = json.Marshal(snapshot)
 	require.NoError(t, err)
