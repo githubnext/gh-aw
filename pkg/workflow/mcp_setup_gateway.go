@@ -459,6 +459,11 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GITHUB_HEAD_REF")
 	containerCmd.WriteString(" -e GITHUB_BASE_REF")
 	containerCmd.WriteString(" -e RUNNER_TEMP")
+	// The gateway expands ${RUNNER_TOOL_CACHE} from its own environment when a
+	// backend MCP server references the tool cache (for example serena's
+	// read-only tool-cache mount). Without this passthrough the gateway aborts
+	// startup with "undefined environment variable referenced: RUNNER_TOOL_CACHE".
+	containerCmd.WriteString(" -e RUNNER_TOOL_CACHE")
 	containerCmd.WriteString(" -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
 }
 

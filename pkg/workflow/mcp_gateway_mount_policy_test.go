@@ -142,6 +142,16 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 	assert.Contains(t, containerCmd.String(), " -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
 }
 
+// TestMCPGatewayContainerCommandIncludesRunnerToolCacheEnvFlag verifies the
+// gateway container receives RUNNER_TOOL_CACHE. Server configurations may
+// reference ${RUNNER_TOOL_CACHE} (for example serena's tool-cache mount), and
+// the gateway expands those references from its own environment.
+func TestMCPGatewayContainerCommandIncludesRunnerToolCacheEnvFlag(t *testing.T) {
+	var containerCmd strings.Builder
+	appendMCPGatewayBaseEnvFlags(&containerCmd, "")
+	assert.Contains(t, containerCmd.String(), " -e RUNNER_TOOL_CACHE")
+}
+
 // TestWriteMCPGatewayExportsIncludesAllowedMountRoots verifies the run script
 // exports MCP_GATEWAY_ALLOWED_MOUNT_ROOTS before starting the gateway.
 func TestWriteMCPGatewayExportsIncludesAllowedMountRoots(t *testing.T) {

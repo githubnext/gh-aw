@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyOTLPIgnoreIfMissing,
   clearGatewayStartupMarker,
+  createGatewayStderrPath,
   getGatewayStartupMarkerPath,
+  redactGatewayDiagnostics,
   writeGatewayStartupMarker,
   customGatewayEnvNamesVar,
   customGatewayReservedEnvPrefix,
@@ -31,9 +33,27 @@ describe("start_mcp_gateway logging", () => {
     expect(source).not.toContain("/tmp/gh-aw/mcp-logs/start-gateway.log");
   });
 
-  it("discards the gateway child process stderr", () => {
+  it("captures the gateway child process stderr outside the artifact directory", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
-    expect(source).toContain(`stdio: ["pipe", outputFd, "ignore"]`);
+    expect(source).toContain(`stdio: ["pipe", outputFd, stderrFd]`);
+    expect(source).toContain(`path.join(os.tmpdir(), "gh-aw-mcp-gateway-")`);
+  });
+});
+
+describe("start_mcp_gateway startup diagnostics", () => {
+  it("creates the stderr capture file in an owner-only directory outside /tmp/gh-aw", () => {
+    const stderrPath = createGatewayStderrPath();
+    const dir = path.dirname(stderrPath);
+    expect(dir.startsWith("/tmp/gh-aw/")).toBe(false);
+    expect(fs.statSync(dir).mode & 0o777).toBe(0o700);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("redacts bearer headers and structured credential keys", () => {
+    const sample = ["Authorization: ******", '{"apiKey":"redact-me"}', "token=redact-me"].join("\n");
+    const redacted = redactGatewayDiagnostics(sample);
+    expect(redacted).not.toContain("redact-me");
+    expect(redacted.match(/\[REDACTED\]/g)).toHaveLength(3);
   });
 });
 
