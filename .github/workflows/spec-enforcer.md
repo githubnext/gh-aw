@@ -30,6 +30,7 @@ safe-outputs:
     - testing
     - automation
     title-prefix: "[spec-enforcer] "
+  upload-code-coverage:
 description: Generates and maintains specification-driven test suites for each Go package, relying on README.md specifications rather than source code
 emoji: 📋
 max-turns: 100
@@ -300,6 +301,18 @@ Then pass both outputs to the `test-output-classifier` agent. Use the returned J
 2. `flag_spec_ambiguity` → add `// SPEC_AMBIGUITY: <description>`
 3. `flag_spec_mismatch` → add `// SPEC_MISMATCH: <description>` and document it in the PR body
 4. `investigate` → re-read the spec section before deciding
+
+When one or more generated or updated spec tests pass validation, publish one experimental coverage report for the processed package set:
+
+```bash
+mkdir -p /tmp/gh-aw/spec-enforcer "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage"
+go install github.com/boumenot/gocover-cobertura@4afa1205ab3b54ae098dd4724c1657aad10f7484
+go test ./pkg/<package>/... -run "TestSpec" -covermode=atomic -coverprofile=/tmp/gh-aw/spec-enforcer/coverage.out
+"$(go env GOPATH)/bin/gocover-cobertura" < /tmp/gh-aw/spec-enforcer/coverage.out > "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage/cobertura.xml"
+```
+
+Only after verifying `cobertura.xml` exists and is non-empty, call `upload_code_coverage` with
+`file: "cobertura.xml"`, `language: "Go"`, and `label: "spec-enforcer/generated-tests"`.
 
 ## Phase 5: Save Cache and Create PR
 

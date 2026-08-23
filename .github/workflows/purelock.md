@@ -152,6 +152,7 @@ safe-outputs:
       - "**/*_test.go"
       - "**/testdata/fuzz/**"
     max-patch-files: 8
+  upload-code-coverage:
   noop:
 sandbox:
   agent:
@@ -234,6 +235,18 @@ For each succeeded entry verify:
 4. `coverage_after > coverage_before` for both the function and the package.
 
 Drop any entry that fails validation and record it as noop. If no entries remain, call `noop`, update cache, and stop.
+
+After the final succeeded set is known, publish one experimental coverage report for the changed package set:
+
+```bash
+mkdir -p /tmp/gh-aw/purelock "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage"
+go install github.com/boumenot/gocover-cobertura@4afa1205ab3b54ae098dd4724c1657aad10f7484
+go test ./<unique-succeeded-package-dir>/... -count=1 -covermode=atomic -coverprofile=/tmp/gh-aw/purelock/generated-tests.out
+"$(go env GOPATH)/bin/gocover-cobertura" < /tmp/gh-aw/purelock/generated-tests.out > "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage/cobertura.xml"
+```
+
+Only after verifying `cobertura.xml` exists and is non-empty, call `upload_code_coverage` with
+`file: "cobertura.xml"`, `language: "Go"`, and `label: "purelock/generated-tests"`.
 
 ## 4. Create PR and update cache
 

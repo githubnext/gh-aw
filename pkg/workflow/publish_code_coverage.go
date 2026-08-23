@@ -140,10 +140,14 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 
 	// Download the coverage staging artifact produced by the agent job.
 	downloadPath := "/tmp/gh-aw/upload-code-coverage/"
+	const downloadStepID = "download_upload_code_coverage_staging"
+	continueOnDownloadError := false
 	downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: agentArtifactPrefix + SafeOutputsUploadCodeCoverageStagingArtifactName,
-		DownloadPath: downloadPath,
-		StepName:     "Download upload-code-coverage staging",
+		ArtifactName:    agentArtifactPrefix + SafeOutputsUploadCodeCoverageStagingArtifactName,
+		DownloadPath:    downloadPath,
+		StepName:        "Download upload-code-coverage staging",
+		StepID:          downloadStepID,
+		ContinueOnError: &continueOnDownloadError,
 	}, c.getActionPin)
 	steps = append(steps, downloadSteps...)
 
@@ -191,6 +195,11 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 		}
 	}
 
+	steps = append(steps, "      - name: Verify code coverage report\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          COVERAGE_FILE: %s\n", localCoveragePath))
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          test -s \"$COVERAGE_FILE\"\n")
 	steps = append(steps, "      - name: Upload code coverage report\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.UploadCodeCoverageJobName))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-code-coverage")))
@@ -199,6 +208,7 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 	steps = append(steps, fmt.Sprintf("          language: ${{ needs.%s.outputs.upload_code_coverage_language }}\n", constants.SafeOutputsJobName))
 	steps = append(steps, fmt.Sprintf("          label: ${{ needs.%s.outputs.upload_code_coverage_label }}\n", constants.SafeOutputsJobName))
 	steps = append(steps, fmt.Sprintf("          fail-on-error: %s\n", failOnError))
+	steps = append(steps, "          # Timeout is in seconds; 160 matches actions/upload-code-coverage's documented default.\n")
 	steps = append(steps, fmt.Sprintf("          wait-for-processing-timeout: %d\n", waitForProcessingTimeout))
 	steps = append(steps, fmt.Sprintf("          token: %s\n", coverageToken))
 

@@ -167,11 +167,29 @@ func TestBuildUploadCodeCoverageJob(t *testing.T) {
 	if !strings.Contains(stepsStr, "wait-for-processing-timeout: 160") {
 		t.Error("Expected wait-for-processing-timeout: 160 to be rendered")
 	}
+	if !strings.Contains(stepsStr, "# Timeout is in seconds; 160 matches actions/upload-code-coverage's documented default.") {
+		t.Error("Expected wait-for-processing-timeout comment")
+	}
 	if !strings.Contains(stepsStr, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected upload-code-coverage token fallback to be rendered")
 	}
 	if !strings.Contains(stepsStr, "Download upload-code-coverage staging") {
 		t.Error("Expected download step for staging artifact")
+	}
+	if !strings.Contains(stepsStr, "id: download_upload_code_coverage_staging") {
+		t.Error("Expected download step ID for staging artifact")
+	}
+	if strings.Contains(stepsStr, "continue-on-error: true") {
+		t.Error("Expected upload-code-coverage artifact download failures to fail the job")
+	}
+	if !strings.Contains(stepsStr, "Verify code coverage report") {
+		t.Error("Expected coverage report verification step")
+	}
+	if !strings.Contains(stepsStr, "COVERAGE_FILE: /tmp/gh-aw/upload-code-coverage/${{ needs.safe_outputs.outputs.upload_code_coverage_file }}") {
+		t.Error("Expected verification step to receive the downloaded coverage file path")
+	}
+	if !strings.Contains(stepsStr, `test -s "$COVERAGE_FILE"`) {
+		t.Error("Expected verification step to require the downloaded coverage file")
 	}
 
 	if job.If != "needs.safe_outputs.outputs.upload_code_coverage_file != ''" {
