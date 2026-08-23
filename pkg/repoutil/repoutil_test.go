@@ -224,6 +224,8 @@ func TestNormalizeRepoForAPI(t *testing.T) {
 		{"plain owner/repo", "owner/repo", "owner/repo", ""},
 		{"GHES HOST/owner/repo", "myhost.com/owner/repo", "owner/repo", "myhost.com"},
 		{"github.com/owner/repo treated as host prefix", "github.com/owner/repo", "owner/repo", "github.com"},
+		{"preserves dot segment", "host/./repo", "./repo", "host"},
+		{"preserves traversal segment", "host/owner/..", "owner/..", "host"},
 	}
 
 	for _, tt := range tests {
