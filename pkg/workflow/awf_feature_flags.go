@@ -91,9 +91,18 @@ func awfSupportsContainerImages(firewallConfig *FirewallConfig) bool {
 }
 
 // awfSupportsFilesystemAllowWrite returns true when the effective AWF version
-// supports filesystem.allowWrite in awf-config.json.
+// supports filesystem.allowWrite in awf-config.json for the Docker/gVisor compose
+// runtimes. Use awfSupportsCloudHypervisorFilesystemAllowWrite for the Cloud
+// Hypervisor runtime, which requires a higher minimum version.
 func awfSupportsFilesystemAllowWrite(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFFilesystemAllowWriteMinVersion)
+}
+
+// awfSupportsCloudHypervisorFilesystemAllowWrite returns true when the effective
+// AWF version supports filesystem.allowWrite for the Cloud Hypervisor microVM
+// runtime (gh-aw-firewall v0.28.6+; see AWFCloudHypervisorFilesystemAllowWriteMinVersion).
+func awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)
 }
 
 // awfSupportsBoundedQueries returns true when the effective AWF version supports

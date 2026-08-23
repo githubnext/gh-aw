@@ -196,7 +196,70 @@ func buildAWFConfigFileSetup(config AWFCommandConfig, awfConfigJSON string) stri
 			configFileSetup += "\n" + updateScript
 		}
 	}
+	if mkdirScript := buildCloudHypervisorFilesystemMkdirScript(config.WorkflowData); mkdirScript != "" {
+		configFileSetup = mkdirScript + "\n" + configFileSetup
+	}
 	return configFileSetup + fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
+}
+
+// buildCloudHypervisorFilesystemMkdirScript returns a shell command that creates, on the
+// host, every directory backing a filesystem.allowWrite entry emitted for the Cloud
+// Hypervisor runtime. The AWF planner requires every allowWrite path to already exist on
+// the host before AWF starts and fails closed otherwise (e.g. ".awf-home" is not
+// auto-created by the Cloud Hypervisor backend the way it is for other runtimes). Returns
+// an empty string when the Cloud Hypervisor filesystem.allowWrite section is not being
+// emitted, or when there is nothing to create.
+func buildCloudHypervisorFilesystemMkdirScript(workflowData *WorkflowData) string {
+	if !isCloudHypervisorRuntime(workflowData) {
+		return ""
+	}
+	firewallConfig := getFirewallConfig(workflowData)
+	if !awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig) {
+		return ""
+	}
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Config == nil || agentConfig.Config.Filesystem == nil {
+		return ""
+	}
+
+	seen := make(map[string]struct{})
+	var targets []string
+	for _, guestPath := range agentConfig.Config.Filesystem.AllowWrite {
+		hostPath, needsMkdir := cloudHypervisorAllowWriteHostMkdirTarget(guestPath)
+		if !needsMkdir {
+			continue
+		}
+		if _, ok := seen[hostPath]; ok {
+			continue
+		}
+		seen[hostPath] = struct{}{}
+		targets = append(targets, hostPath)
+	}
+	if len(targets) == 0 {
+		return ""
+	}
+	sort.Strings(targets)
+	quoted := make([]string, len(targets))
+	for i, target := range targets {
+		quoted[i] = strconv.Quote(target)
+	}
+	return "mkdir -p " + strings.Join(quoted, " ")
+}
+
+// cloudHypervisorAllowWriteHostMkdirTarget maps a filesystem.allowWrite guest path to the
+// host-side directory that must exist before AWF starts under the Cloud Hypervisor
+// runtime. The workspace root itself always exists (it is checked out by actions/checkout)
+// and does not need to be created.
+func cloudHypervisorAllowWriteHostMkdirTarget(guestPath string) (hostPath string, needsMkdir bool) {
+	if guestPath == cloudHypervisorWorkspaceWritePath {
+		return "", false
+	}
+	if rel, ok := strings.CutPrefix(guestPath, cloudHypervisorWorkspaceWritePath+"/"); ok {
+		return "${GITHUB_WORKSPACE}/" + rel, true
+	}
+	// Paths outside /workspace (e.g. /tmp/gh-aw/agent) use the same path on the host and
+	// in the guest under Cloud Hypervisor's virtiofs exports.
+	return guestPath, true
 }
 
 func buildMaxAICreditsExport(config AWFCommandConfig, awfConfigJSON string) (string, string) {

@@ -220,6 +220,37 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"filesystem":{"allowWrite":[]}`)
 	})
 
+	t.Run("Cloud Hypervisor filesystem allowWrite requires the higher CH minimum version", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Version: string(constants.AWFFilesystemAllowWriteMinVersion)},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Runtime: AgentRuntimeCloudHypervisor,
+						Config: &SandboxRuntimeConfig{
+							Filesystem: &SRTFilesystemConfig{
+								AllowWrite: []string{"/workspace", "/workspace/.awf-home", "/tmp/gh-aw/agent"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"filesystem"`, "v0.28.5 must not enable Cloud Hypervisor filesystem.allowWrite")
+
+		config.WorkflowData.NetworkPermissions.Firewall.Version = string(constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)
+		jsonStr, err = BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"filesystem":{"allowWrite":["/workspace","/workspace/.awf-home","/tmp/gh-aw/agent"]}`)
+		require.NoError(t, validateAWFConfigJSON(jsonStr))
+	})
+
 	t.Run("network isolation emits isolation and topologyAttach", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",

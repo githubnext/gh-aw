@@ -238,6 +238,26 @@ func TestApplySandboxDefaults(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Cloud Hypervisor narrows the /workspace and /tmp/gh-aw exports independently,
+			// so the default write path alone would leave /workspace (and the CH-managed
+			// HOME under it) read-only. See ensureDefaultAgentWritePath.
+			name: "cloud-hypervisor runtime also seeds workspace and awf-home write paths",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Runtime: AgentRuntimeCloudHypervisor,
+				},
+			},
+			engine:                 &EngineConfig{ID: "copilot"},
+			expectDefaultWritePath: true,
+			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

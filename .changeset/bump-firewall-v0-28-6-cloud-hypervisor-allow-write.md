@@ -1,0 +1,5 @@
+---
+"gh-aw": patch
+---
+
+Bump the default gh-aw-firewall version to v0.28.6 and refresh embedded container digest pins. This activates `filesystem.allowWrite` support for the Cloud Hypervisor microVM runtime: `sandbox.agent.runtime: cloud-hypervisor` workflows now seed `/workspace` and `/workspace/.awf-home` as writable paths by default (in addition to `/tmp/gh-aw/agent`) so the repo checkout and `HOME` remain writable, and the compiler emits a `mkdir -p` for `.awf-home` on the host before AWF starts. A new `AWFCloudHypervisorFilesystemAllowWriteMinVersion` (v0.28.6) gate is used for Cloud Hypervisor instead of the lower Docker/gVisor `AWFFilesystemAllowWriteMinVersion` (v0.28.5), since selective `allowWrite` was broken on real hosts before v0.28.6.

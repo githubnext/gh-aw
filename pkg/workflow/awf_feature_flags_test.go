@@ -361,8 +361,8 @@ func TestAWFSupportsFilesystemAllowWrite(t *testing.T) {
 		want           bool
 	}{
 		{
-			name: "default version does not support filesystem.allowWrite",
-			want: false,
+			name: "default version supports filesystem.allowWrite",
+			want: true,
 		},
 		{
 			name:           "exact minimum version supports filesystem.allowWrite",
@@ -379,6 +379,40 @@ func TestAWFSupportsFilesystemAllowWrite(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, awfSupportsFilesystemAllowWrite(tt.firewallConfig))
+		})
+	}
+}
+
+func TestAWFSupportsCloudHypervisorFilesystemAllowWrite(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name: "default version supports Cloud Hypervisor filesystem.allowWrite",
+			want: true,
+		},
+		{
+			name:           "exact minimum version supports Cloud Hypervisor filesystem.allowWrite",
+			firewallConfig: &FirewallConfig{Version: "v0.28.6"},
+			want:           true,
+		},
+		{
+			name:           "v0.28.5 does not support Cloud Hypervisor filesystem.allowWrite",
+			firewallConfig: &FirewallConfig{Version: "v0.28.5"},
+			want:           false,
+		},
+		{
+			name:           "prior version does not support Cloud Hypervisor filesystem.allowWrite",
+			firewallConfig: &FirewallConfig{Version: "v0.28.4"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, awfSupportsCloudHypervisorFilesystemAllowWrite(tt.firewallConfig))
 		})
 	}
 }

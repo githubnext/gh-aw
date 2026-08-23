@@ -283,6 +283,19 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 	return sandboxConfig
 }
 
+// cloudHypervisorWorkspaceWritePath and cloudHypervisorAwfHomeWritePath are the additional
+// filesystem.allowWrite entries seeded for the Cloud Hypervisor runtime.
+//
+// Under Cloud Hypervisor, /workspace and /tmp/gh-aw are separate virtiofs exports, and the
+// AWF planner narrows each export independently based on the allowWrite entries that fall
+// under it. Seeding only defaultAgentWorkspaceWritePath (/tmp/gh-aw/agent) leaves no allowed
+// path under /workspace, so that export is narrowed to read-only: the repo checkout becomes
+// unwritable, and HOME (which Cloud Hypervisor sets to /workspace/.awf-home) becomes
+// unwritable too. See gh-aw-firewall#7669/#7672 and the "Blocker 1" analysis on the tracking
+// issue for the empirical planner output that demonstrated this.
+const cloudHypervisorWorkspaceWritePath = "/workspace"
+const cloudHypervisorAwfHomeWritePath = "/workspace/.awf-home"
+
 func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 	if sandboxConfig == nil || sandboxConfig.Agent == nil {
 		return
@@ -293,13 +306,19 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 	if sandboxConfig.Agent.Config.Filesystem == nil {
 		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
 	}
-	if slices.Contains(sandboxConfig.Agent.Config.Filesystem.AllowWrite, defaultAgentWorkspaceWritePath) {
+	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentWorkspaceWritePath)
+	if sandboxConfig.Agent.Runtime == AgentRuntimeCloudHypervisor {
+		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorWorkspaceWritePath)
+		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorAwfHomeWritePath)
+	}
+}
+
+// addAllowWritePathIfMissing appends path to filesystem.AllowWrite unless it is already present.
+func addAllowWritePathIfMissing(filesystem *SRTFilesystemConfig, path string) {
+	if slices.Contains(filesystem.AllowWrite, path) {
 		return
 	}
-	sandboxConfig.Agent.Config.Filesystem.AllowWrite = append(
-		sandboxConfig.Agent.Config.Filesystem.AllowWrite,
-		defaultAgentWorkspaceWritePath,
-	)
+	filesystem.AllowWrite = append(filesystem.AllowWrite, path)
 }
 
 func mergeImportedSandboxAgentMounts(sandboxConfig *SandboxConfig, importedMounts []string) *SandboxConfig {
