@@ -636,6 +636,22 @@ gh aw outcomes history --repo owner/repo --json     # JSON output for another re
 
 **Options:** `--limit`, `--source`, `--json/-j`, `--repo/-r`
 
+#### `models`
+
+List model catalog pricing, built-in aliases and their resolution order, and models observed in local automation artifacts.
+
+```bash wrap
+gh aw models                              # Catalog, aliases, and observed models
+gh aw models --json                       # JSON output
+gh aw models --logs-dir .github/aw/logs   # Read observed models from another logs directory
+gh aw models --refresh-count 50           # Inspect more recent runs when refreshing
+gh aw models --refresh-observed=false     # Skip the artifact refresh (local data only)
+```
+
+Observed models are aggregated from `summary.json` token usage, per-run token usage artifacts, and `awf-reflect.json` endpoint model lists. By default the command first refreshes those artifacts from recent runs; the refresh writes no report of its own, so `--json` output stays a single JSON document.
+
+**Options:** `--json/-j`, `--logs-dir`, `--refresh-observed`, `--refresh-count`, `--repo/-r`
+
 #### `health`
 
 Display workflow health metrics and success rates.

@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -46,7 +47,7 @@ so recent awf-reflect data can be discovered before reporting.`,
 	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Directory containing downloaded logs/artifacts")
 	cmd.Flags().Bool("refresh-observed", true, "Attempt to refresh local observed-model artifacts before reporting")
 	cmd.Flags().Int("refresh-count", 20, "Maximum number of recent runs to inspect when refreshing observed models")
-	cmd.Flags().String("repo", "", "Target repository ([HOST/]owner/repo format) for observed-model refresh")
+	addRepoFlag(cmd)
 	return cmd
 }
 
@@ -141,10 +142,11 @@ func refreshObservedArtifacts(ctx context.Context, logsDir string, refreshCount 
 		refreshCount = 20
 	}
 	return DownloadWorkflowLogs(ctx, LogsDownloadOptions{
-		Count:        refreshCount,
-		OutputDir:    logsDir,
-		RepoOverride: repoOverride,
-		ArtifactSets: []string{string(ArtifactSetFirewall), string(ArtifactSetUsage)},
+		Count:          refreshCount,
+		OutputDir:      logsDir,
+		RepoOverride:   repoOverride,
+		ArtifactSets:   []string{string(ArtifactSetFirewall), string(ArtifactSetUsage)},
+		SuppressRender: true,
 	})
 }
 
@@ -218,10 +220,20 @@ func collectObservedModelRows(logsDir string, aliasMap map[string][]string) ([]o
 		record.occurrences += occurrences
 	}
 
-	warnings = appendObservedCollectionWarning(warnings, collectObservedFromSummary(logsDir, addObserved), "summary.json")
-	warnings = appendObservedCollectionWarning(warnings, collectObservedFromRunDirs(logsDir, addObserved), "run directories")
+	// summary.json is generated from the same run-* directories that live alongside
+	// it, so runs already represented in the summary are skipped when walking the
+	// run directories to avoid counting their requests twice.
+	summarizedRuns, summaryErr := collectObservedFromSummary(logsDir, addObserved)
+	warnings = appendObservedCollectionWarning(warnings, summaryErr, "summary.json")
+	warnings = appendObservedCollectionWarning(warnings, collectObservedFromRunDirs(logsDir, summarizedRuns, addObserved), "run directories")
 	warnings = appendObservedCollectionWarning(warnings, collectObservedFromAWFReflect(logsDir, addObserved), "awf-reflect artifacts")
 
+	return buildObservedModelRows(records, catalogIndex, aliasMap), warnings
+}
+
+// buildObservedModelRows converts collected observations into sorted report rows,
+// ordered by descending occurrence count then provider and model.
+func buildObservedModelRows(records map[string]*observedModelRecord, catalogIndex catalogIndex, aliasMap map[string][]string) []observedModelRow {
 	rows := make([]observedModelRow, 0, len(records))
 	for _, record := range records {
 		sourceList := make([]string, 0, len(record.sources))
@@ -230,13 +242,12 @@ func collectObservedModelRows(logsDir string, aliasMap map[string][]string) ([]o
 		}
 		slices.Sort(sourceList)
 
-		fullID := path.Join(record.provider, record.model)
 		rows = append(rows, observedModelRow{
 			Provider:    record.provider,
 			Model:       record.model,
 			Sources:     strings.Join(sourceList, ", "),
 			Occurrences: record.occurrences,
-			InCatalog:   modelExistsInCatalog(catalogIndex, fullID, record.model),
+			InCatalog:   modelExistsInCatalog(catalogIndex, record.provider, record.model),
 			AliasHints:  inferAliasHints(record.provider, record.model, aliasMap),
 		})
 	}
@@ -252,7 +263,7 @@ func collectObservedModelRows(logsDir string, aliasMap map[string][]string) ([]o
 		}
 		return strings.Compare(a.Model, b.Model)
 	})
-	return rows, warnings
+	return rows
 }
 
 func appendObservedCollectionWarning(warnings []string, err error, scope string) []string {
@@ -262,17 +273,19 @@ func appendObservedCollectionWarning(warnings []string, err error, scope string)
 	return warnings
 }
 
-func collectObservedFromSummary(logsDir string, addObserved func(provider, model, source string, occurrences int)) error {
+func collectObservedFromSummary(logsDir string, addObserved func(provider, model, source string, occurrences int)) (map[int64]struct{}, error) {
+	summarizedRuns := make(map[int64]struct{})
 	summaryPath := filepath.Join(logsDir, "summary.json")
 	content, err := os.ReadFile(summaryPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return summarizedRuns, nil
 		}
-		return err
+		return summarizedRuns, err
 	}
 	var payload struct {
 		Runs []struct {
+			RunID             int64 `json:"run_id"`
 			TokenUsageSummary *struct {
 				ByModel map[string]*struct {
 					Provider string `json:"provider"`
@@ -282,9 +295,12 @@ func collectObservedFromSummary(logsDir string, addObserved func(provider, model
 		} `json:"runs"`
 	}
 	if err := json.Unmarshal(content, &payload); err != nil {
-		return err
+		return summarizedRuns, err
 	}
 	for _, run := range payload.Runs {
+		if run.RunID > 0 {
+			summarizedRuns[run.RunID] = struct{}{}
+		}
 		if run.TokenUsageSummary == nil {
 			continue
 		}
@@ -300,10 +316,10 @@ func collectObservedFromSummary(logsDir string, addObserved func(provider, model
 			addObserved(provider, model, "summary", requests)
 		}
 	}
-	return nil
+	return summarizedRuns, nil
 }
 
-func collectObservedFromRunDirs(logsDir string, addObserved func(provider, model, source string, occurrences int)) error {
+func collectObservedFromRunDirs(logsDir string, summarizedRuns map[int64]struct{}, addObserved func(provider, model, source string, occurrences int)) error {
 	entries, err := os.ReadDir(logsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -314,6 +330,11 @@ func collectObservedFromRunDirs(logsDir string, addObserved func(provider, model
 	for _, entry := range entries {
 		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "run-") {
 			continue
+		}
+		if runID, parseErr := strconv.ParseInt(strings.TrimPrefix(entry.Name(), "run-"), 10, 64); parseErr == nil {
+			if _, alreadyCounted := summarizedRuns[runID]; alreadyCounted {
+				continue
+			}
 		}
 		runDir := filepath.Join(logsDir, entry.Name())
 		summary, err := analyzeTokenUsage(runDir, false)
@@ -409,20 +430,40 @@ func wildcardMatch(pattern, value string) bool {
 	return matched
 }
 
-func makeCatalogIndex() map[string]struct{} {
+// catalogIndex holds catalog model identifiers for observed-model lookups.
+// fullIDs is keyed by "provider/model" and is used for provider-scoped
+// observations; bareModels is keyed by model name alone and is only consulted
+// for observations whose provider is unknown.
+type catalogIndex struct {
+	fullIDs    map[string]struct{}
+	bareModels map[string]struct{}
+}
+
+func makeCatalogIndex() catalogIndex {
 	initModelPrices()
-	index := make(map[string]struct{}, len(modelPriceRecords)*2)
+	index := catalogIndex{
+		fullIDs:    make(map[string]struct{}, len(modelPriceRecords)),
+		bareModels: make(map[string]struct{}, len(modelPriceRecords)),
+	}
 	for _, record := range modelPriceRecords {
-		index[modelsdev.NormalizeComparableModelID(record.id)] = struct{}{}
-		index[modelsdev.NormalizeComparableModelID(record.model)] = struct{}{}
+		index.fullIDs[modelsdev.NormalizeComparableModelID(record.id)] = struct{}{}
+		index.bareModels[modelsdev.NormalizeComparableModelID(record.model)] = struct{}{}
 	}
 	return index
 }
 
-func modelExistsInCatalog(index map[string]struct{}, fullID, model string) bool {
-	_, hasFullID := index[modelsdev.NormalizeComparableModelID(fullID)]
-	_, hasModel := index[modelsdev.NormalizeComparableModelID(model)]
-	return hasFullID || hasModel
+func modelExistsInCatalog(index catalogIndex, provider, model string) bool {
+	// A model that already carries its own provider scope is matched as-is.
+	if strings.Contains(model, "/") {
+		_, ok := index.fullIDs[modelsdev.NormalizeComparableModelID(model)]
+		return ok
+	}
+	if provider != "" {
+		_, ok := index.fullIDs[modelsdev.NormalizeComparableModelID(path.Join(provider, model))]
+		return ok
+	}
+	_, ok := index.bareModels[modelsdev.NormalizeComparableModelID(model)]
+	return ok
 }
 
 func formatCost(v float64) string {

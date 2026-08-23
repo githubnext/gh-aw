@@ -98,3 +98,55 @@ func TestInferAliasHints(t *testing.T) {
 	assert.NotEmpty(t, hints)
 	assert.Contains(t, hints, "sonnet")
 }
+
+func TestCollectObservedModelRowsSkipsRunsAlreadyInSummary(t *testing.T) {
+	t.Parallel()
+
+	logsDir := t.TempDir()
+	usageDir := filepath.Join(logsDir, "run-123", "usage", "agent")
+	require.NoError(t, os.MkdirAll(usageDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(usageDir, "token_usage.jsonl"),
+		[]byte(`{"provider":"github-copilot","model":"claude-sonnet-4.6","input_tokens":10,"output_tokens":2}`+"\n"),
+		0o644,
+	))
+
+	summaryPayload := map[string]any{
+		"runs": []any{
+			map[string]any{
+				"run_id": 123,
+				"token_usage_summary": map[string]any{
+					"by_model": map[string]any{
+						"claude-sonnet-4.6": map[string]any{
+							"provider": "github-copilot",
+							"requests": 1,
+						},
+					},
+				},
+			},
+		},
+	}
+	summaryBytes, err := json.Marshal(summaryPayload)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(logsDir, "summary.json"), summaryBytes, 0o644))
+
+	_, aliasMap := buildModelAliasRows()
+	rows, warnings := collectObservedModelRows(logsDir, aliasMap)
+	require.Empty(t, warnings)
+	require.Len(t, rows, 1)
+	assert.Equal(t, "summary", rows[0].Sources)
+	assert.Equal(t, 1, rows[0].Occurrences)
+}
+
+func TestModelExistsInCatalogIsProviderScoped(t *testing.T) {
+	t.Parallel()
+
+	index := makeCatalogIndex()
+
+	assert.True(t, modelExistsInCatalog(index, "openai", "gpt-5.4"))
+	assert.True(t, modelExistsInCatalog(index, "", "gpt-5.4"))
+	assert.True(t, modelExistsInCatalog(index, "", "openai/gpt-5.4"))
+	assert.False(t, modelExistsInCatalog(index, "other", "gpt-5.4"))
+	assert.False(t, modelExistsInCatalog(index, "", "other/gpt-5.4"))
+	assert.False(t, modelExistsInCatalog(index, "openai", "not-a-real-model"))
+}

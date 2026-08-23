@@ -35,6 +35,11 @@ type LogsDownloadOptions struct {
 	ArtifactSets      []string
 	After             string
 	ReportFile        string
+	// SuppressRender downloads and processes runs (including writing the summary
+	// file) without emitting any report to stdout. Callers that only need the
+	// downloaded artifacts, and that own stdout themselves, set this so their own
+	// output is not interleaved with the logs report.
+	SuppressRender bool
 }
 
 // StdinLogsOptions holds parameters for DownloadWorkflowLogsFromStdin.
@@ -108,4 +113,7 @@ type renderLogsOutputOptions struct {
 	// scope dateRangeCoverageWarning to the cause it actually describes, rather
 	// than firing for timeout-driven continuations too.
 	countLimitReached bool
+	// suppressRender skips all report rendering after the summary file has been
+	// written, for callers that only want the downloaded artifacts.
+	suppressRender bool
 }
