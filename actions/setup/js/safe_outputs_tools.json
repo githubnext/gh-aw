@@ -813,6 +813,43 @@
     }
   },
   {
+    "name": "replace_label",
+    "description": "Replace one label with another on an existing GitHub issue or pull request. Use this to transition labels atomically (for example, from 'triage' to 'in-progress').",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "label_to_remove": {
+          "type": "string",
+          "description": "Label name to remove from the issue or pull request, e.g. 'triage'."
+        },
+        "label_to_add": {
+          "type": "string",
+          "description": "Label name to add to the issue or pull request, e.g. 'in-progress'."
+        },
+        "item_number": {
+          "type": ["number", "string"],
+          "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Issue or PR number to update labels on. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run — use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, uses the issue or pull request that triggered this workflow.",
+          "x-synonyms": ["itemNumber"]
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "required": ["label_to_remove", "label_to_add"],
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "add_reviewer",
     "description": "Add reviewers (users or teams) to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot. Provide at least one of 'reviewers' (user logins) or 'team_reviewers' (team slugs).",
     "inputSchema": {
