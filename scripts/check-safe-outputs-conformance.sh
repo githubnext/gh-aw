@@ -2034,7 +2034,7 @@ check_approve_workflow_run_semantics() {
             failed=1
         fi
 
-        if ! grep -qE "run\.status\s*!==\s*[\"']waiting[\"']" "$handler"; then
+        if ! grep -qE "isAwaitingApproval|APPROVABLE_RUN_STATUSES|run\.status\s*!==\s*[\"']waiting[\"']" "$handler"; then
             log_high "TYPE-013: approve_workflow_run handler does not verify run status is waiting (Section 7.3 requirement 3)"
             failed=1
         fi
@@ -2059,8 +2059,8 @@ check_approve_workflow_run_semantics() {
             failed=1
         fi
 
-        if ! grep -qE "isForkPullRequest|config\.fork" "$handler"; then
-            log_high "TYPE-013: approve_workflow_run handler does not reject fork pull requests unless fork: true (Section 7.3 requirement 6)"
+        if ! grep -qE "isHeadRepoAllowed|allowed_repos|allowedRepos|isForkPullRequest|config\.fork" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not reject fork pull requests unless allowed via allowed-repos (Section 7.3 requirement 6)"
             failed=1
         fi
 
