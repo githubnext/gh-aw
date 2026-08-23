@@ -875,6 +875,30 @@ describe("safe_outputs_handlers", () => {
       );
     });
 
+    it("should normalize a combined title/body payload passed in title", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+        },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "feature/test-change",
+        title: "Fix summary formatting\n\nInclude details and rationale.",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "create_pull_request",
+          title: "Fix summary formatting",
+          body: "Include details and rationale.",
+        })
+      );
+    });
+
     it("should return error response when patch generation still fails after branch pinning fallback", async () => {
       // This test verifies the error is returned as content, not thrown.
       // Patch generation still fails because we're not in a git repo.
@@ -3348,6 +3372,26 @@ describe("safe_outputs_handlers", () => {
         const data = JSON.parse(result.content[0].text);
         expect(data.result).toBe("success");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "New Title", body: "New body" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should normalize combined title/body text passed through title", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 7 } } };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "Title: New heading\nBody: Updated details\n\nSecond paragraph." });
+        expect(result).toHaveProperty("content");
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "update_pull_request",
+            title: "New heading",
+            body: "Updated details\n\nSecond paragraph.",
+          })
+        );
       } finally {
         global.context = savedContext;
       }
