@@ -650,6 +650,21 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"upload_artifact"},
 		},
 		{
+			name: "upload_code_coverage config",
+			safeOutputs: &SafeOutputsConfig{
+				UploadCodeCoverage: &UploadCodeCoverageConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"upload_code_coverage"},
+		},
+		{
 			name: "update_release config",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateRelease: &UpdateReleaseConfig{

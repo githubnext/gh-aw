@@ -187,6 +187,7 @@ func TestFormal_P5_MonteCarloIterations(t *testing.T) {
 // Formal predicate: λ ≤ 0 ∨ ¬(λ = λ) ∨ |λ| = ∞ → result = nil
 // Specification reference: R-MC-001, R-MC-004
 func TestFormal_P6_ZeroLambdaNilResult(t *testing.T) {
+	t.Parallel()
 	obs := []int{1_000, 2_000}
 	cases := []struct {
 		name   string
@@ -269,6 +270,7 @@ func TestFormal_P8_ReliabilityThreshold(t *testing.T) {
 // Formal predicate: useNormalApproximationForPoisson(λ) ⟺ λ > 15 (R-FC-060)
 // Specification reference: R-FC-060; forecast_montecarlo.go poissonNormalApproximationThreshold
 func TestFormal_P9_PoissonBranchCrossover(t *testing.T) {
+	t.Parallel()
 	assert.InDelta(t, 15.0, poissonNormalApproximationThreshold, 0,
 		"P9: Poisson crossover threshold must equal 15")
 
@@ -295,6 +297,7 @@ func TestFormal_P9_PoissonBranchCrossover(t *testing.T) {
 // Formal predicate: Duration = UpdatedAt − StartedAt  (§6.2.2)
 // Specification reference: §6.2.2 Duration Derivation; forecast.go:573-574
 func TestFormal_P10_DurationDerivation(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		startedAt    time.Time
 		updatedAt    time.Time

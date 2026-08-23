@@ -13,7 +13,8 @@ permissions:
   pull-requests: read
 
 tracker-id: weekly-safe-outputs-spec-review
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 
 network:

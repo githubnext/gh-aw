@@ -68,12 +68,12 @@ Analyze up to twenty-five Go test files per run and add `t.Parallel()` only wher
 Add `t.Parallel()` at the start of eligible top-level tests. Also add it to eligible table-driven subtests.
 For Go 1.22+ semantics, do not add redundant loop-variable rebinding (`tt := tt`, `cmd := cmd`) unless a case truly needs an additional local copy for correctness.
 
-## Inline analysis agents (small context)
+## Batched analysis agent (small context)
 
-1. For each selected path, call `parallel-safety-checker` exactly once with only that file path and the safety rules from this workflow.
-2. Dispatch these inline agent calls in one parallel tool-use block when possible. If not possible, dispatch in small batches of 5.
-3. Require compact JSON output from each sub-agent:
-   `{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}`.
+1. Call `parallel-safety-batch-checker` exactly once with the selected path list and the safety rules from this workflow.
+2. Do not create one sub-agent per file; keep the repeated static rules in this single batch call.
+3. Require compact JSON output:
+   `{"files":[{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}]}`.
 4. Use the JSON results to decide which files to edit. Keep aggregation notes short and avoid repeating unchanged rule text.
 
 Do not parallelize tests that use or may conflict through:
@@ -100,12 +100,12 @@ Always create `/tmp/gh-aw/cache-memory/go-test-parallelizer/` and write the last
 
 If validation succeeds with a change, create one draft pull request describing the safety analysis and test results. Otherwise use `noop` with the selected path and a short reason.
 
-## agent: `parallel-safety-checker`
+## agent: `parallel-safety-batch-checker`
 ---
-description: Review one Go test file for safe t.Parallel additions with minimal context
+description: Review a small batch of Go test files for safe t.Parallel additions with minimal repeated context
 model: gpt-5-mini
 ---
-Given one `*_test.go` file path, read only that file and apply this workflow's safety rules.
+Given up to 25 `*_test.go` file paths, read only those files and apply this workflow's safety rules.
 Return compact JSON only in this exact shape:
-`{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}`.
+`{"files":[{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}]}`.
 Set `safe` to false when uncertain.

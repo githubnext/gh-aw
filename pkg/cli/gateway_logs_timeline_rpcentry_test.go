@@ -11,6 +11,7 @@ import (
 )
 
 func TestRpcEntryToTimelineEvent(t *testing.T) {
+	t.Parallel()
 	t.Run("invalid timestamp returns zero value and false", func(t *testing.T) {
 		entry := RPCMessageEntry{
 			Timestamp: "not-a-timestamp",

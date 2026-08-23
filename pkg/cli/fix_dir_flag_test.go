@@ -11,6 +11,7 @@ import (
 
 // TestFixWithDirFlag tests the --dir flag functionality
 func TestFixWithDirFlag(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test
 	tmpDir := t.TempDir()
 	customDir := filepath.Join(tmpDir, "custom-workflows")
@@ -68,6 +69,7 @@ This is a test workflow with deprecated timeout_minutes field.
 
 // TestFixWithDirFlagAndSpecificWorkflow tests --dir with specific workflow
 func TestFixWithDirFlagAndSpecificWorkflow(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test
 	tmpDir := t.TempDir()
 	customDir := filepath.Join(tmpDir, "custom-workflows")

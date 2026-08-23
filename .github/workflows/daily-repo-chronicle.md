@@ -14,10 +14,9 @@ permissions:
   copilot-requests: write
 tracker-id: daily-repo-chronicle
 engine:
-  id: copilot
-  copilot-sdk: true
+  id: codex
+model: copilot/mai-code-1-flash-picker
 
-max-tool-denials: 3
 timeout-minutes: 45
 
 network:
