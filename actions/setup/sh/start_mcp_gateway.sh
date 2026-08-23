@@ -67,17 +67,21 @@ GATEWAY_STDOUT=/tmp/gh-aw/mcp-config/gateway-output.json
 GATEWAY_STDERR="$(mktemp /tmp/gh-aw-mcp-gateway-stderr.XXXXXX)"
 chmod 600 "$GATEWAY_STDERR"
 trap 'rm -f "$GATEWAY_STDERR"' EXIT
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_RENDERER="${SCRIPT_DIR}/../js/render_log_to_stdout.cjs"
 GATEWAY_STARTUP_MARKER="${MCP_GATEWAY_STARTUP_MARKER:-/tmp/gh-aw/mcp-gateway-started}"
 rm -f "$GATEWAY_STARTUP_MARKER"
 
 print_gateway_startup_diagnostics() {
   echo "Gateway startup diagnostics:"
   if [ -s "$GATEWAY_STDERR" ]; then
-    echo "Gateway stderr:"
     sed -E \
       -e 's/(Bearer[[:space:]]+)[^[:space:]]+/\1[REDACTED]/Ig' \
       -e 's/((api[_-]?key|token|secret|password|authorization)[[:space:]]*[:=][[:space:]]*)[^[:space:],}]+/\1[REDACTED]/Ig' \
-      "$GATEWAY_STDERR"
+      "$GATEWAY_STDERR" | node -e '
+        const { renderLogToStdout } = require(process.argv[1]);
+        renderLogToStdout("Gateway stderr", require("fs").readFileSync(0, "utf8"));
+      ' "$LOG_RENDERER"
   else
     echo "Gateway stderr: (empty)"
   fi

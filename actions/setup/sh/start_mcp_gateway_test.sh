@@ -334,6 +334,8 @@ EOF
 
   if [[ "$exit_code" -ne 0 ]] &&
     grep -q "Gateway startup diagnostics:" <<< "$output" &&
+    grep -q "::group::Gateway stderr" <<< "$output" &&
+    grep -q "::endgroup::" <<< "$output" &&
     grep -q "simulated gateway startup failure" <<< "$output" &&
     grep -q "API_TOKEN=\[REDACTED\]" <<< "$output" &&
     ! grep -q "redact-me" <<< "$output" &&
