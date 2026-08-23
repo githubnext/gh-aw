@@ -161,7 +161,7 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 	}
 	waitForProcessingTimeout := cfg.WaitForProcessingTimeout
 
-	coverageToken := ""
+	var coverageToken string
 	effectiveStaticToken := cfg.GitHubToken
 	if effectiveStaticToken == "" && data.SafeOutputs != nil {
 		effectiveStaticToken = data.SafeOutputs.GitHubToken
