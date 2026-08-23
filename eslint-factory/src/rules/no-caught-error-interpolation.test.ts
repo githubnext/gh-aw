@@ -149,6 +149,77 @@ describe("no-caught-error-interpolation", () => {
     });
   });
 
+  it("invalid: caught error in string concatenation is flagged", () => {
+    cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.log("failed: " + err); }`,
+          errors: [
+            {
+              messageId: "bareErrorInterpolation",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { console.log("failed: " + String(err)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: single-hop const alias of caught error is flagged", () => {
+    cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { const alias = err; log(\`failed: \${alias}\`); }`,
+          errors: [
+            {
+              messageId: "bareErrorInterpolation",
+              data: { errorVar: "alias" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "alias" },
+                  output: `try { f(); } catch (err) { const alias = err; log(\`failed: \${String(alias)}\`); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `p.catch(err => { const alias = err; log("failed: " + alias); });`,
+          errors: [
+            {
+              messageId: "bareErrorInterpolation",
+              data: { errorVar: "alias" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "alias" },
+                  output: `p.catch(err => { const alias = err; log("failed: " + String(alias)); });`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: alias tracing is limited to one const assignment", () => {
+    cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
+      valid: [`try { f(); } catch (err) { let alias = err; log(\`failed: \${alias}\`); }`, `try { f(); } catch (err) { const alias = err; const second = alias; log("failed: " + second); }`],
+      invalid: [],
+    });
+  });
+
   it("invalid: bare .catch() rejection handler variable is flagged", () => {
     cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
       valid: [],

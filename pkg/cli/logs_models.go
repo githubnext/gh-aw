@@ -418,6 +418,19 @@ func isFailureConclusion(conclusion string) bool {
 	return isFailure
 }
 
+// isNonDispatchedConclusion returns true when a workflow run conclusion means the
+// run never dispatched any agentic job, so it carries no agentic data and must not
+// be counted as an executed run in success-rate, duration or token metrics.
+//
+// "skipped" runs had their activation condition evaluate to false (for example a
+// command workflow triggered by a comment that does not contain the command).
+// "action_required" runs were created by GitHub but held for manual approval and
+// never started any job (for example comment events authored by a bot actor whose
+// workflow runs require approval).
+func isNonDispatchedConclusion(conclusion string) bool {
+	return conclusion == "skipped" || conclusion == "action_required"
+}
+
 // isDriverExitFailure returns true when a failed run shows no agent turns, which
 // indicates the CLI wrapper or a pre/post-agent infrastructure step exited non-zero
 // before the agent had a chance to run.  Runs with Turns > 0 are classified as
