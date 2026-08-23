@@ -189,3 +189,17 @@
 - **[declined, already fixed]** 45-day audit-workflows cadence gap referenced in #54358 — predates #53252's fix (closed 2026-08-17); today's on-schedule run is the recovery evidence.
 - **[watch]** Copilot PR Prompt Analysis success rate drifted to 78.3% (from ~81-82% in July) — no single code fix identified, watch trend.
 - **[declined, healthy]** Daily Team Evolution (#54340, high-velocity human-AI collaboration, no concerns), Daily Regulatory Report (#54357, no critical cross-report discrepancies, only expected scope-mismatch notes).
+
+## Flagged Items (2026-08-23, cycle since 12:22Z baseline #54791)
+
+- **[new, filed]** `q` workflow 0.8% success (2/261) persists 6+ weeks past its supposed fix (#43527 merged 2026-07-05) — root cause is not what memory assumed; needs re-diagnosis (#54798).
+- **[new, filed]** `cgo` workflow regressed to 29.3% success (~29min avg runtime), contradicting prior "stabilizing" note — real regression, escalate (#54798).
+- **[new, filed]** ai-moderator's Copilot-engine switch recommendation (recurring across cycles) may still be unimplemented — only 21/279 triggers execute (#54798).
+- **[new, filed]** persist-credentials compile error missing inline YAML fix example — verified live (#54843).
+- **[new, filed]** Claude Code CLI OAuth-token silent-rejection trap undercommunicated in quick-start docs — verified live (#54792).
+- **[new, filed]** Smoke Claude responsible for 2/3 of all fleet-wide firewall blocks (Google browser-automation domains) (#54857).
+- **[new, filed]** lockfile-stats analyzer's own engine/permission detection heuristics return empty — self-flagged follow-up, now filed as an issue (#54908).
+- **[declined, informational]** 190 unassigned open issues + 41 cascade-suspected (#54838) — no single code fix, watch for backlog growth.
+- **[declined, lower priority]** Copilot-default framing + missing Claude gh-aw-init automation (#54792) — deferred, not dropped.
+- **[declined, minor]** smoke-aider inconsistent failure message (#54843) — deferred.
+- **[declined, healthy]** Daily Team Evolution (#54907, 30 PRs/24h), overall firewall posture (#54857, 98.9% allowed) — no action.

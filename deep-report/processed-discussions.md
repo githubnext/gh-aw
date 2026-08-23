@@ -74,3 +74,8 @@ Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:
 
 ### Processed 2026-08-21 ~06:25Z cycle (full — all 7 new/updated discussions read; window since 00:39:35Z baseline #54396)
 54390, 54411, 54414, 54430, 54433, 54441, 54442 — all read in full, no sampling shortfall. 4 code-quality/docs tasks extracted and filed (compiler_jobs.go buildJobs split, tracker-id schema constraints, max-turn-cache-misses silent-degradation fix, secret-masking docs). Sergo/ESLint Refiner findings already self-filed by their source workflows; 2 Schema Consistency Checker findings already covered by open #54179/#54180.
+
+## Discussions mined for code-quality tasks (processed through 2026-08-23 cycle)
+
+### Processed 2026-08-23 cycle (full — all 7 new/updated discussions read; window since 12:22:00Z baseline #54791)
+54792, 54798, 54838, 54843, 54857, 54907, 54908 — all read in full, no sampling shortfall. 7 code-quality/reliability tasks extracted and filed (q workflow re-diagnosis, cgo regression escalation, ai-moderator engine-switch verification, persist-credentials error message example, Claude OAuth-token docs warning, Smoke Claude firewall allowlist, lockfile-stats analyzer engine/permission detection fix). No duplicates found against 239 open issues.

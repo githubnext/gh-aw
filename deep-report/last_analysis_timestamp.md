@@ -259,3 +259,25 @@ See [[known_patterns]], [[flagged_items]], [[trend_data]] for details.
 - Auto-Triage (#54390) 100% success, 3 issues labeled — healthy, no action.
 
 See [[known_patterns]], [[flagged_items]], [[trend_data]] for details.
+
+---
+
+## ~8h+ cycle (window since 12:22:00Z baseline #54791): 7 new discussions (54792,54798,54838,54843,54857,54907,54908), 7 new issues filed + 0 comments, top theme: two stale-root-cause chronic workflow failures + silent OAuth-token trap
+
+### This cycle's findings and actions (7 new issues filed, 0 comments)
+1. **Filed: re-diagnose `q` workflow's persistent 0.8% success (2/261)** — tracked root-cause fix PR #43527 merged 2026-07-05 (6+ weeks ago) but success rate never recovered; stale lore, needs direct re-investigation (#54798).
+2. **Filed: escalate `cgo` workflow regression to 29.3% success (~29min avg runtime)** — prior memory said "stabilizing" (Jul 8); today's data shows 70.7% failure rate among executed runs, a real regression not a continuation (#54798).
+3. **Filed: verify ai-moderator Copilot-engine switch was applied** — repeatedly recommended across cycles, still only 21/279 triggers executing at 47.6% success; related to open #54242 (Codex exit-1 crash) but distinct ask (#54798).
+4. **Filed: inline YAML fix example for persist-credentials compile error** — verified live at `imported_steps_validation.go` lines 95-101, message tells users to edit `with:` block without showing syntax (#54843).
+5. **Filed: Claude Code OAuth-token silent-rejection warning in quick-start docs** — verified live at `quick-start.mdx:213`, buried as caveat rather than top-line warning, no inline recovery path (#54792).
+6. **Filed: allowlist/scope Smoke Claude's Google-domain firewall blocks** — 32/48 (two-thirds) of all fleet-wide blocks this window, all Google browser-automation domains (#54857).
+7. **Filed: fix engine/permission detection in lockfile-stats analyzer** — first-ever baseline run's own structural heuristics returned empty for both; self-flagged as a follow-up in the report itself (#54908).
+
+### Declined this cycle
+- 190 open issues without assignee + 41 `cascade-suspected` issues (#54838) — informational triage-volume observation, no single specific code fix identified; watch for future auto-triage task if the pattern persists.
+- Copilot-default framing language + missing Claude-equivalent `gh aw init` automation (#54792) — real but lower-impact docs gaps than the OAuth trap; deferred, not dropped — revisit next cycle if unaddressed.
+- smoke-aider inconsistent failure message (#54843) — minor consistency nit, deferred in favor of the 7 higher-impact items.
+- Daily Team Evolution (#54907) — healthy (30 PRs merged/24h), no action.
+- Daily Security Observability (#54857) firewall posture overall (98.9% allowed) — healthy aside from the filed Smoke Claude item; Smoke Pi's single proxy.golang.org block too low-volume to act on alone this cycle.
+
+See [[known_patterns]], [[flagged_items]], [[trend_data]] for details.

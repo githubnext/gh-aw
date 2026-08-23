@@ -133,3 +133,15 @@ Comment added (not counted against quota, avoided a duplicate issue):
 - **2026-08-13**: 7 filed (Sentrux god_files_ceiling gap [resolved], PolicyCompiler seed-rule gap, MCPFailureSummary dup, Test Quality Sentinel pipefail fallback, PR-review infra flakiness [resolved], Matt Pocock fallback, Ponytail Reviewer criteria).
 - **2026-08-12**: 7 filed (coverage.findProfile path bug, misdirected hostname [fixed], gh-aw-detection labels, schema-consistency stale target, GitHubToken shadowing, agenticworkflows logs timeout, label pre-creation docs).
 - **2026-08-11**: 7 filed (inverted strict docs [fixed], repository_dispatch schema enum, README Copilot-default gap, JobStep/JobStepData dup, 4 log-entry structs dup, compiler_types.go split, 49% failure-rate investigation [resolved]).
+
+## 2026-08-23 cycle (baseline #54791 → this cycle)
+
+1. Re-diagnose `q` workflow's persistent 0.8% success rate (source: #54798) — filed.
+2. Escalate `cgo` workflow regression to 29.3% success (source: #54798) — filed.
+3. Verify ai-moderator Copilot-engine switch was applied (source: #54798, related #54242) — filed.
+4. Add inline YAML fix example to persist-credentials compile error (source: #54843, `pkg/workflow/imported_steps_validation.go`) — filed.
+5. Warn Claude Code CLI users their OAuth token is silently ignored (source: #54792, `docs/src/content/docs/setup/quick-start.mdx:213`) — filed.
+6. Allowlist or scope Smoke Claude's Google-domain firewall blocks (source: #54857) — filed.
+7. Fix engine/permission detection in lockfile-stats analyzer (source: #54908) — filed.
+
+Deferred (not filed, lower priority): Copilot-default framing language in docs (#54792); smoke-aider inconsistent failure message (#54843); 190-unassigned/41-cascade-suspected issue volume (#54838, informational only).
