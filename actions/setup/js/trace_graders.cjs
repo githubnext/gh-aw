@@ -7,6 +7,7 @@ const cp = require("child_process");
 const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
+const { calculateWorkingSetFromEntries } = require("./working_set_metrics.cjs");
 
 // --- Constants ---
 const TMP_GH_AW = "/tmp/gh-aw";
@@ -316,6 +317,7 @@ const BUILTIN_META = {
   "trajectory-efficiency": { unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
   "execution-step-count": { unit: "count", direction: "lower_is_better" },
   "execution-duration": { unit: "ms", direction: "lower_is_better" },
+  "working-set-rebuild-factor": { unit: "factor", direction: "lower_is_better", min: 1 },
   "context-growth": { unit: "factor", direction: "lower_is_better" },
   "artifact-production": { unit: "count", direction: "higher_is_better" },
 };
@@ -377,6 +379,12 @@ function gradeExecutionDuration(trace) {
   return trace.totalDurationMs;
 }
 
+/** @param {PreprocessedTrace} trace @returns {number|null} */
+function gradeWorkingSetRebuildFactor(trace) {
+  const { workingSet } = calculateWorkingSetFromEntries(trace.tokenUsageEntries);
+  return workingSet.rebuild_factor ?? null;
+}
+
 /** @param {PreprocessedTrace} trace @returns {number} */
 function gradeContextGrowth(trace) {
   if (trace.tokenUsageEntries.length < 2) return 1;
@@ -392,7 +400,7 @@ function gradeArtifactProduction(trace) {
   return trace.artifacts.length;
 }
 
-/** @type {Record<string, (trace: PreprocessedTrace) => number>} */
+/** @type {Record<string, (trace: PreprocessedTrace) => number|null>} */
 const BUILTIN_GRADERS = {
   "tool-success-rate": gradeToolSuccessRate,
   "tool-failure-count": gradeToolFailureCount,
@@ -401,6 +409,7 @@ const BUILTIN_GRADERS = {
   "trajectory-efficiency": gradeTrajectoryEfficiency,
   "execution-step-count": gradeExecutionStepCount,
   "execution-duration": gradeExecutionDuration,
+  "working-set-rebuild-factor": gradeWorkingSetRebuildFactor,
   "context-growth": gradeContextGrowth,
   "artifact-production": gradeArtifactProduction,
 };
@@ -798,6 +807,7 @@ module.exports = {
   gradeTrajectoryEfficiency,
   gradeExecutionStepCount,
   gradeExecutionDuration,
+  gradeWorkingSetRebuildFactor,
   gradeContextGrowth,
   gradeArtifactProduction,
 };

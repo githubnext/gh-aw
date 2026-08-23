@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -57,14 +58,19 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 	if continueOnError {
 		steps = append(steps, "        continue-on-error: true\n")
 	}
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")))
+	downloadAction := pinAction("actions/download-artifact")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", downloadAction))
 	steps = append(steps, "        with:\n")
 	if config.FallbackArtifact != "" {
-		// Match both artifacts with a single brace-expanded pattern and merge their contents into
-		// the download path. The primary artifact may be missing when its (best-effort) upload
-		// failed; the fallback artifact then supplies the critical files.
-		steps = append(steps, fmt.Sprintf("          pattern: \"{%s,%s}\"\n", config.ArtifactName, config.FallbackArtifact))
-		steps = append(steps, "          merge-multiple: true\n")
+		if downloadArtifactSupportsPattern(downloadAction) {
+			// Match both artifacts with a single brace-expanded pattern and merge their contents into
+			// the download path. The primary artifact may be missing when its (best-effort) upload
+			// failed; the fallback artifact then supplies the critical files.
+			steps = append(steps, fmt.Sprintf("          pattern: \"{%s,%s}\"\n", config.ArtifactName, config.FallbackArtifact))
+			steps = append(steps, "          merge-multiple: true\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
+		}
 	} else {
 		steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
 	}
@@ -94,4 +100,19 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 	}
 
 	return steps
+}
+
+func downloadArtifactSupportsPattern(actionRef string) bool {
+	version := extractActionVersion(actionRef)
+	return !strings.HasPrefix(version, "v3") && !strings.Contains(version, "# v3.")
+}
+
+func downloadArtifactInputLines(artifactName, actionRef string) []string {
+	if downloadArtifactSupportsPattern(actionRef) {
+		return []string{
+			fmt.Sprintf("          pattern: %s\n", artifactName),
+			"          merge-multiple: true\n",
+		}
+	}
+	return []string{fmt.Sprintf("          name: %s\n", artifactName)}
 }

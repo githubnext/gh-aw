@@ -36,6 +36,7 @@ const {
   gradeTrajectoryEfficiency,
   gradeExecutionStepCount,
   gradeExecutionDuration,
+  gradeWorkingSetRebuildFactor,
   gradeContextGrowth,
   gradeArtifactProduction,
 } = require("./trace_graders.cjs");
@@ -262,6 +263,30 @@ describe("trace_graders", () => {
   describe("gradeExecutionDuration", () => {
     it("returns total duration", () => {
       expect(gradeExecutionDuration(makeTrace({ totalDurationMs: 12345 }))).toBe(12345);
+    });
+  });
+
+  describe("gradeWorkingSetRebuildFactor", () => {
+    it("computes cumulative input relative to the peak invocation", () => {
+      const trace = makeTrace({
+        tokenUsageEntries: [{ input_tokens: 100_000 }, { input_tokens: 150_000 }, { input_tokens: 200_000 }, { input_tokens: 200_000 }, { input_tokens: 224_000 }],
+      });
+      expect(gradeWorkingSetRebuildFactor(trace)).toBeCloseTo(874_000 / 224_000);
+    });
+
+    it("returns null when no positive input-token measurement is available", () => {
+      expect(gradeWorkingSetRebuildFactor(makeTrace())).toBeNull();
+      expect(gradeWorkingSetRebuildFactor(makeTrace({ tokenUsageEntries: [{ input_tokens: 0 }] }))).toBeNull();
+    });
+
+    it("uses canonical input tokens without adding cache token fields", () => {
+      const trace = makeTrace({
+        tokenUsageEntries: [
+          { input_tokens: 10, cache_read_tokens: 1_000 },
+          { input_tokens: 20, cache_write_tokens: 1_000 },
+        ],
+      });
+      expect(gradeWorkingSetRebuildFactor(trace)).toBe(1.5);
     });
   });
 
@@ -619,7 +644,7 @@ describe("trace_graders", () => {
 
   // --- All built-in graders are registered ---
   describe("built-in grader registry", () => {
-    const expectedIds = ["tool-success-rate", "tool-failure-count", "retries", "loops", "trajectory-efficiency", "execution-step-count", "execution-duration", "context-growth", "artifact-production"];
+    const expectedIds = ["tool-success-rate", "tool-failure-count", "retries", "loops", "trajectory-efficiency", "execution-step-count", "execution-duration", "working-set-rebuild-factor", "context-growth", "artifact-production"];
 
     it("has all expected built-in graders", () => {
       for (const id of expectedIds) {

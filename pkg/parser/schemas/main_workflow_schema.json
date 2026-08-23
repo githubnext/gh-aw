@@ -2955,6 +2955,12 @@
           "default": false,
           "description": "Mark the workflow as one that is intentionally expected to fail (e.g., guardrail stress-tests). Workflows tagged with features.intentional-failure: true are excluded from fleet-health and prod-main success-rate rollups so they do not depress real-regression baselines.",
           "examples": [true, false]
+        },
+        "samples": {
+          "type": "boolean",
+          "default": false,
+          "description": "Internal hidden feature. Replace the agentic step with the deterministic safe-outputs samples replay driver for this workflow, exactly as the hidden `gh aw compile --use-samples` flag does globally. Use it for workflows that are designed around `safe-outputs.*.samples` so a plain `gh aw compile` keeps producing the samples-mode lock file. Threat detection is force-disabled when enabled.",
+          "examples": [true, false]
         }
       },
       "examples": [
@@ -7150,9 +7156,13 @@
                     }
                   ]
                 },
-                "fork": {
-                  "type": "boolean",
-                  "description": "Allow approval of workflow runs associated with fork pull requests. Defaults to false."
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Repositories in format 'owner/repo' whose pull requests may have their workflow runs approved, in addition to the current repository which is always allowed. Use this to allow fork pull requests. Supports wildcard patterns such as 'org/*'."
                 },
                 "comment": {
                   "type": "boolean",

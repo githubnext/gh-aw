@@ -535,6 +535,16 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.SafeOutputs = mergedSafeOutputs
 
+	// Force-disable threat detection when samples replay is active. This mirrors the
+	// force-disable in extractSafeOutputsConfig, but is re-applied here because
+	// workflowData.UseSamples can become true only after imported `features.samples: true`
+	// is folded in (see samplesEnabledFromImports), which happens after the main
+	// frontmatter's safe-outputs were first extracted.
+	if workflowData.UseSamples && workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ThreatDetection != nil {
+		orchestratorWorkflowLog.Print("Disabling threat-detection because samples replay is enabled (via imports)")
+		workflowData.SafeOutputs.ThreatDetection = nil
+	}
+
 	// Apply default threat detection when safe-outputs came entirely from imports/includes
 	// (i.e. the main frontmatter has no safe-outputs: section). In this case the merge
 	// produces a non-nil SafeOutputs but leaves ThreatDetection nil, which would suppress

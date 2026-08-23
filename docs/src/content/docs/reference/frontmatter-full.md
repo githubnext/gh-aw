@@ -1839,6 +1839,15 @@ features:
   # (optional)
   intentional-failure: true
 
+  # Internal hidden feature. Replace the agentic step with the deterministic
+  # safe-outputs samples replay driver for this workflow, exactly as the hidden `gh
+  # aw compile --use-samples` flag does globally. Use it for workflows that are
+  # designed around `safe-outputs.*.samples` so a plain `gh aw compile` keeps
+  # producing the samples-mode lock file. Threat detection is force-disabled when
+  # enabled.
+  # (optional)
+  samples: true
+
 # Model policy and optional pricing configuration. The policy fields
 # (allowed/blocked) are experimental and merged as unions across imports. The
 # providers field is optional and supplies pricing data merged by provider/model
@@ -8180,10 +8189,13 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
-    # Allow approval of workflow runs associated with fork pull requests. Defaults to
-    # false.
+    # Repositories in format 'owner/repo' whose pull requests may have their workflow
+    # runs approved, in addition to the current repository which is always allowed.
+    # Use this to allow fork pull requests. Supports wildcard patterns such as
+    # 'org/*'.
     # (optional)
-    fork: true
+    allowed-repos: []
+      # Array of strings
 
     # Post a comment on the pull request associated with the approved workflow run
     # announcing that the run has started. Defaults to true; set to false to disable.

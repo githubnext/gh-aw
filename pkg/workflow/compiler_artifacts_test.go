@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func extractWorkflowStepByName(t *testing.T, workflowYAML, stepName string) string {
@@ -34,6 +35,59 @@ func extractWorkflowStepByName(t *testing.T, workflowYAML, stepName string) stri
 		stepSection = stepSection[:next+1]
 	}
 	return stepSection
+}
+
+func TestArtifactDownloadSingleArtifactUsesExactName(t *testing.T) {
+	steps := strings.Join(buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "detection",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		StepName:     "Download detection artifact",
+		StepID:       "download-detection-artifact",
+	}, getActionPin), "")
+
+	assert.Contains(t, steps, "name: detection", "single-artifact downloads should use exact names to avoid ambiguous multi-match merges")
+	assert.NotContains(t, steps, "pattern: detection", "single-artifact downloads should not use pattern matching")
+	assert.NotContains(t, steps, "merge-multiple: true", "single-artifact downloads should not merge multiple matches")
+}
+
+func TestArtifactDownloadFallbackUsesPatternWhenSupported(t *testing.T) {
+	steps := strings.Join(buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName:     "agent",
+		FallbackArtifact: "agent-output-fallback",
+		DownloadPath:     "/tmp/gh-aw/",
+		StepName:         "Download agent output artifact",
+	}, getActionPin), "")
+
+	assert.Contains(t, steps, `pattern: "{agent,agent-output-fallback}"`, "fallback downloads should intentionally match both candidate artifact names")
+	assert.Contains(t, steps, "merge-multiple: true", "fallback downloads should merge both candidate artifact contents")
+	assert.NotContains(t, steps, "name: agent\n", "fallback downloads should not use exact-name downloads when pattern matching is supported")
+}
+
+func TestArtifactDownloadFallbackUsesNameWithDownloadArtifactV3(t *testing.T) {
+	steps := strings.Join(buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName:     "agent",
+		FallbackArtifact: "agent-output-fallback",
+		DownloadPath:     "/tmp/gh-aw/",
+		StepName:         "Download agent output artifact",
+	}, func(string) string {
+		return "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0"
+	}), "")
+
+	assert.Contains(t, steps, "name: agent\n", "download-artifact v3 only supports exact name downloads")
+	assert.NotContains(t, steps, "pattern:", "download-artifact v3 should not receive unsupported pattern input")
+	assert.NotContains(t, steps, "merge-multiple:", "download-artifact v3 should not receive unsupported merge-multiple input")
+}
+
+func TestDownloadArtifactInputLinesUsePatternOnlyWhenSupported(t *testing.T) {
+	v4Lines := strings.Join(downloadArtifactInputLines("evals", "actions/download-artifact@abc123 # v4.3.0"), "")
+	assert.Contains(t, v4Lines, "pattern: evals")
+	assert.Contains(t, v4Lines, "merge-multiple: true")
+	assert.NotContains(t, v4Lines, "name: evals")
+
+	v3Lines := strings.Join(downloadArtifactInputLines("evals", "actions/download-artifact@abc123 # v3.1.0"), "")
+	assert.Contains(t, v3Lines, "name: evals")
+	assert.NotContains(t, v3Lines, "pattern: evals")
+	assert.NotContains(t, v3Lines, "merge-multiple: true")
 }
 
 func TestAccessLogUploadConditional(t *testing.T) {
