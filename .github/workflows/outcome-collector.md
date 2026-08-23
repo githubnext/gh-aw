@@ -14,10 +14,9 @@ permissions:
   actions: read
   discussions: read
 tracker-id: outcome-collector
-model: claude-haiku-4.5
+model: copilot/mai-code-1-flash-picker
 engine:
-  id: copilot
-  bare: true
+  id: codex
 strict: true
 timeout-minutes: 20
 network:

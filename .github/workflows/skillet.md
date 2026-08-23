@@ -18,7 +18,8 @@ permissions:
   issues: read
   copilot-requests: write
 engine:
-  id: copilot
+  id: codex
+model: copilot/mai-code-1-flash-picker
 imports:
   - uses: shared/pr-review-base.md
     with:

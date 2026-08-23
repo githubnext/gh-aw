@@ -21,7 +21,8 @@ permissions:
 concurrency:
   job-discriminator: ${{ inputs.organization || github.run_id }}
 
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 timeout-minutes: 45
 

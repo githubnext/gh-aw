@@ -11,7 +11,8 @@ on:
 permissions:
   issues: read
 tracker-id: weekly-issue-summary
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 network:
   allowed:
     - defaults

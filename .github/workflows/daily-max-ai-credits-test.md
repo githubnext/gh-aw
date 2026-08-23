@@ -14,7 +14,8 @@ permissions:
   issues: read
   copilot-requests: write
 engine:
-  id: copilot
+  id: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 sandbox:
   agent:

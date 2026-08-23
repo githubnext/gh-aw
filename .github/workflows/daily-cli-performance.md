@@ -37,9 +37,8 @@ permissions:
   copilot-requests: write
 tracker-id: daily-cli-performance
 engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
+  id: codex
+model: copilot/mai-code-1-flash-picker
 tools:
   cli-proxy: true
   repo-memory:

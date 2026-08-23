@@ -12,7 +12,8 @@ permissions:
   pull-requests: read
 
 
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 
 tools:
   cli-proxy: true
