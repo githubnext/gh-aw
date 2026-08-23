@@ -22,93 +22,101 @@ func TestDecideExperiment(t *testing.T) {
 	tests := []struct {
 		name       string
 		analysis   ExperimentAnalysis
-		want       string
-		reasonCode string
+		want       ExperimentDecision
+		reasonCode ExperimentDecisionReasonCode
 		normalized float64
 		hasEffect  bool
 	}{
 		{
 			name:     "below minimum samples extends",
 			analysis: decisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionExtend, reasonCode: "insufficient_samples",
+			want:     ExperimentDecisionExtend, reasonCode: ExperimentDecisionReasonInsufficientSamples,
 		},
 		{
 			name:     "max direction material improvement promotes",
 			analysis: readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: 0.2, hasEffect: true,
+			want:     ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved, normalized: 0.2, hasEffect: true,
 		},
 		{
 			name:     "min direction material improvement promotes",
 			analysis: readyDecisionTestAnalysis("min", -1200, &pValueStrong, nil, 500, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: 1200, hasEffect: true,
+			want:     ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved, normalized: 1200, hasEffect: true,
 		},
 		{
 			name:     "max direction material regression rejects",
 			analysis: readyDecisionTestAnalysis("max", -0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: -0.2, hasEffect: true,
+			want:     ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonCandidateRegressed, normalized: -0.2, hasEffect: true,
 		},
 		{
 			name:     "min direction material regression rejects",
 			analysis: readyDecisionTestAnalysis("min", 1200, &pValueStrong, nil, 500, nil),
-			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: -1200, hasEffect: true,
+			want:     ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonCandidateRegressed, normalized: -1200, hasEffect: true,
 		},
 		{
 			name:     "significant tiny effect is inconclusive",
 			analysis: readyDecisionTestAnalysis("max", 0.001, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionInconclusive, reasonCode: "effect_below_threshold",
+			want:     ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonEffectBelowThreshold,
 		},
 		{
 			name:     "large effect without evidence is inconclusive",
 			analysis: readyDecisionTestAnalysis("max", 0.2, &pValueWeak, nil, 0.05, nil),
-			want:     experimentDecisionInconclusive, reasonCode: "evidence_insufficient",
+			want:     ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonEvidenceInsufficient,
 		},
 		{
 			name: "failed guardrail rejects before primary promotion",
 			analysis: withDecisionTestGuardrail(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-				GuardrailStatus{Name: "grader:failures", Status: "fail", Passed: &failed},
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusFail, Passed: &failed},
 			),
-			want: experimentDecisionReject, reasonCode: "guardrail_failed",
+			want: ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonGuardrailFailed,
+		},
+		{
+			name: "failed guardrail rejects without primary comparison",
+			analysis: withoutDecisionTestComparison(withDecisionTestGuardrail(
+				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusFail, Passed: &failed},
+			)),
+			want: ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonGuardrailFailed,
 		},
 		{
 			name: "missing guardrail extends",
 			analysis: withDecisionTestGuardrail(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-				GuardrailStatus{Name: "grader:failures", Status: "missing"},
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusMissing},
 			),
-			want: experimentDecisionExtend, reasonCode: "insufficient_observations",
+			want: ExperimentDecisionExtend, reasonCode: ExperimentDecisionReasonInsufficientObservations,
 		},
 		{
 			name: "passed guardrail allows promotion",
 			analysis: withDecisionTestGuardrail(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-				GuardrailStatus{Name: "grader:failures", Status: "pass", Passed: &passed},
+				GuardrailStatus{Name: "grader:failures", Status: GuardrailStatusPass, Passed: &passed},
 			),
-			want: experimentDecisionPromote, reasonCode: "candidate_improved",
+			want: ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved,
 		},
 		{
 			name:     "bayesian material improvement promotes",
 			analysis: readyDecisionTestAnalysis("max", 0.2, nil, &bayesianStrong, 0.05, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved",
+			want:     ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved,
 		},
 		{
 			name:     "bayesian uncertain result is inconclusive",
 			analysis: readyDecisionTestAnalysis("max", 0.2, nil, &bayesianWeak, 0.05, nil),
-			want:     experimentDecisionInconclusive, reasonCode: "evidence_insufficient",
+			want:     ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonEvidenceInsufficient,
 		},
 		{
 			name: "multi variant decision is explicitly unsupported",
 			analysis: withThirdDecisionTestVariant(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
 			),
-			want: experimentDecisionInconclusive, reasonCode: "unsupported_multi_variant",
+			want: ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonUnsupportedMultiVariant,
 		},
 		{
 			name: "multi variant with undersampled arm is still unsupported",
 			analysis: withThirdDecisionTestVariant(
 				decisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
 			),
-			want: experimentDecisionInconclusive, reasonCode: "unsupported_multi_variant",
+			want: ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonUnsupportedMultiVariant,
 		},
 	}
 
@@ -188,6 +196,11 @@ func withDecisionTestGuardrail(analysis ExperimentAnalysis, guardrail GuardrailS
 	return analysis
 }
 
+func withoutDecisionTestComparison(analysis ExperimentAnalysis) ExperimentAnalysis {
+	analysis.Comparisons = nil
+	return analysis
+}
+
 func withThirdDecisionTestVariant(analysis ExperimentAnalysis) ExperimentAnalysis {
 	mean := 1.1
 	analysis.Variants = append(analysis.Variants, VariantAnalysis{
@@ -204,24 +217,24 @@ func TestApplyExperimentGuardrails(t *testing.T) {
 		threshold     string
 		controlValues []float64
 		candidateVals []float64
-		wantStatus    string
+		wantStatus    GuardrailStatusCode
 		wantPassed    bool
 		hasPassed     bool
 	}{
 		{
 			name: "max guardrail passes", direction: "max", threshold: ">=0.8",
 			controlValues: []float64{1, 1}, candidateVals: []float64{1, 1},
-			wantStatus: "pass", wantPassed: true, hasPassed: true,
+			wantStatus: GuardrailStatusPass, wantPassed: true, hasPassed: true,
 		},
 		{
 			name: "min guardrail fails", direction: "min", threshold: "0",
 			controlValues: []float64{0, 0}, candidateVals: []float64{1, 1},
-			wantStatus: "fail", wantPassed: false, hasPassed: true,
+			wantStatus: GuardrailStatusFail, wantPassed: false, hasPassed: true,
 		},
 		{
 			name: "missing observations do not pass", direction: "max", threshold: ">=0.8",
 			controlValues: []float64{1, 1}, candidateVals: []float64{1},
-			wantStatus: "insufficient_observations",
+			wantStatus: GuardrailStatusInsufficientObservations,
 		},
 	}
 
@@ -231,7 +244,8 @@ func TestApplyExperimentGuardrails(t *testing.T) {
 				MinSamples: 2,
 				Variants:   []VariantAnalysis{{Name: "control"}, {Name: "candidate"}},
 				Guardrails: []GuardrailStatus{{
-					Name: "grader:guardrail", Direction: test.direction, Threshold: test.threshold, Status: "unsupported",
+					Name: "grader:guardrail", Direction: test.direction, Threshold: test.threshold,
+					Status: GuardrailStatusUnsupported,
 				}},
 			}
 			set := &graderMetricObservationSet{ByVariant: map[string][]GraderMetricObservation{

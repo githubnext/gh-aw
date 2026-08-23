@@ -352,10 +352,38 @@ Bayesian comparisons available for grader-backed metrics are applied to the YES/
 
 ### Deterministic decisions
 
-`gh aw experiments analyze <workflow>` separates assignment, statistical analysis, decision,
-and promotion. Assignment records which variant ran. Analysis estimates effects and evidence.
-The decision layer applies the configured policy. It does not edit the workflow, change traffic,
-or promote a variant.
+`gh aw experiments analyze <workflow>` keeps each experiment stage distinct:
+
+| Stage | Question answered |
+|---|---|
+| Assignment | Which variant ran? |
+| Observation | What happened during the assigned run? |
+| Analysis | What treatment effect and evidence were estimated? |
+| Readiness | Are there enough usable observations for normal analysis? |
+| Decision | Should collection extend, or should the candidate be promoted, rejected, or remain inconclusive? |
+| Promotion | What future automation changes the workflow or traffic? |
+
+The command performs the stages through decision. It does not promote a variant, edit the workflow,
+or change traffic. `readiness` is `COLLECTING` or `READY`; the legacy `recommendation` field remains
+`EXTEND` or `READY_FOR_ANALYSIS` for compatibility. A ready experiment can still have an
+`INCONCLUSIVE` decision.
+
+The complete flow is:
+
+```text
+variant assignment
+→ run observation (for example, a grader value)
+→ statistical analysis
+→ readiness
+→ deterministic decision
+```
+
+Assignment identifies the treatment (`control` or `candidate`); it is not an outcome. Observation
+records what happened during that assigned run. Analysis estimates the effect and evidence.
+Readiness only answers whether every variant has reached `min_samples`: usable primary-metric
+observations for observation-backed metrics, or assignment counts when no supported observation
+source is resolved. The decision then applies policy and mandatory guardrails to the existing
+analysis.
 
 For two-variant experiments, the command emits one of these decisions:
 
@@ -365,6 +393,12 @@ For two-variant experiments, the command emits one of these decisions:
 | `PROMOTE` | The candidate has sufficient statistical evidence, exceeds the practical-effect threshold, and passes all guardrails. |
 | `REJECT` | The candidate materially regresses or fails a mandatory guardrail. |
 | `INCONCLUSIVE` | Minimum samples exist, but the evidence or practical effect does not establish a winner. |
+
+In particular, `EXTEND` means that evidence collection or computation is incomplete.
+`INCONCLUSIVE` means that the engine could adjudicate the available evidence, but it did not
+establish a decision-quality improvement or regression. A candidate that fails to prove an
+improvement is not automatically harmful; `REJECT` requires a failed guardrail or sufficient
+evidence of a material regression.
 
 The `decision` configuration uses absolute primary-metric units. `minimum_effect` defaults to
 `0`. `regression_tolerance` defaults to `minimum_effect`. `confidence` defaults to `0.95`.
@@ -376,6 +410,81 @@ Grader direction supplies this metadata, while eval metrics default to higher-is
 Native metric names without resolved per-run observations return `EXTEND` rather than guessing.
 Automatic decisions for experiments with more than two variants return `INCONCLUSIVE`.
 
+For example, with `direction: max`, a grader increase from `0.80` to `0.84` has an absolute
+effect of `+0.04`. If `minimum_effect` is `0.05`, even a statistically significant result is
+`INCONCLUSIVE` with `effect_below_threshold`. With `direction: min`, a duration decrease from
+10 seconds to 8 seconds has a raw absolute effect of `-2`, but a normalized effect of `+2`;
+users do not reverse lower-is-better metrics themselves.
+
+Mandatory guardrails take precedence over the primary metric. A primary-metric improvement cannot
+override a failed guardrail:
+
+```text
+Primary metric: +12%
+Tool-failure guardrail: FAIL
+Decision: REJECT (guardrail_failed)
+```
+
+Missing or undersampled guardrail observations do not pass. They produce `EXTEND` with
+`insufficient_observations`; an unsupported guardrail metric produces `EXTEND` with
+`guardrail_unsupported`.
+
+#### Human-readable output
+
+The decision portion of the default CLI output uses these fields:
+
+```text
+  Readiness  : READY
+
+  READY FOR ANALYSIS — all 2 variants have reached min_samples (20); outcome metric analysis is available
+
+  Decision   : PROMOTE candidate
+  Reason     : candidate materially improves the primary metric with sufficient evidence and all guardrails pass (candidate_improved)
+```
+
+An adequately sampled result without sufficient evidence remains distinct:
+
+```text
+  Readiness  : READY
+
+  READY FOR ANALYSIS — all 2 variants have reached min_samples (20); outcome metric analysis is available
+
+  Decision   : INCONCLUSIVE
+  Reason     : minimum samples are available but the configured evidence threshold is not satisfied (evidence_insufficient)
+```
+
+While observations are still accumulating, output instead includes:
+
+```text
+  Readiness  : COLLECTING
+
+  EXTEND — 1 of 2 variant(s) below min_samples threshold (min observed: 19 / 20)
+
+  Decision   : EXTEND
+  Reason     : one or more variants have fewer usable observations than min_samples (insufficient_samples)
+```
+
+#### Reason codes
+
+`reason_code` is the stable machine-readable explanation for the core decision:
+
+| Reason code | Interpretation |
+|---|---|
+| `insufficient_samples` | At least one variant has fewer than `min_samples` usable observations. |
+| `insufficient_observations` | A required comparison or mandatory guardrail lacks usable observations. |
+| `candidate_improved` | The candidate has sufficient evidence of an improvement meeting `minimum_effect`. |
+| `candidate_regressed` | The candidate has sufficient evidence of a regression exceeding `regression_tolerance`. |
+| `guardrail_failed` | A mandatory guardrail failed; this overrides a primary-metric win. |
+| `guardrail_unsupported` | A mandatory guardrail is not backed by a supported observation source. |
+| `effect_below_threshold` | Evidence is sufficient, but the practical effect does not meet the configured threshold. |
+| `evidence_insufficient` | Samples are ready, but the configured frequentist or Bayesian evidence threshold is not met. |
+| `unsupported_multi_variant` | Automatic decisions currently require exactly two variants. |
+| `analysis_unavailable` | The configured analysis cannot produce the required effect or evidence. |
+
+`interaction_underpowered` is not a core reason code. The daily experiment report uses it only for
+a presentation-level safety hold when simultaneous-experiment cells are sparse. It preserves the
+core decision and reports `report_action: EXTEND`.
+
 Use `--json` for the stable automation boundary:
 
 ```bash
@@ -383,10 +492,77 @@ gh aw experiments analyze <workflow> --json
 ```
 
 Each entry in `analyses` includes `decision`, `reason_code`, `samples`, `decision_guardrails`, and
-`decision_policy`. `control`, `candidate`, `effect`, and `evidence` are emitted when those values
-are available for the decision path (for example two-variant statistical comparisons); early `EXTEND`
-and multi-variant `INCONCLUSIVE` results may omit them. Future promotion automation can consume these
-fields without rerunning statistics or interpreting grader artifacts.
+`decision_policy`, alongside the separate `readiness` field. `control`, `candidate`, `effect`, and
+`evidence` are emitted when those values are available for the decision path (for example
+two-variant statistical comparisons); early `EXTEND` and multi-variant `INCONCLUSIVE` results may
+omit them. Future promotion automation can consume these fields without rerunning statistics or
+interpreting grader artifacts.
+
+A ready two-variant result can contain:
+
+```json
+{
+  "decision": "PROMOTE",
+  "reason_code": "candidate_improved",
+  "reason": "candidate materially improves the primary metric with sufficient evidence and all guardrails pass",
+  "control": "control",
+  "candidate": "candidate",
+  "direction": "max",
+  "samples": {
+    "control": 20,
+    "candidate": 20
+  },
+  "effect": {
+    "absolute": 0.08,
+    "relative": 0.1,
+    "normalized_absolute": 0.08
+  },
+  "evidence": {
+    "analysis_type": "mann_whitney",
+    "significant": true,
+    "p_value": 0.01
+  },
+  "decision_guardrails": {
+    "configured": true,
+    "passed": true
+  },
+  "decision_policy": {
+    "minimum_effect": 0.05,
+    "regression_tolerance": 0.05,
+    "confidence": 0.95
+  },
+  "experiment_name": "prompt_v2",
+  "analysis_type": "mann_whitney",
+  "metric": "grader:trajectory-efficiency",
+  "min_samples": 20,
+  "readiness": "READY",
+  "recommendation": "READY_FOR_ANALYSIS"
+}
+```
+
+The stable automation boundary is `analyses[].readiness`, `analyses[].decision`, and
+`analyses[].reason_code`. Reporting workflows may add a presentation or interaction-safety hold,
+but must preserve the core decision rather than recomputing it.
+
+The core CLI supports all four analysis methods (`t_test`, `mann_whitney`, `proportion_test`, and
+`bayesian_ab`). Frequentist methods provide p-value evidence. Bayesian analysis provides
+`probability_superiority`; it is significant when that probability is at least `confidence` or at
+most `1-confidence`, and it is never described as a p-value.
+
+The daily experiment report consumes this structured core decision. It does not independently
+recompute the decision policy. Its only additional outcome handling is the interaction safety hold
+described above. Older reporting terminology such as `ABANDON`, and guardrail statuses such as
+`GUARDRAIL_FAILED`, are not core decision values.
+
+Existing experiment configurations remain compatible. Analysis still defaults to 20 samples per
+variant and the configured or inferred statistical method. A deterministic `decision` is emitted
+even when no `decision:` block exists, using `minimum_effect: 0`, `regression_tolerance: 0`, and
+`confidence: 0.95`. The legacy `recommendation` remains in JSON. No migration is required.
+
+Decisions are only as meaningful as their configured observations. A grader measures the behavior
+it encodes, not universal task correctness. Low-frequency or heterogeneous tasks may need larger
+samples, simultaneous experiments can complicate attribution, and no observed regression proves
+only the configured evidence—not universal non-regression.
 
 ### Filtering audit results by variant
 

@@ -7,11 +7,30 @@ import (
 
 const defaultDecisionConfidence = 0.95
 
+// ExperimentDecision is the stable deterministic conclusion for an experiment.
+type ExperimentDecision string
+
 const (
-	experimentDecisionExtend       = "EXTEND"
-	experimentDecisionPromote      = "PROMOTE"
-	experimentDecisionReject       = "REJECT"
-	experimentDecisionInconclusive = "INCONCLUSIVE"
+	ExperimentDecisionExtend       ExperimentDecision = "EXTEND"
+	ExperimentDecisionPromote      ExperimentDecision = "PROMOTE"
+	ExperimentDecisionReject       ExperimentDecision = "REJECT"
+	ExperimentDecisionInconclusive ExperimentDecision = "INCONCLUSIVE"
+)
+
+// ExperimentDecisionReasonCode is the stable machine-readable reason for a decision.
+type ExperimentDecisionReasonCode string
+
+const (
+	ExperimentDecisionReasonInsufficientSamples      ExperimentDecisionReasonCode = "insufficient_samples"
+	ExperimentDecisionReasonInsufficientObservations ExperimentDecisionReasonCode = "insufficient_observations"
+	ExperimentDecisionReasonCandidateImproved        ExperimentDecisionReasonCode = "candidate_improved"
+	ExperimentDecisionReasonCandidateRegressed       ExperimentDecisionReasonCode = "candidate_regressed"
+	ExperimentDecisionReasonGuardrailFailed          ExperimentDecisionReasonCode = "guardrail_failed"
+	ExperimentDecisionReasonGuardrailUnsupported     ExperimentDecisionReasonCode = "guardrail_unsupported"
+	ExperimentDecisionReasonEffectBelowThreshold     ExperimentDecisionReasonCode = "effect_below_threshold"
+	ExperimentDecisionReasonEvidenceInsufficient     ExperimentDecisionReasonCode = "evidence_insufficient"
+	ExperimentDecisionReasonUnsupportedMultiVariant  ExperimentDecisionReasonCode = "unsupported_multi_variant"
+	ExperimentDecisionReasonAnalysisUnavailable      ExperimentDecisionReasonCode = "analysis_unavailable"
 )
 
 // ExperimentDecisionPolicy is the normalized deterministic policy used to interpret analysis.
@@ -44,8 +63,8 @@ type ExperimentDecisionGuardrails struct {
 
 // ExperimentDecisionResult is the stable, machine-readable deterministic recommendation.
 type ExperimentDecisionResult struct {
-	Decision       string                       `json:"decision"`
-	ReasonCode     string                       `json:"reason_code"`
+	Decision       ExperimentDecision           `json:"decision"`
+	ReasonCode     ExperimentDecisionReasonCode `json:"reason_code"`
 	DecisionReason string                       `json:"reason"`
 	Control        string                       `json:"control,omitempty"`
 	Candidate      string                       `json:"candidate,omitempty"`
@@ -64,39 +83,39 @@ func DecideExperiment(analysis ExperimentAnalysis) ExperimentDecisionResult {
 	result.Samples = decisionSampleCounts(analysis.Variants, analysis.UsesMetricObservations)
 	result.Control, result.Candidate = decisionVariants(analysis)
 	if len(analysis.Variants) < 2 {
-		return result.withDecision(experimentDecisionExtend, "insufficient_observations",
+		return result.withDecision(ExperimentDecisionExtend, ExperimentDecisionReasonInsufficientObservations,
 			"at least two variants are required for a decision")
 	}
 	if len(analysis.Variants) != 2 {
-		return result.withDecision(experimentDecisionInconclusive, "unsupported_multi_variant",
+		return result.withDecision(ExperimentDecisionInconclusive, ExperimentDecisionReasonUnsupportedMultiVariant,
 			"automatic decisions currently require exactly two variants")
 	}
 	if hasVariantBelowMinimum(analysis.Variants) {
-		return result.withDecision(experimentDecisionExtend, "insufficient_samples",
+		return result.withDecision(ExperimentDecisionExtend, ExperimentDecisionReasonInsufficientSamples,
 			"one or more variants have fewer usable observations than min_samples")
 	}
-
-	comparison := decisionComparison(analysis.Comparisons)
-	if comparison == nil {
-		return result.withDecision(experimentDecisionExtend, "insufficient_observations",
-			"primary metric observations are not available for statistical comparison")
-	}
-	result.Control = comparison.ControlVariant
-	result.Candidate = comparison.Variant
 
 	if guardrailDecision, decided := decideGuardrails(result, analysis.Guardrails); decided {
 		return guardrailDecision
 	}
 
+	comparison := decisionComparison(analysis.Comparisons)
+	if comparison == nil {
+		return result.withDecision(ExperimentDecisionExtend, ExperimentDecisionReasonInsufficientObservations,
+			"primary metric observations are not available for statistical comparison")
+	}
+	result.Control = comparison.ControlVariant
+	result.Candidate = comparison.Variant
+
 	if comparison.Error != "" {
-		return result.withDecision(experimentDecisionExtend, "analysis_unavailable",
+		return result.withDecision(ExperimentDecisionExtend, ExperimentDecisionReasonAnalysisUnavailable,
 			"statistical analysis is not computable: "+comparison.Error)
 	}
 
 	result.Effect = decisionEffect(analysis, *comparison)
 	result.Evidence = decisionEvidence(result.Policy, *comparison)
 	if result.Effect == nil || result.Evidence == nil {
-		return result.withDecision(experimentDecisionExtend, "analysis_unavailable",
+		return result.withDecision(ExperimentDecisionExtend, ExperimentDecisionReasonAnalysisUnavailable,
 			"effect or statistical evidence is unavailable")
 	}
 
@@ -104,27 +123,27 @@ func DecideExperiment(analysis ExperimentAnalysis) ExperimentDecisionResult {
 	improvementMaterial := normalized > 0 && normalized >= result.Policy.MinimumEffect
 	regressionMaterial := normalized < 0 && -normalized > result.Policy.RegressionTolerance
 	if result.Evidence.Significant && regressionMaterial {
-		return result.withDecision(experimentDecisionReject, "candidate_regressed",
+		return result.withDecision(ExperimentDecisionReject, ExperimentDecisionReasonCandidateRegressed,
 			"candidate materially regresses the primary metric with sufficient evidence")
 	}
 	if result.Evidence.Significant && improvementMaterial {
-		return result.withDecision(experimentDecisionPromote, "candidate_improved",
+		return result.withDecision(ExperimentDecisionPromote, ExperimentDecisionReasonCandidateImproved,
 			"candidate materially improves the primary metric with sufficient evidence and all guardrails pass")
 	}
 	if !result.Evidence.Significant {
-		return result.withDecision(experimentDecisionInconclusive, "evidence_insufficient",
+		return result.withDecision(ExperimentDecisionInconclusive, ExperimentDecisionReasonEvidenceInsufficient,
 			"minimum samples are available but the configured evidence threshold is not satisfied")
 	}
-	return result.withDecision(experimentDecisionInconclusive, "effect_below_threshold",
+	return result.withDecision(ExperimentDecisionInconclusive, ExperimentDecisionReasonEffectBelowThreshold,
 		"the primary metric effect does not exceed the configured practical threshold")
 }
 
 func decideGuardrails(result ExperimentDecisionResult, guardrails []GuardrailStatus) (ExperimentDecisionResult, bool) {
 	if code, reason, pending := pendingGuardrailDecision(guardrails); pending {
-		return result.withDecision(experimentDecisionExtend, code, reason), true
+		return result.withDecision(ExperimentDecisionExtend, code, reason), true
 	}
 	if failedGuardrail := firstFailedGuardrail(guardrails); failedGuardrail != "" {
-		return result.withDecision(experimentDecisionReject, "guardrail_failed",
+		return result.withDecision(ExperimentDecisionReject, ExperimentDecisionReasonGuardrailFailed,
 			fmt.Sprintf("mandatory guardrail %q failed", failedGuardrail)), true
 	}
 	return ExperimentDecisionResult{}, false
@@ -152,7 +171,11 @@ func newExperimentDecisionResult(analysis ExperimentAnalysis) ExperimentDecision
 	}
 }
 
-func (result ExperimentDecisionResult) withDecision(decision, code, reason string) ExperimentDecisionResult {
+func (result ExperimentDecisionResult) withDecision(
+	decision ExperimentDecision,
+	code ExperimentDecisionReasonCode,
+	reason string,
+) ExperimentDecisionResult {
 	result.Decision = decision
 	result.ReasonCode = code
 	result.DecisionReason = reason
@@ -257,14 +280,14 @@ func guardrailPassSummary(guardrails []GuardrailStatus) *bool {
 	return &passed
 }
 
-func pendingGuardrailDecision(guardrails []GuardrailStatus) (string, string, bool) {
+func pendingGuardrailDecision(guardrails []GuardrailStatus) (ExperimentDecisionReasonCode, string, bool) {
 	for _, guardrail := range guardrails {
-		if guardrail.Status == "insufficient_observations" || guardrail.Status == "missing" {
-			return "insufficient_observations",
+		if guardrail.Status == GuardrailStatusInsufficientObservations || guardrail.Status == GuardrailStatusMissing {
+			return ExperimentDecisionReasonInsufficientObservations,
 				fmt.Sprintf("mandatory guardrail %q lacks sufficient usable observations", guardrail.Name), true
 		}
-		if guardrail.Status == "unsupported" {
-			return "guardrail_unsupported",
+		if guardrail.Status == GuardrailStatusUnsupported {
+			return ExperimentDecisionReasonGuardrailUnsupported,
 				fmt.Sprintf("mandatory guardrail %q is not backed by a supported metric observation", guardrail.Name), true
 		}
 	}

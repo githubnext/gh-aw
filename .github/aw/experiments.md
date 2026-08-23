@@ -83,7 +83,7 @@ experiments:
 - `weight:` — non-negative integers, same length as `variants`. Enables weighted-random selection. `[2, 1, 1]` = 50/25/25. All zeros → always returns control (first variant). Omit for round-robin.
 - `start_date:` / `end_date:` — ISO-8601 `YYYY-MM-DD`. Outside this window, control variant is returned and counters do not increment.
 - `description:`, `metric:`, `issue:`, `hypothesis:` — governance metadata (no runtime effect).
-- `guardrail_metrics:` — array; if any guardrail fails for any variant, experiment is auto-abandoned. Each entry:
+- `guardrail_metrics:` — array; once minimum samples and supported observations are available for every mandatory guardrail, any failure produces a deterministic core decision of `REJECT`. Each entry:
   - `name` (required) — metric identifier.
   - `threshold` (required) — comparison string (`">=0.95"`, `"==0"`) or bare number paired with `direction`.
   - `direction` (optional, `"min"`/`"max"`) — lower-better vs higher-better. With bare numeric `threshold`: `min` → metric ≤ threshold; `max` → metric ≥ threshold.

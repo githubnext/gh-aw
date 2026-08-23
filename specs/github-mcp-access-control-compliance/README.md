@@ -3,7 +3,22 @@
 This directory contains fixture stubs for the Section 11 compliance tests of the
 [GitHub MCP Access Control Specification](../../scratchpad/github-mcp-access-control-specification.md).
 
-**Spec version pinned at commit `2c1cfd71010a2d1ab9d9149118beb076d2098d7d`.**
+**Spec version pinned at commit `36dc9545032b6ac02ed719c725b88368d7e34d23`.**
+
+## Sync Guard: pinned spec drift check
+
+As a doc-review/CI guard, compare the pinned commit to the current tip commit of
+`scratchpad/github-mcp-access-control-specification.md` and fail on mismatch:
+
+```bash
+PINNED="36dc9545032b6ac02ed719c725b88368d7e34d23"
+CURRENT="$(git log -n1 --format=%H -- scratchpad/github-mcp-access-control-specification.md)"
+
+test "$CURRENT" = "$PINNED" || {
+  echo "Spec pin drift: README pin=$PINNED current=$CURRENT"
+  exit 1
+}
+```
 
 Each fixture describes a test scenario with an input tool configuration and the expected
 access-control decision. Fixtures are consumed by the compliance test runner to verify
@@ -151,6 +166,7 @@ Formal conformance tests are implemented in:
 The test suite includes:
 - **Predicate-mapped tests** (`TestFormal_*`) — each test maps to a specific guard predicate (P1–P6) or invariant documented in the Formal Model section above.
 - **Fixture runner** (`TestFormal_FixtureRunner`) — loads every YAML fixture file from this directory and drives each scenario through the formal evaluator. This ensures the fixture files, error codes, and expected decisions remain consistent with the formal model.
+- **Fixture inventory sync** (`TestFormal_FixtureCountConsistency`) — enforces that the documented fixture list and on-disk YAML set stay in exact sync (currently 11/11 fixtures).
 
 The `combined-blocked-integrity.yaml` fixture verifies that the runner returns P5's `-32005`
 before P6's `-32006` when both guards fail.

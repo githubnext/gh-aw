@@ -8,6 +8,7 @@ import (
 )
 
 func TestDomainBucketsAccessors(t *testing.T) {
+	t.Parallel()
 	buckets := &DomainBuckets{}
 
 	// Test initial state
@@ -34,6 +35,7 @@ func TestDomainBucketsAccessors(t *testing.T) {
 }
 
 func TestDomainBucketsWithEmbedding(t *testing.T) {
+	t.Parallel()
 	// This test verifies that types embedding DomainBuckets can access
 	// the domain accessor methods.
 	type TestAnalysis struct {

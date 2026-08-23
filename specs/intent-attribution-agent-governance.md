@@ -96,6 +96,7 @@ The existing implementation provides the initial attribution and reporting found
 5. Direct issue labels are used as a fallback
 6. Outcome summaries aggregate attempted and accepted weights
 7. Per-label breakdowns aggregate accepted, rejected, and pending outcomes
+8. `PolicyCompiler` output shape is defined by `pkg/intent/policy.go` (`ExecutionPolicy`, `PolicyRule`, `PolicyCompiler`) and runtime gate wiring by `pkg/intent/governance.go`
 
 These capabilities remain supported.
 
@@ -135,6 +136,21 @@ fail with a non-zero exit code and open (or update) a tracking issue recording t
 keys, the first-detected date, and the on-call maintainer as the default assignee. This norm
 ensures that aspirational migration language does not mask persistent, unaddressed
 configuration drift.
+
+### Non-normative maintenance split proposal
+
+To reduce review risk in this file, future edits SHOULD split content into linked
+documents while preserving RFC 2119 norms here:
+
+1. Keep normative requirements in this file (Core model, RFC 2119 norms, conformance).
+2. Move implementation-status details (Current implementation + runtime enforcement map)
+   to a companion file, for example
+   `specs/intent-attribution-agent-governance-implementation.md`.
+3. Keep operational sync guidance (migration/drift/escalation) in a short companion
+   ops-focused section or companion note linked from this file.
+
+Section boundaries for the split should use existing heading anchors so references from
+`specs/intent-attribution-compliance/` remain stable.
 
 ## Product boundary
 
