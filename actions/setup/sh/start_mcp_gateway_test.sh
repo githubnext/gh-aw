@@ -337,7 +337,8 @@ EOF
     grep -q "simulated gateway startup failure" <<< "$output" &&
     grep -q "API_TOKEN=\[REDACTED\]" <<< "$output" &&
     ! grep -q "redact-me" <<< "$output" &&
-    [[ ! -e /tmp/gh-aw/mcp-config/gateway-stderr.log ]]; then
+    [[ ! -e /tmp/gh-aw/mcp-config/gateway-stderr.log ]] &&
+    ! compgen -G "/tmp/gh-aw-mcp-gateway-stderr.*" > /dev/null; then
     print_result "Gateway startup failure logs redacted stderr without artifacts" "PASS"
   else
     print_result "Gateway startup failure logs redacted stderr without artifacts" "FAIL"
