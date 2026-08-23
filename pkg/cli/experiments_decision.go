@@ -67,13 +67,13 @@ func DecideExperiment(analysis ExperimentAnalysis) ExperimentDecisionResult {
 		return result.withDecision(experimentDecisionExtend, "insufficient_observations",
 			"at least two variants are required for a decision")
 	}
-	if hasVariantBelowMinimum(analysis.Variants) {
-		return result.withDecision(experimentDecisionExtend, "insufficient_samples",
-			"one or more variants have fewer usable observations than min_samples")
-	}
 	if len(analysis.Variants) != 2 {
 		return result.withDecision(experimentDecisionInconclusive, "unsupported_multi_variant",
 			"automatic decisions currently require exactly two variants")
+	}
+	if hasVariantBelowMinimum(analysis.Variants) {
+		return result.withDecision(experimentDecisionExtend, "insufficient_samples",
+			"one or more variants have fewer usable observations than min_samples")
 	}
 
 	comparison := decisionComparison(analysis.Comparisons)

@@ -382,9 +382,11 @@ Use `--json` for the stable automation boundary:
 gh aw experiments analyze <workflow> --json
 ```
 
-Each entry in `analyses` includes `decision`, `reason_code`, `control`, `candidate`, `samples`,
-`effect`, `evidence`, `decision_guardrails`, and `decision_policy`. Future promotion automation
-can consume these fields without rerunning statistics or interpreting grader artifacts.
+Each entry in `analyses` includes `decision`, `reason_code`, `samples`, `decision_guardrails`, and
+`decision_policy`. `control`, `candidate`, `effect`, and `evidence` are emitted when those values
+are available for the decision path (for example two-variant statistical comparisons); early `EXTEND`
+and multi-variant `INCONCLUSIVE` results may omit them. Future promotion automation can consume these
+fields without rerunning statistics or interpreting grader artifacts.
 
 ### Filtering audit results by variant
 

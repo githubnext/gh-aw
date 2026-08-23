@@ -3,7 +3,7 @@
 package cli
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +24,8 @@ func TestDecideExperiment(t *testing.T) {
 		analysis   ExperimentAnalysis
 		want       string
 		reasonCode string
-		normalized *float64
+		normalized float64
+		hasEffect  bool
 	}{
 		{
 			name:     "below minimum samples extends",
@@ -34,22 +35,22 @@ func TestDecideExperiment(t *testing.T) {
 		{
 			name:     "max direction material improvement promotes",
 			analysis: readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: floatPointer(0.2),
+			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: 0.2, hasEffect: true,
 		},
 		{
 			name:     "min direction material improvement promotes",
 			analysis: readyDecisionTestAnalysis("min", -1200, &pValueStrong, nil, 500, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: floatPointer(1200),
+			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: 1200, hasEffect: true,
 		},
 		{
 			name:     "max direction material regression rejects",
 			analysis: readyDecisionTestAnalysis("max", -0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: floatPointer(-0.2),
+			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: -0.2, hasEffect: true,
 		},
 		{
 			name:     "min direction material regression rejects",
 			analysis: readyDecisionTestAnalysis("min", 1200, &pValueStrong, nil, 500, nil),
-			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: floatPointer(-1200),
+			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: -1200, hasEffect: true,
 		},
 		{
 			name:     "significant tiny effect is inconclusive",
@@ -102,6 +103,13 @@ func TestDecideExperiment(t *testing.T) {
 			),
 			want: experimentDecisionInconclusive, reasonCode: "unsupported_multi_variant",
 		},
+		{
+			name: "multi variant with undersampled arm is still unsupported",
+			analysis: withThirdDecisionTestVariant(
+				decisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+			),
+			want: experimentDecisionInconclusive, reasonCode: "unsupported_multi_variant",
+		},
 	}
 
 	for _, test := range tests {
@@ -110,9 +118,9 @@ func TestDecideExperiment(t *testing.T) {
 			assert.Equal(t, test.want, result.Decision)
 			assert.Equal(t, test.reasonCode, result.ReasonCode)
 			assert.NotEmpty(t, result.DecisionReason)
-			if test.normalized != nil {
+			if test.hasEffect {
 				require.NotNil(t, result.Effect)
-				assert.InDelta(t, *test.normalized, result.Effect.NormalizedAbsolute, 0.000001)
+				assert.InDelta(t, test.normalized, result.Effect.NormalizedAbsolute, 0.000001)
 			}
 		})
 	}
@@ -188,10 +196,6 @@ func withThirdDecisionTestVariant(analysis ExperimentAnalysis) ExperimentAnalysi
 	return analysis
 }
 
-func floatPointer(value float64) *float64 {
-	return &value
-}
-
 func TestApplyExperimentGuardrails(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -201,17 +205,18 @@ func TestApplyExperimentGuardrails(t *testing.T) {
 		controlValues []float64
 		candidateVals []float64
 		wantStatus    string
-		wantPassed    *bool
+		wantPassed    bool
+		hasPassed     bool
 	}{
 		{
 			name: "max guardrail passes", direction: "max", threshold: ">=0.8",
 			controlValues: []float64{1, 1}, candidateVals: []float64{1, 1},
-			wantStatus: "pass", wantPassed: boolPointer(true),
+			wantStatus: "pass", wantPassed: true, hasPassed: true,
 		},
 		{
 			name: "min guardrail fails", direction: "min", threshold: "0",
 			controlValues: []float64{0, 0}, candidateVals: []float64{1, 1},
-			wantStatus: "fail", wantPassed: boolPointer(false),
+			wantStatus: "fail", wantPassed: false, hasPassed: true,
 		},
 		{
 			name: "missing observations do not pass", direction: "max", threshold: ">=0.8",
@@ -237,11 +242,11 @@ func TestApplyExperimentGuardrails(t *testing.T) {
 
 			require.Len(t, analysis.Guardrails, 1)
 			assert.Equal(t, test.wantStatus, analysis.Guardrails[0].Status)
-			if test.wantPassed == nil {
+			if !test.hasPassed {
 				assert.Nil(t, analysis.Guardrails[0].Passed)
 			} else {
 				require.NotNil(t, analysis.Guardrails[0].Passed)
-				assert.Equal(t, *test.wantPassed, *analysis.Guardrails[0].Passed)
+				assert.Equal(t, test.wantPassed, *analysis.Guardrails[0].Passed)
 			}
 		})
 	}
@@ -250,11 +255,7 @@ func TestApplyExperimentGuardrails(t *testing.T) {
 func decisionTestObservations(variant string, values []float64) []GraderMetricObservation {
 	observations := make([]GraderMetricObservation, len(values))
 	for index, value := range values {
-		observations[index] = GraderMetricObservation{RunID: fmt.Sprintf("%d", index+1), Variant: variant, Value: value}
+		observations[index] = GraderMetricObservation{RunID: strconv.Itoa(index + 1), Variant: variant, Value: value}
 	}
 	return observations
-}
-
-func boolPointer(value bool) *bool {
-	return &value
 }

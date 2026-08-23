@@ -3131,12 +3131,12 @@
                           "type": "number"
                         }
                       ],
-                      "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05') or a numeric value when paired with direction. If any guardrail fails for any variant the experiment is automatically abandoned."
+                      "description": "Threshold expression the metric must satisfy (e.g. '>=0.95', '==0', '<=0.05') or a numeric value when paired with direction. If any mandatory guardrail fails the deterministic decision is REJECT."
                     }
                   },
                   "additionalProperties": false
                 },
-                "description": "Guardrail metrics that must pass for all variants. If any guardrail fails the recommendation is forced to ABANDON regardless of p-value."
+                "description": "Guardrail metrics that must pass for all variants. If any mandatory guardrail fails the deterministic decision is forced to REJECT regardless of p-value."
               },
               "min_samples": {
                 "type": "integer",

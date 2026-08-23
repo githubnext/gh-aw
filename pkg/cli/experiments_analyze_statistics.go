@@ -141,7 +141,7 @@ type VariantAnalysis struct {
 
 // GuardrailStatus represents a declared guardrail metric threshold (R-STAT-009).
 // The Threshold field records the declared expression (e.g. ">=0.95").
-// Pass/fail evaluation is not performed here as it requires outcome metric data.
+// Status, Passed, and Variants are populated after metric observations are resolved.
 type GuardrailStatus struct {
 	Name      string                   `json:"name"`
 	Threshold string                   `json:"threshold"`
