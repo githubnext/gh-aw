@@ -683,7 +683,9 @@ state the correction method and the adjusted α threshold in the report output.
 **R-STAT-007**: Reporting tools **MUST NOT** issue a PROMOTE decision for any variant
 until all variants in the experiment have accumulated at least `min_samples` usable observations
 (or 20 if `min_samples` is not declared). When any variant is below threshold, readiness **MUST**
-be `COLLECTING` and the decision **MUST** be `EXTEND`.
+be `COLLECTING`. For an otherwise supported two-variant decision, the decision **MUST** be `EXTEND`.
+The multi-variant limitation in R-STAT-016 takes precedence for experiments with more than two
+variants.
 
 **R-STAT-008**: When weights are non-uniform (§5.2), the `min_samples` target applies to the
 **smallest expected group**. For a `weight: [70, 30]` experiment with `min_samples: 30`, the
@@ -741,7 +743,10 @@ MUST use the analyzer's probability of superiority and MUST NOT convert it to a 
 6. Otherwise: `INCONCLUSIVE`.
 
 Statistical significance without the configured practical effect MUST NOT produce `PROMOTE`.
-Reporting tools MUST return `INCONCLUSIVE` for automatic decisions with more than two variants.
+Reporting tools MUST return `INCONCLUSIVE` with `unsupported_multi_variant` for automatic decisions
+with more than two variants, regardless of readiness. Statistical comparisons MAY still be reported
+with the multiple-comparison correction in §11.3, but the decision layer does not rank or select a
+winner.
 
 **R-STAT-017**: The decision layer MUST consume existing analysis results. It MUST NOT fetch
 observations, rerun statistical tests or graders, mutate experiment state, change traffic, or
@@ -752,6 +757,39 @@ Readiness is `COLLECTING` until every variant reaches `min_samples` usable obser
 `READY`. `READY` does not imply `PROMOTE`; a ready experiment may be `EXTEND`, `PROMOTE`, `REJECT`,
 or `INCONCLUSIVE`. The legacy `recommendation` field MAY remain `EXTEND` / `READY_FOR_ANALYSIS`
 for backward compatibility.
+
+**R-STAT-019**: The stable core decision values are `EXTEND`, `PROMOTE`, `REJECT`, and
+`INCONCLUSIVE`. `ABANDON`, `GUARDRAIL_FAILED`, and `READY_FOR_ANALYSIS` MUST NOT be emitted as core
+decision values. `READY_FOR_ANALYSIS` MAY be retained only in the legacy readiness-oriented
+`recommendation` field.
+
+**R-STAT-020**: The stable core reason codes and their meanings are:
+
+| Reason code | Meaning |
+|---|---|
+| `insufficient_samples` | One or more variants are below `min_samples`. |
+| `insufficient_observations` | Fewer than two variants, a primary comparison, or a mandatory guardrail lacks usable observations. |
+| `candidate_improved` | Sufficient evidence establishes a material candidate improvement. |
+| `candidate_regressed` | Sufficient evidence establishes a material candidate regression. |
+| `guardrail_failed` | A mandatory guardrail failed. |
+| `guardrail_unsupported` | A mandatory guardrail has no supported observation source. |
+| `effect_below_threshold` | Evidence is sufficient but practical effect is below policy. |
+| `evidence_insufficient` | The configured evidence threshold is not satisfied. |
+| `unsupported_multi_variant` | Automatic adjudication requires exactly two variants. |
+| `analysis_unavailable` | Required statistical effect or evidence cannot be computed. |
+
+**R-STAT-021**: Each structured analysis entry MUST emit `readiness`, `decision`, `reason_code`,
+`reason`, `samples`, `decision_guardrails`, and `decision_policy`. It MUST emit `control`,
+`candidate`, `direction`, `effect`, and `evidence` when those values are available for the decision
+path. The enclosing analysis contract also exposes the configured `metric`, `analysis_type`,
+`min_samples`, per-variant assignment and observation counts, comparisons, and detailed guardrail
+statuses. Consumers SHOULD depend on structured readiness, decision, and reason fields rather than
+human-readable prose.
+
+The `effect` object reports the raw absolute candidate-minus-control effect, an optional relative
+effect when the control mean is non-zero, and a direction-normalized absolute effect. The `evidence`
+object reports the analysis method, whether the configured evidence threshold was satisfied, and
+either a p-value or Bayesian probability of superiority when applicable.
 
 ### 11.7 Reporting Workflow Permissions
 
@@ -799,6 +837,11 @@ assignment vector per run and evaluating whether each observed combination cell 
 sample coverage. If interaction effects cannot be bounded (for example, sparse cells below
 `min_samples`), the report **MUST** emit an explicit interaction-risk status and **MUST NOT**
 recommend PROMOTE for affected variants.
+
+The core decision engine does not currently consume interaction diagnostics. The bundled daily
+experiment report preserves a core `PROMOTE` decision but sets its presentation-level
+`report_action` to `EXTEND` with `interaction_underpowered` when this safety hold applies.
+`interaction_underpowered` is not a core decision reason code.
 
 ### 12.1 Conflict Resolution Norms
 
