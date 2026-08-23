@@ -82,6 +82,9 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 	return nil
 }
 
+// isPreCreatePullRequestConfigured reports whether the workflow should allocate
+// a pull request during activation. steer implies pre-creation because steering
+// reads feedback from that pre-created pull request while the agent is running.
 func isPreCreatePullRequestConfigured(config *CreatePullRequestsConfig) bool {
 	return config != nil && (config.PreCreate || config.Steer)
 }
