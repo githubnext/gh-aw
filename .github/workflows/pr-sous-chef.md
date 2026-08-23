@@ -26,7 +26,7 @@ checkout:
   fetch-depth: 0
 network:
   allowed: ["defaults", "go"]
-model: copilot/mai-code-1-flash-picker
+model: copilot/mai-flash
 engine:
   id: pi
 strict: true
