@@ -83,6 +83,7 @@ func TestValidateArtifactSets(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateArtifactSets(tt.sets)
 			if tt.expectErr {
 				assert.Error(t, err, "Expected an error for sets: %v", tt.sets)
@@ -179,6 +180,7 @@ func TestResolveArtifactFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ResolveArtifactFilter(tt.sets)
 			assert.Equal(t, tt.expected, result, "ResolveArtifactFilter(%v)", tt.sets)
 		})
@@ -251,6 +253,7 @@ func TestArtifactMatchesFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := artifactMatchesFilter(tt.artifact, tt.filter)
 			assert.Equal(t, tt.expected, result, "artifactMatchesFilter(%q, %v)", tt.artifact, tt.filter)
 		})
@@ -269,15 +272,18 @@ func TestValidArtifactSetNames(t *testing.T) {
 func TestApplyEvalsArtifact(t *testing.T) {
 	t.Parallel()
 	t.Run("returns empty slice unchanged when artifact list is empty", func(t *testing.T) {
+		t.Parallel()
 		assert.Empty(t, applyEvalsArtifact(nil, true))
 		assert.Empty(t, applyEvalsArtifact([]string{}, true))
 	})
 
 	t.Run("appends evals when evals requested and artifact list narrowed", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, []string{"agent", "evals"}, applyEvalsArtifact([]string{"agent"}, true))
 	})
 
 	t.Run("does not append evals when usage already present", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, []string{"usage"}, applyEvalsArtifact([]string{"usage"}, true))
 	})
 }
@@ -312,6 +318,7 @@ func TestIsEvalsArtifactRequested(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, isEvalsArtifactRequested(tt.evalsOnly, tt.artifactSets))
 		})
 	}
@@ -348,6 +355,7 @@ func TestIsUsageOnlyArtifactFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, isUsageOnlyArtifactFilter(tt.filter))
 		})
 	}
@@ -369,6 +377,7 @@ func TestShouldDownloadWorkflowRunLogs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, shouldDownloadWorkflowRunLogs(tt.filter))
 		})
 	}
@@ -449,6 +458,7 @@ func TestFindMissingFilterEntries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			for _, d := range tt.existingDirs {
 				require.NoError(t, os.MkdirAll(filepath.Join(dir, d), 0755), "failed to create test dir")
@@ -486,6 +496,7 @@ func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"../activation", `..\activation`, ".", ".."} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			err := markArtifactDownloaded(t.TempDir(), name)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid artifact name")
