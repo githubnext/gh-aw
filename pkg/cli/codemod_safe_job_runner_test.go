@@ -10,9 +10,11 @@ import (
 )
 
 func TestSafeJobRunnerCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeJobRunnerCodemod()
 
 	t.Run("metadata", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, "safe-job-runner-to-runs-on", codemod.ID)
 		assert.Equal(t, "Rename safe-outputs.jobs runner to runs-on", codemod.Name)
 		assert.Equal(t, "Renames deprecated safe-outputs.jobs.<job>.runner fields to runs-on.", codemod.Description)
@@ -128,6 +130,7 @@ jobs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, applied, err := codemod.Apply(tt.content, map[string]any{})
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantApplied, applied)

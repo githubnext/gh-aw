@@ -14,6 +14,7 @@ func TestSerenaMCPContainerLocationCodemod(t *testing.T) {
 	codemod := getSerenaMCPContainerLocationCodemod()
 
 	t.Run("updates legacy Serena MCP server container and entrypoint", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 mcp-servers:
   serena:
@@ -49,6 +50,7 @@ mcp-servers:
 	})
 
 	t.Run("skips already migrated Serena MCP server settings", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 mcp-servers:
   serena:
@@ -74,6 +76,7 @@ mcp-servers:
 	})
 
 	t.Run("migrates legacy path-style Serena entrypoints", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 mcp-servers:
   serena:
@@ -99,6 +102,7 @@ mcp-servers:
 	})
 
 	t.Run("does not rewrite entrypoint when container is not legacy, regardless of field order", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 mcp-servers:
   serena:
@@ -124,6 +128,7 @@ mcp-servers:
 	})
 
 	t.Run("rewrites entrypoint declared before the legacy container", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 mcp-servers:
   serena:
