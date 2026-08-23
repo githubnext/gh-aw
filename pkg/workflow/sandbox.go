@@ -296,8 +296,21 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 const cloudHypervisorWorkspaceWritePath = "/workspace"
 const cloudHypervisorAwfHomeWritePath = "/workspace/.awf-home"
 
+// ensureDefaultAgentWritePath seeds the implicit filesystem.allowWrite entries for the
+// Cloud Hypervisor runtime only.
+//
+// The compose runtimes (Docker, gVisor) deliberately get no implicit allowWrite entries:
+// AWF enforces the policy there by narrowing its own writable bind mounts to read-only,
+// which turns the container rootfs read-only outside the allowlist. AWF's init-signal
+// bind mount at /tmp/awf-init then cannot have its mountpoint created and the agent
+// container fails to start ("make mountpoint \"/tmp/awf-init\": read-only file system").
+// Seeding a default there would therefore break every compose-runtime workflow, so
+// filesystem.allowWrite stays opt-in for those runtimes.
 func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 	if sandboxConfig == nil || sandboxConfig.Agent == nil {
+		return
+	}
+	if sandboxConfig.Agent.Runtime != AgentRuntimeCloudHypervisor {
 		return
 	}
 	if sandboxConfig.Agent.Config == nil {
@@ -307,10 +320,8 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
 	}
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentWorkspaceWritePath)
-	if sandboxConfig.Agent.Runtime == AgentRuntimeCloudHypervisor {
-		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorWorkspaceWritePath)
-		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorAwfHomeWritePath)
-	}
+	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorWorkspaceWritePath)
+	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorAwfHomeWritePath)
 }
 
 // addAllowWritePathIfMissing appends path to filesystem.AllowWrite unless it is already present.
