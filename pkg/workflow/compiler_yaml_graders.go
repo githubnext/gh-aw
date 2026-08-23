@@ -53,6 +53,10 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
 	fmt.Fprintf(yaml, "            await main('%s', '%s');\n", manifestB64, execB64)
+	if valueGrader, ok := data.Graders.Graders["value"]; ok && (valueGrader.Enabled == nil || *valueGrader.Enabled) {
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+	}
 
 	compilerYamlGradersLog.Print("Generated graders step")
 }
@@ -63,7 +67,7 @@ type graderManifestEntry struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
 	Description string         `json:"description,omitempty"`
-	Source      string         `json:"source"` // "builtin" or "inline"
+	Source      string         `json:"source"` // "builtin", "inline", or "value"
 	Enabled     bool           `json:"enabled"`
 	Unit        string         `json:"unit,omitempty"`
 	Direction   string         `json:"direction,omitempty"`
@@ -71,6 +75,7 @@ type graderManifestEntry struct {
 	Max         *float64       `json:"max,omitempty"`
 	Min         *float64       `json:"min,omitempty"`
 	Digest      string         `json:"digest,omitempty"` // SHA-256 of inline script
+	Function    string         `json:"function,omitempty"`
 	Config      map[string]any `json:"config,omitempty"`
 }
 
@@ -82,8 +87,9 @@ type graderManifest struct {
 
 // graderExecEntry carries the script body for a custom grader, keyed by ID.
 type graderExecEntry struct {
-	ID     string `json:"id"`
-	Script string `json:"script"`
+	ID       string `json:"id"`
+	Script   string `json:"script,omitempty"`
+	Function string `json:"function,omitempty"`
 }
 
 // buildGraderManifest constructs the manifest for the JS runtime.
@@ -115,6 +121,13 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest {
 		if _, ok := builtinSet[id]; !ok {
 			source = "inline"
 		}
+		if id == "value" {
+			source = "value"
+		}
+		digest := g.ScriptDigest()
+		if source == "value" {
+			digest = g.FunctionDigest()
+		}
 		name := g.Name
 		if name == "" {
 			name = id
@@ -130,7 +143,8 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest {
 			Threshold:   g.Threshold,
 			Max:         g.Max,
 			Min:         g.Min,
-			Digest:      g.ScriptDigest(),
+			Digest:      digest,
+			Function:    g.Function,
 			Config:      g.Config,
 		})
 	}
@@ -159,7 +173,9 @@ func buildGraderExecSpec(cfg *GradersConfig) []graderExecEntry {
 	var specs []graderExecEntry
 	for _, id := range cfg.EnabledGraderIDs() {
 		g := cfg.Graders[id]
-		if _, ok := builtinSet[id]; !ok && g.Script != "" {
+		if id == "value" && g.functionContent != "" {
+			specs = append(specs, graderExecEntry{ID: id, Function: g.functionContent})
+		} else if _, ok := builtinSet[id]; !ok && g.Script != "" {
 			specs = append(specs, graderExecEntry{ID: id, Script: g.Script})
 		}
 	}
@@ -211,5 +227,6 @@ func collectGraderArtifactPaths() []string {
 	return []string{
 		constants.GradersDirSlash + constants.GraderManifestFilename,
 		constants.GradersDirSlash + constants.GraderResultsFilename,
+		constants.GradersDirSlash + constants.ValueGraderFunctionFilename,
 	}
 }

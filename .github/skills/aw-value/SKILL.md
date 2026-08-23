@@ -1,0 +1,133 @@
+---
+name: aw-value
+description: "Design and verify a deterministic operational-value grader for a GitHub Agentic Workflow. Use for per-run value, evidence attribution, maturation, baselines, and value grader functions. Usage: /aw-value OWNER/REPO WORKFLOW-NAME."
+argument-hint: "OWNER/REPO WORKFLOW-NAME"
+allowed-tools: bash jq gh
+metadata:
+  version: "1.0.0"
+---
+
+# Operational Value Grader
+
+Design one deterministic `value` grader that reports absolute operational attainment for each workflow run.
+
+Operational value is the degree to which the workflow's intended repository outcome is attained for the opportunity assigned to a run, demonstrated by accepted repository evidence under a frozen contract. It is not execution quality, output volume, safe-output creation, or an agent's assessment.
+
+## Output
+
+Create one executable function at:
+
+```text
+.github/graders/WORKFLOW-NAME-value.sh
+```
+
+Configure the workflow:
+
+```yaml
+graders:
+  value:
+    function: .github/graders/WORKFLOW-NAME-value.sh
+```
+
+The grader's primary `value` is absolute attainment in `[0,1]`. A comparable frozen baseline may be reported separately as `baselineValue`; gh-aw derives `deltaFromBaseline`. Never define the primary value as a difference from baseline.
+
+## Design Procedure
+
+1. Validate `OWNER/REPO` and resolve `.github/workflows/WORKFLOW-NAME.md`. Do not infer inputs from the workspace or remotes.
+2. Recover adoption-time intent from the workflow's first commit and first parent. Use only adoption-time workflow content and pre-adoption evidence to choose opportunities, accepted evidence, formulas, targets, or a baseline.
+3. Define how every workflow run binds to one operational case:
+   - produce a stable `opportunityKey`;
+   - prevent overlapping ownership where possible;
+   - preserve repeated keys when duplicate runs target the same opportunity so downstream analysis can cluster or deduplicate them;
+   - treat reruns with the same GitHub run ID as the same subject.
+4. Freeze accepted evidence, evidence repositories, matching rules, zero-versus-missing behavior, and `maturesAt` computation.
+5. Choose exactly one direct primary metric in `[0,1]`. Higher must always mean greater attainment. Keep trace graders and activity counts separate.
+6. If comparable pre-adoption evidence exists, score it with the same metric and freeze it under `baseline`. Otherwise use `attainment-only` with a null baseline value.
+7. Implement the function interface below and run:
+
+   ```bash
+   .github/skills/aw-value/scripts/verify-value-function.sh .github/graders/WORKFLOW-NAME-value.sh
+   gh aw compile .github/workflows/WORKFLOW-NAME.md
+   ```
+
+## Function Interface
+
+The function uses Bash 3.2-compatible Bash plus `jq` and supports:
+
+- `--definition`: print the frozen schema-version 4 contract.
+- `--metric`: read one evidence object on stdin and print a deterministic number in `[0,1]` or `null`.
+- `--grade-run`: read a run request on stdin and print one value observation.
+
+`--grade-run` receives:
+
+```json
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "12345",
+    "attempt": 1,
+    "repository": "OWNER/REPO",
+    "workflow": "Workflow name",
+    "ref": "refs/heads/main",
+    "sha": "...",
+		"eventName": "schedule",
+		"createdAt": "2026-08-23T11:58:00Z"
+  },
+  "evidenceAt": "2026-08-23T12:00:00.000Z",
+  "case": null,
+  "event": null,
+  "config": {}
+}
+```
+
+It returns:
+
+```json
+{
+  "value": 0.75,
+  "opportunityKey": "issue:42",
+  "case": {"issue": 42},
+  "evidenceCutoff": "2026-08-23T12:00:00.000Z",
+  "maturesAt": "2026-08-30T12:00:00.000Z",
+  "provenance": [
+    {"repository": "OWNER/REPO", "kind": "issue", "ref": "42"}
+  ],
+  "diagnostics": {}
+}
+```
+
+The function must cap `evidenceCutoff` at the earlier of `evidenceAt` and `maturesAt`. A run is never intrinsically pending: the value is an as-of observation and may be recomputed until maturity. After maturity, the cap makes the result stable.
+
+## Regrade a Historical Run
+
+Recompute a run at an explicit evidence time with the same local function used by the original run:
+
+```bash
+gh aw graders value RUN-ID \
+  --evidence-at 2026-08-30T12:00:00.000Z \
+  --json
+```
+
+Add `--repo [HOST/]OWNER/REPO` when the run is not in the current repository. The command downloads the original grader artifact, reuses its operational case and complete run subject, and refuses to execute unless the archived function's SHA-256 matches both digest records. It prints a new observation and never modifies the original artifact.
+
+## Definition Contract
+
+`--definition` must contain:
+
+- `schemaVersion: 4` and `grader: "value"`;
+- repository, workflow name, source path, and adoption commit/time;
+- operational-value statement;
+- evidence opportunity, assignment, accepted evidence, repositories, collection, maturation, zero rule, and missing rule;
+- one primary metric with formula and validation examples;
+- baseline mode, value, cutoff, and provenance.
+
+For `baseline-comparable`, baseline value must be in `[0,1]` and have immutable provenance. For `attainment-only`, baseline value and cutoff must be null.
+
+## Interpretation Rules
+
+- `value` answers “how fully was this run's assigned opportunity attained?”
+- `deltaFromBaseline` answers “how far is this observation above or below the frozen pre-adoption reference?”
+- Neither establishes that the workflow caused the outcome.
+- Compare runs only under the same function digest and evidence horizon.
+- Identify a replayed observation by `(runId, functionDigest, evidenceAt)`.
+- Do not treat repeated observations of one run, duplicate opportunity keys, or overlapping state windows as independent samples.

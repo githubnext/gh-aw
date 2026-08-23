@@ -81,6 +81,7 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 		paths = append(paths,
 			constants.GradersDirSlash+constants.GraderManifestFilename,
 			constants.GradersDirSlash+constants.GraderResultsFilename,
+			constants.GradersDirSlash+constants.ValueGraderFunctionFilename,
 		)
 	}
 

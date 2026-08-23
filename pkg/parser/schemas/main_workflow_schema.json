@@ -12849,7 +12849,7 @@
       "examples": ["gpt-5.4", "claude-3-5-sonnet-20241022", "gpt-4"]
     },
     "graders": {
-      "description": "\u26a0\ufe0f Experimental. Deterministic graders to compute post-agent metrics from execution artifacts. Map keys are grader IDs. Built-in graders can be configured by ID; custom graders require a script.",
+      "description": "\u26a0\ufe0f Experimental. Deterministic graders for workflow-run observations. Built-in graders use execution artifacts, custom graders use inline scripts, and the value grader uses a repository function.",
       "type": "object",
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9-]{0,63}$",
@@ -12908,6 +12908,11 @@
                 "minLength": 1,
                 "maxLength": 4096,
                 "description": "Custom grader JavaScript script body (trusted workflows only)."
+              },
+              "function": {
+                "type": "string",
+                "pattern": "^\\.github/graders/.+\\.sh$",
+                "description": "Repository-relative Bash function for the value grader. Supported only for the reserved value grader ID."
               }
             }
           }

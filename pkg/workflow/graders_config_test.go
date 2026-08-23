@@ -116,6 +116,68 @@ func TestParseGradersFromFrontmatter_CustomGrader(t *testing.T) {
 	}
 }
 
+func TestParseGradersFromFrontmatter_ValueGrader(t *testing.T) {
+	var c Compiler
+	cfg, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"value": map[string]any{
+				"function": ".github/graders/value.sh",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	grader := cfg.Graders["value"]
+	if grader.Function != ".github/graders/value.sh" {
+		t.Fatalf("unexpected value function: %q", grader.Function)
+	}
+	if grader.Unit != "ratio" || grader.Direction != "higher_is_better" {
+		t.Fatalf("unexpected value defaults: unit=%q direction=%q", grader.Unit, grader.Direction)
+	}
+	if grader.Min == nil || *grader.Min != 0 || grader.Max == nil || *grader.Max != 1 {
+		t.Fatalf("expected value range [0,1], got min=%v max=%v", grader.Min, grader.Max)
+	}
+}
+
+func TestParseGradersFromFrontmatter_ValueGraderValidation(t *testing.T) {
+	var c Compiler
+	tests := []struct {
+		name  string
+		entry map[string]any
+	}{
+		{name: "missing function", entry: map[string]any{}},
+		{name: "path traversal", entry: map[string]any{"function": ".github/graders/../secret.sh"}},
+		{name: "wrong directory", entry: map[string]any{"function": "scripts/value.sh"}},
+		{name: "wrong extension", entry: map[string]any{"function": ".github/graders/value.js"}},
+		{name: "inline script", entry: map[string]any{"function": ".github/graders/value.sh", "script": "return 1"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := c.parseGradersFromFrontmatter(map[string]any{
+				"graders": map[string]any{"value": test.entry},
+			})
+			if err == nil {
+				t.Fatal("expected value grader validation error")
+			}
+		})
+	}
+}
+
+func TestParseGradersFromFrontmatter_FunctionRejectedForOtherGraders(t *testing.T) {
+	var c Compiler
+	_, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"custom": map[string]any{
+				"function": ".github/graders/value.sh",
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected function to be rejected for a non-value grader")
+	}
+}
+
 // TestParseGradersFromFrontmatter_InvalidType verifies error for wrong type.
 func TestParseGradersFromFrontmatter_InvalidType(t *testing.T) {
 	var c Compiler
@@ -326,6 +388,34 @@ func TestBuildGraderManifest(t *testing.T) {
 	}
 }
 
+func TestBuildGraderManifest_ValueGrader(t *testing.T) {
+	grader := &GraderDefinition{
+		ID:       "value",
+		Function: ".github/graders/value.sh",
+	}
+	grader.functionContent = "#!/usr/bin/env bash\necho '{}'\n"
+	cfg := &GradersConfig{Graders: map[string]*GraderDefinition{"value": grader}}
+
+	manifest := buildGraderManifest(cfg)
+	if len(manifest.Graders) != 1 {
+		t.Fatalf("expected one grader, got %d", len(manifest.Graders))
+	}
+	if manifest.Graders[0].Source != "value" {
+		t.Fatalf("expected value source, got %q", manifest.Graders[0].Source)
+	}
+	if manifest.Graders[0].Digest != grader.FunctionDigest() {
+		t.Fatalf("expected frozen function digest, got %q", manifest.Graders[0].Digest)
+	}
+
+	execSpec := buildGraderExecSpec(cfg)
+	if len(execSpec) != 1 || execSpec[0].Function != grader.functionContent {
+		t.Fatal("expected frozen function in execution spec")
+	}
+	if execSpec[0].Script != "" {
+		t.Fatal("value grader must not be serialized as an inline script")
+	}
+}
+
 // TestGenerateGradersStep_Absent verifies no step when graders nil.
 func TestGenerateGradersStep_Absent(t *testing.T) {
 	c := &Compiler{}
@@ -400,17 +490,20 @@ func TestGenerateGradersStep_BeforeArtifactUpload(t *testing.T) {
 	}
 }
 
-// TestCollectGraderArtifactPaths verifies paths include manifest and results.
+// TestCollectGraderArtifactPaths verifies paths include all replay artifacts.
 func TestCollectGraderArtifactPaths(t *testing.T) {
 	paths := collectGraderArtifactPaths()
-	if len(paths) != 2 {
-		t.Fatalf("expected 2 paths, got %d", len(paths))
+	if len(paths) != 3 {
+		t.Fatalf("expected 3 paths, got %d", len(paths))
 	}
 	if !strings.Contains(paths[0], "grader_manifest.json") {
 		t.Fatal("expected grader_manifest.json in paths")
 	}
 	if !strings.Contains(paths[1], "grader_results.json") {
 		t.Fatal("expected grader_results.json in paths")
+	}
+	if !strings.Contains(paths[2], "value_function.sh") {
+		t.Fatal("expected value_function.sh in paths")
 	}
 }
 

@@ -1044,6 +1044,23 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SandboxAgentPlatfo
 	})
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ValueGrader(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"graders": map[string]any{
+			"value": map[string]any{
+				"function": ".github/graders/value.sh",
+			},
+		},
+	}
+
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/value-grader-test.md"); err != nil {
+		t.Fatalf("expected value grader function to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {
 	t.Parallel()
 
