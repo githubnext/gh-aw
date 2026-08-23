@@ -412,16 +412,15 @@ func mergeGuardrailObservationSets(
 func observationRunReferences(
 	primary map[string]string,
 	guardrails map[string]map[string]string,
-) map[string]string {
-	refs := make(map[string]string, len(primary)+len(guardrails))
-	maps.Copy(refs, primary)
-	for experimentName, metrics := range guardrails {
-		for _, metricID := range metrics {
-			refs[experimentName] = metricID
-			break
-		}
+) map[string]struct{} {
+	experimentNames := make(map[string]struct{}, len(primary)+len(guardrails))
+	for experimentName := range primary {
+		experimentNames[experimentName] = struct{}{}
 	}
-	return refs
+	for experimentName := range guardrails {
+		experimentNames[experimentName] = struct{}{}
+	}
+	return experimentNames
 }
 
 func buildGraderGuardrailObservationSets(

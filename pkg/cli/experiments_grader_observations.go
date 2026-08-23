@@ -276,10 +276,10 @@ func hasValidGraderMetricSuffix(metric string) bool {
 	return len(parts) < 2 || parts[1] == "value"
 }
 
-func loadGraderRunData(ctx context.Context, runs []ExperimentRunRecord, refs map[string]string, source graderRunArtifactSource) map[string]graderRunData {
+func loadGraderRunData(ctx context.Context, runs []ExperimentRunRecord, experimentNames map[string]struct{}, source graderRunArtifactSource) map[string]graderRunData {
 	runIDs := make(map[string]struct{})
 	for _, run := range runs {
-		for experimentName := range refs {
+		for experimentName := range experimentNames {
 			if _, assigned := run.Assignments[experimentName]; assigned {
 				runIDs[run.RunID] = struct{}{}
 				break
