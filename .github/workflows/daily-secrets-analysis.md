@@ -172,13 +172,17 @@ else
 fi
 
 # Check for secrets in outputs (security risk)
+# This is enforced deterministically in CI by the Go test
+# TestCompiledLockFiles_NoSecretsInOutputs in pkg/workflow, which parses the actual
+# YAML `outputs:` maps (job outputs and on.workflow_call outputs) instead of using a
+# line-proximity grep, so it reports no false positives.
 echo "=== Checking for secrets in job outputs ==="
-SECRETS_IN_OUTPUTS=$(grep -A5 "outputs:" .github/workflows/*.lock.yml | \
-  grep "secrets\." | wc -l)
-if [ "$SECRETS_IN_OUTPUTS" -gt 0 ]; then
-  echo "⚠️  Found $SECRETS_IN_OUTPUTS potential secret exposure in outputs"
-else
+if ! command -v go >/dev/null 2>&1; then
+  echo "ℹ️  Go toolchain unavailable here; this check is enforced in CI"
+elif go test ./pkg/workflow/ -run TestCompiledLockFiles_NoSecretsInOutputs; then
   echo "✅ No secrets in job outputs"
+else
+  echo "⚠️  Secret exposure detected in job outputs (see test output above)"
 fi
 ```
 
