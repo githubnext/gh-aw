@@ -455,6 +455,14 @@ func toolWithMaxBudget(name string, max *string) string {
 	return fmt.Sprintf("%s(max:%s)", name, *max)
 }
 
+func sharedToolBudget(family string, names []string, max *string) string {
+	maxValue := "1"
+	if max != nil {
+		maxValue = *max
+	}
+	return fmt.Sprintf("%s [%s](max:%s total)", family, strings.Join(names, ", "), maxValue)
+}
+
 // buildSafeOutputsSections returns the PromptSections that form the <safe-output-tools> block.
 // The block contains:
 //  1. An inline opening tag with a compact Tools list (dynamic, depends on which tools are enabled).
@@ -476,6 +484,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 
 	// Build compact list of enabled tool names, annotated with max budget when > 1.
 	var tools []string
+	var sharedBudgets []string
 	if safeOutputs.AddComments != nil {
 		tools = append(tools, toolWithMaxBudget("add_comment", safeOutputs.AddComments.Max))
 	}
@@ -594,14 +603,37 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 		tools = append(tools, toolWithMaxBudget("set_issue_field", safeOutputs.SetIssueField.Max))
 	}
 	if safeOutputs.DispatchWorkflow != nil {
-		tools = append(tools, toolWithMaxBudget("dispatch_workflow", safeOutputs.DispatchWorkflow.Max))
+		if len(safeOutputs.DispatchWorkflow.Workflows) == 0 {
+			tools = append(tools, toolWithMaxBudget("dispatch_workflow", safeOutputs.DispatchWorkflow.Max))
+		} else {
+			workflowTools := make([]string, 0, len(safeOutputs.DispatchWorkflow.Workflows))
+			for _, workflowName := range safeOutputs.DispatchWorkflow.Workflows {
+				workflowTools = append(workflowTools, stringutil.NormalizeSafeOutputIdentifier(workflowName))
+			}
+			tools = append(tools, workflowTools...)
+			sharedBudgets = append(sharedBudgets, sharedToolBudget("dispatch-workflow", workflowTools, safeOutputs.DispatchWorkflow.Max))
+		}
 	}
 	if safeOutputs.DispatchRepository != nil {
-		// dispatch_repository uses per-tool max values (map-of-tools pattern); no top-level max.
-		tools = append(tools, "dispatch_repository")
+		if len(safeOutputs.DispatchRepository.Tools) == 0 {
+			tools = append(tools, "dispatch_repository")
+		} else {
+			for _, toolName := range sliceutil.SortedKeys(safeOutputs.DispatchRepository.Tools) {
+				tools = append(tools, toolWithMaxBudget(stringutil.NormalizeSafeOutputIdentifier(toolName), safeOutputs.DispatchRepository.Tools[toolName].Max))
+			}
+		}
 	}
 	if safeOutputs.CallWorkflow != nil {
-		tools = append(tools, toolWithMaxBudget("call_workflow", safeOutputs.CallWorkflow.Max))
+		if len(safeOutputs.CallWorkflow.Workflows) == 0 {
+			tools = append(tools, toolWithMaxBudget("call_workflow", safeOutputs.CallWorkflow.Max))
+		} else {
+			workflowTools := make([]string, 0, len(safeOutputs.CallWorkflow.Workflows))
+			for _, workflowName := range safeOutputs.CallWorkflow.Workflows {
+				workflowTools = append(workflowTools, stringutil.NormalizeSafeOutputIdentifier(workflowName))
+			}
+			tools = append(tools, workflowTools...)
+			sharedBudgets = append(sharedBudgets, sharedToolBudget("call-workflow", workflowTools, safeOutputs.CallWorkflow.Max))
+		}
 	}
 	if safeOutputs.MissingTool != nil {
 		tools = append(tools, toolWithMaxBudget("missing_tool", safeOutputs.MissingTool.Max))
@@ -653,6 +685,12 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 	toolsContent := "<safe-output-tools>\n"
 	if len(tools) > 0 {
 		toolsContent += "Tools: " + strings.Join(tools, ", ")
+	}
+	if len(sharedBudgets) > 0 {
+		if len(tools) > 0 {
+			toolsContent += "\n"
+		}
+		toolsContent += "Shared budgets: " + strings.Join(sharedBudgets, "; ")
 	}
 	envVars := make(map[string]string)
 	extractor := NewExpressionExtractor()
