@@ -384,7 +384,7 @@ func TestLoadGraderRunDataDeduplicatesRunIDs(t *testing.T) {
 		{RunID: "1", Assignments: map[string]string{"prompt": "control"}},
 	}
 
-	result := loadGraderRunData(context.Background(), runs, map[string]string{"prompt": "score"}, source)
+	result := loadGraderRunData(context.Background(), runs, map[string]struct{}{"prompt": {}}, source)
 	require.Contains(t, result, "1")
 	assert.Equal(t, 1, source.loads["1"])
 }

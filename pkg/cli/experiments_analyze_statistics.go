@@ -5,6 +5,7 @@ import (
 	"maps"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -24,6 +25,8 @@ const balanceSignificanceThreshold = 0.05
 // ExperimentAnalysis holds statistical analysis results for one named A/B experiment.
 // The analysis is computed from state.jsonl/state.json counts and optional experiment configuration.
 type ExperimentAnalysis struct {
+	ExperimentDecisionResult
+
 	// ExperimentName is the name of the A/B experiment (key in state.counts).
 	ExperimentName string `json:"experiment_name"`
 
@@ -81,6 +84,18 @@ type ExperimentAnalysis struct {
 	// Comparisons contains control-versus-variant outcome analyses for grader observations.
 	Comparisons []MetricComparison `json:"comparisons,omitempty"`
 
+	// MetricDirection is the normalized primary metric direction: max or min.
+	MetricDirection string `json:"metric_direction,omitempty"`
+
+	// DecisionPolicy is the normalized deterministic decision policy.
+	DecisionPolicy ExperimentDecisionPolicy `json:"-"`
+
+	// VariantOrder preserves configured control/candidate ordering for the decision layer.
+	VariantOrder []string `json:"-"`
+
+	// UsesMetricObservations distinguishes usable outcome counts from assignment counts.
+	UsesMetricObservations bool `json:"-"`
+
 	// Recommendation is the analysis recommendation: EXTEND or READY_FOR_ANALYSIS.
 	// EXTEND is issued when any variant is below min_samples (R-STAT-007).
 	Recommendation string `json:"recommendation"`
@@ -126,10 +141,22 @@ type VariantAnalysis struct {
 
 // GuardrailStatus represents a declared guardrail metric threshold (R-STAT-009).
 // The Threshold field records the declared expression (e.g. ">=0.95").
-// Pass/fail evaluation is not performed here as it requires outcome metric data.
+// Status, Passed, and Variants are populated after metric observations are resolved.
 type GuardrailStatus struct {
-	Name      string `json:"name"`
-	Threshold string `json:"threshold"`
+	Name      string                   `json:"name"`
+	Threshold string                   `json:"threshold"`
+	Direction string                   `json:"direction,omitempty"`
+	Status    string                   `json:"status"`
+	Passed    *bool                    `json:"passed,omitempty"`
+	Variants  []GuardrailVariantStatus `json:"variants,omitempty"`
+}
+
+// GuardrailVariantStatus reports one variant's aggregate guardrail outcome.
+type GuardrailVariantStatus struct {
+	Variant          string   `json:"variant"`
+	ObservationCount int      `json:"observation_count"`
+	Mean             *float64 `json:"mean,omitempty"`
+	Passed           *bool    `json:"passed,omitempty"`
 }
 
 // MetricEvalResults summarizes observed YES/NO/UNKNOWN outcomes for an eval-backed metric.
@@ -161,6 +188,19 @@ func computeExperimentAnalysisWithObservations(
 	metricEvalResults map[string]MetricEvalResults,
 	graderObservations *graderMetricObservationSet,
 ) ExperimentAnalysis {
+	return computeExperimentAnalysisWithObservationBundle(
+		exp, cfg, evals, metricEvalResults, graderObservations, nil,
+	)
+}
+
+func computeExperimentAnalysisWithObservationBundle(
+	exp ExperimentVariantStats,
+	cfg *workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+	metricEvalResults map[string]MetricEvalResults,
+	graderObservations *graderMetricObservationSet,
+	guardrailObservations map[string]*graderMetricObservationSet,
+) ExperimentAnalysis {
 	experimentsStatsLog.Printf("Computing analysis for experiment %q: %d variant(s), %d total runs", exp.Name, len(exp.Variants), exp.Total)
 	a := newExperimentAnalysis(exp, cfg, evals, metricEvalResults)
 	if len(exp.Variants) < 2 && graderObservations == nil {
@@ -168,6 +208,7 @@ func computeExperimentAnalysisWithObservations(
 		a.IsBalanced = true
 		a.Recommendation = "EXTEND"
 		a.Rationale = "experiment has fewer than 2 variants; cannot perform statistical analysis"
+		a.ExperimentDecisionResult = DecideExperiment(a)
 		return a
 	}
 
@@ -176,11 +217,15 @@ func computeExperimentAnalysisWithObservations(
 	expectedPcts := expectedProportions(variantNames, cfg)
 	a.Variants = buildVariantAnalyses(exp.Total, variantCounts, variantNames, expectedPcts, a.MinSamples, graderObservations)
 	if graderObservations != nil {
+		a.UsesMetricObservations = true
 		a.MetricType = graderObservationMetricType(cfg, graderObservations)
+		a.MetricDirection = normalizeMetricDirection(graderObservations.Direction)
 		a.Comparisons = computeGraderMetricComparisons(cfg, graderObservations, variantNames, a.MetricType)
 	}
 	applyExperimentBalance(&a, exp.Name, exp.Total, cfg, variantCounts, variantNames, expectedPcts)
 	applyExperimentReadiness(&a, graderObservations != nil)
+	applyExperimentGuardrails(&a, guardrailObservations)
+	a.ExperimentDecisionResult = DecideExperiment(a)
 	return a
 }
 
@@ -190,17 +235,37 @@ func newExperimentAnalysis(
 	evals *workflow.EvalsConfig,
 	metricEvalResults map[string]MetricEvalResults,
 ) ExperimentAnalysis {
-	a := ExperimentAnalysis{ExperimentName: exp.Name, TotalRuns: exp.Total, MinSamples: defaultMinSamples}
+	a := ExperimentAnalysis{
+		ExperimentName: exp.Name,
+		TotalRuns:      exp.Total,
+		MinSamples:     defaultMinSamples,
+		DecisionPolicy: ExperimentDecisionPolicy{
+			Confidence: defaultDecisionConfidence,
+		},
+	}
 	if cfg == nil {
 		return a
 	}
 	a.Hypothesis = cfg.Hypothesis
 	a.AnalysisType = cfg.AnalysisType
+	a.VariantOrder = append([]string(nil), cfg.Variants...)
 	if cfg.MinSamples > 0 {
 		a.MinSamples = cfg.MinSamples
 	}
 	for _, guardrail := range cfg.GuardrailMetrics {
-		a.Guardrails = append(a.Guardrails, GuardrailStatus{Name: guardrail.Name, Threshold: guardrail.Threshold})
+		a.Guardrails = append(a.Guardrails, GuardrailStatus{
+			Name: guardrail.Name, Threshold: guardrail.Threshold, Direction: guardrail.Direction, Status: "unsupported",
+		})
+	}
+	if cfg.Decision != nil {
+		a.DecisionPolicy.MinimumEffect = cfg.Decision.MinimumEffect
+		a.DecisionPolicy.RegressionTolerance = cfg.Decision.MinimumEffect
+		if cfg.Decision.RegressionTolerance != nil {
+			a.DecisionPolicy.RegressionTolerance = *cfg.Decision.RegressionTolerance
+		}
+		if cfg.Decision.Confidence > 0 && cfg.Decision.Confidence < 1 {
+			a.DecisionPolicy.Confidence = cfg.Decision.Confidence
+		}
 	}
 	a.Metric = cfg.Metric
 	evalID, isEval := workflow.ParseExperimentMetricEvalReference(cfg.Metric)
@@ -214,6 +279,113 @@ func newExperimentAnalysis(
 		a.MetricGraderID = graderID
 	}
 	return a
+}
+
+func normalizeMetricDirection(direction string) string {
+	if direction == "lower_is_better" || direction == "min" {
+		return "min"
+	}
+	return "max"
+}
+
+func applyExperimentGuardrails(
+	analysis *ExperimentAnalysis,
+	observationSets map[string]*graderMetricObservationSet,
+) {
+	for index := range analysis.Guardrails {
+		guardrail := &analysis.Guardrails[index]
+		set := observationSets[guardrail.Name]
+		if set == nil {
+			continue
+		}
+		if guardrail.Direction == "" {
+			guardrail.Direction = normalizeMetricDirection(set.Direction)
+		}
+		hasInsufficient := false
+		hasUnsupported := false
+		hasFailure := false
+		for _, variant := range analysis.Variants {
+			observations := set.ByVariant[variant.Name]
+			variantStatus := GuardrailVariantStatus{
+				Variant:          variant.Name,
+				ObservationCount: len(observations),
+			}
+			if len(observations) > 0 {
+				mean := meanGraderObservations(observations)
+				variantStatus.Mean = &mean
+			}
+			if len(observations) < analysis.MinSamples {
+				hasInsufficient = true
+				guardrail.Variants = append(guardrail.Variants, variantStatus)
+				continue
+			}
+			passed, ok := evaluateGuardrailThreshold(*variantStatus.Mean, guardrail.Threshold, guardrail.Direction)
+			if !ok {
+				hasUnsupported = true
+				guardrail.Variants = append(guardrail.Variants, variantStatus)
+				continue
+			}
+			variantStatus.Passed = &passed
+			if !passed {
+				hasFailure = true
+			}
+			guardrail.Variants = append(guardrail.Variants, variantStatus)
+		}
+		switch {
+		case hasInsufficient:
+			guardrail.Status = "insufficient_observations"
+		case hasUnsupported:
+			guardrail.Status = "unsupported"
+		case hasFailure:
+			guardrail.Status = "fail"
+			passed := false
+			guardrail.Passed = &passed
+		default:
+			guardrail.Status = "pass"
+			passed := true
+			guardrail.Passed = &passed
+		}
+	}
+}
+
+func evaluateGuardrailThreshold(value float64, threshold, direction string) (bool, bool) {
+	operator := ""
+	number := strings.TrimSpace(threshold)
+	for _, candidate := range []string{">=", "<=", "==", ">", "<"} {
+		if strings.HasPrefix(number, candidate) {
+			operator = candidate
+			number = strings.TrimSpace(strings.TrimPrefix(number, candidate))
+			break
+		}
+	}
+	if operator == "" {
+		switch direction {
+		case "min":
+			operator = "<="
+		case "max":
+			operator = ">="
+		default:
+			return false, false
+		}
+	}
+	limit, err := strconv.ParseFloat(number, 64)
+	if err != nil || math.IsNaN(limit) || math.IsInf(limit, 0) {
+		return false, false
+	}
+	switch operator {
+	case ">=":
+		return value >= limit, true
+	case "<=":
+		return value <= limit, true
+	case "==":
+		return value == limit, true
+	case ">":
+		return value > limit, true
+	case "<":
+		return value < limit, true
+	default:
+		return false, false
+	}
 }
 
 func findEvalQuestion(evals *workflow.EvalsConfig, evalID string) string {
@@ -424,6 +596,7 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 	printOutcomeComparisons(a.Comparisons)
 	printGuardrails(a.Guardrails)
 	printExperimentRecommendation(a)
+	printExperimentDecision(a.ExperimentDecisionResult)
 }
 
 func printExperimentMetadata(a ExperimentAnalysis) {
@@ -565,10 +738,9 @@ func printGuardrails(guardrails []GuardrailStatus) {
 	}
 	parts := make([]string, 0, len(guardrails))
 	for _, guardrail := range guardrails {
-		parts = append(parts, fmt.Sprintf("%s %s", guardrail.Name, guardrail.Threshold))
+		parts = append(parts, fmt.Sprintf("%s %s (%s)", guardrail.Name, guardrail.Threshold, strings.ToUpper(guardrail.Status)))
 	}
 	fmt.Fprintf(os.Stderr, "  Guardrails : %s\n", strings.Join(parts, "  •  "))
-	fmt.Fprintln(os.Stderr, "               (pass/fail evaluation requires per-run outcome metric data)")
 }
 
 func printExperimentRecommendation(a ExperimentAnalysis) {
@@ -581,4 +753,14 @@ func printExperimentRecommendation(a ExperimentAnalysis) {
 	default:
 		fmt.Fprintf(os.Stderr, "  %s — %s\n", a.Recommendation, a.Rationale)
 	}
+}
+
+func printExperimentDecision(result ExperimentDecisionResult) {
+	fmt.Fprintln(os.Stderr)
+	label := result.Decision
+	if result.Candidate != "" && (result.Decision == experimentDecisionPromote || result.Decision == experimentDecisionReject) {
+		label += " " + result.Candidate
+	}
+	fmt.Fprintf(os.Stderr, "  Decision   : %s\n", label)
+	fmt.Fprintf(os.Stderr, "  Reason     : %s (%s)\n", result.DecisionReason, result.ReasonCode)
 }

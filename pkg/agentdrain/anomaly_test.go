@@ -3,6 +3,7 @@
 package agentdrain
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -283,6 +284,12 @@ func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
 		{
 			name:          "similarity threshold above one is rejected",
 			simThreshold:  1.1,
+			rareThreshold: 1,
+			wantErr:       "simThreshold must be in [0,1]",
+		},
+		{
+			name:          "NaN similarity threshold is rejected",
+			simThreshold:  math.NaN(),
 			rareThreshold: 1,
 			wantErr:       "simThreshold must be in [0,1]",
 		},

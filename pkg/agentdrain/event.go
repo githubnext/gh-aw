@@ -38,11 +38,6 @@ func FlattenEvent(evt AgentEvent, excludeFields []string) string {
 	return strings.Join(parts, " ")
 }
 
-// Tokenize splits a log line on whitespace and returns the individual tokens.
-func Tokenize(line string) []string {
-	return strings.Fields(line)
-}
-
 // StageSequence converts a slice of AgentEvents into a space-separated string
 // of their stage names, e.g. "plan tool_call tool_result finish".
 func StageSequence(events []AgentEvent) string {
