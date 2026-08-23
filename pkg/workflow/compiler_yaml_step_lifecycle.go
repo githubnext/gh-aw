@@ -228,8 +228,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL_COSTS: '%s'\n", escapedModelCostsJSON)
 		}
 	}
-	if len(data.Features) > 0 {
-		if featuresJSON, err := json.Marshal(data.Features); err == nil {
+	if runtimeFeatures := runtimeVisibleFeatures(data.Features); len(runtimeFeatures) > 0 {
+		if featuresJSON, err := json.Marshal(runtimeFeatures); err == nil {
 			// Escape single quotes for YAML single-quoted scalar safety
 			escapedFeaturesJSON := strings.ReplaceAll(string(featuresJSON), "'", "''")
 			fmt.Fprintf(yaml, "          GH_AW_INFO_FEATURES: '%s'\n", escapedFeaturesJSON)

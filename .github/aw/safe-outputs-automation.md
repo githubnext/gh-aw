@@ -251,7 +251,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   safe-outputs:
     approve-workflow-run:
       allowed-workflows: [ci.yml]     # Required: workflow filenames eligible for approval (no paths)
-      fork: true                      # Optional: restrict to fork pull requests (default: false)
+      allowed-repos: [org/fork]       # Optional: fork repositories allowed for approval (default: current repository only)
       allowed-pull-requests: ["123"]  # Optional: restrict to specific PR numbers
       protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
       github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}  # Required: external token/app (github.token cannot approve runs requiring approval)

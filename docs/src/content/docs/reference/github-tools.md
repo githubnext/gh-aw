@@ -5,9 +5,9 @@ sidebar:
   order: 710
 ---
 
-The GitHub Tools (`tools.github`) allow the agentic step of your workflow to read information such as issues and pull requests from GitHub.
+The GitHub Tools (`tools.github`) let the agentic step read information such as issues and pull requests from GitHub.
 
-In most workflows, no configuration of the GitHub Tools is necessary since they are included by default with the default toolsets. By default, this provides access to the current repository and all public repositories (if permitted by the network firewall).
+In most workflows, no extra configuration is needed. The default toolset already provides access to the current repository and public repositories, subject to the network firewall.
 
 ## GitHub Toolsets
 
@@ -28,16 +28,7 @@ tools:
 
 **Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
-Some key toolsets are:
-
-- `context` (user/team info)
-- `repos` (repository operations, code search, commits, releases)
-- `issues` (issue management, comments, reactions)
-- `pull_requests` (PR operations)
-- `actions` (workflows, runs, artifacts)
-- `code_security` (scanning alerts)
-- `discussions` (discussions and comments)
-- `labels` (labels management)
+Common toolsets include `context` (user and team info), `repos` (repository operations, code search, commits, releases), `issues`, `pull_requests`, `actions` (workflows, runs, artifacts), `code_security`, `discussions`, and `labels`.
 
 :::note
 `toolsets: [all]` does **not** include the `dependabot` toolset. The `dependabot` toolset must be opted into explicitly. See [Using the `dependabot` toolset](#using-the-dependabot-toolset) for authentication requirements.
@@ -96,9 +87,7 @@ tools:
 
 ## GitHub Cross-Repository Reading
 
-By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. You can also configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution by using the `tools.github.allowed-repos` setting. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
-
-By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
+By default, the GitHub Tools can read from the current repository and all public repositories, subject to the network firewall. To read from other private repositories, configure additional authentication. You can further restrict repository access during execution with `tools.github.allowed-repos`. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
 
 ## GitHub Tools Access Modes
 
@@ -133,33 +122,17 @@ In some circumstances you must use a GitHub PAT or GitHub app to give the GitHub
 
 This authentication relates to **reading** information from GitHub. Additional authentication to write to GitHub is handled separately through various [Safe Outputs](/gh-aw/reference/safe-outputs/).
 
-This is required when your workflow requires any of the following:
-
-- Read access to GitHub org or user information
-- Read access to other private repos
-- Read access to projects
-- GitHub tools [Remote Mode](#github-tools-access-modes)
+This is required when your workflow needs read access to org or user information, other private repositories, projects, or GitHub tools [remote mode](#github-tools-access-modes).
 
 ### Using a Personal Access Token (PAT)
 
 If additional authentication is required, one way is to create a fine-grained PAT with appropriate permissions, add it as a repository secret, and reference it in your workflow:
 
-1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?description=GitHub+Agentic+Workflows+-+GitHub+tools+access&contents=read&issues=read&pull_requests=read) (this link pre-fills the description and common read permissions) with:
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?description=GitHub+Agentic+Workflows+-+GitHub+tools+access&contents=read&issues=read&pull_requests=read) (this link pre-fills the description and common read permissions) with repository access to the repos you need and read permissions that match your toolsets:
 
-   - **Repository access**:
-     - Select specific repos or "All repositories"
-   - **Repository permissions** (based on your GitHub tools usage):
-     - Contents: Read (minimum for toolset: repos)
-     - Issues: Read (for toolset: issues)
-     - Pull requests: Read (for toolset: pull_requests)
-     - Projects: Read (for toolset: projects)
-     - Security Events: Read (for toolset: dependabot, code_security, secret_protection, security_advisories)
-     - Remote mode: no additional permissions required
-     - Adjust based on the toolsets you configure in your workflow
-   - **Organization permissions** (if accessing org-level info):
-     - Members: Read (for org member info in context)
-     - Teams: Read (for team info in context)
-     - Adjust based on the toolsets you configure in your workflow
+   - **Repository permissions**: `Contents` for `repos`; `Issues` for `issues`; `Pull requests` for `pull_requests`; `Projects` for `projects`; `Security events` for `dependabot`, `code_security`, `secret_protection`, and `security_advisories`.
+   - **Organization permissions**: `Members` and `Teams` when you need org-level info in `context`.
+   - **Remote mode**: no additional permission beyond the required repo or org reads.
 
 2. Add it to your repository secrets, either by CLI or GitHub UI:
 

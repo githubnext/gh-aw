@@ -140,6 +140,7 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 	var containerCmd strings.Builder
 	appendMCPGatewayBaseEnvFlags(&containerCmd, "")
 	assert.Contains(t, containerCmd.String(), " -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
+	assert.Contains(t, containerCmd.String(), " -e RUNNER_TOOL_CACHE")
 }
 
 func TestAppendMCPGatewayMountEnvFlags(t *testing.T) {
