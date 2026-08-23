@@ -34,6 +34,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/deployment-status.md`
 - `.github/aw/designer-mappings.md`
 - `.github/aw/designer.md`
+- `.github/aw/drive-memory.md`
 - `.github/aw/enclaves.md`
 - `.github/aw/evals.md`
 - `.github/aw/experiments.md`
