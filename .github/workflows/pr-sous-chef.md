@@ -244,9 +244,11 @@ steps:
       fetched_count="$(jq '.fetched' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
       zero_diff_stalled_count="$(jq '[.prs[] | select(.zero_diff_stalled)] | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
       eligible_pull_request_numbers="$(jq -c '[.prs[]?.number | tostring]' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo '[]')"
-      echo "eligible_count=$eligible_count" >> "$GITHUB_OUTPUT"
-      echo "zero_diff_stalled_count=$zero_diff_stalled_count" >> "$GITHUB_OUTPUT"
-      echo "eligible_pull_request_numbers=$eligible_pull_request_numbers" >> "$GITHUB_OUTPUT"
+      {
+        echo "eligible_count=$eligible_count"
+        echo "zero_diff_stalled_count=$zero_diff_stalled_count"
+        echo "eligible_pull_request_numbers=$eligible_pull_request_numbers"
+      } >> "$GITHUB_OUTPUT"
 
       # Write prefilter summary to the step summary for visibility
       {

@@ -8,6 +8,7 @@ import "testing"
 // validateCopilotSetupStepsRunsOn: missing key, string variants, slice
 // variants, map (group/labels) variants, and unsupported types.
 func TestValidateCopilotSetupStepsRunsOn(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		job     map[string]any
@@ -112,6 +113,7 @@ func TestValidateCopilotSetupStepsRunsOn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := validateCopilotSetupStepsRunsOn(tt.job)
 			if tt.wantErr && err == nil {
 				t.Fatalf("expected error, got nil")

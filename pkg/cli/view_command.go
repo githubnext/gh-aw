@@ -165,7 +165,7 @@ func ViewWorkflowRun(ctx context.Context, runID int64, opts ViewOptions) error {
 	} else {
 		output := renderUnifiedTimelineStream(events)
 		if output != "" {
-			fmt.Print(output)
+			fmt.Fprint(os.Stdout, output)
 		}
 	}
 

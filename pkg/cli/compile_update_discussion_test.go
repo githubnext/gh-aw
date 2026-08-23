@@ -23,6 +23,7 @@ import (
 //   - allow_body absent   (body: is NOT configured — blocked by filterToolSchemaFields and runtime)
 //   - allowed_labels: ["smoke-test","general"]
 func TestCompileUpdateDiscussionFieldEnforcement(t *testing.T) {
+	t.Parallel()
 	const workflowContent = `---
 on:
   workflow_dispatch:

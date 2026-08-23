@@ -1025,10 +1025,29 @@ check_mce_core_error_handling() {
         failed=1
     fi
 
-    # Check that error messages from thrown plain objects are serialized with String()
+    # Check that error messages from thrown plain objects are serialized to a string
     # to prevent '[object Object]' appearing as the error message when non-Error
-    # instances are thrown by handler code.
-    if ! grep -qE 'String\(e\.message\)|String\(err\.message\)' "$core_file"; then
+    # instances are thrown by handler code. This can be done directly with String()
+    # or via the shared getErrorMessage() helper from error_helpers.cjs, as long as
+    # that helper itself guards against non-string `.message` values.
+    local helper_file="actions/setup/js/error_helpers.cjs"
+    local uses_string_directly=0
+    local uses_safe_helper=0
+
+    if grep -qE 'String\(e\.message\)|String\(err\.message\)' "$core_file"; then
+        uses_string_directly=1
+    fi
+
+    if grep -qE 'getErrorMessage' "$core_file" && [ -f "$helper_file" ]; then
+        # The helper must not fall back to stringifying the entire error object when
+        # the error has a non-string `.message` property — it must coerce the message
+        # value itself instead.
+        if grep -qzE 'message = typeof error\.message === "string" \? error\.message : String\(error\.message\)' "$helper_file"; then
+            uses_safe_helper=1
+        fi
+    fi
+
+    if [ $uses_string_directly -eq 0 ] && [ $uses_safe_helper -eq 0 ]; then
         log_high "MCE-006: MCP server core does not use String() for error message serialization — risk of '[object Object]' in responses (Section 8.2)"
         failed=1
     fi
@@ -2034,7 +2053,7 @@ check_approve_workflow_run_semantics() {
             failed=1
         fi
 
-        if ! grep -qE "run\.status\s*!==\s*[\"']waiting[\"']" "$handler"; then
+        if ! grep -qE "isAwaitingApproval|APPROVABLE_RUN_STATUSES|run\.status\s*!==\s*[\"']waiting[\"']" "$handler"; then
             log_high "TYPE-013: approve_workflow_run handler does not verify run status is waiting (Section 7.3 requirement 3)"
             failed=1
         fi
@@ -2059,8 +2078,8 @@ check_approve_workflow_run_semantics() {
             failed=1
         fi
 
-        if ! grep -qE "isForkPullRequest|config\.fork" "$handler"; then
-            log_high "TYPE-013: approve_workflow_run handler does not reject fork pull requests unless fork: true (Section 7.3 requirement 6)"
+        if ! grep -qE "isHeadRepoAllowed|allowed_repos|allowedRepos|isForkPullRequest|config\.fork" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not reject fork pull requests unless allowed via allowed-repos (Section 7.3 requirement 6)"
             failed=1
         fi
 

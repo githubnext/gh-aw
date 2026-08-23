@@ -159,6 +159,7 @@ For the full dependency-license/compliance review pattern (paths scoping, licens
 | CLI commands and MCP equivalents | [cli-commands.md](cli-commands.md) |
 | Network configuration | [network.md](network.md) |
 | Memory and persistence | [memory.md](memory.md) |
+| Drive memory (private preview) | [drive-memory.md](drive-memory.md) |
 | Imports and shared components | [reuse.md](reuse.md) |
 | Sub-agents | [subagents.md](subagents.md) |
 | Skills | [skills.md](skills.md) |

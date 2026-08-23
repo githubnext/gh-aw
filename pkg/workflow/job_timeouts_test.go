@@ -20,7 +20,7 @@ func TestResolveAgentJobTimeoutValue(t *testing.T) {
 	})
 
 	t.Run("ignores the agentic step timeout default", func(t *testing.T) {
-		data := &WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}"}
+		data := &WorkflowData{TimeoutMinutes: "timeout-minutes: ${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20') }}"}
 		assert.Equal(t, "60", resolveAgentJobTimeoutValue(data))
 	})
 
@@ -103,7 +103,7 @@ func TestGeneratedAgentJobTimeoutMinutes(t *testing.T) {
 			name:            "defaults",
 			frontmatter:     "",
 			wantJobTimeout:  uint64(60),
-			wantStepTimeout: "${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}",
+			wantStepTimeout: "${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20') }}",
 		},
 		{
 			name:            "top-level timeout bounds the step only",
@@ -115,7 +115,7 @@ func TestGeneratedAgentJobTimeoutMinutes(t *testing.T) {
 			name:            "jobs.agent.timeout-minutes bounds the job only",
 			frontmatter:     "jobs:\n  agent:\n    timeout-minutes: 90\n",
 			wantJobTimeout:  uint64(90),
-			wantStepTimeout: "${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}",
+			wantStepTimeout: "${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20') }}",
 		},
 	}
 

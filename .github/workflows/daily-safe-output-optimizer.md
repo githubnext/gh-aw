@@ -69,6 +69,7 @@ experiments:
       seed: daily-safe-output-log-fetch-v1
       ramp: [10, 25, 50]
     start_date: "2026-06-09"
+    issue: 38094
 
 evals:
   - id: errored_calls_analyzed

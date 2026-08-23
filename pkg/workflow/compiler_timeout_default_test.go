@@ -34,7 +34,7 @@ permissions:
   contents: read
 engine: copilot
 ---`,
-			expectedTimeout: fmt.Sprintf("timeout-minutes: ${{ vars.%s || '%d' }}",
+			expectedTimeout: fmt.Sprintf("timeout-minutes: ${{ fromJSON(vars.%s || '%d') }}",
 				compilerenv.DefaultTimeoutMinutes, int(constants.DefaultAgenticWorkflowTimeout/time.Minute)),
 			description: "When timeout-minutes is not specified, default should be applied",
 		},

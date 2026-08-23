@@ -239,14 +239,14 @@ Drop any entry that fails validation and record it as noop. If no entries remain
 After the final succeeded set is known, publish one experimental coverage report for the changed package set:
 
 ```bash
-mkdir -p /tmp/gh-aw/purelock "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage"
+mkdir -p /tmp/gh-aw/purelock
 go install github.com/boumenot/gocover-cobertura@4afa1205ab3b54ae098dd4724c1657aad10f7484
 go test ./<unique-succeeded-package-dir>/... -count=1 -covermode=atomic -coverprofile=/tmp/gh-aw/purelock/generated-tests.out
-"$(go env GOPATH)/bin/gocover-cobertura" < /tmp/gh-aw/purelock/generated-tests.out > "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage/cobertura.xml"
+"$(go env GOPATH)/bin/gocover-cobertura" < /tmp/gh-aw/purelock/generated-tests.out > /tmp/gh-aw/purelock/cobertura.xml
 ```
 
-Only after verifying `cobertura.xml` exists and is non-empty, call `upload_code_coverage` with
-`file: "cobertura.xml"`, `language: "Go"`, and `label: "purelock/generated-tests"`.
+Only after verifying `/tmp/gh-aw/purelock/cobertura.xml` exists and is non-empty, call `upload_code_coverage` with
+`file: "/tmp/gh-aw/purelock/cobertura.xml"`, `language: "Go"`, and `label: "purelock/generated-tests"`.
 
 ## 4. Create PR and update cache
 
