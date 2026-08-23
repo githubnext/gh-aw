@@ -79,6 +79,7 @@ func truncateDockerBuildOutput(output string) string {
 }
 
 func TestIsTransientDockerBuildFailure(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		output string
@@ -103,6 +104,7 @@ func TestIsTransientDockerBuildFailure(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := isTransientDockerBuildFailure(tc.output)
 			if got != tc.want {
 				t.Fatalf("isTransientDockerBuildFailure() = %v, want %v", got, tc.want)
@@ -113,6 +115,7 @@ func TestIsTransientDockerBuildFailure(t *testing.T) {
 
 // TestDockerfile_Exists verifies the Dockerfile exists and has expected content
 func TestDockerfile_Exists(t *testing.T) {
+	t.Parallel()
 	// Get the repository root
 	repoRoot, err := getRepoRoot()
 	if err != nil {
@@ -154,6 +157,7 @@ func TestDockerfile_Exists(t *testing.T) {
 
 // TestMakefile_DockerTargets verifies Docker targets exist in Makefile
 func TestMakefile_DockerTargets(t *testing.T) {
+	t.Parallel()
 	// Get the repository root
 	repoRoot, err := getRepoRoot()
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 )
 
 func TestBuildDockerVolumeMount(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	mount, err := buildDockerVolumeMount(tmpDir, "/workdir")
@@ -50,6 +51,7 @@ func TestBuildDockerVolumeMount(t *testing.T) {
 }
 
 func TestBuildDockerReadonlyFileMount(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	policyFile := filepath.Join(tmpDir, ".grant.yaml")
 	require.NoError(t, os.WriteFile(policyFile, []byte("policy: true\n"), 0o644))
@@ -80,6 +82,7 @@ func TestBuildDockerReadonlyFileMount(t *testing.T) {
 }
 
 func TestValidateDockerImageRefRejectsUnsafeCharacters(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		imageRef string
@@ -101,6 +104,7 @@ func TestValidateDockerImageRefRejectsUnsafeCharacters(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := validateDockerImageRef(tt.imageRef)
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErr)
@@ -109,6 +113,7 @@ func TestValidateDockerImageRefRejectsUnsafeCharacters(t *testing.T) {
 }
 
 func TestValidateDockerImageRefAcceptsCommonReferences(t *testing.T) {
+	t.Parallel()
 	testCases := []string{
 		"alpine:latest",
 		"ghcr.io/github/gh-aw:1.2.3",
@@ -121,6 +126,7 @@ func TestValidateDockerImageRefAcceptsCommonReferences(t *testing.T) {
 
 	for _, imageRef := range testCases {
 		t.Run(imageRef, func(t *testing.T) {
+			t.Parallel()
 			validated, err := validateDockerImageRef(imageRef)
 			require.NoError(t, err)
 			require.Equal(t, imageRef, validated)
@@ -129,12 +135,14 @@ func TestValidateDockerImageRefAcceptsCommonReferences(t *testing.T) {
 }
 
 func TestPinnedScannerImagesUseValidDockerReferences(t *testing.T) {
+	t.Parallel()
 	for _, imageRef := range []string{
 		PoutineImage,
 		RunnerGuardImage,
 		GrantImage,
 	} {
 		t.Run(imageRef, func(t *testing.T) {
+			t.Parallel()
 			validated, err := validateDockerImageRef(imageRef)
 			require.NoError(t, err)
 			require.Equal(t, imageRef, validated)
@@ -143,6 +151,7 @@ func TestPinnedScannerImagesUseValidDockerReferences(t *testing.T) {
 }
 
 func TestGrantContainerPolicyPathIsValidContainerMountPath(t *testing.T) {
+	t.Parallel()
 	validated, err := validateContainerMountPath(grantContainerPolicyPath)
 	require.NoError(t, err)
 	require.Equal(t, grantContainerPolicyPath, validated)

@@ -12,6 +12,7 @@ import (
 )
 
 func TestFormatAge(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		days     int
@@ -28,6 +29,7 @@ func TestFormatAge(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create duration from days
 			d := daysToHours(tt.days)
 			result := formatAge(d)
@@ -39,6 +41,7 @@ func TestFormatAge(t *testing.T) {
 }
 
 func TestGetUpdateStatus(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		dep      OutdatedDependency
@@ -68,6 +71,7 @@ func TestGetUpdateStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := getUpdateStatus(tt.dep)
 			if !strings.Contains(result, tt.contains) {
 				t.Errorf("getUpdateStatus() = %v, should contain %v", result, tt.contains)
@@ -77,6 +81,7 @@ func TestGetUpdateStatus(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		input  string
@@ -91,6 +96,7 @@ func TestTruncate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := stringutil.Truncate(tt.input, tt.maxLen)
 			if result != tt.want {
 				t.Errorf("stringutil.Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, result, tt.want)
@@ -100,6 +106,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestParseGoMod(t *testing.T) {
+	t.Parallel()
 	goModContent := `module github.com/example/test
 
 go 1.25.0
@@ -134,6 +141,7 @@ require (
 }
 
 func TestParseGoModFile_WithIndirect(t *testing.T) {
+	t.Parallel()
 	goModContent := `module github.com/example/test
 
 go 1.25.0
@@ -171,6 +179,7 @@ require (
 }
 
 func TestGetSeverityIcon(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		severity string
 		expected string
@@ -184,6 +193,7 @@ func TestGetSeverityIcon(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.severity, func(t *testing.T) {
+			t.Parallel()
 			result := getSeverityIcon(tt.severity)
 			if result != tt.expected {
 				t.Errorf("getSeverityIcon(%v) = %v, want %v", tt.severity, result, tt.expected)
@@ -193,6 +203,7 @@ func TestGetSeverityIcon(t *testing.T) {
 }
 
 func TestSeverityWeight(t *testing.T) {
+	t.Parallel()
 	// Test that critical > high > medium > low
 	if severityWeight("critical") <= severityWeight("high") {
 		t.Error("critical should have higher weight than high")
@@ -206,6 +217,7 @@ func TestSeverityWeight(t *testing.T) {
 }
 
 func TestPluralize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		word     string
 		count    int
@@ -219,6 +231,7 @@ func TestPluralize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.word, func(t *testing.T) {
+			t.Parallel()
 			result := pluralize(tt.word, tt.count)
 			if result != tt.expected {
 				t.Errorf("pluralize(%v, %d) = %v, want %v", tt.word, tt.count, result, tt.expected)
