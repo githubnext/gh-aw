@@ -242,11 +242,11 @@ test_validation_functions_exist() {
   echo ""
   echo "Test 9: Verify validation logic exists"
   
-  # Check for config file validation
-  if grep -q "Configuration file not found" "$SCRIPT_PATH"; then
-    print_result "Config file validation exists" "PASS"
+  # Check for stdin configuration handling
+  if grep -q "MCP configuration received" "$SCRIPT_PATH"; then
+    print_result "Configuration input handling exists" "PASS"
   else
-    print_result "Config file validation missing" "FAIL"
+    print_result "Configuration input handling missing" "FAIL"
   fi
   
   # Check for JSON validation
@@ -277,11 +277,11 @@ test_validation_functions_exist() {
     print_result "--rm flag validation missing" "FAIL"
   fi
   
-  # Check for --network host validation
-  if grep -q "must include --network host flag" "$SCRIPT_PATH"; then
-    print_result "--network host flag validation exists" "PASS"
+  # Check for --network validation
+  if grep -q "must include --network flag" "$SCRIPT_PATH"; then
+    print_result "--network flag validation exists" "PASS"
   else
-    print_result "--network host flag validation missing" "FAIL"
+    print_result "--network flag validation missing" "FAIL"
   fi
 
   # Check for health check retry/backoff logic
@@ -307,12 +307,41 @@ test_validation_functions_exist() {
   fi
 }
 
-test_gateway_logs_not_generated() {
-  if grep -Eq "/tmp/gh-aw/mcp-logs/(stderr|start-gateway)\.log" "$SCRIPT_PATH"; then
-    print_result "MCP gateway stderr and startup logs are not generated" "FAIL"
+test_gateway_startup_diagnostics() {
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local fake_bin="$tmpdir/bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/docker" << 'EOF'
+#!/usr/bin/env bash
+  echo "simulated gateway startup failure: API_TOKEN=redact-me" >&2
+exit 42
+EOF
+  chmod +x "$fake_bin/docker"
+
+  rm -rf /tmp/gh-aw/mcp-config /tmp/gh-aw/mcp-gateway-started
+  local output
+  set +e
+  output=$(printf '%s\n' '{"mcpServers":{},"gateway":{"port":8080,"domain":"localhost","apiKey":"redact-me"}}' | \
+    PATH="$fake_bin:$PATH" \
+    MCP_GATEWAY_PORT="8080" \
+    MCP_GATEWAY_DOMAIN="localhost" \
+    MCP_GATEWAY_API_KEY="redact-me" \
+    MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm --network host test-image" \
+    bash "$SCRIPT_PATH" 2>&1)
+  local exit_code=$?
+  set -e
+
+  if [[ "$exit_code" -ne 0 ]] &&
+    grep -q "Gateway startup diagnostics:" <<< "$output" &&
+    grep -q "simulated gateway startup failure" <<< "$output" &&
+    grep -q "API_TOKEN=\[REDACTED\]" <<< "$output" &&
+    ! grep -q "redact-me" <<< "$output"; then
+    print_result "Gateway startup failure surfaces stderr without credentials" "PASS"
   else
-    print_result "MCP gateway stderr and startup logs are not generated" "PASS"
+    print_result "Gateway startup failure surfaces stderr without credentials" "FAIL"
   fi
+  rm -rf "$tmpdir" /tmp/gh-aw/mcp-config /tmp/gh-aw/mcp-gateway-started
 }
 
 # Run all tests
@@ -328,7 +357,7 @@ test_container_missing_i_flag
 test_container_missing_rm_flag
 test_container_missing_network_flag
 test_validation_functions_exist
-test_gateway_logs_not_generated
+test_gateway_startup_diagnostics
 
 # Print summary
 echo ""

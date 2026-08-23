@@ -62,9 +62,30 @@ EXIT_CODE=$?
 set -e
 assert "exits successfully when awf is not installed" "[ '${EXIT_CODE}' -eq 0 ]"
 assert "prints 'AWF binary not installed' message" "printf '%s' \"${OUTPUT}\" | grep -q 'AWF binary not installed'"
+assert "identifies incomplete gateway startup when access log is missing" "printf '%s' \"${OUTPUT}\" | grep -q 'MCP gateway did not complete startup'"
 echo ""
 
-# ── Test 4: --rootless flag is accepted without error ───────────────────────
+# ── Test 4: Missing access log distinguishes a started gateway ───────────────
+echo "Test 4: Missing access log distinguishes a started gateway"
+FIREWALL_DIR="${WORKSPACE}/test4/sandbox/firewall"
+GATEWAY_MARKER="${WORKSPACE}/test4/mcp-gateway-started"
+mkdir -p "${FIREWALL_DIR}/logs"
+touch "${GATEWAY_MARKER}"
+set +e
+OUTPUT="$(
+  PATH="/usr/bin:/bin" \
+  AWF_LOGS_DIR="${FIREWALL_DIR}/logs" \
+  MCP_GATEWAY_STARTUP_MARKER="${GATEWAY_MARKER}" \
+  GITHUB_STEP_SUMMARY="${WORKSPACE}/test4-summary.md" \
+  bash "${SCRIPT}" 2>&1
+)"
+EXIT_CODE=$?
+set -e
+assert "exits successfully when gateway started without traffic" "[ '${EXIT_CODE}' -eq 0 ]"
+assert "identifies started gateway without auditable traffic" "printf '%s' \"${OUTPUT}\" | grep -q 'MCP gateway started but produced no auditable egress traffic'"
+echo ""
+
+# ── Test 5: --rootless flag is accepted without error ───────────────────────
 echo "Test 4: --rootless flag is accepted without error"
 FIREWALL_DIR="${WORKSPACE}/test4/sandbox/firewall"
 mkdir -p "${FIREWALL_DIR}/logs"
