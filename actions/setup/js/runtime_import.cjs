@@ -14,8 +14,6 @@ const { closeUnterminatedSubAgentMarkers } = require("./extract_inline_sub_agent
 
 const fs = require("fs");
 const path = require("path");
-const https = require("https");
-const http = require("http");
 
 /**
  * Makes any "## skill:"/"## agent:" block in a runtime-imported chunk of
@@ -677,6 +675,9 @@ function hasGitHubActionsMacros(content) {
   return /\$\{\{[\s\S]*?\}\}/.test(content);
 }
 
+/** @type {number} Timeout in milliseconds for fetching URL content in {@link fetchUrlContent} */
+const FETCH_URL_TIMEOUT_MS = 30_000;
+
 /**
  * Fetches content from a URL with caching
  * @param {string} url - The URL to fetch
@@ -726,40 +727,32 @@ async function fetchUrlContent(url, cacheDir) {
   // Fetch URL content
   core.info(`Fetching content from URL: ${url}`);
 
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith("https") ? https : http;
+  let response;
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(FETCH_URL_TIMEOUT_MS) });
+  } catch (err) {
+    throw new Error(`${ERR_API}: Failed to fetch URL ${url}: ${getErrorMessage(err)}`, { cause: err });
+  }
 
-    protocol
-      .get(url, res => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Failed to fetch URL ${url}: HTTP ${res.statusCode}`));
-          return;
-        }
+  if (!response.ok) {
+    throw new Error(`${ERR_API}: Failed to fetch URL ${url}: HTTP ${response.status}`);
+  }
 
-        let data = "";
-        res.on("data", chunk => {
-          data += chunk;
-        });
+  let data;
+  try {
+    data = await response.text();
+  } catch (err) {
+    throw new Error(`${ERR_API}: Failed to fetch URL ${url}: ${getErrorMessage(err)}`, { cause: err });
+  }
 
-        res.on("end", () => {
-          // Cache the content
-          try {
-            fs.writeFileSync(cacheFile, data, "utf8");
-          } catch (err) {
-            reject(new Error(`Failed to write file ${cacheFile}: ${getErrorMessage(err)}`, { cause: err }));
-            return;
-          }
-          resolve(data);
-        });
+  // Cache the content
+  try {
+    fs.writeFileSync(cacheFile, data, "utf8");
+  } catch (err) {
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${cacheFile}: ${getErrorMessage(err)}`, { cause: err });
+  }
 
-        res.on("error", err => {
-          reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
-        });
-      })
-      .on("error", err => {
-        reject(new Error(`Failed to fetch URL ${url}: ${err.message}`));
-      });
-  });
+  return data;
 }
 
 /**
