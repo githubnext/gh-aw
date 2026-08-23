@@ -143,15 +143,52 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 }
 
 func TestAppendMCPGatewayMountEnvFlags(t *testing.T) {
-	tools := map[string]any{
-		"serena": map[string]any{
-			"mounts": []any{`\${RUNNER_TOOL_CACHE}:\${RUNNER_TOOL_CACHE}:ro`},
+	tests := []struct {
+		name          string
+		tools         map[string]any
+		gatewayConfig *MCPGatewayRuntimeConfig
+		expected      string
+	}{
+		{
+			name: "escaped tool mount",
+			tools: map[string]any{
+				"serena": map[string]any{
+					"mounts": []any{`\${RUNNER_TOOL_CACHE}:\${RUNNER_TOOL_CACHE}:ro`},
+				},
+			},
+			expected: " -e RUNNER_TOOL_CACHE",
+		},
+		{
+			name: "unescaped tool mount",
+			tools: map[string]any{
+				"serena": map[string]any{
+					"mounts": []any{`${RUNNER_TOOL_CACHE}:${RUNNER_TOOL_CACHE}:ro`},
+				},
+			},
+			expected: " -e RUNNER_TOOL_CACHE",
+		},
+		{
+			name:          "gateway mount",
+			gatewayConfig: &MCPGatewayRuntimeConfig{Mounts: []string{`${RUNNER_TOOL_CACHE}:${RUNNER_TOOL_CACHE}:ro`}},
+			expected:      " -e RUNNER_TOOL_CACHE",
+		},
+		{
+			name: "unrelated mount",
+			tools: map[string]any{
+				"server": map[string]any{
+					"mounts": []any{`${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw`},
+				},
+			},
 		},
 	}
 
-	var containerCmd strings.Builder
-	appendMCPGatewayMountEnvFlags(&containerCmd, tools, nil)
-	assert.Equal(t, " -e RUNNER_TOOL_CACHE", containerCmd.String())
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var containerCmd strings.Builder
+			appendMCPGatewayMountEnvFlags(&containerCmd, test.tools, test.gatewayConfig)
+			assert.Equal(t, test.expected, containerCmd.String())
+		})
+	}
 }
 
 // TestWriteMCPGatewayExportsIncludesAllowedMountRoots verifies the run script
