@@ -1,3 +1,15 @@
+## Extracted code-quality tasks (2026-08-23 ~18:28Z cycle)
+
+6 filed, 0 comments, window since 12:32:09Z baseline #55074 (8 new discussions: 55075,55076,55078,55100,55104,55114,55117,55123):
+1. Document model-alias fallback/failure behavior in model-tables.md — discussion #55104. Filed.
+2. smoke-agent-public-none.md run-failure message should name the tested guard policy — discussion #55104. Filed.
+3. Fix wrong file reference ("Default toolsets" doc updates) in github-mcp-tools-report.md — discussion #55076 (corrected; original claim that the target file doesn't exist was false, verified live). Filed.
+4. Allowlist storage.googleapis.com so Delight's CLI-quality section stops silently skipping — cross-ref of #55104 + #55117. Filed.
+5. Fix engine-example-counter to match nested `engine: {id: ...}` form, not just literal string — discussion #55075 (root-caused the report's own self-flagged trend anomaly). Filed.
+6. Add deterministic CI check for secrets in job outputs (replace ad hoc grep) — discussion #55123, first-run Daily Secrets Analysis's own Recommendation 1. Filed.
+
+Declined (chronic/generic/too-large, not filed): CLAUDE_CODE_OAUTH_TOKEN warning (chronic, closed 4x); `q` workflow re-diagnosis (chronic, closed 2x); AI Moderator/CGO (already tracked #54941/#54940); shared-alerts.md stale entries (not a git-tracked file); Smoke Copilot Google-domain blocks (chronic, closed 2x under "Smoke Claude"); "(unknown)" blocked domain across 8 workflows (too diffuse); Daily Issues Report triage-volume asks (informational); Claude docs review onboarding-parity/WIF/example-library asks (too large for a quick win).
+
 ## Extracted code-quality tasks (2026-08-22 ~00:30Z cycle)
 
 1 filed, 0 comments, window since 18:26Z baseline #54587 (9 new discussions):

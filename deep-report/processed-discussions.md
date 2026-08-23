@@ -1,3 +1,8 @@
+## Discussions mined for code-quality tasks (processed through 2026-08-23 ~18:28Z)
+
+### Processed 2026-08-23 ~18:28Z cycle (full — all 8 new/updated discussions read; window since 12:32:09Z baseline #55074, own prior briefing excluded)
+55075, 55076, 55078, 55100, 55104, 55114, 55117, 55123 — all read in full, no sampling shortfall. 6 code-quality/reliability tasks extracted and filed, notably 2 verified data-quality bugs found inside the repo's own reporting workflows (engine-example-counter miscounting logic; Delight's silent CLI-section skip from a firewall gap) rather than in application code — see known_patterns.md. `q` workflow re-diagnosis, AI Moderator/CGO, and Smoke Copilot's Google-domain blocks all declined as chronic (already closed 2-4x each without sticking).
+
 ## Discussions mined for code-quality tasks (processed through 2026-08-23 ~12:30Z)
 
 ### Processed 2026-08-23 ~12:30Z cycle (full — all 8 new/updated discussions read; window since 06:23:00Z baseline #55027)

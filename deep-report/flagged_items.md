@@ -1,3 +1,21 @@
+## Flagged Items (2026-08-23, ~18:28Z cycle, window since 12:32:09Z baseline #55074, 8 new discussions: 55075,55076,55078,55100,55104,55114,55117,55123)
+
+- **[new, filed]** model-alias fallback/failure behavior undocumented in model-tables.md — Claude docs review (#55075); verified live, page has no such section.
+- **[new, filed]** smoke-agent-public-none.md run-failure message doesn't name the tested guard policy — Delight (#55104); verified live at lines 45/47.
+- **[new, filed, corrected]** github-mcp-tools-report.md's own instructions (lines 392/442/522) point "Default toolsets" doc updates at `.github/aw/github-agentic-workflows.md`, which exists but lacks that content — real content is at `.github/aw/syntax-tools-imports.md:90`. Source report (#55076) claimed the target file "doesn't exist" — verified false via `ls`; refiled with the accurate root cause instead of repeating the false claim.
+- **[new, filed]** Delight's CLI-quality section silently skipped this run — `storage.googleapis.com` not in `network.allowed`, corroborated independently by #55117's firewall-block log (2x blocks attributed to Delight) and #55104's own self-report of a skipped section.
+- **[new, filed]** engine-example-counter (claude-code-user-docs-review.md) undercounts nested `engine: {id: ...}` form — root-caused #55075's own self-flagged "sharp shift... worth confirming" trend note; verified live via grep (37/34 literal vs 24/101 additional nested-form files).
+- **[new, filed]** Daily Secrets Analysis (#55123, first-ever run) recommends replacing its own ad hoc line-proximity secrets-in-output grep (self-flagged as producing false positives) with a deterministic CI check.
+- **[declined, chronic, no re-file]** CLAUDE_CODE_OAUTH_TOKEN quick-start warning (#55075) — closed 4x already (#46613, #54584, #54590, #54951).
+- **[declined, chronic, no re-file]** `q` workflow 0.8% success re-diagnosis (#55078) — 2 prior re-diagnose issues closed without fixing it since PR #43527 merged 7 weeks ago.
+- **[declined, already tracked]** AI Moderator 3.6% success (#55078, already #54941); CGO 23.1% success (#55078, already #54940, non-agentic CI workflow).
+- **[declined, not a code gap]** shared-alerts.md/agent-performance-latest.md stale "deprecation candidate"/"100% AR" entries for 5 recovered agents (#55078) — runtime cache/repo-memory state, not a git-tracked file we can fix.
+- **[declined, chronic, no re-file]** "Smoke Copilot" Google-domain firewall blocks (#55117, 38/41) — same symptom class as "Smoke Claude", closed 2x already (#54975, #54944); flagged instead as a candidate for a shared browser-automation allowlist fix across the smoke-test family, see [[known_patterns]].
+- **[declined, too diffuse]** "(unknown)" blocked domain across 8 workflows (#55117) — no common root cause identifiable without raw per-run logs.
+- **[declined, informational]** Daily Issues Report (#55100): 661/1000 unassigned issues, ~4 test-artifact-titled issues, 328-issue failure/agent/workflow cluster — triage-volume observations, no single specific fix.
+- **[declined, too large]** Claude docs review Priority 2/3 (#55075): `gh aw init --engine claude` onboarding parity, inline WIF setup, growing example library toward 138-vs-60 gap — real but not quick-win scoped this cycle.
+- **[declined, healthy/no action]** Issue Arborist (#55114, healthy housekeeping), Security Observability (#55117, 0.9% block rate, 0 DIFC events).
+
 ## Flagged Items (2026-08-23, ~12:30Z cycle, window since 06:23:00Z baseline #55027, 8 new discussions: 55020,55037,55046,55048,55050,55056,55060,55062)
 
 - **[new, filed]** bare `fmt.Print` instead of `fmt.Fprint(os.Stdout, ...)` in `pkg/cli/status_command.go:295` and `pkg/cli/view_command.go:168` — Terminal Stylist (#55050); verified live, no dup.
