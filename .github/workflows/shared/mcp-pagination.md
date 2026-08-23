@@ -1,5 +1,12 @@
 ## MCP Response Size Limits
 
+Use the `mcp-pagination` skill before making large or paginated GitHub MCP reads.
+
+## skill: `mcp-pagination`
+---
+description: Keep GitHub MCP reads under response-size limits with proactive pagination.
+---
+
 MCP tool responses have a **25,000 token limit**. When GitHub API responses exceed this limit, workflows must retry with pagination parameters, wasting turns and tokens.
 
 ### Common Scenarios
@@ -117,3 +124,5 @@ If you see these errors, add pagination:
 ```
 
 This proactive approach eliminates retry loops and reduces token consumption.
+
+## end skill: `mcp-pagination`
