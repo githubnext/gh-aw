@@ -660,7 +660,8 @@ jobs:
                     "enum": [
                       "replace",
                       "append",
-                      "prepend"
+                      "prepend",
+                      "replace-island"
                     ]
                   },
                   "pr": {
