@@ -29,8 +29,8 @@ function getErrorMessage(error) {
   let message;
   if (error instanceof Error) {
     message = error.message;
-  } else if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    message = error.message;
+  } else if (error && typeof error === "object" && "message" in error) {
+    message = typeof error.message === "string" ? error.message : String(error.message);
   } else {
     message = String(error);
   }

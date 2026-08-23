@@ -15,7 +15,14 @@ describe("error_helpers", () => {
 
     it("should handle objects with non-string message property", () => {
       const error = { message: 123 };
-      expect(getErrorMessage(error)).toBe("[object Object]");
+      expect(getErrorMessage(error)).toBe("123");
+    });
+
+    it("should coerce a non-string, non-primitive message value to a string instead of stringifying the whole error object", () => {
+      const error = { message: ["reason", "x"] };
+      const result = getErrorMessage(error);
+      expect(result).not.toBe("[object Object]");
+      expect(result).toBe(String(error.message));
     });
 
     it("should convert string to string", () => {
