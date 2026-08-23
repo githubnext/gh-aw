@@ -125,15 +125,15 @@ func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
 
 func TestBuildTimeoutMinutesExpression(t *testing.T) {
 	assert.Equal(t,
-		"${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}",
+		"${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20') }}",
 		BuildTimeoutMinutesExpression(DefaultTimeoutMinutes, 20),
 	)
 	assert.Equal(t,
-		"${{ vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60' }}",
+		"${{ fromJSON(vars.GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES || '60') }}",
 		BuildTimeoutMinutesExpression(DefaultAgentJobTimeoutMinutes, 60),
 	)
 	assert.Equal(t,
-		"${{ vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10' }}",
+		"${{ fromJSON(vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES || '10') }}",
 		BuildTimeoutMinutesExpression(DefaultDetectionJobTimeoutMinutes, 10),
 	)
 }

@@ -22,6 +22,8 @@ var defaultGhAwActionlintIgnorePatterns = []string{
 	`unknown permission scope "vulnerability-alerts"`,
 	// gh-aw's upload-code-coverage safe output requires code-quality before actionlint support.
 	`unknown permission scope "code-quality"`,
+	// GitHub is rolling out the drives permission scope before actionlint support.
+	`unknown permission scope "drives"`,
 	// gh-aw exposes additional job.workflow_* context properties.
 	`property "workflow_(repository|sha|ref|file_path)" is not defined in object type`,
 	// GitHub is rolling out queue under concurrency before actionlint support.
