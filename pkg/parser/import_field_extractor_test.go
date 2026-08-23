@@ -953,3 +953,171 @@ func TestToImportsResult_MergedExcludedEnv(t *testing.T) {
 	result := acc.toImportsResult(nil)
 	assert.Equal(t, []string{"MY_TOKEN"}, result.MergedExcludedEnv)
 }
+
+// TestValidateGitHubAppJSON verifies that validateGitHubAppJSON accepts well-formed
+// GitHub App configuration JSON with the required identity and key fields, and
+// rejects empty, malformed, or incomplete input.
+func TestValidateGitHubAppJSON(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		appJSON string
+		want    string
+	}{
+		{
+			name:    "empty string",
+			appJSON: "",
+			want:    "",
+		},
+		{
+			name:    "literal null",
+			appJSON: "null",
+			want:    "",
+		},
+		{
+			name:    "invalid JSON",
+			appJSON: "{not valid json",
+			want:    "",
+		},
+		{
+			name:    "JSON array instead of object",
+			appJSON: `["client-id", "private-key"]`,
+			want:    "",
+		},
+		{
+			name:    "valid with client-id and private-key",
+			appJSON: `{"client-id":"abc123","private-key":"-----BEGIN KEY-----"}`,
+			want:    `{"client-id":"abc123","private-key":"-----BEGIN KEY-----"}`,
+		},
+		{
+			name:    "valid with app-id and private-key",
+			appJSON: `{"app-id":"123456","private-key":"-----BEGIN KEY-----"}`,
+			want:    `{"app-id":"123456","private-key":"-----BEGIN KEY-----"}`,
+		},
+		{
+			name:    "valid with both client-id and app-id",
+			appJSON: `{"client-id":"abc","app-id":"123","private-key":"key"}`,
+			want:    `{"client-id":"abc","app-id":"123","private-key":"key"}`,
+		},
+		{
+			name:    "missing client-id and app-id",
+			appJSON: `{"private-key":"-----BEGIN KEY-----"}`,
+			want:    "",
+		},
+		{
+			name:    "missing private-key",
+			appJSON: `{"client-id":"abc123"}`,
+			want:    "",
+		},
+		{
+			name:    "empty object",
+			appJSON: `{}`,
+			want:    "",
+		},
+		{
+			name:    "client-id present but null value still counts as key",
+			appJSON: `{"client-id":null,"private-key":"key"}`,
+			want:    `{"client-id":null,"private-key":"key"}`,
+		},
+		{
+			name:    "unicode values preserved",
+			appJSON: `{"client-id":"客户端","private-key":"密钥"}`,
+			want:    `{"client-id":"客户端","private-key":"密钥"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := validateGitHubAppJSON(tt.appJSON)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestHasNodeRuntimeRunInstallScripts verifies that hasNodeRuntimeRunInstallScripts
+// correctly navigates the nested runtimes.node.run-install-scripts frontmatter path
+// and safely handles missing keys or unexpected value types at every level.
+func TestHasNodeRuntimeRunInstallScripts(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		fm   map[string]any
+		want bool
+	}{
+		{
+			name: "nil frontmatter",
+			fm:   nil,
+			want: false,
+		},
+		{
+			name: "empty frontmatter",
+			fm:   map[string]any{},
+			want: false,
+		},
+		{
+			name: "missing runtimes key",
+			fm:   map[string]any{"other": "value"},
+			want: false,
+		},
+		{
+			name: "runtimes not a map",
+			fm:   map[string]any{"runtimes": "not-a-map"},
+			want: false,
+		},
+		{
+			name: "runtimes missing node key",
+			fm:   map[string]any{"runtimes": map[string]any{"python": map[string]any{}}},
+			want: false,
+		},
+		{
+			name: "node not a map",
+			fm:   map[string]any{"runtimes": map[string]any{"node": "not-a-map"}},
+			want: false,
+		},
+		{
+			name: "node missing run-install-scripts key",
+			fm:   map[string]any{"runtimes": map[string]any{"node": map[string]any{}}},
+			want: false,
+		},
+		{
+			name: "run-install-scripts not a bool",
+			fm: map[string]any{"runtimes": map[string]any{"node": map[string]any{
+				"run-install-scripts": "true",
+			}}},
+			want: false,
+		},
+		{
+			name: "run-install-scripts false",
+			fm: map[string]any{"runtimes": map[string]any{"node": map[string]any{
+				"run-install-scripts": false,
+			}}},
+			want: false,
+		},
+		{
+			name: "run-install-scripts true",
+			fm: map[string]any{"runtimes": map[string]any{"node": map[string]any{
+				"run-install-scripts": true,
+			}}},
+			want: true,
+		},
+		{
+			name: "run-install-scripts true with sibling runtimes",
+			fm: map[string]any{"runtimes": map[string]any{
+				"python": map[string]any{"run-install-scripts": true},
+				"node":   map[string]any{"run-install-scripts": true},
+			}},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := hasNodeRuntimeRunInstallScripts(tt.fm)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
