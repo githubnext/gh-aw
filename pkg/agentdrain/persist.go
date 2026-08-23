@@ -60,12 +60,17 @@ func (m *Miner) LoadJSON(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("agentdrain: LoadJSON: %w", err)
 	}
+	detector, err := NewAnomalyDetector(snap.Config.SimThreshold, snap.Config.RareClusterThreshold)
+	if err != nil {
+		return fmt.Errorf("agentdrain: LoadJSON: %w", err)
+	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.cfg = snap.Config
 	m.masker = masker
+	m.detector = detector
 	m.store = newClusterStore()
 	m.tree = newParseTree()
 	m.store.nextID = snap.NextID
