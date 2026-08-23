@@ -24,6 +24,7 @@ import (
 // - TestStageGitAttributesIfChanged (tests conditional staging during compilation)
 
 func TestIsSafeGitRevisionArg(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		ref  string
@@ -46,6 +47,7 @@ func TestIsSafeGitRevisionArg(t *testing.T) {
 }
 
 func TestValidateRelPathForGit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		relPath string
@@ -478,6 +480,7 @@ func TestCheckWorkflowFileStatusNotInRepo(t *testing.T) {
 }
 
 func TestExtractHostFromRemoteURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		url      string

@@ -9,6 +9,7 @@ import (
 // TestGHPRListAuthorFlag validates that the gh pr list --author flag is documented
 // and that both syntaxes are valid command-line options
 func TestGHPRListAuthorFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		authorValue string
@@ -56,6 +57,7 @@ func TestGHPRListAuthorFlag(t *testing.T) {
 // TestGHPRListVsGHSearchPRs documents the difference between two approaches
 // for listing Copilot PRs
 func TestGHPRListVsGHSearchPRs(t *testing.T) {
+	t.Parallel()
 	t.Run("gh pr list approach", func(t *testing.T) {
 		// Client-side filtering
 		// Command: gh pr list --author "Copilot" --limit 100 --state all

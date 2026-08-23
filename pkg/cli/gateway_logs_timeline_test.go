@@ -33,6 +33,7 @@ func writeJSONL(t *testing.T, path string, objects []any) {
 // ─── UnifiedTimelineEvent helpers ────────────────────────────────────────────
 
 func TestUnifiedTimelineEvent_Fields(t *testing.T) {
+	t.Parallel()
 	now := time.Now().UTC()
 	evt := UnifiedTimelineEvent{
 		Time:       now,
@@ -54,6 +55,7 @@ func TestUnifiedTimelineEvent_Fields(t *testing.T) {
 // ─── parseEventsJSONL ────────────────────────────────────────────────────────
 
 func TestParseEventsJSONL_BasicTypes(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "events.jsonl")
 
@@ -108,6 +110,7 @@ func TestParseEventsJSONL_BasicTypes(t *testing.T) {
 }
 
 func TestParseEventsJSONL_MalformedLinesSkipped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "events.jsonl")
 	content := "not-json\n" +
@@ -129,6 +132,7 @@ func TestParseEventsJSONL_MalformedLinesSkipped(t *testing.T) {
 // ─── agentEntryToTimelineEvent ────────────────────────────────────────────────
 
 func TestAgentEntryToTimelineEvent_UserMessage(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "user.message",
 		Timestamp: "2024-01-15T10:00:01Z",
@@ -149,6 +153,7 @@ func TestAgentEntryToTimelineEvent_UserMessage(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_ToolStart(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "tool.execution_start",
 		Timestamp: "2024-01-15T10:00:02Z",
@@ -174,6 +179,7 @@ func TestAgentEntryToTimelineEvent_ToolStart(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_ToolDoneSuccess(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "tool.execution_complete",
 		Timestamp: "2024-01-15T10:00:03Z",
@@ -199,6 +205,7 @@ func TestAgentEntryToTimelineEvent_ToolDoneSuccess(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_ToolDoneError(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "tool.execution_complete",
 		Timestamp: "2024-01-15T10:00:05Z",
@@ -218,6 +225,7 @@ func TestAgentEntryToTimelineEvent_ToolDoneError(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_SessionStartSkipped(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "session.start",
 		Timestamp: "2024-01-15T10:00:00Z",
@@ -229,6 +237,7 @@ func TestAgentEntryToTimelineEvent_SessionStartSkipped(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_BadTimestamp(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "user.message",
 		Timestamp: "not-a-timestamp",
@@ -240,6 +249,7 @@ func TestAgentEntryToTimelineEvent_BadTimestamp(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_UserMessage_WithContent(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "user.message",
 		Timestamp: "2024-01-15T10:00:01Z",
@@ -258,6 +268,7 @@ func TestAgentEntryToTimelineEvent_UserMessage_WithContent(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_AssistantMessage(t *testing.T) {
+	t.Parallel()
 	entry := copilotEventsJSONLEntry{
 		Type:      "assistant.message",
 		Timestamp: "2024-01-15T10:00:02Z",
@@ -279,6 +290,7 @@ func TestAgentEntryToTimelineEvent_AssistantMessage(t *testing.T) {
 }
 
 func TestAgentEntryToTimelineEvent_Reasoning(t *testing.T) {
+	t.Parallel()
 	for _, eventType := range []string{"reasoning", "assistant.reasoning"} {
 		t.Run(eventType, func(t *testing.T) {
 			entry := copilotEventsJSONLEntry{
@@ -303,6 +315,7 @@ func TestAgentEntryToTimelineEvent_Reasoning(t *testing.T) {
 // ─── collectAgentTimelineEvents ──────────────────────────────────────────────
 
 func TestCollectAgentTimelineEvents_ReturnsNilWhenMissing(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	events, err := collectAgentTimelineEvents(dir, false)
 	if err != nil {
@@ -314,6 +327,7 @@ func TestCollectAgentTimelineEvents_ReturnsNilWhenMissing(t *testing.T) {
 }
 
 func TestCollectAgentTimelineEvents_ReadsCanonicalPath(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Place events.jsonl at the canonical path: sandbox/agent/logs/copilot-session-state/<uuid>/events.jsonl
 	sessionDir := filepath.Join(dir, "sandbox", "agent", "logs", "copilot-session-state", "test-uuid-1234")
@@ -363,6 +377,7 @@ func TestCollectAgentTimelineEvents_ReadsCanonicalPath(t *testing.T) {
 // ─── BuildUnifiedTimeline ────────────────────────────────────────────────────
 
 func TestBuildUnifiedTimeline_EmptyDir(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	events, err := BuildUnifiedTimeline(dir, false)
 	if err != nil {
@@ -374,6 +389,7 @@ func TestBuildUnifiedTimeline_EmptyDir(t *testing.T) {
 }
 
 func TestBuildUnifiedTimeline_SortsMixedSources(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Gateway: gateway.jsonl with a tool call at t+2s
@@ -421,6 +437,7 @@ func TestBuildUnifiedTimeline_SortsMixedSources(t *testing.T) {
 // ─── renderUnifiedTimeline ────────────────────────────────────────────────────
 
 func TestRenderUnifiedTimeline_Empty(t *testing.T) {
+	t.Parallel()
 	out := renderUnifiedTimeline(nil)
 	if out != "" {
 		t.Errorf("renderUnifiedTimeline(nil) = %q; want empty string", out)
@@ -428,6 +445,7 @@ func TestRenderUnifiedTimeline_Empty(t *testing.T) {
 }
 
 func TestRenderUnifiedTimeline_AllSources(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 	events := []UnifiedTimelineEvent{
 		{
@@ -474,6 +492,7 @@ func TestRenderUnifiedTimeline_AllSources(t *testing.T) {
 }
 
 func TestRenderUnifiedTimeline_AgentCountsInSummary(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 	events := []UnifiedTimelineEvent{
 		{Time: now, Source: TimelineSourceAgent, Kind: TimelineKindAgentTurn, TurnIndex: 1},
@@ -493,6 +512,7 @@ func TestRenderUnifiedTimeline_AgentCountsInSummary(t *testing.T) {
 // ─── rendering primitives ────────────────────────────────────────────────────
 
 func TestRenderAgentTurnRow(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:      time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
 		Source:    TimelineSourceAgent,
@@ -512,6 +532,7 @@ func TestRenderAgentTurnRow(t *testing.T) {
 }
 
 func TestRenderAgentToolStartRow_WithServer(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:       time.Date(2024, 1, 15, 10, 0, 1, 0, time.UTC),
 		Source:     TimelineSourceAgent,
@@ -527,6 +548,7 @@ func TestRenderAgentToolStartRow_WithServer(t *testing.T) {
 }
 
 func TestRenderAgentToolStartRow_WithoutServer(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:     time.Date(2024, 1, 15, 10, 0, 1, 0, time.UTC),
 		Source:   TimelineSourceAgent,
@@ -540,6 +562,7 @@ func TestRenderAgentToolStartRow_WithoutServer(t *testing.T) {
 }
 
 func TestRenderAgentToolDoneRow_StatusFromField(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:    time.Date(2024, 1, 15, 10, 0, 2, 0, time.UTC),
 		Source:  TimelineSourceAgent,
@@ -554,6 +577,7 @@ func TestRenderAgentToolDoneRow_StatusFromField(t *testing.T) {
 }
 
 func TestRenderAgentToolDoneRow_StatusFromSuccessFlag(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:    time.Date(2024, 1, 15, 10, 0, 2, 0, time.UTC),
 		Source:  TimelineSourceAgent,
@@ -568,6 +592,7 @@ func TestRenderAgentToolDoneRow_StatusFromSuccessFlag(t *testing.T) {
 }
 
 func TestRenderAgentAssistantMessageRow(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:           time.Date(2024, 1, 15, 10, 0, 3, 0, time.UTC),
 		Source:         TimelineSourceAgent,
@@ -584,6 +609,7 @@ func TestRenderAgentAssistantMessageRow(t *testing.T) {
 }
 
 func TestRenderAgentReasoningRow(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:           time.Date(2024, 1, 15, 10, 0, 4, 0, time.UTC),
 		Source:         TimelineSourceAgent,
@@ -602,6 +628,7 @@ func TestRenderAgentReasoningRow(t *testing.T) {
 // ─── timelineEventIcon / timelineEventKindLabel / timelineSourceLabel ─────────
 
 func TestTimelineEventIcon_AllKinds(t *testing.T) {
+	t.Parallel()
 	kinds := []TimelineEventKind{
 		TimelineKindToolCall,
 		TimelineKindDIFCFiltered,
@@ -624,6 +651,7 @@ func TestTimelineEventIcon_AllKinds(t *testing.T) {
 }
 
 func TestTimelineSourceLabel_Agent(t *testing.T) {
+	t.Parallel()
 	if got := timelineSourceLabel(TimelineSourceAgent); got != "AG" {
 		t.Errorf("timelineSourceLabel(TimelineSourceAgent) = %q; want AG", got)
 	}
@@ -632,6 +660,7 @@ func TestTimelineSourceLabel_Agent(t *testing.T) {
 // ─── renderMessageSnippet ─────────────────────────────────────────────────────
 
 func TestRenderMessageSnippet_Empty(t *testing.T) {
+	t.Parallel()
 	noop := noopStyleRenderer{}
 	out := renderMessageSnippet("", "  ", noop, noop)
 	if out != "" {
@@ -640,6 +669,7 @@ func TestRenderMessageSnippet_Empty(t *testing.T) {
 }
 
 func TestRenderMessageSnippet_SingleLine(t *testing.T) {
+	t.Parallel()
 	noop := noopStyleRenderer{}
 	out := renderMessageSnippet("hello world", "  ", noop, noop)
 	if !strings.Contains(out, "hello world") {
@@ -651,6 +681,7 @@ func TestRenderMessageSnippet_SingleLine(t *testing.T) {
 }
 
 func TestRenderMessageSnippet_TruncatesAfterMaxLines(t *testing.T) {
+	t.Parallel()
 	noop := noopStyleRenderer{}
 	content := "line1\nline2\nline3\nline4\nline5"
 	out := renderMessageSnippet(content, "  ", noop, noop)
@@ -666,6 +697,7 @@ func TestRenderMessageSnippet_TruncatesAfterMaxLines(t *testing.T) {
 }
 
 func TestRenderMessageSnippet_SkipsBlankLines(t *testing.T) {
+	t.Parallel()
 	noop := noopStyleRenderer{}
 	content := "\n\nfirst line\n\nsecond line\n"
 	out := renderMessageSnippet(content, "  ", noop, noop)
@@ -677,6 +709,7 @@ func TestRenderMessageSnippet_SkipsBlankLines(t *testing.T) {
 // ─── steeringEntryToTimelineEvent ────────────────────────────────────────────
 
 func TestSteeringEntryToTimelineEvent_TokenWarning(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		Event:   tokenSteeringEventName,
 		Message: awfTokenWarningPrefix + " You have used 80% of your effective token budget.",
@@ -700,6 +733,7 @@ func TestSteeringEntryToTimelineEvent_TokenWarning(t *testing.T) {
 }
 
 func TestSteeringEntryToTimelineEvent_TimeoutWarning(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		EventNameSnake: timeoutSteeringEventName,
 		Message:        awfTimeWarningPrefix + " You have used 80% of your allotted run time.",
@@ -714,6 +748,7 @@ func TestSteeringEntryToTimelineEvent_TimeoutWarning(t *testing.T) {
 }
 
 func TestSteeringEntryToTimelineEvent_WithTimestamp(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		Event:     tokenSteeringEventName,
 		Message:   awfTokenWarningPrefix + " 90% used.",
@@ -732,6 +767,7 @@ func TestSteeringEntryToTimelineEvent_WithTimestamp(t *testing.T) {
 }
 
 func TestSteeringEntryToTimelineEvent_WithoutTimestamp(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		Event:   tokenSteeringEventName,
 		Message: awfTokenWarningPrefix + " budget warning.",
@@ -746,6 +782,7 @@ func TestSteeringEntryToTimelineEvent_WithoutTimestamp(t *testing.T) {
 }
 
 func TestSteeringEntryToTimelineEvent_NonSteering(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		Event:   "request.forwarded",
 		Message: "some other message",
@@ -757,6 +794,7 @@ func TestSteeringEntryToTimelineEvent_NonSteering(t *testing.T) {
 }
 
 func TestSteeringEntryToTimelineEvent_WrongMessagePrefix(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		Event:   tokenSteeringEventName,
 		Message: "warn 95%", // wrong prefix
@@ -768,6 +806,7 @@ func TestSteeringEntryToTimelineEvent_WrongMessagePrefix(t *testing.T) {
 }
 
 func TestSteeringEntryToTimelineEvent_CamelCaseEventName(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		EventNameCamel: timeoutSteeringEventName,
 		Message:        awfTimeWarningPrefix + " 90% time used.",
@@ -782,6 +821,7 @@ func TestSteeringEntryToTimelineEvent_CamelCaseEventName(t *testing.T) {
 }
 
 func TestSteeringEntryToTimelineEvent_TypeField(t *testing.T) {
+	t.Parallel()
 	entry := proxyEventsEntry{
 		Type:    tokenSteeringEventName,
 		Message: awfTokenWarningPrefix + " budget warning.",
@@ -798,6 +838,7 @@ func TestSteeringEntryToTimelineEvent_TypeField(t *testing.T) {
 // ─── collectSteeringTimelineEvents ───────────────────────────────────────────
 
 func TestCollectSteeringTimelineEvents_EmptyDir(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	events, err := collectSteeringTimelineEvents(dir, false)
 	if err != nil {
@@ -809,6 +850,7 @@ func TestCollectSteeringTimelineEvents_EmptyDir(t *testing.T) {
 }
 
 func TestCollectSteeringTimelineEvents_ReadsProxyEvents(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	logsDir := filepath.Join(dir, "sandbox", "firewall", "logs", "api-proxy-logs")
 	if err := os.MkdirAll(logsDir, 0700); err != nil {
@@ -845,6 +887,7 @@ func TestCollectSteeringTimelineEvents_ReadsProxyEvents(t *testing.T) {
 }
 
 func TestCollectSteeringTimelineEvents_WithTimestamps(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	logsDir := filepath.Join(dir, "sandbox", "firewall", "logs", "api-proxy-logs")
 	if err := os.MkdirAll(logsDir, 0700); err != nil {
@@ -875,6 +918,7 @@ func TestCollectSteeringTimelineEvents_WithTimestamps(t *testing.T) {
 // ─── BuildUnifiedTimeline includes steering ───────────────────────────────────
 
 func TestBuildUnifiedTimeline_IncludesSteeringEvents(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create proxy events file with one steering entry.
@@ -906,6 +950,7 @@ func TestBuildUnifiedTimeline_IncludesSteeringEvents(t *testing.T) {
 // ─── renderSteeringRow ────────────────────────────────────────────────────────
 
 func TestRenderSteeringRow_TokenWarning(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:   time.Date(2024, 1, 15, 10, 5, 0, 0, time.UTC),
 		Source: TimelineSourceFirewall,
@@ -932,6 +977,7 @@ func TestRenderSteeringRow_TokenWarning(t *testing.T) {
 }
 
 func TestRenderSteeringRow_TimeWarning(t *testing.T) {
+	t.Parallel()
 	evt := UnifiedTimelineEvent{
 		Time:   time.Date(2024, 1, 15, 10, 6, 0, 0, time.UTC),
 		Source: TimelineSourceFirewall,
@@ -948,6 +994,7 @@ func TestRenderSteeringRow_TimeWarning(t *testing.T) {
 // ─── renderUnifiedTimeline includes steering summary ─────────────────────────
 
 func TestRenderUnifiedTimeline_SteeringInSummary(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 	events := []UnifiedTimelineEvent{
 		{
@@ -971,6 +1018,7 @@ func TestRenderUnifiedTimeline_SteeringInSummary(t *testing.T) {
 // ─── renderUnifiedTimelineStream includes steering ────────────────────────────
 
 func TestRenderUnifiedTimelineStream_SteeringEvent(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 	events := []UnifiedTimelineEvent{
 		{Time: now, Source: TimelineSourceAgent, Kind: TimelineKindAgentTurn, TurnIndex: 1},
@@ -994,6 +1042,7 @@ func TestRenderUnifiedTimelineStream_SteeringEvent(t *testing.T) {
 // ─── gatewayEntryToTimelineEvent ───────────────────────────────────────────────
 
 func TestGatewayEntryToTimelineEvent(t *testing.T) {
+	t.Parallel()
 	baseTS := "2024-01-15T10:00:00Z"
 	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 
