@@ -390,7 +390,16 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// detection job must permit the engine's required API endpoints. Without this,
 	// engines such as Codex (which connects to api.openai.com and chatgpt.com) fail
 	// with "domain not in allowlist" and the detection job exits with code 1/2.
-	allowedDomains := GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
+	var allowedDomains string
+	if engineID == "codex" {
+		// Codex's allowed domains depend on the resolved LLM provider (e.g. GitHub-hosted
+		// inference adds CopilotDefaultDomains), which GetAllowedDomainsForEngine's static
+		// defaults do not account for. Compute domains the same way the main Codex
+		// execution path does so GitHub-hosted detection requests are not blocked.
+		allowedDomains = mergeDomainsWithNetworkToolsAndRuntimes(NewCodexEngine().defaultDomains(threatDetectionData), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
+	} else {
+		allowedDomains = GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
+	}
 	// Extend the allowlist with any custom API target domains when engine.api-target
 	// is set (e.g. GHE or a custom OpenAI-compatible endpoint).
 	if threatDetectionData.EngineConfig != nil && threatDetectionData.EngineConfig.APITarget != "" {

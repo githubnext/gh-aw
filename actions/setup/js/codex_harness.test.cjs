@@ -326,6 +326,21 @@ env_key = "OPENAI_API_KEY"
       expect(result.ok).toBe(true);
     });
 
+    it("fails strictly when /reflect has configured endpoints but none for the selected provider", () => {
+      const files = {
+        "/tmp/codex-config.toml": `[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10000"\n`,
+        "/tmp/awf-reflect.json": JSON.stringify({ endpoints: [{ provider: "anthropic", port: 10001, configured: true }] }),
+      };
+      const result = validateCodexOpenAIBaseURLFromReflect({
+        codexConfigPath: "/tmp/codex-config.toml",
+        reflectPath: "/tmp/awf-reflect.json",
+        provider: "github",
+        readFileSync: filePath => files[filePath],
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain("no configured endpoint for provider");
+    });
+
     it("passes through when TOML lacks openai-proxy section", () => {
       const files = {
         "/tmp/codex-config.toml": `[history]\npersistence = "none"\n`,

@@ -386,7 +386,6 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
 	containerCmd.WriteString(" -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock")
 	appendMCPGatewayBaseEnvFlags(&containerCmd, payloadPathPrefix)
-	appendMCPGatewayMountEnvFlags(&containerCmd, tools, gatewayConfig)
 	appendMCPGatewayConditionalEnvFlags(&containerCmd, workflowData, engine, hasGitHub, githubTool, tools)
 	appendMCPGatewaySafeOutputsInputEnvFlags(&containerCmd, safeOutputsInputEnvVars)
 	appendMCPGatewayCustomAndHTTPEnvFlagsWithCustomGatewayEnvNames(&containerCmd, workflowData, customGatewayEnvNames, mcpEnvVars, hasGitHub, githubTool, tools, engine)
@@ -462,12 +461,6 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e RUNNER_TEMP")
 	containerCmd.WriteString(" -e RUNNER_TOOL_CACHE")
 	containerCmd.WriteString(" -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
-}
-
-func appendMCPGatewayMountEnvFlags(containerCmd *strings.Builder, tools map[string]any, gatewayConfig *MCPGatewayRuntimeConfig) {
-	if mcpGatewayMountsUseRunnerToolCache(tools, gatewayConfig) {
-		containerCmd.WriteString(" -e RUNNER_TOOL_CACHE")
-	}
 }
 
 // buildMCPGatewayAllowedMountRoots computes the value of the gateway's
@@ -725,9 +718,6 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, customGatewayEnvName
 	}
 	for _, envVar := range standardEnvVars {
 		addedEnvVars[envVar] = struct{}{}
-	}
-	if mcpGatewayMountsUseRunnerToolCache(tools, workflowData.SandboxConfig.MCP) {
-		addedEnvVars["RUNNER_TOOL_CACHE"] = struct{}{}
 	}
 	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
 		addedEnvVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = struct{}{}

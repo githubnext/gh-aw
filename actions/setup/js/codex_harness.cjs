@@ -47,6 +47,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
   normalizeReflectProviderName,
+  REFLECT_PROVIDER_ALIASES,
   resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
@@ -401,14 +402,26 @@ function getConfiguredProviderPortFromReflect(reflectData, provider = "openai") 
   const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger: () => {} });
   const normalizedProvider = normalizeReflectProviderName(provider, "openai");
   const normalizedEndpointProvider = normalizeReflectProviderName(resolved?.endpointProvider);
-  const aliases = {
-    github: new Set(["copilot", "github", "github-copilot", "github_models"]),
-    openai: new Set(["openai", "codex"]),
-    anthropic: new Set(["anthropic"]),
-  };
-  const matchingProviders = aliases[normalizedProvider] || new Set([normalizedProvider]);
+  const matchingProviders = REFLECT_PROVIDER_ALIASES[normalizedProvider] || new Set([normalizedProvider]);
   if (!matchingProviders.has(normalizedEndpointProvider)) return null;
   return resolved && resolved.port != null ? resolved.port : null;
+}
+
+/**
+ * Determine whether AWF /reflect advertises at least one configured endpoint for the
+ * selected provider. Used to distinguish "no endpoints configured at all" (best-effort,
+ * cannot validate) from "endpoints configured but none for the selected provider"
+ * (validation should fail strictly rather than silently pass).
+ * @param {any} reflectData
+ * @param {string} provider
+ * @returns {boolean}
+ */
+function reflectHasMatchingProviderEndpoint(reflectData, provider) {
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  if (endpoints.length === 0) return true;
+  const normalizedProvider = normalizeReflectProviderName(provider, "openai");
+  const matchingProviders = REFLECT_PROVIDER_ALIASES[normalizedProvider] || new Set([normalizedProvider]);
+  return endpoints.some(ep => matchingProviders.has(normalizeReflectProviderName(ep.provider)));
 }
 
 /**
@@ -447,6 +460,12 @@ function validateCodexOpenAIBaseURLFromReflect(options) {
     reflectData = JSON.parse(reflectContent);
   } catch {
     return { ok: true };
+  }
+  if (!reflectHasMatchingProviderEndpoint(reflectData, provider)) {
+    return {
+      ok: false,
+      reason: `Codex openai-proxy provider mismatch: /reflect has no configured endpoint for provider "${provider}"`,
+    };
   }
   const providerPort = getConfiguredProviderPortFromReflect(reflectData, provider);
   if (providerPort == null) return { ok: true };

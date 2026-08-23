@@ -525,6 +525,7 @@ jobs:
           base_url = "http://172.30.0.30:10000"
           env_key = "CODEX_API_KEY"
           wire_api = "responses"
+          requires_openai_auth = false
           supports_websockets = false
           [shell_environment_policy]
           inherit = "core"
