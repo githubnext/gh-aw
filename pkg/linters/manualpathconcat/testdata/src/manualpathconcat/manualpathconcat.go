@@ -32,6 +32,12 @@ func badNestedInCall(dir, file string) ([]byte, error) {
 	return os.ReadFile(dir + "/" + file) // want `manual "/" path concatenation; use filepath\.Join\(dir, file\) \(or path\.Join\) instead`
 }
 
+// badAddAssign builds a path with a manual "/" separator via +=.
+func badAddAssign(absPath, relPath string) string {
+	absPath += "/" + relPath // want `manual "/" path concatenation; use filepath\.Join\(absPath, relPath\) \(or path\.Join\) instead`
+	return absPath
+}
+
 // badLongOperand has an operand too long to quote, so the diagnostic falls back
 // to the generic message.
 func badLongOperand(name string) string {

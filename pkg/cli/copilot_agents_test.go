@@ -343,6 +343,19 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
 	}
 	assert.Contains(t, content, "Design workflows from scratch via interview: `.github/aw/designer.md`")
+	assert.Contains(t, content, agenticWorkflowsOTELSkillParagraph)
+}
+
+func TestBuildAgenticWorkflowsSkillContentEnsuresOTELParagraph(t *testing.T) {
+	withMockAWMarkdownFileList(t, []string{"workflow-a.md"}, nil)
+
+	originalTemplate := agenticWorkflowsSkillTemplate
+	t.Cleanup(func() { agenticWorkflowsSkillTemplate = originalTemplate })
+	agenticWorkflowsSkillTemplate = strings.ReplaceAll(agenticWorkflowsSkillTemplate, "\n"+agenticWorkflowsOTELSkillParagraph, "")
+
+	content, err := buildAgenticWorkflowsSkillContent()
+	require.NoError(t, err)
+	assert.Contains(t, content, agenticWorkflowsOTELSkillParagraph)
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
@@ -407,7 +420,7 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	}
 
 	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
-		if writeErr := os.WriteFile(skillPath, []byte(expected+"\n"), 0644); writeErr != nil {
+		if writeErr := os.WriteFile(skillPath, []byte(strings.TrimRight(expected, "\n")+"\n"), 0644); writeErr != nil {
 			t.Fatalf("Checked-in skill file is out of sync and auto-update failed (%v)\nexpected:\n%s\nactual:\n%s", writeErr, expected, string(actual))
 		}
 		t.Fatalf("Checked-in skill file was out of sync and has been regenerated; commit %s and re-run", skillPath)

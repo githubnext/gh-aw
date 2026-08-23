@@ -149,7 +149,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "ads.example.com", "should include the blocked domain")
 	})
 
-	t.Run("filesystem allowWrite is included", func(t *testing.T) {
+	t.Run("filesystem allowWrite is included for a supported firewall", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -198,7 +198,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"filesystem"`)
 	})
 
-	t.Run("empty filesystem allowWrite is included", func(t *testing.T) {
+	t.Run("empty filesystem allowWrite is included for a supported firewall", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{

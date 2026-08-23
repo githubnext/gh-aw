@@ -71,4 +71,13 @@ describe("Safe Output Type Validation", () => {
         expect(actualToolNames).toContain(toolName);
       });
     }));
+
+  it("should expose replace-island for update_pull_request", () => {
+    const toolsJsonPath = path.join(process.cwd(), "safe_outputs_tools.json"),
+      tools = JSON.parse(fs.readFileSync(toolsJsonPath, "utf8")),
+      updatePullRequest = tools.find(tool => tool.name === "update_pull_request");
+
+    expect(updatePullRequest).toBeDefined();
+    expect(updatePullRequest.inputSchema.properties.operation.enum).toContain("replace-island");
+  });
 });

@@ -296,6 +296,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	if config.UploadCodeCoverage != nil {
+		if err := checkMaxField("upload_code_coverage", config.UploadCodeCoverage.Max); err != nil {
+			return err
+		}
+	}
 
 	// Validate max on dispatch_repository tools (different structure: map of tools).
 	// Use sorted tool names for deterministic error reporting.

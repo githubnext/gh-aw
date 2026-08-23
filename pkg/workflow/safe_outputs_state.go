@@ -73,6 +73,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.UploadArtifact != nil ||
+		safeOutputs.UploadCodeCoverage != nil ||
 		safeOutputs.UpdateRelease != nil ||
 		safeOutputs.UpdateProjects != nil ||
 		safeOutputs.CreateProjects != nil ||
@@ -138,6 +139,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.UploadArtifact != nil ||
+		safeOutputs.UploadCodeCoverage != nil ||
 		safeOutputs.UpdateRelease != nil ||
 		safeOutputs.UpdateProjects != nil ||
 		safeOutputs.CreateProjects != nil ||

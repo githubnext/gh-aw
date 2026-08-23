@@ -226,7 +226,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"title":               {Type: "string", Sanitize: true, MaxLength: 256},
 			"body":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend"}},
+			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend", "replace-island"}},
 			"update_branch":       {Type: "boolean"},
 			"draft":               {Type: "boolean"},
 			"pull_request_number": {IssueOrPRNumber: true},
@@ -365,6 +365,20 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"path":         {Type: "string"},
 			"filters":      {Type: "object"},
 			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
+		},
+	},
+	"upload_code_coverage": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"file": {
+				Required:     true,
+				Type:         "string",
+				MaxLength:    4096,
+				Pattern:      `^(?!/)(?!.*\.\.).+$`,
+				PatternError: `must be a relative path within the upload-code-coverage staging directory (no leading "/" or ".." segments)`,
+			},
+			"language": {Required: true, Type: "string", Sanitize: true, MaxLength: 64},
+			"label":    {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
 		},
 	},
 	"push_repo_memory": {

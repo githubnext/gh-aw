@@ -270,6 +270,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadArtifact = uploadArtifactConfig
 			}
 
+			// Handle upload-code-coverage
+			uploadCodeCoverageConfig := c.parseUploadCodeCoverageConfig(outputMap)
+			if uploadCodeCoverageConfig != nil {
+				config.UploadCodeCoverage = uploadCodeCoverageConfig
+			}
+
 			// Handle update-release
 			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
 			if updateReleaseConfig != nil {
@@ -404,11 +410,11 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 		}
 	}
 
-	// Force-disable threat detection when --use-samples is active: the replay driver
+	// Force-disable threat detection when samples replay is active: the replay driver
 	// emits synthetic outputs solely for deterministic end-to-end tests, and running
 	// an LLM-backed detection pass would defeat that determinism.
-	if config != nil && c.useSamples && config.ThreatDetection != nil {
-		safeOutputsConfigLog.Print("Disabling threat-detection because --use-samples is set")
+	if config != nil && c.samplesEnabled(frontmatter) && config.ThreatDetection != nil {
+		safeOutputsConfigLog.Print("Disabling threat-detection because samples replay is enabled")
 		config.ThreatDetection = nil
 	}
 
