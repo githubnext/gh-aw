@@ -93,6 +93,10 @@ func ValidateGitPath(path string) error {
 func ExtractBaseRepo(repoPath string) string {
 	parts := strings.Split(repoPath, "/")
 	if len(parts) >= 2 {
+		// Intentionally strings.Join instead of filepath.Join/path.Join: those
+		// helpers Clean the result, collapsing segments like ".." or "." that
+		// must be preserved verbatim here (repoPath is an owner/repo slug, not
+		// a filesystem path).
 		return strings.Join(parts[:2], "/")
 	}
 	return repoPath

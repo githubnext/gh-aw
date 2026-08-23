@@ -29,6 +29,10 @@ func SplitRepoSlug(slug string) (owner, repo string, err error) {
 func NormalizeRepoForAPI(repo string) (ownerRepo string, host string) {
 	parts := strings.SplitN(repo, "/", 3)
 	if len(parts) == 3 {
+		// Intentionally strings.Join instead of filepath.Join/path.Join: those
+		// helpers Clean the result, collapsing segments like ".." or "." that
+		// must be preserved verbatim here (repo is an owner/repo slug, not a
+		// filesystem path).
 		return strings.Join(parts[1:], "/"), parts[0]
 	}
 	return repo, ""
