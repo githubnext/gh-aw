@@ -640,7 +640,7 @@ func TestApplyBuiltinJobAugmentations_OverridesTimeoutMinutes(t *testing.T) {
 	compiler.jobManager = NewJobManager()
 	agentJob := &Job{
 		Name:                     string(constants.AgentJobName),
-		TimeoutMinutesExpression: "${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}",
+		TimeoutMinutesExpression: "${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60') }}",
 	}
 	require.NoError(t, compiler.jobManager.AddJob(agentJob))
 
@@ -662,7 +662,7 @@ func TestApplyBuiltinJobAugmentations_RejectsTimeoutMinutesExpression(t *testing
 	compiler.jobManager = NewJobManager()
 	detectionJob := &Job{
 		Name:                     string(constants.DetectionJobName),
-		TimeoutMinutesExpression: "${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60' }}",
+		TimeoutMinutesExpression: "${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '60') }}",
 	}
 	require.NoError(t, compiler.jobManager.AddJob(detectionJob))
 

@@ -23,5 +23,5 @@ func TestApplyDefaults_DefaultTimeoutMinutesUsesActionVariable(t *testing.T) {
 
 	compiler := NewCompiler()
 	require.NoError(t, compiler.applyDefaults(data, markdownPath))
-	assert.Equal(t, "timeout-minutes: ${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20' }}", data.TimeoutMinutes)
+	assert.Equal(t, "timeout-minutes: ${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20') }}", data.TimeoutMinutes)
 }

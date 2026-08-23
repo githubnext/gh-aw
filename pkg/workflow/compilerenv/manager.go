@@ -137,7 +137,7 @@ func ResolveDefaultTimeoutMinutes(fallback int) int {
 // a default timeout from an Actions variable at runtime, falling back to the
 // compiled-in default when the variable is unset.
 func BuildTimeoutMinutesExpression(varName string, builtinDefault int) string {
-	return fmt.Sprintf("${{ vars.%s || '%d' }}", varName, builtinDefault)
+	return fmt.Sprintf("${{ fromJSON(vars.%s || '%d') }}", varName, builtinDefault)
 }
 
 // ResolveDefaultMaxTurnCacheMisses returns fallback when the env var is unset/invalid,
