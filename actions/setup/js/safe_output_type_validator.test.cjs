@@ -126,6 +126,13 @@ const SAMPLE_VALIDATION_CONFIG = {
       issue_number: { optionalPositiveInteger: true },
     },
   },
+  dismiss_pull_request_review: {
+    defaultMax: 10,
+    fields: {
+      review_id: { optionalPositiveInteger: true, allowAuto: true },
+      justification: { required: true, type: "string", sanitize: true, minLength: 20, maxLength: 65000 },
+    },
+  },
   push_to_pull_request_branch: {
     defaultMax: 1,
     fields: {
@@ -802,6 +809,30 @@ describe("safe_output_type_validator", () => {
       const result = validateOptionalPositiveInteger(0, "column", 1);
 
       expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe("dismiss_pull_request_review review_id", () => {
+    it.each([
+      [{ type: "dismiss_pull_request_review", justification: "This stale review no longer reflects the updated implementation." }, undefined],
+      [{ type: "dismiss_pull_request_review", review_id: "auto", justification: "This stale review no longer reflects the updated implementation." }, "auto"],
+      [{ type: "dismiss_pull_request_review", review_id: "123", justification: "This stale review no longer reflects the updated implementation." }, 123],
+    ])("accepts automatic selection and positive review IDs", async (item, reviewId) => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(item, "dismiss_pull_request_review", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem?.review_id).toBe(reviewId);
+    });
+
+    it("rejects invalid review IDs", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "dismiss_pull_request_review", review_id: "invalid", justification: "This stale review no longer reflects the updated implementation." }, "dismiss_pull_request_review", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be a valid positive integer");
     });
   });
 
