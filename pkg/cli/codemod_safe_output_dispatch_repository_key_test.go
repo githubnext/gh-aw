@@ -10,9 +10,11 @@ import (
 )
 
 func TestSafeOutputDispatchRepositoryKeyCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeOutputDispatchRepositoryKeyCodemod()
 
 	t.Run("metadata", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, "safe-output-dispatch-repository-key", codemod.ID)
 		assert.Equal(t, "Rename safe-outputs.dispatch_repository to dispatch-repository", codemod.Name)
 		assert.Equal(t, "Renames deprecated safe-outputs.dispatch_repository to safe-outputs.dispatch-repository.", codemod.Description)
@@ -21,6 +23,7 @@ func TestSafeOutputDispatchRepositoryKeyCodemod(t *testing.T) {
 	})
 
 	t.Run("renames safe-outputs dispatch_repository key", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 safe-outputs:
@@ -55,6 +58,7 @@ Body text.
 	})
 
 	t.Run("preserves comments and indentation", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   # relay config
@@ -85,6 +89,7 @@ safe-outputs:
 	})
 
 	t.Run("no-op when deprecated key absent", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   dispatch-repository:
@@ -113,6 +118,7 @@ safe-outputs:
 	})
 
 	t.Run("no-op when both keys already exist", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   dispatch-repository:
@@ -141,6 +147,7 @@ safe-outputs:
 	})
 
 	t.Run("no-op when dispatch_repository appears only in a description value", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 safe-outputs:
   some-tool:
