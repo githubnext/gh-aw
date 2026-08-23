@@ -204,6 +204,16 @@ func TestExtractBaseRepo(t *testing.T) {
 			input:    "",
 			expected: "",
 		},
+		{
+			name:     "preserves empty owner segment",
+			input:    "/repo",
+			expected: "/repo",
+		},
+		{
+			name:     "preserves traversal segment",
+			input:    "owner/..",
+			expected: "owner/..",
+		},
 	}
 
 	for _, tt := range tests {

@@ -5637,7 +5637,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: approve-workflow-run, autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-check-run, create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: approve-workflow-run, autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-check-run, create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset, upload-code-coverage. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -11074,6 +11074,77 @@
           ],
           "description": "Enable AI agents to upload files as run-scoped GitHub Actions artifacts. Returns a temporary artifact ID rather than a raw download URL, keeping authorization centralized."
         },
+        "upload-code-coverage": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "⚠️ Experimental. Configuration for uploading a code coverage report via actions/upload-code-coverage",
+              "properties": {
+                "fail-on-error": {
+                  "type": "boolean",
+                  "description": "Fixed fail-on-error input passed to actions/upload-code-coverage (fixed; the agent cannot override this value). When true (default), the upload job fails if the upload or processing fails.",
+                  "default": true
+                },
+                "wait-for-processing-timeout": {
+                  "type": "integer",
+                  "description": "Fixed wait-for-processing-timeout in seconds passed to actions/upload-code-coverage (fixed; the agent cannot override this value). Set to 0 to disable waiting. Default: 160.",
+                  "minimum": 0,
+                  "default": 160
+                },
+                "max": {
+                  "description": "Maximum number of upload-code-coverage tool calls allowed per run (default: 1). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token_same_job",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified. Must have code-quality: write permission."
+                },
+                "staged": {
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, skip the actions/upload-code-coverage call and emit step summary messages instead (preview mode)",
+                  "examples": [true, false]
+                },
+                "samples": {
+                  "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler. Used by the hidden `gh aw compile --use-samples` flag to replace the agentic step with a deterministic replay through the safe-outputs MCP server. Each entry should conform to the corresponding MCP tool inputSchema.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable code coverage report uploads with default configuration"
+            }
+          ],
+          "description": "⚠️ Experimental. Enable AI agents to upload a code coverage report (e.g. a Cobertura XML file) to GitHub's code coverage API via actions/upload-code-coverage. Using this field emits a compile-time warning. The agent stages the report file and calls the tool with file/language/label; a separate job performs the actual upload with dedicated code-quality: write permissions."
+        },
         "update-release": {
           "oneOf": [
             {
@@ -14732,6 +14803,11 @@
           "type": "string",
           "enum": ["read", "write", "none"],
           "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
+        },
+        "code-quality": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission for the GitHub code coverage API (read: view coverage reports, write: upload coverage reports, none: no access). Required by the upload-code-coverage safe output."
         },
         "copilot-requests": {
           "type": "string",

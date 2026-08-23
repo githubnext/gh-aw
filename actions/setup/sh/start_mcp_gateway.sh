@@ -61,12 +61,39 @@ fi
 # (which contain bearer tokens and API keys)
 chmod 700 /tmp/gh-aw/mcp-config
 
+GATEWAY_STDOUT=/tmp/gh-aw/mcp-config/gateway-output.json
+# Keep unredacted gateway stderr outside the artifact directory. It is emitted
+# only through print_gateway_startup_diagnostics after redaction.
+GATEWAY_STDERR="$(mktemp /tmp/gh-aw-mcp-gateway-stderr.XXXXXX)"
+chmod 600 "$GATEWAY_STDERR"
+trap 'rm -f "$GATEWAY_STDERR"' EXIT
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_RENDERER="${SCRIPT_DIR}/render_log_to_stdout.sh"
+GATEWAY_STARTUP_MARKER="${MCP_GATEWAY_STARTUP_MARKER:-/tmp/gh-aw/mcp-gateway-started}"
+rm -f "$GATEWAY_STARTUP_MARKER"
+
+print_gateway_startup_diagnostics() {
+  echo "Gateway startup diagnostics:"
+  if [ -s "$GATEWAY_STDERR" ]; then
+    sed -E \
+      -e 's/(Bearer[[:space:]]+)[^[:space:]]+/\1[REDACTED]/Ig' \
+      -e 's/((api[_-]?key|token|secret|password|authorization)"?[[:space:]]*[:=][[:space:]]*"?)[^[:space:],}"]+/\1[REDACTED]/Ig' \
+      "$GATEWAY_STDERR" | bash "$LOG_RENDERER" "Gateway stderr"
+  else
+    echo "Gateway stderr: (empty)"
+  fi
+  if [ -s "$GATEWAY_STDOUT" ]; then
+    echo "Gateway stdout was captured but is not displayed because it may contain credentials."
+  else
+    echo "Gateway stdout: (empty)"
+  fi
+}
+
 # Validate container syntax first (before accessing files)
 # Container should be a valid docker command starting with "docker run"
 if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE '^docker run'; then
   echo "ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax"
   echo "Expected: docker run command with image and arguments"
-  echo "Got: $MCP_GATEWAY_DOCKER_COMMAND"
   exit 1
 fi
 
@@ -96,10 +123,8 @@ MCP_CONFIG=$(cat)
 print_timing $CONFIG_READ_START "Configuration read from stdin"
 echo ""
 
-# Log the configuration for debugging
-echo "-------START MCP CONFIG-----------"
-echo "$MCP_CONFIG"
-echo "-------END MCP CONFIG-----------"
+# Configuration can contain credentials, so do not print it to the workflow log.
+echo "MCP configuration received; contents withheld because it may contain credentials."
 echo ""
 
 # Validate configuration is valid JSON
@@ -112,11 +137,7 @@ if ! echo "$MCP_CONFIG" | jq empty 2>/tmp/gh-aw/mcp-config/jq-error.log; then
     cat /tmp/gh-aw/mcp-config/jq-error.log
   fi
   echo ""
-  echo "Configuration content:"
-  echo "$MCP_CONFIG" | head -50
-  if [ $(echo "$MCP_CONFIG" | wc -l) -gt 50 ]; then
-    echo "... (truncated, showing first 50 lines)"
-  fi
+  echo "Configuration content is withheld because it may contain credentials."
   exit 1
 fi
 
@@ -161,14 +182,13 @@ docker rm -f awmg-mcpg 2>/dev/null && echo "Removed stale awmg-mcpg container" |
 echo ""
 
 # Start gateway process with container
-echo "Starting gateway with container: $MCP_GATEWAY_DOCKER_COMMAND"
-echo "Full docker command: $MCP_GATEWAY_DOCKER_COMMAND"
+echo "Starting gateway container..."
 echo ""
 GATEWAY_START_TIME=$(date +%s%3N)
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
 # Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
 echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
-  > /tmp/gh-aw/mcp-config/gateway-output.json 2> /dev/null &
+  > "$GATEWAY_STDOUT" 2> "$GATEWAY_STDERR" &
 
 GATEWAY_PID=$!
 echo "Gateway started with PID: $GATEWAY_PID"
@@ -178,9 +198,7 @@ if ps -p $GATEWAY_PID > /dev/null 2>&1; then
   echo "Gateway process confirmed running (PID: $GATEWAY_PID)"
 else
   echo "ERROR: Gateway process exited immediately after start"
-  echo ""
-  echo "Gateway stdout output:"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  print_gateway_startup_diagnostics
   exit 1
 fi
 echo ""
@@ -194,9 +212,7 @@ if ! ps -p $GATEWAY_PID > /dev/null 2>&1; then
   echo "ERROR: Gateway process (PID: $GATEWAY_PID) exited during initialization"
   WAIT_STATUS=$(wait $GATEWAY_PID 2>/dev/null; echo $?)
   echo "Gateway exit status: $WAIT_STATUS"
-  echo ""
-  echo "Gateway stdout (errors are written here per MCP Gateway Specification):"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  print_gateway_startup_diagnostics
   exit 1
 fi
 echo "Gateway process is still running (PID: $GATEWAY_PID)"
@@ -289,6 +305,8 @@ fi
 if [ "$HTTP_CODE" = "200" ] && [ -n "$HEALTH_RESPONSE" ]; then
   echo "Gateway is ready!"
   print_timing $HEALTH_CHECK_START "Health check wait"
+  touch "$GATEWAY_STARTUP_MARKER"
+  chmod 600 "$GATEWAY_STARTUP_MARKER"
 else
   echo ""
   echo "ERROR: Gateway failed to become ready"
@@ -306,9 +324,7 @@ else
   echo ""
   echo "Docker container status:"
   docker ps -a 2>/dev/null | head -20 || echo "Could not list docker containers"
-  echo ""
-  echo "Gateway stdout (errors are written here per MCP Gateway Specification):"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  print_gateway_startup_diagnostics
   echo ""
   echo "Checking network connectivity to gateway port..."
   netstat -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || ss -tlnp 2>/dev/null | grep ":${MCP_GATEWAY_PORT}" || echo "Port ${MCP_GATEWAY_PORT} does not appear to be listening"
@@ -336,11 +352,9 @@ print_timing $OUTPUT_WAIT_START "Gateway output wait"
 echo ""
 
 # Verify output was written
-if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+if [ ! -s "$GATEWAY_STDOUT" ]; then
   echo "ERROR: Gateway did not write output configuration"
-  echo ""
-  echo "Gateway stdout (should contain error or config):"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json 2>/dev/null || echo "No stdout output available"
+  print_gateway_startup_diagnostics
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
@@ -350,11 +364,9 @@ chmod 600 /tmp/gh-aw/mcp-config/gateway-output.json
 
 # Check if output contains an error payload instead of valid configuration
 # Per MCP Gateway Specification v1.0.0 section 9.1, errors are written to stdout as error payloads
-if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; then
+if jq -e '.error' "$GATEWAY_STDOUT" >/dev/null 2>&1; then
   echo "ERROR: Gateway returned an error payload instead of configuration"
-  echo ""
-  echo "Gateway error details:"
-  cat /tmp/gh-aw/mcp-config/gateway-output.json
+  print_gateway_startup_diagnostics
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi

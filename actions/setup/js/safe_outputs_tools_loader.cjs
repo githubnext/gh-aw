@@ -173,6 +173,7 @@ function attachHandlers(tools, handlers, logger) {
     push_repo_memory: handlers.pushRepoMemoryHandler,
     upload_asset: handlers.uploadAssetHandler,
     upload_artifact: handlers.uploadArtifactHandler,
+    upload_code_coverage: handlers.uploadCodeCoverageHandler,
     create_project: handlers.createProjectHandler,
     add_comment: handlers.addCommentHandler,
     create_pull_request_review_comment: handlers.createPullRequestReviewCommentHandler,

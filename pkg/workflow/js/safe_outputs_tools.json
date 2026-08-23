@@ -1371,6 +1371,34 @@
     }
   },
   {
+    "name": "upload_code_coverage",
+    "description": "Experimental. Upload a code coverage report (e.g. a Cobertura XML file) to GitHub's code coverage API via actions/upload-code-coverage. Before calling this tool, write or copy the coverage report file into the upload-code-coverage staging directory at /tmp/gh-aw/safeoutputs/upload-code-coverage/ (or provide an absolute path / workspace-relative path, which will be auto-copied into staging). Shell variable syntax (for example, \"$VAR/...\") must NOT appear in file values because variables are not expanded in JSON strings. Only one coverage report can be uploaded per run.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["file", "language", "label"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Path to the Cobertura XML coverage report. Three formats are accepted: (1) filename or relative path (e.g., \"cobertura.xml\" or \"coverage/cobertura.xml\") for files already in the upload staging directory at /tmp/gh-aw/safeoutputs/upload-code-coverage/; (2) absolute path (e.g., \"/tmp/gh-aw/coverage/cobertura.xml\") to auto-copy from disk into the staging directory; (3) workspace-relative path resolved from the workspace root. Do NOT use shell variable syntax like \"$VAR/...\" because shell variables are not expanded in JSON string values."
+        },
+        "language": {
+          "type": "string",
+          "description": "Linguist language name for the coverage report (e.g., \"Go\", \"Java\", \"Python\", \"JavaScript\", \"TypeScript\")."
+        },
+        "label": {
+          "type": "string",
+          "description": "Label identifying this coverage report (e.g., \"code-coverage/unit-tests\", \"code-coverage/jacoco\"). Distinguishes multiple coverage reports uploaded across different workflows or jobs."
+        },
+        "integrity": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Trustworthiness level of the coverage report source. Must be one of \"low\", \"medium\", or \"high\"."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_release",
     "description": "Update a GitHub release description by replacing, appending to, or prepending to the existing content. Use this to add release notes, changelogs, or additional information to an existing release.",
     "inputSchema": {
