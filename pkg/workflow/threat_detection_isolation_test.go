@@ -701,6 +701,9 @@ Test workflow`
 	if !strings.Contains(detectionSection, "wire_api = \"responses\"") {
 		t.Error("Codex external detector path must use the Responses API")
 	}
+	if !strings.Contains(detectionSection, "requires_openai_auth = false") {
+		t.Error("Codex external detector path must use BYOK authentication")
+	}
 	expectedCopilotBaseURL := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CopilotLLMGatewayPort))
 	if !strings.Contains(detectionSection, `base_url = "`+expectedCopilotBaseURL+`"`) {
 		t.Errorf("Codex external detector path must use the reflected Copilot provider endpoint %q", expectedCopilotBaseURL)

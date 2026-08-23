@@ -984,7 +984,7 @@ jobs:
 
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_0555b30d54e63484_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_a184a349349b7680_EOF
 
           model_provider = "openai-proxy"
 
@@ -993,11 +993,12 @@ jobs:
           base_url = "http://172.30.0.30:10000"
           env_key = "CODEX_API_KEY"
           wire_api = "responses"
+          requires_openai_auth = false
           supports_websockets = false
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^GH_AW_ASSETS_ALLOWED_EXTS$", "^GH_AW_ASSETS_BRANCH$", "^GH_AW_ASSETS_MAX_SIZE_KB$", "^GH_AW_SAFE_OUTPUTS$", "^GITHUB_REPOSITORY$", "^GITHUB_SERVER_URL$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
-          GH_AW_CODEX_SHELL_POLICY_0555b30d54e63484_EOF
+          GH_AW_CODEX_SHELL_POLICY_a184a349349b7680_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1752,7 +1753,7 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config" "/tmp/gh-aw/mcp-config" "/tmp/gh-aw/mcp-config/logs/"
           printf '%s\n' "{\"mcpServers\":{}}" > "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"
           # Point Codex at the AWF OpenAI proxy and disable websocket startup.
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_DETECTION_CONFIG_afcc926423fda1bb_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_DETECTION_CONFIG_3df114619551967b_EOF
           model_provider = "openai-proxy"
 
           [history]
@@ -1765,8 +1766,9 @@ jobs:
           wss_base = "ws://172.30.0.30:10002"
           env_key = "CODEX_API_KEY"
           wire_api = "responses"
+          requires_openai_auth = false
           supports_websockets = false
-          GH_AW_CODEX_DETECTION_CONFIG_afcc926423fda1bb_EOF
+          GH_AW_CODEX_DETECTION_CONFIG_3df114619551967b_EOF
           cp "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" "/tmp/gh-aw/mcp-config/config.toml"
           chmod 600 "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" "/tmp/gh-aw/mcp-config/config.toml"
       - name: Install threat-detect binary
@@ -2046,18 +2048,19 @@ jobs:
 
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_9f51d69fde3f23f8_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_7667c012f057e1ec_EOF
           model_provider = "openai-proxy"
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
           base_url = "http://172.30.0.30:10000"
           env_key = "CODEX_API_KEY"
           wire_api = "responses"
+          requires_openai_auth = false
           supports_websockets = false
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
-          GH_AW_CODEX_SHELL_POLICY_9f51d69fde3f23f8_EOF
+          GH_AW_CODEX_SHELL_POLICY_7667c012f057e1ec_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }

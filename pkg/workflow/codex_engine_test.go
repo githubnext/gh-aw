@@ -548,6 +548,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
 			"env_key = \"CODEX_API_KEY\"",
 			"wire_api = \"responses\"",
+			"requires_openai_auth = false",
 			"supports_websockets = false",
 		}
 
