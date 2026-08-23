@@ -13,6 +13,7 @@ import (
 )
 
 func TestTrainDrain3Weights_NoRuns(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	err := TrainDrain3Weights(nil, tmpDir, false)
 	require.NoError(t, err, "should not error when no runs provided")
@@ -23,6 +24,7 @@ func TestTrainDrain3Weights_NoRuns(t *testing.T) {
 }
 
 func TestTrainDrain3Weights_WithRuns(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	runs := []ProcessedRun{
@@ -70,6 +72,7 @@ func TestTrainDrain3Weights_WithRuns(t *testing.T) {
 }
 
 func TestTrainDrain3Weights_JSONStructure(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	runs := []ProcessedRun{
@@ -105,6 +108,7 @@ func TestTrainDrain3Weights_JSONStructure(t *testing.T) {
 }
 
 func TestLogsCommandHasTrainFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewLogsCommand()
 	flag := cmd.Flags().Lookup("train")
 	require.NotNil(t, flag, "logs command should have --train flag")
