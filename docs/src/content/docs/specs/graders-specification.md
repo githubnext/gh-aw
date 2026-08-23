@@ -217,6 +217,28 @@ Supported forms include:
 
 When a grader reference is used, `<id>` MUST resolve to a declared enabled grader. Unknown or empty grader references MUST fail validation.
 
+For each production run, the selected experiment variant is recorded before agent execution. The
+post-agent grader result then becomes an observation attributed to that assignment:
+
+```text
+production run
+→ grader result
+→ experiment observation
+→ statistical analysis
+→ deterministic decision
+```
+
+`gh aw experiments analyze` reads the persisted assignment ledger and the run's
+`grader_results.json`; this path does not require historical trace replay or an additional evaluator
+model invocation. Only valid numeric grader results count toward `min_samples`. Missing artifacts,
+missing or failed graders, and invalid values are excluded rather than treated as zero.
+
+Grader `direction` determines whether lower or higher values are favorable. The experiment decision
+layer normalizes this direction before applying its absolute `minimum_effect` policy and mandatory
+guardrails. A grader measures only the behavior encoded by that grader; not every grader represents
+semantic task correctness. The normative readiness, decision, and JSON contracts are defined in the
+[Experiments Specification](/gh-aw/experimental/experiments-specification/#116-deterministic-decision-policy).
+
 ---
 
 ## 9. Security and Isolation
