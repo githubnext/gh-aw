@@ -47,3 +47,4 @@
 {"run_id":"32418361208","timestamp":"2026-08-20T21:14:46.504Z","assignments":{"audit_decomposition":"single_agent"}}
 {"run_id":"32527428611","timestamp":"2026-08-21T21:13:33.156Z","assignments":{"audit_decomposition":"phased_sub_agents"}}
 {"run_id":"32598934886","timestamp":"2026-08-22T21:13:13.684Z","harness_version":"d11722d380d2e9f22bc8efb1673c5d015750398ad09569a95f19e299e7e0fa9f:25156d52baac831474e595c17d27bd28ebcb46d739cf1fb3ec0c8d9eed3ab0d3","assignments":{"audit_decomposition":"single_agent"}}
+{"run_id":"32666806358","timestamp":"2026-08-23T21:13:10.552Z","harness_version":"d11722d380d2e9f22bc8efb1673c5d015750398ad09569a95f19e299e7e0fa9f:25156d52baac831474e595c17d27bd28ebcb46d739cf1fb3ec0c8d9eed3ab0d3","assignments":{"audit_decomposition":"single_agent"}}
