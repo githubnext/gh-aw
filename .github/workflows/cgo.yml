@@ -314,8 +314,7 @@ jobs:
     - name: Convert unit coverage to Cobertura
       if: always() && hashFiles(format('coverage-{0}.out', matrix.shard)) != ''
       run: |
-        go install github.com/boumenot/gocover-cobertura@v1.5.0
-        "$(go env GOPATH)/bin/gocover-cobertura" < coverage-${{ matrix.shard }}.out > coverage-${{ matrix.shard }}.xml
+        go tool gocover-cobertura < coverage-${{ matrix.shard }}.out > coverage-${{ matrix.shard }}.xml
 
     - name: Upload unit coverage to code coverage API
       if: always() && hashFiles(format('coverage-{0}.xml', matrix.shard)) != ''
