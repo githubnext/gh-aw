@@ -231,6 +231,7 @@ experiments:
     min_samples: 70
     weight: [50, 50]
     start_date: "2026-07-05"
+    issue: 43530
 evals:
   - id: model_size_goal_met
     question: Does the agent output show that the objective for experiment model_size was successfully completed?
