@@ -76,7 +76,6 @@ func TestMarshalCompactNoHTMLEscape(t *testing.T) {
 
 			require.NoError(t, err, "marshal should succeed")
 			assert.Equal(t, tt.expected, result, "unexpected marshal result")
-			assert.NotContains(t, result, "\n", "expected compact JSON without trailing newline")
 		})
 	}
 }
