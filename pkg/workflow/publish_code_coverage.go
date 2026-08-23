@@ -23,6 +23,10 @@ const defaultCodeCoverageWaitForProcessingTimeout = 160
 // their `path:` inputs, so we must use ${{ runner.temp }} here (mirrors artifactStagingDirExpr).
 const codeCoverageStagingDirExpr = "${{ runner.temp }}/gh-aw/safeoutputs/upload-code-coverage/"
 
+// codeCoverageDownloadPath is the location where the upload_code_coverage job
+// downloads the staging artifact before invoking actions/upload-code-coverage.
+const codeCoverageDownloadPath = "/tmp/gh-aw/upload-code-coverage/"
+
 // SafeOutputsUploadCodeCoverageStagingArtifactName is the artifact that carries the staging
 // directory (containing the staged coverage report file) from the agent job to the
 // upload_code_coverage job.
@@ -139,12 +143,11 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 	var steps []string
 
 	// Download the coverage staging artifact produced by the agent job.
-	downloadPath := "/tmp/gh-aw/upload-code-coverage/"
 	const downloadStepID = "download_upload_code_coverage_staging"
 	continueOnDownloadError := false
 	downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName:    agentArtifactPrefix + SafeOutputsUploadCodeCoverageStagingArtifactName,
-		DownloadPath:    downloadPath,
+		DownloadPath:    codeCoverageDownloadPath,
 		StepName:        "Download upload-code-coverage staging",
 		StepID:          downloadStepID,
 		ContinueOnError: &continueOnDownloadError,
@@ -153,7 +156,7 @@ func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName st
 
 	// The local coverage file path is the downloaded staging directory plus the
 	// staging-relative path recorded by the upload_code_coverage handler.
-	localCoveragePath := downloadPath + "${{ needs." + string(constants.SafeOutputsJobName) + ".outputs.upload_code_coverage_file }}"
+	localCoveragePath := codeCoverageDownloadPath + "${{ needs." + string(constants.SafeOutputsJobName) + ".outputs.upload_code_coverage_file }}"
 
 	failOnError := "true"
 	if cfg.FailOnError != nil && !*cfg.FailOnError {
