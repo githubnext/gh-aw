@@ -347,7 +347,7 @@ print_timing $OUTPUT_WAIT_START "Gateway output wait"
 echo ""
 
 # Verify output was written
-if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
+if [ ! -s "$GATEWAY_STDOUT" ]; then
   echo "ERROR: Gateway did not write output configuration"
   print_gateway_startup_diagnostics
   kill $GATEWAY_PID 2>/dev/null || true
@@ -359,7 +359,7 @@ chmod 600 /tmp/gh-aw/mcp-config/gateway-output.json
 
 # Check if output contains an error payload instead of valid configuration
 # Per MCP Gateway Specification v1.0.0 section 9.1, errors are written to stdout as error payloads
-if jq -e '.error' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; then
+if jq -e '.error' "$GATEWAY_STDOUT" >/dev/null 2>&1; then
   echo "ERROR: Gateway returned an error payload instead of configuration"
   print_gateway_startup_diagnostics
   kill $GATEWAY_PID 2>/dev/null || true

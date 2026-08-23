@@ -86,7 +86,7 @@ assert "identifies started gateway without auditable traffic" "printf '%s' \"${O
 echo ""
 
 # ── Test 5: --rootless flag is accepted without error ───────────────────────
-echo "Test 4: --rootless flag is accepted without error"
+echo "Test 5: --rootless flag is accepted without error"
 FIREWALL_DIR="${WORKSPACE}/test4/sandbox/firewall"
 mkdir -p "${FIREWALL_DIR}/logs"
 set +e
@@ -102,8 +102,8 @@ assert "exits successfully with --rootless" "[ '${EXIT_CODE}' -eq 0 ]"
 assert "prints 'AWF binary not installed' message (not an arg-parse error)" "printf '%s' \"${OUTPUT}\" | grep -q 'AWF binary not installed'"
 echo ""
 
-# ── Test 5: FIREWALL_DIR is computed as dirname of AWF_LOGS_DIR ─────────────
-echo "Test 5: FIREWALL_DIR is computed as dirname of AWF_LOGS_DIR"
+# ── Test 6: FIREWALL_DIR is computed as dirname of AWF_LOGS_DIR ─────────────
+echo "Test 6: FIREWALL_DIR is computed as dirname of AWF_LOGS_DIR"
 LOGS_DIR="${WORKSPACE}/test5/sandbox/firewall/logs"
 mkdir -p "${LOGS_DIR}"
 set +e
@@ -118,8 +118,8 @@ EXPECTED_DIR="${WORKSPACE}/test5/sandbox/firewall"
 assert "script does not error on a valid logs dir" "[ -d '${EXPECTED_DIR}' ]"
 echo ""
 
-# ── Test 6: Rootless mode - non-sudo chmod fallback succeeds when sudo absent ─
-echo "Test 6: Rootless mode - non-sudo chmod fallback succeeds when sudo unavailable"
+# ── Test 7: Rootless mode - non-sudo chmod fallback succeeds when sudo absent ─
+echo "Test 7: Rootless mode - non-sudo chmod fallback succeeds when sudo unavailable"
 FIREWALL_DIR="${WORKSPACE}/test6/sandbox/firewall"
 mkdir -p "${FIREWALL_DIR}/logs"
 chmod 500 "${FIREWALL_DIR}"  # owner read+exec only — chmod a+rX fallback must run
@@ -137,8 +137,8 @@ assert "exits 0 in rootless mode when sudo unavailable" "[ '${EXIT_CODE}' -eq 0 
 assert "prints 'AWF binary not installed' (not a chown/chmod crash)" "printf '%s' \"${OUTPUT}\" | grep -q 'AWF binary not installed'"
 echo ""
 
-# ── Test 7: Default mode - exits 0 when sudo unavailable (|| true catches it) ─
-echo "Test 7: Default mode (non-rootless) - exits 0 even when sudo unavailable"
+# ── Test 8: Default mode - exits 0 when sudo unavailable (|| true catches it) ─
+echo "Test 8: Default mode (non-rootless) - exits 0 even when sudo unavailable"
 FIREWALL_DIR="${WORKSPACE}/test7/sandbox/firewall"
 mkdir -p "${FIREWALL_DIR}/logs"
 set +e
@@ -154,8 +154,8 @@ assert "exits 0 in default mode when sudo unavailable" "[ '${EXIT_CODE}' -eq 0 ]
 assert "prints 'AWF binary not installed' (not a sudo crash)" "printf '%s' \"${OUTPUT}\" | grep -q 'AWF binary not installed'"
 echo ""
 
-# ── Test 8: GITHUB_STEP_SUMMARY guard — no error when variable is unset ──────
-echo "Test 8: GITHUB_STEP_SUMMARY guard - no error or tee failure when variable is unset"
+# ── Test 9: GITHUB_STEP_SUMMARY guard — no error when variable is unset ──────
+echo "Test 9: GITHUB_STEP_SUMMARY guard - no error or tee failure when variable is unset"
 FIREWALL_DIR="${WORKSPACE}/test8/sandbox/firewall"
 MOCK_BIN="${WORKSPACE}/bin8"
 mkdir -p "${FIREWALL_DIR}/logs" "${MOCK_BIN}"
