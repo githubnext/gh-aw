@@ -236,6 +236,7 @@ The same minimum-two-variants constraint from R-SCHEMA-005 applies.
 | `start_date` | string (YYYY-MM-DD) | Experiment is inactive before this date (see §6). |
 | `end_date` | string (YYYY-MM-DD) | Experiment is inactive after this date (see §6). |
 | `analysis_type` | string enum | Statistical test for automated reporting (see §11.2). |
+| `decision` | object | Deterministic interpretation policy (see §11.6). |
 | `tags` | string[] | Free-form labels for dashboard filtering. |
 | `notify` | object | Significance-alert destination (see §4.5). |
 
@@ -691,9 +692,9 @@ even if the 70% arm has accumulated many more.
 
 ### 11.5 Guardrail Evaluation
 
-**R-STAT-009**: Reporting tools that evaluate `guardrail_metrics` **MUST** emit a `GUARDRAIL_FAILED`
-status for any variant that violates a declared threshold, and **MUST** override the
-recommendation to ABANDON regardless of the primary-metric p-value.
+**R-STAT-009**: Reporting tools that evaluate `guardrail_metrics` **MUST** emit a failed
+guardrail status for any variant that violates a declared threshold, and **MUST** override the
+decision to REJECT regardless of the primary-metric p-value.
 
 **R-STAT-010**: Multi-variant experiments **MUST** show guardrail pass/fail status per variant,
 not aggregated across the experiment.
@@ -715,7 +716,38 @@ and **MUST NOT** alter the comparison logic.
 > experiment configs programmatically (e.g. from a generator agent), because it separates the
 > numeric bound from the comparison direction, making both machine-readable and human-readable.
 
-### 11.6 Reporting Workflow Permissions
+### 11.6 Deterministic Decision Policy
+
+**R-STAT-014**: An experiment MAY declare a `decision` object with these fields:
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `minimum_effect` | number ≥ 0 | `0` | Minimum absolute primary-metric improvement required for promotion. |
+| `regression_tolerance` | number ≥ 0 | `minimum_effect` | Maximum absolute primary-metric regression tolerated before rejection. |
+| `confidence` | number, 0 < value < 1 | `0.95` | Required evidence probability. |
+
+**R-STAT-015**: Decision effects are absolute and use the primary metric's units. Reporting tools
+MUST normalize direction so a positive normalized effect means the candidate is better. For
+frequentist methods, sufficient evidence means `p <= 1-confidence`. For `bayesian_ab`, tools
+MUST use the analyzer's probability of superiority and MUST NOT convert it to a p-value.
+
+**R-STAT-016**: A deterministic two-variant decision MUST apply this precedence:
+
+1. Fewer than `min_samples` usable observations: `EXTEND`.
+2. Missing or insufficient mandatory guardrail observations: `EXTEND`.
+3. Failed mandatory guardrail: `REJECT`.
+4. Material candidate regression with sufficient evidence: `REJECT`.
+5. Material candidate improvement with sufficient evidence: `PROMOTE`.
+6. Otherwise: `INCONCLUSIVE`.
+
+Statistical significance without the configured practical effect MUST NOT produce `PROMOTE`.
+Reporting tools MUST return `INCONCLUSIVE` for automatic decisions with more than two variants.
+
+**R-STAT-017**: The decision layer MUST consume existing analysis results. It MUST NOT fetch
+observations, rerun statistical tests or graders, mutate experiment state, change traffic, or
+promote workflow sources.
+
+### 11.7 Reporting Workflow Permissions
 
 **R-STAT-011**: Any automated workflow that posts comments to issues (e.g., via `notify.issue`
 or step-based issue comment creation) **MUST** declare `permissions: issues: write` in its

@@ -38,6 +38,47 @@ func resolveEvalMetricReferences(configs map[string]*workflow.ExperimentConfig, 
 	return refs, nil
 }
 
+func resolveEvalGuardrailMetricReferences(
+	configs map[string]*workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+) (map[string]map[string]string, error) {
+	refs := make(map[string]map[string]string)
+	for experimentName, cfg := range configs {
+		if cfg == nil {
+			continue
+		}
+		for _, guardrail := range cfg.GuardrailMetrics {
+			evalID, isEval := workflow.ParseExperimentMetricEvalReference(guardrail.Name)
+			if !isEval {
+				continue
+			}
+			if evalID == "" {
+				return nil, fmt.Errorf(
+					"experiments.%s.guardrail_metrics: expected eval reference format eval:<question_id> or evals.<question_id>",
+					experimentName,
+				)
+			}
+			if evals == nil || !evalQuestionDeclared(evals, evalID) {
+				if evals == nil || len(evals.Questions) == 0 {
+					return nil, fmt.Errorf(
+						"experiments.%s.guardrail_metrics: references eval %q but no evals are declared",
+						experimentName, evalID,
+					)
+				}
+				return nil, fmt.Errorf(
+					"experiments.%s.guardrail_metrics: references unknown eval %q",
+					experimentName, evalID,
+				)
+			}
+			if refs[experimentName] == nil {
+				refs[experimentName] = make(map[string]string)
+			}
+			refs[experimentName][guardrail.Name] = evalID
+		}
+	}
+	return refs, nil
+}
+
 func evalQuestionDeclared(evals *workflow.EvalsConfig, evalID string) bool {
 	for _, q := range evals.Questions {
 		if q.ID == evalID {

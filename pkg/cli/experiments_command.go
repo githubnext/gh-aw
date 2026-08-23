@@ -200,7 +200,7 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	defer cleanup()
 
 	// Compute statistical analyses for each named experiment.
-	details.Analyses = computeExperimentAnalysesWithObservations(
+	details.Analyses = computeExperimentAnalysesWithObservationBundle(
 		details.Experiments,
 		frontmatterResult.ExperimentConfigs,
 		frontmatterResult.Evals,
@@ -250,54 +250,66 @@ func loadExperimentAnalysisInputs(
 // assignment history, returning one merged map of observation sets and a single cleanup
 // closure. An experiment's metric references exactly one of a grader or an eval, so the
 // two resolved maps never collide.
+type experimentMetricObservationSets struct {
+	Primary    map[string]*graderMetricObservationSet
+	Guardrails map[string]map[string]*graderMetricObservationSet
+}
+
 func loadMetricObservationSetsForAnalysis(
 	details *ExperimentDetails,
 	frontmatter experimentFrontmatterResult,
 	repoOverride string,
-) (map[string]*graderMetricObservationSet, func(), error) {
-	graderSets, cleanup, err := loadGraderObservationSetsForAnalysis(details, frontmatter, repoOverride)
+) (*experimentMetricObservationSets, func(), error) {
+	graderSets, graderGuardrails, cleanup, err := loadGraderObservationSetsForAnalysis(details, frontmatter, repoOverride)
 	if err != nil {
 		return nil, func() {}, err
 	}
 
-	evalSets, err := loadEvalObservationSetsForAnalysis(details, frontmatter, repoOverride)
+	evalSets, evalGuardrails, err := loadEvalObservationSetsForAnalysis(details, frontmatter, repoOverride)
 	if err != nil {
 		cleanup()
 		return nil, func() {}, err
-	}
-	if len(evalSets) == 0 {
-		return graderSets, cleanup, nil
 	}
 	if graderSets == nil {
 		graderSets = make(map[string]*graderMetricObservationSet, len(evalSets))
 	}
 	maps.Copy(graderSets, evalSets)
-	return graderSets, cleanup, nil
+	if graderGuardrails == nil {
+		graderGuardrails = make(map[string]map[string]*graderMetricObservationSet, len(evalGuardrails))
+	}
+	mergeGuardrailObservationSets(graderGuardrails, evalGuardrails)
+	return &experimentMetricObservationSets{Primary: graderSets, Guardrails: graderGuardrails}, cleanup, nil
 }
 
 func loadGraderObservationSetsForAnalysis(
 	details *ExperimentDetails,
 	frontmatter experimentFrontmatterResult,
 	repoOverride string,
-) (map[string]*graderMetricObservationSet, func(), error) {
+) (map[string]*graderMetricObservationSet, map[string]map[string]*graderMetricObservationSet, func(), error) {
 	refs, err := resolveGraderMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Graders)
 	if err != nil {
-		return nil, func() {}, err
+		return nil, nil, func() {}, err
 	}
-	if len(refs) == 0 {
-		return nil, func() {}, nil
+	guardrailRefs, err := resolveGraderGuardrailMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Graders)
+	if err != nil {
+		return nil, nil, func() {}, err
+	}
+	runRefs := observationRunReferences(refs, guardrailRefs)
+	if len(runRefs) == 0 {
+		return nil, nil, func() {}, nil
 	}
 	tempDir, err := os.MkdirTemp("", "gh-aw-experiment-graders-*")
 	if err != nil {
-		return nil, func() {}, fmt.Errorf("failed to prepare grader artifact cache: %w", err)
+		return nil, nil, func() {}, fmt.Errorf("failed to prepare grader artifact cache: %w", err)
 	}
 	cleanup := func() {
 		_ = os.RemoveAll(tempDir)
 	}
 	source := newGitHubGraderRunArtifactSource(tempDir, repoOverride)
-	runData := loadGraderRunData(context.Background(), details.Runs, refs, source)
+	runData := loadGraderRunData(context.Background(), details.Runs, runRefs, source)
 	sets := buildGraderMetricObservationSets(details.Experiments, details.Runs, refs, runData, frontmatter.Graders)
-	return sets, cleanup, nil
+	guardrailSets := buildGraderGuardrailObservationSets(details, guardrailRefs, runData, frontmatter.Graders)
+	return sets, guardrailSets, cleanup, nil
 }
 
 // loadEvalObservationSetsForAnalysis resolves eval-backed experiment metrics and attributes
@@ -307,13 +319,17 @@ func loadEvalObservationSetsForAnalysis(
 	details *ExperimentDetails,
 	frontmatter experimentFrontmatterResult,
 	repoOverride string,
-) (map[string]*graderMetricObservationSet, error) {
+) (map[string]*graderMetricObservationSet, map[string]map[string]*graderMetricObservationSet, error) {
 	refs, err := resolveEvalMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Evals)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if len(refs) == 0 {
-		return nil, nil
+	guardrailRefs, err := resolveEvalGuardrailMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Evals)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(refs) == 0 && len(guardrailRefs) == 0 {
+		return nil, nil, nil
 	}
 	var evalRecords []evalResultRecord
 	if repoOverride != "" {
@@ -321,7 +337,9 @@ func loadEvalObservationSetsForAnalysis(
 	} else {
 		evalRecords = loadLocalEvalResultRecords(details.WorkflowID)
 	}
-	return buildEvalMetricObservationSets(details.Experiments, details.Runs, refs, evalRecords), nil
+	sets := buildEvalMetricObservationSets(details.Experiments, details.Runs, refs, evalRecords)
+	guardrailSets := buildEvalGuardrailObservationSets(details, guardrailRefs, evalRecords)
+	return sets, guardrailSets, nil
 }
 
 // computeExperimentAnalyses computes statistical analyses for all named experiments.
@@ -343,8 +361,23 @@ func computeExperimentAnalysesWithObservations(
 	metricEvalResults map[string]MetricEvalResults,
 	graderObservationSets map[string]*graderMetricObservationSet,
 ) []ExperimentAnalysis {
+	return computeExperimentAnalysesWithObservationBundle(experiments, configs, evals, metricEvalResults, &experimentMetricObservationSets{
+		Primary: graderObservationSets,
+	})
+}
+
+func computeExperimentAnalysesWithObservationBundle(
+	experiments []ExperimentVariantStats,
+	configs map[string]*workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+	metricEvalResults map[string]MetricEvalResults,
+	observationSets *experimentMetricObservationSets,
+) []ExperimentAnalysis {
 	if len(experiments) == 0 {
 		return nil
+	}
+	if observationSets == nil {
+		observationSets = &experimentMetricObservationSets{}
 	}
 	analyses := make([]ExperimentAnalysis, 0, len(experiments))
 	for _, exp := range experiments {
@@ -352,13 +385,78 @@ func computeExperimentAnalysesWithObservations(
 		if configs != nil {
 			cfg = configs[exp.Name]
 		}
-		analyses = append(analyses, computeExperimentAnalysisWithObservations(
+		analyses = append(analyses, computeExperimentAnalysisWithObservationBundle(
 			exp,
 			cfg,
 			evals,
 			metricEvalResults,
-			graderObservationSets[exp.Name],
+			observationSets.Primary[exp.Name],
+			observationSets.Guardrails[exp.Name],
 		))
 	}
 	return analyses
+}
+
+func mergeGuardrailObservationSets(
+	target map[string]map[string]*graderMetricObservationSet,
+	source map[string]map[string]*graderMetricObservationSet,
+) {
+	for experimentName, sourceSets := range source {
+		if target[experimentName] == nil {
+			target[experimentName] = make(map[string]*graderMetricObservationSet)
+		}
+		maps.Copy(target[experimentName], sourceSets)
+	}
+}
+
+func observationRunReferences(
+	primary map[string]string,
+	guardrails map[string]map[string]string,
+) map[string]string {
+	refs := make(map[string]string, len(primary)+len(guardrails))
+	maps.Copy(refs, primary)
+	for experimentName, metrics := range guardrails {
+		for _, metricID := range metrics {
+			refs[experimentName] = metricID
+			break
+		}
+	}
+	return refs
+}
+
+func buildGraderGuardrailObservationSets(
+	details *ExperimentDetails,
+	refs map[string]map[string]string,
+	runData map[string]graderRunData,
+	graders *workflow.GradersConfig,
+) map[string]map[string]*graderMetricObservationSet {
+	result := make(map[string]map[string]*graderMetricObservationSet, len(refs))
+	for experimentName, metrics := range refs {
+		result[experimentName] = make(map[string]*graderMetricObservationSet, len(metrics))
+		for metricName, graderID := range metrics {
+			sets := buildGraderMetricObservationSets(
+				details.Experiments, details.Runs, map[string]string{experimentName: graderID}, runData, graders,
+			)
+			result[experimentName][metricName] = sets[experimentName]
+		}
+	}
+	return result
+}
+
+func buildEvalGuardrailObservationSets(
+	details *ExperimentDetails,
+	refs map[string]map[string]string,
+	evalRecords []evalResultRecord,
+) map[string]map[string]*graderMetricObservationSet {
+	result := make(map[string]map[string]*graderMetricObservationSet, len(refs))
+	for experimentName, metrics := range refs {
+		result[experimentName] = make(map[string]*graderMetricObservationSet, len(metrics))
+		for metricName, evalID := range metrics {
+			sets := buildEvalMetricObservationSets(
+				details.Experiments, details.Runs, map[string]string{experimentName: evalID}, evalRecords,
+			)
+			result[experimentName][metricName] = sets[experimentName]
+		}
+	}
+	return result
 }

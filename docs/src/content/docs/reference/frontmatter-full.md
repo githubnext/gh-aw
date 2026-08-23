@@ -1490,6 +1490,12 @@ on:
     # (optional)
     security-events: "read"
 
+    # Permission level for secret scanning alerts (read/none). GitHub App-only
+    # permission forwarded as permission-secret-scanning-alerts input for
+    # actions/create-github-app-token.
+    # (optional)
+    secret-scanning-alerts: "read"
+
     # Permission level for commit statuses (read/write/none). Controls access to
     # create and update commit status checks.
     # (optional)
@@ -1633,6 +1639,12 @@ permissions:
   # (optional)
   security-events: "read"
 
+  # Permission level for secret scanning alerts (read/none). GitHub App-only
+  # permission forwarded as permission-secret-scanning-alerts input for
+  # actions/create-github-app-token.
+  # (optional)
+  secret-scanning-alerts: "read"
+
   # Permission level for commit statuses (read/write/none). Controls access to
   # create and update commit status checks.
   # (optional)
@@ -1745,11 +1757,13 @@ runner:
   # (optional)
   topology: "arc-dind"
 
-# Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20
-# minutes for agentic workflows. Has sensible defaults and can typically be
-# omitted. Custom runners support longer timeouts beyond the GitHub-hosted runner
-# limit. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for
-# reusable workflow_call workflows.
+# Agentic execution step timeout in minutes. Defaults to 20 minutes for agentic
+# workflows, or the GH_AW_DEFAULT_TIMEOUT_MINUTES GitHub Actions variable. The
+# generated jobs are bounded separately by jobs.agent.timeout-minutes (default 60
+# minutes or GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES) and
+# jobs.detection.timeout-minutes (default 10 minutes or
+# GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES). Supports GitHub Actions
+# expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.
 # (optional)
 # Accepted formats:
 
@@ -1931,9 +1945,9 @@ models:
 # array of two or more variant strings (bare-array form) or an object with a
 # 'variants' field plus optional metadata fields (description, metric, weight,
 # issue, start_date, end_date, hypothesis, secondary_metrics, guardrail_metrics,
-# min_samples). The reserved 'storage' key controls how experiment state is
-# persisted: 'repo' (default) commits state to a git branch named
-# 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens
+# min_samples, analysis_type, decision). The reserved 'storage' key controls how
+# experiment state is persisted: 'repo' (default) commits state to a git branch
+# named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens
 # removed) for durability; 'cache' uses GitHub Actions cache. At runtime the
 # activation job picks a variant and persists the updated counters. Use ${{
 # experiments.<name> }} in the workflow prompt to reference the selected variant.
@@ -4177,7 +4191,8 @@ tools:
     description: "Description of the workflow"
 
     # Drive size used when creating the drive, as a number with an optional K, M, G,
-    # or T suffix (suggested: '100M'; ignored for an existing drive)
+    # or T suffix (case-insensitive; normalized to upper case; suggested: '100M';
+    # ignored for an existing drive)
     # (optional)
     disk-size: "example-value"
 
@@ -22529,6 +22544,13 @@ import-schema:
 # 'large').
 # (optional)
 model: "example-value"
+
+# ⚠️ Experimental. Deterministic graders to compute post-agent metrics from
+# execution artifacts. Map keys are grader IDs. Built-in graders can be configured
+# by ID; custom graders require a script.
+# (optional)
+graders:
+  {}
 
 # ⚠️ Experimental. BinEval binary evaluation questions to run after safe-outputs
 # and before the conclusion job. Can be a plain list of questions (shorthand) or

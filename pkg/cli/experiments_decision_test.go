@@ -1,0 +1,260 @@
+//go:build !integration
+
+package cli
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestDecideExperiment(t *testing.T) {
+	t.Parallel()
+	pValueStrong := 0.01
+	pValueWeak := 0.20
+	bayesianStrong := 0.98
+	bayesianWeak := 0.80
+	passed := true
+	failed := false
+
+	tests := []struct {
+		name       string
+		analysis   ExperimentAnalysis
+		want       string
+		reasonCode string
+		normalized *float64
+	}{
+		{
+			name:     "below minimum samples extends",
+			analysis: decisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+			want:     experimentDecisionExtend, reasonCode: "insufficient_samples",
+		},
+		{
+			name:     "max direction material improvement promotes",
+			analysis: readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: floatPointer(0.2),
+		},
+		{
+			name:     "min direction material improvement promotes",
+			analysis: readyDecisionTestAnalysis("min", -1200, &pValueStrong, nil, 500, nil),
+			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: floatPointer(1200),
+		},
+		{
+			name:     "max direction material regression rejects",
+			analysis: readyDecisionTestAnalysis("max", -0.2, &pValueStrong, nil, 0.05, nil),
+			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: floatPointer(-0.2),
+		},
+		{
+			name:     "min direction material regression rejects",
+			analysis: readyDecisionTestAnalysis("min", 1200, &pValueStrong, nil, 500, nil),
+			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: floatPointer(-1200),
+		},
+		{
+			name:     "significant tiny effect is inconclusive",
+			analysis: readyDecisionTestAnalysis("max", 0.001, &pValueStrong, nil, 0.05, nil),
+			want:     experimentDecisionInconclusive, reasonCode: "effect_below_threshold",
+		},
+		{
+			name:     "large effect without evidence is inconclusive",
+			analysis: readyDecisionTestAnalysis("max", 0.2, &pValueWeak, nil, 0.05, nil),
+			want:     experimentDecisionInconclusive, reasonCode: "evidence_insufficient",
+		},
+		{
+			name: "failed guardrail rejects before primary promotion",
+			analysis: withDecisionTestGuardrail(
+				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+				GuardrailStatus{Name: "grader:failures", Status: "fail", Passed: &failed},
+			),
+			want: experimentDecisionReject, reasonCode: "guardrail_failed",
+		},
+		{
+			name: "missing guardrail extends",
+			analysis: withDecisionTestGuardrail(
+				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+				GuardrailStatus{Name: "grader:failures", Status: "missing"},
+			),
+			want: experimentDecisionExtend, reasonCode: "insufficient_observations",
+		},
+		{
+			name: "passed guardrail allows promotion",
+			analysis: withDecisionTestGuardrail(
+				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+				GuardrailStatus{Name: "grader:failures", Status: "pass", Passed: &passed},
+			),
+			want: experimentDecisionPromote, reasonCode: "candidate_improved",
+		},
+		{
+			name:     "bayesian material improvement promotes",
+			analysis: readyDecisionTestAnalysis("max", 0.2, nil, &bayesianStrong, 0.05, nil),
+			want:     experimentDecisionPromote, reasonCode: "candidate_improved",
+		},
+		{
+			name:     "bayesian uncertain result is inconclusive",
+			analysis: readyDecisionTestAnalysis("max", 0.2, nil, &bayesianWeak, 0.05, nil),
+			want:     experimentDecisionInconclusive, reasonCode: "evidence_insufficient",
+		},
+		{
+			name: "multi variant decision is explicitly unsupported",
+			analysis: withThirdDecisionTestVariant(
+				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
+			),
+			want: experimentDecisionInconclusive, reasonCode: "unsupported_multi_variant",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := DecideExperiment(test.analysis)
+			assert.Equal(t, test.want, result.Decision)
+			assert.Equal(t, test.reasonCode, result.ReasonCode)
+			assert.NotEmpty(t, result.DecisionReason)
+			if test.normalized != nil {
+				require.NotNil(t, result.Effect)
+				assert.InDelta(t, *test.normalized, result.Effect.NormalizedAbsolute, 0.000001)
+			}
+		})
+	}
+}
+
+func decisionTestAnalysis(
+	direction string,
+	delta float64,
+	pValue *float64,
+	probability *float64,
+	minimumEffect float64,
+	regressionTolerance *float64,
+) ExperimentAnalysis {
+	analysis := readyDecisionTestAnalysis(direction, delta, pValue, probability, minimumEffect, regressionTolerance)
+	analysis.Variants[1].BelowMinSamples = true
+	analysis.Variants[1].ObservationCount = 19
+	return analysis
+}
+
+func readyDecisionTestAnalysis(
+	direction string,
+	delta float64,
+	pValue *float64,
+	probability *float64,
+	minimumEffect float64,
+	regressionTolerance *float64,
+) ExperimentAnalysis {
+	controlMean := 1.0
+	candidateMean := controlMean + delta
+	tolerance := minimumEffect
+	if regressionTolerance != nil {
+		tolerance = *regressionTolerance
+	}
+	analysisType := "t_test"
+	if probability != nil {
+		analysisType = "bayesian_ab"
+	}
+	return ExperimentAnalysis{
+		ExperimentName:  "prompt_v2",
+		Metric:          "grader:score",
+		MetricDirection: direction,
+		MinSamples:      20,
+		Variants: []VariantAnalysis{
+			{Name: "control", Count: 20, ObservationCount: 20, Mean: &controlMean},
+			{Name: "candidate", Count: 20, ObservationCount: 20, Mean: &candidateMean},
+		},
+		Comparisons: []MetricComparison{{
+			ControlVariant:         "control",
+			Variant:                "candidate",
+			AnalysisType:           analysisType,
+			Delta:                  delta,
+			PValue:                 pValue,
+			ProbabilitySuperiority: probability,
+		}},
+		DecisionPolicy: ExperimentDecisionPolicy{
+			MinimumEffect:       minimumEffect,
+			RegressionTolerance: tolerance,
+			Confidence:          defaultDecisionConfidence,
+		},
+	}
+}
+
+func withDecisionTestGuardrail(analysis ExperimentAnalysis, guardrail GuardrailStatus) ExperimentAnalysis {
+	analysis.Guardrails = []GuardrailStatus{guardrail}
+	return analysis
+}
+
+func withThirdDecisionTestVariant(analysis ExperimentAnalysis) ExperimentAnalysis {
+	mean := 1.1
+	analysis.Variants = append(analysis.Variants, VariantAnalysis{
+		Name: "candidate_b", Count: 20, ObservationCount: 20, Mean: &mean,
+	})
+	return analysis
+}
+
+func floatPointer(value float64) *float64 {
+	return &value
+}
+
+func TestApplyExperimentGuardrails(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name          string
+		direction     string
+		threshold     string
+		controlValues []float64
+		candidateVals []float64
+		wantStatus    string
+		wantPassed    *bool
+	}{
+		{
+			name: "max guardrail passes", direction: "max", threshold: ">=0.8",
+			controlValues: []float64{1, 1}, candidateVals: []float64{1, 1},
+			wantStatus: "pass", wantPassed: boolPointer(true),
+		},
+		{
+			name: "min guardrail fails", direction: "min", threshold: "0",
+			controlValues: []float64{0, 0}, candidateVals: []float64{1, 1},
+			wantStatus: "fail", wantPassed: boolPointer(false),
+		},
+		{
+			name: "missing observations do not pass", direction: "max", threshold: ">=0.8",
+			controlValues: []float64{1, 1}, candidateVals: []float64{1},
+			wantStatus: "insufficient_observations",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			analysis := ExperimentAnalysis{
+				MinSamples: 2,
+				Variants:   []VariantAnalysis{{Name: "control"}, {Name: "candidate"}},
+				Guardrails: []GuardrailStatus{{
+					Name: "grader:guardrail", Direction: test.direction, Threshold: test.threshold, Status: "unsupported",
+				}},
+			}
+			set := &graderMetricObservationSet{ByVariant: map[string][]GraderMetricObservation{
+				"control":   decisionTestObservations("control", test.controlValues),
+				"candidate": decisionTestObservations("candidate", test.candidateVals),
+			}}
+			applyExperimentGuardrails(&analysis, map[string]*graderMetricObservationSet{"grader:guardrail": set})
+
+			require.Len(t, analysis.Guardrails, 1)
+			assert.Equal(t, test.wantStatus, analysis.Guardrails[0].Status)
+			if test.wantPassed == nil {
+				assert.Nil(t, analysis.Guardrails[0].Passed)
+			} else {
+				require.NotNil(t, analysis.Guardrails[0].Passed)
+				assert.Equal(t, *test.wantPassed, *analysis.Guardrails[0].Passed)
+			}
+		})
+	}
+}
+
+func decisionTestObservations(variant string, values []float64) []GraderMetricObservation {
+	observations := make([]GraderMetricObservation, len(values))
+	for index, value := range values {
+		observations[index] = GraderMetricObservation{RunID: fmt.Sprintf("%d", index+1), Variant: variant, Value: value}
+	}
+	return observations
+}
+
+func boolPointer(value bool) *bool {
+	return &value
+}

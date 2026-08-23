@@ -215,6 +215,54 @@ func resolveGraderMetricReferences(configs map[string]*workflow.ExperimentConfig
 	return refs, nil
 }
 
+func resolveGraderGuardrailMetricReferences(
+	configs map[string]*workflow.ExperimentConfig,
+	graders *workflow.GradersConfig,
+) (map[string]map[string]string, error) {
+	refs := make(map[string]map[string]string)
+	for experimentName, cfg := range configs {
+		if cfg == nil {
+			continue
+		}
+		for _, guardrail := range cfg.GuardrailMetrics {
+			graderID, isGrader := workflow.ParseExperimentMetricGraderReference(guardrail.Name)
+			if !isGrader {
+				continue
+			}
+			if graderID == "" || !hasValidGraderMetricSuffix(guardrail.Name) {
+				return nil, fmt.Errorf(
+					"experiments.%s.guardrail_metrics: expected grader reference format grader:<grader_id> or graders.<grader_id>.value",
+					experimentName,
+				)
+			}
+			if graders == nil {
+				return nil, fmt.Errorf(
+					"experiments.%s.guardrail_metrics: references grader %q but no graders are declared",
+					experimentName, graderID,
+				)
+			}
+			def, ok := graders.Graders[graderID]
+			if !ok || def == nil {
+				return nil, fmt.Errorf(
+					"experiments.%s.guardrail_metrics: references unknown grader %q",
+					experimentName, graderID,
+				)
+			}
+			if def.Enabled != nil && !*def.Enabled {
+				return nil, fmt.Errorf(
+					"experiments.%s.guardrail_metrics: references disabled grader %q",
+					experimentName, graderID,
+				)
+			}
+			if refs[experimentName] == nil {
+				refs[experimentName] = make(map[string]string)
+			}
+			refs[experimentName][guardrail.Name] = graderID
+		}
+	}
+	return refs, nil
+}
+
 // hasValidGraderMetricSuffix rejects dotted grader references with a suffix other than
 // "value" (e.g. "graders.score.passed" or a typo such as "graders.score.vaule"), since this
 // implementation only supports primary .value metrics.
