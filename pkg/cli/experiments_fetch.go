@@ -96,11 +96,12 @@ func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
 	return results
 }
 
-// experimentFrontmatterResult holds both the experiment configs and evals config parsed
+// experimentFrontmatterResult holds the experiment, eval, and grader configs parsed
 // from a workflow's frontmatter.
 type experimentFrontmatterResult struct {
 	ExperimentConfigs map[string]*workflow.ExperimentConfig
 	Evals             *workflow.EvalsConfig
+	Graders           *workflow.GradersConfig
 }
 
 // loadLocalExperimentConfigs reads the workflow .md file for the given experiment name
@@ -152,15 +153,12 @@ func loadLocalExperimentConfigs(experimentName string) experimentFrontmatterResu
 		return experimentFrontmatterResult{}
 	}
 
-	evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
-	if err != nil {
-		experimentsLog.Printf("Failed to parse evals config from %s: %v", filePath, err)
-		// Non-fatal: continue without evals resolution.
-	}
+	evals, graders := parseExperimentMetricConfigs(result.Frontmatter, filePath)
 
 	return experimentFrontmatterResult{
 		ExperimentConfigs: cfg.ExperimentConfigs,
 		Evals:             evals,
+		Graders:           graders,
 	}
 }
 
@@ -210,23 +208,35 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 			continue
 		}
 
-		evals, err := workflow.ParseEvalsFromFrontmatter(result.Frontmatter)
-		if err != nil {
-			experimentsLog.Printf("Failed to parse evals config from %s: %v", apiPath, err)
-			// Non-fatal: continue without evals resolution.
-		}
+		evals, graders := parseExperimentMetricConfigs(result.Frontmatter, apiPath)
 
 		if len(cfg.ExperimentConfigs) > 0 {
 			experimentsLog.Printf("Loaded remote configs from %s", apiPath)
 			return experimentFrontmatterResult{
 				ExperimentConfigs: cfg.ExperimentConfigs,
 				Evals:             evals,
+				Graders:           graders,
 			}
 		}
 	}
 
 	experimentsLog.Printf("No remote workflow file found for experiment %s", experimentName)
 	return experimentFrontmatterResult{}
+}
+
+func parseExperimentMetricConfigs(
+	frontmatter map[string]any,
+	source string,
+) (*workflow.EvalsConfig, *workflow.GradersConfig) {
+	evals, err := workflow.ParseEvalsFromFrontmatter(frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse evals config from %s: %v", source, err)
+	}
+	graders, err := workflow.ParseGradersFromFrontmatter(frontmatter)
+	if err != nil {
+		experimentsLog.Printf("Failed to parse graders config from %s: %v", source, err)
+	}
+	return evals, graders
 }
 
 // findRemoteWorkflowFilenameForExperiment lists .md files in .github/workflows/ via the

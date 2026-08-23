@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -174,8 +175,6 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	experimentsLog.Printf("Analyzing experiment: name=%s, repo=%s, json=%v",
 		config.ExperimentName, config.RepoOverride, config.JSONOutput)
 
-	branchName := experimentsBranchPrefix + config.ExperimentName
-
 	// Load experiment configs and evals from the workflow frontmatter to enrich the statistical
 	// output with hypothesis text, analysis_type, min_samples, guardrail thresholds, and resolved
 	// eval metric questions.
@@ -183,41 +182,29 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	// defaults (min_samples=20, equal expected proportions, no hypothesis displayed).
 	// This ensures the command remains functional even when the workflow .md file is absent
 	// (e.g., when analysing experiments from a remote repository without the workflow checked out).
-	var frontmatterResult experimentFrontmatterResult
-	if config.RepoOverride != "" {
-		frontmatterResult = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
-	} else {
-		frontmatterResult = loadLocalExperimentConfigs(config.ExperimentName)
-	}
-	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(frontmatterResult.ExperimentConfigs), config.ExperimentName)
-
-	var details *ExperimentDetails
-	var err error
-
-	if config.RepoOverride != "" {
-		details, err = fetchRemoteExperimentDetails(config.RepoOverride, branchName, config.ExperimentName)
-	} else {
-		details, err = fetchLocalExperimentDetails(branchName, config.ExperimentName)
-	}
-
+	frontmatterResult, details, metricEvalResults, err := loadExperimentAnalysisInputs(config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		return nil
 	}
 
-	var metricEvalResults map[string]MetricEvalResults
-	if config.RepoOverride != "" {
-		metricEvalResults = loadRemoteMetricEvalResults(config.RepoOverride, details.WorkflowID)
-	} else {
-		metricEvalResults = loadLocalMetricEvalResults(details.WorkflowID)
+	graderObservationSets, cleanup, err := loadGraderObservationSetsForAnalysis(
+		details,
+		frontmatterResult,
+		config.RepoOverride,
+	)
+	if err != nil {
+		return err
 	}
+	defer cleanup()
 
 	// Compute statistical analyses for each named experiment.
-	details.Analyses = computeExperimentAnalyses(
+	details.Analyses = computeExperimentAnalysesWithObservations(
 		details.Experiments,
 		frontmatterResult.ExperimentConfigs,
 		frontmatterResult.Evals,
 		metricEvalResults,
+		graderObservationSets,
 	)
 
 	if config.JSONOutput {
@@ -233,6 +220,55 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	return nil
 }
 
+func loadExperimentAnalysisInputs(
+	config ExperimentsAnalyzeConfig,
+) (experimentFrontmatterResult, *ExperimentDetails, map[string]MetricEvalResults, error) {
+	branchName := experimentsBranchPrefix + config.ExperimentName
+	var frontmatter experimentFrontmatterResult
+	var details *ExperimentDetails
+	var err error
+	if config.RepoOverride != "" {
+		frontmatter = loadRemoteExperimentConfigs(config.RepoOverride, config.ExperimentName)
+		details, err = fetchRemoteExperimentDetails(config.RepoOverride, branchName, config.ExperimentName)
+	} else {
+		frontmatter = loadLocalExperimentConfigs(config.ExperimentName)
+		details, err = fetchLocalExperimentDetails(branchName, config.ExperimentName)
+	}
+	if err != nil {
+		return frontmatter, nil, nil, err
+	}
+	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(frontmatter.ExperimentConfigs), config.ExperimentName)
+	if config.RepoOverride != "" {
+		return frontmatter, details, loadRemoteMetricEvalResults(config.RepoOverride, details.WorkflowID), nil
+	}
+	return frontmatter, details, loadLocalMetricEvalResults(details.WorkflowID), nil
+}
+
+func loadGraderObservationSetsForAnalysis(
+	details *ExperimentDetails,
+	frontmatter experimentFrontmatterResult,
+	repoOverride string,
+) (map[string]*graderMetricObservationSet, func(), error) {
+	refs, err := resolveGraderMetricReferences(frontmatter.ExperimentConfigs, frontmatter.Graders)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	if len(refs) == 0 {
+		return nil, func() {}, nil
+	}
+	tempDir, err := os.MkdirTemp("", "gh-aw-experiment-graders-*")
+	if err != nil {
+		return nil, func() {}, fmt.Errorf("failed to prepare grader artifact cache: %w", err)
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(tempDir)
+	}
+	source := newGitHubGraderRunArtifactSource(tempDir, repoOverride)
+	runData := loadGraderRunData(context.Background(), details.Runs, refs, source)
+	sets := buildGraderMetricObservationSets(details.Experiments, details.Runs, refs, runData)
+	return sets, cleanup, nil
+}
+
 // computeExperimentAnalyses computes statistical analyses for all named experiments.
 // configs maps experiment names to their configuration; values may be nil.
 // evals provides the eval definitions for resolving eval-backed metric references; may be nil.
@@ -241,6 +277,16 @@ func computeExperimentAnalyses(
 	configs map[string]*workflow.ExperimentConfig,
 	evals *workflow.EvalsConfig,
 	metricEvalResults map[string]MetricEvalResults,
+) []ExperimentAnalysis {
+	return computeExperimentAnalysesWithObservations(experiments, configs, evals, metricEvalResults, nil)
+}
+
+func computeExperimentAnalysesWithObservations(
+	experiments []ExperimentVariantStats,
+	configs map[string]*workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+	metricEvalResults map[string]MetricEvalResults,
+	graderObservationSets map[string]*graderMetricObservationSet,
 ) []ExperimentAnalysis {
 	if len(experiments) == 0 {
 		return nil
@@ -251,7 +297,13 @@ func computeExperimentAnalyses(
 		if configs != nil {
 			cfg = configs[exp.Name]
 		}
-		analyses = append(analyses, computeExperimentAnalysis(exp, cfg, evals, metricEvalResults))
+		analyses = append(analyses, computeExperimentAnalysisWithObservations(
+			exp,
+			cfg,
+			evals,
+			metricEvalResults,
+			graderObservationSets[exp.Name],
+		))
 	}
 	return analyses
 }

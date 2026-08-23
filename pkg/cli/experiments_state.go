@@ -48,6 +48,7 @@ type ExperimentDetails struct {
 	TotalRuns   int                      `json:"total_runs"`
 	Experiments []ExperimentVariantStats `json:"experiments"`
 	RecentRuns  []ExperimentRunRecord    `json:"recent_runs,omitempty"`
+	Runs        []ExperimentRunRecord    `json:"-"`
 	// Analyses holds the statistical analysis for each named experiment.
 	// Populated by RunExperimentsAnalyze; absent in list output.
 	Analyses []ExperimentAnalysis `json:"analyses,omitempty"`
@@ -191,6 +192,7 @@ func experimentDetailsFromState(workflowID, branchName string, state *Experiment
 		TotalRuns:   experimentTotalRuns(state),
 		Experiments: experiments,
 		RecentRuns:  recentRuns,
+		Runs:        state.Runs,
 	}
 }
 
