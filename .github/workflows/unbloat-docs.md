@@ -53,6 +53,7 @@ network:
   allowed:
     - defaults
     - github
+    - proxy.golang.org
 
 # Sandbox configuration - AWF is enabled by default but making it explicit for clarity
 sandbox:
