@@ -155,7 +155,9 @@ function hasUpdatePullRequestFields(args) {
 function normalizeCombinedTitleBodyArgs(args) {
   const safeArgs = { ...(args || {}) };
   if (typeof safeArgs.title !== "string") return safeArgs;
-  if (typeof safeArgs.body === "string" && safeArgs.body.trim().length > 0) return safeArgs;
+  // An explicitly supplied `body` (including an empty string) is a caller-provided
+  // value and must never be overwritten by this recovery normalization.
+  if (typeof safeArgs.body === "string") return safeArgs;
 
   const rawTitle = safeArgs.title.replace(/\r\n/g, "\n").trim();
   if (!rawTitle.includes("\n")) return safeArgs;
@@ -171,11 +173,15 @@ function normalizeCombinedTitleBodyArgs(args) {
   }
   if (remainingLines.length === 0) return safeArgs;
 
-  const normalizedTitle = firstLine.replace(/^title\s*:\s*/i, "").trim();
+  // Only treat this as the labeled form (and strip the "Title:"/"Body:" prefixes)
+  // when the first line actually starts with a "Title:" label. Otherwise a plain
+  // split may have a body that legitimately starts with the literal text "Body:".
+  const titleLabelMatch = firstLine.match(/^title\s*:\s*/i);
+  const normalizedTitle = titleLabelMatch ? firstLine.slice(titleLabelMatch[0].length).trim() : firstLine.trim();
   if (!normalizedTitle) return safeArgs;
 
   const remainder = remainingLines.join("\n");
-  const normalizedBody = remainder.replace(/^body\s*:\s*/i, "").trim();
+  const normalizedBody = titleLabelMatch ? remainder.replace(/^body\s*:\s*/i, "").trim() : remainder.trim();
   if (!normalizedBody) return safeArgs;
 
   safeArgs.title = normalizedTitle;
