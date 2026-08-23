@@ -241,7 +241,7 @@ func buildCloudHypervisorFilesystemMkdirScript(workflowData *WorkflowData) strin
 	sort.Strings(targets)
 	quoted := make([]string, len(targets))
 	for i, target := range targets {
-		quoted[i] = strconv.Quote(target)
+		quoted[i] = shellEscapeArgWithVarsPreserved(target, "GITHUB_WORKSPACE")
 	}
 	return "mkdir -p " + strings.Join(quoted, " ")
 }
