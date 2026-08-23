@@ -320,6 +320,50 @@ func TestComputeGraderBackedExperimentAnalysis(t *testing.T) {
 	assert.Contains(t, firstVariant, "observations")
 }
 
+func TestComputeGraderBackedExperimentDecision(t *testing.T) {
+	t.Parallel()
+	set := &graderMetricObservationSet{
+		MetricID:  "trajectory-efficiency",
+		Direction: "higher_is_better",
+		ByVariant: map[string][]GraderMetricObservation{
+			"control": {
+				{RunID: "1", Variant: "control", Value: 0.5},
+				{RunID: "2", Variant: "control", Value: 0.5},
+				{RunID: "3", Variant: "control", Value: 0.5},
+			},
+			"candidate": {
+				{RunID: "4", Variant: "candidate", Value: 0.8},
+				{RunID: "5", Variant: "candidate", Value: 0.8},
+				{RunID: "6", Variant: "candidate", Value: 0.8},
+			},
+		},
+		Exclusions: map[string][]ExcludedObservationSummary{},
+	}
+	cfg := &workflow.ExperimentConfig{
+		Variants:     []string{"control", "candidate"},
+		Metric:       "grader:trajectory-efficiency",
+		MinSamples:   3,
+		AnalysisType: "t_test",
+		Decision:     &workflow.ExperimentDecisionConfig{MinimumEffect: 0.1},
+	}
+	exp := ExperimentVariantStats{
+		Name:     "prompt",
+		Variants: map[string]int{"control": 3, "candidate": 3},
+		Total:    6,
+	}
+
+	analysis := computeExperimentAnalysisWithObservations(exp, cfg, nil, nil, set)
+
+	assert.Equal(t, ExperimentReadinessReady, analysis.Readiness)
+	assert.Equal(t, ExperimentDecisionPromote, analysis.Decision)
+	assert.Equal(t, ExperimentDecisionReasonCandidateImproved, analysis.ReasonCode)
+	assert.Equal(t, "control", analysis.Control)
+	assert.Equal(t, "candidate", analysis.Candidate)
+	require.NotNil(t, analysis.Effect)
+	assert.InDelta(t, 0.3, analysis.Effect.NormalizedAbsolute, 0.0001)
+	assert.Equal(t, map[string]int{"control": 3, "candidate": 3}, analysis.Samples)
+}
+
 func TestGraderReadinessUsesValidObservations(t *testing.T) {
 	t.Parallel()
 	observations := func(variant string, count int) []GraderMetricObservation {

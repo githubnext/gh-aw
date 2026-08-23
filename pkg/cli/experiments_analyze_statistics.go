@@ -22,6 +22,14 @@ const defaultMinSamples = 20
 // balanceSignificanceThreshold is the p-value threshold for the chi-square balance test.
 const balanceSignificanceThreshold = 0.05
 
+// ExperimentReadiness reports whether normal analysis requirements have enough usable data.
+type ExperimentReadiness string
+
+const (
+	ExperimentReadinessCollecting ExperimentReadiness = "COLLECTING"
+	ExperimentReadinessReady      ExperimentReadiness = "READY"
+)
+
 // ExperimentAnalysis holds statistical analysis results for one named A/B experiment.
 // The analysis is computed from state.jsonl/state.json counts and optional experiment configuration.
 type ExperimentAnalysis struct {
@@ -95,6 +103,9 @@ type ExperimentAnalysis struct {
 
 	// UsesMetricObservations distinguishes usable outcome counts from assignment counts.
 	UsesMetricObservations bool `json:"-"`
+
+	// Readiness is COLLECTING until every variant reaches min_samples, then READY.
+	Readiness ExperimentReadiness `json:"readiness"`
 
 	// Recommendation is the analysis recommendation: EXTEND or READY_FOR_ANALYSIS.
 	// EXTEND is issued when any variant is below min_samples (R-STAT-007).
@@ -239,6 +250,7 @@ func newExperimentAnalysis(
 		ExperimentName: exp.Name,
 		TotalRuns:      exp.Total,
 		MinSamples:     defaultMinSamples,
+		Readiness:      ExperimentReadinessCollecting,
 		DecisionPolicy: ExperimentDecisionPolicy{
 			Confidence: defaultDecisionConfidence,
 		},
@@ -495,12 +507,14 @@ func applyExperimentReadiness(a *ExperimentAnalysis, usesObservations bool) {
 		}
 	}
 	if belowCount > 0 {
+		a.Readiness = ExperimentReadinessCollecting
 		a.Recommendation = "EXTEND"
 		a.Rationale = fmt.Sprintf("%d of %d variant(s) below min_samples threshold (min observed: %d / %d)",
 			belowCount, k, minObserved, a.MinSamples)
 		experimentsStatsLog.Printf("Experiment %q recommendation: EXTEND (%d/%d variants below min_samples=%d)",
 			a.ExperimentName, belowCount, k, a.MinSamples)
 	} else {
+		a.Readiness = ExperimentReadinessReady
 		a.Recommendation = "READY_FOR_ANALYSIS"
 		a.Rationale = fmt.Sprintf("all %d variants have reached min_samples (%d); outcome metric analysis is available",
 			k, a.MinSamples)
@@ -757,8 +771,8 @@ func printExperimentRecommendation(a ExperimentAnalysis) {
 
 func printExperimentDecision(result ExperimentDecisionResult) {
 	fmt.Fprintln(os.Stderr)
-	label := result.Decision
-	if result.Candidate != "" && (result.Decision == experimentDecisionPromote || result.Decision == experimentDecisionReject) {
+	label := string(result.Decision)
+	if result.Candidate != "" && (result.Decision == ExperimentDecisionPromote || result.Decision == ExperimentDecisionReject) {
 		label += " " + result.Candidate
 	}
 	fmt.Fprintf(os.Stderr, "  Decision   : %s\n", label)

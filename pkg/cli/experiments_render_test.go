@@ -69,3 +69,23 @@ func TestPrintExperimentDetailsPopulated(t *testing.T) {
 	assert.Contains(t, output, "2026-08-18")
 	assert.Contains(t, output, "style=concise")
 }
+
+func TestPrintExperimentDetailsDecision(t *testing.T) {
+	output := captureExperimentDetailsStderr(t, &ExperimentDetails{
+		WorkflowID: "test-workflow",
+		Branch:     "experiments/test-workflow",
+		Analyses: []ExperimentAnalysis{{
+			ExperimentName: "prompt",
+			Readiness:      ExperimentReadinessReady,
+			ExperimentDecisionResult: ExperimentDecisionResult{
+				Decision:       ExperimentDecisionPromote,
+				ReasonCode:     ExperimentDecisionReasonCandidateImproved,
+				DecisionReason: "candidate materially improves the primary metric",
+				Candidate:      "candidate",
+			},
+		}},
+	})
+
+	assert.Contains(t, output, "Decision   : PROMOTE candidate")
+	assert.Contains(t, output, "candidate materially improves the primary metric (candidate_improved)")
+}

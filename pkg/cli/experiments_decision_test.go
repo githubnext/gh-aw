@@ -22,45 +22,45 @@ func TestDecideExperiment(t *testing.T) {
 	tests := []struct {
 		name       string
 		analysis   ExperimentAnalysis
-		want       string
-		reasonCode string
+		want       ExperimentDecision
+		reasonCode ExperimentDecisionReasonCode
 		normalized float64
 		hasEffect  bool
 	}{
 		{
 			name:     "below minimum samples extends",
 			analysis: decisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionExtend, reasonCode: "insufficient_samples",
+			want:     ExperimentDecisionExtend, reasonCode: ExperimentDecisionReasonInsufficientSamples,
 		},
 		{
 			name:     "max direction material improvement promotes",
 			analysis: readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: 0.2, hasEffect: true,
+			want:     ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved, normalized: 0.2, hasEffect: true,
 		},
 		{
 			name:     "min direction material improvement promotes",
 			analysis: readyDecisionTestAnalysis("min", -1200, &pValueStrong, nil, 500, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved", normalized: 1200, hasEffect: true,
+			want:     ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved, normalized: 1200, hasEffect: true,
 		},
 		{
 			name:     "max direction material regression rejects",
 			analysis: readyDecisionTestAnalysis("max", -0.2, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: -0.2, hasEffect: true,
+			want:     ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonCandidateRegressed, normalized: -0.2, hasEffect: true,
 		},
 		{
 			name:     "min direction material regression rejects",
 			analysis: readyDecisionTestAnalysis("min", 1200, &pValueStrong, nil, 500, nil),
-			want:     experimentDecisionReject, reasonCode: "candidate_regressed", normalized: -1200, hasEffect: true,
+			want:     ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonCandidateRegressed, normalized: -1200, hasEffect: true,
 		},
 		{
 			name:     "significant tiny effect is inconclusive",
 			analysis: readyDecisionTestAnalysis("max", 0.001, &pValueStrong, nil, 0.05, nil),
-			want:     experimentDecisionInconclusive, reasonCode: "effect_below_threshold",
+			want:     ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonEffectBelowThreshold,
 		},
 		{
 			name:     "large effect without evidence is inconclusive",
 			analysis: readyDecisionTestAnalysis("max", 0.2, &pValueWeak, nil, 0.05, nil),
-			want:     experimentDecisionInconclusive, reasonCode: "evidence_insufficient",
+			want:     ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonEvidenceInsufficient,
 		},
 		{
 			name: "failed guardrail rejects before primary promotion",
@@ -68,7 +68,7 @@ func TestDecideExperiment(t *testing.T) {
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
 				GuardrailStatus{Name: "grader:failures", Status: "fail", Passed: &failed},
 			),
-			want: experimentDecisionReject, reasonCode: "guardrail_failed",
+			want: ExperimentDecisionReject, reasonCode: ExperimentDecisionReasonGuardrailFailed,
 		},
 		{
 			name: "missing guardrail extends",
@@ -76,7 +76,7 @@ func TestDecideExperiment(t *testing.T) {
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
 				GuardrailStatus{Name: "grader:failures", Status: "missing"},
 			),
-			want: experimentDecisionExtend, reasonCode: "insufficient_observations",
+			want: ExperimentDecisionExtend, reasonCode: ExperimentDecisionReasonInsufficientObservations,
 		},
 		{
 			name: "passed guardrail allows promotion",
@@ -84,31 +84,31 @@ func TestDecideExperiment(t *testing.T) {
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
 				GuardrailStatus{Name: "grader:failures", Status: "pass", Passed: &passed},
 			),
-			want: experimentDecisionPromote, reasonCode: "candidate_improved",
+			want: ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved,
 		},
 		{
 			name:     "bayesian material improvement promotes",
 			analysis: readyDecisionTestAnalysis("max", 0.2, nil, &bayesianStrong, 0.05, nil),
-			want:     experimentDecisionPromote, reasonCode: "candidate_improved",
+			want:     ExperimentDecisionPromote, reasonCode: ExperimentDecisionReasonCandidateImproved,
 		},
 		{
 			name:     "bayesian uncertain result is inconclusive",
 			analysis: readyDecisionTestAnalysis("max", 0.2, nil, &bayesianWeak, 0.05, nil),
-			want:     experimentDecisionInconclusive, reasonCode: "evidence_insufficient",
+			want:     ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonEvidenceInsufficient,
 		},
 		{
 			name: "multi variant decision is explicitly unsupported",
 			analysis: withThirdDecisionTestVariant(
 				readyDecisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
 			),
-			want: experimentDecisionInconclusive, reasonCode: "unsupported_multi_variant",
+			want: ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonUnsupportedMultiVariant,
 		},
 		{
 			name: "multi variant with undersampled arm is still unsupported",
 			analysis: withThirdDecisionTestVariant(
 				decisionTestAnalysis("max", 0.2, &pValueStrong, nil, 0.05, nil),
 			),
-			want: experimentDecisionInconclusive, reasonCode: "unsupported_multi_variant",
+			want: ExperimentDecisionInconclusive, reasonCode: ExperimentDecisionReasonUnsupportedMultiVariant,
 		},
 	}
 
