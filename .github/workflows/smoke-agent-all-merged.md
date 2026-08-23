@@ -42,7 +42,7 @@ safe-outputs:
     footer: "> 🤖 *Guard policy smoke test by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) testing guard policy: `repos=all, min-integrity=merged`..."
     run-success: "✅ [{workflow_name}]({run_url}) completed guard policy test."
-    run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."
+    run-failure: "❌ [{workflow_name}]({run_url}) {status} testing guard policy: `repos=all, min-integrity=merged`. Check the logs for details."
 timeout-minutes: 10
 imports:
   - shared/otlp.md
