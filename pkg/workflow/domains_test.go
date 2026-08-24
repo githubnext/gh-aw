@@ -345,15 +345,11 @@ func TestMatchesDomain(t *testing.T) {
 func TestCopilotDefaultDomains(t *testing.T) {
 	// Verify that expected Copilot domains are present
 	expectedDomains := []string{
-		"api.business.githubcopilot.com",
-		"api.enterprise.githubcopilot.com",
 		"api.github.com",
 		"api.githubcopilot.com",
-		"api.individual.githubcopilot.com",
 		"github.com",
 		"host.docker.internal",
 		"raw.githubusercontent.com",
-		"telemetry.enterprise.githubcopilot.com",
 	}
 
 	// Create a map for O(1) lookups
@@ -377,6 +373,38 @@ func TestCopilotDefaultDomains(t *testing.T) {
 	// Verify the count matches (no extra domains)
 	if len(CopilotDefaultDomains) != len(expectedDomains) {
 		t.Errorf("CopilotDefaultDomains has %d domains, expected %d", len(CopilotDefaultDomains), len(expectedDomains))
+	}
+}
+
+// TestCopilotVendorDomainsRequireOptIn verifies that plan-specific Copilot API hosts and
+// Copilot telemetry are not unconditional engine defaults: agents route inference through
+// the AWF api-proxy, so these vendor hosts must be requested explicitly via the
+// "copilot-vendor" ecosystem.
+func TestCopilotVendorDomainsRequireOptIn(t *testing.T) {
+	vendorDomains := []string{
+		"api.business.githubcopilot.com",
+		"api.enterprise.githubcopilot.com",
+		"api.individual.githubcopilot.com",
+		"telemetry.enterprise.githubcopilot.com",
+	}
+
+	optIn := getEcosystemDomains("copilot-vendor")
+	require.NotEmpty(t, optIn, "copilot-vendor ecosystem must be defined")
+
+	for _, domain := range vendorDomains {
+		assert.NotContains(t, CopilotDefaultDomains, domain,
+			"CopilotDefaultDomains must not include vendor domain %q; it requires explicit copilot-vendor opt-in", domain)
+		assert.NotContains(t, PiDefaultDomains, domain,
+			"PiDefaultDomains must not include vendor domain %q; it requires explicit copilot-vendor opt-in", domain)
+		assert.Contains(t, optIn, domain,
+			"copilot-vendor ecosystem must include %q", domain)
+	}
+
+	// The opt-in set must resolve through the regular network allow-list expansion.
+	expanded := GetAllowedDomains(&NetworkPermissions{Allowed: []string{"copilot-vendor"}})
+	for _, domain := range vendorDomains {
+		assert.Contains(t, expanded, domain,
+			"network: { allowed: [copilot-vendor] } must expand to %q", domain)
 	}
 }
 
