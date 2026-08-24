@@ -136,3 +136,5 @@
 {"id":"pr_created_or_noop","question":"Did the agent create a pull request for a safe test change, or use noop when no safe change was available?","answer":"YES","model":"evals","timestamp":"2026-08-24T16:54:25.005Z","runid":"32752076017"}
 {"id":"tests_analyzed","question":"Did the agent analyze Go tests to identify a safe candidate for t.Parallel?","answer":"YES","model":"evals","timestamp":"2026-08-24T19:16:14.230Z","runid":"32763629837"}
 {"id":"pr_created_or_noop","question":"Did the agent create a pull request for a safe test change, or use noop when no safe change was available?","answer":"YES","model":"evals","timestamp":"2026-08-24T19:16:14.230Z","runid":"32763629837"}
+{"id":"tests_analyzed","question":"Did the agent analyze Go tests to identify a safe candidate for t.Parallel?","answer":"YES","model":"evals","timestamp":"2026-08-24T20:53:58.118Z","runid":"32774983457"}
+{"id":"pr_created_or_noop","question":"Did the agent create a pull request for a safe test change, or use noop when no safe change was available?","answer":"YES","model":"evals","timestamp":"2026-08-24T20:53:58.118Z","runid":"32774983457"}
