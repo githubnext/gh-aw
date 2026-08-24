@@ -256,3 +256,26 @@ func TestBuildAddWorkflowPRBodyUsesLocalSourceAndSecretNextStep(t *testing.T) {
 	assert.Contains(t, body, "After merge, the add wizard will configure `COPILOT_GITHUB_TOKEN` when needed")
 	assert.Contains(t, body, "recompile it with `gh aw compile`")
 }
+
+func TestBuildAddWorkflowPRBodyPreservesDescriptionMarkdown(t *testing.T) {
+	content := `---
+description: |
+  A friendly repository assistant.
+
+  - Labels and triages open issues
+  - Creates draft pull requests with fixes
+on: workflow_dispatch
+---
+`
+	workflow := &ResolvedWorkflow{
+		Spec:        &WorkflowSpec{WorkflowPath: "./repo-assist.md", WorkflowName: "repo-assist"},
+		Content:     []byte(content),
+		SourceInfo:  &FetchedWorkflow{IsLocal: true, SourcePath: "./repo-assist.md"},
+		Description: ExtractWorkflowDescription(content),
+	}
+
+	body := buildAddWorkflowPRBody([]*ResolvedWorkflow{workflow}, AddOptions{EngineOverride: "copilot"})
+
+	assert.Contains(t, body, "A friendly repository assistant.\n\n- Labels and triages open issues\n- Creates draft pull requests with fixes")
+	assert.NotContains(t, body, "assistant. - Labels")
+}

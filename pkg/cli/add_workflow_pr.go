@@ -208,7 +208,7 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 	for _, resolved := range workflows {
 		fmt.Fprintf(&body, "\n### `%s`\n\n", markdownText(resolved.Spec.WorkflowName))
 		if resolved.Description != "" {
-			fmt.Fprintf(&body, "%s\n\n", markdownText(resolved.Description))
+			fmt.Fprintf(&body, "%s\n\n", markdownBlock(resolved.Description))
 		}
 		fmt.Fprintf(&body, "- **Source:** %s\n", workflowSourceMarkdown(resolved))
 		fmt.Fprintf(&body, "- **Triggers:** %s\n", workflowTriggerSummary(resolved.Content))
@@ -345,6 +345,10 @@ func enabledText(enabled bool) string {
 func markdownText(value string) string {
 	value = strings.Join(strings.Fields(value), " ")
 	return strings.NewReplacer("\\", "\\\\", "`", "\\`", "[", "\\[", "]", "\\]", "<", "&lt;", ">", "&gt;").Replace(value)
+}
+
+func markdownBlock(value string) string {
+	return strings.TrimSpace(strings.ReplaceAll(value, "\r\n", "\n"))
 }
 
 func joinCodeValues(values []string) string {
