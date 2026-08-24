@@ -955,7 +955,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           ANTHROPIC_BASE_URL: http://host.docker.internal:10002
           ANTHROPIC_MAX_RETRIES: 0
-          ANTHROPIC_MODEL: mai-code-1.1-flash
+          ANTHROPIC_MODEL: copilot/mai-code-1.1-flash
           BASH_DEFAULT_TIMEOUT_MS: 60000
           BASH_MAX_TIMEOUT_MS: 60000
           CLAUDE_CODE_DISABLE_FAST_MODE: 1
@@ -1616,7 +1616,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           ANTHROPIC_BASE_URL: http://host.docker.internal:10002
-          ANTHROPIC_MODEL: mai-code-1.1-flash
+          ANTHROPIC_MODEL: copilot/mai-code-1.1-flash
           BASH_DEFAULT_TIMEOUT_MS: 60000
           BASH_MAX_TIMEOUT_MS: 60000
           CLAUDE_CODE_DISABLE_FAST_MODE: 1
