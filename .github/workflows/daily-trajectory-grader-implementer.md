@@ -33,15 +33,11 @@ tools:
   edit:
 
 safe-outputs:
-  github-app:
-    client-id: ${{ vars.APP_ID }}
-    private-key: ${{ secrets.APP_PRIVATE_KEY }}
   create-pull-request:
     draft: true
     expires: 14d
     title-prefix: "[trajectory-grader] "
     labels: [automation, observability, graders, trajectory-graders]
-    allow-workflows: true
 
     allowed-files:
       - ".github/workflows/shared/graders/*.md"
