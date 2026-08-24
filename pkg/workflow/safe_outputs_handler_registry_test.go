@@ -121,16 +121,18 @@ func TestHandlerRegistryBuilders(t *testing.T) {
 	}
 }
 
-func TestMergeHandlerMapsRejectsDuplicateKeys(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatal("expected duplicate handler key panic")
-		}
-	}()
-	mergeHandlerMaps(
-		map[string]handlerBuilder{"duplicate": func(*SafeOutputsConfig) map[string]any { return nil }},
-		map[string]handlerBuilder{"duplicate": func(*SafeOutputsConfig) map[string]any { return nil }},
+func TestMergeHandlerMapsKeepsFirstDuplicateKey(t *testing.T) {
+	first := func(*SafeOutputsConfig) map[string]any { return map[string]any{"source": "first"} }
+	second := func(*SafeOutputsConfig) map[string]any { return map[string]any{"source": "second"} }
+
+	got := mergeHandlerMaps(
+		map[string]handlerBuilder{"duplicate": first},
+		map[string]handlerBuilder{"duplicate": second},
 	)
+
+	if got["duplicate"](&SafeOutputsConfig{})["source"] != "first" {
+		t.Fatal("mergeHandlerMaps did not keep the first duplicate builder")
+	}
 }
 
 func TestResolveHandlerGitHubToken(t *testing.T) {

@@ -1,10 +1,6 @@
 package workflow
 
-import (
-	"maps"
-
-	"github.com/github/gh-aw/pkg/logger"
-)
+import "github.com/github/gh-aw/pkg/logger"
 
 var handlerRegistryLog = logger.New("workflow:safe_outputs_handler_registry")
 
@@ -70,12 +66,13 @@ var handlerRegistry = mergeHandlerMaps(
 func mergeHandlerMaps(registries ...map[string]handlerBuilder) map[string]handlerBuilder {
 	merged := make(map[string]handlerBuilder)
 	for _, registry := range registries {
-		for key := range registry {
+		for key, builder := range registry {
 			if _, exists := merged[key]; exists {
-				panic("duplicate safe outputs handler registry key: " + key)
+				handlerRegistryLog.Printf("Duplicate safe outputs handler registry key %q; keeping first builder", key)
+				continue
 			}
+			merged[key] = builder
 		}
-		maps.Copy(merged, registry)
 	}
 	return merged
 }

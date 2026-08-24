@@ -131,8 +131,6 @@ var workflowHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
-	// Note: create_project, update_project and create_project_status_update are handled by the unified handler,
-	// not the separate project handler manager, so they are included in this registry.
 	"upload_code_coverage": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.UploadCodeCoverage == nil {
 			return nil

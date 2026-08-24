@@ -2,92 +2,7 @@ package workflow
 
 // pullRequestHandlerRegistry contains pull request lifecycle and review handler builders.
 var pullRequestHandlerRegistry = map[string]handlerBuilder{
-	"create_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
-		if cfg.CreatePullRequests == nil {
-			return nil
-		}
-		c := cfg.CreatePullRequests
-		protectedFilesPolicy := "request_review"
-		if c.ManifestFilesPolicy != nil {
-			protectedFilesPolicy = *c.ManifestFilesPolicy
-		}
-		maxPatchSize := 4096 // default 4096 KB
-		if cfg.MaximumPatchSize > 0 {
-			maxPatchSize = cfg.MaximumPatchSize
-		}
-		if c.MaxPatchSize > 0 {
-			maxPatchSize = c.MaxPatchSize
-		}
-		maxPatchFiles := 100 // default 100 unique files
-		if cfg.MaximumPatchFiles > 0 {
-			maxPatchFiles = cfg.MaximumPatchFiles
-		}
-		if c.MaxPatchFiles > 0 {
-			maxPatchFiles = c.MaxPatchFiles
-		}
-		builder := newHandlerConfigBuilder().
-			AddTemplatableInt("max", c.Max).
-			AddIfTrue("require_temporary_id", c.RequireTemporaryID).
-			AddIfNotEmpty("branch_prefix", c.BranchPrefix).
-			AddIfNotEmpty("title_prefix", c.TitlePrefix).
-			AddTemplatableStringSlice("labels", c.Labels).
-			AddStringSlice("fallback_labels", c.FallbackLabels).
-			AddTemplatableStringSlice("reviewers", c.Reviewers).
-			AddTemplatableStringSlice("team_reviewers", c.TeamReviewers).
-			AddTemplatableStringSlice("assignees", c.Assignees).
-			AddTemplatableBool("draft", c.Draft).
-			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
-			AddTemplatableBool("allow_empty", c.AllowEmpty).
-			AddTemplatableBool("auto_merge", c.AutoMerge).
-			AddIfPositive("expires", c.Expires).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
-			AddIfNotEmpty("head-repo", c.HeadRepoSlug).
-			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
-			AddTemplatableStringSlice("allowed_base_branches", c.AllowedBaseBranches).
-			AddTemplatableStringSlice("allowed_branches", c.AllowedBranches).
-			AddDefault("max_patch_size", maxPatchSize).
-			AddDefault("max_patch_files", maxPatchFiles).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "create-pull-request", c.GitHubToken)).
-			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
-			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
-			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
-			AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
-			AddIfNotEmpty("base_branch", c.BaseBranch).
-			AddDefault("protected_files_policy", protectedFilesPolicy).
-			AddStringSlice("protected_files", getAllManifestFiles()).
-			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
-			AddDefault("protect_top_level_dot_folders", true).
-			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
-			AddStringSlice("allowed_files", c.AllowedFiles).
-			AddStringSlice("excluded_files", c.ExcludedFiles).
-			AddIfTrue("preserve_branch_name", c.PreserveBranchName).
-			AddIfTrue("recreate_ref", c.RecreateRef).
-			AddIfNotEmpty("patch_format", c.PatchFormat).
-			AddBoolPtr("signed_commits", c.SignedCommits).
-			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
-			AddTemplatableBool("close_older_pull_requests", c.Enabled).
-			AddIfNotEmpty("close_older_key", c.Key).
-			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
-		if isPreCreatePullRequestConfigured(c) {
-			builder.
-				AddDefault("pre_created_pull_request_number", "${{ needs.activation.outputs.pre_created_pull_request_number }}").
-				AddDefault("pre_created_pull_request_url", "${{ needs.activation.outputs.pre_created_pull_request_url }}").
-				AddDefault("pre_created_branch", "${{ needs.activation.outputs.pre_created_pull_request_branch }}")
-		}
-		// Stacked pull requests are enabled by default; only emit the flag when disabled
-		// (e.g. GitHub Enterprise Server instances without stacked pull request support).
-		if !isStackedPullRequestsEnabled(c) {
-			builder.AddDefault("stacked", false)
-		}
-		// Use app-minted token if head-github-app is configured; fall back to head-github-token.
-		if c.HeadGitHubApp != nil {
-			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
-			builder.AddIfNotEmpty("head-github-token", "${{ steps.safe-outputs-head-app-token.outputs.token }}")
-		} else {
-			builder.AddIfNotEmpty("head-github-token", c.HeadGitHubToken)
-		}
-		return builder.Build()
-	},
+	"create_pull_request": buildCreatePullRequestHandlerConfig,
 	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.PushToPullRequestBranch == nil {
 			return nil
@@ -304,4 +219,110 @@ var pullRequestHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
+}
+
+func buildCreatePullRequestHandlerConfig(cfg *SafeOutputsConfig) map[string]any {
+	if cfg.CreatePullRequests == nil {
+		return nil
+	}
+	c := cfg.CreatePullRequests
+	builder := newCreatePullRequestHandlerConfigBuilder(cfg, c)
+	if isPreCreatePullRequestConfigured(c) {
+		builder.
+			AddDefault("pre_created_pull_request_number", "${{ needs.activation.outputs.pre_created_pull_request_number }}").
+			AddDefault("pre_created_pull_request_url", "${{ needs.activation.outputs.pre_created_pull_request_url }}").
+			AddDefault("pre_created_branch", "${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	}
+	// Stacked pull requests are enabled by default; only emit the flag when disabled
+	// (e.g. GitHub Enterprise Server instances without stacked pull request support).
+	if !isStackedPullRequestsEnabled(c) {
+		builder.AddDefault("stacked", false)
+	}
+	// Use app-minted token if head-github-app is configured; fall back to head-github-token.
+	if c.HeadGitHubApp != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+		builder.AddIfNotEmpty("head-github-token", "${{ steps.safe-outputs-head-app-token.outputs.token }}")
+	} else {
+		builder.AddIfNotEmpty("head-github-token", c.HeadGitHubToken)
+	}
+	return builder.Build()
+}
+
+func newCreatePullRequestHandlerConfigBuilder(cfg *SafeOutputsConfig, c *CreatePullRequestsConfig) *handlerConfigBuilder {
+	maxPatchSize := createPullRequestMaxPatchSize(cfg, c)
+	maxPatchFiles := createPullRequestMaxPatchFiles(cfg, c)
+	protectedFilesPolicy := createPullRequestProtectedFilesPolicy(c)
+	return newHandlerConfigBuilder().
+		AddTemplatableInt("max", c.Max).
+		AddIfTrue("require_temporary_id", c.RequireTemporaryID).
+		AddIfNotEmpty("branch_prefix", c.BranchPrefix).
+		AddIfNotEmpty("title_prefix", c.TitlePrefix).
+		AddTemplatableStringSlice("labels", c.Labels).
+		AddStringSlice("fallback_labels", c.FallbackLabels).
+		AddTemplatableStringSlice("reviewers", c.Reviewers).
+		AddTemplatableStringSlice("team_reviewers", c.TeamReviewers).
+		AddTemplatableStringSlice("assignees", c.Assignees).
+		AddTemplatableBool("draft", c.Draft).
+		AddIfNotEmpty("if_no_changes", c.IfNoChanges).
+		AddTemplatableBool("allow_empty", c.AllowEmpty).
+		AddTemplatableBool("auto_merge", c.AutoMerge).
+		AddIfPositive("expires", c.Expires).
+		AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+		AddIfNotEmpty("head-repo", c.HeadRepoSlug).
+		AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
+		AddTemplatableStringSlice("allowed_base_branches", c.AllowedBaseBranches).
+		AddTemplatableStringSlice("allowed_branches", c.AllowedBranches).
+		AddDefault("max_patch_size", maxPatchSize).
+		AddDefault("max_patch_files", maxPatchFiles).
+		AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "create-pull-request", c.GitHubToken)).
+		AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
+		AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
+		AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
+		AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
+		AddIfNotEmpty("base_branch", c.BaseBranch).
+		AddDefault("protected_files_policy", protectedFilesPolicy).
+		AddStringSlice("protected_files", getAllManifestFiles()).
+		AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+		AddDefault("protect_top_level_dot_folders", true).
+		AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
+		AddStringSlice("allowed_files", c.AllowedFiles).
+		AddStringSlice("excluded_files", c.ExcludedFiles).
+		AddIfTrue("preserve_branch_name", c.PreserveBranchName).
+		AddIfTrue("recreate_ref", c.RecreateRef).
+		AddIfNotEmpty("patch_format", c.PatchFormat).
+		AddBoolPtr("signed_commits", c.SignedCommits).
+		// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
+		AddTemplatableBool("close_older_pull_requests", c.Enabled).
+		AddIfNotEmpty("close_older_key", c.Key).
+		AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
+}
+
+func createPullRequestProtectedFilesPolicy(c *CreatePullRequestsConfig) string {
+	protectedFilesPolicy := "request_review"
+	if c.ManifestFilesPolicy != nil {
+		protectedFilesPolicy = *c.ManifestFilesPolicy
+	}
+	return protectedFilesPolicy
+}
+
+func createPullRequestMaxPatchSize(cfg *SafeOutputsConfig, c *CreatePullRequestsConfig) int {
+	maxPatchSize := 4096 // default 4096 KB
+	if cfg.MaximumPatchSize > 0 {
+		maxPatchSize = cfg.MaximumPatchSize
+	}
+	if c.MaxPatchSize > 0 {
+		maxPatchSize = c.MaxPatchSize
+	}
+	return maxPatchSize
+}
+
+func createPullRequestMaxPatchFiles(cfg *SafeOutputsConfig, c *CreatePullRequestsConfig) int {
+	maxPatchFiles := 100 // default 100 unique files
+	if cfg.MaximumPatchFiles > 0 {
+		maxPatchFiles = cfg.MaximumPatchFiles
+	}
+	if c.MaxPatchFiles > 0 {
+		maxPatchFiles = c.MaxPatchFiles
+	}
+	return maxPatchFiles
 }
