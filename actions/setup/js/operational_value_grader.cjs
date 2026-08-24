@@ -110,7 +110,7 @@ function executeEvaluatorSubprocess(bashPath, args, options) {
     env: options.env,
   });
   if (execution.error) {
-    if (execution.error.code === "ETIMEDOUT") {
+    if (typeof execution.error === "object" && execution.error !== null && "code" in execution.error && execution.error.code === "ETIMEDOUT") {
       throw new Error(`${options.operation} timed out after ${String(options.timeout)}ms`);
     }
     throw execution.error;
