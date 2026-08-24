@@ -102,13 +102,19 @@ func validatePreCreatedPullRequestBranchPrefix(prefix string) error {
 }
 
 func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {
-	if prefix == "" || strings.TrimSpace(prefix) == "" {
+	if prefix == "" {
 		return prefix
+	}
+	if strings.TrimSpace(prefix) == "" {
+		return ""
 	}
 
 	var builder strings.Builder
 	lastDash := false
 	for _, r := range prefix {
+		if builder.Len() >= 128 {
+			continue
+		}
 		valid := (r >= 'a' && r <= 'z') ||
 			(r >= 'A' && r <= 'Z') ||
 			(r >= '0' && r <= '9') ||
@@ -131,9 +137,6 @@ func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {
 	}
 
 	normalized := strings.Trim(builder.String(), "-")
-	if len(normalized) > 128 {
-		normalized = normalized[:128]
-	}
 	return strings.TrimRight(normalized, "-")
 }
 

@@ -139,6 +139,14 @@ describe("pre_create_pull_request", () => {
     expect(global.github.rest.git.createRef).not.toHaveBeenCalled();
   });
 
+  it("rejects whitespace-only configured branch prefixes", async () => {
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX = "  ";
+    const { main } = await import("./pre_create_pull_request.cjs");
+
+    await expect(main()).rejects.toThrow(/Invalid pre-created pull request branch prefix/);
+    expect(global.github.rest.git.createRef).not.toHaveBeenCalled();
+  });
+
   it("sanitizes and truncates the fully assembled title after applying the WIP marker and prefix", async () => {
     process.env.GH_AW_PR_TITLE_PREFIX = "[bot] @team ";
     process.env.GH_AW_WORKFLOW_NAME = "A".repeat(300);

@@ -15,7 +15,7 @@ const DEFAULT_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX = "gh-aw/pre-created/";
 function getPreCreatedPullRequestBranchPrefix() {
   const branchPrefix = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX || DEFAULT_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX;
   const normalizedBranchPrefix = normalizeBranchName(branchPrefix);
-  if (!normalizedBranchPrefix || normalizedBranchPrefix !== branchPrefix) {
+  if (!normalizedBranchPrefix || branchPrefix.trim() === "" || normalizedBranchPrefix !== branchPrefix) {
     throw new Error(`Invalid pre-created pull request branch prefix: "${branchPrefix}"`);
   }
   return branchPrefix;
