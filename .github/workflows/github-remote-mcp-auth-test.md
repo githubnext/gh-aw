@@ -32,7 +32,8 @@ imports:
   - shared/otlp.md
 jobs:
   raw_mcp_canary:
-    needs: []
+    needs: agent
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,27 +46,29 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${GITHUB_MCP_SERVER_TOKEN}" ]; then
+          if [ -z "${GITHUB_MCP_SERVER_TOKEN:-}" ]; then
             echo "No GitHub MCP token is available."
             exit 1
           fi
           echo "::add-mask::${GITHUB_MCP_SERVER_TOKEN}"
 
           server_url="https://api.githubcopilot.com/mcp/"
-          headers_file="$(mktemp)"
+          ping_headers_file="$(mktemp)"
+          initialize_headers_file="$(mktemp)"
+          tools_headers_file="$(mktemp)"
           body_file="$(mktemp)"
           json_file="$(mktemp)"
           error_file="$(mktemp)"
-          trap 'rm -f "$headers_file" "$body_file" "$json_file" "$error_file"' EXIT
+          trap 'rm -f "$ping_headers_file" "$initialize_headers_file" "$tools_headers_file" "$body_file" "$json_file" "$error_file"' EXIT
 
           mcp_post() {
             local payload="$1"
-            shift
-            local auth_scheme="Bearer"
+            local response_headers_file="$2"
+            shift 2
             local http_code
-            if ! http_code="$(curl -sS -D "$headers_file" -o "$body_file" -w "%{http_code}" --max-time 20 \
+            if ! http_code="$(curl -sS -D "$response_headers_file" -o "$body_file" -w "%{http_code}" --max-time 20 \
               -X POST "$server_url" \
-              -H "Authorization: ${auth_scheme} ${GITHUB_MCP_SERVER_TOKEN}" \
+              --oauth2-bearer "$GITHUB_MCP_SERVER_TOKEN" \
               -H "Content-Type: application/json" \
               -H "Accept: application/json, text/event-stream" \
               -H "X-MCP-Readonly: true" \
@@ -81,7 +84,7 @@ jobs:
             if jq -e . "$body_file" >/dev/null 2>&1; then
               cp "$body_file" "$json_file"
             else
-              awk '/^data: / { print substr($0, 7) }' "$body_file" | tail -n 1 > "$json_file"
+              awk '/^data:/ { sub(/^data: ?/, ""); print }' "$body_file" | tail -n 1 > "$json_file"
             fi
           }
 
@@ -108,22 +111,26 @@ jobs:
             fi
           }
 
-          ping_code="$(mcp_post '{"jsonrpc":"2.0","id":1,"method":"ping"}')"
+          ping_code="$(mcp_post '{"jsonrpc":"2.0","id":1,"method":"ping"}' "$ping_headers_file")"
           assert_success_response "MCP ping" "$ping_code"
 
-          initialize_code="$(mcp_post '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"gh-aw-raw-mcp-canary","version":"1.0.0"},"protocolVersion":"2024-11-05"}}')"
+          initialize_code="$(mcp_post '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"gh-aw-raw-mcp-canary","version":"1.0.0"},"protocolVersion":"2024-11-05"}}' "$initialize_headers_file")"
           assert_success_response "MCP initialize" "$initialize_code"
 
-          session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ { gsub(/\r/, "", $2); print $2; exit }' "$headers_file")"
+          session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ { gsub(/\r/, "", $2); print $2; exit }' "$initialize_headers_file")"
           session_args=()
           if [ -n "$session_id" ]; then
             session_args=(-H "Mcp-Session-Id: $session_id")
           fi
 
-          tools_code="$(mcp_post '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' "${session_args[@]}")"
+          tools_code="$(mcp_post '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' "$tools_headers_file" "${session_args[@]}")"
           assert_success_response "MCP tools/list" "$tools_code"
 
-          tool_count="$(jq '.result.tools | length // 0' "$json_file")"
+          tool_count="$(jq -r 'if (.result.tools | type) == "array" then (.result.tools | length) else 0 end' "$json_file")"
+          if [ "$tool_count" -eq 0 ]; then
+            echo "MCP tools/list did not return any tools."
+            exit 1
+          fi
           echo "Raw GitHub remote MCP handshake succeeded with $tool_count tools available."
 features:
   gh-aw-detection: true
