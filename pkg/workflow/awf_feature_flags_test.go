@@ -383,6 +383,12 @@ func TestAWFEmitsFilesystemAllowWrite(t *testing.T) {
 			want:         true,
 		},
 		{
+			name:           "cloud-hypervisor emits at its exact minimum version",
+			workflowData:   cloudHypervisor,
+			firewallConfig: &FirewallConfig{Version: "v0.28.6"},
+			want:           true,
+		},
+		{
 			name:           "cloud-hypervisor does not emit below its minimum version",
 			workflowData:   cloudHypervisor,
 			firewallConfig: &FirewallConfig{Version: "v0.28.5"},
