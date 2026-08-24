@@ -12,6 +12,7 @@ import (
 )
 
 func TestGenerateSchema(t *testing.T) {
+	t.Parallel()
 	t.Run("generates schema for simple struct", func(t *testing.T) {
 		type SimpleOutput struct {
 			Name  string `json:"name" jsonschema:"Name of the item"`
@@ -215,6 +216,7 @@ func TestGenerateSchema(t *testing.T) {
 }
 
 func TestAddSchemaDefault(t *testing.T) {
+	t.Parallel()
 	t.Run("adds default to existing property", func(t *testing.T) {
 		type TestStruct struct {
 			Name  string `json:"name" jsonschema:"Name field"`
@@ -286,6 +288,7 @@ func TestAddSchemaDefault(t *testing.T) {
 }
 
 func TestGenerateSchemaWithDefaults(t *testing.T) {
+	t.Parallel()
 	t.Run("manually adds default values to schema", func(t *testing.T) {
 		type OutputWithDefaults struct {
 			Name    string `json:"name" jsonschema:"Name of the item"`
@@ -364,6 +367,7 @@ func TestGenerateSchemaWithDefaults(t *testing.T) {
 }
 
 func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
+	t.Parallel()
 	t.Run("validates LogsData schema against real data", func(t *testing.T) {
 		// Generate schema for LogsData
 		schema, err := GenerateSchema[LogsData]()

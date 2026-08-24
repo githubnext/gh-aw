@@ -125,7 +125,7 @@ All metrics use standardized names from scratchpad/metrics-glossary.md:
   - Calculate separate churn metrics: source code churn vs generated file churn
   - Use source code churn (excluding `*.lock.yml` and `actions-lock.json`) for quality score calculation
 
-**Workflows**: Total `.md` files (`total_workflows`), `.lock.yml` files, avg workflow size in `.github/workflows`
+**Workflows**: Count direct `.github/workflows/*.md` files as `total_workflows` and direct `.github/workflows/*.lock.yml` files as `lockfile_count`; exclude nested `shared/` Markdown. Before reporting either count, compare their basename sets. Report a discrepancy and the mismatched names rather than treating unequal sets as the same fleet.
 
 **Docs**: Files in `docs/`, total doc LOC, code-to-docs ratio
 
