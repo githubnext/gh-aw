@@ -293,55 +293,39 @@ Only if one of these files is missing required fields, make a targeted GitHub to
 
 ## Step 3: Check for an Existing ADR
 
-Search for a linked ADR in multiple locations:
+Search these locations in order:
 
-### 3a. Check the PR Body
-Look in the PR body for:
+1. **PR body** — look for:
 - A link to a file in `docs/adr/` (e.g., `docs/adr/NNNN-*.md` where NNNN is the PR number)
 - A markdown link containing "ADR" or "Architecture Decision"
 - A section labeled "ADR", "Design Decision Record", or "Architecture Decision Record"
 
-### 3b. Check for ADR Files on the PR Branch
+2. **PR branch** — find the most recent ADR:
 ```bash
 find ${{ github.workspace }}/docs/adr -name "*.md" 2>/dev/null | sort | tail -5
-```
-
-If ADR files exist, read the most recent one:
-```bash
 cat "$(find ${{ github.workspace }}/docs/adr -name "*.md" 2>/dev/null | sort | tail -1)"
 ```
 
-### 3c. Check Linked Issues
-Before making any GitHub issue call, check whether the PR body matches `(?i)\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+(?:#\d+\b|https://github\.com/[^/\s]+/[^/\s]+/issues/\d+\b)`.
+3. **Linked issue** — before making any GitHub issue call, check whether the PR body matches `(?i)\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+(?:#\d+\b|https://github\.com/[^/\s]+/[^/\s]+/issues/\d+\b)`.
 
 - If there is **no** match, skip linked-issue lookup and continue.
 - If there **is** a match, use at most one GitHub tool call to fetch the linked issue body and look for ADR content there.
 
-### ADR Detection Criteria
-
-An ADR is considered **present** if it contains all four required sections from the Michael Nygard template:
+An ADR is **present** only if it contains all four Michael Nygard sections:
 1. **Context** — what is the situation and problem being addressed
 2. **Decision** — what was decided and why
 3. **Alternatives Considered** — what other options were evaluated
 4. **Consequences** — what will happen as a result (positive and negative)
 
----
+## Step 4: Act on the ADR Check
 
-## Step 4a: If NO ADR Found — Generate Draft and Block Merge
+### No ADR Found — Generate Draft and Block Merge
 
-If no ADR is found, perform the following:
+If no ADR is found:
 
-### Determine the ADR Number
+1. **Determine the ADR number.** Use the pull request number `${{ github.event.pull_request.number || github.event.inputs.pr_number }}`, zero-padded to 4 digits (for example, PR #42 becomes `0042`). This avoids collisions between concurrent PRs.
 
-Use the **pull request number** as the ADR number. This avoids file name collisions and merge conflicts when multiple PRs generate ADRs concurrently.
-
-The PR number is: `${{ github.event.pull_request.number || github.event.inputs.pr_number }}`
-
-Format the number with zero-padding to 4 digits (e.g., PR #42 becomes `0042`, PR #1234 becomes `1234`).
-
-### Analyze the PR Diff and Generate a Draft ADR
-
-Use this scoped question template before writing the ADR. Answer each item in 1–3 concise bullets:
+2. **Analyze the diff.** Answer each item in 1–3 concise bullets:
 
 1. **Decision**: What single architectural decision is this PR making?
 2. **Driver**: What concrete constraint or problem in this PR necessitates that decision?
@@ -354,48 +338,31 @@ If Question 1 (Decision) is not inferable from current PR evidence, call `missin
 
 Generate a draft ADR file using the imported `adr-writer` template. Fill the Michael Nygard sections (`Context`, `Decision`, `Alternatives Considered`, `Consequences`) with evidence grounded in the PR.
 
-### Commit the Draft ADR to the PR Branch
+3. **Commit the draft.** Use `push-to-pull-request-branch` to commit it to `docs/adr/{NNNN}-{kebab-case-title}.md`. Ensure the directory exists first:
 
-Use `push-to-pull-request-branch` to commit the draft ADR to `docs/adr/{NNNN}-{kebab-case-title}.md`.
-
-Ensure the `docs/adr/` directory exists before writing:
 ```bash
 mkdir -p ${{ github.workspace }}/docs/adr
 ```
 
-### Post a Blocking Comment
+4. **Post the blocking comment.** Read the `adr-report-templates` skill and use `add-comment` with the **ADR Required** template.
 
-Read the `adr-report-templates` skill and post a comment using `add-comment` with the **ADR Required** template.
-
-### Report Formatting
-
-- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
-- Apply **progressive disclosure**: keep the immediately visible text as brief as possible; wrap all verbose sections (next steps, background, reference material) in `<details><summary>…</summary>` tags.
-- Required structure for blocking comments: headline + one-line status (always visible) → "What to do next" (in `<details>`) → "Why ADRs Matter" (in `<details>`) → ADR format reference (in `<details>`) → blocking notice (always visible)
-
-## Step 4b: If ADR Found — Verify Implementation Matches
+### ADR Found — Verify Implementation
 
 If an ADR **is** found (either in the PR body, on the PR branch, or in a linked issue), verify that the implementation aligns with the stated decision.
 
-### Read the ADR
-
-Load and parse the ADR content. Extract:
+1. **Read the ADR.** Extract:
 - The **Decision** section (what was decided)
 - The **Context** section (constraints and forces)
 - The **Consequences** section (expected outcomes)
 
-### Analyze Alignment
-
-Compare the ADR's stated decision against the actual code changes in the PR diff. Look for:
+2. **Analyze alignment.** Compare the decision with the PR diff and identify:
 
 1. **Divergences** — Code that contradicts the stated decision (e.g., ADR says "use PostgreSQL" but code connects to MongoDB)
 2. **Missing implementation** — Key aspects of the decision not reflected in the code
 3. **Scope creep** — Significant architectural changes not covered by the ADR
 4. **Full alignment** — Code faithfully implements the stated decision
 
-### Report Findings
-
-Read the `adr-report-templates` skill and post a comment using `add-comment` with the template matching the outcome:
+3. **Report findings.** Read the `adr-report-templates` skill and use `add-comment` with the matching template:
 
 - **If the implementation MATCHES the ADR**: use the **ADR Verified** template.
 - **If there are DIVERGENCES**: use the **Implementation Diverges** template.
@@ -412,6 +379,8 @@ Read the `adr-report-templates` skill and post a comment using `add-comment` wit
 ---
 description: PR comment templates for the Design Decision Gate (ADR Required, ADR Verified, and Implementation Diverges).
 ---
+
+Use h3 (`###`) or lower for all report headers. Keep immediately visible text brief and put verbose next steps, background, and references in `<details>` blocks.
 
 **ADR Required** template (no ADR found — blocking comment):
 
