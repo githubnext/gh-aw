@@ -38,7 +38,7 @@ describe("awf_reflect.cjs", () => {
   describe("constants", () => {
     it("exports expected default values", () => {
       expect(AWF_API_PROXY_REFLECT_URL).toBe("http://api-proxy:10000/reflect");
-      expect(AWF_REFLECT_OUTPUT_PATH).toBe("/tmp/gh-aw/sandbox/firewall/awf-reflect.json");
+      expect(AWF_REFLECT_OUTPUT_PATH).toBe(path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json"));
       expect(AWF_REFLECT_TIMEOUT_MS).toBe(60000);
       expect(AWF_MODELS_URL_TIMEOUT_MS).toBe(3000);
       expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
@@ -722,6 +722,30 @@ describe("awf_reflect.cjs", () => {
         status: 503,
       });
       expect(logs.some(l => l.includes("unexpected status 503"))).toBe(true);
+    });
+
+    it("returns reflect data even when persisting awf-reflect output fails", async () => {
+      const reflectPayload = { endpoints: [{ provider: "copilot", configured: true, models: ["copilot/claude-sonnet-4.6"] }] };
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => reflectPayload }));
+      const logs = [];
+
+      await expect(
+        fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath: "/tmp/gh-aw-test-read-only/awf-reflect.json",
+          timeoutMs: 500,
+          logger: msg => logs.push(msg),
+          writeFileSync: () => {
+            throw new Error("EROFS: read-only file system");
+          },
+        })
+      ).resolves.toEqual({
+        ok: true,
+        reflectUrl: "http://api-proxy:10000/reflect",
+        outputPath: "/tmp/gh-aw-test-read-only/awf-reflect.json",
+        reflectData: reflectPayload,
+      });
+      expect(logs.some(l => l.includes("unable to persist reflect payload"))).toBe(true);
     });
 
     it("uses the caller-supplied logger for all messages", async () => {
