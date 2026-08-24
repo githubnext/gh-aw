@@ -390,7 +390,6 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string)
 		for _, f := range initFiles {
 			fmt.Fprintf(os.Stderr, "  • %s\n", f)
 		}
-		fmt.Fprintln(os.Stderr, "")
 	}
 
 	createPR := true // Default to yes
@@ -401,7 +400,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string)
 			Affirmative("Yes, create pull request").
 			Negative("No, write files locally").
 			Value(&createPR),
-	).WithLeadingBlankLine()
+	)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return false, fmt.Errorf("confirmation failed: %w", err)

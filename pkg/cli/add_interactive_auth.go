@@ -38,7 +38,6 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 
 		// Ask the user for the repository (interactive-only feature)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine the repository automatically."))
-		fmt.Fprintln(os.Stderr, "")
 
 		var userRepo string
 		form := console.NewInputForm(

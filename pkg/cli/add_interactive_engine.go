@@ -52,7 +52,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 			Description("This determines which coding agent processes your workflows").
 			Options(engineOptions...).
 			Value(&selectedEngine),
-	).WithLeadingBlankLine()
+	)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select coding agent: %w", err)
@@ -296,7 +296,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		})
 	}
 
-	form := console.NewSelectForm(selectField).WithLeadingBlankLine()
+	form := console.NewSelectForm(selectField)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select Copilot authentication method: %w", err)

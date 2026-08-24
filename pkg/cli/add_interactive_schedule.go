@@ -222,7 +222,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 				Description("Current schedule: " + rawExpr).
 				Options(options...).
 				Value(&selected),
-		).WithLeadingBlankLine()
+		)
 
 		if err := form.RunWithContext(c.Ctx); err != nil {
 			return fmt.Errorf("failed to select schedule frequency: %w", err)

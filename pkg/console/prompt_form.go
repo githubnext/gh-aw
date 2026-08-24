@@ -23,9 +23,8 @@ const (
 // caller prints the decision result.
 type PromptForm struct {
 	*huh.Form
-	out              io.Writer
-	clearOnRun       bool
-	leadingBlankLine bool
+	out        io.Writer
+	clearOnRun bool
 }
 
 // NewForm creates a huh form with gh-aw's default theme and accessibility mode.
@@ -53,14 +52,6 @@ func NewConfirmForm(confirm *huh.Confirm) *PromptForm {
 	return NewForm(huh.NewGroup(confirm))
 }
 
-// WithLeadingBlankLine separates the form from preceding status output. When
-// completed forms are cleared, the separator is cleared with the question so
-// the caller's resolution message remains adjacent to prior status messages.
-func (f *PromptForm) WithLeadingBlankLine() *PromptForm {
-	f.leadingBlankLine = true
-	return f
-}
-
 // Run runs the form and removes its rendered question when it exits.
 func (f *PromptForm) Run() error {
 	return f.run(func() error { return f.Form.Run() })
@@ -73,15 +64,11 @@ func (f *PromptForm) RunWithContext(ctx context.Context) error {
 
 func (f *PromptForm) run(runForm func() error) error {
 	if !f.clearOnRun {
-		if f.leadingBlankLine {
-			fmt.Fprintln(f.out)
-		}
+		fmt.Fprintln(f.out)
 		return runForm()
 	}
 	fmt.Fprint(f.out, ansiSaveCursor)
-	if f.leadingBlankLine {
-		fmt.Fprintln(f.out)
-	}
+	fmt.Fprintln(f.out)
 	defer fmt.Fprint(f.out, ansiRestoreCursor, ansiClearScreenBelow)
 	return runForm()
 }

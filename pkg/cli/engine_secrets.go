@@ -370,7 +370,6 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Preconfigured token creation page:")
 	console.PrintCommandMessage("  " + preconfiguredPATURL)
-	fmt.Fprintln(os.Stderr, "")
 
 	openBrowser := true
 	confirmForm := console.NewConfirmForm(

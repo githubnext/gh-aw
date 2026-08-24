@@ -37,8 +37,6 @@ const (
 func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string, createPR bool) error {
 	addInteractiveLog.Print("Applying changes")
 
-	fmt.Fprintln(os.Stderr, "")
-
 	// Add the workflow using the existing implementation.
 	// Pass the resolved workflows to avoid re-fetching them
 	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
@@ -97,7 +95,6 @@ func (c *AddInteractiveConfig) ensurePullRequestMerged(prNumber int, prURL strin
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+prURL))
-	fmt.Fprintln(os.Stderr, "")
 	return c.runPRMergeLoop(prNumber, prURL)
 }
 
@@ -447,7 +444,7 @@ func promptWorkingTreeResolution(ctx context.Context, blockers addWorkingTreeBlo
 			Description(formatWorkingTreeBlockers(blockers)).
 			Options(buildWorkingTreeResolutionOptions(allowOverwrite)...).
 			Value(&resolution),
-	).WithLeadingBlankLine()
+	)
 	if err := form.RunWithContext(ctx); err != nil {
 		return "", fmt.Errorf("working tree confirmation failed: %w", err)
 	}

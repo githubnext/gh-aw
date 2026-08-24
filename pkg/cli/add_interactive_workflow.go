@@ -161,7 +161,6 @@ func (c *AddInteractiveConfig) showCodespaceRunInstructions() {
 
 func confirmRunAddedWorkflow(ctx context.Context) (bool, error) {
 	// Ask if user wants to run the workflow
-	fmt.Fprintln(os.Stderr, "")
 	runNow := true // Default to yes
 	form := console.NewConfirmForm(
 		huh.NewConfirm().

@@ -20,13 +20,14 @@ var addConfirmAuthoringSupport = func(ctx context.Context) (bool, error) {
 	addAuthoringSupport := true
 	form := console.NewConfirmForm(
 		huh.NewConfirm().
-			Title("Would you also like to add support to use coding agents in this repository to author, debug, update and audit agentic workflows?").
-			Affirmative("Yes, add coding agent support").
+			Title("Add prompts and skills for coding agents?").
+			Description("These help coding agents author, debug, update, and audit agentic workflows in this repository.").
+			Affirmative("Yes, add prompts and skills").
 			Negative("No, add only the workflow").
 			Value(&addAuthoringSupport),
 	)
 	if err := form.RunWithContext(ctx); err != nil {
-		return false, fmt.Errorf("coding agent support confirmation failed: %w", err)
+		return false, fmt.Errorf("coding agent prompts and skills confirmation failed: %w", err)
 	}
 	return addAuthoringSupport, nil
 }
@@ -78,11 +79,11 @@ func confirmAddRepositoryInitialization(ctx context.Context, engineOverride stri
 	confirmed, err := addConfirmAuthoringSupport(ctx)
 	if err != nil || !confirmed {
 		if err == nil {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent authoring support: skipped"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent prompts and skills: skipped"))
 		}
 		return addRepositoryInitializationPlan{}, err
 	}
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent authoring support: enabled"))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent prompts and skills: enabled"))
 	return addRepositoryInitializationPlan{enabled: true, files: missingMarkers}, nil
 }
 
