@@ -167,7 +167,7 @@ jobs:
           call_code="$(mcp_post "$call_payload" "$response_headers_file" "${session_args[@]}")"
           assert_success_response "MCP get_repository" "$call_code"
           if jq -e '.result.isError == true' "$json_file" >/dev/null; then
-            tool_error="$(jq -r '[.result.content[]?.text] | join(" ")' "$json_file" | head -c 200)"
+            tool_error="$(jq -r '([.result.content[]?.text] | join(" "))[0:200]' "$json_file")"
             echo "MCP get_repository returned a tool error: $tool_error"
             echo "- ❌ MCP get_repository: tool error \`$tool_error\`" >> "$GITHUB_STEP_SUMMARY"
             exit 1
