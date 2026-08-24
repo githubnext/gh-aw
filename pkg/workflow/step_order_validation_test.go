@@ -33,6 +33,19 @@ func TestStepOrderTracker_ValidateOrdering_SecretRedactionBeforeUploads(t *testi
 	}
 }
 
+func TestStepOrderTracker_ValidateOrdering_ArchivedOperationalValueEvaluator(t *testing.T) {
+	tracker := NewStepOrderTracker()
+	tracker.MarkAgentExecutionComplete()
+	tracker.RecordSecretRedaction("Redact grader outputs")
+	tracker.RecordArtifactUpload("Upload agent artifacts", []string{
+		"/tmp/gh-aw/agent/graders/operational_value_evaluator.sh",
+	})
+
+	if err := tracker.ValidateStepOrdering(); err != nil {
+		t.Errorf("Expected archived operational-value evaluator to be allowed, got: %v", err)
+	}
+}
+
 func TestStepOrderTracker_ValidateOrdering_UploadBeforeSecretRedaction(t *testing.T) {
 	tracker := NewStepOrderTracker()
 	tracker.MarkAgentExecutionComplete()

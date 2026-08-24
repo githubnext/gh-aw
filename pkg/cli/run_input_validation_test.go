@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetWorkflowInputs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		lockContent   string
@@ -73,6 +74,7 @@ jobs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary directory
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -115,6 +117,7 @@ jobs:
 }
 
 func TestValidateWorkflowInputs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		lockContent      string
@@ -309,6 +312,7 @@ jobs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary directory
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test-workflow.md")

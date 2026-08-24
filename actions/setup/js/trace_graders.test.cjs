@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
 
 const {
   main,
@@ -26,6 +27,7 @@ const {
   IMPLEMENTATION_ID,
   MANIFEST_PATH,
   RESULTS_PATH,
+  archiveOperationalValueEvaluator,
   MAX_FILE_SIZE,
   MAX_LINE_LENGTH,
   SCRIPT_TIMEOUT_MS,
@@ -66,6 +68,22 @@ function makeTrace(overrides = {}) {
 }
 
 describe("trace_graders", () => {
+  describe("archiveOperationalValueEvaluator", () => {
+    it("writes only evaluator bytes matching the frozen digest", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "operational-value-evaluator-archive-"));
+      const outputPath = path.join(tempDir, "operational_value_evaluator.sh");
+      const content = "#!/usr/bin/env bash\nprintf 'ok\\n'\n";
+      const digest = crypto.createHash("sha256").update(content, "utf8").digest("hex");
+      try {
+        archiveOperationalValueEvaluator(content, digest, outputPath);
+        expect(fs.readFileSync(outputPath, "utf8")).toBe(content);
+        expect(() => archiveOperationalValueEvaluator(content, "invalid", outputPath)).toThrow("digest mismatch");
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
+
   // --- safeParseJsonl ---
   describe("safeParseJsonl", () => {
     it("parses valid JSONL", () => {

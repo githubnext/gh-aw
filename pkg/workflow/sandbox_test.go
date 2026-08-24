@@ -289,6 +289,34 @@ func TestApplySandboxDefaults(t *testing.T) {
 	}
 }
 
+func TestEnsureCacheMemoryWritePaths(t *testing.T) {
+	sandboxConfig := applySandboxDefaults(&SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Type:    SandboxTypeAWF,
+			Runtime: AgentRuntimeCloudHypervisor,
+		},
+	}, &EngineConfig{ID: "claude"})
+	cacheMemoryConfig := &CacheMemoryConfig{
+		Caches: []CacheMemoryEntry{
+			{ID: "default"},
+			{ID: "session"},
+		},
+	}
+
+	ensureCacheMemoryWritePaths(sandboxConfig, cacheMemoryConfig)
+	ensureCacheMemoryWritePaths(sandboxConfig, cacheMemoryConfig)
+
+	require.NotNil(t, sandboxConfig.Agent.Config)
+	require.NotNil(t, sandboxConfig.Agent.Config.Filesystem)
+	assert.Equal(t, []string{
+		defaultAgentWorkspaceWritePath,
+		cloudHypervisorWorkspaceWritePath,
+		cloudHypervisorAwfHomeWritePath,
+		"/tmp/gh-aw/cache-memory",
+		"/tmp/gh-aw/cache-memory-session",
+	}, sandboxConfig.Agent.Config.Filesystem.AllowWrite)
+}
+
 func TestMergeImportedSandboxAgentMounts(t *testing.T) {
 	tests := []struct {
 		name           string
