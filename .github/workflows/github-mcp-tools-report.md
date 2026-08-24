@@ -21,6 +21,8 @@ tools:
     toolsets: [all]
   cache-memory: true
   edit:
+features:
+  gh-aw-detection: true
 safe-outputs:
   create-pull-request:
     expires: 2d
