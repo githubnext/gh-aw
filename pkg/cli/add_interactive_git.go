@@ -67,7 +67,6 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 	c.addResult = result
 
 	if !createPR {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow files written locally. No pull request was created."))
 		return nil
 	}
 

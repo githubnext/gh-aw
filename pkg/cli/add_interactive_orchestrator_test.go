@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -145,6 +147,24 @@ func TestAddInteractiveConfig_welcomeMessage(t *testing.T) {
 
 	assert.Equal(t, `This tool will walk you through adding the automated workflow "repo-assist" from "githubnext/agentics/repo-assist".`, config.welcomeMessage())
 	assert.Equal(t, "Source workflow: githubnext/agentics/repo-assist", config.sourceWorkflowMessage())
+}
+
+func TestAddInteractiveConfig_showLocalWriteInstructionsUsesWorkflowName(t *testing.T) {
+	config := &AddInteractiveConfig{
+		WorkflowSpecs: []string{"githubnext/agentics/repo-assist"},
+		resolvedWorkflows: &ResolvedWorkflows{Workflows: []*ResolvedWorkflow{
+			{Spec: &WorkflowSpec{WorkflowName: "repo-assist"}},
+		}},
+	}
+
+	output := testutil.CaptureStderr(t, config.showLocalWriteInstructions)
+
+	assert.Equal(t, 1, strings.Count(output, "written locally"), "local completion should be reported once")
+	assert.Contains(t, output, "Workflow 'repo-assist' written locally; no pull request was created.")
+	assert.Contains(t, output, "git add -A && git commit -m 'Add repo-assist'")
+	assert.Contains(t, output, "gh aw run repo-assist  # Trigger the workflow")
+	assert.NotContains(t, output, "Files written locally!")
+	assert.NotContains(t, output, "gh aw run <workflow>")
 }
 
 func TestAddInteractiveConfig_showWorkflowDescriptions(t *testing.T) {

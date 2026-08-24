@@ -339,8 +339,7 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "The following workflow files will be added:")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow files ready to add:"))
 	for _, f := range workflowFiles {
 		fmt.Fprintf(os.Stderr, "  • .github/workflows/%s\n", f)
 	}
@@ -452,26 +451,24 @@ func (c *AddInteractiveConfig) showFinalInstructions() {
 // not claim the workflow is already running or recommend remote status/run commands,
 // since the files only exist in the local checkout and have not been pushed.
 func (c *AddInteractiveConfig) showLocalWriteInstructions() {
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("🎉 Files written locally!"))
-	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Fprintln(os.Stderr, "")
-
 	// Show summary with workflow name(s)
 	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
 		wf := c.resolvedWorkflows.Workflows[0]
-		fmt.Fprintf(os.Stderr, "The workflow '%s' has been written to your local checkout. No pull request was created.\n", wf.Spec.WorkflowName)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Workflow '%s' written locally; no pull request was created.", wf.Spec.WorkflowName)))
 		c.showWorkflowDescriptions()
 	}
 
+	workflowName := c.primaryWorkflowName()
+	if workflowName == "" {
+		workflowName = "agentic workflow"
+	}
 	fmt.Fprintln(os.Stderr, "Commit and push the new files before the workflow can run on GitHub:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'Add agentic workflow'"))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  git add -A && git commit -m 'Add %s'", workflowName)))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git push"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Once pushed, these commands will work against the remote repository:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s status          # Check workflow status", string(constants.CLIExtensionPrefix))))
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run <workflow>  # Trigger a workflow", string(constants.CLIExtensionPrefix))))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run %s  # Trigger the workflow", string(constants.CLIExtensionPrefix), workflowName)))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s logs            # View workflow logs", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Learn more at: https://github.github.com/gh-aw/")

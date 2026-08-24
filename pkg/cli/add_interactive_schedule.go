@@ -215,17 +215,14 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		// Build the ordered option list
 		options := buildScheduleOptions(rawExpr, currentFreq)
 
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This workflow runs on a schedule."))
-
 		var selected string
 		form := console.NewSelectForm(
 			huh.NewSelect[string]().
-				Title("How often should this workflow run?").
+				Title("This workflow runs on a schedule. How often should it run?").
 				Description("Current schedule: " + rawExpr).
 				Options(options...).
 				Value(&selected),
-		)
+		).WithLeadingBlankLine()
 
 		if err := form.RunWithContext(c.Ctx); err != nil {
 			return fmt.Errorf("failed to select schedule frequency: %w", err)

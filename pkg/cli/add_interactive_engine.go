@@ -265,8 +265,6 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(probe.InfoNote))
 	}
 
-	fmt.Fprintln(os.Stderr, "")
-
 	// Build select options.
 	// When billing is confirmed enabled, copilot-requests is listed first (pre-selected).
 	// When billing is disabled or inconclusive, PAT is listed first (default selection).
@@ -301,7 +299,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 		})
 	}
 
-	form := console.NewSelectForm(selectField)
+	form := console.NewSelectForm(selectField).WithLeadingBlankLine()
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select Copilot authentication method: %w", err)
