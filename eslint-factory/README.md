@@ -811,6 +811,22 @@ Prefer `getErrorMessage(err)` from `error_helpers.cjs`. The `err.stack` ternary/
 
 The rule provides an autofix suggestion that replaces the pattern with `getErrorMessage(err)` (ensure `getErrorMessage` is imported from `error_helpers.cjs` before applying).
 
+### `no-string-fallback-for-non-string-message`
+
+Disallow `typeof <x>.message === "string" ? <x>.message : String(<container>)` when the fallback stringifies a different container object instead of the `.message` value itself.
+
+Why: when `.message` exists but is non-string (for example an object), stringifying the container often yields `"[object Object]"` and loses the intended message value.
+
+**Flagged form:**
+```js
+return typeof err.message === "string" ? err.message : String(err);
+```
+
+**Safe alternative:**
+```js
+return typeof err.message === "string" ? err.message : String(err.message);
+```
+
 ### `no-caught-error-interpolation`
 
 Disallow directly interpolating a caught error variable in a template literal (for example `` `Failed: ${err}` ``).

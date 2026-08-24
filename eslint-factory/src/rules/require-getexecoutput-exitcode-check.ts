@@ -39,6 +39,16 @@ function hasIgnoreReturnCodeTrue(node: TSESTree.CallExpression): boolean {
   return false;
 }
 
+function isExitCodeMemberAccess(memberExpression: TSESTree.MemberExpression, object: TSESTree.Node): boolean {
+  if (memberExpression.object !== object) return false;
+
+  if (!memberExpression.computed) {
+    return memberExpression.property.type === AST_NODE_TYPES.Identifier && memberExpression.property.name === "exitCode";
+  }
+
+  return memberExpression.property.type === AST_NODE_TYPES.Literal && memberExpression.property.value === "exitCode";
+}
+
 export const requireGetExecOutputExitCodeCheckRule = createRule({
   name: "require-getexecoutput-exitcode-check",
   meta: {
@@ -91,7 +101,7 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
           const usesExitCode = variable?.references.some(ref => {
             const id = ref.identifier;
             const idParent = id.parent;
-            return idParent !== undefined && idParent.type === AST_NODE_TYPES.MemberExpression && !idParent.computed && idParent.object === id && idParent.property.type === AST_NODE_TYPES.Identifier && idParent.property.name === "exitCode";
+            return idParent !== undefined && idParent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(idParent, id);
           });
           if (!usesExitCode) {
             context.report({ node: call, messageId: "missingExitCodeCheck" });
@@ -103,7 +113,7 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
       }
 
       // Direct member access: (await getExecOutput(...)).exitCode
-      if (parent.type === AST_NODE_TYPES.MemberExpression && parent.object === resultNode && !parent.computed && parent.property.type === AST_NODE_TYPES.Identifier && parent.property.name === "exitCode") {
+      if (parent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(parent, resultNode)) {
         return;
       }
 

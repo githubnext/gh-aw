@@ -33,6 +33,10 @@ describe("require-getexecoutput-exitcode-check", () => {
         `async function f() { const r = (await exec.getExecOutput("git", ["status"], { ...opts, ignoreReturnCode: true })).exitCode; }`,
         // direct member access on the awaited result
         `async function f() { const code = (await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true })).exitCode; }`,
+        // computed static member access on the awaited result
+        `async function f() { const code = (await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true }))["exitCode"]; }`,
+        // identifier binding with computed static member access
+        `async function f() { const result = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true }); if (result["exitCode"] !== 0) throw new Error("failed"); }`,
       ],
       invalid: [],
     });
