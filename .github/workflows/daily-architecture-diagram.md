@@ -53,6 +53,7 @@ safe-outputs:
     expires: 7d
     max: 1
   create-pull-request:
+    steer: true
     expires: 7d
     title-prefix: "[architecture] "
     labels: [architecture, diagram, documentation]

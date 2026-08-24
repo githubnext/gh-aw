@@ -19,6 +19,7 @@ imports:
 - shared/otlp.md
 safe-outputs:
   create-pull-request:
+    steer: true
     auto-merge: true
     draft: false
     expires: 1d

@@ -20,6 +20,7 @@ imports:
 - shared/otlp.md
 safe-outputs:
   create-pull-request:
+    steer: true
     draft: false
     expires: 2d
     labels:
