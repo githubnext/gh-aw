@@ -383,7 +383,9 @@ func appendSandboxWritableTools(allowedTools []string, sandboxConfig *SandboxCon
 	}
 	writablePaths := []string{defaultClaudeTmpWritePath}
 	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
-		writablePaths = append(writablePaths, sandboxConfig.Agent.Config.Filesystem.AllowWrite...)
+		if allowWrite := sandboxConfig.Agent.Config.Filesystem.AllowWrite; allowWrite != nil {
+			writablePaths = allowWrite
+		}
 	}
 	seenPatterns := make(map[string]struct{}, len(writablePaths))
 	for _, writablePath := range writablePaths {

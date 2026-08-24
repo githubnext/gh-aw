@@ -527,6 +527,32 @@ func TestClaudeEngineComputeAllowedToolsWithSandboxAllowWrite(t *testing.T) {
 	}
 }
 
+func TestClaudeEngineSandboxAllowWriteNarrowsDefaultTmpAccess(t *testing.T) {
+	engine := NewClaudeEngine()
+	cacheMemoryConfig, err := NewCompiler().extractCacheMemoryConfigFromMap(map[string]any{})
+	if err != nil {
+		t.Fatalf("extract cache-memory config: %v", err)
+	}
+
+	sandboxConfig := &SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Config: &SandboxRuntimeConfig{
+				Filesystem: &SRTFilesystemConfig{
+					AllowWrite: []string{"/workspace"},
+				},
+			},
+		},
+	}
+
+	got := engine.computeAllowedClaudeToolsString(map[string]any{}, nil, cacheMemoryConfig, nil, nil, sandboxConfig)
+	if !strings.Contains(got, "Write(/workspace/*)") {
+		t.Fatalf("expected workspace write permission in %q", got)
+	}
+	if strings.Contains(got, "Write(/tmp/*)") {
+		t.Fatalf("unexpected broad tmp write permission in %q", got)
+	}
+}
+
 func TestClaudeEngineAddsTmpByDefault(t *testing.T) {
 	engine := NewClaudeEngine()
 	cacheMemoryConfig, err := NewCompiler().extractCacheMemoryConfigFromMap(map[string]any{})
