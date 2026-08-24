@@ -315,10 +315,10 @@
       "digest": "sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c",
       "pinned_image": "ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c"
     },
-    "ghcr.io/oraios/serena:latest": {
-      "image": "ghcr.io/oraios/serena:latest",
-      "digest": "sha256:aa8acaabfec1e623a24d69b63607d5f2be21224214ab675847c97ed8a8ad2bc5",
-      "pinned_image": "ghcr.io/oraios/serena:latest@sha256:aa8acaabfec1e623a24d69b63607d5f2be21224214ab675847c97ed8a8ad2bc5"
+    "ghcr.io/oraios/serena:1.7.0": {
+      "image": "ghcr.io/oraios/serena:1.7.0",
+      "digest": "sha256:6c9459e4246a39c9deaa4f23fb05a526ac6e237b24c8e84a927a098fa1ab6730",
+      "pinned_image": "ghcr.io/oraios/serena:1.7.0@sha256:6c9459e4246a39c9deaa4f23fb05a526ac6e237b24c8e84a927a098fa1ab6730"
     },
     "grafana/mcp-grafana:1.1.0-alpine": {
       "image": "grafana/mcp-grafana:1.1.0-alpine",

@@ -99,6 +99,7 @@ function updateBody(params) {
   // When footer is enabled use the full footer (includes install instructions, XML marker, etc.)
   // When footer is disabled still add standalone workflow-id marker for searchability
   const aiFooter = includeFooter ? buildAIFooter(workflowName, runUrl, historyUrl) : "";
+  const footerSection = aiFooter ? `\n\n${aiFooter}` : "";
   const workflowIdMarker = !includeFooter && workflowId ? `\n\n${generateWorkflowIdMarker(workflowId)}` : "";
 
   // Sanitize new content to prevent injection attacks
@@ -115,7 +116,7 @@ function updateBody(params) {
   if (operation === "replace") {
     // Replace: use new content with optional AI footer
     core.info("Operation: replace (full body replacement)");
-    return contentWithCaution + aiFooter + workflowIdMarker;
+    return contentWithCaution + footerSection + workflowIdMarker;
   }
 
   if (operation === "replace-island") {
@@ -123,7 +124,7 @@ function updateBody(params) {
     const island = findIsland(currentBody, workflowId);
     const startMarker = buildIslandStartMarker(workflowId);
     const endMarker = buildIslandEndMarker(workflowId);
-    const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
+    const islandContent = `${startMarker}\n${contentWithCaution}${footerSection}${workflowIdMarker}\n${endMarker}`;
 
     if (island.found) {
       // Replace the island content
@@ -141,13 +142,13 @@ function updateBody(params) {
   if (operation === "prepend") {
     // Prepend: add content, AI footer (if enabled), and horizontal line at the start
     core.info("Operation: prepend (add to start with separator)");
-    const prependSection = `${contentWithCaution}${aiFooter}${workflowIdMarker}\n\n---\n\n`;
+    const prependSection = `${contentWithCaution}${footerSection}${workflowIdMarker}\n\n---\n\n`;
     return prependSection + currentBody;
   }
 
   // Default to append
   core.info("Operation: append (add to end with separator)");
-  const appendSection = `\n\n---\n\n${contentWithCaution}${aiFooter}${workflowIdMarker}`;
+  const appendSection = `\n\n---\n\n${contentWithCaution}${footerSection}${workflowIdMarker}`;
   return currentBody + appendSection;
 }
 

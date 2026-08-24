@@ -28,7 +28,7 @@ import-schema:
 
 mcp-servers:
   serena:
-    container: "ghcr.io/oraios/serena:latest"
+    container: "ghcr.io/oraios/serena:1.7.0"
     args:
       - "--network"
       - "host"
