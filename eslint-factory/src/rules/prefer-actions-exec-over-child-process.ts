@@ -38,7 +38,10 @@ function isGitHubScriptModule(sourceCode: TSESLint.SourceCode): boolean {
   return sourceCode.getAllComments().some(comment => GITHUB_SCRIPT_REFERENCE_PATTERN.test(comment.value));
 }
 
-/** True when the result of `node` is used for anything beyond being discarded as a statement. */
+/**
+ * True when the result of `node` is used as a value (assigned, returned, member-accessed, passed on,
+ * ...) rather than being discarded as a bare expression statement.
+ */
 function retainsCallResult(node: TSESTree.CallExpression): boolean {
   return node.parent != null && node.parent.type !== AST_NODE_TYPES.ExpressionStatement;
 }

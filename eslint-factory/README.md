@@ -1088,5 +1088,5 @@ const branch = stdout.trim();
 
 **Out of scope:**
 - `child_process.spawn()` and `child_process.spawnSync()` — used for long-running, detached, or interactively-streamed processes (background servers, sidecars, and similar) for which `@actions/exec` has no equivalent, since `exec()` / `getExecOutput()` always wait for the command to finish before resolving
-- `exec()` / `execFile()` calls that retain the returned `ChildProcess` handle (assigned to a variable, returned, or member-accessed) — those callers can write to `child.stdin`, stream `child.stdout`, or manage the process lifecycle, which `@actions/exec` cannot express; only calls whose result is discarded (pure callback style) are flagged
+- `exec()` / `execFile()` calls that retain the returned `ChildProcess` handle (used as a value: assigned, returned, member-accessed, passed to another call, ...) — those callers can write to `child.stdin`, stream `child.stdout`, or manage the process lifecycle, which `@actions/exec` cannot express; only calls whose result is discarded (pure callback style) are flagged
 - Calls to `exec`/`execSync`/`execFile`/`execFileSync` from any module other than `child_process` (or `node:child_process`)
