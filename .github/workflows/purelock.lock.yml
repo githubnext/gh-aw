@@ -117,7 +117,7 @@ jobs:
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       oauth_token_check_failed: ${{ steps.check-oauth-tokens.outputs.oauth_token_check_failed == 'true' }}
-      pre_created_pull_request_branch: ${{ steps.pre-create-pull-request.outputs.branch }}
+      pre_created_pull_request_branch: ${{ steps.validate-pre-created-pull-request.outputs.branch }}
       pre_created_pull_request_check_run_id: ${{ steps.pre-create-pull-request.outputs.check_run_id }}
       pre_created_pull_request_number: ${{ steps.pre-create-pull-request.outputs.pull_request_number }}
       pre_created_pull_request_url: ${{ steps.pre-create-pull-request.outputs.pull_request_url }}
@@ -277,6 +277,35 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'pre_create_pull_request.cjs'));
             await main();
+      - name: Validate pre-created pull request branch
+        id: validate-pre-created-pull-request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ steps.pre-create-pull-request.outputs.pull_request_number }}
+          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ steps.pre-create-pull-request.outputs.branch }}
+          GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH: gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const expectedBranch = process.env.GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH || "";
+            const branch = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH || "";
+            if (branch !== expectedBranch) {
+              throw new Error(`Pre-created pull request branch did not match expected workflow branch: ${branch}`);
+            }
+            const pullNumber = Number.parseInt(process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || "", 10);
+            if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+              throw new Error("Pre-created pull request number is invalid");
+            }
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+            const expectedRepo = `${context.repo.owner}/${context.repo.repo}`.toLowerCase();
+            if (pullRequest.head.ref !== expectedBranch || pullRequest.head.repo?.full_name?.toLowerCase() !== expectedRepo || pullRequest.base.repo?.full_name?.toLowerCase() !== expectedRepo) {
+              throw new Error("Pre-created pull request does not target the expected trusted repository branch");
+            }
+            core.setOutput("branch", expectedBranch);
       - name: Check workflow lock file
         id: check-lock-file
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -507,7 +536,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}
+          ref: gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
@@ -2499,7 +2528,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: true
-          ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}
+          ref: gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}
           token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Configure Git credentials
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
