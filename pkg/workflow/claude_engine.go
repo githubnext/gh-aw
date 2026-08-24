@@ -54,9 +54,25 @@ func (e *ClaudeEngine) GetModelEnvVarName() string {
 }
 
 // ResolveLLMProvider returns the effective provider for Claude inference.
-// Default is anthropic, overridable via engine.provider (or engine.model-provider).
+// A copilot/ model prefix selects GitHub-hosted inference. An explicit
+// engine.provider (or engine.model-provider) override always takes precedence.
 func (e *ClaudeEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvider {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.LLMProvider != "" {
+		return resolveEngineLLMProvider(workflowData, LLMProviderAnthropic)
+	}
+	if workflowData != nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(workflowData.Model)), "copilot/") {
+		return LLMProviderGitHub
+	}
 	return resolveEngineLLMProvider(workflowData, LLMProviderAnthropic)
+}
+
+func claudeModelID(model string) string {
+	model = strings.TrimSpace(model)
+	provider, modelID, found := strings.Cut(model, "/")
+	if found && strings.EqualFold(provider, "copilot") {
+		return modelID
+	}
+	return model
 }
 
 // GetAPMTarget returns "claude" so that apm-action packs Claude-specific primitives.
@@ -549,8 +565,9 @@ func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) 
 	if containsExpression(workflowData.Model) {
 		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(claudeModelVar, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 	}
-	claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
-	env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
+	model := claudeModelID(workflowData.Model)
+	claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, model)
+	env[constants.ClaudeCLIModelEnvVar] = model
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Claude logs

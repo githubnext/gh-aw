@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🧪"
-description: Smoke test for Claude engine on GitHub Inference that posts a concise PR summary comment
+description: Smoke test for Claude engine with Copilot model syntax on GitHub Inference that posts a concise PR summary comment
 on:
   slash_command:
     name: smoke-claude-on-copilot
@@ -12,10 +12,9 @@ permissions:
   contents: read
   pull-requests: read
 name: Smoke Claude on Copilot
-model: claude-haiku-4.5
+model: copilot/mai-code-1.1-flash
 engine:
   id: claude
-  model-provider: github
   bare: true
 strict: true
 imports:
@@ -36,7 +35,7 @@ sandbox:
 
 # Smoke Test: Claude on GitHub Inference PR Summary
 
-Goal: validate that Claude with `model-provider: github` can read the current pull request and post one concise summary comment.
+Goal: validate that Claude with a `copilot/...` model can read the current pull request and post one concise summary comment.
 
 1. If this run is not in PR context, call `noop` and stop.
 2. Read the current PR details for `${{ github.event.pull_request.number }}` from `${{ github.repository }}`.
