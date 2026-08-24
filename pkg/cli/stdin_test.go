@@ -11,6 +11,7 @@ import (
 )
 
 func TestReadRunIDsFromStdin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -65,6 +66,7 @@ func TestReadRunIDsFromStdin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			r := strings.NewReader(tt.input)
 			got, err := readRunIDsFromStdin(r)
 			require.NoError(t, err, "readRunIDsFromStdin should not return an error")
