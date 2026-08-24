@@ -233,18 +233,21 @@ func parseThreatDetectionEngineTimeout(raw any) *string {
 		return &trimmed
 	case int:
 		if v != 0 {
+			threatLog.Printf("Ignoring invalid numeric threat-detection.engine-timeout value %d; use a Go duration string such as '10m' or 0", v)
 			return nil
 		}
 		zero := "0"
 		return &zero
 	case int64:
 		if v != 0 {
+			threatLog.Printf("Ignoring invalid numeric threat-detection.engine-timeout value %d; use a Go duration string such as '10m' or 0", v)
 			return nil
 		}
 		zero := "0"
 		return &zero
 	case float64:
 		if v != 0 {
+			threatLog.Printf("Ignoring invalid numeric threat-detection.engine-timeout value %v; use a Go duration string such as '10m' or 0", v)
 			return nil
 		}
 		zero := "0"
