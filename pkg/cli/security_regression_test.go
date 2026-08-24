@@ -19,6 +19,7 @@ import (
 // TestSecurityCLICommandInjectionPrevention validates that CLI commands
 // properly sanitize inputs to prevent command injection.
 func TestSecurityCLICommandInjectionPrevention(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		workflowName   string
@@ -90,6 +91,7 @@ func TestSecurityCLICommandInjectionPrevention(t *testing.T) {
 // TestSecurityCLIPathSanitization validates that file paths are properly
 // sanitized to prevent path traversal attacks.
 func TestSecurityCLIPathSanitization(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		inputPath   string
@@ -184,6 +186,7 @@ func TestSecurityCLIPathSanitization(t *testing.T) {
 // TestSecurityCLIUnsafeFlagCombinations validates that certain flag
 // combinations that could be dangerous are handled properly.
 func TestSecurityCLIUnsafeFlagCombinations(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		config      CompileConfig
@@ -239,6 +242,7 @@ func TestSecurityCLIUnsafeFlagCombinations(t *testing.T) {
 // TestSecurityCLIInputSizeLimits validates that excessively large inputs
 // are handled properly without causing DoS.
 func TestSecurityCLIInputSizeLimits(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		contentFunc func() string
@@ -382,6 +386,7 @@ func TestSecurityCLIEnvironmentVariableSanitization(t *testing.T) {
 // TestSecurityCLIWorkflowFileValidation validates that workflow files are
 // properly validated before compilation.
 func TestSecurityCLIWorkflowFileValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		workflow      string
@@ -476,6 +481,7 @@ Test content.`,
 // TestSecurityCLIOutputDirectorySafety validates that output directories
 // are properly validated to prevent writing to unsafe locations.
 func TestSecurityCLIOutputDirectorySafety(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		outputDir     string
