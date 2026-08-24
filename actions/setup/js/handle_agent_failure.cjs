@@ -1719,6 +1719,18 @@ function isIssueWritePermissionError(error) {
 }
 
 /**
+ * Publish the newly created failure issue as step outputs so that later steps in the
+ * conclusion job (for example the pre-created pull request step, which is authenticated
+ * with the repository-scoped pull request token) can link to it.
+ * @param {{number: number, html_url: string}} issue
+ * @returns {void}
+ */
+function setFailureIssueOutputs(issue) {
+  core.setOutput("failure_issue_number", String(issue.number));
+  core.setOutput("failure_issue_url", issue.html_url);
+}
+
+/**
  * Build a context string when the Copilot CLI failed due to the token lacking inference access.
  * @param {boolean} hasInferenceAccessError - Whether an inference access error was detected
  * @returns {string} Formatted context string, or empty string if no error
@@ -4307,6 +4319,7 @@ async function main() {
         });
 
         core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+        setFailureIssueOutputs(newIssue.data);
 
         // Link as sub-issue to parent if parent issue was created
         if (parentIssue) {
@@ -4348,6 +4361,7 @@ module.exports = {
   buildTimeoutContext,
   shouldBuildEngineFailureContext,
   isIssueWritePermissionError,
+  setFailureIssueOutputs,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
   detectAWFFirewallStartupFailureFromLog,

@@ -20,6 +20,7 @@ describe("handle_agent_failure", () => {
   let buildDockerSbxSecretsContext;
   let buildAssignmentErrorsContext;
   let buildAssignCopilotFailureContext;
+  let setFailureIssueOutputs;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
   const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
@@ -53,6 +54,7 @@ describe("handle_agent_failure", () => {
       buildDockerSbxSecretsContext,
       buildAssignmentErrorsContext,
       buildAssignCopilotFailureContext,
+      setFailureIssueOutputs,
       getActionFailureIssueExpiresHours,
     } = require("./handle_agent_failure.cjs"));
   });
@@ -89,6 +91,15 @@ describe("handle_agent_failure", () => {
     it("returns default for malformed values with numeric prefixes", () => {
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "0invalid";
       expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
+  });
+
+  describe("setFailureIssueOutputs", () => {
+    it("publishes the created failure issue as step outputs", () => {
+      setFailureIssueOutputs({ number: 99, html_url: "https://github.com/owner/repo/issues/99" });
+
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_number", "99");
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_url", "https://github.com/owner/repo/issues/99");
     });
   });
 
