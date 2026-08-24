@@ -8,6 +8,7 @@ import (
 
 // TestParseGitHubURL tests the parseGitHubURL function directly
 func TestParseGitHubURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		url              string

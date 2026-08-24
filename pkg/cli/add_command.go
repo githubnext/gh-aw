@@ -78,12 +78,40 @@ type AddOptions struct {
 	NoStopAfter            bool
 	StopAfter              string
 	DisableSecurityScanner bool
+	// RepoSlug is the already-resolved target repository in owner/repo format.
+	// When set, PR creation avoids fetching the same repository metadata again.
+	RepoSlug string
+	// GhAwRef is the resolved github/gh-aw commit SHA used by compiled action references.
+	GhAwRef string
 	// AddCopilotRequestsPermission injects permissions.copilot-requests: write into
 	// the workflow frontmatter, enabling GitHub Actions token auth for Copilot.
 	// Set by the add-wizard when the user selects org-billing auth instead of a PAT.
 	AddCopilotRequestsPermission bool
-	// initializedFiles contains files created by add-wizard after its clean-tree check.
-	initializedFiles []string
+	addWizard                    *addWizardOptions
+}
+
+type addWizardOptions struct {
+	initializedFiles                    []addInitializedFile
+	workingTreePrevalidated             bool
+	showInteractiveProgress             bool
+	secretSource                        secretSource
+	skipSecret                          bool
+	disableGitHubAppPermissionInference bool
+}
+
+func (opts AddOptions) wizardInitializedPaths() []string {
+	if opts.addWizard == nil {
+		return nil
+	}
+	paths := make([]string, 0, len(opts.addWizard.initializedFiles))
+	for _, file := range opts.addWizard.initializedFiles {
+		paths = append(paths, file.path)
+	}
+	return paths
+}
+
+func (opts AddOptions) showInteractiveProgress() bool {
+	return opts.addWizard != nil && opts.addWizard.showInteractiveProgress
 }
 
 // AddWorkflowsResult contains the result of adding workflows
@@ -131,6 +159,11 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 	stopAfter, _ := cmd.Flags().GetString("stop-after")
 	disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
+	ghAwRef, _ := cmd.Flags().GetString("gh-aw-ref")
+	resolvedGhAwRef, err := resolveAddGhAwRef(cmd.Context(), ghAwRef)
+	if err != nil {
+		return err
+	}
 
 	if nameFlag != "" && len(args) > 1 {
 		return errors.New("--name was set while multiple workflows were provided. Expected --name only with a single workflow source. Example: gh aw add githubnext/agentics/daily-repo-status --name daily-repo-status")
@@ -151,6 +184,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		NoStopAfter:            noStopAfter,
 		StopAfter:              stopAfter,
 		DisableSecurityScanner: disableSecurityScanner,
+		GhAwRef:                resolvedGhAwRef,
 	}
 	resolved, err := ResolveWorkflows(cmd.Context(), args, verbose)
 	if err != nil {
@@ -221,6 +255,8 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	// Add no-security-scanner flag to add command (--disable-security-scanner is kept as a deprecated alias)
 	addSecurityScannerFlag(cmd)
 
+	cmd.Flags().String("gh-aw-ref", "", "Pin compiled workflows to a branch, tag, or commit SHA of github/gh-aw; branch and tag names are resolved to an immutable full SHA")
+
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
@@ -264,8 +300,10 @@ func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolve
 		}
 
 		// Check no other changes are present
-		if err := checkCleanWorkingDirectoryIgnoring(opts.Verbose, opts.initializedFiles); err != nil {
-			return nil, fmt.Errorf("working directory is not clean: %w", err)
+		if opts.addWizard == nil || !opts.addWizard.workingTreePrevalidated {
+			if err := checkCleanWorkingDirectoryIgnoring(opts.Verbose, opts.wizardInitializedPaths()); err != nil {
+				return nil, fmt.Errorf("working directory is not clean: %w", err)
+			}
 		}
 	}
 
@@ -436,9 +474,11 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 
 	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	fileExists := fileutil.FileExists(destFile)
-	if fileExists {
+	if fileExists && !opts.showInteractiveProgress() {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
 	}
+	stopProgress := startAddInteractiveProgress(opts, "Preparing workflow files...")
+	defer stopProgress()
 	workflowSpec = resolvedWorkflowSpec(workflowSpec, sourceInfo)
 	content, err := processWorkflowContentModifications(string(sourceContent), workflowSpec, sourceInfo, githubWorkflowsDir, opts)
 	if err != nil {
@@ -449,6 +489,15 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	}
 	compileAddedWorkflow(ctx, destFile, workflowSpec, githubWorkflowsDir, tracker, opts)
 	return nil
+}
+
+func startAddInteractiveProgress(opts AddOptions, message string) func() {
+	if !opts.showInteractiveProgress() {
+		return func() {}
+	}
+	spinner := console.NewSpinner(message)
+	spinner.Start()
+	return spinner.Stop
 }
 
 func reportAddWorkflowStart(workflowSpec *WorkflowSpec, sourceContent []byte, opts AddOptions) {
@@ -538,23 +587,23 @@ func compileAddedWorkflow(ctx context.Context, destFile string, workflowSpec *Wo
 	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
 	// compiled before the main workflow can be validated. With --force, always recompile
 	// to pick up freshly overwritten worker files.
-	compileDispatchWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.Force, tracker)
+	compileDispatchWorkflowDependenciesWithActionRef(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.GhAwRef, opts.Force, tracker)
 	// Compile any call-workflow .md worker dependencies that were just fetched and lack a
 	// .lock.yml. Errors are propagated: a missing worker .lock.yml would leave the
 	// orchestrator referencing a non-existent file. With --force, always recompile to
 	// pick up freshly overwritten worker files.
-	if err := compileCallWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.Force, tracker); err != nil {
+	if err := compileCallWorkflowDependenciesWithActionRef(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.GhAwRef, opts.Force, tracker); err != nil {
 		printCompilationError(err, opts.Quiet)
 		return
 	}
 	// Compile the workflow
 	if tracker != nil {
-		if err := compileWorkflowWithTracking(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
+		if err := compileWorkflowWithTrackingAndActionRef(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.GhAwRef, tracker); err != nil {
 			printCompilationError(err, opts.Quiet)
 		}
 		return
 	}
-	if err := compileWorkflow(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
+	if err := compileWorkflowWithActionRef(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.GhAwRef); err != nil {
 		printCompilationError(err, opts.Quiet)
 	}
 }
@@ -825,7 +874,9 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 			}
 			return fmt.Errorf("action workflow '%s' already exists in %s. Use --force to overwrite", workflowName+".yml", githubWorkflowsDir)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
+		if !opts.showInteractiveProgress() {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
+		}
 	}
 
 	if tracker != nil {

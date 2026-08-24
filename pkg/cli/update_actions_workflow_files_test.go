@@ -10,6 +10,7 @@ import (
 )
 
 func TestUpdateActionsInWorkflowFiles_UpdatesUsesReferences(t *testing.T) {
+	t.Parallel()
 	// Stub latest release lookup so no network calls are made.
 	deps := newTestActionUpdateDeps()
 	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
@@ -41,6 +42,7 @@ func TestUpdateActionsInWorkflowFiles_UpdatesUsesReferences(t *testing.T) {
 	}
 }
 func TestUpdateActionsInWorkflowFiles_NeverDowngrades(t *testing.T) {
+	t.Parallel()
 	// Mirrors TestUpdateActions_NeverDowngrades: the release resolver returns a lower
 	// version than what is already pinned in the .md file; the source file must not
 	// be rewritten to the older tag.

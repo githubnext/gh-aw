@@ -66,6 +66,7 @@ func TestResolveSecretValueForSet(t *testing.T) {
 }
 
 func TestEncryptWithPublicKey(t *testing.T) {
+	t.Parallel()
 	// Valid 32-byte public key in base64
 	validKey := "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY="
 	plaintext := "my-secret-value"
@@ -86,6 +87,7 @@ func TestEncryptWithPublicKey(t *testing.T) {
 }
 
 func TestEncryptWithPublicKeyInvalidKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		key         string
@@ -120,6 +122,7 @@ func TestEncryptWithPublicKeyInvalidKey(t *testing.T) {
 }
 
 func TestEncryptWithPublicKeyEmptyPlaintext(t *testing.T) {
+	t.Parallel()
 	validKey := "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY="
 	encrypted, err := encryptWithPublicKey(validKey, "")
 	if err != nil {
@@ -135,6 +138,7 @@ func TestEncryptWithPublicKeyEmptyPlaintext(t *testing.T) {
 }
 
 func TestEncryptDecryptRoundTrip(t *testing.T) {
+	t.Parallel()
 	// Generate a real key pair for testing
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
@@ -168,6 +172,7 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 }
 
 func TestSecretSetClientOptions(t *testing.T) {
+	t.Parallel()
 	t.Run("defaults include timeout", func(t *testing.T) {
 		opts := secretSetClientOptions("")
 		if opts.Host != "" {

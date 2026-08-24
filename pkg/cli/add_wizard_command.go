@@ -76,6 +76,11 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			appendText, _ := cmd.Flags().GetString("append")
 			disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
 			noGitHubAppInference, _ := cmd.Flags().GetBool("no-config")
+			ghAwRef, _ := cmd.Flags().GetString("gh-aw-ref")
+			resolvedGhAwRef, err := resolveAddGhAwRef(cmd.Context(), ghAwRef)
+			if err != nil {
+				return err
+			}
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -103,6 +108,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 				AppendText:                          appendText,
 				DisableSecurityScanner:              disableSecurityScanner,
 				DisableGitHubAppPermissionInference: noGitHubAppInference,
+				GhAwRef:                             resolvedGhAwRef,
 			})
 		},
 	}
@@ -137,6 +143,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add no-config flag to allow disabling automatic inference of GitHub App
 	// permissions/events from resolved package workflows.
 	cmd.Flags().Bool("no-config", false, "Disable inferring GitHub App permissions/events from the package's workflows; use only permissions/events declared in aw.yml")
+	cmd.Flags().String("gh-aw-ref", "", "Pin compiled workflows to a branch, tag, or commit SHA of github/gh-aw; branch and tag names are resolved to an immutable full SHA")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

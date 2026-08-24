@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -10,6 +11,35 @@ import (
 
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+func TestCreatePRForRepoSkipsRepositoryLookup(t *testing.T) {
+	originalRunGH := createPRRunGHContextWithHost
+	t.Cleanup(func() { createPRRunGHContextWithHost = originalRunGH })
+
+	var calls [][]string
+	createPRRunGHContextWithHost = func(_ context.Context, _ string, _ string, args ...string) ([]byte, error) {
+		calls = append(calls, args)
+		if len(args) >= 2 && args[0] == "repo" && args[1] == "view" {
+			t.Fatal("known repository slug must skip gh repo view")
+		}
+		return []byte("https://github.com/owner/repo/pull/42\n"), nil
+	}
+
+	prNumber, prURL, err := createPRForRepo(context.Background(), "feature", "Title", "Body", "owner/repo", false)
+	if err != nil {
+		t.Fatalf("createPRForRepo() error = %v", err)
+	}
+	if prNumber != 42 || prURL != "https://github.com/owner/repo/pull/42" {
+		t.Fatalf("createPRForRepo() = (%d, %q), want (42, PR URL)", prNumber, prURL)
+	}
+	if len(calls) != 1 {
+		t.Fatalf("gh call count = %d, want 1", len(calls))
+	}
+	args := strings.Join(calls[0], " ")
+	if !strings.Contains(args, "pr create --repo owner/repo") {
+		t.Fatalf("gh args = %q, want explicit repository", args)
+	}
+}
 
 func TestParsePRURL(t *testing.T) {
 	t.Parallel()
