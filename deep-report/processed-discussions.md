@@ -92,3 +92,8 @@ Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:
 
 ### Processed 2026-08-23 ~06:23Z cycle (full — all 11 new/updated discussions read; window since 00:35:59Z baseline #54946, recovered from #54946's own report body since the memory timestamp was stale by one cycle — see known_patterns.md)
 54937, 54965, 54970, 54972, 54984, 54985, 54989, 54993, 54999, 55005, 55007 — all read in full, no sampling shortfall. 6 code-quality/reliability tasks extracted and filed (2 firewall network.allowed gaps, Quick Start docs bundle, cap_net_raw hardening cleanup, eslint-factory warn-vs-error severity gap, LintMonster's dropped "planned" path-join fix). Sergo and ESLint Refiner's individual rule/bug findings already self-filed by their source workflows. Compiler Code Quality's extractAdditionalConfigurations finding tentatively declined as likely-subsumed by #54699 (unconfirmed, flagged for follow-up).
+
+## Discussions mined for code-quality tasks (processed through 2026-08-24 ~00:30Z)
+
+### Processed 2026-08-24 ~00:30Z cycle (full — all 11 new/updated discussions read; window since 18:28Z baseline #55123, own prior briefing #55134 excluded)
+55126, 55127, 55139, 55160, 55163, 55168, 55170, 55173, 55191, 55193, 55194 — all read in full, no sampling shortfall. 4 code-quality/reliability tasks extracted and filed (detection-config gap, codex MCP binary shared-path fix, cross-report metrics counting bug, lockfile-stats regex gap). Design Decision Gate, Code Scanning Fixer, codex 401 auth, cross-engine segfault, and Serena Go crashes all declined as already-tracked via existing open P0/P1 issues per #55194's cluster mapping.
