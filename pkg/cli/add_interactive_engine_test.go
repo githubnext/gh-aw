@@ -61,7 +61,7 @@ func TestCopilotAuthMethodDescription(t *testing.T) {
 
 	t.Run("bullets both authentication methods", func(t *testing.T) {
 		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{}, "")
-		assert.Equal(t, "• PAT: Create a COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.", description)
+		assert.Equal(t, "• PAT: Create or use a COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.", description)
 	})
 
 	t.Run("describes an existing organization secret precisely", func(t *testing.T) {

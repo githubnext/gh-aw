@@ -18,6 +18,11 @@ import (
 
 var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
 
+const (
+	ghAwDocumentationURL = "https://github.github.com/gh-aw/"
+	ghAwRepositoryURL    = "https://github.com/github/gh-aw"
+)
+
 // invalidBranchCharsPattern matches characters not allowed in git branch names
 var invalidBranchCharsPattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
@@ -206,9 +211,9 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) string {
 	var body strings.Builder
 	if opts.addWizard != nil {
-		fmt.Fprintf(&body, "This pull request was created with [`gh aw add-wizard`](https://github.github.com/gh-aw/) from [GitHub Agentic Workflows](https://github.com/github/gh-aw), version `%s`.\n", markdownText(GetVersion()))
+		fmt.Fprintf(&body, "This pull request was created with [`gh aw add-wizard`](%s) from [GitHub Agentic Workflows](%s), version `%s`.\n", ghAwDocumentationURL, ghAwRepositoryURL, markdownText(GetVersion()))
 	} else {
-		fmt.Fprintf(&body, "This pull request was created with [`gh aw add`](https://github.github.com/gh-aw/) from [GitHub Agentic Workflows](https://github.com/github/gh-aw), version `%s`.\n", markdownText(GetVersion()))
+		fmt.Fprintf(&body, "This pull request was created with [`gh aw add`](%s) from [GitHub Agentic Workflows](%s), version `%s`.\n", ghAwDocumentationURL, ghAwRepositoryURL, markdownText(GetVersion()))
 	}
 
 	body.WriteString("\n## Workflows\n")

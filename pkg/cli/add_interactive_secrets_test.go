@@ -304,7 +304,13 @@ func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
 			return []byte("REPOSITORY_SECRET\n"), nil
 		case "/orgs/test-owner/actions/secrets":
 			assert.Contains(t, args, "--paginate")
-			return []byte("ALL_SECRET\tall\nPRIVATE_SECRET\tprivate\nSELECTED_SECRET\tselected\nINACCESSIBLE_SECRET\tselected\n"), nil
+			assert.Contains(t, args, "--slurp")
+			return []byte(`[{"secrets":[
+				{"name":"ALL_SECRET","visibility":"all"},
+				{"name":"PRIVATE_SECRET","visibility":"private"},
+				{"name":"SELECTED_SECRET","visibility":"selected"},
+				{"name":"INACCESSIBLE_SECRET","visibility":"selected"}
+			]},{"secrets":[{"name":"PAGINATED_SECRET","visibility":"all"}]}]`), nil
 		case "/orgs/test-owner/actions/secrets/SELECTED_SECRET/repositories":
 			assert.Contains(t, args, "--paginate")
 			return []byte("test-owner/test-repo\n"), nil
@@ -324,6 +330,7 @@ func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
 	assert.Contains(t, config.existingSecrets, "ALL_SECRET")
 	assert.Contains(t, config.existingSecrets, "PRIVATE_SECRET")
 	assert.Contains(t, config.existingSecrets, "SELECTED_SECRET")
+	assert.Contains(t, config.existingSecrets, "PAGINATED_SECRET")
 	assert.NotContains(t, config.existingSecrets, "INACCESSIBLE_SECRET")
 	assert.Equal(t, secretSourceRepository, config.secretSources["REPOSITORY_SECRET"])
 	assert.Equal(t, secretSourceOrganizationSelected, config.secretSources["SELECTED_SECRET"])

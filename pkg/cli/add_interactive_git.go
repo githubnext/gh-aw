@@ -43,21 +43,21 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
 	// This returns the result including PR number and HasWorkflowDispatch
 	opts := AddOptions{
-		Verbose:                            c.Verbose,
-		Quiet:                              true,
-		EngineOverride:                     c.EngineOverride,
-		Name:                               "",
-		Force:                              c.forceOverwrite,
-		AppendText:                         c.AppendText,
-		CreatePR:                           createPR,
-		NoGitattributes:                    c.NoGitattributes,
-		WorkflowDir:                        c.WorkflowDir,
-		NoStopAfter:                        c.NoStopAfter,
-		StopAfter:                          c.StopAfter,
-		DisableSecurityScanner:             c.DisableSecurityScanner,
-		RepoSlug:                           c.RepoOverride,
-		AddCopilotRequestsPermission:       c.UseCopilotRequests,
-		GhAwRef:                            c.GhAwRef,
+		Verbose:                      c.Verbose,
+		Quiet:                        true,
+		EngineOverride:               c.EngineOverride,
+		Name:                         "",
+		Force:                        c.forceOverwrite,
+		AppendText:                   c.AppendText,
+		CreatePR:                     createPR,
+		NoGitattributes:              c.NoGitattributes,
+		WorkflowDir:                  c.WorkflowDir,
+		NoStopAfter:                  c.NoStopAfter,
+		StopAfter:                    c.StopAfter,
+		DisableSecurityScanner:       c.DisableSecurityScanner,
+		RepoSlug:                     c.RepoOverride,
+		AddCopilotRequestsPermission: c.UseCopilotRequests,
+		GhAwRef:                      c.GhAwRef,
 		addWizard: &addWizardOptions{
 			initializedFiles:                    initFiles,
 			workingTreePrevalidated:             createPR,
@@ -371,14 +371,6 @@ func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR(workflowFiles, in
 			return errors.New("user exited before cleaning the working tree")
 		}
 	}
-}
-
-func (c *AddInteractiveConfig) plannedAddPaths(workflowFiles, initFiles []string) ([]string, error) {
-	gitRoot, err := addFindGitRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine repository root for PR preflight: %w", err)
-	}
-	return c.plannedAddPathsAtRoot(gitRoot, workflowFiles, initFiles)
 }
 
 func (c *AddInteractiveConfig) plannedAddPathsAtRoot(gitRoot string, workflowFiles, initFiles []string) ([]string, error) {

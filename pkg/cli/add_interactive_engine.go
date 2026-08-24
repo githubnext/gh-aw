@@ -311,7 +311,7 @@ func copilotAuthMethodDescription(probe orgCopilotBillingProbeResult, source sec
 	if probe.InfoNote != "" {
 		copilotRequestsDescription += "\n  (NOTE: " + probe.InfoNote + "\n   Check with your org admin if you want to use this option.)"
 	}
-	patDescription := "• PAT: Create a COPILOT_GITHUB_TOKEN repository secret."
+	patDescription := "• PAT: Create or use a COPILOT_GITHUB_TOKEN repository secret."
 	if source != "" {
 		patDescription = "• PAT: Reuse the existing COPILOT_GITHUB_TOKEN " + string(source) + " secret."
 	}

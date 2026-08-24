@@ -80,10 +80,6 @@ func compileWorkflowWithTrackingAndActionRef(ctx context.Context, filePath strin
 
 // compileWorkflowWithTrackingAndRefresh compiles a workflow, tracks generated files, and optionally refreshes stop time.
 // This function ensures that the file tracker records all files created or modified during compilation.
-func compileWorkflowWithTrackingAndRefresh(ctx context.Context, filePath string, verbose bool, quiet bool, engineOverride string, tracker *FileTracker, refreshStopTime bool) error {
-	return compileWorkflowWithTrackingAndRefreshAndActionRef(ctx, filePath, verbose, quiet, engineOverride, "", tracker, refreshStopTime)
-}
-
 func compileWorkflowWithTrackingAndRefreshAndActionRef(ctx context.Context, filePath string, verbose bool, quiet bool, engineOverride, actionRef string, tracker *FileTracker, refreshStopTime bool) error {
 	addWorkflowCompilationLog.Printf("Compiling workflow with tracking: file=%s, refresh_stop_time=%v", filePath, refreshStopTime)
 

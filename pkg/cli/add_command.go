@@ -87,7 +87,7 @@ type AddOptions struct {
 	// the workflow frontmatter, enabling GitHub Actions token auth for Copilot.
 	// Set by the add-wizard when the user selects org-billing auth instead of a PAT.
 	AddCopilotRequestsPermission bool
-	addWizard *addWizardOptions
+	addWizard                    *addWizardOptions
 }
 
 type addWizardOptions struct {

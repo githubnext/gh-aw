@@ -560,13 +560,11 @@ func TestConfirmAndInitializeAddRepository(t *testing.T) {
 	originalFindGitRoot := addFindGitRoot
 	originalInitRepository := addInitRepository
 	originalMissingInitMarkers := addMissingInitMarkers
-	originalMissingAuthoringSupportFiles := addMissingAuthoringSupportFiles
 	originalConfirmAuthoringSupport := addConfirmAuthoringSupport
 	t.Cleanup(func() {
 		addFindGitRoot = originalFindGitRoot
 		addInitRepository = originalInitRepository
 		addMissingInitMarkers = originalMissingInitMarkers
-		addMissingAuthoringSupportFiles = originalMissingAuthoringSupportFiles
 		addConfirmAuthoringSupport = originalConfirmAuthoringSupport
 	})
 
@@ -622,24 +620,25 @@ func TestConfirmAndInitializeAddRepository(t *testing.T) {
 			path: filepath.Join(repoDir, filepath.FromSlash(marker)), displayPath: marker,
 		}}, files)
 	})
-}
 
-func TestMissingAddAuthoringSupportFiles(t *testing.T) {
-	repoDir := t.TempDir()
-	for _, path := range expectedBootstrapInitMarkers("copilot") {
-		fullPath := filepath.Join(repoDir, filepath.FromSlash(path))
-		require.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0755))
-		require.NoError(t, os.WriteFile(fullPath, nil, 0644))
-	}
+	t.Run("preserves original contents for stale support files", func(t *testing.T) {
+		marker := ".vscode/settings.json"
+		markerPath := filepath.Join(repoDir, filepath.FromSlash(marker))
+		require.NoError(t, os.WriteFile(markerPath, []byte("original"), 0644))
+		addMissingInitMarkers = func(string, string) ([]string, error) { return []string{marker}, nil }
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
+		addInitRepository = func(InitOptions) error {
+			return os.WriteFile(markerPath, []byte("updated"), 0644)
+		}
 
-	missing, err := missingAddAuthoringSupportFiles(repoDir, "copilot", false)
-	require.NoError(t, err)
-	assert.Empty(t, missing, "existing support files should suppress the optional setup prompt")
-
-	require.NoError(t, os.Remove(filepath.Join(repoDir, ".gitattributes")))
-	missing, err = missingAddAuthoringSupportFiles(repoDir, "copilot", true)
-	require.NoError(t, err)
-	assert.Empty(t, missing, "--no-gitattributes should not require .gitattributes")
+		plan, err := confirmAddRepositoryInitialization(context.Background(), "copilot", false)
+		require.NoError(t, err)
+		files, err := applyAddRepositoryInitialization(plan, "copilot", false, false)
+		require.NoError(t, err)
+		require.Equal(t, []addInitializedFile{{
+			path: markerPath, displayPath: marker, wasExisting: true, originalContent: []byte("original"),
+		}}, files)
+	})
 }
 
 func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {
