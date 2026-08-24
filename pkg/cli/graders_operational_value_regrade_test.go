@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -150,6 +151,29 @@ func TestVerifyArchivedOperationalValueEvaluatorSource(t *testing.T) {
 	}
 	if err := verifyArchivedOperationalValueEvaluatorSource(repoRoot, "owner/repo", "owner/repo", string(content)+"# changed\n", hex.EncodeToString(digest[:]), manifest, subject); err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("expected source mismatch, got %v", err)
+	}
+}
+
+func TestReadArchivedOperationalValueEvaluatorRejectsSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires additional privileges on Windows")
+	}
+	runDir := t.TempDir()
+	gradersDir := filepath.Join(runDir, "agent", "graders")
+	if err := os.MkdirAll(gradersDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	targetPath := filepath.Join(runDir, "evaluator.sh")
+	if err := os.WriteFile(targetPath, []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(targetPath, filepath.Join(gradersDir, "operational_value_evaluator.sh")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := readArchivedOperationalValueEvaluator(runDir)
+	if err == nil || !strings.Contains(err.Error(), "must not be a symbolic link") {
+		t.Fatalf("expected symbolic-link rejection, got %v", err)
 	}
 }
 

@@ -1,6 +1,6 @@
 // @ts-check
 
-const { executeOperationalValueEvaluator, buildRunSubject } = require("./operational_value_grader.cjs");
+const { executeOperationalValueEvaluator, buildRunSubject, safeFunctionEnv, OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT } = require("./operational_value_grader.cjs");
 
 const TEST_ENV = {
   PATH: process.env.PATH,
@@ -36,6 +36,13 @@ esac
 }
 
 describe("operational_value_grader", () => {
+  it("uses the gh-aw agent temp root and forwards the GitHub GraphQL URL", () => {
+    expect(OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT).toBe("/tmp/gh-aw/agent");
+    expect(safeFunctionEnv({ GITHUB_GRAPHQL_URL: "https://api.github.com/graphql" })).toEqual({
+      GITHUB_GRAPHQL_URL: "https://api.github.com/graphql",
+    });
+  });
+
   it("builds a stable workflow-run subject", () => {
     expect(buildRunSubject(TEST_ENV)).toEqual({
       id: "12345",

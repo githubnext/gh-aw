@@ -232,21 +232,25 @@ func resolveOperationalValueRegradeRepo(repoOverride string) (repoSlug, artifact
 
 func readArchivedOperationalValueEvaluator(runDir string) (string, string, error) {
 	evaluatorPath := filepath.Join(runDir, "agent", "graders", constants.OperationalValueEvaluatorFilename)
-	if _, err := os.Stat(evaluatorPath); err != nil {
+	info, err := os.Lstat(evaluatorPath)
+	if err != nil {
 		evaluatorPath = filepath.Join(runDir, "graders", constants.OperationalValueEvaluatorFilename)
+		info, err = os.Lstat(evaluatorPath)
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("cannot inspect archived operational-value evaluator: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", "", errors.New("archived operational-value evaluator must not be a symbolic link")
+	}
+	if !info.Mode().IsRegular() {
+		return "", "", errors.New("archived operational-value evaluator must be a regular file")
 	}
 	file, err := os.Open(evaluatorPath)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot read archived operational-value evaluator: %w", err)
 	}
 	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
-		return "", "", fmt.Errorf("cannot inspect archived operational-value evaluator: %w", err)
-	}
-	if !info.Mode().IsRegular() {
-		return "", "", errors.New("archived operational-value evaluator must be a regular file")
-	}
 	content, err := io.ReadAll(io.LimitReader(file, maxOperationalValueRegradeEvaluatorBytes+1))
 	if err != nil {
 		return "", "", fmt.Errorf("cannot read archived operational-value evaluator: %w", err)

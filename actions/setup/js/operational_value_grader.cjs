@@ -2,13 +2,13 @@
 
 const cp = require("child_process");
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS = 120000;
 const OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT = 1024 * 1024;
 const OPERATIONAL_VALUE_EVENT_MAX_SIZE = 1024 * 1024;
+const OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT = "/tmp/gh-aw/agent";
 
 /** @param {unknown} value @returns {value is Record<string, any>} */
 function isRecord(value) {
@@ -63,7 +63,7 @@ function readEventPayload(env) {
 function safeFunctionEnv(env) {
   /** @type {NodeJS.ProcessEnv} */
   const result = {};
-  for (const key of ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec", "GH_TOKEN", "GH_HOST", "GITHUB_API_URL", "GITHUB_SERVER_URL"]) {
+  for (const key of ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec", "GH_TOKEN", "GH_HOST", "GITHUB_API_URL", "GITHUB_GRAPHQL_URL", "GITHUB_SERVER_URL"]) {
     if (env[key]) result[key] = env[key];
   }
   return result;
@@ -113,7 +113,8 @@ function executeOperationalValueEvaluator(evaluatorContent, meta, options = {}) 
     config: meta.config || {},
   };
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-operational-value-grader-"));
+  fs.mkdirSync(OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT, { recursive: true, mode: 0o700 });
+  const tempDir = fs.mkdtempSync(path.join(OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT, "operational-value-grader-"));
   const evaluatorPath = path.join(tempDir, "operational-value.sh");
   const bashPath = options.bashPath || "/bin/bash";
   try {
@@ -215,6 +216,8 @@ module.exports = {
   readEventPayload,
   parseTimestamp,
   parseOperationalValueBaselineDefinition,
+  safeFunctionEnv,
+  OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT,
   OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS,
   OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
   OPERATIONAL_VALUE_EVENT_MAX_SIZE,
