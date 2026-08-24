@@ -88,7 +88,7 @@
               }
             ]
           },
-          "description": "Guest-visible absolute paths that may be writable. When present, existing writable host bind mounts are made read-only outside these paths. An empty array makes all non-internal host bind mounts read-only. Paths must exist and cannot use glob patterns. This option is currently supported by Docker and gVisor compose runtimes."
+          "description": "Guest-visible absolute paths that may be writable. When present, existing writable host bind mounts are made read-only outside these paths. An empty array makes all non-internal host bind mounts read-only. Paths must exist and cannot use glob patterns. This option is supported by the Docker and gVisor compose runtimes and by the Cloud Hypervisor microVM runtime; it is rejected with the sbx runtime and with Docker-in-Docker agent execution."
         }
       }
     },
