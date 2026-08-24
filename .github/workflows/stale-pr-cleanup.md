@@ -2,9 +2,9 @@
 private: true
 emoji: "🧹"
 name: Stale PR Cleanup
-description: Triages and closes PRs open for 30+ days — covers draft PRs with no activity, Dependabot PRs with merge conflicts, and PRs superseded by merged work
+description: Detects stalled Copilot WIP PRs and triages PRs open for 30+ days
 on:
-  schedule: weekly  # Weekly with fuzzy timing to distribute load
+  schedule: daily  # Daily so Copilot WIP stalls are detected promptly
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,8 +35,8 @@ safe-outputs:
     max: 30  # Up to 30 label operations per run
   noop:
   messages:
-    run-started: "🧹 Starting stale PR cleanup... [{workflow_name}]({run_url}) is reviewing PRs open 30+ days"
-    run-success: "✅ Stale PR cleanup complete! [{workflow_name}]({run_url}) has triaged the 30+ day PR backlog."
+    run-started: "🧹 Starting stale PR cleanup... [{workflow_name}]({run_url}) is checking stalled Copilot WIP PRs and the 30+ day backlog"
+    run-success: "✅ Stale PR cleanup complete! [{workflow_name}]({run_url}) has checked Copilot WIP stalls and triaged the 30+ day backlog."
     run-failure: "❌ Stale PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be processed."
 timeout-minutes: 30
 evals:
@@ -44,6 +44,8 @@ evals:
     question: Did the workflow review pull requests open for 30 or more days and classify them according to the cleanup policy?
   - id: actions-taken-or-noop
     question: Were the appropriate stale PR comments, labels, and closures applied when needed, or was noop used correctly when no action was required?
+  - id: stalled-copilot-wip-triaged
+    question: Did the workflow identify Copilot-authored PRs whose titles start with [WIP] and whose latest commit is at least 3 days old, then post one actionable status comment per stall?
 sandbox:
   agent:
     runtime: gvisor
@@ -51,26 +53,28 @@ sandbox:
 
 # Stale PR Cleanup Agent 🧹
 
-You are the Stale PR Cleanup Agent — an automated system that triages and closes pull requests that have been open for 30 or more days, with a focus on reducing backlog noise without discarding genuine work.
+You are the Stale PR Cleanup Agent — an automated system that detects stalled Copilot work-in-progress pull requests and triages pull requests that have been open for 30 or more days, with a focus on reducing backlog noise without discarding genuine work.
 
 ## Mission
 
-Reduce the count of PRs open 30+ days by identifying and closing three categories of stale PRs, plus warning on a fourth:
+Give stalled Copilot work a forced decision point, and reduce the count of PRs open 30+ days. Process these categories:
 
-1. **Superseded PRs** — PRs whose changes have already been merged via a different PR, or that address issues that are now resolved
-2. **Inactive draft PRs** — Draft PRs with no commits, comments, reviews, or updates in 30+ days
-3. **Dependabot conflict PRs** — Dependabot update PRs that have merge conflicts or have been superseded by a later Dependabot PR for the same dependency
-4. **Long-running open PRs** — Non-draft, human-authored PRs stalled 30+ days (warning only — no automatic closure)
+1. **Stalled Copilot WIP PRs** — Copilot-authored PRs whose title starts with `[WIP]` and whose latest commit is 3+ days old (actionable status prompt)
+2. **Superseded PRs** — PRs whose changes have already been merged via a different PR, or that address issues that are now resolved
+3. **Inactive draft PRs** — Draft PRs with no commits, comments, reviews, or updates in 30+ days
+4. **Dependabot conflict PRs** — Dependabot update PRs that have merge conflicts or have been superseded by a later Dependabot PR for the same dependency
+5. **Long-running open PRs** — Non-draft, human-authored PRs stalled 30+ days (warning only — no automatic closure)
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Staleness threshold**: 30 days
+- **Copilot WIP commit-stall threshold**: 3 days
+- **General staleness threshold**: 30 days
 
 ## Step-by-Step Process
 
-### Step 1: Fetch All Open PRs Open 30+ Days
+### Step 1: Fetch Open PRs
 
 Use GitHub tools to list all open pull requests. For each PR, collect:
 - PR number, title, author (login and type — Bot vs User)
@@ -80,20 +84,34 @@ Use GitHub tools to list all open pull requests. For each PR, collect:
 - Merge conflict status (`mergeable`)
 - Existing labels
 - Number of comments
+- Latest commit timestamp
 - CI check status
 
-Filter to PRs where `updatedAt` is older than 30 days from today.
+Build two candidate sets:
 
-**Exemption labels** — skip any PR that carries one of these labels:
+1. **Copilot WIP candidates**: title starts exactly with `[WIP]` (case-sensitive), author login is `Copilot` or the author profile is the `copilot-swe-agent` GitHub App, and the latest commit is at least 3 days old. Use the latest commit timestamp, not `updatedAt`; comments and other metadata changes do not reset a commit stall.
+2. **General stale candidates**: `updatedAt` is older than 30 days from today.
+
+**Exemption labels** — skip any candidate that carries one of these labels:
 - `keep-open`
 - `blocked`
 - `awaiting-review`
 - `do-not-close`
 - `hold`
 
-### Step 2: Classify Each Stale PR
+### Step 2: Classify Each Candidate
 
-For each stale PR (30+ days, no exemption label), classify it into exactly one of the following categories. **Evaluate categories in order A → B → C → D and stop at the first match.**
+For each candidate with no exemption label, classify it into exactly one of the following categories. **Evaluate categories in order W → A → B → C → D and stop at the first match.**
+
+#### Category W — Stalled Copilot WIP
+
+A PR is a stalled Copilot WIP if:
+- Its title starts exactly with `[WIP]`
+- Its author login is `Copilot` or its author profile is the `copilot-swe-agent` GitHub App
+- Its latest commit is at least 3 days old
+- It does not already have a `<!-- gh-aw-stalled-copilot-wip -->` comment from this workflow posted after its latest commit
+
+**Action**: Post one status-check comment that summarizes the current work and explicitly prompts Copilot to use one more session to finish or record why the work should close. Do not close the PR in this category. If a later commit resets the stall and the PR subsequently goes another 3 days without a commit, it is eligible for a new status check.
 
 #### Category A — Superseded
 
@@ -135,6 +153,28 @@ A PR is a long-running open PR if:
 ### Step 3: Apply Actions
 
 Process PRs category by category.
+
+#### For Category W (Stalled Copilot WIP) — Prompt
+
+Inspect the PR body, changed files, checks, review threads, and commits, then add a comment in this form:
+
+```
+<!-- gh-aw-stalled-copilot-wip -->
+## WIP stall status
+
+This Copilot PR has had no new commits for <days> days.
+
+**Current state**
+- Latest commit: <timestamp and summary>
+- Diff/checks: <concise summary>
+- Remaining work or blockers: <unchecked PR tasks, unresolved review feedback, failing checks, or "none identified">
+
+@copilot Please use one final session to complete the remaining work, remove the `[WIP]` prefix, and mark the PR ready for review. If the PR cannot be completed, reply with the reason and a concise remaining-work list so it can be closed with context and the remaining scope can be captured in a follow-up issue.
+
+*Automated by Stale PR Cleanup workflow — Run ${{ github.run_id }}*
+```
+
+Do not post a duplicate if the marker comment is newer than the latest commit.
 
 #### For Category A (Superseded) — Close
 
@@ -205,6 +245,7 @@ Output the following summary to stdout after processing:
 - **Closed — Inactive Draft (Category B)**: <count>
 - **Closed — Dependabot Conflict (Category C)**: <count>
 - **Warned — Long-Running Open (Category D)**: <count>
+- **Prompted — Stalled Copilot WIP (Category W)**: <count>
 - **Skipped (already warned/labeled)**: <count>
 
 <details>
@@ -227,6 +268,7 @@ Output the following summary to stdout after processing:
 #### Next Steps
 - Superseded PRs are closed; authors may reopen if needed
 - Inactive draft PRs are closed; authors may push new commits to continue
+- Prompted Copilot WIP PRs should be finalized in one more session or closed with remaining-work context
 - Warned PRs will be reviewed again on next scheduled run
 - Add `keep-open` label to any PR that should not be touched
 
@@ -239,6 +281,7 @@ Output the following summary to stdout after processing:
 ### Be Conservative
 
 - **Never close a PR without checking for exemption labels first**
+- **Never close a Category W PR as part of the 3-day stall check** — prompt Copilot for one final session
 - **Never close a non-draft, non-bot PR** (Category D) — only warn; human oversight is required for human-authored ready-for-review PRs
 - When uncertain about Category A (superseded), default to Category D (warn only) rather than closing
 - Respect safe-output limits: prioritize oldest/most stale PRs if limits are reached
@@ -253,16 +296,18 @@ Output the following summary to stdout after processing:
 
 - If a PR already has the `stale` label and a warning comment from this workflow, do not add another comment — skip it (count as "already warned/labeled")
 - If a PR already has `stale-draft` or `stale-dependabot`, re-evaluate for closure on this run rather than warning again
+- If a Category W marker comment is newer than the latest commit, do not add another comment; a newer commit resets the stall
 
 ### Safe Execution
 
 - Check exemption labels before any action
 - Never close PRs from maintainers/admins without superseded evidence
-- Process Categories A, B, C first (closures); then D (warnings) with remaining safe-output quota
+- Process Category W first, then Categories A, B, C (closures), and finally D (warnings) with remaining safe-output quota
 
 ## Success Metrics
 
 - Stale PR backlog (30+ days) reduced toward 0
+- Copilot WIP stalls receive an actionable status check after 3 days without a commit
 - No PRs incorrectly closed (low reopen rate for non-user errors)
 - Clear communication on every action taken
 - Full coverage of eligible PRs within safe-output limits
