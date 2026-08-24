@@ -91,7 +91,7 @@ func writeAndCompileEditedWorkflow(workflowPath string, content []byte, updated 
 	previousLock, lockErr := os.ReadFile(lockPath)
 	lockExisted := lockErr == nil
 	if lockErr != nil && !os.IsNotExist(lockErr) {
-		return fmt.Errorf("read generated workflow: %w", lockErr)
+		return fmt.Errorf("read generated lock file: %w", lockErr)
 	}
 	if err := os.WriteFile(workflowPath, []byte(updated), 0o644); err != nil {
 		return fmt.Errorf("write workflow: %w", err)
