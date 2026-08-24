@@ -182,7 +182,7 @@ func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
 	if err := c.resolveWorkflows(); err != nil {
 		return err
 	}
-	console.ShowAnimatedWelcomeBanner(c.welcomeMessage())
+	console.ShowWelcomeBanner(c.welcomeMessage())
 	c.showWorkflowDescriptions()
 	if err := c.checkGHAuthStatus(); err != nil {
 		return err
