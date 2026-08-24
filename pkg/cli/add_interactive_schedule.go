@@ -215,13 +215,10 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		// Build the ordered option list
 		options := buildScheduleOptions(rawExpr, currentFreq)
 
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This workflow runs on a schedule."))
-
 		var selected string
 		form := console.NewSelectForm(
 			huh.NewSelect[string]().
-				Title("How often should this workflow run?").
+				Title("This workflow runs on a schedule. How often should it run?").
 				Description("Current schedule: " + rawExpr).
 				Options(options...).
 				Value(&selected),
@@ -236,6 +233,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		// "custom" or same frequency means keep as-is
 		if selected == "custom" || selected == currentFreq {
 			scheduleWizardLog.Printf("Schedule unchanged: keeping %q", rawExpr)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected schedule: "+rawExpr))
 			continue
 		}
 
@@ -272,7 +270,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		if wf.SourceInfo != nil {
 			wf.SourceInfo.Content = []byte(updatedContent)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Schedule updated to: "+selected))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected schedule: "+selected))
 	}
 
 	return nil

@@ -148,6 +148,28 @@ engine: claude
 	}
 }
 
+func TestUpdateWorkflowFrontmatterQuotesCronExpressions(t *testing.T) {
+	workflowPath := filepath.Join(testutil.TempDir(t, "test-*"), "scheduled-workflow.md")
+	initialContent := `---
+on:
+  schedule:
+    - cron: "0 14 * * 1-5"
+---
+# Scheduled Workflow`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(initialContent), 0644))
+
+	err := UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
+		frontmatter["engine"] = "copilot"
+		return nil
+	}, false)
+	require.NoError(t, err)
+
+	updatedContent, err := os.ReadFile(workflowPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(updatedContent), `cron: "0 14 * * 1-5"`)
+	assert.Contains(t, string(updatedContent), "engine: copilot")
+}
+
 func TestUpdateWorkflowFrontmatterErrorIncludesWorkflowPath(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 

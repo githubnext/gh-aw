@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -132,6 +134,37 @@ func TestAddInteractiveConfig_primaryWorkflowName(t *testing.T) {
 
 		assert.Equal(t, "test-workflow", config.primaryWorkflowName())
 	})
+}
+
+func TestAddInteractiveConfig_welcomeMessage(t *testing.T) {
+	t.Parallel()
+	config := &AddInteractiveConfig{
+		WorkflowSpecs: []string{"githubnext/agentics/repo-assist"},
+		resolvedWorkflows: &ResolvedWorkflows{Workflows: []*ResolvedWorkflow{
+			{Spec: &WorkflowSpec{WorkflowName: "repo-assist"}},
+		}},
+	}
+
+	assert.Equal(t, `This tool will walk you through adding the automated workflow "repo-assist" from "githubnext/agentics/repo-assist".`, config.welcomeMessage())
+	assert.Equal(t, "Source workflow: githubnext/agentics/repo-assist", config.sourceWorkflowMessage())
+}
+
+func TestAddInteractiveConfig_showLocalWriteInstructionsUsesWorkflowName(t *testing.T) {
+	config := &AddInteractiveConfig{
+		WorkflowSpecs: []string{"githubnext/agentics/repo-assist"},
+		resolvedWorkflows: &ResolvedWorkflows{Workflows: []*ResolvedWorkflow{
+			{Spec: &WorkflowSpec{WorkflowName: "repo-assist"}},
+		}},
+	}
+
+	output := testutil.CaptureStderr(t, config.showLocalWriteInstructions)
+
+	assert.Equal(t, 1, strings.Count(output, "written locally"), "local completion should be reported once")
+	assert.Contains(t, output, "Workflow 'repo-assist' written locally; no pull request was created.")
+	assert.Contains(t, output, "git add -A && git commit -m 'Add repo-assist'")
+	assert.Contains(t, output, "gh aw run repo-assist  # Trigger the workflow")
+	assert.NotContains(t, output, "Files written locally!")
+	assert.NotContains(t, output, "gh aw run <workflow>")
 }
 
 func TestAddInteractiveConfig_showWorkflowDescriptions(t *testing.T) {
@@ -311,8 +344,26 @@ func TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSec
 	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
 	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	// Drive the huh confirm form via accessible (line-based) mode, answering "no" to
-	// "Do you want to create a pull request with these changes?".
+	originalConfirmAuthoringSupport := addConfirmAuthoringSupport
+	originalMissingInitMarkers := addMissingInitMarkers
+	originalInitRepository := addInitRepository
+	initializationRan := false
+	addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
+	addMissingInitMarkers = func(string, string) ([]string, error) {
+		return []string{bootstrapAgenticSkillPath}, nil
+	}
+	addInitRepository = func(InitOptions) error {
+		initializationRan = true
+		return nil
+	}
+	t.Cleanup(func() {
+		addConfirmAuthoringSupport = originalConfirmAuthoringSupport
+		addMissingInitMarkers = originalMissingInitMarkers
+		addInitRepository = originalInitRepository
+	})
+
+	// Drive the delivery confirm form via accessible (line-based) mode, answering
+	// "no" to pull request creation.
 	t.Setenv("ACCESSIBLE", "1")
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
@@ -345,13 +396,15 @@ func TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSec
 		},
 	}
 
-	workflowFiles, _, secretName, secretValue, createPR, err := config.prepareAndConfirmAddInteractive()
+	workflowFiles, initFiles, secretName, secretValue, createPR, err := config.prepareAndConfirmAddInteractive()
 	require.NoError(t, err)
 
 	assert.False(t, createPR, "choosing local writes should report createPR=false")
 	assert.Empty(t, secretName, "local writes must not resolve a secret to configure")
 	assert.Empty(t, secretValue, "local writes must not resolve a secret value")
 	assert.NotEmpty(t, workflowFiles, "workflow files should still be determined for local writes")
+	assert.Empty(t, initFiles, "local writes must not include repository initialization files")
+	assert.False(t, initializationRan, "local writes must not initialize repository support files")
 
 	if _, statErr := os.Stat(ghLog); statErr == nil {
 		logContent, readErr := os.ReadFile(ghLog)

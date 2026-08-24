@@ -69,13 +69,13 @@ The package is designed to adapt to the execution environment. Native builds det
 | `LayoutJoinVertical` | `func LayoutJoinVertical(sections ...string) string` | Joins multiple sections vertically in WASM builds. |
 | `LayoutTitleBox` | `func LayoutTitleBox(title string, width int) string` | Returns a simple title-box layout in WASM builds. |
 | `LogVerbose` | `func LogVerbose(verbose bool, message string)` | Prints a verbose message to stderr only when verbose mode is enabled. |
-| `NewConfirmForm` | `func NewConfirmForm(confirm *huh.Confirm) *huh.Form` | Wraps a confirm field in a themed, accessibility-aware `huh` form. |
-| `NewForm` | `func NewForm(groups ...*huh.Group) *huh.Form` | Creates a themed, accessibility-aware `huh` form. |
+| `NewConfirmForm` | `func NewConfirmForm(confirm *huh.Confirm) *PromptForm` | Wraps a confirm field in a themed, accessibility-aware form that clears after completion. |
+| `NewForm` | `func NewForm(groups ...*huh.Group) *PromptForm` | Creates a themed, accessibility-aware form that clears after completion. |
 | `NewIndeterminateProgressBar` | `func NewIndeterminateProgressBar() *ProgressBar` | Creates an indeterminate progress bar; available in WASM builds. |
-| `NewInputForm` | `func NewInputForm(input *huh.Input) *huh.Form` | Wraps an input field in a themed, accessibility-aware `huh` form. |
+| `NewInputForm` | `func NewInputForm(input *huh.Input) *PromptForm` | Wraps an input field in a themed, accessibility-aware form that clears after completion. |
 | `NewListItem` | `func NewListItem(title, description, value string) ListItem` | Constructs a `ListItem` for interactive list APIs. |
 | `NewProgressBar` | `func NewProgressBar(total int64) *ProgressBar` | Creates a progress bar for a known total amount of work. |
-| `NewSelectForm` | `func NewSelectForm[T comparable](selectField *huh.Select[T]) *huh.Form` | Wraps a select field in a themed, accessibility-aware `huh` form. |
+| `NewSelectForm` | `func NewSelectForm[T comparable](selectField *huh.Select[T]) *PromptForm` | Wraps a select field in a themed, accessibility-aware form that clears after completion. |
 | `NewSpinner` | `func NewSpinner(message string) *SpinnerWrapper` | Creates a spinner configured for stderr TTY and accessibility conditions. |
 | `PrintBanner` | `func PrintBanner()` | Prints the banner to stderr in native builds; no-op in WASM. |
 | `PrintCommandMessage` | `func PrintCommandMessage(command string)` | Prints a formatted command message to stderr. |
