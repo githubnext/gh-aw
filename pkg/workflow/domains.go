@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var domainsLog = logger.New("workflow:domains")
@@ -176,7 +177,7 @@ func getPiDefaultDomains(model string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	domains := make([]string, 0, safeAllocationCapacity(len(PiBaseDefaultDomains), 1))
+	domains := make([]string, 0, typeutil.SafeAllocationCapacity(len(PiBaseDefaultDomains), 1))
 	domains = append(domains, PiBaseDefaultDomains...)
 
 	if domain, ok := piProviderDomains[provider]; ok {
@@ -608,7 +609,7 @@ func resolveEngineNetworkDomains(network *EngineNetworkDefinition, model string)
 	if provider == "" {
 		provider = network.DefaultProvider
 	}
-	domains := make([]string, 0, safeAllocationCapacity(len(network.Defaults), 1))
+	domains := make([]string, 0, typeutil.SafeAllocationCapacity(len(network.Defaults), 1))
 	domains = append(domains, network.Defaults...)
 	if domain, ok := network.ProviderDomains[provider]; ok {
 		domains = append(domains, domain)
