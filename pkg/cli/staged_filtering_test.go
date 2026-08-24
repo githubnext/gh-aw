@@ -12,6 +12,7 @@ import (
 )
 
 func TestParseAwInfo(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := testutil.TempDir(t, "test-*")
 

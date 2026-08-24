@@ -16,6 +16,7 @@ import (
 )
 
 func TestRunSetupAuthWithRuntime(t *testing.T) {
+	t.Parallel()
 	called := 0
 	err := runSetupAuthWithRuntime(SetupAuthOptions{Ctx: context.Background()}, setupRepositoryRuntime{
 		checkAuth: func(context.Context) error {
@@ -40,6 +41,7 @@ func TestRunSetupAuthWithRuntime_JSONOutput(t *testing.T) {
 }
 
 func TestRunSetupRepositoryCheck_AttachedCheckout(t *testing.T) {
+	t.Parallel()
 	repoDir := initBootstrapGitRepo(t)
 	err := runSetupRepositoryCheckWithRuntime(normalizeSetupRepositoryCheckOptions(SetupRepositoryCheckOptions{
 		Ctx:  context.Background(),
@@ -88,6 +90,7 @@ func TestRunSetupRepositoryCheck_JSONOutput(t *testing.T) {
 }
 
 func TestRunSetupRepositoryCheck_EnforcesOwnerTypeRequirement(t *testing.T) {
+	t.Parallel()
 	repoDir := initBootstrapGitRepo(t)
 	err := runSetupRepositoryCheckWithRuntime(normalizeSetupRepositoryCheckOptions(SetupRepositoryCheckOptions{
 		Ctx:              context.Background(),
@@ -106,6 +109,7 @@ func TestRunSetupRepositoryCheck_EnforcesOwnerTypeRequirement(t *testing.T) {
 }
 
 func TestRunSetupRepositoryCheck_RequiresExistingRepository(t *testing.T) {
+	t.Parallel()
 	err := runSetupRepositoryCheckWithRuntime(normalizeSetupRepositoryCheckOptions(SetupRepositoryCheckOptions{
 		Ctx:  context.Background(),
 		Repo: "octo/platform-ops",
@@ -119,6 +123,7 @@ func TestRunSetupRepositoryCheck_RequiresExistingRepository(t *testing.T) {
 }
 
 func TestRunSetupRepositoryCheck_PropagatesCleanWorktreeError(t *testing.T) {
+	t.Parallel()
 	repoDir := initBootstrapGitRepo(t)
 	wantErr := errors.New("working directory has uncommitted changes, please commit or stash them first")
 
@@ -142,6 +147,7 @@ func TestRunSetupRepositoryCheck_PropagatesCleanWorktreeError(t *testing.T) {
 }
 
 func TestRunSetupRepositoryCheck_RejectsNonExistentNestedCheckoutPath(t *testing.T) {
+	t.Parallel()
 	parentRepoDir := initBootstrapGitRepo(t)
 	nestedDir := filepath.Join(parentRepoDir, "new-checkout")
 
@@ -205,6 +211,7 @@ exit 1
 }
 
 func TestRunSetupRepositoryCheck_AcceptsCaseInsensitiveSlugMatch(t *testing.T) {
+	t.Parallel()
 	repoDir := initBootstrapGitRepo(t)
 	err := runSetupRepositoryCheckWithRuntime(normalizeSetupRepositoryCheckOptions(SetupRepositoryCheckOptions{
 		Ctx:  context.Background(),
@@ -221,6 +228,7 @@ func TestRunSetupRepositoryCheck_AcceptsCaseInsensitiveSlugMatch(t *testing.T) {
 }
 
 func TestValidateSetupRepositoryCheckOptions_RejectsEmptyRepoComponents(t *testing.T) {
+	t.Parallel()
 	tests := []SetupRepositoryCheckOptions{
 		{Repo: "/"},
 		{Repo: "/repo"},
