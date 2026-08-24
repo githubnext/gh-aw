@@ -92,6 +92,7 @@ func writeWorkflow(t *testing.T, gitRoot string, name string, content string) {
 }
 
 func TestTrustedActivationGatedJobs(t *testing.T) {
+	t.Parallel()
 	t.Run("gates propagate through the needs graph", func(t *testing.T) {
 		gitRoot := t.TempDir()
 		writeWorkflow(t, gitRoot, "gated.lock.yml", gatedWorkflow)
@@ -133,6 +134,7 @@ func TestTrustedActivationGatedJobs(t *testing.T) {
 }
 
 func TestFilterRunnerGuardFindings(t *testing.T) {
+	t.Parallel()
 	gitRoot := t.TempDir()
 	writeWorkflow(t, gitRoot, "gated.lock.yml", gatedWorkflow)
 	writeWorkflow(t, gitRoot, "ungated.lock.yml", ungatedWorkflow)
@@ -156,6 +158,7 @@ func TestFilterRunnerGuardFindings(t *testing.T) {
 }
 
 func TestFilterRunnerGuardFindingsKeepsFindingsForUnresolvableFiles(t *testing.T) {
+	t.Parallel()
 	gitRoot := t.TempDir()
 
 	findings := []runnerGuardFinding{
@@ -167,6 +170,7 @@ func TestFilterRunnerGuardFindingsKeepsFindingsForUnresolvableFiles(t *testing.T
 }
 
 func TestJobNeeds(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, []string{"a"}, jobNeeds("a"))
 	assert.Equal(t, []string{"a", "b"}, jobNeeds([]any{"a", "b", 42}))
 	assert.Equal(t, []string{"a"}, jobNeeds([]string{"a"}))
@@ -174,6 +178,7 @@ func TestJobNeeds(t *testing.T) {
 }
 
 func TestHasWorkflowRunActorAllowlistCheck(t *testing.T) {
+	t.Parallel()
 	assert.True(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
 	assert.True(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && !contains(fromJSON('[\"blocked\"]'), github.event.workflow_run.actor.login) && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
 	assert.False(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && !contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))

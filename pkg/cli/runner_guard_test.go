@@ -356,6 +356,7 @@ func TestRunnerGuardPathTraversalGuard(t *testing.T) {
 }
 
 func TestBuildRunnerGuardContainerScanPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		scanPath string
@@ -385,6 +386,7 @@ func TestBuildRunnerGuardContainerScanPath(t *testing.T) {
 }
 
 func TestRunnerGuardDockerArgsPreservesDynamicValuesAsArguments(t *testing.T) {
+	t.Parallel()
 	volumeMount := "/tmp/checkout with spaces:/workdir"
 	containerScanPath := "./--help"
 
@@ -404,6 +406,7 @@ func TestRunnerGuardDockerArgsPreservesDynamicValuesAsArguments(t *testing.T) {
 }
 
 func TestRunnerGuardDockerArgsShellEscapesBangInPaths(t *testing.T) {
+	t.Parallel()
 	volumeMount := "/tmp/repo!42:/workdir"
 	containerScanPath := "./path!subdir"
 
@@ -415,6 +418,7 @@ func TestRunnerGuardDockerArgsShellEscapesBangInPaths(t *testing.T) {
 }
 
 func TestRunRunnerGuardOnDirectoryRejectsPathsOutsideRepo(t *testing.T) {
+	t.Parallel()
 	outsideDir := filepath.Join(t.TempDir(), "outside")
 	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
 

@@ -29,6 +29,24 @@ var (
 	engineSecretsPromptFn = func(req SecretRequirement, config EngineSecretConfig) error {
 		return promptForSecret(req, config)
 	}
+	engineSecretsConfirmExistingFn = func(secretName string, config EngineSecretConfig) (bool, error) {
+		useExisting := true
+		form := console.NewConfirmForm(
+			huh.NewConfirm().
+				Title(fmt.Sprintf("Use the existing %s repository secret?", secretName)).
+				Description("GitHub does not expose stored secret values. Choosing this asserts that the existing secret is a valid fine-grained PAT with Copilot Requests permission.").
+				Affirmative("Use existing secret").
+				Negative("Replace secret").
+				Value(&useExisting),
+		)
+		if err := form.RunWithContext(config.ctx()); err != nil {
+			if console.IsCancelled(err) {
+				return false, promptCancelled()
+			}
+			return false, fmt.Errorf("failed to confirm existing %s secret: %w", secretName, err)
+		}
+		return useExisting, nil
+	}
 	engineSecretsUploadFn = func(ctx context.Context, secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
 		return uploadSecretToRepo(ctx, secretName, secretValue, repoSlug, verbose, overwriteExisting)
 	}
@@ -241,7 +259,14 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	// Check if secret already exists in the repository
 	if setutil.Contains(config.ExistingSecrets, req.Name) {
 		if mustValidateExistingSecretValue(req) {
-			console.PrintWarningMessage(req.Name + " already exists, but GitHub does not expose stored secret values for validation.")
+			useExisting, err := engineSecretsConfirmExistingFn(req.Name, config)
+			if err != nil {
+				return err
+			}
+			if useExisting {
+				console.PrintSuccessMessage(fmt.Sprintf("Using existing %s secret in repository", req.Name))
+				return nil
+			}
 			console.PrintInfoMessage("Paste the current or replacement fine-grained PAT so gh aw can validate it and update the repository secret.")
 			revalidateConfig := config
 			revalidateConfig.OverwriteExistingSecret = true
@@ -255,7 +280,14 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 	for _, alt := range req.AlternativeEnvVars {
 		if setutil.Contains(config.ExistingSecrets, alt) {
 			if mustValidateExistingSecretValue(req) {
-				console.PrintWarningMessage(alt + " already exists in the repository, but GitHub does not expose stored secret values for validation.")
+				useExisting, err := engineSecretsConfirmExistingFn(alt, config)
+				if err != nil {
+					return err
+				}
+				if useExisting {
+					console.PrintSuccessMessage(fmt.Sprintf("Using existing %s secret in repository (alternative for %s)", alt, req.Name))
+					return nil
+				}
 				console.PrintInfoMessage(fmt.Sprintf("Paste the current or replacement fine-grained PAT so gh aw can validate it and store it as %s.", req.Name))
 				revalidateConfig := config
 				revalidateConfig.OverwriteExistingSecret = true
@@ -338,7 +370,6 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Preconfigured token creation page:")
 	console.PrintCommandMessage("  " + preconfiguredPATURL)
-	fmt.Fprintln(os.Stderr, "")
 
 	openBrowser := true
 	confirmForm := console.NewConfirmForm(

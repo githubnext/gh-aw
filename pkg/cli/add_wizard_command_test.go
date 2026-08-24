@@ -32,7 +32,7 @@ func TestAddWizardCommand_FlagUsageMatchesAddCommand(t *testing.T) {
 	addCmd := NewAddCommand(validateEngineStub)
 	wizardCmd := NewAddWizardCommand(validateEngineStub)
 
-	for _, flagName := range []string{"append", "no-security-scanner"} {
+	for _, flagName := range []string{"append", "no-security-scanner", "gh-aw-ref"} {
 		addFlag := addCmd.Flags().Lookup(flagName)
 		wizardFlag := wizardCmd.Flags().Lookup(flagName)
 

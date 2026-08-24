@@ -194,7 +194,7 @@ Ensure proper audience validation and trust policies are configured.`
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", warningMsg))
 		c.IncrementWarningCount()
 	}
-	if shouldEmitCopilotRequestsEnableTip(workflowData, workflowPermissions) && !c.repositoryOwnerIsIndividualUser() {
+	if !c.quiet && shouldEmitCopilotRequestsEnableTip(workflowData, workflowPermissions) && !c.repositoryOwnerIsIndividualUser() {
 		if !c.copilotRequestsTipShown[markdownPath] {
 			if c.batchMode {
 				c.copilotTipNeeded = true

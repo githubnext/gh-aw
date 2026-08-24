@@ -10,6 +10,7 @@ import (
 )
 
 func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
+	t.Parallel()
 	// Stub latest release lookup so the test doesn't hit the network.
 	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
@@ -45,6 +46,7 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
 	}
 }
 func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
+	t.Parallel()
 	newSHA := "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
 	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		return "v6.0.2", newSHA, nil
@@ -67,6 +69,7 @@ func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
 	}
 }
 func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
+	t.Parallel()
 	// Verify that the cache prevents duplicate calls to latest-release resolution.
 	callCount := 0
 	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
@@ -92,6 +95,7 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
 	}
 }
 func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
+	t.Parallel()
 	// With allowMajor=true (default behaviour), non-actions/* org references should
 	// also be updated to the latest major version.
 	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
@@ -126,6 +130,7 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
 	}
 }
 func TestUpdateSkillRefsInContentWithResolver_UpdatesStringAndObjectSkillRefs(t *testing.T) {
+	t.Parallel()
 	oldRepoSkillSHA := "1111111111111111111111111111111111111111"
 	oldPathSkillSHA := "2222222222222222222222222222222222222222"
 	newRepoSkillSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -172,6 +177,7 @@ body
 	}
 }
 func TestUpdateSkillRefsInContentWithResolver_PreservesObjectAuthFields(t *testing.T) {
+	t.Parallel()
 	oldSHA := "1111111111111111111111111111111111111111"
 	newSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	input := `---
@@ -207,6 +213,7 @@ body
 	}
 }
 func TestUpdateSkillRefsInContentWithResolver_NoFrontmatterNoChange(t *testing.T) {
+	t.Parallel()
 	input := "steps:\n  - run: echo hello\n"
 	changed, got, err := updateSkillRefsInContentWithResolver(context.Background(), input, true, false, 0, resolveLatestRef)
 	if err != nil {
@@ -221,6 +228,7 @@ func TestUpdateSkillRefsInContentWithResolver_NoFrontmatterNoChange(t *testing.T
 }
 
 func TestUpdatePluginRefsInContentWithResolver_UpdatesPluginRefs(t *testing.T) {
+	t.Parallel()
 	oldRepoPluginSHA := "1111111111111111111111111111111111111111"
 	oldPathPluginSHA := "2222222222222222222222222222222222222222"
 	newRepoPluginSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -271,6 +279,7 @@ body
 // updateActionRefsInContentWithDeps falls back to an older cooled-down release
 // when the newest candidate is still within the cooldown window.
 func TestUpdateActionRefsInContent_CooldownFallback(t *testing.T) {
+	t.Parallel()
 	deps := newTestActionUpdateDeps()
 
 	// Latest version is v1.321.0 (in cooldown); fallback is v1.320.0.

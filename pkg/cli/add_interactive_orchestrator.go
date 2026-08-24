@@ -32,6 +32,7 @@ type AddInteractiveConfig struct {
 	RepoOverride           string // owner/repo format, if user provides it
 	AppendText             string // Extra content to append to the workflow on installation
 	DisableSecurityScanner bool   // Disable security scanning of workflow markdown content
+	GhAwRef                string // Resolved github/gh-aw commit SHA used by compiled action references
 
 	// DisableGitHubAppPermissionInference disables inferring GitHub App
 	// permissions/events from the package's resolved workflows during bootstrap,
@@ -49,9 +50,8 @@ type AddInteractiveConfig struct {
 	// Populated by selectCopilotAuthMethod() via probeCopilotBillingForOrg().
 	copilotCLIBillingStatus string
 
-	// isPublicRepo tracks whether the target repository is public
-	// This is populated by checkGitRepository() when determining the repo
-	isPublicRepo bool
+	// repositoryVisibility is populated before organization secrets are inspected.
+	repositoryVisibility string
 
 	// hasWriteAccess tracks whether the user has write access to the target repository.
 	// When false, secrets configuration is skipped since users cannot configure repository secrets.
@@ -60,6 +60,7 @@ type AddInteractiveConfig struct {
 	// existingSecrets tracks which secrets already exist in the repository
 	// This is populated by checkExistingSecrets() before engine selection
 	existingSecrets map[string]struct{}
+	secretSources   map[string]secretSource
 
 	// addResult holds the result from AddWorkflows, including HasWorkflowDispatch
 	addResult *AddWorkflowsResult
@@ -68,12 +69,9 @@ type AddInteractiveConfig struct {
 	// This is populated early in the flow by resolveWorkflows()
 	resolvedWorkflows *ResolvedWorkflows
 
-	// workingDirDirtyBeforeInit records whether the working directory already had
-	// uncommitted changes before any wizard-driven repository initialization ran.
-	// It is captured once, early in RunAddInteractive, and used by
-	// checkCleanWorkingDirectoryForPR so that wizard-modified init markers (which may
-	// rewrite pre-existing, non-conforming files) are never mistaken for a clean tree.
-	workingDirDirtyBeforeInit bool
+	// forceOverwrite records that the user chose to replace unstaged or untracked
+	// files overlapping the wizard's planned output. Staged changes never enable it.
+	forceOverwrite bool
 }
 
 // RunAddInteractive runs the interactive add workflow
@@ -99,16 +97,6 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	if err := config.runInitialAddInteractiveChecks(); err != nil {
 		return err
 	}
-
-	// Snapshot working directory cleanliness before any wizard-driven repository
-	// initialization runs. This is used later, only for the PR path, to detect
-	// pre-existing user changes without mistaking wizard-modified init markers for
-	// pre-existing dirty state.
-	pendingChanges, err := hasPendingChanges()
-	if err != nil {
-		return err
-	}
-	config.workingDirDirtyBeforeInit = pendingChanges
 
 	remainingBootstrapProfile := config.getRemainingBootstrapProfile()
 
@@ -178,11 +166,12 @@ func (c *AddInteractiveConfig) applyBootstrapConfigIfNeeded(ctx context.Context,
 }
 
 func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
-	console.ShowWelcomeBanner("This tool will walk you through adding an automated workflow to your repository.")
 	if err := c.resolveWorkflows(); err != nil {
 		return err
 	}
+	console.ShowWelcomeBanner(c.welcomeMessage())
 	c.showWorkflowDescriptions()
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(c.sourceWorkflowMessage()))
 	if err := c.checkGHAuthStatus(); err != nil {
 		return err
 	}
@@ -195,17 +184,29 @@ func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
 	return c.checkUserPermissions()
 }
 
-func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, createPR bool, err error) {
+func (c *AddInteractiveConfig) welcomeMessage() string {
+	workflowNames, err := c.workflowNamesForInteractiveAdd()
+	if err != nil || len(workflowNames) == 0 {
+		return "This tool will walk you through adding automated workflows to your repository."
+	}
+
+	source := strings.Join(c.WorkflowSpecs, ", ")
+	if len(workflowNames) == 1 {
+		return fmt.Sprintf("This tool will walk you through adding the automated workflow %q from %q.", workflowNames[0], source)
+	}
+	return fmt.Sprintf("This tool will walk you through adding %d automated workflows from %q.", len(workflowNames), source)
+}
+
+func (c *AddInteractiveConfig) sourceWorkflowMessage() string {
+	return "Source workflow: " + strings.Join(c.WorkflowSpecs, ", ")
+}
+
+func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles []string, initFiles []addInitializedFile, secretName, secretValue string, createPR bool, err error) {
 	// selectAIEngineAndKey only selects the engine and, for Copilot, the auth method
 	// (org billing vs. PAT). It does not prompt for or upload any secret value, since
 	// that has remote repository side effects and must wait until the user has
 	// chosen the PR path and the working directory has been confirmed clean.
 	if err := c.selectAIEngineAndKey(); err != nil {
-		return nil, nil, "", "", false, err
-	}
-
-	initFiles, err = ensureAddRepositoryInitializedWithDetails(c.EngineOverride, c.Verbose, c.NoGitattributes)
-	if err != nil {
 		return nil, nil, "", "", false, err
 	}
 
@@ -218,18 +219,31 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 		return nil, nil, "", "", false, err
 	}
 
-	createPR, err = c.confirmChanges(workflowFiles, initFiles)
+	initializationPlan, err := confirmAddRepositoryInitialization(c.Ctx, c.EngineOverride, c.NoGitattributes)
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
-	if !createPR {
-		return workflowFiles, initFiles, "", "", false, nil
-	}
 
-	if err := c.checkCleanWorkingDirectoryForPR(); err != nil {
+	createPR, err = c.confirmChanges(workflowFiles, initializationPlan.files)
+	if err != nil {
 		return nil, nil, "", "", false, err
 	}
+	if createPR {
+		plannedInitFiles := make([]string, 0, len(initializationPlan.files))
+		plannedInitFiles = append(plannedInitFiles, initializationPlan.files...)
+		if err := c.checkCleanWorkingDirectoryForPR(workflowFiles, plannedInitFiles); err != nil {
+			return nil, nil, "", "", false, err
+		}
+	}
 
+	if !createPR {
+		return workflowFiles, nil, "", "", false, nil
+	}
+
+	initFiles, err = applyAddRepositoryInitialization(initializationPlan, c.EngineOverride, c.Verbose, c.NoGitattributes)
+	if err != nil {
+		return nil, nil, "", "", false, err
+	}
 	// Secret collection and upload only happen once the user has committed to the
 	// PR path and the clean-tree check has succeeded.
 	if err := c.configureEngineAPISecret(c.EngineOverride); err != nil {
@@ -320,8 +334,7 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "The following workflow files will be added:")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow files ready to add:"))
 	for _, f := range workflowFiles {
 		fmt.Fprintf(os.Stderr, "  • .github/workflows/%s\n", f)
 	}
@@ -372,13 +385,12 @@ func (c *AddInteractiveConfig) primaryWorkflowName() string {
 func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string) (bool, error) {
 	addInteractiveLog.Print("Confirming changes with user")
 
-	fmt.Fprintln(os.Stderr, "")
 	if len(initFiles) > 0 {
+		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "The repository will also be initialized with:")
 		for _, f := range initFiles {
 			fmt.Fprintf(os.Stderr, "  • %s\n", f)
 		}
-		fmt.Fprintln(os.Stderr, "")
 	}
 
 	createPR := true // Default to yes
@@ -393,6 +405,11 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return false, fmt.Errorf("confirmation failed: %w", err)
+	}
+	if createPR {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected delivery: create a pull request"))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected delivery: write files locally"))
 	}
 
 	return createPR, nil
@@ -428,26 +445,24 @@ func (c *AddInteractiveConfig) showFinalInstructions() {
 // not claim the workflow is already running or recommend remote status/run commands,
 // since the files only exist in the local checkout and have not been pushed.
 func (c *AddInteractiveConfig) showLocalWriteInstructions() {
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("🎉 Files written locally!"))
-	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Fprintln(os.Stderr, "")
-
 	// Show summary with workflow name(s)
 	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
 		wf := c.resolvedWorkflows.Workflows[0]
-		fmt.Fprintf(os.Stderr, "The workflow '%s' has been written to your local checkout. No pull request was created.\n", wf.Spec.WorkflowName)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Workflow '%s' written locally; no pull request was created.", wf.Spec.WorkflowName)))
 		c.showWorkflowDescriptions()
 	}
 
+	workflowName := c.primaryWorkflowName()
+	if workflowName == "" {
+		workflowName = "agentic workflow"
+	}
 	fmt.Fprintln(os.Stderr, "Commit and push the new files before the workflow can run on GitHub:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'Add agentic workflow'"))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  git add -A && git commit -m 'Add %s'", workflowName)))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git push"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Once pushed, these commands will work against the remote repository:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s status          # Check workflow status", string(constants.CLIExtensionPrefix))))
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run <workflow>  # Trigger a workflow", string(constants.CLIExtensionPrefix))))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run %s  # Trigger the workflow", string(constants.CLIExtensionPrefix), workflowName)))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s logs            # View workflow logs", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Learn more at: https://github.github.com/gh-aw/")
