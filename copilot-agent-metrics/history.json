@@ -507,13 +507,14 @@
     },
     {
       "date": "2026-08-23",
-      "total_prs": 61,
-      "merged_prs": 52,
-      "closed_prs": 8,
-      "open_prs": 1,
-      "avg_agent_duration_minutes": 99.9,
-      "success_rate": 0.867,
-      "note": "rolling 24h window from 2026-08-22T18:19:25Z; author app/copilot-swe-agent only; 1 of 61 PRs still open (<1h old, #55125); success_rate over 60 completed; avg_duration created->merged; comments not collected this run (gh API auth failed: Bad credentials, HTTP 401 - pre-fetched PR data has no comment counts); 1 of 8 closures was a [WIP] placeholder closure (#54991), other 7 had substantive bodies; success_rate up 83.1%->86.7% (+3.6pp), continuing 3-day rise from 78.7% on 08-21 (+8.0pp overall, ~10% relative); avg_duration down sharply 226.5->99.9min (-55.9%); volume down 83->61 (-26.5%); no PRs open >24h"
+      "agent_prs_total": 69,
+      "agent_prs_merged": 68,
+      "agent_prs_merged_from_created": 60,
+      "closed_prs": 9,
+      "open_prs": 0,
+      "avg_agent_duration_minutes": 93.0,
+      "success_rate": 0.8696,
+      "note": "recomputed using true UTC calendar-day window (2026-08-23T00:00:00Z..2026-08-24T00:00:00Z), superseding the prior rolling-24h snapshot for this date taken while PRs were still in flight; author app/copilot-swe-agent only; agent_prs_total=69 creation cohort, all 69 resolved (0 open) at collection time (~18h after window close); agent_prs_merged_from_created=60, closed_prs=9 (3 were [WIP] placeholder closures: #55158, #55157, #54991; other 6 had substantive bodies); agent_success_rate=agent_prs_merged_from_created/agent_prs_total=87.0%; avg_duration created->merged over the 60 merged PRs = 93.0min; agent_prs_merged (event-scoped, PRs with mergedAt in window regardless of createdAt) = 68, derived from the 30-day pre-fetched dataset as a best-effort figure (not independently paginated-verified) because gh API calls failed with 401 Bad credentials this run; avg_comments not collected for the same reason; success_rate roughly stable vs 08-22 (83.1%->87.0%, +3.9pp, ~4.7% relative, below the 10% significance threshold); avg_duration down sharply vs 08-22 (226.5->93.0min, -59%); volume down 83->69 (-16.9%)"
     }
   ],
   "last_updated": "2026-08-20"
