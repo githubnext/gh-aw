@@ -457,6 +457,10 @@ In the Octokit client this is `githubClient.rest.issues.setLabels(params)`.
 
 **RL-046**: When the `setLabels` REST call fails (e.g., HTTP 422 for an invalid label name), the implementation MUST log a `core.error()` entry and MUST return `{ success: false, error: <message> }`. For HTTP-level failures the call is all-or-nothing — either all label changes are applied or none are. For HTTP 200 responses, see §7.4 for partial-success response handling.
 
+**RL-046a**: If `setLabels` returns HTTP 404, the implementation MUST treat the message as rejected because the authoritative labeling target or repository is no longer reachable.
+
+**RL-046b**: If `setLabels` returns HTTP 5xx, times out, or fails with a transport error, the implementation MUST treat the condition as transient and retry according to the retry policy in §7.3. If retries are exhausted, the implementation MUST return `{ success: false, error: <message> }` without reporting a successful replacement.
+
 ### 7.3 Rate-Limit Retry Policy
 
 **RL-048**: The `setLabels` REST call (Stage 8) MUST apply the `RATE_LIMIT_RETRY_CONFIG` retry policy from `actions/setup/js/error_recovery.cjs`. This policy covers secondary rate-limit responses (HTTP 403 with Retry-After header) and primary rate-limit responses (HTTP 429).

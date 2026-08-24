@@ -202,25 +202,24 @@ const main = createCountGatedHandler({
       }
       const newLabelNames = [...new Set([...currentLabelNames.filter(n => n !== labelToRemove), labelToAdd])];
 
-      const preWriteAddValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
-      if (!preWriteAddValidation.valid) {
-        core.warning(`label_to_add validation failed before setLabels: ${preWriteAddValidation.error}`);
-        return { success: false, error: preWriteAddValidation.error };
-      }
-
-      core.info(`Executing REST setLabels: remove="${labelToRemove}", add="${labelToAdd}" on ${contextType} #${itemNumber} in ${itemRepo}`);
-
       const beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
 
       try {
         const { data: updatedLabels } = await withRetry(
-          () =>
-            githubClient.rest.issues.setLabels({
+          () => {
+            const preWriteAddValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
+            if (!preWriteAddValidation.valid) {
+              core.warning(`label_to_add validation failed before setLabels: ${preWriteAddValidation.error}`);
+              throw new Error(preWriteAddValidation.error);
+            }
+
+            return githubClient.rest.issues.setLabels({
               owner: repoParts.owner,
               repo: repoParts.repo,
               issue_number: itemNumber,
               labels: newLabelNames,
-            }),
+            });
+          },
           RATE_LIMIT_RETRY_CONFIG,
           `replace_label on ${contextType} #${itemNumber} in ${itemRepo}`
         );
