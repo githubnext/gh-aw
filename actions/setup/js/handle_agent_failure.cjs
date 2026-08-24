@@ -1719,6 +1719,31 @@ function isIssueWritePermissionError(error) {
 }
 
 /**
+ * Comment on the pre-created steer pull request with a link to a new failure issue.
+ * @param {{number: number, html_url: string}} issue
+ * @returns {Promise<void>}
+ */
+async function commentSteerPullRequest(issue) {
+  const rawPullRequestNumber = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || "";
+  if (!/^[1-9]\d*$/.test(rawPullRequestNumber)) {
+    return;
+  }
+
+  const pullRequestNumber = Number(rawPullRequestNumber);
+  try {
+    await github.rest.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: pullRequestNumber,
+      body: `The agent workflow failed. See [failure issue #${issue.number}](${issue.html_url}).`,
+    });
+    core.info(`Added failure issue link to steer pull request #${pullRequestNumber}`);
+  } catch (error) {
+    core.warning(`Failed to add failure issue link to steer pull request #${pullRequestNumber}: ${getErrorMessage(error)}`);
+  }
+}
+
+/**
  * Build a context string when the Copilot CLI failed due to the token lacking inference access.
  * @param {boolean} hasInferenceAccessError - Whether an inference access error was detected
  * @returns {string} Formatted context string, or empty string if no error
@@ -4307,6 +4332,7 @@ async function main() {
         });
 
         core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+        await commentSteerPullRequest(newIssue.data);
 
         // Link as sub-issue to parent if parent issue was created
         if (parentIssue) {
@@ -4348,6 +4374,7 @@ module.exports = {
   buildTimeoutContext,
   shouldBuildEngineFailureContext,
   isIssueWritePermissionError,
+  commentSteerPullRequest,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
   detectAWFFirewallStartupFailureFromLog,
