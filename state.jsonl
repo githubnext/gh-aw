@@ -93,3 +93,4 @@
 {"run_id":"32498727831","timestamp":"2026-08-21T15:39:42.160Z","assignments":{"sub_agent_strategy":"per_scenario"}}
 {"run_id":"32582056980","timestamp":"2026-08-22T15:33:56.540Z","harness_version":"9f07071dd1b7ce5bd76a6cd36cd803cba80cab7fec095e01d275fc0bb6953c77:1f8a1ca9d56793d3179f5dcb5d48525754e1ce588562ea3bd2c514cf97d8086d","assignments":{"sub_agent_strategy":"per_scenario"}}
 {"run_id":"32648959226","timestamp":"2026-08-23T15:34:40.193Z","harness_version":"9f07071dd1b7ce5bd76a6cd36cd803cba80cab7fec095e01d275fc0bb6953c77:1f8a1ca9d56793d3179f5dcb5d48525754e1ce588562ea3bd2c514cf97d8086d","assignments":{"sub_agent_strategy":"batch"}}
+{"run_id":"32746235400","timestamp":"2026-08-24T15:40:28.459Z","harness_version":"9f07071dd1b7ce5bd76a6cd36cd803cba80cab7fec095e01d275fc0bb6953c77:1f8a1ca9d56793d3179f5dcb5d48525754e1ce588562ea3bd2c514cf97d8086d","assignments":{"sub_agent_strategy":"per_scenario"}}
