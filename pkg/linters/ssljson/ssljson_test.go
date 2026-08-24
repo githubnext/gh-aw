@@ -161,3 +161,58 @@ func TestValidateDoc_InvalidStepNext(t *testing.T) {
 	require.Len(t, errs, 1)
 	assert.Contains(t, errs[0], `next "nowhere"`)
 }
+
+// TestValidateDoc_DuplicateSceneID flags two scenes sharing the same ID.
+func TestValidateDoc_DuplicateSceneID(t *testing.T) {
+	doc := ssljson.SSLDoc{
+		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
+		Scenes: []ssljson.SSLScene{
+			{ID: "s", Type: "ACT", EntryLogicStep: "ls",
+				NextSceneRules: []ssljson.SSLSceneRule{{Target: "END_SUCCESS"}}},
+			{ID: "s", Type: "VERIFY", EntryLogicStep: "ls",
+				NextSceneRules: []ssljson.SSLSceneRule{{Target: "END_SUCCESS"}}},
+		},
+		LogicSteps: []ssljson.SSLStep{
+			{ID: "ls", ActionType: "READ", ResourceScope: "MEMORY", Next: "YIELD_SUCCESS"},
+		},
+	}
+	errs := ssljson.ValidateDoc(doc)
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs, `duplicate scene id "s"`)
+}
+
+// TestValidateDoc_DuplicateStepID flags two logic steps sharing the same ID.
+func TestValidateDoc_DuplicateStepID(t *testing.T) {
+	doc := ssljson.SSLDoc{
+		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
+		Scenes: []ssljson.SSLScene{
+			{ID: "s", Type: "ACT", EntryLogicStep: "ls",
+				NextSceneRules: []ssljson.SSLSceneRule{{Target: "END_SUCCESS"}}},
+		},
+		LogicSteps: []ssljson.SSLStep{
+			{ID: "ls", ActionType: "READ", ResourceScope: "MEMORY", Next: "YIELD_SUCCESS"},
+			{ID: "ls", ActionType: "WRITE", ResourceScope: "MEMORY", Next: "YIELD_SUCCESS"},
+		},
+	}
+	errs := ssljson.ValidateDoc(doc)
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs, `duplicate logic step id "ls"`)
+}
+
+// TestValidateDoc_InvalidStepSceneID flags a logic step whose scene_id does
+// not resolve to any existing scene.
+func TestValidateDoc_InvalidStepSceneID(t *testing.T) {
+	doc := ssljson.SSLDoc{
+		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
+		Scenes: []ssljson.SSLScene{
+			{ID: "s", Type: "ACT", EntryLogicStep: "ls",
+				NextSceneRules: []ssljson.SSLSceneRule{{Target: "END_SUCCESS"}}},
+		},
+		LogicSteps: []ssljson.SSLStep{
+			{ID: "ls", SceneID: "ghost_scene", ActionType: "READ", ResourceScope: "MEMORY", Next: "YIELD_SUCCESS"},
+		},
+	}
+	errs := ssljson.ValidateDoc(doc)
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0], `scene_id "ghost_scene" not found`)
+}
