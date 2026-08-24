@@ -86,17 +86,17 @@ const main = createCountGatedHandler({
     const githubClient = await createAuthenticatedGitHubClient(config);
 
     // Config keys use snake_case (set by the Go handler config builder)
-    const configAllowedAdd = currentAllowedAdd();
-    const configAllowedRemove = currentAllowedRemove();
-    const blockedPatterns = currentBlockedPatterns();
+    const initialAllowedAdd = currentAllowedAdd();
+    const initialAllowedRemove = currentAllowedRemove();
+    const initialBlockedPatterns = currentBlockedPatterns();
     /** @type {{from: string, to: string}[]} */
     const configAllowedTransitions = Array.isArray(config.allowed_transitions) ? config.allowed_transitions : [];
 
     core.info(`Replace label configuration: max=${maxCount}`);
     if (configAllowedTransitions.length > 0) core.info(`Allowed transitions: ${configAllowedTransitions.map(t => `"${t.from}" → "${t.to}"`).join(", ")}`);
-    if (configAllowedAdd.length > 0) core.info(`Allowed labels to add: ${configAllowedAdd.join(", ")}`);
-    if (configAllowedRemove.length > 0) core.info(`Allowed labels to remove: ${configAllowedRemove.join(", ")}`);
-    if (blockedPatterns.length > 0) core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
+    if (initialAllowedAdd.length > 0) core.info(`Allowed labels to add: ${initialAllowedAdd.join(", ")}`);
+    if (initialAllowedRemove.length > 0) core.info(`Allowed labels to remove: ${initialAllowedRemove.join(", ")}`);
+    if (initialBlockedPatterns.length > 0) core.info(`Blocked patterns: ${initialBlockedPatterns.join(", ")}`);
     if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
     if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
     core.info(`Default target repo: ${defaultTargetRepo}`);
@@ -143,14 +143,14 @@ const main = createCountGatedHandler({
       }
 
       // Validate label_to_remove against blocked patterns and allowed-remove list
-      const removeValidation = validateSingleLabel(labelToRemove, configAllowedRemove, blockedPatterns, "label_to_remove");
+      const removeValidation = validateSingleLabel(labelToRemove, initialAllowedRemove, initialBlockedPatterns, "label_to_remove");
       if (!removeValidation.valid) {
         core.warning(`label_to_remove validation failed: ${removeValidation.error}`);
         return { success: false, error: removeValidation.error };
       }
 
       // Validate label_to_add against blocked patterns and allowed-add list
-      const addValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
+      const addValidation = validateSingleLabel(labelToAdd, initialAllowedAdd, initialBlockedPatterns, "label_to_add");
       if (!addValidation.valid) {
         core.warning(`label_to_add validation failed: ${addValidation.error}`);
         return { success: false, error: addValidation.error };
