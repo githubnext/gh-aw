@@ -69,6 +69,14 @@ func TestEditAssignmentParsesScheduleShorthands(t *testing.T) {
 	assert.Equal(t, []any{map[string]any{"cron": "FUZZY:DAILY_WEEKDAYS * * *"}}, frontmatter["on"].(map[string]any)["schedule"])
 }
 
+func TestReplaceFrontmatterPreservesBodySeparators(t *testing.T) {
+	t.Parallel()
+	content := "---\non: workflow_dispatch\n---\n# Workflow\n\n---\nBody\n"
+	updated, err := replaceFrontmatter(content, map[string]any{"on": "push"})
+	require.NoError(t, err)
+	assert.Contains(t, updated, "---\n# Workflow\n\n---\nBody\n")
+}
+
 func TestEditCommandRejectsSourceManagedWorkflow(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

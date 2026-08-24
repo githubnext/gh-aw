@@ -43,7 +43,7 @@ validated before writing. Workflows managed by a source: declaration cannot be e
 }
 
 func runEditCommand(cmd *cobra.Command, args []string) error {
-	workflowPath, err := resolveWorkflowFileInDir(args[0], false, flagString(cmd, "dir"))
+	workflowPath, err := resolveWorkflowFileInDir(args[0], false, editFlagString(cmd, "dir"))
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if flagBool(cmd, "dry-run") {
+	if editFlagBool(cmd, "dry-run") {
 		fmt.Fprint(cmd.OutOrStdout(), updated)
 		return nil
 	}
@@ -123,7 +123,7 @@ func editChangesFromCommand(cmd *cobra.Command, args []string) ([]editChange, er
 		changes = append(changes, change)
 	}
 	for _, name := range []string{"set", "add", "remove"} {
-		for _, assignment := range flagStrings(cmd, name) {
+		for _, assignment := range editFlagStrings(cmd, name) {
 			change, err := parseEditAssignment(assignment, "=")
 			if err != nil {
 				return nil, err
@@ -132,13 +132,13 @@ func editChangesFromCommand(cmd *cobra.Command, args []string) ([]editChange, er
 			changes = append(changes, change)
 		}
 	}
-	for _, path := range flagStrings(cmd, "unset") {
+	for _, path := range editFlagStrings(cmd, "unset") {
 		changes = append(changes, editChange{kind: "unset", path: path})
 	}
-	for _, importPath := range flagStrings(cmd, "add-import") {
+	for _, importPath := range editFlagStrings(cmd, "add-import") {
 		changes = append(changes, editChange{kind: "add", path: "imports", value: importPath})
 	}
-	if schedule := flagString(cmd, "schedule"); schedule != "" {
+	if schedule := editFlagString(cmd, "schedule"); schedule != "" {
 		change, err := scheduleChange(schedule)
 		if err != nil {
 			return nil, err
@@ -295,33 +295,43 @@ func replaceFrontmatter(content string, frontmatter map[string]any) (string, err
 	if err != nil {
 		return "", fmt.Errorf("encode frontmatter: %w", err)
 	}
-	start := strings.IndexByte(content, '\n')
-	if start < 0 || strings.TrimSpace(content[:start]) != "---" {
+	firstLineEnd := strings.IndexByte(content, '\n')
+	if firstLineEnd < 0 || strings.TrimSpace(content[:firstLineEnd]) != "---" {
 		return "", errors.New("workflow must begin with YAML frontmatter")
 	}
-	end := strings.Index(content[start+1:], "\n---")
-	if end < 0 {
-		return "", errors.New("frontmatter not properly closed")
+	bodyStart := firstLineEnd + 1
+	for lineStart := bodyStart; lineStart <= len(content); {
+		lineEnd := strings.IndexByte(content[lineStart:], '\n')
+		if lineEnd < 0 {
+			lineEnd = len(content)
+		} else {
+			lineEnd += lineStart
+		}
+		if strings.TrimSpace(content[lineStart:lineEnd]) == "---" {
+			if lineEnd < len(content) {
+				lineEnd++
+			}
+			return "---\n" + string(encoded) + "---\n" + content[lineEnd:], nil
+		}
+		if lineEnd == len(content) {
+			break
+		}
+		lineStart = lineEnd + 1
 	}
-	end += start + 1
-	bodyStart := end + len("\n---")
-	if bodyStart < len(content) && content[bodyStart] == '\n' {
-		bodyStart++
-	}
-	return "---\n" + string(encoded) + "---\n" + content[bodyStart:], nil
+	return "", errors.New("frontmatter not properly closed")
 }
 
-func flagString(cmd *cobra.Command, name string) string {
+func editFlagString(cmd *cobra.Command, name string) string {
 	value, _ := cmd.Flags().GetString(name)
 	return value
 }
 
-func flagStrings(cmd *cobra.Command, name string) []string {
+func editFlagStrings(cmd *cobra.Command, name string) []string {
 	value, _ := cmd.Flags().GetStringArray(name)
 	return value
 }
 
-func flagBool(cmd *cobra.Command, name string) bool {
+func editFlagBool(cmd *cobra.Command, name string) bool {
 	value, _ := cmd.Flags().GetBool(name)
 	return value
 }
