@@ -112,3 +112,304 @@ ignore:
       name: ssl_client
       version: 1.37.0-r30
       type: apk
+  # ghcr.io/oraios/serena is pinned to the 1.7.0 release. The rules below cover
+  # Critical findings in that image's Debian trixie base layer for which Debian
+  # publishes no fixed package version, plus two bundled runtime components that
+  # only an upstream Serena rebuild can update. gh-aw runs Serena as a
+  # third-party MCP server and never links or redistributes its contents. Each
+  # rule is scoped to the exact package version shipped by serena:1.7.0, so
+  # bumping the pin re-reports anything that is still unfixed.
+  - vulnerability: CVE-2026-8924
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: curl
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8924
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl3t64-gnutls
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8924
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl4t64
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8926
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: curl
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8926
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl3t64-gnutls
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8926
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl4t64
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8927
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: curl
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8927
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl3t64-gnutls
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-8927
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl4t64
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-9079
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: curl
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-9079
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl3t64-gnutls
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-9079
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl4t64
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-10536
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: curl
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-10536
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl3t64-gnutls
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-10536
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl4t64
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-11856
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: curl
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-11856
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl3t64-gnutls
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-11856
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libcurl4t64
+      version: "8.14.1-2+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-5450
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libc-bin
+      version: "2.41-12+deb13u3"
+      type: deb
+  - vulnerability: CVE-2026-5450
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libc-dev-bin
+      version: "2.41-12+deb13u3"
+      type: deb
+  - vulnerability: CVE-2026-5450
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libc6
+      version: "2.41-12+deb13u3"
+      type: deb
+  - vulnerability: CVE-2026-5450
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libc6-dev
+      version: "2.41-12+deb13u3"
+      type: deb
+  - vulnerability: CVE-2026-8376
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libperl5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-8376
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-8376
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-base
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-8376
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-modules-5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-12087
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libperl5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-12087
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-12087
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-base
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-12087
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-modules-5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-13221
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libperl5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-13221
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-13221
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-base
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-13221
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-modules-5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-42496
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libperl5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-42496
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-42496
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-base
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-42496
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-modules-5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-57433
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: libperl5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-57433
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-57433
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-base
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-57433
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: perl-modules-5.40
+      version: "5.40.1-6"
+      type: deb
+  - vulnerability: CVE-2026-60002
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: openssh-client
+      version: "1:10.0p1-7+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-60002
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: openssh-server
+      version: "1:10.0p1-7+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-60002
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: openssh-sftp-server
+      version: "1:10.0p1-7+deb13u4"
+      type: deb
+  - vulnerability: CVE-2026-60002
+    reason: "Debian trixie lists no fixed version; risk-accepted until oraios/serena ships a rebuilt image."
+    package:
+      name: ssh
+      version: "1:10.0p1-7+deb13u4"
+      type: deb
+  - vulnerability: CVE-2025-55130
+    reason: "Node.js is bundled in the serena image; risk-accepted until oraios/serena rebuilds with Node.js 22.22.0 or newer."
+    package:
+      name: node
+      version: "22.18.0"
+      type: binary
+  - vulnerability: GHSA-23hp-3jrh-7fpw
+    reason: "npm tar is bundled in the serena image; risk-accepted until oraios/serena rebuilds with tar 7.5.19 or newer."
+    package:
+      name: tar
+      version: "6.2.1"
+      type: npm
+  - vulnerability: GHSA-23hp-3jrh-7fpw
+    reason: "npm tar is bundled in the serena image; risk-accepted until oraios/serena rebuilds with tar 7.5.19 or newer."
+    package:
+      name: tar
+      version: "7.4.3"
+      type: npm
