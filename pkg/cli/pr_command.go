@@ -770,8 +770,16 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 	return nil
 }
 
-// createPR creates a pull request using GitHub CLI and returns the PR number
+var createPRRunGHContextWithHost = workflow.RunGHContextWithHost
+
+// createPR creates a pull request using GitHub CLI and returns the PR number.
 func createPR(ctx context.Context, branchName, title, body string, verbose bool) (int, string, error) {
+	return createPRForRepo(ctx, branchName, title, body, "", verbose)
+}
+
+// createPRForRepo creates a pull request in repoSlug. When repoSlug is empty,
+// it resolves the current repository for compatibility with other PR callers.
+func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug string, verbose bool) (int, string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Creating PR: "+title))
 	}
@@ -780,31 +788,33 @@ func createPR(ctx context.Context, branchName, title, body string, verbose bool)
 	// repositories are targeted correctly instead of defaulting to github.com.
 	remoteHost := getHostFromOriginRemote()
 
-	// Get the current repository info to ensure PR is created in the correct repo.
-	// Use GH_HOST env var instead of --hostname (which is only valid for gh api, not gh repo view).
-	repoOutput, err := workflow.RunGHContextWithHost(ctx, "Fetching repository info...", remoteHost, "repo", "view", "--json", "owner,name")
-	if err != nil {
-		return 0, "", fmt.Errorf("could not get current repository info; ensure required prerequisites are configured, then retry: %w", err)
-	}
+	repoSpec := repoSlug
+	if repoSpec == "" {
+		// Use GH_HOST env var instead of --hostname (which is only valid for gh api, not gh repo view).
+		repoOutput, err := createPRRunGHContextWithHost(ctx, "Fetching repository info...", remoteHost, "repo", "view", "--json", "owner,name")
+		if err != nil {
+			return 0, "", fmt.Errorf("could not get current repository info; ensure required prerequisites are configured, then retry: %w", err)
+		}
 
-	var repoInfo struct {
-		Owner struct {
-			Login string `json:"login"`
-		} `json:"owner"`
-		Name string `json:"name"`
-	}
+		var repoInfo struct {
+			Owner struct {
+				Login string `json:"login"`
+			} `json:"owner"`
+			Name string `json:"name"`
+		}
 
-	if err := json.Unmarshal(repoOutput, &repoInfo); err != nil {
-		return 0, "", fmt.Errorf("could not parse repository info; the GitHub API response may be malformed or unexpected: %w", err)
-	}
+		if err := json.Unmarshal(repoOutput, &repoInfo); err != nil {
+			return 0, "", fmt.Errorf("could not parse repository info; the GitHub API response may be malformed or unexpected: %w", err)
+		}
 
-	repoSpec := fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
+		repoSpec = fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
+	}
 
 	// Build gh pr create args. Explicitly specifying --repo ensures the PR is created in the
 	// current repo (not an upstream fork). Use GH_HOST env var instead of --hostname
 	// (which is only valid for gh api, not gh pr create).
 	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName}
-	output, err := workflow.RunGHContextWithHost(ctx, "Creating pull request...", remoteHost, prCreateArgs...)
+	output, err := createPRRunGHContextWithHost(ctx, "Creating pull request...", remoteHost, prCreateArgs...)
 	if err != nil {
 		// Try to get stderr for better error reporting
 		var exitError *exec.ExitError

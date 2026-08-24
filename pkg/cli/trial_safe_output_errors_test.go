@@ -3,6 +3,7 @@ package cli
 import "testing"
 
 func TestExtractSafeOutputErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		safeOutputs map[string]any
@@ -42,6 +43,7 @@ func TestExtractSafeOutputErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractSafeOutputErrors(tt.safeOutputs)
 			if len(got) != len(tt.want) {
 				t.Fatalf("extractSafeOutputErrors() = %v, want %v", got, tt.want)
@@ -56,6 +58,7 @@ func TestExtractSafeOutputErrors(t *testing.T) {
 }
 
 func TestWorkflowTrialResultSuccessField(t *testing.T) {
+	t.Parallel()
 	result := WorkflowTrialResult{
 		WorkflowName: "test-workflow",
 		SafeOutputErrors: []string{
@@ -77,6 +80,7 @@ func TestWorkflowTrialResultSuccessField(t *testing.T) {
 }
 
 func TestAggregateTrialResults(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		results           []WorkflowTrialResult
@@ -137,6 +141,7 @@ func TestAggregateTrialResults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			gotSuccess, gotTotalRejected, gotFirstError := aggregateTrialResults(tt.results)
 			if gotSuccess != tt.wantSuccess {
 				t.Errorf("aggregateTrialResults() success = %v, want %v", gotSuccess, tt.wantSuccess)
@@ -152,6 +157,7 @@ func TestAggregateTrialResults(t *testing.T) {
 }
 
 func TestSanitizeControlChars(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -183,6 +189,7 @@ func TestSanitizeControlChars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := sanitizeControlChars(tt.in)
 			if got != tt.want {
 				t.Errorf("sanitizeControlChars(%q) = %q, want %q", tt.in, got, tt.want)

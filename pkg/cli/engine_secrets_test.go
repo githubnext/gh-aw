@@ -241,7 +241,7 @@ func TestBuildCopilotPATCreationURL(t *testing.T) {
 	})
 }
 
-func TestEnsureSecretAvailable_CopilotRepromptsWithOverwrite(t *testing.T) {
+func TestEnsureSecretAvailable_ExistingCopilotSecret(t *testing.T) {
 	copilotReq := SecretRequirement{
 		Name:           constants.CopilotGitHubToken,
 		IsEngineSecret: true,
@@ -253,10 +253,41 @@ func TestEnsureSecretAvailable_CopilotRepromptsWithOverwrite(t *testing.T) {
 		EngineName:     string(constants.ClaudeEngine),
 	}
 
-	t.Run("existing Copilot secret triggers re-prompt with OverwriteExistingSecret=true", func(t *testing.T) {
+	t.Run("uses existing Copilot secret when confirmed", func(t *testing.T) {
+		promptCalled := false
+		origConfirm := engineSecretsConfirmExistingFn
+		origPrompt := engineSecretsPromptFn
+		t.Cleanup(func() {
+			engineSecretsConfirmExistingFn = origConfirm
+			engineSecretsPromptFn = origPrompt
+		})
+		engineSecretsConfirmExistingFn = func(secretName string, _ EngineSecretConfig) (bool, error) {
+			assert.Equal(t, constants.CopilotGitHubToken, secretName)
+			return true, nil
+		}
+		engineSecretsPromptFn = func(_ SecretRequirement, _ EngineSecretConfig) error {
+			promptCalled = true
+			return nil
+		}
+
+		cfg := EngineSecretConfig{
+			ExistingSecrets: map[string]struct{}{constants.CopilotGitHubToken: {}},
+		}
+		require.NoError(t, ensureSecretAvailable(copilotReq, cfg))
+		assert.False(t, promptCalled, "confirmed existing secret must not trigger a token prompt")
+	})
+
+	t.Run("replaces existing Copilot secret when requested", func(t *testing.T) {
 		var capturedConfig EngineSecretConfig
-		orig := engineSecretsPromptFn
-		t.Cleanup(func() { engineSecretsPromptFn = orig })
+		origConfirm := engineSecretsConfirmExistingFn
+		origPrompt := engineSecretsPromptFn
+		t.Cleanup(func() {
+			engineSecretsConfirmExistingFn = origConfirm
+			engineSecretsPromptFn = origPrompt
+		})
+		engineSecretsConfirmExistingFn = func(_ string, _ EngineSecretConfig) (bool, error) {
+			return false, nil
+		}
 		engineSecretsPromptFn = func(req SecretRequirement, config EngineSecretConfig) error {
 			capturedConfig = config
 			return nil
@@ -266,7 +297,7 @@ func TestEnsureSecretAvailable_CopilotRepromptsWithOverwrite(t *testing.T) {
 			ExistingSecrets: map[string]struct{}{constants.CopilotGitHubToken: {}},
 		}
 		require.NoError(t, ensureSecretAvailable(copilotReq, cfg))
-		assert.True(t, capturedConfig.OverwriteExistingSecret, "prompt must be called with OverwriteExistingSecret=true")
+		assert.True(t, capturedConfig.OverwriteExistingSecret, "replacement prompt must overwrite the existing secret")
 	})
 
 	t.Run("existing non-Copilot secret skips prompt", func(t *testing.T) {

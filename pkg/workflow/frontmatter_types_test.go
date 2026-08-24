@@ -253,10 +253,13 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		frontmatter := map[string]any{
 			"name":        "full-workflow",
 			"description": "A complete workflow",
-			"engine":      "copilot",
-			"source":      "owner/repo/path@main",
-			"redirect":    "owner/repo/new-path@main",
-			"tracker-id":  "test-tracker-123",
+			"metadata": map[string]any{
+				"docs": "https://docs.example.com/full-workflow",
+			},
+			"engine":     "copilot",
+			"source":     "owner/repo/path@main",
+			"redirect":   "owner/repo/new-path@main",
+			"tracker-id": "test-tracker-123",
 			"tools": map[string]any{
 				"bash": map[string]any{
 					"enabled": true,
@@ -286,6 +289,9 @@ func TestParseFrontmatterConfig(t *testing.T) {
 
 		if config.Description != "A complete workflow" {
 			t.Errorf("Description = %q, want %q", config.Description, "A complete workflow")
+		}
+		if config.Metadata["docs"] != "https://docs.example.com/full-workflow" {
+			t.Errorf("Metadata docs = %q, want documentation URL", config.Metadata["docs"])
 		}
 
 		if config.Engine != "copilot" {

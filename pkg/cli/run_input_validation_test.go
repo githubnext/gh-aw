@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 func TestGetWorkflowInputs(t *testing.T) {
@@ -113,6 +115,26 @@ jobs:
 				}
 			}
 		})
+	}
+}
+
+func TestRequiredWorkflowInputs(t *testing.T) {
+	inputs := map[string]*workflow.InputDefinition{
+		"required": {Required: true},
+		"optional": {Required: false},
+		"nil":      nil,
+	}
+
+	filtered := requiredWorkflowInputs(inputs)
+
+	if len(filtered) != 1 {
+		t.Fatalf("expected one required input, got %d", len(filtered))
+	}
+	if _, found := filtered["required"]; !found {
+		t.Fatal("expected required input to be retained")
+	}
+	if _, found := filtered["optional"]; found {
+		t.Fatal("expected optional input to be omitted")
 	}
 }
 
