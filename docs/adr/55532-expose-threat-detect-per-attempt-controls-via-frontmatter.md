@@ -1,8 +1,8 @@
 # ADR-55532: Expose Threat-Detect Per-Attempt Controls via Frontmatter
 
 **Date**: 2026-08-24
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: gh-aw maintainers
 
 ---
 
@@ -40,5 +40,3 @@ Expose `engine-timeout`, `max-turns`, and `retries` at the top-level workflow fr
 - The PR references `GH_AW_MAX_TURNS` as a fallback in `threat-detect`; this ADR does not address whether the env-var fallback should eventually be deprecated in favour of the new frontmatter field.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

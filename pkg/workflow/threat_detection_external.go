@@ -500,7 +500,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 func buildThreatDetectCommand(npmPathSetup, engineID string, config *ThreatDetectionConfig) string {
 	args := []string{
 		"threat-detect",
-		"--engine", engineID,
+		"--engine", shellEscapeArg(engineID),
 	}
 
 	if config != nil {

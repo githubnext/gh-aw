@@ -79,6 +79,27 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "object with detector kill switch overrides parsed from uint64",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"engine-timeout": uint64(0),
+					"max-turns":      uint64(100),
+					"retries":        uint64(1),
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				EngineTimeout: strPtr("0"),
+				MaxTurns: func() *int {
+					v := 100
+					return &v
+				}(),
+				Retries: func() *int {
+					v := 1
+					return &v
+				}(),
+			},
+		},
+		{
 			name: "object with custom steps",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{

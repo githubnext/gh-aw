@@ -358,6 +358,14 @@ func TestBuildThreatDetectCommandEmitsConfiguredOptionalFlags(t *testing.T) {
 	}
 }
 
+func TestBuildThreatDetectCommandShellEscapesEngineID(t *testing.T) {
+	cmd := buildThreatDetectCommand("setup-path", "copilot next", &ThreatDetectionConfig{})
+
+	if !strings.Contains(cmd, "--engine 'copilot next'") {
+		t.Fatalf("expected engine argument to be shell-escaped as a single argument, got: %s", cmd)
+	}
+}
+
 // TestBuildInstallAWFForExternalDetectorStepUsesRootless verifies that the detection
 // job installs the AWF binary in the same mode used to invoke awf in that job.
 func TestBuildInstallAWFForExternalDetectorStepUsesRootless(t *testing.T) {
