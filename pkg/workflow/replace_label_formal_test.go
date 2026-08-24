@@ -574,9 +574,15 @@ func TestFormalStagedMode(t *testing.T) {
 // onWrite is invoked exactly once when the handler would call the write API
 // (issues.setLabels). In staged mode the handler must return before reaching
 // onWrite; this is the invariant asserted by TestFormalStagedMode_NoWriteAPI.
-func formalRunReplaceLabel(staged bool, onWrite func()) formalReplaceLabelOutcome {
+func formalRunReplaceLabel(staged bool, labelToAdd string, allowedAdd, blocked []string, beforeWrite func() []string, onWrite func()) formalReplaceLabelOutcome {
 	if staged {
 		return formalReplaceLabelOutcome{Success: true, Staged: true}
+	}
+	if beforeWrite != nil {
+		blocked = beforeWrite()
+	}
+	if err := formalValidateSingleLabel(labelToAdd, allowedAdd, blocked, "label_to_add"); err != nil {
+		return formalReplaceLabelOutcome{Success: false}
 	}
 	onWrite()
 	return formalReplaceLabelOutcome{Success: true}
@@ -584,7 +590,7 @@ func formalRunReplaceLabel(staged bool, onWrite func()) formalReplaceLabelOutcom
 
 func TestFormalStagedMode_NoWriteAPI(t *testing.T) {
 	writeCalls := 0
-	outcome := formalRunReplaceLabel(true, func() { writeCalls++ })
+	outcome := formalRunReplaceLabel(true, "done", nil, nil, nil, func() { writeCalls++ })
 	assert.True(t, outcome.Success)
 	assert.True(t, outcome.Staged)
 	assert.Zero(t, writeCalls, "staged mode must not call the write API (setLabels)")
@@ -592,10 +598,28 @@ func TestFormalStagedMode_NoWriteAPI(t *testing.T) {
 
 func TestFormalNonStagedMode_InvokesWriteAPI(t *testing.T) {
 	writeCalls := 0
-	outcome := formalRunReplaceLabel(false, func() { writeCalls++ })
+	outcome := formalRunReplaceLabel(false, "done", nil, nil, nil, func() { writeCalls++ })
 	assert.True(t, outcome.Success)
 	assert.False(t, outcome.Staged)
 	assert.Equal(t, 1, writeCalls, "non-staged mode must invoke the write API exactly once")
+}
+
+func TestFormalBlockedLabelAddedViaReplaceLabelMidAllowlistChange_NoWriteAPI(t *testing.T) {
+	writeCalls := 0
+	blocked := []string{}
+	outcome := formalRunReplaceLabel(
+		false,
+		"done",
+		[]string{"done"},
+		blocked,
+		func() []string {
+			return append(blocked, "done")
+		},
+		func() { writeCalls++ },
+	)
+
+	assert.False(t, outcome.Success)
+	assert.Zero(t, writeCalls, "label_to_add blocked before setLabels must be rejected without calling the write API")
 }
 
 func TestFormalSingleRESTCall(t *testing.T) {

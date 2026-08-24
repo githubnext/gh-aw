@@ -2,6 +2,7 @@
 
 **Document**: Validation of `security-architecture-spec.md` against compiled `.lock.yml` files  
 **Date**: July 6, 2026  
+**Last validated**: v1.0.0 / 2026-07-15
 **Validator**: GitHub Copilot Agent  
 **Scope**: Cross-reference specification requirements with actual implementation
 

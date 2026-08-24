@@ -486,6 +486,8 @@ Label allowlists and blocklists are the primary mechanism preventing AI agents f
 
 **RL-049**: Allowlist and blocklist evaluation MUST be performed server-side (in the JavaScript handler executing within GitHub Actions), not by the AI agent. Agents MUST NOT be trusted to self-enforce label restrictions.
 
+**RL-049a**: A conforming implementation MUST re-check `label_to_add` against the current server-side allowlist and blocklist state immediately before invoking `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels`. If the label is blocked or no longer allowed at that point, the implementation MUST reject the message without calling the write API.
+
 ### 8.2 Cross-Repository Restrictions
 
 By default, `replace-label` operates on the repository of the triggering workflow. Cross-repository operation is opt-in and must be explicitly declared.
@@ -517,6 +519,12 @@ The `required-labels` configuration field provides an additional execution gate 
 Staged mode provides a mechanism for operators to audit AI agent label-transition behavior before it takes effect.
 
 **RL-056**: When `staged: true`, the implementation MUST NOT call any write API endpoint. Read-only API calls performed during Stage 5 gate checks MAY proceed in staged mode.
+
+The staged-mode preview SHOULD identify the `label_to_add` value that would be revalidated before the write call so operators can compare previewed transitions against protected-label policy before disabling staged mode.
+
+### 8.7 Sync Notes
+
+The REST failure and retry semantics in [Section 7](#7-error-handling) are mirrored by the `replace_label` outcome-evaluation rules in [`safe-output-outcome-evaluation.md` Section 30](safe-output-outcome-evaluation.md#30-replace_label). Changes to `404`, `5xx`, or `429` handling in either document SHOULD be reviewed against the other document in the same change.
 
 ---
 

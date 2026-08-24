@@ -147,6 +147,35 @@ describe("replace_label", () => {
     expect(result.success).toBe(false);
   });
 
+  it("should reject label_to_add before setLabels when blocklist changes mid-flight", async () => {
+    let setLabelsCalls = 0;
+    const blocked = [];
+    mockGithub.rest.issues.get = async () => {
+      blocked.push("done");
+      return {
+        data: {
+          title: "Test issue title",
+          labels: [
+            { name: "in-progress", node_id: "LA_in_progress_123" },
+            { name: "bug", node_id: "LA_bug_456" },
+          ],
+          node_id: "I_issue_789",
+        },
+      };
+    };
+    mockGithub.rest.issues.setLabels = async () => {
+      setLabelsCalls++;
+      return { data: [] };
+    };
+
+    const handler = await main({ allowed_add: ["done"], blocked });
+    const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("blocked pattern");
+    expect(setLabelsCalls).toBe(0);
+  });
+
   it("should skip when required-labels filter does not match", async () => {
     const handler = await main({ required_labels: ["approved"] });
     // Issue has "in-progress" and "bug" but not "approved"
