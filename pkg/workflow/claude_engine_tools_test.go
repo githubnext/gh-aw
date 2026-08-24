@@ -512,6 +512,7 @@ func TestClaudeEngineComputeAllowedToolsWithSandboxAllowWrite(t *testing.T) {
 
 	sandboxConfig := &SandboxConfig{
 		Agent: &AgentSandboxConfig{
+			Runtime: AgentRuntimeCloudHypervisor,
 			Config: &SandboxRuntimeConfig{
 				Filesystem: &SRTFilesystemConfig{
 					AllowWrite: []string{"/tmp"},
@@ -536,6 +537,7 @@ func TestClaudeEngineSandboxAllowWriteNarrowsDefaultTmpAccess(t *testing.T) {
 
 	sandboxConfig := &SandboxConfig{
 		Agent: &AgentSandboxConfig{
+			Runtime: AgentRuntimeCloudHypervisor,
 			Config: &SandboxRuntimeConfig{
 				Filesystem: &SRTFilesystemConfig{
 					AllowWrite: []string{"/workspace"},

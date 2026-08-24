@@ -384,7 +384,11 @@ func appendSandboxWritableTools(allowedTools []string, sandboxConfig *SandboxCon
 	writablePaths := []string{defaultClaudeTmpWritePath}
 	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
 		if allowWrite := sandboxConfig.Agent.Config.Filesystem.AllowWrite; allowWrite != nil {
-			writablePaths = allowWrite
+			if sandboxConfig.Agent.Runtime == AgentRuntimeCloudHypervisor {
+				writablePaths = allowWrite
+			} else {
+				writablePaths = append(writablePaths, allowWrite...)
+			}
 		}
 	}
 	seenPatterns := make(map[string]struct{}, len(writablePaths))
