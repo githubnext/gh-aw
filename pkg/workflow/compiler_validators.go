@@ -403,7 +403,7 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
 		{enabled: workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0, message: "Using experimental feature: drive-memory"},
 		{enabled: hasContinualExperiment(workflowData.ExperimentConfigs), message: "Using experimental feature: continual experiments"},
-		{enabled: workflowData.SafeOutputs != nil && isPreCreatePullRequestConfigured(workflowData.SafeOutputs.CreatePullRequests), message: "Using experimental feature: create-pull-request pre-create"},
+		{enabled: workflowData.SafeOutputs != nil && isPreCreatePullRequestConfigured(workflowData.SafeOutputs.CreatePullRequests), message: "Using experimental feature: create-pull-request steer"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {
