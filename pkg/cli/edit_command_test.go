@@ -28,10 +28,7 @@ func TestEditChangesSupportAssignmentsSchedulesAndImports(t *testing.T) {
 	assert.Equal(t, uint64(20), frontmatter["max-turns"])
 	assert.Equal(t, []any{"shared/common.md"}, frontmatter["imports"])
 	assert.Equal(t, []any{"shared/review"}, frontmatter["skills"])
-	assert.Equal(t, map[string]any{
-		"workflow_dispatch": nil,
-		"schedule":          []any{map[string]any{"cron": "FUZZY:HOURLY/6 * * *"}},
-	}, frontmatter["on"])
+	assert.Equal(t, map[string]any{"workflow_dispatch": nil, "schedule": "every 6h"}, frontmatter["on"])
 }
 
 func TestEditCommandDryRunPreservesWorkflowFile(t *testing.T) {
@@ -91,7 +88,7 @@ func TestEditAssignmentParsesScheduleShorthands(t *testing.T) {
 	require.NoError(t, err)
 	frontmatter := map[string]any{"on": "workflow_dispatch"}
 	require.NoError(t, applyEditChange(frontmatter, change))
-	assert.Equal(t, []any{map[string]any{"cron": "FUZZY:DAILY_WEEKDAYS * * *"}}, frontmatter["on"].(map[string]any)["schedule"])
+	assert.Equal(t, "daily on weekdays", frontmatter["on"].(map[string]any)["schedule"])
 }
 
 func TestReplaceFrontmatterPreservesBodySeparators(t *testing.T) {

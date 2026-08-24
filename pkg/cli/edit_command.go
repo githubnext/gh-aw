@@ -167,11 +167,11 @@ func scheduleChange(schedule string) (editChange, error) {
 	if strings.EqualFold(schedule, "off") {
 		return editChange{kind: "unset", path: "on.schedule"}, nil
 	}
-	cron, _, err := parser.ParseSchedule(schedule)
+	_, _, err := parser.ParseSchedule(schedule)
 	if err != nil {
 		return editChange{}, fmt.Errorf("invalid schedule: %w", err)
 	}
-	return editChange{kind: "set", path: "on.schedule", value: []any{map[string]any{"cron": cron}}}, nil
+	return editChange{kind: "set", path: "on.schedule", value: schedule}, nil
 }
 
 func parseEditAssignment(assignment, separator string) (editChange, error) {
