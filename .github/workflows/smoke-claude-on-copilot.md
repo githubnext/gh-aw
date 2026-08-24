@@ -12,7 +12,11 @@ permissions:
   contents: read
   pull-requests: read
 name: Smoke Claude on Copilot
-model: copilot/claude-sonnet-4.6
+model: copilot/mai-code-1.1-flash
+models:
+  default-ai-credits-pricing:
+    input: 3
+    output: 15
 engine:
   id: claude
   bare: true
