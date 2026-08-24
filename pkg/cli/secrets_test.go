@@ -11,6 +11,7 @@ import (
 )
 
 func TestExtractSecretName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    string
@@ -59,6 +60,7 @@ func TestExtractSecretName(t *testing.T) {
 }
 
 func TestExtractSecretsFromConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		config          parser.RegistryMCPServerConfig

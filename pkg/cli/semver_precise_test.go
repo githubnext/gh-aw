@@ -13,6 +13,7 @@ import (
 )
 
 func TestIsPreciseVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		version  string
@@ -95,6 +96,7 @@ func TestIsPreciseVersion(t *testing.T) {
 }
 
 func TestPreciseVersionPreference(t *testing.T) {
+	t.Parallel()
 	// Tests that when comparing equivalent versions, imprecise tags (major-only or
 	// major.minor) are not considered precise, while full three-component versions are.
 	// This follows GitHub Actions convention of distinguishing major version pins

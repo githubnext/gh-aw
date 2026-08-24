@@ -50,6 +50,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 }
 
 func TestWorkflowStatus_JSONMarshaling(t *testing.T) {
+	t.Parallel()
 	// Test that WorkflowStatus can be marshaled to JSON
 	status := WorkflowStatus{
 		WorkflowListItem: WorkflowListItem{
@@ -297,6 +298,7 @@ func TestStatusCommand_JSONOutputIncludesOnField(t *testing.T) {
 
 // TestWorkflowStatus_ConsoleRendering tests that WorkflowStatus uses console.RenderStruct correctly
 func TestWorkflowStatus_ConsoleRendering(t *testing.T) {
+	t.Parallel()
 	// Create test data
 	statuses := []WorkflowStatus{
 		{
@@ -357,6 +359,7 @@ func TestWorkflowStatus_ConsoleRendering(t *testing.T) {
 
 // TestWorkflowStatus_JSONMarshalingWithRunStatus tests that RunStatus and RunConclusion are included in JSON output
 func TestWorkflowStatus_JSONMarshalingWithRunStatus(t *testing.T) {
+	t.Parallel()
 	// Test that WorkflowStatus with run status can be marshaled to JSON
 	status := WorkflowStatus{
 		WorkflowListItem: WorkflowListItem{
@@ -391,6 +394,7 @@ func TestWorkflowStatus_JSONMarshalingWithRunStatus(t *testing.T) {
 
 // TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus tests that empty RunStatus and RunConclusion are omitted
 func TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus(t *testing.T) {
+	t.Parallel()
 	// Test that WorkflowStatus without run status omits those fields
 	status := WorkflowStatus{
 		WorkflowListItem: WorkflowListItem{
@@ -424,6 +428,7 @@ func TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus(t *testing.T) {
 
 // TestWorkflowStatus_JSONMarshalingWithLabels tests that labels are included in JSON output
 func TestWorkflowStatus_JSONMarshalingWithLabels(t *testing.T) {
+	t.Parallel()
 	// Test that WorkflowStatus with labels can be marshaled to JSON
 	status := WorkflowStatus{
 		WorkflowListItem: WorkflowListItem{
@@ -466,6 +471,7 @@ func TestWorkflowStatus_JSONMarshalingWithLabels(t *testing.T) {
 
 // TestWorkflowStatus_JSONMarshalingWithEmptyLabels tests that empty labels are omitted
 func TestWorkflowStatus_JSONMarshalingWithEmptyLabels(t *testing.T) {
+	t.Parallel()
 	// Test that WorkflowStatus without labels omits the field
 	status := WorkflowStatus{
 		WorkflowListItem: WorkflowListItem{
@@ -496,6 +502,7 @@ func TestWorkflowStatus_JSONMarshalingWithEmptyLabels(t *testing.T) {
 
 // TestWorkflowStatus_ConsoleRenderingWithRunStatus tests that RunStatus and RunConclusion are rendered when present
 func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
+	t.Parallel()
 	// Create test data with run status
 	statuses := []WorkflowStatus{
 		{
