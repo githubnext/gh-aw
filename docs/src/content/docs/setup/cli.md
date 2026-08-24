@@ -191,6 +191,8 @@ The engine chosen at `init` time does not restrict workflows: every workflow sel
 
 Add a workflow with interactive guided setup. Checks requirements, adds the markdown file, and generates the compiled YAML. Prompts for missing API keys and secrets. For remote workflows, this command follows frontmatter [`redirect`](/gh-aw/reference/frontmatter/#redirect-redirect) declarations before installation.
 
+Before the final pull request confirmation, the wizard optionally offers to add repository support files for using coding agents to author, debug, update, and audit agentic workflows. The prompt is skipped when those support files are already configured. Declining adds only the selected workflow files.
+
 ```bash wrap
 gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
 gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
@@ -198,9 +200,9 @@ gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary UR
 gh aw add-wizard githubnext/agentics/ci-doctor --no-secret  # Skip secret prompt
 ```
 
-**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`, `--no-config`
+**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--gh-aw-ref`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`, `--no-config`
 
-When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token (a separate token from the default `GITHUB_TOKEN`, because the agent needs elevated Copilot API access that the ephemeral workflow token does not carry). On the PAT path, the wizard auto-opens a preconfigured fine-grained PAT creation page (prefilled token name, expiration, and Copilot Requests permission). The GitHub page still must be completed manually in the browser. Users may paste either an existing suitable fine-grained PAT or a newly created one into the masked CLI prompt, but reuse should be based on the token's properties: personal-account resource owner, repository access set to Public repositories, and Copilot Requests permission available. If `COPILOT_GITHUB_TOKEN` already exists, the wizard still asks for the token again because GitHub does not expose stored secret values for validation. The flow does not rely on the PAT display name in GitHub's token list. The pasted token is then validated and stored as a repository secret.
+When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token (a separate token from the default `GITHUB_TOKEN`, because the agent needs elevated Copilot API access that the ephemeral workflow token does not carry). When `COPILOT_GITHUB_TOKEN` already exists, using it is the default; because GitHub does not expose stored secret values, the user asserts that it is a suitable fine-grained PAT with Copilot Requests permission. The alternative replacement path opens a preconfigured fine-grained PAT creation page, validates the pasted token, and updates the repository secret.
 
 #### `add`
 
@@ -217,7 +219,7 @@ gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary
 gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
 ```
 
-**Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
+**Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--gh-aw-ref`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
 

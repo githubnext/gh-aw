@@ -46,7 +46,6 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 
 	prioritizeEngineOption(engineOptions, defaultEngine)
 
-	fmt.Fprintln(os.Stderr, "")
 	form := console.NewSelectForm(
 		huh.NewSelect[string]().
 			Title("Which coding agent would you like to use?").
@@ -262,11 +261,6 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	}
 	c.copilotCLIBillingStatus = probe.BillingStatus
 	copilotRequestsLabel += probe.LabelSuffix
-	if probe.InfoNote != "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(probe.InfoNote))
-	}
-
-	fmt.Fprintln(os.Stderr, "")
 
 	// Build select options.
 	// When billing is confirmed enabled, copilot-requests is listed first (pre-selected).
@@ -289,7 +283,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	var authMethod string
 	selectField := huh.NewSelect[string]().
 		Title("How would you like Copilot workflows to authenticate?").
-		Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN (requires repo write access to configure).").
+		Description(copilotAuthMethodDescription(probe, c.secretSources[constants.CopilotGitHubToken])).
 		Options(options...).
 		Value(&authMethod)
 
@@ -312,6 +306,18 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	return nil
 }
 
+func copilotAuthMethodDescription(probe orgCopilotBillingProbeResult, source secretSource) string {
+	copilotRequestsDescription := "• copilot-requests: Use the org's Copilot billing seat; no PAT required."
+	if probe.InfoNote != "" {
+		copilotRequestsDescription += "\n  (NOTE: " + probe.InfoNote + "\n   Check with your org admin if you want to use this option.)"
+	}
+	patDescription := "• PAT: Create or use a COPILOT_GITHUB_TOKEN repository secret."
+	if source != "" {
+		patDescription = "• PAT: Reuse the existing COPILOT_GITHUB_TOKEN " + string(source) + " secret."
+	}
+	return patDescription + "\n" + copilotRequestsDescription
+}
+
 // applyCopilotAuthMethodChoice records the user's Copilot auth method selection and prints
 // the corresponding status message. It is pure (no I/O beyond stderr) and intentionally
 // separated from the huh form so the assignment logic is unit-testable without mocking the TUI.
@@ -322,6 +328,6 @@ func (c *AddInteractiveConfig) applyCopilotAuthMethodChoice(authMethod string) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No COPILOT_GITHUB_TOKEN secret is required — Copilot usage is billed to your org's Copilot seat."))
 	} else {
 		c.UseCopilotRequests = false
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("A fine-grained PAT with Copilot Requests permission will be required."))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected authentication: COPILOT_GITHUB_TOKEN"))
 	}
 }
