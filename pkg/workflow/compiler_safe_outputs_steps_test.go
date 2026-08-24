@@ -64,15 +64,33 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "custom safe-output extension keeps full default checkout",
+			name: "custom safe-output steps keep full default checkout",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 				Steps: []any{
 					map[string]any{"run": "git status"},
 				},
+			},
+			checkNotContains: []string{
+				"sparse-checkout: .",
+			},
+		},
+		{
+			name: "custom safe-output actions keep full default checkout",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
 				Actions: map[string]*SafeOutputActionConfig{
 					"custom-action": {},
 				},
+			},
+			checkNotContains: []string{
+				"sparse-checkout: .",
+			},
+		},
+		{
+			name: "custom safe-output scripts keep full default checkout",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
 				Scripts: map[string]*SafeScriptConfig{
 					"custom-script": {},
 				},

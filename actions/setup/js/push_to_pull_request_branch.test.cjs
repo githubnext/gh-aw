@@ -1211,7 +1211,7 @@ index 0000000..abc1234
         mockExec.exec.mockRejectedValueOnce(new Error("Patch does not apply"));
 
         mockExec.exec.mockResolvedValueOnce(0); // git checkout --theirs -- docs/findings.md
-        mockExec.exec.mockResolvedValueOnce(0); // git add -- docs/findings.md
+        mockExec.exec.mockResolvedValueOnce(0); // git add --sparse -- docs/findings.md
         mockExec.exec.mockResolvedValueOnce(0); // git am --continue
 
         const module = await loadModule();
@@ -1221,7 +1221,7 @@ index 0000000..abc1234
         expect(result.success).toBe(true);
         expect(mockCore.info).toHaveBeenCalledWith("Patch applied successfully after resolving add/add conflict(s)");
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", "docs/findings.md"], expect.any(Object));
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", "docs/findings.md"], expect.any(Object));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--sparse", "--", "docs/findings.md"], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["am", "--continue"], expect.any(Object));
       } finally {
         pushSignedSpy.mockRestore();

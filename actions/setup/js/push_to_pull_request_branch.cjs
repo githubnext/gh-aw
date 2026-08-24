@@ -1209,7 +1209,10 @@ async function main(config = {}) {
                 core.warning(`Detected add/add conflict(s) for ${unresolvedFiles.join(", ")}; preferring patch version and continuing`);
                 for (const file of unresolvedFiles) {
                   await exec.exec("git", ["checkout", "--theirs", "--", file], baseGitOpts);
-                  await exec.exec("git", ["add", "--", file], baseGitOpts);
+                  // --sparse: the safe_outputs checkout is sparse by default (root files only),
+                  // and a plain "git add" refuses to update index entries for paths outside the
+                  // sparse-checkout cone, leaving nested conflict files unmerged.
+                  await exec.exec("git", ["add", "--sparse", "--", file], baseGitOpts);
                 }
                 await exec.exec("git", ["am", "--continue"], baseGitOpts);
                 core.info("Patch applied successfully after resolving add/add conflict(s)");

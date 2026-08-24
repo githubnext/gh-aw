@@ -3160,6 +3160,8 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath]);
+    // Staged with --sparse so nested paths outside the safe_outputs sparse checkout cone resolve.
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["add", "--sparse", "--", conflictedPath]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--continue"]);
     expect(global.core.debug).toHaveBeenCalledWith(expect.stringContaining("Add/add recovery probe unresolved files"));
   });

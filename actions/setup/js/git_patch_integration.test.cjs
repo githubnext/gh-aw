@@ -382,6 +382,108 @@ describe("git patch integration tests", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // Sparse Checkout (safe_outputs minimal checkout) Scenarios
+  // ──────────────────────────────────────────────────────
+
+  describe("root-only sparse checkout patch application", () => {
+    let sparseDir;
+
+    /**
+     * Clone repoDir into a root-only sparse working copy, mirroring the safe_outputs job's
+     * implicit checkout (`actions/checkout` with `sparse-checkout: .`).
+     */
+    function createRootOnlySparseClone() {
+      const cloneDir = fs.mkdtempSync(path.join(os.tmpdir(), "git-patch-sparse-"));
+      execGit(["clone", "--no-checkout", repoDir, cloneDir]);
+      execGit(["config", "user.name", "Test User"], { cwd: cloneDir });
+      execGit(["config", "user.email", "test@example.com"], { cwd: cloneDir });
+      execGit(["sparse-checkout", "set", "--cone", "."], { cwd: cloneDir });
+      execGit(["checkout", "main"], { cwd: cloneDir });
+      return cloneDir;
+    }
+
+    afterEach(() => {
+      cleanupTestRepo(sparseDir);
+      sparseDir = undefined;
+    });
+
+    it("should apply a patch touching nested paths that are not materialized", () => {
+      // Seed a nested file on main so the sparse clone has a non-materialized nested path.
+      fs.mkdirSync(path.join(repoDir, "pkg", "deep"), { recursive: true });
+      fs.writeFileSync(path.join(repoDir, "pkg", "deep", "nested.txt"), "original\n");
+      execGit(["add", "pkg/deep/nested.txt"], { cwd: repoDir });
+      execGit(["commit", "-m", "Add nested file"], { cwd: repoDir });
+
+      const baseCommit = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+
+      execGit(["checkout", "-b", "feature-nested"], { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "pkg", "deep", "nested.txt"), "updated\n");
+      fs.writeFileSync(path.join(repoDir, "pkg", "deep", "created.txt"), "brand new\n");
+      execGit(["add", "pkg"], { cwd: repoDir });
+      execGit(["commit", "-m", "Update nested files"], { cwd: repoDir });
+
+      const patchPath = path.join(patchDir, "nested.patch");
+      const patchResult = execGit(["format-patch", `${baseCommit}..feature-nested`, "--stdout"], { cwd: repoDir });
+      fs.writeFileSync(patchPath, patchResult.stdout);
+
+      execGit(["checkout", "main"], { cwd: repoDir });
+      sparseDir = createRootOnlySparseClone();
+
+      // The nested path is tracked but intentionally not present in the sparse working tree.
+      expect(fs.existsSync(path.join(sparseDir, "README.md"))).toBe(true);
+      expect(fs.existsSync(path.join(sparseDir, "pkg", "deep", "nested.txt"))).toBe(false);
+
+      const amResult = execGit(["am", "--3way", patchPath], { cwd: sparseDir, allowFailure: true });
+      expect(amResult.status).toBe(0);
+
+      expect(execGit(["show", "HEAD:pkg/deep/nested.txt"], { cwd: sparseDir }).stdout).toBe("updated\n");
+      expect(execGit(["show", "HEAD:pkg/deep/created.txt"], { cwd: sparseDir }).stdout).toBe("brand new\n");
+    });
+
+    it("should recover nested add/add conflicts with git add --sparse", () => {
+      const baseCommit = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+
+      execGit(["checkout", "-b", "feature-nested-add-add"], { cwd: repoDir });
+      fs.mkdirSync(path.join(repoDir, "docs", "deep"), { recursive: true });
+      fs.writeFileSync(path.join(repoDir, "docs", "deep", "conflict.md"), "Patch branch content\n");
+      execGit(["add", "docs/deep/conflict.md"], { cwd: repoDir });
+      execGit(["commit", "-m", "Patch adds nested conflict file"], { cwd: repoDir });
+
+      const patchPath = path.join(patchDir, "nested-add-add.patch");
+      const patchResult = execGit(["format-patch", `${baseCommit}..feature-nested-add-add`, "--stdout"], { cwd: repoDir });
+      fs.writeFileSync(patchPath, patchResult.stdout);
+
+      execGit(["checkout", "main"], { cwd: repoDir });
+      fs.mkdirSync(path.join(repoDir, "docs", "deep"), { recursive: true });
+      fs.writeFileSync(path.join(repoDir, "docs", "deep", "conflict.md"), "Main branch content\n");
+      execGit(["add", "docs/deep/conflict.md"], { cwd: repoDir });
+      execGit(["commit", "-m", "Main adds same nested file differently"], { cwd: repoDir });
+
+      sparseDir = createRootOnlySparseClone();
+
+      const amResult = execGit(["am", "--3way", patchPath], { cwd: sparseDir, allowFailure: true });
+      expect(amResult.status).not.toBe(0);
+
+      const statusPorcelain = execGit(["status", "--porcelain", "-z"], { cwd: sparseDir }).stdout.split("\0").filter(Boolean);
+      expect(statusPorcelain).toContain("AA docs/deep/conflict.md");
+
+      execGit(["checkout", "--theirs", "--", "docs/deep/conflict.md"], { cwd: sparseDir });
+
+      // A plain "git add" refuses to stage paths outside the sparse-checkout cone, which is
+      // why the handlers stage add/add resolutions with --sparse.
+      const plainAdd = execGit(["add", "--", "docs/deep/conflict.md"], { cwd: sparseDir, allowFailure: true });
+      expect(plainAdd.status).not.toBe(0);
+
+      execGit(["add", "--sparse", "--", "docs/deep/conflict.md"], { cwd: sparseDir });
+      execGit(["am", "--continue"], { cwd: sparseDir });
+
+      expect(execGit(["show", "HEAD:docs/deep/conflict.md"], { cwd: sparseDir }).stdout).toBe("Patch branch content\n");
+      const subject = execGit(["log", "-1", "--format=%s"], { cwd: sparseDir }).stdout.trim();
+      expect(subject).toBe("Patch adds nested conflict file");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // Concurrent Push Scenarios
   // ──────────────────────────────────────────────────────
 

@@ -168,7 +168,10 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
 
       core.debug(`Checking out patch version for add/add conflict file: ${file}`);
       await execApi.exec("git", ["checkout", "--theirs", "--", file]);
-      await execApi.exec("git", ["add", "--", file]);
+      // --sparse: the safe_outputs checkout is sparse by default (root files only), and a
+      // plain "git add" refuses to update index entries for paths outside the sparse-checkout
+      // cone. Nested conflict files would therefore stay unmerged and break "git am --continue".
+      await execApi.exec("git", ["add", "--sparse", "--", file]);
     }
     await execApi.exec("git", ["am", "--continue"]);
     core.info("Patch applied successfully after resolving add/add conflict(s)");
