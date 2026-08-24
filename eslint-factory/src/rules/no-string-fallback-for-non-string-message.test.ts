@@ -29,6 +29,8 @@ describe("no-string-fallback-for-non-string-message", () => {
         `const m = typeof err.message === "string" ? err.message : "Internal error";`,
         // Alternate isn't a String() call.
         `const m = typeof err.message === "string" ? err.message : err.toString();`,
+        // A matching container guard narrows the fallback to non-object values.
+        `output = typeof data.error === "object" && typeof data.error.message === "string" ? data.error.message : String(data.error);`,
       ],
       invalid: [],
     });
@@ -47,7 +49,7 @@ describe("no-string-fallback-for-non-string-message", () => {
           errors: [{ messageId: "stringifiesContainerInsteadOfMessage" }],
         },
         {
-          code: `output = typeof data.error === "object" && typeof data.error.message === "string" ? data.error.message : String(data.error);`,
+          code: `const message = typeof foo === "object" && typeof data.error.message === "string" ? data.error.message : String(data.error);`,
           errors: [{ messageId: "stringifiesContainerInsteadOfMessage" }],
         },
       ],
