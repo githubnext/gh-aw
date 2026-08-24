@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -221,6 +222,7 @@ func TestBuildAddWorkflowPRBody(t *testing.T) {
 		EngineOverride:                     "copilot",
 		createdByAddWizard:                 true,
 		addWizardSecretExists:              true,
+		addWizardSecretSource:              organizationSecretSource("selected"),
 		initializedFiles:                   []string{".gitattributes", ".github/aw/actions-lock.json"},
 		addWizardDisableGitHubAppInference: true,
 	}
@@ -233,7 +235,7 @@ func TestBuildAddWorkflowPRBody(t *testing.T) {
 	assert.Contains(t, body, "Helps maintain the repository")
 	assert.Contains(t, body, "`schedule` (`weekly`), `workflow_dispatch`")
 	assert.Contains(t, body, "**Delivery:** pull request")
-	assert.Contains(t, body, "existing `COPILOT_GITHUB_TOKEN` repository or organization secret")
+	assert.Contains(t, body, "existing `COPILOT_GITHUB_TOKEN` organization secret (selected visibility)")
 	assert.Contains(t, body, "**GitHub App permission and event inference:** disabled")
 	assert.Contains(t, body, "`.gitattributes`, `.github/aw/actions-lock.json`")
 	assert.Contains(t, body, "## Review criteria")
@@ -255,6 +257,26 @@ func TestBuildAddWorkflowPRBodyUsesLocalSourceAndSecretNextStep(t *testing.T) {
 	assert.Contains(t, body, "**Triggers:** `issues`")
 	assert.Contains(t, body, "After merge, the add wizard will configure `COPILOT_GITHUB_TOKEN` when needed")
 	assert.Contains(t, body, "recompile it with `gh aw compile`")
+}
+
+func TestBuildAddWorkflowPRBodyOmitsEmptyEngineAndLocalPaths(t *testing.T) {
+	originalFindGitRoot := addFindGitRoot
+	repoDir := t.TempDir()
+	addFindGitRoot = func() (string, error) { return repoDir, nil }
+	t.Cleanup(func() { addFindGitRoot = originalFindGitRoot })
+
+	workflow := &ResolvedWorkflow{
+		Spec:       &WorkflowSpec{WorkflowPath: "./review.md", WorkflowName: "review"},
+		SourceInfo: &FetchedWorkflow{IsLocal: true},
+	}
+	localPath := filepath.Join(repoDir, ".github", "skills", "agentic-workflows", "SKILL.md")
+	body := buildAddWorkflowPRBody([]*ResolvedWorkflow{workflow}, AddOptions{
+		initializedFiles: []string{localPath},
+	})
+
+	assert.NotContains(t, body, "**Engine:**")
+	assert.NotContains(t, body, repoDir)
+	assert.Contains(t, body, "`.github/skills/agentic-workflows/SKILL.md`")
 }
 
 func TestBuildAddWorkflowPRBodyPreservesDescriptionMarkdown(t *testing.T) {

@@ -192,8 +192,7 @@ func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
 	return hasAccess, nil
 }
 
-// checkRepoVisibilityShared checks if the repository is public or private
-func checkRepoVisibilityShared(repoSlug string) bool {
+func getRepoVisibilityShared(repoSlug string) string {
 	preconditionsLog.Print("Checking repository visibility")
 
 	// Use gh api to check repository visibility
@@ -201,11 +200,10 @@ func checkRepoVisibilityShared(repoSlug string) bool {
 	if err != nil {
 		preconditionsLog.Printf("Could not check repository visibility: %v", err)
 		// Default to public if we can't determine
-		return true
+		return "public"
 	}
 
 	visibility := strings.TrimSpace(string(output))
-	isPublic := visibility == "public"
-	preconditionsLog.Printf("Repository visibility: %s (isPublic=%v)", visibility, isPublic)
-	return isPublic
+	preconditionsLog.Printf("Repository visibility: %s", visibility)
+	return visibility
 }

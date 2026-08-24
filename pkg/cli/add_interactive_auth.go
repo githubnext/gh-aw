@@ -67,8 +67,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Target repository: "+repoSlug))
 	addInteractiveLog.Printf("Target repository: %s", repoSlug)
 
-	// Check if repository is public or private
-	c.isPublicRepo = checkRepoVisibilityShared(c.RepoOverride)
+	c.repoVisibility = getRepoVisibilityShared(c.RepoOverride)
 
 	return nil
 }

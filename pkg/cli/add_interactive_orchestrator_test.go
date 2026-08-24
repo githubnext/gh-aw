@@ -345,8 +345,22 @@ func TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSec
 	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	originalConfirmAuthoringSupport := addConfirmAuthoringSupport
-	addConfirmAuthoringSupport = func(context.Context) (bool, error) { return false, nil }
-	t.Cleanup(func() { addConfirmAuthoringSupport = originalConfirmAuthoringSupport })
+	originalMissingInitMarkers := addMissingInitMarkers
+	originalInitRepository := addInitRepository
+	initializationRan := false
+	addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
+	addMissingInitMarkers = func(string, string) ([]string, error) {
+		return []string{bootstrapAgenticSkillPath}, nil
+	}
+	addInitRepository = func(InitOptions) error {
+		initializationRan = true
+		return nil
+	}
+	t.Cleanup(func() {
+		addConfirmAuthoringSupport = originalConfirmAuthoringSupport
+		addMissingInitMarkers = originalMissingInitMarkers
+		addInitRepository = originalInitRepository
+	})
 
 	// Drive the delivery confirm form via accessible (line-based) mode, answering
 	// "no" to pull request creation.
@@ -382,13 +396,15 @@ func TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSec
 		},
 	}
 
-	workflowFiles, _, secretName, secretValue, createPR, err := config.prepareAndConfirmAddInteractive()
+	workflowFiles, initFiles, secretName, secretValue, createPR, err := config.prepareAndConfirmAddInteractive()
 	require.NoError(t, err)
 
 	assert.False(t, createPR, "choosing local writes should report createPR=false")
 	assert.Empty(t, secretName, "local writes must not resolve a secret to configure")
 	assert.Empty(t, secretValue, "local writes must not resolve a secret value")
 	assert.NotEmpty(t, workflowFiles, "workflow files should still be determined for local writes")
+	assert.Empty(t, initFiles, "local writes must not include repository initialization files")
+	assert.False(t, initializationRan, "local writes must not initialize repository support files")
 
 	if _, statErr := os.Stat(ghLog); statErr == nil {
 		logContent, readErr := os.ReadFile(ghLog)

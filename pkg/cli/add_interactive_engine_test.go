@@ -60,13 +60,13 @@ func TestCopilotAuthMethodDescription(t *testing.T) {
 	t.Parallel()
 
 	t.Run("bullets both authentication methods", func(t *testing.T) {
-		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{})
-		assert.Equal(t, "• PAT: Use the existing COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.", description)
+		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{}, "")
+		assert.Equal(t, "• PAT: Create or use a COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.", description)
 	})
 
 	t.Run("includes inconclusive billing note in copilot-requests bullet", func(t *testing.T) {
-		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{InfoNote: copilotBillingInconclusiveNote})
-		assert.Equal(t, "• PAT: Use the existing COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.\n  (NOTE: Could not confirm org Copilot CLI billing.\n   Check with your org admin if you want to use this option.)", description)
+		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{InfoNote: copilotBillingInconclusiveNote}, repositorySecretSource)
+		assert.Equal(t, "• PAT: Reuse the existing COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.\n  (NOTE: Could not confirm org Copilot CLI billing.\n   Check with your org admin if you want to use this option.)", description)
 	})
 }
 

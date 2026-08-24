@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -17,6 +18,11 @@ import (
 )
 
 var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
+
+const (
+	ghAwDocumentationURL = "https://github.github.com/gh-aw/"
+	ghAwRepositoryURL    = "https://github.com/github/gh-aw"
+)
 
 // invalidBranchCharsPattern matches characters not allowed in git branch names
 var invalidBranchCharsPattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
@@ -80,7 +86,12 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 	// Create file tracker for rollback capability
 	tracker := NewFileTracker()
 	for _, initializedFile := range opts.initializedFiles {
-		tracker.TrackCreated(initializedFile)
+		if originalContent, modified := opts.initializedOriginalContents[initializedFile]; modified {
+			tracker.TrackModified(initializedFile)
+			tracker.OriginalContent[initializedFile] = originalContent
+		} else {
+			tracker.TrackCreated(initializedFile)
+		}
 	}
 
 	// Ensure we switch back to original branch on exit
@@ -199,9 +210,9 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) string {
 	var body strings.Builder
 	if opts.createdByAddWizard {
-		fmt.Fprintf(&body, "This pull request was created with [`gh aw add-wizard`](https://github.github.com/gh-aw/) from [GitHub Agentic Workflows](https://github.com/github/gh-aw), version `%s`.\n", markdownText(GetVersion()))
+		fmt.Fprintf(&body, "This pull request was created with [`gh aw add-wizard`](%s) from [GitHub Agentic Workflows](%s), version `%s`.\n", ghAwDocumentationURL, ghAwRepositoryURL, markdownText(GetVersion()))
 	} else {
-		fmt.Fprintf(&body, "This pull request was created with [`gh aw add`](https://github.github.com/gh-aw/) from [GitHub Agentic Workflows](https://github.com/github/gh-aw), version `%s`.\n", markdownText(GetVersion()))
+		fmt.Fprintf(&body, "This pull request was created with [`gh aw add`](%s) from [GitHub Agentic Workflows](%s), version `%s`.\n", ghAwDocumentationURL, ghAwRepositoryURL, markdownText(GetVersion()))
 	}
 
 	body.WriteString("\n## Workflows\n")
@@ -216,13 +227,19 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 
 	body.WriteString("\n## Options selected\n\n")
 	body.WriteString("- **Delivery:** pull request\n")
-	fmt.Fprintf(&body, "- **Engine:** `%s`\n", markdownText(opts.EngineOverride))
+	if opts.EngineOverride != "" {
+		fmt.Fprintf(&body, "- **Engine:** `%s`\n", markdownText(opts.EngineOverride))
+	}
 	if opts.EngineOverride == "copilot" {
 		auth := "`COPILOT_GITHUB_TOKEN` repository secret"
 		if opts.AddCopilotRequestsPermission {
 			auth = "organization billing via `permissions.copilot-requests: write`"
 		} else if opts.addWizardSecretExists {
-			auth = "existing `COPILOT_GITHUB_TOKEN` repository or organization secret"
+			source := opts.addWizardSecretSource
+			if source == "" {
+				source = repositorySecretSource
+			}
+			auth = "existing `COPILOT_GITHUB_TOKEN` " + source
 		} else if opts.addWizardSkipSecret {
 			auth = "`COPILOT_GITHUB_TOKEN` setup skipped"
 		}
@@ -247,7 +264,7 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 		body.WriteString("- **Custom appended instructions:** included\n")
 	}
 	if len(opts.initializedFiles) > 0 {
-		fmt.Fprintf(&body, "- **Repository initialization:** %s\n", joinCodeValues(opts.initializedFiles))
+		fmt.Fprintf(&body, "- **Repository initialization:** %s\n", joinCodeValues(repositoryRelativePaths(opts.initializedFiles)))
 	}
 
 	body.WriteString("\n## Review criteria\n\n")
@@ -268,6 +285,22 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 	body.WriteString("3. Monitor the first scheduled or manually dispatched run, then adjust the Markdown source and recompile if the workflow needs refinement.\n")
 
 	return body.String()
+}
+
+func repositoryRelativePaths(paths []string) []string {
+	gitRoot, err := addFindGitRoot()
+	displayPaths := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if filepath.IsAbs(path) {
+			if relative, relErr := filepath.Rel(gitRoot, path); err == nil && relErr == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+				path = relative
+			} else {
+				path = filepath.Base(path)
+			}
+		}
+		displayPaths = append(displayPaths, filepath.ToSlash(path))
+	}
+	return displayPaths
 }
 
 func workflowSourceMarkdown(resolved *ResolvedWorkflow) string {

@@ -59,6 +59,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		AddCopilotRequestsPermission:       c.UseCopilotRequests,
 		GhAwRef:                            c.GhAwRef,
 		initializedFiles:                   initFiles,
+		initializedOriginalContents:        c.initializedOriginalContents,
 		workingTreePrevalidated:            createPR,
 		showInteractiveProgress:            true,
 		createdByAddWizard:                 true,
@@ -66,6 +67,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		addWizardDisableGitHubAppInference: c.DisableGitHubAppPermissionInference,
 	}
 	_, opts.addWizardSecretExists = c.existingSecrets["COPILOT_GITHUB_TOKEN"]
+	opts.addWizardSecretSource = c.secretSources["COPILOT_GITHUB_TOKEN"]
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	if err != nil {
 		return fmt.Errorf("failed to add workflow: %w", err)
@@ -330,13 +332,20 @@ const (
 // but requires staged changes and edits to files the wizard will write to be cleaned.
 func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR(workflowFiles, initFiles []string) error {
 	addInteractiveLog.Print("Checking working tree changes before PR creation")
-	plannedPaths, err := c.plannedAddPaths(workflowFiles, initFiles)
+	gitRoot, err := addFindGitRoot()
+	if err != nil {
+		return fmt.Errorf("failed to determine repository root for PR preflight: %w", err)
+	}
+	plannedPaths, err := c.plannedAddPathsAtRoot(gitRoot, workflowFiles, initFiles)
 	if err != nil {
 		return err
 	}
 
 	for {
-		blockers, inspectErr := inspectAddWorkingTree(plannedPaths)
+		if err := c.Ctx.Err(); err != nil {
+			return err
+		}
+		blockers, inspectErr := inspectAddWorkingTreeAtRoot(gitRoot, plannedPaths)
 		if inspectErr != nil {
 			return inspectErr
 		}
@@ -361,11 +370,7 @@ func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR(workflowFiles, in
 	}
 }
 
-func (c *AddInteractiveConfig) plannedAddPaths(workflowFiles, initFiles []string) ([]string, error) {
-	gitRoot, err := addFindGitRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine repository root for PR preflight: %w", err)
-	}
+func (c *AddInteractiveConfig) plannedAddPathsAtRoot(gitRoot string, workflowFiles, initFiles []string) ([]string, error) {
 	workflowDir := c.WorkflowDir
 	if workflowDir == "" {
 		workflowDir = getWorkflowsDir()
@@ -393,6 +398,10 @@ func inspectAddWorkingTree(plannedPaths []string) (addWorkingTreeBlockers, error
 	if err != nil {
 		return addWorkingTreeBlockers{}, fmt.Errorf("failed to determine repository root for PR preflight: %w", err)
 	}
+	return inspectAddWorkingTreeAtRoot(gitRoot, plannedPaths)
+}
+
+func inspectAddWorkingTreeAtRoot(gitRoot string, plannedPaths []string) (addWorkingTreeBlockers, error) {
 	cmd := exec.Command("git", "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	cmd.Dir = gitRoot
 	output, err := cmd.Output()

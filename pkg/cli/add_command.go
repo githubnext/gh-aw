@@ -89,6 +89,9 @@ type AddOptions struct {
 	AddCopilotRequestsPermission bool
 	// initializedFiles contains files created by add-wizard after its clean-tree check.
 	initializedFiles []string
+	// initializedOriginalContents contains the pre-initialization contents of files
+	// updated by add-wizard, keyed by absolute path.
+	initializedOriginalContents map[string][]byte
 	// workingTreePrevalidated indicates add-wizard already verified that staged
 	// changes and changes overlapping planned files are absent.
 	workingTreePrevalidated bool
@@ -99,6 +102,7 @@ type AddOptions struct {
 	createdByAddWizard                 bool
 	addWizardSkipSecret                bool
 	addWizardSecretExists              bool
+	addWizardSecretSource              string
 	addWizardDisableGitHubAppInference bool
 }
 

@@ -50,9 +50,8 @@ type AddInteractiveConfig struct {
 	// Populated by selectCopilotAuthMethod() via probeCopilotBillingForOrg().
 	copilotCLIBillingStatus string
 
-	// isPublicRepo tracks whether the target repository is public
-	// This is populated by checkGitRepository() when determining the repo
-	isPublicRepo bool
+	// repoVisibility is the target repository's public, private, or internal visibility.
+	repoVisibility string
 
 	// hasWriteAccess tracks whether the user has write access to the target repository.
 	// When false, secrets configuration is skipped since users cannot configure repository secrets.
@@ -61,6 +60,7 @@ type AddInteractiveConfig struct {
 	// existingSecrets tracks which secrets already exist in the repository
 	// This is populated by checkExistingSecrets() before engine selection
 	existingSecrets map[string]struct{}
+	secretSources   map[string]string
 
 	// addResult holds the result from AddWorkflows, including HasWorkflowDispatch
 	addResult *AddWorkflowsResult
@@ -72,6 +72,10 @@ type AddInteractiveConfig struct {
 	// forceOverwrite records that the user chose to replace unstaged or untracked
 	// files overlapping the wizard's planned output. Staged changes never enable it.
 	forceOverwrite bool
+
+	// initializedOriginalContents preserves files updated by repository initialization
+	// so pull request rollback can restore their pre-wizard contents.
+	initializedOriginalContents map[string][]byte
 }
 
 // RunAddInteractive runs the interactive add workflow
@@ -235,12 +239,13 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 		}
 	}
 
-	initFiles, err = applyAddRepositoryInitialization(initializationPlan, c.EngineOverride, c.Verbose, c.NoGitattributes)
+	if !createPR {
+		return workflowFiles, nil, "", "", false, nil
+	}
+
+	initFiles, c.initializedOriginalContents, err = applyAddRepositoryInitialization(initializationPlan, c.EngineOverride, c.Verbose, c.NoGitattributes)
 	if err != nil {
 		return nil, nil, "", "", false, err
-	}
-	if !createPR {
-		return workflowFiles, initFiles, "", "", false, nil
 	}
 
 	// Secret collection and upload only happen once the user has committed to the

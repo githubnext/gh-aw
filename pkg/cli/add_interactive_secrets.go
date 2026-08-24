@@ -23,11 +23,14 @@ type organizationSecretsResponse struct {
 	Secrets []organizationSecret `json:"secrets"`
 }
 
+const repositorySecretSource = "repository secret"
+
 // checkExistingSecrets fetches which secrets already exist in the repository or its organization
 func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	addInteractiveLog.Print("Checking existing repository secrets")
 
 	c.existingSecrets = make(map[string]struct{})
+	c.secretSources = make(map[string]string)
 
 	// Use gh api to list repository secrets
 	output, err := addInteractiveRunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
@@ -37,24 +40,28 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	} else {
 		for _, name := range parseSecretNames(output) {
 			c.existingSecrets[name] = struct{}{}
+			c.secretSources[name] = repositorySecretSource
 			addInteractiveLog.Printf("Found existing repository secret: %s", name)
 		}
 	}
 
 	// Also check org-level secrets if the repo belongs to an organization
 	if org, _, found := strings.Cut(c.RepoOverride, "/"); found && org != "" {
-		orgOutput, orgErr := addInteractiveRunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org))
+		orgOutput, orgErr := addInteractiveRunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--paginate", "--slurp")
 		if orgErr != nil {
 			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
 		} else {
-			var response organizationSecretsResponse
-			if err := json.Unmarshal(orgOutput, &response); err != nil {
+			responses, err := parseOrganizationSecretsResponses(orgOutput)
+			if err != nil {
 				addInteractiveLog.Printf("Could not parse organization secrets: %v", err)
 			} else {
-				for _, secret := range response.Secrets {
-					if c.organizationSecretAvailable(org, secret) {
-						c.existingSecrets[secret.Name] = struct{}{}
-						addInteractiveLog.Printf("Found available organization secret: %s", secret.Name)
+				for _, response := range responses {
+					for _, secret := range response.Secrets {
+						if c.organizationSecretAvailable(org, secret) {
+							c.existingSecrets[secret.Name] = struct{}{}
+							c.secretSources[secret.Name] = organizationSecretSource(secret.Visibility)
+							addInteractiveLog.Printf("Found available organization secret: %s", secret.Name)
+						}
 					}
 				}
 			}
@@ -68,17 +75,34 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	return nil
 }
 
+func parseOrganizationSecretsResponses(output []byte) ([]organizationSecretsResponse, error) {
+	var responses []organizationSecretsResponse
+	if err := json.Unmarshal(output, &responses); err == nil {
+		return responses, nil
+	}
+	var response organizationSecretsResponse
+	if err := json.Unmarshal(output, &response); err != nil {
+		return nil, err
+	}
+	return []organizationSecretsResponse{response}, nil
+}
+
+func organizationSecretSource(visibility string) string {
+	return "organization secret (" + visibility + " visibility)"
+}
+
 func (c *AddInteractiveConfig) organizationSecretAvailable(org string, secret organizationSecret) bool {
 	switch secret.Visibility {
 	case "all":
 		return true
 	case "private":
-		return !c.isPublicRepo
+		return c.repoVisibility == "private"
 	case "selected":
 		output, err := addInteractiveRunGH(
 			"Checking organization secret repository access...",
 			"api",
 			fmt.Sprintf("/orgs/%s/actions/secrets/%s/repositories", org, secret.Name),
+			"--paginate",
 			"--jq",
 			".repositories[].full_name",
 		)
