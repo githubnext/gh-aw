@@ -1702,6 +1702,42 @@ Test prompt.
 	}
 }
 
+func TestCompileWorkflowMetadataIncludesDocumentation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "lock-metadata-documentation")
+	workflowPath := filepath.Join(tmpDir, "documentation.md")
+	workflowContent := `---
+engine: copilot
+documentation: https://docs.example.com/automation/repository-health
+on: issues
+---
+# Test Workflow
+
+Test prompt.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	if err := NewCompiler().CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(strings.TrimSuffix(workflowPath, ".md") + ".lock.yml")
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	metadata, _, err := ExtractMetadataFromLockFile(string(lockContent))
+	if err != nil {
+		t.Fatalf("Failed to extract lock metadata: %v", err)
+	}
+	if metadata == nil {
+		t.Fatal("Expected lock metadata")
+	}
+	if metadata.Documentation != "https://docs.example.com/automation/repository-health" {
+		t.Errorf("Documentation = %q, want documentation URL", metadata.Documentation)
+	}
+}
+
 func TestCompileWorkflowMetadataIncludesEngineVersionsAndRunnerIdentifier(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "lock-metadata-engine-versions")
 

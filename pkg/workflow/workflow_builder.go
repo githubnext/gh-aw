@@ -38,6 +38,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		FrontmatterFieldLines:      result.FieldLines,
 		RawMarkdown:                result.Markdown,
 		Description:                c.extractDescription(result.Frontmatter),
+		Documentation:              c.extractDocumentation(result.Frontmatter),
 		Source:                     c.extractSource(result.Frontmatter),
 		Redirect:                   c.extractRedirect(result.Frontmatter),
 		TrackerID:                  toolsResult.trackerID,

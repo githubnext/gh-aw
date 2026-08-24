@@ -38,6 +38,7 @@ type LockMetadata struct {
 	BodyHash        string            `json:"body_hash,omitempty"`
 	StopTime        string            `json:"stop_time,omitempty"`
 	CompilerVersion string            `json:"compiler_version,omitempty"`
+	Documentation   string            `json:"documentation,omitempty"`
 	Strict          bool              `json:"strict,omitempty"`
 	// AgentMetadataInfo is embedded so agent fields are declared once and
 	// serialized inline in the lock metadata JSON.

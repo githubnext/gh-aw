@@ -20,6 +20,14 @@
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
       "examples": ["Quickstart for using the GitHub Actions library"]
     },
+    "documentation": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uri",
+      "pattern": "^https://[^/?#\\s]+(?:[/?#][^\\s]*)?$",
+      "description": "Optional absolute HTTPS URL for human-facing workflow documentation. Preserved in generated lock-file metadata without being fetched during compilation.",
+      "examples": ["https://docs.example.com/automation/repository-health"]
+    },
     "emoji": {
       "type": "string",
       "description": "Optional emoji to represent the workflow visually in listings and UI surfaces.",

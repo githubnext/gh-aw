@@ -28,6 +28,11 @@ name: "My Workflow"
 # (optional)
 description: "Description of the workflow"
 
+# Optional absolute HTTPS URL for human-facing workflow documentation. Preserved
+# in generated lock-file metadata without being fetched during compilation.
+# (optional)
+documentation: "https://docs.example.com/automation/repository-health"
+
 # Optional emoji to represent the workflow visually in listings and UI surfaces.
 # (optional)
 emoji: "example-value"

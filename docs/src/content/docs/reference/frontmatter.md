@@ -32,6 +32,14 @@ Provides a human-readable description of the workflow rendered as a comment in t
 description: "Workflow that analyzes pull requests and provides feedback"
 ```
 
+### Documentation Link (`documentation:`)
+
+Optional absolute HTTPS URL for human-facing workflow documentation. The compiler preserves the link in generated lock-file metadata without fetching it or changing workflow execution.
+
+```yaml wrap
+documentation: "https://docs.example.com/automation/repository-health"
+```
+
 ### Emoji (`emoji:`)
 
 An optional emoji to represent the workflow visually, for example in listings and UI surfaces.
