@@ -44,6 +44,12 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// them. This keeps the push-capable token on disk for the handlers; the trusted
 	// safe_outputs handler code (not the untrusted agent) is the only consumer.
 	checkoutMgr.SetKeepCredentialsForPush(true)
+	if checkoutMgr.GetDefaultCheckoutOverride() == nil &&
+		len(data.SafeOutputs.Steps) == 0 &&
+		len(data.SafeOutputs.Actions) == 0 &&
+		len(data.SafeOutputs.Scripts) == 0 {
+		checkoutMgr.SetMinimalDefaultCheckout(true)
+	}
 
 	// Persist the resolved PR push token (not just the default GITHUB_TOKEN) into
 	// .git/config so the retained credential matches the token the handlers use to

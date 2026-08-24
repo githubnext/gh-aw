@@ -194,12 +194,24 @@ type CheckoutManager struct {
 	// defaultRefOverride forces the workspace-root checkout to a compiler-generated
 	// ref, such as the branch allocated by create-pull-request.steer.
 	defaultRefOverride string
+	// minimalDefaultCheckout limits an implicit workspace-root checkout to root files.
+	// Safe-output PR handlers can retrieve required blobs with their retained credentials,
+	// avoiding materializing the entire repository before applying and pushing a patch.
+	minimalDefaultCheckout bool
 }
 
 // SetDefaultRefOverride forces the default workspace checkout to use ref.
 func (cm *CheckoutManager) SetDefaultRefOverride(ref string) {
 	checkoutManagerLog.Printf("Setting default checkout ref override: %q", ref)
 	cm.defaultRefOverride = ref
+}
+
+// SetMinimalDefaultCheckout limits an implicit workspace-root checkout to root files.
+// Callers must not enable it when an explicit root checkout or custom step may require
+// the full working tree.
+func (cm *CheckoutManager) SetMinimalDefaultCheckout(minimal bool) {
+	checkoutManagerLog.Printf("Setting minimal default checkout: %t", minimal)
+	cm.minimalDefaultCheckout = minimal
 }
 
 // NewCheckoutManager creates a new CheckoutManager pre-loaded with user-supplied

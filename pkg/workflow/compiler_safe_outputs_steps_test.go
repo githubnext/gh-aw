@@ -33,6 +33,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"uses: actions/checkout@",
 				// safe_outputs job retains credentials so the handlers can git fetch/push.
 				"persist-credentials: true",
+				"sparse-checkout: .",
 				"name: Configure Git credentials",
 				"configure_git_credentials.sh",
 				"GITHUB_REPOSITORY: ${{ github.repository }}",
@@ -57,6 +58,27 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 			checkContains: []string{
 				"fetch-depth: 0",
+			},
+			checkNotContains: []string{
+				"sparse-checkout: .",
+			},
+		},
+		{
+			name: "custom safe-output extension keeps full default checkout",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+				Steps: []any{
+					map[string]any{"run": "git status"},
+				},
+				Actions: map[string]*SafeOutputActionConfig{
+					"custom-action": {},
+				},
+				Scripts: map[string]*SafeScriptConfig{
+					"custom-script": {},
+				},
+			},
+			checkNotContains: []string{
+				"sparse-checkout: .",
 			},
 		},
 		{

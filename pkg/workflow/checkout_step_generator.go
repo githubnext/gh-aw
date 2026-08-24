@@ -486,6 +486,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	if !trialMode && !tokenEmitted && cm.keepCredentialsForPush && cm.pushToken != "" {
 		fmt.Fprintf(&sb, "          token: %s\n", cm.pushToken)
 	}
+	if override == nil && cm.minimalDefaultCheckout {
+		sb.WriteString("          sparse-checkout: .\n")
+	}
 
 	steps := []string{sb.String()}
 	if override != nil && len(override.sparsePatterns) > 0 {

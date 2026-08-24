@@ -2079,6 +2079,7 @@ jobs:
         with:
           persist-credentials: true
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+          sparse-checkout: .
       - name: Checkout github/gh-aw-side-repo into gh-aw-side-repo
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
