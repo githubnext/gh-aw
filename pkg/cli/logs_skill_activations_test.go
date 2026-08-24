@@ -15,7 +15,6 @@ import (
 // entries in agent_output.json are detected and returned as SkillActivation records.
 func TestExtractSkillActivationsFromAgentOutput(t *testing.T) {
 	t.Parallel()
-	tmpDir := testutil.TempDir(t, "skill-activations-*")
 	testRun := WorkflowRun{DatabaseID: 123, WorkflowName: "test-workflow"}
 
 	tests := []struct {
@@ -123,12 +122,12 @@ func TestExtractSkillActivationsFromAgentOutput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			tmpDir := testutil.TempDir(t, "skill-activations-*")
 			// Write agent_output.json
 			agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename)
 			if err := os.WriteFile(agentOutputPath, []byte(tc.content), 0o600); err != nil {
 				t.Fatalf("failed to write agent_output.json: %v", err)
 			}
-			t.Cleanup(func() { os.Remove(agentOutputPath) })
 
 			got, err := extractSkillActivationsFromRun(tmpDir, testRun, false, "", "")
 			if err != nil {

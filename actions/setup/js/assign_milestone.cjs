@@ -1,4 +1,5 @@
 // @ts-check
+// @safe-outputs-exempt SEC-004
 /// <reference types="@actions/github-script" />
 
 /**
