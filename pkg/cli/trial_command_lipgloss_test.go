@@ -9,6 +9,7 @@ import (
 
 // TestTrialConfirmationLipglossRendering tests the Lipgloss rendering in the trial confirmation display
 func TestTrialConfirmationLipglossRendering(t *testing.T) {
+	t.Parallel()
 	// Note: This test validates the function structure and that it doesn't panic
 	// Visual validation requires manual testing with TTY
 
@@ -150,6 +151,7 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// The function writes to stderr, so we can't easily capture output
 			// This test mainly validates that the function doesn't panic
 			// Visual validation requires manual testing
@@ -172,6 +174,7 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 
 // TestTrialConfirmationStructure tests that the rendering structure is maintained
 func TestTrialConfirmationStructure(t *testing.T) {
+	t.Parallel()
 	// This test validates that key elements are present in the rendering logic
 	// by examining the function source structure
 
@@ -197,6 +200,7 @@ func TestTrialConfirmationStructure(t *testing.T) {
 
 // TestLipglossImportPresent validates that lipgloss is imported
 func TestLipglossImportPresent(t *testing.T) {
+	t.Parallel()
 	// This is a meta-test that validates the implementation uses lipgloss
 	// by checking that the import exists in the source
 	// The actual validation is done at compile time
@@ -208,6 +212,7 @@ func TestLipglossImportPresent(t *testing.T) {
 
 // TestSectionCompositionPattern validates the pattern used for composing sections
 func TestSectionCompositionPattern(t *testing.T) {
+	t.Parallel()
 	// This test documents the expected pattern for section composition
 	// The actual implementation is in showTrialConfirmation
 
