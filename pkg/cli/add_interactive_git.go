@@ -44,25 +44,29 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
 	// This returns the result including PR number and HasWorkflowDispatch
 	opts := AddOptions{
-		Verbose:                      c.Verbose,
-		Quiet:                        true,
-		EngineOverride:               c.EngineOverride,
-		Name:                         "",
-		Force:                        c.forceOverwrite,
-		AppendText:                   c.AppendText,
-		CreatePR:                     createPR,
-		NoGitattributes:              c.NoGitattributes,
-		WorkflowDir:                  c.WorkflowDir,
-		NoStopAfter:                  c.NoStopAfter,
-		StopAfter:                    c.StopAfter,
-		DisableSecurityScanner:       c.DisableSecurityScanner,
-		RepoSlug:                     c.RepoOverride,
-		AddCopilotRequestsPermission: c.UseCopilotRequests,
-		GhAwRef:                      c.GhAwRef,
-		initializedFiles:             initFiles,
-		workingTreePrevalidated:      createPR,
-		showInteractiveProgress:      true,
+		Verbose:                            c.Verbose,
+		Quiet:                              true,
+		EngineOverride:                     c.EngineOverride,
+		Name:                               "",
+		Force:                              c.forceOverwrite,
+		AppendText:                         c.AppendText,
+		CreatePR:                           createPR,
+		NoGitattributes:                    c.NoGitattributes,
+		WorkflowDir:                        c.WorkflowDir,
+		NoStopAfter:                        c.NoStopAfter,
+		StopAfter:                          c.StopAfter,
+		DisableSecurityScanner:             c.DisableSecurityScanner,
+		RepoSlug:                           c.RepoOverride,
+		AddCopilotRequestsPermission:       c.UseCopilotRequests,
+		GhAwRef:                            c.GhAwRef,
+		initializedFiles:                   initFiles,
+		workingTreePrevalidated:            createPR,
+		showInteractiveProgress:            true,
+		createdByAddWizard:                 true,
+		addWizardSkipSecret:                c.SkipSecret,
+		addWizardDisableGitHubAppInference: c.DisableGitHubAppPermissionInference,
 	}
+	_, opts.addWizardSecretExists = c.existingSecrets["COPILOT_GITHUB_TOKEN"]
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	if err != nil {
 		return fmt.Errorf("failed to add workflow: %w", err)

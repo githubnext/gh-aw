@@ -95,6 +95,11 @@ type AddOptions struct {
 	// showInteractiveProgress enables high-level progress indicators for the
 	// otherwise quiet add-wizard write, compile, commit, and push phases.
 	showInteractiveProgress bool
+	// createdByAddWizard records that the interactive wizard selected these options.
+	createdByAddWizard                 bool
+	addWizardSkipSecret                bool
+	addWizardSecretExists              bool
+	addWizardDisableGitHubAppInference bool
 }
 
 // AddWorkflowsResult contains the result of adding workflows
