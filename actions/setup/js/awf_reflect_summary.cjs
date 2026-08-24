@@ -2,9 +2,11 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 const AWF_CONFIG_PATH = "/tmp/gh-aw/awf-config.json";
-const AWF_REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
+const AWF_REFLECT_PATH = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json");
 const AWF_MODELS_PATH = "/tmp/gh-aw/sandbox/firewall/models.json";
 
 /**

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
+import os from "os";
+import path from "path";
 
 const mockCore = {
   info: vi.fn(),
@@ -11,7 +13,7 @@ const mockCore = {
 
 global.core = mockCore;
 
-const REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
+const REFLECT_PATH = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json");
 const CONFIG_PATH = "/tmp/gh-aw/awf-config.json";
 const MODELS_PATH = "/tmp/gh-aw/sandbox/firewall/models.json";
 
@@ -96,6 +98,7 @@ describe("awf_reflect_summary.cjs", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     fs.mkdirSync("/tmp/gh-aw/sandbox/firewall", { recursive: true });
+    fs.mkdirSync(path.dirname(REFLECT_PATH), { recursive: true });
     module = await import("./awf_reflect_summary.cjs");
   });
 

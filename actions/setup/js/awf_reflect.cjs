@@ -18,6 +18,7 @@
 require("./shim.cjs");
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const net = require("net");
 const tls = require("tls");
@@ -28,9 +29,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
 // Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
 const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
-// Path inside the agent container where the reflect payload is persisted. The directory is
-// co-located with other AWF firewall observability data so it is included in the agent artifact.
-const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
+// Persist outside the read-only gh-aw infrastructure mount.
+const AWF_REFLECT_OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json");
 // Milliseconds to wait for the /reflect endpoint before giving up.
 const AWF_REFLECT_TIMEOUT_MS = 60000;
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
