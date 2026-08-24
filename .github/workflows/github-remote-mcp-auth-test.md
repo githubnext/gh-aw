@@ -172,6 +172,12 @@ jobs:
             echo "- ❌ MCP get_repository: tool error \`$tool_error\`" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          repository_content="$(jq -r '[.result.content[]? | select(.type == "text") | .text] | join(" ")' "$json_file")"
+          if [[ "$repository_content" != *"$GITHUB_REPOSITORY"* ]]; then
+            echo "MCP get_repository did not return the requested repository."
+            echo "- ❌ MCP get_repository: result did not identify \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
           echo "- ✅ MCP get_repository: retrieved \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Raw GitHub remote MCP handshake succeeded with $tool_count tools available."
 features:
