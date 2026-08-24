@@ -3,8 +3,6 @@ set +o histexpand
 
 set -euo pipefail
 
-gh aw --version
-
 # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP Server containerization
 mkdir -p "${RUNNER_TEMP}/gh-aw"
 

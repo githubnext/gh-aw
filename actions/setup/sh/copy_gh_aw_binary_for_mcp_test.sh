@@ -90,6 +90,21 @@ else
   fail "failed to copy gh-aw variant from setup-cli shared path"
 fi
 
+root="$(new_env runner_temp_exact)"
+mkdir -p "${root}/runner-temp/gh-aw/bin"
+cat > "${root}/runner-temp/gh-aw/bin/gh-aw" <<'EOF'
+#!/usr/bin/env bash
+echo "runner-temp exact gh-aw"
+EOF
+chmod +x "${root}/runner-temp/gh-aw/bin/gh-aw"
+code="$(run_script "${root}" "${root}/empty-path")"
+if [ "${code}" -eq 0 ] && [ -x "${root}/runner-temp/gh-aw/gh-aw" ]; then
+  pass "copies exact gh-aw binary from setup-cli shared path"
+else
+  cat "${root}/out.log"
+  fail "failed to copy exact gh-aw binary from setup-cli shared path"
+fi
+
 root="$(new_env gh_config_fallback)"
 mkdir -p "${root}/config/extensions/gh-aw"
 cat > "${root}/config/extensions/gh-aw/gh-aw-alt" <<'EOF'
@@ -103,6 +118,21 @@ if [ "${code}" -eq 0 ] && [ -x "${root}/runner-temp/gh-aw/gh-aw" ]; then
 else
   cat "${root}/out.log"
   fail "failed to copy gh-aw variant from GH_CONFIG_DIR fallback"
+fi
+
+root="$(new_env home_extensions_fallback)"
+mkdir -p "${root}/home/.local/share/gh/extensions/gh-aw"
+cat > "${root}/home/.local/share/gh/extensions/gh-aw/gh-aw-alt" <<'EOF'
+#!/usr/bin/env bash
+echo "home gh-aw"
+EOF
+chmod +x "${root}/home/.local/share/gh/extensions/gh-aw/gh-aw-alt"
+code="$(run_script "${root}" "${root}/empty-path")"
+if [ "${code}" -eq 0 ] && [ -x "${root}/runner-temp/gh-aw/gh-aw" ]; then
+  pass "copies gh-aw variant from HOME extensions fallback"
+else
+  cat "${root}/out.log"
+  fail "failed to copy gh-aw variant from HOME extensions fallback"
 fi
 
 root="$(new_env missing_binary)"
