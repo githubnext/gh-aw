@@ -33,6 +33,7 @@ safe-outputs:
     close-older-issues: false
     deduplicate-by-title: 3
   create-pull-request:
+    steer: true
     draft: true
     expires: 1d
     labels: ["git-sim-probe", "automated"]
