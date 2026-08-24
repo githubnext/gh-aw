@@ -12,6 +12,7 @@ import (
 )
 
 func TestParseRedactedDomainsLog(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		logContent      string
@@ -70,6 +71,7 @@ func TestParseRedactedDomainsLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary file with the test content
 			tmpDir := t.TempDir()
 			logPath := filepath.Join(tmpDir, "redacted-urls.log")
@@ -100,6 +102,7 @@ func TestParseRedactedDomainsLog(t *testing.T) {
 }
 
 func TestParseRedactedDomainsLog_FileNotFound(t *testing.T) {
+	t.Parallel()
 	_, err := parseRedactedDomainsLog("/nonexistent/path/redacted-urls.log", false)
 	if err == nil {
 		t.Error("expected error for non-existent file, got nil")
@@ -107,6 +110,7 @@ func TestParseRedactedDomainsLog_FileNotFound(t *testing.T) {
 }
 
 func TestAnalyzeRedactedDomains_DirectPath(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	logContent := "example.com\ntest.org\n"
 	logPath := filepath.Join(tmpDir, "redacted-urls.log")
@@ -129,6 +133,7 @@ func TestAnalyzeRedactedDomains_DirectPath(t *testing.T) {
 }
 
 func TestAnalyzeRedactedDomains_AgentOutputsPath(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	agentOutputsDir := filepath.Join(tmpDir, "agent_outputs")
 	if err := os.MkdirAll(agentOutputsDir, 0755); err != nil {
@@ -156,6 +161,7 @@ func TestAnalyzeRedactedDomains_AgentOutputsPath(t *testing.T) {
 }
 
 func TestAnalyzeRedactedDomains_FullArtifactPath(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	fullPath := filepath.Join(tmpDir, "agent_outputs", "tmp", "gh-aw")
 	if err := os.MkdirAll(fullPath, 0755); err != nil {
@@ -183,6 +189,7 @@ func TestAnalyzeRedactedDomains_FullArtifactPath(t *testing.T) {
 }
 
 func TestAnalyzeRedactedDomains_NoLogFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	analysis, err := analyzeRedactedDomains(tmpDir, false)
@@ -196,6 +203,7 @@ func TestAnalyzeRedactedDomains_NoLogFile(t *testing.T) {
 }
 
 func TestAnalyzeRedactedDomains_RecursiveSearch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	// Create a nested directory structure
 	nestedDir := filepath.Join(tmpDir, "some", "nested", "path")
@@ -228,6 +236,7 @@ func TestAnalyzeRedactedDomains_RecursiveSearch(t *testing.T) {
 }
 
 func TestRedactedDomainsAnalysis_ConsoleRendering(t *testing.T) {
+	t.Parallel()
 	// Test that the Domains field is rendered in console output
 	analysis := &RedactedDomainsAnalysis{
 		TotalDomains: 3,
@@ -253,6 +262,7 @@ func TestRedactedDomainsAnalysis_ConsoleRendering(t *testing.T) {
 }
 
 func TestRedactedDomainsLogSummary_ConsoleRendering(t *testing.T) {
+	t.Parallel()
 	// Test that the Domains field in RedactedDomainsLogSummary is rendered in console output
 	summary := &RedactedDomainsLogSummary{
 		TotalDomains: 2,
@@ -271,6 +281,7 @@ func TestRedactedDomainsLogSummary_ConsoleRendering(t *testing.T) {
 }
 
 func TestRedactedDomainsAnalysis_EmptyDomains(t *testing.T) {
+	t.Parallel()
 	// Test that empty domains list is handled correctly (omitempty)
 	analysis := &RedactedDomainsAnalysis{
 		TotalDomains: 0,

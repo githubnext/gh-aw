@@ -13,6 +13,7 @@ import (
 )
 
 func TestGetLockFilePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		markdownPath string
@@ -32,6 +33,7 @@ func TestGetLockFilePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := getLockFilePath(tt.markdownPath)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -39,6 +41,7 @@ func TestGetLockFilePath(t *testing.T) {
 }
 
 func TestIsRunnable_WithLockFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		markdownFile   string
@@ -160,6 +163,7 @@ jobs:
 }
 
 func TestGetWorkflowInputs_WithLockFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		markdownFile  string
