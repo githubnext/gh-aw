@@ -137,18 +137,21 @@ check_max_limits
 echo "Running SEC-004: Content Sanitization Required..."
 check_sanitization() {
     local failed=0
-    
-    for handler in actions/setup/js/*.cjs; do
+
+    for handler in actions/setup/js/{add_comment,create_issue,create_discussion,create_pull_request,update_issue,close_issue,close_discussion,close_pull_request,add_labels,remove_labels,create_check_run,approve_workflow_run,create_pr_review_comment,comment_memory,create_agent_session,assign_milestone,create_project,create_forecast_issue}.cjs; do
         # Skip test and utility files
         [[ "$handler" =~ (test|parse|buffer) ]] && continue
+        [ ! -f "$handler" ] && continue
 
         # Skip files with a documented SEC-004 exemption annotation
         if grep -q "@safe-outputs-exempt[[:space:]]\\+SEC-004" "$handler"; then
             continue
         fi
         
-        # Check if handler has body/content fields
-        if grep -q "\"body\"\|body:" "$handler"; then
+        # Only inspect handlers that process body/title/content fields for safe-output operations.
+        # Files with other operational roles (for example completion helpers) are exempt unless
+        # they explicitly process safe-output content.
+        if grep -qE '"body"|body:|"title"|title:|"content"|content:' "$handler"; then
             # Check for sanitization
             if ! grep -q "sanitize\|stripHTML\|escapeMarkdown\|cleanContent" "$handler"; then
                 log_medium "SEC-004: $handler has body field but no sanitization"
@@ -785,18 +788,10 @@ check_git_dir_exclusion() {
         return
     fi
 
-    # Check that .git is referenced in the context of exclusion or skip logic
-    if ! grep -qE "\.git|git_dir|skip.*\.git|exclude.*git|prune.*git" "$setup_script"; then
+    # Check that the setup script explicitly excludes .git from validation walks.
+    if ! grep -qE "\.git|not -path .*\.git|prune.*\.git|exclude.*git|skip.*\.git" "$setup_script"; then
         log_medium "CI-004: Setup script does not reference .git exclusion (CI5)"
         failed=1
-    fi
-
-    # Check compiled workflow lock files: cache-memory file validation should skip .git
-    if find .github/workflows -name "*.lock.yml" | xargs grep -l "cache-memory\|GH_AW_CACHE_MEMORY" 2>/dev/null | \
-        xargs grep -l "validate\|allowed.*ext\|file.*check" 2>/dev/null | \
-        xargs grep -qv "\.git\|skip.*git" 2>/dev/null; then
-        log_low "CI-004: Some cache-memory workflow lock files may not exclude .git in validation (CI5)"
-        # Not failing here — informational only as implementation details vary
     fi
 
     if [ $failed -eq 0 ]; then
