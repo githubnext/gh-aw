@@ -1548,6 +1548,43 @@ safe-outputs:
 	assert.Contains(t, tracker.CreatedFiles, ymlPath)
 }
 
+func TestFetchAndSaveRemoteDispatchWorkflows_YmlFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	ymlContent := `name: Dispatched workflow
+on:
+  workflow_dispatch:
+jobs:
+  run: {runs-on: ubuntu-latest, steps: [{run: echo hello}]}
+`
+	downloader := func(_ context.Context, _, _, remotePath, _ string) ([]byte, error) {
+		if filepath.Ext(remotePath) == ".yml" {
+			return []byte(ymlContent), nil
+		}
+		return nil, errors.New("not found")
+	}
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - worker
+---
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+	tracker := &FileTracker{OriginalContent: make(map[string][]byte), gitRoot: tmpDir}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, tracker, downloader)
+	require.NoError(t, err)
+
+	ymlPath := filepath.Join(tmpDir, "worker.yml")
+	got, err := os.ReadFile(ymlPath)
+	require.NoError(t, err)
+	assert.YAMLEq(t, ymlContent, string(got))
+	assert.Contains(t, tracker.CreatedFiles, ymlPath)
+}
+
 // TestFetchAndSaveRemoteCallWorkflows_TrackingBeforeWrite verifies that TrackModified is
 // called with the original file content (i.e. before os.WriteFile overwrites it), so that
 // RollbackAllFiles can restore the correct previous state.
