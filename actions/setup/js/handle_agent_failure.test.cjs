@@ -20,7 +20,7 @@ describe("handle_agent_failure", () => {
   let buildDockerSbxSecretsContext;
   let buildAssignmentErrorsContext;
   let buildAssignCopilotFailureContext;
-  let commentSteerPullRequest;
+  let setFailureIssueOutputs;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
   const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
@@ -54,7 +54,7 @@ describe("handle_agent_failure", () => {
       buildDockerSbxSecretsContext,
       buildAssignmentErrorsContext,
       buildAssignCopilotFailureContext,
-      commentSteerPullRequest,
+      setFailureIssueOutputs,
       getActionFailureIssueExpiresHours,
     } = require("./handle_agent_failure.cjs"));
   });
@@ -66,7 +66,6 @@ describe("handle_agent_failure", () => {
     delete process.env.GITHUB_SHA;
     delete process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
     delete process.env.GH_AW_GROUP_REPORTS;
-    delete process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER;
   });
 
   describe("getActionFailureIssueExpiresHours", () => {
@@ -95,39 +94,12 @@ describe("handle_agent_failure", () => {
     });
   });
 
-  describe("commentSteerPullRequest", () => {
-    it("links a newly created failure issue on the pre-created steer pull request", async () => {
-      process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
-      global.github = {
-        rest: {
-          issues: {
-            createComment: vi.fn().mockResolvedValue({}),
-          },
-        },
-      };
+  describe("setFailureIssueOutputs", () => {
+    it("publishes the created failure issue as step outputs", () => {
+      setFailureIssueOutputs({ number: 99, html_url: "https://github.com/owner/repo/issues/99" });
 
-      await commentSteerPullRequest({ number: 99, html_url: "https://github.com/owner/repo/issues/99" });
-
-      expect(global.github.rest.issues.createComment).toHaveBeenCalledWith({
-        owner: "owner",
-        repo: "repo",
-        issue_number: 42,
-        body: "The agent workflow failed. See [failure issue #99](https://github.com/owner/repo/issues/99).",
-      });
-    });
-
-    it("does not comment when no steer pull request was created", async () => {
-      global.github = {
-        rest: {
-          issues: {
-            createComment: vi.fn(),
-          },
-        },
-      };
-
-      await commentSteerPullRequest({ number: 99, html_url: "https://github.com/owner/repo/issues/99" });
-
-      expect(global.github.rest.issues.createComment).not.toHaveBeenCalled();
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_number", "99");
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_url", "https://github.com/owner/repo/issues/99");
     });
   });
 

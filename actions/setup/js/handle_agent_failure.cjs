@@ -1719,28 +1719,15 @@ function isIssueWritePermissionError(error) {
 }
 
 /**
- * Comment on the pre-created steer pull request with a link to a new failure issue.
+ * Publish the newly created failure issue as step outputs so that later steps in the
+ * conclusion job (for example the pre-created pull request step, which is authenticated
+ * with the repository-scoped pull request token) can link to it.
  * @param {{number: number, html_url: string}} issue
- * @returns {Promise<void>}
+ * @returns {void}
  */
-async function commentSteerPullRequest(issue) {
-  const rawPullRequestNumber = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || "";
-  if (!/^[1-9]\d*$/.test(rawPullRequestNumber)) {
-    return;
-  }
-
-  const pullRequestNumber = Number(rawPullRequestNumber);
-  try {
-    await github.rest.issues.createComment({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      issue_number: pullRequestNumber,
-      body: `The agent workflow failed. See [failure issue #${issue.number}](${issue.html_url}).`,
-    });
-    core.info(`Added failure issue link to steer pull request #${pullRequestNumber}`);
-  } catch (error) {
-    core.warning(`Failed to add failure issue link to steer pull request #${pullRequestNumber}: ${getErrorMessage(error)}`);
-  }
+function setFailureIssueOutputs(issue) {
+  core.setOutput("failure_issue_number", String(issue.number));
+  core.setOutput("failure_issue_url", issue.html_url);
 }
 
 /**
@@ -4332,7 +4319,7 @@ async function main() {
         });
 
         core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
-        await commentSteerPullRequest(newIssue.data);
+        setFailureIssueOutputs(newIssue.data);
 
         // Link as sub-issue to parent if parent issue was created
         if (parentIssue) {
@@ -4374,7 +4361,7 @@ module.exports = {
   buildTimeoutContext,
   shouldBuildEngineFailureContext,
   isIssueWritePermissionError,
-  commentSteerPullRequest,
+  setFailureIssueOutputs,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
   detectAWFFirewallStartupFailureFromLog,

@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,14 +54,16 @@ func TestApplyDefaultToolsSteerReEnablesGitHubMCP(t *testing.T) {
 	assert.Contains(t, ParseGitHubToolsets(parsed.GitHub.GetToolsets()), "pull_requests")
 }
 
-func TestBuildAgentFailureActivationStatusVarsIncludesSteerPullRequest(t *testing.T) {
+func TestBuildConclusionPreCreatedCheckRunStepIncludesFailureIssueOutputs(t *testing.T) {
+	compiler := NewCompiler()
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 		},
 	}
 
-	envVars := buildAgentFailureActivationStatusVars(data)
+	step := strings.Join(compiler.buildConclusionPreCreatedCheckRunStep(data), "")
 
-	assert.Contains(t, strings.Join(envVars, ""), "          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ needs."+constants.ActivationJobName+".outputs.pre_created_pull_request_number }}\n")
+	assert.Contains(t, step, "          GH_AW_FAILURE_ISSUE_NUMBER: ${{ steps.handle_agent_failure.outputs.failure_issue_number }}\n")
+	assert.Contains(t, step, "          GH_AW_FAILURE_ISSUE_URL: ${{ steps.handle_agent_failure.outputs.failure_issue_url }}\n")
 }
