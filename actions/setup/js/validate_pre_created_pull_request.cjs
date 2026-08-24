@@ -8,8 +8,12 @@ async function main() {
     throw new Error(`Pre-created pull request branch did not match expected workflow branch: ${branch}`);
   }
 
-  const pullNumber = Number.parseInt(process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || "", 10);
-  if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {
+  const pullNumberString = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || "";
+  if (!/^[1-9]\d*$/.test(pullNumberString)) {
+    throw new Error("Pre-created pull request number is invalid");
+  }
+  const pullNumber = Number(pullNumberString);
+  if (!Number.isSafeInteger(pullNumber)) {
     throw new Error("Pre-created pull request number is invalid");
   }
 

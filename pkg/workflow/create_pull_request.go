@@ -105,7 +105,28 @@ func validatePreCreatedPullRequestBranchPrefix(prefix string) error {
 	if normalized != prefix {
 		return fmt.Errorf("safe-outputs.create-pull-request.steer branch-prefix must be a valid git branch prefix; normalized form would be %q", normalized)
 	}
+	if !isValidPreCreatedPullRequestBranch(prefix + "1-1") {
+		return errors.New("safe-outputs.create-pull-request.steer branch-prefix must form a valid git branch ref")
+	}
 	return nil
+}
+
+func isValidPreCreatedPullRequestBranch(branch string) bool {
+	if branch == "" ||
+		strings.HasPrefix(branch, "refs/") ||
+		strings.HasPrefix(branch, "-") ||
+		strings.HasSuffix(branch, ".") ||
+		strings.Contains(branch, "//") ||
+		strings.Contains(branch, "..") ||
+		strings.Contains(branch, "@{") {
+		return false
+	}
+	for component := range strings.SplitSeq(branch, "/") {
+		if component == "" || strings.HasPrefix(component, ".") || strings.HasSuffix(component, ".lock") {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {

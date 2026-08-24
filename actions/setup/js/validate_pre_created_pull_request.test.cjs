@@ -68,8 +68,8 @@ describe("validate_pre_created_pull_request", () => {
     expect(global.core.setOutput).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid pull request numbers", async () => {
-    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "0";
+  it.each(["0", "42junk", "42.0", "042"])("rejects invalid pull request number %s", async pullNumber => {
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = pullNumber;
     const { main } = await import("./validate_pre_created_pull_request.cjs");
 
     await expect(main()).rejects.toThrow(/pull request number is invalid/);

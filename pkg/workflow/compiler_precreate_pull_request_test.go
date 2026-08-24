@@ -181,6 +181,20 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 			wantErr: "branch-prefix must contain valid git branch prefix characters",
 		},
 		{
+			name: "reserved ref branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "refs/heads/"},
+			}},
+			wantErr: "branch-prefix must form a valid git branch ref",
+		},
+		{
+			name: "ambiguous branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "foo//"},
+			}},
+			wantErr: "branch-prefix must form a valid git branch ref",
+		},
+		{
 			name: "cross repository",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, TargetRepoSlug: "owner/repo"},
@@ -196,6 +210,31 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				require.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidatePreCreatedPullRequestBranchPrefix(t *testing.T) {
+	tests := map[string]struct {
+		prefix  string
+		wantErr bool
+	}{
+		"valid":          {prefix: "signed/"},
+		"leading slash":  {prefix: "/", wantErr: true},
+		"double slash":   {prefix: "foo//", wantErr: true},
+		"double dot":     {prefix: "..", wantErr: true},
+		"dot component":  {prefix: ".foo/", wantErr: true},
+		"reserved ref":   {prefix: "refs/heads/", wantErr: true},
+		"lock component": {prefix: "foo/.lock/", wantErr: true},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if tt.wantErr {
+				require.Error(t, validatePreCreatedPullRequestBranchPrefix(tt.prefix))
+			} else {
+				require.NoError(t, validatePreCreatedPullRequestBranchPrefix(tt.prefix))
 			}
 		})
 	}
