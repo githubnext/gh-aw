@@ -169,11 +169,9 @@ func (config *remoteDispatchWorkflowFetch) fetch(workflowName string) error {
 	}
 	workflowContent, err := config.downloader(config.ctx, config.owner, config.repo, remoteFilePath, config.ref)
 	if err != nil {
-		config.saveYMLFallback(workflowName, remoteFilePath, err)
-		return nil
+		return config.saveYMLFallback(workflowName, remoteFilePath, err)
 	}
-	config.saveMarkdown(workflowContent, remoteFilePath, targetPath, fileExists)
-	return nil
+	return config.saveMarkdown(workflowContent, remoteFilePath, targetPath, fileExists)
 }
 
 func (config *remoteDispatchWorkflowFetch) workflowPaths(workflowName string) (string, string, bool) {
@@ -213,7 +211,7 @@ func (config *remoteDispatchWorkflowFetch) checkExisting(workflowName, targetPat
 	)
 }
 
-func (config *remoteDispatchWorkflowFetch) saveYMLFallback(workflowName, remoteFilePath string, mdErr error) {
+func (config *remoteDispatchWorkflowFetch) saveYMLFallback(workflowName, remoteFilePath string, mdErr error) error {
 	remoteWorkflowLog.Printf(".md fetch failed for dispatch workflow %s, trying .yml fallback", workflowName)
 	ymlRemotePath := path.Clean(strings.TrimSuffix(remoteFilePath, ".md") + ".yml")
 	ymlLocalPath := filepath.Join(config.targetDir, filepath.Clean(workflowName+".yml"))
@@ -222,50 +220,42 @@ func (config *remoteDispatchWorkflowFetch) saveYMLFallback(workflowName, remoteF
 		if config.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, mdErr)))
 		}
-		return
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(ymlLocalPath), constants.DirPermPublic); err != nil {
-		if config.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for dispatch workflow %s: %v", ymlRemotePath, err)))
-		}
-		return
+		return fmt.Errorf("failed to create directory for dispatch workflow %s: %w", ymlRemotePath, err)
 	}
 	_, err = os.Stat(ymlLocalPath)
 	ymlFileExists := err == nil
+	// Track before writing so rollback captures the original content.
+	config.track(ymlLocalPath, ymlFileExists)
 	if err := os.WriteFile(ymlLocalPath, ymlContent, constants.FilePermSensitive); err != nil {
-		if config.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write dispatch workflow %s: %v", ymlRemotePath, err)))
-		}
-		return
+		return fmt.Errorf("failed to write dispatch workflow %s: %w", ymlRemotePath, err)
 	}
 	if config.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched dispatch workflow (.yml): "+ymlLocalPath))
 	}
-	config.track(ymlLocalPath, ymlFileExists)
+	return nil
 }
 
-func (config *remoteDispatchWorkflowFetch) saveMarkdown(workflowContent []byte, remoteFilePath, targetPath string, fileExists bool) {
+func (config *remoteDispatchWorkflowFetch) saveMarkdown(workflowContent []byte, remoteFilePath, targetPath string, fileExists bool) error {
 	depSourceString := path.Join(config.spec.RepoSlug, remoteFilePath) + "@" + config.ref
 	if updated, err := addSourceToWorkflow(string(workflowContent), depSourceString); err == nil {
 		workflowContent = []byte(updated)
 	}
 	if err := os.MkdirAll(filepath.Dir(targetPath), constants.DirPermPublic); err != nil {
-		if config.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for dispatch workflow %s: %v", remoteFilePath, err)))
-		}
-		return
+		return fmt.Errorf("failed to create directory for dispatch workflow %s: %w", remoteFilePath, err)
 	}
+	// Track before writing so rollback captures the original content.
+	config.track(targetPath, fileExists)
 	if err := os.WriteFile(targetPath, workflowContent, constants.FilePermSensitive); err != nil {
-		if config.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write dispatch workflow %s: %v", remoteFilePath, err)))
-		}
-		return
+		return fmt.Errorf("failed to write dispatch workflow %s: %w", remoteFilePath, err)
 	}
 	if config.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched dispatch workflow: "+targetPath))
 	}
-	config.track(targetPath, fileExists)
 	fetchDownloadedWorkflowFrontmatterImports(config.ctx, workflowContent, config.spec, remoteFilePath, config.targetDir, config.verbose, config.force, config.tracker)
+	return nil
 }
 
 func (config *remoteDispatchWorkflowFetch) track(filePath string, fileExists bool) {

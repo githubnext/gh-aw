@@ -1585,6 +1585,104 @@ safe-outputs:
 	assert.Contains(t, tracker.CreatedFiles, ymlPath)
 }
 
+// TestFetchAndSaveRemoteDispatchWorkflows_ConflictDifferentSource verifies that an existing
+// dispatch workflow from a different source causes an error when force=false.
+func TestFetchAndSaveRemoteDispatchWorkflows_ConflictDifferentSource(t *testing.T) {
+	tmpDir := t.TempDir()
+	conflictContent := `---
+source: otherorg/other-repo/.github/workflows/worker.md@v1
+---
+# Worker from other repo
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "worker.md"), []byte(conflictContent), 0600))
+
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - worker
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "dispatch workflow")
+	require.ErrorContains(t, err, "already exists")
+
+	// The existing file must be untouched.
+	gotContent, readErr := os.ReadFile(filepath.Join(tmpDir, "worker.md"))
+	require.NoError(t, readErr)
+	assert.Equal(t, conflictContent, string(gotContent))
+}
+
+// TestFetchAndSaveRemoteDispatchWorkflows_TrackingBeforeWrite verifies that TrackModified is
+// called with the original file content (i.e. before os.WriteFile overwrites it), so that
+// RollbackAllFiles can restore the correct previous state.
+func TestFetchAndSaveRemoteDispatchWorkflows_TrackingBeforeWrite(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	originalContent := `---
+source: github/gh-aw/.github/workflows/worker.md@v0.9.0
+engine: copilot
+---
+# Old worker
+`
+	workerPath := filepath.Join(tmpDir, "worker.md")
+	require.NoError(t, os.WriteFile(workerPath, []byte(originalContent), 0600))
+
+	newContent := `---
+engine: copilot
+---
+# New worker
+`
+	downloader := func(_ context.Context, _, _, remotePath, _ string) ([]byte, error) {
+		if filepath.Ext(remotePath) == ".md" {
+			return []byte(newContent), nil
+		}
+		return nil, errors.New("not found")
+	}
+
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - worker
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, tmpDir, false, true, tracker, downloader)
+	require.NoError(t, err)
+
+	// The tracker must have captured the *original* content, not the newly written bytes.
+	absWorkerPath, _ := filepath.Abs(workerPath)
+	captured, ok := tracker.OriginalContent[absWorkerPath]
+	require.True(t, ok, "worker.md should be in OriginalContent")
+	assert.Equal(t, []byte(originalContent), captured, "tracker should capture original content before overwrite")
+}
+
 // TestFetchAndSaveRemoteCallWorkflows_TrackingBeforeWrite verifies that TrackModified is
 // called with the original file content (i.e. before os.WriteFile overwrites it), so that
 // RollbackAllFiles can restore the correct previous state.
