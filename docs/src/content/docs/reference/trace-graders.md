@@ -1,9 +1,9 @@
 ---
 title: Graders
-description: Deterministic metrics computed from agent execution traces
+description: Deterministic execution and operational value metrics
 ---
 
-Graders compute deterministic metrics from post-agent execution trace files (token usage, MCP gateway logs, agent output) without LLM calls or network access. Results are persisted in the agent artifact for downstream consumption by detection jobs and reporting tools.
+Graders compute deterministic metrics without LLM calls. Built-in and custom inline graders inspect post-agent execution traces. The reserved `value` grader evaluates operational repository outcomes under a frozen function and explicit evidence cutoff. Results are persisted in the agent artifact for downstream tools.
 
 For normative requirements, see the [Graders Specification](/gh-aw/specs/graders-specification/).
 
@@ -56,14 +56,41 @@ graders:
 
 Custom scripts must return a value and stay within 4096 characters (no `require`, `import`, `fetch`, `eval`, or `process.exit`).
 
+## Operational value grader
+
+Configure the reserved `operational-value` grader with a repository-relative Bash evaluator:
+
+```aw wrap
+graders:
+  operational-value:
+    run: .github/graders/daily-file-diet-operational-value.sh
+```
+
+The compiler freezes the evaluator bytes and records their SHA-256 digest. The evaluator returns absolute operational attainment in `[0,1]` for the run's assigned case. A frozen baseline is optional metadata; when present, gh-aw derives `deltaFromBaseline` without changing the primary value.
+
+Each result records the complete run subject, operational case, evidence time, maturity, and provenance. Operational-value evaluators may query the repositories declared by their frozen evidence contract. They receive the workflow token through `GH_TOKEN` with the agent job's explicitly declared permissions, but do not receive workflow secrets. Enabling the grader does not add evidence permissions to the agent job.
+
+Use the `aw-value` skill to design and verify an operational-value evaluator.
+
+### Regrade a historical run
+
+```bash
+gh aw graders operational-value 123456789 \
+  --evidence-at 2026-08-30T12:00:00.000Z \
+  --json
+```
+
+The command downloads the original grader artifact and reuses its case, run subject, and frozen evaluator. The archived evaluator must match the digest recorded by both the original manifest and result and the evaluator at the recorded commit in the current repository checkout. Regrading emits a new observation identified by `(runId, evaluatorDigest, evidenceAt)` and never modifies the original artifact. Use `--repo [HOST/]OWNER/REPO` to select the host for the checked-out repository.
+
 ## Output files
 
 | File | Description |
 |---|---|
 | `grader_manifest.json` | Which graders were configured and their enabled state |
-| `grader_results.json` | Normalized metric values with trace summary |
+| `grader_results.json` | Normalized values, status, implementation identity, and value observations |
+| `operational_value_evaluator.sh` | Exact frozen operational-value evaluator used for initial grading and historical replay |
 
-Both files are included in the unified `agent` artifact.
+All files are included in the unified `agent` artifact.
 
 ## Execution
 
