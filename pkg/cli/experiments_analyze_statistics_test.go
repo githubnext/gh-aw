@@ -177,16 +177,41 @@ func TestExpectedProportions(t *testing.T) {
 func TestExperimentVariantCounts(t *testing.T) {
 	t.Parallel()
 
-	exp := ExperimentVariantStats{
-		Variants: map[string]int{"control": 3},
-	}
-	cfg := &workflow.ExperimentConfig{
-		Variants: []string{"control", "candidate"},
-	}
+	t.Run("includes declared variants with zero counts", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Variants: map[string]int{"control": 3},
+		}
+		cfg := &workflow.ExperimentConfig{
+			Variants: []string{"control", "candidate"},
+		}
 
-	got := experimentVariantCounts(exp, cfg, true)
+		got := experimentVariantCounts(exp, cfg, true)
 
-	assert.Equal(t, map[string]int{"control": 3, "candidate": 0}, got)
+		assert.Equal(t, map[string]int{"control": 3, "candidate": 0}, got)
+	})
+
+	t.Run("returns observed variants when declared variants are excluded", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Variants: map[string]int{"control": 3},
+		}
+		cfg := &workflow.ExperimentConfig{
+			Variants: []string{"control", "candidate"},
+		}
+
+		got := experimentVariantCounts(exp, cfg, false)
+
+		assert.Equal(t, exp.Variants, got)
+	})
+
+	t.Run("returns observed variants when config is nil", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Variants: map[string]int{"control": 3},
+		}
+
+		got := experimentVariantCounts(exp, nil, true)
+
+		assert.Equal(t, exp.Variants, got)
+	})
 }
 
 // TestComputeExperimentAnalysis verifies the end-to-end statistical computation.
