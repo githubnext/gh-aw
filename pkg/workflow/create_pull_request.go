@@ -2,12 +2,18 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var createPRLog = logger.New("workflow:create_pull_request")
+
+// Matches actions/setup/js/normalize_branch_name.cjs so pre-created branch prefix
+// validation and runtime branch construction agree.
+const maxPreCreatedPullRequestBranchPrefixLength = 128
 
 var createPRStringOrArrayFields = []string{"reviewers", "team-reviewers", "assignees"}
 var createPRExpressionArrayFields = []string{"labels", "allowed-repos", "allowed-base-branches", "allowed-branches"}
@@ -69,8 +75,11 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 	if config.TargetRepoSlug != "" || config.HeadRepoSlug != "" || len(config.AllowedRepos) > 0 {
 		return errors.New("safe-outputs.create-pull-request.steer only supports pull requests in the workflow repository")
 	}
-	if config.BranchPrefix != "" || len(config.AllowedBranches) > 0 {
-		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with branch-prefix or allowed-branches")
+	if err := validatePreCreatedPullRequestBranchPrefix(config.BranchPrefix); err != nil {
+		return err
+	}
+	if len(config.AllowedBranches) > 0 {
+		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with allowed-branches")
 	}
 	if len(config.AllowedBaseBranches) > 0 {
 		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with allowed-base-branches because the base branch must be known when the pull request is allocated")
@@ -80,6 +89,82 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 		return errors.New("safe-outputs.create-pull-request.steer requires the default checkout to use the workflow repository")
 	}
 	return nil
+}
+
+func validatePreCreatedPullRequestBranchPrefix(prefix string) error {
+	if prefix == "" {
+		return nil
+	}
+	if isExpression(prefix) {
+		return errors.New("safe-outputs.create-pull-request.steer requires branch-prefix to be a static string")
+	}
+	normalized := normalizePreCreatedPullRequestBranchPrefix(prefix)
+	if normalized == "" {
+		return errors.New("safe-outputs.create-pull-request.steer branch-prefix must contain valid git branch prefix characters")
+	}
+	if normalized != prefix {
+		return fmt.Errorf("safe-outputs.create-pull-request.steer branch-prefix must be a valid git branch prefix; normalized form would be %q", normalized)
+	}
+	if !isValidPreCreatedPullRequestBranch(prefix + "1-1") {
+		return errors.New("safe-outputs.create-pull-request.steer branch-prefix must form a valid git branch ref")
+	}
+	return nil
+}
+
+func isValidPreCreatedPullRequestBranch(branch string) bool {
+	if branch == "" ||
+		strings.HasPrefix(branch, "refs/") ||
+		strings.HasPrefix(branch, "-") ||
+		strings.HasSuffix(branch, ".") ||
+		strings.Contains(branch, "//") ||
+		strings.Contains(branch, "..") ||
+		strings.Contains(branch, "@{") {
+		return false
+	}
+	for component := range strings.SplitSeq(branch, "/") {
+		if component == "" || strings.HasPrefix(component, ".") || strings.HasSuffix(component, ".lock") {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {
+	if prefix == "" {
+		return prefix
+	}
+	if strings.TrimSpace(prefix) == "" {
+		return ""
+	}
+
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range prefix {
+		if builder.Len() >= maxPreCreatedPullRequestBranchPrefixLength {
+			break
+		}
+		valid := (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' ||
+			r == '_' ||
+			r == '/' ||
+			r == '.'
+		if !valid {
+			if !lastDash {
+				builder.WriteByte('-')
+				lastDash = true
+			}
+			continue
+		}
+		if r == '-' && lastDash {
+			continue
+		}
+		builder.WriteRune(r)
+		lastDash = r == '-'
+	}
+
+	return strings.Trim(builder.String(), "-")
 }
 
 // isPreCreatePullRequestConfigured reports whether the workflow should allocate

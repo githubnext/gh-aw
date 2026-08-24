@@ -8869,7 +8869,9 @@ safe-outputs:
     max: "example-value"
 
     # Optional prefix to prepend to the pull request branch name (e.g. "signed/").
-    # Applied before the agent-specified or auto-generated branch name.
+    # Applied before the agent-specified or auto-generated branch name. In steer
+    # mode, this prefix is also used for the workflow-owned pre-created pull request
+    # branch and must be a static valid branch-name prefix.
     # (optional)
     branch-prefix: "example-value"
 

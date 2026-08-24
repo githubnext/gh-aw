@@ -28,10 +28,12 @@ func TestBuildActivationJobPreCreatesPullRequest(t *testing.T) {
 	assert.NotContains(t, steps, "name: Checkout repository")
 	assert.Contains(t, steps, "id: pre-create-pull-request")
 	assert.Contains(t, steps, "pre_create_pull_request.cjs")
+	assert.Contains(t, steps, "id: validate-pre-created-pull-request")
+	assert.Contains(t, steps, "validate_pre_created_pull_request.cjs")
 	assert.Contains(t, job.Permissions, "contents: write")
 	assert.Contains(t, job.Permissions, "pull-requests: write")
 	assert.Contains(t, job.Permissions, "checks: write")
-	assert.Equal(t, "${{ steps.pre-create-pull-request.outputs.branch }}", job.Outputs["pre_created_pull_request_branch"])
+	assert.Equal(t, "${{ steps.validate-pre-created-pull-request.outputs.branch }}", job.Outputs["pre_created_pull_request_branch"])
 }
 
 func TestBuildConclusionJobCompletesPreCreatedCheck(t *testing.T) {
@@ -76,13 +78,27 @@ func TestBuildConclusionJobPassesNoOpCommentToPreCreatedCheck(t *testing.T) {
 
 func TestPreCreatePullRequestCheckoutOverride(t *testing.T) {
 	manager := NewCheckoutManager(nil)
-	manager.SetDefaultRefOverride("${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	manager.SetDefaultRefOverride(preCreatedPullRequestBranchRef(nil))
 
 	steps := strings.Join(manager.GenerateDefaultCheckoutStep(false, "", func(action string) string {
 		return action + "@sha"
 	}), "")
 
-	assert.Contains(t, steps, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	assert.Contains(t, steps, "ref: gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}")
+}
+
+func TestPreCreatePullRequestCheckoutOverrideUsesConfiguredBranchPrefix(t *testing.T) {
+	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "signed/"},
+	}}
+	manager := NewCheckoutManager(nil)
+	manager.SetDefaultRefOverride(preCreatedPullRequestBranchRef(data))
+
+	steps := strings.Join(manager.GenerateDefaultCheckoutStep(false, "", func(action string) string {
+		return action + "@sha"
+	}), "")
+
+	assert.Contains(t, steps, "ref: signed/${{ github.run_id }}-${{ github.run_attempt }}")
 }
 
 func TestValidatePreCreatePullRequest(t *testing.T) {
@@ -138,6 +154,47 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 			wantErr: "allowed-base-branches",
 		},
 		{
+			name: "branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "signed/"},
+			}},
+		},
+		{
+			name: "expression branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "${{ inputs.branch_prefix }}"},
+			}},
+			wantErr: "requires branch-prefix to be a static string",
+		},
+		{
+			name: "invalid branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "bad prefix/"},
+			}},
+			wantErr: "branch-prefix must be a valid git branch prefix",
+		},
+		{
+			name: "whitespace branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "  "},
+			}},
+			wantErr: "branch-prefix must contain valid git branch prefix characters",
+		},
+		{
+			name: "reserved ref branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "refs/heads/"},
+			}},
+			wantErr: "branch-prefix must form a valid git branch ref",
+		},
+		{
+			name: "ambiguous branch prefix",
+			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "foo//"},
+			}},
+			wantErr: "branch-prefix must form a valid git branch ref",
+		},
+		{
 			name: "cross repository",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, TargetRepoSlug: "owner/repo"},
@@ -153,6 +210,31 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				require.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidatePreCreatedPullRequestBranchPrefix(t *testing.T) {
+	tests := map[string]struct {
+		prefix  string
+		wantErr bool
+	}{
+		"valid":          {prefix: "signed/"},
+		"leading slash":  {prefix: "/", wantErr: true},
+		"double slash":   {prefix: "foo//", wantErr: true},
+		"double dot":     {prefix: "..", wantErr: true},
+		"dot component":  {prefix: ".foo/", wantErr: true},
+		"reserved ref":   {prefix: "refs/heads/", wantErr: true},
+		"lock component": {prefix: "foo/.lock/", wantErr: true},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if tt.wantErr {
+				require.Error(t, validatePreCreatedPullRequestBranchPrefix(tt.prefix))
+			} else {
+				require.NoError(t, validatePreCreatedPullRequestBranchPrefix(tt.prefix))
 			}
 		})
 	}
@@ -286,6 +368,24 @@ func TestActivationPreCreateStepPassesConfiguredTitlePrefix(t *testing.T) {
 
 	steps := strings.Join(job.Steps, "")
 	assert.Contains(t, steps, `GH_AW_PR_TITLE_PREFIX: "[bot] "`)
+}
+
+func TestActivationPreCreateStepPassesConfiguredBranchPrefix(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		Name:            "Pre-create test",
+		MarkdownContent: "# Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "signed/"},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	require.NoError(t, err)
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, `GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX: "signed/"`)
+	assert.Contains(t, steps, "GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH: signed/${{ github.run_id }}-${{ github.run_attempt }}")
 }
 
 func TestActivationPreCreateStepOmitsEmptyTitlePrefix(t *testing.T) {
