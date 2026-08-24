@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,4 +52,18 @@ func TestApplyDefaultToolsSteerReEnablesGitHubMCP(t *testing.T) {
 	parsed := NewTools(result)
 	require.NotNil(t, parsed.GitHub)
 	assert.Contains(t, ParseGitHubToolsets(parsed.GitHub.GetToolsets()), "pull_requests")
+}
+
+func TestBuildConclusionPreCreatedCheckRunStepIncludesFailureIssueOutputs(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
+		},
+	}
+
+	step := strings.Join(compiler.buildConclusionPreCreatedCheckRunStep(data), "")
+
+	assert.Contains(t, step, "          GH_AW_FAILURE_ISSUE_NUMBER: ${{ steps.handle_agent_failure.outputs.failure_issue_number }}\n")
+	assert.Contains(t, step, "          GH_AW_FAILURE_ISSUE_URL: ${{ steps.handle_agent_failure.outputs.failure_issue_url }}\n")
 }
