@@ -49,13 +49,18 @@ func missingAddAuthoringSupportFiles(baseDir string, engineOverride string, noGi
 	return missing, nil
 }
 
-func confirmAndInitializeAddRepository(ctx context.Context, engineOverride string, verbose bool, noGitattributes bool) ([]string, error) {
+type addRepositoryInitializationPlan struct {
+	enabled bool
+	files   []string
+}
+
+func confirmAddRepositoryInitialization(ctx context.Context, engineOverride string, noGitattributes bool) (addRepositoryInitializationPlan, error) {
 	gitRoot, err := addFindGitRoot()
 	if err != nil {
 		if errors.Is(err, gitutil.ErrNotGitRepository) {
-			return nil, nil
+			return addRepositoryInitializationPlan{}, nil
 		}
-		return nil, fmt.Errorf("failed to determine repository root for automatic initialization: %w", err)
+		return addRepositoryInitializationPlan{}, fmt.Errorf("failed to determine repository root for automatic initialization: %w", err)
 	}
 
 	var missingMarkers []string
@@ -64,10 +69,10 @@ func confirmAndInitializeAddRepository(ctx context.Context, engineOverride strin
 		missingMarkers, inspectErr = addMissingAuthoringSupportFiles(".", engineOverride, noGitattributes)
 		return inspectErr
 	}); err != nil {
-		return nil, fmt.Errorf("failed to inspect repository initialization state: %w", err)
+		return addRepositoryInitializationPlan{}, fmt.Errorf("failed to inspect repository initialization state: %w", err)
 	}
 	if len(missingMarkers) == 0 {
-		return nil, nil
+		return addRepositoryInitializationPlan{}, nil
 	}
 
 	confirmed, err := addConfirmAuthoringSupport(ctx)
@@ -75,10 +80,25 @@ func confirmAndInitializeAddRepository(ctx context.Context, engineOverride strin
 		if err == nil {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent authoring support: skipped"))
 		}
-		return nil, err
+		return addRepositoryInitializationPlan{}, err
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent authoring support: enabled"))
+	return addRepositoryInitializationPlan{enabled: true, files: missingMarkers}, nil
+}
+
+func applyAddRepositoryInitialization(plan addRepositoryInitializationPlan, engineOverride string, verbose bool, noGitattributes bool) ([]string, error) {
+	if !plan.enabled {
+		return nil, nil
+	}
 	return ensureAddRepositoryInitializedWithDetails(engineOverride, verbose, noGitattributes)
+}
+
+func confirmAndInitializeAddRepository(ctx context.Context, engineOverride string, verbose bool, noGitattributes bool) ([]string, error) {
+	plan, err := confirmAddRepositoryInitialization(ctx, engineOverride, noGitattributes)
+	if err != nil {
+		return nil, err
+	}
+	return applyAddRepositoryInitialization(plan, engineOverride, verbose, noGitattributes)
 }
 
 func ensureAddRepositoryInitialized(engineOverride string, verbose bool, noGitattributes bool) error {

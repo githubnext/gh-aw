@@ -320,6 +320,5 @@ func (c *AddInteractiveConfig) applyCopilotAuthMethodChoice(authMethod string) {
 	} else {
 		c.UseCopilotRequests = false
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected authentication: COPILOT_GITHUB_TOKEN"))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("A fine-grained PAT with Copilot Requests permission will be required."))
 	}
 }

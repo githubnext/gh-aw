@@ -69,12 +69,9 @@ type AddInteractiveConfig struct {
 	// This is populated early in the flow by resolveWorkflows()
 	resolvedWorkflows *ResolvedWorkflows
 
-	// workingDirDirtyBeforeInit records whether the working directory already had
-	// uncommitted changes before any wizard-driven repository initialization ran.
-	// It is captured once, early in RunAddInteractive, and used by
-	// checkCleanWorkingDirectoryForPR so that wizard-modified init markers (which may
-	// rewrite pre-existing, non-conforming files) are never mistaken for a clean tree.
-	workingDirDirtyBeforeInit bool
+	// forceOverwrite records that the user chose to replace unstaged or untracked
+	// files overlapping the wizard's planned output. Staged changes never enable it.
+	forceOverwrite bool
 }
 
 // RunAddInteractive runs the interactive add workflow
@@ -100,16 +97,6 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	if err := config.runInitialAddInteractiveChecks(); err != nil {
 		return err
 	}
-
-	// Snapshot working directory cleanliness before any wizard-driven repository
-	// initialization runs. This is used later, only for the PR path, to detect
-	// pre-existing user changes without mistaking wizard-modified init markers for
-	// pre-existing dirty state.
-	pendingChanges, err := hasPendingChanges()
-	if err != nil {
-		return err
-	}
-	config.workingDirDirtyBeforeInit = pendingChanges
 
 	remainingBootstrapProfile := config.getRemainingBootstrapProfile()
 
@@ -232,21 +219,28 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 		return nil, nil, "", "", false, err
 	}
 
-	initFiles, err = confirmAndInitializeAddRepository(c.Ctx, c.EngineOverride, c.Verbose, c.NoGitattributes)
+	initializationPlan, err := confirmAddRepositoryInitialization(c.Ctx, c.EngineOverride, c.NoGitattributes)
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
+	initFiles = initializationPlan.files
 
 	createPR, err = c.confirmChanges(workflowFiles, initFiles)
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
-	if !createPR {
-		return workflowFiles, initFiles, "", "", false, nil
+	if createPR {
+		if err := c.checkCleanWorkingDirectoryForPR(workflowFiles, initFiles); err != nil {
+			return nil, nil, "", "", false, err
+		}
 	}
 
-	if err := c.checkCleanWorkingDirectoryForPR(); err != nil {
+	initFiles, err = applyAddRepositoryInitialization(initializationPlan, c.EngineOverride, c.Verbose, c.NoGitattributes)
+	if err != nil {
 		return nil, nil, "", "", false, err
+	}
+	if !createPR {
+		return workflowFiles, initFiles, "", "", false, nil
 	}
 
 	// Secret collection and upload only happen once the user has committed to the
@@ -390,8 +384,8 @@ func (c *AddInteractiveConfig) primaryWorkflowName() string {
 func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string) (bool, error) {
 	addInteractiveLog.Print("Confirming changes with user")
 
-	fmt.Fprintln(os.Stderr, "")
 	if len(initFiles) > 0 {
+		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "The repository will also be initialized with:")
 		for _, f := range initFiles {
 			fmt.Fprintf(os.Stderr, "  • %s\n", f)
@@ -407,7 +401,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string)
 			Affirmative("Yes, create pull request").
 			Negative("No, write files locally").
 			Value(&createPR),
-	)
+	).WithLeadingBlankLine()
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return false, fmt.Errorf("confirmation failed: %w", err)

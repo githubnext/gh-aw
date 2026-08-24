@@ -89,6 +89,9 @@ type AddOptions struct {
 	AddCopilotRequestsPermission bool
 	// initializedFiles contains files created by add-wizard after its clean-tree check.
 	initializedFiles []string
+	// workingTreePrevalidated indicates add-wizard already verified that staged
+	// changes and changes overlapping planned files are absent.
+	workingTreePrevalidated bool
 }
 
 // AddWorkflowsResult contains the result of adding workflows
@@ -277,8 +280,10 @@ func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolve
 		}
 
 		// Check no other changes are present
-		if err := checkCleanWorkingDirectoryIgnoring(opts.Verbose, opts.initializedFiles); err != nil {
-			return nil, fmt.Errorf("working directory is not clean: %w", err)
+		if !opts.workingTreePrevalidated {
+			if err := checkCleanWorkingDirectoryIgnoring(opts.Verbose, opts.initializedFiles); err != nil {
+				return nil, fmt.Errorf("working directory is not clean: %w", err)
+			}
 		}
 	}
 

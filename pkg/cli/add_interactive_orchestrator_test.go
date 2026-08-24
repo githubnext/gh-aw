@@ -344,8 +344,12 @@ func TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSec
 	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
 	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	// Drive the huh confirm form via accessible (line-based) mode, answering "no" to
-	// "Do you want to create a pull request with these changes?".
+	originalConfirmAuthoringSupport := addConfirmAuthoringSupport
+	addConfirmAuthoringSupport = func(context.Context) (bool, error) { return false, nil }
+	t.Cleanup(func() { addConfirmAuthoringSupport = originalConfirmAuthoringSupport })
+
+	// Drive the delivery confirm form via accessible (line-based) mode, answering
+	// "no" to pull request creation.
 	t.Setenv("ACCESSIBLE", "1")
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
