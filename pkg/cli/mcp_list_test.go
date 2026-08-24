@@ -159,6 +159,7 @@ on:
 }
 
 func TestNewMCPListSubcommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewMCPListSubcommand()
 
 	if cmd.Use != "list [workflow]" {
@@ -177,6 +178,7 @@ func TestNewMCPListSubcommand(t *testing.T) {
 
 // TestDetermineConfigStatus tests the configuration status determination
 func TestDetermineConfigStatus(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		config   parser.RegistryMCPServerConfig
@@ -218,6 +220,7 @@ func TestDetermineConfigStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := determineConfigStatus(tt.config)
 			if result != tt.expected {
 				t.Errorf("Expected status %q, got %q", tt.expected, result)
@@ -228,6 +231,7 @@ func TestDetermineConfigStatus(t *testing.T) {
 
 // TestFormatToolsCount tests the tools count formatting
 func TestFormatToolsCount(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		allowed  []string
@@ -257,6 +261,7 @@ func TestFormatToolsCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatToolsCount(tt.allowed)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
@@ -267,6 +272,7 @@ func TestFormatToolsCount(t *testing.T) {
 
 // TestFormatNetworkAccess tests network access formatting
 func TestFormatNetworkAccess(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		hasAccess bool
@@ -286,6 +292,7 @@ func TestFormatNetworkAccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatNetworkAccess(tt.hasAccess)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
@@ -296,6 +303,7 @@ func TestFormatNetworkAccess(t *testing.T) {
 
 // TestCheckNetworkAccess tests network access detection
 func TestCheckNetworkAccess(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		frontmatter map[string]any
@@ -342,6 +350,7 @@ func TestCheckNetworkAccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := checkNetworkAccess(tt.frontmatter)
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)

@@ -9,6 +9,7 @@ import (
 )
 
 func TestMCPHTTPServerAddr_BindsToLoopback(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		port int
 		want string
@@ -26,6 +27,7 @@ func TestMCPHTTPServerAddr_BindsToLoopback(t *testing.T) {
 }
 
 func TestMCPHTTPServerDisplayURL_UsesLoopbackAddress(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		port int
 		want string
@@ -43,6 +45,7 @@ func TestMCPHTTPServerDisplayURL_UsesLoopbackAddress(t *testing.T) {
 }
 
 func TestSanitizeForLog_NoSpecialChars(t *testing.T) {
+	t.Parallel()
 	input := "/api/v1/workflows"
 	got := sanitizeForLog(input)
 	if got != input {
@@ -51,6 +54,7 @@ func TestSanitizeForLog_NoSpecialChars(t *testing.T) {
 }
 
 func TestSanitizeForLog_NewlineInjection(t *testing.T) {
+	t.Parallel()
 	input := "/path\nINJECTED LOG ENTRY"
 	got := sanitizeForLog(input)
 	expected := "/pathINJECTED LOG ENTRY"
@@ -60,6 +64,7 @@ func TestSanitizeForLog_NewlineInjection(t *testing.T) {
 }
 
 func TestSanitizeForLog_CarriageReturn(t *testing.T) {
+	t.Parallel()
 	input := "/path\rmalicious"
 	got := sanitizeForLog(input)
 	expected := "/pathmalicious"
@@ -69,6 +74,7 @@ func TestSanitizeForLog_CarriageReturn(t *testing.T) {
 }
 
 func TestSanitizeForLog_BothNewlineAndCarriageReturn(t *testing.T) {
+	t.Parallel()
 	input := "line1\r\nline2"
 	got := sanitizeForLog(input)
 	expected := "line1line2"
@@ -78,6 +84,7 @@ func TestSanitizeForLog_BothNewlineAndCarriageReturn(t *testing.T) {
 }
 
 func TestSanitizeForLog_Empty(t *testing.T) {
+	t.Parallel()
 	got := sanitizeForLog("")
 	if got != "" {
 		t.Errorf("sanitizeForLog(\"\") = %q, want empty string", got)
@@ -85,6 +92,7 @@ func TestSanitizeForLog_Empty(t *testing.T) {
 }
 
 func TestResponseWriter_DefaultStatusCode(t *testing.T) {
+	t.Parallel()
 	rw := &responseWriter{
 		ResponseWriter: httptest.NewRecorder(),
 		statusCode:     http.StatusOK,
@@ -95,6 +103,7 @@ func TestResponseWriter_DefaultStatusCode(t *testing.T) {
 }
 
 func TestResponseWriter_EmbeddedResponseWriter(t *testing.T) {
+	t.Parallel()
 	rec := httptest.NewRecorder()
 	rw := &responseWriter{
 		ResponseWriter: rec,
@@ -111,6 +120,7 @@ func TestResponseWriter_EmbeddedResponseWriter(t *testing.T) {
 }
 
 func TestLoggingHandler_PassesRequestToHandler(t *testing.T) {
+	t.Parallel()
 	var handlerCalled bool
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handlerCalled = true
@@ -132,6 +142,7 @@ func TestLoggingHandler_PassesRequestToHandler(t *testing.T) {
 }
 
 func TestLoggingHandler_SanitizesPath(t *testing.T) {
+	t.Parallel()
 	// The handler should not panic on paths with newlines/carriage returns
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

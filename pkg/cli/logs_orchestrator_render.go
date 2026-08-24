@@ -70,6 +70,9 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	}
 
 	// Render output based on format preference.
+	if opts.suppressRender {
+		return nil
+	}
 	switch opts.format {
 	case "tsv":
 		if opts.verbose {

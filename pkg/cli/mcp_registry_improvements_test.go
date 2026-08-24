@@ -12,6 +12,7 @@ import (
 
 // TestMCPRegistryClient_ImprovedErrorHandling tests the enhanced error messages
 func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		statusCode    int
@@ -52,6 +53,7 @@ func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a test server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tc.statusCode)
@@ -77,6 +79,7 @@ func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
 
 // TestMCPRegistryClient_FlexibleValidation tests the updated validation logic
 func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
+	t.Parallel()
 	// Test the validation logic directly by checking what happens with different server counts
 	testCases := []struct {
 		name          string
@@ -106,6 +109,7 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Generate server list based on count
 			servers := make([]string, tc.serverCount)
 			for i := range tc.serverCount {

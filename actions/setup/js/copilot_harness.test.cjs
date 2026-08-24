@@ -947,7 +947,7 @@ describe("copilot_harness.cjs", () => {
 
       await Promise.resolve();
       expect(child.listenerCount("error")).toBe(1);
-      expect(child.listenerCount("exit")).toBe(1);
+      expect(child.listenerCount("close")).toBe(1);
 
       if (!resolveReady) {
         throw new Error("waitForReady not yet called");
@@ -972,7 +972,38 @@ describe("copilot_harness.cjs", () => {
         logger: expect.any(Function),
       });
       expect(child.listenerCount("error")).toBe(0);
-      expect(child.listenerCount("exit")).toBe(0);
+      expect(child.listenerCount("close")).toBe(0);
+    });
+
+    it("includes stderr tail when the headless Copilot CLI sidecar exits before ready", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.exitCode = null;
+      child.signalCode = "SIGABRT";
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn(
+        () =>
+          new Promise(() => {
+            // Keep readiness pending so the close event wins the startup race.
+          })
+      );
+
+      const startPromise = startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      await Promise.resolve();
+      child.stderr.write("native assertion failed before listen\npanic details\n");
+      child.emit("close", null, "SIGABRT");
+
+      await expect(startPromise).rejects.toThrow("copilot-sdk headless server exited before ready (exitCode=unknown signal=SIGABRT)\nstderr tail:\nnative assertion failed before listen\npanic details");
+      expect(child.listenerCount("error")).toBe(0);
+      expect(child.listenerCount("close")).toBe(0);
     });
 
     it("forwards extraArgs to the headless server when provided", async () => {
@@ -1092,7 +1123,7 @@ describe("copilot_harness.cjs", () => {
 
       expect(child.kill).toHaveBeenCalledWith("SIGTERM");
       expect(child.listenerCount("error")).toBe(0);
-      expect(child.listenerCount("exit")).toBe(0);
+      expect(child.listenerCount("close")).toBe(0);
     });
 
     it("waits for the Copilot SDK sidecar port to accept connections", async () => {

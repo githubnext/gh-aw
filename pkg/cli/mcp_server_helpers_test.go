@@ -9,6 +9,7 @@ import (
 )
 
 func TestMcpErrorData_Nil(t *testing.T) {
+	t.Parallel()
 	result := mcpErrorData(nil)
 	if result != nil {
 		t.Errorf("mcpErrorData(nil) = %v, want nil", result)
@@ -16,6 +17,7 @@ func TestMcpErrorData_Nil(t *testing.T) {
 }
 
 func TestMcpErrorData_String(t *testing.T) {
+	t.Parallel()
 	result := mcpErrorData("hello")
 	if result == nil {
 		t.Fatal("mcpErrorData(string) = nil, want non-nil")
@@ -30,6 +32,7 @@ func TestMcpErrorData_String(t *testing.T) {
 }
 
 func TestMcpErrorData_Map(t *testing.T) {
+	t.Parallel()
 	input := map[string]any{"error": "something went wrong", "code": 42}
 	result := mcpErrorData(input)
 	if result == nil {
@@ -45,6 +48,7 @@ func TestMcpErrorData_Map(t *testing.T) {
 }
 
 func TestMcpErrorData_UnmarshalableType(t *testing.T) {
+	t.Parallel()
 	// channels cannot be marshaled to JSON
 	ch := make(chan struct{})
 	result := mcpErrorData(ch)
@@ -55,6 +59,7 @@ func TestMcpErrorData_UnmarshalableType(t *testing.T) {
 }
 
 func TestBoolPtr_True(t *testing.T) {
+	t.Parallel()
 	p := boolPtr(true)
 	if p == nil {
 		t.Fatal("boolPtr(true) = nil, want non-nil pointer")
@@ -65,6 +70,7 @@ func TestBoolPtr_True(t *testing.T) {
 }
 
 func TestBoolPtr_False(t *testing.T) {
+	t.Parallel()
 	p := boolPtr(false)
 	if p == nil {
 		t.Fatal("boolPtr(false) = nil, want non-nil pointer")
@@ -75,6 +81,7 @@ func TestBoolPtr_False(t *testing.T) {
 }
 
 func TestBoolPtr_Independence(t *testing.T) {
+	t.Parallel()
 	// Verify that two calls return independent pointers
 	p1 := boolPtr(true)
 	p2 := boolPtr(true)
@@ -84,6 +91,7 @@ func TestBoolPtr_Independence(t *testing.T) {
 }
 
 func TestHasWriteAccess(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		permission string
 		want       bool
@@ -99,6 +107,7 @@ func TestHasWriteAccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.permission, func(t *testing.T) {
+			t.Parallel()
 			got := hasWriteAccess(tt.permission)
 			if got != tt.want {
 				t.Errorf("hasWriteAccess(%q) = %v, want %v", tt.permission, got, tt.want)
@@ -108,6 +117,7 @@ func TestHasWriteAccess(t *testing.T) {
 }
 
 func TestValidateWorkflowName_Empty(t *testing.T) {
+	t.Parallel()
 	// Empty workflow name is always valid (means "all workflows")
 	if err := validateMCPWorkflowName(""); err != nil {
 		t.Errorf("validateMCPWorkflowName(\"\") returned error: %v", err)

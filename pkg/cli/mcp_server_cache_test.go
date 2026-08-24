@@ -10,6 +10,7 @@ import (
 )
 
 func TestMCPCacheStore_ConcurrentPermissionAccess(t *testing.T) {
+	t.Parallel()
 	cache := newMCPCacheStore()
 	cache.permissionTTL = 50 * time.Millisecond
 
@@ -37,6 +38,7 @@ func TestMCPCacheStore_ConcurrentPermissionAccess(t *testing.T) {
 }
 
 func TestMCPCacheStore_ConcurrentRepoAccess(t *testing.T) {
+	t.Parallel()
 	cache := newMCPCacheStore()
 	cache.repoTTL = 50 * time.Millisecond
 
@@ -60,6 +62,7 @@ func TestMCPCacheStore_ConcurrentRepoAccess(t *testing.T) {
 }
 
 func TestMCPCacheStore_PermissionExpiry(t *testing.T) {
+	t.Parallel()
 	cache := newMCPCacheStore()
 	cache.permissionTTL = 10 * time.Millisecond
 
@@ -82,6 +85,7 @@ func TestMCPCacheStore_PermissionExpiry(t *testing.T) {
 }
 
 func TestMCPCacheStore_DeletePermissionEntryIfUnchanged_PreservesRefreshedEntry(t *testing.T) {
+	t.Parallel()
 	cache := newMCPCacheStore()
 	cacheKey := "actor:owner/repo"
 	expiredEntry := &permissionEntry{
@@ -103,6 +107,7 @@ func TestMCPCacheStore_DeletePermissionEntryIfUnchanged_PreservesRefreshedEntry(
 }
 
 func TestMCPCacheStore_RepoExpiry(t *testing.T) {
+	t.Parallel()
 	cache := newMCPCacheStore()
 	cache.repoTTL = 10 * time.Millisecond
 

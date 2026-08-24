@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"c32b7228415763cfcb6069755f6c5eb17deefda8763b97e9732ed7a38dc056d1","body_hash":"99de3eae0c964e314aeff933b806642d062d0fe055ec5384b73872e31c1dedf0","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.237"}}
-# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","APP_PRIVATE_KEY","COPILOT_GITHUB_TOKEN","DOCKER_PAT","DOCKER_USERNAME","GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/create-github-app-token","sha":"bcd2ba49218906704ab6c1aa796996da409d3eb1","version":"v3.2.0"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.4","digest":"sha256:8f18587981eff7e6291784200a88a7191d23bfd8f5723db848c640d6b4e88e46","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.4@sha256:8f18587981eff7e6291784200a88a7191d23bfd8f5723db848c640d6b4e88e46"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.4","digest":"sha256:64e668297d1b9d83ee102626e104c054ac2cf5cfd7225bf6e144f86962229882","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.4@sha256:64e668297d1b9d83ee102626e104c054ac2cf5cfd7225bf6e144f86962229882"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.4","digest":"sha256:7ad9113203642c5b12303b97e221fc6b5dd0fb0655c09a2eba9d5c6fa3201a3b","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.4@sha256:7ad9113203642c5b12303b97e221fc6b5dd0fb0655c09a2eba9d5c6fa3201a3b"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.4","digest":"sha256:35953d0beac18f642aa0bc98bb726a85288539b1fc630c16e94da33300058258","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.4@sha256:35953d0beac18f642aa0bc98bb726a85288539b1fc630c16e94da33300058258"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.10","digest":"sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.10.0","digest":"sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c","pinned_image":"ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_issue","create_pull_request","missing_data","missing_tool","noop"]}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"eaa7c300adffd876cd4157b32525e32df9f4573b6731ad1cabfa5a5d22f26773","body_hash":"f942e97142131dd0227d66a8bd0e02b847f7ce344d93d3b54a619e0fb6258277","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.237"}}
+# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","COPILOT_GITHUB_TOKEN","DOCKER_PAT","DOCKER_USERNAME","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.4","digest":"sha256:8f18587981eff7e6291784200a88a7191d23bfd8f5723db848c640d6b4e88e46","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.4@sha256:8f18587981eff7e6291784200a88a7191d23bfd8f5723db848c640d6b4e88e46"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.4","digest":"sha256:64e668297d1b9d83ee102626e104c054ac2cf5cfd7225bf6e144f86962229882","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.4@sha256:64e668297d1b9d83ee102626e104c054ac2cf5cfd7225bf6e144f86962229882"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.4","digest":"sha256:7ad9113203642c5b12303b97e221fc6b5dd0fb0655c09a2eba9d5c6fa3201a3b","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.4@sha256:7ad9113203642c5b12303b97e221fc6b5dd0fb0655c09a2eba9d5c6fa3201a3b"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.4","digest":"sha256:35953d0beac18f642aa0bc98bb726a85288539b1fc630c16e94da33300058258","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.4@sha256:35953d0beac18f642aa0bc98bb726a85288539b1fc630c16e94da33300058258"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.10","digest":"sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.10@sha256:08bb5fa417aed94b40a14e2b7b3ae457531a5f22b143a32fe58317139d9b8f42"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.10.0","digest":"sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c","pinned_image":"ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_issue","missing_data","missing_tool","noop"]}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -23,7 +23,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Converts compact existing workflow evidence (concluded experiment decisions/analyses, 14-day run/failure aggregates, and at most one targeted gh aw audit) into exactly one falsifiable, single-primary-dimension harness mutation wrapped in a balanced control/candidate experiment, compiles and validates the candidate, and opens a draft PR for human review. Never promotes or merges.
+# Converts compact existing workflow evidence (concluded experiment decisions/analyses, 14-day run/failure aggregates, and at most one targeted gh aw audit) into exactly one falsifiable, single-primary-dimension harness mutation wrapped in a balanced control/candidate experiment, compiles and validates the candidate, and opens an issue carrying the exact patch for human review. Never promotes or merges.
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -32,11 +32,9 @@
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
-#   - APP_PRIVATE_KEY
 #   - COPILOT_GITHUB_TOKEN
 #   - DOCKER_PAT
 #   - DOCKER_USERNAME
-#   - GH_AW_CI_TRIGGER_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
 #   - GH_AW_GITHUB_TOKEN
 #   - GH_AW_OTEL_GRAFANA_AUTHORIZATION
@@ -49,7 +47,6 @@
 #   - actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-#   - actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -288,7 +285,7 @@ jobs:
           GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
-          GH_AW_PROMPT_CONFIG: "{\"items\":[{\"content_env\":\"GH_AW_PROMPT_CONTENT_0000\"},{\"file\":\"xpia.md\"},{\"file\":\"temp_folder_prompt.md\"},{\"file\":\"markdown.md\"},{\"file\":\"repo_memory_prompt.md\"},{\"file\":\"safe_outputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0001\"},{\"file\":\"safe_outputs_create_pull_request.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0002\"},{\"file\":\"mcp_cli_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0003\"},{\"file\":\"cli_proxy_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0004\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0005\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0006\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0007\"}]}"
+          GH_AW_PROMPT_CONFIG: "{\"items\":[{\"content_env\":\"GH_AW_PROMPT_CONTENT_0000\"},{\"file\":\"xpia.md\"},{\"file\":\"temp_folder_prompt.md\"},{\"file\":\"markdown.md\"},{\"file\":\"repo_memory_prompt.md\"},{\"file\":\"safe_outputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0001\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0002\"},{\"file\":\"mcp_cli_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0003\"},{\"file\":\"cli_proxy_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0004\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0005\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0006\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0007\"}]}"
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
@@ -299,7 +296,7 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_WIKI_NOTE: ${{ '' }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
-          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_issue, create_pull_request, missing_tool, missing_data, noop\n"
+          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_issue, missing_tool, missing_data, noop\n"
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
           GH_AW_PROMPT_CONTENT_0003: "<github-context>\nThe following GitHub context information is available for this workflow:\n{{#if github.actor}}\n- **actor**: __GH_AW_GITHUB_ACTOR__\n{{/if}}\n{{#if github.repository}}\n- **repository**: __GH_AW_GITHUB_REPOSITORY__\n{{/if}}\n{{#if github.workspace}}\n- **workspace**: __GH_AW_GITHUB_WORKSPACE__\n{{/if}}\n{{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}\n- **issue-number**: #__GH_AW_EXPR_802A9F6A__\n{{/if}}\n{{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}\n- **discussion-number**: #__GH_AW_EXPR_1A3A194A__\n{{/if}}\n{{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}\n- **pull-request-number**: #__GH_AW_EXPR_463A214A__\n{{/if}}\n{{#if github.event.comment.id || github.aw.context.comment_id}}\n- **comment-id**: __GH_AW_EXPR_FF1D34CE__\n{{/if}}\n{{#if github.run_id}}\n- **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__\n{{/if}}\n</github-context>\n\n"
           GH_AW_PROMPT_CONTENT_0004: "</system>\n"
@@ -642,7 +639,7 @@ jobs:
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"expires\":168,\"labels\":[\"automation\",\"experiment-proposal\",\"harness\",\"needs-manual-patch\"],\"max\":1,\"title_prefix\":\"[harness-experiment-proposal] \"},\"create_pull_request\":{\"allowed_files\":[\".github/workflows/*.md\",\".github/workflows/*.lock.yml\"],\"draft\":true,\"expires\":168,\"labels\":[\"automation\",\"experiment-proposal\",\"harness\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"allowed\",\"title_prefix\":\"[harness-experiment-proposal] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"push_repo_memory\":{\"memories\":[{\"dir\":\"/tmp/gh-aw/repo-memory/default\",\"id\":\"default\",\"max_file_count\":100,\"max_file_size\":102400,\"max_patch_size\":51200}]},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"expires\":168,\"labels\":[\"automation\",\"experiment-proposal\",\"harness\",\"needs-manual-patch\"],\"max\":1,\"title_prefix\":\"[harness-experiment-proposal] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"push_repo_memory\":{\"memories\":[{\"dir\":\"/tmp/gh-aw/repo-memory/default\",\"id\":\"default\",\"max_file_count\":100,\"max_file_size\":102400,\"max_patch_size\":51200}]},\"report_incomplete\":{}}"
         with:
           script: |
             const path = require('path');
@@ -656,8 +653,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[harness-experiment-proposal] \". Labels [\"automation\" \"experiment-proposal\" \"harness\" \"needs-manual-patch\"] will be automatically added.",
-                "create_pull_request": " CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[harness-experiment-proposal] \". Labels [\"automation\" \"experiment-proposal\" \"harness\"] will be automatically added. PRs will be created as drafts."
+                "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[harness-experiment-proposal] \". Labels [\"automation\" \"experiment-proposal\" \"harness\" \"needs-manual-patch\"] will be automatically added."
               },
               "repo_params": {},
               "dynamic_tools": []
@@ -693,65 +689,6 @@ jobs:
                   },
                   "temporary_id": {
                     "type": "string"
-                  },
-                  "title": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128
-                  }
-                }
-              },
-              "create_pull_request": {
-                "defaultMax": 1,
-                "fields": {
-                  "base": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128
-                  },
-                  "body": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 65000
-                  },
-                  "branch": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 256
-                  },
-                  "dependencies": {
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 256
-                  },
-                  "draft": {
-                    "type": "boolean"
-                  },
-                  "labels": {
-                    "type": "array",
-                    "itemType": "string",
-                    "itemSanitize": true,
-                    "itemMaxLength": 128
-                  },
-                  "repo": {
-                    "type": "string",
-                    "maxLength": 256
-                  },
-                  "stack_position": {
-                    "optionalPositiveInteger": true
-                  },
-                  "stack_root": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 256
-                  },
-                  "temporary_id": {
-                    "type": "string",
-                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   },
                   "title": {
                     "required": true,
@@ -1317,8 +1254,6 @@ jobs:
             /tmp/gh-aw/otlp-export-errors.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
-            /tmp/gh-aw/aw-*.patch
-            /tmp/gh-aw/aw-*.bundle
             /tmp/gh-aw/awf-config.json
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/sandbox/firewall/audit/
@@ -1341,9 +1276,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: read
-      contents: write
       issues: write
-      pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-daily-harness-experiment-proposer"
       cancel-in-progress: false
@@ -1378,19 +1311,6 @@ jobs:
           GH_AW_INFO_VERSION: "2.1.237"
           GH_AW_INFO_AWF_VERSION: "v0.28.4"
           GH_AW_INFO_ENGINE_ID: "claude"
-      - name: Generate GitHub App token
-        id: safe-outputs-app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          github-api-url: ${{ github.api_url }}
-          permission-contents: write
-          permission-issues: write
-          permission-pull-requests: write
-          permission-workflows: write
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1506,7 +1426,7 @@ jobs:
           GH_AW_AMBIENT_CONTEXT: ${{ needs.agent.outputs.ambient_context }}
           GH_AW_WORKFLOW_ID: "daily-harness-experiment-proposer"
         with:
-          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const path = require('path');
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
@@ -1524,7 +1444,7 @@ jobs:
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/daily-harness-experiment-proposer.md"
           GH_AW_TRACKER_ID: "daily-harness-experiment-proposer"
         with:
-          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const path = require('path');
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
@@ -1542,7 +1462,7 @@ jobs:
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/daily-harness-experiment-proposer.md"
           GH_AW_TRACKER_ID: "daily-harness-experiment-proposer"
         with:
-          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const path = require('path');
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
@@ -1583,10 +1503,6 @@ jobs:
           GH_AW_MISSING_MODEL_PRICING_MODEL_NAME: ${{ needs.agent.outputs.missing_model_pricing_model_name }}
           GH_AW_SHELL_EXPANSION_GUARD_REJECTED: ${{ needs.agent.outputs.shell_expansion_guard_rejected }}
           GH_AW_ENGINE_API_HOSTS: "api.anthropic.com"
-          GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
-          GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
-          GH_AW_SAFE_OUTPUTS_APP_TOKEN_MINTING_FAILED: ${{ needs.safe_outputs.outputs.app_token_minting_failed }}
-          GH_AW_CONCLUSION_APP_TOKEN_MINTING_FAILED: ${{ steps.safe-outputs-app-token.outcome == 'failure' }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_OAUTH_TOKEN_CHECK_FAILED: ${{ needs.activation.outputs.oauth_token_check_failed }}
           GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.activation.outputs.stale_lock_file_failed }}
@@ -1603,7 +1519,7 @@ jobs:
           GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
           GH_AW_TIMEOUT_MINUTES: "30"
         with:
-          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const path = require('path');
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
@@ -1623,7 +1539,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_REPORT_FAILED_JOBS: "true"
         with:
-          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const path = require('path');
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
@@ -1701,7 +1617,7 @@ jobs:
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EVALS_QUESTIONS: '[{"id":"single_dimension_hypothesis_selected","question":"Did the agent select exactly one eligible target workflow, exactly one primary_dimension (from the six-dimension harness taxonomy) with exactly one narrow subtype, and write a structured hypothesis contract (observation, mutation, mechanism, primary_metric, expected_direction, minimum_effect, guardrails, evidence, control, candidate) citing at least one — and at least two when independently available — concrete evidence entries from the pre-gathered experiments/logs evidence files, never invented?"},{"id":"candidate_compiled_and_validated","question":"Did the agent add a genuine balanced control/candidate experiments block (with a supported grader:/eval:-referenced primary metric and guardrails, and a decision policy) to the target workflow, then run gh aw compile with --strict (and --validate) on that single target workflow, confirming a clean compile before proposing?"},{"id":"draft_pr_or_fallback_issue_emitted","question":"Did the agent emit exactly one draft pull request with all required body sections in order (Observation, Hypothesis, Candidate Mutation, Experiment, Guardrails, Expected Economics, Interpretation, Rollback) — or, if PR creation was not possible, a fallback issue containing the exact patch/diff and an application plan — or call noop with a clear reason when no eligible, falsifiable mutation could be justified?"}]'
+          GH_AW_EVALS_QUESTIONS: '[{"id":"single_dimension_hypothesis_selected","question":"Did the agent select exactly one eligible target workflow, exactly one primary_dimension (from the six-dimension harness taxonomy) with exactly one narrow subtype, and write a structured hypothesis contract (observation, mutation, mechanism, primary_metric, expected_direction, minimum_effect, guardrails, evidence, control, candidate) citing at least one — and at least two when independently available — concrete evidence entries from the pre-gathered experiments/logs evidence files, never invented?"},{"id":"candidate_compiled_and_validated","question":"Did the agent add a genuine balanced control/candidate experiments block (with a supported grader:/eval:-referenced primary metric and guardrails, and a decision policy) to the target workflow, then run gh aw compile with --strict (and --validate) on that single target workflow, confirming a clean compile before proposing?"},{"id":"proposal_issue_emitted","question":"Did the agent emit exactly one proposal issue with all required body sections in order (Observation, Hypothesis, Candidate Mutation, Experiment, Guardrails, Expected Economics, Validation, Interpretation, Rollback) plus the exact patch/diff and an application plan — or call noop with a clear reason when no eligible, falsifiable mutation could be justified?"}]'
           GH_AW_EVALS_MODEL: "evals"
           GH_AW_EVALS_PHASE: setup
         with:
@@ -1816,7 +1732,7 @@ jobs:
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EVALS_QUESTIONS: '[{"id":"single_dimension_hypothesis_selected","question":"Did the agent select exactly one eligible target workflow, exactly one primary_dimension (from the six-dimension harness taxonomy) with exactly one narrow subtype, and write a structured hypothesis contract (observation, mutation, mechanism, primary_metric, expected_direction, minimum_effect, guardrails, evidence, control, candidate) citing at least one — and at least two when independently available — concrete evidence entries from the pre-gathered experiments/logs evidence files, never invented?"},{"id":"candidate_compiled_and_validated","question":"Did the agent add a genuine balanced control/candidate experiments block (with a supported grader:/eval:-referenced primary metric and guardrails, and a decision policy) to the target workflow, then run gh aw compile with --strict (and --validate) on that single target workflow, confirming a clean compile before proposing?"},{"id":"draft_pr_or_fallback_issue_emitted","question":"Did the agent emit exactly one draft pull request with all required body sections in order (Observation, Hypothesis, Candidate Mutation, Experiment, Guardrails, Expected Economics, Interpretation, Rollback) — or, if PR creation was not possible, a fallback issue containing the exact patch/diff and an application plan — or call noop with a clear reason when no eligible, falsifiable mutation could be justified?"}]'
+          GH_AW_EVALS_QUESTIONS: '[{"id":"single_dimension_hypothesis_selected","question":"Did the agent select exactly one eligible target workflow, exactly one primary_dimension (from the six-dimension harness taxonomy) with exactly one narrow subtype, and write a structured hypothesis contract (observation, mutation, mechanism, primary_metric, expected_direction, minimum_effect, guardrails, evidence, control, candidate) citing at least one — and at least two when independently available — concrete evidence entries from the pre-gathered experiments/logs evidence files, never invented?"},{"id":"candidate_compiled_and_validated","question":"Did the agent add a genuine balanced control/candidate experiments block (with a supported grader:/eval:-referenced primary metric and guardrails, and a decision policy) to the target workflow, then run gh aw compile with --strict (and --validate) on that single target workflow, confirming a clean compile before proposing?"},{"id":"proposal_issue_emitted","question":"Did the agent emit exactly one proposal issue with all required body sections in order (Observation, Hypothesis, Candidate Mutation, Experiment, Guardrails, Expected Economics, Validation, Interpretation, Rollback) plus the exact patch/diff and an application plan — or call noop with a clear reason when no eligible, falsifiable mutation could be justified?"}]'
           GH_AW_EVALS_MODEL: "evals"
           GH_AW_EVALS_PHASE: parse
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -2115,9 +2031,7 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped'
     runs-on: ubuntu-slim
     permissions:
-      contents: write
       issues: write
-      pull-requests: write
     timeout-minutes: 45
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
@@ -2135,15 +2049,12 @@ jobs:
       GH_AW_WORKFLOW_NAME: "Daily Harness Experiment Proposer"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/daily-harness-experiment-proposer.md"
     outputs:
-      app_token_minting_failed: ${{ steps.safe-outputs-app-token.outcome == 'failure' }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       created_issue_number: ${{ steps.process_safe_outputs.outputs.created_issue_number }}
       created_issue_url: ${{ steps.process_safe_outputs.outputs.created_issue_url }}
-      created_pr_number: ${{ steps.process_safe_outputs.outputs.created_pr_number }}
-      created_pr_url: ${{ steps.process_safe_outputs.outputs.created_pr_url }}
       process_safe_outputs_items_applied: ${{ steps.process_safe_outputs.outputs.items_applied }}
       process_safe_outputs_items_cancelled: ${{ steps.process_safe_outputs.outputs.items_cancelled }}
       process_safe_outputs_items_deferred: ${{ steps.process_safe_outputs.outputs.items_deferred }}
@@ -2196,38 +2107,6 @@ jobs:
           if [ -f "/tmp/gh-aw/agent_output.json" ]; then
             echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
           fi
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: agent
-          path: /tmp/gh-aw/
-      - name: Generate GitHub App token
-        id: safe-outputs-app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          github-api-url: ${{ github.api_url }}
-          permission-contents: write
-          permission-issues: write
-          permission-pull-requests: write
-          permission-workflows: write
-      - name: Checkout repository
-        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: true
-          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      - name: Configure Git credentials
-        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          GIT_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
         shell: bash
@@ -2246,11 +2125,9 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.grafana.net,*.sentry.io,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,go.dev,golang.org,goproxy.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,pkg.go.dev,playwright.download.prss.microsoft.com,ppa.launchpad.net,proxy.golang.org,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,storage.googleapis.com,sum.golang.org,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":168,\"labels\":[\"automation\",\"experiment-proposal\",\"harness\",\"needs-manual-patch\"],\"max\":1,\"title_prefix\":\"[harness-experiment-proposal] \"},\"create_pull_request\":{\"allowed_files\":[\".github/workflows/*.md\",\".github/workflows/*.lock.yml\"],\"draft\":true,\"expires\":168,\"labels\":[\"automation\",\"experiment-proposal\",\"harness\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"CLAUDE.md\",\"AGENTS.md\"],\"protected_files_policy\":\"allowed\",\"title_prefix\":\"[harness-experiment-proposal] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
-          GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
-          GITHUB_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":168,\"labels\":[\"automation\",\"experiment-proposal\",\"harness\",\"needs-manual-patch\"],\"max\":1,\"title_prefix\":\"[harness-experiment-proposal] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
         with:
-          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const path = require('path');
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
@@ -2267,13 +2144,3 @@ jobs:
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/temporary-id-map.json
           if-no-files-found: ignore
-      - name: Restore actions folder
-        if: always()
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions/setup
-          sparse-checkout-cone-mode: true
-          clean: false
-          persist-credentials: false

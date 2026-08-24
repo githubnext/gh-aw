@@ -50,6 +50,12 @@ Run validation in tiers — catch compile errors early, defer slow tests to the 
 - Workflow markdown changes: `make recompile`
 - JavaScript (`*.cjs`) changes: `make fmt-cjs && make lint-cjs`
 
+### Common focused checks from recent repository work
+
+- `pkg/workflow/` edits: run `go test ./pkg/workflow -count=1` during iteration; narrow with `-run` when only one workflow behavior is under active change.
+- `actions/setup/js/` edits: after `make fmt-cjs && make lint-cjs`, run the targeted `actions/setup/js/*.test.cjs` suites for the files you touched. Gateway changes commonly validate with `npx vitest run actions/setup/js/start_mcp_gateway.test.cjs`.
+- Workflow source changes that also touch compiler or runtime code: run `make recompile`, then rerun the affected focused Go or JavaScript checks before the final `make agent-report-progress`.
+
 ### Merge-main playbook
 
 When explicitly asked to merge main:
