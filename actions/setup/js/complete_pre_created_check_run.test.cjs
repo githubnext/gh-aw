@@ -89,7 +89,7 @@ describe("complete_pre_created_check_run", () => {
     expect(global.core.info).toHaveBeenCalledWith("No pre-created pull request check run to complete");
   });
 
-  it("closes the pre-created pull request and deletes its branch when no changes were produced", async () => {
+  it("closes the pre-created pull request and deletes its branch when create-pull-request did not consume it", async () => {
     process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "success" } });
     process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
     process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
@@ -107,6 +107,18 @@ describe("complete_pre_created_check_run", () => {
     global.github.rest.pulls.get.mockResolvedValue({
       data: { state: "open", head: { ref: "gh-aw/pre-created/1-1" }, changed_files: 3 },
     });
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.pulls.update).not.toHaveBeenCalled();
+    expect(global.github.rest.git.deleteRef).not.toHaveBeenCalled();
+  });
+
+  it("keeps the pre-created pull request when create-pull-request consumed it", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "success" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
+    process.env.GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER = "42";
     const { main } = await import("./complete_pre_created_check_run.cjs");
     await main();
 

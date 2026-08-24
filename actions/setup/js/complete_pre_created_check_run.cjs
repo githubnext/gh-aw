@@ -4,14 +4,15 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
- * Closes the pre-created pull request and deletes its branch when the run produced no
- * changes, so runs that end without a `create_pull_request` output (or fail before it)
- * do not leave an empty placeholder pull request behind.
+ * Closes the pre-created pull request and deletes its branch when the safe-outputs
+ * job did not consume it via create_pull_request, so runs that end without using the
+ * pre-created PR do not leave an empty placeholder pull request behind.
  * @returns {Promise<void>}
  */
 async function discardUnusedPullRequest() {
   const pullNumber = Number.parseInt(process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || "", 10);
   const branch = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH || "";
+  const consumedPullNumber = Number.parseInt(process.env.GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER || "", 10);
   if (!Number.isFinite(pullNumber) || pullNumber <= 0 || !branch) {
     return;
   }
@@ -25,8 +26,12 @@ async function discardUnusedPullRequest() {
     if (pullRequest.state !== "open" || pullRequest.head.ref !== branch || (pullRequest.changed_files ?? 0) > 0) {
       return;
     }
+    if (Number.isFinite(consumedPullNumber) && consumedPullNumber === pullNumber) {
+      core.info(`Keeping pre-created pull request #${pullNumber} because create-pull-request consumed it`);
+      return;
+    }
 
-    core.info(`Closing pre-created pull request #${pullNumber} because the run produced no changes`);
+    core.info(`Closing pre-created pull request #${pullNumber} because create-pull-request did not consume it`);
     await github.rest.pulls.update({
       owner: context.repo.owner,
       repo: context.repo.repo,

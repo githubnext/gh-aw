@@ -51,6 +51,7 @@ func TestBuildConclusionJobCompletesPreCreatedCheck(t *testing.T) {
 	assert.Contains(t, steps, "Complete pre-created pull request check")
 	assert.Contains(t, steps, "complete_pre_created_check_run.cjs")
 	assert.Contains(t, steps, "needs.activation.outputs.pre_created_pull_request_check_run_id")
+	assert.Contains(t, steps, "needs.safe_outputs.outputs.created_pr_number")
 	assert.Contains(t, job.Permissions, "checks: write")
 }
 
