@@ -42,20 +42,6 @@ func NewMiner(cfg Config) (*Miner, error) {
 	}, nil
 }
 
-// Train processes a raw log line, updates the miner state, and returns the
-// match result. It is safe to call from multiple goroutines.
-func (m *Miner) Train(line string) (*MatchResult, error) {
-	masked := m.masker.Mask(line)
-	tokens := Tokenize(masked)
-	if len(tokens) == 0 {
-		return nil, errors.New("agentdrain: Train: empty line after masking")
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.trainTokens(tokens, ""), nil
-}
-
 // trainTokens updates the miner state for tokens. Caller must hold m.mu.
 func (m *Miner) trainTokens(tokens []string, stage string) *MatchResult {
 	result, _ := m.findBestMatchingCluster(tokens)
