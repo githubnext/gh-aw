@@ -31,6 +31,7 @@ func extractTextResult(t *testing.T, result *mcp.CallToolResult) string {
 }
 
 func TestCompileTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
+	t.Parallel()
 	const (
 		expectedStdout = `[{"workflow":"test.md","valid":true,"errors":[],"warnings":[]}]`
 		stderrNoise    = "diagnostic noise should not be returned"
@@ -53,6 +54,7 @@ func TestCompileTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
 }
 
 func TestCompileTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
+	t.Parallel()
 	const expectedStdout = `[{"workflow":"test.md","valid":true,"errors":[],"warnings":[]}]`
 
 	var capturedArgs []string

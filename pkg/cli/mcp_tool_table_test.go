@@ -13,6 +13,7 @@ import (
 )
 
 func TestRenderMCPToolTable(t *testing.T) {
+	t.Parallel()
 	// Create mock data
 	mockInfo := &parser.MCPServerInfo{
 		Config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",

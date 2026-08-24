@@ -10,6 +10,7 @@ import (
 
 // TestMCPToolOutputSchemas verifies that output schemas are correctly generated for MCP tools
 func TestMCPToolOutputSchemas(t *testing.T) {
+	t.Parallel()
 	t.Run("logs schema can be generated (for future use)", func(t *testing.T) {
 		// The logs tool currently doesn't use output schemas, but we verify
 		// the helper can generate them for when they're needed in the future
