@@ -85,6 +85,15 @@ func TestEditCommandIntegrationDryRunAndFailureSafety(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, beforeFailureLock, lockContent)
 
+	shorthandPath := filepath.Join(setup.workflowsDir, "shorthand.md")
+	shorthand := "---\n# keep this comment\non: push\nengine: copilot\n---\n# Shorthand Workflow\n"
+	require.NoError(t, os.WriteFile(shorthandPath, []byte(shorthand), 0o644))
+	output = requireEditSucceeds(t, setup, "edit", "shorthand", "--schedule", "off")
+	assert.Contains(t, output, "already matches")
+	content, err = os.ReadFile(shorthandPath)
+	require.NoError(t, err)
+	assert.Equal(t, shorthand, string(content))
+
 	require.NoError(t, os.WriteFile(workflowPath, []byte("---\nsource: owner/repo@v1\non: workflow_dispatch\n---\n# Managed\n"), 0o644))
 	beforeManaged, err := os.ReadFile(workflowPath)
 	require.NoError(t, err)

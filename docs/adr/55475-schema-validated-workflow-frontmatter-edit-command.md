@@ -30,11 +30,11 @@ Add mutation flags to the existing `update` command. The `update` command is sem
 - Schema validation runs before any bytes are written to disk, preventing invalid frontmatter values from ever reaching the repository.
 - Automatic recompilation keeps `.lock.yml` atomically in sync with the edited workflow file.
 - Transactional rollback: if recompilation fails, both the workflow source file and the lock file are restored to their pre-edit state.
-- Fuzzy schedule shorthands (`1h`, `weekdays`, etc.) are normalized to cron expressions at edit time, providing a user-friendly schedule API.
+- Fuzzy schedule expressions (`daily`, `every 6h`, `daily on weekdays`, etc.) are validated with the shared schedule parser at edit time, providing a user-friendly schedule API.
 
 #### Negative
 - Source-managed workflows (those with a `source:` key in their frontmatter) are explicitly rejected by the command; users must edit the upstream source or pin/unpin and then run `gh aw update` instead.
-- YAML re-serialization via `go-yaml` may alter key ordering, indentation, or whitespace in the frontmatter beyond the intended change, potentially producing noisy diffs.
+- YAML re-serialization via `go-yaml` may alter key ordering, indentation, comments, or whitespace in the frontmatter beyond the intended change, potentially producing noisy diffs. Edits that change nothing are detected and skip writing entirely, so no-op edits never rewrite a workflow.
 
 #### Neutral
 - The command is labelled "Experimental" in its `Short` and `Long` help text, signalling that its interface may change before stabilization.

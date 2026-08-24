@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
@@ -22,7 +25,10 @@ func NewEditCommand() *cobra.Command {
 		Long: `Experimental: edit schema-validated workflow frontmatter and recompile its generated file.
 
 The workflow-id may be a workflow name, a Markdown filename, or a path. Changes are
-validated before writing. Workflows managed by a source: declaration cannot be edited.`,
+validated before writing. Workflows managed by a source: declaration cannot be edited.
+
+Edits that change nothing leave the workflow untouched. When frontmatter does change it is
+re-serialized, so YAML comments, key ordering, and quoting styles are not preserved.`,
 		Example: `  gh aw edit repo-assist "max-turns: 20"
   gh aw edit repo-assist --schedule "every 6h"
   gh aw edit repo-assist --set model=small --unset engine.model
@@ -71,10 +77,17 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 	if len(changes) == 0 {
 		return errors.New("provide an assignment or an edit flag")
 	}
+	edited := false
 	for _, change := range changes {
-		if err := applyEditChange(parsed.Frontmatter, change); err != nil {
+		applied, err := applyEditChange(parsed.Frontmatter, change)
+		if err != nil {
 			return err
 		}
+		edited = edited || applied
+	}
+	if !edited {
+		fmt.Fprintln(cmd.OutOrStdout(), "workflow already matches the requested changes")
+		return nil
 	}
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(parsed.Frontmatter, workflowPath); err != nil {
 		return fmt.Errorf("invalid edited workflow: %w", err)
@@ -88,29 +101,61 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return writeAndCompileEditedWorkflow(workflowPath, content, updated)
+	return writeAndCompileEditedWorkflow(cmd.Context(), workflowPath, content, updated)
 }
 
-func writeAndCompileEditedWorkflow(workflowPath string, content []byte, updated string) error {
+func writeAndCompileEditedWorkflow(ctx context.Context, workflowPath string, content []byte, updated string) error {
 	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	previousLock, lockErr := os.ReadFile(lockPath)
 	lockExisted := lockErr == nil
 	if lockErr != nil && !os.IsNotExist(lockErr) {
 		return fmt.Errorf("read generated lock file: %w", lockErr)
 	}
-	if err := os.WriteFile(workflowPath, []byte(updated), 0o644); err != nil {
+	if err := writeFileAtomically(workflowPath, []byte(updated)); err != nil {
 		return fmt.Errorf("write workflow: %w", err)
 	}
-	if err := compileWorkflow(context.Background(), workflowPath, false, true, ""); err != nil {
-		_ = os.WriteFile(workflowPath, content, 0o644)
-		if lockExisted {
-			_ = os.WriteFile(lockPath, previousLock, 0o644)
-		} else {
-			_ = os.Remove(lockPath)
-		}
-		return fmt.Errorf("compile edited workflow: %w", err)
+	if err := compileWorkflow(ctx, workflowPath, false, true, ""); err != nil {
+		return errors.Join(fmt.Errorf("compile edited workflow: %w", err), restoreEditedWorkflow(workflowPath, content, lockPath, previousLock, lockExisted))
 	}
 	return nil
+}
+
+// restoreEditedWorkflow puts the workflow and its generated file back to their pre-edit state.
+func restoreEditedWorkflow(workflowPath string, content []byte, lockPath string, previousLock []byte, lockExisted bool) error {
+	var errs []error
+	if err := writeFileAtomically(workflowPath, content); err != nil {
+		errs = append(errs, fmt.Errorf("restore workflow: %w", err))
+	}
+	if lockExisted {
+		if err := writeFileAtomically(lockPath, previousLock); err != nil {
+			errs = append(errs, fmt.Errorf("restore generated lock file: %w", err))
+		}
+	} else if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
+		errs = append(errs, fmt.Errorf("remove generated lock file: %w", err))
+	}
+	return errors.Join(errs...)
+}
+
+// writeFileAtomically writes content through a sibling temporary file so a failed
+// write never truncates the destination.
+func writeFileAtomically(path string, content []byte) error {
+	file, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	tempPath := file.Name()
+	defer func() { _ = os.Remove(tempPath) }()
+	if _, err := file.Write(content); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tempPath, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tempPath, path)
 }
 
 type editChange struct {
@@ -187,14 +232,20 @@ func parseEditAssignment(assignment, separator string) (editChange, error) {
 	return editChange{kind: "set", path: path, value: value["value"]}, nil
 }
 
-func applyEditChange(frontmatter map[string]any, change editChange) error {
+// applyEditChange applies a change and reports whether the frontmatter was modified.
+func applyEditChange(frontmatter map[string]any, change editChange) (bool, error) {
 	change, err := normalizeEditChange(frontmatter, change)
 	if err != nil {
-		return err
+		return false, err
 	}
-	parent, key, err := editChangeParent(frontmatter, change.path)
+	parent, key, err := editChangeParent(frontmatter, change.path, change.kind != "unset")
 	if err != nil {
-		return err
+		return false, err
+	}
+	if parent == nil {
+		// The target does not exist, so an unset is a no-op and the original
+		// frontmatter representation is preserved.
+		return false, nil
 	}
 	return applyEditChangeToParent(parent, key, change)
 }
@@ -217,7 +268,10 @@ func normalizeEditChange(frontmatter map[string]any, change editChange) (editCha
 	return change, nil
 }
 
-func editChangeParent(frontmatter map[string]any, changePath string) (map[string]any, string, error) {
+// editChangeParent walks changePath and returns the map holding its last segment.
+// When create is false, a missing or non-object ancestor yields a nil parent so the
+// caller can treat the change as a no-op instead of rewriting the frontmatter.
+func editChangeParent(frontmatter map[string]any, changePath string, create bool) (map[string]any, string, error) {
 	path := strings.Split(changePath, ".")
 	if slices.Contains(path, "") {
 		return nil, "", fmt.Errorf("invalid frontmatter path %q", changePath)
@@ -226,30 +280,20 @@ func editChangeParent(frontmatter map[string]any, changePath string) (map[string
 	for _, part := range path[:len(path)-1] {
 		child, ok := parent[part].(map[string]any)
 		if !ok {
-			if part == "on" {
-				switch triggers := parent[part].(type) {
-				case string:
-					child = map[string]any{triggers: nil}
-				case []any:
-					child = make(map[string]any, len(triggers))
-					for _, trigger := range triggers {
-						name, ok := trigger.(string)
-						if !ok {
-							return nil, "", fmt.Errorf("cannot edit %q because on contains a non-string trigger", changePath)
-						}
-						child[name] = nil
-					}
-				}
-				if child != nil {
-					parent[part] = child
-					parent = child
-					continue
-				}
+			if !create {
+				return nil, "", nil
 			}
-			if parent[part] != nil {
+			if parent[part] == nil {
+				child = map[string]any{}
+			} else if part == "on" {
+				expanded, err := expandTriggers(parent[part])
+				if err != nil {
+					return nil, "", fmt.Errorf("cannot edit %q: %w", changePath, err)
+				}
+				child = expanded
+			} else {
 				return nil, "", fmt.Errorf("cannot edit %q because %q is not an object", changePath, part)
 			}
-			child = map[string]any{}
 			parent[part] = child
 		}
 		parent = child
@@ -257,30 +301,86 @@ func editChangeParent(frontmatter map[string]any, changePath string) (map[string
 	return parent, path[len(path)-1], nil
 }
 
-func applyEditChangeToParent(parent map[string]any, key string, change editChange) error {
+// expandTriggers converts the shorthand forms accepted by the on: field into the
+// equivalent trigger object so a trigger can be edited without changing semantics.
+func expandTriggers(triggers any) (map[string]any, error) {
+	switch value := triggers.(type) {
+	case map[string]any:
+		return value, nil
+	case string:
+		return expandTriggerString(value)
+	case []any:
+		expanded := make(map[string]any, len(value))
+		for _, trigger := range value {
+			name, ok := trigger.(string)
+			if !ok {
+				return nil, errors.New("on contains a non-string trigger")
+			}
+			expanded[name] = nil
+		}
+		return expanded, nil
+	}
+	return nil, fmt.Errorf("on is not a trigger object, got %T", triggers)
+}
+
+func expandTriggerString(triggers string) (map[string]any, error) {
+	triggers = strings.TrimSpace(triggers)
+	if _, _, err := parser.ParseSchedule(triggers); err == nil {
+		return map[string]any{"schedule": triggers, "workflow_dispatch": nil}, nil
+	}
+	trigger, err := workflow.ParseTriggerShorthand(triggers)
+	if err != nil {
+		return nil, fmt.Errorf("on shorthand %q is not a recognized trigger: %w", triggers, err)
+	}
+	if trigger != nil {
+		if len(trigger.Conditions) > 0 {
+			return nil, fmt.Errorf("expand the on shorthand %q into its object form before editing it", triggers)
+		}
+		return trigger.ToYAMLMap(), nil
+	}
+	if strings.ContainsAny(triggers, " \t/") {
+		return nil, fmt.Errorf("expand the on shorthand %q into its object form before editing it", triggers)
+	}
+	return map[string]any{triggers: nil}, nil
+}
+
+// applyEditChangeToParent applies a change to parent and reports whether it modified it.
+func applyEditChangeToParent(parent map[string]any, key string, change editChange) (bool, error) {
 	switch change.kind {
 	case "set":
+		existing, exists := parent[key]
+		if exists && reflect.DeepEqual(existing, change.value) {
+			return false, nil
+		}
 		parent[key] = change.value
 	case "unset":
+		if _, exists := parent[key]; !exists {
+			return false, nil
+		}
 		delete(parent, key)
 	case "add":
 		values, ok := parent[key].([]any)
 		if !ok && parent[key] != nil {
-			return fmt.Errorf("cannot add to %q because it is not a list", change.path)
+			return false, fmt.Errorf("cannot add to %q because it is not a list", change.path)
 		}
-		if !slices.ContainsFunc(values, func(value any) bool { return fmt.Sprint(value) == fmt.Sprint(change.value) }) {
-			parent[key] = append(values, change.value)
+		if slices.ContainsFunc(values, func(value any) bool { return reflect.DeepEqual(value, change.value) }) {
+			return false, nil
 		}
+		parent[key] = append(values, change.value)
 	case "remove":
 		values, ok := parent[key].([]any)
 		if !ok {
-			return fmt.Errorf("cannot remove from %q because it is not a list", change.path)
+			return false, fmt.Errorf("cannot remove from %q because it is not a list", change.path)
 		}
-		parent[key] = slices.DeleteFunc(values, func(value any) bool { return fmt.Sprint(value) == fmt.Sprint(change.value) })
+		remaining := slices.DeleteFunc(slices.Clone(values), func(value any) bool { return reflect.DeepEqual(value, change.value) })
+		if len(remaining) == len(values) {
+			return false, nil
+		}
+		parent[key] = remaining
 	default:
-		return fmt.Errorf("unsupported edit operation %q", change.kind)
+		return false, fmt.Errorf("unsupported edit operation %q", change.kind)
 	}
-	return nil
+	return true, nil
 }
 
 func replaceFrontmatter(content string, frontmatter map[string]any) (string, error) {

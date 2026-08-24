@@ -21,7 +21,7 @@ func TestEditChangesSupportAssignmentsSchedulesAndImports(t *testing.T) {
 	require.NoError(t, err)
 	frontmatter := map[string]any{"on": "workflow_dispatch"}
 	for _, change := range changes {
-		require.NoError(t, applyEditChange(frontmatter, change))
+		mustApplyEditChange(t, frontmatter, change)
 	}
 
 	assert.Equal(t, "small", frontmatter["model"])
@@ -53,12 +53,8 @@ func TestEditCommandDryRunPreservesWorkflowFile(t *testing.T) {
 func TestEditChangesAddImportsToObjectForm(t *testing.T) {
 	t.Parallel()
 	frontmatter := map[string]any{"imports": map[string]any{"aw": []any{"shared/base.md"}}}
-	require.NoError(t, applyEditChange(frontmatter, editChange{
-		kind: "add", path: "imports", value: "shared/extra.md",
-	}))
-	require.NoError(t, applyEditChange(frontmatter, editChange{
-		kind: "remove", path: "imports", value: "shared/base.md",
-	}))
+	mustApplyEditChange(t, frontmatter, editChange{kind: "add", path: "imports", value: "shared/extra.md"})
+	mustApplyEditChange(t, frontmatter, editChange{kind: "remove", path: "imports", value: "shared/base.md"})
 	assert.Equal(t, []any{"shared/extra.md"}, frontmatter["imports"].(map[string]any)["aw"])
 }
 
@@ -75,7 +71,7 @@ func TestEditChangesRemoveImportsAndSkills(t *testing.T) {
 		"skills":  []any{"shared/base", "shared/review"},
 	}
 	for _, change := range changes {
-		require.NoError(t, applyEditChange(frontmatter, change))
+		mustApplyEditChange(t, frontmatter, change)
 	}
 
 	assert.Equal(t, []any{"shared/extra.md"}, frontmatter["imports"])
@@ -87,7 +83,7 @@ func TestEditAssignmentParsesScheduleShorthands(t *testing.T) {
 	change, err := parseEditAssignment("on.schedule: daily on weekdays", ":")
 	require.NoError(t, err)
 	frontmatter := map[string]any{"on": "workflow_dispatch"}
-	require.NoError(t, applyEditChange(frontmatter, change))
+	mustApplyEditChange(t, frontmatter, change)
 	assert.Equal(t, "daily on weekdays", frontmatter["on"].(map[string]any)["schedule"])
 }
 
@@ -108,4 +104,101 @@ func TestEditCommandRejectsSourceManagedWorkflow(t *testing.T) {
 	cmd := NewEditCommand()
 	cmd.SetArgs([]string{workflowPath, "max-turns: 20"})
 	assert.ErrorContains(t, cmd.Execute(), "source-managed")
+}
+
+// mustApplyEditChange applies a change and asserts that it modified the frontmatter.
+func mustApplyEditChange(t *testing.T, frontmatter map[string]any, change editChange) {
+	t.Helper()
+	applied, err := applyEditChange(frontmatter, change)
+	require.NoError(t, err)
+	assert.True(t, applied, "expected the change to modify the frontmatter")
+}
+
+func TestEditChangeKeepsShorthandTriggersWhenScheduleIsAbsent(t *testing.T) {
+	t.Parallel()
+	for name, triggers := range map[string]any{
+		"string": "push",
+		"list":   []any{"push", "workflow_dispatch"},
+		"map":    map[string]any{"push": nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			frontmatter := map[string]any{"on": triggers}
+			applied, err := applyEditChange(frontmatter, editChange{kind: "unset", path: "on.schedule"})
+			require.NoError(t, err)
+			assert.False(t, applied)
+			assert.Equal(t, triggers, frontmatter["on"])
+		})
+	}
+}
+
+func TestEditChangeExpandsScheduleAndTriggerShorthands(t *testing.T) {
+	t.Parallel()
+	frontmatter := map[string]any{"on": "daily"}
+	mustApplyEditChange(t, frontmatter, editChange{kind: "set", path: "on.schedule", value: "every 6h"})
+	assert.Equal(t, map[string]any{"schedule": "every 6h", "workflow_dispatch": nil}, frontmatter["on"])
+
+	frontmatter = map[string]any{"on": []any{"push", "workflow_dispatch"}}
+	mustApplyEditChange(t, frontmatter, editChange{kind: "set", path: "on.schedule", value: "every 6h"})
+	assert.Equal(t, map[string]any{"push": nil, "workflow_dispatch": nil, "schedule": "every 6h"}, frontmatter["on"])
+}
+
+func TestEditChangeRejectsUnexpandableTriggerShorthand(t *testing.T) {
+	t.Parallel()
+	frontmatter := map[string]any{"on": "/bot"}
+	_, err := applyEditChange(frontmatter, editChange{kind: "set", path: "on.schedule", value: "every 6h"})
+	require.ErrorContains(t, err, "object form")
+	assert.Equal(t, "/bot", frontmatter["on"])
+}
+
+func TestEditChangesAreNoOpsWhenValuesAlreadyMatch(t *testing.T) {
+	t.Parallel()
+	frontmatter := map[string]any{"max-turns": 20, "imports": []any{"shared/common.md"}}
+	applied, err := applyEditChange(frontmatter, editChange{kind: "set", path: "max-turns", value: 20})
+	require.NoError(t, err)
+	assert.False(t, applied)
+
+	applied, err = applyEditChange(frontmatter, editChange{kind: "add", path: "imports", value: "shared/common.md"})
+	require.NoError(t, err)
+	assert.False(t, applied)
+
+	applied, err = applyEditChange(frontmatter, editChange{kind: "remove", path: "imports", value: "shared/other.md"})
+	require.NoError(t, err)
+	assert.False(t, applied)
+	assert.Equal(t, []any{"shared/common.md"}, frontmatter["imports"])
+}
+
+func TestEditCommandLeavesWorkflowUnchangedForNoOpEdits(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	workflowPath := dir + "/workflow.md"
+	original := "---\n# keep this comment\non: push\n---\n# Workflow\n"
+	require.NoError(t, os.WriteFile(workflowPath, []byte(original), 0o644))
+
+	cmd := NewEditCommand()
+	cmd.SetArgs([]string{workflowPath, "--schedule", "off"})
+	var output strings.Builder
+	cmd.SetOut(&output)
+	require.NoError(t, cmd.Execute())
+
+	assert.Contains(t, output.String(), "already matches")
+	content, err := os.ReadFile(workflowPath)
+	require.NoError(t, err)
+	assert.Equal(t, original, string(content))
+}
+
+func TestWriteFileAtomicallyReplacesContent(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := dir + "/workflow.md"
+	require.NoError(t, os.WriteFile(path, []byte("old"), 0o644))
+	require.NoError(t, writeFileAtomically(path, []byte("new")))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "new", string(content))
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
 }
