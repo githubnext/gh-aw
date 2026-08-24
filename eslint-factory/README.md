@@ -72,6 +72,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-lastindex-reset-before-global-exec-loop`](#require-lastindex-reset-before-global-exec-loop) | Require resetting stateful regexes before global `exec()` loops |
 | [`require-page-counter-increment-in-while-true-loop`](#require-page-counter-increment-in-while-true-loop) | Require page counters to advance in manual `while (true)` pagination loops |
 | [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` to be read after `getExecOutput(..., { ignoreReturnCode: true })` |
+| [`prefer-actions-exec-over-child-process`](#prefer-actions-exec-over-child-process) | Prefer `@actions/exec` over `child_process` to spawn processes that run to completion |
 
 ### `no-empty-catch-block`
 
@@ -1064,3 +1065,25 @@ return stdout.split("\n");
 - Calls without `ignoreReturnCode: true` in a statically-inspectable options object (the default throw-on-failure behavior already surfaces failures)
 - Options passed via a spread (`{ ...opts, ignoreReturnCode: true }`) or a non-object-literal identifier, since the merged shape can't be statically resolved
 - Results forwarded to a helper function that checks `exitCode` internally, or destructured into an array pattern
+
+### `prefer-actions-exec-over-child-process`
+
+Prefer `@actions/exec`'s `exec()` / `getExecOutput()` over `child_process`'s `exec()`, `execSync()`, `execFile()`, and `execFileSync()` to spawn processes.
+
+Why: `actions/setup/js` scripts run as `actions/github-script` steps, which already provide the `@actions/exec` toolkit (bound to `exec` and passed through by `setupGlobals`) without needing an extra dependency. `child_process.exec()` / `execSync()` / `execFile()` / `execFileSync()` all run a command to completion and return or capture its output — exactly what `@actions/exec`'s `exec()` and `getExecOutput()` already do, with consistent GitHub Actions logging, cross-platform argument handling, and (for `getExecOutput()`) throw-on-non-zero-exit behavior built in.
+
+**Flagged form:**
+```js
+const { execFileSync } = require("child_process");
+const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" }).trim();
+```
+
+**Safe alternative:**
+```js
+const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
+const branch = stdout.trim();
+```
+
+**Out of scope:**
+- `child_process.spawn()` and `child_process.spawnSync()` — used for long-running, detached, or interactively-streamed processes (background servers, sidecars, and similar) for which `@actions/exec` has no equivalent, since `exec()` / `getExecOutput()` always wait for the command to finish before resolving
+- Calls to `exec`/`execSync`/`execFile`/`execFileSync` from any module other than `child_process` (or `node:child_process`)
