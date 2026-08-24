@@ -52,41 +52,41 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 	// isPreCreatePullRequestEnabled). A templatable staged value cannot be resolved at
 	// compile time, so the combination is rejected instead of silently picking a mode.
 	if isTemplatableStagedExpression(data.SafeOutputs.Staged) || isTemplatableStagedExpression(config.Staged) {
-		return errors.New("safe-outputs.create-pull-request.pre-create cannot be combined with an expression-valued staged option")
+		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with an expression-valued staged option")
 	}
 	if isPreCreatePullRequestStaged(data) {
 		return nil
 	}
 	if data.CheckoutDisabled {
-		return errors.New("safe-outputs.create-pull-request.pre-create requires the default checkout")
+		return errors.New("safe-outputs.create-pull-request.steer requires the default checkout")
 	}
 	if config.Max != nil {
 		max, err := strconv.Atoi(*config.Max)
 		if err != nil || max != 1 {
-			return errors.New("safe-outputs.create-pull-request.pre-create requires max: 1")
+			return errors.New("safe-outputs.create-pull-request.steer requires max: 1")
 		}
 	}
 	if config.TargetRepoSlug != "" || config.HeadRepoSlug != "" || len(config.AllowedRepos) > 0 {
-		return errors.New("safe-outputs.create-pull-request.pre-create only supports pull requests in the workflow repository")
+		return errors.New("safe-outputs.create-pull-request.steer only supports pull requests in the workflow repository")
 	}
 	if config.BranchPrefix != "" || len(config.AllowedBranches) > 0 {
-		return errors.New("safe-outputs.create-pull-request.pre-create cannot be combined with branch-prefix or allowed-branches")
+		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with branch-prefix or allowed-branches")
 	}
 	if len(config.AllowedBaseBranches) > 0 {
-		return errors.New("safe-outputs.create-pull-request.pre-create cannot be combined with allowed-base-branches because the base branch must be known when the pull request is allocated")
+		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with allowed-base-branches because the base branch must be known when the pull request is allocated")
 	}
 	checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
 	if checkout := checkoutManager.GetDefaultCheckoutOverride(); checkout != nil && (checkout.key.repository != "" || checkout.key.wiki) {
-		return errors.New("safe-outputs.create-pull-request.pre-create requires the default checkout to use the workflow repository")
+		return errors.New("safe-outputs.create-pull-request.steer requires the default checkout to use the workflow repository")
 	}
 	return nil
 }
 
 // isPreCreatePullRequestConfigured reports whether the workflow should allocate
-// a pull request during activation. steer implies pre-creation because steering
-// reads feedback from that pre-created pull request while the agent is running.
+// a pull request during activation. steer is the only way to enable pre-creation;
+// it pre-creates a draft pull request and lets the agent read feedback from it.
 func isPreCreatePullRequestConfigured(config *CreatePullRequestsConfig) bool {
-	return config != nil && (config.PreCreate || config.Steer)
+	return config != nil && config.Steer
 }
 
 func isPreCreatePullRequestSteerEnabled(data *WorkflowData) bool {
@@ -120,7 +120,6 @@ type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig  `yaml:",inline"`
 	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
-	PreCreate                      bool             `yaml:"pre-create,omitempty"`    // Experimental. Pre-create a draft pull request in the activation job and reuse it for the agent output.
 	Steer                          bool             `yaml:"steer,omitempty"`         // Experimental. Pre-create a draft pull request and steer the agent from pull request comments.
 	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
 	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.

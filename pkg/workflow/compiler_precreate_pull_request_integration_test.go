@@ -25,7 +25,7 @@ permissions:
   pull-requests: read
 safe-outputs:
   create-pull-request:
-    pre-create: true
+    steer: true
 ---
 
 # Pre-create test
