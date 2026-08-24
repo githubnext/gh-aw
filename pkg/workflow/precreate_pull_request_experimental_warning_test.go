@@ -24,6 +24,9 @@ func TestPreCreatePullRequestExperimentalWarning(t *testing.T) {
 			content: `---
 on: workflow_dispatch
 engine: copilot
+permissions:
+  contents: read
+  pull-requests: read
 safe-outputs:
   create-pull-request:
     pre-create: true
