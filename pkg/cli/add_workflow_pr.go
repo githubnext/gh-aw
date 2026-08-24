@@ -289,10 +289,14 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 
 func repositoryRelativePaths(paths []string) []string {
 	gitRoot, err := addFindGitRoot()
+	if err != nil {
+		addWorkflowPRLog.Printf("Could not determine repository root for PR path rendering: %v", err)
+	}
+	canRelativize := err == nil
 	displayPaths := make([]string, 0, len(paths))
 	for _, path := range paths {
 		if filepath.IsAbs(path) {
-			if relative, relErr := filepath.Rel(gitRoot, path); err == nil && relErr == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			if relative, relErr := filepath.Rel(gitRoot, path); canRelativize && relErr == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 				path = relative
 			} else {
 				path = filepath.Base(path)
