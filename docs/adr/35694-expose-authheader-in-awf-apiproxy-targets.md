@@ -14,7 +14,7 @@ The AWF firewall sidecar (PR #3998) introduced `--openai-api-auth-header` and `-
 
 ### Decision
 
-We will expose `authHeader` as a frontmatter field at `sandbox.agent.targets.<provider>.authHeader` for `provider ∈ {openai, anthropic}`. The new field is read by a dedicated helper `extractAPITargetAuthHeader` (in `pkg/workflow/engine_api_targets.go`) and applied inside `BuildAWFConfigJSON` (in `pkg/workflow/awf_config.go`) by mutating the existing `AWFAPITargetConfig` entry when one is already present, or creating a header-only entry when no host override exists. The field is emitted with `omitempty` so the generated AWF JSON stays clean when it is not configured. The frontmatter path mirrors the AWF JSON config structure 1:1, preserving the drift-tracking guarantee documented in `specs/awf-config-sources-spec.md`.
+We will expose `authHeader` as a frontmatter field at `sandbox.agent.targets.<provider>.authHeader` for `provider ∈ {openai, anthropic}`. The new field is read by a dedicated helper `extractAPITargetAuthHeader` (in `pkg/workflow/engine_api_targets.go`) and applied inside `BuildAWFConfigJSON` (in `pkg/workflow/awf_config_build.go`) by mutating the existing `AWFAPITargetConfig` entry when one is already present, or creating a header-only entry when no host override exists. The field is emitted with `omitempty` so the generated AWF JSON stays clean when it is not configured. The frontmatter path mirrors the AWF JSON config structure 1:1, preserving the drift-tracking guarantee documented in `specs/awf-config-sources-spec.md`.
 
 ### Alternatives Considered
 

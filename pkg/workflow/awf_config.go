@@ -63,12 +63,6 @@
 
 package workflow
 
-import (
-	"github.com/github/gh-aw/pkg/logger"
-)
-
-var awfConfigLog = logger.New("workflow:awf_config")
-
 // AWFConfigFile represents the AWF configuration file schema.
 // This is the top-level structure written to awf-config.json.
 type AWFConfigFile struct {

@@ -14,8 +14,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/jsonutil"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
+
+var awfConfigLog = logger.New("workflow:awf_config")
 
 // BuildAWFConfigJSON generates a compact JSON config file for AWF from the provided
 // command configuration. The JSON is single-line (no indentation) for safe embedding
