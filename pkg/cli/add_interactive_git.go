@@ -124,8 +124,6 @@ func (c *AddInteractiveConfig) runPRMergeLoop(prNumber int, prURL string) error 
 			}
 		case mergeActionReview:
 			userReviewing = true
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please review and merge the pull request: "+prURL))
-			fmt.Fprintln(os.Stderr, "")
 		case mergeActionConfirmed:
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Great – continuing with the merged pull request"))
 			mergeDone = true
@@ -141,12 +139,14 @@ func (c *AddInteractiveConfig) runPRMergeLoop(prNumber int, prURL string) error 
 
 func promptMergeAction(prURL string, mergeFailed, userReviewing bool) (mergeAction, error) {
 	var chosen mergeAction
-	selectForm := console.NewSelectForm(
-		huh.NewSelect[mergeAction]().
-			Title("What would you like to do with pull request " + prURL + "?").
-			Options(buildMergeOptions(mergeFailed, userReviewing)...).
-			Value(&chosen),
-	)
+	selectField := huh.NewSelect[mergeAction]().
+		Title("What would you like to do with pull request " + prURL + "?").
+		Options(buildMergeOptions(mergeFailed, userReviewing)...).
+		Value(&chosen)
+	if userReviewing {
+		selectField = selectField.Description("Please review and merge the pull request before continuing: " + prURL)
+	}
+	selectForm := console.NewSelectForm(selectField)
 	if err := selectForm.Run(); err != nil {
 		return "", fmt.Errorf("failed to get user input: %w", err)
 	}

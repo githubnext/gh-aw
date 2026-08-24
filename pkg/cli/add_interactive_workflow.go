@@ -18,8 +18,6 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	addInteractiveLog.Print("Checking workflow status and offering to run")
 
 	// Wait a moment for GitHub to process the merge
-	fmt.Fprintln(os.Stderr, "")
-
 	workflowFound, err := c.waitForWorkflowStatus(ctx)
 	if err != nil {
 		return err
@@ -185,19 +183,18 @@ func (c *AddInteractiveConfig) runAddedWorkflowOnce(ctx context.Context) error {
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, "")
 	c.updateLocalBranchBeforeWorkflowRun()
 
 	if err := RunSpecificWorkflowInteractively(ctx, RunWorkflowOptions{
-		WorkflowName:   workflowName,
-		Verbose:        c.Verbose,
-		EngineOverride: c.EngineOverride,
-		RepoOverride:   c.RepoOverride,
+		WorkflowName:       workflowName,
+		Verbose:            c.Verbose,
+		EngineOverride:     c.EngineOverride,
+		RepoOverride:       c.RepoOverride,
+		requiredInputsOnly: true,
 	}); err != nil {
 		return err
 	}
 
-	c.showWorkflowRunURL(workflowName)
 	return nil
 }
 
@@ -206,27 +203,22 @@ func (c *AddInteractiveConfig) updateLocalBranchBeforeWorkflowRun() {
 	// merge (workflowFound is true). Doing this here—rather than immediately
 	// after the PR merge—avoids a race where git fetch runs before GitHub's git
 	// objects have been updated, which caused "workflow file not found" errors.
+	var spinner *console.SpinnerWrapper
 	if !c.Verbose {
-		fmt.Fprintln(os.Stderr, "Updating local branch (this may take a few seconds)...")
+		spinner = console.NewSpinner("Updating local branch...")
+		spinner.Start()
 	}
 	if err := c.updateLocalBranch(); err != nil {
+		if spinner != nil {
+			spinner.Stop()
+		}
 		addInteractiveLog.Printf("Failed to update local branch: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
 		fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
+		return
 	}
-	if !c.Verbose {
-		fmt.Fprintln(os.Stderr, "Finished updating local branch.")
-	}
-}
-
-func (c *AddInteractiveConfig) showWorkflowRunURL(workflowName string) {
-	// Get the run URL for step 10
-	runInfo, err := getLatestWorkflowRunWithRetry(workflowName+".lock.yml", c.RepoOverride, c.Verbose)
-	if err == nil && runInfo.URL != "" {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintf(os.Stderr, "🔗 View workflow run: %s\n", runInfo.URL)
+	if spinner != nil {
+		spinner.StopWithMessage(console.FormatSuccessMessage("Updated local branch"))
 	}
 }
 

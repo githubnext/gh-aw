@@ -407,7 +407,7 @@ func executeWorkflowRun(ctx context.Context, lockFileName string, args []string,
 	if output != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(output))
 	}
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully triggered workflow: "+lockFileName))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Triggered workflow: "+lockFileName))
 	executionLog.Printf("Workflow triggered successfully: %s", lockFileName)
 	runInfo, runErr := resolveWorkflowRunInfo(lockFileName, output, opts)
 	return &workflowRunExecutionResult{
@@ -441,9 +441,9 @@ func resolveWorkflowRunInfo(lockFileName, output string, opts RunOptions) (*Work
 
 func handleWorkflowRunInfo(runInfo *WorkflowRunInfo, runErr error, opts RunOptions) {
 	if runErr == nil && runInfo != nil && runInfo.URL != "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔗 View workflow run: "+runInfo.URL))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("View workflow run: "+runInfo.URL))
 		executionLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("💡 To analyze this run, use: %s audit %d", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyze this run: %s audit %d", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)))
 		return
 	}
 	if opts.Verbose && runErr != nil {
@@ -503,7 +503,7 @@ func resolveWorkflowTargetRepo(opts RunOptions) string {
 }
 
 func printWorkflowWaitMessage(autoMerge bool) {
-	message := "Waiting for workflow completion..."
+	message := "Waiting for workflow to complete..."
 	if autoMerge {
 		message = "Auto-merge PRs enabled - waiting for workflow completion..."
 	}

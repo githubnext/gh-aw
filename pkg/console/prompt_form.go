@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/styles"
@@ -17,6 +18,7 @@ const (
 	ansiSaveCursor       = "\0337"
 	ansiRestoreCursor    = "\0338"
 	ansiClearScreenBelow = "\033[J"
+	promptReservedRows   = 12
 )
 
 // PromptForm wraps a huh form so completed questions are removed before the
@@ -30,10 +32,15 @@ type PromptForm struct {
 // NewForm creates a huh form with gh-aw's default theme and accessibility mode.
 func NewForm(groups ...*huh.Group) *PromptForm {
 	accessible := IsAccessibleMode()
+	clearOnRun := tty.IsStderrTerminal() && !accessible
+	form := huh.NewForm(groups...).WithTheme(styles.HuhTheme).WithAccessible(accessible)
+	if clearOnRun {
+		form = form.WithHeight(promptReservedRows)
+	}
 	return &PromptForm{
-		Form:       huh.NewForm(groups...).WithTheme(styles.HuhTheme).WithAccessible(accessible),
+		Form:       form,
 		out:        stderrWriter(),
-		clearOnRun: tty.IsStderrTerminal() && !accessible,
+		clearOnRun: clearOnRun,
 	}
 }
 
@@ -67,10 +74,17 @@ func (f *PromptForm) run(runForm func() error) error {
 		fmt.Fprintln(f.out)
 		return runForm()
 	}
-	fmt.Fprint(f.out, ansiSaveCursor)
+	// Reserve enough inline space before saving the cursor. Without this, a form
+	// rendered near the bottom of the terminal can scroll its saved origin upward,
+	// leaving completed question lines behind when the cursor is restored.
+	fmt.Fprint(f.out, strings.Repeat("\n", promptReservedRows), cursorUp(promptReservedRows), ansiSaveCursor)
 	fmt.Fprintln(f.out)
 	defer fmt.Fprint(f.out, ansiRestoreCursor, ansiClearScreenBelow)
 	return runForm()
+}
+
+func cursorUp(rows int) string {
+	return fmt.Sprintf("\033[%dA", rows)
 }
 
 // IsCancelled reports whether err represents a deliberate user cancellation

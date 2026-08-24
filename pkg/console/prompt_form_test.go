@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"charm.land/huh/v2"
@@ -33,7 +34,7 @@ func TestPromptFormClearsCompletedQuestion(t *testing.T) {
 	err := form.run(func() error { return nil })
 
 	require.NoError(t, err)
-	require.Equal(t, ansiSaveCursor+"\n"+ansiRestoreCursor+ansiClearScreenBelow, output.String())
+	require.Equal(t, strings.Repeat("\n", promptReservedRows)+cursorUp(promptReservedRows)+ansiSaveCursor+"\n"+ansiRestoreCursor+ansiClearScreenBelow, output.String())
 }
 
 func TestPromptFormDoesNotClearAccessibleOrNonTTYQuestion(t *testing.T) {
