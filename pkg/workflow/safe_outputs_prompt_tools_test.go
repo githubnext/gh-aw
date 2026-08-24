@@ -367,6 +367,26 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 	}
 }
 
+func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
+	sections := buildSafeOutputsSections(&SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{
+			PreCreate: true,
+		},
+	}, nil)
+
+	require.NotNil(t, sections, "Expected non-nil sections")
+
+	found := false
+	for _, section := range sections {
+		if section.IsFile && section.Content == safeOutputsPreCreateSteerFile {
+			found = true
+			break
+		}
+	}
+
+	assert.True(t, found, "Expected pre-create steering guidance file to be included when pre-created pull request is enabled")
+}
+
 // the list of tool names in the order they appear, stripping any max-budget annotations
 // (e.g. "noop(max:5)" → "noop").
 func extractToolNamesFromSections(t *testing.T, sections []PromptSection) []string {

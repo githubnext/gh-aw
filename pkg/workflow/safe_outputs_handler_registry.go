@@ -596,7 +596,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("close_older_pull_requests", c.Enabled).
 			AddIfNotEmpty("close_older_key", c.Key).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
-		if c.PreCreate {
+		if isPreCreatePullRequestConfigured(c) {
 			builder.
 				AddDefault("pre_created_pull_request_number", "${{ needs.activation.outputs.pre_created_pull_request_number }}").
 				AddDefault("pre_created_pull_request_url", "${{ needs.activation.outputs.pre_created_pull_request_url }}").

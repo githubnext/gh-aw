@@ -255,6 +255,26 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	}
 }
 
+func TestParsePullRequestsConfigWithSteer(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"steer": true,
+		},
+	}
+
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if !result.Steer {
+		t.Fatal("expected steer to be enabled")
+	}
+	if !isPreCreatePullRequestConfigured(result) {
+		t.Fatal("expected steer to enable pre-created pull request mode")
+	}
+}
+
 func TestParseIssuesConfigWithSingleStringAssignee(t *testing.T) {
 	compiler := &Compiler{}
 	outputMap := map[string]any{
