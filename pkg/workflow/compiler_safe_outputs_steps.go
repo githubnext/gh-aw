@@ -35,7 +35,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// Build the same CheckoutManager the agent job builds from the workflow's checkout: config.
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 	if isPreCreatePullRequestEnabled(data) {
-		checkoutMgr.SetDefaultRefOverride("${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+		checkoutMgr.SetDefaultRefOverride(preCreatedPullRequestBranchRef())
 	}
 
 	// Unlike the agent job, the safe_outputs job performs git fetch/push against the

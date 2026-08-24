@@ -4,6 +4,10 @@ import "fmt"
 
 const preCreatePullRequestAppTokenStepID = "pre-create-pull-request-app-token"
 
+func preCreatedPullRequestBranchRef() string {
+	return "gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}"
+}
+
 func isPreCreatePullRequestEnabled(data *WorkflowData) bool {
 	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !isPreCreatePullRequestConfigured(data.SafeOutputs.CreatePullRequests) {
 		return false
@@ -94,9 +98,39 @@ func (c *Compiler) addActivationPreCreatePullRequestStep(ctx *activationJobBuild
 		"          script: |\n",
 		generateGitHubScriptWithRequire("pre_create_pull_request.cjs"),
 	)
+	ctx.steps = append(ctx.steps,
+		"      - name: Validate pre-created pull request branch\n",
+		"        id: validate-pre-created-pull-request\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)),
+		"        env:\n",
+		"          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ steps.pre-create-pull-request.outputs.pull_request_number }}\n",
+		"          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ steps.pre-create-pull-request.outputs.branch }}\n",
+		"        with:\n",
+		fmt.Sprintf("          github-token: %s\n", token),
+		"          script: |\n",
+		"            const expectedBranch = `gh-aw/pre-created/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT || \"1\"}`;\n",
+		"            const branch = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH || \"\";\n",
+		"            if (branch !== expectedBranch) {\n",
+		"              throw new Error(`Pre-created pull request branch did not match expected workflow branch: ${branch}`);\n",
+		"            }\n",
+		"            const pullNumber = Number.parseInt(process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || \"\", 10);\n",
+		"            if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0) {\n",
+		"              throw new Error(\"Pre-created pull request number is invalid\");\n",
+		"            }\n",
+		"            const { data: pullRequest } = await github.rest.pulls.get({\n",
+		"              owner: context.repo.owner,\n",
+		"              repo: context.repo.repo,\n",
+		"              pull_number: pullNumber,\n",
+		"            });\n",
+		"            const expectedRepo = `${context.repo.owner}/${context.repo.repo}`.toLowerCase();\n",
+		"            if (pullRequest.head.ref !== expectedBranch || pullRequest.head.repo?.full_name?.toLowerCase() !== expectedRepo || pullRequest.base.repo?.full_name?.toLowerCase() !== expectedRepo) {\n",
+		"              throw new Error(\"Pre-created pull request does not target the expected trusted repository branch\");\n",
+		"            }\n",
+		"            core.setOutput(\"branch\", expectedBranch);\n",
+	)
 	ctx.outputs["pre_created_pull_request_number"] = "${{ steps.pre-create-pull-request.outputs.pull_request_number }}"
 	ctx.outputs["pre_created_pull_request_url"] = "${{ steps.pre-create-pull-request.outputs.pull_request_url }}"
-	ctx.outputs["pre_created_pull_request_branch"] = "${{ steps.pre-create-pull-request.outputs.branch }}"
+	ctx.outputs["pre_created_pull_request_branch"] = "${{ steps.validate-pre-created-pull-request.outputs.branch }}"
 	ctx.outputs["pre_created_pull_request_check_run_id"] = "${{ steps.pre-create-pull-request.outputs.check_run_id }}"
 }
 

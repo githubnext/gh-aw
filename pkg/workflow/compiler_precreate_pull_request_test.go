@@ -28,10 +28,12 @@ func TestBuildActivationJobPreCreatesPullRequest(t *testing.T) {
 	assert.NotContains(t, steps, "name: Checkout repository")
 	assert.Contains(t, steps, "id: pre-create-pull-request")
 	assert.Contains(t, steps, "pre_create_pull_request.cjs")
+	assert.Contains(t, steps, "id: validate-pre-created-pull-request")
+	assert.Contains(t, steps, "Pre-created pull request does not target the expected trusted repository branch")
 	assert.Contains(t, job.Permissions, "contents: write")
 	assert.Contains(t, job.Permissions, "pull-requests: write")
 	assert.Contains(t, job.Permissions, "checks: write")
-	assert.Equal(t, "${{ steps.pre-create-pull-request.outputs.branch }}", job.Outputs["pre_created_pull_request_branch"])
+	assert.Equal(t, "${{ steps.validate-pre-created-pull-request.outputs.branch }}", job.Outputs["pre_created_pull_request_branch"])
 }
 
 func TestBuildConclusionJobCompletesPreCreatedCheck(t *testing.T) {
@@ -76,13 +78,13 @@ func TestBuildConclusionJobPassesNoOpCommentToPreCreatedCheck(t *testing.T) {
 
 func TestPreCreatePullRequestCheckoutOverride(t *testing.T) {
 	manager := NewCheckoutManager(nil)
-	manager.SetDefaultRefOverride("${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	manager.SetDefaultRefOverride(preCreatedPullRequestBranchRef())
 
 	steps := strings.Join(manager.GenerateDefaultCheckoutStep(false, "", func(action string) string {
 		return action + "@sha"
 	}), "")
 
-	assert.Contains(t, steps, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	assert.Contains(t, steps, "ref: gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}")
 }
 
 func TestValidatePreCreatePullRequest(t *testing.T) {
