@@ -24,7 +24,11 @@ sandbox:
     id: awf
 tools:
   agentic-workflows:
-  repo-memory: true
+  repo-memory:
+    file-glob:
+      - "storify/state.json"
+      - "storify/episodes.jsonl"
+      - "storify/loops.jsonl"
   github:
     mode: gh-proxy
     toolsets: [default, issues, pull_requests, actions, discussions]
@@ -68,7 +72,8 @@ Use repo-memory for durable notes and continuity:
 
 At start:
 1. Load `state.json` if present.
-2. Reuse prior loop labels/taxonomy to keep naming consistent.
+2. If the repo-memory files above are absent, perform a one-time migration: for each of the three files, copy the legacy cache-memory version from `/tmp/gh-aw/cache-memory/storify/` to its repo-memory path when the legacy file exists. Only copy files whose repo-memory target is missing; never overwrite an existing repo-memory file.
+3. Reuse prior loop labels/taxonomy to keep naming consistent.
 
 Before finishing:
 1. Append today's episode summaries to `episodes.jsonl`.
