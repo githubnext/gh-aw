@@ -26,7 +26,7 @@ async function discardUnusedPullRequest() {
     if (pullRequest.state !== "open" || pullRequest.head.ref !== branch || (pullRequest.changed_files ?? 0) > 0) {
       return;
     }
-    if (Number.isFinite(consumedPullNumber) && consumedPullNumber === pullNumber) {
+    if (Number.isFinite(consumedPullNumber) && consumedPullNumber > 0 && consumedPullNumber === pullNumber) {
       core.info(`Keeping pre-created pull request #${pullNumber} because create-pull-request consumed it`);
       return;
     }
