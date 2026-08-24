@@ -186,4 +186,55 @@ describe("complete_pre_created_check_run", () => {
 
     expect(global.github.rest.pulls.get).not.toHaveBeenCalled();
   });
+  it("links the failure issue on the pre-created pull request", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "failure" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_FAILURE_ISSUE_NUMBER = "99";
+    process.env.GH_AW_FAILURE_ISSUE_URL = "https://github.com/owner/repo/issues/99";
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.issues.createComment).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      issue_number: 42,
+      body: "The agent workflow failed. See [failure issue #99](https://github.com/owner/repo/issues/99).",
+    });
+  });
+
+  it("does not link a failure issue when none was created", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "failure" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    delete process.env.GH_AW_FAILURE_ISSUE_NUMBER;
+    delete process.env.GH_AW_FAILURE_ISSUE_URL;
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("does not link a failure issue when no pre-created pull request exists", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "failure" } });
+    delete process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER;
+    process.env.GH_AW_FAILURE_ISSUE_NUMBER = "99";
+    process.env.GH_AW_FAILURE_ISSUE_URL = "https://github.com/owner/repo/issues/99";
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("warns instead of failing when linking the failure issue fails", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "failure" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
+    process.env.GH_AW_FAILURE_ISSUE_NUMBER = "99";
+    process.env.GH_AW_FAILURE_ISSUE_URL = "https://github.com/owner/repo/issues/99";
+    global.github.rest.issues.createComment.mockRejectedValue(new Error("boom"));
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add failure issue link to pre-created pull request #42: boom"));
+    expect(global.github.rest.checks.update).toHaveBeenCalled();
+  });
 });
