@@ -368,6 +368,40 @@ sandbox:
 	assert.NotContains(t, lockStr, "--legacy-security")
 }
 
+func TestCloudHypervisorCacheMemoryAllowWrite(t *testing.T) {
+	workflowsDir := t.TempDir()
+	markdown := `---
+on:
+  workflow_dispatch:
+engine: claude
+strict: false
+tools:
+  cache-memory: true
+sandbox:
+  agent:
+    id: awf
+    runtime: cloud-hypervisor
+---
+
+# Test cache-memory write access
+`
+
+	testFile := filepath.Join(workflowsDir, "test-cache-memory-allow-write.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0o644))
+	require.NoError(t, NewCompiler().CompileWorkflow(testFile))
+
+	lockContent, err := os.ReadFile(filepath.Join(workflowsDir, "test-cache-memory-allow-write.lock.yml"))
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	assert.Contains(t, lockStr, `\"allowWrite\":[\"/tmp/gh-aw/agent\",\"/workspace\",\"/workspace/.awf-home\",\"/tmp/gh-aw/cache-memory\"]`)
+	createDirIdx := strings.Index(lockStr, "Create cache-memory directory")
+	awfIdx := strings.Index(lockStr, "sudo --preserve-env awf")
+	require.NotEqual(t, -1, createDirIdx)
+	require.NotEqual(t, -1, awfIdx)
+	assert.Less(t, createDirIdx, awfIdx, "cache-memory directory must exist before AWF starts")
+}
+
 func TestIsCloudHypervisorRuntime(t *testing.T) {
 	assert.False(t, isCloudHypervisorRuntime(nil))
 	assert.False(t, isCloudHypervisorRuntime(&WorkflowData{}))

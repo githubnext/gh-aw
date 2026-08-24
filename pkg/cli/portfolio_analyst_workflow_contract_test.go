@@ -12,6 +12,7 @@ import (
 // unconfirmed-numeric Sentry fields.  The tokens below are the stable contract
 // surface; changing them requires updating both the workflow source and this test.
 func TestPortfolioAnalystAvoidsInvalidSentryAggregations(t *testing.T) {
+	t.Parallel()
 	content, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "portfolio-analyst.md"))
 	if err != nil {
 		t.Fatalf("failed to read portfolio analyst workflow source: %v", err)
@@ -47,6 +48,7 @@ func TestPortfolioAnalystAvoidsInvalidSentryAggregations(t *testing.T) {
 // The tokens below are the stable contract surface; changing them requires
 // updating both the shared import and this test.
 func TestSharedSentryImportFailsFastOnRepeatedQuery400s(t *testing.T) {
+	t.Parallel()
 	content, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "shared", "mcp", "sentry.md"))
 	if err != nil {
 		t.Fatalf("failed to read shared Sentry MCP import: %v", err)
