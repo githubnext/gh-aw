@@ -12,7 +12,7 @@ permissions:
   contents: read
   pull-requests: read
 name: Smoke Claude on Copilot
-model: copilot/mai-code-1.1-flash
+model: copilot/claude-sonnet-4.6
 engine:
   id: claude
   bare: true
