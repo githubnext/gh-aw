@@ -174,6 +174,21 @@ func TestExpectedProportions(t *testing.T) {
 	})
 }
 
+func TestExperimentVariantCounts(t *testing.T) {
+	t.Parallel()
+
+	exp := ExperimentVariantStats{
+		Variants: map[string]int{"control": 3},
+	}
+	cfg := &workflow.ExperimentConfig{
+		Variants: []string{"control", "candidate"},
+	}
+
+	got := experimentVariantCounts(exp, cfg, true)
+
+	assert.Equal(t, map[string]int{"control": 3, "candidate": 0}, got)
+}
+
 // TestComputeExperimentAnalysis verifies the end-to-end statistical computation.
 func TestComputeExperimentAnalysis(t *testing.T) {
 	t.Parallel()

@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goccy/go-yaml"
-
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/typeutil"
+	"github.com/goccy/go-yaml"
 )
 
 var compilerActivationJobLog = logger.New("workflow:compiler_activation_job")
@@ -610,7 +610,7 @@ func injectIfConditionAfterName(step, condition string) string {
 		fieldIndent = nameIndent + "  "
 	}
 
-	newLines := make([]string, 0, safeAllocationCapacity(len(lines), 1))
+	newLines := make([]string, 0, typeutil.SafeAllocationCapacity(len(lines), 1))
 	newLines = append(newLines, lines[:nameLineIdx+1]...)
 	newLines = append(newLines, fieldIndent+"if: "+condition)
 	newLines = append(newLines, lines[nameLineIdx+1:]...)
