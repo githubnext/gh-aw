@@ -370,7 +370,7 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 	sections := buildSafeOutputsSections(&SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{
-			PreCreate: true,
+			Steer: true,
 		},
 	}, nil)
 

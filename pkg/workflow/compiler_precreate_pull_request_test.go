@@ -14,7 +14,7 @@ func TestBuildActivationJobPreCreatesPullRequest(t *testing.T) {
 		Name:            "Pre-create test",
 		MarkdownContent: "# Test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 		},
 	}
 
@@ -39,7 +39,7 @@ func TestBuildConclusionJobCompletesPreCreatedCheck(t *testing.T) {
 	data := &WorkflowData{
 		Name: "Pre-create test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 		},
 	}
 
@@ -61,7 +61,7 @@ func TestBuildConclusionJobPassesNoOpCommentToPreCreatedCheck(t *testing.T) {
 	data := &WorkflowData{
 		Name: "Pre-create test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 			NoOp:               &NoOpConfig{},
 		},
 	}
@@ -95,7 +95,7 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 		{
 			name: "valid",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 			}},
 		},
 		{
@@ -103,7 +103,7 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 			data: &WorkflowData{
 				CheckoutDisabled: true,
 				SafeOutputs: &SafeOutputsConfig{
-					CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+					CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 				},
 			},
 			wantErr: "requires the default checkout",
@@ -111,7 +111,7 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 		{
 			name: "multiple pull requests",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, BaseSafeOutputConfig: BaseSafeOutputConfig{Max: &invalidMax}},
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BaseSafeOutputConfig: BaseSafeOutputConfig{Max: &invalidMax}},
 			}},
 			wantErr: "requires max: 1",
 		},
@@ -119,28 +119,28 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 			name: "staged disables pre-creation",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 				Staged:             stagedTrue(),
-				CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, TargetRepoSlug: "owner/repo"},
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, TargetRepoSlug: "owner/repo"},
 			}},
 		},
 		{
 			name: "expression staged",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 				Staged:             stagedExpression(),
-				CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 			}},
 			wantErr: "expression-valued staged option",
 		},
 		{
 			name: "allowed base branches",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, AllowedBaseBranches: []string{"release/*"}},
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, AllowedBaseBranches: []string{"release/*"}},
 			}},
 			wantErr: "allowed-base-branches",
 		},
 		{
 			name: "cross repository",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, TargetRepoSlug: "owner/repo"},
+				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, TargetRepoSlug: "owner/repo"},
 			}},
 			wantErr: "only supports pull requests in the workflow repository",
 		},
@@ -211,7 +211,7 @@ func stagedExpression() *TemplatableBool {
 func TestPreCreatePullRequestDisabledWhenStaged(t *testing.T) {
 	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 		Staged:             stagedTrue(),
-		CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+		CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 	}}
 
 	assert.False(t, isPreCreatePullRequestEnabled(data))
@@ -222,7 +222,7 @@ func TestConclusionJobRunsWhenPreCreatedCheckExists(t *testing.T) {
 	data := &WorkflowData{
 		Name: "Pre-create test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 		},
 	}
 
@@ -240,7 +240,7 @@ func TestActivationPreCreateStepIgnoresDraftPolicy(t *testing.T) {
 		Name:            "Pre-create test",
 		MarkdownContent: "# Test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, Draft: &draft},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true, Draft: &draft},
 		},
 	}
 
@@ -260,7 +260,7 @@ func TestActivationPreCreateStepUsesConfiguredBaseBranch(t *testing.T) {
 		Name:            "Pre-create test",
 		MarkdownContent: "# Test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, BaseBranch: "release/v1"},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BaseBranch: "release/v1"},
 		},
 	}
 
@@ -277,7 +277,7 @@ func TestActivationPreCreateStepPassesConfiguredTitlePrefix(t *testing.T) {
 		Name:            "Pre-create test",
 		MarkdownContent: "# Test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, TitlePrefix: "[bot] "},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true, TitlePrefix: "[bot] "},
 		},
 	}
 
@@ -294,7 +294,7 @@ func TestActivationPreCreateStepOmitsEmptyTitlePrefix(t *testing.T) {
 		Name:            "Pre-create test",
 		MarkdownContent: "# Test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
 		},
 	}
 
