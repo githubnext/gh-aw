@@ -13,6 +13,7 @@ import (
 // stdio with container, stdio with args, stdio with only command, http, and
 // an unrecognized/default type.
 func TestBuildConnectionString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		config parser.RegistryMCPServerConfig
@@ -71,6 +72,7 @@ func TestBuildConnectionString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := buildConnectionString(tt.config)
 			if got != tt.want {
 				t.Fatalf("buildConnectionString() = %q, want %q", got, tt.want)

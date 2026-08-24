@@ -10,6 +10,7 @@ import (
 )
 
 func TestNewMCPServerCommand_PortExampleMentionsSSE(t *testing.T) {
+	t.Parallel()
 	cmd := NewMCPServerCommand()
 	require.NotNil(t, cmd)
 
@@ -21,6 +22,7 @@ func TestNewMCPServerCommand_PortExampleMentionsSSE(t *testing.T) {
 // This is a regression test for https://github.com/github/gh-aw/issues/47209
 // where audit was absent from the MCP server tool list.
 func TestNewMCPServerCommand_AuditToolListedInHelp(t *testing.T) {
+	t.Parallel()
 	cmd := NewMCPServerCommand()
 	require.NotNil(t, cmd)
 

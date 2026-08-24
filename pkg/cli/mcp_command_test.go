@@ -11,6 +11,7 @@ import (
 )
 
 func TestMCPCommandUnknownSubcommandReturnsError(t *testing.T) {
+	t.Parallel()
 	cmd := NewMCPCommand()
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)

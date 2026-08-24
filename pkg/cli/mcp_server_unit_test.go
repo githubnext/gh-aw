@@ -19,6 +19,7 @@ import (
 // TestMCPServerUnit_ListTools verifies that the MCP server exposes exactly the
 // expected set of tools without spawning a subprocess.
 func TestMCPServerUnit_ListTools(t *testing.T) {
+	t.Parallel()
 	server := createMCPServer("", "", false, "", nil)
 	session := connectInMemory(t, server)
 
@@ -43,6 +44,7 @@ func TestMCPServerUnit_ListTools(t *testing.T) {
 // TestMCPServerUnit_ServerCapabilities verifies that the server advertises the
 // Tools capability with ListChanged=false (tools are static, no notifications needed).
 func TestMCPServerUnit_ServerCapabilities(t *testing.T) {
+	t.Parallel()
 	server := createMCPServer("", "", false, "", nil)
 	session := connectInMemory(t, server)
 
@@ -93,6 +95,7 @@ func TestMCPServerUnit_StatusTool(t *testing.T) {
 // TestMCPServerUnit_CompileTool verifies that the compile tool can be called
 // in-process using a mock execCmd so no compiled binary is required.
 func TestMCPServerUnit_CompileTool(t *testing.T) {
+	t.Parallel()
 	const fakeOutput = `[{"workflow":"test.md","valid":true,"errors":[],"warnings":[]}]`
 
 	var capturedArgs []string
