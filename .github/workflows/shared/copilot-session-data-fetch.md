@@ -295,7 +295,15 @@ steps:
       echo "Session data available at: /tmp/gh-aw/agent/session-data/sessions-list.json"
       echo "Schema available at: /tmp/gh-aw/agent/session-data/sessions-schema.json"
       echo "Logs available at: /tmp/gh-aw/agent/session-data/logs/"
-      
+
+      TELEMETRY_LOG_COUNT=$(find /tmp/gh-aw/agent/session-data/logs -type f \( -name "*-events.jsonl" -o -name "*-conversation.txt" \) | wc -l)
+      TOTAL_SESSION_COUNT=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json 2>/dev/null || echo 0)
+      if [ "$TOTAL_SESSION_COUNT" -gt 0 ] && [ "$TELEMETRY_LOG_COUNT" -eq 0 ]; then
+        ACTION_REQUIRED_COUNT=$(jq '[.[] | select(.conclusion == "action_required")] | length' /tmp/gh-aw/agent/session-data/sessions-list.json 2>/dev/null || echo 0)
+        COMPLETED_AGENT_COUNT=$(jq '[.[] | select(.status == "completed" and .conclusion != "action_required")] | length' /tmp/gh-aw/agent/session-data/sessions-list.json 2>/dev/null || echo 0)
+        echo "::warning::Copilot session data fetch produced $TOTAL_SESSION_COUNT session records but no telemetry logs in /tmp/gh-aw/agent/session-data/logs. Phase 2 analysis will be incomplete. Candidate causes: all selected runs are action_required gate runs (action_required=$ACTION_REQUIRED_COUNT), no events.jsonl artifacts are available, or the token cannot download Copilot job logs for $COMPLETED_AGENT_COUNT completed agent runs; configure GH_AW_GITHUB_TOKEN with actions:read if job-log authorization errors appeared above."
+      fi
+
       # Set outputs for downstream use
       echo "sessions_count=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)" >> "$GITHUB_OUTPUT"
 ---
@@ -313,6 +321,7 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
    - Uses cached data instead of making API calls
    - Copies data from cache to working directory
    - Restores cached log files if available
+   - Emits a warning if session metadata is present but no telemetry logs were restored
 4. If the cache is missing, stale, or incomplete:
    - Calculates the date 30 days ago (cross-platform compatible)
    - Fetches all workflow runs from branches starting with `copilot/` using GitHub API
@@ -326,6 +335,8 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 The fetcher first downloads non-expired GitHub Actions artifacts for each completed real agent run (status = `completed`, conclusion ≠ `action_required`) and extracts any `events.jsonl` files. When no structured events artifact is available, it falls back to raw GitHub Actions job logs and extracts `[cca-engine] turn=` lines as a transcript. CI gate runs (`action_required`) are skipped because they have no agent conversation.
 
 If a real agent run has neither an `events.jsonl` artifact nor a transcript fallback, the fetch step emits a GitHub Actions warning and continues with the available logs. Every per-run failure (job listing error, log download error, empty log, or a downloaded log with no matching `[cca-engine]` lines) is logged individually with its specific reason, and a summary warning breaks down the failure counts by category (API errors, no jobs found, empty logs, no matching lines) so the actual cause is visible instead of a silently empty `logs/` directory. API errors are counted by non-zero `gh api` exit code and can stem from permission errors, rate limiting, or deleted runs — check the per-run log lines for the specific reason rather than assuming a permissions issue.
+
+After either a cache restore or a fresh fetch, the component emits an aggregate GitHub Actions warning whenever it found session records but `/tmp/gh-aw/agent/session-data/logs/` contains no `*-events.jsonl` or `*-conversation.txt` files. This makes Phase 2 telemetry gaps visible even when no individual fetch error occurred, such as when the selected workflow runs are all `action_required` CI gate runs.
 
 **Known root cause of empty transcripts**: downloading job logs for GitHub Copilot coding-agent runs (the special `dynamic/copilot-swe-agent/copilot` workflow path) via `gh api repos/{owner}/{repo}/actions/jobs/{job_id}/logs` can fail with an authorization error when using the default `GITHUB_TOKEN`, even with `actions: read` permission — mirroring the same OAuth requirement documented below for `gh agent-task view --log`. The fetch step now authenticates with `secrets.GH_AW_GITHUB_TOKEN` (falling back to `secrets.GITHUB_TOKEN` if unset) so that, once a PAT with `actions:read` is configured as `GH_AW_GITHUB_TOKEN`, job-log downloads for these runs succeed.
 
