@@ -11,10 +11,8 @@
 package scanfindings
 
 import (
-	"cmp"
 	"fmt"
 	"io"
-	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -167,38 +165,6 @@ func Render(w io.Writer, findings []Finding) {
 	for _, finding := range findings {
 		fmt.Fprint(w, console.FormatError(finding.CompilerError()))
 	}
-}
-
-// Sort orders findings by file, then line, then column, then by decreasing
-// severity, then by rule identifier. The ordering is stable and deterministic so
-// that scanner output can be compared across runs.
-func Sort(findings []Finding) {
-	slices.SortStableFunc(findings, func(a, b Finding) int {
-		if c := strings.Compare(a.File, b.File); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.Line, b.Line); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.Column, b.Column); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(b.Severity.Rank(), a.Severity.Rank()); c != 0 {
-			return c
-		}
-		return strings.Compare(a.RuleID, b.RuleID)
-	})
-}
-
-// CountAtLeast returns the number of findings with a severity of at least min.
-func CountAtLeast(findings []Finding, min SeverityLevel) int {
-	count := 0
-	for _, finding := range findings {
-		if finding.Severity.AtLeast(min) {
-			count++
-		}
-	}
-	return count
 }
 
 // ContextLines returns a symmetric window of up to two source lines before and
