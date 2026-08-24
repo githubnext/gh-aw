@@ -202,3 +202,15 @@ func TestWriteFileAtomicallyReplacesContent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
 }
+
+func TestWriteFileAtomicallyPreservesPermissions(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := dir + "/workflow.md"
+	require.NoError(t, os.WriteFile(path, []byte("old"), 0o600))
+	require.NoError(t, writeFileAtomically(path, []byte("new")))
+
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+}

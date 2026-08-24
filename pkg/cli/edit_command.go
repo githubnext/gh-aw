@@ -152,7 +152,11 @@ func writeFileAtomically(path string, content []byte) error {
 	if err := file.Close(); err != nil {
 		return err
 	}
-	if err := os.Chmod(tempPath, 0o644); err != nil {
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	}
+	if err := os.Chmod(tempPath, mode); err != nil {
 		return err
 	}
 	return os.Rename(tempPath, path)
