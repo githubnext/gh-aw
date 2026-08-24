@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+// @safe-outputs-exempt SEC-004
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
