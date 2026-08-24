@@ -1719,9 +1719,10 @@ function isIssueWritePermissionError(error) {
 }
 
 /**
- * Publish the newly created failure issue as step outputs so that later steps in the
- * conclusion job (for example the pre-created pull request step, which is authenticated
- * with the repository-scoped pull request token) can link to it.
+ * Publish the failure issue (or, when the failure was reported as a comment on an
+ * already-existing failure issue, that comment) as step outputs so that later steps in
+ * the conclusion job (for example the pre-created pull request step, which is
+ * authenticated with the repository-scoped pull request token) can link to it.
  * @param {{number: number, html_url: string}} issue
  * @returns {void}
  */
@@ -4065,7 +4066,7 @@ async function main() {
         // Combine comment body with footer
         const fullCommentBody = sanitizeContent(fullCommentBodyRaw, { maxLength: 65000 });
 
-        await github.rest.issues.createComment({
+        const { data: failureComment } = await github.rest.issues.createComment({
           owner,
           repo,
           issue_number: existingIssue.number,
@@ -4073,6 +4074,10 @@ async function main() {
         });
 
         core.info(`✓ Added comment to existing issue #${existingIssue.number}`);
+        // Point the outputs at the specific comment (not just the issue) so that
+        // downstream steps, like the pre-created pull request discard step, can link
+        // directly to the failure detail that was just recorded for this run.
+        setFailureIssueOutputs({ number: existingIssue.number, html_url: failureComment.html_url });
 
         // Cascade detection: check for storm of failures within the window
         await detectAndHandleFailureCascade(owner, repo, existingIssue.number);

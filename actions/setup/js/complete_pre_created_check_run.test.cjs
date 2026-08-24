@@ -186,9 +186,10 @@ describe("complete_pre_created_check_run", () => {
 
     expect(global.github.rest.pulls.get).not.toHaveBeenCalled();
   });
-  it("links the failure issue on the pre-created pull request", async () => {
+  it("links the failure issue on the pre-created pull request before closing it", async () => {
     process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "failure" } });
     process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
     process.env.GH_AW_FAILURE_ISSUE_NUMBER = "99";
     process.env.GH_AW_FAILURE_ISSUE_URL = "https://github.com/owner/repo/issues/99";
     const { main } = await import("./complete_pre_created_check_run.cjs");
@@ -198,19 +199,41 @@ describe("complete_pre_created_check_run", () => {
       owner: "owner",
       repo: "repo",
       issue_number: 42,
-      body: "The agent workflow failed. See [failure issue #99](https://github.com/owner/repo/issues/99).",
+      body: "This pull request was closed because the agent workflow failed. See [failure issue #99](https://github.com/owner/repo/issues/99) for details.",
     });
+    expect(global.github.rest.pulls.update).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, state: "closed" }));
   });
 
-  it("does not link a failure issue when none was created", async () => {
+  it("explains the closure with a generic message when no failure issue was created", async () => {
     process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "failure" } });
     process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
     delete process.env.GH_AW_FAILURE_ISSUE_NUMBER;
     delete process.env.GH_AW_FAILURE_ISSUE_URL;
     const { main } = await import("./complete_pre_created_check_run.cjs");
     await main();
 
-    expect(global.github.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(global.github.rest.issues.createComment).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      issue_number: 42,
+      body: "This pull request was closed because the [workflow run](https://github.com/owner/repo/actions/runs/123) failed.",
+    });
+    expect(global.github.rest.pulls.update).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, state: "closed" }));
+  });
+
+  it("explains the closure as a cancellation when the run was cancelled", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "cancelled" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "This pull request was closed because the [workflow run](https://github.com/owner/repo/actions/runs/123) was cancelled.",
+      })
+    );
   });
 
   it("does not link a failure issue when no pre-created pull request exists", async () => {
@@ -234,7 +257,8 @@ describe("complete_pre_created_check_run", () => {
     const { main } = await import("./complete_pre_created_check_run.cjs");
     await main();
 
-    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add failure issue link to pre-created pull request #42: boom"));
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to comment on pre-created pull request #42"));
+    expect(global.github.rest.pulls.update).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, state: "closed" }));
     expect(global.github.rest.checks.update).toHaveBeenCalled();
   });
 });
