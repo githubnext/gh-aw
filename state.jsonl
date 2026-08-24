@@ -69,3 +69,4 @@
 {"run_id":"32257939605","timestamp":"2026-08-19T13:25:29.828Z","assignments":{"prompt_style":"concise"}}
 {"run_id":"32374207958","timestamp":"2026-08-20T13:26:10.644Z","assignments":{"prompt_style":"detailed"}}
 {"run_id":"32486722370","timestamp":"2026-08-21T13:26:05.486Z","assignments":{"prompt_style":"concise"}}
+{"run_id":"32732743065","timestamp":"2026-08-24T13:27:34.670Z","harness_version":"ed4f81535958cef04439744d80b4f048379fe596e2377c4ea2c37a99eda70457:4900b1a25b603bd635af15e2b27b001a035191042783ecabce71a5065b6db694","assignments":{"prompt_style":"detailed"},"continual_state":{"prompt_style":{"current_stage":1}}}
