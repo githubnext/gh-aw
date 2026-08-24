@@ -5,8 +5,8 @@ engine: claude
 evals:
 - id: animated_diagram_generated
   question: Did the agent generate an animated HTML diagram using glowmotion?
-- id: discussion_created
-  question: Was a discussion created with the visual analysis of agentic workflow health?
+- id: pull_request_created
+  question: Was a pull request created with the generated animated HTML diagram committed?
 features:
   gh-aw-detection: true
 max-ai-credits: 500
@@ -17,17 +17,24 @@ name: Archivx — Animated Workflow Visualizer
 permissions:
   actions: read
   contents: read
+  pull-requests: read
 safe-outputs:
   create-discussion:
     category: General
     expires: 30d
     max: 1
     title-prefix: "[archivx] "
-  upload-artifact:
-    allowed-paths:
-    - "*.html"
-    max-uploads: 1
-    retention-days: 30
+  create-pull-request:
+    steer: true
+    expires: 30d
+    title-prefix: "[archivx] "
+    labels: [automation, diagram]
+    draft: true
+    protected-files: blocked
+    allowed-files:
+    - "scratchpad/archivx/*.html"
+    max-patch-files: 1
+    max-patch-size: 1024
 sandbox:
   agent:
     runtime: cloud-hypervisor
@@ -59,7 +66,7 @@ You are Archivx, an animated workflow visualizer that creates premium animated H
 
 ## Mission
 
-Analyze the past 7 days of agentic workflow runs and generate an animated visual summary using the glowmotion skill. Upload the diagram as an artifact and create a discussion with key insights.
+Analyze the past 7 days of agentic workflow runs and generate an animated visual summary using the glowmotion skill. Commit the diagram to the repository through a pull request and create a discussion with key insights.
 
 Apply the installed `diagram-design` skill's layout guidance when composing the diagram structure (grouping, hierarchy, labelling, and edge routing), and use `glowmotion` to render it.
 
@@ -116,30 +123,30 @@ Write a graph JSON to `/tmp/gh-aw/agent/glowmotion-graph.json` describing the ag
 
 ### 3b. Render
 
-Render directly into the safe-output staging directory so the file is available to `upload_artifact`:
+Render directly into the repository checkout so the file can be included in the pull request:
 
 ```bash
-mkdir -p "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts"
-python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json --render "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/archivx-animated-diagram.html"
+mkdir -p scratchpad/archivx
+python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json --render scratchpad/archivx/agentic-workflows-archivx.html
 ```
 
 ### 3c. Verify
 
 ```bash
-python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/archivx-animated-diagram.html"
+python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" scratchpad/archivx/agentic-workflows-archivx.html
 ```
 
-Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-running the Step 3b render command (which rewrites the staged HTML) until the checker prints `0 violations`.
+Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-running the Step 3b render command (which rewrites the repository HTML) until the checker prints `0 violations`.
 
-## Step 4: Upload the Artifact
+## Step 4: Create the Diagram Pull Request
 
-Confirm the staged file exists:
+Confirm the generated file exists:
 
 ```bash
-ls -l "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/archivx-animated-diagram.html"
+ls -l scratchpad/archivx/agentic-workflows-archivx.html
 ```
 
-Then call `upload_artifact` **exactly once** with `path: "archivx-animated-diagram.html"` (the path is relative to the staging directory, not an absolute path). Only one upload is allowed per run.
+Then call `create_pull_request` **exactly once** with a title like `[archivx] Update animated workflow diagram — YYYY-MM-DD` and a body summarizing the data range, main findings, and validation result. The pull request must include only `scratchpad/archivx/agentic-workflows-archivx.html`.
 
 ## Step 5: Create Discussion
 
@@ -169,7 +176,7 @@ Create a discussion titled `[archivx] Agentic Workflow Visual Summary — YYYY-M
 
 ### Animated Diagram
 
-The animated architecture diagram is attached as workflow artifact **archivx-animated-diagram**.
+The animated architecture diagram has been committed to `scratchpad/archivx/agentic-workflows-archivx.html` in the generated pull request.
 
 > The HTML file opens directly in any browser. It includes a ☀/☾ light-dark toggle and a ⏯ pause button, and honors reduced-motion preferences.
 
