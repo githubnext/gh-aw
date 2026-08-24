@@ -3299,6 +3299,54 @@ ${diffs}
       expect(issueBody).not.toContain("git am --3way");
     });
 
+    it("should use configured fork remote in protected-files manual apply instructions", async () => {
+      const branch = "should-use-configured-fork-remote-in-manual-apply-instr";
+      createPatchFile(branch, createPatchWithFiles("package.json"));
+      const bundlePath = canonicalBundlePath(branch);
+      fs.writeFileSync(bundlePath, "bundle content");
+      mockContext.payload.pull_request.head.repo = {
+        full_name: "fork-owner/test-repo",
+        fork: true,
+        owner: { login: "fork-owner" },
+      };
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: {
+          head: {
+            ref: "feature-branch",
+            repo: {
+              full_name: "fork-owner/test-repo",
+              fork: true,
+            },
+          },
+          base: {
+            repo: {
+              full_name: "test-owner/test-repo",
+            },
+          },
+          title: "Test PR",
+          labels: [],
+        },
+      });
+
+      const module = await loadModule();
+      const handler = await module.main({
+        protected_files: ["package.json"],
+        protected_files_policy: "fallback-to-issue",
+        "head-repo": "fork-owner/test-repo",
+        allowed_repos: ["test-owner/test-repo", "fork-owner/test-repo"],
+      });
+      const result = await handler({ branch }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+
+      const issueBody = mockGithub.rest.issues.create.mock.calls[0][0].body;
+      expect(issueBody).toContain("git fetch 'https://github.com/fork-owner/test-repo.git'");
+      expect(issueBody).toContain("git push 'https://github.com/fork-owner/test-repo.git'");
+      expect(issueBody).not.toContain("git fetch origin");
+      expect(issueBody).not.toContain("git push origin");
+    });
+
     it("should block a protected file when no allowed-files list is configured", async () => {
       const patchPath = createPatchFile("should-block-a-protected-file-when-no-allowed-files-list-is-", createPatchWithFiles("package.json"));
 

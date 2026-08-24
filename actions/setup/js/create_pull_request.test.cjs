@@ -1211,14 +1211,16 @@ index 0000000..abc1234
     expect(result.fallback_used).toBe(true);
 
     const fallbackIssueBody = global.github.rest.issues.create.mock.calls[0][0].body;
-    const tempRefMatch = fallbackIssueBody.match(/refs\/heads\/autoloop\/perf-comparison:(refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8})/);
+    const tempRefMatch = fallbackIssueBody.match(/temp_ref='(refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8})'/);
     if (!tempRefMatch?.[1]) {
       throw new Error("expected fallback bundle temp ref");
     }
     const fallbackBundleTempRef = tempRefMatch[1];
-    expect(fallbackIssueBody).toContain(`git update-ref refs/heads/autoloop/perf-comparison ${fallbackBundleTempRef}`);
+    expect(fallbackIssueBody).toContain("target_ref='refs/heads/autoloop/perf-comparison'");
+    expect(fallbackIssueBody).toContain('git update-ref "$target_ref" "$temp_ref"');
     expect(fallbackIssueBody).toContain("git reset --hard");
-    expect(fallbackIssueBody).toContain(`git update-ref -d ${fallbackBundleTempRef}`);
+    expect(fallbackIssueBody).toContain('git update-ref -d "$temp_ref"');
+    expect(fallbackIssueBody).toContain(fallbackBundleTempRef);
     expect(fallbackIssueBody).not.toContain("refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison");
     expect(fallbackIssueBody).toContain("**Original error:** push rejected");
     expect(fallbackIssueBody).toContain("Test body");
@@ -2183,7 +2185,7 @@ ${diffs}
     expect(createCall.body).not.toContain("/compare/main...");
     expect(createCall.body).toContain("gh run download");
     // Patch transport: instructions should create a new branch off the base branch, then git am
-    expect(createCall.body).toMatch(/git checkout -b feature\/protected\S* main/);
+    expect(createCall.body).toMatch(/git checkout -b 'feature\/protected\S*' 'main'/);
     expect(createCall.body).toContain("git am --3way");
     expect(createCall.body).not.toContain("git update-ref");
   });
@@ -2222,7 +2224,9 @@ ${diffs}
     expect(createCall.body).toContain("gh run download");
     // Bundle transport: instructions should fetch the bundle into a temp ref and reset --hard,
     // not use git am (which fails on bundle files - see issue #55509)
-    expect(createCall.body).toMatch(/git update-ref refs\/heads\/feature\/protected\S* refs\/bundles\//);
+    expect(createCall.body).toContain("git bundle list-heads");
+    expect(createCall.body).toContain('$2 == "HEAD"');
+    expect(createCall.body).toContain('git update-ref "$target_ref" "$temp_ref"');
     expect(createCall.body).toContain("git reset --hard");
     expect(createCall.body).not.toContain("git am --3way");
   });

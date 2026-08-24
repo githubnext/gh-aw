@@ -816,16 +816,13 @@ async function main(config = {}) {
     const createProtectedFilesFallbackIssue = async files => {
       const runUrl = buildWorkflowRunUrl(context, context.repo);
       const runId = context.runId;
-      const artifactFileName = hasBundleFile
-        ? bundleFilePath.replace("/tmp/gh-aw/", "")
-        : patchFilePath
-          ? patchFilePath.replace("/tmp/gh-aw/", "")
-          : "aw-unknown.patch";
+      const artifactFileName = hasBundleFile ? bundleFilePath.replace("/tmp/gh-aw/", "") : patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
       const applyInstructions = buildManualBranchApplyCommands({
         hasBundleFile,
         runId,
         artifactFileName,
         branchName,
+        branchRemote: branchRemoteName,
       });
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
