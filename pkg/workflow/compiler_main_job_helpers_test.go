@@ -341,6 +341,35 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		_, err := c.buildMainJobPermissions(data)
 		require.NoError(t, err)
 	})
+
+	t.Run("operational value preserves declared permissions", func(t *testing.T) {
+		c := NewCompiler()
+		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		data.Permissions = "permissions:\n  contents: read"
+		perms, err := c.buildMainJobPermissions(data)
+		require.NoError(t, err)
+		assert.NotContains(t, perms, "actions: read")
+		assert.Contains(t, perms, "contents: read")
+	})
+
+	t.Run("operational value allows explicit empty permissions", func(t *testing.T) {
+		c := NewCompiler()
+		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		data.Permissions = "permissions: {}"
+		_, err := c.buildMainJobPermissions(data)
+		require.NoError(t, err)
+	})
+
+	t.Run("disabled operational value does not add actions read", func(t *testing.T) {
+		c := NewCompiler()
+		disabled := false
+		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		data.Permissions = "permissions:\n  contents: read"
+		data.Graders.Graders["operational-value"].Enabled = &disabled
+		perms, err := c.buildMainJobPermissions(data)
+		require.NoError(t, err)
+		assert.NotContains(t, perms, "actions: read")
+	})
 }
 
 // TestWarnBuiltinJobEnvReferences tests warning emission for built-in job references in engine.env.

@@ -9,6 +9,7 @@ import (
 
 // TestRepoSlugErrorMessages verifies that repository slug format errors include examples
 func TestRepoSlugErrorMessages(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		repoSlug        string
@@ -54,6 +55,7 @@ func TestRepoSlugErrorMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Test ensureTrialRepository function
 			err := ensureTrialRepository(tt.repoSlug, "", false, false, false)
 
@@ -74,6 +76,7 @@ func TestRepoSlugErrorMessages(t *testing.T) {
 
 // TestParseRepoSpecErrorMessages verifies that parseRepoSpec errors include examples
 func TestParseRepoSpecErrorMessages(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		repoSpec        string
@@ -107,6 +110,7 @@ func TestParseRepoSpecErrorMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := parseRepoSpec(tt.repoSpec)
 
 			if err == nil {

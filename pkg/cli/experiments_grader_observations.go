@@ -62,13 +62,50 @@ type graderMetricObservationSet struct {
 
 type graderResultsArtifact struct {
 	Version int                    `json:"version"`
+	Run     graderArtifactRun      `json:"run"`
 	Results []graderArtifactResult `json:"results"`
 }
 
+type graderArtifactRun struct {
+	ID      string `json:"id"`
+	Attempt int    `json:"attempt"`
+}
+
 type graderArtifactResult struct {
-	ID     string          `json:"id"`
-	Status string          `json:"status"`
-	Value  json.RawMessage `json:"value"`
+	ID             string                       `json:"id"`
+	Status         string                       `json:"status"`
+	Value          json.RawMessage              `json:"value"`
+	Observation    *graderArtifactObservation   `json:"observation,omitempty"`
+	Implementation graderArtifactImplementation `json:"implementation"`
+}
+
+type graderArtifactObservation struct {
+	Subject        graderArtifactSubject `json:"subject"`
+	OpportunityKey string                `json:"opportunityKey"`
+	EvidenceAt     string                `json:"evidenceAt"`
+	EvidenceCutoff string                `json:"evidenceCutoff"`
+	MaturesAt      string                `json:"maturesAt"`
+	Mature         bool                  `json:"mature"`
+	Case           map[string]any        `json:"case"`
+	Provenance     []map[string]any      `json:"provenance"`
+}
+
+type graderArtifactSubject struct {
+	Type       string  `json:"type"`
+	RunID      string  `json:"runId"`
+	Attempt    int     `json:"attempt"`
+	Repository string  `json:"repository"`
+	Workflow   string  `json:"workflow"`
+	Ref        string  `json:"ref"`
+	SHA        string  `json:"sha"`
+	EventName  string  `json:"eventName"`
+	CreatedAt  *string `json:"createdAt"`
+}
+
+type graderArtifactImplementation struct {
+	ID      string `json:"id"`
+	Version int    `json:"version"`
+	Digest  string `json:"digest,omitempty"`
 }
 
 type graderRunData struct {

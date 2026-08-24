@@ -16,6 +16,7 @@ import (
 )
 
 func TestNewProjectCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewProjectCommand()
 	require.NotNil(t, cmd, "Command should be created")
 	assert.Equal(t, "project", cmd.Use, "Command name should be 'project'")
@@ -25,6 +26,7 @@ func TestNewProjectCommand(t *testing.T) {
 }
 
 func TestNewProjectNewCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewProjectNewCommand()
 	require.NotNil(t, cmd, "Command should be created")
 	assert.Equal(t, "new <title>", cmd.Use, "Command usage should be 'new <title>'")
@@ -43,6 +45,7 @@ func TestNewProjectNewCommand(t *testing.T) {
 }
 
 func TestProjectConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		config      ProjectConfig
@@ -80,6 +83,7 @@ func TestProjectConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.NotEmpty(t, tt.config.Title, "Project title should not be empty")
 			assert.NotEmpty(t, tt.config.Owner, "Project owner should not be empty")
 			assert.NotEmpty(t, tt.config.OwnerType, "Owner type should not be empty")
@@ -89,6 +93,7 @@ func TestProjectConfig(t *testing.T) {
 }
 
 func TestProjectNewCommandArgs(t *testing.T) {
+	t.Parallel()
 	cmd := NewProjectNewCommand()
 
 	tests := []struct {
@@ -115,6 +120,7 @@ func TestProjectNewCommandArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := cmd.Args(cmd, tt.args)
 			if tt.shouldErr {
 				assert.Error(t, err, "Should return error for invalid arguments")
@@ -126,6 +132,7 @@ func TestProjectNewCommandArgs(t *testing.T) {
 }
 
 func TestProjectNewCommandFlags(t *testing.T) {
+	t.Parallel()
 	cmd := NewProjectNewCommand()
 
 	// Check standard flags
@@ -149,6 +156,7 @@ func TestProjectNewCommandFlags(t *testing.T) {
 }
 
 func TestParseProjectURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		url            string
@@ -187,6 +195,7 @@ func TestParseProjectURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := parseProjectURL(tt.url)
 			if tt.shouldErr {
 				assert.Error(t, err, "Should return error for invalid URL")
@@ -201,6 +210,7 @@ func TestParseProjectURL(t *testing.T) {
 }
 
 func TestEnsureSingleSelectOptionBefore(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		options        []singleSelectOption
@@ -262,6 +272,7 @@ func TestEnsureSingleSelectOptionBefore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, changed := ensureSingleSelectOptionBefore(tt.options, tt.desired, tt.beforeName)
 			assert.Equal(t, tt.expectChanged, changed, "Changed status should match expectation")
 			assert.Len(t, result, tt.expectedLength, "Result length should match")
@@ -290,6 +301,7 @@ func TestEnsureSingleSelectOptionBefore(t *testing.T) {
 }
 
 func TestSingleSelectOptionsEqual(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		a        []singleSelectOption
@@ -341,6 +353,7 @@ func TestSingleSelectOptionsEqual(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := singleSelectOptionsEqual(tt.a, tt.b)
 			assert.Equal(t, tt.expected, result, "Equality check should match expectation")
 		})
@@ -348,6 +361,7 @@ func TestSingleSelectOptionsEqual(t *testing.T) {
 }
 
 func TestProjectConfigWithProjectSetup(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		config      ProjectConfig

@@ -136,7 +136,7 @@ func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
-	if !ctx.data.StaleCheckDisabled || hasMaxDailyAICGuardrail(ctx.data) {
+	if !ctx.data.StaleCheckDisabled || hasMaxDailyAICGuardrail(ctx.data) || operationalValueGraderEnabled(ctx.data) {
 		permsMap[PermissionActions] = PermissionRead
 	}
 	if isPreCreatePullRequestEnabled(ctx.data) {

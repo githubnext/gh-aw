@@ -87,73 +87,6 @@ func TestLoadJSONRefreshesAndValidatesAnomalyThresholds(t *testing.T) {
 	require.Error(t, m.LoadJSON(data))
 }
 
-func TestTrain(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name            string
-		simThreshold    float64
-		lines           []string
-		wantClusters    int
-		wantWildcard    bool
-		wantClusterIDNZ bool // last result ClusterID should be non-zero
-	}{
-		{
-			name:            "single line creates one cluster",
-			simThreshold:    DefaultConfig().SimThreshold,
-			lines:           []string{"stage=plan action=start"},
-			wantClusters:    1,
-			wantWildcard:    false,
-			wantClusterIDNZ: true,
-		},
-		{
-			name:            "two identical lines stay in one cluster without wildcard",
-			simThreshold:    DefaultConfig().SimThreshold,
-			lines:           []string{"stage=plan action=start", "stage=plan action=start"},
-			wantClusters:    1,
-			wantWildcard:    false,
-			wantClusterIDNZ: true,
-		},
-		{
-			name:         "two distinct lines create separate clusters",
-			simThreshold: DefaultConfig().SimThreshold,
-			lines:        []string{"stage=plan action=start", "stage=finish status=ok"},
-			wantClusters: 2,
-			wantWildcard: false,
-		},
-		{
-			name:            "similar lines merge and produce wildcard",
-			simThreshold:    0.4,
-			lines:           []string{"stage=tool_call tool=search", "stage=tool_call tool=read_file"},
-			wantClusters:    1,
-			wantWildcard:    true,
-			wantClusterIDNZ: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			cfg := DefaultConfig()
-			cfg.SimThreshold = tt.simThreshold
-			m, err := NewMiner(cfg)
-			require.NoError(t, err, "NewMiner should succeed")
-
-			var result *MatchResult
-			for _, line := range tt.lines {
-				result, err = m.Train(line)
-				require.NoError(t, err, "Train should not return an error for line %q", line)
-			}
-
-			if tt.wantClusterIDNZ {
-				assert.NotZero(t, result.ClusterID, "last result ClusterID should be non-zero")
-			}
-			if tt.wantWildcard {
-				assert.Contains(t, result.Template, "<*>", "merged template should contain wildcard")
-			}
-		})
-	}
-}
-
 func TestTrainEvent(t *testing.T) {
 	t.Parallel()
 	m, err := NewMiner(DefaultConfig())
@@ -176,7 +109,7 @@ func TestClusters(t *testing.T) {
 
 	assert.Empty(t, m.Clusters(), "Clusters should be empty for a new miner")
 
-	_, err = m.Train("stage=plan action=start")
+	_, err = m.TrainEvent(AgentEvent{Stage: "plan", Fields: map[string]string{"action": "start"}})
 	require.NoError(t, err, "Train should not return an error")
 
 	clusters := m.Clusters()
@@ -335,17 +268,6 @@ func TestTokenize(t *testing.T) {
 	}
 }
 
-func TestTrainEmptyLine(t *testing.T) {
-	t.Parallel()
-	m, err := NewMiner(DefaultConfig())
-	require.NoError(t, err, "NewMiner should succeed for empty-line training test")
-
-	result, err := m.Train(" \t\n ")
-	assert.Nil(t, result, "Train should return nil result for whitespace-only input")
-	require.Error(t, err, "Train should return an error for whitespace-only input")
-	require.ErrorContains(t, err, "empty line after masking", "Train error should explain empty line after masking")
-}
-
 func TestNewMaskerInvalidPattern(t *testing.T) {
 	t.Parallel()
 	masker, err := NewMasker([]MaskRule{
@@ -374,8 +296,7 @@ func TestConcurrency(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for i := range linesEach {
-				line := fmt.Sprintf("stage=work goroutine=%d iter=%d", id, i)
-				_, trainErr := m.Train(line)
+				_, trainErr := m.TrainEvent(AgentEvent{Stage: "work", Fields: map[string]string{"goroutine": fmt.Sprintf("%d", id), "iter": fmt.Sprintf("%d", i)}})
 				assert.NoError(t, trainErr, "Train should not error during concurrent access")
 			}
 		}(g)

@@ -222,17 +222,16 @@ func isPathScannedBySecretRedaction(path string) bool {
 // that is NOT text-scanned by the redact_secrets step, but is nevertheless explicitly
 // permitted in artifact uploads.
 //
-// .bundle files are binary git bundles produced when patch-format: bundle is
-// configured. They are generated from the same git commit range as the accompanying
-// .patch file (see generateGitBundle in actions/setup/js/generate_git_bundle.cjs),
-// so the .patch scanning already covers the underlying diff content. Bundles cannot
-// be safely scanned as UTF-8 text, but they are required downstream to apply changes
-// while preserving merge topology, so they are intentionally allowed through
-// artifact uploads unscanned.
+// In addition to binary git bundles, the archived operational-value evaluator is
+// allowed because the compiler freezes its trusted repository bytes and records
+// their digest for replay. Redacting that archive would invalidate its provenance.
 func isKnownUnscannedButAllowedForUpload(path string) bool {
 	isUnderGhAwDir := strings.HasPrefix(path, constants.TmpGhAwDirSlash) ||
 		strings.HasPrefix(path, constants.GhAwRootDirShellSlash) ||
 		strings.HasPrefix(path, constants.GhAwRootDirSlash) ||
 		strings.Contains(path, "${{ env.")
-	return isUnderGhAwDir && filepath.Ext(path) == ".bundle"
+	if !isUnderGhAwDir {
+		return false
+	}
+	return filepath.Ext(path) == ".bundle" || path == constants.GradersDirSlash+constants.OperationalValueEvaluatorFilename
 }
