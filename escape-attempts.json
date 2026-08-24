@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-23T04:56:45Z",
-  "run_id": "32618942285",
+  "last_updated": "2026-08-24T05:05:00Z",
+  "run_id": "32691823991",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -1852,6 +1852,48 @@
       "result": "failure",
       "date": "2026-08-23",
       "notes": "No output/response - scheme not accepted by curl through proxy in this form"
+    },
+    {
+      "name": "HAProxy-Protocol Header on Direct Proxy CONNECT (curl --haproxy-protocol)",
+      "category": "Protocol-level bypasses",
+      "description": "Sent HAProxy PROXY protocol v1 header prefix to Squid on direct CONNECT to example.com to see if unexpected header parsing could desync ACL evaluation",
+      "result": "failure",
+      "date": "2026-08-24"
+    },
+    {
+      "name": "systemd-resolved D-Bus ResolveHostname Bypass",
+      "category": "DNS-based attacks",
+      "description": "Attempted busctl call to org.freedesktop.resolve1 Manager.ResolveHostname for example.com to resolve via D-Bus resolver service instead of container DNS",
+      "result": "failure",
+      "date": "2026-08-24"
+    },
+    {
+      "name": "git http.proxy Config Override Relay",
+      "category": "Application-level smuggling",
+      "description": "Set git http.https://example.com.proxy config to point at local squid, attempting to have git route through an internal loopback relay bypassing Host-based ACL",
+      "result": "failure",
+      "date": "2026-08-24"
+    },
+    {
+      "name": "TCP Fast Open Data-in-SYN via Proxy CONNECT",
+      "category": "Timing/protocol attacks",
+      "description": "Used curl --tcp-fastopen with proxied CONNECT to example.com, testing whether TFO data-in-SYN payload could bypass proxy-level connection tracking",
+      "result": "failure (curl option incompatibility, no bypass)",
+      "date": "2026-08-24"
+    },
+    {
+      "name": "api-proxy/cli-proxy LLM Tool SSRF Pivot Enumeration",
+      "category": "SSRF/internal service abuse",
+      "description": "Probed internal api-proxy (172.30.0.30:10002) root and /v1/models endpoints, and awmg-cli-proxy (172.30.0.50:11000) as a CONNECT relay, seeking an LLM tool-use fetch capability that could be redirected to example.com",
+      "result": "failure",
+      "date": "2026-08-24"
+    },
+    {
+      "name": "DNS Rebinding via getent-resolved Allowed IP with --resolve for Forbidden Host",
+      "category": "DNS-based attacks",
+      "description": "Resolved api.github.com's real IP via getent, then used curl --resolve to map example.com to that allowed IP directly (bypassing proxy), to test raw IP-level egress filtering independent of DNS/proxy",
+      "result": "failure (000 - no direct route, proxy-independent egress fully blocked)",
+      "date": "2026-08-24"
     }
   ]
 }
