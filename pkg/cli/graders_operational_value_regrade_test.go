@@ -2,6 +2,12 @@ package cli
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -91,7 +97,7 @@ esac
 	}
 	execution, err := executeHistoricalOperationalValueEvaluator(
 		context.Background(), evaluatorContent, manifest, *result.Observation,
-		"2026-09-01T12:00:00Z", evidenceAt,
+		"2026-09-01T12:00:00Z", evidenceAt, "https://github.com",
 	)
 	if err != nil {
 		t.Fatalf("executeHistoricalOperationalValueEvaluator() error = %v", err)
@@ -104,6 +110,95 @@ esac
 	}
 	if !execution.Observation.Mature || execution.Observation.Subject.RunID != "12345" {
 		t.Fatalf("unexpected replay observation: %+v", execution.Observation)
+	}
+}
+
+func TestVerifyArchivedOperationalValueEvaluatorSource(t *testing.T) {
+	repoRoot := t.TempDir()
+	evaluatorPath := filepath.Join(repoRoot, ".github", "graders", "example.sh")
+	if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := []byte("#!/usr/bin/env bash\nprintf 'trusted\\n'\n")
+	if err := os.WriteFile(evaluatorPath, content, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "Test"},
+		{"add", ".github/graders/example.sh"},
+		{"commit", "-m", "add evaluator"},
+	} {
+		cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v: %s", args, err, output)
+		}
+	}
+	shaOutput, err := exec.Command("git", "-C", repoRoot, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(content)
+	manifest := operationalValueGraderManifestEntry{Run: ".github/graders/example.sh"}
+	subject := graderArtifactSubject{SHA: strings.TrimSpace(string(shaOutput))}
+	if err := verifyArchivedOperationalValueEvaluatorSource(repoRoot, "owner/repo", "owner/repo", string(content), hex.EncodeToString(digest[:]), manifest, subject); err != nil {
+		t.Fatalf("expected trusted evaluator, got %v", err)
+	}
+	if err := verifyArchivedOperationalValueEvaluatorSource(repoRoot, "owner/repo", "other/repo", string(content), hex.EncodeToString(digest[:]), manifest, subject); err == nil || !strings.Contains(err.Error(), "trusted local checkout") {
+		t.Fatalf("expected repository trust error, got %v", err)
+	}
+	if err := verifyArchivedOperationalValueEvaluatorSource(repoRoot, "owner/repo", "owner/repo", string(content)+"# changed\n", hex.EncodeToString(digest[:]), manifest, subject); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("expected source mismatch, got %v", err)
+	}
+}
+
+func TestOperationalValueEvaluatorEnvironmentUsesRequestedHost(t *testing.T) {
+	env := operationalValueEvaluatorEnvironment([]string{
+		"PATH=/usr/bin",
+		"GH_TOKEN=token",
+		"GH_HOST=stale.example.com",
+		"GITHUB_API_URL=https://stale.example.com/api/v3",
+	}, "https://ghe.example.com")
+	joined := strings.Join(env, "\n")
+	for _, expected := range []string{
+		"GH_HOST=ghe.example.com",
+		"GITHUB_SERVER_URL=https://ghe.example.com",
+		"GITHUB_API_URL=https://ghe.example.com/api/v3",
+		"GITHUB_GRAPHQL_URL=https://ghe.example.com/api/graphql",
+	} {
+		if !strings.Contains(joined, expected) {
+			t.Fatalf("expected %q in evaluator environment: %v", expected, env)
+		}
+	}
+}
+
+func TestRenderOperationalValueRegradeArtifactWithNullDelta(t *testing.T) {
+	baseline := 0.25
+	artifact := operationalValueRegradeArtifact{
+		Run: graderArtifactRun{ID: "12345"},
+		Results: []operationalValueRegradeResult{{
+			BaselineValue: &baseline,
+			Observation:   operationalValueRegradeObservation{},
+		}},
+	}
+	oldStdout := os.Stdout
+	readOutput, writeOutput, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = writeOutput
+	t.Cleanup(func() { os.Stdout = oldStdout })
+	if err := renderOperationalValueRegradeArtifact(artifact, false); err != nil {
+		t.Fatal(err)
+	}
+	_ = writeOutput.Close()
+	output, err := io.ReadAll(readOutput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "Delta from baseline: null") {
+		t.Fatalf("unexpected output: %s", output)
 	}
 }
 

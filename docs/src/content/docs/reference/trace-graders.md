@@ -80,7 +80,7 @@ gh aw graders operational-value 123456789 \
   --json
 ```
 
-The command downloads the original grader artifact and reuses its case, run subject, and frozen evaluator. The archived evaluator must match the digest recorded by both the original manifest and result. Regrading emits a new observation identified by `(runId, evaluatorDigest, evidenceAt)` and never modifies the original artifact. Use `--repo [HOST/]OWNER/REPO` to target another repository.
+The command downloads the original grader artifact and reuses its case, run subject, and frozen evaluator. The archived evaluator must match the digest recorded by both the original manifest and result and the evaluator at the recorded commit in the current repository checkout. Regrading emits a new observation identified by `(runId, evaluatorDigest, evidenceAt)` and never modifies the original artifact. Use `--repo [HOST/]OWNER/REPO` to select the host for the checked-out repository.
 
 ## Output files
 

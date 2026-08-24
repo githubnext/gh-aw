@@ -100,7 +100,7 @@ The function must cap `evidenceCutoff` at the earlier of `evidenceAt` and `matur
 
 ## Regrade a Historical Run
 
-Recompute a run at an explicit evidence time with the same local function used by the original run:
+Recompute a run at an explicit evidence time with the same evaluator used by the original run:
 
 ```bash
 gh aw graders operational-value RUN-ID \
@@ -108,7 +108,7 @@ gh aw graders operational-value RUN-ID \
   --json
 ```
 
-Add `--repo [HOST/]OWNER/REPO` when the run is not in the current repository. The command downloads the original grader artifact, reuses its operational case and complete run subject, and refuses to execute unless the archived evaluator's SHA-256 matches both digest records. It prints a new observation and never modifies the original artifact.
+Add `--repo [HOST/]OWNER/REPO` to select the GitHub host for the current repository checkout. The command downloads the original grader artifact, reuses its operational case and complete run subject, and refuses to execute unless the archived evaluator matches both digest records and the evaluator at the recorded commit in the trusted checkout. It prints a new observation and never modifies the original artifact.
 
 ## Definition Contract
 

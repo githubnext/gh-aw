@@ -45,8 +45,9 @@ func TestPrepareOperationalValueGraderRejectsInvalidFiles(t *testing.T) {
 		content string
 		errText string
 	}{
-		{name: "missing", errText: "cannot read"},
+		{name: "missing", errText: "cannot inspect"},
 		{name: "not bash", content: "echo operational value\n", errText: "Bash shebang"},
+		{name: "invalid bash", content: "#!/usr/bin/env bash\nif true; then\n", errText: "invalid Bash syntax"},
 		{name: "oversized", content: "#!/usr/bin/env bash\n" + strings.Repeat("x", maxOperationalValueEvaluatorSize), errText: "exceeds"},
 	}
 	for _, test := range tests {
@@ -104,6 +105,37 @@ func TestPrepareOperationalValueGraderRejectsSymlinkEscape(t *testing.T) {
 	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh"), workflowPath)
 	if err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected symlink escape error, got %v", err)
+	}
+}
+
+func TestPrepareOperationalValueGraderRejectsRepositorySymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires additional privileges on Windows")
+	}
+	repoRoot := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
+	gradersDir := filepath.Join(repoRoot, ".github", "graders")
+	targetPath := filepath.Join(gradersDir, "target.sh")
+	evaluatorPath := filepath.Join(gradersDir, "example-operational-value.sh")
+	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(gradersDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(targetPath, []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(targetPath, evaluatorPath); err != nil {
+		t.Fatal(err)
+	}
+
+	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh"), workflowPath)
+	if err == nil || !strings.Contains(err.Error(), "must not be a symbolic link") {
+		t.Fatalf("expected symlink rejection error, got %v", err)
 	}
 }
 

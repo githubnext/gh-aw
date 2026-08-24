@@ -342,6 +342,17 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 // permissions from gh CLI commands found in all agent job step sections.
 func (c *Compiler) buildMainJobPermissions(data *WorkflowData) (string, error) {
 	permissions := augmentPermissionsForDevMode(c, data, filterJobLevelPermissions(data.Permissions, data.CachedPermissions))
+	if operationalValueGraderEnabled(data) {
+		if permissions == "" {
+			permissions = NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionActions: PermissionRead,
+			}).RenderToYAML()
+		} else {
+			permissions = mergeInferredIntoPermissionsYAML(permissions, map[PermissionScope]PermissionLevel{
+				PermissionActions: PermissionRead,
+			})
+		}
+	}
 
 	agentAllScripts := collectAgentJobScripts(data)
 	if len(agentAllScripts) == 0 {
@@ -378,6 +389,14 @@ func (c *Compiler) buildMainJobPermissions(data *WorkflowData) (string, error) {
 	}
 
 	return permissions, nil
+}
+
+func operationalValueGraderEnabled(data *WorkflowData) bool {
+	if data == nil || data.Graders == nil {
+		return false
+	}
+	grader, ok := data.Graders.Graders["operational-value"]
+	return ok && (grader.Enabled == nil || *grader.Enabled)
 }
 
 // augmentPermissionsForDevMode adds contents: read to permissions when the compiler is in

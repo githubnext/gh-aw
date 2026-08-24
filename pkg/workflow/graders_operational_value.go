@@ -35,6 +35,13 @@ func (c *Compiler) prepareOperationalValueGrader(data *WorkflowData, markdownPat
 	if err := fileutil.ValidatePathWithinBase(repoRoot, evaluatorPath); err != nil {
 		return fmt.Errorf("graders.operational-value.run %q escapes the Git repository", grader.Run)
 	}
+	evaluatorInfo, err := os.Lstat(evaluatorPath)
+	if err != nil {
+		return fmt.Errorf("cannot inspect graders.operational-value.run %q: %w", grader.Run, err)
+	}
+	if evaluatorInfo.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("graders.operational-value.run %q must not be a symbolic link", grader.Run)
+	}
 
 	file, err := os.Open(evaluatorPath)
 	if err != nil {
@@ -66,6 +73,9 @@ func (c *Compiler) prepareOperationalValueGrader(data *WorkflowData, markdownPat
 	evaluatorContent := string(content)
 	if !strings.HasPrefix(evaluatorContent, "#!/usr/bin/env bash\n") && !strings.HasPrefix(evaluatorContent, "#!/bin/bash\n") {
 		return fmt.Errorf("graders.operational-value.run %q must start with a Bash shebang", grader.Run)
+	}
+	if err := validateOperationalValueEvaluatorBash(evaluatorContent); err != nil {
+		return fmt.Errorf("graders.operational-value.run %q has invalid Bash syntax: %w", grader.Run, err)
 	}
 
 	grader.evaluatorContent = evaluatorContent

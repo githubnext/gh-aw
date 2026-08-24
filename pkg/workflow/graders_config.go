@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -468,6 +469,17 @@ func parseOptionalFloat(m map[string]any, key string, graderID string, target **
 func validateGraders(cfg *GradersConfig) error {
 	if cfg == nil {
 		return nil
+	}
+	if grader, ok := cfg.Graders["operational-value"]; ok {
+		if grader.Direction != "higher_is_better" {
+			return errors.New("graders.operational-value.direction must be 'higher_is_better'")
+		}
+		if grader.Min == nil || *grader.Min != 0 || grader.Max == nil || *grader.Max != 1 {
+			return errors.New("graders.operational-value range must be min: 0 and max: 1")
+		}
+		if grader.Threshold != nil && (math.IsNaN(*grader.Threshold) || math.IsInf(*grader.Threshold, 0) || *grader.Threshold < 0 || *grader.Threshold > 1) {
+			return errors.New("graders.operational-value.threshold must be between 0 and 1")
+		}
 	}
 	if !cfg.HasGraders() {
 		return errors.New("graders configuration has no enabled graders. Remove the graders field to disable grading, or set enabled: true on at least one grader")

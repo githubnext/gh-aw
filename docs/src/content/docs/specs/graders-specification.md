@@ -201,7 +201,7 @@ An operational-value observation MUST include:
 
 The effective evidence cutoff MUST NOT follow either the requested evidence time or the maturity time. A replayed observation MUST be identified by `(runId, evaluatorDigest, evidenceAt)`.
 
-Historical regrading MUST reuse the original case, run subject, and archived evaluator. It MUST verify that the archived evaluator matches the digest recorded by both the original manifest and result before execution. It MUST emit a new observation and MUST NOT mutate the original run artifact.
+Historical regrading MUST reuse the original case, run subject, and archived evaluator. It MUST verify that the archived evaluator matches the digest recorded by both the original manifest and result and the evaluator at the recorded commit in a trusted local checkout before execution. It MUST emit a new observation and MUST NOT mutate the original run artifact.
 
 ---
 
@@ -223,7 +223,7 @@ The implementation MUST produce:
 
 ### 8.3 Artifact Inclusion
 
-Both files MUST be included in the unified `agent` artifact.
+All applicable files MUST be included in the unified `agent` artifact.
 
 ### 8.4 Deterministic Output Contract
 
@@ -271,7 +271,7 @@ semantic task correctness. The normative readiness, decision, and JSON contracts
 - Grading MUST operate on local run artifacts and MUST NOT require outbound network access for built-ins.
 - Custom inline graders MUST execute in a restricted context with blocked dangerous primitives.
 - Operational-value graders MAY access declared repository evidence using `GH_TOKEN`; they MUST NOT receive workflow secrets.
-- Historical regrading MUST verify archived evaluator bytes against both digest records before execution.
+- Historical regrading MUST verify archived evaluator bytes against both digest records and a trusted local checkout at the recorded commit before execution.
 - Implementations SHOULD enforce bounded execution time for inline scripts.
 - Implementations SHOULD redact grader outputs when custom scripts are enabled to reduce secret leakage risk.
 

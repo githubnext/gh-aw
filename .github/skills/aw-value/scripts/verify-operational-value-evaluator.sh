@@ -67,4 +67,56 @@ jq -en --argjson attained "$target_attained" --argjson missed "$target_missed" \
     '$attained != null and $missed != null and $attained > $missed' >/dev/null \
     || fail "targetAttained must score higher than targetMissed"
 
+repository=$(printf '%s\n' "$definition" | jq -r '.repository')
+workflow_name=$(printf '%s\n' "$definition" | jq -r '.workflowName')
+adoption_commit=$(printf '%s\n' "$definition" | jq -r '.adoption.commit')
+created_at=$(printf '%s\n' "$definition" | jq -r '.adoption.adoptedAt')
+evidence_at=2099-01-01T00:00:00Z
+request=$(jq -cn \
+        --arg repository "$repository" \
+        --arg workflow "$workflow_name" \
+        --arg sha "$adoption_commit" \
+        --arg createdAt "$created_at" \
+        --arg evidenceAt "$evidence_at" \
+        '{
+            schemaVersion: 1,
+            run: {
+                id: "1",
+                attempt: 1,
+                repository: $repository,
+                workflow: $workflow,
+                ref: "refs/heads/main",
+                sha: $sha,
+                eventName: "workflow_dispatch",
+                createdAt: $createdAt
+            },
+            evidenceAt: $evidenceAt,
+            case: null,
+            event: {},
+            config: {verification: true}
+        }')
+grade_run=$(printf '%s\n' "$request" | "$evaluator" --grade-run)
+printf '%s\n' "$grade_run" | jq -e --arg evidenceAt "$evidence_at" '
+        def timestamp:
+            type == "string"
+            and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{3})?Z$");
+        def epoch: sub("\\.[0-9]{3}Z$"; "Z") | fromdateiso8601;
+        type == "object"
+        and (.value == null or (.value | type == "number" and isfinite and . >= 0 and . <= 1))
+        and (.opportunityKey | type == "string" and length > 0)
+        and (.case | type == "object")
+        and (.evidenceCutoff | timestamp)
+        and (.maturesAt | timestamp)
+        and ((.evidenceCutoff | epoch) <= ($evidenceAt | epoch))
+        and ((.evidenceCutoff | epoch) <= (.maturesAt | epoch))
+        and (.provenance | type == "array")
+        and (if .value == null then true else (.provenance | length > 0) end)
+        and (all(.provenance[]; type == "object"
+            and (.repository | type == "string" and length > 0)
+            and (.kind | type == "string" and length > 0)
+            and (.ref | type == "string" and length > 0)))
+        and ((has("diagnostics") | not) or (.diagnostics | type == "object"))
+        and ((has("message") | not) or (.message | type == "string"))
+' >/dev/null || fail "--grade-run returned an invalid operational-value observation"
+
 printf 'verified %s\n' "$evaluator"

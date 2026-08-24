@@ -67,6 +67,26 @@ JSON
     --metric)
         jq 'if (.eligible | type) != "boolean" or .eligible == false or (.closed | type) != "boolean" then null elif .closed then 1 else 0 end'
         ;;
+    --grade-run)
+      request=$(cat)
+      printf '%s\n' "$request" | jq -e '
+        .schemaVersion == 1
+        and .run.id == "1"
+        and .run.repository == "owner/repo"
+        and .run.eventName == "workflow_dispatch"
+        and .case == null
+        and .config.verification == true
+      ' >/dev/null
+      printf '%s\n' "$request" | jq -c '{
+        value: 1,
+        opportunityKey: "verification:1",
+        case: {verification: true},
+        evidenceCutoff: .evidenceAt,
+        maturesAt: .evidenceAt,
+        provenance: [{repository: .run.repository, kind: "verification", ref: .run.id}],
+        diagnostics: {}
+      }'
+      ;;
     *)
         exit 1
         ;;

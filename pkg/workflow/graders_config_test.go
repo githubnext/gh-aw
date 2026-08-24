@@ -143,22 +143,28 @@ func TestParseGradersFromFrontmatter_OperationalValueGrader(t *testing.T) {
 func TestParseGradersFromFrontmatter_OperationalValueGraderValidation(t *testing.T) {
 	var c Compiler
 	tests := []struct {
-		name  string
-		entry map[string]any
+		name    string
+		entry   map[string]any
+		errText string
 	}{
-		{name: "missing run", entry: map[string]any{}},
-		{name: "path traversal", entry: map[string]any{"run": ".github/graders/../secret.sh"}},
-		{name: "wrong directory", entry: map[string]any{"run": "scripts/operational-value.sh"}},
-		{name: "wrong extension", entry: map[string]any{"run": ".github/graders/operational-value.js"}},
-		{name: "inline script", entry: map[string]any{"run": ".github/graders/operational-value.sh", "script": "return 1"}},
+		{name: "missing run", entry: map[string]any{}, errText: "requires a 'run' field"},
+		{name: "path traversal", entry: map[string]any{"run": ".github/graders/../secret.sh"}, errText: "repository-relative"},
+		{name: "wrong directory", entry: map[string]any{"run": "scripts/operational-value.sh"}, errText: "repository-relative"},
+		{name: "wrong extension", entry: map[string]any{"run": ".github/graders/operational-value.js"}, errText: "repository-relative"},
+		{name: "inline script", entry: map[string]any{"run": ".github/graders/operational-value.sh", "script": "return 1"}, errText: "cannot have an inline script"},
+		{name: "direction", entry: map[string]any{"run": ".github/graders/operational-value.sh", "direction": "lower_is_better"}, errText: "direction must be 'higher_is_better'"},
+		{name: "minimum", entry: map[string]any{"run": ".github/graders/operational-value.sh", "min": 0.1}, errText: "range must be min: 0 and max: 1"},
+		{name: "maximum", entry: map[string]any{"run": ".github/graders/operational-value.sh", "max": 2.0}, errText: "range must be min: 0 and max: 1"},
+		{name: "threshold below range", entry: map[string]any{"run": ".github/graders/operational-value.sh", "threshold": -0.1}, errText: "threshold must be between 0 and 1"},
+		{name: "threshold above range", entry: map[string]any{"run": ".github/graders/operational-value.sh", "threshold": 1.1}, errText: "threshold must be between 0 and 1"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := c.parseGradersFromFrontmatter(map[string]any{
 				"graders": map[string]any{"operational-value": test.entry},
 			})
-			if err == nil {
-				t.Fatal("expected operational-value grader validation error")
+			if err == nil || !strings.Contains(err.Error(), test.errText) {
+				t.Fatalf("expected error containing %q, got %v", test.errText, err)
 			}
 		})
 	}

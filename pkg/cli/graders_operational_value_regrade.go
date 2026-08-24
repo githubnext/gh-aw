@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +21,9 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/repoutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 const (
@@ -157,7 +160,7 @@ func RunOperationalValueRegrade(ctx context.Context, config OperationalValueRegr
 	if err != nil {
 		return err
 	}
-	repoSlug, artifactRepo, err := resolveOperationalValueRegradeRepo(config.RepoOverride)
+	repoSlug, artifactRepo, evaluatorHost, err := resolveOperationalValueRegradeRepo(config.RepoOverride)
 	if err != nil {
 		return err
 	}
@@ -190,8 +193,19 @@ func RunOperationalValueRegrade(ctx context.Context, config OperationalValueRegr
 	if err := verifyHistoricalOperationalValueIdentity(repoSlug, evaluatorDigest, manifestEntry, originalResult, runData.Artifact.Run, runIDText); err != nil {
 		return err
 	}
+	currentRepoSlug, err := GetCurrentRepoSlug()
+	if err != nil {
+		return fmt.Errorf("cannot establish a trusted checkout for operational-value replay: %w", err)
+	}
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return fmt.Errorf("cannot establish a trusted checkout for operational-value replay: %w", err)
+	}
+	if err := verifyArchivedOperationalValueEvaluatorSource(gitRoot, currentRepoSlug, repoSlug, evaluatorContent, evaluatorDigest, *manifestEntry, originalResult.Observation.Subject); err != nil {
+		return err
+	}
 
-	execution, err := executeHistoricalOperationalValueEvaluator(ctx, evaluatorContent, *manifestEntry, *originalResult.Observation, config.EvidenceAt, evidenceAt)
+	execution, err := executeHistoricalOperationalValueEvaluator(ctx, evaluatorContent, *manifestEntry, *originalResult.Observation, config.EvidenceAt, evidenceAt, evaluatorHost)
 	if err != nil {
 		return err
 	}
@@ -199,17 +213,21 @@ func RunOperationalValueRegrade(ctx context.Context, config OperationalValueRegr
 	return renderOperationalValueRegradeArtifact(artifact, config.JSONOutput)
 }
 
-func resolveOperationalValueRegradeRepo(repoOverride string) (repoSlug, artifactRepo string, err error) {
+func resolveOperationalValueRegradeRepo(repoOverride string) (repoSlug, artifactRepo, evaluatorHost string, err error) {
 	if repoOverride == "" {
 		repoSlug, err = GetCurrentRepoSlug()
-		return repoSlug, "", err
+		return repoSlug, "", getGitHubHostForRepo(repoSlug), err
 	}
-	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repoOverride)
+	ownerRepo, host := repoutil.NormalizeRepoForAPI(repoOverride)
 	owner, repo, splitErr := repoutil.SplitRepoSlug(ownerRepo)
 	if splitErr != nil {
-		return "", "", fmt.Errorf("invalid --repo %q: expected [HOST/]owner/repo", repoOverride)
+		return "", "", "", fmt.Errorf("invalid --repo %q: expected [HOST/]owner/repo", repoOverride)
 	}
-	return strings.Join([]string{owner, repo}, "/"), repoOverride, nil
+	evaluatorHost = getGitHubHostForRepo(ownerRepo)
+	if host != "" {
+		evaluatorHost = stringutil.NormalizeGitHubHostURL(host)
+	}
+	return strings.Join([]string{owner, repo}, "/"), repoOverride, evaluatorHost, nil
 }
 
 func readArchivedOperationalValueEvaluator(runDir string) (string, string, error) {
@@ -327,7 +345,27 @@ func verifyHistoricalOperationalValueIdentity(repoSlug, evaluatorDigest string, 
 	return nil
 }
 
-func executeHistoricalOperationalValueEvaluator(ctx context.Context, evaluatorContent string, manifest operationalValueGraderManifestEntry, original graderArtifactObservation, evidenceAtText string, evidenceAt time.Time) (*operationalValueEvaluatorExecution, error) {
+func verifyArchivedOperationalValueEvaluatorSource(gitRoot, currentRepoSlug, requestedRepoSlug, evaluatorContent, evaluatorDigest string, manifest operationalValueGraderManifestEntry, subject graderArtifactSubject) error {
+	if !strings.EqualFold(currentRepoSlug, requestedRepoSlug) {
+		return fmt.Errorf("refusing to execute an operational-value evaluator from %q without a trusted local checkout of that repository", requestedRepoSlug)
+	}
+	objectArg, err := buildSafeGitShowObjectArg(subject.SHA, manifest.Run)
+	if err != nil {
+		return errors.New("operational-value evaluator provenance contains an unsafe commit or path")
+	}
+	cmd := exec.Command("git", "-C", gitRoot, "show", "--no-ext-diff", "--no-textconv", objectArg)
+	trustedContent, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("cannot establish operational-value evaluator from trusted commit %s: %w", subject.SHA, err)
+	}
+	trustedDigest := sha256.Sum256(trustedContent)
+	if hex.EncodeToString(trustedDigest[:]) != evaluatorDigest || !bytes.Equal(trustedContent, []byte(evaluatorContent)) {
+		return fmt.Errorf("archived operational-value evaluator does not match %s at trusted commit %s", manifest.Run, subject.SHA)
+	}
+	return nil
+}
+
+func executeHistoricalOperationalValueEvaluator(ctx context.Context, evaluatorContent string, manifest operationalValueGraderManifestEntry, original graderArtifactObservation, evidenceAtText string, evidenceAt time.Time, evaluatorHost string) (*operationalValueEvaluatorExecution, error) {
 	bashPath := "/bin/bash"
 	if _, err := os.Stat(bashPath); err != nil {
 		return nil, fmt.Errorf("bash is required to regrade operational value: %w", err)
@@ -341,10 +379,10 @@ func executeHistoricalOperationalValueEvaluator(ctx context.Context, evaluatorCo
 	if err := os.WriteFile(evaluatorPath, []byte(evaluatorContent), constants.FilePermExecutable); err != nil {
 		return nil, fmt.Errorf("failed to stage operational-value evaluator: %w", err)
 	}
-	if _, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{"-n", evaluatorPath}, nil, operationalValueDefinitionTimeout); err != nil {
+	if _, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{"-n", evaluatorPath}, nil, operationalValueDefinitionTimeout, evaluatorHost); err != nil {
 		return nil, fmt.Errorf("operational-value evaluator has invalid Bash syntax: %w", err)
 	}
-	definitionJSON, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{evaluatorPath, "--definition"}, nil, operationalValueDefinitionTimeout)
+	definitionJSON, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{evaluatorPath, "--definition"}, nil, operationalValueDefinitionTimeout, evaluatorHost)
 	if err != nil {
 		return nil, fmt.Errorf("operational-value evaluator --definition failed: %w", err)
 	}
@@ -377,19 +415,19 @@ func executeHistoricalOperationalValueEvaluator(ctx context.Context, evaluatorCo
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode operational-value regrade request: %w", err)
 	}
-	outputJSON, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{evaluatorPath, "--grade-run"}, requestJSON, operationalValueEvaluatorTimeout)
+	outputJSON, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{evaluatorPath, "--grade-run"}, requestJSON, operationalValueEvaluatorTimeout, evaluatorHost)
 	if err != nil {
 		return nil, fmt.Errorf("operational-value evaluator --grade-run failed: %w", err)
 	}
 	return parseOperationalValueEvaluatorOutput(outputJSON, original.Subject, evidenceAtText, evidenceAt, baselineValue)
 }
 
-func runOperationalValueEvaluatorBash(ctx context.Context, bashPath, evaluatorPath string, args []string, input []byte, timeout time.Duration) ([]byte, error) {
+func runOperationalValueEvaluatorBash(ctx context.Context, bashPath, evaluatorPath string, args []string, input []byte, timeout time.Duration, evaluatorHost string) ([]byte, error) {
 	commandCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(commandCtx, bashPath, args...)
 	cmd.Dir = filepath.Dir(evaluatorPath)
-	cmd.Env = operationalValueEvaluatorEnvironment(os.Environ())
+	cmd.Env = operationalValueEvaluatorEnvironment(os.Environ(), evaluatorHost)
 	cmd.Stdin = bytes.NewReader(input)
 	stdout := &boundedCommandBuffer{limit: maxOperationalValueRegradeOutputBytes}
 	stderr := &boundedCommandBuffer{limit: maxOperationalValueRegradeOutputBytes}
@@ -412,16 +450,29 @@ func runOperationalValueEvaluatorBash(ctx context.Context, bashPath, evaluatorPa
 	return stdout.Bytes(), nil
 }
 
-func operationalValueEvaluatorEnvironment(environ []string) []string {
+func operationalValueEvaluatorEnvironment(environ []string, evaluatorHost string) []string {
 	keys := []string{
 		"PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec",
-		"GH_TOKEN", "GH_HOST", "GITHUB_API_URL", "GITHUB_SERVER_URL",
+		"GH_TOKEN", "GH_HOST", "GITHUB_API_URL", "GITHUB_GRAPHQL_URL", "GITHUB_SERVER_URL",
 	}
 	values := make(map[string]string, len(environ))
 	for _, entry := range environ {
 		key, value, ok := strings.Cut(entry, "=")
 		if ok {
 			values[key] = value
+		}
+	}
+	hostURL, err := url.Parse(evaluatorHost)
+	if err == nil && hostURL.Scheme != "" && hostURL.Host != "" {
+		serverURL := strings.TrimSuffix(hostURL.String(), "/")
+		values["GH_HOST"] = hostURL.Host
+		values["GITHUB_SERVER_URL"] = serverURL
+		if strings.EqualFold(hostURL.Hostname(), "github.com") {
+			values["GITHUB_API_URL"] = "https://api.github.com"
+			values["GITHUB_GRAPHQL_URL"] = "https://api.github.com/graphql"
+		} else {
+			values["GITHUB_API_URL"] = serverURL + "/api/v3"
+			values["GITHUB_GRAPHQL_URL"] = serverURL + "/api/graphql"
 		}
 	}
 	env := make([]string, 0, len(keys))
@@ -652,7 +703,11 @@ func renderOperationalValueRegradeArtifact(artifact operationalValueRegradeArtif
 	fmt.Fprintf(os.Stdout, "Mature: %t\n", result.Observation.Mature)
 	if result.BaselineValue != nil {
 		fmt.Fprintf(os.Stdout, "Baseline value: %s\n", strconv.FormatFloat(*result.BaselineValue, 'f', -1, 64))
-		fmt.Fprintf(os.Stdout, "Delta from baseline: %s\n", strconv.FormatFloat(*result.DeltaFromBaseline, 'f', -1, 64))
+		delta := "null"
+		if result.DeltaFromBaseline != nil {
+			delta = strconv.FormatFloat(*result.DeltaFromBaseline, 'f', -1, 64)
+		}
+		fmt.Fprintf(os.Stdout, "Delta from baseline: %s\n", delta)
 	}
 	return nil
 }
