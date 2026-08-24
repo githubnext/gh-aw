@@ -198,6 +198,10 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 	// Verify the binary copy command is present for MCP Server containerization
 	assert.Contains(t, result, "find \"${GH_CONFIG_DIR}/extensions/gh-aw\"",
 		"install step should search GH_CONFIG_DIR extensions when gh-aw is not on PATH")
+	assert.Contains(t, result, "[ -x \"${RUNNER_TEMP}/gh-aw/bin/gh-aw\" ]",
+		"install step should use setup-cli shared binary path when available")
+	assert.Contains(t, result, "find \"${RUNNER_TEMP}/gh-aw/bin\" -maxdepth 1 -type f -name 'gh-aw*' -perm -111",
+		"install step should discover executable gh-aw variants in setup-cli shared bin path")
 	assert.Contains(t, result, "GH_AW_BIN=\"${GITHUB_WORKSPACE}/gh-aw\"",
 		"install step should fall back to workspace-built gh-aw binary in dev workflows")
 	assert.Contains(t, result, "cp \"$GH_AW_BIN\" \"${RUNNER_TEMP}/gh-aw/gh-aw\"",
