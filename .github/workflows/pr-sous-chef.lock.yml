@@ -1018,8 +1018,8 @@ jobs:
                     "maxLength": 256
                   },
                   "review_id": {
-                    "required": true,
-                    "positiveInteger": true
+                    "optionalPositiveInteger": true,
+                    "allowAuto": true
                   }
                 }
               },
