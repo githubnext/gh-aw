@@ -10,6 +10,7 @@ import (
 )
 
 func TestPollWithSignalHandling_Success(t *testing.T) {
+	t.Parallel()
 	callCount := 0
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 10 * time.Millisecond,
@@ -34,6 +35,7 @@ func TestPollWithSignalHandling_Success(t *testing.T) {
 }
 
 func TestPollWithSignalHandling_Failure(t *testing.T) {
+	t.Parallel()
 	expectedErr := errors.New("poll failed")
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 10 * time.Millisecond,
@@ -54,6 +56,7 @@ func TestPollWithSignalHandling_Failure(t *testing.T) {
 }
 
 func TestPollWithSignalHandling_Timeout(t *testing.T) {
+	t.Parallel()
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 50 * time.Millisecond,
 		Timeout:      100 * time.Millisecond,
@@ -73,6 +76,7 @@ func TestPollWithSignalHandling_Timeout(t *testing.T) {
 }
 
 func TestPollWithSignalHandling_ImmediateSuccess(t *testing.T) {
+	t.Parallel()
 	callCount := 0
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 10 * time.Millisecond,
@@ -94,6 +98,7 @@ func TestPollWithSignalHandling_ImmediateSuccess(t *testing.T) {
 }
 
 func TestPollWithSignalHandling_SignalInterruption(t *testing.T) {
+	t.Parallel()
 	// Note: This test is challenging because PollWithSignalHandling creates its own
 	// signal handler. We verify the behavior indirectly by checking that the function
 	// structure supports signal handling (which is covered by the other tests).
@@ -109,6 +114,7 @@ func TestPollWithSignalHandling_SignalInterruption(t *testing.T) {
 // TestPollWithSignalHandling_ContextCancellation verifies that PollWithSignalHandling
 // returns ErrInterrupted when the context is cancelled, enabling proper Ctrl-C propagation.
 func TestPollWithSignalHandling_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	pollStarted := make(chan struct{})
@@ -143,6 +149,7 @@ func TestPollWithSignalHandling_ContextCancellation(t *testing.T) {
 // TestPollWithSignalHandling_AlreadyCancelledContext verifies that PollWithSignalHandling
 // returns ErrInterrupted immediately when given an already-cancelled context.
 func TestPollWithSignalHandling_AlreadyCancelledContext(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel before starting
 

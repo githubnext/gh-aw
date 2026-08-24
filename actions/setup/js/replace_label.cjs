@@ -33,6 +33,17 @@ const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
+const POLICY_REJECTION_ERROR_NAME = "ReplaceLabelPolicyRejectionError";
+const SET_LABELS_RETRY_CONFIG = {
+  ...RATE_LIMIT_RETRY_CONFIG,
+  shouldRetry: error => {
+    const status = error?.response?.status ?? error?.status ?? null;
+    const retryableHttpStatus = typeof status === "number" && status >= 500 && status < 600;
+    const retryableTransportError = status == null && RATE_LIMIT_RETRY_CONFIG.shouldRetry(error);
+    return error?.name !== POLICY_REJECTION_ERROR_NAME && (retryableHttpStatus || retryableTransportError || RATE_LIMIT_RETRY_CONFIG.shouldRetry(error));
+  },
+};
+
 /**
  * Validate a single label against blocked and allowed-list patterns.
  * Uses explicit rejection semantics — does not silently filter or truncate the label name.
@@ -68,23 +79,26 @@ function validateSingleLabel(labelName, allowedPatterns, blockedPatterns, fieldN
 const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
   setup: async (config, maxCount, isStaged) => {
-    const blockedPatterns = config.blocked || [];
+    const currentAllowedAdd = () => (Array.isArray(config.allowed_add) ? config.allowed_add : []);
+    const currentAllowedRemove = () => (Array.isArray(config.allowed_remove) ? config.allowed_remove : []);
+    const currentBlockedPatterns = () => (Array.isArray(config.blocked) ? config.blocked : []);
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
     const requiredTitlePrefix = config.required_title_prefix || "";
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
 
     // Config keys use snake_case (set by the Go handler config builder)
-    const configAllowedAdd = Array.isArray(config.allowed_add) ? config.allowed_add : [];
-    const configAllowedRemove = Array.isArray(config.allowed_remove) ? config.allowed_remove : [];
+    const initialAllowedAdd = currentAllowedAdd();
+    const initialAllowedRemove = currentAllowedRemove();
+    const initialBlockedPatterns = currentBlockedPatterns();
     /** @type {{from: string, to: string}[]} */
     const configAllowedTransitions = Array.isArray(config.allowed_transitions) ? config.allowed_transitions : [];
 
     core.info(`Replace label configuration: max=${maxCount}`);
     if (configAllowedTransitions.length > 0) core.info(`Allowed transitions: ${configAllowedTransitions.map(t => `"${t.from}" → "${t.to}"`).join(", ")}`);
-    if (configAllowedAdd.length > 0) core.info(`Allowed labels to add: ${configAllowedAdd.join(", ")}`);
-    if (configAllowedRemove.length > 0) core.info(`Allowed labels to remove: ${configAllowedRemove.join(", ")}`);
-    if (blockedPatterns.length > 0) core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
+    if (initialAllowedAdd.length > 0) core.info(`Allowed labels to add: ${initialAllowedAdd.join(", ")}`);
+    if (initialAllowedRemove.length > 0) core.info(`Allowed labels to remove: ${initialAllowedRemove.join(", ")}`);
+    if (initialBlockedPatterns.length > 0) core.info(`Blocked patterns: ${initialBlockedPatterns.join(", ")}`);
     if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
     if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
     core.info(`Default target repo: ${defaultTargetRepo}`);
@@ -131,14 +145,14 @@ const main = createCountGatedHandler({
       }
 
       // Validate label_to_remove against blocked patterns and allowed-remove list
-      const removeValidation = validateSingleLabel(labelToRemove, configAllowedRemove, blockedPatterns, "label_to_remove");
+      const removeValidation = validateSingleLabel(labelToRemove, initialAllowedRemove, initialBlockedPatterns, "label_to_remove");
       if (!removeValidation.valid) {
         core.warning(`label_to_remove validation failed: ${removeValidation.error}`);
         return { success: false, error: removeValidation.error };
       }
 
       // Validate label_to_add against blocked patterns and allowed-add list
-      const addValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
+      const addValidation = validateSingleLabel(labelToAdd, initialAllowedAdd, initialBlockedPatterns, "label_to_add");
       if (!addValidation.valid) {
         core.warning(`label_to_add validation failed: ${addValidation.error}`);
         return { success: false, error: addValidation.error };
@@ -196,26 +210,42 @@ const main = createCountGatedHandler({
       // Compute the new label set: current labels minus labelToRemove, plus labelToAdd (deduped).
       // If labelToRemove is not on the issue we still proceed — it simply won't appear in the set.
       const currentLabelNames = (item.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || "")).filter(Boolean);
-      const labelToRemoveIsPresent = currentLabelNames.includes(labelToRemove);
+      let labelToRemoveIsPresent = currentLabelNames.includes(labelToRemove);
       if (!labelToRemoveIsPresent) {
         core.info(`Label "${labelToRemove}" is not present on ${contextType} #${itemNumber} in ${itemRepo} — will only add "${labelToAdd}"`);
       }
-      const newLabelNames = [...new Set([...currentLabelNames.filter(n => n !== labelToRemove), labelToAdd])];
-
-      core.info(`Executing REST setLabels: remove="${labelToRemove}", add="${labelToAdd}" on ${contextType} #${itemNumber} in ${itemRepo}`);
-
-      const beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
 
       try {
+        let beforeState;
         const { data: updatedLabels } = await withRetry(
-          () =>
-            githubClient.rest.issues.setLabels({
+          async () => {
+            beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
+            const preWriteRemoveValidation = validateSingleLabel(labelToRemove, currentAllowedRemove(), currentBlockedPatterns(), "label_to_remove");
+            if (!preWriteRemoveValidation.valid) {
+              core.warning(`label_to_remove validation failed before setLabels: ${preWriteRemoveValidation.error}`);
+              const policyError = new Error(preWriteRemoveValidation.error);
+              policyError.name = POLICY_REJECTION_ERROR_NAME;
+              throw policyError;
+            }
+            const preWriteAddValidation = validateSingleLabel(labelToAdd, currentAllowedAdd(), currentBlockedPatterns(), "label_to_add");
+            if (!preWriteAddValidation.valid) {
+              core.warning(`label_to_add validation failed before setLabels: ${preWriteAddValidation.error}`);
+              const policyError = new Error(preWriteAddValidation.error);
+              policyError.name = POLICY_REJECTION_ERROR_NAME;
+              throw policyError;
+            }
+            const beforeWriteLabelNames = normalizeLabelNames(beforeState.labels);
+            labelToRemoveIsPresent = beforeWriteLabelNames.includes(labelToRemove);
+            const newLabelNames = [...new Set([...beforeWriteLabelNames.filter(n => n !== labelToRemove), labelToAdd])];
+
+            return githubClient.rest.issues.setLabels({
               owner: repoParts.owner,
               repo: repoParts.repo,
               issue_number: itemNumber,
               labels: newLabelNames,
-            }),
-          RATE_LIMIT_RETRY_CONFIG,
+            });
+          },
+          SET_LABELS_RETRY_CONFIG,
           `replace_label on ${contextType} #${itemNumber} in ${itemRepo}`
         );
 

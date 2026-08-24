@@ -589,6 +589,26 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 		}
 	})
 
+	t.Run("routes copilot models through the Copilot gateway port", func(t *testing.T) {
+		var yaml strings.Builder
+		workflowData := &WorkflowData{
+			Name:  "test-workflow",
+			Model: "copilot/mai-code-1-flash-picker",
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+
+		expected := fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.CopilotLLMGatewayPort)
+		if result := yaml.String(); !strings.Contains(result, expected) {
+			t.Errorf("Expected MCP config to contain %q, got:\n%s", expected, result)
+		}
+	})
+
 	t.Run("does not inject openai-proxy provider when firewall is disabled", func(t *testing.T) {
 		tools := map[string]any{}
 		mcpTools := []string{}
@@ -611,11 +631,24 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 
 func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 	engine := NewCodexEngine()
-	expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
 
-	if actual := engine.getOpenAIProxyProviderBaseURL(); actual != expected {
-		t.Errorf("Expected OpenAI proxy provider base URL %q, got %q", expected, actual)
-	}
+	t.Run("defaults to the OpenAI gateway port", func(t *testing.T) {
+		expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+		workflowData := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}}
+
+		if actual := engine.getOpenAIProxyProviderBaseURL(workflowData); actual != expected {
+			t.Errorf("Expected OpenAI proxy provider base URL %q, got %q", expected, actual)
+		}
+	})
+
+	t.Run("uses the Copilot gateway port for copilot models", func(t *testing.T) {
+		expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CopilotLLMGatewayPort))
+		workflowData := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}, Model: "copilot/mai-code-1-flash-picker"}
+
+		if actual := engine.getOpenAIProxyProviderBaseURL(workflowData); actual != expected {
+			t.Errorf("Expected Copilot proxy provider base URL %q, got %q", expected, actual)
+		}
+	})
 }
 
 func TestValidateCodexCopilotAwfVersion(t *testing.T) {

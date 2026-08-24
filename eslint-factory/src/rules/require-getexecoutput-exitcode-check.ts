@@ -15,28 +15,31 @@ function isGetExecOutputCall(node: TSESTree.Expression): node is TSESTree.CallEx
 }
 
 /**
- * Returns true when the options argument (last argument, if an object literal) contains a
- * statically-true `ignoreReturnCode` property. Only object literals are inspected; spreads
- * and identifiers are treated conservatively as "may set it" since they can't be statically
- * resolved, which would otherwise produce false positives.
+ * Returns true when the options argument (last argument, if an object literal) resolves to a
+ * statically-true `ignoreReturnCode`. Properties are evaluated in source order so that the last
+ * write wins. A spread makes the value unresolvable from that point on, so options that end with
+ * a spread (or that only contain spreads) are treated as out of scope to avoid false positives;
+ * an explicit `ignoreReturnCode: true` written after a spread still counts, since it overrides it.
  */
 function hasIgnoreReturnCodeTrue(node: TSESTree.CallExpression): boolean {
   const optionsArg = node.arguments[node.arguments.length - 1];
   if (!optionsArg || optionsArg.type !== AST_NODE_TYPES.ObjectExpression) return false;
 
+  let ignoreReturnCode: boolean | "unresolved" = false;
+
   for (const prop of optionsArg.properties) {
     if (prop.type === AST_NODE_TYPES.SpreadElement) {
-      // Can't statically confirm the spread doesn't carry ignoreReturnCode: true;
-      // assume it might to avoid false positives on options composed via `{ ...opts }`.
-      return true;
+      // The spread may carry an `ignoreReturnCode` value we can't statically resolve.
+      ignoreReturnCode = "unresolved";
+      continue;
     }
     if (prop.type !== AST_NODE_TYPES.Property || prop.computed) continue;
     const isIgnoreReturnCodeKey = (prop.key.type === AST_NODE_TYPES.Identifier && prop.key.name === "ignoreReturnCode") || (prop.key.type === AST_NODE_TYPES.Literal && prop.key.value === "ignoreReturnCode");
     if (!isIgnoreReturnCodeKey) continue;
-    if (prop.value.type === AST_NODE_TYPES.Literal && prop.value.value === true) return true;
+    ignoreReturnCode = prop.value.type === AST_NODE_TYPES.Literal && typeof prop.value.value === "boolean" ? prop.value.value : "unresolved";
   }
 
-  return false;
+  return ignoreReturnCode === true;
 }
 
 function isExitCodeMemberAccess(memberExpression: TSESTree.MemberExpression, object: TSESTree.Node): boolean {

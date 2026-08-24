@@ -9,6 +9,7 @@ import (
 )
 
 func TestExtractWorkflowDependencies(t *testing.T) {
+	t.Parallel()
 	frontmatter := map[string]any{
 		"imports": []any{
 			"shared/base.md#section",
@@ -34,6 +35,7 @@ func TestExtractWorkflowDependencies(t *testing.T) {
 }
 
 func TestExtractWorkflowDependencies_ImportsObjectAW(t *testing.T) {
+	t.Parallel()
 	frontmatter := map[string]any{
 		"imports": map[string]any{
 			"aw": []any{
@@ -50,6 +52,7 @@ func TestExtractWorkflowDependencies_ImportsObjectAW(t *testing.T) {
 }
 
 func TestRenderWorkflowDependencyTree(t *testing.T) {
+	t.Parallel()
 	statuses := []WorkflowStatus{
 		{
 			WorkflowListItem: WorkflowListItem{Workflow: "main-workflow"},
@@ -65,6 +68,7 @@ func TestRenderWorkflowDependencyTree(t *testing.T) {
 }
 
 func TestRenderWorkflowDependencyTree_Empty(t *testing.T) {
+	t.Parallel()
 	statuses := []WorkflowStatus{{WorkflowListItem: WorkflowListItem{Workflow: "standalone"}}}
 	assert.Empty(t, renderWorkflowDependencyTree(statuses), "dependency tree should be empty when no dependencies exist")
 }

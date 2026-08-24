@@ -10,6 +10,15 @@ const SOFT_TIMEOUT_BUFFER_MS = 90 * 1000;
 
 const AI_CREDITS_EXCEEDED_PATTERNS = [/\bmax[\s_-]*ai[\s_-]*credits[\s_-]*exceeded\b/i, /\bai[\s_-]*credits[\s_-]*rate[\s_-]*limit[\s_-]*error\b/i, /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i];
 
+// Canonical rejection emitted by the AWF API proxy once the configured `apiProxy.maxAiCredits`
+// budget is exhausted: an HTTP 403 whose message carries the proxy-computed used/max pair, e.g.
+//   "API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."
+// Only the proxy can answer a provider request with this status/message pair, so it is treated as
+// trusted evidence of budget enforcement. This matters because the firewall audit JSONL — the other
+// trusted source — is only flushed during container teardown, which happens after the harness has
+// already classified the failed attempt.
+const AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE = /\b403\b[^\n]{0,80}?maximum ai credits exceeded\s*\(\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*\)/i;
+
 const AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS = [/\bawf\b.*\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocked requests?\b/i, /\bDIFC_FILTERED\b/];
 const GOAL_ALREADY_ACTIVE_PATTERNS = [/\bthis thread already has a goal\b[\s\S]*?\buse update_goal\b/i, /\bcannot create a new goal because this thread has an unfinished goal\b;\s*\bcomplete the existing goal first\b/i];
 
@@ -45,6 +54,56 @@ function isMaxRunsExceededError(output) {
 function isAuthenticationFailedError(output) {
   const safeOutput = typeof output === "string" ? output : "";
   return AUTHENTICATION_FAILED_PATTERNS.some(pattern => pattern.test(safeOutput));
+}
+
+/**
+ * Extracts the AWF API proxy AI-credits budget rejection (HTTP 403) from harness output.
+ *
+ * `output` is the combined stdout+stderr of the child process (see process_runner.cjs),
+ * which also carries verbatim assistant/model text. Matching the rejection text anywhere
+ * in that blob would let an unrelated assistant response that merely quotes or discusses
+ * this phrase (followed by any non-zero exit) masquerade as a trusted budget-abort signal.
+ * To require an engine-authenticated source, this only considers lines that parse as a
+ * standalone JSON object AND carry a structured API-error marker that only the harness'
+ * own transport layer sets — mirroring how `isInvalidRequestError` validates codex
+ * `turn.failed` events. Claude Code stamps the JSON event wrapping a proxy rejection with
+ * `is_api_error_message: true` and a string `error` field; plain conversational turns never
+ * set these. Free-form text (JSON-less lines, or JSON without either marker) is ignored.
+ * Returns null when no line carries the authenticated signature, or when the reported
+ * usage does not actually reach the reported budget.
+ * @param {unknown} output
+ * @returns {{ aiCredits: number, maxAICredits: number } | null}
+ */
+function parseAICreditsExceededProxyRejection(output) {
+  // Contract: callers must pass the joined stdout+stderr string (`result.output`, as built by
+  // process_runner.cjs), matching every other guard in this file. Non-string input (e.g. an
+  // array/object of structured log lines) is treated as "no output" rather than coerced, since
+  // `String(someObject)` would produce a meaningless "[object Object]"-style value.
+  const safeOutput = typeof output === "string" ? output : "";
+  for (const line of safeOutput.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed[0] !== "{") continue;
+    /** @type {unknown} */
+    let parsed;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    // prettier-ignore
+    const record = /** @type {Record<string, unknown>} */ (parsed);
+    const isEngineFlaggedApiError = record.is_api_error_message === true || typeof record.error === "string";
+    if (!isEngineFlaggedApiError) continue;
+    const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(JSON.stringify(record));
+    if (!match) continue;
+    const aiCredits = Number.parseFloat(match[1]);
+    const maxAICredits = Number.parseFloat(match[2]);
+    if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0) continue;
+    if (aiCredits < maxAICredits) continue;
+    return { aiCredits, maxAICredits };
+  }
+  return null;
 }
 
 /**
@@ -95,12 +154,14 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     detectNonRetryableHarnessGuard,
     AI_CREDITS_EXCEEDED_PATTERNS,
+    AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE,
     AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS,
     GOAL_ALREADY_ACTIVE_PATTERNS,
     MAX_RUNS_EXCEEDED_PATTERNS,
     AUTHENTICATION_FAILED_PATTERNS,
     isMaxRunsExceededError,
     isAuthenticationFailedError,
+    parseAICreditsExceededProxyRejection,
     SOFT_TIMEOUT_BUFFER_MS,
     buildSoftTimeoutGuard,
     emitSoftTimeoutSignal,

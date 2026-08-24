@@ -4,6 +4,7 @@
 **Version**: 1.0.0  
 **Status**: Candidate Recommendation  
 **Date**: January 29, 2026
+**Last validated**: v1.0.0 / 2026-07-15
 
 ## Overview
 
@@ -313,15 +314,17 @@ The specification documents the **current implementation** in gh-aw version 1.0.
 
 Key implementation files referenced in the specification:
 
-- `pkg/workflow/safe_inputs_parser.go` - Input sanitization
-- `pkg/workflow/safe_outputs_config.go` - Output isolation
+- `pkg/workflow/safe_outputs_parser.go` - Safe-output frontmatter parsing
+- `pkg/workflow/safe_outputs_config_base.go` - Shared safe-output configuration
+- `pkg/workflow/safe_outputs_config_types.go` - Safe-output type configuration
 - `pkg/workflow/engine.go` - Network permissions
 - `pkg/workflow/compiler_safe_outputs.go` - Safe output compilation
 - `pkg/workflow/safe_jobs.go` - Threat detection
 - `pkg/workflow/compiler_types.go` - Core types
-- Actions in `actions/setup/js/*.cjs` and `actions/setup/sh/*.sh`
 
 ### Spec-to-Lock Sync (v1.0.0)
+
+Summary version **1.0.0** was last validated on **2026-07-15**, matching the validation marker in `specs/security-architecture-spec-validation.md`.
 
 Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compiler behaviors recorded in `specs/security-architecture-spec-validation.md`:
 
