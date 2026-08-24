@@ -1,8 +1,9 @@
 {
-  "timestamp": "2026-08-23T03:58:48Z",
-  "total_workflows": 289,
-  "copilot_workflows": 39,
-  "features_available": ["--add-dir","--share","--disable-builtin-mcps","--agent","--autopilot","--allow-all-paths","--no-custom-instructions","--log-level","engine.args","engine.env","engine.agent","max-continuations","plugins","repo-memory","cache-memory","BYOK (COPILOT_PROVIDER_BASE_URL)"],
-  "features_used": ["--add-dir(1 manual)","--disable-builtin-mcps(2)","--share(1)","model(all)","cache-memory(10)","repo-memory(2)","github toolsets(23)"],
-  "opportunities_found": 8
+  "timestamp": "2026-08-24T04:00:00Z",
+  "total_workflows": 292,
+  "copilot_workflows": 109,
+  "features_available": ["--add-dir","--share","--disable-builtin-mcps","--agent","--autopilot/max-continuations","--allow-all-paths","--no-custom-instructions","--log-level","engine.args","engine.env","engine.agent (custom agent files)","plugins","repo-memory","cache-memory","BYOK (COPILOT_PROVIDER_*)","copilot-sdk: true","engine.harness"],
+  "features_used": ["engine.agent custom agents (~7 real, rest are template comments)","max-continuations(10)","cache-memory(105)","repo-memory(29)","copilot-sdk(61)","cli-proxy/gh-proxy(205)","--disable-builtin-mcps(2 manual)","model overrides(40+, mostly mai-code-1-flash-picker)","bare mode(21)"],
+  "opportunities_found": 9,
+  "notes": "copilot_workflows count jumped 39->109 since last run (better instrumentation/grep, not necessarily new adoption). No workflow pins engine.version for copilot. --share and --allow-all-paths still unused manually in any workflow."
 }
