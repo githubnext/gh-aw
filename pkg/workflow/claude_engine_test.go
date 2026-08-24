@@ -58,32 +58,28 @@ func TestClaudeModelID(t *testing.T) {
 	tests := []struct {
 		name     string
 		model    string
-		provider LLMProvider
 		expected string
 	}{
 		{
-			name:     "github provider keeps copilot prefix",
+			name:     "github provider strips copilot prefix",
 			model:    "copilot/mai-code-1.1-flash",
-			provider: LLMProviderGitHub,
-			expected: "copilot/mai-code-1.1-flash",
+			expected: "mai-code-1.1-flash",
 		},
 		{
-			name:     "non-github provider strips copilot prefix",
+			name:     "uppercase copilot prefix is stripped case-insensitively",
 			model:    "COPILOT/MAI-CODE-1.1-FLASH",
-			provider: LLMProviderAnthropic,
 			expected: "MAI-CODE-1.1-FLASH",
 		},
 		{
 			name:     "non-prefixed model unchanged",
 			model:    "claude-sonnet-4-6",
-			provider: LLMProviderAnthropic,
 			expected: "claude-sonnet-4-6",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if actual := claudeModelID(tt.model, tt.provider); actual != tt.expected {
+			if actual := claudeModelID(tt.model); actual != tt.expected {
 				t.Fatalf("expected model ID %q, got %q", tt.expected, actual)
 			}
 		})
@@ -287,7 +283,7 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.CopilotLLMGatewayPort))
 }
 
-func TestClaudeEngineCopilotModelInfersGitHubProviderAndPreservesPrefixedModel(t *testing.T) {
+func TestClaudeEngineCopilotModelInfersGitHubProviderAndNormalizesModelID(t *testing.T) {
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
@@ -304,7 +300,7 @@ func TestClaudeEngineCopilotModelInfersGitHubProviderAndPreservesPrefixedModel(t
 
 	assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: github")
 	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
-	assert.Contains(t, stepContent, "ANTHROPIC_MODEL: copilot/mai-code-1.1-flash")
+	assert.Contains(t, stepContent, "ANTHROPIC_MODEL: mai-code-1.1-flash")
 }
 
 func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {

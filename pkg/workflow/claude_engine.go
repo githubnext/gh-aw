@@ -66,11 +66,8 @@ func (e *ClaudeEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvide
 	return resolveEngineLLMProvider(workflowData, LLMProviderAnthropic)
 }
 
-func claudeModelID(model string, provider LLMProvider) string {
+func claudeModelID(model string) string {
 	model = strings.TrimSpace(model)
-	if provider == LLMProviderGitHub {
-		return model
-	}
 	prefix, modelID, found := strings.Cut(model, "/")
 	if found && strings.EqualFold(prefix, "copilot") {
 		return modelID
@@ -568,7 +565,7 @@ func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData, 
 	if containsExpression(workflowData.Model) {
 		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(claudeModelVar, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 	}
-	model := claudeModelID(workflowData.Model, provider)
+	model := claudeModelID(workflowData.Model)
 	claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, model)
 	env[constants.ClaudeCLIModelEnvVar] = model
 }
