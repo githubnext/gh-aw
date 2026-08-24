@@ -1,5 +1,9 @@
 ---
-"gh-aw": patch
+"gh-aw": major
 ---
 
-Add `safe-outputs.create-pull-request.steer` to pre-create a pull request and let the run ingest user feedback from pull request comments. The unreleased `pre-create` option is replaced by `steer`; there is no separate pre-create-only mode.
+Replace `safe-outputs.create-pull-request.pre-create` with `steer`, which pre-creates a pull request and lets the run ingest user feedback from pull request comments.
+
+**⚠️ Breaking Change**: Workflows that still set `safe-outputs.create-pull-request.pre-create` now fail validation.
+
+**Migration guide:** Replace `pre-create: true` with `steer: true`.

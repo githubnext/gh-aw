@@ -57,3 +57,24 @@ Create a change and open a pull request.
 	assert.Contains(t, conclusion, "GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER")
 	assert.Contains(t, conclusion, "GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}")
 }
+
+func TestCompileRejectsLegacyPreCreatePullRequest(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "legacy-pre-create-pull-request")
+	workflowPath := filepath.Join(tmpDir, "pre-create.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+strict: false
+safe-outputs:
+  create-pull-request:
+    pre-create: true
+---
+
+# Legacy pre-create test
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+	err := compiler.CompileWorkflow(workflowPath)
+	require.ErrorContains(t, err, "pre-create")
+}
