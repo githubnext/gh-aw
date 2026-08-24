@@ -116,12 +116,12 @@ func resolveRepositoryPackageDefaultBranch(ctx context.Context, repoSlug, host s
 	var output []byte
 	var err error
 	if host != "" {
-		output, err = workflow.RunGHContextWithHost(ctx, "Fetching repo info...", host, args...)
+		output, err = workflow.RunGHContextWithHost(ctx, "Resolving source repository default branch...", host, args...)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		output, err = workflow.RunGH("Fetching repo info...", args...)
+		output, err = workflow.RunGH("Resolving source repository default branch...", args...)
 		if err != nil {
 			return "", err
 		}

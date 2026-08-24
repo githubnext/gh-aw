@@ -30,9 +30,9 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/goccy/go-yaml"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
+	"github.com/goccy/go-yaml"
 )
 
 var knownActionCredentialsLog = logger.New("workflow:known_action_credentials")
@@ -199,7 +199,7 @@ func mergeKnownActionEnvVars(a, b map[string]struct {
 		return nil
 	}
 	merged := make(map[string]struct {
-	}, safeAllocationCapacity(len(a), len(b)))
+	}, typeutil.SafeAllocationCapacity(len(a), len(b)))
 	maps.Copy(merged, a)
 	maps.Copy(merged, b)
 	return merged

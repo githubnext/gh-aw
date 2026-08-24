@@ -14,6 +14,8 @@ import (
 )
 
 func TestGetRequiredSecretsForWorkflow(t *testing.T) {
+	t.Parallel()
+
 	// Create a temporary directory with test workflow files
 	tempDir := t.TempDir()
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
@@ -133,6 +135,8 @@ on: push
 }
 
 func TestGetRequiredSecretsForWorkflows(t *testing.T) {
+	t.Parallel()
+
 	t.Run("collects secrets from multiple workflows", func(t *testing.T) {
 		// Create a temporary directory with test workflow files
 		tempDir := t.TempDir()

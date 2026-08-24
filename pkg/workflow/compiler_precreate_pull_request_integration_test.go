@@ -26,6 +26,7 @@ permissions:
 safe-outputs:
   create-pull-request:
     steer: true
+    branch-prefix: "signed/"
 ---
 
 # Pre-create test
@@ -47,11 +48,16 @@ Create a change and open a pull request.
 	conclusion := extractJobSection(yaml, "conclusion")
 
 	assert.Contains(t, activation, "id: pre-create-pull-request")
+	assert.Contains(t, activation, "id: validate-pre-created-pull-request")
+	assert.Contains(t, activation, `GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX: "signed/"`)
+	assert.Contains(t, activation, "GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH: signed/${{ github.run_id }}-${{ github.run_attempt }}")
 	assert.Contains(t, activation, "contents: write")
 	assert.Contains(t, activation, "pull-requests: write")
 	assert.Contains(t, activation, "checks: write")
-	assert.Contains(t, agent, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
-	assert.Contains(t, safeOutputs, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	assert.Contains(t, agent, "ref: signed/${{ github.run_id }}-${{ github.run_attempt }}")
+	assert.Contains(t, safeOutputs, "ref: signed/${{ github.run_id }}-${{ github.run_attempt }}")
+	assert.NotContains(t, agent, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	assert.NotContains(t, safeOutputs, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
 	assert.Contains(t, safeOutputs, "pre_created_pull_request_number")
 	assert.Contains(t, conclusion, "complete_pre_created_check_run.cjs")
 	assert.Contains(t, conclusion, "GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER")

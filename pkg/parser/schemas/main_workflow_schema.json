@@ -150,6 +150,16 @@
     "metadata": {
       "type": "object",
       "description": "Optional metadata field for storing custom key-value pairs compatible with the custom agent spec. Key names are limited to 64 characters, and values are limited to 1024 characters.",
+      "properties": {
+        "docs": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^https://\\S+$",
+          "description": "Optional absolute HTTPS URL for human-facing workflow documentation. Preserved in generated lock-file metadata without being fetched during compilation.",
+          "examples": ["https://docs.example.com/automation/repository-health"]
+        }
+      },
       "patternProperties": {
         "^.{1,64}$": {
           "type": "string",
@@ -7479,7 +7489,7 @@
                 },
                 "branch-prefix": {
                   "type": "string",
-                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name."
+                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name. In steer mode, this prefix is also used for the workflow-owned pre-created pull request branch and must be a static valid branch-name prefix."
                 },
                 "require-temporary-id": {
                   "type": "boolean",

@@ -52,6 +52,8 @@ func TestUpgradeExtensionIfOutdated_SilentFailureOnAPIError(t *testing.T) {
 }
 
 func TestFirstAttemptWriter_Linux(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux-only behavior")
 	}
@@ -63,6 +65,8 @@ func TestFirstAttemptWriter_Linux(t *testing.T) {
 }
 
 func TestFirstAttemptWriter_Windows(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows-only behavior")
 	}
@@ -74,6 +78,8 @@ func TestFirstAttemptWriter_Windows(t *testing.T) {
 }
 
 func TestFirstAttemptWriter_NonLinuxNonWindows(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
 		t.Skip("Non-Linux/non-Windows behavior only")
 	}
@@ -85,12 +91,16 @@ func TestFirstAttemptWriter_NonLinuxNonWindows(t *testing.T) {
 }
 
 func TestNeedsRenameWorkaround(t *testing.T) {
+	t.Parallel()
+
 	result := needsRenameWorkaround()
 	expected := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 	assert.Equal(t, expected, result, "needsRenameWorkaround should return true only on Linux and Windows")
 }
 
 func TestRenamePathForUpgrade(t *testing.T) {
+	t.Parallel()
+
 	// Create a temporary file to act as the "executable".
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "gh-aw")
@@ -112,6 +122,8 @@ func TestRenamePathForUpgrade(t *testing.T) {
 }
 
 func TestRenamePathForUpgrade_NonExistentFile(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "nonexistent")
 
@@ -120,6 +132,8 @@ func TestRenamePathForUpgrade_NonExistentFile(t *testing.T) {
 }
 
 func TestRestoreExecutableBackup_NoNewBinary(t *testing.T) {
+	t.Parallel()
+
 	// Simulate: backup exists, new binary was NOT written (upgrade failed).
 	dir := t.TempDir()
 	installPath := filepath.Join(dir, "gh-aw")
@@ -139,6 +153,8 @@ func TestRestoreExecutableBackup_NoNewBinary(t *testing.T) {
 }
 
 func TestRestoreExecutableBackup_NewBinaryPresent(t *testing.T) {
+	t.Parallel()
+
 	// Simulate: both backup and new binary exist (upgrade partially succeeded).
 	dir := t.TempDir()
 	installPath := filepath.Join(dir, "gh-aw")
@@ -159,6 +175,8 @@ func TestRestoreExecutableBackup_NewBinaryPresent(t *testing.T) {
 }
 
 func TestCleanupExecutableBackup(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	backupPath := filepath.Join(dir, "gh-aw.99999.bak")
 
@@ -172,6 +190,8 @@ func TestCleanupExecutableBackup(t *testing.T) {
 }
 
 func TestCleanupExecutableBackup_NoBackup(t *testing.T) {
+	t.Parallel()
+
 	// Should not fail if backup doesn't exist.
 	dir := t.TempDir()
 	backupPath := filepath.Join(dir, "gh-aw.99999.bak")
@@ -181,6 +201,8 @@ func TestCleanupExecutableBackup_NoBackup(t *testing.T) {
 }
 
 func TestIsWindowsLockError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		output   string
@@ -234,6 +256,8 @@ func TestIsWindowsLockError(t *testing.T) {
 }
 
 func TestCleanupStaleWindowsBackups(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	// Create a stale .bak file (from a previous run, not our own backup)
@@ -264,22 +288,30 @@ func TestCleanupStaleWindowsBackups(t *testing.T) {
 }
 
 func TestCleanupStaleWindowsBackups_EmptyDir(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	// Should not panic on empty directory
 	cleanupStaleWindowsBackups(dir, "")
 }
 
 func TestCleanupStaleWindowsBackups_NonexistentDir(t *testing.T) {
+	t.Parallel()
+
 	// Should not panic when directory doesn't exist
 	cleanupStaleWindowsBackups("/nonexistent/dir", "")
 }
 
 func TestExtensionUpgradeArgs(t *testing.T) {
+	t.Parallel()
+
 	args := extensionUpgradeArgs()
 	assert.Equal(t, []string{"extension", "upgrade", "github/gh-aw", "--force"}, args, "upgrade command must force upgrades for pinned extensions")
 }
 
 func TestPrereleaseChannelNotice(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name               string
 		currentVersion     string
@@ -321,6 +353,8 @@ func TestPrereleaseChannelNotice(t *testing.T) {
 }
 
 func TestExtensionHelpCommands(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t,
 		"gh extension upgrade github/gh-aw --force",
 		extensionUpgradeHelpCommand("v0.74.8"),
@@ -340,6 +374,8 @@ func TestExtensionHelpCommands(t *testing.T) {
 }
 
 func TestRenderReleaseVersion(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "v0.74.8", renderReleaseVersion("v0.74.8"))
 	assert.Equal(t, "v0.75.3-beta.1 (pre-release)", renderReleaseVersion("v0.75.3-beta.1"))
 }
@@ -383,6 +419,8 @@ func TestParseInstalledVersionOutput(t *testing.T) {
 }
 
 func TestNormalizeVersion(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "0.77.5", normalizeVersion("v0.77.5"))
 	assert.Equal(t, "0.77.5", normalizeVersion("0.77.5"))
 	assert.Equal(t, "1.0.0-beta.1", normalizeVersion("v1.0.0-beta.1"))

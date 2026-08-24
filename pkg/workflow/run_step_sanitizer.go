@@ -50,10 +50,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/goccy/go-yaml"
-
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/typeutil"
+	"github.com/goccy/go-yaml"
 )
 
 var runStepSanitizerLog = logger.New("workflow:run_step_sanitizer")
@@ -147,7 +147,7 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 	//   - If it exists with a different value → pick an alternate name by appending
 	//     a numeric suffix (_2, _3, …) so the original user-defined value is preserved.
 	existingEnv, _ := step["env"].(map[string]any)
-	newEnv := make(map[string]any, safeAllocationCapacity(len(existingEnv), len(ordered)))
+	newEnv := make(map[string]any, typeutil.SafeAllocationCapacity(len(existingEnv), len(ordered)))
 	maps.Copy(newEnv, existingEnv)
 
 	for i := range ordered {

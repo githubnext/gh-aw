@@ -59,6 +59,8 @@ const {
   buildManifestProtectionCreatePrUrl,
   renderManifestProtectionFallbackBody,
   buildPushErrorSection,
+  buildManualBranchRecoveryCommands,
+  shellQuote,
 } = require("./create_pull_request_helpers.cjs");
 const { isStackedEnabled, parseStackMetadata, hasCircularStackDependency, buildStackMetadataLines, stackedDisabledError, circularStackError, verifyStackBaseBranchExists, createStackTracker } = require("./stacked_pull_requests.cjs");
 
@@ -1905,8 +1907,14 @@ async function main(config = {}) {
                 const runId = context.runId;
 
                 const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
-                const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
-                const fallbackBundleTempRef = createBundleTempRef(branchName);
+                const recoveryInstructions = buildManualBranchRecoveryCommands({
+                  hasBundleFile: true,
+                  runId,
+                  artifactFileName,
+                  branchName,
+                  baseBranch,
+                  tempRef: createBundleTempRef(branchName),
+                });
                 const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
@@ -1927,23 +1935,13 @@ ${pushErrorSection}
 To create a pull request with the changes:
 
 \`\`\`sh
-# Download the artifact from the workflow run
-gh run download ${runId} -n agent -D /tmp/agent-${runId}
+${recoveryInstructions}
 
-# Fetch the bundle into a temporary ref, then update the local branch
-git fetch /tmp/agent-${runId}/${artifactFileName} ${fallbackBundleSourceRef}:${fallbackBundleTempRef}
-git update-ref refs/heads/${branchName} ${fallbackBundleTempRef}
-git checkout ${branchName}
-# Ensure the working tree matches the updated branch
-git reset --hard
-# Remove the temporary bundle ref
-git update-ref -d ${fallbackBundleTempRef}
-
-# Push the branch to origin
-git push ${pushRemoteUrl || "origin"} ${branchName}
+# Push the branch to the target remote
+git push ${shellQuote(pushRemoteUrl || "origin")} ${shellQuote(branchName)}
 
 # Create the pull request
-gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHeadRef(branchName)} --repo ${repoParts.owner}/${repoParts.repo}
+gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --head ${shellQuote(getPullRequestHeadRef(branchName))} --repo ${shellQuote(`${repoParts.owner}/${repoParts.repo}`)}
 \`\`\``;
 
                 try {
@@ -2277,6 +2275,13 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 }
 
                 const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+                const recoveryInstructions = buildManualBranchRecoveryCommands({
+                  hasBundleFile: false,
+                  runId,
+                  artifactFileName: patchFileName,
+                  branchName,
+                  baseBranch,
+                });
                 const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
@@ -2297,20 +2302,13 @@ ${pushErrorSection}
 To create a pull request with the changes:
 
 \`\`\`sh
-# Download the artifact from the workflow run
-gh run download ${runId} -n agent -D /tmp/agent-${runId}
+${recoveryInstructions}
 
-# Create a new branch
-git checkout -b ${branchName}
-
-# Apply the patch (--3way handles cross-repo patches where files may already exist)
-git am --3way /tmp/agent-${runId}/${patchFileName}
-
-# Push the branch to origin
-git push ${pushRemoteUrl || "origin"} ${branchName}
+# Push the branch to the target remote
+git push ${shellQuote(pushRemoteUrl || "origin")} ${shellQuote(branchName)}
 
 # Create the pull request
-gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHeadRef(branchName)} --repo ${repoParts.owner}/${repoParts.repo}
+gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --head ${shellQuote(getPullRequestHeadRef(branchName))} --repo ${shellQuote(`${repoParts.owner}/${repoParts.repo}`)}
 \`\`\`
 ${patchPreview}`;
 
@@ -2461,18 +2459,26 @@ ${patchPreview}`;
         let fallbackBody;
         if (manifestProtectionPushFailedError) {
           // Push failed — branch not on remote, so compare URL is unavailable.
-          // Use the push-failed template with artifact download instructions.
+          // Use the push-failed template with artifact download instructions, matching
+          // whichever transport (bundle or format-patch) was actually used to encode the changes.
           const runId = context.runId;
-          const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+          const artifactFileName = hasBundleFile ? bundleFilePath.replace("/tmp/gh-aw/", "") : patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+          const applyInstructions = buildManualBranchRecoveryCommands({
+            hasBundleFile,
+            runId,
+            artifactFileName,
+            branchName,
+            baseBranch,
+            tempRef: createBundleTempRef(branchName),
+          });
           const pushFailedTemplatePath = getPromptPath("manifest_protection_push_failed_fallback.md");
           fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
             main_body: issueSafeMainBodyContent,
             footer: footerContent,
             files: fileList,
-            run_id: String(runId),
+            apply_instructions: applyInstructions,
             branch_name: branchName,
             base_branch: baseBranch,
-            patch_file: patchFileName,
             title,
             repo: `${repoParts.owner}/${repoParts.repo}`,
           });

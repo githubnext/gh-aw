@@ -670,6 +670,26 @@ func TestValidatePermissions_EmitsCopilotRequestsTipOncePerMarkdownPath(t *testi
 	assert.Equal(t, 1, strings.Count(stderr, tipText), "copilot-requests tip should be emitted only once per markdown path")
 }
 
+func TestValidatePermissions_QuietSuppressesCopilotRequestsTip(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:        "Test",
+		AI:          "copilot",
+		Permissions: "permissions:\n  contents: read\n",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+	}
+	compiler := NewCompiler()
+	compiler.SetQuiet(true)
+
+	stderr := testutil.CaptureStderr(t, func() {
+		_, err := compiler.validatePermissions(workflowData, "test.md")
+		require.NoError(t, err)
+	})
+
+	assert.NotContains(t, stderr, "Tip: set permissions.copilot-requests: write")
+}
+
 func TestShouldEmitCopilotRequestsEnableTip(t *testing.T) {
 	tests := []struct {
 		name     string

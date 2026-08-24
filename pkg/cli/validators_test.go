@@ -8,6 +8,8 @@ import (
 )
 
 func TestValidateWorkflowName(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       string
@@ -152,6 +154,8 @@ func TestValidateWorkflowName(t *testing.T) {
 }
 
 func TestValidateWorkflowName_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       string
@@ -249,6 +253,8 @@ func TestValidateWorkflowName_EdgeCases(t *testing.T) {
 }
 
 func TestValidateWorkflowIntent(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       string
@@ -364,6 +370,8 @@ func TestValidateWorkflowIntent(t *testing.T) {
 }
 
 func TestValidateWorkflowIntent_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       string

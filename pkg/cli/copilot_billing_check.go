@@ -17,7 +17,7 @@ const copilotBillingTimeout = 3 * time.Second
 // copilotBillingInconclusiveNote is the user-facing message printed when the
 // org's Copilot CLI billing status cannot be confirmed (non-200 response,
 // network error, missing field, or no org login available).
-const copilotBillingInconclusiveNote = "Could not confirm org Copilot CLI billing — check with your org admin."
+const copilotBillingInconclusiveNote = "Could not confirm org Copilot CLI billing."
 
 // detectOrgCopilotCLIBillingWithClient calls GET /orgs/{org}/copilot/billing with
 // a 3 s timeout and returns the raw "cli" field. Any non-200 response or error

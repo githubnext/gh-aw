@@ -12,40 +12,56 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var domainsLog = logger.New("workflow:domains")
 
 //go:embed data/ecosystem_domains.json
-var ecosystemDomainsJSON []byte
+var domainSetsJSON []byte
 
-var loadEcosystemDomains = sync.OnceValues(func() (map[string][]string, error) {
-	domainsLog.Print("Loading ecosystem domains from embedded JSON")
-
-	ecosystemDomains := make(map[string][]string)
-	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
-		return nil, fmt.Errorf("failed to load ecosystem domains from JSON: %w", err)
-	}
-
-	// Pre-sort all domain lists once so getEcosystemDomains only needs to copy, not sort.
-	for key := range ecosystemDomains {
-		sort.Strings(ecosystemDomains[key])
-	}
-
-	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
-	return ecosystemDomains, nil
-})
-
-func getLoadedEcosystemDomains() map[string][]string {
-	ecosystemDomains, err := loadEcosystemDomains()
-	if err != nil {
-		domainsLog.Printf("Failed to load ecosystem domains: %v", err)
-		return map[string][]string{}
-	}
-	return ecosystemDomains
+type domainSets struct {
+	Ecosystems           map[string][]string `json:"ecosystems"`
+	EngineDefaults       map[string][]string `json:"engine-defaults"`
+	PiProviderDomains    map[string]string   `json:"pi-provider-domains"`
+	SanitizationDefaults []string            `json:"sanitization-defaults"`
 }
 
-// Engine default domain lists intentionally exclude package registries (npm, PyPI, ...).
+var loadDomainSets = sync.OnceValues(func() (domainSets, error) {
+	domainsLog.Print("Loading domain sets from embedded JSON")
+
+	var sets domainSets
+	if err := json.Unmarshal(domainSetsJSON, &sets); err != nil {
+		return domainSets{}, fmt.Errorf("failed to load domain sets from JSON: %w", err)
+	}
+
+	// Pre-sort all domain lists once so lookup functions only need to copy, not sort.
+	for key := range sets.Ecosystems {
+		sort.Strings(sets.Ecosystems[key])
+	}
+	for key := range sets.EngineDefaults {
+		sort.Strings(sets.EngineDefaults[key])
+	}
+	sort.Strings(sets.SanitizationDefaults)
+
+	domainsLog.Printf("Loaded %d ecosystem categories and %d engine default domain sets", len(sets.Ecosystems), len(sets.EngineDefaults))
+	return sets, nil
+})
+
+func getLoadedDomainSets() domainSets {
+	sets, err := loadDomainSets()
+	if err != nil {
+		domainsLog.Printf("Failed to load domain sets: %v", err)
+		return domainSets{}
+	}
+	return sets
+}
+
+func getLoadedEcosystemDomains() map[string][]string {
+	return getLoadedDomainSets().Ecosystems
+}
+
+// Runtime engine default domain lists intentionally exclude package registries (npm, PyPI, ...).
 //
 // Engine CLIs and SDKs are installed by dedicated GitHub Actions steps that run on the
 // runner *before* the AWF-wrapped agent step, so package registries are not needed inside
@@ -58,12 +74,40 @@ func getLoadedEcosystemDomains() map[string][]string {
 // documented behavior that package ecosystems require explicit opt-in
 // (`network: { allowed: [node] }`, `[python]`, or a matching `runtimes:` entry).
 //
-// This invariant is enforced by TestEngineDefaultDomainsDoNotOverlapEcosystems in
-// domains_package_registry_test.go, which fails if any engine default domain list below
-// overlaps with the full "node" or "python" ecosystem domain sets in data/ecosystem_domains.json
-// — not just the registries known when this comment was written. If you need to add a domain
-// to an engine default and that test starts failing, the domain belongs behind an explicit
-// ecosystem/runtime opt-in instead, not in the unconditional default list.
+// This invariant is enforced for runtime engine defaults by
+// TestEngineDefaultDomainsDoNotOverlapEcosystems in domains_package_registry_test.go, which
+// fails if those default domain lists overlap with the full "node" or "python" ecosystem
+// domain sets in data/ecosystem_domains.json — not just the registries known when this comment
+// was written. If you need to add a package-registry domain to a runtime engine default and
+// that test starts failing, the domain belongs behind an explicit ecosystem/runtime opt-in
+// instead, not in the unconditional default list. Copilot threat detection is the exception:
+// its dedicated detection allow-list includes registry.npmjs.org for read-only lockfile
+// validation, and that list is not part of normal agent engine defaults.
+
+// engineDefaultDomainSets centralizes every unconditional engine allow-list. These
+// sets are intentionally distinct from user-selectable ecosystem domain lists: the
+// compiler includes them automatically for the matching engine, rather than allowing
+// users to select them through network.allowed.
+//
+// Runtime engine default domain lists intentionally exclude package registries
+// (npm, PyPI, and similar). The threat-detection set is the exception because
+// Copilot threat detection uses the npm registry. See the package-registry
+// invariant above.
+var engineDefaultDomainSets = getLoadedDomainSets().EngineDefaults
+
+// GetEngineDefaultDomainSets returns copies of the named engine domain sets for
+// analysis and reporting. Engine domain sets are not valid network.allowed values.
+func GetEngineDefaultDomainSets() map[string][]string {
+	sets := make(map[string][]string, len(engineDefaultDomainSets))
+	for name, domains := range engineDefaultDomainSets {
+		sets[name] = copyEngineDefaultDomainSet(domains)
+	}
+	return sets
+}
+
+func copyEngineDefaultDomainSet(domains []string) []string {
+	return append([]string(nil), domains...)
+}
 
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation.
 //
@@ -72,120 +116,33 @@ func getLoadedEcosystemDomains() map[string][]string {
 // inference. Plan-specific Copilot API hosts (business/enterprise/individual) and Copilot
 // telemetry are *not* part of the default set: agents route inference through the AWF api-proxy,
 // so those vendor hosts require an explicit `network: { allowed: [copilot-vendor] }` opt-in.
-var CopilotDefaultDomains = []string{
-	"api.github.com",
-	"api.githubcopilot.com",
-	"github.com",
-	"host.docker.internal",
-	"raw.githubusercontent.com",
-}
+var CopilotDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["copilot"])
 
-// CodexDefaultDomains are the minimal default domains required for Codex CLI operation
-var CodexDefaultDomains = []string{
-	"172.30.0.1",     // AWF gateway IP - Codex resolves host.docker.internal to this IP for Rust DNS compatibility
-	"api.github.com", // Codex startup performs GitHub plugin sync requests against the GitHub API
-	"api.openai.com",
-	"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
-	"github.com",  // Codex startup accesses GitHub-hosted plugin metadata pages
-	"host.docker.internal",
-	"openai.com",
-}
+// CodexDefaultDomains are the minimal default domains required for Codex CLI operation.
+var CodexDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["codex"])
 
-// ClaudeDefaultDomains are the default domains required for Claude Code CLI authentication and operation
-var ClaudeDefaultDomains = []string{
-	"*.githubusercontent.com",
-	"anthropic.com",
-	"api.anthropic.com",
-	"api.github.com",
-	"api.snapcraft.io",
-	"archive.ubuntu.com",
-	"azure.archive.ubuntu.com",
-	"cdn.playwright.dev",
-	"codeload.github.com",
-	"crl.geotrust.com",
-	"crl.globalsign.com",
-	"crl.identrust.com",
-	"crl.sectigo.com",
-	"crl.thawte.com",
-	"crl.usertrust.com",
-	"crl.verisign.com",
-	"crl3.digicert.com",
-	"crl4.digicert.com",
-	"crls.ssl.com",
-	"ghcr.io",
-	"github-cloud.githubusercontent.com",
-	"github-cloud.s3.amazonaws.com",
-	"github.com",
-	"host.docker.internal",
-	"json-schema.org",
-	"json.schemastore.org",
-	"keyserver.ubuntu.com",
-	"lfs.github.com",
-	"objects.githubusercontent.com",
-	"ocsp.digicert.com",
-	"ocsp.geotrust.com",
-	"ocsp.globalsign.com",
-	"ocsp.identrust.com",
-	"ocsp.sectigo.com",
-	"ocsp.ssl.com",
-	"ocsp.thawte.com",
-	"ocsp.usertrust.com",
-	"ocsp.verisign.com",
-	"packagecloud.io",
-	"packages.cloud.google.com",
-	"packages.microsoft.com",
-	"playwright.download.prss.microsoft.com",
-	"ppa.launchpad.net",
-	"raw.githubusercontent.com",
-	"s.symcb.com",
-	"s.symcd.com",
-	"security.ubuntu.com",
-	"sentry.io",
-	"statsig.anthropic.com",
-	"ts-crl.ws.symantec.com",
-	"ts-ocsp.ws.symantec.com",
-}
+// ClaudeDefaultDomains are the default domains required for Claude Code CLI authentication and operation.
+var ClaudeDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["claude"])
 
 // GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation.
-var GeminiDefaultDomains = []string{
-	"*.googleapis.com",
-	"generativelanguage.googleapis.com",
-	"github.com",
-	"host.docker.internal",
-	"raw.githubusercontent.com",
-}
+var GeminiDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["gemini"])
 
 // PiBaseDefaultDomains are the base domains required for the Pi CLI to operate,
 // independent of the chosen LLM provider. When a model uses provider/model format,
 // provider-specific API domains are added on top via GetDefaultDomainsForEngine.
-var PiBaseDefaultDomains = []string{
-	"host.docker.internal", // MCP gateway / API proxy access
-	"github.com",
-	"raw.githubusercontent.com",
-}
+var PiBaseDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["pi-base"])
 
-// piProviderDomains maps provider prefixes to their API domains.
-// Covers the same set of providers that Pi can route through via the AWF LLM gateway.
+// piProviderDomains maps provider prefixes to their API domains. It covers the
+// same set of providers that Pi can route through via the AWF LLM gateway.
 // Note: "google" is intentionally omitted — Pi backend resolution only supports
 // copilot, anthropic, openai, and codex; adding google here without backend
 // support would produce an inconsistent routing configuration.
-var piProviderDomains = map[string]string{
-	"copilot":        "api.githubcopilot.com",
-	"github-copilot": "api.githubcopilot.com",
-	"anthropic":      "api.anthropic.com",
-	"openai":         "api.openai.com",
-	"codex":          "api.openai.com",
-}
+var piProviderDomains = getLoadedDomainSets().PiProviderDomains
 
 // PiDefaultDomains are the static default domains for backward compatibility when
 // no model provider prefix is given. When a provider/model format is used, the
 // dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains instead.
-var PiDefaultDomains = []string{
-	"api.githubcopilot.com", // Default provider (Copilot routing)
-	"host.docker.internal",
-	"github.com",
-	"raw.githubusercontent.com",
-}
+var PiDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["pi"])
 
 // extractProviderFromModel parses "provider/model" format and returns the
 // lowercase provider prefix. Returns ("", nil) when no model is given or the
@@ -220,7 +177,7 @@ func getPiDefaultDomains(model string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	domains := make([]string, 0, safeAllocationCapacity(len(PiBaseDefaultDomains), 1))
+	domains := make([]string, 0, typeutil.SafeAllocationCapacity(len(PiBaseDefaultDomains), 1))
 	domains = append(domains, PiBaseDefaultDomains...)
 
 	if domain, ok := piProviderDomains[provider]; ok {
@@ -231,13 +188,6 @@ func getPiDefaultDomains(model string) ([]string, error) {
 	}
 
 	return domains, nil
-}
-
-// PlaywrightDomains are the domains required for Playwright browser downloads
-// These domains are needed when Playwright MCP server initializes in the Docker container
-var PlaywrightDomains = []string{
-	"cdn.playwright.dev",
-	"playwright.download.prss.microsoft.com",
 }
 
 // compoundEcosystems defines ecosystem identifiers that expand to the union of multiple
@@ -267,7 +217,7 @@ func getEcosystemDomains(category string) []string {
 		return result
 	}
 
-	ecosystemDomains := getLoadedEcosystemDomains()
+	ecosystemDomains := getLoadedDomainSets().Ecosystems
 	domains, exists := ecosystemDomains[category]
 	if !exists {
 		return []string{}
@@ -492,7 +442,7 @@ func GetDomainEcosystem(domain string) string {
 
 	// Fall back to any ecosystems not in the priority list, sorted for determinism
 	remaining := make([]string, 0)
-	for ecosystem := range getLoadedEcosystemDomains() {
+	for ecosystem := range getLoadedDomainSets().Ecosystems {
 		if _, ok := checked[ecosystem]; !ok {
 			remaining = append(remaining, ecosystem)
 		}
@@ -585,8 +535,9 @@ func extractPlaywrightDomains(tools map[string]any) []string {
 
 	// Check if Playwright tool is configured
 	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		domainsLog.Printf("Detected Playwright tool, adding %d domains for browser downloads", len(PlaywrightDomains))
-		return PlaywrightDomains
+		domains := getEcosystemDomains("playwright")
+		domainsLog.Printf("Detected Playwright tool, adding %d domains for browser downloads", len(domains))
+		return domains
 	}
 
 	return []string{}
@@ -658,7 +609,7 @@ func resolveEngineNetworkDomains(network *EngineNetworkDefinition, model string)
 	if provider == "" {
 		provider = network.DefaultProvider
 	}
-	domains := make([]string, 0, safeAllocationCapacity(len(network.Defaults), 1))
+	domains := make([]string, 0, typeutil.SafeAllocationCapacity(len(network.Defaults), 1))
 	domains = append(domains, network.Defaults...)
 	if domain, ok := network.ProviderDomains[provider]; ok {
 		domains = append(domains, domain)
@@ -752,8 +703,8 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 }
 
 // GetThreatDetectionAllowedDomains returns the minimal set of domains allowed for a Copilot
-// detection run. It loads the "threat-detection" ecosystem from ecosystem_domains.json, which
-// includes the Copilot API endpoints needed for read-only threat analysis plus registry.npmjs.org
+// detection run. The "threat-detection" engine domain set includes the Copilot API endpoints
+// needed for read-only threat analysis plus registry.npmjs.org
 // for read-only npm package validation (e.g. verifying lockfile integrity hashes). It intentionally
 // excludes raw.githubusercontent.com (not needed when MCP servers are disabled and the CLI binary
 // is pre-installed). npm registry access is read-only metadata lookup only — installs are not
@@ -761,7 +712,7 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 // Any additional user-specified network.allowed entries are merged in (typically empty for detection).
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 func GetThreatDetectionAllowedDomains(network *NetworkPermissions) string {
-	detectionDomains := getEcosystemDomains("threat-detection")
+	detectionDomains := copyEngineDefaultDomainSet(engineDefaultDomainSets["threat-detection"])
 	// Pass nil tools and runtimes: detection runs with no npm/runtime ecosystem, so
 	// ecosystem domain expansion is intentionally skipped.
 	return mergeDomainsWithNetworkToolsAndRuntimes(detectionDomains, network, nil, nil)
@@ -993,7 +944,7 @@ func expandAllowedDomains(entries []string) []string {
 
 // computeExpandedAllowedDomainsForSanitization computes the allowed domains for URL sanitization,
 // unioning the engine/network base set with the safe-outputs.allowed-domains entries.
-// It always includes "localhost" and "github.com" in the result.
+// It always includes the sanitization defaults in the result.
 // The allowed-domains entries support ecosystem identifiers (same syntax as network.allowed).
 // Returns an error if the engine's model is malformed (e.g. a leading slash).
 func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowData) (string, error) {
@@ -1022,11 +973,9 @@ func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowDa
 		}
 	}
 
-	// Always allow localhost (for local development URL references)
-	domainMap["localhost"] = struct{}{}
-
-	// Always allow github.com (GitHub page of the current repo)
-	domainMap["github.com"] = struct{}{}
+	for _, domain := range getLoadedDomainSets().SanitizationDefaults {
+		domainMap[domain] = struct{}{}
+	}
 
 	// Produce a sorted, comma-separated result
 	return strings.Join(sliceutil.SortedKeys(domainMap), ","), nil

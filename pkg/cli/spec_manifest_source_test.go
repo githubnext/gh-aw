@@ -5,6 +5,7 @@ package cli
 import "testing"
 
 func TestBuildSourceStringWithCommitSHA_ManifestSource(t *testing.T) {
+	t.Parallel()
 	workflow := &WorkflowSpec{
 		RepoSpec: RepoSpec{
 			RepoSlug:    "owner/repo",
@@ -23,6 +24,7 @@ func TestBuildSourceStringWithCommitSHA_ManifestSource(t *testing.T) {
 }
 
 func TestBuildSourceStringWithCommitSHA_ManifestSourceRoot(t *testing.T) {
+	t.Parallel()
 	workflow := &WorkflowSpec{
 		RepoSpec: RepoSpec{
 			RepoSlug: "owner/repo",
@@ -40,6 +42,7 @@ func TestBuildSourceStringWithCommitSHA_ManifestSourceRoot(t *testing.T) {
 }
 
 func TestParseManifestSourceSpec(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		source       string
 		wantManifest bool

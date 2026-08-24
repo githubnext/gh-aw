@@ -54,6 +54,7 @@ import { requireErrorCodeForGithubApiThrowRule } from "./rules/require-error-cod
 import { requireHttpResponseErrorListenerRule } from "./rules/require-http-response-error-listener";
 import { noStringFallbackForNonStringMessageRule } from "./rules/no-string-fallback-for-non-string-message";
 import { requireGetExecOutputExitCodeCheckRule } from "./rules/require-getexecoutput-exitcode-check";
+import { preferActionsExecOverChildProcessRule } from "./rules/prefer-actions-exec-over-child-process";
 
 const plugin = {
   meta: {
@@ -117,6 +118,7 @@ const plugin = {
     "require-http-response-error-listener": requireHttpResponseErrorListenerRule,
     "no-string-fallback-for-non-string-message": noStringFallbackForNonStringMessageRule,
     "require-getexecoutput-exitcode-check": requireGetExecOutputExitCodeCheckRule,
+    "prefer-actions-exec-over-child-process": preferActionsExecOverChildProcessRule,
   },
 };
 
