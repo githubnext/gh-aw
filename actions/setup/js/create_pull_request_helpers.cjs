@@ -405,6 +405,7 @@ function buildManualBranchRecoveryCommands({ hasBundleFile, runId, artifactFileN
  */
 function buildManualBranchApplyCommands({ hasBundleFile, runId, artifactFileName, branchName, branchRemote = "origin" }) {
   const bundlePath = `/tmp/agent-${runId}/${artifactFileName}`;
+  const pushRef = `HEAD:refs/heads/${branchName}`;
   if (hasBundleFile) {
     return [
       `# Download the artifact from the workflow run`,
@@ -413,7 +414,7 @@ function buildManualBranchApplyCommands({ hasBundleFile, runId, artifactFileName
       `# Fetch the bundle into a temporary ref, then fast-forward the branch`,
       `bundle_path=${shellQuote(bundlePath)}`,
       `git fetch ${shellQuote(branchRemote)} ${shellQuote(branchName)}`,
-      `git checkout ${shellQuote(branchName)}`,
+      `git checkout -B ${shellQuote(branchName)} FETCH_HEAD`,
       `bundle_source_ref=$(git bundle list-heads "$bundle_path" | awk '$2 ~ /^refs\\/heads\\// { print $2 }')`,
       `if [ -z "$bundle_source_ref" ]; then`,
       `  bundle_source_ref=$(git bundle list-heads "$bundle_path" | awk '$2 == "HEAD" { print $2 }')`,
@@ -425,7 +426,7 @@ function buildManualBranchApplyCommands({ hasBundleFile, runId, artifactFileName
       `git fetch "$bundle_path" "\${bundle_source_ref}:refs/bundles/manual-apply"`,
       `git reset --hard refs/bundles/manual-apply`,
       `git update-ref -d refs/bundles/manual-apply`,
-      `git push ${shellQuote(branchRemote)} ${shellQuote(branchName)}`,
+      `git push ${shellQuote(branchRemote)} ${shellQuote(pushRef)}`,
     ].join("\n");
   }
   return [
@@ -434,9 +435,9 @@ function buildManualBranchApplyCommands({ hasBundleFile, runId, artifactFileName
     ``,
     `# Apply the patch to the pull request branch`,
     `git fetch ${shellQuote(branchRemote)} ${shellQuote(branchName)}`,
-    `git checkout ${shellQuote(branchName)}`,
+    `git checkout -B ${shellQuote(branchName)} FETCH_HEAD`,
     `git am --3way ${shellQuote(`/tmp/agent-${runId}/${artifactFileName}`)}`,
-    `git push ${shellQuote(branchRemote)} ${shellQuote(branchName)}`,
+    `git push ${shellQuote(branchRemote)} ${shellQuote(pushRef)}`,
   ].join("\n");
 }
 

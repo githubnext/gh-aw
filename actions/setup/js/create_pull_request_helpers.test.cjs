@@ -169,6 +169,46 @@ describe("manual branch recovery/apply commands", () => {
     expect(commands).not.toContain("refs/heads/feature/branch'; echo injected:");
   });
 
+  it("manual recovery bundle commands work with a real HEAD-only bundle", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "manual-recovery-head-bundle-"));
+    const artifactRunId = `head-only-recovery-${process.pid}-${Date.now()}`;
+    const artifactDir = path.join(os.tmpdir(), `agent-${artifactRunId}`);
+
+    try {
+      const workDir = path.join(tempRoot, "work");
+      const targetDir = path.join(tempRoot, "target");
+      fs.mkdirSync(artifactDir, { recursive: true });
+      fs.mkdirSync(workDir, { recursive: true });
+      fs.mkdirSync(targetDir, { recursive: true });
+
+      runGit(["init"], workDir);
+      runGit(["config", "user.email", "test@example.com"], workDir);
+      runGit(["config", "user.name", "Test User"], workDir);
+      fs.writeFileSync(path.join(workDir, "file.txt"), "updated\n");
+      runGit(["add", "file.txt"], workDir);
+      runGit(["commit", "-m", "bundle head"], workDir);
+      runGit(["bundle", "create", path.join(artifactDir, "head-only.bundle"), "HEAD"], workDir);
+
+      runGit(["init"], targetDir);
+      const commands = buildManualBranchRecoveryCommands({
+        hasBundleFile: true,
+        runId: artifactRunId,
+        artifactFileName: "head-only.bundle",
+        branchName: "feature/recovered",
+        tempRef: "refs/bundles/manual-recovery",
+      });
+
+      expect(runGit(["bundle", "list-heads", path.join(artifactDir, "head-only.bundle")], targetDir)).toMatch(/\sHEAD$/);
+      runShell(skipArtifactDownload(commands), targetDir);
+
+      expect(fs.readFileSync(path.join(targetDir, "file.txt"), "utf8")).toBe("updated\n");
+      expect(runGit(["rev-parse", "feature/recovered"], targetDir)).toBe(runGit(["rev-parse", "HEAD"], workDir));
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+      fs.rmSync(artifactDir, { recursive: true, force: true });
+    }
+  });
+
   it("manual apply bundle commands work with a real HEAD-only bundle", () => {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "manual-apply-head-bundle-"));
     const artifactRunId = `head-only-${process.pid}-${Date.now()}`;
@@ -207,6 +247,8 @@ describe("manual branch recovery/apply commands", () => {
         branchRemote: "origin",
       });
 
+      expect(commands).toContain("git checkout -B 'feature' FETCH_HEAD");
+      expect(commands).toContain("git push 'origin' 'HEAD:refs/heads/feature'");
       expect(runGit(["bundle", "list-heads", path.join(artifactDir, "head-only.bundle")], targetDir)).toMatch(/\sHEAD$/);
       runShell(skipArtifactDownload(commands), targetDir);
 
