@@ -66,6 +66,16 @@ func TestHealthConfigValidation(t *testing.T) {
 		},
 	}
 
+	// Stub out the GitHub API call so valid-days cases don't fall through to
+	// real network access (which can take tens of seconds per case, or hang,
+	// in sandboxed/offline test environments). Only days validation is under
+	// test here; run listing itself is covered by dedicated tests elsewhere.
+	original := healthListWorkflowRuns
+	t.Cleanup(func() { healthListWorkflowRuns = original })
+	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		return nil, 0, nil
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := RunHealth(tt.config)
