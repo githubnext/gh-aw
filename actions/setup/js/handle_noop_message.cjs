@@ -295,15 +295,18 @@ async function main() {
       return;
     }
 
-    // Load and render comment template from file
-    const fullCommentBody = commentBody || buildNoopCommentBody(workflowName, noopMessage, runUrl);
+    // Reuse the comment body rendered above; it is empty only when rendering failed.
+    if (!commentBody) {
+      core.warning("No-op comment body is unavailable, skipping no-op message posting");
+      return;
+    }
 
     try {
       await github.rest.issues.createComment({
         owner,
         repo,
         issue_number: noopRunsIssue.number,
-        body: fullCommentBody,
+        body: commentBody,
       });
 
       core.info(`✓ Posted no-op message to no-op runs issue #${noopRunsIssue.number}`);
