@@ -102,7 +102,7 @@ func TestHandlerRegistryBuilders(t *testing.T) {
 		{name: "missing_data", cfg: &SafeOutputsConfig{MissingData: &MissingDataConfig{}}},
 		{name: "noop", cfg: &SafeOutputsConfig{NoOp: &NoOpConfig{}}},
 		{name: "report_incomplete", cfg: &SafeOutputsConfig{ReportIncomplete: &ReportIncompleteConfig{}}},
-		{name: "create_report_incomplete_issue", cfg: &SafeOutputsConfig{ReportIncomplete: &ReportIncompleteConfig{}}},
+		{name: "create_report_incomplete_issue", cfg: &SafeOutputsConfig{ReportIncomplete: &ReportIncompleteConfig{CreateIssue: strPtr("true")}}},
 	}
 
 	for _, tt := range tests {
