@@ -90,10 +90,35 @@ func awfSupportsContainerImages(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFContainerImagesMinVersion)
 }
 
-// awfSupportsFilesystemAllowWrite returns true when the effective AWF version
-// supports filesystem.allowWrite in awf-config.json.
-func awfSupportsFilesystemAllowWrite(firewallConfig *FirewallConfig) bool {
-	return awfVersionAtLeast(firewallConfig, constants.AWFFilesystemAllowWriteMinVersion)
+// awfSupportsCloudHypervisorFilesystemAllowWrite returns true when the effective
+// AWF version supports filesystem.allowWrite for the Cloud Hypervisor microVM
+// runtime (gh-aw-firewall v0.28.6+; see AWFCloudHypervisorFilesystemAllowWriteMinVersion).
+func awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)
+}
+
+// awfEmitsFilesystemAllowWrite reports whether the compiler may emit the
+// filesystem section of awf-config.json for this workflow.
+//
+// Only the Cloud Hypervisor runtime enforces filesystem.allowWrite in a way that
+// leaves a working agent: it stages its own virtiofs exports (see
+// AWFCloudHypervisorFilesystemAllowWriteMinVersion). The other runtimes are
+// excluded on purpose:
+//
+//   - Docker and gVisor narrow AWF's own writable bind mounts to read-only, which
+//     includes the internal /tmp/awf-init control-plane mount nested under the
+//     narrowed /tmp bind. runc then cannot create that mountpoint and the agent
+//     container never starts, so any policy that does not cover /tmp is fatal.
+//   - docker-sbx has no enforcement path and AWF fails closed with
+//     "filesystem.allowWrite is not yet supported by the sbx runtime".
+//
+// emitGeneralToolWarnings warns when a workflow declares allowWrite on a runtime
+// where it is dropped, so the opt-in is never silently ignored.
+func awfEmitsFilesystemAllowWrite(workflowData *WorkflowData, firewallConfig *FirewallConfig) bool {
+	if !isCloudHypervisorRuntime(workflowData) {
+		return false
+	}
+	return awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig)
 }
 
 // awfSupportsBoundedQueries returns true when the effective AWF version supports

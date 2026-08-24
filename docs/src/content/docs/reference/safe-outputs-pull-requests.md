@@ -66,7 +66,7 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `targe
 `pre-create` is an experimental option. `gh aw compile` emits an experimental feature warning when a workflow uses it.
 :::
 
-Set `pre-create: true` to allocate a draft pull request during the activation job, before the agent starts. The activation job creates a run-specific branch from the resolved base branch, opens a draft PR titled `[WIP] <title-prefix><workflow name>: work in progress` (the configured `title-prefix` is inserted after the `[WIP]` marker) whose body explains that the run is still in progress, links to the workflow run, and notes that steering the agent from the pull request is not supported yet, and attaches a check linking back to that run. The agent and `safe_outputs` jobs check out the allocated branch, the eventual `create_pull_request` output updates the existing PR instead of opening another one, and the conclusion job completes the check. When the run ends without any changes (for example with `if-no-changes: ignore`, a `noop` output, or a failure before the safe output runs), the conclusion job closes the pre-created pull request and deletes its branch, so empty placeholders are not left behind.
+Set `pre-create: true` to allocate a draft pull request during the activation job, before the agent starts. The activation job creates a run-specific branch from the resolved base branch, opens a draft PR titled `[WIP] <title-prefix><workflow name>: work in progress` (the configured `title-prefix` is inserted after the `[WIP]` marker) whose body explains that the run is still in progress, links to the workflow run, and attaches a check linking back to that run. The agent and `safe_outputs` jobs check out the allocated branch, the eventual `create_pull_request` output updates the existing PR instead of opening another one, and the conclusion job completes the check. When the run ends without any changes (for example with `if-no-changes: ignore`, a `noop` output, or a failure before the safe output runs), the conclusion job closes the pre-created pull request and deletes its branch, so empty placeholders are not left behind.
 
 ```yaml
 safe-outputs:
@@ -75,6 +75,18 @@ safe-outputs:
 ```
 
 Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, or `checkout: false`. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode) no pull request is allocated, because staged runs must not perform API side effects. The allocated pull request is always opened as a draft, regardless of the `draft` setting; when `draft: false` is configured, it is marked ready for review in the safe output phase, once the agent's changes are applied.
+
+Set `steer: true` to allocate the pull request before the agent starts and let the agent read user-authored comments and review comments containing the keyword `steer` on that pull request as feedback during the run. Steering enables the GitHub MCP pull request toolset for comment reads, and requires top-level `pull-requests: read` permission. The compiler reports an error instead of adding that permission automatically.
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: read
+
+safe-outputs:
+  create-pull-request:
+    steer: true
+```
 
 ### Branch targeting
 

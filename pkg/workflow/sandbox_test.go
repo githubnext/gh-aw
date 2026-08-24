@@ -147,7 +147,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 			name:                   "nil config creates default with AWF",
 			config:                 nil,
 			engine:                 &EngineConfig{ID: "copilot"},
-			expectDefaultWritePath: true,
+			expectDefaultWritePath: false,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -162,7 +162,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 				},
 			},
 			engine:                 &EngineConfig{ID: "copilot"},
-			expectDefaultWritePath: true,
+			expectDefaultWritePath: false,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -179,7 +179,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 				},
 			},
 			engine:                 &EngineConfig{ID: "gemini"},
-			expectDefaultWritePath: true,
+			expectDefaultWritePath: false,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type:    SandboxTypeAWF,
@@ -194,7 +194,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 				Agent: &AgentSandboxConfig{},
 			},
 			engine:                 &EngineConfig{ID: "copilot"},
-			expectDefaultWritePath: true,
+			expectDefaultWritePath: false,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -218,7 +218,10 @@ func TestApplySandboxDefaults(t *testing.T) {
 			},
 		},
 		{
-			name: "existing allowWrite entries are preserved",
+			// Explicit allowWrite on a compose runtime is honoured verbatim: no implicit
+			// default path is added, because narrowing compose bind mounts turns the
+			// container rootfs read-only and breaks AWF's /tmp/awf-init mount.
+			name: "existing allowWrite entries are preserved without seeding a default",
 			config: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -230,8 +233,28 @@ func TestApplySandboxDefaults(t *testing.T) {
 				},
 			},
 			engine:                 &EngineConfig{ID: "claude"},
+			expectDefaultWritePath: false,
+			expectedAllowWrite:     []string{"/tmp/custom"},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		},
+		{
+			// Cloud Hypervisor narrows the /workspace and /tmp/gh-aw exports independently,
+			// so the default write path alone would leave /workspace (and the CH-managed
+			// HOME under it) read-only. See ensureDefaultAgentWritePath.
+			name: "cloud-hypervisor runtime seeds agent, workspace and awf-home write paths",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Runtime: AgentRuntimeCloudHypervisor,
+				},
+			},
+			engine:                 &EngineConfig{ID: "copilot"},
 			expectDefaultWritePath: true,
-			expectedAllowWrite:     []string{"/tmp/custom", defaultAgentWorkspaceWritePath},
+			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,

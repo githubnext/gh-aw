@@ -43,7 +43,7 @@ func isStackedPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 }
 
 func validatePreCreatePullRequest(data *WorkflowData) error {
-	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !data.SafeOutputs.CreatePullRequests.PreCreate {
+	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !isPreCreatePullRequestConfigured(data.SafeOutputs.CreatePullRequests) {
 		return nil
 	}
 
@@ -82,6 +82,33 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 	return nil
 }
 
+// isPreCreatePullRequestConfigured reports whether the workflow should allocate
+// a pull request during activation. steer implies pre-creation because steering
+// reads feedback from that pre-created pull request while the agent is running.
+func isPreCreatePullRequestConfigured(config *CreatePullRequestsConfig) bool {
+	return config != nil && (config.PreCreate || config.Steer)
+}
+
+func isPreCreatePullRequestSteerEnabled(data *WorkflowData) bool {
+	return data != nil &&
+		data.SafeOutputs != nil &&
+		isPreCreatePullRequestConfigured(data.SafeOutputs.CreatePullRequests)
+}
+
+func validatePreCreatePullRequestSteerPermissions(data *WorkflowData, permissions *Permissions) error {
+	if !isPreCreatePullRequestSteerEnabled(data) {
+		return nil
+	}
+	if permissions == nil {
+		return errors.New("safe-outputs.create-pull-request steering requires pull-requests: read, which is required to read pull-request comments")
+	}
+	level, ok := permissions.Get(PermissionPullRequests)
+	if !ok || (level != PermissionRead && level != PermissionWrite) {
+		return errors.New("safe-outputs.create-pull-request steering requires pull-requests: read, which is required to read pull-request comments")
+	}
+	return nil
+}
+
 // isTemplatableStagedExpression reports whether a staged value is a GitHub Actions
 // expression that can only be resolved at runtime.
 func isTemplatableStagedExpression(value *TemplatableBool) bool {
@@ -94,6 +121,7 @@ type CreatePullRequestsConfig struct {
 	SafeOutputAllowedLabelsConfig  `yaml:",inline"`
 	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
 	PreCreate                      bool             `yaml:"pre-create,omitempty"`    // Experimental. Pre-create a draft pull request in the activation job and reuse it for the agent output.
+	Steer                          bool             `yaml:"steer,omitempty"`         // Experimental. Pre-create a draft pull request and steer the agent from pull request comments.
 	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
 	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
 	Labels                         []string         `yaml:"labels,omitempty"`
