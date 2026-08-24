@@ -60,7 +60,10 @@ var handlerRegistry = mergeHandlerMaps(
 	pullRequestHandlerRegistry,
 	workflowHandlerRegistry,
 	projectHandlerRegistry,
-	miscHandlerRegistry,
+	assignmentHandlerRegistry,
+	commentHandlerRegistry,
+	releaseHandlerRegistry,
+	diagnosticHandlerRegistry,
 )
 
 func mergeHandlerMaps(registries ...map[string]handlerBuilder) map[string]handlerBuilder {

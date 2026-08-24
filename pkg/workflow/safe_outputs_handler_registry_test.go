@@ -16,8 +16,11 @@ func TestHandlerRegistryDomainComposition(t *testing.T) {
 		{name: "discussionHandlerRegistry", registry: discussionHandlerRegistry, wantKeys: []string{"create_discussion", "close_discussion", "update_discussion"}},
 		{name: "pullRequestHandlerRegistry", registry: pullRequestHandlerRegistry, wantKeys: []string{"create_pull_request", "push_to_pull_request_branch", "update_pull_request", "merge_pull_request", "close_pull_request", "mark_pull_request_as_ready_for_review", "add_reviewer", "dismiss_pull_request_review", "submit_pull_request_review", "resolve_pull_request_review_thread", "create_pull_request_review_comment", "reply_to_pull_request_review_comment"}},
 		{name: "workflowHandlerRegistry", registry: workflowHandlerRegistry, wantKeys: []string{"approve_workflow_run", "create_code_scanning_alert", "create_check_run", "dispatch_workflow", "dispatch_repository", "call_workflow", "autofix_code_scanning_alert", "upload_code_coverage", "upload_asset", "upload_artifact"}},
-		{name: "projectHandlerRegistry", registry: projectHandlerRegistry, wantKeys: []string{"create_project", "update_project", "create_project_status_update", "assign_to_agent", "assign_to_user", "unassign_from_user", "create_agent_session"}},
-		{name: "miscHandlerRegistry", registry: miscHandlerRegistry, wantKeys: []string{"add_comment", "hide_comment", "update_release", "missing_tool", "missing_data", "noop", "report_incomplete", "create_report_incomplete_issue"}},
+		{name: "projectHandlerRegistry", registry: projectHandlerRegistry, wantKeys: []string{"create_project", "update_project", "create_project_status_update"}},
+		{name: "assignmentHandlerRegistry", registry: assignmentHandlerRegistry, wantKeys: []string{"assign_to_agent", "assign_to_user", "unassign_from_user", "create_agent_session"}},
+		{name: "commentHandlerRegistry", registry: commentHandlerRegistry, wantKeys: []string{"add_comment", "hide_comment"}},
+		{name: "releaseHandlerRegistry", registry: releaseHandlerRegistry, wantKeys: []string{"update_release"}},
+		{name: "diagnosticHandlerRegistry", registry: diagnosticHandlerRegistry, wantKeys: []string{"missing_tool", "missing_data", "noop", "report_incomplete", "create_report_incomplete_issue"}},
 	}
 
 	wantAll := map[string]struct{}{}

@@ -8,11 +8,11 @@
 
 ### Context
 
-`pkg/workflow/safe_outputs_handler_registry.go` accumulated all safe-output handler builders in a single monolithic `map[string]handlerBuilder` literal that grew to 1 000+ lines. Reviewing, editing, or adding handlers required navigating a single large file with no logical grouping, making domain-specific changes error-prone and PR reviews difficult. The handlers naturally cluster by GitHub entity: issues, discussions, pull requests, workflow-level actions, projects, and miscellaneous utilities.
+`pkg/workflow/safe_outputs_handler_registry.go` accumulated all safe-output handler builders in a single monolithic `map[string]handlerBuilder` literal that grew to 1 000+ lines. Reviewing, editing, or adding handlers required navigating a single large file with no logical grouping, making domain-specific changes error-prone and PR reviews difficult. The handlers naturally cluster by GitHub entity: issues, discussions, pull requests, workflow-level actions, projects, assignments, comments, releases, and diagnostics.
 
 ### Decision
 
-We will decompose the single `handlerRegistry` map into six focused sub-registries (one per domain), each in its own file, and compose them at package init time via a new `mergeHandlerMaps(...)` helper in the existing file. The resulting `handlerRegistry` variable and all call sites remain unchanged; only the file layout and initialization sequence change.
+We will decompose the single `handlerRegistry` map into focused sub-registries (one per domain), each in its own file, and compose them at package init time via a new `mergeHandlerMaps(...)` helper in the existing file. The resulting `handlerRegistry` variable and all call sites remain unchanged; only the file layout and initialization sequence change.
 
 ### Alternatives Considered
 
@@ -38,7 +38,7 @@ Define a `HandlerProvider` interface; each domain registers via `init()`. Fully 
 
 #### Neutral
 - All existing call sites (`handlerRegistry[key]`, `handlerSupportsPerHandlerGitHubAppToken`, etc.) are unchanged; this is a pure internal reorganization.
-- The `add_comment` handler moves to `miscHandlerRegistry` because it applies to both issues and discussions; this placement is a documentation convention, not enforced by code.
+- The `add_comment` handler lives in `commentHandlerRegistry` because it applies to both issues and discussions; this placement is a documentation convention, not enforced by code.
 
 ---
 
