@@ -65,17 +65,19 @@ func getLoadedEcosystemDomains() map[string][]string {
 // to an engine default and that test starts failing, the domain belongs behind an explicit
 // ecosystem/runtime opt-in instead, not in the unconditional default list.
 
-// CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
+// CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation.
+//
+// This list is limited to the shared gateway/GitHub transport baseline: the MCP/API gateway
+// (host.docker.internal), the GitHub API and web hosts, and the Copilot routing hub used for
+// inference. Plan-specific Copilot API hosts (business/enterprise/individual) and Copilot
+// telemetry are *not* part of the default set: agents route inference through the AWF api-proxy,
+// so those vendor hosts require an explicit `network: { allowed: [copilot-vendor] }` opt-in.
 var CopilotDefaultDomains = []string{
-	"api.business.githubcopilot.com",
-	"api.enterprise.githubcopilot.com",
 	"api.github.com",
 	"api.githubcopilot.com",
-	"api.individual.githubcopilot.com",
 	"github.com",
 	"host.docker.internal",
 	"raw.githubusercontent.com",
-	"telemetry.enterprise.githubcopilot.com",
 }
 
 // CodexDefaultDomains are the minimal default domains required for Codex CLI operation
@@ -367,6 +369,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "chrome": headless Chrome/Puppeteer browser testing (*.google.com, *.googleapis.com, *.gvt1.com)
 //   - "clojure": Clojure/Clojars
 //   - "containers": container registries (Docker, GHCR, etc.)
+//   - "copilot-vendor": plan-specific Copilot API hosts and Copilot telemetry (opt-in)
 //   - "dart": Dart/Flutter ecosystem
 //   - "deno": Deno runtime (deno.land, jsr.io, googleapis.deno.dev, fresh.deno.dev)
 //   - "dotnet": .NET and NuGet ecosystem
@@ -437,6 +440,7 @@ var ecosystemPriority = []string{
 	"rust",      // before "python" — crates.io/index.crates.io/static.crates.io are native Rust domains
 	"clojure",
 	"containers",
+	"copilot-vendor",
 	"dart",
 	"defaults",
 	"dev-tools",

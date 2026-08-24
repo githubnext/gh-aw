@@ -125,6 +125,8 @@ func (c *Compiler) buildConclusionPreCreatedCheckRunStep(data *WorkflowData) []s
 		"          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ needs.activation.outputs.pre_created_pull_request_number }}\n",
 		"          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ needs.activation.outputs.pre_created_pull_request_branch }}\n",
 		"          GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER: ${{ needs.safe_outputs.outputs.created_pr_number }}\n",
+		"          GH_AW_FAILURE_ISSUE_NUMBER: ${{ steps.handle_agent_failure.outputs.failure_issue_number }}\n",
+		"          GH_AW_FAILURE_ISSUE_URL: ${{ steps.handle_agent_failure.outputs.failure_issue_url }}\n",
 	)
 	// The conclusion job runs the no-op handler before this step, so the discarded
 	// pre-created pull request can be commented with the same no-op message.
