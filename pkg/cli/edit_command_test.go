@@ -13,8 +13,9 @@ func TestEditChangesSupportAssignmentsSchedulesAndImports(t *testing.T) {
 	t.Parallel()
 	cmd := NewEditCommand()
 	require.NoError(t, cmd.Flags().Set("set", "max-turns=20"))
-	require.NoError(t, cmd.Flags().Set("schedule", "6h"))
+	require.NoError(t, cmd.Flags().Set("schedule", "every 6h"))
 	require.NoError(t, cmd.Flags().Set("add-import", "shared/common.md"))
+	require.NoError(t, cmd.Flags().Set("add-skill", "shared/review"))
 
 	changes, err := editChangesFromCommand(cmd, []string{"workflow", "model: small"})
 	require.NoError(t, err)
@@ -26,6 +27,7 @@ func TestEditChangesSupportAssignmentsSchedulesAndImports(t *testing.T) {
 	assert.Equal(t, "small", frontmatter["model"])
 	assert.Equal(t, uint64(20), frontmatter["max-turns"])
 	assert.Equal(t, []any{"shared/common.md"}, frontmatter["imports"])
+	assert.Equal(t, []any{"shared/review"}, frontmatter["skills"])
 	assert.Equal(t, map[string]any{
 		"workflow_dispatch": nil,
 		"schedule":          []any{map[string]any{"cron": "FUZZY:HOURLY/6 * * *"}},
@@ -57,12 +59,35 @@ func TestEditChangesAddImportsToObjectForm(t *testing.T) {
 	require.NoError(t, applyEditChange(frontmatter, editChange{
 		kind: "add", path: "imports", value: "shared/extra.md",
 	}))
-	assert.Equal(t, []any{"shared/base.md", "shared/extra.md"}, frontmatter["imports"].(map[string]any)["aw"])
+	require.NoError(t, applyEditChange(frontmatter, editChange{
+		kind: "remove", path: "imports", value: "shared/base.md",
+	}))
+	assert.Equal(t, []any{"shared/extra.md"}, frontmatter["imports"].(map[string]any)["aw"])
+}
+
+func TestEditChangesRemoveImportsAndSkills(t *testing.T) {
+	t.Parallel()
+	cmd := NewEditCommand()
+	require.NoError(t, cmd.Flags().Set("remove-import", "shared/base.md"))
+	require.NoError(t, cmd.Flags().Set("remove-skill", "shared/base"))
+
+	changes, err := editChangesFromCommand(cmd, []string{"workflow"})
+	require.NoError(t, err)
+	frontmatter := map[string]any{
+		"imports": []any{"shared/base.md", "shared/extra.md"},
+		"skills":  []any{"shared/base", "shared/review"},
+	}
+	for _, change := range changes {
+		require.NoError(t, applyEditChange(frontmatter, change))
+	}
+
+	assert.Equal(t, []any{"shared/extra.md"}, frontmatter["imports"])
+	assert.Equal(t, []any{"shared/review"}, frontmatter["skills"])
 }
 
 func TestEditAssignmentParsesScheduleShorthands(t *testing.T) {
 	t.Parallel()
-	change, err := parseEditAssignment("on.schedule: weekdays", ":")
+	change, err := parseEditAssignment("on.schedule: daily on weekdays", ":")
 	require.NoError(t, err)
 	frontmatter := map[string]any{"on": "workflow_dispatch"}
 	require.NoError(t, applyEditChange(frontmatter, change))

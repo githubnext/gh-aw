@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
@@ -23,9 +24,10 @@ func NewEditCommand() *cobra.Command {
 The workflow-id may be a workflow name, a Markdown filename, or a path. Changes are
 validated before writing. Workflows managed by a source: declaration cannot be edited.`,
 		Example: `  gh aw edit repo-assist "max-turns: 20"
-  gh aw edit repo-assist --schedule 6h
+  gh aw edit repo-assist --schedule "every 6h"
   gh aw edit repo-assist --set model=small --unset engine.model
-  gh aw edit repo-assist --add imports=shared/common.md`,
+  gh aw edit repo-assist --add-import shared/common.md
+  gh aw edit repo-assist --add-skill shared/review`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: runEditCommand,
 	}
@@ -34,7 +36,10 @@ validated before writing. Workflows managed by a source: declaration cannot be e
 	cmd.Flags().StringArray("add", nil, "Append a value to a list (path=value)")
 	cmd.Flags().StringArray("remove", nil, "Remove a value from a list (path=value)")
 	cmd.Flags().StringArray("add-import", nil, "Append a workflow import path")
-	cmd.Flags().String("schedule", "", "Set a schedule using a duration, fuzzy schedule, or cron expression; use off to remove it")
+	cmd.Flags().StringArray("remove-import", nil, "Remove a workflow import path")
+	cmd.Flags().StringArray("add-skill", nil, "Append a workflow skill")
+	cmd.Flags().StringArray("remove-skill", nil, "Remove a workflow skill")
+	cmd.Flags().String("schedule", "", "Set a schedule using a fuzzy schedule or cron expression; use off to remove it")
 	cmd.Flags().Bool("dry-run", false, "Validate changes without writing or compiling")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.ValidArgsFunction = CompleteWorkflowNames
@@ -87,7 +92,7 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 }
 
 func writeAndCompileEditedWorkflow(workflowPath string, content []byte, updated string) error {
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	previousLock, lockErr := os.ReadFile(lockPath)
 	lockExisted := lockErr == nil
 	if lockErr != nil && !os.IsNotExist(lockErr) {
@@ -138,6 +143,15 @@ func editChangesFromCommand(cmd *cobra.Command, args []string) ([]editChange, er
 	for _, importPath := range editFlagStrings(cmd, "add-import") {
 		changes = append(changes, editChange{kind: "add", path: "imports", value: importPath})
 	}
+	for _, importPath := range editFlagStrings(cmd, "remove-import") {
+		changes = append(changes, editChange{kind: "remove", path: "imports", value: importPath})
+	}
+	for _, skill := range editFlagStrings(cmd, "add-skill") {
+		changes = append(changes, editChange{kind: "add", path: "skills", value: skill})
+	}
+	for _, skill := range editFlagStrings(cmd, "remove-skill") {
+		changes = append(changes, editChange{kind: "remove", path: "skills", value: skill})
+	}
 	if schedule := editFlagString(cmd, "schedule"); schedule != "" {
 		change, err := scheduleChange(schedule)
 		if err != nil {
@@ -148,31 +162,10 @@ func editChangesFromCommand(cmd *cobra.Command, args []string) ([]editChange, er
 	return changes, nil
 }
 
-func isCompactSchedule(schedule string) bool {
-	if len(schedule) < 2 {
-		return false
-	}
-	unit := schedule[len(schedule)-1]
-	if !strings.ContainsRune("hdwm", rune(unit)) {
-		return false
-	}
-	for _, char := range schedule[:len(schedule)-1] {
-		if char < '0' || char > '9' {
-			return false
-		}
-	}
-	return true
-}
-
 func scheduleChange(schedule string) (editChange, error) {
-	schedule = strings.TrimSpace(strings.ToLower(schedule))
-	if schedule == "off" {
+	schedule = strings.TrimSpace(schedule)
+	if strings.EqualFold(schedule, "off") {
 		return editChange{kind: "unset", path: "on.schedule"}, nil
-	}
-	if schedule == "weekdays" {
-		schedule = "daily on weekdays"
-	} else if isCompactSchedule(schedule) {
-		schedule = "every " + schedule
 	}
 	cron, _, err := parser.ParseSchedule(schedule)
 	if err != nil {
