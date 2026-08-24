@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -373,9 +374,7 @@ func (c *AddInteractiveConfig) plannedAddPaths(workflowFiles, initFiles []string
 	for _, path := range workflowFiles {
 		planned = append(planned, filepath.Join(workflowDir, path))
 	}
-	for _, path := range initFiles {
-		planned = append(planned, path)
-	}
+	planned = append(planned, initFiles...)
 	for index, path := range planned {
 		if filepath.IsAbs(path) {
 			rel, relErr := filepath.Rel(gitRoot, path)
@@ -428,10 +427,8 @@ func inspectAddWorkingTree(plannedPaths []string) (addWorkingTreeBlockers, error
 }
 
 func appendUniqueString(values []string, value string) []string {
-	for _, existing := range values {
-		if existing == value {
-			return values
-		}
+	if slices.Contains(values, value) {
+		return values
 	}
 	return append(values, value)
 }
