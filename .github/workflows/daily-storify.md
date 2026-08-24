@@ -24,7 +24,7 @@ sandbox:
     id: awf
 tools:
   agentic-workflows:
-  cache-memory: true
+  repo-memory: true
   github:
     mode: gh-proxy
     toolsets: [default, issues, pull_requests, actions, discussions]
@@ -58,13 +58,13 @@ Your mission: transform the last 24 hours of workflow execution into a concise b
   2. `agentic-workflows` MCP (`logs`, `audit`, optional `status`)
   3. GitHub MCP search/read tools for issues, PRs, comments, and reviews
 
-## Required Memory Pattern (cache-memory)
+## Required Memory Pattern (repo-memory)
 
-Use cache-memory for durable notes and continuity:
+Use repo-memory for durable notes and continuity:
 
-- `/tmp/gh-aw/cache-memory/storify/state.json`
-- `/tmp/gh-aw/cache-memory/storify/episodes.jsonl`
-- `/tmp/gh-aw/cache-memory/storify/loops.jsonl`
+- `/tmp/gh-aw/repo-memory/default/storify/state.json`
+- `/tmp/gh-aw/repo-memory/default/storify/episodes.jsonl`
+- `/tmp/gh-aw/repo-memory/default/storify/loops.jsonl`
 
 At start:
 1. Load `state.json` if present.
