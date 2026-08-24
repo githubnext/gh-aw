@@ -11,6 +11,10 @@ import (
 
 var createPRLog = logger.New("workflow:create_pull_request")
 
+// Matches actions/setup/js/normalize_branch_name.cjs so pre-created branch prefix
+// validation and runtime branch construction agree.
+const maxPreCreatedPullRequestBranchPrefixLength = 128
+
 var createPRStringOrArrayFields = []string{"reviewers", "team-reviewers", "assignees"}
 var createPRExpressionArrayFields = []string{"labels", "allowed-repos", "allowed-base-branches", "allowed-branches"}
 
@@ -115,7 +119,7 @@ func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {
 	var builder strings.Builder
 	lastDash := false
 	for _, r := range prefix {
-		if builder.Len() >= 128 {
+		if builder.Len() >= maxPreCreatedPullRequestBranchPrefixLength {
 			break
 		}
 		valid := (r >= 'a' && r <= 'z') ||
