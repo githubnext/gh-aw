@@ -42,6 +42,10 @@ describe("harness_retry_guard.cjs", () => {
     expect(parseAICreditsExceededProxyRejection("API Error: 403 Maximum AI credits exceeded (12 / 300)")).toBeNull();
   });
 
+  it("accepts a proxy 403 usage pair that exactly reaches the budget", () => {
+    expect(parseAICreditsExceededProxyRejection("API Error: 403 Maximum AI credits exceeded (300 / 300)")).toEqual({ aiCredits: 300, maxAICredits: 300 });
+  });
+
   it("detects AWF API proxy blocking request markers", () => {
     const result = detectNonRetryableHarnessGuard("awf api proxy is blocking requests for this run");
     expect(result.aiCreditsExceeded).toBe(false);
