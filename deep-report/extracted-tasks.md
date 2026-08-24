@@ -1,3 +1,10 @@
+## Extracted code-quality tasks (2026-08-24 ~06:29Z cycle)
+
+1 filed, 0 comments, window since 00:34:57Z baseline #55204 (11 new discussions: 55233,55240,55244,55245,55268,55270,55280,55282,55292,55296,55299):
+1. Enable CI enforcement for 4 confirmed-clean linters (`generatedyamlheredoc`, `manualpathconcat`, `packagelevelmutableslicemap`, `walkfuncerrshadow`) in `.github/workflows/cgo.yml`'s `LINTER_FLAGS` — discussion #55268 (Sergo R61). Filed.
+
+Declined (chronic/self-filed/too-early/informational, not filed): GitHub Remote MCP Auth Test (#55296, 18th+ occurrence); Code Scanning Fixer 2/2 failures (#55233/#55270, already tracked); Design Decision Gate 25% failure (#55233/#55270, already tracked #54238); Sentry allowlist gap (#55240, reaffirmed informational); LintMonster/Compiler-Quality function-length backlog (#55244/#55245, self-consolidated); safe-output-health's 2 new n=1 failure signatures and its raw-log-capture ask (#55280, latter duplicate of open #54756); Firewall Escape Test SECURE (#55282) and Issue Arborist housekeeping (#55292, healthy); Sergo's own ssljson bug and ESLint Refiner's own rule finding (#55268/#55299, self-filed already). Full reasoning in flagged_items.md.
+
 ## Extracted code-quality tasks (2026-08-23 ~18:28Z cycle)
 
 6 filed, 0 comments, window since 12:32:09Z baseline #55074 (8 new discussions: 55075,55076,55078,55100,55104,55114,55117,55123):

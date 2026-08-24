@@ -1,3 +1,16 @@
+## Flagged Items (2026-08-24, ~06:29Z cycle, window since 00:34:57Z baseline #55204, 11 new discussions: 55233,55240,55244,55245,55268,55270,55280,55282,55292,55296,55299)
+
+- **[new, filed]** CI enforcement gap for 4 confirmed-clean linters (`generatedyamlheredoc`, `manualpathconcat`, `packagelevelmutableslicemap`, `walkfuncerrshadow`) not in `cgo.yml`'s `LINTER_FLAGS` — Sergo R61 (#55268).
+- **[declined, chronic, no re-file]** GitHub Remote MCP Auth Test toolset unavailability (#55296) — 18th+ occurrence, see prior entries below.
+- **[declined, already tracked]** Code Scanning Fixer 100% failure, 2/2 runs (#55233, #55270) — #54544/#54237/#54063.
+- **[declined, already tracked]** Design Decision Gate 25% failure, standing issue confirmed independent of infra events (#55233, #55270) — #54238.
+- **[declined, informational, re-affirmed]** Sentry telemetry allowlist gap, >50% of blocked traffic fleet-wide (#55240) — blocking 3rd-party telemetry is arguably correct posture, not a bug; consistent with prior #54693 read.
+- **[declined, self-consolidated]** LintMonster 734-finding function-length backlog (#55244) + Compiler Quality's `CompileWorkflowData` 180-line flag (#55245) — same tracker.
+- **[declined, too early, n=1]** Safe-output-health's 2 new single-occurrence failure signatures (#55280): GitHub App token gen failure (Daily Harness Experiment Proposer), Process Safe Outputs failure (Designer Drift Audit) — report itself recommends monitoring, not filing yet.
+- **[declined, duplicate]** Safe-output-health's raw step-log-capture recommendation (#55280, 3rd consecutive audit to raise it) — duplicate of open #54756.
+- **[declined, healthy/no action]** Firewall Escape Test SECURE (#55282), Issue Arborist housekeeping (#55292), Sergo/ESLint Refiner self-filed findings (#55268, #55299).
+- **[noted, not actioned]** Single spam-like unlabeled issue #55307 ("asap") from a real non-bot user — too trivial to file a code-quality task around; left for normal issue triage.
+
 ## Flagged Items (2026-08-23, ~18:28Z cycle, window since 12:32:09Z baseline #55074, 8 new discussions: 55075,55076,55078,55100,55104,55114,55117,55123)
 
 - **[new, filed]** model-alias fallback/failure behavior undocumented in model-tables.md — Claude docs review (#55075); verified live, page has no such section.
