@@ -3086,6 +3086,42 @@ process.exit(1);`,
       expect(result.stderr).toContain("AI credits budget enforced");
     });
 
+    it("exits 0 when the AWF API proxy returns HTTP 403 max-AI-credits as an authentication failure", () => {
+      // Same proxy signature as the claude_harness.test.cjs regression, replayed against copilot.
+      const tempDir = makeHarnessTempDir("copilot-ai-credits-proxy-403-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write(JSON.stringify({error: "authentication_failed", message: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}) + "\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "do some work", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_HARNESS_MAX_RETRIES: "0",
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      expect(callCount).toBe(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("trusted budget-abort evidence");
+      expect(result.stderr).toContain("AI credits budget enforced");
+    });
+
     it("keeps non-zero exit for auth failure even when AI-credit markers and trusted audit are present", () => {
       const tempDir = makeHarnessTempDir("copilot-auth-failure-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");

@@ -75,6 +75,10 @@ function isAuthenticationFailedError(output) {
  * @returns {{ aiCredits: number, maxAICredits: number } | null}
  */
 function parseAICreditsExceededProxyRejection(output) {
+  // Contract: callers must pass the joined stdout+stderr string (`result.output`, as built by
+  // process_runner.cjs), matching every other guard in this file. Non-string input (e.g. an
+  // array/object of structured log lines) is treated as "no output" rather than coerced, since
+  // `String(someObject)` would produce a meaningless "[object Object]"-style value.
   const safeOutput = typeof output === "string" ? output : "";
   for (const line of safeOutput.split(/\r?\n/)) {
     const trimmed = line.trim();
