@@ -11325,6 +11325,29 @@
                   "type": "string",
                   "description": "Model override for threat detection engine execution."
                 },
+                "engine-timeout": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(0|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$"
+                    },
+                    {
+                      "type": "integer",
+                      "const": 0
+                    }
+                  ],
+                  "description": "Per-attempt timeout for threat detection engine execution as a Go duration (for example '90s', '10m', '1h30m'). Set to 0 to disable timeout enforcement in threat-detect."
+                },
+                "max-turns": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Detector-only per-attempt max-turns override passed to threat-detect. When omitted, threat-detect falls back to GH_AW_MAX_TURNS (if set) and then to its own built-in default."
+                },
+                "retries": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Detector-only retry count passed to threat-detect for clean exits without a verdict."
+                },
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run before engine execution",

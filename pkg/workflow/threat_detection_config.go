@@ -1,13 +1,19 @@
 // Package workflow - data model and config parsing for threat detection.
 package workflow
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
 	Prompt              string        `yaml:"prompt,omitempty"`            // Additional custom prompt instructions to append
 	Steps               []any         `yaml:"steps,omitempty"`             // Array of extra job steps to run before engine execution
 	PostSteps           []any         `yaml:"post-steps,omitempty"`        // Array of extra job steps to run after engine execution
+	EngineTimeout       *string       `yaml:"engine-timeout,omitempty"`    // Per-attempt wall-clock timeout passed to threat-detect (--engine-timeout)
+	MaxTurns            *int          `yaml:"max-turns,omitempty"`         // Detector-only max turns override passed to threat-detect (--max-turns)
+	Retries             *int          `yaml:"retries,omitempty"`           // Detector-only retries override passed to threat-detect (--retries)
 	MaxAICredits        int64         `yaml:"max-ai-credits,omitempty"`    // Maximum AI credits budget for threat-detection engine execution
 	Model               string        `yaml:"model,omitempty"`             // Model override for threat detection engine execution
 	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
@@ -138,6 +144,27 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 		threatConfig.MaxAICredits = parseMaxAICreditsValue(maxAICredits)
 	}
 
+	// Parse engine-timeout field
+	if rawEngineTimeout, exists := configMap["engine-timeout"]; exists {
+		if parsedEngineTimeout := parseThreatDetectionEngineTimeout(rawEngineTimeout); parsedEngineTimeout != nil {
+			threatConfig.EngineTimeout = parsedEngineTimeout
+		}
+	}
+
+	// Parse max-turns field
+	if rawMaxTurns, exists := configMap["max-turns"]; exists {
+		if parsedMaxTurns := parseThreatDetectionNonNegativeInt(rawMaxTurns); parsedMaxTurns != nil {
+			threatConfig.MaxTurns = parsedMaxTurns
+		}
+	}
+
+	// Parse retries field
+	if rawRetries, exists := configMap["retries"]; exists {
+		if parsedRetries := parseThreatDetectionNonNegativeInt(rawRetries); parsedRetries != nil {
+			threatConfig.Retries = parsedRetries
+		}
+	}
+
 	// Parse runs-on field
 	if runOn, exists := configMap["runs-on"]; exists {
 		threatConfig.RunsOn = renderRunsOnSnippet(runOn)
@@ -194,4 +221,88 @@ func extractRawExpression(expr string) string {
 	s := strings.TrimPrefix(expr, "${{")
 	s = strings.TrimSuffix(s, "}}")
 	return strings.TrimSpace(s)
+}
+
+func parseThreatDetectionEngineTimeout(raw any) *string {
+	switch v := raw.(type) {
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return nil
+		}
+		return &trimmed
+	case int:
+		if v != 0 {
+			threatLog.Printf("Ignoring invalid numeric threat-detection.engine-timeout value %d; use a Go duration string such as '10m' or 0", v)
+			return nil
+		}
+		zero := "0"
+		return &zero
+	case int64:
+		if v != 0 {
+			threatLog.Printf("Ignoring invalid numeric threat-detection.engine-timeout value %d; use a Go duration string such as '10m' or 0", v)
+			return nil
+		}
+		zero := "0"
+		return &zero
+	case uint64:
+		if v != 0 {
+			threatLog.Printf("Ignoring invalid numeric threat-detection.engine-timeout value %d; use a Go duration string such as '10m' or 0", v)
+			return nil
+		}
+		zero := "0"
+		return &zero
+	case float64:
+		if v != 0 {
+			threatLog.Printf("Ignoring invalid numeric threat-detection.engine-timeout value %v; use a Go duration string such as '10m' or 0", v)
+			return nil
+		}
+		zero := "0"
+		return &zero
+	default:
+		return nil
+	}
+}
+
+func parseThreatDetectionNonNegativeInt(raw any) *int {
+	switch v := raw.(type) {
+	case int:
+		if v < 0 {
+			return nil
+		}
+		value := v
+		return &value
+	case int64:
+		if v < 0 {
+			return nil
+		}
+		value := int(v)
+		return &value
+	case uint64:
+		// Guard conversion on 32-bit platforms where int max is smaller than uint64.
+		if v > uint64(^uint(0)>>1) {
+			return nil
+		}
+		value := int(v)
+		return &value
+	case float64:
+		if v < 0 || v != float64(int(v)) {
+			return nil
+		}
+		value := int(v)
+		return &value
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return nil
+		}
+		parsed, err := strconv.Atoi(trimmed)
+		if err != nil || parsed < 0 {
+			return nil
+		}
+		value := parsed
+		return &value
+	default:
+		return nil
+	}
 }
