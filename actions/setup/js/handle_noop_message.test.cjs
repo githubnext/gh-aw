@@ -204,6 +204,30 @@ safe-outputs:
     expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
   });
 
+  it("should expose the rendered comment body as an output", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
+    process.env.GH_AW_AGENT_CONCLUSION = "success";
+    process.env.GH_AW_NOOP_REPORT_AS_ISSUE = "false";
+
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(
+      outputFile,
+      JSON.stringify({
+        items: [{ type: "noop", message: "Nothing to do" }],
+      })
+    );
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    const commentBodyCall = mockCore.setOutput.mock.calls.find(call => call[0] === "noop_comment_body");
+    expect(commentBodyCall).toBeDefined();
+    expect(commentBodyCall[1]).toContain("### Test Workflow");
+    expect(commentBodyCall[1]).toContain("Nothing to do");
+  });
+
   it("should proceed if report-as-issue is set to true", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";

@@ -31,6 +31,9 @@ describe("complete_pre_created_check_run", () => {
         git: {
           deleteRef: vi.fn().mockResolvedValue({ data: {} }),
         },
+        issues: {
+          createComment: vi.fn().mockResolvedValue({ data: {} }),
+        },
       },
     };
     process.env.GH_AW_PRE_CREATED_CHECK_RUN_ID = "99";
@@ -98,6 +101,43 @@ describe("complete_pre_created_check_run", () => {
 
     expect(global.github.rest.pulls.update).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, state: "closed" }));
     expect(global.github.rest.git.deleteRef).toHaveBeenCalledWith(expect.objectContaining({ ref: "heads/gh-aw/pre-created/1-1" }));
+  });
+
+  it("posts the no-op message before closing the pre-created pull request", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "success" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
+    process.env.GH_AW_NOOP_COMMENT_BODY = "### Test workflow\n\nnothing to do";
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.issues.createComment).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 42, body: "### Test workflow\n\nnothing to do" }));
+    expect(global.github.rest.pulls.update).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, state: "closed" }));
+  });
+
+  it("still closes the pre-created pull request when posting the no-op comment fails", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "success" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
+    process.env.GH_AW_NOOP_COMMENT_BODY = "nothing to do";
+    global.github.rest.issues.createComment.mockRejectedValue(new Error("boom"));
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to comment on pre-created pull request #42"));
+    expect(global.github.rest.pulls.update).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 42, state: "closed" }));
+  });
+
+  it("does not comment when the pre-created pull request is kept", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({ agent: { result: "success" } });
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER = "42";
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH = "gh-aw/pre-created/1-1";
+    process.env.GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER = "42";
+    process.env.GH_AW_NOOP_COMMENT_BODY = "nothing to do";
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
   it("keeps the pre-created pull request when the agent contributed changes", async () => {

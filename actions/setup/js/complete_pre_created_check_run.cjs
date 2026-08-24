@@ -6,7 +6,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Closes the pre-created pull request and deletes its branch when the safe-outputs
  * job did not consume it via create_pull_request, so runs that end without using the
- * pre-created PR do not leave an empty placeholder pull request behind.
+ * pre-created PR do not leave an empty placeholder pull request behind. When the run
+ * produced a no-op message, the same comment posted on the no-op runs issue is added to
+ * the pull request before closing it.
  * @returns {Promise<void>}
  */
 async function discardUnusedPullRequest() {
@@ -32,6 +34,19 @@ async function discardUnusedPullRequest() {
     }
 
     core.info(`Closing pre-created pull request #${pullNumber} because create-pull-request did not consume it`);
+    const noopComment = process.env.GH_AW_NOOP_COMMENT_BODY || "";
+    if (noopComment.trim()) {
+      try {
+        await github.rest.issues.createComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issue_number: pullNumber,
+          body: noopComment,
+        });
+      } catch (error) {
+        core.warning(`Failed to comment on pre-created pull request #${pullNumber}: ${getErrorMessage(error)}`);
+      }
+    }
     await github.rest.pulls.update({
       owner: context.repo.owner,
       repo: context.repo.repo,
