@@ -60,7 +60,7 @@ func getLoadedEcosystemDomains() map[string][]string {
 	return getLoadedDomainSets().Ecosystems
 }
 
-// Engine default domain lists intentionally exclude package registries (npm, PyPI, ...).
+// Runtime engine default domain lists intentionally exclude package registries (npm, PyPI, ...).
 //
 // Engine CLIs and SDKs are installed by dedicated GitHub Actions steps that run on the
 // runner *before* the AWF-wrapped agent step, so package registries are not needed inside
@@ -73,21 +73,25 @@ func getLoadedEcosystemDomains() map[string][]string {
 // documented behavior that package ecosystems require explicit opt-in
 // (`network: { allowed: [node] }`, `[python]`, or a matching `runtimes:` entry).
 //
-// This invariant is enforced by TestEngineDefaultDomainsDoNotOverlapEcosystems in
-// domains_package_registry_test.go, which fails if any engine default domain list below
-// overlaps with the full "node" or "python" ecosystem domain sets in data/ecosystem_domains.json
-// — not just the registries known when this comment was written. If you need to add a domain
-// to an engine default and that test starts failing, the domain belongs behind an explicit
-// ecosystem/runtime opt-in instead, not in the unconditional default list.
+// This invariant is enforced for runtime engine defaults by
+// TestEngineDefaultDomainsDoNotOverlapEcosystems in domains_package_registry_test.go, which
+// fails if those default domain lists overlap with the full "node" or "python" ecosystem
+// domain sets in data/ecosystem_domains.json — not just the registries known when this comment
+// was written. If you need to add a package-registry domain to a runtime engine default and
+// that test starts failing, the domain belongs behind an explicit ecosystem/runtime opt-in
+// instead, not in the unconditional default list. Copilot threat detection is the exception:
+// its dedicated detection allow-list includes registry.npmjs.org for read-only lockfile
+// validation, and that list is not part of normal agent engine defaults.
 
 // engineDefaultDomainSets centralizes every unconditional engine allow-list. These
 // sets are intentionally distinct from user-selectable ecosystem domain lists: the
 // compiler includes them automatically for the matching engine, rather than allowing
 // users to select them through network.allowed.
 //
-// Engine default domain lists intentionally exclude package registries (npm, PyPI,
-// and similar). The threat-detection set is the exception because the Copilot
-// threat detector uses the npm registry. See the package-registry invariant above.
+// Runtime engine default domain lists intentionally exclude package registries
+// (npm, PyPI, and similar). The threat-detection set is the exception because
+// Copilot threat detection uses the npm registry. See the package-registry
+// invariant above.
 var engineDefaultDomainSets = getLoadedDomainSets().EngineDefaults
 
 // GetEngineDefaultDomainSets returns copies of the named engine domain sets for
@@ -707,7 +711,7 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 // Any additional user-specified network.allowed entries are merged in (typically empty for detection).
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 func GetThreatDetectionAllowedDomains(network *NetworkPermissions) string {
-	detectionDomains := engineDefaultDomainSets["threat-detection"]
+	detectionDomains := copyEngineDefaultDomainSet(engineDefaultDomainSets["threat-detection"])
 	// Pass nil tools and runtimes: detection runs with no npm/runtime ecosystem, so
 	// ecosystem domain expansion is intentionally skipped.
 	return mergeDomainsWithNetworkToolsAndRuntimes(detectionDomains, network, nil, nil)

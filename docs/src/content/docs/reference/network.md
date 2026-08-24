@@ -89,6 +89,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `bazel` | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
 | `clojure` | Clojure packages (`clojars.org`) |
 | `copilot-vendor` | Plan-specific Copilot API hosts (`api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`) and Copilot telemetry (`telemetry.enterprise.githubcopilot.com`) — not enabled by default, since agents route inference through the firewall gateway |
+| `threat-detection` | Compatibility alias for Copilot threat-detection network access (`api.githubcopilot.com`, Copilot plan APIs, telemetry, `api.github.com`, `github.com`, `host.docker.internal`, `registry.npmjs.org`) |
 | `dart` | Dart/Flutter packages (`pub.dev`, `storage.googleapis.com`) |
 | `deno` | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
 | `dotnet` | NuGet packages and .NET SDK |
@@ -120,7 +121,8 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 
 Each engine automatically receives the domain set it requires in addition to
 `network.allowed`. These named sets are maintained by the compiler for analysis
-and reporting; they are not valid `network.allowed` identifiers.
+and reporting; they are not valid `network.allowed` identifiers, except for
+the legacy `threat-detection` compatibility alias listed above.
 
 | Engine set | Included domains |
 |---|---|
@@ -129,7 +131,8 @@ and reporting; they are not valid `network.allowed` identifiers.
 | `codex` | `172.30.0.1`, `api.github.com`, `api.openai.com`, `chatgpt.com`, `github.com`, `host.docker.internal`, `openai.com` |
 | `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
-| `threat-detection` | Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation |
+| `pi-base` | `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; applied as the provider-independent baseline before a provider prefix is resolved |
+| `threat-detection` | Applied automatically only to Copilot threat-detection runs: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. External Claude, Codex, Gemini, and other detection runs use their own engine defaults. |
 
 ### Ecosystem Identifier Validation
 

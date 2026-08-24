@@ -429,7 +429,7 @@ func TestThreatDetectionDomains(t *testing.T) {
 		detectionMap[d] = true
 	}
 	for _, required := range requiredDomains {
-		assert.True(t, detectionMap[required], "Required domain %q not found in threat-detection ecosystem", required)
+		assert.True(t, detectionMap[required], "Required domain %q not found in threat-detection domain set", required)
 	}
 
 	// Detection domains must NOT include the domains excluded for supply-chain reduction
@@ -437,12 +437,20 @@ func TestThreatDetectionDomains(t *testing.T) {
 		"raw.githubusercontent.com",
 	}
 	for _, excluded := range excludedDomains {
-		assert.False(t, detectionMap[excluded], "Domain %q should not be in threat-detection ecosystem (excluded to reduce supply chain surface)", excluded)
+		assert.False(t, detectionMap[excluded], "Domain %q should not be in threat-detection domain set (excluded to reduce supply chain surface)", excluded)
 	}
 
 	// Verify exact count — no silent additions
 	assert.Len(t, detectionDomains, len(requiredDomains),
-		"threat-detection ecosystem should have exactly %d entries", len(requiredDomains))
+		"threat-detection domain set should have exactly %d entries", len(requiredDomains))
+}
+
+func TestThreatDetectionNetworkAllowedCompatibilityAlias(t *testing.T) {
+	engineDefaults := GetEngineDefaultDomainSets()["threat-detection"]
+	expanded := GetAllowedDomains(&NetworkPermissions{Allowed: []string{"threat-detection"}})
+
+	assert.Equal(t, engineDefaults, expanded,
+		"legacy network.allowed threat-detection alias must expand to the Copilot detection domain set")
 }
 
 func TestGetEngineDefaultDomainSets(t *testing.T) {
@@ -473,10 +481,12 @@ func TestEmbeddedDomainSets(t *testing.T) {
 	sets := getLoadedDomainSets()
 
 	assert.Contains(t, sets.Ecosystems, "defaults")
+	assert.Contains(t, sets.Ecosystems, "threat-detection")
 	assert.Contains(t, sets.EngineDefaults, "copilot")
 	assert.Equal(t, "api.githubcopilot.com", sets.PiProviderDomains["copilot"])
 	assert.Equal(t, []string{"github.com", "localhost"}, sets.SanitizationDefaults)
-	assert.NotContains(t, sets.Ecosystems, "threat-detection")
+	assert.Equal(t, sets.EngineDefaults["threat-detection"], sets.Ecosystems["threat-detection"],
+		"legacy network.allowed threat-detection alias must stay in sync with Copilot detection defaults")
 }
 
 func TestGetThreatDetectionAllowedDomains(t *testing.T) {
