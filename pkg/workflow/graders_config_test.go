@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestParseGradersFromFrontmatter_Absent verifies nil return when graders absent.
@@ -119,6 +120,74 @@ func TestParseGradersFromFrontmatter_CustomGrader(t *testing.T) {
 	}
 	if g.Script != "trace.toolCalls.length" {
 		t.Fatalf("unexpected script: %s", g.Script)
+	}
+}
+
+func TestParseGradersFromFrontmatter_OperationalValueGrader(t *testing.T) {
+	var c Compiler
+	cfg, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"operational-value": map[string]any{
+				"run": ".github/graders/example-operational-value.sh",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	grader := cfg.Graders["operational-value"]
+	if grader.Run != ".github/graders/example-operational-value.sh" {
+		t.Fatalf("unexpected operational-value run path: %q", grader.Run)
+	}
+	if grader.Unit != "ratio" || grader.Direction != "higher_is_better" {
+		t.Fatalf("unexpected operational-value defaults: unit=%q direction=%q", grader.Unit, grader.Direction)
+	}
+	if grader.Min == nil || *grader.Min != 0 || grader.Max == nil || *grader.Max != 1 {
+		t.Fatalf("expected operational-value range [0,1], got min=%v max=%v", grader.Min, grader.Max)
+	}
+}
+
+func TestParseGradersFromFrontmatter_OperationalValueGraderValidation(t *testing.T) {
+	var c Compiler
+	tests := []struct {
+		name    string
+		entry   map[string]any
+		errText string
+	}{
+		{name: "missing run", entry: map[string]any{}, errText: "requires a 'run' field"},
+		{name: "path traversal", entry: map[string]any{"run": ".github/graders/../secret.sh"}, errText: "repository-relative"},
+		{name: "wrong directory", entry: map[string]any{"run": "scripts/operational-value.sh"}, errText: "repository-relative"},
+		{name: "wrong extension", entry: map[string]any{"run": ".github/graders/operational-value.js"}, errText: "repository-relative"},
+		{name: "inline script", entry: map[string]any{"run": ".github/graders/operational-value.sh", "script": "return 1"}, errText: "cannot have an inline script"},
+		{name: "direction", entry: map[string]any{"run": ".github/graders/operational-value.sh", "direction": "lower_is_better"}, errText: "direction must be 'higher_is_better'"},
+		{name: "minimum", entry: map[string]any{"run": ".github/graders/operational-value.sh", "min": 0.1}, errText: "range must be min: 0 and max: 1"},
+		{name: "maximum", entry: map[string]any{"run": ".github/graders/operational-value.sh", "max": 2.0}, errText: "range must be min: 0 and max: 1"},
+		{name: "threshold below range", entry: map[string]any{"run": ".github/graders/operational-value.sh", "threshold": -0.1}, errText: "threshold must be between 0 and 1"},
+		{name: "threshold above range", entry: map[string]any{"run": ".github/graders/operational-value.sh", "threshold": 1.1}, errText: "threshold must be between 0 and 1"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := c.parseGradersFromFrontmatter(map[string]any{
+				"graders": map[string]any{"operational-value": test.entry},
+			})
+			if err == nil || !strings.Contains(err.Error(), test.errText) {
+				t.Fatalf("expected error containing %q, got %v", test.errText, err)
+			}
+		})
+	}
+}
+
+func TestParseGradersFromFrontmatter_RunRejectedForOtherGraders(t *testing.T) {
+	var c Compiler
+	_, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"custom": map[string]any{
+				"run": ".github/graders/operational-value.sh",
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected run to be rejected for a non-operational-value grader")
 	}
 }
 
@@ -444,6 +513,48 @@ func TestBuildGraderManifest(t *testing.T) {
 	}
 }
 
+func TestBuildGraderManifest_OperationalValueGrader(t *testing.T) {
+	grader := &GraderDefinition{
+		ID:  "operational-value",
+		Run: ".github/graders/example-operational-value.sh",
+	}
+	grader.evaluatorContent = "#!/usr/bin/env bash\necho '{}'\n"
+	cfg := &GradersConfig{Graders: map[string]*GraderDefinition{"operational-value": grader}}
+
+	manifest := buildGraderManifest(cfg)
+	if len(manifest.Graders) != 1 {
+		t.Fatalf("expected one grader, got %d", len(manifest.Graders))
+	}
+	if manifest.Graders[0].Source != "operational-value" {
+		t.Fatalf("expected operational-value source, got %q", manifest.Graders[0].Source)
+	}
+	if manifest.Graders[0].Digest != grader.EvaluatorDigest() {
+		t.Fatalf("expected frozen evaluator digest, got %q", manifest.Graders[0].Digest)
+	}
+	manifestJSON, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal operational-value manifest: %v", err)
+	}
+	if !strings.Contains(string(manifestJSON), `"run":".github/graders/example-operational-value.sh"`) || strings.Contains(string(manifestJSON), `"evaluator"`) {
+		t.Fatalf("expected manifest to use run field, got %s", manifestJSON)
+	}
+
+	execSpec := buildGraderExecSpec(cfg)
+	if len(execSpec) != 1 || execSpec[0].Run != grader.evaluatorContent {
+		t.Fatal("expected frozen evaluator in execution spec")
+	}
+	if execSpec[0].Script != "" {
+		t.Fatal("operational-value grader must not be serialized as an inline script")
+	}
+	execSpecJSON, err := json.Marshal(execSpec)
+	if err != nil {
+		t.Fatalf("marshal operational-value execution spec: %v", err)
+	}
+	if !strings.Contains(string(execSpecJSON), `"run":`) || strings.Contains(string(execSpecJSON), `"evaluator"`) {
+		t.Fatalf("expected execution spec to use run field, got %s", execSpecJSON)
+	}
+}
+
 // TestGenerateGradersStep_Absent verifies no step when graders nil.
 func TestGenerateGradersStep_Absent(t *testing.T) {
 	c := &Compiler{}
@@ -489,6 +600,20 @@ func TestGenerateGradersStep_Present(t *testing.T) {
 	}
 }
 
+func TestGenerateGradersStep_OperationalValueUsesActivationRunMetadata(t *testing.T) {
+	c := &Compiler{}
+	initActionPinCacheForTest(c)
+	var yaml strings.Builder
+	data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+
+	c.generateGradersStep(&yaml, data)
+
+	output := yaml.String()
+	assert.Contains(t, output, "GH_AW_RUN_CREATED_AT: ${{ needs.activation.outputs.run_created_at }}")
+	assert.Contains(t, output, "GH_TOKEN: ${{ github.token }}")
+	assert.NotContains(t, output, "getWorkflowRun")
+}
+
 // TestGenerateGradersStep_BeforeArtifactUpload verifies ordering.
 func TestGenerateGradersStep_BeforeArtifactUpload(t *testing.T) {
 	c := &Compiler{}
@@ -518,17 +643,33 @@ func TestGenerateGradersStep_BeforeArtifactUpload(t *testing.T) {
 	}
 }
 
-// TestCollectGraderArtifactPaths verifies paths include manifest and results.
+// TestCollectGraderArtifactPaths verifies paths include all replay artifacts.
 func TestCollectGraderArtifactPaths(t *testing.T) {
-	paths := collectGraderArtifactPaths()
-	if len(paths) != 2 {
-		t.Fatalf("expected 2 paths, got %d", len(paths))
+	grader := &GraderDefinition{ID: "operational-value"}
+	grader.evaluatorContent = "#!/usr/bin/env bash\n"
+	paths := collectGraderArtifactPaths(&GradersConfig{
+		Graders: map[string]*GraderDefinition{"operational-value": grader},
+	})
+	if len(paths) != 3 {
+		t.Fatalf("expected 3 paths, got %d", len(paths))
 	}
 	if !strings.Contains(paths[0], "grader_manifest.json") {
 		t.Fatal("expected grader_manifest.json in paths")
 	}
 	if !strings.Contains(paths[1], "grader_results.json") {
 		t.Fatal("expected grader_results.json in paths")
+	}
+	if !strings.Contains(paths[2], "operational_value_evaluator.sh") {
+		t.Fatal("expected operational_value_evaluator.sh in paths")
+	}
+}
+
+func TestCollectGraderArtifactPathsWithoutOperationalValue(t *testing.T) {
+	paths := collectGraderArtifactPaths(&GradersConfig{
+		Graders: map[string]*GraderDefinition{"retries": {ID: "retries"}},
+	})
+	if len(paths) != 2 {
+		t.Fatalf("expected manifest and results paths, got %v", paths)
 	}
 }
 
@@ -540,7 +681,7 @@ func initActionPinCacheForTest(c *Compiler) {
 
 // TestCollectGraderArtifactPaths_AgentGradersDir verifies paths use the agent/graders subdirectory.
 func TestCollectGraderArtifactPaths_AgentGradersDir(t *testing.T) {
-	paths := collectGraderArtifactPaths()
+	paths := collectGraderArtifactPaths(nil)
 	for _, p := range paths {
 		if !strings.Contains(p, "agent/graders/") {
 			t.Errorf("expected path to contain agent/graders/, got %q", p)

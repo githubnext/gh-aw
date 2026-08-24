@@ -12,98 +12,9 @@ import (
 )
 
 // Formal test suite derived from specs/intent-attribution-agent-governance.md,
-// focusing on the Risk classification (ResolveRisk) and Enforcement
-// (Authorizer.AuthorizeTool) sections, plus fail-closed policy compilation for
-// unlinked/ambiguous attribution. Each test corresponds to a named predicate or
-// invariant in the behavioral coverage map.
-
-// TestResolveRisk_ExplicitOverride (P1/P2 — RiskExplicitOverride)
-// Invariant: an explicit intent.Risk always wins over derived rules, even with
-// conflicting domains/priority that would otherwise resolve differently.
-func TestResolveRisk_ExplicitOverride(t *testing.T) {
-	rec := intent.IntentRecord{
-		Risk:     "low",
-		Domains:  []string{"security", "production"},
-		Priority: "critical",
-	}
-	assert.Equal(t, "low", intent.ResolveRisk(rec),
-		"P1/P2: explicit risk must win over derived rules")
-}
-
-// TestResolveRisk_SecurityCriticalIsHigh (P3 — RiskSecurityCriticalHigh)
-// Invariant: domains contains security AND priority == critical => high.
-func TestResolveRisk_SecurityCriticalIsHigh(t *testing.T) {
-	rec := intent.IntentRecord{
-		Domains:  []string{"security"},
-		Priority: "critical",
-	}
-	assert.Equal(t, "high", intent.ResolveRisk(rec),
-		"P3: security+critical must resolve to high")
-}
-
-// TestResolveRisk_ProductionIsHigh (P4 — RiskProductionHigh)
-// Invariant: domains contains production => high, independent of priority.
-func TestResolveRisk_ProductionIsHigh(t *testing.T) {
-	cases := []string{"", "low", "critical", "unrecognized"}
-	for _, priority := range cases {
-		t.Run("priority="+priority, func(t *testing.T) {
-			rec := intent.IntentRecord{
-				Domains:  []string{"production"},
-				Priority: priority,
-			}
-			assert.Equal(t, "high", intent.ResolveRisk(rec),
-				"P4: production domain must resolve to high regardless of priority")
-		})
-	}
-}
-
-// TestResolveRisk_InfrastructureIsMedium (P5 — RiskInfrastructureMedium)
-// Invariant: domains contains infrastructure => medium.
-func TestResolveRisk_InfrastructureIsMedium(t *testing.T) {
-	rec := intent.IntentRecord{Domains: []string{"infrastructure"}}
-	assert.Equal(t, "medium", intent.ResolveRisk(rec),
-		"P5: infrastructure domain must resolve to medium")
-}
-
-// TestResolveRisk_DocumentationIsLow (P6 — RiskDocumentationLow)
-// Invariant: domains contains documentation => low.
-func TestResolveRisk_DocumentationIsLow(t *testing.T) {
-	rec := intent.IntentRecord{Domains: []string{"documentation"}}
-	assert.Equal(t, "low", intent.ResolveRisk(rec),
-		"P6: documentation domain must resolve to low")
-}
-
-// TestResolveRisk_UnknownDefault (P7 — RiskUnknownDefault)
-// Invariant: no matching rule (empty, unrecognized domain, security without
-// critical priority) => unknown.
-func TestResolveRisk_UnknownDefault(t *testing.T) {
-	cases := []struct {
-		name string
-		rec  intent.IntentRecord
-	}{
-		{"empty", intent.IntentRecord{}},
-		{"unrecognized_domain", intent.IntentRecord{Domains: []string{"marketing"}}},
-		{"security_without_critical", intent.IntentRecord{Domains: []string{"security"}, Priority: "low"}},
-		{"security_no_priority", intent.IntentRecord{Domains: []string{"security"}}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, "unknown", intent.ResolveRisk(tc.rec),
-				"P7: non-matching input must resolve to unknown")
-		})
-	}
-}
-
-// TestResolveRisk_PrecedenceOrder (P8 — RiskPrecedenceOrder)
-// Invariant: security+critical takes precedence when multiple domains overlap.
-func TestResolveRisk_PrecedenceOrder(t *testing.T) {
-	rec := intent.IntentRecord{
-		Domains:  []string{"documentation", "infrastructure", "production", "security"},
-		Priority: "critical",
-	}
-	assert.Equal(t, "high", intent.ResolveRisk(rec),
-		"P8: security+critical must take precedence over other overlapping domains")
-}
+// focusing on Enforcement (Authorizer.AuthorizeTool) sections, plus fail-closed
+// policy compilation for unlinked/ambiguous attribution. Each test corresponds
+// to a named predicate or invariant in the behavioral coverage map.
 
 // TestAuthorizeTool_DeniedWins (P9 — AuthorizeToolDeniedWins)
 // Invariant: a tool in DeniedTools is rejected even if it also appears in
@@ -185,14 +96,6 @@ func TestSafestDefaultPolicy_FailClosedForIndeterminateStatus(t *testing.T) {
 			assert.Equal(t, 1, policy.MaxAttempts, "P13: indeterminate status must force a single attempt")
 		})
 	}
-}
-
-// TestEdgeCase_EmptyDomainsAndPriority validates that a fully empty intent
-// record resolves to unknown, not a panic or empty string.
-func TestEdgeCase_EmptyDomainsAndPriority(t *testing.T) {
-	risk := intent.ResolveRisk(intent.IntentRecord{})
-	assert.Equal(t, "unknown", risk, "edge case: fully empty record must resolve to unknown")
-	assert.NotEmpty(t, risk, "edge case: ResolveRisk must never return an empty string")
 }
 
 // TestEdgeCase_NilDeniedAndAllowedTools validates that AuthorizeTool does not

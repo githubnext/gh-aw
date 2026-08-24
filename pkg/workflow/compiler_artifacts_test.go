@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -602,6 +603,9 @@ permissions:
   contents: read
 engine: copilot
 strict: false
+graders:
+  custom:
+    script: return 1
 safe-outputs:
   create-issue:
 ---
@@ -632,12 +636,17 @@ Body.
 		"name: agent-output-fallback\n",
 		"/tmp/gh-aw/agent_output.json",
 		"/tmp/gh-aw/safeoutputs.jsonl",
+		"/tmp/gh-aw/agent/graders/grader_manifest.json",
+		"/tmp/gh-aw/agent/graders/grader_results.json",
 		"if-no-files-found: ignore",
 		"continue-on-error: true",
 	} {
 		if !strings.Contains(uploadSection, expected) {
 			t.Errorf("Expected %q in fallback upload step, got:\n%s", expected, uploadSection)
 		}
+	}
+	if strings.Contains(uploadSection, constants.OperationalValueEvaluatorFilename) {
+		t.Errorf("Fallback upload must not include an operational-value evaluator for inline-only graders, got:\n%s", uploadSection)
 	}
 
 	// The fallback artifact must be uploaded before the (large, failure-prone) agent artifact.

@@ -324,6 +324,25 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorAwfHomeWritePath)
 }
 
+// ensureCacheMemoryWritePaths adds compiler-provisioned cache directories to the
+// Cloud Hypervisor write policy. cacheMemoryDirFor is also used to grant engine
+// write tools, keeping both permission surfaces aligned.
+func ensureCacheMemoryWritePaths(sandboxConfig *SandboxConfig, cacheMemoryConfig *CacheMemoryConfig) {
+	if cacheMemoryConfig == nil || sandboxConfig == nil || sandboxConfig.Agent == nil ||
+		sandboxConfig.Agent.Runtime != AgentRuntimeCloudHypervisor {
+		return
+	}
+	if sandboxConfig.Agent.Config == nil {
+		sandboxConfig.Agent.Config = &SandboxRuntimeConfig{}
+	}
+	if sandboxConfig.Agent.Config.Filesystem == nil {
+		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
+	}
+	for _, cache := range cacheMemoryConfig.Caches {
+		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cacheMemoryDirFor(cache.ID))
+	}
+}
+
 // addAllowWritePathIfMissing appends path to filesystem.AllowWrite unless it is already present.
 func addAllowWritePathIfMissing(filesystem *SRTFilesystemConfig, path string) {
 	if slices.Contains(filesystem.AllowWrite, path) {

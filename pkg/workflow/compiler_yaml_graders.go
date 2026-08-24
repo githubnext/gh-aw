@@ -53,6 +53,11 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
 	fmt.Fprintf(yaml, "            await main('%s', '%s');\n", manifestB64, execB64)
+	if operationalValueGrader, ok := data.Graders.Graders["operational-value"]; ok && (operationalValueGrader.Enabled == nil || *operationalValueGrader.Enabled) {
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		yaml.WriteString("          GH_AW_RUN_CREATED_AT: ${{ needs.activation.outputs.run_created_at }}\n")
+	}
 
 	compilerYamlGradersLog.Print("Generated graders step")
 }
@@ -63,14 +68,15 @@ type graderManifestEntry struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
 	Description string         `json:"description,omitempty"`
-	Source      string         `json:"source"` // "builtin" or "inline"
+	Source      string         `json:"source"` // "builtin", "inline", or "operational-value"
 	Enabled     bool           `json:"enabled"`
 	Unit        string         `json:"unit,omitempty"`
 	Direction   string         `json:"direction,omitempty"`
 	Threshold   *float64       `json:"threshold,omitempty"`
 	Max         *float64       `json:"max,omitempty"`
 	Min         *float64       `json:"min,omitempty"`
-	Digest      string         `json:"digest,omitempty"` // SHA-256 of inline script
+	Digest      string         `json:"digest,omitempty"` // SHA-256 of inline script or operational-value evaluator
+	Run         string         `json:"run,omitempty"`
 	Config      map[string]any `json:"config,omitempty"`
 }
 
@@ -80,10 +86,11 @@ type graderManifest struct {
 	Graders []graderManifestEntry `json:"graders"`
 }
 
-// graderExecEntry carries the script body for a custom grader, keyed by ID.
+// graderExecEntry carries trusted executable content for a custom grader, keyed by ID.
 type graderExecEntry struct {
 	ID     string `json:"id"`
-	Script string `json:"script"`
+	Script string `json:"script,omitempty"`
+	Run    string `json:"run,omitempty"`
 }
 
 // buildGraderManifest constructs the manifest for the JS runtime.
@@ -115,6 +122,13 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest {
 		if _, ok := builtinSet[id]; !ok {
 			source = "inline"
 		}
+		if id == "operational-value" {
+			source = "operational-value"
+		}
+		digest := g.ScriptDigest()
+		if source == "operational-value" {
+			digest = g.EvaluatorDigest()
+		}
 		name := g.Name
 		if name == "" {
 			name = id
@@ -130,7 +144,8 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest {
 			Threshold:   g.Threshold,
 			Max:         g.Max,
 			Min:         g.Min,
-			Digest:      g.ScriptDigest(),
+			Digest:      digest,
+			Run:         g.Run,
 			Config:      g.Config,
 		})
 	}
@@ -159,7 +174,9 @@ func buildGraderExecSpec(cfg *GradersConfig) []graderExecEntry {
 	var specs []graderExecEntry
 	for _, id := range cfg.EnabledGraderIDs() {
 		g := cfg.Graders[id]
-		if _, ok := builtinSet[id]; !ok && g.Script != "" {
+		if id == "operational-value" && g.evaluatorContent != "" {
+			specs = append(specs, graderExecEntry{ID: id, Run: g.evaluatorContent})
+		} else if _, ok := builtinSet[id]; !ok && g.Script != "" {
 			specs = append(specs, graderExecEntry{ID: id, Script: g.Script})
 		}
 	}
@@ -207,9 +224,16 @@ func (c *Compiler) generateGraderRedactionStep(yaml *strings.Builder, yamlConten
 }
 
 // collectGraderArtifactPaths returns artifact paths for grader output files.
-func collectGraderArtifactPaths() []string {
-	return []string{
+func collectGraderArtifactPaths(graders *GradersConfig) []string {
+	paths := []string{
 		constants.GradersDirSlash + constants.GraderManifestFilename,
 		constants.GradersDirSlash + constants.GraderResultsFilename,
 	}
+	if graders != nil {
+		grader := graders.Graders["operational-value"]
+		if grader != nil && (grader.Enabled == nil || *grader.Enabled) && grader.evaluatorContent != "" {
+			paths = append(paths, constants.GradersDirSlash+constants.OperationalValueEvaluatorFilename)
+		}
+	}
+	return paths
 }

@@ -53,13 +53,17 @@ jobs:
           echo "::add-mask::${GITHUB_MCP_SERVER_TOKEN}"
 
           server_url="https://api.githubcopilot.com/mcp/"
-          ping_headers_file="$(mktemp)"
           initialize_headers_file="$(mktemp)"
-          tools_headers_file="$(mktemp)"
+          response_headers_file="$(mktemp)"
           body_file="$(mktemp)"
           json_file="$(mktemp)"
           error_file="$(mktemp)"
-          trap 'rm -f "$ping_headers_file" "$initialize_headers_file" "$tools_headers_file" "$body_file" "$json_file" "$error_file"' EXIT
+          trap 'rm -f "$initialize_headers_file" "$response_headers_file" "$body_file" "$json_file" "$error_file"' EXIT
+
+          {
+            echo "## Raw GitHub remote MCP canary"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
 
           mcp_post() {
             local payload="$1"
@@ -93,6 +97,7 @@ jobs:
             local http_code="$2"
             if [ "$http_code" != "200" ]; then
               echo "$label failed with HTTP $http_code."
+              echo "- ❌ $label: HTTP $http_code" >> "$GITHUB_STEP_SUMMARY"
               if [ -s "$error_file" ]; then
                 echo "curl error: $(head -c 200 "$error_file")"
               fi
@@ -102,20 +107,22 @@ jobs:
             read_json_response
             if ! jq -e . "$json_file" >/dev/null 2>&1; then
               echo "$label did not return a JSON response."
+              echo "- ❌ $label: invalid JSON response" >> "$GITHUB_STEP_SUMMARY"
               exit 1
             fi
             if jq -e '.error' "$json_file" >/dev/null 2>&1; then
               error_message="$(jq -r '.error.message // "unknown JSON-RPC error"' "$json_file")"
               echo "$label returned JSON-RPC error: $error_message"
+              echo "- ❌ $label: JSON-RPC error \`$error_message\`" >> "$GITHUB_STEP_SUMMARY"
               exit 1
             fi
           }
 
-          ping_code="$(mcp_post '{"jsonrpc":"2.0","id":1,"method":"ping"}' "$ping_headers_file")"
-          assert_success_response "MCP ping" "$ping_code"
-
-          initialize_code="$(mcp_post '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"gh-aw-raw-mcp-canary","version":"1.0.0"},"protocolVersion":"2024-11-05"}}' "$initialize_headers_file")"
+          initialize_code="$(mcp_post '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"gh-aw-raw-mcp-canary","version":"1.0.0"},"protocolVersion":"2024-11-05"}}' "$initialize_headers_file")"
           assert_success_response "MCP initialize" "$initialize_code"
+          protocol_version="$(jq -r '.result.protocolVersion // "unknown"' "$json_file")"
+          server_info="$(jq -c '.result.serverInfo // {}' "$json_file")"
+          echo "- ✅ MCP initialize: protocol \`$protocol_version\`, server \`$server_info\`" >> "$GITHUB_STEP_SUMMARY"
 
           session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ { gsub(/\r/, "", $2); print $2; exit }' "$initialize_headers_file")"
           session_args=()
@@ -123,14 +130,49 @@ jobs:
             session_args=(-H "Mcp-Session-Id: $session_id")
           fi
 
-          tools_code="$(mcp_post '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' "$tools_headers_file" "${session_args[@]}")"
+          initialized_code="$(mcp_post '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' "$response_headers_file" "${session_args[@]}")"
+          if [[ ! "$initialized_code" =~ ^20[024]$ ]]; then
+            echo "MCP notifications/initialized failed with HTTP $initialized_code."
+            echo "- ❌ MCP notifications/initialized: HTTP $initialized_code" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "- ✅ MCP notifications/initialized: HTTP $initialized_code" >> "$GITHUB_STEP_SUMMARY"
+
+          ping_code="$(mcp_post '{"jsonrpc":"2.0","id":2,"method":"ping"}' "$response_headers_file" "${session_args[@]}")"
+          assert_success_response "MCP ping" "$ping_code"
+          echo "- ✅ MCP ping" >> "$GITHUB_STEP_SUMMARY"
+
+          tools_code="$(mcp_post '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' "$response_headers_file" "${session_args[@]}")"
           assert_success_response "MCP tools/list" "$tools_code"
 
           tool_count="$(jq -r 'if (.result.tools | type) == "array" then (.result.tools | length) else 0 end' "$json_file")"
           if [ "$tool_count" -eq 0 ]; then
             echo "MCP tools/list did not return any tools."
+            echo "- ❌ MCP tools/list: empty tool catalog" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          if ! jq -e '.result.tools[] | select(.name == "get_repository")' "$json_file" >/dev/null; then
+            echo 'MCP tools/list did not return the get_repository tool.'
+            echo "- ❌ MCP tools/list: \`get_repository\` is unavailable" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "- ✅ MCP tools/list: $tool_count tools, including \`get_repository\`" >> "$GITHUB_STEP_SUMMARY"
+
+          repository_owner="${GITHUB_REPOSITORY%%/*}"
+          repository_name="${GITHUB_REPOSITORY#*/}"
+          call_payload="$(jq -nc \
+            --arg owner "$repository_owner" \
+            --arg repo "$repository_name" \
+            '{jsonrpc:"2.0",id:4,method:"tools/call",params:{name:"get_repository",arguments:{owner:$owner,repo:$repo}}}')"
+          call_code="$(mcp_post "$call_payload" "$response_headers_file" "${session_args[@]}")"
+          assert_success_response "MCP get_repository" "$call_code"
+          if jq -e '.result.isError == true' "$json_file" >/dev/null; then
+            tool_error="$(jq -r '[.result.content[]?.text] | join(" ")' "$json_file" | head -c 200)"
+            echo "MCP get_repository returned a tool error: $tool_error"
+            echo "- ❌ MCP get_repository: tool error \`$tool_error\`" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "- ✅ MCP get_repository: retrieved \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Raw GitHub remote MCP handshake succeeded with $tool_count tools available."
 features:
   gh-aw-detection: true
