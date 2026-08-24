@@ -8,6 +8,8 @@ import (
 )
 
 func TestNewUpdateCompileConfigMatchesCompileCommandDefaults(t *testing.T) {
+	t.Parallel()
+
 	files := []string{".github/workflows/first.md", ".github/workflows/second.md"}
 
 	got := newUpdateCompileConfig(files, "custom/workflows", "copilot", true, true)
@@ -23,6 +25,8 @@ func TestNewUpdateCompileConfigMatchesCompileCommandDefaults(t *testing.T) {
 }
 
 func TestCompileWorkflowsForUpdatePropagatesCompileErrors(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -35,6 +39,8 @@ func TestCompileWorkflowsForUpdatePropagatesCompileErrors(t *testing.T) {
 }
 
 func TestRecompileAllWorkflowsPropagatesCompileErrors(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

@@ -16,6 +16,8 @@ import (
 func upgradeValidateEngineStub(engine string) error { return nil }
 
 func TestUpgradeCommandHelpTextConsistency(t *testing.T) {
+	t.Parallel()
+
 	cmd := NewUpgradeCommand(upgradeValidateEngineStub)
 	require.NotNil(t, cmd, "upgrade command should be created")
 
@@ -38,6 +40,8 @@ func TestUpgradeCommandHelpTextConsistency(t *testing.T) {
 }
 
 func TestUpgradeCommandNewFlags(t *testing.T) {
+	t.Parallel()
+
 	cmd := NewUpgradeCommand(upgradeValidateEngineStub)
 	require.NotNil(t, cmd, "upgrade command should be created")
 
@@ -57,6 +61,8 @@ func TestUpgradeCommandNewFlags(t *testing.T) {
 }
 
 func TestUpgradeCommandEngineValidationRunsEarly(t *testing.T) {
+	t.Parallel()
+
 	validated := false
 	validate := func(engine string) error {
 		validated = true
@@ -71,6 +77,8 @@ func TestUpgradeCommandEngineValidationRunsEarly(t *testing.T) {
 }
 
 func TestUpgradeCommandRepoOrgMutualExclusion(t *testing.T) {
+	t.Parallel()
+
 	cmd := NewUpgradeCommand(upgradeValidateEngineStub)
 	cmd.SetArgs([]string{"--repo", "owner/repo", "--org", "my-org"})
 	err := cmd.Execute()
@@ -80,6 +88,8 @@ func TestUpgradeCommandRepoOrgMutualExclusion(t *testing.T) {
 }
 
 func TestUpgradeCommandFlagRegistration(t *testing.T) {
+	t.Parallel()
+
 	cmd := NewUpgradeCommand(upgradeValidateEngineStub)
 	require.NotNil(t, cmd, "upgrade command should be created")
 
