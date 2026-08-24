@@ -262,11 +262,11 @@ func (c *Compiler) buildCommandTriggerEventsMap(data *WorkflowData) (map[string]
 				if existingMap, ok := existingAny.(map[string]any); ok {
 					switch t := existingMap["types"].(type) {
 					case []string:
-						newTypes := make([]any, len(t)+1)
-						for i, s := range t {
-							newTypes[i] = s
+						newTypes := make([]any, 0, safeAllocationCapacity(len(t), 1))
+						for _, s := range t {
+							newTypes = append(newTypes, s)
 						}
-						newTypes[len(t)] = "labeled"
+						newTypes = append(newTypes, "labeled")
 						existingMap["types"] = newTypes
 					case []any:
 						existingMap["types"] = append(t, "labeled")
@@ -759,7 +759,7 @@ func ensureGitHubAllowedTool(githubConfig map[string]any, tool string) {
 }
 
 func appendStringAny(values []string, value string) []any {
-	result := make([]any, 0, len(values)+1)
+	result := make([]any, 0, safeAllocationCapacity(len(values), 1))
 	for _, existing := range values {
 		result = append(result, existing)
 	}

@@ -428,7 +428,7 @@ func experimentVariantCounts(exp ExperimentVariantStats, cfg *workflow.Experimen
 	if !includeDeclared || cfg == nil {
 		return exp.Variants
 	}
-	counts := make(map[string]int, len(exp.Variants)+len(cfg.Variants))
+	counts := make(map[string]int, safeAllocationCapacity(len(exp.Variants), len(cfg.Variants)))
 	maps.Copy(counts, exp.Variants)
 	for _, name := range cfg.Variants {
 		if _, ok := counts[name]; !ok {
