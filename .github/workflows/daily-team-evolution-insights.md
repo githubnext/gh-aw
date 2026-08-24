@@ -62,7 +62,7 @@ Analyze the previous complete UTC calendar day of repository activity to extract
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Analysis Period**: previous complete UTC calendar day (`window_start=00:00:00Z`, `window_end=00:00:00Z`)
+- **Analysis Period**: previous complete UTC calendar day (`window_start=YYYY-MM-DDT00:00:00Z`, `window_end=YYYY-MM-(DD+1)T00:00:00Z`)
 - **Run ID**: ${{ github.run_id }}
 
 Compute the previous complete UTC calendar-day boundaries before gathering activity and report them explicitly as ISO-8601 UTC timestamps (`YYYY-MM-DDTHH:MM:SSZ`), not just a date. Only count activity whose relevant timestamp falls inside this half-open window: `window_start <= timestamp < window_end`.

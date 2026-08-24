@@ -83,7 +83,7 @@ Daily analysis of pull requests created and merged by copilot-swe-agent during t
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Analysis Period**: previous complete UTC calendar day (`window_start=00:00:00Z`, `window_end=00:00:00Z`)
+- **Analysis Period**: previous complete UTC calendar day (`window_start=YYYY-MM-DDT00:00:00Z`, `window_end=YYYY-MM-(DD+1)T00:00:00Z`)
 
 ## Task Overview
 

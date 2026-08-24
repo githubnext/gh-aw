@@ -232,7 +232,7 @@ When implementing or updating daily report workflows:
 
 **Definition**: Count of pull requests whose `mergedAt` timestamp falls within the report window
 
-**Scope**: PRs where `window_start <= mergedAt < window_end`. Daily cross-report comparisons use the previous complete UTC calendar day (`00:00:00Z` to `00:00:00Z`).
+**Scope**: PRs where `window_start <= mergedAt < window_end`. Daily cross-report comparisons use the previous complete UTC calendar day (`YYYY-MM-DDT00:00:00Z` to `YYYY-MM-(DD+1)T00:00:00Z`).
 
 **Used By**:
 - Copilot Agent Analysis
