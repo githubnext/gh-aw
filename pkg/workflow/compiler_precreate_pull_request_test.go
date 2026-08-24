@@ -29,7 +29,7 @@ func TestBuildActivationJobPreCreatesPullRequest(t *testing.T) {
 	assert.Contains(t, steps, "id: pre-create-pull-request")
 	assert.Contains(t, steps, "pre_create_pull_request.cjs")
 	assert.Contains(t, steps, "id: validate-pre-created-pull-request")
-	assert.Contains(t, steps, "Pre-created pull request does not target the expected trusted repository branch")
+	assert.Contains(t, steps, "validate_pre_created_pull_request.cjs")
 	assert.Contains(t, job.Permissions, "contents: write")
 	assert.Contains(t, job.Permissions, "pull-requests: write")
 	assert.Contains(t, job.Permissions, "checks: write")
