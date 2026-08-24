@@ -14,7 +14,8 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Service Ports
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 sandbox:
   agent:

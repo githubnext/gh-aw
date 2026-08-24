@@ -14,6 +14,7 @@ import (
 )
 
 func TestMCPSubprocessGuardrailLimitsConcurrentAcquisitions(t *testing.T) {
+	t.Parallel()
 	guardrail := newMCPSubprocessGuardrail(maxActiveMCPChildProcesses)
 
 	var current atomic.Int32
@@ -76,6 +77,7 @@ func TestMCPSubprocessGuardrailLimitsConcurrentAcquisitions(t *testing.T) {
 }
 
 func TestMCPSubprocessGuardrailAcquireHonorsContextCancellation(t *testing.T) {
+	t.Parallel()
 	guardrail := newMCPSubprocessGuardrail(1)
 	require.NoError(t, guardrail.acquire(context.Background()), "initial acquire on empty guardrail should succeed")
 	defer guardrail.release()
@@ -88,6 +90,7 @@ func TestMCPSubprocessGuardrailAcquireHonorsContextCancellation(t *testing.T) {
 }
 
 func TestMCPSubprocessGuardrailAcquireHonorsCanceledContextWithAvailableSlot(t *testing.T) {
+	t.Parallel()
 	guardrail := newMCPSubprocessGuardrail(1)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -98,6 +101,7 @@ func TestMCPSubprocessGuardrailAcquireHonorsCanceledContextWithAvailableSlot(t *
 }
 
 func TestMCPSubprocessGuardrailAcquireCancelsWhileBlocked(t *testing.T) {
+	t.Parallel()
 	guardrail := newMCPSubprocessGuardrail(1)
 	require.NoError(t, guardrail.acquire(context.Background()), "initial acquire on empty guardrail should succeed")
 	defer guardrail.release()

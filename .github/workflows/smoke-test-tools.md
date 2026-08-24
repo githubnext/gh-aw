@@ -17,7 +17,8 @@ permissions:
   issues: read
   pull-requests: read
 name: Agent Container Smoke Test
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 runtimes:
   node:

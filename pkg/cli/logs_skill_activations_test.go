@@ -14,7 +14,7 @@ import (
 // TestExtractSkillActivationsFromAgentOutput verifies that explicit skill_invocation
 // entries in agent_output.json are detected and returned as SkillActivation records.
 func TestExtractSkillActivationsFromAgentOutput(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "skill-activations-*")
+	t.Parallel()
 	testRun := WorkflowRun{DatabaseID: 123, WorkflowName: "test-workflow"}
 
 	tests := []struct {
@@ -121,12 +121,13 @@ func TestExtractSkillActivationsFromAgentOutput(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tmpDir := testutil.TempDir(t, "skill-activations-*")
 			// Write agent_output.json
 			agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename)
 			if err := os.WriteFile(agentOutputPath, []byte(tc.content), 0o600); err != nil {
 				t.Fatalf("failed to write agent_output.json: %v", err)
 			}
-			t.Cleanup(func() { os.Remove(agentOutputPath) })
 
 			got, err := extractSkillActivationsFromRun(tmpDir, testRun, false, "", "")
 			if err != nil {
@@ -154,6 +155,7 @@ func TestExtractSkillActivationsFromAgentOutput(t *testing.T) {
 // TestExtractSkillActivationsFromLogFiles verifies that skill invocation patterns
 // in raw agent log files are detected when no agent_output.json is present.
 func TestExtractSkillActivationsFromLogFiles(t *testing.T) {
+	t.Parallel()
 	testRun := WorkflowRun{DatabaseID: 456, WorkflowName: "log-parse-test"}
 
 	tests := []struct {
@@ -208,6 +210,7 @@ No skills here.`,
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := testutil.TempDir(t, "skill-log-parse-*")
 
 			logPath := filepath.Join(tmpDir, "agent.log")
@@ -251,6 +254,7 @@ No skills here.`,
 // TestExtractSkillActivationsBothSourcesMerged verifies that skills from both
 // agent_output.json and log files are returned (applies to all skills).
 func TestExtractSkillActivationsBothSourcesMerged(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "skill-merge-*")
 	testRun := WorkflowRun{DatabaseID: 789, WorkflowName: "merge-test"}
 
@@ -312,6 +316,7 @@ func TestExtractSkillActivationsBothSourcesMerged(t *testing.T) {
 // same skill name appears in both agent_output.json and log files, the
 // agent_output version is kept (and the log entry is silently dropped).
 func TestExtractSkillActivationsAgentOutputWinsOnDuplicate(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "skill-dedup-*")
 	testRun := WorkflowRun{DatabaseID: 790, WorkflowName: "dedup-test"}
 
@@ -355,6 +360,7 @@ func TestExtractSkillActivationsAgentOutputWinsOnDuplicate(t *testing.T) {
 // TestExtractSkillActivationsProvenanceFields verifies that the ReportProvenance
 // fields are populated correctly on each returned record.
 func TestExtractSkillActivationsProvenanceFields(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "skill-provenance-*")
 	testRun := WorkflowRun{
 		DatabaseID:   999,

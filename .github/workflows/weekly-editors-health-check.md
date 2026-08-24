@@ -39,6 +39,7 @@ safe-outputs:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
   create-pull-request:
+    steer: true
     title-prefix: "[docs] "
     labels: [documentation, automation]
     reviewers: [copilot]

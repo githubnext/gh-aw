@@ -10,7 +10,6 @@ on:
       - '*.md'
       - 'docs/**'
       - '.changeset/**'
-      - 'socials/**'
       - 'scratchpad/**'
   workflow_dispatch:
 permissions:

@@ -25,7 +25,6 @@ model: claude-sonnet-4.6
     - "*.md"
     - docs/**
     - .changeset/**
-    - socials/**
     - scratchpad/**
     types:
     - ready_for_review

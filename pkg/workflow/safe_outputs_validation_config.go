@@ -22,6 +22,7 @@ type FieldValidation struct {
 	MinLength                int      `json:"minLength,omitempty"`
 	PositiveInteger          bool     `json:"positiveInteger,omitempty"`
 	OptionalPositiveInteger  bool     `json:"optionalPositiveInteger,omitempty"`
+	AllowAuto                bool     `json:"allowAuto,omitempty"`
 	IssueOrPRNumber          bool     `json:"issueOrPRNumber,omitempty"`
 	IssueNumberOrTemporaryID bool     `json:"issueNumberOrTemporaryId,omitempty"`
 	Enum                     []string `json:"enum,omitempty"`
@@ -546,7 +547,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"dismiss_pull_request_review": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{
-			"review_id":           {Required: true, PositiveInteger: true},
+			"review_id":           {OptionalPositiveInteger: true, AllowAuto: true},
 			"justification":       {Required: true, Type: "string", Sanitize: true, MinLength: 20, MaxLength: MaxBodyLength},
 			"author":              {Type: "string", Sanitize: true, MaxLength: 128},
 			"pull_request_number": {IssueOrPRNumber: true},

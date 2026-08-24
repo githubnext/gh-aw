@@ -908,7 +908,9 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	var base string
 	engine := constants.EngineName(engineID)
 	switch engine {
-	case constants.CopilotEngine, constants.CodexEngine, constants.ClaudeEngine, constants.GeminiEngine,
+	case constants.CodexEngine:
+		base = mergeDomainsWithNetworkToolsAndRuntimes(NewCodexEngine().defaultDomains(data), data.NetworkPermissions, data.Tools, data.Runtimes)
+	case constants.CopilotEngine, constants.ClaudeEngine, constants.GeminiEngine,
 		constants.PiEngine:
 		model := ""
 		if data.EngineConfig != nil {

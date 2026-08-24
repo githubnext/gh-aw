@@ -18,10 +18,9 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Drive
-model: small
+model: copilot/mai-code-1-flash-picker
 engine:
-  id: copilot
-  bare: true
+  id: codex
 strict: true
 imports:
   - shared/smoke-test-brevity.md

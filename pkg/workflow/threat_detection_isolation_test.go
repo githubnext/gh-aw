@@ -3,8 +3,10 @@
 package workflow
 
 import (
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -637,7 +639,12 @@ func TestExternalDetectorPathPreparesCodexConfig(t *testing.T) {
 
 	workflowContent := `---
 on: push
-engine: codex
+engine:
+  id: codex
+  model-provider: github
+model: auto
+permissions:
+  copilot-requests: write
 safe-outputs:
   create-issue:
 features:
@@ -687,6 +694,25 @@ Test workflow`
 	}
 	if !strings.Contains(detectionSection, "supports_websockets = false") {
 		t.Error("Codex external detector path must disable websocket startup for the proxy config")
+	}
+	if !strings.Contains(detectionSection, "env_key = \"CODEX_API_KEY\"") {
+		t.Error("Codex external detector path must use the Codex BYOK API key")
+	}
+	if !strings.Contains(detectionSection, "wire_api = \"responses\"") {
+		t.Error("Codex external detector path must use the Responses API")
+	}
+	if !strings.Contains(detectionSection, "requires_openai_auth = false") {
+		t.Error("Codex external detector path must use BYOK authentication")
+	}
+	expectedCopilotBaseURL := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CopilotLLMGatewayPort))
+	if !strings.Contains(detectionSection, `base_url = "`+expectedCopilotBaseURL+`"`) {
+		t.Errorf("Codex external detector path must use the reflected Copilot provider endpoint %q", expectedCopilotBaseURL)
+	}
+	if !strings.Contains(detectionSection, `export CODEX_API_KEY="$`+constants.CopilotBYOKDummyAPIKeyEnvVar+`" &&`) {
+		t.Error("Codex external detector path must activate the BYOK proxy route")
+	}
+	if !strings.Contains(detectionSection, "--exclude-env COPILOT_GITHUB_TOKEN") {
+		t.Error("Codex external detector path must keep the GitHub token out of the sandbox")
 	}
 }
 

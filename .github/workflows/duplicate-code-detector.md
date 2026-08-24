@@ -8,12 +8,14 @@ on:
   schedule:
     - cron: "47 21 * * *" # Offset from other nightly scheduled workflows
 permissions:
+  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read
 
 
 engine: codex
+model: copilot/auto
 network:
   allowed:
     - defaults

@@ -154,6 +154,9 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	if err := c.validateCoreToolConfiguration(workflowData, markdownPath); err != nil {
 		return err
 	}
+	if err := validatePreCreatePullRequestSteerPermissions(workflowData, workflowPermissions); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
 	if err := c.validateConcurrencyConfiguration(workflowData, markdownPath); err != nil {
 		return err
 	}
@@ -296,6 +299,25 @@ func validateWorkflowConcurrency(workflowData *WorkflowData, markdownPath string
 	return nil
 }
 
+// emitSandboxRuntimeWarnings warns about sandbox runtime choices that need human
+// review or whose configuration the compiler cannot honour.
+func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdownPath string) {
+	if isCloudHypervisorRuntime(workflowData) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
+				"Require a human security review before merge or rollout, and record explicit approval in your change process."))
+		c.IncrementWarningCount()
+	}
+	if declaresIgnoredFilesystemAllowWrite(workflowData) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"sandbox.agent.config.filesystem.allowWrite is ignored for this runtime and was not written to the AWF config. "+
+				"Only sandbox.agent.runtime: cloud-hypervisor enforces the policy without breaking the agent container: "+
+				"the Docker and gVisor runtimes narrow AWF's own writable bind mounts (including its internal /tmp/awf-init mount) "+
+				"to read-only, and docker-sbx rejects the policy outright."))
+		c.IncrementWarningCount()
+	}
+}
+
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {
 	if workflowData.Concurrency != "" && strings.Contains(workflowData.Concurrency, "cancel-in-progress: true") && hasBotSelfCancelRisk(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
@@ -322,12 +344,7 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"Unsupported hosts are rejected; gh-aw and AWF do not fall back to docker or gvisor."))
 		c.IncrementWarningCount()
 	}
-	if isCloudHypervisorRuntime(workflowData) {
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
-				"Require a human security review before merge or rollout, and record explicit approval in your change process."))
-		c.IncrementWarningCount()
-	}
+	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
@@ -386,7 +403,7 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
 		{enabled: workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0, message: "Using experimental feature: drive-memory"},
 		{enabled: hasContinualExperiment(workflowData.ExperimentConfigs), message: "Using experimental feature: continual experiments"},
-		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.PreCreate, message: "Using experimental feature: create-pull-request pre-create"},
+		{enabled: workflowData.SafeOutputs != nil && isPreCreatePullRequestConfigured(workflowData.SafeOutputs.CreatePullRequests), message: "Using experimental feature: create-pull-request steer"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {

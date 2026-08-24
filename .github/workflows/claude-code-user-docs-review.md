@@ -170,11 +170,17 @@ Return compact JSON with:
 description: Counts workflow examples by engine and lists representative files
 model: small
 ---
-Scan `.github/workflows/*.md` and count occurrences of:
-- `engine: claude`
-- `engine: copilot`
-- `engine: codex`
-- `engine: custom`
+Scan `.github/workflows/*.md` and count workflow engine declarations for:
+- `claude`
+- `copilot`
+- `codex`
+- `custom`
+
+Count both supported YAML forms:
+- inline scalar: `engine: claude`
+- nested mapping: `engine:\n  id: claude`
+
+Prefer a YAML-aware frontmatter parse when practical; otherwise use matching that covers both forms.
 
 Return compact JSON with:
 - counts_by_engine

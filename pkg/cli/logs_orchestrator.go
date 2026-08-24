@@ -323,5 +323,6 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		endDate:           opts.EndDate,
 		checkStaleness:    true,
 		countLimitReached: countLimitReached,
+		suppressRender:    opts.SuppressRender,
 	})
 }

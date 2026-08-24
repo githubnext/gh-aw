@@ -94,3 +94,30 @@ func TestRenderLogsOutputStaleWarningGatedByCheckStaleness(t *testing.T) {
 		assert.NotContains(t, stdout, "No start_date/end_date was specified")
 	})
 }
+
+func TestRenderLogsOutputSuppressRenderWritesNothing(t *testing.T) {
+	processedRuns := []ProcessedRun{{
+		Run: WorkflowRun{
+			DatabaseID:   1,
+			Status:       "completed",
+			WorkflowName: "logs",
+			CreatedAt:    time.Now(),
+		},
+	}}
+
+	for _, format := range []string{"", "console", "tsv", "markdown", "pretty"} {
+		t.Run(format, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() error {
+				return renderLogsOutput(processedRuns, renderLogsOutputOptions{
+					outputDir:      t.TempDir(),
+					format:         format,
+					artifactFilter: []string{"usage"},
+					suppressRender: true,
+				})
+			})
+
+			assert.Empty(t, stdout, "suppressed rendering must not write to stdout")
+			assert.Empty(t, stderr, "suppressed rendering must not write to stderr")
+		})
+	}
+}

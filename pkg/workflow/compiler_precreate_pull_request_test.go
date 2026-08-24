@@ -51,7 +51,27 @@ func TestBuildConclusionJobCompletesPreCreatedCheck(t *testing.T) {
 	assert.Contains(t, steps, "Complete pre-created pull request check")
 	assert.Contains(t, steps, "complete_pre_created_check_run.cjs")
 	assert.Contains(t, steps, "needs.activation.outputs.pre_created_pull_request_check_run_id")
+	assert.Contains(t, steps, "needs.safe_outputs.outputs.created_pr_number")
+	assert.NotContains(t, steps, "GH_AW_NOOP_COMMENT_BODY")
 	assert.Contains(t, job.Permissions, "checks: write")
+}
+
+func TestBuildConclusionJobPassesNoOpCommentToPreCreatedCheck(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		Name: "Pre-create test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+			NoOp:               &NoOpConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(data, "agent", []string{"safe_outputs"})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, "GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}")
 }
 
 func TestPreCreatePullRequestCheckoutOverride(t *testing.T) {
@@ -129,6 +149,46 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validatePreCreatePullRequest(tt.data)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidatePreCreatePullRequestSteerPermissions(t *testing.T) {
+	tests := []struct {
+		name        string
+		permissions *Permissions
+		wantErr     string
+	}{
+		{
+			name:        "missing pull requests permission",
+			permissions: NewPermissionsContentsRead(),
+			wantErr:     "steering requires pull-requests: read",
+		},
+		{
+			name: "pull requests read",
+			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionPullRequests: PermissionRead,
+			}),
+		},
+		{
+			name: "pull requests write implies read",
+			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionPullRequests: PermissionWrite,
+			}),
+		},
+	}
+
+	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePreCreatePullRequestSteerPermissions(data, tt.permissions)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -243,4 +303,21 @@ func TestActivationPreCreateStepOmitsEmptyTitlePrefix(t *testing.T) {
 
 	steps := strings.Join(job.Steps, "")
 	assert.NotContains(t, steps, "GH_AW_PR_TITLE_PREFIX")
+}
+
+func TestActivationPreCreateStepPassesSteerFlag(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		Name:            "Pre-create steer test",
+		MarkdownContent: "# Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	require.NoError(t, err)
+
+	steps := strings.Join(job.Steps, "")
+	assert.NotContains(t, steps, "GH_AW_PRE_CREATE_STEER")
 }

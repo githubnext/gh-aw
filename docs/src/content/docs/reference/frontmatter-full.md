@@ -8881,6 +8881,12 @@ safe-outputs:
     # (optional)
     pre-create: true
 
+    # ⚠️ Experimental. Pre-create a draft pull request and let the agent read
+    # user-authored pull request comments and review comments containing the keyword
+    # 'steer'. Requires top-level pull-requests: read permission.
+    # (optional)
+    steer: true
+
     # Optional prefix for the pull request title
     # (optional)
     title-prefix: "example-value"

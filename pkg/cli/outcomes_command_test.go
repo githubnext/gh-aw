@@ -11,6 +11,7 @@ import (
 )
 
 func TestNewOutcomesCommand_DoesNotShadowGlobalVerboseFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewOutcomesCommand()
 	require.NotNil(t, cmd)
 
@@ -26,6 +27,7 @@ func TestNewOutcomesCommand_DoesNotShadowGlobalVerboseFlag(t *testing.T) {
 }
 
 func TestNewOutcomesCommand_OutputFlagShowsDefault(t *testing.T) {
+	t.Parallel()
 	cmd := NewOutcomesCommand()
 	require.NotNil(t, cmd)
 

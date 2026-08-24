@@ -40,6 +40,7 @@ type importAccumulator struct {
 	engines                    []string
 	plugins                    []string
 	safeOutputs                []string
+	gradersBuilder             strings.Builder
 	mcpScripts                 []string
 	bots                       []string
 	botsSet                    map[string]bool
@@ -398,6 +399,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
 	acc.plugins = append(acc.plugins, parseStringSliceField(fm["plugins"], false)...)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
+	acc.appendJSONBuilderField(fm, "graders", "{}", &acc.gradersBuilder)
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
 	acc.appendYAMLBuilderField(fm, "steps", &acc.stepsBuilder)
 	acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
@@ -953,12 +955,13 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 // buildImportsResult constructs the ImportsResult from accumulated state, excluding
 // ImportedFiles which is populated separately from the topological sort order.
 func (acc *importAccumulator) buildImportsResult() *ImportsResult {
-	return &ImportsResult{
+	result := &ImportsResult{
 		MergedTools:                      acc.toolsBuilder.String(),
 		MergedMCPServers:                 acc.mcpServersBuilder.String(),
 		MergedEngines:                    acc.engines,
 		MergedPlugins:                    acc.plugins,
 		MergedSafeOutputs:                acc.safeOutputs,
+		MergedGraders:                    acc.gradersBuilder.String(),
 		MergedMCPScripts:                 acc.mcpScripts,
 		MergedMarkdown:                   acc.markdownBuilder.String(),
 		ImportPaths:                      acc.importPaths,
@@ -997,22 +1000,27 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		AgentImportSpec:                  acc.agentImportSpec,
 		RepositoryImports:                acc.repositoryImports,
 		ImportInputs:                     acc.importInputs,
-		MergedActivationGitHubToken:      acc.activationGitHubToken,
-		MergedActivationGitHubApp:        acc.activationGitHubApp,
-		MergedTopLevelGitHubApp:          acc.topLevelGitHubApp,
-		MergedCheckout:                   strings.Join(acc.checkouts, "\n"),
-		MergedEngineMCPToolTimeout:       acc.mergedEngineMCPToolTimeout,
-		MergedEngineMCPSessionTimeout:    acc.mergedEngineMCPSessionTimeout,
-		MergedEngineModel:                acc.mergedEngineModel,
-		MergedMaxTurns:                   acc.mergedMaxTurns,
-		MergedMaxToolDenials:             acc.mergedMaxToolDenials,
-		MergedMaxRuns:                    acc.mergedMaxRuns,
-		MergedMaxTurnCacheMisses:         acc.mergedMaxTurnCacheMisses,
-		MergedMaxAICredits:               acc.mergedMaxAICredits,
-		MergedMaxDailyAICredits:          acc.mergedMaxDailyAICredits,
-		MergedExcludedEnv:                acc.excludedEnv,
 		Warnings:                         acc.warnings,
 	}
+	acc.populateImportsResultScalars(result)
+	return result
+}
+
+func (acc *importAccumulator) populateImportsResultScalars(result *ImportsResult) {
+	result.MergedActivationGitHubToken = acc.activationGitHubToken
+	result.MergedActivationGitHubApp = acc.activationGitHubApp
+	result.MergedTopLevelGitHubApp = acc.topLevelGitHubApp
+	result.MergedCheckout = strings.Join(acc.checkouts, "\n")
+	result.MergedEngineMCPToolTimeout = acc.mergedEngineMCPToolTimeout
+	result.MergedEngineMCPSessionTimeout = acc.mergedEngineMCPSessionTimeout
+	result.MergedEngineModel = acc.mergedEngineModel
+	result.MergedMaxTurns = acc.mergedMaxTurns
+	result.MergedMaxToolDenials = acc.mergedMaxToolDenials
+	result.MergedMaxRuns = acc.mergedMaxRuns
+	result.MergedMaxTurnCacheMisses = acc.mergedMaxTurnCacheMisses
+	result.MergedMaxAICredits = acc.mergedMaxAICredits
+	result.MergedMaxDailyAICredits = acc.mergedMaxDailyAICredits
+	result.MergedExcludedEnv = acc.excludedEnv
 }
 
 func computeImportRelPath(fullPath, importPath string) string {

@@ -13,6 +13,7 @@ import (
 )
 
 func TestParseGatewayLogs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		logContent    string
@@ -110,6 +111,7 @@ invalid json line
 }
 
 func TestParseGatewayLogsFileNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	metrics, err := parseGatewayLogs(tmpDir, false)
@@ -120,6 +122,7 @@ func TestParseGatewayLogsFileNotFound(t *testing.T) {
 }
 
 func TestGatewayToolMetrics(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create a log with multiple calls to the same tool
@@ -156,6 +159,7 @@ func TestGatewayToolMetrics(t *testing.T) {
 }
 
 func TestRenderGatewayMetricsTable(t *testing.T) {
+	t.Parallel()
 	// Create metrics with some data
 	metrics := &GatewayMetrics{
 		TotalRequests:  10,
@@ -221,6 +225,7 @@ func TestRenderGatewayMetricsTable(t *testing.T) {
 }
 
 func TestRenderGatewayMetricsTableEmpty(t *testing.T) {
+	t.Parallel()
 	// Test with nil metrics
 	output := renderGatewayMetricsTable(nil, false)
 	assert.Empty(t, output)
@@ -234,6 +239,7 @@ func TestRenderGatewayMetricsTableEmpty(t *testing.T) {
 }
 
 func TestGatewayTruncateString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		input  string
@@ -276,6 +282,7 @@ func TestGatewayTruncateString(t *testing.T) {
 }
 
 func TestProcessGatewayLogEntry(t *testing.T) {
+	t.Parallel()
 	metrics := &GatewayMetrics{
 		Servers: make(map[string]*GatewayServerMetrics),
 	}
@@ -323,6 +330,7 @@ func TestProcessGatewayLogEntry(t *testing.T) {
 }
 
 func TestProcessGatewayLogEntryDifcFiltered(t *testing.T) {
+	t.Parallel()
 	metrics := &GatewayMetrics{
 		Servers: make(map[string]*GatewayServerMetrics),
 	}
@@ -361,6 +369,7 @@ func TestProcessGatewayLogEntryDifcFiltered(t *testing.T) {
 }
 
 func TestParseRPCMessagesDifcFiltered(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	content := `{"timestamp":"2024-01-12T10:00:00.000000000Z","type":"DIFC_FILTERED","server_id":"github","tool_name":"pull_request_read","reason":"Resource has lower integrity than agent requires.","author_login":"octocat","author_association":"CONTRIBUTOR","html_url":"https://github.com/github/gh-aw/pull/42","number":"42"}
@@ -408,6 +417,7 @@ func TestParseRPCMessagesDifcFiltered(t *testing.T) {
 // of the legacy top-level "type" field ("REQUEST"/"RESPONSE"). Regression test for
 // https://github.com/github/gh-aw/issues/53254.
 func TestParseRPCMessagesSchemaV2Format(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	content := `{"timestamp":"2026-08-15T23:48:42.233Z","event":"rpc_request","_schema":"rpc-message/v2","direction":"OUT","server_id":"github","method":"tools/call","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
@@ -433,6 +443,7 @@ func TestParseRPCMessagesSchemaV2Format(t *testing.T) {
 // TestRPCMessageEntryEffectiveType verifies the normalization helper used to bridge
 // the legacy top-level "type" field and the "event" field used by schema "rpc-message/v2".
 func TestRPCMessageEntryEffectiveType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		entry RPCMessageEntry
@@ -454,6 +465,7 @@ func TestRPCMessageEntryEffectiveType(t *testing.T) {
 }
 
 func TestGetSortedServerNames(t *testing.T) {
+	t.Parallel()
 	metrics := &GatewayMetrics{
 		Servers: map[string]*GatewayServerMetrics{
 			"github": {
@@ -481,6 +493,7 @@ func TestGetSortedServerNames(t *testing.T) {
 }
 
 func TestGatewayLogsWithMethodField(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Test with method field instead of tool_name
@@ -510,6 +523,7 @@ func TestGatewayLogsWithMethodField(t *testing.T) {
 }
 
 func TestGatewayLogsParsingIntegration(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create a comprehensive test log
@@ -586,6 +600,7 @@ func TestGatewayLogsParsingIntegration(t *testing.T) {
 }
 
 func TestParseGatewayLogsFromMCPLogsSubdirectory(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
@@ -619,6 +634,7 @@ func TestParseGatewayLogsFromMCPLogsSubdirectory(t *testing.T) {
 }
 
 func TestParseRPCMessages(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		logContent    string
@@ -714,6 +730,7 @@ func TestParseRPCMessages(t *testing.T) {
 }
 
 func TestParseGatewayLogsFallsBackToRPCMessages(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create mcp-logs/rpc-messages.jsonl (no gateway.jsonl present)
@@ -739,6 +756,7 @@ func TestParseGatewayLogsFallsBackToRPCMessages(t *testing.T) {
 }
 
 func TestFindRPCMessagesPath(t *testing.T) {
+	t.Parallel()
 	t.Run("rpc-messages in mcp-logs subdirectory", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		mcpDir := filepath.Join(tmpDir, "mcp-logs")
@@ -780,6 +798,7 @@ func TestFindRPCMessagesPath(t *testing.T) {
 }
 
 func TestBuildToolCallsFromRPCMessages(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	rpcContent := `{"timestamp":"2024-01-12T10:00:00.000000000Z","direction":"OUT","type":"REQUEST","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
@@ -821,6 +840,7 @@ func TestBuildToolCallsFromRPCMessages(t *testing.T) {
 // always being null when parseRPCMessages counted tool calls in the summary but
 // buildToolCallsFromRPCMessages skipped null-ID requests).
 func TestBuildToolCallsFromRPCMessagesNullID(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Requests with null ID (id:null) - these are counted in the summary by parseRPCMessages
@@ -850,6 +870,7 @@ func TestBuildToolCallsFromRPCMessagesNullID(t *testing.T) {
 // TestBuildToolCallsFromRPCMessagesSchemaV2Format verifies that buildToolCallsFromRPCMessages
 // handles the real-world schema "rpc-message/v2" format ("event" field instead of "type").
 func TestBuildToolCallsFromRPCMessagesSchemaV2Format(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	rpcContent := `{"timestamp":"2026-08-15T23:48:42.233Z","event":"rpc_request","_schema":"rpc-message/v2","direction":"OUT","server_id":"github","method":"tools/call","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
@@ -869,6 +890,7 @@ func TestBuildToolCallsFromRPCMessagesSchemaV2Format(t *testing.T) {
 }
 
 func TestParseRPCMessagesGuardPolicyErrors(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Test rpc-messages.jsonl with guard policy error responses:
@@ -927,6 +949,7 @@ func TestParseRPCMessagesGuardPolicyErrors(t *testing.T) {
 }
 
 func TestParseRPCMessagesGuardPolicyWithoutData(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Guard policy error without the optional data field
@@ -952,6 +975,7 @@ func TestParseRPCMessagesGuardPolicyWithoutData(t *testing.T) {
 }
 
 func TestIsGuardPolicyErrorCode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		code     int
 		expected bool
@@ -975,6 +999,7 @@ func TestIsGuardPolicyErrorCode(t *testing.T) {
 }
 
 func TestGuardPolicyReasonFromCode(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "access_denied", guardPolicyReasonFromCode(-32001))
 	assert.Equal(t, "repo_not_allowed", guardPolicyReasonFromCode(-32002))
 	assert.Equal(t, "insufficient_permissions", guardPolicyReasonFromCode(-32003))
@@ -985,6 +1010,7 @@ func TestGuardPolicyReasonFromCode(t *testing.T) {
 }
 
 func TestProcessGatewayLogEntryGuardPolicyBlocked(t *testing.T) {
+	t.Parallel()
 	metrics := &GatewayMetrics{
 		Servers: make(map[string]*GatewayServerMetrics),
 	}
@@ -1018,6 +1044,7 @@ func TestProcessGatewayLogEntryGuardPolicyBlocked(t *testing.T) {
 }
 
 func TestBuildGuardPolicySummary(t *testing.T) {
+	t.Parallel()
 	metrics := &GatewayMetrics{
 		TotalGuardBlocked: 5,
 		GuardPolicyEvents: []GuardPolicyEvent{
@@ -1054,6 +1081,7 @@ func TestBuildGuardPolicySummary(t *testing.T) {
 }
 
 func TestExtractMCPToolUsageDataWithGuardPolicy(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create rpc-messages.jsonl with guard policy errors
@@ -1086,6 +1114,7 @@ func TestExtractMCPToolUsageDataWithGuardPolicy(t *testing.T) {
 // fall back to the "error"/"level" fields to produce "success" or "error" rather than
 // leaving Status blank (which downstream agents render as "unknown").
 func TestExtractToolCallsStatusInference(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		logLine      string
@@ -1143,6 +1172,7 @@ func TestExtractToolCallsStatusInference(t *testing.T) {
 // counts a tool-call entry as an error when "level":"error" is set, even if the
 // "status" and "error" fields are absent (post-OTel format drift).
 func TestProcessGatewayLogEntryLevelErrorCounting(t *testing.T) {
+	t.Parallel()
 	metrics := &GatewayMetrics{
 		Servers: make(map[string]*GatewayServerMetrics),
 	}

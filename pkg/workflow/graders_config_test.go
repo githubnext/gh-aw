@@ -1,9 +1,15 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // TestParseGradersFromFrontmatter_Absent verifies nil return when graders absent.
@@ -181,6 +187,118 @@ func TestParseGradersFromFrontmatter_RunRejectedForOtherGraders(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected run to be rejected for a non-operational-value grader")
+	}
+}
+
+func TestMergeImportedGradersFrontmatter(t *testing.T) {
+	frontmatter := map[string]any{
+		"graders": map[string]any{
+			"local-score": map[string]any{
+				"script": "return 2",
+			},
+			"shared-score": map[string]any{
+				"script": "return 3",
+			},
+		},
+	}
+	importedGraders := `{"shared-score":{"script":"return 1","unit":"count","direction":"lower_is_better"}}`
+
+	merged, err := mergeImportedGradersFrontmatter(frontmatter, importedGraders)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var c Compiler
+	cfg, err := c.parseGradersFromFrontmatter(merged)
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("expected merged graders config")
+	}
+	if _, ok := cfg.Graders["local-score"]; !ok {
+		t.Fatal("expected local-score grader")
+	}
+	if got := cfg.Graders["shared-score"].Script; got != "return 3" {
+		t.Fatalf("expected local shared-score override, got %q", got)
+	}
+}
+
+func TestCompileWorkflowMergesImportedGraders(t *testing.T) {
+	tmpDir := t.TempDir()
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		t.Fatalf("failed to create shared dir: %v", err)
+	}
+
+	sharedPath := filepath.Join(sharedDir, "grader.md")
+	sharedContent := `---
+graders:
+  imported-score:
+    script: |
+      return trace.toolCalls.length
+    unit: count
+    direction: lower_is_better
+---
+
+<!-- imported grader -->
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0o644); err != nil {
+		t.Fatalf("failed to write shared grader: %v", err)
+	}
+
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	workflowContent := `---
+on: workflow_dispatch
+engine: copilot
+strict: false
+permissions:
+  contents: read
+imports:
+  - shared/grader.md
+---
+
+# Workflow
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	compiler := NewCompiler(WithVersion("dev"))
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow() error = %v", err)
+	}
+
+	compiled, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	if err != nil {
+		t.Fatalf("failed to read compiled workflow: %v", err)
+	}
+	yaml := string(compiled)
+	if !strings.Contains(yaml, "Run graders") {
+		t.Fatal("expected imported graders to emit the grader step")
+	}
+
+	match := regexp.MustCompile(`await main\('([^']+)', '([^']+)'\);`).FindStringSubmatch(yaml)
+	if len(match) != 3 {
+		t.Fatal("expected encoded grader manifest and execution spec in compiled workflow")
+	}
+	manifestJSON, err := base64.StdEncoding.DecodeString(match[1])
+	if err != nil {
+		t.Fatalf("failed to decode manifest: %v", err)
+	}
+	var manifest graderManifest
+	if err := json.Unmarshal(manifestJSON, &manifest); err != nil {
+		t.Fatalf("failed to unmarshal manifest: %v", err)
+	}
+	found := false
+	for _, entry := range manifest.Graders {
+		if entry.ID == "imported-score" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected imported grader ID in compiled manifest")
 	}
 }
 
@@ -512,7 +630,11 @@ func TestGenerateGradersStep_BeforeArtifactUpload(t *testing.T) {
 
 // TestCollectGraderArtifactPaths verifies paths include all replay artifacts.
 func TestCollectGraderArtifactPaths(t *testing.T) {
-	paths := collectGraderArtifactPaths()
+	grader := &GraderDefinition{ID: "operational-value"}
+	grader.evaluatorContent = "#!/usr/bin/env bash\n"
+	paths := collectGraderArtifactPaths(&GradersConfig{
+		Graders: map[string]*GraderDefinition{"operational-value": grader},
+	})
 	if len(paths) != 3 {
 		t.Fatalf("expected 3 paths, got %d", len(paths))
 	}
@@ -527,6 +649,15 @@ func TestCollectGraderArtifactPaths(t *testing.T) {
 	}
 }
 
+func TestCollectGraderArtifactPathsWithoutOperationalValue(t *testing.T) {
+	paths := collectGraderArtifactPaths(&GradersConfig{
+		Graders: map[string]*GraderDefinition{"retries": {ID: "retries"}},
+	})
+	if len(paths) != 2 {
+		t.Fatalf("expected manifest and results paths, got %v", paths)
+	}
+}
+
 // initActionPinCacheForTest sets up minimal action pin resolution for tests.
 func initActionPinCacheForTest(c *Compiler) {
 	// The Compiler uses getActionPin/getCachedActionPin which resolves from a global
@@ -535,7 +666,7 @@ func initActionPinCacheForTest(c *Compiler) {
 
 // TestCollectGraderArtifactPaths_AgentGradersDir verifies paths use the agent/graders subdirectory.
 func TestCollectGraderArtifactPaths_AgentGradersDir(t *testing.T) {
-	paths := collectGraderArtifactPaths()
+	paths := collectGraderArtifactPaths(nil)
 	for _, p := range paths {
 		if !strings.Contains(p, "agent/graders/") {
 			t.Errorf("expected path to contain agent/graders/, got %q", p)

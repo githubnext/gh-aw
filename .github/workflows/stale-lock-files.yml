@@ -23,11 +23,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Fetch base branch
         if: github.event_name == 'pull_request'
-        run: git fetch origin ${{ github.base_ref }} --no-tags
+        run: git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }} --no-tags --depth=1
 
       - name: Check stale lock files
         run: |

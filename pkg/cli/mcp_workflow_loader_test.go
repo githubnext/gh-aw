@@ -14,6 +14,7 @@ import (
 )
 
 func TestLoadWorkflowMCPConfigs(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test workflows
 	tmpDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())

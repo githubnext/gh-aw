@@ -182,6 +182,7 @@ func resolveExternalDetectorEngineConfig(data *WorkflowData, engineID string) *E
 		return &EngineConfig{
 			ID:                       engineID,
 			Version:                  data.EngineConfig.Version,
+			LLMProvider:              data.EngineConfig.LLMProvider,
 			Config:                   data.EngineConfig.Config,
 			Args:                     data.EngineConfig.Args,
 			HarnessScript:            data.EngineConfig.HarnessScript,
@@ -218,7 +219,7 @@ func engineCoreSecretVarNames(engineID string) []string {
 	case "claude":
 		return []string{"ANTHROPIC_API_KEY"}
 	case "codex":
-		return []string{"OPENAI_API_KEY", "CODEX_API_KEY"}
+		return []string{"OPENAI_API_KEY", "CODEX_API_KEY", "COPILOT_GITHUB_TOKEN"}
 	case "gemini":
 		return []string{"GEMINI_API_KEY"}
 	default:

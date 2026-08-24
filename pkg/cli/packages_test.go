@@ -14,6 +14,7 @@ import (
 
 // TestCollectPackageIncludesRecursive tests the recursive include dependency collection
 func TestCollectPackageIncludesRecursive(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		content       string
@@ -101,6 +102,7 @@ on: push
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create temp directory for test
 			tmpDir := testutil.TempDir(t, "test-*")
 
@@ -153,6 +155,7 @@ on: push
 
 // TestCollectPackageIncludesRecursive_CircularReference tests handling of circular includes
 func TestCollectPackageIncludesRecursive_CircularReference(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create circular reference: a.md includes b.md, b.md includes a.md
@@ -185,6 +188,7 @@ func TestCollectPackageIncludesRecursive_CircularReference(t *testing.T) {
 
 // TestCopyIncludeDependenciesFromPackageWithForce tests copying include dependencies
 func TestCopyIncludeDependenciesFromPackageWithForce(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		dependencies      []IncludeDependency
@@ -304,6 +308,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create temp directories
 			sourceDir := testutil.TempDir(t, "test-*")
 			targetDir := testutil.TempDir(t, "test-*")
@@ -393,6 +398,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce(t *testing.T) {
 
 // TestCopyIncludeDependenciesFromPackageWithForce_FileTracker tests file tracking
 func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
+	t.Parallel()
 	sourceDir := testutil.TempDir(t, "test-*")
 	targetDir := testutil.TempDir(t, "test-*")
 
@@ -444,6 +450,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
 
 // TestIncludePattern tests the include pattern regex
 func TestIncludePattern(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line        string
 		shouldMatch bool
@@ -482,6 +489,7 @@ func TestIncludePattern(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
+			t.Parallel()
 			matches := includePattern.FindStringSubmatch(tt.line)
 
 			if tt.shouldMatch && matches == nil {

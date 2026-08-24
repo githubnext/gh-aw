@@ -10,6 +10,7 @@ import (
 )
 
 func TestMCPRegistryClient_SearchServers(t *testing.T) {
+	t.Parallel()
 	// Create a test server that mocks the MCP registry API
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/servers" {
@@ -103,6 +104,7 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 }
 
 func TestNewMCPRegistryClient_DefaultURL(t *testing.T) {
+	t.Parallel()
 	client := NewMCPRegistryClient("")
 	expectedURL := "https://api.mcp.github.com/v0.1"
 	if client.registryURL != expectedURL {
@@ -111,6 +113,7 @@ func TestNewMCPRegistryClient_DefaultURL(t *testing.T) {
 }
 
 func TestNewMCPRegistryClient_CustomURL(t *testing.T) {
+	t.Parallel()
 	customURL := "https://custom.registry.com/v1"
 	client := NewMCPRegistryClient(customURL)
 	if client.registryURL != customURL {

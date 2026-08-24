@@ -102,6 +102,28 @@ func TestApproveWorkflowRunValidationConfig(t *testing.T) {
 	}
 }
 
+func TestDismissPullRequestReviewValidationConfigSupportsAutoReviewID(t *testing.T) {
+	config, ok := ValidationConfig["dismiss_pull_request_review"]
+	if !ok {
+		t.Fatal("dismiss_pull_request_review not found in ValidationConfig")
+	}
+	if reviewID := config.Fields["review_id"]; !reviewID.OptionalPositiveInteger || !reviewID.AllowAuto || reviewID.Required || reviewID.PositiveInteger {
+		t.Errorf("dismiss_pull_request_review review_id = %+v, want optional positive integer or auto", reviewID)
+	}
+
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"dismiss_pull_request_review"}, nil, false, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSONWithDataSchema() error = %v", err)
+	}
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+	if reviewID := parsed["dismiss_pull_request_review"].Fields["review_id"]; !reviewID.OptionalPositiveInteger || !reviewID.AllowAuto {
+		t.Errorf("generated dismiss_pull_request_review review_id = %+v, want optional positive integer or auto", reviewID)
+	}
+}
+
 func TestUpdatePullRequestValidationConfigSupportsReplaceIsland(t *testing.T) {
 	config, ok := ValidationConfig["update_pull_request"]
 	if !ok {

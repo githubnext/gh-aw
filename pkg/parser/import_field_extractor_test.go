@@ -245,6 +245,43 @@ imports:
 	assert.Equal(t, "shared/target.md", importsResult.MergedEnvSources["SHARED_VAR"], "MergedEnvSources should track the import path for SHARED_VAR")
 }
 
+func TestGradersFieldExtractedFromMdImport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	sharedContent := `---
+graders:
+  custom-score:
+    script: |
+      return trace.toolCalls.length
+    unit: count
+    direction: lower_is_better
+---
+
+# Shared workflow with grader
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755), "Failed to create shared dir")
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "grader.md"), []byte(sharedContent), 0644), "Failed to write shared file")
+
+	mainContent := `---
+on: workflow_dispatch
+imports:
+  - shared/grader.md
+---
+
+# Main Workflow
+`
+	result, err := ExtractFrontmatterFromContent(mainContent)
+	require.NoError(t, err, "ExtractFrontmatterFromContent should succeed")
+
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
+	require.NoError(t, err, "ProcessImportsFromFrontmatterWithSource should succeed")
+
+	assert.NotEmpty(t, importsResult.MergedGraders, "MergedGraders should be populated from shared .md import")
+	assert.Contains(t, importsResult.MergedGraders, "custom-score", "MergedGraders should contain the imported grader")
+	assert.Contains(t, importsResult.MergedGraders, "lower_is_better", "MergedGraders should contain grader metadata")
+}
+
 func TestAmbientFoldersExtractedFromMdImport(t *testing.T) {
 	tmpDir := t.TempDir()
 

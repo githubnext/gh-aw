@@ -6,11 +6,13 @@ on:
   schedule: daily
   workflow_dispatch:
 permissions:
+  copilot-requests: write
   contents: read
   issues: read
 
 
 engine: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 network:
   allowed:

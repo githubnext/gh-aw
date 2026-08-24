@@ -153,6 +153,27 @@ function buildHistoryLink() {
 }
 
 /**
+ * Render the no-op comment body shared by the no-op runs issue comment and the
+ * comment posted on a pre-created pull request that is discarded.
+ * @param {string} workflowName
+ * @param {string} message
+ * @param {string} runUrl
+ * @returns {string}
+ */
+function buildNoopCommentBody(workflowName, message, runUrl) {
+  const commentTemplatePath = getPromptPath("noop_comment.md");
+  const commentBody = renderTemplateFromFile(commentTemplatePath, {
+    workflow_name: workflowName,
+    message,
+    run_url: runUrl,
+    aic_suffix: buildAICSuffix(),
+    ambient_context_suffix: buildAmbientContextSuffix(),
+    history_link: buildHistoryLink(),
+  });
+  return sanitizeContent(commentBody, { maxLength: 65000 });
+}
+
+/**
  * Process no-op safe outputs and optionally post to the no-op runs issue.
  * This merged step replaces the separate "Process no-op messages" + "Handle No-Op Message"
  * steps, eliminating the cross-step output dependency on GH_AW_NOOP_MESSAGE.
@@ -219,6 +240,16 @@ async function main() {
     const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
     const reportAsIssue = process.env.GH_AW_NOOP_REPORT_AS_ISSUE !== "false"; // Default to true
 
+    // Render the comment body once so later steps (e.g. discarding an unused
+    // pre-created pull request) can post the exact same message.
+    let commentBody = "";
+    try {
+      commentBody = buildNoopCommentBody(workflowName, noopMessage, runUrl);
+      core.setOutput("noop_comment_body", commentBody);
+    } catch (error) {
+      core.warning(`Could not render no-op comment body: ${getErrorMessage(error)}`);
+    }
+
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Run URL: ${runUrl}`);
     core.info(`Agent conclusion: ${agentConclusion}`);
@@ -264,26 +295,18 @@ async function main() {
       return;
     }
 
-    // Load and render comment template from file
-    const commentTemplatePath = getPromptPath("noop_comment.md");
-    const commentBody = renderTemplateFromFile(commentTemplatePath, {
-      workflow_name: workflowName,
-      message: noopMessage,
-      run_url: runUrl,
-      aic_suffix: buildAICSuffix(),
-      ambient_context_suffix: buildAmbientContextSuffix(),
-      history_link: buildHistoryLink(),
-    });
-
-    // Sanitize the full comment body
-    const fullCommentBody = sanitizeContent(commentBody, { maxLength: 65000 });
+    // Reuse the comment body rendered above; it is empty only when rendering failed.
+    if (!commentBody) {
+      core.warning("No-op comment body is unavailable, skipping no-op message posting");
+      return;
+    }
 
     try {
       await github.rest.issues.createComment({
         owner,
         repo,
         issue_number: noopRunsIssue.number,
-        body: fullCommentBody,
+        body: commentBody,
       });
 
       core.info(`✓ Posted no-op message to no-op runs issue #${noopRunsIssue.number}`);

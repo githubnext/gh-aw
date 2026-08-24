@@ -13,6 +13,7 @@ import (
 )
 
 func TestParseLogFileWithoutAwInfo(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test.log")
@@ -50,6 +51,7 @@ func TestParseLogFileWithoutAwInfo(t *testing.T) {
 }
 
 func TestExtractJSONMetrics(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		line           string
@@ -117,6 +119,7 @@ func TestExtractJSONMetrics(t *testing.T) {
 }
 
 func TestParseLogFileWithJSON(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with mixed JSON and text format
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-mixed.log")
@@ -153,6 +156,7 @@ Regular log line: tokens: 1000
 }
 
 func TestConvertToInt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		value    any
 		expected int
@@ -174,6 +178,7 @@ func TestConvertToInt(t *testing.T) {
 }
 
 func TestConvertToFloat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		value    any
 		expected float64
@@ -195,6 +200,7 @@ func TestConvertToFloat(t *testing.T) {
 }
 
 func TestExtractJSONCost(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		data     map[string]any
@@ -233,6 +239,7 @@ func TestExtractJSONCost(t *testing.T) {
 }
 
 func TestParseLogFileWithClaudeResult(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with the exact Claude result format from the issue
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-claude.log")
@@ -279,6 +286,7 @@ Claude processing request...
 }
 
 func TestParseLogFileWithCodexFormat(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with the Codex output format from the issue
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex.log")
@@ -323,6 +331,7 @@ Now I need to wait for the user's response.
 }
 
 func TestParseLogFileWithCodexTokenSumming(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with multiple Codex token entries
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex-tokens.log")
@@ -357,6 +366,7 @@ I've posted the PR summary comment with analysis and recommendations. Let me kno
 }
 
 func TestParseLogFileWithCodexRustFormat(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with the new Rust-based Codex format
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex-rust.log")
@@ -431,6 +441,7 @@ tokens used: 15234
 }
 
 func TestParseLogFileWithCodexMixedFormats(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with mixed old TypeScript and new Rust formats
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex-mixed.log")
@@ -496,6 +507,7 @@ tokens used: 10000
 }
 
 func TestParseLogFileWithMixedTokenFormats(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with mixed token formats
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-mixed-tokens.log")
@@ -531,6 +543,7 @@ token_count: 10000`
 }
 
 func TestExtractEngineFromAwInfoNestedDirectory(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test Case 1: aw_info.json as a regular file
@@ -661,6 +674,7 @@ func TestExtractEngineFromAwInfoNestedDirectory(t *testing.T) {
 }
 
 func TestParseLogFileWithNonCodexTokensOnly(t *testing.T) {
+	t.Parallel()
 	// Create a temporary log file with only non-Codex token formats
 	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-generic-tokens.log")
@@ -688,6 +702,7 @@ input_tokens: 2000`
 }
 
 func TestExtractLogMetricsWithAwOutputFile(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tmpDir := testutil.TempDir(t, "test-*")
 	logsDir := filepath.Join(tmpDir, "run-123456")

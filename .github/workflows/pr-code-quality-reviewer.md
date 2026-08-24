@@ -10,7 +10,6 @@ on:
       - '*.md'
       - 'docs/**'
       - '.changeset/**'
-      - 'socials/**'
       - 'scratchpad/**'
   slash_command:
     strategy: centralized

@@ -223,10 +223,16 @@ func (c *Compiler) generateGraderRedactionStep(yaml *strings.Builder, yamlConten
 }
 
 // collectGraderArtifactPaths returns artifact paths for grader output files.
-func collectGraderArtifactPaths() []string {
-	return []string{
+func collectGraderArtifactPaths(graders *GradersConfig) []string {
+	paths := []string{
 		constants.GradersDirSlash + constants.GraderManifestFilename,
 		constants.GradersDirSlash + constants.GraderResultsFilename,
-		constants.GradersDirSlash + constants.OperationalValueEvaluatorFilename,
 	}
+	if graders != nil {
+		grader := graders.Graders["operational-value"]
+		if grader != nil && (grader.Enabled == nil || *grader.Enabled) && grader.evaluatorContent != "" {
+			paths = append(paths, constants.GradersDirSlash+constants.OperationalValueEvaluatorFilename)
+		}
+	}
+	return paths
 }

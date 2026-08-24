@@ -21,6 +21,140 @@ func TestCodexEngine_ResolveLLMProvider_DefaultOpenAI(t *testing.T) {
 	}
 }
 
+func TestCodexEngine_ResolveLLMProviderFromModel(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		expected LLMProvider
+	}{
+		{
+			name:     "copilot prefix selects GitHub",
+			data:     &WorkflowData{Model: "copilot/auto", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderGitHub,
+		},
+		{
+			name:     "concrete copilot model selects GitHub",
+			data:     &WorkflowData{Model: "copilot/gpt-5.4", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderGitHub,
+		},
+		{
+			name:     "model matching is case insensitive",
+			data:     &WorkflowData{Model: " COPILOT/AUTO ", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderGitHub,
+		},
+		{
+			name:     "other model keeps OpenAI default",
+			data:     &WorkflowData{Model: "gpt-5-codex", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderOpenAI,
+		},
+		{
+			name: "explicit provider overrides model",
+			data: &WorkflowData{
+				Model:        "copilot/auto",
+				EngineConfig: &EngineConfig{ID: "codex", LLMProvider: LLMProviderOpenAI},
+			},
+			expected: LLMProviderOpenAI,
+		},
+		{
+			name:     "unprefixed model keeps OpenAI default",
+			data:     &WorkflowData{Model: "copilot-large", EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: LLMProviderOpenAI,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if actual := engine.ResolveLLMProvider(tt.data); actual != tt.expected {
+				t.Fatalf("expected provider %q, got %q", tt.expected, actual)
+			}
+		})
+	}
+}
+
+func TestCodexModelID(t *testing.T) {
+	tests := map[string]string{
+		"copilot/auto":    "auto",
+		"copilot/gpt-5.4": "gpt-5.4",
+		"gpt-5-codex":     "gpt-5-codex",
+	}
+
+	for model, expected := range tests {
+		t.Run(model, func(t *testing.T) {
+			if actual := codexModelID(model); actual != expected {
+				t.Fatalf("expected model ID %q, got %q", expected, actual)
+			}
+		})
+	}
+}
+
+func TestCodexEngineCopilotModelUsesGitHubInference(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		Model:        "copilot/auto",
+		EngineConfig: &EngineConfig{ID: "codex"},
+		SafeOutputs:  &SafeOutputsConfig{},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	stepContent := strings.Join([]string(engine.GetExecutionSteps(workflowData, "test-log")[0]), "\n")
+	expected := []string{
+		`GH_AW_LLM_PROVIDER: github`,
+		`AWF_REFLECT_ENABLED: 1`,
+		`api.githubcopilot.com`,
+		`COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
+		constants.CopilotBYOKDummyAPIKeyEnvVar + `: ` + constants.CopilotBYOKDummyAPIKey,
+		`export CODEX_API_KEY="$` + constants.CopilotBYOKDummyAPIKeyEnvVar + `"`,
+		`GH_AW_MODEL_AGENT_CODEX: auto`,
+		`${GH_AW_MODEL_AGENT_CODEX:+ --model "$GH_AW_MODEL_AGENT_CODEX"}`,
+	}
+	for _, value := range expected {
+		if !strings.Contains(stepContent, value) {
+			t.Errorf("expected execution step to contain %q, got:\n%s", value, stepContent)
+		}
+	}
+	if strings.Contains(stepContent, "secrets.CODEX_API_KEY") || strings.Contains(stepContent, "secrets.OPENAI_API_KEY") || strings.Contains(stepContent, `OPENAI_API_KEY:`) {
+		t.Errorf("GitHub inference must not use OpenAI credentials, got:\n%s", stepContent)
+	}
+
+	secrets := engine.GetRequiredSecretNames(workflowData)
+	if len(secrets) != 1 || secrets[0] != "COPILOT_GITHUB_TOKEN" {
+		t.Fatalf("expected only COPILOT_GITHUB_TOKEN, got %v", secrets)
+	}
+}
+
+func TestCodexEngineCopilotModelUsesGitHubActionsToken(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		Model:        "copilot/auto",
+		EngineConfig: &EngineConfig{ID: "codex"},
+		Permissions:  "permissions:\n  copilot-requests: write",
+		SafeOutputs:  &SafeOutputsConfig{},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	stepContent := strings.Join([]string(engine.GetExecutionSteps(workflowData, "test-log")[0]), "\n")
+	if !strings.Contains(stepContent, `COPILOT_GITHUB_TOKEN: ${{ github.token }}`) {
+		t.Errorf("expected GitHub Actions token for the Copilot provider, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `export CODEX_API_KEY="$`+constants.CopilotBYOKDummyAPIKeyEnvVar+`"`) {
+		t.Errorf("expected Codex to use the BYOK sentinel, got:\n%s", stepContent)
+	}
+	if secrets := engine.GetRequiredSecretNames(workflowData); len(secrets) != 0 {
+		t.Fatalf("expected no inference secret with copilot-requests permission, got %v", secrets)
+	}
+	if step := engine.GetSecretValidationStep(workflowData); len(step) != 0 {
+		t.Fatalf("expected secret validation to be skipped, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
 func TestCodexEngine(t *testing.T) {
 	engine := NewCodexEngine()
 
@@ -412,7 +546,9 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"[model_providers.openai-proxy]",
 			"name = \"OpenAI AWF proxy\"",
 			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
-			"env_key = \"OPENAI_API_KEY\"",
+			"env_key = \"CODEX_API_KEY\"",
+			"wire_api = \"responses\"",
+			"requires_openai_auth = false",
 			"supports_websockets = false",
 		}
 
@@ -479,6 +615,25 @@ func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 
 	if actual := engine.getOpenAIProxyProviderBaseURL(); actual != expected {
 		t.Errorf("Expected OpenAI proxy provider base URL %q, got %q", expected, actual)
+	}
+}
+
+func TestValidateCodexCopilotAwfVersion(t *testing.T) {
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{ID: "codex"},
+		Model:        "copilot/auto",
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: "v0.25.2"},
+		},
+	}
+
+	if err := validateCodexCopilotAwfVersion(workflowData); err == nil || !strings.Contains(err.Error(), "requires AWF v0.25.3 or newer") {
+		t.Fatalf("Expected legacy AWF version error, got %v", err)
+	}
+
+	workflowData.NetworkPermissions.Firewall.Version = "v0.25.3"
+	if err := validateCodexCopilotAwfVersion(workflowData); err != nil {
+		t.Fatalf("Expected minimum supported AWF version to pass, got %v", err)
 	}
 }
 

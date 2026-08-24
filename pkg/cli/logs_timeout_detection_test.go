@@ -9,6 +9,7 @@ import (
 
 // TestTimedOutConclusionDetection tests that timed_out conclusions are properly detected as failures
 func TestTimedOutConclusionDetection(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		jobConclusion string
@@ -61,6 +62,7 @@ func TestTimedOutConclusionDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Simulate the logic from fetchJobStatuses
 			isFailure := tt.jobConclusion == "failure" ||
 				tt.jobConclusion == "cancelled" ||
@@ -76,6 +78,7 @@ func TestTimedOutConclusionDetection(t *testing.T) {
 
 // TestJobInfoJSONParsing tests that job info with timed_out conclusion can be properly parsed
 func TestJobInfoJSONParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		jsonInput     string
@@ -110,6 +113,7 @@ func TestJobInfoJSONParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var job JobInfo
 			err := json.Unmarshal([]byte(tt.jsonInput), &job)
 
@@ -131,6 +135,7 @@ func TestJobInfoJSONParsing(t *testing.T) {
 
 // TestStatusDisplayForTimedOut tests that timed_out conclusions are displayed correctly
 func TestStatusDisplayForTimedOut(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		status         string
@@ -171,6 +176,7 @@ func TestStatusDisplayForTimedOut(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Simulate the logic from logs.go lines 1817-1821
 			statusStr := tt.status
 			if tt.status == "completed" && tt.conclusion != "" {

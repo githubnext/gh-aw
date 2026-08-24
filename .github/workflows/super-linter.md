@@ -16,7 +16,8 @@ safe-outputs:
     expires: 2d
     title-prefix: "[linter] "
     labels: [automation, code-quality, cookie]
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 name: Super Linter Report
 timeout-minutes: 15
 imports:

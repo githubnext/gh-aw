@@ -62,6 +62,8 @@ const {
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
   applyCopilotModelAliasResolution,
+  formatInferenceEndpointForLog,
+  logCopilotInferenceConfiguration,
   resolveLongRunTokenThreshold,
   computeStartupRetryEligible,
 } = require("./copilot_harness.cjs");
@@ -272,6 +274,98 @@ describe("copilot_harness.cjs", () => {
       });
 
       expect(env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+  });
+
+  describe("inference endpoint logging", () => {
+    it("logs every BYOK route and the selected endpoint without URL secrets", () => {
+      const logs = [];
+      const credentials = {
+        username: ["endpoint", "user"].join("-"),
+        password: ["endpoint", "password"].join("-"),
+        apiKey: ["secret", "api", "key"].join("-"),
+        fragment: ["secret", "fragment"].join("-"),
+      };
+      const secretValues = Object.values(credentials);
+      const providers = [
+        {
+          name: "copilot",
+          type: "openai",
+          baseUrl: `https://${credentials.username}:${credentials.password}@api.githubcopilot.com/inference?api_key=${credentials.apiKey}#${credentials.fragment}`,
+          wireApi: "responses",
+        },
+        {
+          name: "openai",
+          type: "openai",
+          baseUrl: "http://api-proxy:10001",
+          wireApi: "completions",
+        },
+      ];
+      const models = [
+        { id: "auto", provider: "copilot" },
+        { id: "gpt-5.4", provider: "openai" },
+      ];
+
+      logCopilotInferenceConfiguration({
+        copilotSDKMode: true,
+        configuredModel: "auto",
+        resolvedModel: "copilot/auto",
+        primaryProviderName: "copilot",
+        providers,
+        models,
+        logger: message => logs.push(message),
+      });
+
+      expect(logs).toHaveLength(5);
+      expect(logs[0]).toContain('mode=sdk-byok source=awf-reflect configuredModel="auto" resolvedModel="copilot/auto" providerCount=2 modelRouteCount=2');
+      expect(logs[1]).toContain('name="copilot" type="openai" wireApi="responses" endpoint="https://api.githubcopilot.com/inference" modelCount=1 selected=true');
+      expect(logs[2]).toContain('name="openai" type="openai" wireApi="completions" endpoint="http://api-proxy:10001/" modelCount=1 selected=false');
+      expect(logs[3]).toContain('model="copilot/auto" provider="copilot" type="openai" wireApi="responses" endpoint="https://api.githubcopilot.com/inference"');
+      expect(logs[4]).toContain("authentication values are omitted");
+      for (const secret of secretValues) {
+        expect(logs.join("\n")).not.toContain(secret);
+      }
+    });
+
+    it("does not echo malformed endpoint values", () => {
+      expect(formatInferenceEndpointForLog("not-a-url-with-secret")).toBe("(invalid endpoint)");
+      expect(formatInferenceEndpointForLog("file:///tmp/secret")).toBe("(invalid endpoint)");
+      expect(formatInferenceEndpointForLog("")).toBe("(not set)");
+    });
+
+    it("falls back to the first provider when the primary provider name is unavailable", () => {
+      const logs = [];
+
+      logCopilotInferenceConfiguration({
+        copilotSDKMode: true,
+        configuredModel: "auto",
+        resolvedModel: "",
+        primaryProviderName: "",
+        providers: [{ name: "copilot", type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" }],
+        models: [{ id: "auto", provider: "copilot" }],
+        logger: message => logs.push(message),
+      });
+
+      expect(logs[0]).toContain('resolvedModel="(not resolved)"');
+      expect(logs[1]).toContain("selected=true");
+      expect(logs[2]).toContain('provider="copilot"');
+    });
+
+    it("documents when the Copilot CLI manages endpoint selection", () => {
+      const logger = vi.fn();
+
+      logCopilotInferenceConfiguration({
+        copilotSDKMode: false,
+        configuredModel: "gpt-5.4",
+        resolvedModel: "",
+        primaryProviderName: "",
+        providers: [],
+        models: [],
+        logger,
+      });
+
+      expect(logger).toHaveBeenCalledOnce();
+      expect(logger).toHaveBeenCalledWith('inference routing: mode=cli configuredModel="gpt-5.4" endpoint=managed-by-copilot-cli');
     });
   });
 
@@ -853,7 +947,7 @@ describe("copilot_harness.cjs", () => {
 
       await Promise.resolve();
       expect(child.listenerCount("error")).toBe(1);
-      expect(child.listenerCount("exit")).toBe(1);
+      expect(child.listenerCount("close")).toBe(1);
 
       if (!resolveReady) {
         throw new Error("waitForReady not yet called");
@@ -878,7 +972,38 @@ describe("copilot_harness.cjs", () => {
         logger: expect.any(Function),
       });
       expect(child.listenerCount("error")).toBe(0);
-      expect(child.listenerCount("exit")).toBe(0);
+      expect(child.listenerCount("close")).toBe(0);
+    });
+
+    it("includes stderr tail when the headless Copilot CLI sidecar exits before ready", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.exitCode = null;
+      child.signalCode = "SIGABRT";
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn(
+        () =>
+          new Promise(() => {
+            // Keep readiness pending so the close event wins the startup race.
+          })
+      );
+
+      const startPromise = startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      await Promise.resolve();
+      child.stderr.write("native assertion failed before listen\npanic details\n");
+      child.emit("close", null, "SIGABRT");
+
+      await expect(startPromise).rejects.toThrow("copilot-sdk headless server exited before ready (exitCode=unknown signal=SIGABRT)\nstderr tail:\nnative assertion failed before listen\npanic details");
+      expect(child.listenerCount("error")).toBe(0);
+      expect(child.listenerCount("close")).toBe(0);
     });
 
     it("forwards extraArgs to the headless server when provided", async () => {
@@ -998,7 +1123,7 @@ describe("copilot_harness.cjs", () => {
 
       expect(child.kill).toHaveBeenCalledWith("SIGTERM");
       expect(child.listenerCount("error")).toBe(0);
-      expect(child.listenerCount("exit")).toBe(0);
+      expect(child.listenerCount("close")).toBe(0);
     });
 
     it("waits for the Copilot SDK sidecar port to accept connections", async () => {

@@ -19,9 +19,8 @@ permissions:
   pull-requests: read
 name: Smoke OTEL
 engine:
-  id: copilot
-  max-continuations: 1
-  bare: true
+  id: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 tools:
   bash: true

@@ -101,12 +101,22 @@ func ValidateDoc(doc SSLDoc) []string {
 	sceneIDs := make(map[string]struct {
 	}, len(doc.Scenes))
 	for _, s := range doc.Scenes {
+		// Rule 8a: scene IDs must be unique.
+		if setutil.Contains(sceneIDs, s.ID) {
+			msgs = append(msgs, fmt.Sprintf("duplicate scene id %q", s.ID))
+			continue
+		}
 		sceneIDs[s.ID] = struct {
 		}{}
 	}
 	stepIDs := make(map[string]struct {
 	}, len(doc.LogicSteps))
 	for _, ls := range doc.LogicSteps {
+		// Rule 8b: logic step IDs must be unique.
+		if setutil.Contains(stepIDs, ls.ID) {
+			msgs = append(msgs, fmt.Sprintf("duplicate logic step id %q", ls.ID))
+			continue
+		}
 		stepIDs[ls.ID] = struct {
 		}{}
 	}
@@ -150,6 +160,13 @@ func ValidateDoc(doc SSLDoc) []string {
 			msgs = append(msgs, fmt.Sprintf(
 				"logic step %q next %q is not a step ID or YIELD_SUCCESS/YIELD_FAIL",
 				step.ID, step.Next,
+			))
+		}
+		// Rule 8: logic-step scene_id, when set, must reference an existing scene.
+		if step.SceneID != "" && !setutil.Contains(sceneIDs, step.SceneID) {
+			msgs = append(msgs, fmt.Sprintf(
+				"logic step %q scene_id %q not found in scenes",
+				step.ID, step.SceneID,
 			))
 		}
 	}

@@ -47,6 +47,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
   normalizeReflectProviderName,
+  REFLECT_PROVIDER_ALIASES,
   resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
@@ -392,26 +393,43 @@ function extractOpenAIProxyBaseURLFromToml(tomlContent) {
 }
 
 /**
- * Determine configured OpenAI endpoint port from AWF /reflect payload.
+ * Determine a configured provider endpoint port from AWF /reflect payload.
  * @param {any} reflectData
+ * @param {string} [provider]
  * @returns {number|null}
  */
-function getConfiguredOpenAIPortFromReflect(reflectData) {
-  const endpoints = reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
-  const openAIEndpoint = endpoints.find(ep => {
-    if (!ep || ep.configured !== true || typeof ep.provider !== "string") return false;
-    return ep.provider.toLowerCase() === "openai";
-  });
-  if (!openAIEndpoint || openAIEndpoint.port == null) return null;
-  const parsedPort = Number(openAIEndpoint.port);
-  return Number.isNaN(parsedPort) ? null : parsedPort;
+function getConfiguredProviderPortFromReflect(reflectData, provider = "openai") {
+  const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger: () => {} });
+  const normalizedProvider = normalizeReflectProviderName(provider, "openai");
+  const normalizedEndpointProvider = normalizeReflectProviderName(resolved?.endpointProvider);
+  const matchingProviders = REFLECT_PROVIDER_ALIASES[normalizedProvider] || new Set([normalizedProvider]);
+  if (!matchingProviders.has(normalizedEndpointProvider)) return null;
+  return resolved && resolved.port != null ? resolved.port : null;
 }
 
 /**
- * Validate that Codex openai-proxy base_url matches the configured OpenAI endpoint from /reflect.
+ * Determine whether AWF /reflect advertises at least one configured endpoint for the
+ * selected provider. Used to distinguish "no endpoints configured at all" (best-effort,
+ * cannot validate) from "endpoints configured but none for the selected provider"
+ * (validation should fail strictly rather than silently pass).
+ * @param {any} reflectData
+ * @param {string} provider
+ * @returns {boolean}
+ */
+function reflectHasMatchingProviderEndpoint(reflectData, provider) {
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+  if (endpoints.length === 0) return true;
+  const normalizedProvider = normalizeReflectProviderName(provider, "openai");
+  const matchingProviders = REFLECT_PROVIDER_ALIASES[normalizedProvider] || new Set([normalizedProvider]);
+  return endpoints.some(ep => matchingProviders.has(normalizeReflectProviderName(ep.provider)));
+}
+
+/**
+ * Validate that Codex openai-proxy base_url matches the configured provider endpoint from /reflect.
  * @param {{
  *   codexConfigPath: string,
  *   reflectPath: string,
+ *   provider?: string,
  *   readFileSync?: (path: import("node:fs").PathOrFileDescriptor, options?: import("node:fs").ObjectEncodingOptions & { flag?: string } | BufferEncoding | null) => string
  * }} options
  * @returns {{ ok: boolean, reason?: string }}
@@ -420,6 +438,7 @@ function validateCodexOpenAIBaseURLFromReflect(options) {
   const readFileSync = (options && options.readFileSync) || fs.readFileSync;
   const codexConfigPath = options && options.codexConfigPath;
   const reflectPath = options && options.reflectPath;
+  const provider = normalizeReflectProviderName(options?.provider || "openai", "openai");
   if (!codexConfigPath || !reflectPath) return { ok: true };
 
   let tomlContent;
@@ -442,12 +461,18 @@ function validateCodexOpenAIBaseURLFromReflect(options) {
   } catch {
     return { ok: true };
   }
-  const openAIPort = getConfiguredOpenAIPortFromReflect(reflectData);
-  if (openAIPort == null) return { ok: true };
-  if (openAIPort !== baseURLPort) {
+  if (!reflectHasMatchingProviderEndpoint(reflectData, provider)) {
     return {
       ok: false,
-      reason: `Codex openai-proxy base_url port mismatch: config.toml uses ${baseURLPort}, but /reflect reports OpenAI on port ${openAIPort}`,
+      reason: `Codex openai-proxy provider mismatch: /reflect has no configured endpoint for provider "${provider}"`,
+    };
+  }
+  const providerPort = getConfiguredProviderPortFromReflect(reflectData, provider);
+  if (providerPort == null) return { ok: true };
+  if (providerPort !== baseURLPort) {
+    return {
+      ok: false,
+      reason: `Codex openai-proxy base_url port mismatch: config.toml uses ${baseURLPort}, but /reflect reports ${provider} on port ${providerPort}`,
     };
   }
   return { ok: true };
@@ -578,6 +603,7 @@ async function main() {
     const validation = validateCodexOpenAIBaseURLFromReflect({
       codexConfigPath: `${codexHome}/config.toml`,
       reflectPath: AWF_REFLECT_OUTPUT_PATH,
+      provider: process.env.GH_AW_LLM_PROVIDER || "openai",
     });
     if (!validation.ok) {
       log(`fatal: ${validation.reason}`);
@@ -777,7 +803,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildCodexChildEnv,
     extractPortFromURL,
     extractOpenAIProxyBaseURLFromToml,
-    getConfiguredOpenAIPortFromReflect,
+    getConfiguredProviderPortFromReflect,
     validateCodexOpenAIBaseURLFromReflect,
     configureCodexProviderFromReflect,
     hasNoopInSafeOutputs,

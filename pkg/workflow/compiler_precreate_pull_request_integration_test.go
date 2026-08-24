@@ -21,6 +21,8 @@ func TestCompilePreCreatePullRequest(t *testing.T) {
 on: workflow_dispatch
 engine: copilot
 strict: false
+permissions:
+  pull-requests: read
 safe-outputs:
   create-pull-request:
     pre-create: true
@@ -52,4 +54,6 @@ Create a change and open a pull request.
 	assert.Contains(t, safeOutputs, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
 	assert.Contains(t, safeOutputs, "pre_created_pull_request_number")
 	assert.Contains(t, conclusion, "complete_pre_created_check_run.cjs")
+	assert.Contains(t, conclusion, "GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER")
+	assert.Contains(t, conclusion, "GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}")
 }

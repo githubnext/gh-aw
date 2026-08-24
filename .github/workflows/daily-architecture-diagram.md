@@ -14,10 +14,9 @@ permissions:
 
   copilot-requests: write
 engine:
-  id: copilot
-  copilot-sdk: true
+  id: codex
+model: copilot/mai-code-1-flash-picker
 
-max-tool-denials: 3
 experiments:
   detail_level:
     variants: [brief, comprehensive]
@@ -54,6 +53,7 @@ safe-outputs:
     expires: 7d
     max: 1
   create-pull-request:
+    steer: true
     expires: 7d
     title-prefix: "[architecture] "
     labels: [architecture, diagram, documentation]

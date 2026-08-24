@@ -112,6 +112,7 @@ func TestRunMonteCarloNilOnEmpty(t *testing.T) {
 // non-finite λ inputs (NaN and +Inf) without hanging or panicking.
 // Specification reference: R-MC-001 requires graceful handling of degenerate λ values.
 func TestRunMonteCarloNonFiniteLambda(t *testing.T) {
+	t.Parallel()
 	obs := []int{1000, 2000, 3000}
 
 	tests := []struct {
@@ -137,6 +138,7 @@ func TestRunMonteCarloNonFiniteLambda(t *testing.T) {
 // rather than producing a summary with zero projections, signalling to the caller that
 // there are no runs to project.
 func TestRunMonteCarloZeroLambdaFallback(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                  string
 		etObs                 []int

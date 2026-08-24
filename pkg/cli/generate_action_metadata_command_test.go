@@ -27,6 +27,7 @@ func TestGenerateActionMetadataCommand_NoJsDir(t *testing.T) {
 }
 
 func TestExtractActionMetadata(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		filename    string
@@ -98,6 +99,7 @@ module.exports = async function test(input1, required_input) {
 }
 
 func TestExtractDescription(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		content       string
@@ -143,6 +145,7 @@ func TestExtractDescription(t *testing.T) {
 }
 
 func TestGenerateHumanReadableName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		actionName string
@@ -174,6 +177,7 @@ func TestGenerateHumanReadableName(t *testing.T) {
 }
 
 func TestExtractInputs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		content   string
@@ -207,6 +211,7 @@ module.exports = async function test() {};`,
 }
 
 func TestExtractOutputs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		content    string
@@ -241,6 +246,7 @@ module.exports = async function test() {
 }
 
 func TestExtractDependencies(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -271,6 +277,7 @@ module.exports = async function test() {};`,
 }
 
 func TestGenerateActionYml(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		metadata    *ActionMetadata
@@ -337,6 +344,7 @@ func TestGenerateActionYml(t *testing.T) {
 }
 
 func TestGenerateReadme(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		metadata    *ActionMetadata

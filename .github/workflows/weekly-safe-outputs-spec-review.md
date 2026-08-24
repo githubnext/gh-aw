@@ -13,7 +13,8 @@ permissions:
   pull-requests: read
 
 tracker-id: weekly-safe-outputs-spec-review
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 
 network:
@@ -42,6 +43,7 @@ tools:
 
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 7d
     title-prefix: "[spec-review] "
     labels: [documentation, safe-outputs, automation]

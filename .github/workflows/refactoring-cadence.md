@@ -14,7 +14,8 @@ permissions:
 
 
 tracker-id: refactoring-cadence
-engine: copilot
+engine: codex
+model: copilot/mai-code-1-flash-picker
 imports:
   - uses: shared/skip-if-issue-open.md
     with:

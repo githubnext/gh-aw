@@ -10,6 +10,7 @@ import (
 
 // TestTimeoutFlagParsing tests that the timeout flag is properly parsed
 func TestTimeoutFlagParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		timeout         int
@@ -38,6 +39,7 @@ func TestTimeoutFlagParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Test that the timeout value is correctly used
 			if tt.expectTimeout && tt.timeout == 0 {
 				t.Errorf("Expected timeout to be set but got 0")
@@ -53,7 +55,9 @@ func TestTimeoutFlagParsing(t *testing.T) {
 }
 
 func TestEffectiveMCPLogsToolSoftTimeoutSeconds(t *testing.T) {
+	t.Parallel()
 	t.Run("no gateway deadline leaves CLI timeout unchanged", func(t *testing.T) {
+		t.Parallel()
 		got, ok := effectiveMCPLogsToolSoftTimeoutSeconds(context.Background(), 5)
 		if ok || got != 0 {
 			t.Fatalf("effectiveMCPLogsToolSoftTimeoutSeconds without deadline = (%d, %v), want (0, false)", got, ok)
@@ -61,6 +65,7 @@ func TestEffectiveMCPLogsToolSoftTimeoutSeconds(t *testing.T) {
 	})
 
 	t.Run("gateway deadline below CLI timeout returns safety margin", func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
@@ -74,6 +79,7 @@ func TestEffectiveMCPLogsToolSoftTimeoutSeconds(t *testing.T) {
 	})
 
 	t.Run("gateway deadline beyond CLI timeout leaves CLI timeout unchanged", func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
@@ -86,6 +92,7 @@ func TestEffectiveMCPLogsToolSoftTimeoutSeconds(t *testing.T) {
 
 // TestTimeoutLogic tests the timeout logic without making network calls
 func TestTimeoutLogic(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		timeout       int
@@ -126,6 +133,7 @@ func TestTimeoutLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Simulate the timeout check logic (timeout is in minutes, elapsed in seconds)
 			var timeoutReached bool
 			if tt.timeout > 0 {
@@ -146,6 +154,7 @@ func TestTimeoutLogic(t *testing.T) {
 // scales its implicit timeout with larger fetch windows while preserving
 // explicit user-provided timeouts.
 func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		requestedTimeout int
@@ -276,6 +285,7 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := effectiveMCPLogsToolTimeoutMinutes(tt.requestedTimeout, tt.count, tt.workflowName, tt.engine); got != tt.want {
 				t.Errorf("effectiveMCPLogsToolTimeoutMinutes(%d, %d, %q, %q) = %d, want %d", tt.requestedTimeout, tt.count, tt.workflowName, tt.engine, got, tt.want)
 			}
