@@ -66,10 +66,13 @@ func (e *ClaudeEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvide
 	return resolveEngineLLMProvider(workflowData, LLMProviderAnthropic)
 }
 
-func claudeModelID(model string) string {
+func claudeModelID(model string, provider LLMProvider) string {
 	model = strings.TrimSpace(model)
-	provider, modelID, found := strings.Cut(model, "/")
-	if found && strings.EqualFold(provider, "copilot") {
+	if provider == LLMProviderGitHub {
+		return model
+	}
+	prefix, modelID, found := strings.Cut(model, "/")
+	if found && strings.EqualFold(prefix, "copilot") {
 		return modelID
 	}
 	return model
@@ -491,7 +494,7 @@ func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[str
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
 	applyEngineHarnessRetryEnv(env, workflowData)
-	applyClaudeModelEnvVars(env, workflowData)
+	applyClaudeModelEnvVars(env, workflowData, provider)
 	applyEngineCwdEnv(env, workflowData)
 	applyEngineAndAgentEnv(env, workflowData, claudeLog)
 	applyMCPScriptsSecretEnv(env, workflowData)
@@ -542,7 +545,7 @@ func applyClaudeTimeoutEnvVars(env map[string]string, workflowData *WorkflowData
 // template injection issues from embedding the value in shell commands.
 // When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION/EVALS_CLAUDE
 // with an explicit Claude Sonnet default so Claude CLI does not choose Opus implicitly.
-func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) {
+func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData, provider LLMProvider) {
 	phase := workflowRunPhase(workflowData)
 	if workflowData.Model == "" {
 		if phase == runPhaseEvals {
@@ -565,7 +568,7 @@ func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) 
 	if containsExpression(workflowData.Model) {
 		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(claudeModelVar, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 	}
-	model := claudeModelID(workflowData.Model)
+	model := claudeModelID(workflowData.Model, provider)
 	claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, model)
 	env[constants.ClaudeCLIModelEnvVar] = model
 }

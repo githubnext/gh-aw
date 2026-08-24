@@ -55,16 +55,36 @@ func TestClaudeEngine_ResolveLLMProviderFromModel(t *testing.T) {
 }
 
 func TestClaudeModelID(t *testing.T) {
-	tests := map[string]string{
-		"copilot/mai-code-1.1-flash": "mai-code-1.1-flash",
-		"COPILOT/MAI-CODE-1.1-FLASH": "MAI-CODE-1.1-FLASH",
-		"claude-sonnet-4-6":          "claude-sonnet-4-6",
+	tests := []struct {
+		name     string
+		model    string
+		provider LLMProvider
+		expected string
+	}{
+		{
+			name:     "github provider keeps copilot prefix",
+			model:    "copilot/mai-code-1.1-flash",
+			provider: LLMProviderGitHub,
+			expected: "copilot/mai-code-1.1-flash",
+		},
+		{
+			name:     "non-github provider strips copilot prefix",
+			model:    "COPILOT/MAI-CODE-1.1-FLASH",
+			provider: LLMProviderAnthropic,
+			expected: "MAI-CODE-1.1-FLASH",
+		},
+		{
+			name:     "non-prefixed model unchanged",
+			model:    "claude-sonnet-4-6",
+			provider: LLMProviderAnthropic,
+			expected: "claude-sonnet-4-6",
+		},
 	}
 
-	for model, expected := range tests {
-		t.Run(model, func(t *testing.T) {
-			if actual := claudeModelID(model); actual != expected {
-				t.Fatalf("expected model ID %q, got %q", expected, actual)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if actual := claudeModelID(tt.model, tt.provider); actual != tt.expected {
+				t.Fatalf("expected model ID %q, got %q", tt.expected, actual)
 			}
 		})
 	}
@@ -267,7 +287,7 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://host.docker.internal:%d", constants.CopilotLLMGatewayPort))
 }
 
-func TestClaudeEngineCopilotModelInfersGitHubProviderAndNormalizesModel(t *testing.T) {
+func TestClaudeEngineCopilotModelInfersGitHubProviderAndPreservesPrefixedModel(t *testing.T) {
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
@@ -284,8 +304,7 @@ func TestClaudeEngineCopilotModelInfersGitHubProviderAndNormalizesModel(t *testi
 
 	assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: github")
 	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
-	assert.Contains(t, stepContent, "ANTHROPIC_MODEL: mai-code-1.1-flash")
-	assert.NotContains(t, stepContent, "ANTHROPIC_MODEL: copilot/mai-code-1.1-flash")
+	assert.Contains(t, stepContent, "ANTHROPIC_MODEL: copilot/mai-code-1.1-flash")
 }
 
 func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
