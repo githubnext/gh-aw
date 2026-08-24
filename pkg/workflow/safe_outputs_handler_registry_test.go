@@ -133,6 +133,9 @@ func TestMergeHandlerMapsKeepsFirstDuplicateKey(t *testing.T) {
 		map[string]handlerBuilder{"duplicate": second},
 	)
 
+	if len(got) != 1 {
+		t.Fatalf("mergeHandlerMaps length = %d, want 1", len(got))
+	}
 	if got["duplicate"](&SafeOutputsConfig{})["source"] != "first" {
 		t.Fatal("mergeHandlerMaps did not keep the first duplicate builder")
 	}

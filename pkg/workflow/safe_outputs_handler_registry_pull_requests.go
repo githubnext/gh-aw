@@ -291,7 +291,7 @@ func newCreatePullRequestHandlerConfigBuilder(cfg *SafeOutputsConfig, c *CreateP
 		AddIfTrue("recreate_ref", c.RecreateRef).
 		AddIfNotEmpty("patch_format", c.PatchFormat).
 		AddBoolPtr("signed_commits", c.SignedCommits).
-		// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
+		// entity-specific env key name per shared CloseOlderConfig field (see the create_issue handler in safe_outputs_handler_registry_issues.go)
 		AddTemplatableBool("close_older_pull_requests", c.Enabled).
 		AddIfNotEmpty("close_older_key", c.Key).
 		AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))

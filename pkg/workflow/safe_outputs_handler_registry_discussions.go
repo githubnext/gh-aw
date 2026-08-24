@@ -15,7 +15,7 @@ var discussionHandlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("labels", c.Labels).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			// entity-specific env key name per shared CloseOlderConfig field (see create-issue handler above)
+			// entity-specific env key name per shared CloseOlderConfig field (see the create_issue handler in safe_outputs_handler_registry_issues.go)
 			AddTemplatableBool("close_older_discussions", c.Enabled).
 			AddIfNotEmpty("close_older_key", c.Key).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
