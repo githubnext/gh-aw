@@ -136,8 +136,7 @@ func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {
 		lastDash = r == '-'
 	}
 
-	normalized := strings.Trim(builder.String(), "-")
-	return strings.TrimRight(normalized, "-")
+	return strings.Trim(builder.String(), "-")
 }
 
 // isPreCreatePullRequestConfigured reports whether the workflow should allocate
