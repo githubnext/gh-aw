@@ -4,8 +4,10 @@ package workflow
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
 	"strings"
@@ -416,6 +418,37 @@ func validateGraders(cfg *GradersConfig) error {
 		return errors.New("graders configuration has no enabled graders. Remove the graders field to disable grading, or set enabled: true on at least one grader")
 	}
 	return nil
+}
+
+func mergeImportedGradersFrontmatter(frontmatter map[string]any, importedGraders string) (map[string]any, error) {
+	if strings.TrimSpace(importedGraders) == "" {
+		return frontmatter, nil
+	}
+
+	mergedGraders := make(map[string]any)
+	for line := range strings.SplitSeq(importedGraders, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var imported map[string]any
+		if err := json.Unmarshal([]byte(line), &imported); err != nil {
+			return nil, fmt.Errorf("imported graders configuration is not valid JSON: %w", err)
+		}
+		maps.Copy(mergedGraders, imported)
+	}
+
+	if raw, ok := frontmatter["graders"].(map[string]any); ok {
+		maps.Copy(mergedGraders, raw)
+	}
+	if len(mergedGraders) == 0 {
+		return frontmatter, nil
+	}
+
+	mergedFrontmatter := make(map[string]any, len(frontmatter)+1)
+	maps.Copy(mergedFrontmatter, frontmatter)
+	mergedFrontmatter["graders"] = mergedGraders
+	return mergedFrontmatter, nil
 }
 
 // ParseGradersFromFrontmatter is a public standalone convenience wrapper.

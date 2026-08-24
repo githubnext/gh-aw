@@ -51,7 +51,27 @@ func TestBuildConclusionJobCompletesPreCreatedCheck(t *testing.T) {
 	assert.Contains(t, steps, "Complete pre-created pull request check")
 	assert.Contains(t, steps, "complete_pre_created_check_run.cjs")
 	assert.Contains(t, steps, "needs.activation.outputs.pre_created_pull_request_check_run_id")
+	assert.Contains(t, steps, "needs.safe_outputs.outputs.created_pr_number")
+	assert.NotContains(t, steps, "GH_AW_NOOP_COMMENT_BODY")
 	assert.Contains(t, job.Permissions, "checks: write")
+}
+
+func TestBuildConclusionJobPassesNoOpCommentToPreCreatedCheck(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		Name: "Pre-create test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+			NoOp:               &NoOpConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(data, "agent", []string{"safe_outputs"})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, "GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}")
 }
 
 func TestPreCreatePullRequestCheckoutOverride(t *testing.T) {

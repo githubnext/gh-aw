@@ -578,8 +578,12 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.Evals = evalsConfig
 
-	// Extract deterministic graders configuration.
-	gradersConfig, err := c.parseGradersFromFrontmatter(frontmatter)
+	// Extract deterministic graders configuration, including graders contributed by imports.
+	gradersFrontmatter, err := mergeImportedGradersFrontmatter(frontmatter, importsResult.MergedGraders)
+	if err != nil {
+		return fmt.Errorf("failed to merge graders from imports: %w", err)
+	}
+	gradersConfig, err := c.parseGradersFromFrontmatter(gradersFrontmatter)
 	if err != nil {
 		return fmt.Errorf("invalid graders configuration: %w", err)
 	}

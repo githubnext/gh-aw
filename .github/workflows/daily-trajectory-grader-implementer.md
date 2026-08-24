@@ -11,6 +11,9 @@ on:
   workflow_dispatch:
   skip-if-match: 'is:open is:pr in:title "[trajectory-grader]"'
 
+imports:
+  - shared/graders/state-revisit-probability-rep.md
+
 tracker-id: daily-trajectory-grader-implementer
 
 permissions:
@@ -82,67 +85,39 @@ If every grader already has a file and the table shows all 25 as
 and stop. Do not re-implement or "improve" an existing grader file in this
 workflow — one net-new grader per run only.
 
-## Step 3 — Implement the grader as a shared component
+## Step 3 — Implement the grader as a shared grader script
 
 Create exactly one new file:
 `.github/workflows/shared/graders/<selected-id>.md`
 
-This is a plain markdown shared component (no frontmatter — follow the
-style of `shared/aw-logs-24h-fetch-prompt.md`: a short `##` heading, prose,
-and inline code where useful). It must be self-contained and importable by
-any workflow via:
+This is a shared component whose frontmatter declares exactly one custom
+deterministic grader under `graders:`. It must be self-contained and
+importable by any workflow via:
 
 ```yaml
 imports:
-  - shared/graders/trajectory-ir.md
   - shared/graders/<selected-id>.md
 ```
 
-The file must include, in this order:
+The file must include:
 
-1. **`## <Grader Title>`** heading naming the grader ID.
-2. **What it measures** — one paragraph, matching the one-line summary
-   already given for this grader in the README's "What each grader
-   answers" section; expand it with the concrete failure mode it catches
-   and why it is distinct from the existing built-in graders
-   (`tool-success-rate`, `retries`, `loops`, `trajectory-efficiency`,
-   `execution-step-count`, `execution-duration`,
-   `working-set-rebuild-factor`, `context-growth`, `artifact-production`).
-   Never re-derive step count, retries, generic loop counts, duration,
-   tool-success rate, or generic trajectory efficiency — those already
-   exist.
-3. **Required IR fields** — which fields of the Trajectory IR
-   (`events`, `states`, `actions`, `toolCalls`, `observations`,
-   `resources`, `provenanceEdges`, `objectives`, `reference`) this grader
-   reads, and what to do (`applicable: false` with a reason) when a
-   required field is empty or absent for this trace.
-4. **Computation** — an exact, deterministic algorithm, written either as
-   numbered prose steps or a short fenced code block (JavaScript or Python,
-   illustrative — it is executed by the LLM reasoning over the IR data, not
-   run as a script by the harness). Prefer a closed-form formula when the
-   grader has one (e.g. state-revisit-probability-rep is literally
-   `(visited - distinct) / visited`). For recurrence-family graders
-   (`recurrence-*`), define the recurrence matrix explicitly: two IR
-   events `i` and `j` are "recurrent" iff their canonical `states[]` id is
-   equal (or, if using tool calls only, iff `toolCalls[i].name` and a
-   normalized argument signature match `toolCalls[j]`); derive
-   determinism/laminarity/trapping-time/recurrence-rate from that matrix
-   using the standard RQA definitions (diagonal-line density, vertical-line
-   density, mean vertical-line length, and overall recurrence density,
-   respectively).
-5. **Output** — restate the shared output contract from
-   `trajectory-ir.md` (`id`, `value`, `unit`, `direction`, `evidence`,
-   `applicable`, `notApplicableReason`) with this grader's concrete
-   `id`, `unit`, and `direction` filled in.
-6. **Worked micro-example** — a tiny (3-6 event) illustrative IR excerpt
-   and the resulting computed value, so an importing workflow can
-   self-check its implementation.
+1. YAML frontmatter with a single `graders.<selected-id>` entry.
+2. A pure inline JavaScript `script:` body that computes the grader from the
+   preprocessed trace data passed to custom graders. The script receives
+   `trace`, `run`, `workflow`, `config`, `helpers`, and `Math`; it cannot
+   read files or use `require`, `import`, `fetch`, `eval`, process APIs, or
+   nondeterminism.
+3. `name`, `unit`, `direction`, and any useful `min`/`max` metadata in the
+   grader entry.
+4. The human-readable description as comments only (YAML comments and/or a
+   markdown `<!-- ... -->` comment after the frontmatter), not as prose
+   instructions for an LLM to execute.
+5. Unavailable or insufficient trace data handling through a deterministic
+   object result with `value`, `unit`, and `message`/`details` fields.
 
 Keep the file focused and grounded: no invented statistics, no references
-to tools or data this grader does not need, no network calls, no `require`,
-`import`, `fetch`, or `eval` (this is a prompt fragment, not executable
-code, but keep it consistent with the constraints custom inline graders
-must satisfy per the
+to tools or data this grader does not need, and no network calls. Keep it
+consistent with the constraints custom inline graders must satisfy per the
 [Graders Specification](https://githubnext.github.io/gh-aw/specs/graders-specification/)).
 
 ## Step 4 — Update the catalog
