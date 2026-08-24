@@ -364,15 +364,16 @@ func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) 
 
 // RunWorkflowOptions holds parameters for RunSpecificWorkflowInteractively.
 type RunWorkflowOptions struct {
-	WorkflowName   string
-	Verbose        bool
-	EngineOverride string
-	RepoOverride   string
-	RefOverride    string
-	AutoMergePRs   bool
-	Push           bool
-	DryRun         bool
-	Approve        bool
+	WorkflowName       string
+	Verbose            bool
+	EngineOverride     string
+	RepoOverride       string
+	RefOverride        string
+	AutoMergePRs       bool
+	Push               bool
+	DryRun             bool
+	Approve            bool
+	requiredInputsOnly bool
 }
 
 // RunSpecificWorkflowInteractively runs a specific workflow in interactive mode
@@ -397,18 +398,15 @@ func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptio
 		// Continue without inputs - they might not be required
 		inputs = nil
 	}
-
-	// Create workflow option for display
-	wf := &WorkflowOption{
-		Name:        opts.WorkflowName,
-		Description: buildWorkflowDescription(inputs),
-		FilePath:    mdFile,
-		Inputs:      inputs,
+	if opts.requiredInputsOnly {
+		inputs = requiredWorkflowInputs(inputs)
 	}
 
-	// Show workflow info if there are inputs
-	if len(inputs) > 0 {
-		showWorkflowInfo(wf)
+	// Create the workflow option used to collect required inputs.
+	wf := &WorkflowOption{
+		Name:     opts.WorkflowName,
+		FilePath: mdFile,
+		Inputs:   inputs,
 	}
 
 	// Collect workflow inputs if needed
@@ -422,12 +420,6 @@ func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptio
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow execution cancelled"))
 		return nil
 	}
-
-	// Build command string for display
-	cmdStr := buildCommandString(opts.WorkflowName, inputValues, opts.RepoOverride, opts.RefOverride, opts.AutoMergePRs, opts.Push, opts.EngineOverride, opts.Approve)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
-	fmt.Fprintln(os.Stderr, "")
 
 	// Execute the workflow
 	err = RunWorkflowOnGitHub(ctx, opts.WorkflowName, RunOptions{
@@ -448,6 +440,16 @@ func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptio
 	}
 
 	return nil
+}
+
+func requiredWorkflowInputs(inputs map[string]*workflow.InputDefinition) map[string]*workflow.InputDefinition {
+	requiredInputs := make(map[string]*workflow.InputDefinition)
+	for name, definition := range inputs {
+		if definition != nil && definition.Required {
+			requiredInputs[name] = definition
+		}
+	}
+	return requiredInputs
 }
 
 // buildCommandString builds the equivalent command string for display

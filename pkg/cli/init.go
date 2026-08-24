@@ -25,6 +25,7 @@ var initLog = logger.New("cli:init")
 type InitOptions struct {
 	Ctx              context.Context
 	Verbose          bool
+	Quiet            bool
 	Engine           string
 	NoGitattributes  bool
 	Skill            bool
@@ -44,11 +45,11 @@ func InitRepository(opts InitOptions) error {
 	ctx := ctxutil.OrBackground(opts.Ctx)
 	copilotArtifactsEnabled := opts.Engine == "copilot"
 
-	// Show welcome banner for interactive mode
-	console.ShowWelcomeBanner("This tool will initialize your repository for GitHub Agentic Workflows.")
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting up repository..."))
-	fmt.Fprintln(os.Stderr, "")
+	if !opts.Quiet {
+		console.ShowWelcomeBanner("This tool will initialize your repository for GitHub Agentic Workflows.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting up repository..."))
+		fmt.Fprintln(os.Stderr, "")
+	}
 
 	// If --create-pull-request is enabled, run pre-flight checks before doing any work
 	if opts.CreatePR {
@@ -219,18 +220,19 @@ func InitRepository(opts InitOptions) error {
 		}
 	}
 
-	// Display success message with next steps
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
-	fmt.Fprintln(os.Stderr, "")
-	if len(opts.CodespaceRepos) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Codespaces devcontainer configured"))
+	if !opts.Quiet {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
+		fmt.Fprintln(os.Stderr, "")
+		if len(opts.CodespaceRepos) > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Codespaces devcontainer configured"))
+			fmt.Fprintln(os.Stderr, "")
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, see https://github.github.com/gh-aw/setup/creating-workflows"))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add an example workflow, see https://github.com/githubnext/agentics"))
 		fmt.Fprintln(os.Stderr, "")
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, see https://github.github.com/gh-aw/setup/creating-workflows"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add an example workflow, see https://github.com/githubnext/agentics"))
-	fmt.Fprintln(os.Stderr, "")
 
 	return nil
 }
