@@ -164,3 +164,4 @@
 {"run_id":"31974722434","timestamp":"2026-08-16T21:53:09.316Z","assignments":{"caveman":"no","subagent_model":"small"}}
 {"run_id":"32375445846","timestamp":"2026-08-20T13:39:47.235Z","assignments":{"caveman":"yes","subagent_model":"small"}}
 {"run_id":"32577784121","timestamp":"2026-08-22T14:08:40.748Z","harness_version":"55a02d6c07e36679e05d0907f18d611951654fc3d6c54253a5a0d108c0b2ad0d:b6a99112f7584dd539ecf8000668ffcd2ae1569e074e15266362f5d3c366790b","assignments":{"caveman":"no","subagent_model":"large"}}
+{"run_id":"32681934112","timestamp":"2026-08-24T02:07:21.072Z","harness_version":"55a02d6c07e36679e05d0907f18d611951654fc3d6c54253a5a0d108c0b2ad0d:b6a99112f7584dd539ecf8000668ffcd2ae1569e074e15266362f5d3c366790b","assignments":{"caveman":"no","subagent_model":"large"}}
