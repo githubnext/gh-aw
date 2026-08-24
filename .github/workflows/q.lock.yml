@@ -314,10 +314,11 @@ jobs:
         env:
           GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ steps.pre-create-pull-request.outputs.pull_request_number }}
           GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ steps.pre-create-pull-request.outputs.branch }}
+          GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH: gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const expectedBranch = `gh-aw/pre-created/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
+            const expectedBranch = process.env.GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH || "";
             const branch = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH || "";
             if (branch !== expectedBranch) {
               throw new Error(`Pre-created pull request branch did not match expected workflow branch: ${branch}`);
