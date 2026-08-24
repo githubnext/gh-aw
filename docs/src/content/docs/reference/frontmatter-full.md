@@ -8874,13 +8874,6 @@ safe-outputs:
     # (optional)
     require-temporary-id: true
 
-    # ⚠️ Experimental. Pre-create a draft pull request during activation, check out
-    # its branch in the agent job, and reuse it when processing create_pull_request
-    # output. This value is compile-time only and cannot be templated. Using this
-    # field emits a compile-time warning.
-    # (optional)
-    pre-create: true
-
     # ⚠️ Experimental. Pre-create a draft pull request and let the agent read
     # user-authored pull request comments and review comments containing the keyword
     # 'steer'. Requires top-level pull-requests: read permission.

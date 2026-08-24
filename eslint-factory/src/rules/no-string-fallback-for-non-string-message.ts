@@ -45,6 +45,19 @@ function getTypeofMessageCheckChainKey(node: TSESTree.Node): string | null {
   return chainKey;
 }
 
+/** Returns whether an `&&` chain contains `typeof <chain> === "object"`. */
+function hasTypeofObjectCheck(node: TSESTree.Node, chainKey: string): boolean {
+  if (node.type === AST_NODE_TYPES.LogicalExpression && node.operator === "&&") {
+    return hasTypeofObjectCheck(node.left, chainKey) || hasTypeofObjectCheck(node.right, chainKey);
+  }
+  if (node.type !== AST_NODE_TYPES.BinaryExpression || node.operator !== "===") return false;
+  const { left, right } = node;
+  const literalSide = right.type === AST_NODE_TYPES.Literal && right.value === "object" ? right : left.type === AST_NODE_TYPES.Literal && left.value === "object" ? left : null;
+  if (!literalSide) return false;
+  const typeofSide = literalSide === right ? left : right;
+  return typeofSide.type === AST_NODE_TYPES.UnaryExpression && typeofSide.operator === "typeof" && memberChainKey(typeofSide.argument) === chainKey;
+}
+
 /** Returns the argument's member-chain key when `node` is `String(<chain>)`, or null. */
 function getStringCallArgChainKey(node: TSESTree.Node): string | null {
   if (node.type !== AST_NODE_TYPES.CallExpression) return null;
@@ -86,6 +99,9 @@ export const noStringFallbackForNonStringMessageRule = createRule({
         // Only report when String() is applied to a *different* expression
         // than the `.message` chain (i.e. stringifying the container object).
         if (alternateChainKey === messageChainKey) return;
+
+        const messageContainerKey = messageChainKey.slice(0, -".message".length);
+        if (alternateChainKey === messageContainerKey && hasTypeofObjectCheck(node.test, messageContainerKey)) return;
 
         const sourceCode = context.sourceCode;
         context.report({
