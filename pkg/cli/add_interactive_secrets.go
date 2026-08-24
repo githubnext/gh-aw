@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -11,6 +12,17 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+var addInteractiveRunGH = workflow.RunGH
+
+type organizationSecret struct {
+	Name       string `json:"name"`
+	Visibility string `json:"visibility"`
+}
+
+type organizationSecretsResponse struct {
+	Secrets []organizationSecret `json:"secrets"`
+}
+
 // checkExistingSecrets fetches which secrets already exist in the repository or its organization
 func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	addInteractiveLog.Print("Checking existing repository secrets")
@@ -18,7 +30,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	c.existingSecrets = make(map[string]struct{})
 
 	// Use gh api to list repository secrets
-	output, err := workflow.RunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
+	output, err := addInteractiveRunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
 	if err != nil {
 		addInteractiveLog.Printf("Could not fetch existing secrets: %v", err)
 		// Continue without error - we'll just assume no secrets exist
@@ -31,13 +43,20 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 
 	// Also check org-level secrets if the repo belongs to an organization
 	if org, _, found := strings.Cut(c.RepoOverride, "/"); found && org != "" {
-		orgOutput, orgErr := workflow.RunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--jq", ".secrets[].name")
+		orgOutput, orgErr := addInteractiveRunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org))
 		if orgErr != nil {
 			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
 		} else {
-			for _, name := range parseSecretNames(orgOutput) {
-				c.existingSecrets[name] = struct{}{}
-				addInteractiveLog.Printf("Found existing org secret: %s", name)
+			var response organizationSecretsResponse
+			if err := json.Unmarshal(orgOutput, &response); err != nil {
+				addInteractiveLog.Printf("Could not parse organization secrets: %v", err)
+			} else {
+				for _, secret := range response.Secrets {
+					if c.organizationSecretAvailable(org, secret) {
+						c.existingSecrets[secret.Name] = struct{}{}
+						addInteractiveLog.Printf("Found available organization secret: %s", secret.Name)
+					}
+				}
 			}
 		}
 	}
@@ -47,6 +66,33 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	}
 
 	return nil
+}
+
+func (c *AddInteractiveConfig) organizationSecretAvailable(org string, secret organizationSecret) bool {
+	switch secret.Visibility {
+	case "all":
+		return true
+	case "private":
+		return !c.isPublicRepo
+	case "selected":
+		output, err := addInteractiveRunGH(
+			"Checking organization secret repository access...",
+			"api",
+			fmt.Sprintf("/orgs/%s/actions/secrets/%s/repositories", org, secret.Name),
+			"--jq",
+			".repositories[].full_name",
+		)
+		if err != nil {
+			addInteractiveLog.Printf("Could not check repository access for organization secret %s: %v", secret.Name, err)
+			return false
+		}
+		return sliceutil.Any(parseSecretNames(output), func(repo string) bool {
+			return repo == c.RepoOverride
+		})
+	default:
+		addInteractiveLog.Printf("Organization secret %s has unsupported visibility %q", secret.Name, secret.Visibility)
+		return false
+	}
 }
 
 // addRepositorySecret adds a secret to the repository

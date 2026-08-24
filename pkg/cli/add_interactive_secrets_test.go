@@ -295,15 +295,42 @@ func TestAddInteractiveConfig_addRepositorySecret_UsesStdinForSecretValue(t *tes
 }
 
 func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
-	config := &AddInteractiveConfig{
-		RepoOverride: "test-owner/test-repo",
+	originalRunGH := addInteractiveRunGH
+	t.Cleanup(func() { addInteractiveRunGH = originalRunGH })
+
+	addInteractiveRunGH = func(_ string, args ...string) ([]byte, error) {
+		switch args[1] {
+		case "/repos/test-owner/test-repo/actions/secrets":
+			return []byte("REPOSITORY_SECRET\n"), nil
+		case "/orgs/test-owner/actions/secrets":
+			return []byte(`{"secrets":[
+				{"name":"ALL_SECRET","visibility":"all"},
+				{"name":"PRIVATE_SECRET","visibility":"private"},
+				{"name":"SELECTED_SECRET","visibility":"selected"},
+				{"name":"INACCESSIBLE_SECRET","visibility":"selected"}
+			]}`), nil
+		case "/orgs/test-owner/actions/secrets/SELECTED_SECRET/repositories":
+			return []byte("test-owner/test-repo\n"), nil
+		case "/orgs/test-owner/actions/secrets/INACCESSIBLE_SECRET/repositories":
+			return []byte("test-owner/another-repo\n"), nil
+		default:
+			t.Fatalf("unexpected gh api arguments: %v", args)
+			return nil, nil
+		}
 	}
 
-	// This test requires GitHub CLI access, so we just verify it doesn't panic
-	// and initializes the existingSecrets map
-	require.NotPanics(t, func() {
-		_ = config.checkExistingSecrets()
-	}, "checkExistingSecrets should not panic")
+	config := &AddInteractiveConfig{RepoOverride: "test-owner/test-repo"}
+	require.NoError(t, config.checkExistingSecrets())
 
-	assert.NotNil(t, config.existingSecrets, "existingSecrets map should be initialized")
+	assert.Contains(t, config.existingSecrets, "REPOSITORY_SECRET")
+	assert.Contains(t, config.existingSecrets, "ALL_SECRET")
+	assert.Contains(t, config.existingSecrets, "PRIVATE_SECRET")
+	assert.Contains(t, config.existingSecrets, "SELECTED_SECRET")
+	assert.NotContains(t, config.existingSecrets, "INACCESSIBLE_SECRET")
+
+	config.isPublicRepo = true
+	assert.False(t, config.organizationSecretAvailable("test-owner", organizationSecret{
+		Name:       "PRIVATE_SECRET",
+		Visibility: "private",
+	}))
 }
