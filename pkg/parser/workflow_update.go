@@ -48,6 +48,7 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 	if err != nil {
 		return fmt.Errorf("could not marshal updated frontmatter for %q; ensure updated values are YAML-serializable, then retry: %w", workflowPath, err)
 	}
+	updatedFrontmatter = []byte(QuoteCronExpressions(string(updatedFrontmatter)))
 
 	// Reconstruct the file content
 	updatedContent, err := ReconstructWorkflowFile(string(updatedFrontmatter), result.Markdown)
