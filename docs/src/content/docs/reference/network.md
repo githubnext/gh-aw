@@ -88,6 +88,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `terraform` | HashiCorp registry, apt/yum releases |
 | `bazel` | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
 | `clojure` | Clojure packages (`clojars.org`) |
+| `copilot-vendor` | Plan-specific Copilot API hosts (`api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`) and Copilot telemetry (`telemetry.enterprise.githubcopilot.com`) — not enabled by default, since agents route inference through the firewall gateway |
 | `dart` | Dart/Flutter packages (`pub.dev`, `storage.googleapis.com`) |
 | `deno` | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
 | `dotnet` | NuGet packages and .NET SDK |
