@@ -409,7 +409,7 @@ func TestCopilotVendorDomainsRequireOptIn(t *testing.T) {
 }
 
 func TestThreatDetectionDomains(t *testing.T) {
-	detectionDomains := getEcosystemDomains("threat-detection")
+	detectionDomains := GetEngineDefaultDomainSets()["threat-detection"]
 
 	// Detection domains must include every required Copilot API domain
 	requiredDomains := []string{
@@ -423,6 +423,7 @@ func TestThreatDetectionDomains(t *testing.T) {
 		"registry.npmjs.org",
 		"telemetry.enterprise.githubcopilot.com",
 	}
+
 	detectionMap := make(map[string]bool)
 	for _, d := range detectionDomains {
 		detectionMap[d] = true
@@ -442,6 +443,22 @@ func TestThreatDetectionDomains(t *testing.T) {
 	// Verify exact count — no silent additions
 	assert.Len(t, detectionDomains, len(requiredDomains),
 		"threat-detection ecosystem should have exactly %d entries", len(requiredDomains))
+}
+
+func TestGetEngineDefaultDomainSets(t *testing.T) {
+	sets := GetEngineDefaultDomainSets()
+
+	assert.Equal(t, CopilotDefaultDomains, sets["copilot"])
+	assert.Equal(t, ClaudeDefaultDomains, sets["claude"])
+	assert.Equal(t, CodexDefaultDomains, sets["codex"])
+	assert.Equal(t, GeminiDefaultDomains, sets["gemini"])
+	assert.Equal(t, PiBaseDefaultDomains, sets["pi-base"])
+	assert.Equal(t, PiDefaultDomains, sets["pi"])
+	assert.NotEmpty(t, sets["threat-detection"])
+
+	sets["copilot"][0] = "modified.example.com"
+	assert.NotEqual(t, "modified.example.com", CopilotDefaultDomains[0],
+		"callers must not be able to modify registered domain sets")
 }
 
 func TestGetThreatDetectionAllowedDomains(t *testing.T) {

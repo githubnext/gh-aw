@@ -87,6 +87,21 @@ Keywords expanding to curated domain lists:
 | `python-native` | Python native build deps | Native toolchain mirrors for building Python packages from source |
 | `copilot-vendor` | Copilot plan-specific APIs / telemetry | `api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`, `telemetry.enterprise.githubcopilot.com` |
 
+## Automatic Engine Domain Sets
+
+Each engine automatically receives the domain set it requires in addition to
+`network.allowed`. These named sets are maintained by the compiler for analysis
+and reporting; they are not valid `network.allowed` identifiers.
+
+| Engine set | Included domains |
+|---|---|
+| `copilot` | `api.github.com`, `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
+| `claude` | Anthropic APIs, GitHub transport, certificate/OCSP services, Ubuntu package metadata, Playwright downloads, and `host.docker.internal` |
+| `codex` | `172.30.0.1`, `api.github.com`, `api.openai.com`, `chatgpt.com`, `github.com`, `host.docker.internal`, `openai.com` |
+| `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
+| `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
+| `threat-detection` | Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation |
+
 ## Invalid Shorthands
 
 These look like ecosystem identifiers but are **not recognised** — using them causes a **compile-time error**:

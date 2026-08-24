@@ -65,6 +65,124 @@ func getLoadedEcosystemDomains() map[string][]string {
 // to an engine default and that test starts failing, the domain belongs behind an explicit
 // ecosystem/runtime opt-in instead, not in the unconditional default list.
 
+// engineDefaultDomainSets centralizes every unconditional engine allow-list. These
+// sets are intentionally distinct from user-selectable ecosystem domain lists: the
+// compiler includes them automatically for the matching engine, rather than allowing
+// users to select them through network.allowed.
+//
+// Engine default domain lists intentionally exclude package registries (npm, PyPI,
+// and similar). See the package-registry invariant above.
+var engineDefaultDomainSets = map[string][]string{
+	"claude": {
+		"*.githubusercontent.com",
+		"anthropic.com",
+		"api.anthropic.com",
+		"api.github.com",
+		"api.snapcraft.io",
+		"archive.ubuntu.com",
+		"azure.archive.ubuntu.com",
+		"cdn.playwright.dev",
+		"codeload.github.com",
+		"crl.geotrust.com",
+		"crl.globalsign.com",
+		"crl.identrust.com",
+		"crl.sectigo.com",
+		"crl.thawte.com",
+		"crl.usertrust.com",
+		"crl.verisign.com",
+		"crl3.digicert.com",
+		"crl4.digicert.com",
+		"crls.ssl.com",
+		"ghcr.io",
+		"github-cloud.githubusercontent.com",
+		"github-cloud.s3.amazonaws.com",
+		"github.com",
+		"host.docker.internal",
+		"json-schema.org",
+		"json.schemastore.org",
+		"keyserver.ubuntu.com",
+		"lfs.github.com",
+		"objects.githubusercontent.com",
+		"ocsp.digicert.com",
+		"ocsp.geotrust.com",
+		"ocsp.globalsign.com",
+		"ocsp.identrust.com",
+		"ocsp.sectigo.com",
+		"ocsp.ssl.com",
+		"ocsp.thawte.com",
+		"ocsp.usertrust.com",
+		"ocsp.verisign.com",
+		"packagecloud.io",
+		"packages.cloud.google.com",
+		"packages.microsoft.com",
+		"playwright.download.prss.microsoft.com",
+		"ppa.launchpad.net",
+		"raw.githubusercontent.com",
+		"s.symcb.com",
+		"s.symcd.com",
+		"security.ubuntu.com",
+		"sentry.io",
+		"statsig.anthropic.com",
+		"ts-crl.ws.symantec.com",
+		"ts-ocsp.ws.symantec.com",
+	},
+	"codex": {
+		"172.30.0.1",     // AWF gateway IP - Codex resolves host.docker.internal to this IP for Rust DNS compatibility
+		"api.github.com", // Codex startup performs GitHub plugin sync requests against the GitHub API
+		"api.openai.com",
+		"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
+		"github.com",  // Codex startup accesses GitHub-hosted plugin metadata pages
+		"host.docker.internal",
+		"openai.com",
+	},
+	"copilot": {
+		"api.github.com",
+		"api.githubcopilot.com",
+		"github.com",
+		"host.docker.internal",
+		"raw.githubusercontent.com",
+	},
+	"gemini": {
+		"*.googleapis.com",
+		"generativelanguage.googleapis.com",
+		"github.com",
+		"host.docker.internal",
+		"raw.githubusercontent.com",
+	},
+	"pi": {
+		"api.githubcopilot.com", // Default provider (Copilot routing)
+		"host.docker.internal",
+		"github.com",
+		"raw.githubusercontent.com",
+	},
+	"pi-base": {
+		"host.docker.internal", // MCP gateway / API proxy access
+		"github.com",
+		"raw.githubusercontent.com",
+	},
+	"threat-detection": {
+		"api.business.githubcopilot.com",
+		"api.enterprise.githubcopilot.com",
+		"api.github.com",
+		"api.githubcopilot.com",
+		"api.individual.githubcopilot.com",
+		"github.com",
+		"host.docker.internal",
+		"registry.npmjs.org",
+		"telemetry.enterprise.githubcopilot.com",
+	},
+}
+
+// GetEngineDefaultDomainSets returns copies of the named engine domain sets for
+// analysis and reporting. Engine domain sets are not valid network.allowed values.
+func GetEngineDefaultDomainSets() map[string][]string {
+	sets := make(map[string][]string, len(engineDefaultDomainSets))
+	for name, domains := range engineDefaultDomainSets {
+		sets[name] = append([]string(nil), domains...)
+	}
+	return sets
+}
+
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation.
 //
 // This list is limited to the shared gateway/GitHub transport baseline: the MCP/API gateway
@@ -72,97 +190,21 @@ func getLoadedEcosystemDomains() map[string][]string {
 // inference. Plan-specific Copilot API hosts (business/enterprise/individual) and Copilot
 // telemetry are *not* part of the default set: agents route inference through the AWF api-proxy,
 // so those vendor hosts require an explicit `network: { allowed: [copilot-vendor] }` opt-in.
-var CopilotDefaultDomains = []string{
-	"api.github.com",
-	"api.githubcopilot.com",
-	"github.com",
-	"host.docker.internal",
-	"raw.githubusercontent.com",
-}
+var CopilotDefaultDomains = engineDefaultDomainSets["copilot"]
 
-// CodexDefaultDomains are the minimal default domains required for Codex CLI operation
-var CodexDefaultDomains = []string{
-	"172.30.0.1",     // AWF gateway IP - Codex resolves host.docker.internal to this IP for Rust DNS compatibility
-	"api.github.com", // Codex startup performs GitHub plugin sync requests against the GitHub API
-	"api.openai.com",
-	"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
-	"github.com",  // Codex startup accesses GitHub-hosted plugin metadata pages
-	"host.docker.internal",
-	"openai.com",
-}
+// CodexDefaultDomains are the minimal default domains required for Codex CLI operation.
+var CodexDefaultDomains = engineDefaultDomainSets["codex"]
 
-// ClaudeDefaultDomains are the default domains required for Claude Code CLI authentication and operation
-var ClaudeDefaultDomains = []string{
-	"*.githubusercontent.com",
-	"anthropic.com",
-	"api.anthropic.com",
-	"api.github.com",
-	"api.snapcraft.io",
-	"archive.ubuntu.com",
-	"azure.archive.ubuntu.com",
-	"cdn.playwright.dev",
-	"codeload.github.com",
-	"crl.geotrust.com",
-	"crl.globalsign.com",
-	"crl.identrust.com",
-	"crl.sectigo.com",
-	"crl.thawte.com",
-	"crl.usertrust.com",
-	"crl.verisign.com",
-	"crl3.digicert.com",
-	"crl4.digicert.com",
-	"crls.ssl.com",
-	"ghcr.io",
-	"github-cloud.githubusercontent.com",
-	"github-cloud.s3.amazonaws.com",
-	"github.com",
-	"host.docker.internal",
-	"json-schema.org",
-	"json.schemastore.org",
-	"keyserver.ubuntu.com",
-	"lfs.github.com",
-	"objects.githubusercontent.com",
-	"ocsp.digicert.com",
-	"ocsp.geotrust.com",
-	"ocsp.globalsign.com",
-	"ocsp.identrust.com",
-	"ocsp.sectigo.com",
-	"ocsp.ssl.com",
-	"ocsp.thawte.com",
-	"ocsp.usertrust.com",
-	"ocsp.verisign.com",
-	"packagecloud.io",
-	"packages.cloud.google.com",
-	"packages.microsoft.com",
-	"playwright.download.prss.microsoft.com",
-	"ppa.launchpad.net",
-	"raw.githubusercontent.com",
-	"s.symcb.com",
-	"s.symcd.com",
-	"security.ubuntu.com",
-	"sentry.io",
-	"statsig.anthropic.com",
-	"ts-crl.ws.symantec.com",
-	"ts-ocsp.ws.symantec.com",
-}
+// ClaudeDefaultDomains are the default domains required for Claude Code CLI authentication and operation.
+var ClaudeDefaultDomains = engineDefaultDomainSets["claude"]
 
 // GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation.
-var GeminiDefaultDomains = []string{
-	"*.googleapis.com",
-	"generativelanguage.googleapis.com",
-	"github.com",
-	"host.docker.internal",
-	"raw.githubusercontent.com",
-}
+var GeminiDefaultDomains = engineDefaultDomainSets["gemini"]
 
 // PiBaseDefaultDomains are the base domains required for the Pi CLI to operate,
 // independent of the chosen LLM provider. When a model uses provider/model format,
 // provider-specific API domains are added on top via GetDefaultDomainsForEngine.
-var PiBaseDefaultDomains = []string{
-	"host.docker.internal", // MCP gateway / API proxy access
-	"github.com",
-	"raw.githubusercontent.com",
-}
+var PiBaseDefaultDomains = engineDefaultDomainSets["pi-base"]
 
 // piProviderDomains maps provider prefixes to their API domains.
 // Covers the same set of providers that Pi can route through via the AWF LLM gateway.
@@ -180,12 +222,7 @@ var piProviderDomains = map[string]string{
 // PiDefaultDomains are the static default domains for backward compatibility when
 // no model provider prefix is given. When a provider/model format is used, the
 // dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains instead.
-var PiDefaultDomains = []string{
-	"api.githubcopilot.com", // Default provider (Copilot routing)
-	"host.docker.internal",
-	"github.com",
-	"raw.githubusercontent.com",
-}
+var PiDefaultDomains = engineDefaultDomainSets["pi"]
 
 // extractProviderFromModel parses "provider/model" format and returns the
 // lowercase provider prefix. Returns ("", nil) when no model is given or the
@@ -752,8 +789,8 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 }
 
 // GetThreatDetectionAllowedDomains returns the minimal set of domains allowed for a Copilot
-// detection run. It loads the "threat-detection" ecosystem from ecosystem_domains.json, which
-// includes the Copilot API endpoints needed for read-only threat analysis plus registry.npmjs.org
+// detection run. The "threat-detection" engine domain set includes the Copilot API endpoints
+// needed for read-only threat analysis plus registry.npmjs.org
 // for read-only npm package validation (e.g. verifying lockfile integrity hashes). It intentionally
 // excludes raw.githubusercontent.com (not needed when MCP servers are disabled and the CLI binary
 // is pre-installed). npm registry access is read-only metadata lookup only — installs are not
@@ -761,7 +798,7 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 // Any additional user-specified network.allowed entries are merged in (typically empty for detection).
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 func GetThreatDetectionAllowedDomains(network *NetworkPermissions) string {
-	detectionDomains := getEcosystemDomains("threat-detection")
+	detectionDomains := engineDefaultDomainSets["threat-detection"]
 	// Pass nil tools and runtimes: detection runs with no npm/runtime ecosystem, so
 	// ecosystem domain expansion is intentionally skipped.
 	return mergeDomainsWithNetworkToolsAndRuntimes(detectionDomains, network, nil, nil)
