@@ -108,7 +108,19 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 - **Agent job** MUST generate default checkout plus additional checkouts from `CheckoutManager`, with `persist-credentials: false` by default.
 - **safe_outputs job** MUST reuse the same checkout generators but set keep-credentials mode for push/fetch use and inject a `Configure Git credentials` step.
 
-### 3.4 Checkout Manifest
+### 3.4 Minimal safe_outputs PR Checkout
+
+The safe_outputs PR handlers only need enough git state to apply a patch and push it: they fetch the specific branch, base, and commits they operate on at apply time using their retained credentials. The workspace-root checkout in the safe_outputs job MUST therefore be narrowed as follows:
+
+- When the workflow declares no root `checkout:` entry, the safe_outputs workspace-root checkout MUST emit `sparse-checkout: .` (repository-root files only). Git materializes the paths a patch touches on demand, and add/add conflict recovery MUST stage with `git add --sparse` so index updates outside the sparse cone are permitted.
+- When the workflow declares a root `checkout:` entry, the safe_outputs job MUST NOT replay its agent-oriented history extras: `fetch-depth` MUST be omitted and additional `fetch:` refs MUST NOT emit a follow-up fetch step. Other explicit settings (`sparse-checkout`, `submodules`, `lfs`, tokens, `ref`) MUST still be honored.
+- The agent job MUST retain its configured depth and `fetch:` refs; this narrowing applies only to the safe_outputs job.
+
+The narrowing MUST be disabled (the safe_outputs checkout matching the agent job's) when the workflow declares custom safe-output `steps`, `actions`, or `scripts`, since those may read arbitrary files or history from the working tree.
+
+Additional (cross-repo / subdirectory) checkouts in the safe_outputs job are unaffected by this narrowing.
+
+### 3.5 Checkout Manifest
 
 For non-default cross-repo checkouts, the compiler MUST emit a checkout manifest step.  
 Runtime lookup (`find_repo_checkout`) MUST prefer manifest paths and MUST reject manifest paths that are absolute or escape workspace roots (see §7 test T-CHK-014 for compliance test coverage of this requirement).
@@ -176,7 +188,7 @@ When safe_outputs checkout retention is enabled, checkouts without explicit entr
 ### 5.1 Shallow and Additional Fetch
 
 - Default shallow behavior MUST be `fetch-depth: 1` when unset.
-- Additional `fetch:` refs MUST emit a follow-up `git fetch` step per checkout entry.
+- Additional `fetch:` refs MUST emit a follow-up `git fetch` step per checkout entry, except on a narrowed safe_outputs workspace-root checkout (see §3.4).
 - Follow-up fetch MUST mirror effective depth (omit `--depth` only when effective depth is `0`).
 - Follow-up fetch MUST inject credentials via command-level `http.extraheader` and MUST NOT persist credentials to git config.
 
@@ -267,6 +279,7 @@ When `GH_AW_TARGET_REPO_SLUG` is set but equals `GITHUB_REPOSITORY`, the impleme
 - **T-CHK-013**: Checkout-manifest generation includes safe_outputs auth metadata without persisting resolved tokens
 - **T-CHK-014**: Checkout-manifest path resolution MUST reject paths that are absolute (e.g., `/etc/passwd`) or escape the workspace root (e.g., `../../sensitive`); rejected paths MUST produce an error and MUST NOT be used for checkout or file lookup
 - **T-CHK-015**: `push_to_pull_request_branch` uses side-repo checkout from `GH_AW_TARGET_REPO_SLUG` only when it differs from `GITHUB_REPOSITORY`; emits debug log and ignores it when they match
+- **T-CHK-016**: safe_outputs workspace-root checkout is narrowed — implicit checkouts emit `sparse-checkout: .`, explicit root checkouts drop `fetch-depth` and the additional `fetch:` step, and the narrowing is disabled when custom safe-output steps/actions/scripts are declared; nested-path patch application and `git add --sparse` conflict recovery succeed under a root-only sparse checkout
 
 ### 7.2 Compliance Checklist
 
@@ -282,6 +295,7 @@ When `GH_AW_TARGET_REPO_SLUG` is set but equals `GITHUB_REPOSITORY`, the impleme
 | Checkout-manifest generation requirements | T-CHK-013 | C1/C2 | Required |
 | Checkout-manifest path-escape rejection | T-CHK-014 | C2 | Required |
 | `push_to_pull_request_branch` side-repo cwd resolution | T-CHK-015 | C2 | Required |
+| Minimal safe_outputs PR checkout | T-CHK-016 | C1/C2 | Required |
 
 ### 7.3 Safeguards
 
@@ -289,7 +303,7 @@ The following MUST-level norms govern credential and token safety during checkou
 
 1. **Token write-to-disk prohibition**: `safe-outputs-github-app` minted tokens MUST NOT be written to disk at any point before the `safe_outputs` job begins its push/PR operations. Token values MUST be passed only as environment variables or via GitHub Actions secret interpolation at the step level. Any intermediate file, log entry, or env export that materializes the token value to disk MUST be treated as a security violation.
 
-2. **Manifest path rejection**: Checkout-manifest paths that are absolute or that escape the workspace root MUST be rejected before any file I/O is performed against them. The rejection MUST produce an actionable error message (see §3.4 and T-CHK-014).
+2. **Manifest path rejection**: Checkout-manifest paths that are absolute or that escape the workspace root MUST be rejected before any file I/O is performed against them. The rejection MUST produce an actionable error message (see §3.5 and T-CHK-014).
 
 3. **Credential cleanup**: When `force-clean-git-credentials: true` is active and `keep-credentials-for-push` is not, all credential-bearing git config sections MUST be removed from `.git/config` and `.git/modules/**/config` before the agent step completes.
 
@@ -325,6 +339,7 @@ The following MUST-level norms govern credential and token safety during checkou
 
 ### Version 1.1.0 (Working Draft)
 
+- Added §3.4: minimal safe_outputs PR checkout requirements (root-only sparse default for implicit checkouts, dropped `fetch-depth`/`fetch:` extras on explicit root checkouts, and the custom safe-output steps/actions/scripts opt-out). Noted the §5.1 fetch-step exception and added T-CHK-016.
 - Added §6.3: `push_to_pull_request_branch` side-repo checkout resolution requirements, covering `GH_AW_TARGET_REPO_SLUG` passthrough guard, debug-logging obligation, and `repo_cwd` scoping of all git operations.
 - Added T-CHK-015 to §7.1 and §7.2 compliance checklist.
 

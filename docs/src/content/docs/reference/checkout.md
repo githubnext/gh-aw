@@ -114,6 +114,15 @@ Fetch everything the workflow needs at checkout time using `fetch-depth` and [`f
 `push-to-pull-request-branch` inspects the commit range `origin/<branch>..<branch>` in the agent's workspace to detect merge commits and select the appropriate transport. With the default shallow clone (`fetch-depth: 1`), `origin/<branch>` has no traversable ancestry, so `git rev-list` reports the entire local history as the range. On large monorepos (thousands of commits) this can falsely trigger bundle or rewrite paths. When the range is implausibly large in a shallow checkout, merge-commit detection returns false (with a warning) to avoid incorrect transport selection; if the range later reaches the signed-push linearization step, that step is refused with a clear error. Set `fetch-depth: 0` to ensure the correct range is visible.
 :::
 
+## Checkout in the safe_outputs Job
+
+Workflows that use the `create-pull-request` or `push-to-pull-request-branch` safe outputs get a second checkout in the `safe_outputs` job, where the generated patch is applied and pushed. That checkout is deliberately narrower than the agent's:
+
+- Without a root `checkout:` entry, it materializes repository-root files only (`sparse-checkout: .`). Git materializes the paths the patch touches on demand, so nested files still apply correctly.
+- With a root `checkout:` entry, your explicit settings (`sparse-checkout`, `submodules`, `lfs`, tokens, `ref`) are honored, but the agent-oriented history options `fetch-depth` and [`fetch:`](#fetching-additional-refs) are not replayed — the safe-output handlers fetch the branch, base, and commits they operate on themselves.
+
+The agent job always keeps the depth and refs you configured; only the `safe_outputs` job is narrowed. If the workflow declares custom safe-output `steps`, `actions`, or `scripts` — which may read arbitrary files or history from the working tree — the `safe_outputs` checkout matches the agent job's instead.
+
 ## Disabling Checkout (`checkout: false`)
 
 Set `checkout: false` to suppress both the default `actions/checkout` step and the PR-specific "Checkout PR branch" step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
