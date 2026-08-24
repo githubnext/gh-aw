@@ -178,9 +178,13 @@ var engineDefaultDomainSets = map[string][]string{
 func GetEngineDefaultDomainSets() map[string][]string {
 	sets := make(map[string][]string, len(engineDefaultDomainSets))
 	for name, domains := range engineDefaultDomainSets {
-		sets[name] = append([]string(nil), domains...)
+		sets[name] = copyEngineDefaultDomainSet(domains)
 	}
 	return sets
+}
+
+func copyEngineDefaultDomainSet(domains []string) []string {
+	return append([]string(nil), domains...)
 }
 
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation.
@@ -190,21 +194,21 @@ func GetEngineDefaultDomainSets() map[string][]string {
 // inference. Plan-specific Copilot API hosts (business/enterprise/individual) and Copilot
 // telemetry are *not* part of the default set: agents route inference through the AWF api-proxy,
 // so those vendor hosts require an explicit `network: { allowed: [copilot-vendor] }` opt-in.
-var CopilotDefaultDomains = engineDefaultDomainSets["copilot"]
+var CopilotDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["copilot"])
 
 // CodexDefaultDomains are the minimal default domains required for Codex CLI operation.
-var CodexDefaultDomains = engineDefaultDomainSets["codex"]
+var CodexDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["codex"])
 
 // ClaudeDefaultDomains are the default domains required for Claude Code CLI authentication and operation.
-var ClaudeDefaultDomains = engineDefaultDomainSets["claude"]
+var ClaudeDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["claude"])
 
 // GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation.
-var GeminiDefaultDomains = engineDefaultDomainSets["gemini"]
+var GeminiDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["gemini"])
 
 // PiBaseDefaultDomains are the base domains required for the Pi CLI to operate,
 // independent of the chosen LLM provider. When a model uses provider/model format,
 // provider-specific API domains are added on top via GetDefaultDomainsForEngine.
-var PiBaseDefaultDomains = engineDefaultDomainSets["pi-base"]
+var PiBaseDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["pi-base"])
 
 // piProviderDomains maps provider prefixes to their API domains.
 // Covers the same set of providers that Pi can route through via the AWF LLM gateway.
@@ -222,7 +226,7 @@ var piProviderDomains = map[string]string{
 // PiDefaultDomains are the static default domains for backward compatibility when
 // no model provider prefix is given. When a provider/model format is used, the
 // dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains instead.
-var PiDefaultDomains = engineDefaultDomainSets["pi"]
+var PiDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["pi"])
 
 // extractProviderFromModel parses "provider/model" format and returns the
 // lowercase provider prefix. Returns ("", nil) when no model is given or the

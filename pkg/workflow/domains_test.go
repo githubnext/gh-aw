@@ -459,6 +459,14 @@ func TestGetEngineDefaultDomainSets(t *testing.T) {
 	sets["copilot"][0] = "modified.example.com"
 	assert.NotEqual(t, "modified.example.com", CopilotDefaultDomains[0],
 		"callers must not be able to modify registered domain sets")
+
+	original := CopilotDefaultDomains[0]
+	t.Cleanup(func() {
+		CopilotDefaultDomains[0] = original
+	})
+	CopilotDefaultDomains[0] = "modified.example.com"
+	assert.Equal(t, original, GetEngineDefaultDomainSets()["copilot"][0],
+		"exported compatibility variables must not modify registered domain sets")
 }
 
 func TestGetThreatDetectionAllowedDomains(t *testing.T) {
