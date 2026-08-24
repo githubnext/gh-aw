@@ -17,6 +17,8 @@ import (
 // TestCollectImagesFromLockFiles verifies that container image tags are correctly
 // extracted from download_docker_images.sh invocations in lock files.
 func TestCollectImagesFromLockFiles(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		lockFileContent string
@@ -118,6 +120,8 @@ jobs:
 // TestCollectImagesFromLockFiles_MissingDir verifies that a non-existent workflow
 // directory returns nil without error.
 func TestCollectImagesFromLockFiles_MissingDir(t *testing.T) {
+	t.Parallel()
+
 	images, err := collectImagesFromLockFiles("/nonexistent/path/to/workflows")
 	require.NoError(t, err, "missing dir should not return error")
 	assert.Nil(t, images, "missing dir should return nil images")
@@ -126,6 +130,8 @@ func TestCollectImagesFromLockFiles_MissingDir(t *testing.T) {
 // TestBuildxDigestPattern verifies that the regex correctly extracts the top-level
 // "Digest:" line from docker buildx imagetools inspect text output.
 func TestBuildxDigestPattern(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		output         string
@@ -265,6 +271,8 @@ jobs:
 // this test uses a generic non-firewall image family to exercise the normal
 // pruning path.
 func TestUpdateContainerPins_PrunesStaleEntries(t *testing.T) {
+	t.Parallel()
+
 	// Create a temp directory acting as the repo root.
 	tmpDir := t.TempDir()
 
@@ -340,6 +348,8 @@ jobs:
 // where a previously-shipped AWF version silently loses its embedded digest
 // pin (gh-aw#38561 / #43307 / #44040 / #51248).
 func TestUpdateContainerPins_KeepsStaleFirewallEntries(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	actionsLockDir := filepath.Join(tmpDir, ".github", "aw")

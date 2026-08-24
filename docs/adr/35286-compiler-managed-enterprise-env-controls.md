@@ -20,11 +20,11 @@ We will introduce a dedicated `pkg/workflow/compilerenv` package as the single s
 
 #### Alternative 1: Per-engine inline override chain (no shared package)
 
-Keep the existing pattern of inline `fmt.Sprintf` expressions, and add the `GH_AW_DEFAULT_MODEL_*` term in-line at each call site (Claude, Codex, Copilot, `compiler_yaml.go`, `notify_comment.go`, `awf_config.go`). This was rejected because the override chain is a cross-cutting policy: scattering it across N files makes it easy to drift (one site forgetting the default tier), and adding a new enterprise knob would require touching every site again. Centralizing the knowledge in `compilerenv` keeps the override chain consistent and makes future additions a one-file change.
+Keep the existing pattern of inline `fmt.Sprintf` expressions, and add the `GH_AW_DEFAULT_MODEL_*` term in-line at each call site (Claude, Codex, Copilot, `compiler_yaml.go`, `notify_comment.go`, `awf_config_build.go`). This was rejected because the override chain is a cross-cutting policy: scattering it across N files makes it easy to drift (one site forgetting the default tier), and adding a new enterprise knob would require touching every site again. Centralizing the knowledge in `compilerenv` keeps the override chain consistent and makes future additions a one-file change.
 
 #### Alternative 2: YAML-only enterprise overrides (no Go-side resolver)
 
-Implement the override chain purely as a `vars.*` expression injected into generated workflow YAML, and resolve everything at GitHub Actions runtime. This was rejected because `max-ai-credits` is also consumed at compile time inside the Go binary — `BuildAWFConfigJSON` (`pkg/workflow/awf_config.go`) and `buildConclusionJob` (`pkg/workflow/notify_comment.go`) need the numeric value to emit into the AWF config JSON and into the failure-reporting env block. A YAML-only solution would leave those compile-time paths unable to honor the enterprise default, so `ResolveDefaultMaxEffectiveTokens` (a Go-side `os.Getenv` reader) is required.
+Implement the override chain purely as a `vars.*` expression injected into generated workflow YAML, and resolve everything at GitHub Actions runtime. This was rejected because `max-ai-credits` is also consumed at compile time inside the Go binary — `BuildAWFConfigJSON` (`pkg/workflow/awf_config_build.go`) and `buildConclusionJob` (`pkg/workflow/notify_comment.go`) need the numeric value to emit into the AWF config JSON and into the failure-reporting env block. A YAML-only solution would leave those compile-time paths unable to honor the enterprise default, so `ResolveDefaultMaxEffectiveTokens` (a Go-side `os.Getenv` reader) is required.
 
 #### Alternative 3: Config-file-based enterprise overrides (e.g. `.gh-aw-enterprise.yml`)
 
@@ -44,7 +44,7 @@ Store enterprise defaults in a checked-in or repo-configured YAML file rather th
 - All golden test files asserting on the legacy two-tier expression shape had to be regenerated; any out-of-tree consumer that parses the generated env-var expressions will break.
 
 #### Neutral
-- New package introduces an import edge from `claude_engine.go`, `codex_engine.go`, `copilot_engine_execution.go`, `compiler_yaml.go`, `compiler_yaml_lookups.go`, `awf_config.go`, and `notify_comment.go` into `pkg/workflow/compilerenv`.
+- New package introduces an import edge from `claude_engine.go`, `codex_engine.go`, `copilot_engine_execution.go`, `compiler_yaml.go`, `compiler_yaml_lookups.go`, `awf_config_build.go`, and `notify_comment.go` into `pkg/workflow/compilerenv`.
 - `GH_AW_INFO_MODEL` (run-info metadata) now follows the same override chain as the engine model env vars, so surfaced metadata matches effective model selection.
 - The `EngineConfig.GetMaxEffectiveTokens()` accessor is bypassed at the two compile-time sites that now go through `ResolveDefaultMaxEffectiveTokens` plus a direct field check on `EngineConfig.MaxEffectiveTokens`; the accessor still exists for callers that don't need the enterprise default tier.
 
@@ -70,7 +70,7 @@ Store enterprise defaults in a checked-in or repo-configured YAML file rather th
 
 ### Max-Effective-Tokens Override
 
-1. Compile-time consumers of the AWF `apiProxy.maxEffectiveTokens` default (currently `pkg/workflow/awf_config.go` and `pkg/workflow/notify_comment.go`) **MUST** resolve the default through `compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)`.
+1. Compile-time consumers of the AWF `apiProxy.maxEffectiveTokens` default (currently `pkg/workflow/awf_config_build.go` and `pkg/workflow/notify_comment.go`) **MUST** resolve the default through `compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)`.
 2. When workflow frontmatter sets `max-effective-tokens` to a non-zero value, that value **MUST** take precedence over the `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` env var override.
 3. When `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` is unset, empty, or not parseable as a base-10 `int64`, the resolver **MUST** return the supplied fallback unchanged.
 4. The resolver **MUST NOT** panic, log a fatal error, or fail compilation for an invalid value; it **MUST** fall back silently to the supplied default.

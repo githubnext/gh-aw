@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -130,6 +132,9 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 	if err := validateUnsupportedJobInputs(filtered); err != nil {
 		return err
 	}
+	if err := validateMetadataDocs(filtered); err != nil {
+		return err
+	}
 
 	// Then run the standard schema validation with location
 	if err := validateWithSchemaAndLocation(filtered, mainWorkflowSchema, "main workflow file", filePath); err != nil {
@@ -138,6 +143,28 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 
 	// Finally run other custom validation rules
 	return validateEngineSpecificRules(filtered)
+}
+
+func validateMetadataDocs(frontmatter map[string]any) error {
+	metadata, ok := frontmatter["metadata"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	docs, ok := metadata["docs"].(string)
+	if !ok {
+		return nil
+	}
+	parsed, err := url.ParseRequestURI(docs)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
+		return errors.New("metadata.docs must be a valid absolute HTTPS URL")
+	}
+	if port := parsed.Port(); port != "" {
+		number, err := strconv.ParseUint(port, 10, 16)
+		if err != nil || number == 0 {
+			return errors.New("metadata.docs must be a valid absolute HTTPS URL")
+		}
+	}
+	return nil
 }
 
 // ValidateIncludedFileFrontmatterWithSchemaAndLocation validates included file frontmatter with file location info
@@ -156,6 +183,9 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 
 	// First check for forbidden fields in shared workflows
 	if err := validateSharedWorkflowFields(filtered); err != nil {
+		return err
+	}
+	if err := validateMetadataDocs(filtered); err != nil {
 		return err
 	}
 

@@ -388,10 +388,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.DisapprovalReactions = disapprovalReactions
 		}
 		if disapprovalIntegrity, ok := configMap["disapproval-integrity"].(string); ok {
-			config.DisapprovalIntegrity = disapprovalIntegrity
+			config.DisapprovalIntegrity = GitHubIntegrityLevel(disapprovalIntegrity)
 		}
 		if endorserMinIntegrity, ok := configMap["endorser-min-integrity"].(string); ok {
-			config.EndorserMinIntegrity = endorserMinIntegrity
+			config.EndorserMinIntegrity = GitHubIntegrityLevel(endorserMinIntegrity)
 		}
 
 		// Parse private-to-public-flows: accepts "allow" (string) or []string of server IDs.
