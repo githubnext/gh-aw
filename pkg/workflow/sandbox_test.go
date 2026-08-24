@@ -142,6 +142,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 		expected               *SandboxConfig
 		expectDefaultWritePath bool
 		expectedAllowWrite     []string
+		unexpectedAllowWrite   []string
 	}{
 		{
 			name:                   "nil config creates default with AWF",
@@ -261,6 +262,24 @@ func TestApplySandboxDefaults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "cloud-hypervisor runtime does not grant Copilot logs path to other engines",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Runtime: AgentRuntimeCloudHypervisor,
+				},
+			},
+			engine:                 &EngineConfig{ID: "claude"},
+			expectDefaultWritePath: true,
+			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
+			unexpectedAllowWrite:   []string{defaultAgentLogsWritePath},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -284,6 +303,11 @@ func TestApplySandboxDefaults(t *testing.T) {
 				require.NotNil(t, result.Agent.Config)
 				require.NotNil(t, result.Agent.Config.Filesystem)
 				assert.Contains(t, result.Agent.Config.Filesystem.AllowWrite, expectedPath)
+			}
+			for _, unexpectedPath := range tt.unexpectedAllowWrite {
+				require.NotNil(t, result.Agent.Config)
+				require.NotNil(t, result.Agent.Config.Filesystem)
+				assert.NotContains(t, result.Agent.Config.Filesystem.AllowWrite, unexpectedPath)
 			}
 		})
 	}

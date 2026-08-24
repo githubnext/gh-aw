@@ -16,6 +16,7 @@ package workflow
 import (
 	"slices"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
@@ -323,7 +324,7 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig, engineConfig *Eng
 		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
 	}
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentWorkspaceWritePath)
-	if engineConfig != nil && engineConfig.ID == "copilot" {
+	if engineConfig != nil && engineConfig.ID == string(constants.CopilotEngine) {
 		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentLogsWritePath)
 	}
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorWorkspaceWritePath)
