@@ -34,6 +34,7 @@ jobs:
 `
 
 func TestFilterGvisorInstallFindings(t *testing.T) {
+	t.Parallel()
 	gitRoot := t.TempDir()
 	writeWorkflow(t, gitRoot, "sandbox.lock.yml", gvisorWorkflow)
 
@@ -56,6 +57,7 @@ func TestFilterGvisorInstallFindings(t *testing.T) {
 }
 
 func TestFilterGvisorInstallFindingsKeepsFindingsForUnresolvableFiles(t *testing.T) {
+	t.Parallel()
 	gitRoot := t.TempDir()
 
 	findings := []runnerGuardFinding{
@@ -67,6 +69,7 @@ func TestFilterGvisorInstallFindingsKeepsFindingsForUnresolvableFiles(t *testing
 }
 
 func TestFindingInGvisorInstallStep(t *testing.T) {
+	t.Parallel()
 	lines := []string{
 		"jobs:",                                // 1
 		"  agent:",                             // 2
@@ -100,6 +103,7 @@ func TestFindingInGvisorInstallStep(t *testing.T) {
 }
 
 func TestReadWorkflowLines(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, readWorkflowLines(""))
 	assert.Nil(t, readWorkflowLines(filepath.Join(t.TempDir(), "missing.lock.yml")))
 }

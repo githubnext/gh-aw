@@ -10,6 +10,7 @@ import (
 )
 
 func TestIsSemanticVersionTag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		ref  string
@@ -38,6 +39,7 @@ func TestIsSemanticVersionTag(t *testing.T) {
 }
 
 func TestParseVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		input     string
@@ -137,6 +139,7 @@ func TestParseVersion(t *testing.T) {
 }
 
 func TestVersionIsNewer(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		version string
