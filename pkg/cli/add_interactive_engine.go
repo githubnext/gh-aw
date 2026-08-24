@@ -283,7 +283,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	var authMethod string
 	selectField := huh.NewSelect[string]().
 		Title("How would you like Copilot workflows to authenticate?").
-		Description(copilotAuthMethodDescription(probe)).
+		Description(copilotAuthMethodDescription(probe, c.secretSources[constants.CopilotGitHubToken])).
 		Options(options...).
 		Value(&authMethod)
 
@@ -306,12 +306,16 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	return nil
 }
 
-func copilotAuthMethodDescription(probe orgCopilotBillingProbeResult) string {
+func copilotAuthMethodDescription(probe orgCopilotBillingProbeResult, source secretSource) string {
 	copilotRequestsDescription := "• copilot-requests: Use the org's Copilot billing seat; no PAT required."
 	if probe.InfoNote != "" {
 		copilotRequestsDescription += "\n  (NOTE: " + probe.InfoNote + "\n   Check with your org admin if you want to use this option.)"
 	}
-	return "• PAT: Use the existing COPILOT_GITHUB_TOKEN repository secret.\n" + copilotRequestsDescription
+	patDescription := "• PAT: Create a COPILOT_GITHUB_TOKEN repository secret."
+	if source != "" {
+		patDescription = "• PAT: Reuse the existing COPILOT_GITHUB_TOKEN " + string(source) + " secret."
+	}
+	return patDescription + "\n" + copilotRequestsDescription
 }
 
 // applyCopilotAuthMethodChoice records the user's Copilot auth method selection and prints

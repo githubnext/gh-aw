@@ -50,9 +50,8 @@ type AddInteractiveConfig struct {
 	// Populated by selectCopilotAuthMethod() via probeCopilotBillingForOrg().
 	copilotCLIBillingStatus string
 
-	// isPublicRepo tracks whether the target repository is public
-	// This is populated by checkGitRepository() when determining the repo
-	isPublicRepo bool
+	// repositoryVisibility is populated before organization secrets are inspected.
+	repositoryVisibility string
 
 	// hasWriteAccess tracks whether the user has write access to the target repository.
 	// When false, secrets configuration is skipped since users cannot configure repository secrets.
@@ -61,6 +60,7 @@ type AddInteractiveConfig struct {
 	// existingSecrets tracks which secrets already exist in the repository
 	// This is populated by checkExistingSecrets() before engine selection
 	existingSecrets map[string]struct{}
+	secretSources   map[string]secretSource
 
 	// addResult holds the result from AddWorkflows, including HasWorkflowDispatch
 	addResult *AddWorkflowsResult
@@ -201,7 +201,7 @@ func (c *AddInteractiveConfig) sourceWorkflowMessage() string {
 	return "Source workflow: " + strings.Join(c.WorkflowSpecs, ", ")
 }
 
-func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, createPR bool, err error) {
+func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles []string, initFiles []addInitializedFile, secretName, secretValue string, createPR bool, err error) {
 	// selectAIEngineAndKey only selects the engine and, for Copilot, the auth method
 	// (org billing vs. PAT). It does not prompt for or upload any secret value, since
 	// that has remote repository side effects and must wait until the user has
@@ -223,26 +223,27 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
-	initFiles = initializationPlan.files
 
-	createPR, err = c.confirmChanges(workflowFiles, initFiles)
+	createPR, err = c.confirmChanges(workflowFiles, initializationPlan.files)
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
 	if createPR {
-		if err := c.checkCleanWorkingDirectoryForPR(workflowFiles, initFiles); err != nil {
+		plannedInitFiles := make([]string, 0, len(initializationPlan.files))
+		plannedInitFiles = append(plannedInitFiles, initializationPlan.files...)
+		if err := c.checkCleanWorkingDirectoryForPR(workflowFiles, plannedInitFiles); err != nil {
 			return nil, nil, "", "", false, err
 		}
+	}
+
+	if !createPR {
+		return workflowFiles, nil, "", "", false, nil
 	}
 
 	initFiles, err = applyAddRepositoryInitialization(initializationPlan, c.EngineOverride, c.Verbose, c.NoGitattributes)
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
-	if !createPR {
-		return workflowFiles, initFiles, "", "", false, nil
-	}
-
 	// Secret collection and upload only happen once the user has committed to the
 	// PR path and the clean-tree check has succeeded.
 	if err := c.configureEngineAPISecret(c.EngineOverride); err != nil {

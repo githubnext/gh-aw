@@ -79,8 +79,15 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	// Create file tracker for rollback capability
 	tracker := NewFileTracker()
-	for _, initializedFile := range opts.initializedFiles {
-		tracker.TrackCreated(initializedFile)
+	if opts.addWizard != nil {
+		for _, initializedFile := range opts.addWizard.initializedFiles {
+			if initializedFile.wasExisting {
+				tracker.OriginalContent[initializedFile.path] = initializedFile.originalContent
+				tracker.TrackModified(initializedFile.path)
+			} else {
+				tracker.TrackCreated(initializedFile.path)
+			}
+		}
 	}
 
 	// Ensure we switch back to original branch on exit
@@ -99,7 +106,7 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 	}
 
 	prepareSpinner := console.NewSpinner("Preparing pull request...")
-	if opts.showInteractiveProgress {
+	if opts.showInteractiveProgress() {
 		prepareSpinner.Start()
 	}
 	defer prepareSpinner.Stop()
@@ -156,7 +163,7 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	// Push branch
 	addWorkflowPRLog.Printf("Pushing branch %s to remote", branchName)
-	if opts.showInteractiveProgress {
+	if opts.showInteractiveProgress() {
 		prepareSpinner.UpdateMessage("Pushing pull request branch...")
 	}
 	if err := pushBranch(branchName, opts.Verbose); err != nil {
@@ -198,7 +205,7 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) string {
 	var body strings.Builder
-	if opts.createdByAddWizard {
+	if opts.addWizard != nil {
 		fmt.Fprintf(&body, "This pull request was created with [`gh aw add-wizard`](https://github.github.com/gh-aw/) from [GitHub Agentic Workflows](https://github.com/github/gh-aw), version `%s`.\n", markdownText(GetVersion()))
 	} else {
 		fmt.Fprintf(&body, "This pull request was created with [`gh aw add`](https://github.github.com/gh-aw/) from [GitHub Agentic Workflows](https://github.com/github/gh-aw), version `%s`.\n", markdownText(GetVersion()))
@@ -216,14 +223,16 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 
 	body.WriteString("\n## Options selected\n\n")
 	body.WriteString("- **Delivery:** pull request\n")
-	fmt.Fprintf(&body, "- **Engine:** `%s`\n", markdownText(opts.EngineOverride))
+	if opts.EngineOverride != "" {
+		fmt.Fprintf(&body, "- **Engine:** `%s`\n", markdownText(opts.EngineOverride))
+	}
 	if opts.EngineOverride == "copilot" {
 		auth := "`COPILOT_GITHUB_TOKEN` repository secret"
 		if opts.AddCopilotRequestsPermission {
 			auth = "organization billing via `permissions.copilot-requests: write`"
-		} else if opts.addWizardSecretExists {
-			auth = "existing `COPILOT_GITHUB_TOKEN` repository or organization secret"
-		} else if opts.addWizardSkipSecret {
+		} else if opts.addWizard != nil && opts.addWizard.secretSource != "" {
+			auth = fmt.Sprintf("existing `COPILOT_GITHUB_TOKEN` %s secret", opts.addWizard.secretSource)
+		} else if opts.addWizard != nil && opts.addWizard.skipSecret {
 			auth = "`COPILOT_GITHUB_TOKEN` setup skipped"
 		}
 		fmt.Fprintf(&body, "- **Authentication:** %s\n", auth)
@@ -240,14 +249,18 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 	if opts.Force {
 		body.WriteString("- **Existing workflow files:** overwrite confirmed\n")
 	}
-	if opts.createdByAddWizard {
-		fmt.Fprintf(&body, "- **GitHub App permission and event inference:** %s\n", enabledText(!opts.addWizardDisableGitHubAppInference))
+	if opts.addWizard != nil {
+		fmt.Fprintf(&body, "- **GitHub App permission and event inference:** %s\n", enabledText(!opts.addWizard.disableGitHubAppPermissionInference))
 	}
 	if opts.AppendText != "" {
 		body.WriteString("- **Custom appended instructions:** included\n")
 	}
-	if len(opts.initializedFiles) > 0 {
-		fmt.Fprintf(&body, "- **Repository initialization:** %s\n", joinCodeValues(opts.initializedFiles))
+	if opts.addWizard != nil && len(opts.addWizard.initializedFiles) > 0 {
+		paths := make([]string, 0, len(opts.addWizard.initializedFiles))
+		for _, file := range opts.addWizard.initializedFiles {
+			paths = append(paths, file.displayPath)
+		}
+		fmt.Fprintf(&body, "- **Repository initialization:** %s\n", joinCodeValues(paths))
 	}
 
 	body.WriteString("\n## Review criteria\n\n")
@@ -261,7 +274,7 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 	body.WriteString("\n## Forward progress\n\n")
 	body.WriteString("1. Review the changes against the criteria above; request or make changes in the Markdown workflow source, then recompile it with `gh aw compile`.\n")
 	body.WriteString("2. Merge this pull request to install the workflow")
-	if opts.createdByAddWizard && opts.EngineOverride == "copilot" && !opts.AddCopilotRequestsPermission && !opts.addWizardSecretExists && !opts.addWizardSkipSecret {
+	if opts.addWizard != nil && opts.EngineOverride == "copilot" && !opts.AddCopilotRequestsPermission && opts.addWizard.secretSource == "" && !opts.addWizard.skipSecret {
 		body.WriteString(". After merge, the add wizard will configure `COPILOT_GITHUB_TOKEN` when needed")
 	}
 	body.WriteString(".\n")

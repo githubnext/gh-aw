@@ -87,19 +87,31 @@ type AddOptions struct {
 	// the workflow frontmatter, enabling GitHub Actions token auth for Copilot.
 	// Set by the add-wizard when the user selects org-billing auth instead of a PAT.
 	AddCopilotRequestsPermission bool
-	// initializedFiles contains files created by add-wizard after its clean-tree check.
-	initializedFiles []string
-	// workingTreePrevalidated indicates add-wizard already verified that staged
-	// changes and changes overlapping planned files are absent.
-	workingTreePrevalidated bool
-	// showInteractiveProgress enables high-level progress indicators for the
-	// otherwise quiet add-wizard write, compile, commit, and push phases.
-	showInteractiveProgress bool
-	// createdByAddWizard records that the interactive wizard selected these options.
-	createdByAddWizard                 bool
-	addWizardSkipSecret                bool
-	addWizardSecretExists              bool
-	addWizardDisableGitHubAppInference bool
+	addWizard *addWizardOptions
+}
+
+type addWizardOptions struct {
+	initializedFiles                    []addInitializedFile
+	workingTreePrevalidated             bool
+	showInteractiveProgress             bool
+	secretSource                        secretSource
+	skipSecret                          bool
+	disableGitHubAppPermissionInference bool
+}
+
+func (opts AddOptions) wizardInitializedPaths() []string {
+	if opts.addWizard == nil {
+		return nil
+	}
+	paths := make([]string, 0, len(opts.addWizard.initializedFiles))
+	for _, file := range opts.addWizard.initializedFiles {
+		paths = append(paths, file.path)
+	}
+	return paths
+}
+
+func (opts AddOptions) showInteractiveProgress() bool {
+	return opts.addWizard != nil && opts.addWizard.showInteractiveProgress
 }
 
 // AddWorkflowsResult contains the result of adding workflows
@@ -288,8 +300,8 @@ func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolve
 		}
 
 		// Check no other changes are present
-		if !opts.workingTreePrevalidated {
-			if err := checkCleanWorkingDirectoryIgnoring(opts.Verbose, opts.initializedFiles); err != nil {
+		if opts.addWizard == nil || !opts.addWizard.workingTreePrevalidated {
+			if err := checkCleanWorkingDirectoryIgnoring(opts.Verbose, opts.wizardInitializedPaths()); err != nil {
 				return nil, fmt.Errorf("working directory is not clean: %w", err)
 			}
 		}
@@ -462,7 +474,7 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 
 	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	fileExists := fileutil.FileExists(destFile)
-	if fileExists && !opts.showInteractiveProgress {
+	if fileExists && !opts.showInteractiveProgress() {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
 	}
 	stopProgress := startAddInteractiveProgress(opts, "Preparing workflow files...")
@@ -480,7 +492,7 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 }
 
 func startAddInteractiveProgress(opts AddOptions, message string) func() {
-	if !opts.showInteractiveProgress {
+	if !opts.showInteractiveProgress() {
 		return func() {}
 	}
 	spinner := console.NewSpinner(message)
@@ -862,7 +874,7 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 			}
 			return fmt.Errorf("action workflow '%s' already exists in %s. Use --force to overwrite", workflowName+".yml", githubWorkflowsDir)
 		}
-		if !opts.showInteractiveProgress {
+		if !opts.showInteractiveProgress() {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
 		}
 	}

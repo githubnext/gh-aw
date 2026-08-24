@@ -303,15 +303,13 @@ func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
 		case "/repos/test-owner/test-repo/actions/secrets":
 			return []byte("REPOSITORY_SECRET\n"), nil
 		case "/orgs/test-owner/actions/secrets":
-			return []byte(`{"secrets":[
-				{"name":"ALL_SECRET","visibility":"all"},
-				{"name":"PRIVATE_SECRET","visibility":"private"},
-				{"name":"SELECTED_SECRET","visibility":"selected"},
-				{"name":"INACCESSIBLE_SECRET","visibility":"selected"}
-			]}`), nil
+			assert.Contains(t, args, "--paginate")
+			return []byte("ALL_SECRET\tall\nPRIVATE_SECRET\tprivate\nSELECTED_SECRET\tselected\nINACCESSIBLE_SECRET\tselected\n"), nil
 		case "/orgs/test-owner/actions/secrets/SELECTED_SECRET/repositories":
+			assert.Contains(t, args, "--paginate")
 			return []byte("test-owner/test-repo\n"), nil
 		case "/orgs/test-owner/actions/secrets/INACCESSIBLE_SECRET/repositories":
+			assert.Contains(t, args, "--paginate")
 			return []byte("test-owner/another-repo\n"), nil
 		default:
 			t.Fatalf("unexpected gh api arguments: %v", args)
@@ -319,7 +317,7 @@ func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
 		}
 	}
 
-	config := &AddInteractiveConfig{RepoOverride: "test-owner/test-repo"}
+	config := &AddInteractiveConfig{RepoOverride: "test-owner/test-repo", repositoryVisibility: "private"}
 	require.NoError(t, config.checkExistingSecrets())
 
 	assert.Contains(t, config.existingSecrets, "REPOSITORY_SECRET")
@@ -327,8 +325,10 @@ func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
 	assert.Contains(t, config.existingSecrets, "PRIVATE_SECRET")
 	assert.Contains(t, config.existingSecrets, "SELECTED_SECRET")
 	assert.NotContains(t, config.existingSecrets, "INACCESSIBLE_SECRET")
+	assert.Equal(t, secretSourceRepository, config.secretSources["REPOSITORY_SECRET"])
+	assert.Equal(t, secretSourceOrganizationSelected, config.secretSources["SELECTED_SECRET"])
 
-	config.isPublicRepo = true
+	config.repositoryVisibility = "internal"
 	assert.False(t, config.organizationSecretAvailable("test-owner", organizationSecret{
 		Name:       "PRIVATE_SECRET",
 		Visibility: "private",

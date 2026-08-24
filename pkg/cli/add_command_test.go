@@ -574,7 +574,7 @@ func TestConfirmAndInitializeAddRepository(t *testing.T) {
 	addFindGitRoot = func() (string, error) { return repoDir, nil }
 
 	t.Run("already initialized skips confirmation", func(t *testing.T) {
-		addMissingAuthoringSupportFiles = func(string, string, bool) ([]string, error) { return nil, nil }
+		addMissingInitMarkers = func(string, string) ([]string, error) { return nil, nil }
 		addConfirmAuthoringSupport = func(context.Context) (bool, error) {
 			t.Fatal("confirmation should not be shown when all support files exist")
 			return false, nil
@@ -590,7 +590,7 @@ func TestConfirmAndInitializeAddRepository(t *testing.T) {
 	})
 
 	t.Run("declining creates no support files", func(t *testing.T) {
-		addMissingAuthoringSupportFiles = func(string, string, bool) ([]string, error) {
+		addMissingInitMarkers = func(string, string) ([]string, error) {
 			return []string{bootstrapAgenticSkillPath}, nil
 		}
 		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return false, nil }
@@ -606,7 +606,6 @@ func TestConfirmAndInitializeAddRepository(t *testing.T) {
 
 	t.Run("accepting quietly initializes support files", func(t *testing.T) {
 		marker := ".vscode/settings.json"
-		addMissingAuthoringSupportFiles = func(string, string, bool) ([]string, error) { return []string{marker}, nil }
 		addMissingInitMarkers = func(string, string) ([]string, error) { return []string{marker}, nil }
 		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
 		addInitRepository = func(opts InitOptions) error {
@@ -619,7 +618,9 @@ func TestConfirmAndInitializeAddRepository(t *testing.T) {
 
 		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
 		require.NoError(t, err)
-		require.Equal(t, []string{filepath.Join(repoDir, filepath.FromSlash(marker))}, files)
+		require.Equal(t, []addInitializedFile{{
+			path: filepath.Join(repoDir, filepath.FromSlash(marker)), displayPath: marker,
+		}}, files)
 	})
 }
 

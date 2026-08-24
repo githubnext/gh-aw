@@ -218,11 +218,15 @@ func TestBuildAddWorkflowPRBody(t *testing.T) {
 		Description: "Helps maintain the repository",
 	}
 	opts := AddOptions{
-		EngineOverride:                     "copilot",
-		createdByAddWizard:                 true,
-		addWizardSecretExists:              true,
-		initializedFiles:                   []string{".gitattributes", ".github/aw/actions-lock.json"},
-		addWizardDisableGitHubAppInference: true,
+		EngineOverride: "copilot",
+		addWizard: &addWizardOptions{
+			secretSource: secretSourceOrganizationSelected,
+			initializedFiles: []addInitializedFile{
+				{path: "/home/user/repo/.gitattributes", displayPath: ".gitattributes"},
+				{path: "/home/user/repo/.github/aw/actions-lock.json", displayPath: ".github/aw/actions-lock.json"},
+			},
+			disableGitHubAppPermissionInference: true,
+		},
 	}
 
 	body := buildAddWorkflowPRBody([]*ResolvedWorkflow{workflow}, opts)
@@ -233,9 +237,10 @@ func TestBuildAddWorkflowPRBody(t *testing.T) {
 	assert.Contains(t, body, "Helps maintain the repository")
 	assert.Contains(t, body, "`schedule` (`weekly`), `workflow_dispatch`")
 	assert.Contains(t, body, "**Delivery:** pull request")
-	assert.Contains(t, body, "existing `COPILOT_GITHUB_TOKEN` repository or organization secret")
+	assert.Contains(t, body, "existing `COPILOT_GITHUB_TOKEN` organization (selected repository) secret")
 	assert.Contains(t, body, "**GitHub App permission and event inference:** disabled")
 	assert.Contains(t, body, "`.gitattributes`, `.github/aw/actions-lock.json`")
+	assert.NotContains(t, body, "/home/user/repo")
 	assert.Contains(t, body, "## Review criteria")
 	assert.Contains(t, body, "## Forward progress")
 	assert.NotContains(t, body, "will configure `COPILOT_GITHUB_TOKEN`")
@@ -247,7 +252,7 @@ func TestBuildAddWorkflowPRBodyUsesLocalSourceAndSecretNextStep(t *testing.T) {
 		Content:    []byte("---\non: issues\n---\n"),
 		SourceInfo: &FetchedWorkflow{IsLocal: true, SourcePath: "./review.md"},
 	}
-	opts := AddOptions{EngineOverride: "copilot", createdByAddWizard: true}
+	opts := AddOptions{EngineOverride: "copilot", addWizard: &addWizardOptions{}}
 
 	body := buildAddWorkflowPRBody([]*ResolvedWorkflow{workflow}, opts)
 
@@ -255,6 +260,18 @@ func TestBuildAddWorkflowPRBodyUsesLocalSourceAndSecretNextStep(t *testing.T) {
 	assert.Contains(t, body, "**Triggers:** `issues`")
 	assert.Contains(t, body, "After merge, the add wizard will configure `COPILOT_GITHUB_TOKEN` when needed")
 	assert.Contains(t, body, "recompile it with `gh aw compile`")
+}
+
+func TestBuildAddWorkflowPRBodyOmitsEmptyEngine(t *testing.T) {
+	workflow := &ResolvedWorkflow{
+		Spec:       &WorkflowSpec{WorkflowPath: "./review.md", WorkflowName: "review"},
+		Content:    []byte("---\non: issues\n---\n"),
+		SourceInfo: &FetchedWorkflow{IsLocal: true, SourcePath: "./review.md"},
+	}
+
+	body := buildAddWorkflowPRBody([]*ResolvedWorkflow{workflow}, AddOptions{})
+
+	assert.NotContains(t, body, "**Engine:**")
 }
 
 func TestBuildAddWorkflowPRBodyPreservesDescriptionMarkdown(t *testing.T) {

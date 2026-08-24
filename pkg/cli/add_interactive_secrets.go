@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -14,13 +13,18 @@ import (
 
 var addInteractiveRunGH = workflow.RunGH
 
+type secretSource string
+
+const (
+	secretSourceRepository           secretSource = "repository"
+	secretSourceOrganizationAll      secretSource = "organization (all repositories)"
+	secretSourceOrganizationPrivate  secretSource = "organization (private repositories)"
+	secretSourceOrganizationSelected secretSource = "organization (selected repository)"
+)
+
 type organizationSecret struct {
 	Name       string `json:"name"`
 	Visibility string `json:"visibility"`
-}
-
-type organizationSecretsResponse struct {
-	Secrets []organizationSecret `json:"secrets"`
 }
 
 // checkExistingSecrets fetches which secrets already exist in the repository or its organization
@@ -28,6 +32,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	addInteractiveLog.Print("Checking existing repository secrets")
 
 	c.existingSecrets = make(map[string]struct{})
+	c.secretSources = make(map[string]secretSource)
 
 	// Use gh api to list repository secrets
 	output, err := addInteractiveRunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
@@ -37,25 +42,26 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	} else {
 		for _, name := range parseSecretNames(output) {
 			c.existingSecrets[name] = struct{}{}
+			c.secretSources[name] = secretSourceRepository
 			addInteractiveLog.Printf("Found existing repository secret: %s", name)
 		}
 	}
 
 	// Also check org-level secrets if the repo belongs to an organization
 	if org, _, found := strings.Cut(c.RepoOverride, "/"); found && org != "" {
-		orgOutput, orgErr := addInteractiveRunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org))
+		orgOutput, orgErr := addInteractiveRunGH(
+			"Checking organization secrets...",
+			"api", fmt.Sprintf("/orgs/%s/actions/secrets", org),
+			"--paginate", "--jq", ".secrets[] | [.name, .visibility] | @tsv",
+		)
 		if orgErr != nil {
 			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
 		} else {
-			var response organizationSecretsResponse
-			if err := json.Unmarshal(orgOutput, &response); err != nil {
-				addInteractiveLog.Printf("Could not parse organization secrets: %v", err)
-			} else {
-				for _, secret := range response.Secrets {
-					if c.organizationSecretAvailable(org, secret) {
-						c.existingSecrets[secret.Name] = struct{}{}
-						addInteractiveLog.Printf("Found available organization secret: %s", secret.Name)
-					}
+			for _, secret := range parseOrganizationSecrets(orgOutput) {
+				if c.organizationSecretAvailable(org, secret) {
+					c.existingSecrets[secret.Name] = struct{}{}
+					c.secretSources[secret.Name] = organizationSecretSource(secret.Visibility)
+					addInteractiveLog.Printf("Found available organization secret: %s", secret.Name)
 				}
 			}
 		}
@@ -73,12 +79,13 @@ func (c *AddInteractiveConfig) organizationSecretAvailable(org string, secret or
 	case "all":
 		return true
 	case "private":
-		return !c.isPublicRepo
+		return c.repositoryVisibility == "private"
 	case "selected":
 		output, err := addInteractiveRunGH(
 			"Checking organization secret repository access...",
 			"api",
 			fmt.Sprintf("/orgs/%s/actions/secrets/%s/repositories", org, secret.Name),
+			"--paginate",
 			"--jq",
 			".repositories[].full_name",
 		)
@@ -92,6 +99,30 @@ func (c *AddInteractiveConfig) organizationSecretAvailable(org string, secret or
 	default:
 		addInteractiveLog.Printf("Organization secret %s has unsupported visibility %q", secret.Name, secret.Visibility)
 		return false
+	}
+}
+
+func parseOrganizationSecrets(output []byte) []organizationSecret {
+	var secrets []organizationSecret
+	for _, line := range parseSecretNames(output) {
+		name, visibility, found := strings.Cut(line, "\t")
+		if found && name != "" && visibility != "" {
+			secrets = append(secrets, organizationSecret{Name: name, Visibility: visibility})
+		}
+	}
+	return secrets
+}
+
+func organizationSecretSource(visibility string) secretSource {
+	switch visibility {
+	case "all":
+		return secretSourceOrganizationAll
+	case "private":
+		return secretSourceOrganizationPrivate
+	case "selected":
+		return secretSourceOrganizationSelected
+	default:
+		return ""
 	}
 }
 
