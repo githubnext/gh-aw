@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"strings"
 	"testing"
 
 	"charm.land/huh/v2"
@@ -67,8 +66,7 @@ func TestCopilotAuthMethodDescription(t *testing.T) {
 
 	t.Run("includes inconclusive billing note in copilot-requests bullet", func(t *testing.T) {
 		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{InfoNote: copilotBillingInconclusiveNote})
-		assert.NotContains(t, strings.Split(description, "\n")[0], copilotBillingInconclusiveNote)
-		assert.Contains(t, strings.Split(description, "\n")[1], copilotBillingInconclusiveNote)
+		assert.Equal(t, "• PAT: Use the existing COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.\n  (NOTE: Could not confirm org Copilot CLI billing.\n   Check with your org admin if you want to use this option.)", description)
 	})
 }
 

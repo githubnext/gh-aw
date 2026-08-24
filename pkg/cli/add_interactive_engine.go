@@ -309,7 +309,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 func copilotAuthMethodDescription(probe orgCopilotBillingProbeResult) string {
 	copilotRequestsDescription := "• copilot-requests: Use the org's Copilot billing seat; no PAT required."
 	if probe.InfoNote != "" {
-		copilotRequestsDescription += " " + probe.InfoNote
+		copilotRequestsDescription += "\n  (NOTE: " + probe.InfoNote + "\n   Check with your org admin if you want to use this option.)"
 	}
 	return "• PAT: Use the existing COPILOT_GITHUB_TOKEN repository secret.\n" + copilotRequestsDescription
 }
