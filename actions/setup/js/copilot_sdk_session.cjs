@@ -273,7 +273,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
       eventsStream = fs.createWriteStream(eventsPath, { flags: "a" });
       eventsStream.on("error", err => {
         log(`warning: SDK event log write failed at ${eventsPath}: ${getErrorMessage(err)}; continuing with stderr event stream`);
+        const staleStream = eventsStream;
         eventsStream = null;
+        staleStream?.destroy();
       });
       log(`serialising SDK events to ${eventsPath}`);
     } catch (err) {

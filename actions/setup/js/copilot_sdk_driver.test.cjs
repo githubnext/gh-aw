@@ -137,6 +137,63 @@ describe("copilot_sdk_driver.cjs", () => {
       }
     });
 
+    it("continues when the SDK event log stream fails asynchronously", async () => {
+      const sessionId = "session-stream-write-error";
+      const sessionDir = path.join(testSessionStateDir, sessionId);
+      const eventsPath = path.join(sessionDir, "events.jsonl");
+      // Pre-create events.jsonl as a directory so createWriteStream succeeds
+      // synchronously but fails asynchronously with EISDIR once opened.
+      fs.mkdirSync(eventsPath, { recursive: true });
+      const logs = [];
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      let onEvent = () => {};
+      const session = {
+        sessionId,
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          // Give the asynchronous stream "error" event a chance to fire before
+          // the session emits its own event, so writeEvent observes a null stream.
+          await new Promise(resolve => setTimeout(resolve, 50));
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "completed after stream error" },
+          });
+          return { data: { content: "completed after stream error" } };
+        }),
+        disconnect: vi.fn().mockResolvedValue(undefined),
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = vi.fn().mockResolvedValue(undefined);
+      }
+
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: message => logs.push(message),
+          sessionStateBaseDir: testSessionStateDir,
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("completed after stream error");
+        expect(logs).toContainEqual(expect.stringContaining("SDK event log write failed"));
+        expect(stderrWriteSpy).toHaveBeenCalledWith(expect.stringContaining('"type":"assistant.message"'));
+      } finally {
+        stderrWriteSpy.mockRestore();
+      }
+    });
+
     it("clears cleanup timeout deadlines when cleanup settles promptly", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
