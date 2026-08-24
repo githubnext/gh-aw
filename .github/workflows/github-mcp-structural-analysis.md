@@ -40,6 +40,10 @@ features:
 sandbox:
   agent:
     runtime: cloud-hypervisor
+    config:
+      filesystem:
+        allowWrite:
+          - /tmp/gh-aw/cache-memory
 ---
 
 # GitHub MCP Structural Analysis
