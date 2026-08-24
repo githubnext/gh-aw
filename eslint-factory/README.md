@@ -71,6 +71,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-escaped-regexp-interpolation`](#require-escaped-regexp-interpolation) | Require regex-escaping of interpolated values in `new RegExp()` template literals |
 | [`require-lastindex-reset-before-global-exec-loop`](#require-lastindex-reset-before-global-exec-loop) | Require resetting stateful regexes before global `exec()` loops |
 | [`require-page-counter-increment-in-while-true-loop`](#require-page-counter-increment-in-while-true-loop) | Require page counters to advance in manual `while (true)` pagination loops |
+| [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` to be read after `getExecOutput(..., { ignoreReturnCode: true })` |
 
 ### `no-empty-catch-block`
 
@@ -1021,3 +1022,29 @@ req.on("error", reject);
 - `http`/`https` identifiers that are not statically bound through `require("http")` / `require("https")` / `require("node:http")` / `require("node:https")`, including bindings created by a locally shadowed `require` or reassigned after initialization
 - Request calls without a response callback, or callbacks whose response parameter is destructured
 - `fetch`-based HTTP calls (covered by `require-fetch-try-catch` and `require-fetch-timeout`) and non-standard HTTP client libraries
+
+### `require-getexecoutput-exitcode-check`
+
+Require the `exitCode` returned by `@actions/exec`'s `getExecOutput()` to be read (destructured or accessed) whenever the call passes `{ ignoreReturnCode: true }`.
+
+Why: `getExecOutput()` throws automatically on a non-zero exit code by default. Passing `ignoreReturnCode: true` suppresses that behavior, making the caller solely responsible for detecting failure. Discarding `exitCode` (e.g. only destructuring `{ stdout }`) silently swallows command failures — the action proceeds with empty or stale output as if the command had succeeded.
+
+**Flagged form:**
+```js
+const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only"], { ignoreReturnCode: true });
+return stdout.split("\n");
+```
+
+**Safe alternative:**
+```js
+const { stdout, exitCode } = await exec.getExecOutput("git", ["diff", "--name-only"], { ignoreReturnCode: true });
+if (exitCode !== 0) {
+  throw new Error(`git diff failed with exit code ${exitCode}`);
+}
+return stdout.split("\n");
+```
+
+**Out of scope:**
+- Calls without `ignoreReturnCode: true` in a statically-inspectable options object (the default throw-on-failure behavior already surfaces failures)
+- Options passed via a spread (`{ ...opts, ignoreReturnCode: true }`) or a non-object-literal identifier, since the merged shape can't be statically resolved
+- Results forwarded to a helper function that checks `exitCode` internally, or destructured into an array pattern

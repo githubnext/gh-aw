@@ -53,6 +53,7 @@ import { noMathMinMaxArraySpreadRule } from "./rules/no-math-minmax-array-spread
 import { requireErrorCodeForGithubApiThrowRule } from "./rules/require-error-code-for-github-api-throw";
 import { requireHttpResponseErrorListenerRule } from "./rules/require-http-response-error-listener";
 import { noStringFallbackForNonStringMessageRule } from "./rules/no-string-fallback-for-non-string-message";
+import { requireGetExecOutputExitCodeCheckRule } from "./rules/require-getexecoutput-exitcode-check";
 
 const plugin = {
   meta: {
@@ -115,6 +116,7 @@ const plugin = {
     "require-error-code-for-github-api-throw": requireErrorCodeForGithubApiThrowRule,
     "require-http-response-error-listener": requireHttpResponseErrorListenerRule,
     "no-string-fallback-for-non-string-message": noStringFallbackForNonStringMessageRule,
+    "require-getexecoutput-exitcode-check": requireGetExecOutputExitCodeCheckRule,
   },
 };
 
