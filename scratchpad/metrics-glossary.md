@@ -508,6 +508,19 @@ When implementing or updating daily report workflows:
 
 ---
 
+### agent_prs_merged_from_created
+
+**Definition**: Count of Copilot coding agent PRs created during the report window that have merged
+
+**Scope**: Subset of `agent_prs_total` where `mergedAt` is non-null. This creation-cohort metric is only the numerator for `agent_success_rate`; it is not comparable to event-scoped `merged_prs`.
+
+**Used By**:
+- Copilot Agent Analysis
+
+**Python Variable**: `agent_prs_merged_from_created`
+
+---
+
 ### agent_success_rate
 
 **Definition**: Percentage of the Copilot PRs created during the report window that have merged
