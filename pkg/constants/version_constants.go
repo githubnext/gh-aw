@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.10.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.4"
+const DefaultFirewallVersion Version = "v0.28.6"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -131,9 +131,28 @@ const AWFAPIProxyProvidersMinVersion Version = "v0.27.43"
 // sandbox.agent.images). Older versions reject the unknown property.
 const AWFContainerImagesMinVersion Version = "v0.28.4"
 
-// AWFFilesystemAllowWriteMinVersion is the minimum AWF version that supports
-// filesystem.allowWrite in the AWF config file.
+// AWFFilesystemAllowWriteMinVersion is the minimum AWF version that added
+// filesystem.allowWrite to the AWF config file schema.
+//
+// Note: schema support is not the same as usable enforcement. The compose
+// runtimes (Docker, gVisor) enforce the policy by narrowing AWF's own writable
+// bind mounts, including its internal /tmp/awf-init control-plane mount, so any
+// policy that does not cover /tmp prevents the agent container from starting.
+// The compiler therefore only emits the filesystem section for the Cloud
+// Hypervisor runtime; see awfEmitsFilesystemAllowWrite.
 const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
+
+// AWFCloudHypervisorFilesystemAllowWriteMinVersion is the minimum AWF version that
+// supports filesystem.allowWrite for the Cloud Hypervisor microVM runtime.
+//
+// This is higher than AWFFilesystemAllowWriteMinVersion because selective allowWrite
+// was broken on every real (systemd) host until v0.28.6: gh-aw-firewall#7672 fixed a
+// mount-propagation defect where staged overlay mounts inherited their source's
+// "shared" peer group instead of being private, tripping the planner's fail-closed
+// propagation assertion. Versions v0.28.5 reliably fail Cloud Hypervisor allowWrite
+// on GitHub-hosted (systemd) runners, so this constant must not be lowered to
+// AWFFilesystemAllowWriteMinVersion.
+const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
 // AWFBoundedQueriesMinVersion is the minimum AWF version that supports
 // the boundedQueries section in awf-config.json.

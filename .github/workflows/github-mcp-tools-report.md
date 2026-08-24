@@ -23,6 +23,7 @@ tools:
   edit:
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 2d
     title-prefix: "[mcp-tools] "
     labels: [documentation, automation]

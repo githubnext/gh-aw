@@ -30,6 +30,7 @@ tools:
   edit:
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 7d
     title-prefix: "[yamllint-fixer] "
     labels: [automation, yamllint-fixer]

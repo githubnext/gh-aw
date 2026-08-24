@@ -40,6 +40,7 @@ tools:
 
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 2d
     title-prefix: "[tidy] "
     labels: [automation, maintenance]

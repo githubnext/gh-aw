@@ -41,6 +41,7 @@ imports:
 
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: ${{ github.aw.import-inputs.expires }}
     title-prefix: "${{ github.aw.import-inputs.title-prefix }}"
     labels: ${{ github.aw.import-inputs.labels }}

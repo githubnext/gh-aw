@@ -85,6 +85,7 @@ imports:
   - shared/otlp.md
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 7d
     title-prefix: "[blog] "
     labels: [blog]

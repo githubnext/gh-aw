@@ -9,6 +9,7 @@ import (
 )
 
 func TestIsRepositoryOnlyWorkflowSpec(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		spec string
@@ -48,6 +49,7 @@ func TestIsRepositoryOnlyWorkflowSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := isRepositoryOnlyWorkflowSpec(tt.spec)
 			assert.Equal(t, tt.want, got, "isRepositoryOnlyWorkflowSpec(%q) should return %v", tt.spec, tt.want)
 		})

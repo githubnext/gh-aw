@@ -33,6 +33,7 @@ network:
 
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 1d
     title-prefix: "[actions] "
     labels: [dependencies, automation]
