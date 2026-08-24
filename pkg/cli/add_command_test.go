@@ -556,6 +556,91 @@ func TestEnsureAddRepositoryInitializedWithDetails_AbsolutePaths(t *testing.T) {
 	require.Equal(t, filepath.Join(repoDir, filepath.FromSlash(writtenMarker)), files[0])
 }
 
+func TestConfirmAndInitializeAddRepository(t *testing.T) {
+	originalFindGitRoot := addFindGitRoot
+	originalInitRepository := addInitRepository
+	originalMissingInitMarkers := addMissingInitMarkers
+	originalMissingAuthoringSupportFiles := addMissingAuthoringSupportFiles
+	originalConfirmAuthoringSupport := addConfirmAuthoringSupport
+	t.Cleanup(func() {
+		addFindGitRoot = originalFindGitRoot
+		addInitRepository = originalInitRepository
+		addMissingInitMarkers = originalMissingInitMarkers
+		addMissingAuthoringSupportFiles = originalMissingAuthoringSupportFiles
+		addConfirmAuthoringSupport = originalConfirmAuthoringSupport
+	})
+
+	repoDir := t.TempDir()
+	addFindGitRoot = func() (string, error) { return repoDir, nil }
+
+	t.Run("already initialized skips confirmation", func(t *testing.T) {
+		addMissingAuthoringSupportFiles = func(string, string, bool) ([]string, error) { return nil, nil }
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) {
+			t.Fatal("confirmation should not be shown when all support files exist")
+			return false, nil
+		}
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("initialization should not run when all support files exist")
+			return nil
+		}
+
+		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
+		require.NoError(t, err)
+		assert.Empty(t, files)
+	})
+
+	t.Run("declining creates no support files", func(t *testing.T) {
+		addMissingAuthoringSupportFiles = func(string, string, bool) ([]string, error) {
+			return []string{bootstrapAgenticSkillPath}, nil
+		}
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return false, nil }
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("initialization should not run after confirmation is declined")
+			return nil
+		}
+
+		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
+		require.NoError(t, err)
+		assert.Empty(t, files)
+	})
+
+	t.Run("accepting quietly initializes support files", func(t *testing.T) {
+		marker := ".vscode/settings.json"
+		addMissingAuthoringSupportFiles = func(string, string, bool) ([]string, error) { return []string{marker}, nil }
+		addMissingInitMarkers = func(string, string) ([]string, error) { return []string{marker}, nil }
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
+		addInitRepository = func(opts InitOptions) error {
+			assert.True(t, opts.Quiet)
+			assert.Equal(t, "copilot", opts.Engine)
+			path := filepath.Join(repoDir, filepath.FromSlash(marker))
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+			return os.WriteFile(path, []byte(`{}`), 0644)
+		}
+
+		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
+		require.NoError(t, err)
+		require.Equal(t, []string{filepath.Join(repoDir, filepath.FromSlash(marker))}, files)
+	})
+}
+
+func TestMissingAddAuthoringSupportFiles(t *testing.T) {
+	repoDir := t.TempDir()
+	for _, path := range expectedBootstrapInitMarkers("copilot") {
+		fullPath := filepath.Join(repoDir, filepath.FromSlash(path))
+		require.NoError(t, os.MkdirAll(filepath.Dir(fullPath), 0755))
+		require.NoError(t, os.WriteFile(fullPath, nil, 0644))
+	}
+
+	missing, err := missingAddAuthoringSupportFiles(repoDir, "copilot", false)
+	require.NoError(t, err)
+	assert.Empty(t, missing, "existing support files should suppress the optional setup prompt")
+
+	require.NoError(t, os.Remove(filepath.Join(repoDir, ".gitattributes")))
+	missing, err = missingAddAuthoringSupportFiles(repoDir, "copilot", true)
+	require.NoError(t, err)
+	assert.Empty(t, missing, "--no-gitattributes should not require .gitattributes")
+}
+
 func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {
 	originalCheckOwnerType := bootstrapCheckOwnerType
 	t.Cleanup(func() {

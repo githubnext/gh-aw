@@ -182,7 +182,7 @@ func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
 	if err := c.resolveWorkflows(); err != nil {
 		return err
 	}
-	console.ShowWelcomeBanner(c.welcomeMessage())
+	console.ShowAnimatedWelcomeBanner(c.welcomeMessage())
 	c.showWorkflowDescriptions()
 	if err := c.checkGHAuthStatus(); err != nil {
 		return err
@@ -218,17 +218,17 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 		return nil, nil, "", "", false, err
 	}
 
-	initFiles, err = ensureAddRepositoryInitializedWithDetails(c.EngineOverride, c.Verbose, c.NoGitattributes)
-	if err != nil {
-		return nil, nil, "", "", false, err
-	}
-
 	workflowFiles, _, err = c.determineFilesToAdd()
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
 
 	if err := c.selectScheduleFrequency(); err != nil {
+		return nil, nil, "", "", false, err
+	}
+
+	initFiles, err = confirmAndInitializeAddRepository(c.Ctx, c.EngineOverride, c.Verbose, c.NoGitattributes)
+	if err != nil {
 		return nil, nil, "", "", false, err
 	}
 

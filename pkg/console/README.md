@@ -101,6 +101,8 @@ The package is designed to adapt to the execution environment. Native builds det
 | `SetTimeLocation` | `func SetTimeLocation(location *time.Location)` | Sets the location used when rendering `time.Time` values. |
 | `ShowInteractiveList` | `func ShowInteractiveList(title string, items []ListItem) (string, error)` | Shows a single-selection interactive list; native builds use `huh` and non-TTY mode falls back to numbered text input. |
 | `ShowWelcomeBanner` | `func ShowWelcomeBanner(description string)` | Clears the screen and prints the interactive welcome banner and description to stderr. |
+| `ShowAnimatedWelcomeBanner` | `func ShowAnimatedWelcomeBanner(description string)` | Displays the standard welcome text beside the compact animated GH-AW logo. |
+| `ShowAnimatedBrandIntro` | `func ShowAnimatedBrandIntro(title, description string)` | Displays the reusable compact GH-AW logo animation beside wizard intro text, with a static accessible fallback. |
 | `ToRelativePath` | `func ToRelativePath(path string) string` | Converts an absolute path to a cwd-relative display path when possible. |
 
 ### Constants

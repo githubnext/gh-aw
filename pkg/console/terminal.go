@@ -54,3 +54,13 @@ func ShowWelcomeBanner(description string) {
 	fmt.Fprintln(out, description)
 	fmt.Fprintln(out, "")
 }
+
+// ShowAnimatedWelcomeBanner displays the welcome text beside the reusable
+// animated GitHub Agentic Workflows mark.
+func ShowAnimatedWelcomeBanner(description string) {
+	header := "→ Welcome to GitHub Agentic Workflows!"
+	if tty.IsStderrTerminal() {
+		header = styles.Header.Render(header)
+	}
+	ShowAnimatedBrandIntro(header, description)
+}
