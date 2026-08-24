@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.28.5<br>
+**Version**: 1.28.6<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-08-20<br>
+**Publication Date**: 2026-08-24<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -76,6 +76,10 @@ This specification uses the following terms with precise definitions:
 **Integrity Branch**: A Git branch within the cache memory repository corresponding to a specific integrity level. Each branch holds data written exclusively by runs at that integrity level.
 
 **Cache Poisoning**: A Bell-LaPadula write-up violation where a lower-integrity agent writes data to a shared cache store that is subsequently consumed by a higher-integrity run without provenance verification.
+
+**Pre-created Pull Request**: A draft pull request allocated during the activation phase before agent execution when `safe-outputs.create-pull-request.steer` is enabled.
+
+**Workflow-Owned Pre-created Branch**: The deterministic branch ref allocated by the workflow for a pre-created pull request. In the reference implementation this ref has the form `gh-aw/pre-created/<run-id>-<run-attempt>` and is derived only from trusted GitHub Actions run metadata.
 
 ---
 
@@ -396,6 +400,24 @@ Agent execution context MUST NOT gain access to safe output job credentials thro
 ∀ t ∈ [agent_start, agent_end]:
   accessible_credentials(agent_context, t) ∩ safe_output_credentials = ∅
 ```
+
+**Requirement AR5: Pre-created Pull Request Branch Provenance**
+
+When an implementation supports pre-created pull requests, it MUST derive the pre-created branch name from trusted workflow-controlled state. The branch ref MUST be deterministic for the workflow run and MUST NOT be selected from agent-controlled content, pull request comments, event payload branch names, or unvalidated activation outputs.
+
+After creating a pre-created pull request and before exporting branch or pull request metadata to downstream jobs, the activation phase MUST validate all of the following:
+
+1. The branch output exactly equals the expected workflow-owned pre-created branch ref.
+2. The pull request number is a positive safe integer.
+3. The pull request head ref exactly equals the expected workflow-owned pre-created branch ref.
+4. The pull request head repository exactly matches the workflow repository.
+5. The pull request base repository exactly matches the workflow repository.
+
+If any validation fails, the implementation MUST fail the activation phase and MUST NOT allow downstream agent, safe-output, or conclusion jobs to treat the pre-created pull request as trusted workflow state.
+
+Agent and safe-output checkouts for a pre-created pull request MUST use the deterministic workflow-owned branch ref directly. Implementations MUST NOT use `needs.activation.outputs.pre_created_pull_request_branch`, or any equivalent activation output, as the `actions/checkout` `ref` in any privileged checkout step.
+
+*Rationale*: Activation outputs cross a job boundary and may be influenced by implementation defects or compromised action behavior. Recomputing the expected branch ref in each checkout prevents a poisoned activation output from redirecting agent or privileged safe-output execution to an attacker-controlled branch.
 
 ### 3.2 Threat Model and Mitigations
 
@@ -2428,6 +2450,8 @@ safe-outputs:
 9. **Owner-Qualified Head Reference**: When `head-repo` differs from `target-repo`, the created pull request MUST use an owner-qualified head reference identifying the head repository owner and pushed branch. Unqualified same-name branch references MUST NOT be used in fork-backed mode.
 10. **Ephemeral Fork Branch Model**: When `head-repo` differs from `target-repo`, implementations SHOULD create or refresh an ephemeral branch in `head-repo` from the resolved upstream base SHA, apply the agent changes, and open the pull request back to the upstream base. Implementations MAY support explicit synchronization of that ephemeral branch with a newer upstream base, but implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
 11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
+12. **Pre-created Pull Request Validation**: When `steer: true` is configured, the activation phase MUST create the draft pull request on a workflow-owned pre-created branch, validate that the created pull request head and base repositories are the workflow repository, and validate that the head ref equals the expected deterministic branch before downstream jobs consume the pull request metadata.
+13. **Pre-created Checkout Reference**: In pre-created pull request mode, the agent job and safe-output job MUST check out the deterministic workflow-owned pre-created branch ref directly. Implementations MUST NOT derive checkout `ref` values from activation outputs such as `pre_created_pull_request_branch`.
 
 **Configuration Parameters**:
 
@@ -2449,6 +2473,7 @@ safe-outputs:
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
+- `steer`: Experimental. When `true`, pre-creates a same-repository draft pull request during activation and allows the agent to read user-authored pull request comments as steering feedback. This mode requires `max: 1`, the default workflow-repository checkout, and a statically knowable base branch; it MUST NOT be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, `checkout: false`, or expression-valued staged mode.
 
 **Security Requirements**:
 
@@ -2458,6 +2483,9 @@ safe-outputs:
 - `head-repo` MUST be either the same repository as `target-repo` or an explicitly configured automation-owned fork; arbitrary contributor forks MUST NOT be used as write targets
 - Both `target-repo` and `head-repo` MUST be validated against the configured allowlist before any push or pull request API call
 - When distinct upstream and head credentials are configured, implementations MUST use the least-privilege head-repository credential only for branch writes and the upstream credential only for upstream pull request management
+- Pre-created pull request branches MUST be validated against the expected workflow-owned branch ref before any downstream privileged checkout or pull request update uses the pre-created pull request metadata.
+- Agent and safe-output checkout steps in pre-created pull request mode MUST use the deterministic workflow-owned branch ref directly and MUST NOT use an activation output as the checkout ref.
+- Pre-created pull request validation MUST confirm that both the head repository and base repository are the workflow repository; fork-backed or cross-repository pre-created pull requests are non-conforming.
 
 **Required Permissions**:
 
@@ -5500,6 +5528,13 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.28.6** (2026-08-24):
+
+- **Specified**: Pre-created pull request branches MUST be validated after creation and before downstream jobs treat them as trusted workflow state.
+- **Specified**: Pre-created pull request validation MUST confirm the expected deterministic branch ref, valid pull request number, workflow-repository head, and workflow-repository base.
+- **Specified**: Agent and safe-output checkouts in pre-created pull request mode MUST use the deterministic workflow-owned branch ref directly rather than activation-output-derived refs.
+- **Updated**: Publication metadata to 1.28.6.
 
 **Version 1.28.5** (2026-08-20):
 
