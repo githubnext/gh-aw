@@ -58,20 +58,47 @@ function isAuthenticationFailedError(output) {
 
 /**
  * Extracts the AWF API proxy AI-credits budget rejection (HTTP 403) from harness output.
- * Returns null when the output does not carry the proxy signature, or when the reported
+ *
+ * `output` is the combined stdout+stderr of the child process (see process_runner.cjs),
+ * which also carries verbatim assistant/model text. Matching the rejection text anywhere
+ * in that blob would let an unrelated assistant response that merely quotes or discusses
+ * this phrase (followed by any non-zero exit) masquerade as a trusted budget-abort signal.
+ * To require an engine-authenticated source, this only considers lines that parse as a
+ * standalone JSON object AND carry a structured API-error marker that only the harness'
+ * own transport layer sets — mirroring how `isInvalidRequestError` validates codex
+ * `turn.failed` events. Claude Code stamps the JSON event wrapping a proxy rejection with
+ * `is_api_error_message: true` and a string `error` field; plain conversational turns never
+ * set these. Free-form text (JSON-less lines, or JSON without either marker) is ignored.
+ * Returns null when no line carries the authenticated signature, or when the reported
  * usage does not actually reach the reported budget.
  * @param {unknown} output
  * @returns {{ aiCredits: number, maxAICredits: number } | null}
  */
 function parseAICreditsExceededProxyRejection(output) {
   const safeOutput = typeof output === "string" ? output : "";
-  const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(safeOutput);
-  if (!match) return null;
-  const aiCredits = Number.parseFloat(match[1]);
-  const maxAICredits = Number.parseFloat(match[2]);
-  if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0) return null;
-  if (aiCredits < maxAICredits) return null;
-  return { aiCredits, maxAICredits };
+  for (const line of safeOutput.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed[0] !== "{") continue;
+    /** @type {unknown} */
+    let parsed;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    const record = /** @type {Record<string, unknown>} */ (parsed);
+    const isEngineFlaggedApiError = record.is_api_error_message === true || typeof record.error === "string";
+    if (!isEngineFlaggedApiError) continue;
+    const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(JSON.stringify(record));
+    if (!match) continue;
+    const aiCredits = Number.parseFloat(match[1]);
+    const maxAICredits = Number.parseFloat(match[2]);
+    if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0) continue;
+    if (aiCredits < maxAICredits) continue;
+    return { aiCredits, maxAICredits };
+  }
+  return null;
 }
 
 /**

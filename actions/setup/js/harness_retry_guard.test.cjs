@@ -26,7 +26,12 @@ describe("harness_retry_guard.cjs", () => {
   });
 
   it("parses the AWF API proxy HTTP 403 AI credits rejection surfaced as an auth failure", () => {
-    const output = '{"text":"Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."} {"error":"authentication_failed"}';
+    const output = JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "text", text: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)." }] },
+      error: "authentication_failed",
+      is_api_error_message: true,
+    });
     expect(detectNonRetryableHarnessGuard(output).aiCreditsExceeded).toBe(true);
     expect(isAuthenticationFailedError(output)).toBe(true);
     expect(parseAICreditsExceededProxyRejection(output)).toEqual({ aiCredits: 302.111025, maxAICredits: 300 });
@@ -34,16 +39,33 @@ describe("harness_retry_guard.cjs", () => {
 
   it("ignores AI credits markers that lack the proxy 403 usage pair", () => {
     expect(parseAICreditsExceededProxyRejection("error: max_ai_credits_exceeded=true")).toBeNull();
-    expect(parseAICreditsExceededProxyRejection("API Error: 403 Maximum AI credits exceeded")).toBeNull();
+    expect(parseAICreditsExceededProxyRejection('{"error":"authentication_failed","message":"API Error: 403 Maximum AI credits exceeded"}')).toBeNull();
     expect(parseAICreditsExceededProxyRejection(undefined)).toBeNull();
   });
 
   it("ignores a proxy 403 usage pair that has not reached the budget", () => {
-    expect(parseAICreditsExceededProxyRejection("API Error: 403 Maximum AI credits exceeded (12 / 300)")).toBeNull();
+    expect(parseAICreditsExceededProxyRejection('{"error":"authentication_failed","message":"API Error: 403 Maximum AI credits exceeded (12 / 300)."}')).toBeNull();
   });
 
   it("accepts a proxy 403 usage pair that exactly reaches the budget", () => {
-    expect(parseAICreditsExceededProxyRejection("API Error: 403 Maximum AI credits exceeded (300 / 300)")).toEqual({ aiCredits: 300, maxAICredits: 300 });
+    expect(parseAICreditsExceededProxyRejection('{"error":"authentication_failed","message":"API Error: 403 Maximum AI credits exceeded (300 / 300)."}')).toEqual({
+      aiCredits: 300,
+      maxAICredits: 300,
+    });
+  });
+
+  it("ignores the proxy 403 usage pair when it only appears in plain assistant text without an engine error marker", () => {
+    // Simulates an assistant response that merely discusses/quotes the phrase — this must
+    // NOT be trusted as proxy evidence since there is no engine-authenticated error marker.
+    const output = JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "text", text: "Earlier the run hit: API Error: 403 Maximum AI credits exceeded (302.111025 / 300)." }] },
+    });
+    expect(parseAICreditsExceededProxyRejection(output)).toBeNull();
+  });
+
+  it("ignores JSON lines without an engine error marker even when the usage pair is present", () => {
+    expect(parseAICreditsExceededProxyRejection('{"type":"assistant","text":"API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}')).toBeNull();
   });
 
   it("detects AWF API proxy blocking request markers", () => {
