@@ -11,6 +11,7 @@ import (
 )
 
 func TestScanWorkflowsForMCP(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test workflows
 	tmpDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

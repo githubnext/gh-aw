@@ -13,6 +13,7 @@ import (
 )
 
 func TestEnrichItemsFromAgentOutput(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-enrich-*")
 
 	rawOutput := `{"agent":"copilot","issue_number":100,"type":"assign_to_agent"}
@@ -37,6 +38,7 @@ func TestEnrichItemsFromAgentOutput(t *testing.T) {
 }
 
 func TestEnrichItemsFromAgentOutputMissingFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-enrich-missing-*")
 
 	items := []CreatedItemReport{
@@ -48,6 +50,7 @@ func TestEnrichItemsFromAgentOutputMissingFile(t *testing.T) {
 }
 
 func TestEnrichItemsFromAgentOutputSkipsItemsWithNumbers(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-enrich-skip-*")
 
 	rawOutput := `{"issue_number":999,"type":"assign_to_agent"}

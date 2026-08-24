@@ -10,6 +10,7 @@ import (
 )
 
 func TestComputeDomainBreakdowns_SortsByValueThenLabel(t *testing.T) {
+	t.Parallel()
 	reports := []OutcomeReport{
 		{
 			OutcomeEvaluation: OutcomeEvaluation{OutcomeStatus: OutcomeStatusAccepted},

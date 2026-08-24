@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetBinaryPath(t *testing.T) {
+	t.Parallel()
 	t.Run("returns non-empty path", func(t *testing.T) {
 		path, err := GetBinaryPath()
 		require.NoError(t, err, "Should get binary path without error")
@@ -61,6 +62,7 @@ func TestGetBinaryPath(t *testing.T) {
 }
 
 func TestWithNonInteractiveCIEnv(t *testing.T) {
+	t.Parallel()
 	t.Run("returns copied env with CI forced on", func(t *testing.T) {
 		input := []string{"CI=false", "HOME=/tmp/test-home"}
 

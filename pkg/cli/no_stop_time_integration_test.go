@@ -13,6 +13,7 @@ import (
 
 // TestNoStopTimeIntegration tests the --no-stop-after functionality end-to-end
 func TestNoStopTimeIntegration(t *testing.T) {
+	t.Parallel()
 	// Create a test workflow content with stop-after field
 	testWorkflowContent := `---
 on:
