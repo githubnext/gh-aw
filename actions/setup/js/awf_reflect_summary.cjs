@@ -2,9 +2,12 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 const AWF_CONFIG_PATH = "/tmp/gh-aw/awf-config.json";
-const AWF_REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
+const AWF_REFLECT_PATH = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json");
+const AWF_REFLECT_ARTIFACT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 const AWF_MODELS_PATH = "/tmp/gh-aw/sandbox/firewall/models.json";
 
 /**
@@ -259,6 +262,13 @@ async function main() {
     return;
   }
 
+  try {
+    fs.mkdirSync(path.dirname(AWF_REFLECT_ARTIFACT_PATH), { recursive: true });
+    fs.copyFileSync(AWF_REFLECT_PATH, AWF_REFLECT_ARTIFACT_PATH);
+  } catch (err) {
+    core.info(`Unable to stage AWF reflect data for artifact upload: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const markdown = buildReflectSummary(reflectData, { awfConfigData, runtimeModelsData });
   await core.summary.addRaw(markdown).write();
   core.info(markdown);
@@ -269,6 +279,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     AWF_CONFIG_PATH,
     AWF_MODELS_PATH,
+    AWF_REFLECT_ARTIFACT_PATH,
     AWF_REFLECT_PATH,
     buildReflectSummary,
     extractRuntimeModelIds,
