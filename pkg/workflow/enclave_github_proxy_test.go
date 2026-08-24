@@ -89,6 +89,18 @@ func TestGenerateEnclaveGitHubProxySetup(t *testing.T) {
 	assert.NotContains(t, generated, enclaveGitHubProxyContainerEnv+":")
 }
 
+func TestGenerateEnclaveGitHubProxyStopAlwaysRuns(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	var yaml strings.Builder
+	(&Compiler{}).generateStopEnclaveGitHubProxyStep(&yaml, data)
+	generated := yaml.String()
+
+	assert.Contains(t, generated, "- name: Stop Enclave GitHub Proxy")
+	assert.Contains(t, generated, "if: always()")
+	assert.Contains(t, generated, "continue-on-error: true")
+	assert.Contains(t, generated, "stop_enclave_github_proxy.sh")
+}
+
 func TestEnclaveGitHubProxyScriptsEnforceDedicatedBridgeContract(t *testing.T) {
 	startScript, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "sh", "start_enclave_github_proxy.sh"))
 	require.NoError(t, err)

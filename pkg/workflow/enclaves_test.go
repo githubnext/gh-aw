@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -200,6 +201,23 @@ func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
 	assert.Contains(t, err.Error(), "supports at most one non-public repository")
 
 	data.Enclaves[0].Repos[1].Sensitivity = "public"
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveGitHubIssuesRepositoryLimitScopesToGitHubEntry(t *testing.T) {
+	data := enclaveWorkflowData(true, true, 30, 120)
+	data.Enclaves[0].Repos = []*EnclaveRepository{{
+		Repo: "octo-org/private-a", Sensitivity: "confidential",
+	}}
+	data.Enclaves[1].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
+	data.Enclaves[1].Repos = []*EnclaveRepository{{
+		Repo: "octo-org/private-b", Sensitivity: "confidential",
+	}}
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveGitHubIssuesMinVersion)
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Version: string(constants.MCPGEnclaveGitHubIssuesMinVersion),
+	}
+
 	require.NoError(t, validateEnclavesConfig(data))
 }
 
