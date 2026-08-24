@@ -194,9 +194,12 @@ type CheckoutManager struct {
 	// defaultRefOverride forces the workspace-root checkout to a compiler-generated
 	// ref, such as the branch allocated by create-pull-request.steer.
 	defaultRefOverride string
-	// minimalDefaultCheckout limits an implicit workspace-root checkout to root files.
-	// Safe-output PR handlers can retrieve required blobs with their retained credentials,
-	// avoiding materializing the entire repository before applying and pushing a patch.
+	// minimalDefaultCheckout narrows the workspace-root checkout to what a safe-output PR
+	// handler needs to apply and push a patch: an implicit checkout materializes root files
+	// only, and agent-oriented history extras (fetch-depth, additional fetch refs) declared
+	// for the agent job are not replayed. The handlers fetch the specific refs and commits
+	// they operate on with their retained credentials, the same way checkout_pr_branch.cjs
+	// fetches only the PR head it needs.
 	minimalDefaultCheckout bool
 }
 
@@ -206,9 +209,9 @@ func (cm *CheckoutManager) SetDefaultRefOverride(ref string) {
 	cm.defaultRefOverride = ref
 }
 
-// SetMinimalDefaultCheckout limits an implicit workspace-root checkout to root files.
-// Callers must not enable it when an explicit root checkout or custom step may require
-// the full working tree.
+// SetMinimalDefaultCheckout narrows the workspace-root checkout to the git state a
+// safe-output PR handler needs. Callers must not enable it when a custom step may require
+// the full working tree or the agent's history.
 func (cm *CheckoutManager) SetMinimalDefaultCheckout(minimal bool) {
 	checkoutManagerLog.Printf("Setting minimal default checkout: %t", minimal)
 	cm.minimalDefaultCheckout = minimal

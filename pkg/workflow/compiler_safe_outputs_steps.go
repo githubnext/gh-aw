@@ -24,12 +24,16 @@ var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs
 //     push_to_pull_request_branch output will actually be processed,
 //   - a trailing "Configure Git credentials" step that installs a push-capable token
 //     (the agent job never pushes, so it omits this), and
-//   - a root-only sparse default checkout (`sparse-checkout: .`) for the workspace-root
-//     checkout, because the handlers only need enough git state to apply a patch and push.
-//     Git materializes the paths a patch touches on demand, and add/add conflict recovery
-//     stages with `git add --sparse`. This minimal default is skipped (full checkout kept)
-//     when the workflow configures an explicit root checkout or declares custom
-//     safe-output steps/actions/scripts that may need the full working tree.
+//   - a minimal workspace-root checkout, because the handlers only need enough git state
+//     to apply a patch and push it. An implicit root checkout is limited to root files
+//     (`sparse-checkout: .`) — git materializes the paths a patch touches on demand, and
+//     add/add conflict recovery stages with `git add --sparse`. Agent-oriented history
+//     extras on an explicit root checkout (`fetch-depth`, additional `fetch:` refs) are
+//     not replayed either: the handlers fetch the single branch/PR ref they operate on at
+//     apply time, the same way checkout_pr_branch.cjs fetches only the PR head it needs.
+//     The minimal checkout is skipped entirely (agent-identical checkout kept) when the
+//     workflow declares custom safe-output steps/actions/scripts that may need the full
+//     working tree or history.
 //
 // Base-branch selection is intentionally NOT done here. The JS handler resolves the base
 // branch per target repository at apply time (it runs `git fetch origin <base>` and
@@ -51,12 +55,12 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// safe_outputs handler code (not the untrusted agent) is the only consumer.
 	checkoutMgr.SetKeepCredentialsForPush(true)
 
-	// The handlers only need enough git state to apply a patch and push it, so an implicit
-	// workspace-root checkout is limited to root files. Opt out (keep the full checkout)
-	// when the workflow configures an explicit root checkout or ships custom safe-output
-	// steps/actions/scripts that may read arbitrary files from the working tree.
-	if checkoutMgr.GetDefaultCheckoutOverride() == nil &&
-		len(data.SafeOutputs.Steps) == 0 &&
+	// The handlers only need enough git state to apply a patch and push it, so the
+	// workspace-root checkout is narrowed: an implicit checkout materializes root files
+	// only, and an explicit one drops the agent's fetch-depth / extra fetch refs. Opt out
+	// (keep the agent-identical checkout) when the workflow ships custom safe-output
+	// steps/actions/scripts that may read arbitrary files or history from the working tree.
+	if len(data.SafeOutputs.Steps) == 0 &&
 		len(data.SafeOutputs.Actions) == 0 &&
 		len(data.SafeOutputs.Scripts) == 0 {
 		checkoutMgr.SetMinimalDefaultCheckout(true)

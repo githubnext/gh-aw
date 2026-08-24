@@ -49,51 +49,76 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "uses custom default checkout fetch-depth",
+			name: "explicit root checkout drops agent-oriented history extras",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkoutConfigs: []*CheckoutConfig{
-				{FetchDepth: &fetchDepthZero},
-			},
-			checkContains: []string{
-				"fetch-depth: 0",
+				{FetchDepth: &fetchDepthZero, Fetch: []string{"refs/pulls/open/*"}},
 			},
 			checkNotContains: []string{
+				// The agent needs the deep history and the extra refs; the PR handlers
+				// fetch the single ref they operate on at apply time.
+				"fetch-depth: 0",
+				"name: Fetch additional refs",
+				"refs/pulls/open/*",
+				// An explicit root checkout may materialize specific paths, so the
+				// root-only sparse default does not apply to it.
 				"sparse-checkout: .",
 			},
 		},
 		{
-			name: "custom safe-output steps keep full default checkout",
+			name: "custom safe-output steps keep agent-identical checkout",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 				Steps: []any{
 					map[string]any{"run": "git status"},
 				},
 			},
+			checkoutConfigs: []*CheckoutConfig{
+				{FetchDepth: &fetchDepthZero, Fetch: []string{"refs/pulls/open/*"}},
+			},
+			checkContains: []string{
+				"fetch-depth: 0",
+				"name: Fetch additional refs",
+			},
 			checkNotContains: []string{
 				"sparse-checkout: .",
 			},
 		},
 		{
-			name: "custom safe-output actions keep full default checkout",
+			name: "custom safe-output actions keep agent-identical checkout",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 				Actions: map[string]*SafeOutputActionConfig{
 					"custom-action": {},
 				},
 			},
+			checkoutConfigs: []*CheckoutConfig{
+				{FetchDepth: &fetchDepthZero, Fetch: []string{"refs/pulls/open/*"}},
+			},
+			checkContains: []string{
+				"fetch-depth: 0",
+				"name: Fetch additional refs",
+			},
 			checkNotContains: []string{
 				"sparse-checkout: .",
 			},
 		},
 		{
-			name: "custom safe-output scripts keep full default checkout",
+			name: "custom safe-output scripts keep agent-identical checkout",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 				Scripts: map[string]*SafeScriptConfig{
 					"custom-script": {},
 				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{FetchDepth: &fetchDepthZero, Fetch: []string{"refs/pulls/open/*"}},
+			},
+			checkContains: []string{
+				"fetch-depth: 0",
+				"name: Fetch additional refs",
 			},
 			checkNotContains: []string{
 				"sparse-checkout: .",

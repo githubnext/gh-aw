@@ -459,7 +459,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
 			tokenEmitted = true
 		}
-		if override.fetchDepth != nil {
+		if override.fetchDepth != nil && !cm.minimalDefaultCheckout {
 			fmt.Fprintf(&sb, "          fetch-depth: %d\n", *override.fetchDepth)
 		}
 		if len(override.sparsePatterns) > 0 {
@@ -501,7 +501,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	// Emit a git fetch step if the user requested additional refs.
 	// In trial mode the fetch step is still emitted so the behaviour
 	// mirrors production as closely as possible.
-	if override != nil && len(override.fetchRefs) > 0 {
+	// Minimal (safe-output) checkouts skip it: the extra refs are fetched for the agent,
+	// while the PR handlers fetch the single ref they operate on at apply time.
+	if override != nil && len(override.fetchRefs) > 0 && !cm.minimalDefaultCheckout {
 		defaultIdx := 0
 		if idx, ok := cm.index[override.key]; ok {
 			defaultIdx = idx
