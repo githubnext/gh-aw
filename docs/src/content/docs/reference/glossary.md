@@ -663,6 +663,10 @@ A shared retry module used by the built-in Copilot, Claude, and Codex engine har
 
 A keyless authentication method for the Claude engine that uses short-lived GitHub OIDC tokens instead of a long-lived `ANTHROPIC_API_KEY` secret. Configured via [`engine.auth`](#engine-auth-engineauth) with `type: github-oidc` and `provider: anthropic`, along with Anthropic-specific IDs (`federation-rule-id`, `organization-id`, `service-account-id`, `workspace-id`) obtained from the Anthropic Console. Requires `permissions: id-token: write`. Available since v0.79.6. See [Authentication Reference](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif).
 
+### GitHub-hosted Inference (Codex)
+
+An OpenAI Codex engine mode that routes model calls through the GitHub inference gateway instead of a direct OpenAI provider. Enabled by prefixing the top-level `model:` with `copilot/` (for example, `model: copilot/auto`); the compiler configures Codex's BYOK provider to use the gateway and forwards the model name without the prefix. Requires the default agent sandbox and authenticates via `permissions: { copilot-requests: write }` (recommended) or `COPILOT_GITHUB_TOKEN`. See [Codex Engine](/gh-aw/engines/codex/).
+
 ### Engine Auth (`engine.auth`)
 
 An `engine:` configuration field for keyless authentication. When `engine.auth` is configured, the compiler emits authentication environment variables consumed by the AWF api-proxy sidecar and suppresses the static API key requirement. Supports `type: github-oidc` with an optional `provider` for service-specific token exchange — for example, `provider: anthropic` for [Anthropic WIF](#anthropic-workload-identity-federation-wif) or without a provider for Azure Entra ID BYOK mode. Requires `permissions: id-token: write` in the workflow. See [Authentication Reference](/gh-aw/reference/auth/) and [AI Engines Reference](/gh-aw/reference/engines/).
@@ -1195,6 +1199,10 @@ An automated transformation script applied by `gh aw fix` that updates workflow 
 
 A CLI diagnostic command that verifies `gh` CLI authentication, repository ownership and access, and local checkout state before setup or troubleshooting work. Inside a GitHub Enterprise checkout, it auto-detects the host from the git remote when `GH_HOST` is unset; outside a checkout, authenticate with `gh auth login --hostname <host>` and set `GH_HOST` so diagnostics target the correct host. Supports `--json`, `--repo`, and `--require-owner-type` options. See [CLI Reference](/gh-aw/setup/cli/#doctor).
 
+### `gh aw models`
+
+A CLI command that lists the model catalog with AI Credits pricing weights, built-in model aliases and their resolution order, and models observed in local automation artifacts. By default, refreshes observed-model data from recent run artifacts (`summary.json` token usage, per-run token usage artifacts, and `awf-reflect.json` endpoint model lists) before reporting. Accepts `--json` for machine-readable output, `--logs-dir` to read observed models from a non-default logs directory, `--refresh-count` to control how many recent runs are inspected, and `--refresh-observed=false` to skip the artifact refresh and use local data only. See [CLI Reference](/gh-aw/setup/cli/#models).
+
 ### Playground
 
 An interactive web-based editor for authoring, compiling, and previewing agentic workflows without local installation. The Playground runs the gh-aw compiler in the browser using [WebAssembly](#webassembly-wasm) and auto-saves editor content to `localStorage` so work is preserved across sessions. Available at `/gh-aw/editor/`.
@@ -1297,6 +1305,10 @@ A security linter for GitHub Actions workflows that detects supply-chain vulnera
 ### syft
 
 A Software Bill of Materials (SBOM) generation tool that catalogs packages and dependencies in container images. Integrated into `gh aw compile` via the `--syft` flag. Produces a structured inventory of all software components in Docker images used by the workflow. Typically used alongside [grant](#grant) for license policy enforcement. See [Compilation Reference](/gh-aw/reference/compilation-process/).
+
+### ssljson
+
+A custom Go static-analysis linter (`pkg/linters/ssljson`) that validates Scheduling-Structural-Logical (SSL) JSON scene and logic-step graphs, reporting duplicate scene or logic-step IDs and dangling `entry_logic_step` or `scene_id` references between scenes and steps. Part of the gh-aw linter registry used in CI. See [Linters README](https://github.com/github/gh-aw/blob/main/pkg/linters/README.md).
 
 ### manualpathconcat
 
