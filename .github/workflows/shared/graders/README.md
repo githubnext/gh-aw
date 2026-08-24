@@ -4,8 +4,8 @@ Deterministic, per-trace behavioral graders that go beyond the existing
 built-in graders (step count, retries, loops, duration, tool-success rate,
 trajectory efficiency — see
 [Graders reference](https://githubnext.github.io/gh-aw/reference/trace-graders/)).
-Each grader below is implemented as its own shared agentic workflow
-component under `shared/graders/<id>.md`, built once as a
+Each grader below is implemented as its own importable `graders:`
+frontmatter script under `shared/graders/<id>.md`, built once as a
 projection over the [canonical Trajectory IR](trajectory-ir.md) so adding a
 new grader never requires a new trace parser.
 
@@ -95,13 +95,12 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 
 ## Consuming a grader from a workflow
 
-Import both the IR builder and the specific grader fragment(s) you need:
+Import the specific grader fragment(s) you need:
 
 ```yaml
 imports:
-  - shared/graders/trajectory-ir.md
   - shared/graders/state-revisit-probability-rep.md
 ```
 
-Each grader fragment documents its own inputs, computation, and output
-contract inline; none require network access or a second model call.
+Each grader fragment contributes a deterministic custom grader script through
+frontmatter; none require network access or a second model call.
