@@ -281,27 +281,17 @@ runtimes:
 
 ### Filesystem
 
-- **Use `RUNNER_TEMP` for transient state.** Put sandbox state, tool downloads, and intermediate outputs in `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs.
-- **No root assumption.** Tool installs, file operations, and sandbox setup should run as the unprivileged runner user. The Copilot CLI install script escalates via `sudo` for specific operations; see the sudo requirements above.
-- **No global installs.** Do not install packages to `/usr/local/`, `/opt/hostedtoolcache/`, or other system-wide paths. These may be read-only, shared across runners, or bind-mounted read-only inside the sandbox. Use job-scoped writable locations instead.
-- **No hardcoded `HOME` paths.** The runner's home directory may not be `/home/runner`. Use `$HOME` or `$RUNNER_TEMP` instead of hardcoded paths.
+Use `$RUNNER_TEMP` for sandbox state, tool downloads, and intermediate outputs because it is cleaned between jobs. On shared runners, avoid arbitrary workflow data in `/tmp`, which can persist across jobs.
+
+Run installs, file operations, and sandbox setup as the unprivileged runner user. Do not rely on root access, install packages into system-wide paths such as `/usr/local/` or `/opt/hostedtoolcache/`, or hardcode `/home/runner`; use job-scoped writable locations and reference `$HOME` or `$RUNNER_TEMP` instead. The Copilot CLI install script escalates via `sudo` only for specific operations described above.
 
 ### Post-job cleanup
 
-Self-hosted runners persist between jobs. Agentic workflows should clean up after themselves:
-
-- Files written to `$RUNNER_TEMP` are automatically cleaned.
-- Docker containers on the `awf-net` bridge are stopped and removed by the sandbox teardown.
-- If your workflow creates files outside `$RUNNER_TEMP` (e.g. in `$GITHUB_WORKSPACE`), the runner's built-in workspace cleanup handles this.
+Self-hosted runners persist between jobs, so keep transient files in `$RUNNER_TEMP`, let sandbox teardown remove Docker containers on the `awf-net` bridge, and rely on the runner's workspace cleanup for files created in `$GITHUB_WORKSPACE`.
 
 ### Network
 
-Self-hosted runners need outbound HTTPS access to:
-
-- `api.githubcopilot.com` (or your enterprise Copilot endpoint)
-- `github.com` (or your GHES instance)
-- `ghcr.io` (to pull the MCP gateway container image)
-- Any domains listed in your workflow's `network.allowed` configuration
+Self-hosted runners need outbound HTTPS access to `api.githubcopilot.com` (or your enterprise Copilot endpoint), `github.com` (or your GHES instance), `ghcr.io` for the MCP gateway image, and any additional domains listed in `network.allowed`.
 
 ## GHES (GitHub Enterprise Server)
 
@@ -354,11 +344,7 @@ Set `runner.topology: arc-dind` in workflow frontmatter to enable ARC DinD split
 
 ### Docker-in-Docker (dind) sidecar
 
-The MCP gateway:
-
-1. Resolves the Docker socket path from `DOCKER_HOST` (supports `unix://` paths and bare absolute paths)
-2. Auto-detects the socket's group ID for correct permissions
-3. Retries the socket check for up to 10 seconds to handle the race condition where the gateway starts before `dockerd`
+The MCP gateway resolves the Docker socket path from `DOCKER_HOST` (including `unix://` paths and bare absolute paths), auto-detects the socket's group ID for permissions, and retries the socket check for up to 10 seconds if it starts before `dockerd` is ready.
 
 ### Pod security
 
