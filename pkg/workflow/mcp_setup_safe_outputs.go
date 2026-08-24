@@ -8,6 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var safeOutputsSetupLog = logger.New("workflow:mcp_setup_safe_outputs")
@@ -131,7 +132,7 @@ func buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig string) ([]string, ma
 	configSecrets := ExtractSecretsFromValue(safeOutputConfig)
 	configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
 	configWorkflowInputs := ExtractWorkflowInputExpressionsFromValue(safeOutputConfig)
-	envValues := make(map[string]string, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
+	envValues := make(map[string]string, typeutil.SafeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
 	addEnvValue := func(key, value string) {
 		envValues[key] = value
 	}

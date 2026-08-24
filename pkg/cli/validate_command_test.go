@@ -11,6 +11,8 @@ import (
 
 // TestNewValidateCommand tests that the validate command is created correctly
 func TestNewValidateCommand(t *testing.T) {
+	t.Parallel()
+
 	cmd := NewValidateCommand(func(string) error { return nil })
 
 	require.NotNil(t, cmd, "NewValidateCommand should return a non-nil command")

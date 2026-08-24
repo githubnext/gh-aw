@@ -16,6 +16,7 @@ package workflow
 import (
 	"slices"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
@@ -30,7 +31,10 @@ const (
 	SandboxTypeDefault SandboxType = "default" // Alias for AWF (backward compat)
 )
 
-const defaultAgentWorkspaceWritePath = "/tmp/gh-aw/agent"
+const (
+	defaultAgentWorkspaceWritePath = "/tmp/gh-aw/agent"
+	defaultAgentLogsWritePath      = "/tmp/gh-aw/sandbox/agent/logs"
+)
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
 // New format: { agent: "awf"|"srt"|{type, config}, mcp: {port, command, ...} }
@@ -246,7 +250,7 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 				Type: SandboxTypeAWF,
 			},
 		}
-		ensureDefaultAgentWritePath(sandboxConfig)
+		ensureDefaultAgentWritePath(sandboxConfig, engineConfig)
 		return sandboxConfig
 	}
 
@@ -254,7 +258,7 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 	// The legacy Type field indicates explicit sandbox configuration
 	if sandboxConfig.Type != "" {
 		sandboxLog.Printf("Sandbox config uses legacy Type field: %s, preserving it", sandboxConfig.Type)
-		ensureDefaultAgentWritePath(sandboxConfig)
+		ensureDefaultAgentWritePath(sandboxConfig, engineConfig)
 		return sandboxConfig
 	}
 
@@ -264,7 +268,7 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 		sandboxConfig.Agent = &AgentSandboxConfig{
 			Type: SandboxTypeAWF,
 		}
-		ensureDefaultAgentWritePath(sandboxConfig)
+		ensureDefaultAgentWritePath(sandboxConfig, engineConfig)
 		return sandboxConfig
 	}
 
@@ -279,12 +283,12 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 		sandboxConfig.Agent.Type = SandboxTypeAWF
 	}
 
-	ensureDefaultAgentWritePath(sandboxConfig)
+	ensureDefaultAgentWritePath(sandboxConfig, engineConfig)
 	return sandboxConfig
 }
 
-// cloudHypervisorWorkspaceWritePath and cloudHypervisorAwfHomeWritePath are the additional
-// filesystem.allowWrite entries seeded for the Cloud Hypervisor runtime.
+// Cloud Hypervisor requires explicit filesystem.allowWrite entries for compiler-managed
+// output paths as well as the workspace.
 //
 // Under Cloud Hypervisor, /workspace and /tmp/gh-aw are separate virtiofs exports, and the
 // AWF planner narrows each export independently based on the allowWrite entries that fall
@@ -306,7 +310,7 @@ const cloudHypervisorAwfHomeWritePath = "/workspace/.awf-home"
 // container fails to start ("make mountpoint \"/tmp/awf-init\": read-only file system").
 // Seeding a default there would therefore break every compose-runtime workflow, so
 // filesystem.allowWrite stays opt-in for those runtimes.
-func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
+func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig, engineConfig *EngineConfig) {
 	if sandboxConfig == nil || sandboxConfig.Agent == nil {
 		return
 	}
@@ -320,6 +324,9 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
 	}
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentWorkspaceWritePath)
+	if engineConfig != nil && engineConfig.ID == string(constants.CopilotEngine) {
+		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentLogsWritePath)
+	}
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorWorkspaceWritePath)
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorAwfHomeWritePath)
 }

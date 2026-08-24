@@ -112,12 +112,7 @@ type agentUsageEntry struct {
 	// PrimaryModel is the dominant model for runs that used multiple models.
 	PrimaryModel string `json:"primary_model"`
 	// Raw token counts.
-	InputTokens      int `json:"input_tokens"`
-	OutputTokens     int `json:"output_tokens"`
-	CacheReadTokens  int `json:"cache_read_tokens"`
-	CacheWriteTokens int `json:"cache_write_tokens"`
-	ReasoningTokens  int `json:"reasoning_tokens"`
-	EffectiveTokens  int `json:"effective_tokens"`
+	TokenCoreMetrics
 	// AmbientContextTokens is the first-request ambient input token count emitted by parse_token_usage.cjs.
 	AmbientContextTokens *int `json:"ambient_context"`
 	// AICredits is the pre-computed total AI Credits value written by parse_token_usage.cjs.

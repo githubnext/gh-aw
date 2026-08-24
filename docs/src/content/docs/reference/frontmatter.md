@@ -57,9 +57,12 @@ metadata:
   author: John Doe
   version: 1.0.0
   category: automation
+  docs: https://docs.example.com/automation/repository-health
 ```
 
 Keys must be 1–64 characters; values are string-only, up to 1024 characters.
+`metadata.docs`, when present, must be an absolute HTTPS URL. The compiler preserves
+it in generated lock-file metadata without fetching it or changing workflow execution.
 
 ### Trigger Events (`on:`)
 

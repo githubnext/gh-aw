@@ -13,6 +13,8 @@ import (
 )
 
 func TestParseCoolDownFlag(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		input   string
@@ -80,6 +82,8 @@ func TestParseCoolDownFlag(t *testing.T) {
 }
 
 func TestIsExemptFromCoolDown(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		repo string
@@ -176,6 +180,8 @@ func TestCheckReleaseCoolDown(t *testing.T) {
 }
 
 func TestCheckReleaseCoolDownWithDate_InCoolDown(t *testing.T) {
+	t.Parallel()
+
 	publishedAt := time.Now().Add(-2 * 24 * time.Hour)
 	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 7*24*time.Hour)
 	assert.True(t, result.InCoolDown, "release 2d old should be in cooldown with 7d window")
@@ -186,6 +192,8 @@ func TestCheckReleaseCoolDownWithDate_InCoolDown(t *testing.T) {
 }
 
 func TestCheckReleaseCoolDownWithDate_NotInCoolDown(t *testing.T) {
+	t.Parallel()
+
 	publishedAt := time.Now().Add(-10 * 24 * time.Hour)
 	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 7*24*time.Hour)
 	assert.False(t, result.InCoolDown, "release 10d old should not be in cooldown with 7d window")
@@ -194,12 +202,16 @@ func TestCheckReleaseCoolDownWithDate_NotInCoolDown(t *testing.T) {
 }
 
 func TestCheckReleaseCoolDownWithDate_ZeroDuration(t *testing.T) {
+	t.Parallel()
+
 	publishedAt := time.Now()
 	result := checkReleaseCoolDownWithDate("owner/repo", "v1.2.0", publishedAt, 0)
 	assert.False(t, result.InCoolDown, "zero cooldown should always allow update")
 }
 
 func TestCheckReleaseCoolDownWithDate_FutureTimestamp(t *testing.T) {
+	t.Parallel()
+
 	// Simulate a future published_at (clock skew / API returning future time).
 	// The release should be treated as just-published and kept in cooldown.
 	publishedAt := time.Now().Add(1 * time.Hour)
@@ -208,6 +220,8 @@ func TestCheckReleaseCoolDownWithDate_FutureTimestamp(t *testing.T) {
 }
 
 func TestFormatCoolDownDuration(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		duration time.Duration
 		want     string
@@ -232,6 +246,8 @@ func TestFormatCoolDownDuration(t *testing.T) {
 }
 
 func TestEffectiveCommitCoolDown(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    time.Duration
@@ -251,6 +267,8 @@ func TestEffectiveCommitCoolDown(t *testing.T) {
 }
 
 func TestCheckCommitCoolDownWithDate(t *testing.T) {
+	t.Parallel()
+
 	committedAt := time.Now().Add(-2 * 24 * time.Hour)
 	result := checkCommitCoolDownWithDate("owner/repo", "main", committedAt, 3*24*time.Hour)
 	assert.True(t, result.InCoolDown, "commit 2d old should be in cooldown with 3d window")
@@ -260,6 +278,8 @@ func TestCheckCommitCoolDownWithDate(t *testing.T) {
 }
 
 func TestCheckCommitCoolDownWithDate_NotInCoolDown(t *testing.T) {
+	t.Parallel()
+
 	committedAt := time.Now().Add(-4 * 24 * time.Hour)
 	result := checkCommitCoolDownWithDate("owner/repo", "main", committedAt, 3*24*time.Hour)
 	assert.False(t, result.InCoolDown, "commit 4d old should not be in cooldown with 3d window")

@@ -48,6 +48,17 @@ function createBundleTempRef(branchName) {
 }
 
 /**
+ * Quote a value as a single POSIX shell argument.
+ * @param {string|number} value
+ * @returns {string}
+ */
+function shellQuote(value) {
+  const s = String(value);
+  if (s.length === 0) return "''";
+  return `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
  * Determines if a label API error is transient and worth retrying.
  * Returns true for:
  *  - The GitHub race condition where a newly-created PR's node ID is not immediately
@@ -311,6 +322,126 @@ function _remediationForCause(cause) {
 }
 
 /**
+ * Build the shell instructions for manually recreating a branch (and later opening a PR)
+ * from a workflow-run artifact, matching whichever transport (bundle or format-patch)
+ * was actually used to encode the changes. Used when the automated push failed and a
+ * human needs to recreate the branch locally before pushing and opening the PR themselves.
+ *
+ * The returned block intentionally stops right before the final `git push` / `gh pr create`
+ * steps, which are appended separately by the caller since they are identical for both
+ * transports.
+ *
+ * @param {object} params
+ * @param {boolean} params.hasBundleFile - true when the artifact is a git bundle, false for a format-patch file
+ * @param {string|number} params.runId - workflow run id, used to build the `gh run download` command
+ * @param {string} params.artifactFileName - bundle or patch file name (relative to the artifact root)
+ * @param {string} params.branchName - branch to create/checkout locally
+ * @param {string} [params.baseBranch] - base branch to create the new branch from (patch transport only)
+ * @param {string} [params.tempRef] - temporary ref used while transplanting the bundle (bundle transport only)
+ * @returns {string} Shell instructions (no leading/trailing blank lines, no code fence)
+ */
+function buildManualBranchRecoveryCommands({ hasBundleFile, runId, artifactFileName, branchName, baseBranch, tempRef }) {
+  if (hasBundleFile) {
+    if (!tempRef) {
+      throw new Error("tempRef is required for bundle manual branch recovery commands");
+    }
+    const bundlePath = `/tmp/agent-${runId}/${artifactFileName}`;
+    const targetRef = `refs/heads/${branchName}`;
+    return [
+      `# Download the artifact from the workflow run`,
+      `gh run download ${shellQuote(runId)} -n agent -D ${shellQuote(`/tmp/agent-${runId}`)}`,
+      ``,
+      `# Resolve the bundle source ref, fetch it into a temporary ref, then create the local branch`,
+      `bundle_path=${shellQuote(bundlePath)}`,
+      `temp_ref=${shellQuote(tempRef)}`,
+      `target_ref=${shellQuote(targetRef)}`,
+      `bundle_source_ref=$(git bundle list-heads "$bundle_path" | awk '$2 ~ /^refs\\/heads\\// { print $2 }')`,
+      `if [ -z "$bundle_source_ref" ]; then`,
+      `  bundle_source_ref=$(git bundle list-heads "$bundle_path" | awk '$2 == "HEAD" { print $2 }')`,
+      `fi`,
+      `if [ "$(printf '%s\\n' "$bundle_source_ref" | sed '/^$/d' | wc -l | tr -d ' ')" != "1" ]; then`,
+      `  echo "Expected exactly one bundle source ref, found: $bundle_source_ref" >&2`,
+      `  exit 1`,
+      `fi`,
+      `git fetch "$bundle_path" "\${bundle_source_ref}:\${temp_ref}"`,
+      `git update-ref "$target_ref" "$temp_ref"`,
+      `git checkout ${shellQuote(branchName)}`,
+      `# Ensure the working tree matches the updated branch`,
+      `git reset --hard`,
+      `# Remove the temporary bundle ref`,
+      `git update-ref -d "$temp_ref"`,
+    ].join("\n");
+  }
+  if (!baseBranch) {
+    throw new Error("baseBranch is required for patch manual branch recovery commands");
+  }
+  return [
+    `# Download the artifact from the workflow run`,
+    `gh run download ${shellQuote(runId)} -n agent -D ${shellQuote(`/tmp/agent-${runId}`)}`,
+    ``,
+    `# Create a new branch`,
+    `git checkout -b ${shellQuote(branchName)} ${shellQuote(baseBranch)}`,
+    ``,
+    `# Apply the patch (--3way handles cross-repo patches where files may already exist)`,
+    `git am --3way ${shellQuote(`/tmp/agent-${runId}/${artifactFileName}`)}`,
+  ].join("\n");
+}
+
+/**
+ * Build the shell instructions for manually applying a workflow-run artifact to an
+ * *existing* remote branch (e.g. an already-open pull request branch), matching whichever
+ * transport (bundle or format-patch) was actually used to encode the changes.
+ *
+ * Unlike {@link buildManualBranchRecoveryCommands}, the returned block is self-contained:
+ * it includes the final `git push`, since there is no separate PR-creation step for this flow.
+ *
+ * @param {object} params
+ * @param {boolean} params.hasBundleFile - true when the artifact is a git bundle, false for a format-patch file
+ * @param {string|number} params.runId - workflow run id, used to build the `gh run download` command
+ * @param {string} params.artifactFileName - bundle or patch file name (relative to the artifact root)
+ * @param {string} params.branchName - existing remote branch to update
+ * @param {string} [params.branchRemote] - remote name or URL containing the existing branch
+ * @returns {string} Shell instructions (no leading/trailing blank lines, no code fence)
+ */
+function buildManualBranchApplyCommands({ hasBundleFile, runId, artifactFileName, branchName, branchRemote = "origin" }) {
+  const bundlePath = `/tmp/agent-${runId}/${artifactFileName}`;
+  const pushRef = `HEAD:refs/heads/${branchName}`;
+  if (hasBundleFile) {
+    return [
+      `# Download the artifact from the workflow run`,
+      `gh run download ${shellQuote(runId)} -n agent -D ${shellQuote(`/tmp/agent-${runId}`)}`,
+      ``,
+      `# Fetch the bundle into a temporary ref, then fast-forward the branch`,
+      `bundle_path=${shellQuote(bundlePath)}`,
+      `git fetch ${shellQuote(branchRemote)} ${shellQuote(branchName)}`,
+      `git checkout -B ${shellQuote(branchName)} FETCH_HEAD`,
+      `bundle_source_ref=$(git bundle list-heads "$bundle_path" | awk '$2 ~ /^refs\\/heads\\// { print $2 }')`,
+      `if [ -z "$bundle_source_ref" ]; then`,
+      `  bundle_source_ref=$(git bundle list-heads "$bundle_path" | awk '$2 == "HEAD" { print $2 }')`,
+      `fi`,
+      `if [ "$(printf '%s\\n' "$bundle_source_ref" | sed '/^$/d' | wc -l | tr -d ' ')" != "1" ]; then`,
+      `  echo "Expected exactly one bundle source ref, found: $bundle_source_ref" >&2`,
+      `  exit 1`,
+      `fi`,
+      `git fetch "$bundle_path" "\${bundle_source_ref}:refs/bundles/manual-apply"`,
+      `git reset --hard refs/bundles/manual-apply`,
+      `git update-ref -d refs/bundles/manual-apply`,
+      `git push ${shellQuote(branchRemote)} ${shellQuote(pushRef)}`,
+    ].join("\n");
+  }
+  return [
+    `# Download the artifact from the workflow run`,
+    `gh run download ${shellQuote(runId)} -n agent -D ${shellQuote(`/tmp/agent-${runId}`)}`,
+    ``,
+    `# Apply the patch to the pull request branch`,
+    `git fetch ${shellQuote(branchRemote)} ${shellQuote(branchName)}`,
+    `git checkout -B ${shellQuote(branchName)} FETCH_HEAD`,
+    `git am --3way ${shellQuote(`/tmp/agent-${runId}/${artifactFileName}`)}`,
+    `git push ${shellQuote(branchRemote)} ${shellQuote(pushRef)}`,
+  ].join("\n");
+}
+
+/**
  * Renders protected-files fallback issue body with a prefilled compare URL.
  * @param {string} mainBodyContent
  * @param {string} footerContent
@@ -335,6 +466,7 @@ module.exports = {
   LABEL_MAX_DELAY_MS,
   summarizeListForLog,
   createBundleTempRef,
+  shellQuote,
   isLabelTransientError,
   parseAllowedBaseBranches,
   isBaseBranchAllowed,
@@ -346,4 +478,6 @@ module.exports = {
   buildManifestProtectionCreatePrUrl,
   renderManifestProtectionFallbackBody,
   buildPushErrorSection,
+  buildManualBranchRecoveryCommands,
+  buildManualBranchApplyCommands,
 };

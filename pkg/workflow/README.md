@@ -1173,7 +1173,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | `artifact_manager.go` | `(*ArtifactManager).Reset` | `func (*ArtifactManager).Reset()` | Reset clears all tracked uploads and downloads |
 | `artifact_manager.go` | `NewArtifactManager` | `func NewArtifactManager() *ArtifactManager` | NewArtifactManager creates a new artifact manager |
 | `auto_update_workflow.go` | `GenerateAutoUpdateWorkflow` | `func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error` | GenerateAutoUpdateWorkflow generates or removes the agentic-auto-upgrade. |
-| `awf_config.go` | `BuildAWFConfigJSON` | `func BuildAWFConfigJSON(config AWFCommandConfig) (string, error)` | BuildAWFConfigJSON generates a compact JSON config file for AWF from the provided command configuration. |
+| `awf_config_build.go` | `BuildAWFConfigJSON` | `func BuildAWFConfigJSON(config AWFCommandConfig) (string, error)` | BuildAWFConfigJSON generates a compact JSON config file for AWF from the provided command configuration. |
 | `behavior_defined_engine.go` | `(*BehaviorDefinedEngine).GetAgentManifestFiles` | `func (*BehaviorDefinedEngine).GetAgentManifestFiles() []string` | Exported function or method declared in `behavior_defined_engine.go`. |
 | `behavior_defined_engine.go` | `(*BehaviorDefinedEngine).GetAgentManifestPathPrefixes` | `func (*BehaviorDefinedEngine).GetAgentManifestPathPrefixes() []string` | Exported function or method declared in `behavior_defined_engine.go`. |
 | `behavior_defined_engine.go` | `(*BehaviorDefinedEngine).GetModelEnvVarName` | `func (*BehaviorDefinedEngine).GetModelEnvVarName() string` | Exported function or method declared in `behavior_defined_engine.go`. |

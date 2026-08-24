@@ -99,7 +99,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Only request issues: write when at least one conclusion-job mechanism can actually
 	// create/update an issue and that path is not already covered by
 	// ComputePermissionsForSafeOutputs (report-failed-jobs, agent-failure reporting,
-	// noop reporting, or detection-runs reporting). This keeps the permission grant
+	// noop reporting, or missing-tool issue reporting). This keeps the permission grant
 	// derived from the resolved configuration instead of being emitted unconditionally.
 	if conclusionMayCreateIssue(data) {
 		if level, ok := conclusionPerms.Get(PermissionIssues); !ok || level != PermissionWrite {
@@ -134,15 +134,19 @@ func conclusionReportFailureAsIssueEnabled(data *WorkflowData) bool {
 	return !strings.EqualFold(strings.TrimSpace(data.SafeOutputs.ReportFailureAsIssue.String()), "false")
 }
 
-// conclusionDetectionReportingEnabled returns true when the conclusion job emits the
-// detection-runs step, which may create an issue and/or post comments to that issue.
-func conclusionDetectionReportingEnabled(data *WorkflowData) bool {
-	return data.SafeOutputs != nil && IsDetectionJobEnabled(data.SafeOutputs)
+// conclusionMissingToolCreateIssueEnabled returns true unless
+// safe-outputs.missing-tool.create-issue is explicitly set to false.
+func conclusionMissingToolCreateIssueEnabled(data *WorkflowData) bool {
+	return data.SafeOutputs != nil && issueReportingCreateIssueEnabled(data.SafeOutputs.MissingTool)
+}
+
+func issueReportingCreateIssueEnabled(config *IssueReportingConfig) bool {
+	return config != nil && (config.CreateIssue == nil || !strings.EqualFold(strings.TrimSpace(*config.CreateIssue), "false"))
 }
 
 // conclusionMayCreateIssue returns true if at least one conclusion-job mechanism can create or
 // update an issue: report-failed-jobs, agent-failure reporting (report-failure-as-issue), noop
-// reporting (noop.report-as-issue), or detection-runs reporting. This mirrors the resolved
+// reporting (noop.report-as-issue), or missing-tool issue reporting. This mirrors the resolved
 // configuration so that disabling every issue-creating path removes issues: write from the
 // compiled conclusion job's permissions.
 func conclusionMayCreateIssue(data *WorkflowData) bool {
@@ -155,7 +159,7 @@ func conclusionMayCreateIssue(data *WorkflowData) bool {
 	if data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil && isNoOpReportAsIssueEnabled(data.SafeOutputs.NoOp.ReportAsIssue) {
 		return true
 	}
-	if conclusionDetectionReportingEnabled(data) {
+	if conclusionMissingToolCreateIssueEnabled(data) {
 		return true
 	}
 	return false

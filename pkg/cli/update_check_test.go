@@ -173,6 +173,8 @@ func TestIsRunningAsMCPServer(t *testing.T) {
 }
 
 func TestGetLastCheckFilePath(t *testing.T) {
+	t.Parallel()
+
 	path := getLastCheckFilePath()
 	if path == "" {
 		t.Error("getLastCheckFilePath() returned empty string")
@@ -332,6 +334,8 @@ func TestCheckForUpdatesAsync_JoinsGoroutine(t *testing.T) {
 }
 
 func TestFindLatestPublishedReleaseTag(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		releases []Release
@@ -380,6 +384,8 @@ func TestFindLatestPublishedReleaseTag(t *testing.T) {
 }
 
 func TestGetLatestReleaseWithClient_StableReleaseUsesLatestEndpoint(t *testing.T) {
+	t.Parallel()
+
 	client := fakeReleaseClient{
 		do: func(ctx context.Context, method string, path string, body io.Reader, response any) error {
 			assert.Equal(t, http.MethodGet, method)
@@ -400,6 +406,8 @@ func TestGetLatestReleaseWithClient_StableReleaseUsesLatestEndpoint(t *testing.T
 }
 
 func TestGetLatestReleaseWithClient_IncludePrereleasesUsesReleasesEndpoint(t *testing.T) {
+	t.Parallel()
+
 	client := fakeReleaseClient{
 		do: func(ctx context.Context, method string, path string, body io.Reader, response any) error {
 			assert.Equal(t, http.MethodGet, method)
@@ -420,6 +428,8 @@ func TestGetLatestReleaseWithClient_IncludePrereleasesUsesReleasesEndpoint(t *te
 }
 
 func TestGetLatestReleaseWithClient_PropagatesContextErrors(t *testing.T) {
+	t.Parallel()
+
 	client := fakeReleaseClient{
 		do: func(ctx context.Context, method string, path string, body io.Reader, response any) error {
 			return context.Canceled
@@ -433,6 +443,8 @@ func TestGetLatestReleaseWithClient_PropagatesContextErrors(t *testing.T) {
 }
 
 func TestIsCurrentVersionAtLeastLatest(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		currentVersion string
@@ -485,6 +497,8 @@ func TestIsCurrentVersionAtLeastLatest(t *testing.T) {
 }
 
 func TestGitHubDotComRESTClientOptions(t *testing.T) {
+	t.Parallel()
+
 	opts := gitHubDotComRESTClientOptions()
 	assert.Equal(t, "github.com", opts.Host)
 	assert.Equal(t, constants.DefaultHTTPClientTimeout, opts.Timeout)

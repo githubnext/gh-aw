@@ -25,6 +25,7 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
 const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
+const { buildManualBranchApplyCommands } = require("./create_pull_request_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -815,7 +816,14 @@ async function main(config = {}) {
     const createProtectedFilesFallbackIssue = async files => {
       const runUrl = buildWorkflowRunUrl(context, context.repo);
       const runId = context.runId;
-      const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+      const artifactFileName = hasBundleFile ? bundleFilePath.replace("/tmp/gh-aw/", "") : patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+      const applyInstructions = buildManualBranchApplyCommands({
+        hasBundleFile,
+        runId,
+        artifactFileName,
+        branchName,
+        branchRemote: branchRemoteName,
+      });
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
@@ -828,7 +836,7 @@ async function main(config = {}) {
         run_url: runUrl,
         run_id: runId,
         branch_name: branchName,
-        patch_file_name: patchFileName,
+        apply_instructions: applyInstructions,
       });
 
       try {
