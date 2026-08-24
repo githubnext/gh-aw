@@ -66,7 +66,7 @@ describe("reduceModelNameToIdentifier", () => {
     expect(reduceModelNameToIdentifier("azure/openai/gpt-4o")).toBe("gpt40");
   });
 
-  it("keeps the original name when the provider prefix has no model part", () => {
+  it("falls back to the full name (including slash) when there is no model part after the prefix", () => {
     expect(reduceModelNameToIdentifier("copilot/")).toBe("cop00");
   });
 
