@@ -28,11 +28,6 @@ name: "My Workflow"
 # (optional)
 description: "Description of the workflow"
 
-# Optional absolute HTTPS URL for human-facing workflow documentation. Preserved
-# in generated lock-file metadata without being fetched during compilation.
-# (optional)
-documentation: "https://docs.example.com/automation/repository-health"
-
 # Optional emoji to represent the workflow visually in listings and UI surfaces.
 # (optional)
 emoji: "example-value"
@@ -94,7 +89,10 @@ skills: []
 # limited to 1024 characters.
 # (optional)
 metadata:
-  {}
+  # Optional absolute HTTPS URL for human-facing workflow documentation. Preserved
+  # in generated lock-file metadata without being fetched during compilation.
+  # (optional)
+  docs: "https://docs.example.com/automation/repository-health"
 
 # Workflow specifications to import. Supports array form (list of paths) or object
 # form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative

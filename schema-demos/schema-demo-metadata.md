@@ -8,6 +8,7 @@ engine: codex
 metadata:
   author: schema-coverage
   version: "1.0.0"
+  docs: https://docs.example.com/automation/repository-health
 timeout-minutes: 5
 ---
 

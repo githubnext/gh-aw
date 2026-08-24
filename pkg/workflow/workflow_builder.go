@@ -29,6 +29,10 @@ func (c *Compiler) buildInitialWorkflowData(
 		agentFile = ""
 		agentImportSpec = ""
 	}
+	docs := c.extractMetadataDocs(result.Frontmatter)
+	if docs == "" {
+		docs = importsResult.MergedMetadataDocs
+	}
 
 	workflowData := &WorkflowData{
 		Name:                       toolsResult.workflowName,
@@ -38,7 +42,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		FrontmatterFieldLines:      result.FieldLines,
 		RawMarkdown:                result.Markdown,
 		Description:                c.extractDescription(result.Frontmatter),
-		Documentation:              c.extractDocumentation(result.Frontmatter),
+		Docs:                       docs,
 		Source:                     c.extractSource(result.Frontmatter),
 		Redirect:                   c.extractRedirect(result.Frontmatter),
 		TrackerID:                  toolsResult.trackerID,

@@ -138,7 +138,7 @@ function getExampleValue(prop, propName = "") {
       if (propName === "github-token") return "${{ secrets.GITHUB_TOKEN }}";
       if (propName === "name") return "My Workflow";
       if (propName === "description") return "Description of the workflow";
-      if (propName === "documentation") return "https://docs.example.com/automation/repository-health";
+      if (propName === "docs") return "https://docs.example.com/automation/repository-health";
       return "example-value";
     case "number":
     case "integer":

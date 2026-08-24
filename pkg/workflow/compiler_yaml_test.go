@@ -1702,12 +1702,13 @@ Test prompt.
 	}
 }
 
-func TestCompileWorkflowMetadataIncludesDocumentation(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "lock-metadata-documentation")
-	workflowPath := filepath.Join(tmpDir, "documentation.md")
+func TestCompileWorkflowMetadataIncludesDocs(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "lock-metadata-docs")
+	workflowPath := filepath.Join(tmpDir, "docs.md")
 	workflowContent := `---
 engine: copilot
-documentation: https://docs.example.com/automation/repository-health
+metadata:
+  docs: https://docs.example.com/automation/repository-health
 on: issues
 ---
 # Test Workflow
@@ -1733,8 +1734,69 @@ Test prompt.
 	if metadata == nil {
 		t.Fatal("Expected lock metadata")
 	}
-	if metadata.Documentation != "https://docs.example.com/automation/repository-health" {
-		t.Errorf("Documentation = %q, want documentation URL", metadata.Documentation)
+	if metadata.Docs != "https://docs.example.com/automation/repository-health" {
+		t.Errorf("Docs = %q, want documentation URL", metadata.Docs)
+	}
+}
+
+func TestCompileWorkflowMetadataDocsImportPrecedence(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		mainMetadata string
+		want         string
+	}{
+		{name: "first import fallback", want: "https://docs.example.com/first"},
+		{name: "main workflow wins", mainMetadata: "metadata:\n  docs: https://docs.example.com/main\n", want: "https://docs.example.com/main"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "lock-metadata-docs-import")
+			for _, imported := range []struct {
+				name string
+				docs string
+			}{
+				{name: "first.md", docs: "https://docs.example.com/first"},
+				{name: "second.md", docs: "https://docs.example.com/second"},
+			} {
+				content := fmt.Sprintf("---\nmetadata:\n  docs: %s\n---\n\nImported prompt.\n", imported.docs)
+				if err := os.WriteFile(filepath.Join(tmpDir, imported.name), []byte(content), 0o644); err != nil {
+					t.Fatalf("Failed to write imported workflow: %v", err)
+				}
+			}
+
+			workflowPath := filepath.Join(tmpDir, "main.md")
+			workflowContent := fmt.Sprintf(`---
+engine: copilot
+imports:
+  - first.md
+  - second.md
+%son: issues
+---
+# Test Workflow
+
+Test prompt.
+`, tt.mainMetadata)
+			if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+			if err := NewCompiler().CompileWorkflow(workflowPath); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockContent, err := os.ReadFile(strings.TrimSuffix(workflowPath, ".md") + ".lock.yml")
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			metadata, _, err := ExtractMetadataFromLockFile(string(lockContent))
+			if err != nil {
+				t.Fatalf("Failed to extract lock metadata: %v", err)
+			}
+			if metadata == nil {
+				t.Fatal("Expected lock metadata")
+			}
+			if metadata.Docs != tt.want {
+				t.Fatalf("Docs = %q, want %q", metadata.Docs, tt.want)
+			}
+		})
 	}
 }
 

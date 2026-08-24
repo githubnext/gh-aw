@@ -55,14 +55,14 @@ func (c *Compiler) extractDescription(frontmatter map[string]any) string {
 	return ""
 }
 
-// extractDocumentation extracts the documentation field from frontmatter.
-func (c *Compiler) extractDocumentation(frontmatter map[string]any) string {
-	value, exists := frontmatter["documentation"]
-	if !exists {
+// extractMetadataDocs extracts metadata.docs from frontmatter.
+func (c *Compiler) extractMetadataDocs(frontmatter map[string]any) string {
+	metadata, ok := frontmatter["metadata"].(map[string]any)
+	if !ok {
 		return ""
 	}
 
-	if strValue, ok := value.(string); ok {
+	if strValue, ok := metadata["docs"].(string); ok {
 		return strings.TrimSpace(strValue)
 	}
 

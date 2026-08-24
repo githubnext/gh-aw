@@ -32,14 +32,6 @@ Provides a human-readable description of the workflow rendered as a comment in t
 description: "Workflow that analyzes pull requests and provides feedback"
 ```
 
-### Documentation Link (`documentation:`)
-
-Optional absolute HTTPS URL for human-facing workflow documentation. The compiler preserves the link in generated lock-file metadata without fetching it or changing workflow execution.
-
-```yaml wrap
-documentation: "https://docs.example.com/automation/repository-health"
-```
-
 ### Emoji (`emoji:`)
 
 An optional emoji to represent the workflow visually, for example in listings and UI surfaces.
@@ -65,9 +57,12 @@ metadata:
   author: John Doe
   version: 1.0.0
   category: automation
+  docs: https://docs.example.com/automation/repository-health
 ```
 
 Keys must be 1–64 characters; values are string-only, up to 1024 characters.
+`metadata.docs`, when present, must be an absolute HTTPS URL. The compiler preserves
+it in generated lock-file metadata without fetching it or changing workflow execution.
 
 ### Trigger Events (`on:`)
 

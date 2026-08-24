@@ -46,31 +46,35 @@ func TestValidateMainWorkflowFrontmatter_RejectsUnsupportedTopLevelFields(t *tes
 	}
 }
 
-func TestValidateMainWorkflowFrontmatter_Documentation(t *testing.T) {
+func TestValidateMainWorkflowFrontmatter_MetadataDocs(t *testing.T) {
 	t.Parallel()
 
 	for _, tt := range []struct {
-		name          string
-		documentation any
-		wantErr       bool
+		name    string
+		docs    any
+		wantErr bool
 	}{
-		{name: "absolute HTTPS URL", documentation: "https://docs.example.com/workflows/repo-health"},
-		{name: "repository documentation URL", documentation: "https://github.com/OWNER/REPO/blob/main/docs/workflows/repository-health.md"},
-		{name: "relative path", documentation: "docs/workflows/repo-health.md", wantErr: true},
-		{name: "non-HTTPS URL", documentation: "http://docs.example.com/workflows/repo-health", wantErr: true},
-		{name: "JavaScript URL", documentation: "javascript:alert(1)", wantErr: true},
-		{name: "empty string", documentation: "", wantErr: true},
-		{name: "object", documentation: map[string]any{"user": "https://docs.example.com/user-guide"}, wantErr: true},
+		{name: "absolute HTTPS URL", docs: "https://docs.example.com/workflows/repo-health"},
+		{name: "repository documentation URL", docs: "https://github.com/OWNER/REPO/blob/main/docs/workflows/repository-health.md"},
+		{name: "relative path", docs: "docs/workflows/repo-health.md", wantErr: true},
+		{name: "non-HTTPS URL", docs: "http://docs.example.com/workflows/repo-health", wantErr: true},
+		{name: "JavaScript URL", docs: "javascript:alert(1)", wantErr: true},
+		{name: "missing host", docs: "https://:", wantErr: true},
+		{name: "invalid port", docs: "https://example.com:99999", wantErr: true},
+		{name: "empty string", docs: "", wantErr: true},
+		{name: "object", docs: map[string]any{"user": "https://docs.example.com/user-guide"}, wantErr: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
-				"on":            "workflow_dispatch",
-				"documentation": tt.documentation,
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"docs": tt.docs,
+				},
 			}, "workflow.md")
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("documentation validation error = %v, wantErr %t", err, tt.wantErr)
+				t.Fatalf("metadata.docs validation error = %v, wantErr %t", err, tt.wantErr)
 			}
 		})
 	}
