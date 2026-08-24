@@ -30,6 +30,101 @@ imports:
 
 
   - shared/otlp.md
+jobs:
+  raw_mcp_canary:
+    needs: []
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      discussions: read
+    steps:
+      - name: Verify raw GitHub remote MCP handshake
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GITHUB_MCP_SERVER_TOKEN}" ]; then
+            echo "No GitHub MCP token is available."
+            exit 1
+          fi
+          echo "::add-mask::${GITHUB_MCP_SERVER_TOKEN}"
+
+          server_url="https://api.githubcopilot.com/mcp/"
+          headers_file="$(mktemp)"
+          body_file="$(mktemp)"
+          json_file="$(mktemp)"
+          error_file="$(mktemp)"
+          trap 'rm -f "$headers_file" "$body_file" "$json_file" "$error_file"' EXIT
+
+          mcp_post() {
+            local payload="$1"
+            shift
+            local auth_scheme="Bearer"
+            local http_code
+            if ! http_code="$(curl -sS -D "$headers_file" -o "$body_file" -w "%{http_code}" --max-time 20 \
+              -X POST "$server_url" \
+              -H "Authorization: ${auth_scheme} ${GITHUB_MCP_SERVER_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/json, text/event-stream" \
+              -H "X-MCP-Readonly: true" \
+              -H "X-MCP-Toolsets: repos,issues,discussions" \
+              "$@" \
+              -d "$payload" 2>"$error_file")"; then
+              http_code="000"
+            fi
+            printf '%s' "$http_code"
+          }
+
+          read_json_response() {
+            if jq -e . "$body_file" >/dev/null 2>&1; then
+              cp "$body_file" "$json_file"
+            else
+              awk '/^data: / { print substr($0, 7) }' "$body_file" | tail -n 1 > "$json_file"
+            fi
+          }
+
+          assert_success_response() {
+            local label="$1"
+            local http_code="$2"
+            if [ "$http_code" != "200" ]; then
+              echo "$label failed with HTTP $http_code."
+              if [ -s "$error_file" ]; then
+                echo "curl error: $(head -c 200 "$error_file")"
+              fi
+              exit 1
+            fi
+
+            read_json_response
+            if ! jq -e . "$json_file" >/dev/null 2>&1; then
+              echo "$label did not return a JSON response."
+              exit 1
+            fi
+            if jq -e '.error' "$json_file" >/dev/null 2>&1; then
+              error_message="$(jq -r '.error.message // "unknown JSON-RPC error"' "$json_file")"
+              echo "$label returned JSON-RPC error: $error_message"
+              exit 1
+            fi
+          }
+
+          ping_code="$(mcp_post '{"jsonrpc":"2.0","id":1,"method":"ping"}')"
+          assert_success_response "MCP ping" "$ping_code"
+
+          initialize_code="$(mcp_post '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"gh-aw-raw-mcp-canary","version":"1.0.0"},"protocolVersion":"2024-11-05"}}')"
+          assert_success_response "MCP initialize" "$initialize_code"
+
+          session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ { gsub(/\r/, "", $2); print $2; exit }' "$headers_file")"
+          session_args=()
+          if [ -n "$session_id" ]; then
+            session_args=(-H "Mcp-Session-Id: $session_id")
+          fi
+
+          tools_code="$(mcp_post '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' "${session_args[@]}")"
+          assert_success_response "MCP tools/list" "$tools_code"
+
+          tool_count="$(jq '.result.tools | length // 0' "$json_file")"
+          echo "Raw GitHub remote MCP handshake succeeded with $tool_count tools available."
 features:
   gh-aw-detection: true
 sandbox:
