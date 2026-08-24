@@ -1063,7 +1063,7 @@ return stdout.split("\n");
 
 **Out of scope:**
 - Calls without `ignoreReturnCode: true` in a statically-inspectable options object (the default throw-on-failure behavior already surfaces failures)
-- Options passed via a spread (`{ ...opts, ignoreReturnCode: true }`) or a non-object-literal identifier, since the merged shape can't be statically resolved
+- Options whose `ignoreReturnCode` value can't be statically resolved: a non-object-literal identifier (`options`), an options literal built only from spreads (`{ ...opts }`), or one where a spread follows the flag (`{ ignoreReturnCode: true, ...opts }`). An explicit `ignoreReturnCode: true` written after a spread (`{ ...opts, ignoreReturnCode: true }`) is resolvable and still checked
 - Results forwarded to a helper function that checks `exitCode` internally, or destructured into an array pattern
 
 ### `prefer-actions-exec-over-child-process`
