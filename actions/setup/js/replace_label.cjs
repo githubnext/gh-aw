@@ -208,11 +208,11 @@ const main = createCountGatedHandler({
       }
       const newLabelNames = [...new Set([...currentLabelNames.filter(n => n !== labelToRemove), labelToAdd])];
 
-      const beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
-
       try {
+        let beforeState;
         const { data: updatedLabels } = await withRetry(
-          () => {
+          async () => {
+            beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
             const preWriteAddValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
             if (!preWriteAddValidation.valid) {
               core.warning(`label_to_add validation failed before setLabels: ${preWriteAddValidation.error}`);
