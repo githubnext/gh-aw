@@ -143,54 +143,6 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 	assert.Contains(t, containerCmd.String(), " -e RUNNER_TOOL_CACHE")
 }
 
-func TestMcpGatewayMountsUseRunnerToolCache(t *testing.T) {
-	tests := []struct {
-		name          string
-		tools         map[string]any
-		gatewayConfig *MCPGatewayRuntimeConfig
-		expected      bool
-	}{
-		{
-			name: "escaped tool mount",
-			tools: map[string]any{
-				"serena": map[string]any{
-					"mounts": []any{`\${RUNNER_TOOL_CACHE}:\${RUNNER_TOOL_CACHE}:ro`},
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "unescaped tool mount",
-			tools: map[string]any{
-				"serena": map[string]any{
-					"mounts": []any{`${RUNNER_TOOL_CACHE}:${RUNNER_TOOL_CACHE}:ro`},
-				},
-			},
-			expected: true,
-		},
-		{
-			name:          "gateway mount",
-			gatewayConfig: &MCPGatewayRuntimeConfig{Mounts: []string{`${RUNNER_TOOL_CACHE}:${RUNNER_TOOL_CACHE}:ro`}},
-			expected:      true,
-		},
-		{
-			name: "unrelated mount",
-			tools: map[string]any{
-				"server": map[string]any{
-					"mounts": []any{`${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw`},
-				},
-			},
-			expected: false,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, mcpGatewayMountsUseRunnerToolCache(test.tools, test.gatewayConfig))
-		})
-	}
-}
-
 // TestWriteMCPGatewayExportsIncludesAllowedMountRoots verifies the run script
 // exports MCP_GATEWAY_ALLOWED_MOUNT_ROOTS before starting the gateway.
 func TestWriteMCPGatewayExportsIncludesAllowedMountRoots(t *testing.T) {

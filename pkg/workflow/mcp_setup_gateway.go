@@ -568,19 +568,6 @@ func collectMCPServerConfiguredMounts(tools map[string]any) []string {
 	return mounts
 }
 
-func mcpGatewayMountsUseRunnerToolCache(tools map[string]any, gatewayConfig *MCPGatewayRuntimeConfig) bool {
-	mounts := collectMCPServerConfiguredMounts(tools)
-	if gatewayConfig != nil {
-		mounts = append(mounts, gatewayConfig.Mounts...)
-	}
-	for _, mount := range mounts {
-		if strings.Contains(strings.ReplaceAll(mount, `\$`, "$"), "${RUNNER_TOOL_CACHE}") {
-			return true
-		}
-	}
-	return false
-}
-
 // extractMCPMountsField normalizes a raw "mounts" field value (as produced by
 // YAML/JSON frontmatter parsing) into a slice of "source:dest[:mode]" strings.
 func extractMCPMountsField(mountsRaw any) []string {

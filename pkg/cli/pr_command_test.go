@@ -12,6 +12,7 @@ import (
 )
 
 func TestParsePRURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		url       string
@@ -86,6 +87,7 @@ func TestParsePRURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			owner, repo, prNumber, err := parser.ParsePRURL(tt.url)
 
 			if tt.wantErr {
@@ -140,6 +142,7 @@ func TestPullRequestSupportsTransferAndAutomergeJSON(t *testing.T) {
 
 // TestNewPRCommand tests that the PR command is created properly
 func TestNewPRCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewPRCommand()
 
 	if cmd.Use != "pr" {
@@ -170,6 +173,7 @@ func TestNewPRCommand(t *testing.T) {
 
 // TestNewPRTransferSubcommand tests that the transfer subcommand is created properly
 func TestNewPRTransferSubcommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewPRTransferSubcommand()
 
 	if cmd.Use != "transfer <pr-url>" {

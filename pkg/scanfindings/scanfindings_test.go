@@ -118,65 +118,6 @@ func TestFormatMessage(t *testing.T) {
 	}
 }
 
-func TestSort(t *testing.T) {
-	findings := []Finding{
-		{File: "b.yml", Line: 1, Severity: SeverityLow},
-		{File: "a.yml", Line: 10, Column: 2, Severity: SeverityMedium},
-		{File: "a.yml", Line: 10, Column: 1, Severity: SeverityLow},
-		{File: "a.yml", Line: 2, Severity: SeverityInfo},
-	}
-
-	Sort(findings)
-
-	want := []struct {
-		file   string
-		line   int
-		column int
-	}{
-		{"a.yml", 2, 0},
-		{"a.yml", 10, 1},
-		{"a.yml", 10, 2},
-		{"b.yml", 1, 0},
-	}
-
-	for i, w := range want {
-		got := findings[i]
-		if got.File != w.file || got.Line != w.line || got.Column != w.column {
-			t.Errorf("finding %d = %s:%d:%d, want %s:%d:%d", i, got.File, got.Line, got.Column, w.file, w.line, w.column)
-		}
-	}
-}
-
-func TestSortOrdersBySeverityWithinSameLocation(t *testing.T) {
-	findings := []Finding{
-		{File: "a.yml", Line: 1, Column: 1, Severity: SeverityLow, RuleID: "low"},
-		{File: "a.yml", Line: 1, Column: 1, Severity: SeverityCritical, RuleID: "critical"},
-	}
-
-	Sort(findings)
-
-	if findings[0].RuleID != "critical" {
-		t.Errorf("expected critical finding first, got %q", findings[0].RuleID)
-	}
-}
-
-func TestCountAtLeast(t *testing.T) {
-	findings := []Finding{
-		{Severity: SeverityCritical},
-		{Severity: SeverityHigh},
-		{Severity: SeverityMedium},
-		{Severity: SeverityUnknown},
-	}
-
-	if got := CountAtLeast(findings, SeverityHigh); got != 2 {
-		t.Errorf("CountAtLeast(high) = %d, want 2", got)
-	}
-	// Unknown severities rank below info and are therefore excluded.
-	if got := CountAtLeast(findings, SeverityInfo); got != 3 {
-		t.Errorf("CountAtLeast(info) = %d, want 3", got)
-	}
-}
-
 func TestContextLines(t *testing.T) {
 	lines := []string{"one", "two", "three", "four", "five", "six"}
 

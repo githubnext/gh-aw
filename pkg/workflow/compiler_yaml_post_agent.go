@@ -62,7 +62,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 
 	// Collect grader manifest and results when graders are configured.
 	if data.Graders != nil && data.Graders.HasGraders() {
-		paths = append(paths, collectGraderArtifactPaths()...)
+		paths = append(paths, collectGraderArtifactPaths(data.Graders)...)
 	}
 
 	// Collect safe outputs and agent output paths for the unified artifact.

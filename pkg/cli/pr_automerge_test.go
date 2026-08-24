@@ -11,6 +11,7 @@ import (
 // TestWaitForWorkflowCompletionUsesSignalHandling verifies that WaitForWorkflowCompletion
 // uses the signal-aware polling helper, which provides Ctrl-C support
 func TestWaitForWorkflowCompletionUsesSignalHandling(t *testing.T) {
+	t.Parallel()
 	// This test verifies that the function uses PollWithSignalHandling
 	// by checking that it times out correctly (a key feature of the helper)
 
@@ -30,6 +31,7 @@ func TestWaitForWorkflowCompletionUsesSignalHandling(t *testing.T) {
 // propagates cancellation when the context is cancelled, so callers (e.g. the repeat loop)
 // can detect an intentional interruption and stop immediately.
 func TestWaitForWorkflowCompletion_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	// Cancel immediately so the poll loop exits on the first ctx.Done() check.
 	cancel()
