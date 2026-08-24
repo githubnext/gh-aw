@@ -20,18 +20,18 @@ var validReactionContents = map[string]bool{
 }
 
 // validDisapprovalIntegrityLevels is the set of valid integrity levels for disapproval-integrity.
-var validDisapprovalIntegrityLevels = map[string]bool{
-	"none":       true,
-	"unapproved": true,
-	"approved":   true,
-	"merged":     true,
+var validDisapprovalIntegrityLevels = map[GitHubIntegrityLevel]bool{
+	GitHubIntegrityNone:       true,
+	GitHubIntegrityUnapproved: true,
+	GitHubIntegrityApproved:   true,
+	GitHubIntegrityMerged:     true,
 }
 
 // validEndorserMinIntegrityLevels is the set of valid integrity levels for endorser-min-integrity.
-var validEndorserMinIntegrityLevels = map[string]bool{
-	"unapproved": true,
-	"approved":   true,
-	"merged":     true,
+var validEndorserMinIntegrityLevels = map[GitHubIntegrityLevel]bool{
+	GitHubIntegrityUnapproved: true,
+	GitHubIntegrityApproved:   true,
+	GitHubIntegrityMerged:     true,
 }
 
 // validateIntegrityReactions validates the integrity-reactions feature configuration.

@@ -364,12 +364,12 @@ type GitHubToolConfig struct {
 	// DisapprovalIntegrity is the integrity level assigned when a disapproval reaction is present.
 	// Optional, defaults to "none". Requires integrity-reactions feature flag and MCPG >= v0.2.18.
 	// Valid values: "none", "unapproved", "approved", "merged"
-	DisapprovalIntegrity string `yaml:"disapproval-integrity,omitempty"`
+	DisapprovalIntegrity GitHubIntegrityLevel `yaml:"disapproval-integrity,omitempty"`
 	// EndorserMinIntegrity is the minimum integrity level required for an endorser (reactor) to
 	// promote content. Optional, defaults to "approved". Requires integrity-reactions feature flag
 	// and MCPG >= v0.2.18.
 	// Valid values: "approved", "unapproved", "merged"
-	EndorserMinIntegrity string `yaml:"endorser-min-integrity,omitempty"`
+	EndorserMinIntegrity GitHubIntegrityLevel `yaml:"endorser-min-integrity,omitempty"`
 	// PrivateToPublicFlows opts out of cross-visibility protections for private→public data flows.
 	// Accepts either the string "allow" (blanket opt-out) or a []string of MCP server IDs
 	// (selective exemption for those servers only).
