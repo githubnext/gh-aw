@@ -938,7 +938,7 @@ jobs:
           CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.4.10'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
-      - name: Write DeepSeek Harness harness script
+      - name: Write DeepSeek Harness script
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
           cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > "${RUNNER_TEMP}/gh-aw/actions/deepseek-harness_harness.cjs"
@@ -1768,7 +1768,7 @@ jobs:
         run: npm install -g @deepseek-ai/dsh@0.1.0-rc.6
       - name: Verify DeepSeek Harness installation
         run: dsh --version
-      - name: Write DeepSeek Harness harness script
+      - name: Write DeepSeek Harness script
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
         run: |

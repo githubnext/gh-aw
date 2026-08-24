@@ -514,9 +514,9 @@ jobs:
           name: activation
           path: /tmp/gh-aw
       # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
+      - name: Create cache-memory directory (default)
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
-      - name: Restore cache-memory file share data
+      - name: Restore cache-memory file share data (default)
         id: restore_cache_memory_0
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -524,7 +524,7 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
-      - name: Setup cache-memory git repository
+      - name: Setup cache-memory git repository (default)
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
@@ -609,28 +609,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Copy gh-aw binary for MCP Server
         run: |
-          gh aw --version
-          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP Server containerization
-          mkdir -p "${RUNNER_TEMP}/gh-aw"
-          GH_AW_BIN=""
-          GH_AW_BIN=$(command -v gh-aw 2>/dev/null) || true
-          if [ -z "$GH_AW_BIN" ]; then
-            GH_AW_BIN=$(find "${HOME}/.local/share/gh/extensions/gh-aw" -name 'gh-aw' -type f 2>/dev/null | head -1) || true
-          fi
-          if [ -z "$GH_AW_BIN" ] && [ -n "${GH_CONFIG_DIR:-}" ]; then
-            GH_AW_BIN=$(find "${GH_CONFIG_DIR}/extensions/gh-aw" -name 'gh-aw' -type f 2>/dev/null | head -1) || true
-          fi
-          if [ -z "$GH_AW_BIN" ] && [ -f "${GITHUB_WORKSPACE}/gh-aw" ]; then
-            GH_AW_BIN="${GITHUB_WORKSPACE}/gh-aw"
-          fi
-          if [ -n "$GH_AW_BIN" ] && [ -f "$GH_AW_BIN" ]; then
-            cp "$GH_AW_BIN" "${RUNNER_TEMP}/gh-aw/gh-aw"
-            chmod +x "${RUNNER_TEMP}/gh-aw/gh-aw"
-            echo "Copied gh-aw binary to ${RUNNER_TEMP}/gh-aw/gh-aw"
-          else
-            echo "::error::Failed to find gh-aw binary for MCP Server"
-            exit 1
-          fi
+          bash "${RUNNER_TEMP}/gh-aw/actions/copy_gh_aw_binary_for_mcp.sh"
       - name: Prepare Safe Outputs Directories
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
@@ -1159,18 +1138,18 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
-      - name: Commit cache-memory changes
+      - name: Commit cache-memory changes (default)
         if: always()
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh"
-      - name: Check cache-memory git integrity
+      - name: Check cache-memory git integrity (default)
         if: always()
         continue-on-error: true
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/check_cache_memory_git_integrity.sh"
-      - name: Upload cache-memory data as artifact
+      - name: Upload cache-memory data as artifact (default)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

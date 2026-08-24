@@ -364,11 +364,25 @@ func (e *BehaviorDefinedEngine) buildHarnessWriteStep() GitHubActionStep {
 		return nil
 	}
 	return e.buildScriptWriteStep(
-		"Write "+e.GetDisplayName()+" harness script",
+		harnessScriptStepName(e.GetDisplayName()),
 		e.harnessScriptFilename(),
 		behavior.HarnessScript,
 		harnessScriptHeredocDelimiter,
 	)
+}
+
+// harnessScriptStepName builds the step name for writing an engine's harness script.
+// When the engine's display name already ends with the standalone word "Harness"
+// (e.g. "DeepSeek Harness"), appending "harness script" would read as the redundant
+// "Harness ... harness script", so only "script" is appended in that case. Display
+// names where "Harness" is part of a single word (e.g. "TestHarness") are unaffected,
+// since there's no word-level repetition to avoid.
+func harnessScriptStepName(displayName string) string {
+	lower := strings.ToLower(displayName)
+	if lower == "harness" || strings.HasSuffix(lower, " harness") {
+		return "Write " + displayName + " script"
+	}
+	return "Write " + displayName + " harness script"
 }
 
 // GetMCPConfigAdapterWriteStep generates a GitHub Actions step that writes the
