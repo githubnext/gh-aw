@@ -112,6 +112,7 @@ steps:
     run: make deps-dev
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 2d
     title-prefix: "[avenger] "
     labels: [automated, ci-fix]

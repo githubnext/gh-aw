@@ -71,12 +71,14 @@ async function main() {
   let pullRequest;
   let checkRun;
   const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX || "";
+  const steeringNote = "Steering is enabled: the agent may read your pull request comments and pull request review comments while the run is in progress.";
   // Keep "[WIP]" outside sanitization so the in-progress marker is always preserved.
   const coreTitle = sanitizeTitle(applyTitlePrefix(`${workflowName}: work in progress`, titlePrefix), "", MAX_PRE_CREATED_TITLE_BODY_LENGTH);
   const title = `${WIP_TITLE_MARKER}${coreTitle}`;
   const body = renderTemplateFromFile(getPromptPath("pre_created_pull_request_body.md"), {
     run_url: runUrl,
     workflow_name: workflowName,
+    steering_note: steeringNote,
   }).trimEnd();
   try {
     ({ data: pullRequest } = await github.rest.pulls.create({

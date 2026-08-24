@@ -124,13 +124,14 @@ describe("pre_create_pull_request", () => {
     expect(title).not.toContain("Content truncated");
   });
 
-  it("explains that the pull request is in progress and that steering is unsupported", async () => {
+  it("explains that the pull request is in progress and that steering is enabled", async () => {
     const { main } = await import("./pre_create_pull_request.cjs");
     await main();
 
     const body = global.github.rest.pulls.create.mock.calls[0][0].body;
     expect(body).toContain("work in progress");
-    expect(body).toContain("Steering is not supported yet");
+    expect(body).toContain("Steering is enabled");
+    expect(body).toContain("pull request comments and pull request review comments");
     expect(body).toContain("Test workflow");
   });
 

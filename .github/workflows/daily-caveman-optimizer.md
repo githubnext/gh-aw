@@ -44,6 +44,7 @@ network:
 
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 3d
     title-prefix: "[caveman] "
     labels: [documentation, automation, prompt-quality]

@@ -23,7 +23,7 @@ tools:
     - "*"
 safe-outputs:
   create-pull-request:
-    pre-create: true
+    steer: true
     title-prefix: "[docs-diagram] "
     labels: [documentation, automation]
     draft: true

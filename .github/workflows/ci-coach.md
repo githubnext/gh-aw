@@ -25,6 +25,7 @@ tools:
   edit:
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 2d
     title-prefix: "[ci-coach] "
     protected-files: fallback-to-issue

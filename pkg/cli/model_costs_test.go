@@ -12,12 +12,14 @@ import (
 )
 
 func TestFindModelPricing(t *testing.T) {
+	t.Parallel()
 	pricing, ok := findModelPricing("anthropic", "claude-sonnet-4.6")
 	require.True(t, ok)
 	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
 }
 
 func TestFindKimiK3Pricing(t *testing.T) {
+	t.Parallel()
 	pricing, ok := findModelPricing("github-copilot", "kimi-k3")
 	require.True(t, ok)
 	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
@@ -26,6 +28,7 @@ func TestFindKimiK3Pricing(t *testing.T) {
 }
 
 func TestFindMaiCode11FlashPricing(t *testing.T) {
+	t.Parallel()
 	pricing, ok := findModelPricing("github-copilot", "mai-code-1.1-flash")
 	require.True(t, ok)
 	assert.InDelta(t, 0.0000002, pricing["input"], 1e-12)
@@ -35,6 +38,7 @@ func TestFindMaiCode11FlashPricing(t *testing.T) {
 }
 
 func TestFindGrok45CacheReadPricing(t *testing.T) {
+	t.Parallel()
 	pricing, ok := findModelPricing("github-copilot", "grok-4.5")
 	require.True(t, ok)
 	assert.InDelta(t, 0.000002, pricing["input"], 1e-12)
@@ -43,6 +47,7 @@ func TestFindGrok45CacheReadPricing(t *testing.T) {
 }
 
 func TestFindGrok46Pricing(t *testing.T) {
+	t.Parallel()
 	pricing, ok := findModelPricing("github-copilot", "grok-4.6")
 	require.True(t, ok)
 	assert.InDelta(t, 0.000002, pricing["input"], 1e-12)
@@ -51,6 +56,7 @@ func TestFindGrok46Pricing(t *testing.T) {
 }
 
 func TestFindGemini37FlashPricing(t *testing.T) {
+	t.Parallel()
 	pricing, ok := findModelPricing("github-copilot", "gemini-3.7-flash")
 	require.True(t, ok)
 	assert.InDelta(t, 0.00000075, pricing["input"], 1e-12)
@@ -59,11 +65,13 @@ func TestFindGemini37FlashPricing(t *testing.T) {
 }
 
 func TestComputeModelInferenceAIC(t *testing.T) {
+	t.Parallel()
 	aic := computeModelInferenceAIC("anthropic", "claude-sonnet-4.6", 1000, 200, 400, 50, 25)
 	assert.InDelta(t, 0.54825, aic, 1e-9)
 }
 
 func TestNormalizeProvider(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -82,6 +90,7 @@ func TestNormalizeProvider(t *testing.T) {
 			name = "<empty>"
 		}
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			got := modelsdev.NormalizeProvider(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
@@ -89,6 +98,7 @@ func TestNormalizeProvider(t *testing.T) {
 }
 
 func TestComputeModelInferenceAICGitHubModels(t *testing.T) {
+	t.Parallel()
 	// provider="github_models" is written by the AWF proxy for Copilot engine runs;
 	// it must normalize to "github-copilot" so pricing is found and AIC is non-zero.
 	aicViaGitHubModels := computeModelInferenceAIC("github_models", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)
@@ -98,6 +108,7 @@ func TestComputeModelInferenceAICGitHubModels(t *testing.T) {
 }
 
 func TestComputeModelInferenceAICCopilotAlias(t *testing.T) {
+	t.Parallel()
 	// provider="copilot" is another accepted alias for "github-copilot".
 	aicViaCopilot := computeModelInferenceAIC("copilot", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)
 	aicViaGitHubCopilot := computeModelInferenceAIC("github-copilot", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)
@@ -106,6 +117,7 @@ func TestComputeModelInferenceAICCopilotAlias(t *testing.T) {
 }
 
 func TestComputeModelInferenceAICGitHubCopilotCacheReadDeduction(t *testing.T) {
+	t.Parallel()
 	// github-copilot (and its aliases) proxies OpenAI and Anthropic models, which bundle
 	// cache-read tokens inside the reported input total (§3.5).  Cache reads MUST be
 	// subtracted from input_tokens before applying the input price so that they are not
@@ -124,6 +136,7 @@ func TestComputeModelInferenceAICGitHubCopilotCacheReadDeduction(t *testing.T) {
 
 	for _, provider := range []string{"github-copilot", "github_models", "github", "copilot"} {
 		t.Run(provider, func(t *testing.T) {
+			t.Parallel()
 			aic := computeModelInferenceAIC(provider, "claude-sonnet-4.6", 1000, 200, 400, 0, 0)
 			assert.InDelta(t, wantAIC, aic, 1e-9,
 				"provider=%q: cache reads must not be double-charged (§3.5)", provider)
@@ -132,6 +145,7 @@ func TestComputeModelInferenceAICGitHubCopilotCacheReadDeduction(t *testing.T) {
 }
 
 func TestComputeModelInferenceAICGitHubCopilotNoCacheRead(t *testing.T) {
+	t.Parallel()
 	// With no cache reads, github-copilot pricing should match anthropic exactly:
 	// net input remains inputTokens, so no subtraction is applied.
 	aicViaGitHubCopilot := computeModelInferenceAIC("github-copilot", "claude-sonnet-4.6", 1000, 200, 0, 0, 0)

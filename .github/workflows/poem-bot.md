@@ -96,6 +96,7 @@ safe-outputs:
 
   # Pull request creation
   create-pull-request:
+    steer: true
     expires: 2d
     title-prefix: "[🎨 POETRY] "
     labels: [poetry, automation, creative-writing]
