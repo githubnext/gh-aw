@@ -29,6 +29,7 @@ safe-outputs:
     - automation
     title-prefix: "[doc-healer] "
   create-pull-request:
+    steer: true
     expires: 3d
     labels:
     - documentation

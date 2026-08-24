@@ -142,6 +142,7 @@ steps:
       path: /tmp/gh-aw/purelock
 safe-outputs:
   create-pull-request:
+    steer: true
     title-prefix: "[purelock] "
     labels: [automation, testing, coverage]
     draft: true

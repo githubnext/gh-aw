@@ -31,6 +31,7 @@ tools:
     - "python3 *"
 safe-outputs:
   create-pull-request:
+    steer: true
     title-prefix: "[evoskill] "
     labels: [automation, prompt-quality]
     expires: 7d

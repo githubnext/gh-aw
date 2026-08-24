@@ -145,6 +145,7 @@ tools:
 
 safe-outputs:
   create-pull-request:
+    steer: true
     expires: 3d
     title-prefix: "[spec-extractor] "
     labels: [pkg-specifications, documentation, automation]

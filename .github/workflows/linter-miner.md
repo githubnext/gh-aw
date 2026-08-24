@@ -63,6 +63,7 @@ pre-agent-steps:
       fi
 safe-outputs:
   create-pull-request:
+    steer: true
     title-prefix: "[linter-miner] "
     labels: [automation, go-linters, cookie]
     reviewers: [copilot]
