@@ -301,7 +301,11 @@ steps:
       if [ "$TOTAL_SESSION_COUNT" -gt 0 ] && [ "$TELEMETRY_LOG_COUNT" -eq 0 ]; then
         ACTION_REQUIRED_COUNT=$(jq '[.[] | select(.conclusion == "action_required")] | length' /tmp/gh-aw/agent/session-data/sessions-list.json 2>/dev/null || echo 0)
         COMPLETED_AGENT_COUNT=$(jq '[.[] | select(.status == "completed" and .conclusion != "action_required")] | length' /tmp/gh-aw/agent/session-data/sessions-list.json 2>/dev/null || echo 0)
-        echo "::warning::Copilot session data fetch produced $TOTAL_SESSION_COUNT session records but no telemetry logs in /tmp/gh-aw/agent/session-data/logs. Phase 2 analysis will be incomplete. Candidate causes: all selected runs are action_required gate runs (action_required=$ACTION_REQUIRED_COUNT), no events.jsonl artifacts are available, or the token cannot download Copilot job logs for $COMPLETED_AGENT_COUNT completed agent runs; configure GH_AW_GITHUB_TOKEN with actions:read if job-log authorization errors appeared above."
+        if [ "$COMPLETED_AGENT_COUNT" -eq 0 ]; then
+          echo "::warning::Copilot session data fetch produced $TOTAL_SESSION_COUNT session records but no completed agent runs to fetch telemetry for (action_required=$ACTION_REQUIRED_COUNT). Phase 2 analysis will be incomplete; check the workflow run filter if completed Copilot sessions were expected."
+        else
+          echo "::warning::Copilot session data fetch produced $TOTAL_SESSION_COUNT session records but no telemetry logs in /tmp/gh-aw/agent/session-data/logs for $COMPLETED_AGENT_COUNT completed agent runs. Phase 2 analysis will be incomplete. Candidate causes: no events.jsonl artifacts are available, or the token cannot download Copilot job logs; configure GH_AW_GITHUB_TOKEN with actions:read if job-log authorization errors appeared above."
+        fi
       fi
 
       # Set outputs for downstream use
@@ -336,7 +340,7 @@ The fetcher first downloads non-expired GitHub Actions artifacts for each comple
 
 If a real agent run has neither an `events.jsonl` artifact nor a transcript fallback, the fetch step emits a GitHub Actions warning and continues with the available logs. Every per-run failure (job listing error, log download error, empty log, or a downloaded log with no matching `[cca-engine]` lines) is logged individually with its specific reason, and a summary warning breaks down the failure counts by category (API errors, no jobs found, empty logs, no matching lines) so the actual cause is visible instead of a silently empty `logs/` directory. API errors are counted by non-zero `gh api` exit code and can stem from permission errors, rate limiting, or deleted runs — check the per-run log lines for the specific reason rather than assuming a permissions issue.
 
-After either a cache restore or a fresh fetch, the component emits an aggregate GitHub Actions warning whenever it found session records but `/tmp/gh-aw/agent/session-data/logs/` contains no `*-events.jsonl` or `*-conversation.txt` files. This makes Phase 2 telemetry gaps visible even when no individual fetch error occurred, such as when the selected workflow runs are all `action_required` CI gate runs.
+After either a cache restore or a fresh fetch, the component emits an aggregate GitHub Actions warning whenever it found session records but `/tmp/gh-aw/agent/session-data/logs/` contains no `*-events.jsonl` or `*-conversation.txt` files. The warning distinguishes "no completed agent runs selected" from "completed agent runs selected but no telemetry was retrievable" so Phase 2 telemetry gaps are visible without implying the wrong root cause.
 
 **Known root cause of empty transcripts**: downloading job logs for GitHub Copilot coding-agent runs (the special `dynamic/copilot-swe-agent/copilot` workflow path) via `gh api repos/{owner}/{repo}/actions/jobs/{job_id}/logs` can fail with an authorization error when using the default `GITHUB_TOKEN`, even with `actions: read` permission — mirroring the same OAuth requirement documented below for `gh agent-task view --log`. The fetch step now authenticates with `secrets.GH_AW_GITHUB_TOKEN` (falling back to `secrets.GITHUB_TOKEN` if unset) so that, once a PAT with `actions:read` is configured as `GH_AW_GITHUB_TOKEN`, job-log downloads for these runs succeed.
 
