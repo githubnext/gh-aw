@@ -184,6 +184,7 @@ func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
 	}
 	console.ShowWelcomeBanner(c.welcomeMessage())
 	c.showWorkflowDescriptions()
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(c.sourceWorkflowMessage()))
 	if err := c.checkGHAuthStatus(); err != nil {
 		return err
 	}
@@ -207,6 +208,10 @@ func (c *AddInteractiveConfig) welcomeMessage() string {
 		return fmt.Sprintf("This tool will walk you through adding the automated workflow %q from %q.", workflowNames[0], source)
 	}
 	return fmt.Sprintf("This tool will walk you through adding %d automated workflows from %q.", len(workflowNames), source)
+}
+
+func (c *AddInteractiveConfig) sourceWorkflowMessage() string {
+	return "Source workflow: " + strings.Join(c.WorkflowSpecs, ", ")
 }
 
 func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, createPR bool, err error) {
@@ -407,6 +412,11 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return false, fmt.Errorf("confirmation failed: %w", err)
+	}
+	if createPR {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected delivery: create a pull request"))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected delivery: write files locally"))
 	}
 
 	return createPR, nil

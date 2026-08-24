@@ -236,6 +236,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		// "custom" or same frequency means keep as-is
 		if selected == "custom" || selected == currentFreq {
 			scheduleWizardLog.Printf("Schedule unchanged: keeping %q", rawExpr)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected schedule: "+rawExpr))
 			continue
 		}
 
@@ -272,7 +273,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		if wf.SourceInfo != nil {
 			wf.SourceInfo.Content = []byte(updatedContent)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Schedule updated to: "+selected))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected schedule: "+selected))
 	}
 
 	return nil

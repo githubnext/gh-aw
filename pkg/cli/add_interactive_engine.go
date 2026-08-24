@@ -52,7 +52,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 			Description("This determines which coding agent processes your workflows").
 			Options(engineOptions...).
 			Value(&selectedEngine),
-	)
+	).WithLeadingBlankLine()
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select coding agent: %w", err)
@@ -321,6 +321,7 @@ func (c *AddInteractiveConfig) applyCopilotAuthMethodChoice(authMethod string) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No COPILOT_GITHUB_TOKEN secret is required — Copilot usage is billed to your org's Copilot seat."))
 	} else {
 		c.UseCopilotRequests = false
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected authentication: COPILOT_GITHUB_TOKEN"))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("A fine-grained PAT with Copilot Requests permission will be required."))
 	}
 }

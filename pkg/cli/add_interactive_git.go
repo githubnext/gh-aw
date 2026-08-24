@@ -55,6 +55,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		NoStopAfter:                  c.NoStopAfter,
 		StopAfter:                    c.StopAfter,
 		DisableSecurityScanner:       c.DisableSecurityScanner,
+		RepoSlug:                     c.RepoOverride,
 		AddCopilotRequestsPermission: c.UseCopilotRequests,
 		GhAwRef:                      c.GhAwRef,
 		initializedFiles:             initFiles,

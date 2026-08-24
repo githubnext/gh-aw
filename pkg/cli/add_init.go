@@ -72,8 +72,12 @@ func confirmAndInitializeAddRepository(ctx context.Context, engineOverride strin
 
 	confirmed, err := addConfirmAuthoringSupport(ctx)
 	if err != nil || !confirmed {
+		if err == nil {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent authoring support: skipped"))
+		}
 		return nil, err
 	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Coding agent authoring support: enabled"))
 	return ensureAddRepositoryInitializedWithDetails(engineOverride, verbose, noGitattributes)
 }
 

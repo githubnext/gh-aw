@@ -78,6 +78,9 @@ type AddOptions struct {
 	NoStopAfter            bool
 	StopAfter              string
 	DisableSecurityScanner bool
+	// RepoSlug is the already-resolved target repository in owner/repo format.
+	// When set, PR creation avoids fetching the same repository metadata again.
+	RepoSlug string
 	// GhAwRef is the resolved github/gh-aw commit SHA used by compiled action references.
 	GhAwRef string
 	// AddCopilotRequestsPermission injects permissions.copilot-requests: write into

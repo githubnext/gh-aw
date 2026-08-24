@@ -57,9 +57,11 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	}
 
 	if !runNow {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected workflow run: later"))
 		c.showFinalInstructions()
 		return nil
 	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected workflow run: now"))
 
 	if err := c.runAddedWorkflowOnce(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to run workflow: %v", err)))

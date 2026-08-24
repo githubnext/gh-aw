@@ -3,6 +3,7 @@
 package console
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"testing"
@@ -22,6 +23,26 @@ func TestPromptWrappersReturnNonNilForms(t *testing.T) {
 
 	var confirmValue bool
 	require.NotNil(t, NewConfirmForm(huh.NewConfirm().Value(&confirmValue)))
+}
+
+func TestPromptFormClearsCompletedQuestion(t *testing.T) {
+	var output bytes.Buffer
+	form := (&PromptForm{out: &output, clearOnRun: true}).WithLeadingBlankLine()
+
+	err := form.run(func() error { return nil })
+
+	require.NoError(t, err)
+	require.Equal(t, ansiSaveCursor+"\n"+ansiRestoreCursor+ansiClearScreenBelow, output.String())
+}
+
+func TestPromptFormDoesNotClearAccessibleOrNonTTYQuestion(t *testing.T) {
+	var output bytes.Buffer
+	form := (&PromptForm{out: &output, clearOnRun: false}).WithLeadingBlankLine()
+
+	err := form.run(func() error { return nil })
+
+	require.NoError(t, err)
+	require.Equal(t, "\n", output.String())
 }
 
 func TestIsCancelled(t *testing.T) {

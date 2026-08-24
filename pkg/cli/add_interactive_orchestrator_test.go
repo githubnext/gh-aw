@@ -144,6 +144,7 @@ func TestAddInteractiveConfig_welcomeMessage(t *testing.T) {
 	}
 
 	assert.Equal(t, `This tool will walk you through adding the automated workflow "repo-assist" from "githubnext/agentics/repo-assist".`, config.welcomeMessage())
+	assert.Equal(t, "Source workflow: githubnext/agentics/repo-assist", config.sourceWorkflowMessage())
 }
 
 func TestAddInteractiveConfig_showWorkflowDescriptions(t *testing.T) {

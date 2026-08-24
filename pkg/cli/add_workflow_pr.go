@@ -164,7 +164,7 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	// Create PR
 	addWorkflowPRLog.Printf("Creating pull request: %s", prTitle)
-	prNumber, prURL, err := createPR(ctx, branchName, prTitle, prBody, opts.Verbose)
+	prNumber, prURL, err := createPRForRepo(ctx, branchName, prTitle, prBody, opts.RepoSlug, opts.Verbose)
 	if err != nil {
 		addWorkflowPRLog.Printf("Failed to create PR: %v", err)
 		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
