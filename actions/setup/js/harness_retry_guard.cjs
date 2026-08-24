@@ -10,6 +10,15 @@ const SOFT_TIMEOUT_BUFFER_MS = 90 * 1000;
 
 const AI_CREDITS_EXCEEDED_PATTERNS = [/\bmax[\s_-]*ai[\s_-]*credits[\s_-]*exceeded\b/i, /\bai[\s_-]*credits[\s_-]*rate[\s_-]*limit[\s_-]*error\b/i, /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i];
 
+// Canonical rejection emitted by the AWF API proxy once the configured `apiProxy.maxAiCredits`
+// budget is exhausted: an HTTP 403 whose message carries the proxy-computed used/max pair, e.g.
+//   "API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."
+// Only the proxy can answer a provider request with this status/message pair, so it is treated as
+// trusted evidence of budget enforcement. This matters because the firewall audit JSONL — the other
+// trusted source — is only flushed during container teardown, which happens after the harness has
+// already classified the failed attempt.
+const AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE = /\b403\b[^\n]{0,80}?maximum ai credits exceeded\s*\(\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*\)/i;
+
 const AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS = [/\bawf\b.*\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocked requests?\b/i, /\bDIFC_FILTERED\b/];
 const GOAL_ALREADY_ACTIVE_PATTERNS = [/\bthis thread already has a goal\b[\s\S]*?\buse update_goal\b/i, /\bcannot create a new goal because this thread has an unfinished goal\b;\s*\bcomplete the existing goal first\b/i];
 
@@ -45,6 +54,24 @@ function isMaxRunsExceededError(output) {
 function isAuthenticationFailedError(output) {
   const safeOutput = typeof output === "string" ? output : "";
   return AUTHENTICATION_FAILED_PATTERNS.some(pattern => pattern.test(safeOutput));
+}
+
+/**
+ * Extracts the AWF API proxy AI-credits budget rejection (HTTP 403) from harness output.
+ * Returns null when the output does not carry the proxy signature, or when the reported
+ * usage does not actually reach the reported budget.
+ * @param {unknown} output
+ * @returns {{ aiCredits: number, maxAICredits: number } | null}
+ */
+function parseAICreditsExceededProxyRejection(output) {
+  const safeOutput = typeof output === "string" ? output : "";
+  const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(safeOutput);
+  if (!match) return null;
+  const aiCredits = Number.parseFloat(match[1]);
+  const maxAICredits = Number.parseFloat(match[2]);
+  if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0) return null;
+  if (aiCredits < maxAICredits) return null;
+  return { aiCredits, maxAICredits };
 }
 
 /**
@@ -95,12 +122,14 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     detectNonRetryableHarnessGuard,
     AI_CREDITS_EXCEEDED_PATTERNS,
+    AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE,
     AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS,
     GOAL_ALREADY_ACTIVE_PATTERNS,
     MAX_RUNS_EXCEEDED_PATTERNS,
     AUTHENTICATION_FAILED_PATTERNS,
     isMaxRunsExceededError,
     isAuthenticationFailedError,
+    parseAICreditsExceededProxyRejection,
     SOFT_TIMEOUT_BUFFER_MS,
     buildSoftTimeoutGuard,
     emitSoftTimeoutSignal,

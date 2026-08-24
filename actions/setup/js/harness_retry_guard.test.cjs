@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, isMaxRunsExceededError, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
+const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, isMaxRunsExceededError, isAuthenticationFailedError, parseAICreditsExceededProxyRejection } = require("./harness_retry_guard.cjs");
 
 describe("harness_retry_guard.cjs", () => {
   it("detects AI credits exceeded markers", () => {
@@ -23,6 +23,23 @@ describe("harness_retry_guard.cjs", () => {
     const result = detectNonRetryableHarnessGuard("error: ai credits budget exceeded");
     expect(result.aiCreditsExceeded).toBe(true);
     expect(result.awfAPIProxyBlockingRequests).toBe(false);
+  });
+
+  it("parses the AWF API proxy HTTP 403 AI credits rejection surfaced as an auth failure", () => {
+    const output = '{"text":"Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."} {"error":"authentication_failed"}';
+    expect(detectNonRetryableHarnessGuard(output).aiCreditsExceeded).toBe(true);
+    expect(isAuthenticationFailedError(output)).toBe(true);
+    expect(parseAICreditsExceededProxyRejection(output)).toEqual({ aiCredits: 302.111025, maxAICredits: 300 });
+  });
+
+  it("ignores AI credits markers that lack the proxy 403 usage pair", () => {
+    expect(parseAICreditsExceededProxyRejection("error: max_ai_credits_exceeded=true")).toBeNull();
+    expect(parseAICreditsExceededProxyRejection("API Error: 403 Maximum AI credits exceeded")).toBeNull();
+    expect(parseAICreditsExceededProxyRejection(undefined)).toBeNull();
+  });
+
+  it("ignores a proxy 403 usage pair that has not reached the budget", () => {
+    expect(parseAICreditsExceededProxyRejection("API Error: 403 Maximum AI credits exceeded (12 / 300)")).toBeNull();
   });
 
   it("detects AWF API proxy blocking request markers", () => {
