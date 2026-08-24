@@ -7,11 +7,7 @@ type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
 
 /**
  * `child_process` methods that run a command to completion and return/capture its output —
- * the exact use case covered by `@actions/exec`'s `exec()` / `getExecOutput()`. These files run
- * as `actions/github-script` steps (loaded via `require()` and executed with `core`, `github`,
- * `context`, `exec`, `io`, and `getOctokit` already in scope — see
- * `generateGitHubScriptWithRequire` in `pkg/workflow/compiler_github_actions_steps.go`), so the
- * `@actions/exec` toolkit module is always available without an extra dependency.
+ * the exact use case covered by `@actions/exec`'s `exec()` / `getExecOutput()`.
  *
  * `spawn` / `spawnSync` are intentionally excluded: they cover long-running, detached, or
  * interactively-streamed child processes (background servers, sidecars, and similar) for which
@@ -20,10 +16,56 @@ type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
  */
 const OUTPUT_CAPTURING_METHODS = new Set(["exec", "execSync", "execFile", "execFileSync"]);
 
+/**
+ * Asynchronous `child_process` methods that return a `ChildProcess` handle. When the handle is
+ * retained (assigned, returned, or member-accessed) the caller can stream stdin/stdout or manage
+ * the process lifecycle — capabilities `@actions/exec` does not expose — so those calls are not
+ * flagged. Only calls whose result is discarded (pure callback style) are reported.
+ */
+const HANDLE_RETURNING_METHODS = new Set(["exec", "execFile"]);
+
+/**
+ * Marker that identifies modules executed as `actions/github-script` steps (loaded via `require()`
+ * and executed with `core`, `github`, `context`, `exec`, `io`, and `getOctokit` already in scope —
+ * see `generateGitHubScriptWithRequire` in `pkg/workflow/compiler_github_actions_steps.go`). Only
+ * those modules are guaranteed to have the `@actions/exec` toolkit available as the `exec` global;
+ * standalone Node entry points (such as the mcp-scripts MCP server and the modules it loads) do
+ * not, so this rule stays silent in files without the marker.
+ */
+const GITHUB_SCRIPT_REFERENCE_PATTERN = /<reference\s+types=["']@actions\/github-script["']\s*\/>/;
+
+function isGitHubScriptModule(sourceCode: TSESLint.SourceCode): boolean {
+  return sourceCode.getAllComments().some(comment => GITHUB_SCRIPT_REFERENCE_PATTERN.test(comment.value));
+}
+
+/** True when the result of `node` is used for anything beyond being discarded as a statement. */
+function retainsCallResult(node: TSESTree.CallExpression): boolean {
+  return node.parent != null && node.parent.type !== AST_NODE_TYPES.ExpressionStatement;
+}
+
 function getImportSpecifierName(node: TSESTree.ImportSpecifier): string | null {
   if (node.imported.type === AST_NODE_TYPES.Identifier) return node.imported.name;
   if (node.imported.type === AST_NODE_TYPES.Literal && typeof node.imported.value === "string") return node.imported.value;
   return null;
+}
+
+/**
+ * True when `identifierName` refers to the whole `child_process` module: a `require("child_process")`
+ * binding, an ESM namespace import (`import * as cp from "child_process"`), or an ESM default import
+ * (`import childProcess from "child_process"`).
+ */
+function isChildProcessModuleBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
+  if (isChildProcessObjectBinding(identifierName, scopeNode, sourceCode)) return true;
+
+  let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
+  while (scope) {
+    const variable = scope.set.get(identifierName);
+    if (variable && variable.defs.length > 0) {
+      return variable.defs.some(def => isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportDefaultSpecifier);
+    }
+    scope = scope.upper;
+  }
+  return false;
 }
 
 /**
@@ -60,7 +102,7 @@ function resolveChildProcessOutputMethodBinding(identifierName: string, scopeNod
           const init = declarator.init;
           if (!init.computed && init.property.type === AST_NODE_TYPES.Identifier && OUTPUT_CAPTURING_METHODS.has(init.property.name)) {
             const isDirectChildProcessRequire = init.object.type === AST_NODE_TYPES.CallExpression && isRequireChildProcess(init.object);
-            const isChildProcessNamespace = init.object.type === AST_NODE_TYPES.Identifier && isChildProcessObjectBinding(init.object.name, init.object, sourceCode);
+            const isChildProcessNamespace = init.object.type === AST_NODE_TYPES.Identifier && isChildProcessModuleBinding(init.object.name, init.object, sourceCode);
             if (isDirectChildProcessRequire || isChildProcessNamespace) return init.property.name;
           }
         }
@@ -94,7 +136,7 @@ function resolveChildProcessOutputMethod(node: TSESTree.CallExpression, sourceCo
   }
 
   // childProcess.execSync(...) / cp.execSync(...)
-  if (callee.object.type === AST_NODE_TYPES.Identifier && isChildProcessObjectBinding(callee.object.name, callee.object, sourceCode)) {
+  if (callee.object.type === AST_NODE_TYPES.Identifier && isChildProcessModuleBinding(callee.object.name, callee.object, sourceCode)) {
     return callee.property.name;
   }
 
@@ -108,9 +150,10 @@ export const preferActionsExecOverChildProcessRule = createRule({
     docs: {
       description:
         "Prefer @actions/exec's exec()/getExecOutput() over child_process's exec()/execSync()/execFile()/execFileSync() to spawn processes. " +
-        "actions/setup/js scripts run as actions/github-script steps with the @actions/exec toolkit already available as `exec` (and `execApi`/`execImpl` " +
-        "in some scripts), so blocking calls that run a command to completion and capture its output should go through it instead of child_process. " +
-        "spawn()/spawnSync() are not flagged: they're used for long-running, detached, or interactively-streamed processes that @actions/exec has no equivalent for.",
+        'Only applies to modules marked with the `/// <reference types="@actions/github-script" />` triple-slash reference, which run as ' +
+        "actions/github-script steps with the @actions/exec toolkit already available as `exec`; standalone Node entry points (and the modules they load) " +
+        "have no such global and are left alone. spawn()/spawnSync() are never flagged, and exec()/execFile() calls whose returned ChildProcess handle is " +
+        "retained (for stdin/stdout streaming or lifecycle management) are exempt, since @actions/exec has no equivalent for those.",
     },
     schema: [],
     messages: {
@@ -121,11 +164,13 @@ export const preferActionsExecOverChildProcessRule = createRule({
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
+    if (!isGitHubScriptModule(sourceCode)) return {};
 
     return {
       CallExpression(node) {
         const method = resolveChildProcessOutputMethod(node, sourceCode);
         if (!method) return;
+        if (HANDLE_RETURNING_METHODS.has(method) && retainsCallResult(node)) return;
 
         context.report({
           node,

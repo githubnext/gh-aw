@@ -1070,7 +1070,7 @@ return stdout.split("\n");
 
 Prefer `@actions/exec`'s `exec()` / `getExecOutput()` over `child_process`'s `exec()`, `execSync()`, `execFile()`, and `execFileSync()` to spawn processes.
 
-Why: `actions/setup/js` scripts run as `actions/github-script` steps, which already provide the `@actions/exec` toolkit (bound to `exec` and passed through by `setupGlobals`) without needing an extra dependency. `child_process.exec()` / `execSync()` / `execFile()` / `execFileSync()` all run a command to completion and return or capture its output — exactly what `@actions/exec`'s `exec()` and `getExecOutput()` already do, with consistent GitHub Actions logging, cross-platform argument handling, and (for `getExecOutput()`) throw-on-non-zero-exit behavior built in.
+Why: modules loaded by `actions/github-script` steps already provide the `@actions/exec` toolkit (bound to `exec` and passed through by `setupGlobals`) without needing an extra dependency. `child_process.exec()` / `execSync()` / `execFile()` / `execFileSync()` all run a command to completion and return or capture its output — exactly what `@actions/exec`'s `exec()` and `getExecOutput()` already do, with consistent GitHub Actions logging, cross-platform argument handling, and (for `getExecOutput()`) throw-on-non-zero-exit behavior built in.
 
 **Flagged form:**
 ```js
@@ -1084,6 +1084,9 @@ const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--abbrev-ref",
 const branch = stdout.trim();
 ```
 
+**Scope:** only files carrying the `/// <reference types="@actions/github-script" />` triple-slash reference are checked. That marker is how `actions/setup/js` identifies modules loaded by `actions/github-script` steps, which are the only ones guaranteed to have the `exec` global. The directory also contains standalone Node entry points (for example the mcp-scripts MCP server) and the modules they load; those processes never get `setupGlobals()`-injected toolkit globals — `shim.cjs` only backfills `core` and `context`, not `exec` — so they carry no marker and the rule stays silent there.
+
 **Out of scope:**
 - `child_process.spawn()` and `child_process.spawnSync()` — used for long-running, detached, or interactively-streamed processes (background servers, sidecars, and similar) for which `@actions/exec` has no equivalent, since `exec()` / `getExecOutput()` always wait for the command to finish before resolving
+- `exec()` / `execFile()` calls that retain the returned `ChildProcess` handle (assigned to a variable, returned, or member-accessed) — those callers can write to `child.stdin`, stream `child.stdout`, or manage the process lifecycle, which `@actions/exec` cannot express; only calls whose result is discarded (pure callback style) are flagged
 - Calls to `exec`/`execSync`/`execFile`/`execFileSync` from any module other than `child_process` (or `node:child_process`)
