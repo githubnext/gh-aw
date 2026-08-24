@@ -683,8 +683,9 @@ No outcome to evaluate. Skip.
 | `label_to_add` is present on the item AND `label_to_remove` is absent | `accepted` |
 | `label_to_add` is absent from the item | `rejected` |
 | `label_to_add` is present but `label_to_remove` is also still present | `rejected` (partial failure — remove did not apply) |
-| Item not found (`404`) | `rejected` |
-| API transient failure (`5xx`, timeout, transport error) | `pending` |
+| Item not found (`404`) | Outcome evaluation workers **MUST** classify as `rejected` |
+| API transient failure (`5xx`, timeout, transport error) | Outcome evaluation workers **MUST** classify as `pending` |
+| Rate-limit response (`403` exhaustion or `429`) | Outcome evaluation workers **MUST** classify as `pending` and **SHOULD** reschedule using the reset window |
 | `lifecycle` | N/A — `replace_label` has no lifecycle bot-close behavior |
 | `lifecycle_close` | N/A — `replace_label` has no lifecycle bot-close behavior |
 | `ignored` | N/A — label state is always evaluable when the item is accessible; no time-bounded engagement signal applies |
@@ -709,6 +710,8 @@ No outcome to evaluate. Skip.
 2. If the API returns `5xx`, timeout, or transport failure, outcome evaluation workers **MUST** classify as `pending`, record retry metadata, and retry without emitting a terminal outcome.
 3. If the API returns rate-limit responses (`403` exhaustion or `429`), outcome evaluation workers **MUST** classify as `pending` and reschedule evaluation using the reset window.
 4. While any transient API failure condition exists, outcome evaluation workers **MUST NOT** emit `accepted` or `rejected` for label replacement state.
+
+**Sync note:** Keep the API failure safeguards above aligned with [`replace-label-spec.md` Section 7](replace-label-spec.md#7-error-handling), which defines the shared `404`, `5xx`, and `429` REST failure semantics for `replace_label`.
 
 **References:** See [replace-label-spec.md](replace-label-spec.md) for the full definition of the `replace_label` safe-output type, including the message schema, processing model, and REST interface.
 

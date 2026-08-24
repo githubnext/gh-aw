@@ -68,6 +68,7 @@ module.exports = [
       "gh-aw-custom/require-http-response-error-listener": "error",
       "gh-aw-custom/no-string-fallback-for-non-string-message": "warn",
       "gh-aw-custom/require-getexecoutput-exitcode-check": "warn",
+      "gh-aw-custom/prefer-actions-exec-over-child-process": "warn",
     },
   },
   {

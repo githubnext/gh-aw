@@ -150,4 +150,43 @@ describe("operational_value_grader", () => {
       )
     ).toThrow("baseline value in [0,1]");
   });
+
+  it("supports configurable grade-run timeout with resilient timeout errors", () => {
+    const slowEvaluator = `#!/usr/bin/env bash
+set -euo pipefail
+case \${1:-} in
+--definition)
+cat <<'DEFINITION'
+${JSON.stringify({ schemaVersion: 4, grader: "operational-value", baseline: { mode: "baseline-comparable", value: 0.25 } })}
+DEFINITION
+;;
+--grade-run)
+cat >/dev/null
+sleep 1
+cat <<'RESULT'
+${JSON.stringify({
+  value: 0.75,
+  opportunityKey: "schedule:2026-08-23",
+  case: { key: "schedule:2026-08-23" },
+  evidenceCutoff: "2026-08-23T12:00:00Z",
+  maturesAt: "2026-08-30T12:00:00Z",
+  provenance: [{ repository: "github/gh-aw", kind: "git-commit", ref: "abc123" }],
+})}
+RESULT
+;;
+*) exit 1 ;;
+esac
+`;
+
+    expect(() =>
+      executeOperationalValueEvaluator(
+        slowEvaluator,
+        {},
+        {
+          evidenceAt: "2026-08-24T12:00:00Z",
+          env: { ...TEST_ENV, GH_AW_OPERATIONAL_VALUE_GRADE_RUN_TIMEOUT_MS: "50" },
+        }
+      )
+    ).toThrow("operational-value evaluator timed out after 50ms");
+  });
 });

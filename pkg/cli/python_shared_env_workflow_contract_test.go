@@ -25,11 +25,13 @@ var sharedPythonPackageInstalls = map[string]string{
 // create it first must provision the same uv-managed CPython. Otherwise a runner-CPython venv
 // created by one import is reused by the others and fails to load native wheels in the sandbox.
 func TestSharedPythonImportsUsePortableManagedPython(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	require.NoError(t, err)
 
 	for sharedWorkflow, packageInstall := range sharedPythonPackageInstalls {
 		t.Run(sharedWorkflow, func(t *testing.T) {
+			t.Parallel()
 			content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "shared", sharedWorkflow))
 			require.NoError(t, err)
 			workflowContent := string(content)
@@ -48,6 +50,7 @@ func TestSharedPythonImportsUsePortableManagedPython(t *testing.T) {
 // carry the same contract as the markdown sources: a hand-edited lock file that reverts to
 // runner CPython, or that recreates the shared environment, has to fail here.
 func TestCompiledConsumersOnlyCreatePortableSharedVenv(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	require.NoError(t, err)
 
@@ -76,6 +79,7 @@ func TestCompiledConsumersOnlyCreatePortableSharedVenv(t *testing.T) {
 		consumers++
 
 		t.Run(filepath.Base(lockFile), func(t *testing.T) {
+			t.Parallel()
 			require.NotContains(t, lockContent, "python3 -m venv /tmp/gh-aw/python/venv")
 			require.NotContains(t, lockContent, "rm -rf /tmp/gh-aw/python/venv")
 			require.GreaterOrEqual(t, strings.Count(lockContent, portableVenvCommand), 1)

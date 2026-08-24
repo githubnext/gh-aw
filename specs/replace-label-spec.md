@@ -457,6 +457,10 @@ In the Octokit client this is `githubClient.rest.issues.setLabels(params)`.
 
 **RL-046**: When the `setLabels` REST call fails (e.g., HTTP 422 for an invalid label name), the implementation MUST log a `core.error()` entry and MUST return `{ success: false, error: <message> }`. For HTTP-level failures the call is all-or-nothing — either all label changes are applied or none are. For HTTP 200 responses, see §7.4 for partial-success response handling.
 
+**RL-046a**: If `setLabels` returns HTTP 404, the implementation MUST treat the request as rejected because the authoritative labeling target or repository is no longer reachable.
+
+**RL-046b**: If `setLabels` returns HTTP 5xx, times out, or fails with a transport error, the implementation MUST treat the condition as transient and retry according to the retry policy in §7.3. If retries are exhausted, the implementation MUST return `{ success: false, error: <message> }` without reporting a successful replacement.
+
 ### 7.3 Rate-Limit Retry Policy
 
 **RL-048**: The `setLabels` REST call (Stage 8) MUST apply the `RATE_LIMIT_RETRY_CONFIG` retry policy from `actions/setup/js/error_recovery.cjs`. This policy covers secondary rate-limit responses (HTTP 403 with Retry-After header) and primary rate-limit responses (HTTP 429).
@@ -485,6 +489,8 @@ A partial-success condition arises when the `setLabels` REST call returns HTTP 2
 Label allowlists and blocklists are the primary mechanism preventing AI agents from performing unintended or malicious label transitions. For example, a `blocked: ["~*"]` pattern would prohibit any label whose name begins with `~`, while `blocked: ["*[bot]"]` would prohibit adding bot-created labels.
 
 **RL-049**: Allowlist and blocklist evaluation MUST be performed server-side (in the JavaScript handler executing within GitHub Actions), not by the AI agent. Agents MUST NOT be trusted to self-enforce label restrictions.
+
+**RL-049a**: A conforming implementation MUST re-check `label_to_add` against the current server-side allowlist and blocklist state immediately before invoking `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels`. If the label is blocked or no longer allowed at that point, the implementation MUST reject the message without calling the write API.
 
 ### 8.2 Cross-Repository Restrictions
 
@@ -517,6 +523,12 @@ The `required-labels` configuration field provides an additional execution gate 
 Staged mode provides a mechanism for operators to audit AI agent label-transition behavior before it takes effect.
 
 **RL-056**: When `staged: true`, the implementation MUST NOT call any write API endpoint. Read-only API calls performed during Stage 5 gate checks MAY proceed in staged mode.
+
+The staged-mode preview SHOULD identify the `label_to_add` value that would be revalidated before the write call so operators can compare previewed transitions against protected-label policy before disabling staged mode.
+
+### 8.7 Sync Notes
+
+The REST failure and retry semantics in [Section 7](#7-error-handling) are mirrored by the `replace_label` outcome-evaluation rules in [`safe-output-outcome-evaluation.md` Section 30](safe-output-outcome-evaluation.md#30-replace_label). Changes to `404`, `5xx`, or `429` handling in either document SHOULD be reviewed against the other document in the same change.
 
 ---
 

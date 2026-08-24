@@ -64,7 +64,37 @@ async function discardUnusedPullRequest() {
   }
 }
 
+/**
+ * Adds a comment linking the failure issue created for this run to the pre-created pull
+ * request, so a steered pull request points at the reported failure. This step is
+ * authenticated with the pull request token of the current repository, unlike the failure
+ * issue step which may target a different repository via safe-outputs.failure-issue-repo.
+ * @returns {Promise<void>}
+ */
+async function commentFailureIssue() {
+  const pullNumber = Number.parseInt(process.env.GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER || "", 10);
+  const failureIssueNumber = Number.parseInt(process.env.GH_AW_FAILURE_ISSUE_NUMBER || "", 10);
+  const failureIssueUrl = process.env.GH_AW_FAILURE_ISSUE_URL || "";
+  if (!Number.isFinite(pullNumber) || pullNumber <= 0 || !Number.isFinite(failureIssueNumber) || failureIssueNumber <= 0 || !failureIssueUrl) {
+    return;
+  }
+
+  try {
+    await github.rest.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: pullNumber,
+      body: `The agent workflow failed. See [failure issue #${failureIssueNumber}](${failureIssueUrl}).`,
+    });
+    core.info(`Added failure issue link to pre-created pull request #${pullNumber}`);
+  } catch (error) {
+    core.warning(`Failed to add failure issue link to pre-created pull request #${pullNumber}: ${getErrorMessage(error)}`);
+  }
+}
+
 async function main() {
+  await commentFailureIssue();
+
   const checkRunId = Number.parseInt(process.env.GH_AW_PRE_CREATED_CHECK_RUN_ID || "", 10);
   if (!Number.isFinite(checkRunId) || checkRunId <= 0) {
     core.info("No pre-created pull request check run to complete");

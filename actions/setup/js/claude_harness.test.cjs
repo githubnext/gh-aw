@@ -1054,6 +1054,44 @@ process.exit(1);`,
       expect(result.stderr).not.toContain("AI credits budget enforced");
     });
 
+    it("exits 0 when the AWF API proxy returns HTTP 403 max-AI-credits as an authentication failure", () => {
+      // Reproduces https://github.com/github/gh-aw/actions/runs/32683896339/job/97305497380:
+      // Claude Code reports the proxy budget abort as `error: authentication_failed`, and the
+      // firewall audit JSONL is only written during container teardown — after this decision.
+      const tempDir = makeHarnessTempDir("claude-ai-credits-proxy-403-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write(JSON.stringify({type: "assistant", message: {model: "<synthetic>", role: "assistant", content: [{type: "text", text: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}]}, error: "authentication_failed", is_api_error_message: true}) + "\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "do some work", "utf8");
+
+      const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./claude_harness.cjs")),
+        env: {
+          ...process.env,
+          CLAUDE_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_HARNESS_MAX_RETRIES: "0",
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      expect(callCount).toBe(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("trusted budget-abort evidence");
+      expect(result.stderr).toContain("AI credits budget enforced");
+    });
+
     it("keeps non-zero exit when AI-credit marker appears without trusted firewall audit evidence", () => {
       const tempDir = makeHarnessTempDir("claude-ai-credits-untrusted-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");

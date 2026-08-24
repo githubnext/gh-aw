@@ -3,6 +3,7 @@
 const cp = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS = 120000;
@@ -94,6 +95,36 @@ function parseOperationalValueBaselineDefinition(rawDefinition) {
 }
 
 /**
+ * Execute a subprocess and throw resilient action-specific errors for timeout,
+ * signal termination, and non-zero exits.
+ * @param {string} bashPath
+ * @param {string[]} args
+ * @param {{input?: string, timeout: number, maxBuffer?: number, env: NodeJS.ProcessEnv, operation: string}} options
+ */
+function executeEvaluatorSubprocess(bashPath, args, options) {
+  const execution = cp.spawnSync(bashPath, args, {
+    input: options.input,
+    encoding: "utf8",
+    timeout: options.timeout,
+    maxBuffer: options.maxBuffer,
+    env: options.env,
+  });
+  if (execution.error) {
+    if (typeof execution.error === "object" && execution.error !== null && "code" in execution.error && execution.error.code === "ETIMEDOUT") {
+      throw new Error(`${options.operation} timed out after ${String(options.timeout)}ms`);
+    }
+    throw execution.error;
+  }
+  if (execution.signal) {
+    throw new Error(`${options.operation} was terminated by signal ${execution.signal}`);
+  }
+  if (execution.status !== 0) {
+    throw new Error(execution.stderr?.trim() || `${options.operation} exited with status ${String(execution.status)}`);
+  }
+  return execution;
+}
+
+/**
  * Execute and validate one trusted, frozen operational-value evaluator.
  * @param {string} evaluatorContent
  * @param {{digest?: string, config?: object}} meta
@@ -101,6 +132,9 @@ function parseOperationalValueBaselineDefinition(rawDefinition) {
  */
 function executeOperationalValueEvaluator(evaluatorContent, meta, options = {}) {
   const env = options.env || process.env;
+  const syntaxCheckTimeoutMs = getSetupTimeoutMs("operationalValueSyntaxCheck", env);
+  const definitionTimeoutMs = getSetupTimeoutMs("operationalValueDefinition", env);
+  const gradeRunTimeoutMs = getSetupTimeoutMs("operationalValueGradeRun", env);
   const evidenceAt = options.evidenceAt || new Date().toISOString();
   const evidenceAtMs = parseTimestamp(evidenceAt, "evidenceAt");
   const run = buildRunSubject(env, options.runMetadata);
@@ -119,38 +153,31 @@ function executeOperationalValueEvaluator(evaluatorContent, meta, options = {}) 
   const bashPath = options.bashPath || "/bin/bash";
   try {
     fs.writeFileSync(evaluatorPath, evaluatorContent, { encoding: "utf8", mode: 0o700 });
-    const syntax = cp.spawnSync(bashPath, ["-n", evaluatorPath], {
-      encoding: "utf8",
-      timeout: 5000,
-      env: safeFunctionEnv(env),
-    });
-    if (syntax.error || syntax.status !== 0) {
-      throw new Error(`operational-value evaluator has invalid Bash syntax: ${syntax.stderr?.trim() || getErrorMessage(syntax.error)}`);
+    try {
+      executeEvaluatorSubprocess(bashPath, ["-n", evaluatorPath], {
+        timeout: syntaxCheckTimeoutMs,
+        env: safeFunctionEnv(env),
+        operation: "operational-value evaluator syntax check",
+      });
+    } catch (err) {
+      throw new Error(`operational-value evaluator has invalid Bash syntax: ${getErrorMessage(err)}`, { cause: err });
     }
 
-    const definitionExecution = cp.spawnSync(bashPath, [evaluatorPath, "--definition"], {
-      encoding: "utf8",
-      timeout: 5000,
+    const definitionExecution = executeEvaluatorSubprocess(bashPath, [evaluatorPath, "--definition"], {
+      timeout: definitionTimeoutMs,
       maxBuffer: OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
       env: safeFunctionEnv(env),
+      operation: "operational-value evaluator --definition",
     });
-    if (definitionExecution.error) throw definitionExecution.error;
-    if (definitionExecution.status !== 0) {
-      throw new Error(definitionExecution.stderr?.trim() || `operational-value evaluator --definition exited with status ${String(definitionExecution.status)}`);
-    }
     const baselineValue = parseOperationalValueBaselineDefinition(definitionExecution.stdout);
 
-    const execution = cp.spawnSync(bashPath, [evaluatorPath, "--grade-run"], {
+    const execution = executeEvaluatorSubprocess(bashPath, [evaluatorPath, "--grade-run"], {
       input: JSON.stringify(request),
-      encoding: "utf8",
-      timeout: OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS,
+      timeout: gradeRunTimeoutMs,
       maxBuffer: OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
       env: safeFunctionEnv(env),
+      operation: "operational-value evaluator",
     });
-    if (execution.error) throw execution.error;
-    if (execution.status !== 0) {
-      throw new Error(execution.stderr?.trim() || `operational-value evaluator exited with status ${String(execution.status)}`);
-    }
 
     let output;
     try {
