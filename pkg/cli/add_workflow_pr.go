@@ -95,6 +95,12 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 		return 0, "", fmt.Errorf("failed to add workflows: %w", err)
 	}
 
+	prepareSpinner := console.NewSpinner("Preparing pull request...")
+	if opts.showInteractiveProgress {
+		prepareSpinner.Start()
+	}
+	defer prepareSpinner.Stop()
+
 	// Stage all files before creating PR
 	addWorkflowPRLog.Print("Staging workflow files")
 	if err := tracker.StageAllFiles(opts.Verbose); err != nil {
@@ -148,6 +154,9 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	// Push branch
 	addWorkflowPRLog.Printf("Pushing branch %s to remote", branchName)
+	if opts.showInteractiveProgress {
+		prepareSpinner.UpdateMessage("Pushing pull request branch...")
+	}
 	if err := pushBranch(branchName, opts.Verbose); err != nil {
 		addWorkflowPRLog.Printf("Failed to push branch: %v", err)
 		// Treat push failure as a warning: keep the files and commit intact so the
@@ -163,6 +172,7 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 	}
 
 	// Create PR
+	prepareSpinner.Stop()
 	addWorkflowPRLog.Printf("Creating pull request: %s", prTitle)
 	prNumber, prURL, err := createPRForRepo(ctx, branchName, prTitle, prBody, opts.RepoSlug, opts.Verbose)
 	if err != nil {

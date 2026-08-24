@@ -92,6 +92,9 @@ type AddOptions struct {
 	// workingTreePrevalidated indicates add-wizard already verified that staged
 	// changes and changes overlapping planned files are absent.
 	workingTreePrevalidated bool
+	// showInteractiveProgress enables high-level progress indicators for the
+	// otherwise quiet add-wizard write, compile, commit, and push phases.
+	showInteractiveProgress bool
 }
 
 // AddWorkflowsResult contains the result of adding workflows
@@ -454,9 +457,11 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 
 	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	fileExists := fileutil.FileExists(destFile)
-	if fileExists {
+	if fileExists && !opts.showInteractiveProgress {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
 	}
+	stopProgress := startAddInteractiveProgress(opts, "Preparing workflow files...")
+	defer stopProgress()
 	workflowSpec = resolvedWorkflowSpec(workflowSpec, sourceInfo)
 	content, err := processWorkflowContentModifications(string(sourceContent), workflowSpec, sourceInfo, githubWorkflowsDir, opts)
 	if err != nil {
@@ -467,6 +472,15 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 	}
 	compileAddedWorkflow(ctx, destFile, workflowSpec, githubWorkflowsDir, tracker, opts)
 	return nil
+}
+
+func startAddInteractiveProgress(opts AddOptions, message string) func() {
+	if !opts.showInteractiveProgress {
+		return func() {}
+	}
+	spinner := console.NewSpinner(message)
+	spinner.Start()
+	return spinner.Stop
 }
 
 func reportAddWorkflowStart(workflowSpec *WorkflowSpec, sourceContent []byte, opts AddOptions) {
@@ -843,7 +857,9 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 			}
 			return fmt.Errorf("action workflow '%s' already exists in %s. Use --force to overwrite", workflowName+".yml", githubWorkflowsDir)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
+		if !opts.showInteractiveProgress {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
+		}
 	}
 
 	if tracker != nil {

@@ -61,6 +61,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		GhAwRef:                      c.GhAwRef,
 		initializedFiles:             initFiles,
 		workingTreePrevalidated:      createPR,
+		showInteractiveProgress:      true,
 	}
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	if err != nil {
