@@ -36,7 +36,10 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const POLICY_REJECTION_ERROR_NAME = "ReplaceLabelPolicyRejectionError";
 const SET_LABELS_RETRY_CONFIG = {
   ...RATE_LIMIT_RETRY_CONFIG,
-  shouldRetry: error => error?.name !== POLICY_REJECTION_ERROR_NAME && RATE_LIMIT_RETRY_CONFIG.shouldRetry(error),
+  shouldRetry: error => {
+    const status = error?.response?.status ?? error?.status ?? null;
+    return error?.name !== POLICY_REJECTION_ERROR_NAME && ((status >= 500 && status < 600) || RATE_LIMIT_RETRY_CONFIG.shouldRetry(error));
+  },
 };
 
 /**
