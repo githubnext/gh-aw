@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"charm.land/huh/v2"
@@ -54,6 +55,21 @@ func TestApplyCopilotAuthMethodChoice_ReEntryClearsOldValue(t *testing.T) {
 	// User changes selection to PAT — old value must not persist
 	cfg.applyCopilotAuthMethodChoice("pat")
 	assert.False(t, cfg.UseCopilotRequests)
+}
+
+func TestCopilotAuthMethodDescription(t *testing.T) {
+	t.Parallel()
+
+	t.Run("bullets both authentication methods", func(t *testing.T) {
+		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{})
+		assert.Equal(t, "• PAT: Use the existing COPILOT_GITHUB_TOKEN repository secret.\n• copilot-requests: Use the org's Copilot billing seat; no PAT required.", description)
+	})
+
+	t.Run("includes inconclusive billing note in copilot-requests bullet", func(t *testing.T) {
+		description := copilotAuthMethodDescription(orgCopilotBillingProbeResult{InfoNote: copilotBillingInconclusiveNote})
+		assert.NotContains(t, strings.Split(description, "\n")[0], copilotBillingInconclusiveNote)
+		assert.Contains(t, strings.Split(description, "\n")[1], copilotBillingInconclusiveNote)
+	})
 }
 
 func TestPrioritizeEngineOption(t *testing.T) {

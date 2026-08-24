@@ -261,9 +261,6 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	}
 	c.copilotCLIBillingStatus = probe.BillingStatus
 	copilotRequestsLabel += probe.LabelSuffix
-	if probe.InfoNote != "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(probe.InfoNote))
-	}
 
 	// Build select options.
 	// When billing is confirmed enabled, copilot-requests is listed first (pre-selected).
@@ -286,7 +283,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	var authMethod string
 	selectField := huh.NewSelect[string]().
 		Title("How would you like Copilot workflows to authenticate?").
-		Description("PAT uses the existing COPILOT_GITHUB_TOKEN repository secret.\ncopilot-requests uses the org's Copilot billing seat and requires no PAT.").
+		Description(copilotAuthMethodDescription(probe)).
 		Options(options...).
 		Value(&authMethod)
 
@@ -307,6 +304,14 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 
 	c.applyCopilotAuthMethodChoice(authMethod)
 	return nil
+}
+
+func copilotAuthMethodDescription(probe orgCopilotBillingProbeResult) string {
+	copilotRequestsDescription := "• copilot-requests: Use the org's Copilot billing seat; no PAT required."
+	if probe.InfoNote != "" {
+		copilotRequestsDescription += " " + probe.InfoNote
+	}
+	return "• PAT: Use the existing COPILOT_GITHUB_TOKEN repository secret.\n" + copilotRequestsDescription
 }
 
 // applyCopilotAuthMethodChoice records the user's Copilot auth method selection and prints
