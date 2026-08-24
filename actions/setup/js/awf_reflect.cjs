@@ -410,14 +410,21 @@ async function fetchAWFReflect(options) {
     // forwarding these requests, so this succeeds without needing the raw API keys.
     await enrichReflectModels(reflectData, modelsTimeoutMs, logger);
     const enrichedBody = JSON.stringify(reflectData);
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    writeFile(outputPath, enrichedBody, { encoding: "utf8" });
-    logger(`awf-reflect: saved ${enrichedBody.length}B to ${outputPath}`);
+    let bytesWritten;
+    try {
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      writeFile(outputPath, enrichedBody, { encoding: "utf8" });
+      bytesWritten = enrichedBody.length;
+      logger(`awf-reflect: saved ${enrichedBody.length}B to ${outputPath}`);
+    } catch (persistErr) {
+      const persistError = /** @type {Error} */ persistErr;
+      logger(`awf-reflect: unable to persist reflect payload to ${outputPath}: ${persistError.message}`);
+    }
     return {
       ok: true,
       reflectUrl,
       outputPath,
-      bytesWritten: enrichedBody.length,
+      ...(bytesWritten != null ? { bytesWritten } : {}),
       reflectData,
     };
   } catch (err) {

@@ -724,6 +724,30 @@ describe("awf_reflect.cjs", () => {
       expect(logs.some(l => l.includes("unexpected status 503"))).toBe(true);
     });
 
+    it("returns reflect data even when persisting awf-reflect output fails", async () => {
+      const reflectPayload = { endpoints: [{ provider: "copilot", configured: true, models: ["copilot/claude-sonnet-4.6"] }] };
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => reflectPayload }));
+      const logs = [];
+
+      await expect(
+        fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath: "/tmp/gh-aw-test-read-only/awf-reflect.json",
+          timeoutMs: 500,
+          logger: msg => logs.push(msg),
+          writeFileSync: () => {
+            throw new Error("EROFS: read-only file system");
+          },
+        })
+      ).resolves.toEqual({
+        ok: true,
+        reflectUrl: "http://api-proxy:10000/reflect",
+        outputPath: "/tmp/gh-aw-test-read-only/awf-reflect.json",
+        reflectData: reflectPayload,
+      });
+      expect(logs.some(l => l.includes("unable to persist reflect payload"))).toBe(true);
+    });
+
     it("uses the caller-supplied logger for all messages", async () => {
       vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
       const collected = [];
