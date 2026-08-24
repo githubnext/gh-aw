@@ -91,6 +91,7 @@ function parseAICreditsExceededProxyRejection(output) {
       continue;
     }
     if (!parsed || typeof parsed !== "object") continue;
+    // prettier-ignore
     const record = /** @type {Record<string, unknown>} */ (parsed);
     const isEngineFlaggedApiError = record.is_api_error_message === true || typeof record.error === "string";
     if (!isEngineFlaggedApiError) continue;
