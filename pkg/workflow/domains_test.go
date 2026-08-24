@@ -469,6 +469,16 @@ func TestGetEngineDefaultDomainSets(t *testing.T) {
 		"exported compatibility variables must not modify registered domain sets")
 }
 
+func TestEmbeddedDomainSets(t *testing.T) {
+	sets := getLoadedDomainSets()
+
+	assert.Contains(t, sets.Ecosystems, "defaults")
+	assert.Contains(t, sets.EngineDefaults, "copilot")
+	assert.Equal(t, "api.githubcopilot.com", sets.PiProviderDomains["copilot"])
+	assert.Equal(t, []string{"github.com", "localhost"}, sets.SanitizationDefaults)
+	assert.NotContains(t, sets.Ecosystems, "threat-detection")
+}
+
 func TestGetThreatDetectionAllowedDomains(t *testing.T) {
 	// With empty network permissions the result equals the sorted detection domains
 	result := GetThreatDetectionAllowedDomains(&NetworkPermissions{Allowed: []string{}})
