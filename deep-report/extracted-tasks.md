@@ -1,3 +1,13 @@
+## Extracted code-quality tasks (2026-08-24 ~18:25Z cycle)
+
+3 filed, 1 comment, window since 06:29:00Z baseline #55312 (20 new discussions: 55323,55334,55337,55339,55340,55343,55354,55364,55368,55369,55381,55391,55401,55405,55409,55423,55432,55448,55453,55460):
+1. Dedupe agentUsageEntry/TokenCoreMetrics + retype DisapprovalIntegrity/EndorserMinIntegrity to GitHubIntegrityLevel — discussion #55369 (Typist). Filed. (Third finding — narrowing checkStepGHToken's parameter type — verified false via call-site inspection, excluded.)
+2. Split pkg/workflow/safe_outputs_handler_registry.go (1,091 lines) — discussion #55409 (Repository Quality Improvement Report). Filed.
+3. Split pkg/workflow/awf_config.go (1,090 lines) — same report. Filed.
+4. Comment on #54186 with escalation evidence (0%→100% failure rate, 3 newly-affected workflows) — discussion #55354 (Weekly Workflow Analysis).
+
+Declined (chronic/already-tracked/not-a-gh-aw-fix, not filed): ai-moderator engine-switch (#54941), cgo 29.3% success (#54940), q workflow 0.8% success — all chronic; "instrument Copilot CLI stderr" and CLAUDE_CODE_OAUTH_TOKEN docs warning (4-6x prior closed attempts); list_label MCP pagination (#55381, closed 3x already, lives in external github-mcp-server); UK AI Resilience untrusted-checkout finding (#55432, already filed #55433); #55328 threat-detection regression (already an open issue, flagged for triage only); org health/api-consumption/copilot-session-insights/agent-performance items (healthy/informational/chronic). Full reasoning in flagged_items.md.
+
 ## Extracted code-quality tasks (2026-08-24 ~06:29Z cycle)
 
 1 filed, 0 comments, window since 00:34:57Z baseline #55204 (11 new discussions: 55233,55240,55244,55245,55268,55270,55280,55282,55292,55296,55299):

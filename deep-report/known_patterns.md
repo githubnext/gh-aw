@@ -1,3 +1,13 @@
+## DeepReport Memory (2026-08-24, ~18:25Z cycle, baseline #55312)
+
+### Reconfirmed: verify subagent-sourced Typist/simplification claims against actual call sites, not just the target function
+Agent A (discussion-mining subagent) claimed `checkStepGHToken(step any, ...)` in step_shell_validator.go could be safely narrowed to `map[string]any` because "its only caller already holds a map[string]any." Direct verification of both the function AND its call site (step_shell_validator.go:75 `steps, ok := rawValue.([]any)`, then line 84 `for _, step := range steps`) showed the caller actually holds `any` from a `[]any`-typed list, not a `map[string]any` — the runtime type assertion inside the function is necessary and correct as-is. Excluded this claim from the filed issue rather than propagating a false simplification suggestion. **Lesson: a "type X could be narrowed because its caller already has type Y" claim requires reading the actual caller's declared variable type, not just trusting the target function's context — subagents (and source reports generally) can get this specific class of claim wrong even when everything else in the same finding is correct.**
+
+### Reconfirmed: an escalating chronic incident is a comment on the existing issue, not a new filing
+Weekly Workflow Analysis (#55354) found the cross-engine driver-exit/segfault failure rate climbing from 0%→100% within a 6.5h sample window, with 3 newly-affected workflows not previously implicated. This is materially new evidence but the same underlying incident already tracked as P0 #54186 — added the escalation data as a comment rather than filing a duplicate issue, consistent with the standing practice of comparing specificity/newness against already-open issues before the dedup gate says "declined."
+
+See [[flagged_items]], [[trend_data]] for details.
+
 ## DeepReport Memory (2026-08-24, ~06:29Z cycle, baseline #55204)
 
 ### New pattern: memory-continuity gaps are self-detectable via cross-discussion timestamps, not just self-reported

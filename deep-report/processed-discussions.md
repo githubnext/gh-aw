@@ -102,3 +102,8 @@ Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:
 
 ### Processed 2026-08-24 ~00:30Z cycle (full — all 11 new/updated discussions read; window since 18:28Z baseline #55123, own prior briefing #55134 excluded)
 55126, 55127, 55139, 55160, 55163, 55168, 55170, 55173, 55191, 55193, 55194 — all read in full, no sampling shortfall. 4 code-quality/reliability tasks extracted and filed (detection-config gap, codex MCP binary shared-path fix, cross-report metrics counting bug, lockfile-stats regex gap). Design Decision Gate, Code Scanning Fixer, codex 401 auth, cross-engine segfault, and Serena Go crashes all declined as already-tracked via existing open P0/P1 issues per #55194's cluster mapping.
+
+## Discussions mined for code-quality tasks (processed through 2026-08-24 ~18:25Z)
+
+### Processed 2026-08-24 ~18:25Z cycle (full — all 20 new discussions read; window since 06:29:00Z baseline #55312, own prior briefing excluded)
+55323, 55334, 55337, 55339, 55340, 55343, 55354, 55364, 55368, 55369, 55381, 55391, 55401, 55405, 55409, 55423, 55432, 55448, 55453, 55460 — all read in full, no sampling shortfall. 3 code-quality/reliability tasks extracted and filed (Typist type-dedup, 2 large-file decompositions) + 1 comment (P0 #54186 escalation evidence). ai-moderator/cgo/q-workflow chronic issues, list_label MCP pagination, and UK AI Resilience checkout finding all declined as already-tracked/already-filed/not-a-gh-aw-fix.

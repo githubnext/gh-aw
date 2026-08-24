@@ -1,3 +1,16 @@
+## Flagged Items (2026-08-24, ~18:25Z cycle, window since 06:29:00Z baseline #55312, 20 new discussions: 55323,55334,55337,55339,55340,55343,55354,55364,55368,55369,55381,55391,55401,55405,55409,55423,55432,55448,55453,55460)
+
+- **[escalated, comment]** Cross-engine agent-CLI segfault (P0 #54186) — added fresh evidence from Weekly Workflow Analysis #55354: per-window failure-rate table (0%→100% between 03:26-08:59 UTC), newly-affected workflows (AI Moderator 5/5 codex, Daily Go Test Parallelizer 3/3 copilot, Smoke Claude 2/2 claude). Same incident as already-open #54186, not a new issue.
+- **[new, filed]** Typist #55369: dedupe agentUsageEntry/TokenCoreMetrics (pkg/cli/token_usage_types.go) + retype DisapprovalIntegrity/EndorserMinIntegrity string fields to GitHubIntegrityLevel enum (pkg/workflow/tools_types.go) — both verified live. A third Typist claim (narrow checkStepGHToken's parameter to map[string]any) was checked and found INVALID — verified live that its caller passes `any` from a `[]any` list (step_shell_validator.go:75,84-85), not a guaranteed map — excluded from the filed issue.
+- **[new, filed]** Repository Quality Improvement Report #55409: split pkg/workflow/safe_outputs_handler_registry.go (1,091 lines, largest non-test file in repo, 49-entry closure map).
+- **[new, filed]** same report: split pkg/workflow/awf_config.go (1,090 lines, mixes schema/build/policy in one file).
+- **[declined, already tracked]** ai-moderator engine-switch (#54941), cgo 29.3% success (#54940), q workflow 0.8% success — all already open/tracked chronic issues.
+- **[declined, chronic, no re-file]** "instrument Copilot CLI stderr", CLAUDE_CODE_OAUTH_TOKEN docs warning — 4-6+ prior closed attempts each.
+- **[declined, verified not a gh-aw fix]** list_label MCP pagination (mcp-analysis #55381, self-flagged as possibly regressed) — closed 3x already (#50689, #48942, #33819); actual implementation lives in external github-mcp-server, not this repo.
+- **[declined, already tracked]** UK AI Resilience "critical untrusted checkout in q.lock.yml" (#55432) — already filed as open #55433.
+- **[noted, not re-filed]** #55328 (threat-detection issues:write regression, v0.87.4, defeats ADR-54630) — genuine unlabeled open issue, already exists (not discussion-sourced this cycle); flagged for triage/labeling only.
+- **[declined, healthy/informational]** Org health 64/69 unassigned issues (#55339, partial ~14-repo sample), api-consumption null core_consumed outage (#55364), copilot-session-insights 46-day empty-transcript gap (#55323, chronic), agent-performance AI Moderator/PR Description Updater recommendations (#55405, chronic 3-6x closed/reopened).
+
 ## Flagged Items (2026-08-24, ~06:29Z cycle, window since 00:34:57Z baseline #55204, 11 new discussions: 55233,55240,55244,55245,55268,55270,55280,55282,55292,55296,55299)
 
 - **[new, filed]** CI enforcement gap for 4 confirmed-clean linters (`generatedyamlheredoc`, `manualpathconcat`, `packagelevelmutableslicemap`, `walkfuncerrshadow`) not in `cgo.yml`'s `LINTER_FLAGS` — Sergo R61 (#55268).
