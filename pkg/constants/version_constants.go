@@ -154,6 +154,11 @@ const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
 // AWFFilesystemAllowWriteMinVersion.
 const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
+// AWFEnclaveGitHubIssuesMinVersion is the provisional first AWF version whose
+// config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
+// Keep this gate separate from DefaultFirewallVersion until release artifacts exist.
+const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.6"
+
 // AWFBoundedQueriesMinVersion is the minimum AWF version that supports
 // the boundedQueries section in awf-config.json.
 // Workflows pinning an older AWF version must not emit this section.
@@ -185,6 +190,11 @@ const DefaultMCPGatewayVersion Version = "v0.4.10"
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
+
+// MCPGEnclaveGitHubIssuesMinVersion is the provisional first MCPG version with
+// the dedicated issues-read-v1 enclave proxy profile.
+// Keep this gate separate from DefaultMCPGatewayVersion until release artifacts exist.
+const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.11"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.79"

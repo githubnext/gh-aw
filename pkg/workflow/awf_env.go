@@ -163,6 +163,12 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 		addUnique(enclaveMCPGatewayIdentityEnv)
 		addUnique(enclaveMCPReadinessTimeoutEnv)
 	}
+	if enclaveGitHubIssuesEnabled(workflowData) {
+		addUnique(enclaveGitHubProxyContainerEnv)
+		addUnique(enclaveGitHubProxyIdentityEnv)
+		addUnique(enclaveGitHubProxyCACertEnv)
+		addUnique(enclaveGitHubProxyRootKeyEnv)
+	}
 
 	// Explicitly excluded env vars from the frontmatter excluded-env field.
 	// These are always excluded regardless of their value content.

@@ -947,6 +947,17 @@
                     "minimum": 1,
                     "maximum": 32768,
                     "default": 1024
+                  },
+                  "github": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["cli"],
+                    "properties": {
+                      "cli": {
+                        "type": "string",
+                        "enum": ["issues-read-v1"]
+                      }
+                    }
                   }
                 }
               },

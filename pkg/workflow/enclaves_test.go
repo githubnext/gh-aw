@@ -176,6 +176,41 @@ func TestBuildAWFConfigJSONEnclaves(t *testing.T) {
 	assert.NotContains(t, configJSON, "boundedAgents")
 }
 
+func TestBuildAWFConfigJSONEnclaveGitHubIssues(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	configJSON, err := BuildAWFConfigJSON(AWFCommandConfig{
+		EngineName: "copilot", WorkflowData: data,
+	})
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+	enclaves := config["enclaves"].([]any)
+	agent := enclaves[0].(map[string]any)["agent"].(map[string]any)
+	assert.Equal(t, map[string]any{"cli": enclaveGitHubIssuesProfile}, agent["github"])
+}
+
+func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	data.Enclaves[0].Repos = append(data.Enclaves[0].Repos, &EnclaveRepository{
+		Repo: "octo-org/another-private-service", Sensitivity: "internal",
+	})
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "supports at most one non-public repository")
+
+	data.Enclaves[0].Repos[1].Sensitivity = "public"
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveGitHubIssuesMode(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	data.Enclaves[0].Agent.GitHub.CLI = "read-only"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `must be "issues-read-v1"`)
+}
+
 func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	data := enclaveWorkflowData(true, true, 45, 180)
 	ensureDefaultMCPGatewayConfig(data)

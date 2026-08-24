@@ -3576,7 +3576,15 @@
                   "model": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$" },
                   "max-task-bytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 4096 },
                   "max-model-requests": { "type": "integer", "minimum": 1, "maximum": 64, "default": 8 },
-                  "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 }
+                  "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 },
+                  "github": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["cli"],
+                    "properties": {
+                      "cli": { "type": "string", "enum": ["issues-read-v1"] }
+                    }
+                  }
                 }
               },
               "repos": { "$ref": "#/$defs/enclave-repos" },
