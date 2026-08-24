@@ -15,6 +15,7 @@ import (
 )
 
 func TestMCPInspectSubcommand_NoArgBehaviorDocumented(t *testing.T) {
+	t.Parallel()
 	cmd := NewMCPInspectSubcommand()
 	if cmd == nil {
 		t.Fatal("Expected mcp inspect subcommand to be created")
@@ -29,6 +30,7 @@ func TestMCPInspectSubcommand_NoArgBehaviorDocumented(t *testing.T) {
 }
 
 func TestMCPInspectClientImplementation_UsesCLIGetVersion(t *testing.T) {
+	t.Parallel()
 	implementation := mcpInspectClientImplementation()
 
 	if implementation.Name != "gh-aw-inspector" {
@@ -40,6 +42,7 @@ func TestMCPInspectClientImplementation_UsesCLIGetVersion(t *testing.T) {
 }
 
 func TestMCPEmojiIconSource_ReturnsDataURI(t *testing.T) {
+	t.Parallel()
 	source := mcpEmojiIconSource("📊")
 	if !strings.HasPrefix(source, "data:image/svg+xml;base64,") {
 		t.Fatalf("expected base64 data URI source, got %q", source)

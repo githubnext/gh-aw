@@ -15,6 +15,7 @@ import (
 )
 
 func TestBuildConcurrentDownloadParams_RepoOverride(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		repoOverride string
@@ -30,6 +31,7 @@ func TestBuildConcurrentDownloadParams_RepoOverride(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			params := buildConcurrentDownloadParams("", false, tt.repoOverride, nil, false, nil)
 			assert.Equal(t, tt.wantHost, params.dlHost)
 			assert.Equal(t, tt.wantOwner, params.dlOwner)
@@ -39,6 +41,7 @@ func TestBuildConcurrentDownloadParams_RepoOverride(t *testing.T) {
 }
 
 func TestRunHasEvals(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		setup    func(t *testing.T, dir string)
@@ -119,6 +122,7 @@ func TestRunHasEvals(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			tc.setup(t, dir)
 			assert.Equal(t, tc.expected, runHasEvals(dir, false))
@@ -127,7 +131,9 @@ func TestRunHasEvals(t *testing.T) {
 }
 
 func TestBackfillRunTokenUsageFromFirewall(t *testing.T) {
+	t.Parallel()
 	t.Run("backfills run and metrics token usage from firewall summary", func(t *testing.T) {
+		t.Parallel()
 		metrics := LogMetrics{}
 		result := DownloadResult{}
 		tokenUsage := &TokenUsageSummary{
@@ -143,6 +149,7 @@ func TestBackfillRunTokenUsageFromFirewall(t *testing.T) {
 	})
 
 	t.Run("does not overwrite non-zero event token usage", func(t *testing.T) {
+		t.Parallel()
 		metrics := LogMetrics{TokenUsage: 123}
 		result := DownloadResult{RunAnalysis: RunAnalysis{
 			Run:     WorkflowRun{TokenUsage: 123},
@@ -163,6 +170,7 @@ func TestBackfillRunTokenUsageFromFirewall(t *testing.T) {
 }
 
 func TestTryLoadCachedRunResultBypassesForExplicitEvalsArtifactRequest(t *testing.T) {
+	t.Parallel()
 	runOutputDir := t.TempDir()
 	summary := &RunSummary{
 		CLIVersion:  GetVersion(),
@@ -187,6 +195,7 @@ func TestTryLoadCachedRunResultBypassesForExplicitEvalsArtifactRequest(t *testin
 }
 
 func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
+	t.Parallel()
 	runOutputDir := t.TempDir()
 	summary := &RunSummary{
 		CLIVersion:  GetVersion(),
@@ -213,6 +222,7 @@ func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
 }
 
 func TestTryLoadCachedRunResultBypassesCacheWhenRequestedArtifactIsMissing(t *testing.T) {
+	t.Parallel()
 	runOutputDir := t.TempDir()
 	summary := &RunSummary{
 		CLIVersion:  GetVersion(),
@@ -234,6 +244,7 @@ func TestTryLoadCachedRunResultBypassesCacheWhenRequestedArtifactIsMissing(t *te
 }
 
 func TestTryLoadCachedRunResultUsesCacheWhenRequestedArtifactsArePresent(t *testing.T) {
+	t.Parallel()
 	runOutputDir := t.TempDir()
 	summary := &RunSummary{
 		CLIVersion:  GetVersion(),
@@ -257,6 +268,7 @@ func TestTryLoadCachedRunResultUsesCacheWhenRequestedArtifactsArePresent(t *test
 }
 
 func TestTryLoadCachedRunResultRequiresCompleteMarkerForAllArtifacts(t *testing.T) {
+	t.Parallel()
 	runOutputDir := t.TempDir()
 	summary := &RunSummary{
 		CLIVersion:  GetVersion(),
@@ -287,6 +299,7 @@ func TestTryLoadCachedRunResultRequiresCompleteMarkerForAllArtifacts(t *testing.
 // (e.g. api-consumption-report) see the correct count without falling back to the
 // activity summary.
 func TestTryLoadCachedRunResultPersistsSafeItemsCountAfterBackfill(t *testing.T) {
+	t.Parallel()
 	runOutputDir := t.TempDir()
 
 	// Write a run_summary.json with SafeItemsCount=0 (stale cache).

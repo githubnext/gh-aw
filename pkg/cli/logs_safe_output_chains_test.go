@@ -15,6 +15,7 @@ import (
 )
 
 func TestBuildSafeOutputChainMetrics(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-safe-output-chains-*")
 
 	manifest := `{"type":"create_issue","repo":"github/gh-aw","number":101,"temporaryId":"aw_alpha","timestamp":"2026-01-01T00:00:00Z"}
@@ -43,6 +44,7 @@ func TestBuildSafeOutputChainMetrics(t *testing.T) {
 }
 
 func TestBuildSafeOutputChainMetricsIgnoresMalformedTemporaryIDMap(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-safe-output-chains-malformed-map-*")
 
 	manifest := `{"type":"create_issue","repo":"github/gh-aw","number":301,"temporaryId":"aw_alpha","timestamp":"2026-01-01T00:00:00Z"}
@@ -62,6 +64,7 @@ func TestBuildSafeOutputChainMetricsIgnoresMalformedTemporaryIDMap(t *testing.T)
 }
 
 func TestBuildLogsDataIncludesSafeOutputChainMetrics(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-logs-chain-metrics-*")
 	runDir := filepath.Join(tmpDir, "run-91001")
 	require.NoError(t, os.MkdirAll(runDir, 0o755), "should create run directory")
@@ -121,6 +124,7 @@ func TestBuildLogsDataIncludesSafeOutputChainMetrics(t *testing.T) {
 }
 
 func TestBuildLogsDataTracksTemporaryIDMapHealth(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-logs-temp-map-health-*")
 	missingRunDir := filepath.Join(tmpDir, "run-92001")
 	invalidRunDir := filepath.Join(tmpDir, "run-92002")
@@ -171,6 +175,7 @@ func TestBuildLogsDataTracksTemporaryIDMapHealth(t *testing.T) {
 }
 
 func TestBuildLogsDataLeavesTemporaryIDMapStatusEmptyWithoutSafeOutputArtifacts(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-logs-no-safe-output-artifacts-*")
 	runDir := filepath.Join(tmpDir, "run-93001")
 	require.NoError(t, os.MkdirAll(runDir, 0o755), "should create run directory")

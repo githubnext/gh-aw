@@ -10,6 +10,7 @@ import (
 // TestTimedOutRunProcessing tests that timed_out runs are processed correctly
 // even when they don't have artifacts
 func TestTimedOutRunProcessing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		runConclusion     string
@@ -62,6 +63,7 @@ func TestTimedOutRunProcessing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Simulate a workflow run
 			run := WorkflowRun{
 				DatabaseID:   12345,
@@ -112,6 +114,7 @@ func TestTimedOutRunProcessing(t *testing.T) {
 
 // TestStatusDisplayIncludesTimedOut tests that timed_out status is displayed in reports
 func TestStatusDisplayIncludesTimedOut(t *testing.T) {
+	t.Parallel()
 	run := WorkflowRun{
 		DatabaseID: 12345,
 		Status:     "completed",
@@ -131,6 +134,7 @@ func TestStatusDisplayIncludesTimedOut(t *testing.T) {
 
 // TestAuditDisplayIncludesTimedOut tests that audit report shows timed_out correctly
 func TestAuditDisplayIncludesTimedOut(t *testing.T) {
+	t.Parallel()
 	overview := OverviewData{
 		Status:     "completed",
 		Conclusion: "timed_out",
