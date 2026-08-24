@@ -267,12 +267,19 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
     // Prepare JSONL output file for this session.
     const sessionDir = path.join(sessionStateBase, session.sessionId);
-    fs.mkdirSync(sessionDir, { recursive: true });
     const eventsPath = path.join(sessionDir, "events.jsonl");
-    eventsStream = fs.createWriteStream(eventsPath, { flags: "a" });
-    // Snapshot to a non-null local for closure-safe writes (JSDoc nullability narrowing).
-    const stream = eventsStream;
-    log(`serialising SDK events to ${eventsPath}`);
+    try {
+      fs.mkdirSync(sessionDir, { recursive: true });
+      const eventsFd = fs.openSync(eventsPath, "a");
+      eventsStream = fs.createWriteStream(eventsPath, { fd: eventsFd, autoClose: true });
+      eventsStream.on("error", err => {
+        log(`warning: SDK event log write failed at ${eventsPath}: ${getErrorMessage(err)}; continuing with stderr event stream`);
+        eventsStream = null;
+      });
+      log(`serialising SDK events to ${eventsPath}`);
+    } catch (err) {
+      log(`warning: SDK event log unavailable at ${eventsPath}: ${getErrorMessage(err)}; continuing with stderr event stream`);
+    }
 
     /**
      * Write one JSONL entry to the events file and stderr.
@@ -285,7 +292,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     function writeEvent(type, data, timestamp) {
       const entry = { type, timestamp: timestamp ?? new Date().toISOString(), data };
       const jsonl = JSON.stringify(entry) + "\n";
-      stream.write(jsonl);
+      eventsStream?.write(jsonl);
       process.stderr.write(jsonl);
     }
 

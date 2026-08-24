@@ -87,6 +87,56 @@ describe("copilot_sdk_driver.cjs", () => {
       }
     });
 
+    it("continues when the SDK event log directory is unavailable", async () => {
+      const unavailableBase = path.join(testSessionStateDir, "not-a-directory");
+      fs.writeFileSync(unavailableBase, "file");
+      const logs = [];
+      const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      let onEvent = () => {};
+      const session = {
+        sessionId: "session-without-event-log",
+        on: handler => {
+          onEvent = handler;
+        },
+        sendAndWait: vi.fn().mockImplementation(async () => {
+          onEvent({
+            type: "assistant.message",
+            ephemeral: false,
+            timestamp: new Date().toISOString(),
+            data: { content: "completed without event file" },
+          });
+          return { data: { content: "completed without event file" } };
+        }),
+        disconnect: vi.fn().mockResolvedValue(undefined),
+      };
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = vi.fn().mockResolvedValue(session);
+        stop = vi.fn().mockResolvedValue(undefined);
+      }
+
+      try {
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: message => logs.push(message),
+          sessionStateBaseDir: unavailableBase,
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("completed without event file");
+        expect(logs).toContainEqual(expect.stringContaining("SDK event log unavailable"));
+        expect(stderrWriteSpy).toHaveBeenCalledWith(expect.stringContaining('"type":"assistant.message"'));
+      } finally {
+        stderrWriteSpy.mockRestore();
+      }
+    });
+
     it("clears cleanup timeout deadlines when cleanup settles promptly", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
       const stop = vi.fn().mockResolvedValue(undefined);
