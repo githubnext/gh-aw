@@ -7,17 +7,17 @@ sidebar:
 
 # Graders Specification
 
-**Version**: 0.1.0  
-**Status**: Draft Specification  
-**Feature Status**: Experimental  
-**Latest Version**: [graders-specification](/gh-aw/specs/graders-specification/)  
+**Version**: 0.2.0
+**Status**: Draft Specification
+**Feature Status**: Experimental
+**Latest Version**: [graders-specification](/gh-aw/specs/graders-specification/)
 **Editor**: GitHub Agentic Workflows Team
 
 ---
 
 ## Abstract
 
-This specification defines the `graders` feature in gh-aw: deterministic, post-agent metrics computed from execution traces and persisted as structured artifacts. It specifies configuration, built-in grader behavior, custom inline grader constraints, execution ordering, artifact outputs, experiment metric references, and conformance requirements.
+This specification defines the `graders` feature in gh-aw: deterministic execution metrics and operational value observations persisted as structured artifacts. It specifies configuration, built-in grader behavior, custom inline grader constraints, operational-value grader behavior, execution ordering, artifact outputs, historical regrading, experiment metric references, and conformance requirements.
 
 ## Status of This Document
 
@@ -27,19 +27,20 @@ This feature is experimental and implementations SHOULD expect iteration before 
 
 ## Table of Contents
 
-1. [Introduction](#1-introduction)  
-2. [Conformance](#2-conformance)  
-3. [Architecture](#3-architecture)  
-4. [Configuration Model](#4-configuration-model)  
-5. [Built-in Graders](#5-built-in-graders)  
-6. [Custom Inline Graders](#6-custom-inline-graders)  
-7. [Execution and Artifacts](#7-execution-and-artifacts)  
-8. [Experiment Metric References](#8-experiment-metric-references)  
-9. [Security and Isolation](#9-security-and-isolation)  
-10. [Compliance Testing](#10-compliance-testing)  
-11. [Norms](#11-norms)  
-12. [References](#12-references)  
-13. [Change Log](#13-change-log)
+1. [Introduction](#1-introduction)
+2. [Conformance](#2-conformance)
+3. [Architecture](#3-architecture)
+4. [Configuration Model](#4-configuration-model)
+5. [Built-in Graders](#5-built-in-graders)
+6. [Custom Inline Graders](#6-custom-inline-graders)
+7. [Operational Value Grader](#7-operational-value-grader)
+8. [Execution and Artifacts](#8-execution-and-artifacts)
+9. [Experiment Metric References](#9-experiment-metric-references)
+10. [Security and Isolation](#10-security-and-isolation)
+11. [Compliance Testing](#11-compliance-testing)
+12. [Norms](#12-norms)
+13. [References](#13-references)
+14. [Change Log](#14-change-log)
 
 ---
 
@@ -47,7 +48,7 @@ This feature is experimental and implementations SHOULD expect iteration before 
 
 ### 1.1 Purpose
 
-The `graders` feature provides deterministic quality and behavior metrics derived from workflow trace artifacts without issuing additional LLM calls.
+The `graders` feature provides deterministic execution metrics and operational value observations without issuing additional LLM calls.
 
 ### 1.2 Scope
 
@@ -56,6 +57,7 @@ This specification covers:
 - Frontmatter configuration under `graders`
 - Built-in grader identifiers and semantics
 - Custom inline grader script requirements
+- Operational-value evaluator and replay requirements
 - Output artifact contracts
 - Experiment metric integration for grader references
 
@@ -69,9 +71,9 @@ This specification does NOT cover:
 
 A conforming implementation:
 
-1. MUST compute grader values deterministically from run artifacts.
+1. MUST compute grader values deterministically for the same inputs and evidence cutoff.
 2. MUST preserve stable grader IDs for experiment references.
-3. SHOULD keep grading isolated from network-dependent behavior.
+3. MUST keep trace grading isolated from network-dependent behavior.
 4. MUST emit machine-readable grader artifacts for downstream tooling.
 
 ---
@@ -102,7 +104,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 1. Parse and validate frontmatter `graders`.
 2. Build grader manifest and execution spec.
 3. Preprocess trace artifacts once.
-4. Execute enabled graders (built-in and custom inline).
+4. Execute enabled graders (built-in, custom inline, and operational value).
 5. Write normalized outputs to grader artifact files.
 
 The grading step MUST run with `if: always()` semantics and SHOULD continue even when individual graders fail, recording per-grader errors in results.
@@ -127,8 +129,9 @@ The configuration key MUST be `graders`.
 
 - Built-in grader entries MAY be `null` to enable defaults.
 - Custom grader entries MUST be objects and MUST include `script`.
+- The reserved `value` entry MUST be an object and MUST include `function`.
 
-Supported object fields include `enabled`, `name`, `description`, `unit`, `direction`, `threshold`, `min`, `max`, `config`, and `script`.
+Supported object fields include `enabled`, `name`, `description`, `unit`, `direction`, `threshold`, `min`, `max`, `config`, `script`, and `function`. Only the reserved `value` grader accepts `function`.
 
 ---
 
@@ -181,32 +184,54 @@ Inline scripts MUST be rejected if they contain any forbidden pattern, including
 
 ---
 
-## 7. Execution and Artifacts
+## 7. Operational Value Grader
 
-### 7.1 Output Directory
+The reserved grader ID MUST be `operational-value`. It MUST NOT accept an inline `script`.
+
+The compiler MUST resolve `run` within the repository, reject symlinks and non-regular files, validate Bash syntax prerequisites, freeze the evaluator bytes, and record their SHA-256 digest in the grader manifest and result implementation.
+
+The evaluator MUST implement `--definition` and `--grade-run`. Its primary `value` MUST be absolute operational attainment in `[0,1]` or `null`. A baseline MAY be frozen separately; gh-aw MUST derive `deltaFromBaseline` and MUST NOT replace the primary value with that delta.
+
+An operational-value observation MUST include:
+
+- the complete workflow run subject and run attempt;
+- a stable opportunity key and replayable operational case;
+- requested evidence time, effective evidence cutoff, and maturity time;
+- accepted evidence provenance for every numeric value.
+
+The effective evidence cutoff MUST NOT follow either the requested evidence time or the maturity time. A replayed observation MUST be identified by `(runId, evaluatorDigest, evidenceAt)`.
+
+Historical regrading MUST reuse the original case, run subject, and archived evaluator. It MUST verify that the archived evaluator matches the digest recorded by both the original manifest and result and the evaluator at the recorded commit in a trusted local checkout before execution. It MUST emit a new observation and MUST NOT mutate the original run artifact.
+
+---
+
+## 8. Execution and Artifacts
+
+### 8.1 Output Directory
 
 Graders output MUST be written under:
 
 `/tmp/gh-aw/agent/graders`
 
-### 7.2 Required Files
+### 8.2 Required Files
 
 The implementation MUST produce:
 
 - `grader_manifest.json`
 - `grader_results.json`
+- `operational_value_evaluator.sh` when the `operational-value` grader is enabled
 
-### 7.3 Artifact Inclusion
+### 8.3 Artifact Inclusion
 
-Both files MUST be included in the unified `agent` artifact.
+All applicable files MUST be included in the unified `agent` artifact.
 
-### 7.4 Deterministic Output Contract
+### 8.4 Deterministic Output Contract
 
 `grader_results.json` SHOULD include normalized run/result structures suitable for downstream programmatic reads, including per-grader value/status and run-level pass/fail/error counts.
 
 ---
 
-## 8. Experiment Metric References
+## 9. Experiment Metric References
 
 Experiment metric fields MAY reference grader outputs.
 
@@ -241,18 +266,20 @@ semantic task correctness. The normative readiness, decision, and JSON contracts
 
 ---
 
-## 9. Security and Isolation
+## 10. Security and Isolation
 
 - Grading MUST operate on local run artifacts and MUST NOT require outbound network access for built-ins.
 - Custom inline graders MUST execute in a restricted context with blocked dangerous primitives.
+- Operational-value graders MAY access declared repository evidence using `GH_TOKEN`; implementations MUST NOT add agent-job permission scopes on behalf of the evaluator, and evaluators MUST NOT receive workflow secrets.
+- Historical regrading MUST verify archived evaluator bytes against both digest records and a trusted local checkout at the recorded commit before execution.
 - Implementations SHOULD enforce bounded execution time for inline scripts.
 - Implementations SHOULD redact grader outputs when custom scripts are enabled to reduce secret leakage risk.
 
 ---
 
-## 10. Compliance Testing
+## 11. Compliance Testing
 
-### 10.1 Test Suite Requirements
+### 11.1 Test Suite Requirements
 
 - **T-GRD-001**: Omitted `graders` key disables grading step emission.
 - **T-GRD-002**: `graders: {}` enables all built-ins.
@@ -265,8 +292,11 @@ semantic task correctness. The normative readiness, decision, and JSON contracts
 - **T-GRD-009**: Grader files are present in `agent` artifact.
 - **T-GRD-010**: `experiments.*.metric` with `grader:<id>` validates declared enabled grader.
 - **T-GRD-011**: `experiments.*.metric` with `graders.<id>.value` validates declared enabled grader.
+- **T-GRD-012**: `graders.operational-value.run` is frozen and its digest is recorded.
+- **T-GRD-013**: Operational-value output, evidence cutoff, maturity, and provenance are validated.
+- **T-GRD-014**: Historical regrading rejects evaluator or run identity mismatches.
 
-### 10.2 Compliance Checklist
+### 11.2 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
 |---|---|---|---|
@@ -276,20 +306,23 @@ semantic task correctness. The normative readiness, decision, and JSON contracts
 | Script safety constraints enforced | T-GRD-004, T-GRD-005 | 2 | Required |
 | Required artifact files emitted | T-GRD-007, T-GRD-008 | 1 | Required |
 | Experiment grader references validate | T-GRD-010, T-GRD-011 | 3 | Required |
+| Operational-value evaluators and observations validate | T-GRD-012, T-GRD-013 | 2 | Required |
+| Historical regrading preserves identity | T-GRD-014 | 2 | Required |
 
 ---
 
-## 11. Norms
+## 12. Norms
 
 - **N-GRD-001**: Implementations MUST treat `graders` as experimental.
 - **N-GRD-002**: Implementations MUST preserve built-in grader ID stability across patch releases.
 - **N-GRD-003**: Implementations SHOULD preserve deterministic output for identical trace inputs.
 - **N-GRD-004**: Implementations MUST fail fast on invalid custom grader scripts.
 - **N-GRD-005**: Implementations MUST keep grader artifact paths stable unless a major version change is issued.
+- **N-GRD-006**: Implementations MUST keep operational value separate from execution quality metrics.
 
 ---
 
-## 12. References
+## 13. References
 
 ### Normative References
 
@@ -303,7 +336,12 @@ semantic task correctness. The normative readiness, decision, and JSON contracts
 
 ---
 
-## 13. Change Log
+## 14. Change Log
+
+### Version 0.2.0 (Draft Specification)
+
+- Defines the operational value grader and absolute attainment semantics.
+- Defines evidence-bounded historical regrading and observation identity.
 
 ### Version 0.1.0 (Draft Specification)
 

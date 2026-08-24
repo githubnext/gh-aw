@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -64,17 +65,19 @@ var builtinGraderMetaByID = func() map[string]*BuiltinGraderMeta {
 
 // GraderDefinition represents a single grader entry in the graders map.
 type GraderDefinition struct {
-	ID          string         // grader identifier (must be unique)
-	Enabled     *bool          // explicit enable/disable; nil means use default (true for built-ins)
-	Name        string         // human-readable name (defaults from registry for built-ins)
-	Description string         // description of the metric
-	Unit        string         // e.g. "ratio", "count", "ms", "factor"
-	Direction   string         // "higher_is_better" or "lower_is_better"
-	Threshold   *float64       // quality threshold (pass/fail boundary)
-	Max         *float64       // theoretical maximum
-	Min         *float64       // theoretical minimum
-	Script      string         // inline JS body for trusted custom graders (built-ins leave empty)
-	Config      map[string]any // arbitrary config passed to grader at runtime
+	ID               string         // grader identifier (must be unique)
+	Enabled          *bool          // explicit enable/disable; nil means use default (true for built-ins)
+	Name             string         // human-readable name (defaults from registry for built-ins)
+	Description      string         // description of the metric
+	Unit             string         // e.g. "ratio", "count", "ms", "factor"
+	Direction        string         // "higher_is_better" or "lower_is_better"
+	Threshold        *float64       // quality threshold (pass/fail boundary)
+	Max              *float64       // theoretical maximum
+	Min              *float64       // theoretical minimum
+	Run              string         // repository-relative operational-value evaluator script
+	Script           string         // inline JS body for trusted custom graders (built-ins leave empty)
+	Config           map[string]any // arbitrary config passed to grader at runtime
+	evaluatorContent string
 }
 
 // ScriptDigest returns the SHA-256 hex digest of the script, or "" if no script.
@@ -83,6 +86,15 @@ func (g *GraderDefinition) ScriptDigest() string {
 		return ""
 	}
 	h := sha256.Sum256([]byte(g.Script))
+	return hex.EncodeToString(h[:])
+}
+
+// EvaluatorDigest returns the SHA-256 hex digest of the frozen operational-value evaluator.
+func (g *GraderDefinition) EvaluatorDigest() string {
+	if g.evaluatorContent == "" {
+		return ""
+	}
+	h := sha256.Sum256([]byte(g.evaluatorContent))
 	return hex.EncodeToString(h[:])
 }
 
@@ -106,13 +118,13 @@ func (gc *GradersConfig) HasGraders() bool {
 	return false
 }
 
-// HasCustomScripts returns true if any enabled grader has a custom script.
+// HasCustomScripts returns true if any enabled grader has trusted custom code.
 func (gc *GradersConfig) HasCustomScripts() bool {
 	if gc == nil {
 		return false
 	}
 	for _, g := range gc.Graders {
-		if (g.Enabled == nil || *g.Enabled) && g.Script != "" {
+		if (g.Enabled == nil || *g.Enabled) && (g.Script != "" || g.evaluatorContent != "") {
 			return true
 		}
 	}
@@ -226,10 +238,19 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 		// Apply built-in defaults if this is a built-in
 		if meta, ok := builtinGraderMetaByID[id]; ok {
 			def = builtinDefFromMeta(meta)
+		} else if id == "operational-value" {
+			def.Name = "Operational Value"
+			def.Unit = "ratio"
+			def.Direction = "higher_is_better"
+			def.Min = new(0.0)
+			def.Max = new(1.0)
 		}
 
 		_, isBuiltin := builtinSet[id]
 		if entryRaw == nil {
+			if id == "operational-value" {
+				return nil, errors.New("graders.operational-value requires a 'run' field")
+			}
 			if !isBuiltin {
 				return nil, fmt.Errorf("graders.%s is not a built-in grader and requires a 'script' field. Built-in graders: %s", id, strings.Join(BuiltinGraderIDs, ", "))
 			}
@@ -246,8 +267,11 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 			return nil, err
 		}
 
-		// Custom graders must have a script
-		if !isBuiltin && def.Script == "" && (def.Enabled == nil || *def.Enabled) {
+		// The operational-value grader uses a repository evaluator; other custom graders use inline scripts.
+		if id == "operational-value" && def.Run == "" && (def.Enabled == nil || *def.Enabled) {
+			return nil, errors.New("graders.operational-value requires a 'run' field")
+		}
+		if !isBuiltin && id != "operational-value" && def.Script == "" && (def.Enabled == nil || *def.Enabled) {
 			return nil, fmt.Errorf("graders.%s is not a built-in grader and requires a 'script' field. Built-in graders: %s", id, strings.Join(BuiltinGraderIDs, ", "))
 		}
 
@@ -363,6 +387,21 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 		def.Config = m
 	}
 
+	if runRaw, ok := entry["run"]; ok {
+		runPath, ok := runRaw.(string)
+		if !ok {
+			return fmt.Errorf("graders.%s.run must be a string, got %T", id, runRaw)
+		}
+		runPath = strings.TrimSpace(runPath)
+		if id != "operational-value" {
+			return fmt.Errorf("graders.%s.run is only supported by the operational-value grader", id)
+		}
+		if !isValidOperationalValueEvaluatorPath(runPath) {
+			return fmt.Errorf("graders.operational-value.run must be a repository-relative .sh file under .github/graders, got %q", runPath)
+		}
+		def.Run = runPath
+	}
+
 	if scriptRaw, ok := entry["script"]; ok {
 		s, ok := scriptRaw.(string)
 		if !ok {
@@ -374,6 +413,9 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 		}
 		if isBuiltin {
 			return fmt.Errorf("graders.%s is a built-in grader and cannot have a custom script", id)
+		}
+		if id == "operational-value" {
+			return errors.New("graders.operational-value cannot have an inline script; use 'run'")
 		}
 		scriptCharCount := utf8.RuneCountInString(s)
 		if scriptCharCount > 4096 {
@@ -389,6 +431,22 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 	}
 
 	return nil
+}
+
+func isValidOperationalValueEvaluatorPath(evaluatorPath string) bool {
+	if evaluatorPath == "" || strings.Contains(evaluatorPath, "\\") {
+		return false
+	}
+	parts := strings.Split(evaluatorPath, "/")
+	if len(parts) < 3 || parts[0] != ".github" || parts[1] != "graders" {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return false
+		}
+	}
+	return strings.HasSuffix(evaluatorPath, ".sh")
 }
 
 // parseOptionalFloat parses an optional float64 field from a map.
@@ -413,6 +471,17 @@ func parseOptionalFloat(m map[string]any, key string, graderID string, target **
 func validateGraders(cfg *GradersConfig) error {
 	if cfg == nil {
 		return nil
+	}
+	if grader, ok := cfg.Graders["operational-value"]; ok {
+		if grader.Direction != "higher_is_better" {
+			return errors.New("graders.operational-value.direction must be 'higher_is_better'")
+		}
+		if grader.Min == nil || *grader.Min != 0 || grader.Max == nil || *grader.Max != 1 {
+			return errors.New("graders.operational-value range must be min: 0 and max: 1")
+		}
+		if grader.Threshold != nil && (math.IsNaN(*grader.Threshold) || math.IsInf(*grader.Threshold, 0) || *grader.Threshold < 0 || *grader.Threshold > 1) {
+			return errors.New("graders.operational-value.threshold must be between 0 and 1")
+		}
 	}
 	if !cfg.HasGraders() {
 		return errors.New("graders configuration has no enabled graders. Remove the graders field to disable grading, or set enabled: true on at least one grader")

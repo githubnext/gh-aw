@@ -424,6 +424,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return err
 	}
 	workflowData.CacheMemoryConfig = cacheMemoryConfig
+	ensureCacheMemoryWritePaths(workflowData.SandboxConfig, cacheMemoryConfig)
 
 	// Extract experimental drive-memory config and check for errors.
 	toolsConfig, err := ParseToolsConfig(tools)

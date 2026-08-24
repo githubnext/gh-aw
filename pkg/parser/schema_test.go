@@ -1044,6 +1044,23 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SandboxAgentPlatfo
 	})
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OperationalValueGrader(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"graders": map[string]any{
+			"operational-value": map[string]any{
+				"run": ".github/graders/example-operational-value.sh",
+			},
+		},
+	}
+
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/operational-value-grader-test.md"); err != nil {
+		t.Fatalf("expected operational-value evaluator to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {
 	t.Parallel()
 
