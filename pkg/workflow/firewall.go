@@ -163,6 +163,21 @@ func isCloudHypervisorRuntime(workflowData *WorkflowData) bool {
 	return agentConfig.Runtime == AgentRuntimeCloudHypervisor
 }
 
+// declaresIgnoredFilesystemAllowWrite returns true when a workflow declares
+// sandbox.agent.config.filesystem.allowWrite on a runtime where the compiler drops
+// it (see awfEmitsFilesystemAllowWrite). Only explicit opt-ins are reported: the
+// implicit defaults are seeded for the Cloud Hypervisor runtime alone.
+func declaresIgnoredFilesystemAllowWrite(workflowData *WorkflowData) bool {
+	if isCloudHypervisorRuntime(workflowData) {
+		return false
+	}
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Disabled || agentConfig.Config == nil || agentConfig.Config.Filesystem == nil {
+		return false
+	}
+	return agentConfig.Config.Filesystem.AllowWrite != nil
+}
+
 // isRuntimeInstallEnabled returns true when runtime installation steps should be
 // generated (the default). Returns false only when sandbox.agent.runtime-install is
 // explicitly set to false AND a runtime (gVisor or docker-sbx) is configured.

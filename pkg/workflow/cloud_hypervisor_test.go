@@ -127,6 +127,62 @@ func TestCloudHypervisorAWFCommandOmitsUnsupportedMountsAndTTY(t *testing.T) {
 	assert.NotContains(t, command, "--enable-host-access")
 }
 
+func TestCloudHypervisorAWFCommandEmitsAwfHomeMkdirBeforeInvocation(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName: "copilot",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)},
+			},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+				ID:      "awf",
+				Runtime: AgentRuntimeCloudHypervisor,
+				Config: &SandboxRuntimeConfig{
+					Filesystem: &SRTFilesystemConfig{
+						AllowWrite: []string{"/workspace", "/workspace/.awf-home", "/tmp/gh-aw/agent"},
+					},
+				},
+			}},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+	// /workspace already exists (checked out by actions/checkout) and must not be mkdir'd.
+	assert.NotContains(t, command, `mkdir -p "${GITHUB_WORKSPACE}"`+"\n")
+	assert.Contains(t, command, `mkdir -p "${GITHUB_WORKSPACE}/.awf-home" "/tmp/gh-aw/agent"`)
+
+	mkdirIdx := strings.Index(command, "mkdir -p")
+	configWriteIdx := strings.Index(command, "cp \"")
+	require.NotEqual(t, -1, mkdirIdx)
+	require.NotEqual(t, -1, configWriteIdx)
+	assert.Less(t, mkdirIdx, configWriteIdx, "mkdir for .awf-home must run before the AWF config file is finalized")
+}
+
+func TestCloudHypervisorAWFCommandOmitsAwfHomeMkdirBelowCHMinVersion(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName: "copilot",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFFilesystemAllowWriteMinVersion)},
+			},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+				ID:      "awf",
+				Runtime: AgentRuntimeCloudHypervisor,
+				Config: &SandboxRuntimeConfig{
+					Filesystem: &SRTFilesystemConfig{
+						AllowWrite: []string{"/workspace", "/workspace/.awf-home", "/tmp/gh-aw/agent"},
+					},
+				},
+			}},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+	assert.NotContains(t, command, "mkdir -p \"${GITHUB_WORKSPACE}/.awf-home\"")
+}
+
 func TestCloudHypervisorFirewallLogsUsePrivilegedMode(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
