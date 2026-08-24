@@ -20,7 +20,7 @@ func TestPreCreatePullRequestExperimentalWarning(t *testing.T) {
 		expectWarning bool
 	}{
 		{
-			name: "pre-create enabled produces experimental warning",
+			name: "steer enabled produces experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -29,7 +29,7 @@ permissions:
   pull-requests: read
 safe-outputs:
   create-pull-request:
-    pre-create: true
+    steer: true
 ---
 
 # Test Workflow
@@ -37,7 +37,7 @@ safe-outputs:
 			expectWarning: true,
 		},
 		{
-			name: "create-pull-request without pre-create does not produce experimental warning",
+			name: "create-pull-request without steer does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -78,7 +78,7 @@ safe-outputs:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: create-pull-request pre-create"
+			expectedMessage := "Using experimental feature: create-pull-request steer"
 			if tt.expectWarning {
 				if !strings.Contains(stderrOutput, expectedMessage) {
 					t.Errorf("expected warning containing %q, got stderr:\n%s", expectedMessage, stderrOutput)
