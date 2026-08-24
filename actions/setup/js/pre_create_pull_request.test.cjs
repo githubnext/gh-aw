@@ -131,7 +131,7 @@ describe("pre_create_pull_request", () => {
     const body = global.github.rest.pulls.create.mock.calls[0][0].body;
     expect(body).toContain("work in progress");
     expect(body).toContain("Steering is enabled");
-    expect(body).toContain("keyword `steer`");
+    expect(body).toContain("pull request comments and pull request review comments");
     expect(body).toContain("Test workflow");
   });
 
