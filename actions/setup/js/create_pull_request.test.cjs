@@ -2151,6 +2151,81 @@ ${diffs}
     expect(createCall.body).not.toContain("gh run download");
     expect(createCall.body).not.toContain("git am --3way");
   });
+
+  it("should give patch-based manual recovery instructions for protected-files push-failure fallback (patch transport)", async () => {
+    writePatch("feature/protected", createPatchWithFiles(".github/aw/instructions.md"));
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    copyPromptTemplate(promptsDir, "manifest_protection_create_pr_fallback.md");
+    copyPromptTemplate(promptsDir, "manifest_protection_push_failed_fallback.md");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.github.rest.issues = {
+      create: vi.fn().mockResolvedValue({ data: { number: 78, html_url: "https://github.com/test-owner/test-repo/issues/78" } }),
+      update: vi.fn().mockResolvedValue({ data: {} }),
+    };
+    pushSignedSpy.mockRejectedValueOnce(new Error("refusing to allow a GitHub App to create or update workflow"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "fallback-to-issue",
+    });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(78);
+
+    const createCall = global.github.rest.issues.create.mock.calls[0][0];
+    // No compare URL is possible since the branch was never pushed
+    expect(createCall.body).not.toContain("/compare/main...");
+    expect(createCall.body).toContain("gh run download");
+    // Patch transport: instructions should create a new branch off the base branch, then git am
+    expect(createCall.body).toMatch(/git checkout -b feature\/protected\S* main/);
+    expect(createCall.body).toContain("git am --3way");
+    expect(createCall.body).not.toContain("git update-ref");
+  });
+
+  it("should give bundle-based manual recovery instructions for protected-files push-failure fallback (bundle transport)", async () => {
+    writePatch("feature/protected", createPatchWithFiles(".github/aw/instructions.md"));
+    const bundlePath = canonicalBundlePath("feature/protected");
+    fs.writeFileSync(bundlePath, "bundle content");
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    copyPromptTemplate(promptsDir, "manifest_protection_create_pr_fallback.md");
+    copyPromptTemplate(promptsDir, "manifest_protection_push_failed_fallback.md");
+    copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
+    global.github.rest.issues = {
+      create: vi.fn().mockResolvedValue({ data: { number: 79, html_url: "https://github.com/test-owner/test-repo/issues/79" } }),
+      update: vi.fn().mockResolvedValue({ data: {} }),
+    };
+    pushSignedSpy.mockRejectedValueOnce(new Error("refusing to allow a GitHub App to create or update workflow"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "fallback-to-issue",
+    });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/protected" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(79);
+
+    const createCall = global.github.rest.issues.create.mock.calls[0][0];
+    // No compare URL is possible since the branch was never pushed
+    expect(createCall.body).not.toContain("/compare/main...");
+    expect(createCall.body).toContain("gh run download");
+    // Bundle transport: instructions should fetch the bundle into a temp ref and reset --hard,
+    // not use git am (which fails on bundle files - see issue #55509)
+    expect(createCall.body).toMatch(/git update-ref refs\/heads\/feature\/protected\S* refs\/bundles\//);
+    expect(createCall.body).toContain("git reset --hard");
+    expect(createCall.body).not.toContain("git am --3way");
+  });
 });
 
 // excluded-files exclusion list

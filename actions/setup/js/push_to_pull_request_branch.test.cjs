@@ -3256,6 +3256,49 @@ ${diffs}
       }
     });
 
+    it("should give patch-based manual apply instructions for protected-files fallback (patch transport)", async () => {
+      createPatchFile("should-give-patch-based-manual-apply-instructions", createPatchWithFiles("package.json"));
+
+      const module = await loadModule();
+      const handler = await module.main({
+        protected_files: ["package.json"],
+        protected_files_policy: "fallback-to-issue",
+      });
+      const result = await handler({ branch: "should-give-patch-based-manual-apply-instructions" }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+
+      const issueBody = mockGithub.rest.issues.create.mock.calls[0][0].body;
+      expect(issueBody).toContain("gh run download");
+      expect(issueBody).toContain("git am --3way");
+      expect(issueBody).not.toContain("refs/bundles/");
+    });
+
+    it("should give bundle-based manual apply instructions for protected-files fallback (bundle transport)", async () => {
+      createPatchFile("should-give-bundle-based-manual-apply-instructions", createPatchWithFiles("package.json"));
+      const bundlePath = canonicalBundlePath("should-give-bundle-based-manual-apply-instructions");
+      fs.writeFileSync(bundlePath, "bundle content");
+
+      const module = await loadModule();
+      const handler = await module.main({
+        protected_files: ["package.json"],
+        protected_files_policy: "fallback-to-issue",
+      });
+      const result = await handler({ branch: "should-give-bundle-based-manual-apply-instructions" }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+
+      const issueBody = mockGithub.rest.issues.create.mock.calls[0][0].body;
+      expect(issueBody).toContain("gh run download");
+      // Bundle transport: instructions should fetch the bundle and reset --hard,
+      // not use git am (which fails on bundle files - see issue #55509)
+      expect(issueBody).toContain("refs/bundles/manual-apply");
+      expect(issueBody).toContain("git reset --hard refs/bundles/manual-apply");
+      expect(issueBody).not.toContain("git am --3way");
+    });
+
     it("should block a protected file when no allowed-files list is configured", async () => {
       const patchPath = createPatchFile("should-block-a-protected-file-when-no-allowed-files-list-is-", createPatchWithFiles("package.json"));
 

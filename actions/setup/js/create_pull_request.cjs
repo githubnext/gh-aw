@@ -59,6 +59,7 @@ const {
   buildManifestProtectionCreatePrUrl,
   renderManifestProtectionFallbackBody,
   buildPushErrorSection,
+  buildManualBranchRecoveryCommands,
 } = require("./create_pull_request_helpers.cjs");
 const { isStackedEnabled, parseStackMetadata, hasCircularStackDependency, buildStackMetadataLines, stackedDisabledError, circularStackError, verifyStackBaseBranchExists, createStackTracker } = require("./stacked_pull_requests.cjs");
 
@@ -2461,18 +2462,31 @@ ${patchPreview}`;
         let fallbackBody;
         if (manifestProtectionPushFailedError) {
           // Push failed — branch not on remote, so compare URL is unavailable.
-          // Use the push-failed template with artifact download instructions.
+          // Use the push-failed template with artifact download instructions, matching
+          // whichever transport (bundle or format-patch) was actually used to encode the changes.
           const runId = context.runId;
-          const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+          const artifactFileName = hasBundleFile
+            ? bundleFilePath.replace("/tmp/gh-aw/", "")
+            : patchFilePath
+              ? patchFilePath.replace("/tmp/gh-aw/", "")
+              : "aw-unknown.patch";
+          const applyInstructions = buildManualBranchRecoveryCommands({
+            hasBundleFile,
+            runId,
+            artifactFileName,
+            branchName,
+            baseBranch,
+            sourceRef: `refs/heads/${originalAgentBranch || branchName}`,
+            tempRef: createBundleTempRef(branchName),
+          });
           const pushFailedTemplatePath = getPromptPath("manifest_protection_push_failed_fallback.md");
           fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
             main_body: issueSafeMainBodyContent,
             footer: footerContent,
             files: fileList,
-            run_id: String(runId),
+            apply_instructions: applyInstructions,
             branch_name: branchName,
             base_branch: baseBranch,
-            patch_file: patchFileName,
             title,
             repo: `${repoParts.owner}/${repoParts.repo}`,
           });

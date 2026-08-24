@@ -311,6 +311,96 @@ function _remediationForCause(cause) {
 }
 
 /**
+ * Build the shell instructions for manually recreating a branch (and later opening a PR)
+ * from a workflow-run artifact, matching whichever transport (bundle or format-patch)
+ * was actually used to encode the changes. Used when the automated push failed and a
+ * human needs to recreate the branch locally before pushing and opening the PR themselves.
+ *
+ * The returned block intentionally stops right before the final `git push` / `gh pr create`
+ * steps, which are appended separately by the caller since they are identical for both
+ * transports.
+ *
+ * @param {object} params
+ * @param {boolean} params.hasBundleFile - true when the artifact is a git bundle, false for a format-patch file
+ * @param {string|number} params.runId - workflow run id, used to build the `gh run download` command
+ * @param {string} params.artifactFileName - bundle or patch file name (relative to the artifact root)
+ * @param {string} params.branchName - branch to create/checkout locally
+ * @param {string} [params.baseBranch] - base branch to create the new branch from (patch transport only)
+ * @param {string} [params.sourceRef] - source ref inside the bundle to fetch (bundle transport only)
+ * @param {string} [params.tempRef] - temporary ref used while transplanting the bundle (bundle transport only)
+ * @returns {string} Shell instructions (no leading/trailing blank lines, no code fence)
+ */
+function buildManualBranchRecoveryCommands({ hasBundleFile, runId, artifactFileName, branchName, baseBranch, sourceRef, tempRef }) {
+  if (hasBundleFile) {
+    return [
+      `# Download the artifact from the workflow run`,
+      `gh run download ${runId} -n agent -D /tmp/agent-${runId}`,
+      ``,
+      `# Fetch the bundle into a temporary ref, then create the local branch`,
+      `git fetch /tmp/agent-${runId}/${artifactFileName} ${sourceRef}:${tempRef}`,
+      `git update-ref refs/heads/${branchName} ${tempRef}`,
+      `git checkout ${branchName}`,
+      `# Ensure the working tree matches the updated branch`,
+      `git reset --hard`,
+      `# Remove the temporary bundle ref`,
+      `git update-ref -d ${tempRef}`,
+    ].join("\n");
+  }
+  return [
+    `# Download the artifact from the workflow run`,
+    `gh run download ${runId} -n agent -D /tmp/agent-${runId}`,
+    ``,
+    `# Create a new branch`,
+    `git checkout -b ${branchName} ${baseBranch}`,
+    ``,
+    `# Apply the patch (--3way handles cross-repo patches where files may already exist)`,
+    `git am --3way /tmp/agent-${runId}/${artifactFileName}`,
+  ].join("\n");
+}
+
+/**
+ * Build the shell instructions for manually applying a workflow-run artifact to an
+ * *existing* remote branch (e.g. an already-open pull request branch), matching whichever
+ * transport (bundle or format-patch) was actually used to encode the changes.
+ *
+ * Unlike {@link buildManualBranchRecoveryCommands}, the returned block is self-contained:
+ * it includes the final `git push`, since there is no separate PR-creation step for this flow.
+ *
+ * @param {object} params
+ * @param {boolean} params.hasBundleFile - true when the artifact is a git bundle, false for a format-patch file
+ * @param {string|number} params.runId - workflow run id, used to build the `gh run download` command
+ * @param {string} params.artifactFileName - bundle or patch file name (relative to the artifact root)
+ * @param {string} params.branchName - existing remote branch to update
+ * @returns {string} Shell instructions (no leading/trailing blank lines, no code fence)
+ */
+function buildManualBranchApplyCommands({ hasBundleFile, runId, artifactFileName, branchName }) {
+  if (hasBundleFile) {
+    return [
+      `# Download the artifact from the workflow run`,
+      `gh run download ${runId} -n agent -D /tmp/agent-${runId}`,
+      ``,
+      `# Fetch the bundle into a temporary ref, then fast-forward the branch`,
+      `git fetch origin ${branchName}`,
+      `git checkout ${branchName}`,
+      `git fetch /tmp/agent-${runId}/${artifactFileName} refs/heads/${branchName}:refs/bundles/manual-apply`,
+      `git reset --hard refs/bundles/manual-apply`,
+      `git update-ref -d refs/bundles/manual-apply`,
+      `git push origin ${branchName}`,
+    ].join("\n");
+  }
+  return [
+    `# Download the artifact from the workflow run`,
+    `gh run download ${runId} -n agent -D /tmp/agent-${runId}`,
+    ``,
+    `# Apply the patch to the pull request branch`,
+    `git fetch origin ${branchName}`,
+    `git checkout ${branchName}`,
+    `git am --3way /tmp/agent-${runId}/${artifactFileName}`,
+    `git push origin ${branchName}`,
+  ].join("\n");
+}
+
+/**
  * Renders protected-files fallback issue body with a prefilled compare URL.
  * @param {string} mainBodyContent
  * @param {string} footerContent
@@ -346,4 +436,6 @@ module.exports = {
   buildManifestProtectionCreatePrUrl,
   renderManifestProtectionFallbackBody,
   buildPushErrorSection,
+  buildManualBranchRecoveryCommands,
+  buildManualBranchApplyCommands,
 };
