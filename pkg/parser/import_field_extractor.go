@@ -59,6 +59,7 @@ type importAccumulator struct {
 	sandboxAgentRuntimeInstall *bool // false if any import sets sandbox.agent.runtime-install: false
 	caches                     []string
 	features                   []map[string]any
+	metadataDocs               string
 	models                     []map[string][]string // model alias maps from each imported file (appended in import order)
 	modelPolicies              []map[string][]string // model policy sets from each imported file (appended in import order)
 	modelCosts                 []map[string]any      // model pricing overlays from each imported file (appended in import order)
@@ -395,6 +396,13 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turn-cache-misses", &acc.mergedMaxTurnCacheMisses)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
+	if acc.metadataDocs == "" {
+		if metadata, ok := fm["metadata"].(map[string]any); ok {
+			if docs, ok := metadata["docs"].(string); ok {
+				acc.metadataDocs = strings.TrimSpace(docs)
+			}
+		}
+	}
 
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
 	acc.plugins = append(acc.plugins, parseStringSliceField(fm["plugins"], false)...)
@@ -991,6 +999,7 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		MergedEnv:                        acc.envBuilder.String(),
 		MergedEnvSources:                 acc.envSources,
 		MergedFeatures:                   acc.features,
+		MergedMetadataDocs:               acc.metadataDocs,
 		MergedModels:                     acc.models,
 		MergedModelPolicies:              acc.modelPolicies,
 		MergedModelCosts:                 acc.modelCosts,

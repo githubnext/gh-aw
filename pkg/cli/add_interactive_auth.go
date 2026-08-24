@@ -38,7 +38,6 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 
 		// Ask the user for the repository (interactive-only feature)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine the repository automatically."))
-		fmt.Fprintln(os.Stderr, "")
 
 		var userRepo string
 		form := console.NewInputForm(
@@ -68,8 +67,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Target repository: "+repoSlug))
 	addInteractiveLog.Printf("Target repository: %s", repoSlug)
 
-	// Check if repository is public or private
-	c.isPublicRepo = checkRepoVisibilityShared(c.RepoOverride)
+	c.repositoryVisibility = getRepoVisibilityShared(c.RepoOverride)
 
 	return nil
 }

@@ -553,7 +553,7 @@ func runCompileCmd(cmd *cobra.Command, args []string) error {
 }
 
 type commandSet struct {
-	addCmd, addWizardCmd, updateCmd, deployCmd, trialCmd, initCmd, statusCmd, listCmd                  *cobra.Command
+	addCmd, addWizardCmd, editCmd, updateCmd, deployCmd, trialCmd, initCmd, statusCmd, listCmd         *cobra.Command
 	mcpCmd, logsCmd, auditCmd, viewCmd, healthCmd, outcomesCmd, mcpServerCmd, prCmd, secretsCmd        *cobra.Command
 	fixCmd, upgradeCmd, completionCmd, hashCmd, projectCmd, doctorCmd, checksCmd, validateCmd, lintCmd *cobra.Command
 	domainsCmd, experimentsCmd, forecastCmd, gradersCmd, modelsCmd, envCmd                             *cobra.Command
@@ -708,6 +708,7 @@ func createCommandSet() commandSet {
 	cmds := commandSet{
 		addCmd:         cli.NewAddCommand(validateEngine),
 		addWizardCmd:   cli.NewAddWizardCommand(validateEngine),
+		editCmd:        cli.NewEditCommand(),
 		updateCmd:      cli.NewUpdateCommand(validateEngine),
 		deployCmd:      cli.NewDeployCommand(validateEngine),
 		trialCmd:       cli.NewTrialCommand(validateEngine),
@@ -845,7 +846,7 @@ func configureOtherCommandFlags() {
 
 func assignCommandGroups(cmds commandSet) {
 	cmds.initCmd.GroupID, newCmd.GroupID, cmds.addCmd.GroupID, cmds.addWizardCmd.GroupID = "setup", "setup", "setup", "setup"
-	removeCmd.GroupID, cmds.updateCmd.GroupID, cmds.deployCmd.GroupID, cmds.upgradeCmd.GroupID = "setup", "setup", "setup", "setup"
+	removeCmd.GroupID, cmds.editCmd.GroupID, cmds.updateCmd.GroupID, cmds.deployCmd.GroupID, cmds.upgradeCmd.GroupID = "setup", "setup", "setup", "setup", "setup"
 	cmds.secretsCmd.GroupID, cmds.envCmd.GroupID, cmds.doctorCmd.GroupID = "setup", "setup", "setup"
 	compileCmd.GroupID, cmds.validateCmd.GroupID, cmds.lintCmd.GroupID = "development", "development", "development"
 	cmds.mcpCmd.GroupID, cmds.fixCmd.GroupID, cmds.domainsCmd.GroupID = "development", "development", "development"
@@ -859,7 +860,7 @@ func assignCommandGroups(cmds commandSet) {
 
 func addCommandsToRoot(cmds commandSet) {
 	rootCmd.AddCommand(
-		compileCmd, cmds.addCmd, cmds.addWizardCmd, cmds.updateCmd, cmds.deployCmd, cmds.upgradeCmd, cmds.trialCmd, newCmd, cmds.initCmd,
+		compileCmd, cmds.addCmd, cmds.addWizardCmd, cmds.editCmd, cmds.updateCmd, cmds.deployCmd, cmds.upgradeCmd, cmds.trialCmd, newCmd, cmds.initCmd,
 		runCmd, removeCmd, cmds.statusCmd, cmds.listCmd, enableCmd, disableCmd, cmds.logsCmd, cmds.auditCmd, cmds.viewCmd,
 		cmds.healthCmd, cmds.outcomesCmd, cmds.checksCmd, cmds.mcpCmd, cmds.mcpServerCmd, cmds.prCmd, versionCmd, cmds.secretsCmd,
 		cmds.fixCmd, cmds.validateCmd, cmds.lintCmd, cmds.completionCmd, cmds.hashCmd, cmds.projectCmd, cmds.doctorCmd,
