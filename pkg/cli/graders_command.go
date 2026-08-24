@@ -14,18 +14,18 @@ func NewGradersCommand() *cobra.Command {
 		Use:   "graders",
 		Short: "Inspect and replay workflow graders",
 	}
-	cmd.AddCommand(newGradersValueCommand())
+	cmd.AddCommand(newGradersOperationalValueCommand())
 	return cmd
 }
 
-func newGradersValueCommand() *cobra.Command {
+func newGradersOperationalValueCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "value <run-id>",
+		Use:   "operational-value <run-id>",
 		Short: "Regrade a workflow run's operational value",
-		Long: `Regrade the value observation from a completed workflow run at an explicit
-evidence cutoff. The command verifies and executes the exact value function archived
+		Long: `Regrade the operational-value observation from a completed workflow run at an explicit
+evidence cutoff. The command verifies and executes the exact evaluator archived
 by the run. The original artifact is not modified.`,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` graders value 123456789 \
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` graders operational-value 123456789 \
     --evidence-at 2026-08-30T12:00:00.000Z --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -36,7 +36,7 @@ by the run. The original artifact is not modified.`,
 			evidenceAt, _ := cmd.Flags().GetString("evidence-at")
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
-			return RunValueRegrade(cmd.Context(), ValueRegradeConfig{
+			return RunOperationalValueRegrade(cmd.Context(), OperationalValueRegradeConfig{
 				RunID:        runID,
 				EvidenceAt:   evidenceAt,
 				RepoOverride: repoOverride,

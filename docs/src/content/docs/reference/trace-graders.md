@@ -58,29 +58,29 @@ Custom scripts must return a value and stay within 4096 characters (no `require`
 
 ## Operational value grader
 
-Configure the reserved `value` grader with a repository-relative Bash function:
+Configure the reserved `operational-value` grader with a repository-relative Bash evaluator:
 
 ```aw wrap
 graders:
-  value:
-    function: .github/graders/daily-file-diet-value.sh
+  operational-value:
+    run: .github/graders/daily-file-diet-operational-value.sh
 ```
 
-The compiler freezes the function bytes and records their SHA-256 digest. The function returns absolute operational attainment in `[0,1]` for the run's assigned case. A frozen baseline is optional metadata; when present, gh-aw derives `deltaFromBaseline` without changing the primary value.
+The compiler freezes the evaluator bytes and records their SHA-256 digest. The evaluator returns absolute operational attainment in `[0,1]` for the run's assigned case. A frozen baseline is optional metadata; when present, gh-aw derives `deltaFromBaseline` without changing the primary value.
 
-Each result records the complete run subject, operational case, evidence time, maturity, and provenance. Value functions may query the repositories declared by their frozen evidence contract. They receive the workflow token through `GH_TOKEN` but do not receive workflow secrets.
+Each result records the complete run subject, operational case, evidence time, maturity, and provenance. Operational-value evaluators may query the repositories declared by their frozen evidence contract. They receive the workflow token through `GH_TOKEN` but do not receive workflow secrets.
 
-Use the `aw-value` skill to design and verify a value function.
+Use the `aw-value` skill to design and verify an operational-value evaluator.
 
 ### Regrade a historical run
 
 ```bash
-gh aw graders value 123456789 \
+gh aw graders operational-value 123456789 \
   --evidence-at 2026-08-30T12:00:00.000Z \
   --json
 ```
 
-The command downloads the original grader artifact and reuses its case, run subject, and frozen function. The archived function must match the digest recorded by both the original manifest and result. Regrading emits a new observation identified by `(runId, functionDigest, evidenceAt)` and never modifies the original artifact. Use `--repo [HOST/]OWNER/REPO` to target another repository.
+The command downloads the original grader artifact and reuses its case, run subject, and frozen evaluator. The archived evaluator must match the digest recorded by both the original manifest and result. Regrading emits a new observation identified by `(runId, evaluatorDigest, evidenceAt)` and never modifies the original artifact. Use `--repo [HOST/]OWNER/REPO` to target another repository.
 
 ## Output files
 
@@ -88,9 +88,9 @@ The command downloads the original grader artifact and reuses its case, run subj
 |---|---|
 | `grader_manifest.json` | Which graders were configured and their enabled state |
 | `grader_results.json` | Normalized values, status, implementation identity, and value observations |
-| `value_function.sh` | Exact frozen value function used for initial grading and historical replay |
+| `operational_value_evaluator.sh` | Exact frozen operational-value evaluator used for initial grading and historical replay |
 
-Both files are included in the unified `agent` artifact.
+All files are included in the unified `agent` artifact.
 
 ## Execution
 

@@ -12849,7 +12849,7 @@
       "examples": ["gpt-5.4", "claude-3-5-sonnet-20241022", "gpt-4"]
     },
     "graders": {
-      "description": "\u26a0\ufe0f Experimental. Deterministic graders for workflow-run observations. Built-in graders use execution artifacts, custom graders use inline scripts, and the value grader uses a repository function.",
+      "description": "\u26a0\ufe0f Experimental. Deterministic graders for workflow-run observations. Built-in graders use execution artifacts, custom graders use inline scripts, and the operational-value grader uses a repository evaluator.",
       "type": "object",
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9-]{0,63}$",
@@ -12909,10 +12909,10 @@
                 "maxLength": 4096,
                 "description": "Custom grader JavaScript script body (trusted workflows only)."
               },
-              "function": {
+              "run": {
                 "type": "string",
                 "pattern": "^\\.github/graders/.+\\.sh$",
-                "description": "Repository-relative Bash function for the value grader. Supported only for the reserved value grader ID."
+                "description": "Repository-relative Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
               }
             }
           }

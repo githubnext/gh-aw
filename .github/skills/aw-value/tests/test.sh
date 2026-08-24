@@ -7,15 +7,15 @@ repo_root=$(CDPATH='' cd -- "$skill_dir/../../.." && pwd)
 work_dir=$(mktemp -d "$repo_root/.aw-value-test.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
-path=$("$skill_dir/scripts/value-function-path.sh" daily-file-diet)
-[[ $path == .github/graders/daily-file-diet-value.sh ]]
-if "$skill_dir/scripts/value-function-path.sh" ../escape >/dev/null 2>&1; then
+path=$("$skill_dir/scripts/operational-value-evaluator-path.sh" daily-file-diet)
+[[ $path == .github/graders/daily-file-diet-operational-value.sh ]]
+if "$skill_dir/scripts/operational-value-evaluator-path.sh" ../escape >/dev/null 2>&1; then
     printf 'invalid workflow name was accepted\n' >&2
     exit 1
 fi
 
-function_path="$work_dir/value.sh"
-cat > "$function_path" <<'EOF'
+evaluator_path="$work_dir/operational-value.sh"
+cat > "$evaluator_path" <<'EOF'
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -25,7 +25,7 @@ case ${1:-} in
         cat <<'JSON'
 {
   "schemaVersion": 4,
-  "grader": "value",
+  "grader": "operational-value",
   "repository": "owner/repo",
   "workflowName": "Example",
   "sourcePath": ".github/workflows/example.md",
@@ -72,7 +72,7 @@ JSON
         ;;
 esac
 EOF
-chmod +x "$function_path"
+chmod +x "$evaluator_path"
 
-"$skill_dir/scripts/verify-value-function.sh" "$function_path" >/dev/null
+"$skill_dir/scripts/verify-operational-value-evaluator.sh" "$evaluator_path" >/dev/null
 printf 'aw-value skill tests passed\n'

@@ -1,6 +1,6 @@
 ---
 name: aw-value
-description: "Design and verify a deterministic operational-value grader for a GitHub Agentic Workflow. Use for per-run value, evidence attribution, maturation, baselines, and value grader functions. Usage: /aw-value OWNER/REPO WORKFLOW-NAME."
+description: "Design and verify a deterministic operational-value grader for a GitHub Agentic Workflow. Use for per-run operational value, evidence attribution, maturation, baselines, and operational-value evaluators. Usage: /aw-value OWNER/REPO WORKFLOW-NAME."
 argument-hint: "OWNER/REPO WORKFLOW-NAME"
 allowed-tools: bash jq gh
 metadata:
@@ -9,24 +9,24 @@ metadata:
 
 # Operational Value Grader
 
-Design one deterministic `value` grader that reports absolute operational attainment for each workflow run.
+Design one deterministic `operational-value` grader that reports absolute operational attainment for each workflow run.
 
 Operational value is the degree to which the workflow's intended repository outcome is attained for the opportunity assigned to a run, demonstrated by accepted repository evidence under a frozen contract. It is not execution quality, output volume, safe-output creation, or an agent's assessment.
 
 ## Output
 
-Create one executable function at:
+Create one executable evaluator at:
 
 ```text
-.github/graders/WORKFLOW-NAME-value.sh
+.github/graders/WORKFLOW-NAME-operational-value.sh
 ```
 
 Configure the workflow:
 
 ```yaml
 graders:
-  value:
-    function: .github/graders/WORKFLOW-NAME-value.sh
+  operational-value:
+    run: .github/graders/WORKFLOW-NAME-operational-value.sh
 ```
 
 The grader's primary `value` is absolute attainment in `[0,1]`. A comparable frozen baseline may be reported separately as `baselineValue`; gh-aw derives `deltaFromBaseline`. Never define the primary value as a difference from baseline.
@@ -43,16 +43,16 @@ The grader's primary `value` is absolute attainment in `[0,1]`. A comparable fro
 4. Freeze accepted evidence, evidence repositories, matching rules, zero-versus-missing behavior, and `maturesAt` computation.
 5. Choose exactly one direct primary metric in `[0,1]`. Higher must always mean greater attainment. Keep trace graders and activity counts separate.
 6. If comparable pre-adoption evidence exists, score it with the same metric and freeze it under `baseline`. Otherwise use `attainment-only` with a null baseline value.
-7. Implement the function interface below and run:
+7. Implement the evaluator interface below and run:
 
    ```bash
-   .github/skills/aw-value/scripts/verify-value-function.sh .github/graders/WORKFLOW-NAME-value.sh
+  .github/skills/aw-value/scripts/verify-operational-value-evaluator.sh .github/graders/WORKFLOW-NAME-operational-value.sh
    gh aw compile .github/workflows/WORKFLOW-NAME.md
    ```
 
-## Function Interface
+## Evaluator Interface
 
-The function uses Bash 3.2-compatible Bash plus `jq` and supports:
+The evaluator uses Bash 3.2-compatible Bash plus `jq` and supports:
 
 - `--definition`: print the frozen schema-version 4 contract.
 - `--metric`: read one evidence object on stdin and print a deterministic number in `[0,1]` or `null`.
@@ -103,18 +103,18 @@ The function must cap `evidenceCutoff` at the earlier of `evidenceAt` and `matur
 Recompute a run at an explicit evidence time with the same local function used by the original run:
 
 ```bash
-gh aw graders value RUN-ID \
+gh aw graders operational-value RUN-ID \
   --evidence-at 2026-08-30T12:00:00.000Z \
   --json
 ```
 
-Add `--repo [HOST/]OWNER/REPO` when the run is not in the current repository. The command downloads the original grader artifact, reuses its operational case and complete run subject, and refuses to execute unless the archived function's SHA-256 matches both digest records. It prints a new observation and never modifies the original artifact.
+Add `--repo [HOST/]OWNER/REPO` when the run is not in the current repository. The command downloads the original grader artifact, reuses its operational case and complete run subject, and refuses to execute unless the archived evaluator's SHA-256 matches both digest records. It prints a new observation and never modifies the original artifact.
 
 ## Definition Contract
 
 `--definition` must contain:
 
-- `schemaVersion: 4` and `grader: "value"`;
+- `schemaVersion: 4` and `grader: "operational-value"`;
 - repository, workflow name, source path, and adoption commit/time;
 - operational-value statement;
 - evidence opportunity, assignment, accepted evidence, repositories, collection, maturation, zero rule, and missing rule;
@@ -128,6 +128,6 @@ For `baseline-comparable`, baseline value must be in `[0,1]` and have immutable 
 - `value` answers “how fully was this run's assigned opportunity attained?”
 - `deltaFromBaseline` answers “how far is this observation above or below the frozen pre-adoption reference?”
 - Neither establishes that the workflow caused the outcome.
-- Compare runs only under the same function digest and evidence horizon.
-- Identify a replayed observation by `(runId, functionDigest, evidenceAt)`.
+- Compare runs only under the same evaluator digest and evidence horizon.
+- Identify a replayed observation by `(runId, evaluatorDigest, evidenceAt)`.
 - Do not treat repeated observations of one run, duplicate opportunity keys, or overlapping state windows as independent samples.

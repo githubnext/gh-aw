@@ -6,9 +6,9 @@ const os = require("os");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-const VALUE_FUNCTION_TIMEOUT_MS = 120000;
-const VALUE_FUNCTION_MAX_OUTPUT = 1024 * 1024;
-const VALUE_EVENT_MAX_SIZE = 1024 * 1024;
+const OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS = 120000;
+const OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT = 1024 * 1024;
+const OPERATIONAL_VALUE_EVENT_MAX_SIZE = 1024 * 1024;
 
 /** @param {unknown} value @returns {value is Record<string, any>} */
 function isRecord(value) {
@@ -51,7 +51,7 @@ function readEventPayload(env) {
   if (!eventPath) return null;
   try {
     const stat = fs.statSync(eventPath);
-    if (!stat.isFile() || stat.size > VALUE_EVENT_MAX_SIZE) return null;
+    if (!stat.isFile() || stat.size > OPERATIONAL_VALUE_EVENT_MAX_SIZE) return null;
     const event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
     return isRecord(event) ? event : null;
   } catch {
@@ -69,37 +69,37 @@ function safeFunctionEnv(env) {
   return result;
 }
 
-function parseBaselineDefinition(rawDefinition) {
+function parseOperationalValueBaselineDefinition(rawDefinition) {
   let definition;
   try {
     definition = JSON.parse(rawDefinition || "{}");
   } catch (err) {
-    throw new Error(`value function returned an invalid definition: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`operational-value evaluator returned an invalid definition: ${getErrorMessage(err)}`, { cause: err });
   }
-  if (!isRecord(definition) || definition.schemaVersion !== 4 || definition.grader !== "value" || !isRecord(definition.baseline)) {
-    throw new Error("value function definition must use schemaVersion 4 and grader 'value'");
+  if (!isRecord(definition) || definition.schemaVersion !== 4 || definition.grader !== "operational-value" || !isRecord(definition.baseline)) {
+    throw new Error("operational-value evaluator definition must use schemaVersion 4 and grader 'operational-value'");
   }
   if (definition.baseline.mode === "attainment-only") {
-    if (definition.baseline.value !== null) throw new Error("attainment-only value functions must have a null baseline value");
+    if (definition.baseline.value !== null) throw new Error("attainment-only operational-value evaluators must have a null baseline value");
     return null;
   }
   if (definition.baseline.mode !== "baseline-comparable") {
-    throw new Error("value function baseline mode must be 'baseline-comparable' or 'attainment-only'");
+    throw new Error("operational-value evaluator baseline mode must be 'baseline-comparable' or 'attainment-only'");
   }
   const baselineValue = definition.baseline.value;
   if (typeof baselineValue !== "number" || !Number.isFinite(baselineValue) || baselineValue < 0 || baselineValue > 1) {
-    throw new Error("baseline-comparable value functions require a baseline value in [0,1]");
+    throw new Error("baseline-comparable operational-value evaluators require a baseline value in [0,1]");
   }
   return baselineValue;
 }
 
 /**
- * Execute and validate one trusted, frozen value function.
- * @param {string} functionContent
+ * Execute and validate one trusted, frozen operational-value evaluator.
+ * @param {string} evaluatorContent
  * @param {{digest?: string, config?: object}} meta
  * @param {{evidenceAt?: string, env?: NodeJS.ProcessEnv, event?: object|null, case?: object|null, runMetadata?: {createdAt?: string}, bashPath?: string}} [options]
  */
-function executeValueFunction(functionContent, meta, options = {}) {
+function executeOperationalValueEvaluator(evaluatorContent, meta, options = {}) {
   const env = options.env || process.env;
   const evidenceAt = options.evidenceAt || new Date().toISOString();
   const evidenceAtMs = parseTimestamp(evidenceAt, "evidenceAt");
@@ -113,68 +113,68 @@ function executeValueFunction(functionContent, meta, options = {}) {
     config: meta.config || {},
   };
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-value-grader-"));
-  const functionPath = path.join(tempDir, "value.sh");
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-operational-value-grader-"));
+  const evaluatorPath = path.join(tempDir, "operational-value.sh");
   const bashPath = options.bashPath || "/bin/bash";
   try {
-    fs.writeFileSync(functionPath, functionContent, { encoding: "utf8", mode: 0o700 });
-    const syntax = cp.spawnSync(bashPath, ["-n", functionPath], {
+    fs.writeFileSync(evaluatorPath, evaluatorContent, { encoding: "utf8", mode: 0o700 });
+    const syntax = cp.spawnSync(bashPath, ["-n", evaluatorPath], {
       encoding: "utf8",
       timeout: 5000,
       env: safeFunctionEnv(env),
     });
     if (syntax.error || syntax.status !== 0) {
-      throw new Error(`value function has invalid Bash syntax: ${syntax.stderr?.trim() || getErrorMessage(syntax.error)}`);
+      throw new Error(`operational-value evaluator has invalid Bash syntax: ${syntax.stderr?.trim() || getErrorMessage(syntax.error)}`);
     }
 
-    const definitionExecution = cp.spawnSync(bashPath, [functionPath, "--definition"], {
+    const definitionExecution = cp.spawnSync(bashPath, [evaluatorPath, "--definition"], {
       encoding: "utf8",
       timeout: 5000,
-      maxBuffer: VALUE_FUNCTION_MAX_OUTPUT,
+      maxBuffer: OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
       env: safeFunctionEnv(env),
     });
     if (definitionExecution.error) throw definitionExecution.error;
     if (definitionExecution.status !== 0) {
-      throw new Error(definitionExecution.stderr?.trim() || `value function --definition exited with status ${String(definitionExecution.status)}`);
+      throw new Error(definitionExecution.stderr?.trim() || `operational-value evaluator --definition exited with status ${String(definitionExecution.status)}`);
     }
-    const baselineValue = parseBaselineDefinition(definitionExecution.stdout);
+    const baselineValue = parseOperationalValueBaselineDefinition(definitionExecution.stdout);
 
-    const execution = cp.spawnSync(bashPath, [functionPath, "--grade-run"], {
+    const execution = cp.spawnSync(bashPath, [evaluatorPath, "--grade-run"], {
       input: JSON.stringify(request),
       encoding: "utf8",
-      timeout: VALUE_FUNCTION_TIMEOUT_MS,
-      maxBuffer: VALUE_FUNCTION_MAX_OUTPUT,
+      timeout: OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS,
+      maxBuffer: OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
       env: safeFunctionEnv(env),
     });
     if (execution.error) throw execution.error;
     if (execution.status !== 0) {
-      throw new Error(execution.stderr?.trim() || `value function exited with status ${String(execution.status)}`);
+      throw new Error(execution.stderr?.trim() || `operational-value evaluator exited with status ${String(execution.status)}`);
     }
 
     let output;
     try {
       output = JSON.parse(execution.stdout || "{}");
     } catch (err) {
-      throw new Error(`value function returned invalid JSON: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`operational-value evaluator returned invalid JSON: ${getErrorMessage(err)}`, { cause: err });
     }
-    if (!isRecord(output)) throw new Error("value function output must be an object");
+    if (!isRecord(output)) throw new Error("operational-value evaluator output must be an object");
     if (output.value !== null && (typeof output.value !== "number" || !Number.isFinite(output.value) || output.value < 0 || output.value > 1)) {
-      throw new Error("value function value must be null or a finite number in [0,1]");
+      throw new Error("operational-value evaluator result.value must be null or a finite number in [0,1]");
     }
-    if (!isRecord(output.case)) throw new Error("value function output.case must be an object");
+    if (!isRecord(output.case)) throw new Error("operational-value evaluator output.case must be an object");
     if (typeof output.opportunityKey !== "string" || output.opportunityKey.trim() === "") {
-      throw new Error("value function opportunityKey must be a non-empty string");
+      throw new Error("operational-value evaluator opportunityKey must be a non-empty string");
     }
     const evidenceCutoffMs = parseTimestamp(output.evidenceCutoff, "evidenceCutoff");
     const maturesAtMs = parseTimestamp(output.maturesAt, "maturesAt");
-    if (evidenceCutoffMs > evidenceAtMs) throw new Error("value function evidenceCutoff cannot follow evidenceAt");
-    if (evidenceCutoffMs > maturesAtMs) throw new Error("value function evidenceCutoff cannot follow maturesAt");
+    if (evidenceCutoffMs > evidenceAtMs) throw new Error("operational-value evaluator evidenceCutoff cannot follow evidenceAt");
+    if (evidenceCutoffMs > maturesAtMs) throw new Error("operational-value evaluator evidenceCutoff cannot follow maturesAt");
     if (!Array.isArray(output.provenance) || (output.value !== null && output.provenance.length === 0)) {
-      throw new Error("value function must return provenance for a numeric value");
+      throw new Error("operational-value evaluator must return provenance for a numeric value");
     }
     for (const provenance of output.provenance) {
       if (!isRecord(provenance) || !["repository", "kind", "ref"].every(key => typeof provenance[key] === "string" && provenance[key].length > 0)) {
-        throw new Error("value function provenance entries require repository, kind, and ref");
+        throw new Error("operational-value evaluator provenance entries require repository, kind, and ref");
       }
     }
     return {
@@ -210,12 +210,12 @@ function executeValueFunction(functionContent, meta, options = {}) {
 }
 
 module.exports = {
-  executeValueFunction,
+  executeOperationalValueEvaluator,
   buildRunSubject,
   readEventPayload,
   parseTimestamp,
-  parseBaselineDefinition,
-  VALUE_FUNCTION_TIMEOUT_MS,
-  VALUE_FUNCTION_MAX_OUTPUT,
-  VALUE_EVENT_MAX_SIZE,
+  parseOperationalValueBaselineDefinition,
+  OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS,
+  OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
+  OPERATIONAL_VALUE_EVENT_MAX_SIZE,
 };

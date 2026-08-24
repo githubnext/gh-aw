@@ -7,10 +7,10 @@ fail() {
     exit 1
 }
 
-[[ $# -eq 1 ]] || fail "usage: value-function-path.sh WORKFLOW-NAME"
+[[ $# -eq 1 ]] || fail "usage: operational-value-evaluator-path.sh WORKFLOW-NAME"
 
 workflow_name=$1
 [[ $workflow_name =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] \
     || fail "workflow name must contain lowercase letters, numbers, and single hyphens"
 
-printf '.github/graders/%s-value.sh\n' "$workflow_name"
+printf '.github/graders/%s-operational-value.sh\n' "$workflow_name"

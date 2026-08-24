@@ -1,0 +1,73 @@
+package workflow
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
+)
+
+const maxOperationalValueEvaluatorSize = 64 * 1024
+
+func (c *Compiler) prepareOperationalValueGrader(data *WorkflowData, markdownPath string) error {
+	if data == nil || data.Graders == nil {
+		return nil
+	}
+	grader, ok := data.Graders.Graders["operational-value"]
+	if !ok || (grader.Enabled != nil && !*grader.Enabled) {
+		return nil
+	}
+	if grader.Run == "" {
+		return errors.New("graders.operational-value requires a 'run' field")
+	}
+
+	repoRoot, err := gitutil.FindGitRootFrom(filepath.Dir(markdownPath))
+	if err != nil {
+		return fmt.Errorf("cannot resolve graders.operational-value.run %q: workflow is not inside a Git repository", grader.Run)
+	}
+	evaluatorPath := filepath.Join(repoRoot, filepath.FromSlash(grader.Run))
+	if err := fileutil.ValidatePathWithinBase(repoRoot, evaluatorPath); err != nil {
+		return fmt.Errorf("graders.operational-value.run %q escapes the Git repository", grader.Run)
+	}
+
+	file, err := os.Open(evaluatorPath)
+	if err != nil {
+		return fmt.Errorf("cannot read graders.operational-value.run %q: %w", grader.Run, err)
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("cannot inspect graders.operational-value.run %q: %w", grader.Run, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("graders.operational-value.run %q must be a regular file", grader.Run)
+	}
+	if info.Size() > maxOperationalValueEvaluatorSize {
+		return fmt.Errorf("graders.operational-value.run %q exceeds the %d-byte limit", grader.Run, maxOperationalValueEvaluatorSize)
+	}
+
+	content, err := io.ReadAll(io.LimitReader(file, maxOperationalValueEvaluatorSize+1))
+	if err != nil {
+		return fmt.Errorf("cannot read graders.operational-value.run %q: %w", grader.Run, err)
+	}
+	if len(content) > maxOperationalValueEvaluatorSize {
+		return fmt.Errorf("graders.operational-value.run %q exceeds the %d-byte limit", grader.Run, maxOperationalValueEvaluatorSize)
+	}
+	if !utf8.Valid(content) {
+		return fmt.Errorf("graders.operational-value.run %q must be valid UTF-8", grader.Run)
+	}
+	evaluatorContent := string(content)
+	if !strings.HasPrefix(evaluatorContent, "#!/usr/bin/env bash\n") && !strings.HasPrefix(evaluatorContent, "#!/bin/bash\n") {
+		return fmt.Errorf("graders.operational-value.run %q must start with a Bash shebang", grader.Run)
+	}
+
+	grader.evaluatorContent = evaluatorContent
+	return nil
+}

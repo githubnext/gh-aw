@@ -8,14 +8,14 @@ const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
 const { calculateWorkingSetFromEntries } = require("./working_set_metrics.cjs");
-const { executeValueFunction } = require("./value_grader.cjs");
+const { executeOperationalValueEvaluator } = require("./operational_value_grader.cjs");
 
 // --- Constants ---
 const TMP_GH_AW = "/tmp/gh-aw";
 const GRADERS_DIR = path.join(TMP_GH_AW, "agent", "graders");
 const MANIFEST_PATH = path.join(GRADERS_DIR, "grader_manifest.json");
 const RESULTS_PATH = path.join(GRADERS_DIR, "grader_results.json");
-const VALUE_FUNCTION_PATH = path.join(GRADERS_DIR, "value_function.sh");
+const OPERATIONAL_VALUE_EVALUATOR_PATH = path.join(GRADERS_DIR, "operational_value_evaluator.sh");
 
 // Trace source file paths
 const TOKEN_USAGE_PATHS = [
@@ -628,9 +628,9 @@ function runCustomGrader(id, script, trace, meta) {
   }
 }
 
-function runValueGrader(id, functionContent, meta, options) {
+function runOperationalValueGrader(id, evaluatorContent, meta, options) {
   try {
-    const rawResult = executeValueFunction(functionContent, meta, options);
+    const rawResult = executeOperationalValueEvaluator(evaluatorContent, meta, options);
     return normalizeResult(id, rawResult, meta);
   } catch (err) {
     const result = normalizeResult(id, null, meta);
@@ -640,13 +640,13 @@ function runValueGrader(id, functionContent, meta, options) {
   }
 }
 
-function archiveValueFunction(functionContent, expectedDigest, outputPath = VALUE_FUNCTION_PATH) {
-  const actualDigest = crypto.createHash("sha256").update(functionContent, "utf8").digest("hex");
+function archiveOperationalValueEvaluator(evaluatorContent, expectedDigest, outputPath = OPERATIONAL_VALUE_EVALUATOR_PATH) {
+  const actualDigest = crypto.createHash("sha256").update(evaluatorContent, "utf8").digest("hex");
   if (!expectedDigest || actualDigest !== expectedDigest) {
-    throw new Error(`value function digest mismatch: expected ${expectedDigest || "none"}, got ${actualDigest}`);
+    throw new Error(`operational-value evaluator digest mismatch: expected ${expectedDigest || "none"}, got ${actualDigest}`);
   }
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, functionContent, { encoding: "utf8", mode: 0o600 });
+  fs.writeFileSync(outputPath, evaluatorContent, { encoding: "utf8", mode: 0o600 });
 }
 
 /**
@@ -675,7 +675,7 @@ function runGrader(id, builtin, script, trace, config) {
 /**
  * Main entry point. Called from the github-script step with base64 manifest and exec spec.
  * @param {string} manifestB64 - Base64-encoded JSON manifest
- * @param {string} [execSpecB64] - Base64-encoded JSON array of {id, script}
+ * @param {string} [execSpecB64] - Base64-encoded JSON array of {id, script|run}
  */
 async function main(manifestB64, execSpecB64) {
   /** @type {{version: number, graders: any[]}} */
@@ -688,15 +688,15 @@ async function main(manifestB64, execSpecB64) {
     return;
   }
 
-  // Decode execution spec (custom scripts)
-  /** @type {Record<string, {script?: string, function?: string}>} */
+  // Decode trusted executable payloads for custom graders.
+  /** @type {Record<string, {script?: string, run?: string}>} */
   const executionMap = {};
   if (execSpecB64) {
     try {
       const specJson = Buffer.from(execSpecB64, "base64").toString("utf-8");
       const specs = JSON.parse(specJson);
       for (const s of specs) {
-        if (s.id && (s.script || s.function)) executionMap[s.id] = { script: s.script, function: s.function };
+        if (s.id && (s.script || s.run)) executionMap[s.id] = { script: s.script, run: s.run };
       }
     } catch (err) {
       core.warning(`Graders: failed to parse exec spec: ${getErrorMessage(err)}`);
@@ -719,31 +719,31 @@ async function main(manifestB64, execSpecB64) {
     return;
   }
 
-  let valueFunctionArchiveError;
-  const valueManifest = enabledGraders.find(grader => grader.source === "value");
-  if (valueManifest) {
+  let operationalValueEvaluatorArchiveError;
+  const operationalValueManifest = enabledGraders.find(grader => grader.source === "operational-value");
+  if (operationalValueManifest) {
     try {
-      const functionContent = executionMap[valueManifest.id]?.function;
-      if (!functionContent) throw new Error("value function is missing from the execution specification");
-      archiveValueFunction(functionContent, valueManifest.digest);
+      const evaluatorContent = executionMap[operationalValueManifest.id]?.run;
+      if (!evaluatorContent) throw new Error("operational-value evaluator is missing from the execution specification");
+      archiveOperationalValueEvaluator(evaluatorContent, operationalValueManifest.digest);
     } catch (err) {
-      valueFunctionArchiveError = getErrorMessage(err);
-      core.warning(`Graders: unable to archive value function: ${valueFunctionArchiveError}`);
+      operationalValueEvaluatorArchiveError = getErrorMessage(err);
+      core.warning(`Graders: unable to archive operational-value evaluator: ${operationalValueEvaluatorArchiveError}`);
     }
   }
 
   // Single preprocessing pass
   core.info(`Graders: preprocessing trace files for ${enabledGraders.length} grader(s)...`);
   const trace = preprocessTrace();
-  let valueRunMetadata;
-  if (enabledGraders.some(grader => grader.source === "value")) {
+  let operationalValueRunMetadata;
+  if (enabledGraders.some(grader => grader.source === "operational-value")) {
     try {
       const response = await github.rest.actions.getWorkflowRun({
         owner: context.repo.owner,
         repo: context.repo.repo,
         run_id: Number(process.env.GITHUB_RUN_ID),
       });
-      valueRunMetadata = { createdAt: response.data.created_at };
+      operationalValueRunMetadata = { createdAt: response.data.created_at };
     } catch (err) {
       core.warning(`Graders: unable to load workflow-run creation time: ${getErrorMessage(err)}`);
     }
@@ -767,12 +767,12 @@ async function main(manifestB64, execSpecB64) {
     let result;
     if (grader.source === "builtin" && BUILTIN_GRADERS[grader.id]) {
       result = runBuiltinGrader(grader.id, trace, meta);
-    } else if (grader.source === "value" && valueFunctionArchiveError) {
+    } else if (grader.source === "operational-value" && operationalValueEvaluatorArchiveError) {
       result = normalizeResult(grader.id, null, meta);
       result.status = "error";
-      result.error = `grader ${grader.id} runtime error: ${valueFunctionArchiveError}`;
-    } else if (grader.source === "value" && executionMap[grader.id]?.function) {
-      result = runValueGrader(grader.id, executionMap[grader.id].function, meta, { runMetadata: valueRunMetadata });
+      result.error = `grader ${grader.id} runtime error: ${operationalValueEvaluatorArchiveError}`;
+    } else if (grader.source === "operational-value" && executionMap[grader.id]?.run) {
+      result = runOperationalValueGrader(grader.id, executionMap[grader.id].run, meta, { runMetadata: operationalValueRunMetadata });
     } else if (executionMap[grader.id]?.script) {
       result = runCustomGrader(grader.id, executionMap[grader.id].script, trace, meta);
     } else {
@@ -859,7 +859,7 @@ module.exports = {
   runGrader,
   runBuiltinGrader,
   runCustomGrader,
-  runValueGrader,
+  runOperationalValueGrader,
   normalizeResult,
   evaluateThreshold,
   BUILTIN_GRADERS,
@@ -869,8 +869,8 @@ module.exports = {
   GRADERS_DIR,
   MANIFEST_PATH,
   RESULTS_PATH,
-  VALUE_FUNCTION_PATH,
-  archiveValueFunction,
+  OPERATIONAL_VALUE_EVALUATOR_PATH,
+  archiveOperationalValueEvaluator,
   MAX_FILE_SIZE,
   MAX_LINE_LENGTH,
   SCRIPT_TIMEOUT_MS,

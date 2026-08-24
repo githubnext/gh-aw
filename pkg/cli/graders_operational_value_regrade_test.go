@@ -7,20 +7,20 @@ import (
 	"time"
 )
 
-func historicalValueFixture() (valueGraderManifestEntry, graderArtifactResult, graderArtifactRun) {
+func historicalOperationalValueFixture() (operationalValueGraderManifestEntry, graderArtifactResult, graderArtifactRun) {
 	digest := strings.Repeat("a", 64)
 	createdAt := "2026-08-23T11:58:00Z"
-	manifest := valueGraderManifestEntry{
-		ID:        "value",
+	manifest := operationalValueGraderManifestEntry{
+		ID:        "operational-value",
 		Name:      "Operational value",
-		Source:    "value",
+		Source:    "operational-value",
 		Enabled:   true,
 		Direction: "higher_is_better",
 		Digest:    digest,
 		Config:    map[string]any{"window": "7d"},
 	}
 	result := graderArtifactResult{
-		ID: "value",
+		ID: "operational-value",
 		Implementation: graderArtifactImplementation{
 			ID:      "gh-aw-graders",
 			Version: 1,
@@ -45,35 +45,35 @@ func historicalValueFixture() (valueGraderManifestEntry, graderArtifactResult, g
 	return manifest, result, graderArtifactRun{ID: "12345", Attempt: 2}
 }
 
-func TestVerifyHistoricalValueIdentity(t *testing.T) {
-	manifest, result, run := historicalValueFixture()
-	if err := verifyHistoricalValueIdentity("github/gh-aw", manifest.Digest, &manifest, &result, run, run.ID); err != nil {
+func TestVerifyHistoricalOperationalValueIdentity(t *testing.T) {
+	manifest, result, run := historicalOperationalValueFixture()
+	if err := verifyHistoricalOperationalValueIdentity("github/gh-aw", manifest.Digest, &manifest, &result, run, run.ID); err != nil {
 		t.Fatalf("expected valid identity, got %v", err)
 	}
 
 	t.Run("digest mismatch", func(t *testing.T) {
-		err := verifyHistoricalValueIdentity("github/gh-aw", strings.Repeat("b", 64), &manifest, &result, run, run.ID)
+		err := verifyHistoricalOperationalValueIdentity("github/gh-aw", strings.Repeat("b", 64), &manifest, &result, run, run.ID)
 		if err == nil || !strings.Contains(err.Error(), "digest mismatch") {
 			t.Fatalf("expected digest mismatch, got %v", err)
 		}
 	})
 
 	t.Run("repository mismatch", func(t *testing.T) {
-		err := verifyHistoricalValueIdentity("github/other", manifest.Digest, &manifest, &result, run, run.ID)
+		err := verifyHistoricalOperationalValueIdentity("github/other", manifest.Digest, &manifest, &result, run, run.ID)
 		if err == nil || !strings.Contains(err.Error(), "repository") {
 			t.Fatalf("expected repository mismatch, got %v", err)
 		}
 	})
 }
 
-func TestExecuteHistoricalValueFunction(t *testing.T) {
-	manifest, result, _ := historicalValueFixture()
+func TestExecuteHistoricalOperationalValueEvaluator(t *testing.T) {
+	manifest, result, _ := historicalOperationalValueFixture()
 	manifest.Config = nil
-	functionContent := `#!/usr/bin/env bash
+	evaluatorContent := `#!/usr/bin/env bash
 set -euo pipefail
 case ${1:-} in
 --definition)
-  printf '%s\n' '{"schemaVersion":4,"grader":"value","baseline":{"mode":"baseline-comparable","value":0.25}}'
+	printf '%s\n' '{"schemaVersion":4,"grader":"operational-value","baseline":{"mode":"baseline-comparable","value":0.25}}'
   ;;
 --grade-run)
   request=$(cat)
@@ -85,16 +85,16 @@ case ${1:-} in
 *) exit 1 ;;
 esac
 `
-	evidenceAt, err := parseValueTimestamp("2026-09-01T12:00:00Z", "evidence-at")
+	evidenceAt, err := parseOperationalValueTimestamp("2026-09-01T12:00:00Z", "evidence-at")
 	if err != nil {
 		t.Fatal(err)
 	}
-	execution, err := executeHistoricalValueFunction(
-		context.Background(), functionContent, manifest, *result.Observation,
+	execution, err := executeHistoricalOperationalValueEvaluator(
+		context.Background(), evaluatorContent, manifest, *result.Observation,
 		"2026-09-01T12:00:00Z", evidenceAt,
 	)
 	if err != nil {
-		t.Fatalf("executeHistoricalValueFunction() error = %v", err)
+		t.Fatalf("executeHistoricalOperationalValueEvaluator() error = %v", err)
 	}
 	if execution.Value == nil || *execution.Value != 0.75 {
 		t.Fatalf("value = %v, want 0.75", execution.Value)
@@ -107,12 +107,12 @@ esac
 	}
 }
 
-func TestParseValueFunctionOutputRejectsFutureEvidence(t *testing.T) {
+func TestParseOperationalValueEvaluatorOutputRejectsFutureEvidence(t *testing.T) {
 	evidenceAt, err := time.Parse(time.RFC3339, "2026-08-24T12:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = parseValueFunctionOutput([]byte(`{
+	_, err = parseOperationalValueEvaluatorOutput([]byte(`{
   "value": 1,
   "opportunityKey": "issue:42",
   "case": {"issue": 42},
@@ -127,13 +127,13 @@ func TestParseValueFunctionOutputRejectsFutureEvidence(t *testing.T) {
 
 func TestNewGradersCommand(t *testing.T) {
 	command := NewGradersCommand()
-	valueCommand, _, err := command.Find([]string{"value"})
+	operationalValueCommand, _, err := command.Find([]string{"operational-value"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"evidence-at", "repo", "json"} {
-		if valueCommand.Flags().Lookup(name) == nil {
-			t.Fatalf("value command missing --%s", name)
+		if operationalValueCommand.Flags().Lookup(name) == nil {
+			t.Fatalf("operational-value command missing --%s", name)
 		}
 	}
 }
