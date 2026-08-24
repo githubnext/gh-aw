@@ -210,11 +210,7 @@ func buildAWFConfigFileSetup(config AWFCommandConfig, awfConfigJSON string) stri
 // an empty string when the Cloud Hypervisor filesystem.allowWrite section is not being
 // emitted, or when there is nothing to create.
 func buildCloudHypervisorFilesystemMkdirScript(workflowData *WorkflowData) string {
-	if !isCloudHypervisorRuntime(workflowData) {
-		return ""
-	}
-	firewallConfig := getFirewallConfig(workflowData)
-	if !awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig) {
+	if !awfEmitsFilesystemAllowWrite(workflowData, getFirewallConfig(workflowData)) {
 		return ""
 	}
 	agentConfig := getAgentConfig(workflowData)

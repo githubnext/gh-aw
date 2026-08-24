@@ -354,31 +354,60 @@ func TestAWFSupportsAPIProxyProviders(t *testing.T) {
 	}
 }
 
-func TestAWFSupportsFilesystemAllowWrite(t *testing.T) {
+func TestAWFEmitsFilesystemAllowWrite(t *testing.T) {
+	cloudHypervisor := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{Runtime: AgentRuntimeCloudHypervisor},
+		},
+	}
+	docker := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{Runtime: AgentRuntimeDocker},
+		},
+	}
+	gvisor := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{Runtime: AgentRuntimeGVisor},
+		},
+	}
+
 	tests := []struct {
 		name           string
+		workflowData   *WorkflowData
 		firewallConfig *FirewallConfig
 		want           bool
 	}{
 		{
-			name: "default version supports filesystem.allowWrite",
-			want: true,
+			name:         "cloud-hypervisor emits at the default version",
+			workflowData: cloudHypervisor,
+			want:         true,
 		},
 		{
-			name:           "exact minimum version supports filesystem.allowWrite",
+			name:           "cloud-hypervisor does not emit below its minimum version",
+			workflowData:   cloudHypervisor,
 			firewallConfig: &FirewallConfig{Version: "v0.28.5"},
-			want:           true,
+			want:           false,
 		},
 		{
-			name:           "prior version does not support filesystem.allowWrite",
-			firewallConfig: &FirewallConfig{Version: "v0.28.4"},
-			want:           false,
+			name:         "docker never emits",
+			workflowData: docker,
+			want:         false,
+		},
+		{
+			name:         "gvisor never emits",
+			workflowData: gvisor,
+			want:         false,
+		},
+		{
+			name:         "default runtime never emits",
+			workflowData: &WorkflowData{},
+			want:         false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, awfSupportsFilesystemAllowWrite(tt.firewallConfig))
+			assert.Equal(t, tt.want, awfEmitsFilesystemAllowWrite(tt.workflowData, tt.firewallConfig))
 		})
 	}
 }

@@ -553,18 +553,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem != nil &&
 		config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite != nil {
 		allowWrite := config.WorkflowData.SandboxConfig.Agent.Config.Filesystem.AllowWrite
-		isCloudHypervisor := isCloudHypervisorRuntime(config.WorkflowData)
-		filesystemSupported := awfSupportsFilesystemAllowWrite(firewallConfig)
-		minVersion := constants.AWFFilesystemAllowWriteMinVersion
-		if isCloudHypervisor {
-			filesystemSupported = awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig)
-			minVersion = constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion
-		}
-		if filesystemSupported {
+		if awfEmitsFilesystemAllowWrite(config.WorkflowData, firewallConfig) {
 			awfConfig.Filesystem = &AWFFilesystemConfig{AllowWrite: allowWrite}
 			awfConfigLog.Printf("Filesystem section: %d writable path(s)", len(allowWrite))
+		} else if isCloudHypervisorRuntime(config.WorkflowData) {
+			awfConfigLog.Printf("Skipping filesystem.allowWrite: AWF version %q requires at least %s for the cloud-hypervisor runtime",
+				getAWFImageTag(firewallConfig), constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)
 		} else {
-			awfConfigLog.Printf("Skipping filesystem.allowWrite: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), minVersion)
+			awfConfigLog.Print("Skipping filesystem.allowWrite: only the cloud-hypervisor runtime enforces it without breaking the agent container")
 		}
 	}
 

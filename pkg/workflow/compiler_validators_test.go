@@ -251,6 +251,62 @@ func TestEmitGeneralToolWarningsCloudHypervisorReviewTrigger(t *testing.T) {
 	assert.Equal(t, 1, compiler.GetWarningCount())
 }
 
+func TestEmitGeneralToolWarningsIgnoredFilesystemAllowWrite(t *testing.T) {
+	tests := []struct {
+		name          string
+		runtime       AgentRuntime
+		expectWarning bool
+	}{
+		{name: "docker runtime warns", runtime: AgentRuntimeDocker, expectWarning: true},
+		{name: "gvisor runtime warns", runtime: AgentRuntimeGVisor, expectWarning: true},
+		{name: "default runtime warns", runtime: "", expectWarning: true},
+		{name: "cloud-hypervisor runtime does not warn", runtime: AgentRuntimeCloudHypervisor, expectWarning: false},
+	}
+
+	const expectedMessage = "sandbox.agent.config.filesystem.allowWrite is ignored for this runtime"
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Runtime: tt.runtime,
+						Config: &SandboxRuntimeConfig{
+							Filesystem: &SRTFilesystemConfig{AllowWrite: []string{"/tmp/gh-aw/agent"}},
+						},
+					},
+				},
+			}
+
+			oldStderr := os.Stderr
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = r.Close()
+			})
+
+			compiler.emitGeneralToolWarnings(workflowData, "test.md")
+
+			require.NoError(t, w.Close())
+			os.Stderr = oldStderr
+
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, r)
+			require.NoError(t, err)
+			stderrOutput := buf.String()
+
+			if tt.expectWarning {
+				assert.Contains(t, stderrOutput, expectedMessage)
+			} else {
+				assert.NotContains(t, stderrOutput, expectedMessage)
+			}
+		})
+	}
+}
+
 // TestValidatePermissions tests permission parsing and MCP tool constraint validation.
 func TestValidatePermissions(t *testing.T) {
 	tests := []struct {

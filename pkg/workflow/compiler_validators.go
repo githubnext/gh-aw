@@ -296,6 +296,25 @@ func validateWorkflowConcurrency(workflowData *WorkflowData, markdownPath string
 	return nil
 }
 
+// emitSandboxRuntimeWarnings warns about sandbox runtime choices that need human
+// review or whose configuration the compiler cannot honour.
+func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdownPath string) {
+	if isCloudHypervisorRuntime(workflowData) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
+				"Require a human security review before merge or rollout, and record explicit approval in your change process."))
+		c.IncrementWarningCount()
+	}
+	if declaresIgnoredFilesystemAllowWrite(workflowData) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"sandbox.agent.config.filesystem.allowWrite is ignored for this runtime and was not written to the AWF config. "+
+				"Only sandbox.agent.runtime: cloud-hypervisor enforces the policy without breaking the agent container: "+
+				"the Docker and gVisor runtimes narrow AWF's own writable bind mounts (including its internal /tmp/awf-init mount) "+
+				"to read-only, and docker-sbx rejects the policy outright."))
+		c.IncrementWarningCount()
+	}
+}
+
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {
 	if workflowData.Concurrency != "" && strings.Contains(workflowData.Concurrency, "cancel-in-progress: true") && hasBotSelfCancelRisk(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
@@ -322,12 +341,7 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"Unsupported hosts are rejected; gh-aw and AWF do not fall back to docker or gvisor."))
 		c.IncrementWarningCount()
 	}
-	if isCloudHypervisorRuntime(workflowData) {
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
-				"Require a human security review before merge or rollout, and record explicit approval in your change process."))
-		c.IncrementWarningCount()
-	}
+	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(

@@ -131,9 +131,15 @@ const AWFAPIProxyProvidersMinVersion Version = "v0.27.43"
 // sandbox.agent.images). Older versions reject the unknown property.
 const AWFContainerImagesMinVersion Version = "v0.28.4"
 
-// AWFFilesystemAllowWriteMinVersion is the minimum AWF version that supports
-// filesystem.allowWrite in the AWF config file for the Docker and gVisor compose
-// runtimes.
+// AWFFilesystemAllowWriteMinVersion is the minimum AWF version that added
+// filesystem.allowWrite to the AWF config file schema.
+//
+// Note: schema support is not the same as usable enforcement. The compose
+// runtimes (Docker, gVisor) enforce the policy by narrowing AWF's own writable
+// bind mounts, including its internal /tmp/awf-init control-plane mount, so any
+// policy that does not cover /tmp prevents the agent container from starting.
+// The compiler therefore only emits the filesystem section for the Cloud
+// Hypervisor runtime; see awfEmitsFilesystemAllowWrite.
 const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
 
 // AWFCloudHypervisorFilesystemAllowWriteMinVersion is the minimum AWF version that

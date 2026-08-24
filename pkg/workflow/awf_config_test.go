@@ -149,15 +149,16 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "ads.example.com", "should include the blocked domain")
 	})
 
-	t.Run("filesystem allowWrite is included for a supported firewall", func(t *testing.T) {
+	t.Run("filesystem allowWrite is included for the cloud-hypervisor runtime", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Version: string(constants.AWFFilesystemAllowWriteMinVersion)},
+					Firewall: &FirewallConfig{Version: string(constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)},
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
+						Runtime: AgentRuntimeCloudHypervisor,
 						Config: &SandboxRuntimeConfig{
 							Filesystem: &SRTFilesystemConfig{
 								AllowWrite: []string{"/tmp/gh-aw/agent"},
@@ -183,6 +184,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
+						Runtime: AgentRuntimeCloudHypervisor,
 						Config: &SandboxRuntimeConfig{
 							Filesystem: &SRTFilesystemConfig{
 								AllowWrite: []string{"/tmp/gh-aw/agent"},
@@ -198,15 +200,44 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"filesystem"`)
 	})
 
-	t.Run("empty filesystem allowWrite is included for a supported firewall", func(t *testing.T) {
+	t.Run("filesystem allowWrite is omitted for the compose runtimes", func(t *testing.T) {
+		for _, runtime := range []AgentRuntime{"", AgentRuntimeDocker, AgentRuntimeGVisor, AgentRuntimeDockerSbx} {
+			config := AWFCommandConfig{
+				EngineName: "copilot",
+				WorkflowData: &WorkflowData{
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Version: string(constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)},
+					},
+					SandboxConfig: &SandboxConfig{
+						Agent: &AgentSandboxConfig{
+							Runtime: runtime,
+							Config: &SandboxRuntimeConfig{
+								Filesystem: &SRTFilesystemConfig{
+									AllowWrite: []string{"/tmp/gh-aw/agent"},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			jsonStr, err := BuildAWFConfigJSON(config)
+			require.NoError(t, err)
+			assert.NotContains(t, jsonStr, `"filesystem"`,
+				"runtime %q must not emit filesystem.allowWrite: AWF narrows its own /tmp/awf-init mount and the agent container fails to start", runtime)
+		}
+	})
+
+	t.Run("empty filesystem allowWrite is included for the cloud-hypervisor runtime", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Version: string(constants.AWFFilesystemAllowWriteMinVersion)},
+					Firewall: &FirewallConfig{Version: string(constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)},
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
+						Runtime: AgentRuntimeCloudHypervisor,
 						Config: &SandboxRuntimeConfig{
 							Filesystem: &SRTFilesystemConfig{AllowWrite: []string{}},
 						},
