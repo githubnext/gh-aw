@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect x="0" y="0" width="1200" height="700" fill="#fcfcfb"/>
+<text x="70" y="26" font-size="17" font-weight="700" fill="#0b0b0b">Session Completion Trends</text>
+<text x="70" y="45" font-size="12" fill="#52514e">Sparse historical sample, 2026-06-23 to 2026-08-24 (recorded snapshots only, not a continuous daily series)</text>
+<rect x="336.1" y="95.0" width="798.4" height="260.0" fill="#898781" opacity="0.08"/>
+<text x="735.3" y="113.0" font-size="11" fill="#898781" font-style="italic" text-anchor="middle">45-day gap in recorded snapshots (07-08 -&gt; 08-22)</text>
+<line x1="70" y1="355.0" x2="1170" y2="355.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="359.0" font-size="11" fill="#898781" text-anchor="end">0</text>
+<line x1="70" y1="303.0" x2="1170" y2="303.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="307.0" font-size="11" fill="#898781" text-anchor="end">11</text>
+<line x1="70" y1="251.0" x2="1170" y2="251.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="255.0" font-size="11" fill="#898781" text-anchor="end">23</text>
+<line x1="70" y1="199.0" x2="1170" y2="199.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="203.0" font-size="11" fill="#898781" text-anchor="end">34</text>
+<line x1="70" y1="147.0" x2="1170" y2="147.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="151.0" font-size="11" fill="#898781" text-anchor="end">45</text>
+<line x1="70" y1="95.0" x2="1170" y2="95.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="99.0" font-size="11" fill="#898781" text-anchor="end">56</text>
+<line x1="70" y1="355" x2="1170" y2="355" stroke="#c3c2b7" stroke-width="1.5"/>
+<text x="18.0" y="225.0" font-size="12" fill="#52514e" text-anchor="middle" transform="rotate(-90 18.0 225.0)">Session count</text>
+<line x1="70.0" y1="355" x2="70.0" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="70.0" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 70.0 373.0)">06-23</text>
+<line x1="141.0" y1="355" x2="141.0" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="141.0" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 141.0 373.0)">06-27</text>
+<line x1="158.7" y1="355" x2="158.7" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="158.7" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 158.7 373.0)">06-28</text>
+<line x1="176.5" y1="355" x2="176.5" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="176.5" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 176.5 373.0)">06-29</text>
+<line x1="211.9" y1="355" x2="211.9" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="211.9" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 211.9 373.0)">07-01</text>
+<line x1="229.7" y1="355" x2="229.7" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="229.7" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 229.7 373.0)">07-02</text>
+<line x1="247.4" y1="355" x2="247.4" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="247.4" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 247.4 373.0)">07-03</text>
+<line x1="265.2" y1="355" x2="265.2" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="265.2" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 265.2 373.0)">07-04</text>
+<line x1="282.9" y1="355" x2="282.9" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="282.9" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 282.9 373.0)">07-05</text>
+<line x1="336.1" y1="355" x2="336.1" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="336.1" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 336.1 373.0)">07-08</text>
+<line x1="1134.5" y1="355" x2="1134.5" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1134.5" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1134.5 373.0)">08-22</text>
+<line x1="1152.3" y1="355" x2="1152.3" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1152.3" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1152.3 373.0)">08-23</text>
+<line x1="1170.0" y1="355" x2="1170.0" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1170.0" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1170.0 373.0)">08-24</text>
+<path d="M 70.0,308.9 L 141.0,262.7 L 158.7,331.9 L 176.5,350.4 L 211.9,308.9 L 229.7,336.5 L 247.4,345.8 L 265.2,230.4 L 282.9,318.1 L 336.1,336.5 L 1134.5,281.2 L 1152.3,258.1 L 1170.0,295.0" fill="none" stroke="#0ca30c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="70.0" cy="308.9" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="141.0" cy="262.7" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="158.7" cy="331.9" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="176.5" cy="350.4" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="211.9" cy="308.9" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="229.7" cy="336.5" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="247.4" cy="345.8" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="265.2" cy="230.4" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="282.9" cy="318.1" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="336.1" cy="336.5" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1134.5" cy="281.2" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1152.3" cy="258.1" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1170.0" cy="295.0" r="4.5" fill="#0ca30c" stroke="#fcfcfb" stroke-width="1.5"/>
+<path d="M 70.0,170.4 L 141.0,216.6 L 158.7,147.4 L 176.5,128.9 L 211.9,170.4 L 229.7,142.8 L 247.4,133.5 L 265.2,248.9 L 282.9,161.2 L 336.1,142.8 L 1134.5,198.1 L 1152.3,221.2 L 1170.0,184.3" fill="none" stroke="#d03b3b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="70.0" cy="170.4" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="141.0" cy="216.6" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="158.7" cy="147.4" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="176.5" cy="128.9" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="211.9" cy="170.4" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="229.7" cy="142.8" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="247.4" cy="133.5" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="265.2" cy="248.9" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="282.9" cy="161.2" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="336.1" cy="142.8" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1134.5" cy="198.1" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1152.3" cy="221.2" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1170.0" cy="184.3" r="4.5" fill="#d03b3b" stroke="#fcfcfb" stroke-width="1.5"/>
+<rect x="70" y="61" width="14" height="14" rx="3" fill="#0ca30c"/>
+<text x="90" y="72" font-size="12" fill="#52514e">Successful completions</text>
+<rect x="259.2" y="61" width="14" height="14" rx="3" fill="#d03b3b"/>
+<text x="279.2" y="72" font-size="12" fill="#52514e">Failed / abandoned</text>
+<rect x="336.1" y="425.0" width="798.4" height="150.0" fill="#898781" opacity="0.08"/>
+<line x1="70" y1="575.0" x2="1170" y2="575.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="579.0" font-size="11" fill="#898781" text-anchor="end">0%</text>
+<line x1="70" y1="525.0" x2="1170" y2="525.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="529.0" font-size="11" fill="#898781" text-anchor="end">21%</text>
+<line x1="70" y1="475.0" x2="1170" y2="475.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="479.0" font-size="11" fill="#898781" text-anchor="end">41%</text>
+<line x1="70" y1="425.0" x2="1170" y2="425.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="429.0" font-size="11" fill="#898781" text-anchor="end">62%</text>
+<line x1="70" y1="575" x2="1170" y2="575" stroke="#c3c2b7" stroke-width="1.5"/>
+<text x="18.0" y="500.0" font-size="12" fill="#52514e" text-anchor="middle" transform="rotate(-90 18.0 500.0)">Completion %</text>
+<line x1="70.0" y1="575" x2="70.0" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="70.0" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 70.0 593.0)">06-23</text>
+<line x1="141.0" y1="575" x2="141.0" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="141.0" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 141.0 593.0)">06-27</text>
+<line x1="158.7" y1="575" x2="158.7" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="158.7" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 158.7 593.0)">06-28</text>
+<line x1="176.5" y1="575" x2="176.5" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="176.5" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 176.5 593.0)">06-29</text>
+<line x1="211.9" y1="575" x2="211.9" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="211.9" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 211.9 593.0)">07-01</text>
+<line x1="229.7" y1="575" x2="229.7" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="229.7" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 229.7 593.0)">07-02</text>
+<line x1="247.4" y1="575" x2="247.4" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="247.4" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 247.4 593.0)">07-03</text>
+<line x1="265.2" y1="575" x2="265.2" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="265.2" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 265.2 593.0)">07-04</text>
+<line x1="282.9" y1="575" x2="282.9" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="282.9" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 282.9 593.0)">07-05</text>
+<line x1="336.1" y1="575" x2="336.1" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="336.1" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 336.1 593.0)">07-08</text>
+<line x1="1134.5" y1="575" x2="1134.5" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1134.5" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1134.5 593.0)">08-22</text>
+<line x1="1152.3" y1="575" x2="1152.3" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1152.3" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1152.3 593.0)">08-23</text>
+<line x1="1170.0" y1="575" x2="1170.0" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1170.0" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1170.0 593.0)">08-24</text>
+<path d="M 70.0,526.7 L 141.0,478.4 L 158.7,550.8 L 176.5,570.2 L 211.9,526.7 L 229.7,555.7 L 247.4,565.3 L 265.2,444.6 L 282.9,536.4 L 336.1,555.7 L 1134.5,497.7 L 1152.3,473.6 L 1170.0,512.2" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="70.0" cy="526.7" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="141.0" cy="478.4" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="158.7" cy="550.8" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="176.5" cy="570.2" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="211.9" cy="526.7" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="229.7" cy="555.7" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="247.4" cy="565.3" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="265.2" cy="444.6" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="282.9" cy="536.4" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="336.1" cy="555.7" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1134.5" cy="497.7" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1152.3" cy="473.6" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1170.0" cy="512.2" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<rect x="70" y="404" width="14" height="14" rx="3" fill="#2a78d6"/>
+<text x="90" y="415" font-size="12" fill="#52514e">Completion rate %</text>
+<text x="70" y="692" font-size="10.5" fill="#898781" font-style="italic">Each point = one daily analysis snapshot (recorded dates only); x-axis spacing is not uniform-daily.</text>
+</svg>

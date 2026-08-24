@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect x="0" y="0" width="1200" height="700" fill="#fcfcfb"/>
+<text x="70" y="26" font-size="17" font-weight="700" fill="#0b0b0b">Session Duration &amp; Efficiency</text>
+<text x="70" y="45" font-size="12" fill="#52514e">Sparse historical sample, 2026-06-23 to 2026-08-24 (recorded snapshots only, not a continuous daily series)</text>
+<rect x="336.1" y="95.0" width="798.4" height="260.0" fill="#898781" opacity="0.08"/>
+<text x="735.3" y="113.0" font-size="11" fill="#898781" font-style="italic" text-anchor="middle">45-day gap in recorded snapshots (07-08 -&gt; 08-22)</text>
+<line x1="70" y1="355.0" x2="1170" y2="355.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="359.0" font-size="11" fill="#898781" text-anchor="end">0.0</text>
+<line x1="70" y1="303.0" x2="1170" y2="303.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="307.0" font-size="11" fill="#898781" text-anchor="end">0.9</text>
+<line x1="70" y1="251.0" x2="1170" y2="251.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="255.0" font-size="11" fill="#898781" text-anchor="end">1.8</text>
+<line x1="70" y1="199.0" x2="1170" y2="199.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="203.0" font-size="11" fill="#898781" text-anchor="end">2.6</text>
+<line x1="70" y1="147.0" x2="1170" y2="147.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="151.0" font-size="11" fill="#898781" text-anchor="end">3.5</text>
+<line x1="70" y1="95.0" x2="1170" y2="95.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="99.0" font-size="11" fill="#898781" text-anchor="end">4.4</text>
+<line x1="70" y1="355" x2="1170" y2="355" stroke="#c3c2b7" stroke-width="1.5"/>
+<text x="18.0" y="225.0" font-size="12" fill="#52514e" text-anchor="middle" transform="rotate(-90 18.0 225.0)">Duration (min)</text>
+<line x1="70.0" y1="355" x2="70.0" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="70.0" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 70.0 373.0)">06-23</text>
+<line x1="141.0" y1="355" x2="141.0" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="141.0" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 141.0 373.0)">06-27</text>
+<line x1="158.7" y1="355" x2="158.7" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="158.7" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 158.7 373.0)">06-28</text>
+<line x1="176.5" y1="355" x2="176.5" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="176.5" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 176.5 373.0)">06-29</text>
+<line x1="211.9" y1="355" x2="211.9" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="211.9" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 211.9 373.0)">07-01</text>
+<line x1="229.7" y1="355" x2="229.7" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="229.7" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 229.7 373.0)">07-02</text>
+<line x1="247.4" y1="355" x2="247.4" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="247.4" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 247.4 373.0)">07-03</text>
+<line x1="265.2" y1="355" x2="265.2" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="265.2" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 265.2 373.0)">07-04</text>
+<line x1="282.9" y1="355" x2="282.9" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="282.9" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 282.9 373.0)">07-05</text>
+<line x1="336.1" y1="355" x2="336.1" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="336.1" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 336.1 373.0)">07-08</text>
+<line x1="1134.5" y1="355" x2="1134.5" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1134.5" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1134.5 373.0)">08-22</text>
+<line x1="1152.3" y1="355" x2="1152.3" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1152.3" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1152.3 373.0)">08-23</text>
+<line x1="1170.0" y1="355" x2="1170.0" y2="360" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1170.0" y="373.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1170.0 373.0)">08-24</text>
+<path d="M 70.0,256.6 L 141.0,128.9 L 158.7,271.5 L 176.5,343.2 L 211.9,225.2 L 229.7,311.8 L 247.4,344.0 L 265.2,133.2 L 282.9,318.4 L 336.1,261.2 L 1134.5,199.5 L 1152.3,192.0 L 1170.0,228.0" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="70.0" cy="256.6" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="141.0" cy="128.9" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="158.7" cy="271.5" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="176.5" cy="343.2" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="211.9" cy="225.2" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="229.7" cy="311.8" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="247.4" cy="344.0" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="265.2" cy="133.2" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="282.9" cy="318.4" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="336.1" cy="261.2" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1134.5" cy="199.5" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1152.3" cy="192.0" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1170.0" cy="228.0" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="1.5"/>
+<path d="M 70.0,355.0 L 141.0,355.0 L 158.7,355.0 L 176.5,355.0 L 211.9,355.0 L 229.7,355.0 L 247.4,355.0 L 265.2,254.7 L 282.9,355.0 L 336.1,355.0 L 1134.5,355.0 L 1152.3,355.0 L 1170.0,355.0" fill="none" stroke="#eb6834" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="70.0" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="141.0" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="158.7" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="176.5" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="211.9" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="229.7" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="247.4" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="265.2" cy="254.7" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="282.9" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="336.1" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1134.5" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1152.3" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<circle cx="1170.0" cy="355.0" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5"/>
+<rect x="70" y="61" width="14" height="14" rx="3" fill="#2a78d6"/>
+<text x="90" y="72" font-size="12" fill="#52514e">Average duration (min)</text>
+<rect x="259.2" y="61" width="14" height="14" rx="3" fill="#eb6834"/>
+<text x="279.2" y="72" font-size="12" fill="#52514e">Median duration (min)</text>
+<rect x="336.1" y="425.0" width="798.4" height="150.0" fill="#898781" opacity="0.08"/>
+<line x1="70" y1="575.0" x2="1170" y2="575.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="579.0" font-size="11" fill="#898781" text-anchor="end">0</text>
+<line x1="70" y1="525.0" x2="1170" y2="525.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="529.0" font-size="11" fill="#898781" text-anchor="end">0</text>
+<line x1="70" y1="475.0" x2="1170" y2="475.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="479.0" font-size="11" fill="#898781" text-anchor="end">1</text>
+<line x1="70" y1="425.0" x2="1170" y2="425.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="60.0" y="429.0" font-size="11" fill="#898781" text-anchor="end">1</text>
+<line x1="70" y1="575" x2="1170" y2="575" stroke="#c3c2b7" stroke-width="1.5"/>
+<text x="18.0" y="500.0" font-size="12" fill="#52514e" text-anchor="middle" transform="rotate(-90 18.0 500.0)">Loop count</text>
+<line x1="70.0" y1="575" x2="70.0" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="70.0" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 70.0 593.0)">06-23</text>
+<line x1="141.0" y1="575" x2="141.0" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="141.0" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 141.0 593.0)">06-27</text>
+<line x1="158.7" y1="575" x2="158.7" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="158.7" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 158.7 593.0)">06-28</text>
+<line x1="176.5" y1="575" x2="176.5" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="176.5" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 176.5 593.0)">06-29</text>
+<line x1="211.9" y1="575" x2="211.9" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="211.9" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 211.9 593.0)">07-01</text>
+<line x1="229.7" y1="575" x2="229.7" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="229.7" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 229.7 593.0)">07-02</text>
+<line x1="247.4" y1="575" x2="247.4" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="247.4" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 247.4 593.0)">07-03</text>
+<line x1="265.2" y1="575" x2="265.2" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="265.2" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 265.2 593.0)">07-04</text>
+<line x1="282.9" y1="575" x2="282.9" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="282.9" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 282.9 593.0)">07-05</text>
+<line x1="336.1" y1="575" x2="336.1" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="336.1" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 336.1 593.0)">07-08</text>
+<line x1="1134.5" y1="575" x2="1134.5" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1134.5" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1134.5 593.0)">08-22</text>
+<line x1="1152.3" y1="575" x2="1152.3" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1152.3" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1152.3 593.0)">08-23</text>
+<line x1="1170.0" y1="575" x2="1170.0" y2="580" stroke="#c3c2b7" stroke-width="1"/>
+<text x="1170.0" y="593.0" font-size="10" fill="#898781" text-anchor="end" transform="rotate(-40 1170.0 593.0)">08-24</text>
+<rect x="55.2" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="126.2" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="143.9" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="161.6" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="197.1" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="214.9" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="232.6" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="250.4" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="268.1" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="321.3" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="1119.7" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="1137.5" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="1155.2" y="575.0" width="29.6" height="0.0" rx="2" fill="#898781"/>
+<rect x="70" y="404" width="14" height="14" rx="3" fill="#898781"/>
+<text x="90" y="415" font-size="12" fill="#52514e">Sessions with loops (undetectable - see note)</text>
+<text x="70" y="692" font-size="10.5" fill="#898781" font-style="italic">Loop detection requires conversation transcripts, which have been empty for 45+ consecutive recorded snapshots (metadata-only analysis).</text>
+</svg>
