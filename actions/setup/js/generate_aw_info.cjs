@@ -24,10 +24,10 @@ const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
  *
  * @param {typeof import('@actions/core')} core - GitHub Actions core library
  * @param {any} ctx - GitHub Actions context object
- * @param {any} [github] - Authenticated GitHub client
+ * @param {any} [githubClient=global.github] - Authenticated GitHub client
  * @returns {Promise<void>}
  */
-async function main(core, ctx, github) {
+async function main(core, ctx, githubClient = global.github) {
   // Validate numeric context variables before processing run info.
   // This prevents malicious payloads from hiding special text or code in numeric fields.
   await validateContextVariables(core, ctx);
@@ -100,7 +100,7 @@ async function main(core, ctx, github) {
 
   if (process.env.GH_AW_INFO_FETCH_RUN_CREATED_AT === "true") {
     try {
-      const response = await github.rest.actions.getWorkflowRun({
+      const response = await githubClient.rest.actions.getWorkflowRun({
         owner: ctx.repo.owner,
         repo: ctx.repo.repo,
         run_id: ctx.runId,

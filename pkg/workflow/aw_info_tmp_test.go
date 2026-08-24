@@ -62,8 +62,8 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 		t.Error("Expected step to require generate_aw_info.cjs module")
 	}
 
-	if !strings.Contains(lockStr, "await main(core, context, github)") {
-		t.Error("Expected step to call main(core, context, github) from generate_aw_info.cjs")
+	if !strings.Contains(lockStr, "await main(core, context);") {
+		t.Error("Expected step to call main(core, context) from generate_aw_info.cjs")
 	}
 
 	// Verify setupGlobals is called before main so that global.core is available

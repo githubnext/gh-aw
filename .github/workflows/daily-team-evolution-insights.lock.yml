@@ -164,7 +164,7 @@ jobs:
             const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'generate_aw_info.cjs'));
-            await main(core, context, github);
+            await main(core, context);
       - name: Enforce strict mode policy
         if: ${{ vars.GH_AW_POLICY_STRICT == 'true' }}
         run: |

@@ -57,7 +57,7 @@ func TestOperationalValueGraderScopesActionsReadToActivation(t *testing.T) {
 
 	steps := strings.Join(job.Steps, "")
 	assert.Contains(t, steps, "GH_AW_INFO_FETCH_RUN_CREATED_AT: \"true\"")
-	assert.Contains(t, steps, "await main(core, context, github)")
+	assert.Contains(t, steps, "await main(core, context)")
 
 	mainPermissions, err := compiler.buildMainJobPermissions(data)
 	require.NoError(t, err)
