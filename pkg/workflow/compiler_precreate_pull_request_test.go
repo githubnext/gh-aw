@@ -178,7 +178,7 @@ func TestValidatePreCreatePullRequest(t *testing.T) {
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{Steer: true, BranchPrefix: "  "},
 			}},
-			wantErr: "branch-prefix must be a valid git branch prefix",
+			wantErr: "branch-prefix must contain valid git branch prefix characters",
 		},
 		{
 			name: "cross repository",

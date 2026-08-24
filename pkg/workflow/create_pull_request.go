@@ -95,7 +95,10 @@ func validatePreCreatedPullRequestBranchPrefix(prefix string) error {
 		return errors.New("safe-outputs.create-pull-request.steer requires branch-prefix to be a static string")
 	}
 	normalized := normalizePreCreatedPullRequestBranchPrefix(prefix)
-	if normalized != prefix || normalized == "" {
+	if normalized == "" {
+		return errors.New("safe-outputs.create-pull-request.steer branch-prefix must contain valid git branch prefix characters")
+	}
+	if normalized != prefix {
 		return fmt.Errorf("safe-outputs.create-pull-request.steer branch-prefix must be a valid git branch prefix; normalized form would be %q", normalized)
 	}
 	return nil
@@ -113,7 +116,7 @@ func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {
 	lastDash := false
 	for _, r := range prefix {
 		if builder.Len() >= 128 {
-			continue
+			break
 		}
 		valid := (r >= 'a' && r <= 'z') ||
 			(r >= 'A' && r <= 'Z') ||
