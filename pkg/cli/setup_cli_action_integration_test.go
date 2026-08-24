@@ -12,6 +12,7 @@ import (
 
 // TestSetupCLIAction tests the setup-cli action's generated install scripts.
 func TestSetupCLIAction(t *testing.T) {
+	t.Parallel()
 	// Get project root
 	wd, err := os.Getwd()
 	if err != nil {
@@ -177,6 +178,7 @@ func TestSetupCLIAction(t *testing.T) {
 
 // TestSetupCLIActionYAML tests the action.yml file structure
 func TestSetupCLIActionYAML(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)

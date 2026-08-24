@@ -15,6 +15,7 @@ import (
 // TestSpec_PublicAPI_ValidateWorkflowName validates the documented behavior.
 // Spec: empty names and names with invalid characters return errors.
 func TestSpec_PublicAPI_ValidateWorkflowName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -42,6 +43,7 @@ func TestSpec_PublicAPI_ValidateWorkflowName(t *testing.T) {
 // TestSpec_PublicAPI_IsCommitSHA validates that IsCommitSHA returns true only for 40-char hex strings.
 // Spec: "Returns true if the string is a full Git commit SHA"
 func TestSpec_PublicAPI_IsCommitSHA(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		version string
@@ -69,6 +71,7 @@ func TestSpec_PublicAPI_IsCommitSHA(t *testing.T) {
 // TestSpec_PublicAPI_GetVersion validates that GetVersion returns a non-empty string.
 // Spec: "Returns the current CLI version"
 func TestSpec_PublicAPI_GetVersion(t *testing.T) {
+	t.Parallel()
 	version := cli.GetVersion()
 	assert.NotEmpty(t, version, "GetVersion should return a non-empty version string")
 }
@@ -86,6 +89,7 @@ func TestSpec_PublicAPI_SetVersionInfo(t *testing.T) {
 // TestSpec_PublicAPI_IsRunningInCI validates that IsRunningInCI returns a bool without panicking.
 // Spec: "Detects CI environment"
 func TestSpec_PublicAPI_IsRunningInCI(t *testing.T) {
+	t.Parallel()
 	result := cli.IsRunningInCI()
 	_ = result // result is environment-dependent; ensure no panic
 }
@@ -93,6 +97,7 @@ func TestSpec_PublicAPI_IsRunningInCI(t *testing.T) {
 // TestSpec_Types_ShellType validates the documented ShellType string alias and its constants.
 // Spec: ShellType string alias with values "bash", "zsh", "fish", "powershell", "unknown"
 func TestSpec_Types_ShellType(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, cli.ShellBash, cli.ShellType("bash"), "ShellBash constant should be \"bash\"")
 	assert.Equal(t, cli.ShellZsh, cli.ShellType("zsh"), "ShellZsh constant should be \"zsh\"")
 	assert.Equal(t, cli.ShellFish, cli.ShellType("fish"), "ShellFish constant should be \"fish\"")
@@ -103,6 +108,7 @@ func TestSpec_Types_ShellType(t *testing.T) {
 // TestSpec_PublicAPI_DetectShell validates DetectShell returns one of the documented ShellType values.
 // Spec: "Detects the user's current shell"
 func TestSpec_PublicAPI_DetectShell(t *testing.T) {
+	t.Parallel()
 	shell := cli.DetectShell()
 	validShells := []cli.ShellType{cli.ShellBash, cli.ShellZsh, cli.ShellFish, cli.ShellPowerShell, cli.ShellUnknown}
 	assert.Contains(t, validShells, shell, "DetectShell should return one of the documented ShellType values")
@@ -111,6 +117,7 @@ func TestSpec_PublicAPI_DetectShell(t *testing.T) {
 // TestSpec_PublicAPI_ValidEngineNames validates the documented function returns a non-empty list.
 // Spec: "Returns the supported engine names for shell completion"
 func TestSpec_PublicAPI_ValidEngineNames(t *testing.T) {
+	t.Parallel()
 	engines := cli.ValidEngineNames()
 	assert.NotEmpty(t, engines, "ValidEngineNames should return at least one engine name")
 	for _, name := range engines {
@@ -121,6 +128,7 @@ func TestSpec_PublicAPI_ValidEngineNames(t *testing.T) {
 // TestSpec_PublicAPI_ValidArtifactSetNames validates the documented function returns known artifact sets.
 // Spec: "Returns the valid artifact set name strings"
 func TestSpec_PublicAPI_ValidArtifactSetNames(t *testing.T) {
+	t.Parallel()
 	names := cli.ValidArtifactSetNames()
 	assert.NotEmpty(t, names, "ValidArtifactSetNames should return a non-empty list")
 	assert.Contains(t, names, "all", "ValidArtifactSetNames should include \"all\"")
@@ -129,6 +137,7 @@ func TestSpec_PublicAPI_ValidArtifactSetNames(t *testing.T) {
 // TestSpec_PublicAPI_ValidateArtifactSets validates known and unknown artifact sets.
 // Spec: "Validates that all provided artifact set names are known"
 func TestSpec_PublicAPI_ValidateArtifactSets(t *testing.T) {
+	t.Parallel()
 	t.Run("known artifact set returns no error", func(t *testing.T) {
 		err := cli.ValidateArtifactSets([]string{"all"})
 		require.NoError(t, err, "ValidateArtifactSets should not error for known set \"all\"")
@@ -148,6 +157,7 @@ func TestSpec_PublicAPI_ValidateArtifactSets(t *testing.T) {
 // TestSpec_PublicAPI_ExtractWorkflowDescription validates extraction of the description field.
 // Spec: "Extracts the description field from workflow markdown content"
 func TestSpec_PublicAPI_ExtractWorkflowDescription(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -181,6 +191,7 @@ func TestSpec_PublicAPI_ExtractWorkflowDescription(t *testing.T) {
 // TestSpec_PublicAPI_ExtractWorkflowEngine validates extraction of the engine field.
 // Spec: "Extracts the engine field from workflow markdown content"
 func TestSpec_PublicAPI_ExtractWorkflowEngine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -209,6 +220,7 @@ func TestSpec_PublicAPI_ExtractWorkflowEngine(t *testing.T) {
 // TestSpec_PublicAPI_ExtractWorkflowPrivate validates extraction of the private flag.
 // Spec: "Returns true if the workflow is marked private"
 func TestSpec_PublicAPI_ExtractWorkflowPrivate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string

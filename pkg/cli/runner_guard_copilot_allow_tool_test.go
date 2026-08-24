@@ -36,6 +36,7 @@ jobs:
 `
 
 func TestFilterCopilotLocalAllowToolFindings(t *testing.T) {
+	t.Parallel()
 	gitRoot := t.TempDir()
 	writeWorkflow(t, gitRoot, "visual-regression-checker.lock.yml", copilotLocalAllowToolWorkflow)
 	lines := strings.Split(copilotLocalAllowToolWorkflow, "\n")
@@ -70,6 +71,7 @@ func TestFilterCopilotLocalAllowToolFindings(t *testing.T) {
 }
 
 func TestFilterCopilotLocalAllowToolFindingsKeepsNonLocalAllowToolContext(t *testing.T) {
+	t.Parallel()
 	const workflow = `
 name: Suspicious Tool
 jobs:
@@ -94,6 +96,7 @@ jobs:
 }
 
 func TestFindingInCopilotLocalCurlAllowTool(t *testing.T) {
+	t.Parallel()
 	lines := strings.Split(copilotLocalAllowToolWorkflow, "\n")
 
 	assert.True(t, findingInCopilotLocalCurlAllowTool(lines, lineContaining(t, lines, "Execute GitHub Copilot CLI")))
@@ -105,6 +108,7 @@ func TestFindingInCopilotLocalCurlAllowTool(t *testing.T) {
 }
 
 func TestIsLocalCurlAllowToolArgumentLine(t *testing.T) {
+	t.Parallel()
 	assert.True(t, isLocalCurlAllowToolArgumentLine(`"$GH_AW_NODE_EXEC" copilot_harness.cjs copilot --allow-tool 'shell(curl http://host.docker.internal:*)' --allow-tool 'shell(curl http://localhost:*)'`))
 	assert.False(t, isLocalCurlAllowToolArgumentLine(`"$GH_AW_NODE_EXEC" copilot_harness.cjs copilot --allow-tool 'shell(curl http://localhost:*)' --allow-tool 'shell(curl https://evil.example.com)'`))
 	assert.False(t, isLocalCurlAllowToolArgumentLine(`curl -fsSL http://localhost:4321/collect -d "secret=$SECRET_TOKEN"`))
@@ -113,6 +117,7 @@ func TestIsLocalCurlAllowToolArgumentLine(t *testing.T) {
 }
 
 func TestFindingInCopilotLocalCurlAllowToolKeepsExecutableCurlInStep(t *testing.T) {
+	t.Parallel()
 	const workflow = `
 jobs:
   agent:
@@ -129,6 +134,7 @@ jobs:
 }
 
 func TestCurlAllowToolCommentHost(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line      string
 		wantHost  string
