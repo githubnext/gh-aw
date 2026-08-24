@@ -417,13 +417,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// no longer writes any step-summary output (see
 	// github/gh-aw-threat-detection#792), so the flag is intentionally omitted here.
 	npmPathSetup := GetNpmBinPathSetup()
-	threatDetectCmd := fmt.Sprintf(
-		"%s && threat-detect --engine %s --output %s %s",
-		npmPathSetup,
-		engineID,
-		shellEscapeArg(constants.ThreatDetectionResultPath),
-		shellEscapeArg(constants.ThreatDetectionDir),
-	)
+	threatDetectCmd := buildThreatDetectCommand(npmPathSetup, engineID, data.SafeOutputs.ThreatDetection)
 
 	// Build the complete AWF command. BuildAWFCommand handles config file setup,
 	// ARC/DinD probes, tool cache mount, and the log tee pattern.
@@ -501,6 +495,32 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 
 	return steps
+}
+
+func buildThreatDetectCommand(npmPathSetup, engineID string, config *ThreatDetectionConfig) string {
+	args := []string{
+		"threat-detect",
+		"--engine", engineID,
+	}
+
+	if config != nil {
+		if config.EngineTimeout != nil {
+			args = append(args, "--engine-timeout", shellEscapeArg(*config.EngineTimeout))
+		}
+		if config.MaxTurns != nil {
+			args = append(args, "--max-turns", strconv.Itoa(*config.MaxTurns))
+		}
+		if config.Retries != nil {
+			args = append(args, "--retries", strconv.Itoa(*config.Retries))
+		}
+	}
+
+	args = append(args,
+		"--output", shellEscapeArg(constants.ThreatDetectionResultPath),
+		shellEscapeArg(constants.ThreatDetectionDir),
+	)
+
+	return fmt.Sprintf("%s && %s", npmPathSetup, strings.Join(args, " "))
 }
 
 // extractStepEnvLines copies the YAML env: block from a rendered engine execution step.

@@ -3,8 +3,12 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/testutil"
 )
 
 func TestParseThreatDetectionConfig(t *testing.T) {
@@ -53,6 +57,27 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			expectedConfig: nil,
 		},
 
+		{
+			name: "object with detector kill switch overrides",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"engine-timeout": "10m",
+					"max-turns":      100,
+					"retries":        1,
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				EngineTimeout: strPtr("10m"),
+				MaxTurns: func() *int {
+					v := 100
+					return &v
+				}(),
+				Retries: func() *int {
+					v := 1
+					return &v
+				}(),
+			},
+		},
 		{
 			name: "object with custom steps",
 			outputMap: map[string]any{
@@ -256,6 +281,21 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			if result.MaxAICredits != tt.expectedConfig.MaxAICredits {
 				t.Errorf("Expected MaxAICredits %d, got %d", tt.expectedConfig.MaxAICredits, result.MaxAICredits)
 			}
+			if (result.EngineTimeout == nil) != (tt.expectedConfig.EngineTimeout == nil) {
+				t.Errorf("Expected EngineTimeout nil=%v, got nil=%v", tt.expectedConfig.EngineTimeout == nil, result.EngineTimeout == nil)
+			} else if result.EngineTimeout != nil && tt.expectedConfig.EngineTimeout != nil && *result.EngineTimeout != *tt.expectedConfig.EngineTimeout {
+				t.Errorf("Expected EngineTimeout %q, got %q", *tt.expectedConfig.EngineTimeout, *result.EngineTimeout)
+			}
+			if (result.MaxTurns == nil) != (tt.expectedConfig.MaxTurns == nil) {
+				t.Errorf("Expected MaxTurns nil=%v, got nil=%v", tt.expectedConfig.MaxTurns == nil, result.MaxTurns == nil)
+			} else if result.MaxTurns != nil && tt.expectedConfig.MaxTurns != nil && *result.MaxTurns != *tt.expectedConfig.MaxTurns {
+				t.Errorf("Expected MaxTurns %d, got %d", *tt.expectedConfig.MaxTurns, *result.MaxTurns)
+			}
+			if (result.Retries == nil) != (tt.expectedConfig.Retries == nil) {
+				t.Errorf("Expected Retries nil=%v, got nil=%v", tt.expectedConfig.Retries == nil, result.Retries == nil)
+			} else if result.Retries != nil && tt.expectedConfig.Retries != nil && *result.Retries != *tt.expectedConfig.Retries {
+				t.Errorf("Expected Retries %d, got %d", *tt.expectedConfig.Retries, *result.Retries)
+			}
 
 			if (result.ContinueOnError == nil) != (tt.expectedConfig.ContinueOnError == nil) {
 				t.Errorf("Expected ContinueOnError nil=%v, got nil=%v", tt.expectedConfig.ContinueOnError == nil, result.ContinueOnError == nil)
@@ -339,6 +379,77 @@ func TestThreatDetectionExplicitDisable(t *testing.T) {
 
 	if config.ThreatDetection != nil {
 		t.Error("Expected threat detection to be nil when explicitly set to false")
+	}
+}
+
+func TestThreatDetectionKillSwitchValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      string
+		expectError bool
+	}{
+		{
+			name: "valid kill switch values",
+			config: `engine-timeout: 10m
+    max-turns: 100
+    retries: 1`,
+			expectError: false,
+		},
+		{
+			name:        "engine-timeout zero is valid",
+			config:      `engine-timeout: 0`,
+			expectError: false,
+		},
+		{
+			name:        "reject negative engine-timeout",
+			config:      `engine-timeout: -1s`,
+			expectError: true,
+		},
+		{
+			name:        "reject negative max-turns",
+			config:      `max-turns: -1`,
+			expectError: true,
+		},
+		{
+			name:        "reject negative retries",
+			config:      `retries: -1`,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "threat-detection-kill-switch-validation")
+			content := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    max: 1
+  threat-detection:
+    ` + tt.config + `
+---
+
+# Threat Detection Kill Switch Validation
+`
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			err := NewCompiler().CompileWorkflow(testFile)
+			if tt.expectError && err == nil {
+				t.Fatal("expected compilation error, got nil")
+			}
+			if !tt.expectError && err != nil {
+				t.Fatalf("expected successful compilation, got error: %v", err)
+			}
+		})
 	}
 }
 
