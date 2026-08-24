@@ -1,49 +1,53 @@
 # Formal Notes: compiler-threat-detection-spec.md
 
-**Last formalized**: 2026-08-10-15-42-47
-**Notation**: Z3 / SMT-LIB, F*
+**Last formalized**: 2026-08-24-15-45-11
+**Notation**: SMT-LIB / Z3-style guard conjunction
 **Issue**: (created via safe-output; number assigned post-processing)
 
 ## Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
-| P1 | `SafeRefAccepted` | `ValidateGitRef` accepts iff non-empty, no leading `-`, no NUL byte, no `..` |
-| P2 | `SafePathAccepted` | `ValidateGitPath` accepts iff non-empty, no leading `-`, not absolute, cleaned form has no `..` traversal |
-| P3 | `HyphenPrefixRejected` | Any ref/path starting with `-` is rejected (CWE-88 argument injection guard) |
-| P4 | `NulByteRejected` | Refs containing a NUL byte are rejected |
-| P5 | `TraversalRejected` | Refs/paths containing `..` are rejected |
-| P6 | `AbsolutePathRejected` | Absolute paths are rejected even without `..` |
-| P7 | `EmptyValueRejected` | Empty ref or path is always rejected |
-| P8 | `BashWildcardIsSafe` | `bash: ["*"]` / `[":*"]` is not an explicit restriction (CTR-023) |
-| P9 | `BashAbsentIsSafe` | Absent/nil `tools.bash`, or `bash: true`, is not an explicit restriction |
-| P10 | `BashFalseIsRestriction` | `bash: false` is an explicit restriction |
-| P11 | `BashEmptyListIsRestriction` | `bash: []` is an explicit restriction |
-| P12 | `BashNamedListIsRestriction` | Non-wildcard named command list is an explicit restriction |
+| P1 | `PositiveIntLiteralAccepted` | Positive integer literal (int/int64/uint64/float64 whole) accepted for any job; TimeoutMinutesExpression cleared |
+| P2 | `NonPositiveRejected` | Zero/negative numeric value rejected for all jobs |
+| P3 | `GeneratedJobExpressionRejected` | `agent`/`detection` jobs reject any string value, including well-formed `${{ ... }}` expressions |
+| P4 | `NonGeneratedExpressionAccepted` | Non-generated jobs may use a valid GHA expression string; TimeoutMinutes=0, expression stored |
+| P5 | `EmptyStringRejected` | Empty/whitespace-only string rejected regardless of job |
+| P6 | `NonIntegralFloatRejected` | float64 with fractional part rejected |
+| P7 | `OutOfRangeFloatRejected` | float64 > 2^53 (maxLosslessIntFloat64) rejected |
+| P8 | `UnsupportedTypeRejected` | bool/slice/map/nil rejected via default case |
+| P9 | `AbsentFieldIsNoOp` | Missing `timeout-minutes` key => nil error, no mutation |
 
 ## Key Invariants
 
-- `ValidateGitRef`/`ValidateGitPath` (pkg/gitutil/gitutil.go) are hard security boundaries applied in all modes (compile-time, strict and non-strict) — not mode-sensitive like most other CTR rules.
-- `HasBashExplicitRestriction` (pkg/workflow/agent_validation.go, exported) has an early-exit: any wildcard token (`*` or `:*`) anywhere in the bash command list makes the entire config "safe", even if other named commands are present.
-- Carried forward from 2026-07-28 run: catalog-model predicates P1-P10 (RuleModelComplete, DeterministicResponse, SecureOutcome, VersionSyncInvariant, Conformance, etc.) remain valid — see prior notes below for full list, not re-derived this run to keep scope tight.
+- `extractCustomJobTimeoutMinutes` (pkg/workflow/compiler_custom_job_properties.go) is a hard compile-time boundary in all modes (not strict-mode-only) per CTR-026.
+- Generated jobs (`agent`, `detection`) are structurally distinguished from custom jobs by `jobName` equality against `constants.AgentJobName`/`constants.DetectionJobName`; this check gates whether string/expression values are permitted at all.
+- `TimeoutMinutesExpression` and `TimeoutMinutes` are mutually exclusive in valid states: exactly one is meaningfully set for any accepted config.
 
 ## Edge Cases Identified
 
-- `nil` tools map must not panic in `HasBashExplicitRestriction` (returns false).
-- `bash: nil` (present key, nil value) must be treated the same as absent (safe).
-- Empty git ref/path string is a distinct rejection case from hyphen-prefix or traversal (must return the "must not be empty" message, not a generic error).
-- Absolute path rejection (P6) is independent of traversal detection (P5) — `/etc/passwd` has no `..` yet must still be rejected.
+- float64 exceeding 2^53 lossless-integer threshold (precision-loss guard), distinct from simple non-integral rejection.
+- Absent field vs. invalid field must be distinguished (no-op vs. error).
+- Non-generated custom job accepting expressions while generated jobs never do — asymmetric behavior gated purely on job identity string comparison.
 
 ## Notes for Future Runs
 
-- This run drilled into CTR-022 and CTR-023 (both newest, v1.0.20) using real exported functions (`ValidateGitRef`, `ValidateGitPath`, `HasBashExplicitRestriction`) with full acceptance/rejection boundary coverage.
-- CTR-023's `validateBashCommandAllowlistSupport` (unexported, on `*Compiler`) was intentionally NOT tested directly — it requires a full `CodingAgentEngine` + `Compiler` fixture. Only the exported, engine-independent `HasBashExplicitRestriction` predicate layer was formalized. A future run could add an engine-capability-parameterized test matrix (codex vs. copilot/claude/gemini) for the full `validateBashCommandAllowlistSupport` decision table (including `BashDisable` interaction via `hasBashFullyDisabled`).
-- CTR-016 (Compile-Time Manifest Drift) and CTR-017 (Secret Leakage via Environment Variables) remain good candidates for deeper formalization per prior notes — not addressed this run.
-- Still worth a future TLA+ state-machine model of the "Daily Optimizer Maintenance Protocol" (§6).
+- This run focused narrowly on CTR-026 (newest rule, v1.0.26), the only rule not yet formalized in the 2026-08-10 pass (which covered CTR-022/CTR-023).
+- CTR-016/CTR-017 (manifest drift, secret leakage in env) remain good candidates for deeper formalization, per prior notes.
+- A future run could extend this suite to cover `resolveAgentJobTimeoutValue`/`resolveDetectionJobTimeoutValue` (compiler_main_job.go / threat_detection_job.go) which produce the default expression when timeout-minutes is unset in frontmatter, complementing this predicate set.
+- Catalog-level predicates (P1-P10 from 2026-07-28) and CTR-022/CTR-023 predicates (P1-P12 from 2026-08-10) remain valid — not re-derived this run.
 
 ---
-## Prior Run (2026-07-28) Notes — Catalog-Level Model
+(Prior run notes retained below for continuity)
 
-Predicates: P1 RuleModelComplete, P2 DeterministicResponse, P3 SecureOutcome, P4 NoHyphenPrefixPassthrough (CTR-013),
+## Prior Run (2026-08-10) — CTR-022/CTR-023 Predicates
+
+P1 SafeRefAccepted, P2 SafePathAccepted, P3 HyphenPrefixRejected, P4 NulByteRejected, P5 TraversalRejected,
+P6 AbsolutePathRejected, P7 EmptyValueRejected, P8 BashWildcardIsSafe, P9 BashAbsentIsSafe,
+P10 BashFalseIsRestriction, P11 BashEmptyListIsRestriction, P12 BashNamedListIsRestriction.
+
+## Prior Run (2026-07-28) — Catalog-Level Model
+
+P1 RuleModelComplete, P2 DeterministicResponse, P3 SecureOutcome, P4 NoHyphenPrefixPassthrough (CTR-013),
 P5 WorkflowsFieldMandatory (CTR-021), P6 BranchScopeModeSensitive (CTR-021), P7 DeprecationRetainsEntry,
 P8 DeprecatedTestsNotRequired, P9 VersionSyncInvariant, P10 Conformance (conjunction of P1-P9).
