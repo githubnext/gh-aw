@@ -4,6 +4,9 @@
 async function main() {
   const expectedBranch = process.env.GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH || "";
   const branch = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH || "";
+  if (!expectedBranch) {
+    throw new Error("Expected pre-created pull request branch is not set");
+  }
   if (branch !== expectedBranch) {
     throw new Error(`Pre-created pull request branch did not match expected workflow branch: ${branch}`);
   }
