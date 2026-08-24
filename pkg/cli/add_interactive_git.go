@@ -56,6 +56,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		StopAfter:                    c.StopAfter,
 		DisableSecurityScanner:       c.DisableSecurityScanner,
 		AddCopilotRequestsPermission: c.UseCopilotRequests,
+		GhAwRef:                      c.GhAwRef,
 		initializedFiles:             initFiles,
 	}
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)

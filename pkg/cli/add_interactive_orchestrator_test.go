@@ -134,6 +134,18 @@ func TestAddInteractiveConfig_primaryWorkflowName(t *testing.T) {
 	})
 }
 
+func TestAddInteractiveConfig_welcomeMessage(t *testing.T) {
+	t.Parallel()
+	config := &AddInteractiveConfig{
+		WorkflowSpecs: []string{"githubnext/agentics/repo-assist"},
+		resolvedWorkflows: &ResolvedWorkflows{Workflows: []*ResolvedWorkflow{
+			{Spec: &WorkflowSpec{WorkflowName: "repo-assist"}},
+		}},
+	}
+
+	assert.Equal(t, `This tool will walk you through adding the automated workflow "repo-assist" from "githubnext/agentics/repo-assist".`, config.welcomeMessage())
+}
+
 func TestAddInteractiveConfig_showWorkflowDescriptions(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

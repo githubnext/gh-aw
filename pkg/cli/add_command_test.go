@@ -82,6 +82,38 @@ func TestNewAddCommand(t *testing.T) {
 	// Check stop-after flag
 	stopAfterFlag := flags.Lookup("stop-after")
 	assert.NotNil(t, stopAfterFlag, "Should have 'stop-after' flag")
+
+	ghAwRefFlag := flags.Lookup("gh-aw-ref")
+	assert.NotNil(t, ghAwRefFlag, "Should have 'gh-aw-ref' flag")
+}
+
+func TestResolveAddGhAwRef_FullSHA(t *testing.T) {
+	t.Parallel()
+	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	resolved, err := resolveAddGhAwRef(context.Background(), sha)
+	require.NoError(t, err)
+	assert.Equal(t, sha, resolved)
+}
+
+func TestCompileWorkflowWithActionRef(t *testing.T) {
+	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	tmpDir := t.TempDir()
+	require.NoError(t, initTestGitRepo(tmpDir))
+	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "pinned.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(workflowFile), 0o755))
+	require.NoError(t, os.WriteFile(workflowFile, []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+---
+
+# Pinned workflow
+`), 0o644))
+
+	require.NoError(t, compileWorkflowWithActionRef(context.Background(), workflowFile, false, true, "", sha))
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, ".github", "workflows", "pinned.lock.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), "github/gh-aw/actions/setup@"+sha)
 }
 
 func TestNewAddCommand_MentionsEnterpriseSourceResolution(t *testing.T) {

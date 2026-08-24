@@ -32,6 +32,7 @@ type AddInteractiveConfig struct {
 	RepoOverride           string // owner/repo format, if user provides it
 	AppendText             string // Extra content to append to the workflow on installation
 	DisableSecurityScanner bool   // Disable security scanning of workflow markdown content
+	GhAwRef                string // Resolved github/gh-aw commit SHA used by compiled action references
 
 	// DisableGitHubAppPermissionInference disables inferring GitHub App
 	// permissions/events from the package's resolved workflows during bootstrap,
@@ -178,10 +179,10 @@ func (c *AddInteractiveConfig) applyBootstrapConfigIfNeeded(ctx context.Context,
 }
 
 func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
-	console.ShowWelcomeBanner("This tool will walk you through adding an automated workflow to your repository.")
 	if err := c.resolveWorkflows(); err != nil {
 		return err
 	}
+	console.ShowWelcomeBanner(c.welcomeMessage())
 	c.showWorkflowDescriptions()
 	if err := c.checkGHAuthStatus(); err != nil {
 		return err
@@ -193,6 +194,19 @@ func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
 		return err
 	}
 	return c.checkUserPermissions()
+}
+
+func (c *AddInteractiveConfig) welcomeMessage() string {
+	workflowNames, err := c.workflowNamesForInteractiveAdd()
+	if err != nil || len(workflowNames) == 0 {
+		return "This tool will walk you through adding automated workflows to your repository."
+	}
+
+	source := strings.Join(c.WorkflowSpecs, ", ")
+	if len(workflowNames) == 1 {
+		return fmt.Sprintf("This tool will walk you through adding the automated workflow %q from %q.", workflowNames[0], source)
+	}
+	return fmt.Sprintf("This tool will walk you through adding %d automated workflows from %q.", len(workflowNames), source)
 }
 
 func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, createPR bool, err error) {

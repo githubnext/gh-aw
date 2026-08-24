@@ -46,7 +46,6 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 
 	prioritizeEngineOption(engineOptions, defaultEngine)
 
-	fmt.Fprintln(os.Stderr, "")
 	form := console.NewSelectForm(
 		huh.NewSelect[string]().
 			Title("Which coding agent would you like to use?").
@@ -289,7 +288,7 @@ func (c *AddInteractiveConfig) selectCopilotAuthMethod() error {
 	var authMethod string
 	selectField := huh.NewSelect[string]().
 		Title("How would you like Copilot workflows to authenticate?").
-		Description("copilot-requests uses the org's Copilot billing seat — no PAT required.\nPAT uses a fine-grained personal access token stored as COPILOT_GITHUB_TOKEN (requires repo write access to configure).").
+		Description("PAT uses the existing COPILOT_GITHUB_TOKEN repository secret.\ncopilot-requests uses the org's Copilot billing seat and requires no PAT.").
 		Options(options...).
 		Value(&authMethod)
 
