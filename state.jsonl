@@ -77,3 +77,4 @@
 {"run_id":"32513844874","timestamp":"2026-08-21T18:32:56.981Z","assignments":{"model_size":"gpt-5.4"}}
 {"run_id":"32590981568","timestamp":"2026-08-22T18:31:46.528Z","harness_version":"5dd3d926597c4204f3bb4e64d3fed3489991c6b4727225a789f36a2446aec9db:c3fa22c41e07ded28ee1ddadc4b64062cfcac4b6c28487ae67a6986e2e7e06cd","assignments":{"model_size":"gpt-5.4"}}
 {"run_id":"32658283193","timestamp":"2026-08-23T18:31:22.316Z","harness_version":"5dd3d926597c4204f3bb4e64d3fed3489991c6b4727225a789f36a2446aec9db:c3fa22c41e07ded28ee1ddadc4b64062cfcac4b6c28487ae67a6986e2e7e06cd","assignments":{"model_size":"gpt-5.4"}}
+{"run_id":"32762988079","timestamp":"2026-08-24T18:33:15.234Z","harness_version":"5dd3d926597c4204f3bb4e64d3fed3489991c6b4727225a789f36a2446aec9db:c3fa22c41e07ded28ee1ddadc4b64062cfcac4b6c28487ae67a6986e2e7e06cd","assignments":{"model_size":"gpt-5.4-mini"}}
