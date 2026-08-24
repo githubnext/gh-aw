@@ -7,9 +7,11 @@
  * @returns {string}
  */
 function reduceModelNameToIdentifier(modelName) {
-  const normalized = String(modelName || "")
-    .trim()
-    .toLowerCase();
+  const normalized = stripModelProviderPrefix(
+    String(modelName || "")
+      .trim()
+      .toLowerCase()
+  );
   if (!normalized) return "";
 
   if (normalized === "opus" || normalized === "sonnet" || normalized === "haiku") {
@@ -55,6 +57,20 @@ function reduceModelNameToIdentifier(modelName) {
   }
 
   return buildFallbackModelIdentifier(normalized, FALLBACK_LETTER_LENGTH, FALLBACK_DIGIT_LENGTH, FALLBACK_PADDING_CHAR);
+}
+
+/**
+ * Strip a provider prefix from a model name (e.g. "copilot/mai-code-1-flash-picker"
+ * becomes "mai-code-1-flash-picker") so the identifier reflects the model, not the provider.
+ *
+ * @param {string} normalizedModelName
+ * @returns {string}
+ */
+function stripModelProviderPrefix(normalizedModelName) {
+  const slashIndex = normalizedModelName.lastIndexOf("/");
+  if (slashIndex === -1) return normalizedModelName;
+  const modelPart = normalizedModelName.slice(slashIndex + 1).trim();
+  return modelPart || normalizedModelName;
 }
 
 /**
