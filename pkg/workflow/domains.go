@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/github/gh-aw/pkg/typeutil"
 	"sort"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var domainsLog = logger.New("workflow:domains")
