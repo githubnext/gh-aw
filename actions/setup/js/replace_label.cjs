@@ -33,6 +33,12 @@ const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
+const POLICY_REJECTION_ERROR_NAME = "ReplaceLabelPolicyRejectionError";
+const SET_LABELS_RETRY_CONFIG = {
+  ...RATE_LIMIT_RETRY_CONFIG,
+  shouldRetry: error => error?.name !== POLICY_REJECTION_ERROR_NAME && RATE_LIMIT_RETRY_CONFIG.shouldRetry(error),
+};
+
 /**
  * Validate a single label against blocked and allowed-list patterns.
  * Uses explicit rejection semantics — does not silently filter or truncate the label name.
@@ -210,7 +216,9 @@ const main = createCountGatedHandler({
             const preWriteAddValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
             if (!preWriteAddValidation.valid) {
               core.warning(`label_to_add validation failed before setLabels: ${preWriteAddValidation.error}`);
-              throw new Error(preWriteAddValidation.error);
+              const policyError = new Error(preWriteAddValidation.error);
+              policyError.name = POLICY_REJECTION_ERROR_NAME;
+              throw policyError;
             }
 
             return githubClient.rest.issues.setLabels({
@@ -220,7 +228,7 @@ const main = createCountGatedHandler({
               labels: newLabelNames,
             });
           },
-          RATE_LIMIT_RETRY_CONFIG,
+          SET_LABELS_RETRY_CONFIG,
           `replace_label on ${contextType} #${itemNumber} in ${itemRepo}`
         );
 
