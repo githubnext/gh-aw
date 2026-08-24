@@ -80,9 +80,9 @@ safe-outputs:
     steer: true
 ```
 
-Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, or `checkout: false`. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode) no pull request is allocated, because staged runs must not perform API side effects. The allocated pull request is always opened as a draft, regardless of the `draft` setting; when `draft: false` is configured, it is marked ready for review in the safe output phase, once the agent's changes are applied.
+Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `allowed-branches`, `allowed-base-branches`, or `checkout: false`. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode) no pull request is allocated, because staged runs must not perform API side effects. The allocated pull request is always opened as a draft, regardless of the `draft` setting; when `draft: false` is configured, it is marked ready for review in the safe output phase, once the agent's changes are applied.
 
-For security, pre-created pull request mode is limited to same-repository operation. The pre-created branch name is derived from trusted workflow run metadata and has the form `gh-aw/pre-created/<run-id>-<run-attempt>` in generated workflows. Downstream jobs must not treat an arbitrary activation output as a trusted checkout ref.
+For security, pre-created pull request mode is limited to same-repository operation. The pre-created branch name is derived from a static workflow-configured `branch-prefix` plus trusted workflow run metadata. By default, generated workflows use `gh-aw/pre-created/<run-id>-<run-attempt>`; with `branch-prefix: "signed/"`, they use `signed/<run-id>-<run-attempt>`. The prefix must be a static valid branch-name prefix, not a GitHub Actions expression. Downstream jobs must not treat an arbitrary activation output as a trusted checkout ref.
 
 ### Branch targeting
 

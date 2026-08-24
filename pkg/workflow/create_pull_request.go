@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -69,8 +71,11 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 	if config.TargetRepoSlug != "" || config.HeadRepoSlug != "" || len(config.AllowedRepos) > 0 {
 		return errors.New("safe-outputs.create-pull-request.steer only supports pull requests in the workflow repository")
 	}
-	if config.BranchPrefix != "" || len(config.AllowedBranches) > 0 {
-		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with branch-prefix or allowed-branches")
+	if err := validatePreCreatedPullRequestBranchPrefix(config.BranchPrefix); err != nil {
+		return err
+	}
+	if len(config.AllowedBranches) > 0 {
+		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with allowed-branches")
 	}
 	if len(config.AllowedBaseBranches) > 0 {
 		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with allowed-base-branches because the base branch must be known when the pull request is allocated")
@@ -80,6 +85,56 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 		return errors.New("safe-outputs.create-pull-request.steer requires the default checkout to use the workflow repository")
 	}
 	return nil
+}
+
+func validatePreCreatedPullRequestBranchPrefix(prefix string) error {
+	if prefix == "" {
+		return nil
+	}
+	if isExpression(prefix) {
+		return errors.New("safe-outputs.create-pull-request.steer requires branch-prefix to be a static string")
+	}
+	normalized := normalizePreCreatedPullRequestBranchPrefix(prefix)
+	if normalized != prefix || normalized == "" {
+		return fmt.Errorf("safe-outputs.create-pull-request.steer branch-prefix must be a valid git branch prefix; normalized form would be %q", normalized)
+	}
+	return nil
+}
+
+func normalizePreCreatedPullRequestBranchPrefix(prefix string) string {
+	if prefix == "" || strings.TrimSpace(prefix) == "" {
+		return prefix
+	}
+
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range prefix {
+		valid := (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' ||
+			r == '_' ||
+			r == '/' ||
+			r == '.'
+		if !valid {
+			if !lastDash {
+				builder.WriteByte('-')
+				lastDash = true
+			}
+			continue
+		}
+		if r == '-' && lastDash {
+			continue
+		}
+		builder.WriteRune(r)
+		lastDash = r == '-'
+	}
+
+	normalized := strings.Trim(builder.String(), "-")
+	if len(normalized) > 128 {
+		normalized = normalized[:128]
+	}
+	return strings.TrimRight(normalized, "-")
 }
 
 // isPreCreatePullRequestConfigured reports whether the workflow should allocate

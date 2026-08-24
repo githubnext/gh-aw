@@ -79,7 +79,7 @@ This specification uses the following terms with precise definitions:
 
 **Pre-created Pull Request**: A draft pull request allocated during the activation phase before agent execution when `safe-outputs.create-pull-request.steer` is enabled.
 
-**Workflow-Owned Pre-created Branch**: The deterministic branch ref allocated by the workflow for a pre-created pull request. In the reference implementation this ref has the form `gh-aw/pre-created/<run-id>-<run-attempt>` and is derived only from trusted GitHub Actions run metadata.
+**Workflow-Owned Pre-created Branch**: The deterministic branch ref allocated by the workflow for a pre-created pull request. In the reference implementation this ref has the default form `gh-aw/pre-created/<run-id>-<run-attempt>` and MAY use a static workflow-configured branch prefix. The non-prefix suffix is derived only from trusted GitHub Actions run metadata.
 
 ---
 
@@ -403,7 +403,7 @@ Agent execution context MUST NOT gain access to safe output job credentials thro
 
 **Requirement AR5: Pre-created Pull Request Branch Provenance**
 
-When an implementation supports pre-created pull requests, it MUST derive the pre-created branch name from trusted workflow-controlled state. The branch ref MUST be deterministic for the workflow run and MUST NOT be selected from agent-controlled content, pull request comments, event payload branch names, or unvalidated activation outputs.
+When an implementation supports pre-created pull requests, it MUST derive the pre-created branch name from trusted workflow-controlled state. The branch ref MUST be deterministic for the workflow run and MUST NOT be selected from agent-controlled content, pull request comments, event payload branch names, or unvalidated activation outputs. Implementations MAY allow a static workflow-configured branch prefix; that prefix MUST NOT be derived from runtime expressions or attacker-influenced inputs.
 
 After creating a pre-created pull request and before exporting branch or pull request metadata to downstream jobs, the activation phase MUST validate all of the following:
 
@@ -2473,7 +2473,7 @@ safe-outputs:
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
-- `steer`: Experimental. When `true`, pre-creates a same-repository draft pull request during activation and allows the agent to read user-authored pull request comments as steering feedback. This mode requires `max: 1`, the default workflow-repository checkout, and a statically knowable base branch; it MUST NOT be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, `checkout: false`, or expression-valued staged mode.
+- `steer`: Experimental. When `true`, pre-creates a same-repository draft pull request during activation and allows the agent to read user-authored pull request comments as steering feedback. This mode requires `max: 1`, the default workflow-repository checkout, and a statically knowable base branch; it MUST NOT be combined with `target-repo`, `head-repo`, `allowed-repos`, `allowed-branches`, `allowed-base-branches`, `checkout: false`, or expression-valued staged mode. If `branch-prefix` is configured, it MUST be a static valid branch-name prefix.
 
 **Security Requirements**:
 
@@ -2486,6 +2486,7 @@ safe-outputs:
 - Pre-created pull request branches MUST be validated against the expected workflow-owned branch ref before any downstream privileged checkout or pull request update uses the pre-created pull request metadata.
 - Agent and safe-output checkout steps in pre-created pull request mode MUST use the deterministic workflow-owned branch ref directly and MUST NOT use an activation output as the checkout ref.
 - Pre-created pull request validation MUST confirm that both the head repository and base repository are the workflow repository; fork-backed or cross-repository pre-created pull requests are non-conforming.
+- If a pre-created pull request branch prefix is configurable, the configured prefix MUST be static workflow-controlled configuration and MUST NOT be a runtime expression or selected from attacker-influenced input.
 
 **Required Permissions**:
 

@@ -3,9 +3,17 @@ package workflow
 import "fmt"
 
 const preCreatePullRequestAppTokenStepID = "pre-create-pull-request-app-token"
+const defaultPreCreatedPullRequestBranchPrefix = "gh-aw/pre-created/"
 
-func preCreatedPullRequestBranchRef() string {
-	return "gh-aw/pre-created/${{ github.run_id }}-${{ github.run_attempt }}"
+func preCreatedPullRequestBranchPrefix(data *WorkflowData) string {
+	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BranchPrefix != "" {
+		return data.SafeOutputs.CreatePullRequests.BranchPrefix
+	}
+	return defaultPreCreatedPullRequestBranchPrefix
+}
+
+func preCreatedPullRequestBranchRef(data *WorkflowData) string {
+	return preCreatedPullRequestBranchPrefix(data) + "${{ github.run_id }}-${{ github.run_attempt }}"
 }
 
 func isPreCreatePullRequestEnabled(data *WorkflowData) bool {
@@ -92,6 +100,9 @@ func (c *Compiler) addActivationPreCreatePullRequestStep(ctx *activationJobBuild
 	if titlePrefix := ctx.data.SafeOutputs.CreatePullRequests.TitlePrefix; titlePrefix != "" {
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", titlePrefix))
 	}
+	if branchPrefix := ctx.data.SafeOutputs.CreatePullRequests.BranchPrefix; branchPrefix != "" {
+		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX: %q\n", branchPrefix))
+	}
 	ctx.steps = append(ctx.steps,
 		"        with:\n",
 		fmt.Sprintf("          github-token: %s\n", token),
@@ -105,7 +116,7 @@ func (c *Compiler) addActivationPreCreatePullRequestStep(ctx *activationJobBuild
 		"        env:\n",
 		"          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ steps.pre-create-pull-request.outputs.pull_request_number }}\n",
 		"          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ steps.pre-create-pull-request.outputs.branch }}\n",
-		fmt.Sprintf("          GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH: %s\n", preCreatedPullRequestBranchRef()),
+		fmt.Sprintf("          GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH: %s\n", preCreatedPullRequestBranchRef(ctx.data)),
 		"        with:\n",
 		fmt.Sprintf("          github-token: %s\n", token),
 		"          script: |\n",

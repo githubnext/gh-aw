@@ -39,7 +39,7 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 	// Build a CheckoutManager with any user-configured checkouts
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 	if isPreCreatePullRequestEnabled(data) {
-		checkoutMgr.SetDefaultRefOverride(preCreatedPullRequestBranchRef())
+		checkoutMgr.SetDefaultRefOverride(preCreatedPullRequestBranchRef(data))
 	}
 
 	// Propagate the platform (host) repo resolved by the activation job so that

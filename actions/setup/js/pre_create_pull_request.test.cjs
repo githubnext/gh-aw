@@ -53,6 +53,7 @@ describe("pre_create_pull_request", () => {
     process.env.GITHUB_RUN_ATTEMPT = "2";
     delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
     delete process.env.GH_AW_PR_TITLE_PREFIX;
+    delete process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX;
     delete process.env.GITHUB_BASE_REF;
   });
 
@@ -110,6 +111,32 @@ describe("pre_create_pull_request", () => {
         title: "[WIP] [bot] Test workflow: work in progress",
       })
     );
+  });
+
+  it("uses the configured branch prefix", async () => {
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX = "signed/";
+    const { main } = await import("./pre_create_pull_request.cjs");
+    await main();
+
+    expect(global.github.rest.git.createRef).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "refs/heads/signed/123-2",
+      })
+    );
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        head: "signed/123-2",
+      })
+    );
+    expect(global.core.setOutput).toHaveBeenCalledWith("branch", "signed/123-2");
+  });
+
+  it("rejects invalid configured branch prefixes", async () => {
+    process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX = "bad prefix/";
+    const { main } = await import("./pre_create_pull_request.cjs");
+
+    await expect(main()).rejects.toThrow(/Invalid pre-created pull request branch prefix/);
+    expect(global.github.rest.git.createRef).not.toHaveBeenCalled();
   });
 
   it("sanitizes and truncates the fully assembled title after applying the WIP marker and prefix", async () => {
