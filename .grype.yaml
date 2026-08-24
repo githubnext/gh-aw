@@ -112,7 +112,7 @@ ignore:
       name: ssl_client
       version: 1.37.0-r30
       type: apk
-    # ghcr.io/oraios/serena is pinned to the 1.7.0 release. The rules below cover
+  # ghcr.io/oraios/serena is pinned to the 1.7.0 release. The rules below cover
   # Critical findings in that image's Debian trixie base layer for which Debian
   # publishes no fixed package version, plus two bundled runtime components that
   # only an upstream Serena rebuild can update. gh-aw runs Serena as a
