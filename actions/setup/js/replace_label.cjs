@@ -38,7 +38,9 @@ const SET_LABELS_RETRY_CONFIG = {
   ...RATE_LIMIT_RETRY_CONFIG,
   shouldRetry: error => {
     const status = error?.response?.status ?? error?.status ?? null;
-    return error?.name !== POLICY_REJECTION_ERROR_NAME && ((status >= 500 && status < 600) || RATE_LIMIT_RETRY_CONFIG.shouldRetry(error));
+    const retryableHttpStatus = typeof status === "number" && status >= 500 && status < 600;
+    const retryableTransportError = status == null && RATE_LIMIT_RETRY_CONFIG.shouldRetry(error);
+    return error?.name !== POLICY_REJECTION_ERROR_NAME && (retryableHttpStatus || retryableTransportError || RATE_LIMIT_RETRY_CONFIG.shouldRetry(error));
   },
 };
 
@@ -208,11 +210,10 @@ const main = createCountGatedHandler({
       // Compute the new label set: current labels minus labelToRemove, plus labelToAdd (deduped).
       // If labelToRemove is not on the issue we still proceed — it simply won't appear in the set.
       const currentLabelNames = (item.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || "")).filter(Boolean);
-      const labelToRemoveIsPresent = currentLabelNames.includes(labelToRemove);
+      let labelToRemoveIsPresent = currentLabelNames.includes(labelToRemove);
       if (!labelToRemoveIsPresent) {
         core.info(`Label "${labelToRemove}" is not present on ${contextType} #${itemNumber} in ${itemRepo} — will only add "${labelToAdd}"`);
       }
-      const newLabelNames = [...new Set([...currentLabelNames.filter(n => n !== labelToRemove), labelToAdd])];
 
       try {
         let beforeState;
@@ -233,6 +234,9 @@ const main = createCountGatedHandler({
               policyError.name = POLICY_REJECTION_ERROR_NAME;
               throw policyError;
             }
+            const beforeWriteLabelNames = normalizeLabelNames(beforeState.labels);
+            labelToRemoveIsPresent = beforeWriteLabelNames.includes(labelToRemove);
+            const newLabelNames = [...new Set([...beforeWriteLabelNames.filter(n => n !== labelToRemove), labelToAdd])];
 
             return githubClient.rest.issues.setLabels({
               owner: repoParts.owner,
