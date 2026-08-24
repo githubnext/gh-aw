@@ -140,7 +140,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	// can be derived from a SHA-256 hash of the content for build stability.
 	var shellPolicyContent strings.Builder
 	if isFirewallEnabled(workflowData) {
-		e.renderOpenAIProxyProviderToml(&shellPolicyContent, "          ")
+		e.renderOpenAIProxyProviderToml(&shellPolicyContent, "          ", workflowData)
 	}
 	e.renderShellEnvironmentPolicyToml(&shellPolicyContent, tools, mcpTools, "          ")
 	shellPolicyDelimiter := GenerateHeredocDelimiterFromContent("CODEX_SHELL_POLICY", shellPolicyContent.String())
@@ -171,23 +171,29 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	return nil
 }
 
-func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, indent string) {
+func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, indent string, workflowData *WorkflowData) {
 	yaml.WriteString("\n")
 	yaml.WriteString(indent + "model_provider = \"" + codexOpenAIProxyProviderID + "\"\n")
 	yaml.WriteString("\n")
 	yaml.WriteString(indent + "[model_providers." + codexOpenAIProxyProviderID + "]\n")
 	yaml.WriteString(indent + "name = \"" + codexOpenAIProxyProviderName + "\"\n")
-	yaml.WriteString(indent + "base_url = \"" + e.getOpenAIProxyProviderBaseURL() + "\"\n")
+	yaml.WriteString(indent + "base_url = \"" + e.getOpenAIProxyProviderBaseURL(workflowData) + "\"\n")
 	yaml.WriteString(indent + "env_key = \"CODEX_API_KEY\"\n")
 	yaml.WriteString(indent + "wire_api = \"responses\"\n")
 	yaml.WriteString(indent + "requires_openai_auth = false\n")
 	yaml.WriteString(indent + "supports_websockets = false\n")
 }
 
-func (e *CodexEngine) getOpenAIProxyProviderBaseURL() string {
-	// AWF exposes the OpenAI-compatible provider on the shared OpenAI/Responses
-	// gateway port (10000).
-	return "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+func (e *CodexEngine) getOpenAIProxyProviderBaseURL(workflowData *WorkflowData) string {
+	// AWF exposes each provider on its own gateway port. GitHub-hosted inference
+	// (copilot/ models) is only served on the Copilot port (10002); the shared
+	// OpenAI/Responses gateway port (10000) answers with a 404 "OpenAI proxy not
+	// configured" error when no OpenAI credentials are present.
+	port := constants.ClaudeLLMGatewayPort
+	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+		port = constants.CopilotLLMGatewayPort
+	}
+	return "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(port))
 }
 
 func (e *CodexEngine) renderAppendConvertedConfigWithoutOpenAIProxy(yaml *strings.Builder) {
