@@ -42,6 +42,28 @@ func TestActivationArtifactUploadRunsAfterSuccessOrFailure(t *testing.T) {
 	assert.NotContains(t, uploadStep, "if: always()")
 }
 
+func TestOperationalValueGraderScopesActionsReadToActivation(t *testing.T) {
+	compiler := NewCompiler()
+	data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+	data.Name = "Operational Value"
+	data.StaleCheckDisabled = true
+	data.Permissions = "permissions:\n  contents: read"
+
+	job, err := compiler.buildActivationJob(data, false, "", "operational-value.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	assert.Contains(t, job.Permissions, "actions: read")
+	assert.Equal(t, "${{ steps.generate_aw_info.outputs.run_created_at }}", job.Outputs["run_created_at"])
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, "GH_AW_INFO_FETCH_RUN_CREATED_AT: \"true\"")
+	assert.Contains(t, steps, "await main(core, context, github)")
+
+	mainPermissions, err := compiler.buildMainJobPermissions(data)
+	require.NoError(t, err)
+	assert.NotContains(t, mainPermissions, "actions: read")
+}
+
 func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 	tests := []struct {
 		name                  string

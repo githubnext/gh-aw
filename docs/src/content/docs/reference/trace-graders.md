@@ -68,7 +68,7 @@ graders:
 
 The compiler freezes the evaluator bytes and records their SHA-256 digest. The evaluator returns absolute operational attainment in `[0,1]` for the run's assigned case. A frozen baseline is optional metadata; when present, gh-aw derives `deltaFromBaseline` without changing the primary value.
 
-Each result records the complete run subject, operational case, evidence time, maturity, and provenance. Operational-value evaluators may query the repositories declared by their frozen evidence contract. They receive the workflow token through `GH_TOKEN` but do not receive workflow secrets.
+Each result records the complete run subject, operational case, evidence time, maturity, and provenance. Operational-value evaluators may query the repositories declared by their frozen evidence contract. They receive the workflow token through `GH_TOKEN` with the agent job's explicitly declared permissions, but do not receive workflow secrets. Enabling the grader does not add evidence permissions to the agent job.
 
 Use the `aw-value` skill to design and verify an operational-value evaluator.
 

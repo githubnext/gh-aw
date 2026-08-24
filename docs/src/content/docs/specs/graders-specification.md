@@ -270,7 +270,7 @@ semantic task correctness. The normative readiness, decision, and JSON contracts
 
 - Grading MUST operate on local run artifacts and MUST NOT require outbound network access for built-ins.
 - Custom inline graders MUST execute in a restricted context with blocked dangerous primitives.
-- Operational-value graders MAY access declared repository evidence using `GH_TOKEN`; they MUST NOT receive workflow secrets.
+- Operational-value graders MAY access declared repository evidence using `GH_TOKEN`; implementations MUST NOT add agent-job permission scopes on behalf of the evaluator, and evaluators MUST NOT receive workflow secrets.
 - Historical regrading MUST verify archived evaluator bytes against both digest records and a trusted local checkout at the recorded commit before execution.
 - Implementations SHOULD enforce bounded execution time for inline scripts.
 - Implementations SHOULD redact grader outputs when custom scripts are enabled to reduce secret leakage risk.

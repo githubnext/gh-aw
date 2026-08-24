@@ -8,11 +8,11 @@
 
 ### Context
 
-The existing built-in and inline graders measure execution quality from a run's trace, but operational value depends on repository evidence, maturation windows, and a stable baseline contract. That evidence must remain attributable to the workflow run and evaluator version while supporting deterministic replay after the original run artifact is sealed. Allowing arbitrary evaluator locations or mutable evaluator code would weaken provenance and make historical results difficult to reproduce. The agent job also needs workflow-run metadata from GitHub Actions, so the permission requirement must be visible rather than silently overriding an explicit zero-permission policy.
+The existing built-in and inline graders measure execution quality from a run's trace, but operational value depends on repository evidence, maturation windows, and a stable baseline contract. That evidence must remain attributable to the workflow run and evaluator version while supporting deterministic replay after the original run artifact is sealed. Allowing arbitrary evaluator locations or mutable evaluator code would weaken provenance and make historical results difficult to reproduce. Authoritative workflow-run creation time is useful for assigning time-based opportunities, but fetching it must not broaden the token available to the agent.
 
 ### Decision
 
-We will reserve the `operational-value` grader ID for a repository-relative Bash evaluator under `.github/graders/*.sh`. At compile time, gh-aw will reject traversal, symlinks, and non-regular files, validate Bash syntax, and freeze the evaluator bytes and SHA-256 digest into the compiled workflow. At runtime, gh-aw will execute deterministic `--definition` and `--grade-run` modes in the gh-aw temporary area with a curated environment, producing absolute attainment in `[0,1]` or `null` plus evidence provenance, maturity, a frozen baseline, and an optional derived delta. The grader will require `actions: read`; an explicit `permissions: {}` will fail compilation instead of being silently broadened.
+We will reserve the `operational-value` grader ID for a repository-relative Bash evaluator under `.github/graders/*.sh`. At compile time, gh-aw will reject traversal, symlinks, and non-regular files, validate Bash syntax, and freeze the evaluator bytes and SHA-256 digest into the compiled workflow. At runtime, gh-aw will execute deterministic `--definition` and `--grade-run` modes in the gh-aw temporary area with a curated environment, producing absolute attainment in `[0,1]` or `null` plus evidence provenance, maturity, a frozen baseline, and an optional derived delta. The activation job will fetch authoritative workflow-run creation time with its compiler-owned `actions: read` permission and pass it to the agent job as non-secret metadata. Enabling the grader will not modify the agent job's permissions; evaluator evidence access must be declared explicitly by the workflow.
 
 The unified agent artifact will contain `grader_manifest.json`, `grader_results.json`, and the frozen evaluator for replay. Historical regrading will execute only after verifying the archived bytes against the manifest/result digests and the evaluator at the recorded commit in a trusted checkout, while preserving the original run identity, attempt, subject, and operational case.
 
@@ -38,7 +38,7 @@ Run value evaluation later in an external service or periodic process, outside t
 - Baseline-comparable and attainment-only definitions share one normalized result contract while preserving `null` for unavailable or immature evidence.
 
 #### Negative
-- Workflows using the grader require `actions: read`, and configurations that deliberately use `permissions: {}` must be changed explicitly before compilation succeeds.
+- The activation job requires `actions: read` to obtain authoritative run creation time; a failed lookup leaves that optional subject field empty.
 - The feature adds Bash availability, syntax validation, process timeout, output validation, curated-environment, and temporary-file complexity to compiler and runtime maintenance.
 - Run artifacts contain trusted executable bytes; consumers must continue verifying digests and checkout provenance before executing them.
 

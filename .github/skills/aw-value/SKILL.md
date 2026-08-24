@@ -41,6 +41,7 @@ The grader's primary `value` is absolute attainment in `[0,1]`. A comparable fro
    - preserve repeated keys when duplicate runs target the same opportunity so downstream analysis can cluster or deduplicate them;
    - treat reruns with the same GitHub run ID as the same subject.
 4. Freeze accepted evidence, evidence repositories, matching rules, zero-versus-missing behavior, and `maturesAt` computation.
+  - Declare only the workflow permission scopes required to collect that evidence. The evaluator receives `GH_TOKEN` with the agent job's declared permissions; gh-aw does not add evidence permissions automatically.
 5. Choose exactly one direct primary metric in `[0,1]`. Higher must always mean greater attainment. Keep trace graders and activity counts separate.
 6. If comparable pre-adoption evidence exists, score it with the same metric and freeze it under `baseline`. Otherwise use `attainment-only` with a null baseline value.
 7. Implement the evaluator interface below and run:

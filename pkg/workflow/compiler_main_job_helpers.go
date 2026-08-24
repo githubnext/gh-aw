@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -343,20 +342,6 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 // permissions from gh CLI commands found in all agent job step sections.
 func (c *Compiler) buildMainJobPermissions(data *WorkflowData) (string, error) {
 	permissions := augmentPermissionsForDevMode(c, data, filterJobLevelPermissions(data.Permissions, data.CachedPermissions))
-	if operationalValueGraderEnabled(data) {
-		if data.Permissions == "permissions: {}" {
-			return "", errors.New("graders.operational-value requires actions: read; remove permissions: {} or grant actions: read explicitly")
-		}
-		if permissions == "" {
-			permissions = NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionActions: PermissionRead,
-			}).RenderToYAML()
-		} else {
-			permissions = mergeInferredIntoPermissionsYAML(permissions, map[PermissionScope]PermissionLevel{
-				PermissionActions: PermissionRead,
-			})
-		}
-	}
 
 	agentAllScripts := collectAgentJobScripts(data)
 	if len(agentAllScripts) == 0 {

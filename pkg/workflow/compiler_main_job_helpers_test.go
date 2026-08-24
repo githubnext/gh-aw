@@ -342,21 +342,22 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("operational value adds actions read", func(t *testing.T) {
+	t.Run("operational value preserves declared permissions", func(t *testing.T) {
 		c := NewCompiler()
 		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
 		data.Permissions = "permissions:\n  contents: read"
 		perms, err := c.buildMainJobPermissions(data)
 		require.NoError(t, err)
-		assert.Contains(t, perms, "actions: read")
+		assert.NotContains(t, perms, "actions: read")
+		assert.Contains(t, perms, "contents: read")
 	})
 
-	t.Run("operational value rejects explicit empty permissions", func(t *testing.T) {
+	t.Run("operational value allows explicit empty permissions", func(t *testing.T) {
 		c := NewCompiler()
 		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
 		data.Permissions = "permissions: {}"
 		_, err := c.buildMainJobPermissions(data)
-		require.EqualError(t, err, "graders.operational-value requires actions: read; remove permissions: {} or grant actions: read explicitly")
+		require.NoError(t, err)
 	})
 
 	t.Run("disabled operational value does not add actions read", func(t *testing.T) {

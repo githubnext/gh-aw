@@ -735,19 +735,8 @@ async function main(manifestB64, execSpecB64) {
   // Single preprocessing pass
   core.info(`Graders: preprocessing trace files for ${enabledGraders.length} grader(s)...`);
   const trace = preprocessTrace();
-  let operationalValueRunMetadata;
-  if (enabledGraders.some(grader => grader.source === "operational-value")) {
-    try {
-      const response = await github.rest.actions.getWorkflowRun({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        run_id: Number(process.env.GITHUB_RUN_ID),
-      });
-      operationalValueRunMetadata = { createdAt: response.data.created_at };
-    } catch (err) {
-      core.warning(`Graders: unable to load workflow-run creation time: ${getErrorMessage(err)}`);
-    }
-  }
+  const runCreatedAt = process.env.GH_AW_RUN_CREATED_AT;
+  const operationalValueRunMetadata = runCreatedAt ? { createdAt: runCreatedAt } : undefined;
 
   // Run all graders
   /** @type {GraderResult[]} */

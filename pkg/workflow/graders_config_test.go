@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestParseGradersFromFrontmatter_Absent verifies nil return when graders absent.
@@ -597,6 +598,20 @@ func TestGenerateGradersStep_Present(t *testing.T) {
 	if strings.Contains(output, "{\"version\"") {
 		t.Fatal("expected manifest to be encoded, not embedded as raw JSON")
 	}
+}
+
+func TestGenerateGradersStep_OperationalValueUsesActivationRunMetadata(t *testing.T) {
+	c := &Compiler{}
+	initActionPinCacheForTest(c)
+	var yaml strings.Builder
+	data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+
+	c.generateGradersStep(&yaml, data)
+
+	output := yaml.String()
+	assert.Contains(t, output, "GH_AW_RUN_CREATED_AT: ${{ needs.activation.outputs.run_created_at }}")
+	assert.Contains(t, output, "GH_TOKEN: ${{ github.token }}")
+	assert.NotContains(t, output, "getWorkflowRun")
 }
 
 // TestGenerateGradersStep_BeforeArtifactUpload verifies ordering.

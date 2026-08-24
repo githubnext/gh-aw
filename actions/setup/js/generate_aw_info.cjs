@@ -24,9 +24,10 @@ const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
  *
  * @param {typeof import('@actions/core')} core - GitHub Actions core library
  * @param {any} ctx - GitHub Actions context object
+ * @param {any} [github] - Authenticated GitHub client
  * @returns {Promise<void>}
  */
-async function main(core, ctx) {
+async function main(core, ctx, github) {
   // Validate numeric context variables before processing run info.
   // This prevents malicious payloads from hiding special text or code in numeric fields.
   await validateContextVariables(core, ctx);
@@ -96,6 +97,21 @@ async function main(core, ctx) {
     },
     created_at: new Date().toISOString(),
   };
+
+  if (process.env.GH_AW_INFO_FETCH_RUN_CREATED_AT === "true") {
+    try {
+      const response = await github.rest.actions.getWorkflowRun({
+        owner: ctx.repo.owner,
+        repo: ctx.repo.repo,
+        run_id: ctx.runId,
+      });
+      const runCreatedAt = response.data.created_at || "";
+      core.setOutput("run_created_at", runCreatedAt);
+    } catch (err) {
+      core.warning(`Unable to load workflow-run creation time: ${getErrorMessage(err)}`);
+      core.setOutput("run_created_at", "");
+    }
+  }
 
   const frontmatterSource = process.env.GH_AW_INFO_FRONTMATTER_SOURCE || "";
   if (frontmatterSource) {

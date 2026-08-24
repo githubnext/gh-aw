@@ -183,6 +183,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_RUNTIME: \"%s\"\n", agentRuntime)
+	if operationalValueGraderEnabled(data) {
+		yaml.WriteString("          GH_AW_INFO_FETCH_RUN_CREATED_AT: \"true\"\n")
+	}
 	// Only emit the cache-memory flag when at least one cache is configured.
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		yaml.WriteString("          GH_AW_INFO_CACHE_MEMORY: \"true\"\n")
@@ -249,7 +252,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs');\n")
-	yaml.WriteString("            await main(core, context);\n")
+	yaml.WriteString("            await main(core, context, github);\n")
 }
 
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) error {
