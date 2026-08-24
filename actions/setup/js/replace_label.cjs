@@ -77,15 +77,18 @@ function validateSingleLabel(labelName, allowedPatterns, blockedPatterns, fieldN
 const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
   setup: async (config, maxCount, isStaged) => {
-    const blockedPatterns = config.blocked || [];
+    const currentAllowedAdd = () => (Array.isArray(config.allowed_add) ? config.allowed_add : []);
+    const currentAllowedRemove = () => (Array.isArray(config.allowed_remove) ? config.allowed_remove : []);
+    const currentBlockedPatterns = () => (Array.isArray(config.blocked) ? config.blocked : []);
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
     const requiredTitlePrefix = config.required_title_prefix || "";
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
 
     // Config keys use snake_case (set by the Go handler config builder)
-    const configAllowedAdd = Array.isArray(config.allowed_add) ? config.allowed_add : [];
-    const configAllowedRemove = Array.isArray(config.allowed_remove) ? config.allowed_remove : [];
+    const configAllowedAdd = currentAllowedAdd();
+    const configAllowedRemove = currentAllowedRemove();
+    const blockedPatterns = currentBlockedPatterns();
     /** @type {{from: string, to: string}[]} */
     const configAllowedTransitions = Array.isArray(config.allowed_transitions) ? config.allowed_transitions : [];
 
@@ -216,7 +219,7 @@ const main = createCountGatedHandler({
         const { data: updatedLabels } = await withRetry(
           async () => {
             beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
-            const preWriteAddValidation = validateSingleLabel(labelToAdd, configAllowedAdd, blockedPatterns, "label_to_add");
+            const preWriteAddValidation = validateSingleLabel(labelToAdd, currentAllowedAdd(), currentBlockedPatterns(), "label_to_add");
             if (!preWriteAddValidation.valid) {
               core.warning(`label_to_add validation failed before setLabels: ${preWriteAddValidation.error}`);
               const policyError = new Error(preWriteAddValidation.error);

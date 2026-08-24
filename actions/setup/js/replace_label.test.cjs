@@ -150,11 +150,11 @@ describe("replace_label", () => {
   it("should reject label_to_add before setLabels when blocklist changes mid-flight", async () => {
     let setLabelsCalls = 0;
     let getCalls = 0;
-    const blocked = [];
+    const config = { allowed_add: ["done"], blocked: [] };
     mockGithub.rest.issues.get = async () => {
       getCalls++;
       if (getCalls === 2) {
-        blocked.push("done");
+        config.blocked = ["done"];
       }
       return {
         data: {
@@ -172,13 +172,13 @@ describe("replace_label", () => {
       return { data: [] };
     };
 
-    const handler = await main({ allowed_add: ["done"], blocked });
+    const handler = await main(config);
     const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("blocked pattern");
     expect(getCalls).toBe(2);
-    expect(blocked).toEqual(["done"]);
+    expect(config.blocked).toEqual(["done"]);
     expect(setLabelsCalls).toBe(0);
   });
 
