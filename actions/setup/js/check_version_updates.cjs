@@ -66,6 +66,7 @@ function compareNumericIdentifiers(left, right) {
 function compareVersions(a, b) {
   const pa = parseVersion(a);
   const pb = parseVersion(b);
+  // Callers validate compiledVersion before fetching config; null lets malformed config-side versions be skipped.
   if (!pa || !pb) return null;
   for (let i = 0; i < 3; i++) {
     const difference = compareNumericIdentifiers(pa.base[i], pb.base[i]);
