@@ -117,6 +117,10 @@ From the compliance table, document workflows that are `non-compliant` because t
 
 Create **one** issue that consolidates all non-compliant workflows found.
 
+Before creating the issue, query closed pull requests with `gh pr list --state closed --author Copilot --limit 1000 --json number,title,closedAt,mergedAt`. Normalize both the candidate title and each PR title by repeatedly removing leading bracketed prefixes (for example `[workflow-style]` or `[WIP]`), lowercasing, replacing non-alphanumeric runs with one space, and trimming.
+
+If any normalized title matches the candidate and `mergedAt` is null, do **not** create the issue. Use `noop` instead, naming the matching PR numbers and close dates. Do not treat a closed PR as a reason to retry automatically; a maintainer must create or approve a follow-up issue after reviewing the prior attempt.
+
 **Title**: `[workflow-style] Normalize report formatting for non-compliant workflows`
 
 **Issue Body Requirements**:
