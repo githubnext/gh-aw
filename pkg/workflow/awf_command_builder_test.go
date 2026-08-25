@@ -802,6 +802,51 @@ func TestBuildAWFCommandScript_OptionalSections(t *testing.T) {
 	}
 }
 
+func TestBuildAWFCommandScript_RetriesClaudeStartupFailuresOutsideHarness(t *testing.T) {
+	input := buildAWFCommandScriptInput{
+		writeAgentCLIStartMs: "start",
+		preCreateLog:         "pre",
+		awfCommand:           "awf",
+		expandableArgs:       "--expand",
+		awfArgs:              []string{"--arg", "value"},
+		shellWrappedCommand:  "wrapped",
+		logFile:              "/tmp/test.log",
+		retryStartupFailures: true,
+	}
+
+	command := buildAWFCommandScript(input)
+
+	assert.Contains(t, command, `gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"`)
+	assert.Contains(t, command, `gh_aw_awf_initial_delay_ms="${GH_AW_HARNESS_INITIAL_DELAY_MS:-5000}"`)
+	assert.Contains(t, command, "while true; do")
+	assert.Contains(t, command, "awf --expand   --arg value \\\n  -- wrapped 2>&1 | tee -a /tmp/test.log")
+	assert.Contains(t, command, `! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log"`)
+	assert.Contains(t, command, "Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error)")
+	assert.Contains(t, command, "AWF startup failed before Claude harness; retrying fresh")
+}
+
+func TestClaudeEngineAWFWrapsOuterInvocationWithStartupRetry(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{ID: "claude"},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	assert.Contains(t, stepContent, `gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"`)
+	assert.Contains(t, stepContent, `! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log"`)
+	assert.Contains(t, stepContent, "Refusing to use symlink as bind mountpoint")
+	assert.Contains(t, stepContent, "claude_harness.cjs")
+}
+
 func argValue(args []string, flag string) string {
 	for i, arg := range args {
 		if arg == flag && i+1 < len(args) {

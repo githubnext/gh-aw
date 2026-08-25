@@ -477,7 +477,7 @@ const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8")
 fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
 
 if (priorCalls === 0) {
-  process.stdout.write("partial execution before retry\\n");
+  process.stdout.write('{"type":"assistant","message":{"content":[{"type":"text","text":"partial execution before retry"}]}}\\n');
   process.exit(1);
 }
 
@@ -514,7 +514,7 @@ const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8")
 fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
 
 if (priorCalls === 0) {
-  process.stdout.write("partial execution before retry\\n");
+  process.stdout.write('{"type":"assistant","message":{"content":[{"type":"text","text":"partial execution before retry"}]}}\\n');
   process.exit(1);
 }
 
@@ -551,7 +551,7 @@ const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8")
 fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
 
 if (priorCalls === 0) {
-  process.stdout.write("partial execution before retry\\n");
+  process.stdout.write('{"type":"assistant","message":{"content":[{"type":"text","text":"partial execution before retry"}]}}\\n');
   process.exit(1);
 }
 
@@ -701,7 +701,7 @@ process.exit(0);
       expect(result.stderr).toContain("no output produced — retrying startup as fresh run");
     });
 
-    it("retries AWF startup diagnostics before Claude session progress as a fresh run", () => {
+    it("retries MCP startup diagnostics before Claude session progress as a fresh run", () => {
       const stubScript = `
 const fs = require("fs");
 const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
@@ -709,7 +709,7 @@ const args = process.argv.slice(2);
 const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
 fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
 if (priorCalls === 0) {
-  process.stderr.write("awf: gateway startup failed before Claude launched\\n");
+  process.stderr.write("mcp gateway startup failed before Claude launched\\n");
   process.exit(1);
 }
 process.stdout.write('{"type":"assistant","message":{"content":[{"type":"text","text":"started"}]}}\\n');
@@ -719,7 +719,7 @@ process.exit(0);
       expect(result.status, result.stderr).toBe(0);
       expect(calls).toHaveLength(2);
       expect(calls[1].args).not.toContain("--continue");
-      expect(result.stderr).toContain("no Claude session progress — retrying startup as fresh run");
+      expect(result.stderr).toContain("output produced but no Claude session progress — retrying startup as fresh run");
     });
 
     it("does not retry no-output startup failure when GH_AW_CLAUDE_STARTUP_RETRIES=0", () => {

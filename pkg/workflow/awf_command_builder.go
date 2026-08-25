@@ -64,6 +64,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		awfArgs:                awfArgs,
 		shellWrappedCommand:    shellWrappedCommand,
 		logFile:                config.LogFile,
+		retryStartupFailures:   config.RetryStartupFailures,
 	})
 
 	awfHelpersLog.Print("Successfully built AWF command")
@@ -327,6 +328,7 @@ type buildAWFCommandScriptInput struct {
 	awfArgs                []string
 	shellWrappedCommand    string
 	logFile                string
+	retryStartupFailures   bool
 }
 
 func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
@@ -348,18 +350,58 @@ func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
 		input.arcDindPrefixProbe,
 		input.toolCacheMountProbe,
 		awfShellcheckDirective,
-		fmt.Sprintf(`%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			input.awfCommand,
-			input.expandableArgs,
-			input.toolCacheMountRef,
-			input.arcDindDockerHostRef,
-			shellJoinArgs(input.awfArgs),
-			input.shellWrappedCommand,
-			shellEscapeArg(input.logFile),
-		),
+		buildAWFInvocationCommand(input),
 	)
 	return strings.Join(lines, "\n")
+}
+
+func buildAWFInvocationCommand(input buildAWFCommandScriptInput) string {
+	command := fmt.Sprintf(`%s %s %s %s %s \
+  -- %s`,
+		input.awfCommand,
+		input.expandableArgs,
+		input.toolCacheMountRef,
+		input.arcDindDockerHostRef,
+		shellJoinArgs(input.awfArgs),
+		input.shellWrappedCommand,
+	)
+	if !input.retryStartupFailures {
+		return fmt.Sprintf("%s 2>&1 | tee -a %s", command, shellEscapeArg(input.logFile))
+	}
+	return fmt.Sprintf(`gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"
+if ! [[ "$gh_aw_awf_startup_retries" =~ ^[0-9]+$ ]]; then
+  gh_aw_awf_startup_retries=1
+fi
+if [ "$gh_aw_awf_startup_retries" -gt 2 ]; then
+  gh_aw_awf_startup_retries=2
+fi
+gh_aw_awf_initial_delay_ms="${GH_AW_HARNESS_INITIAL_DELAY_MS:-5000}"
+if ! [[ "$gh_aw_awf_initial_delay_ms" =~ ^[0-9]+$ ]]; then
+  gh_aw_awf_initial_delay_ms=5000
+fi
+gh_aw_awf_delay_s=$(( (gh_aw_awf_initial_delay_ms + 999) / 1000 ))
+gh_aw_awf_attempt=0
+while true; do
+  gh_aw_awf_attempt_log="$(mktemp "${RUNNER_TEMP:-/tmp}/gh-aw-awf-claude.XXXXXX")"
+  %s 2>&1 | tee -a %s "$gh_aw_awf_attempt_log"
+  gh_aw_awf_status=${PIPESTATUS[0]}
+  if [ "$gh_aw_awf_status" -eq 0 ]; then
+    rm -f "$gh_aw_awf_attempt_log"
+    exit 0
+  fi
+  if ! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
+    gh_aw_awf_attempt=$((gh_aw_awf_attempt + 1))
+    echo "[claude-awf-retry] AWF startup failed before Claude harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
+    rm -f "$gh_aw_awf_attempt_log"
+    sleep "$gh_aw_awf_delay_s"
+    continue
+  fi
+  rm -f "$gh_aw_awf_attempt_log"
+  exit "$gh_aw_awf_status"
+done`,
+		command,
+		shellEscapeArg(input.logFile),
+	)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.
