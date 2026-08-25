@@ -196,8 +196,8 @@ ninety_days_ago = now - timedelta(days=90)
 pr_df = pd.DataFrame(prs) if prs else pd.DataFrame()
 open_pr_count = len(open_prs)
 if not pr_df.empty:
-    pr_df['createdAt'] = pd.to_datetime(pr_df['createdAt'])
-    pr_df['mergedAt'] = pd.to_datetime(pr_df['mergedAt'])
+    pr_df['createdAt'] = pd.to_datetime(pr_df['createdAt'], utc=True)
+    pr_df['mergedAt'] = pd.to_datetime(pr_df['mergedAt'], utc=True)
     
     merged_prs = pr_df[pr_df['mergedAt'].notna() & (pr_df['mergedAt'] >= ninety_days_ago)].copy()
     merged_prs['time_to_merge'] = merged_prs['mergedAt'] - merged_prs['createdAt']
@@ -217,8 +217,8 @@ else:
 issue_df = pd.DataFrame(issues) if issues else pd.DataFrame()
 open_issue_count = len(open_issues)
 if not issue_df.empty:
-    issue_df['createdAt'] = pd.to_datetime(issue_df['createdAt'])
-    issue_df['closedAt'] = pd.to_datetime(issue_df['closedAt'])
+    issue_df['createdAt'] = pd.to_datetime(issue_df['createdAt'], utc=True)
+    issue_df['closedAt'] = pd.to_datetime(issue_df['closedAt'], utc=True)
     
     closed_issues = issue_df[issue_df['closedAt'].notna() & (issue_df['closedAt'] >= ninety_days_ago)].copy()
     closed_issues['time_to_close'] = closed_issues['closedAt'] - closed_issues['createdAt']

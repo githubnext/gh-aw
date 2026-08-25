@@ -29,6 +29,8 @@ func TestDailyPerformanceSummaryUsesStableWindowMetrics(t *testing.T) {
 		"/tmp/gh-aw/python/data/open_issues.json",
 		"open_prs = load_json_data",
 		"open_issues = load_json_data",
+		"pd.to_datetime(pr_df['mergedAt'], utc=True)",
+		"pd.to_datetime(issue_df['closedAt'], utc=True)",
 		"(pr_df['mergedAt'] >= ninety_days_ago)",
 		"(issue_df['closedAt'] >= ninety_days_ago)",
 	} {
