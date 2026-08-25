@@ -327,6 +327,9 @@ func TestValidateExecArgument(t *testing.T) {
 		{name: "valid argument", arg: "ghcr.io/anchore/grype:v0.80.0"},
 		{name: "empty argument", arg: "", wantErr: true},
 		{name: "argument with control character", arg: "value\nnext", wantErr: true},
+		{name: "argument starting with dash", arg: "-malicious", wantErr: true},
+		{name: "argument with null byte", arg: "val\x00ue", wantErr: true},
+		{name: "argument with tab", arg: "val\tue", wantErr: true},
 	}
 
 	for _, tt := range tests {

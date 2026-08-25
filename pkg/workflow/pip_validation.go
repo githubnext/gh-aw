@@ -218,7 +218,8 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 
 	// Validate with uv
 	// Package names were already validated against PyPI naming rules (PEP 508) above,
-	// before this point, so pkgName below is safe to pass as a command argument.
+	// before this point. validatePipCommandPackageArg below is a final point-of-use
+	// safety gate applied immediately before pkgName is passed to uv pip show.
 	var errors []string
 	for _, pkg := range packages {
 		pkgName := stripUvPackageVersion(pkg)
