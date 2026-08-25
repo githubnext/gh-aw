@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
 
 
+model: mai-code-1-flash-picker
 engine:
   id: copilot
   copilot-sdk: true
