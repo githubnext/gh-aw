@@ -13,6 +13,7 @@ import (
 )
 
 func TestIsHexString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -72,6 +73,7 @@ func TestIsHexString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsHexString(tt.input)
 			assert.Equal(t, tt.expected, result, "IsHexString(%q) should return %v", tt.input, tt.expected)
 		})
@@ -79,6 +81,7 @@ func TestIsHexString(t *testing.T) {
 }
 
 func TestIsValidFullSHA(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -113,6 +116,7 @@ func TestIsValidFullSHA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsValidFullSHA(tt.input)
 			assert.Equal(t, tt.expected, result, "IsValidFullSHA(%q) should return %v", tt.input, tt.expected)
 		})
@@ -120,6 +124,7 @@ func TestIsValidFullSHA(t *testing.T) {
 }
 
 func TestIsValidFullSHACaseInsensitive(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -133,12 +138,14 @@ func TestIsValidFullSHACaseInsensitive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, IsValidFullSHACaseInsensitive(tt.input))
 		})
 	}
 }
 
 func TestIsGitObjectID(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -168,12 +175,14 @@ func TestIsGitObjectID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, isGitObjectID(tt.input))
 		})
 	}
 }
 
 func TestExtractBaseRepo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -218,6 +227,7 @@ func TestExtractBaseRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ExtractBaseRepo(tt.input)
 			assert.Equal(t, tt.expected, result, "ExtractBaseRepo(%q) should return %q", tt.input, tt.expected)
 		})
@@ -225,7 +235,9 @@ func TestExtractBaseRepo(t *testing.T) {
 }
 
 func TestGetwd(t *testing.T) {
+	t.Parallel()
 	t.Run("returns the current working directory", func(t *testing.T) {
+		t.Parallel()
 		dir, err := Getwd()
 		require.NoError(t, err, "Getwd should succeed in a normal test environment")
 		assert.NotEmpty(t, dir, "Getwd should return a non-empty path")
@@ -251,7 +263,9 @@ func TestGetwd(t *testing.T) {
 }
 
 func TestUserHomeDir(t *testing.T) {
+	t.Parallel()
 	t.Run("returns the current user's home directory", func(t *testing.T) {
+		t.Parallel()
 		home, err := UserHomeDir()
 		require.NoError(t, err, "UserHomeDir should succeed in a normal test environment")
 		assert.NotEmpty(t, home, "UserHomeDir should return a non-empty path")
@@ -277,7 +291,9 @@ func TestUserHomeDir(t *testing.T) {
 }
 
 func TestFindGitRoot(t *testing.T) {
+	t.Parallel()
 	t.Run("returns non-empty path when inside a git repository", func(t *testing.T) {
+		t.Parallel()
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should succeed when running inside a git repository")
 		assert.NotEmpty(t, gitRoot, "FindGitRoot should return a non-empty path")
@@ -285,7 +301,9 @@ func TestFindGitRoot(t *testing.T) {
 }
 
 func TestFindGitRootFrom(t *testing.T) {
+	t.Parallel()
 	t.Run("returns git root from the repository root itself", func(t *testing.T) {
+		t.Parallel()
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "must be inside a git repository")
 
@@ -295,6 +313,7 @@ func TestFindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("returns git root from a subdirectory", func(t *testing.T) {
+		t.Parallel()
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "must be inside a git repository")
 
@@ -310,6 +329,7 @@ func TestFindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("returns error when starting outside any git repository", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		// Create a nested directory that is definitely not a git repo
 		nonRepoDir := filepath.Join(tmpDir, "not-a-git-repo", "subdir")
@@ -322,6 +342,7 @@ func TestFindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("returns git root when .git is a worktree marker file", func(t *testing.T) {
+		t.Parallel()
 		// Simulate a git worktree: the repo root has a .git *file* (not dir)
 		// whose content begins with "gitdir: /some/path"
 		tmpDir := t.TempDir()
@@ -346,6 +367,7 @@ func TestFindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("ignores non-worktree .git files without gitdir prefix", func(t *testing.T) {
+		t.Parallel()
 		// A plain file named .git that does NOT start with "gitdir:" should not
 		// be treated as a valid repo root.
 		tmpDir := t.TempDir()
@@ -359,6 +381,7 @@ func TestFindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("handles relative path input", func(t *testing.T) {
+		t.Parallel()
 		// "." should resolve to os.Getwd(). Skip gracefully if the working
 		// directory is not inside a git repository (e.g. some CI containers).
 		root, err := FindGitRootFrom(".")
@@ -370,7 +393,9 @@ func TestFindGitRootFrom(t *testing.T) {
 }
 
 func TestReadFileFromHEAD(t *testing.T) {
+	t.Parallel()
 	t.Run("reads a committed file with pre-computed root", func(t *testing.T) {
+		t.Parallel()
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "must be inside a git repository")
 
@@ -381,6 +406,7 @@ func TestReadFileFromHEAD(t *testing.T) {
 	})
 
 	t.Run("returns error for path outside git root", func(t *testing.T) {
+		t.Parallel()
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "must be inside a git repository")
 
@@ -391,6 +417,7 @@ func TestReadFileFromHEAD(t *testing.T) {
 	})
 
 	t.Run("returns error for empty gitRoot", func(t *testing.T) {
+		t.Parallel()
 		_, err := ReadFileFromHEAD("some/file.yml", "")
 		require.Error(t, err, "should fail when gitRoot is empty")
 		require.ErrorContains(t, err, "gitRoot must not be empty", "error should mention empty gitRoot")
@@ -398,6 +425,7 @@ func TestReadFileFromHEAD(t *testing.T) {
 }
 
 func TestValidateGitRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		ref         string
@@ -464,6 +492,7 @@ func TestValidateGitRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateGitRef(tt.ref)
 			if tt.expectError {
 				require.Error(t, err, "expected error for ref %q", tt.ref)
@@ -476,6 +505,7 @@ func TestValidateGitRef(t *testing.T) {
 }
 
 func TestValidateGitPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		path        string
@@ -526,6 +556,7 @@ func TestValidateGitPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateGitPath(tt.path)
 			if tt.expectError {
 				require.Error(t, err, "expected error for path %q", tt.path)
