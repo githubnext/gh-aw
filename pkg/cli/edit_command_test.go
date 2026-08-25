@@ -95,15 +95,24 @@ func TestReplaceFrontmatterPreservesBodySeparators(t *testing.T) {
 	assert.Contains(t, updated, "---\n# Workflow\n\n---\nBody\n")
 }
 
-func TestEditCommandRejectsSourceManagedWorkflow(t *testing.T) {
+func TestEditCommandAllowsSourceManagedWorkflow(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	workflowPath := dir + "/workflow.md"
-	require.NoError(t, os.WriteFile(workflowPath, []byte("---\nsource: owner/repo@v1\non: workflow_dispatch\n---\n"), 0o644))
+	original := "---\nsource: owner/repo@v1\non: workflow_dispatch\n---\n"
+	require.NoError(t, os.WriteFile(workflowPath, []byte(original), 0o644))
 
 	cmd := NewEditCommand()
-	cmd.SetArgs([]string{workflowPath, "max-turns: 20"})
-	assert.ErrorContains(t, cmd.Execute(), "source-managed")
+	cmd.SetArgs([]string{workflowPath, "max-turns: 20", "--dry-run"})
+	var output strings.Builder
+	cmd.SetOut(&output)
+	require.NoError(t, cmd.Execute())
+
+	assert.Contains(t, output.String(), "source: owner/repo@v1")
+	assert.Contains(t, output.String(), "max-turns: 20")
+	content, err := os.ReadFile(workflowPath)
+	require.NoError(t, err)
+	assert.Equal(t, original, string(content))
 }
 
 // mustApplyEditChange applies a change and asserts that it modified the frontmatter.

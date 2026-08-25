@@ -94,14 +94,14 @@ func TestEditCommandIntegrationDryRunAndFailureSafety(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, shorthand, string(content))
 
-	require.NoError(t, os.WriteFile(workflowPath, []byte("---\nsource: owner/repo@v1\non: workflow_dispatch\n---\n# Managed\n"), 0o644))
-	beforeManaged, err := os.ReadFile(workflowPath)
-	require.NoError(t, err)
-	output = requireEditFails(t, setup, "edit", "edit", "--set", "max-turns=20")
-	assert.Contains(t, output, "source-managed")
+	require.NoError(t, os.WriteFile(workflowPath, []byte("---\nsource: owner/repo/.github/workflows/edit.md@v1\non: workflow_dispatch\n---\n# Managed\n"), 0o644))
+	requireEditSucceeds(t, setup, "edit", "edit", "--set", "max-turns=20")
 	content, err = os.ReadFile(workflowPath)
 	require.NoError(t, err)
-	assert.Equal(t, beforeManaged, content)
+	frontmatter, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+	assert.Equal(t, "owner/repo/.github/workflows/edit.md@v1", frontmatter.Frontmatter["source"])
+	assert.Equal(t, uint64(20), frontmatter.Frontmatter["max-turns"])
 }
 
 func requireEditSucceeds(t *testing.T, setup *integrationTestSetup, args ...string) string {

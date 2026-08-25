@@ -25,7 +25,8 @@ func NewEditCommand() *cobra.Command {
 		Long: `Experimental: edit schema-validated workflow frontmatter and recompile its generated file.
 
 The workflow-id may be a workflow name, a Markdown filename, or a path. Changes are
-validated before writing. Workflows managed by a source: declaration cannot be edited.
+validated before writing. Workflows managed by a source: declaration can be edited
+locally; future updates will merge in those local changes.
 
 Edits that change nothing leave the workflow untouched. When frontmatter does change it is
 re-serialized, so YAML comments, key ordering, and quoting styles are not preserved.`,
@@ -65,9 +66,6 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 	parsed, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
 		return err
-	}
-	if _, managed := parsed.Frontmatter["source"]; managed {
-		return errors.New("cannot edit a source-managed workflow; update its source or pin, then run gh aw update")
 	}
 
 	changes, err := editChangesFromCommand(cmd, args)
