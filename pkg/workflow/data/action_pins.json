@@ -330,10 +330,10 @@
       "digest": "sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e",
       "pinned_image": "ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"
     },
-    "ghcr.io/github/github-mcp-server:v1.10.0": {
-      "image": "ghcr.io/github/github-mcp-server:v1.10.0",
-      "digest": "sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c",
-      "pinned_image": "ghcr.io/github/github-mcp-server:v1.10.0@sha256:097512ddf58af80a620c177ae9cad93448f9a2a55c70ee8fde5cec6714522a8c"
+    "ghcr.io/github/github-mcp-server:v1.10.1": {
+      "image": "ghcr.io/github/github-mcp-server:v1.10.1",
+      "digest": "sha256:1817b57d43916532dc002bdc5f344d639bd9fb54a9148d42168458f7c3280567",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v1.10.1@sha256:1817b57d43916532dc002bdc5f344d639bd9fb54a9148d42168458f7c3280567"
     },
     "ghcr.io/oraios/serena:1.7.0": {
       "image": "ghcr.io/oraios/serena:1.7.0",
