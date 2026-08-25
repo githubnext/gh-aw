@@ -34,6 +34,7 @@ imports:
       expires: 3d
   - shared/aw-logs-24h-fetch.md
   - ../skills/jqschema/SKILL.md
+  - shared/graders.md
 safe-outputs:
   mentions: false
   create-issue:
@@ -55,6 +56,7 @@ evals:
 sandbox:
   agent:
     runtime: gvisor
+
 ---
 
 # Agent Job Health Monitor

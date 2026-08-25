@@ -56,6 +56,7 @@ imports:
 
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
 sandbox:
@@ -66,6 +67,7 @@ evals:
     question: Did the agent audit agentic workflow runs from the last 24 hours?
   - id: issues_identified_or_noop
     question: Were issues, missing tools, errors, and improvement opportunities identified, or was noop used when no problems were found?
+
 ---
 
 # Agentic Workflow Audit Agent

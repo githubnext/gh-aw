@@ -11,6 +11,7 @@ import (
 )
 
 func TestStringsJoinOne(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, stringsjoinone.Analyzer, "stringsjoinone")
 }

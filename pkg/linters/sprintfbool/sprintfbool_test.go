@@ -12,6 +12,7 @@ import (
 )
 
 func TestSprintfBool(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, sprintfbool.Analyzer, "sprintfbool")
 }
