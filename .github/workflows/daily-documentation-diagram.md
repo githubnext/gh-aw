@@ -24,8 +24,8 @@ tools:
   bash:
     - "*"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[docs-diagram] "
     labels: [documentation, automation]
     draft: true

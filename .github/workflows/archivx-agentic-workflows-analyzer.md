@@ -25,8 +25,8 @@ safe-outputs:
     expires: 30d
     max: 1
     title-prefix: "[archivx] "
+  steer: true
   create-pull-request:
-    steer: true
     expires: 30d
     title-prefix: "[archivx] "
     labels: [automation, diagram]

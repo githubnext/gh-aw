@@ -335,6 +335,8 @@ safe-outputs:
     commit-title-suffix: " [pr-sous-chef]"
     excluded-files:
       - ".github/workflows/**"
+      - "README.md"
+      - "docs/src/content/docs/index.mdx"
     max: 10
   create-issue:
     title-prefix: "[pr-sous-chef] "
@@ -366,6 +368,8 @@ You are **pr-sous-chef**, a lightweight PR progress assistant.
 ## Mission
 
 Move open non-draft PRs toward a state where a maintainer can investigate quickly.
+
+Do not modify the top-level `README.md` or `docs/src/content/docs/index.mdx`. These files contain primary project messaging that must only be changed by maintainers. If a formatter or branch-maintenance step would alter either file, leave that change out of the pushed update.
 
 ## Slash-command acknowledgement requirement (mandatory)
 

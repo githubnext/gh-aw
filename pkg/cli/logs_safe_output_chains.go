@@ -123,7 +123,11 @@ func safeOutputArtifactsPresent(logsPath string) bool {
 		return false
 	}
 
-	for _, filename := range []string{safeOutputItemsManifestFilename, constants.TemporaryIdMapFilename.String()} {
+	for _, filename := range []string{
+		safeOutputItemsManifestFilename,
+		constants.TemporaryIdMapFilename.String(),
+		constants.SafeOutputErrorsFilename,
+	} {
 		if _, err := os.Stat(filepath.Join(logsPath, filename)); err == nil {
 			return true
 		}

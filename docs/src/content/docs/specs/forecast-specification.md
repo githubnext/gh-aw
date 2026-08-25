@@ -19,7 +19,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows (gh-aw) project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future AI Credits (AIC) and legacy Effective Token (ET) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic token-consumption forecasts suitable for capacity planning, cost estimation, and budget governance.
+This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future AI Credits (AIC) and legacy Effective Token (ET) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic token-consumption forecasts suitable for capacity planning, cost estimation, and budget governance.
 
 ---
 

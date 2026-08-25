@@ -72,7 +72,7 @@ func TestCompileDocsReflectCurrentOptions(t *testing.T) {
 	assert.Contains(t, compileSection, "does not run codemods unless you pass `--fix`", "compile docs should explain --fix opt-in behavior")
 }
 
-func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
+func TestCLIDocsReflectStatusAuditExperimentsAndGradersCommands(t *testing.T) {
 	t.Parallel()
 	_, currentFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "should resolve current test file path")
@@ -83,6 +83,8 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 
 	text := string(content)
 	assert.Contains(t, text, "#### `experiments`", "CLI setup docs should include the experiments command")
+	assert.Contains(t, text, "#### `graders`", "CLI setup docs should include the graders command")
+	assert.Contains(t, text, "**Options:** `--evidence-at` (required), `--json/-j`, `--repo/-r`", "graders docs should include all operational-value options")
 	assert.Contains(t, text, "#### `doctor`", "CLI setup docs should include the doctor command")
 	assert.Contains(t, text, "The `audit` command has two modes", "audit docs should describe the current two-mode behavior")
 	assert.NotContains(t, text, "enabled/disabled status, schedules, and labels", "status docs should not promise schedule output in console mode")

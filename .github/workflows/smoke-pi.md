@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test workflow that validates Pi engine functionality
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-pi
     strategy: centralized

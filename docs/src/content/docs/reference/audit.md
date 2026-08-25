@@ -7,9 +7,6 @@ sidebar:
 
 The `gh aw audit` commands download workflow run artifacts and logs, analyze MCP tool usage and network behavior, and produce structured reports suited for security reviews, debugging, and feeding to AI agents.
 
-> [!NOTE]
-> AI Credits (AIC) are the primary spend metric in gh-aw. Legacy Effective Tokens (ET) fields remain available for backward compatibility in report output.
-
 ## `gh aw audit <run-id-or-url> [<run-id-or-url>...]`
 
 Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report.

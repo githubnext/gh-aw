@@ -95,8 +95,8 @@ safe-outputs:
     max: 5
 
   # Pull request creation
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[🎨 POETRY] "
     labels: [poetry, automation, creative-writing]

@@ -40,8 +40,8 @@ tools:
   cache-memory:
     key: cloclo-memory-${{ github.workflow }}
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[cloclo] "
     labels: [automation, cloclo]

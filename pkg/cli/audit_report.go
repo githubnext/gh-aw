@@ -626,6 +626,7 @@ func describeFile(filename string) string {
 		"aw_info.json":                         "Engine configuration and workflow metadata",
 		"safe_output.jsonl":                    "Safe outputs from workflow execution",
 		safeOutputItemsManifestFilename:        "Created items manifest (audit trail)",
+		constants.SafeOutputErrorsFilename:     "Safe outputs failure diagnostics (error code, message, failing types)",
 		constants.AgentOutputFilename.String(): "Validated safe outputs",
 		"aw.patch":                             "Git patch of changes made during execution",
 		"agent-stdio.log":                      "Agent standard output/error logs",

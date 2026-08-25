@@ -22,7 +22,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `experiment` | `constants.ExperimentArtifactName` | Multi-file | A/B experiment state (`state.json`) uploaded by the activation job when experiments are declared in the frontmatter |
 | `usage` | `constants.UsageArtifactName` | Multi-file | Compact conclusion-job artifact with workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths |
 | `evals` | `constants.EvalsArtifactName` | Single-file | BinEval evaluation results (`evals.jsonl`) uploaded by the evals job when `evals` are declared in the workflow frontmatter |
-| `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Single-file | Safe output items manifest |
+| `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Multi-file | Safe output items manifest (`safe-output-items.jsonl`), temporary ID map (`temporary-id-map.json`), and failure diagnostics (`safe-output-errors.json`, written only when the `Process Safe Outputs` step fails) |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
 
 > [!IMPORTANT]
@@ -149,7 +149,7 @@ The unified `agent` artifact contains agent job outputs:
 - Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`
 - `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters when `observability.otlp` is configured
 
-For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/).
+For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/reference/open-telemetry/).
 
 ## `activation`
 
