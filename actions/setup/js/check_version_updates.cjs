@@ -80,8 +80,8 @@ function compareVersions(a, b) {
     if (i >= pb.prerelease.length) return 1;
     const left = pa.prerelease[i];
     const right = pb.prerelease[i];
-    const leftIsNumeric = /^\d+$/.test(left);
-    const rightIsNumeric = /^\d+$/.test(right);
+    const leftIsNumeric = /^[0-9]+$/.test(left);
+    const rightIsNumeric = /^[0-9]+$/.test(right);
     if (leftIsNumeric && rightIsNumeric) {
       const difference = compareNumericIdentifiers(left, right);
       if (difference !== 0) return difference;
