@@ -29,15 +29,29 @@ const VERSION_PATTERN = /^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-((?:0|[1-9][0-9]*|[0-
  * Versions with unknown syntax also return null.
  *
  * @param {string} version
- * @returns {{base: number[], prerelease: string[]|null}|null}
+ * @returns {{base: string[], prerelease: string[]|null}|null}
  */
 function parseVersion(version) {
   const match = VERSION_PATTERN.exec(version);
   if (!match) return null;
   return {
-    base: [Number(match[1]), Number(match[2]), Number(match[3])],
+    base: [match[1], match[2], match[3]],
     prerelease: match[4] ? match[4].split(".") : null,
   };
+}
+
+/**
+ * Compare numeric SemVer identifiers without converting to Number.
+ * VERSION_PATTERN rejects leading zeroes, so length plus lexical order is numeric order.
+ *
+ * @param {string} left
+ * @param {string} right
+ * @returns {number}
+ */
+function compareNumericIdentifiers(left, right) {
+  if (left.length !== right.length) return left.length - right.length;
+  if (left !== right) return left < right ? -1 : 1;
+  return 0;
 }
 
 /**
@@ -54,7 +68,8 @@ function compareVersions(a, b) {
   const pb = parseVersion(b);
   if (!pa || !pb) return null;
   for (let i = 0; i < 3; i++) {
-    if (pa.base[i] !== pb.base[i]) return pa.base[i] - pb.base[i];
+    const difference = compareNumericIdentifiers(pa.base[i], pb.base[i]);
+    if (difference !== 0) return difference;
   }
   if (pa.prerelease === null && pb.prerelease === null) return 0;
   if (pa.prerelease === null) return 1;
@@ -68,8 +83,8 @@ function compareVersions(a, b) {
     const leftIsNumeric = /^\d+$/.test(left);
     const rightIsNumeric = /^\d+$/.test(right);
     if (leftIsNumeric && rightIsNumeric) {
-      if (left.length !== right.length) return left.length - right.length;
-      if (left !== right) return left < right ? -1 : 1;
+      const difference = compareNumericIdentifiers(left, right);
+      if (difference !== 0) return difference;
     } else if (leftIsNumeric) {
       return -1;
     } else if (rightIsNumeric) {

@@ -420,6 +420,13 @@ describe("check_version_updates", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Outdated compile-agentic version"));
   });
 
+  it("should compare large base version components without precision loss", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v9007199254740992.0.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v9007199254740993.0.0" }));
+    await runMain();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Outdated compile-agentic version"));
+  });
+
   it("should fail when minor version is older (v1.0.5 vs min v1.1.0)", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.5";
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.1.0" }));
