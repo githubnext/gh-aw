@@ -29,3 +29,20 @@ New opportunities identified:
 - Plugins feature (Agent Plugins) still at 0 adoption across all workflows despite being documented as supported
 
 Follow-up: track whether shared Copilot defaults snippet gets created; monitor plugins adoption trend.
+
+## Run: 2026-08-25 (workflow-run-id: 32806958803)
+Third analysis. Compared to 2026-08-23 and 2026-08-24 baselines.
+
+Changes since last run:
+- copilot_workflows steady at 109 (no further scope changes)
+- copilot-sdk: true flat at 61 (no growth since run 2) — plateaued
+- max-tool-denials newly measured at 55 workflows
+- engine.agent custom persona usage still stuck at ~7 workflows — three runs, no growth despite being flagged twice
+- engine.version pinning: still 0 across all 109 Copilot workflows — three consecutive runs confirm this is not organically improving
+- --share flag: still 0 manual adoption (only used internally by compiler for detection-job commands)
+- plugins: still 0% adoption across all 292 workflows, three runs running
+- No shared/copilot-defaults.md snippet created yet, despite being recommended in run 2
+
+Escalation: the three most persistent, non-improving gaps (version pinning, --share, plugins, agent personas) are being escalated as concrete action items in this run's issue rather than repeated vague opportunities, since 3 cycles of flagging without action indicates these need either a decision to intentionally deprioritize or a committed implementation plan.
+
+Follow-up: check whether shared/copilot-defaults.md gets created before next run; check if copilot-sdk adoption resumes growth or has truly plateaued at 61.
