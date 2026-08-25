@@ -14,47 +14,61 @@ func TestWorkflowDispatchConcurrencyWarning(t *testing.T) {
 		name          string
 		on            string
 		discriminator string
+		safeOutputs   bool
 		expectWarning bool
 	}{
 		{
 			name:          "workflow dispatch without discriminator",
 			on:            "on: workflow_dispatch",
+			safeOutputs:   true,
 			expectWarning: false,
 		},
 		{
 			name:          "workflow dispatch with empty inputs without discriminator",
 			on:            "on:\n  workflow_dispatch:\n    inputs: {}",
+			safeOutputs:   true,
 			expectWarning: false,
 		},
 		{
 			name:          "workflow dispatch with inputs without discriminator",
 			on:            "on:\n  workflow_dispatch:\n    inputs:\n      target_repo:\n        type: string",
+			safeOutputs:   true,
 			expectWarning: true,
+		},
+		{
+			name:          "workflow dispatch with inputs without safe outputs",
+			on:            "on:\n  workflow_dispatch:\n    inputs:\n      target_repo:\n        type: string",
+			expectWarning: false,
 		},
 		{
 			name:          "mixed workflow dispatch without discriminator",
 			on:            "on:\n  workflow_dispatch:\n  schedule:\n    - cron: '0 0 * * *'",
+			safeOutputs:   true,
 			expectWarning: false,
 		},
 		{
 			name:          "mixed workflow dispatch with inputs without discriminator",
 			on:            "on:\n  workflow_dispatch:\n    inputs:\n      target_repo:\n        type: string\n  schedule:\n    - cron: '0 0 * * *'",
+			safeOutputs:   true,
 			expectWarning: true,
 		},
 		{
 			name:          "workflow dispatch with inputs and discriminator",
 			on:            "on:\n  workflow_dispatch:\n    inputs:\n      target_repo:\n        type: string",
 			discriminator: "${{ github.run_id }}",
+			safeOutputs:   true,
 			expectWarning: false,
 		},
 		{
 			name:          "nested workflow dispatch value without discriminator",
 			on:            "on:\n  workflow_run:\n    workflows: [workflow_dispatch]\n    types: [completed]",
+			safeOutputs:   true,
 			expectWarning: false,
 		},
 		{
 			name:          "schedule without discriminator",
 			on:            "on:\n  schedule:\n    - cron: '0 0 * * *'",
+			safeOutputs:   true,
 			expectWarning: false,
 		},
 	}
@@ -66,6 +80,9 @@ func TestWorkflowDispatchConcurrencyWarning(t *testing.T) {
 			workflowData := &WorkflowData{
 				On:                          tt.on,
 				ConcurrencyJobDiscriminator: tt.discriminator,
+			}
+			if tt.safeOutputs {
+				workflowData.SafeOutputs = &SafeOutputsConfig{}
 			}
 
 			output := testutil.CaptureStderr(t, func() {
