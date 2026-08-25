@@ -319,6 +319,12 @@ func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdo
 }
 
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {
+	if strings.Contains(workflowData.On, "workflow_dispatch") && workflowData.ConcurrencyJobDiscriminator == "" {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"workflow_dispatch workflow has no concurrency.job-discriminator; the generated conclusion concurrency group is shared by all dispatches of this workflow. "+
+				"Set a discriminator (for example, `${{ github.run_id }}`) to give each dispatch its own slot."))
+		c.IncrementWarningCount()
+	}
 	if workflowData.Concurrency != "" && strings.Contains(workflowData.Concurrency, "cancel-in-progress: true") && hasBotSelfCancelRisk(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"Custom workflow-level concurrency with cancel-in-progress: true may cause self-cancellation.\n"+
