@@ -19,6 +19,7 @@ import (
 // TestSpec_DefaultObjectiveMapping_Values validates that the documented default
 // objective mapping values match DefaultObjectiveMapping.
 func TestSpec_DefaultObjectiveMapping_Values(t *testing.T) {
+	t.Parallel()
 	om := github.DefaultObjectiveMapping()
 
 	// This assertion intentionally locks the full default shape so score changes
@@ -42,6 +43,7 @@ func TestSpec_DefaultObjectiveMapping_Values(t *testing.T) {
 // TestSpec_DefaultObjectiveMapping_ExcludesUnmappedLabels validates labels that
 // are intentionally not part of the default mapping.
 func TestSpec_DefaultObjectiveMapping_ExcludesUnmappedLabels(t *testing.T) {
+	t.Parallel()
 	om := github.DefaultObjectiveMapping()
 	for _, label := range []string{
 		"bug", "testing", "reliability", "workflow", "engine", "mcp", "enhancement", "dependencies",
@@ -53,6 +55,7 @@ func TestSpec_DefaultObjectiveMapping_ExcludesUnmappedLabels(t *testing.T) {
 // TestSpec_Constants_MultiLabelLogic validates the documented multi-label logic
 // option constants and their string values.
 func TestSpec_Constants_MultiLabelLogic(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "max", github.MultiLabelLogicMax,
 		"MultiLabelLogicMax should be \"max\"")
 	assert.Equal(t, "sum", github.MultiLabelLogicSum,
@@ -70,6 +73,7 @@ func TestSpec_Constants_MultiLabelLogic(t *testing.T) {
 // Tests construct explicit mappings so they validate documented behavior rather
 // than the contents of the built-in default mapping.
 func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
+	t.Parallel()
 	// Mapping is intentionally explicit for this test and independent of defaults.
 	mapping := func(logic string, priorities ...string) *github.ObjectiveMapping {
 		return &github.ObjectiveMapping{
@@ -85,22 +89,26 @@ func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
 	}
 
 	t.Run("max logic returns highest matching value (documented default)", func(t *testing.T) {
+		t.Parallel()
 		// Explicit test mapping: max of bug=60, high-priority=35 -> 60.
 		got := mapping(github.MultiLabelLogicMax).ComputeObjectiveValue([]string{"bug", "high-priority"})
 		assert.Equal(t, 60, got, "max logic should return the highest matching value")
 	})
 
 	t.Run("empty MultiLabelLogic defaults to max", func(t *testing.T) {
+		t.Parallel()
 		got := mapping("").ComputeObjectiveValue([]string{"bug", "high-priority"})
 		assert.Equal(t, 60, got, "empty MultiLabelLogic should behave as \"max\"")
 	})
 
 	t.Run("sum logic adds all matching values", func(t *testing.T) {
+		t.Parallel()
 		got := mapping(github.MultiLabelLogicSum).ComputeObjectiveValue([]string{"bug", "high-priority"})
 		assert.Equal(t, 95, got, "sum logic should add matching values (60+35)")
 	})
 
 	t.Run("first logic uses the first prioritized match", func(t *testing.T) {
+		t.Parallel()
 		// SPEC_AMBIGUITY: The README describes "first" as "use the first match in
 		// priority order", but does not specify whether ordering is driven by the
 		// issue-label order or the PriorityLabels order when the two disagree. To
@@ -112,22 +120,26 @@ func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
 	})
 
 	t.Run("nil receiver returns 0", func(t *testing.T) {
+		t.Parallel()
 		var om *github.ObjectiveMapping
 		assert.Equal(t, 0, om.ComputeObjectiveValue([]string{"bug"}),
 			"nil receiver should return 0")
 	})
 
 	t.Run("no matching labels returns 0", func(t *testing.T) {
+		t.Parallel()
 		got := mapping(github.MultiLabelLogicMax).ComputeObjectiveValue([]string{"nonexistent"})
 		assert.Equal(t, 0, got, "no matching labels should return 0")
 	})
 
 	t.Run("empty issue labels returns 0", func(t *testing.T) {
+		t.Parallel()
 		got := mapping(github.MultiLabelLogicMax).ComputeObjectiveValue([]string{})
 		assert.Equal(t, 0, got, "empty issue labels should return 0")
 	})
 
 	t.Run("label matching is case-insensitive (design note)", func(t *testing.T) {
+		t.Parallel()
 		got := mapping(github.MultiLabelLogicMax).ComputeObjectiveValue([]string{"  BUG  "})
 		assert.Equal(t, 60, got,
 			"labels should be normalized with ToLower/TrimSpace before lookup")
@@ -138,6 +150,7 @@ func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
 // returns the subset of issue labels that have defined objective values,
 // preserving original order.
 func TestSpec_PublicAPI_FilterObjectiveLabels(t *testing.T) {
+	t.Parallel()
 	om := &github.ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"bug":           60,
@@ -146,18 +159,21 @@ func TestSpec_PublicAPI_FilterObjectiveLabels(t *testing.T) {
 	}
 
 	t.Run("returns only labels with defined values", func(t *testing.T) {
+		t.Parallel()
 		got := om.FilterObjectiveLabels([]string{"bug", "good first issue"})
 		assert.Equal(t, []string{"bug"}, got,
 			"only labels with defined objective values should be returned")
 	})
 
 	t.Run("preserves original input order", func(t *testing.T) {
+		t.Parallel()
 		got := om.FilterObjectiveLabels([]string{"high-priority", "unknown", "bug"})
 		assert.Equal(t, []string{"high-priority", "bug"}, got,
 			"returned labels should preserve their original order")
 	})
 
 	t.Run("no matching labels returns empty", func(t *testing.T) {
+		t.Parallel()
 		got := om.FilterObjectiveLabels([]string{"unknown"})
 		assert.Empty(t, got, "no matching labels should yield an empty result")
 	})
@@ -166,6 +182,7 @@ func TestSpec_PublicAPI_FilterObjectiveLabels(t *testing.T) {
 // TestSpec_PublicAPI_HasObjectiveLabel validates that HasObjectiveLabel
 // reports whether a label has a defined objective value.
 func TestSpec_PublicAPI_HasObjectiveLabel(t *testing.T) {
+	t.Parallel()
 	om := &github.ObjectiveMapping{
 		LabelToValue: map[string]int{"bug": 60},
 	}
@@ -179,6 +196,7 @@ func TestSpec_PublicAPI_HasObjectiveLabel(t *testing.T) {
 // TestSpec_PublicAPI_GetAllLabels validates that GetAllLabels returns all
 // defined labels sorted alphabetically.
 func TestSpec_PublicAPI_GetAllLabels(t *testing.T) {
+	t.Parallel()
 	om := &github.ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"high-priority": 35,
@@ -195,6 +213,7 @@ func TestSpec_PublicAPI_GetAllLabels(t *testing.T) {
 // TestSpec_PublicAPI_MarshalJSON validates that MarshalJSON implements
 // json.Marshaler and produces indented JSON output.
 func TestSpec_PublicAPI_MarshalJSON(t *testing.T) {
+	t.Parallel()
 	om := &github.ObjectiveMapping{
 		LabelToValue:    map[string]int{"bug": 60},
 		MultiLabelLogic: github.MultiLabelLogicMax,
@@ -216,6 +235,7 @@ func TestSpec_PublicAPI_MarshalJSON(t *testing.T) {
 // TestSpec_PublicAPI_String validates the documented String() format:
 // "ObjectiveMapping{labels: N, logic: X, priorities: M}".
 func TestSpec_PublicAPI_String(t *testing.T) {
+	t.Parallel()
 	om := &github.ObjectiveMapping{
 		LabelToValue:    map[string]int{"bug": 60, "documentation": 5},
 		MultiLabelLogic: github.MultiLabelLogicSum,
@@ -232,6 +252,7 @@ func TestSpec_PublicAPI_String(t *testing.T) {
 // documents its String() representation as
 // "ObjectiveMapping{labels: 12, logic: max, priorities: 7}".
 func TestSpec_Functions_DefaultObjectiveMapping(t *testing.T) {
+	t.Parallel()
 	om := github.DefaultObjectiveMapping()
 	require.NotNil(t, om, "DefaultObjectiveMapping should return a non-nil mapping")
 

@@ -18,6 +18,7 @@ import (
 // Specification: Returns true if s consists entirely of hexadecimal characters
 // (0–9, a–f, A–F). Returns false for the empty string.
 func TestSpec_PublicAPI_IsHexString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -62,6 +63,7 @@ func TestSpec_PublicAPI_IsHexString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := gitutil.IsHexString(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"IsHexString(%q) should match documented behavior", tt.input)
@@ -80,6 +82,7 @@ func TestSpec_PublicAPI_IsHexString(t *testing.T) {
 //	gitutil.ExtractBaseRepo("actions/checkout")                   → "actions/checkout"
 //	gitutil.ExtractBaseRepo("github/codeql-action/upload-sarif") → "github/codeql-action"
 func TestSpec_PublicAPI_ExtractBaseRepo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -104,6 +107,7 @@ func TestSpec_PublicAPI_ExtractBaseRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := gitutil.ExtractBaseRepo(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"ExtractBaseRepo(%q) should extract owner/repo portion", tt.input)
@@ -118,6 +122,7 @@ func TestSpec_PublicAPI_ExtractBaseRepo(t *testing.T) {
 // SHA (the standard Git commit SHA format). Use this for strict SHA validation
 // when the full 40-character form is required.
 func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -157,6 +162,7 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := gitutil.IsValidFullSHA(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"IsValidFullSHA(%q) should match documented behavior", tt.input)
@@ -167,6 +173,7 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 // TestSpec_PublicAPI_IsValidFullSHACaseInsensitive validates the documented
 // behavior of IsValidFullSHACaseInsensitive as described in the package README.md.
 func TestSpec_PublicAPI_IsValidFullSHACaseInsensitive(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -180,6 +187,7 @@ func TestSpec_PublicAPI_IsValidFullSHACaseInsensitive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, gitutil.IsValidFullSHACaseInsensitive(tt.input))
 		})
 	}
@@ -192,7 +200,9 @@ func TestSpec_PublicAPI_IsValidFullSHACaseInsensitive(t *testing.T) {
 // Git repository using pure Go filesystem traversal (no `git` subprocess);
 // starts from the current working directory.
 func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
+	t.Parallel()
 	t.Run("returns non-empty absolute path when in git repository", func(t *testing.T) {
+		t.Parallel()
 		root, err := gitutil.FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should not error when inside a git repository")
 		assert.NotEmpty(t, root, "FindGitRoot should return a non-empty path")
@@ -208,7 +218,9 @@ func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 // looking for a .git directory or worktree marker file (a `.git` file starting
 // with `gitdir:`).
 func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
+	t.Parallel()
 	t.Run("returns absolute repository root when startDir is inside a repo", func(t *testing.T) {
+		t.Parallel()
 		// The current working directory of this test is inside the gh-aw
 		// repository, so any subdirectory inside it should resolve to the
 		// repository root.
@@ -223,6 +235,7 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("traverses upward from a subdirectory to locate the repository root", func(t *testing.T) {
+		t.Parallel()
 		repoRoot, err := gitutil.FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should succeed inside the gh-aw repository")
 
@@ -235,6 +248,7 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("returns error when startDir is not inside a git repository", func(t *testing.T) {
+		t.Parallel()
 		// A directory created outside any git repository should produce an error.
 		isolated := t.TempDir()
 		_, err := gitutil.FindGitRootFrom(isolated)
@@ -257,6 +271,7 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 // The README usage example relies on errors.Is(err, gitutil.ErrNotGitRepository),
 // so the returned error must satisfy that comparison.
 func TestSpec_Variables_ErrNotGitRepository(t *testing.T) {
+	t.Parallel()
 	require.Error(t, gitutil.ErrNotGitRepository,
 		"ErrNotGitRepository should be a non-nil sentinel error value")
 
@@ -276,23 +291,27 @@ func TestSpec_Variables_ErrNotGitRepository(t *testing.T) {
 // Specification: Reads a file's content from the HEAD commit without touching
 // the working tree; rejects paths that escape the repository.
 func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
+	t.Parallel()
 	root, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skip("not inside a git repository, skipping ReadFileFromHEAD tests")
 	}
 
 	t.Run("reads known file from HEAD without error", func(t *testing.T) {
+		t.Parallel()
 		content, err := gitutil.ReadFileFromHEAD(filepath.Join(root, "go.mod"), root)
 		require.NoError(t, err, "ReadFileFromHEAD should read go.mod without error")
 		assert.NotEmpty(t, content, "content of go.mod should not be empty")
 	})
 
 	t.Run("returns error for non-existent file", func(t *testing.T) {
+		t.Parallel()
 		_, err := gitutil.ReadFileFromHEAD("this-file-does-not-exist-xyzzy.txt", root)
 		assert.Error(t, err, "ReadFileFromHEAD should return error for non-existent file")
 	})
 
 	t.Run("rejects path with .. traversal", func(t *testing.T) {
+		t.Parallel()
 		// Specification: "The function rejects paths that escape the repository
 		// (i.e. paths containing .. after resolution)."
 		outsidePath := filepath.Join(root, "..", "outside.txt")
@@ -302,6 +321,7 @@ func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
 	})
 
 	t.Run("returns error when gitRoot is empty", func(t *testing.T) {
+		t.Parallel()
 		// Specification: gitRoot must be the repository root (from FindGitRoot)
 		_, err := gitutil.ReadFileFromHEAD("go.mod", "")
 		assert.Error(t, err, "ReadFileFromHEAD should return error when gitRoot is empty")

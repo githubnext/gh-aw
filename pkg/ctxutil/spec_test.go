@@ -14,10 +14,12 @@ import (
 // TestSpec_PublicAPI_OrBackground validates the documented behavior of
 // OrBackground as described in the ctxutil README.md specification.
 func TestSpec_PublicAPI_OrBackground(t *testing.T) {
+	t.Parallel()
 	type key string
 	const testKey key = "spec-key"
 
 	t.Run("returns context.Background() when ctx is nil", func(t *testing.T) {
+		t.Parallel()
 		var nilCtx context.Context
 
 		got := ctxutil.OrBackground(nilCtx)
@@ -26,6 +28,7 @@ func TestSpec_PublicAPI_OrBackground(t *testing.T) {
 	})
 
 	t.Run("returns the context unchanged when ctx is non-nil", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.WithValue(context.Background(), testKey, "value")
 
 		got := ctxutil.OrBackground(ctx)
@@ -35,6 +38,7 @@ func TestSpec_PublicAPI_OrBackground(t *testing.T) {
 	})
 
 	t.Run("preserves cancellation of the input context", func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithCancel(context.Background())
 
 		got := ctxutil.OrBackground(ctx)

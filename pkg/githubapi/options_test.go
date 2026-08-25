@@ -9,6 +9,7 @@ import (
 )
 
 func TestClientOptions(t *testing.T) {
+	t.Parallel()
 	opts := ClientOptions("github.com", "token")
 	if opts.Host != "github.com" {
 		t.Fatalf("ClientOptions() host = %q, want %q", opts.Host, "github.com")
