@@ -328,11 +328,7 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig, engineConfig *Eng
 		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentLogsWritePath)
 	}
 	if engineConfig != nil && engineConfig.ID == string(constants.CodexEngine) {
-		// Codex sets CODEX_HOME to constants.TmpMcpConfigDir and writes its rollout/state
-		// database (e.g. state_N.sqlite) there at runtime. Without an explicit allowWrite
-		// entry, Cloud Hypervisor narrows the /tmp/gh-aw virtiofs export to read-only outside
-		// the seeded paths, and codex fails immediately with "failed to initialize in-process
-		// app-server client: Read-only file system (os error 30)".
+		// Codex writes runtime state under CODEX_HOME.
 		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, constants.TmpMcpConfigDir)
 	}
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorWorkspaceWritePath)

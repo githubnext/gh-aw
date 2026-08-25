@@ -282,10 +282,6 @@ func TestApplySandboxDefaults(t *testing.T) {
 			},
 		},
 		{
-			// Codex sets CODEX_HOME to constants.TmpMcpConfigDir and writes its rollout/state
-			// database there at runtime. Without this entry, Cloud Hypervisor narrows the
-			// /tmp/gh-aw export to read-only outside the seeded paths and codex fails with
-			// "failed to initialize in-process app-server client: Read-only file system".
 			name: "cloud-hypervisor runtime seeds mcp-config write path for codex engine",
 			config: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
