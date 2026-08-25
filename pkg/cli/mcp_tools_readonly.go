@@ -90,16 +90,14 @@ type compileArgs struct {
 // --prior-manifest-file so the compiler uses tamper-proof manifests for safe update
 // enforcement.  An empty string disables this feature.
 // Returns an error if schema generation fails, which causes the server to stop registering tools.
-func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string) error {
+func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string) error { //nolint:largefunc
 	// Generate schema with elicitation defaults
-	compileSchema, err := GenerateSchema[compileArgs]()
+	compileSchema, err := generateSchemaWithDefaults[compileArgs](map[string]any{
+		"strict": true,
+	})
 	if err != nil {
 		mcpLog.Printf("Failed to generate compile tool schema: %v", err)
 		return err
-	}
-	// Add elicitation default: strict defaults to true (most common case)
-	if err := AddSchemaDefault(compileSchema, "strict", true); err != nil {
-		mcpLog.Printf("Failed to add default for strict: %v", err)
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -127,7 +125,7 @@ Returns JSON array with validation results for each workflow:
 - compiled_file: Path to the generated .lock.yml file`,
 		InputSchema: compileSchema,
 		Icons:       mcpToolIcons("📋"),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) { //nolint:largefunc
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
@@ -312,7 +310,7 @@ type mcpInspectArgs struct {
 }
 
 // registerMCPInspectTool registers the mcp-inspect tool with the MCP server.
-func registerMCPInspectTool(server *mcp.Server, execCmd execCmdFunc) {
+func registerMCPInspectTool(server *mcp.Server, execCmd execCmdFunc) { //nolint:largefunc
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "mcp-inspect",
 		Annotations: &mcp.ToolAnnotations{
