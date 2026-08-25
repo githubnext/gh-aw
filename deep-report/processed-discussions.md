@@ -107,3 +107,8 @@ Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:
 
 ### Processed 2026-08-24 ~18:25Z cycle (full — all 20 new discussions read; window since 06:29:00Z baseline #55312, own prior briefing excluded)
 55323, 55334, 55337, 55339, 55340, 55343, 55354, 55364, 55368, 55369, 55381, 55391, 55401, 55405, 55409, 55423, 55432, 55448, 55453, 55460 — all read in full, no sampling shortfall. 3 code-quality/reliability tasks extracted and filed (Typist type-dedup, 2 large-file decompositions) + 1 comment (P0 #54186 escalation evidence). ai-moderator/cgo/q-workflow chronic issues, list_label MCP pagination, and UK AI Resilience checkout finding all declined as already-tracked/already-filed/not-a-gh-aw-fix.
+
+## Discussions mined for code-quality tasks (processed through 2026-08-25 ~00:34Z)
+
+### Processed 2026-08-25 ~00:34Z cycle (full — all 8 new discussions read; window since 18:25Z baseline #55473, own prior briefing excluded)
+55467, 55477, 55503, 55505, 55514, 55519, 55526, 55538 — all read in full, no sampling shortfall. 6 code-quality/reliability tasks extracted and filed (codex driver_exit circuit breaker, npm firewall allowlist gap, Code Metrics LOC-swing bug, Performance Summary window instability, Team Evolution title-date bug, discussion-query tooling limit). Code Scanning Fixer, Ponytail Reviewer, lockfile-stats regex, and audit-workflows repo-memory read-only mount all declined as already-tracked/self-corrected/environmental.

@@ -1,3 +1,17 @@
+## Flagged Items (2026-08-25, ~00:34Z cycle, window since 18:25Z baseline #55473, 8 new discussions: 55467,55477,55503,55505,55514,55519,55526,55538)
+
+- **[new, filed, HIGH]** Codex `driver_exit`/context-rebuild-runaway collapse, 49.4% success (41/83 runs) — #55526 Finding 1; confirmed #54393 (closed) covers an unrelated root cause, so this was genuinely untracked.
+- **[new, filed]** Daily Documentation Diagram npm firewall block (2.1M requests) + retry storm — #55526 Finding 2; verified live, only `defaults`/`github` in `network.allowed`.
+- **[new, filed]** Daily Code Metrics implausible LOC/test-ratio swing (-29% LOC, +75% ratio in 1 day) — #55519 Critical Issue 1.
+- **[new, filed]** Daily Performance Summary 90-day window instability (45-69% swings) — #55519 Critical Issue 2.
+- **[new, filed]** Daily Team Evolution title-date bug (uses run date, not window_start) — #55519 Warning 1; verified live at workflow lines 65-68/125.
+- **[new, filed]** github-discussion-query mcp-script "Argument list too long" above ~12 items — #55519's own tooling note, caps Regulatory Report's review sample.
+- **[declined, already tracked]** Code Scanning Fixer chronic 0-tok failures — #55526 Finding 3, already open #55498.
+- **[declined, already tracked, chronic]** Ponytail Reviewer 58.3% success, 182K avg tokens — #55538, already open #55397/#54402; 5+ prior closed attempts never stuck.
+- **[declined, self-corrected]** Lockfile Statistics discussion_category regex — #55505 fixed its own extraction methodology within the same run, no code gap remains.
+- **[declined, environmental/monitor]** audit-workflows repo-memory mount reported read-only this run (#55526) — source workflow explicitly called this a sandbox quirk not to work around; single occurrence, watch for recurrence.
+- **[declined, healthy]** Detection Analysis Report (#55538, 0 misconfigured workflows) — no action.
+
 ## Flagged Items (2026-08-24, ~18:25Z cycle, window since 06:29:00Z baseline #55312, 20 new discussions: 55323,55334,55337,55339,55340,55343,55354,55364,55368,55369,55381,55391,55401,55405,55409,55423,55432,55448,55453,55460)
 
 - **[escalated, comment]** Cross-engine agent-CLI segfault (P0 #54186) — added fresh evidence from Weekly Workflow Analysis #55354: per-window failure-rate table (0%→100% between 03:26-08:59 UTC), newly-affected workflows (AI Moderator 5/5 codex, Daily Go Test Parallelizer 3/3 copilot, Smoke Claude 2/2 claude). Same incident as already-open #54186, not a new issue.

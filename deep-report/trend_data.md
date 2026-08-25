@@ -1,3 +1,14 @@
+## Trend Data (2026-08-25, ~00:34Z cycle)
+
+Window since 18:25Z baseline (#55473, own prior briefing excluded), 8 new discussions (55467,55477,55503,55505,55514,55519,55526,55538), all read in full — a short ~6h window, roughly 1/3 the discussion volume of the prior 12h cycle, no coverage gap.
+
+- **Issue activity**: 6 new issues filed, 0 comments — high yield for a short window; unusually, none of the 6 were "already tracked" chronic re-files — all were genuinely new, distinct workflow bugs surfaced by the Regulatory Report and the Audit Report in the same cycle.
+- **Reliability signal**: Codex engine `driver_exit`/context-rebuild-runaway collapse (49.4% success, 41/83 runs, #55526) — confirmed distinct from the closed #54393 (see [[known_patterns]] "stale memory correction" entry). Worst-case single-run token burn: ~5.07M tokens (Terminal Stylist, 42.98x rebuild_factor) before crashing.
+- **Fleet-wide audit (#55526)**: 82.0% raw / 81.9% excl. intentional-failure success rate (459/560 runs), 24h window; `main` 77.4% vs non-`main` 87.2%, gap driven almost entirely by codex.
+- **Regulatory cross-check (#55519)**: Overall consistency ~45% (5/11 comparable metric pairs matched); 2 critical discrepancies (Code Metrics LOC swing, Performance Summary window swing), both root-caused to specific workflow files and filed.
+- **Detection coverage (#55538)**: 98.5% of runs have `gh-aw-detection` enabled (263/267), 0 misconfigured workflows — healthy, day-over-day dip (91.3%→84.4%) is only 2 data points, not yet a trend.
+- **Weekly issues snapshot**: 128 open / 372 closed; top labels agentic-workflows(283), automation(152), cookie(102), cascade-suspected(68), code-quality(51).
+
 ## Trend Data (2026-08-24, ~18:25Z cycle)
 
 Window since 06:29:00Z baseline (#55312, own prior briefing excluded), 20 new discussions (55323,55334,55337,55339,55340,55343,55354,55364,55368,55369,55381,55391,55401,55405,55409,55423,55432,55448,55453,55460), all read in full — longest window (~12h) in recent cycles, roughly 2x the usual discussion count.

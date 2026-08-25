@@ -1,3 +1,13 @@
+## Extracted code-quality tasks (2026-08-25 ~00:34Z cycle)
+
+6 filed, 0 comments, window since 18:25Z baseline #55473 (8 new discussions: 55467,55477,55503,55505,55514,55519,55526,55538):
+1. Codex driver_exit collapse (49.4% success) + rebuild_factor circuit breaker — discussion #55526 (Audit). Filed. (Verified #54393, previously believed to cover this, is closed and covers a different root cause.)
+2. Add node ecosystem to network.allowed for Daily Documentation Diagram (npm firewall block + retry storm) — discussion #55526 (Audit). Filed.
+3. Fix implausible LOC/test-ratio swings in Daily Code Metrics — discussion #55519 (Regulatory). Filed.
+4. Fix 90-day window instability in Daily Performance Summary — discussion #55519 (Regulatory). Filed.
+5. Fix Daily Team Evolution title-date derivation (window_start, not run date) — discussion #55519 (Regulatory). Filed.
+6. Fix "Argument list too long" limit (~12 items) in github-discussion-query mcp-script — discussion #55519 (Regulatory). Filed.
+
 ## Extracted code-quality tasks (2026-08-24 ~18:25Z cycle)
 
 3 filed, 1 comment, window since 06:29:00Z baseline #55312 (20 new discussions: 55323,55334,55337,55339,55340,55343,55354,55364,55368,55369,55381,55391,55401,55405,55409,55423,55432,55448,55453,55460):

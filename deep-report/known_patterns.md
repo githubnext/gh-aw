@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-25, ~00:34Z cycle, baseline #55473)
+
+### Correction: a memory entry citing "already tracked via #NNNNN" can go stale when that issue gets closed for a different reason than you remember
+`flagged_items.md` had repeatedly declined codex `driver_exit` fleet-wide failures as "already tracked via #54393." This cycle, `gh issue view 54393` showed it is CLOSED, and reading its title confirmed it covered a *different* root cause (MCP-helper binary-path-not-found) than the driver_exit/context-rebuild-runaway signature in today's Audit #55526. **Lesson: before declining a candidate as "already tracked," don't just pattern-match the memory note's issue number — actually check that issue's current state and title/root-cause. A closed issue about a superficially similar symptom does not cover a recurrence with a different mechanism, and treating it as still-open coverage will cause a real new failure mode to go unfiled indefinitely.**
+
+### New pattern: the Daily Regulatory Report is now catching genuine bugs *in other daily-report workflows themselves*, not just cross-report metric mismatches
+This cycle's Regulatory Report (#55519) found two of its own peer workflows (Daily Code Metrics, Daily Performance Summary) producing internally-implausible day-over-day swings that were self-labeled "baseline established" rather than flagged as suspicious by the source workflow, plus a title-date bug in Daily Team Evolution. All three were verified live against the workflow source files and filed as distinct, specific issues. **Lesson: when the Regulatory Report flags a "critical discrepancy" or "warning," treat it as a first-class lead worth verifying against the actual workflow `.md` file (prompt logic, date derivation, pagination calls) — it has a good track record of finding real methodology bugs, not just noise from natural rolling-window drift.**
+
 ## DeepReport Memory (2026-08-24, ~18:25Z cycle, baseline #55312)
 
 ### Reconfirmed: verify subagent-sourced Typist/simplification claims against actual call sites, not just the target function
