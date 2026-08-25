@@ -32,7 +32,7 @@ const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
 // Persist outside the read-only gh-aw infrastructure mount.
 const AWF_REFLECT_OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json");
 // Milliseconds to wait for the /reflect endpoint before giving up.
-const AWF_REFLECT_TIMEOUT_MS = Number.parseInt(process.env.GH_AW_REFLECT_TIMEOUT_MS || "60000", 10);
+const AWF_REFLECT_TIMEOUT_MS = parseReflectTimeoutMs(process.env.GH_AW_REFLECT_TIMEOUT_MS);
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
 // Milliseconds to wait for an api-proxy provider listener to accept a real TCP connection.
@@ -83,6 +83,15 @@ const REFLECT_PROVIDER_ALIASES = {
   openai: new Set(["openai"]),
   anthropic: new Set(["anthropic"]),
 };
+
+function parseReflectTimeoutMs(value) {
+  const rawValue = String(value || "").trim();
+  if (!/^\d+$/.test(rawValue)) {
+    return 60000;
+  }
+  const timeoutMs = Number(rawValue);
+  return Number.isSafeInteger(timeoutMs) ? timeoutMs : 60000;
+}
 
 const DEFAULT_API_PROXY_HOST_BRIDGE = "host.docker.internal";
 
@@ -1027,6 +1036,7 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS,
     DEFAULT_API_PROXY_HOST_BRIDGE,
     GEMINI_MODEL_NAME_PREFIX,
+    parseReflectTimeoutMs,
     enrichReflectModels,
     extractModelIds,
     fetchAWFReflect,

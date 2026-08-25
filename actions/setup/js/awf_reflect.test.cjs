@@ -28,6 +28,7 @@ const {
   hasAPIProxyLocalhostAlias,
   inferProviderTypeForModel,
   inferWireApiForModel,
+  parseReflectTimeoutMs,
   resolveOpenAICompatibleEndpointFromReflect,
   resolveProviderEndpointFromReflect,
   resolveMultiProviderFromReflect,
@@ -49,6 +50,14 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS).toBe(2000);
       expect(DEFAULT_API_PROXY_HOST_BRIDGE).toBe("host.docker.internal");
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
+    });
+
+    it("falls back to the default reflect timeout when the environment value is invalid", () => {
+      expect(parseReflectTimeoutMs("")).toBe(60000);
+      expect(parseReflectTimeoutMs("not-a-number")).toBe(60000);
+      expect(parseReflectTimeoutMs("12abc")).toBe(60000);
+      expect(parseReflectTimeoutMs("999999999999999999999999")).toBe(60000);
+      expect(parseReflectTimeoutMs("1234")).toBe(1234);
     });
   });
 

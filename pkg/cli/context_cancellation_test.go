@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestRunWorkflowOnGitHubWithCancellation tests that RunWorkflowOnGitHub respects context cancellation
@@ -129,7 +130,7 @@ func TestDownloadWorkflowLogsTimeoutRespected(t *testing.T) {
 	})
 	elapsed := time.Since(start)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.GreaterOrEqual(t, elapsed, time.Second, "Should wait for the configured timeout")
 	assert.Less(t, elapsed, 3*time.Second, "Should stop promptly after the configured timeout")
 }

@@ -34,7 +34,14 @@ function findLogFiles(rootDir) {
   }
 
   const files = [];
-  for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+  let entries;
+  try {
+    entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  for (const entry of entries) {
     const entryPath = path.join(rootDir, entry.name);
     if (entry.isDirectory()) {
       files.push(...findLogFiles(entryPath));
@@ -45,14 +52,41 @@ function findLogFiles(rootDir) {
   return files;
 }
 
+function findSessionEventFiles(rootDir) {
+  if (!fs.existsSync(rootDir)) {
+    return [];
+  }
+
+  const files = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  for (const entry of entries) {
+    const entryPath = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...findSessionEventFiles(entryPath));
+    } else if (entry.isFile() && entry.name === "events.jsonl") {
+      files.push(entryPath);
+    }
+  }
+  return files;
+}
+
 function findPrefixedDirectories(parentDir, prefix) {
   if (!fs.existsSync(parentDir)) {
     return [];
   }
-  return fs
-    .readdirSync(parentDir, { withFileTypes: true })
-    .filter(entry => entry.isDirectory() && entry.name.startsWith(prefix))
-    .map(entry => path.join(parentDir, entry.name));
+  let entries;
+  try {
+    entries = fs.readdirSync(parentDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries.filter(entry => entry.isDirectory() && entry.name.startsWith(prefix)).map(entry => path.join(parentDir, entry.name));
 }
 
 /**
@@ -263,11 +297,10 @@ function parseSessionLogs() {
     failed_tool_executions: 0,
   };
 
-  const sessionPaths = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state/*/events.jsonl", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state/*/events.jsonl"];
+  const sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state"];
 
-  for (const pattern of sessionPaths) {
-    const files = globSync(pattern);
-    for (const eventsPath of files) {
+  for (const logDir of sessionLogDirs) {
+    for (const eventsPath of findSessionEventFiles(logDir)) {
       try {
         const content = fs.readFileSync(eventsPath, "utf-8");
         const lines = content.split("\n");
