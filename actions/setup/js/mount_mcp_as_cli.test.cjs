@@ -355,10 +355,11 @@ describe("mount_mcp_as_cli.cjs main() file permissions", () => {
     delete process.env.MCP_GATEWAY_API_KEY;
     delete process.env.MCP_GATEWAY_DOMAIN;
     delete process.env.MCP_GATEWAY_PORT;
+    delete global.core;
     vi.resetModules();
   });
 
-  it("writes the CLI wrapper script with owner-only permissions (0o700), not world-readable (0o755)", async () => {
+  it("rewrites an existing 0o755 CLI wrapper script to owner-only permissions (0o700)", async () => {
     // Minimal fake MCP server that answers initialize / notifications/initialized / tools/list
     server = http.createServer((req, res) => {
       let data = "";
@@ -386,14 +387,13 @@ describe("mount_mcp_as_cli.cjs main() file permissions", () => {
 
     const manifestDir = path.join(tempDir, "gh-aw/mcp-cli");
     fs.mkdirSync(manifestDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(manifestDir, "manifest.json"),
-      JSON.stringify({ servers: [{ name: "testserver", url: `http://127.0.0.1:${port}/mcp` }] }),
-      "utf8"
-    );
+    fs.writeFileSync(path.join(manifestDir, "manifest.json"), JSON.stringify({ servers: [{ name: "testserver", url: `http://127.0.0.1:${port}/mcp` }] }), "utf8");
 
-    vi.resetModules();
-    const mod = await import("./mount_mcp_as_cli.cjs?t=" + Date.now());
+    const binDir = path.join(tempDir, "gh-aw/mcp-cli/bin");
+    fs.mkdirSync(binDir, { recursive: true });
+    const scriptPath = path.join(binDir, "testserver");
+    fs.writeFileSync(scriptPath, "#!/usr/bin/env bash\necho preexisting\n", { mode: 0o755 });
+    fs.chmodSync(scriptPath, 0o755);
 
     const infos = [];
     const warnings = [];
@@ -404,9 +404,11 @@ describe("mount_mcp_as_cli.cjs main() file permissions", () => {
       setOutput: () => {},
     };
 
+    vi.resetModules();
+    const mod = await import("./mount_mcp_as_cli.cjs?t=" + Date.now());
+
     await mod.main();
 
-    const scriptPath = path.join(tempDir, "gh-aw/mcp-cli/bin/testserver");
     expect(fs.existsSync(scriptPath)).toBe(true);
 
     const mode = fs.statSync(scriptPath).mode & 0o777;
@@ -415,7 +417,5 @@ describe("mount_mcp_as_cli.cjs main() file permissions", () => {
 
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
     expect(scriptContent).toContain("super-secret-gateway-key");
-
-    delete global.core;
   });
 });

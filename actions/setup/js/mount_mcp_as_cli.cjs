@@ -620,16 +620,31 @@ async function main() {
 
     // Write the CLI wrapper script using the container-accessible URL
     const scriptPath = path.join(CLI_BIN_DIR, name);
+    let scriptFd;
     try {
       // Owner-only permissions: the wrapper script embeds the plaintext gateway API key,
       // so it must not be world- or group-readable (matches chmod 600 used elsewhere for
       // this same credential, e.g. convert_gateway_config_copilot.sh).
-      fs.writeFileSync(scriptPath, generateCLIWrapperScript(name, containerUrl, toolsFile, apiKey, bridgeScript), { mode: 0o700 });
+      // Note: writeFileSync(mode) only applies when creating a new file; for existing files,
+      // force mode with fchmodSync so prior permissive modes (e.g., 0o755) are corrected.
+      scriptFd = fs.openSync(scriptPath, "w", 0o700);
+      fs.fchmodSync(scriptFd, 0o700);
+      fs.writeFileSync(scriptFd, generateCLIWrapperScript(name, containerUrl, toolsFile, apiKey, bridgeScript), "utf8");
+      fs.closeSync(scriptFd);
+      scriptFd = undefined;
       mountedServers.push(name);
       mountedServerTools.push({ name, tools });
       core.info(`  ✓ Mounted as: ${scriptPath}`);
     } catch (err) {
       core.warning(`  Failed to write CLI wrapper for ${name}: ${getErrorMessage(err)}`);
+    } finally {
+      if (scriptFd !== undefined) {
+        try {
+          fs.closeSync(scriptFd);
+        } catch {
+          // Ignore close errors in cleanup path; main error already reported above.
+        }
+      }
     }
   }
 
