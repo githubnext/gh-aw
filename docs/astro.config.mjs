@@ -392,7 +392,7 @@ export default defineConfig({
           items: [
             { label: "AI Engines", link: "/reference/engines/" },
             { label: "AI Engines (Custom)", link: "/reference/third-party-agent/" },
-            { label: "AI Enginges (Azure BYOK)", link: "/reference/azure-openai-byok/" },
+            { label: "AI Engines (Azure BYOK)", link: "/reference/azure-openai-byok/" },
             { label: "Authentication", link: "/reference/auth/" },
             { label: "Authentication (Projects)", link: "/reference/auth-projects/" },
             { label: "Compilation Process", link: "/reference/compilation-process/" },
