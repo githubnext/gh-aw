@@ -18,7 +18,6 @@ These similarly named fields control different layers:
 | `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `docker`, `docker-sudo-iptables`, `gvisor`, `docker-sbx`, `cloud-hypervisor`, or omitted for Docker |
 | `sandbox.agent.runtime-install` | Controls whether gh-aw installs and prepares gVisor or Docker sbx | `true` by default; `false` for a pre-provisioned runner |
 | `runner.topology` | Describes how the runner reaches Docker | `arc-dind`, or omitted for a local Docker daemon |
-| `tools.github.bounded-queries.runtime` | Selects the backend for bounded-query scripts only | `docker`, `gvisor`, `sbx` |
 | `runtimes` | Installs language toolchains such as Node.js, Python, and Go | Unrelated to agent isolation |
 
 ## Choose a runtime
@@ -353,23 +352,6 @@ The separate runner and daemon filesystems make paths, tool caches, sockets, and
 **Proxy DNS failure such as `getaddrinfo EAI_AGAIN`:** Docker containers created by the DinD daemon do not automatically use Kubernetes service discovery. Make the proxy reachable by IP or configure DNS forwarding from the Docker network to cluster DNS.
 
 **Logs are missing from `/tmp/gh-aw`:** ARC DinD writes logs under `$RUNNER_TEMP/gh-aw/sandbox/firewall/logs/` because `$RUNNER_TEMP` is on the shared work volume.
-
-## Bounded-query runtime names
-
-Bounded queries have a separate runtime setting:
-
-```aw wrap
----
-tools:
-  github:
-    bounded-queries:
-      runtime: gvisor # docker, gvisor, or sbx
----
-```
-
-This setting affects only bounded-query scripts. It does not configure the main agent and does not provision the host for `sandbox.agent.runtime`.
-
-The bounded-query `sbx` backend is experimental and capability-gated. AWF performs a fail-closed host preflight and does not fall back to Docker or gVisor. Do not choose it merely because the main agent uses `docker-sbx`.
 
 ## Debug in dependency order
 

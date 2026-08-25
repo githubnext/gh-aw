@@ -154,11 +154,6 @@ const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
 // AWFFilesystemAllowWriteMinVersion.
 const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
-// AWFBoundedQueriesMinVersion is the minimum AWF version that supports
-// the boundedQueries section in awf-config.json.
-// Workflows pinning an older AWF version must not emit this section.
-const AWFBoundedQueriesMinVersion Version = "v0.27.44"
-
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
 // reproducible, verifiable installs. Each release provides SHA-512 files for

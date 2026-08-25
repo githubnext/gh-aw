@@ -120,9 +120,3 @@ func awfEmitsFilesystemAllowWrite(workflowData *WorkflowData, firewallConfig *Fi
 	}
 	return awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig)
 }
-
-// awfSupportsBoundedQueries returns true when the effective AWF version supports
-// the boundedQueries section in awf-config.json.
-func awfSupportsBoundedQueries(firewallConfig *FirewallConfig) bool {
-	return awfVersionAtLeast(firewallConfig, constants.AWFBoundedQueriesMinVersion)
-}
