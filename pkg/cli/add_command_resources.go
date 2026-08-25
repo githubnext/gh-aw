@@ -36,6 +36,49 @@ func addNonWorkflowResourceWithTracking(resolved *ResolvedWorkflow, tracker *Fil
 	return false, nil
 }
 
+func addResourceFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
+	destination := filepath.Clean(filepath.FromSlash(resolved.Spec.DestinationPath))
+	if destination == "." || filepath.IsAbs(destination) || strings.HasPrefix(destination, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("resource destination %q is invalid", resolved.Spec.DestinationPath)
+	}
+	destFile := filepath.Join(gitRoot, destination)
+	rel, err := filepath.Rel(gitRoot, destFile)
+	if err != nil {
+		return fmt.Errorf("failed to validate resource destination %q: %w", resolved.Spec.DestinationPath, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("resource destination %q escapes repository root", resolved.Spec.DestinationPath)
+	}
+
+	fileExists := fileutil.FileExists(destFile)
+	if fileExists && !opts.Force {
+		packageSource := packageSourceForSpec(resolved.Spec, resolved.SourceInfo)
+		if owned, drifted := packageOwnershipAllowsOverwrite(gitRoot, rel, packageSource); !owned || drifted {
+			if owned {
+				return fmt.Errorf("resource %q has local modifications; use --force to overwrite", resolved.Spec.DestinationPath)
+			}
+			return fmt.Errorf("resource %q already exists; use --force to overwrite", resolved.Spec.DestinationPath)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(destFile), constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create resource directory %s: %w", filepath.Dir(destFile), err)
+	}
+	if tracker != nil {
+		if fileExists {
+			tracker.TrackModified(destFile)
+		} else {
+			tracker.TrackCreated(destFile)
+		}
+	}
+	if err := os.WriteFile(destFile, resolved.Content, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write resource file %q: %w", destFile, err)
+	}
+	if !opts.Quiet {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added resource: "+filepath.ToSlash(rel)))
+	}
+	return nil
+}
+
 // addActionWorkflowWithTracking installs a raw GitHub Actions YAML workflow file (.yml)
 // directly to the target directory without any frontmatter processing or compilation.
 func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, githubWorkflowsDir, workflowName string) error {
