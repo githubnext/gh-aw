@@ -389,8 +389,6 @@ func TestSpec_VersionConstraints_MinVersionValues(t *testing.T) {
 		{name: "AWFTokenSteeringMinVersion", constant: constants.AWFTokenSteeringMinVersion, expected: "v0.25.44"},
 		// From spec: CopilotNoAskUserMinVersion // "1.0.19"
 		{name: "CopilotNoAskUserMinVersion", constant: constants.CopilotNoAskUserMinVersion, expected: "1.0.19"},
-		// From spec: AWFBoundedQueriesMinVersion // "v0.27.44"
-		{name: "AWFBoundedQueriesMinVersion", constant: constants.AWFBoundedQueriesMinVersion, expected: "v0.27.44"},
 	}
 
 	for _, tt := range tests {

@@ -212,7 +212,6 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating GCP WIF engine auth required fields", validateFn: func() error { return validateGCPWIFEngineAuth(workflowData) }},
 		{logMessage: "Validating OTLP workload identity configuration", validateFn: func() error { return validateOTLPWorkloadIdentity(workflowData) }},
 		{logMessage: "Validating default AI credits pricing values", validateFn: func() error { return validateDefaultAiCreditsPricing(workflowData) }},
-		{logMessage: "Validating tools.github.bounded-queries configuration", validateFn: func() error { return validateBoundedQueriesConfig(workflowData) }},
 		{logMessage: "Validating enclaves configuration", validateFn: func() error { return validateEnclavesConfig(workflowData) }},
 		{logMessage: "Validating drive-memory runtime", validateFn: func() error { return validateDriveMemoryRuntime(workflowData) }},
 	}
@@ -337,13 +336,6 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
 	}
-	if usesSbxBoundedQueryRuntime(workflowData) {
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"tools.github.bounded-queries.runtime: sbx is experimental and capability-gated. "+
-				"AWF runs every query in a separate sbx VM and performs a fail-closed host capability preflight. "+
-				"Unsupported hosts are rejected; gh-aw and AWF do not fall back to docker or gvisor."))
-		c.IncrementWarningCount()
-	}
 	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
@@ -368,14 +360,6 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	if workflowData.Redirect != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", "workflow redirect configured: updates move to "+workflowData.Redirect))
 	}
-}
-
-func usesSbxBoundedQueryRuntime(workflowData *WorkflowData) bool {
-	return workflowData != nil &&
-		workflowData.ParsedTools != nil &&
-		workflowData.ParsedTools.GitHub != nil &&
-		workflowData.ParsedTools.GitHub.BoundedQueries != nil &&
-		workflowData.ParsedTools.GitHub.BoundedQueries.Runtime == BoundedQueryRuntimeSbx
 }
 
 func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
