@@ -14,6 +14,7 @@ import (
 )
 
 func TestPromptWrappersReturnNonNilForms(t *testing.T) {
+	t.Parallel()
 	var inputValue string
 	inputForm := NewInputForm(huh.NewInput().Value(&inputValue))
 	require.NotNil(t, inputForm)
@@ -28,6 +29,7 @@ func TestPromptWrappersReturnNonNilForms(t *testing.T) {
 }
 
 func TestPromptFormClearsCompletedQuestion(t *testing.T) {
+	t.Parallel()
 	var output bytes.Buffer
 	form := &PromptForm{out: &output, clearOnRun: true}
 
@@ -38,6 +40,7 @@ func TestPromptFormClearsCompletedQuestion(t *testing.T) {
 }
 
 func TestPromptFormDoesNotClearAccessibleOrNonTTYQuestion(t *testing.T) {
+	t.Parallel()
 	var output bytes.Buffer
 	form := &PromptForm{out: &output, clearOnRun: false}
 
@@ -48,6 +51,7 @@ func TestPromptFormDoesNotClearAccessibleOrNonTTYQuestion(t *testing.T) {
 }
 
 func TestIsCancelled(t *testing.T) {
+	t.Parallel()
 	t.Run("returns true for huh.ErrUserAborted", func(t *testing.T) {
 		require.True(t, IsCancelled(huh.ErrUserAborted))
 	})

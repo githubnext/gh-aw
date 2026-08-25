@@ -14,6 +14,7 @@ import (
 )
 
 func TestParseYamllintLine(t *testing.T) {
+	t.Parallel()
 	t.Run("parses error line", func(t *testing.T) {
 		issue, err := parseYamllintLine("./.github/workflows/test.lock.yml:7:9: [error] wrong indentation: expected 8 but found 10 (indentation)")
 
@@ -83,6 +84,7 @@ func TestParseAndDisplayYamllintOutput_AllMalformed(t *testing.T) {
 }
 
 func TestBuildYamllintContainerPaths(t *testing.T) {
+	t.Parallel()
 	t.Run("normalizes in-repo path", func(t *testing.T) {
 		gitRoot := t.TempDir()
 		lockFile := filepath.Join(gitRoot, ".github", "workflows", "static-analysis-report.lock.yml")
@@ -115,6 +117,7 @@ func TestBuildYamllintContainerPaths(t *testing.T) {
 }
 
 func TestBuildYamllintDockerArgs(t *testing.T) {
+	t.Parallel()
 	args := buildYamllintDockerArgs("/repo", []string{"./test.lock.yml"}, true)
 
 	assert.Equal(t, []string{
@@ -139,6 +142,7 @@ func TestBuildYamllintDockerArgs(t *testing.T) {
 }
 
 func TestClassifyYamllintExit(t *testing.T) {
+	t.Parallel()
 	t.Run("non-strict exit code 1 is tolerated", func(t *testing.T) {
 		assert.NoError(t, classifyYamllintExit(1, false, 2, "workflows"))
 	})

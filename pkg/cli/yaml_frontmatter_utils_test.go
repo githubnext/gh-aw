@@ -11,6 +11,7 @@ import (
 )
 
 func TestReconstructContent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		frontmatterLines  []string
@@ -59,6 +60,7 @@ func TestReconstructContent(t *testing.T) {
 }
 
 func TestParseFrontmatterLines(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		content       string
@@ -111,6 +113,7 @@ Content here.`,
 }
 
 func TestGetIndentation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -152,6 +155,7 @@ func TestGetIndentation(t *testing.T) {
 }
 
 func TestIsTopLevelKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -193,6 +197,7 @@ func TestIsTopLevelKey(t *testing.T) {
 }
 
 func TestIsNestedUnder(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		currentLine  string
@@ -234,6 +239,7 @@ func TestIsNestedUnder(t *testing.T) {
 }
 
 func TestHasExitedBlock(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		line        string
@@ -281,6 +287,7 @@ func TestHasExitedBlock(t *testing.T) {
 }
 
 func TestFindAndReplaceInLine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		line        string
@@ -333,6 +340,7 @@ func TestFindAndReplaceInLine(t *testing.T) {
 }
 
 func TestRemoveFieldFromBlock(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		lines         []string
@@ -517,6 +525,7 @@ func TestRemoveFieldFromBlock(t *testing.T) {
 }
 
 func TestRemoveFieldFromBlock_PreservesComments(t *testing.T) {
+	t.Parallel()
 	lines := []string{
 		"network:",
 		"  # Network configuration",
@@ -549,6 +558,7 @@ func TestRemoveFieldFromBlock_PreservesComments(t *testing.T) {
 }
 
 func TestApplyFrontmatterLineTransform(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string

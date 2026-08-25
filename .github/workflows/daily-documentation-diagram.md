@@ -12,6 +12,7 @@ network:
   allowed:
     - defaults
     - github
+    - node
 skills:
   - cathrynlavery/diagram-design/skills/diagram-design@648c2a597839301e06df1e7434a08bde9f42eed3
 tools:
