@@ -1,0 +1,16 @@
+{
+  "last_run_window": {"start": "2026-08-24T08:19Z", "end": "2026-08-25T08:19Z"},
+  "key_themes": [
+    "Design Decision Gate 3rd-day failure streak diversified into 3 distinct causes (threat-detection glitch, opaque CLI exit, allowed-files config gap)",
+    "Avenger self-repair loop expanding scope (pre-created-branch hardening) but still has scheduled-run failures",
+    "AI Moderator Codex execution failures now 3 consecutive days, infra/firewall ruled out each time",
+    "Metrics Collector logged a second high-token-usage outlier run (1.89M tokens) following yesterday's 1.58M"
+  ],
+  "loop_taxonomy": ["infra-bump-review-blackout", "design-decision-gate-persistent-failure", "code-scanning-fixer-silent-stall", "avenger-self-repair", "ai-moderator-codex-exec-failures", "metrics-collector-cost-outlier"],
+  "carry_forward_questions": [
+    "Does the push_to_pull_request_branch allowed-files failure recur on other ADR-triggering PRs?",
+    "Does Avenger's pre-created-branch hardening (once merged) eliminate the opaque CLI-exit gate failure?",
+    "Is AI Moderator's Codex failure cluster tied to a specific gpt-5.4/Codex CLI version?",
+    "Is the growing Metrics Collector token usage (1.58M then 1.89M) a new cost baseline or transient spikes?"
+  ]
+}

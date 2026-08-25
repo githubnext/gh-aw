@@ -1,0 +1,10 @@
+{"date":"2026-08-24","loop_name":"infra-bump-review-blackout","direction":"improving/self-resolving","evidence":["PR#55172","run:32670511125","run:32687694566"]}
+{"date":"2026-08-24","loop_name":"design-decision-gate-persistent-failure","direction":"stable/unresolved","evidence":["run:32654551225","run:32662863381","run:32687694593"]}
+{"date":"2026-08-24T08","loop_name":"infra-bump-review-blackout","direction":"improving/self-resolving","evidence":["PR#55172","run:32670511125","run:32687694566"]}
+{"date":"2026-08-24T08","loop_name":"design-decision-gate-persistent-failure","direction":"stable/unresolved (3rd occurrence)","evidence":["run:32654551225","run:32662863381","run:32687694593"]}
+{"date":"2026-08-24T08","loop_name":"code-scanning-fixer-silent-stall","direction":"shifting from silent to diagnosable (firewall block found)","evidence":["run:32659841444","run:32679408985","run:32700683740"]}
+{"date":"2026-08-24T08","loop_name":"avenger-self-repair","direction":"new/watching","evidence":["PR#55277","run:32690810121","run:32702890521"]}
+{"date":"2026-08-25","loop_name":"design-decision-gate-persistent-failure","direction":"shifting from monolithic stall to distinguishable causes","evidence":["run:32776331176","run:32787203288","run:32812898573","PR#55480","PR#55641"]}
+{"date":"2026-08-25","loop_name":"avenger-self-repair","direction":"improving output volume, unresolved reliability","evidence":["PR#55481","PR#55388","run:32806021555","run:32809711124"]}
+{"date":"2026-08-25","loop_name":"ai-moderator-codex-exec-failures","direction":"stable/unresolved, scope narrowing toward model/CLI defect","evidence":["run:32778844601","run:32814871853","run:32815511529"]}
+{"date":"2026-08-25","loop_name":"metrics-collector-cost-outlier","direction":"new/watching, 2nd occurrence","evidence":["run:32802543912"]}
