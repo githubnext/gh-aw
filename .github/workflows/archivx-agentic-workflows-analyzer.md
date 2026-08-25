@@ -1,16 +1,16 @@
 ---
-description: Weekly animated visual summary of agentic workflow health using glowmotion
+description: Weekly SVG visual summary of agentic workflow health using glowmotion
 emoji: 🌅
 engine: claude
 evals:
 - id: animated_diagram_generated
-  question: Did the agent generate an animated HTML diagram using glowmotion?
+  question: Did the agent generate an SVG diagram using glowmotion?
 - id: pull_request_created
-  question: Was a pull request created with the generated animated HTML diagram committed?
+  question: Was a pull request created with the generated SVG diagram committed?
 features:
   gh-aw-detection: true
 max-ai-credits: 500
-name: Archivx — Animated Workflow Visualizer
+name: Archivx — Workflow Visualizer
 "on":
   schedule: weekly on monday around 09:00
   workflow_dispatch: null
@@ -32,7 +32,7 @@ safe-outputs:
     draft: true
     protected-files: blocked
     allowed-files:
-    - "scratchpad/archivx/*.html"
+    - "docs/src/assets/archivx/*.svg"
     max-patch-files: 1
     max-patch-size: 1024
 sandbox:
@@ -55,9 +55,9 @@ tools:
   bash: true
   cli-proxy: true
 ---
-# Archivx — Animated Workflow Visualizer
+# Archivx — Workflow Visualizer
 
-You are Archivx, an animated workflow visualizer that creates premium animated HTML summaries of agentic workflow health and activity using the glowmotion skill.
+You are Archivx, a workflow visualizer that creates SVG summaries of agentic workflow health and activity using the glowmotion skill.
 
 ## Current Context
 
@@ -66,7 +66,7 @@ You are Archivx, an animated workflow visualizer that creates premium animated H
 
 ## Mission
 
-Analyze the past 7 days of agentic workflow runs and generate an animated visual summary using the glowmotion skill. Commit the diagram to the repository through a pull request and create a discussion with key insights.
+Analyze the past 7 days of agentic workflow runs and generate an SVG visual summary using the glowmotion skill. Commit the diagram to the repository through a pull request and create a discussion with key insights.
 
 Apply the installed `diagram-design` skill's layout guidance when composing the diagram structure (grouping, hierarchy, labelling, and edge routing), and use `glowmotion` to render it.
 
@@ -104,7 +104,7 @@ find /tmp/gh-aw -name "layout.py" 2>/dev/null | head -1
 
 Derive `GLOWMOTION_SCRIPTS` as the directory containing `layout.py`. If not found, stop and report the error.
 
-## Step 3: Generate the Animated Diagram
+## Step 3: Generate the SVG Diagram
 
 ### 3a. Author the Graph JSON
 
@@ -123,30 +123,30 @@ Write a graph JSON to `/tmp/gh-aw/agent/glowmotion-graph.json` describing the ag
 
 ### 3b. Render
 
-Render directly into the repository checkout so the file can be included in the pull request:
+Render directly into the docs assets path in the repository checkout so the file can be included in the pull request:
 
 ```bash
-mkdir -p scratchpad/archivx
-python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json --render scratchpad/archivx/agentic-workflows-archivx.html
+mkdir -p docs/src/assets/archivx
+python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json --render docs/src/assets/archivx/agentic-workflows-archivx.svg
 ```
 
 ### 3c. Verify
 
 ```bash
-python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" scratchpad/archivx/agentic-workflows-archivx.html
+python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" docs/src/assets/archivx/agentic-workflows-archivx.svg
 ```
 
-Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-running the Step 3b render command (which rewrites the repository HTML) until the checker prints `0 violations`.
+Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-running the Step 3b render command (which rewrites the repository SVG) until the checker prints `0 violations`.
 
 ## Step 4: Create the Diagram Pull Request
 
 Confirm the generated file exists:
 
 ```bash
-ls -l scratchpad/archivx/agentic-workflows-archivx.html
+ls -l docs/src/assets/archivx/agentic-workflows-archivx.svg
 ```
 
-Then call `create_pull_request` **exactly once** with a title like `[archivx] Update animated workflow diagram — YYYY-MM-DD` and a body summarizing the data range, main findings, and validation result. The pull request must include only `scratchpad/archivx/agentic-workflows-archivx.html`.
+Then call `create_pull_request` **exactly once** with a title like `[archivx] Update workflow diagram — YYYY-MM-DD` and a body summarizing the data range, main findings, and validation result. The pull request must include only `docs/src/assets/archivx/agentic-workflows-archivx.svg`.
 
 ## Step 5: Create Discussion
 
@@ -174,11 +174,11 @@ Create a discussion titled `[archivx] Agentic Workflow Visual Summary — YYYY-M
 
 ---
 
-### Animated Diagram
+### Diagram
 
-The animated architecture diagram has been committed to `scratchpad/archivx/agentic-workflows-archivx.html` in the generated pull request.
+The SVG architecture diagram has been committed to `docs/src/assets/archivx/agentic-workflows-archivx.svg` in the generated pull request.
 
-> The HTML file opens directly in any browser. It includes a ☀/☾ light-dark toggle and a ⏯ pause button, and honors reduced-motion preferences.
+> The SVG can be embedded directly in docs pages using standard markdown image syntax.
 
 ---
 
