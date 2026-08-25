@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,6 +57,12 @@ Create a change and open a pull request.
 	assert.NotContains(t, safeOutputs, "pre_created_pull_request")
 	assert.Contains(t, conclusion, "complete_steering_issue.cjs")
 	assert.Contains(t, conclusion, "GH_AW_STEERING_ISSUE_NUMBER")
+	failureStepStart := strings.Index(conclusion, "name: Handle agent failure")
+	require.NotEqual(t, -1, failureStepStart)
+	failureStepEnd := strings.Index(conclusion[failureStepStart:], "name: Report failed jobs")
+	require.NotEqual(t, -1, failureStepEnd)
+	failureStep := conclusion[failureStepStart : failureStepStart+failureStepEnd]
+	assert.Contains(t, failureStep, "GH_AW_STEERING_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}")
 }
 
 func TestCompileRejectsLegacyPreCreatePullRequest(t *testing.T) {

@@ -3721,6 +3721,7 @@ async function main() {
       ({ owner, repo } = context.repo);
     }
 
+    /** @type {{ number: number, labels: Array<string | { name?: string | null }> } | null} */
     let steeringIssue = null;
     const steeringIssueNumber = Number.parseInt(process.env.GH_AW_STEERING_ISSUE_NUMBER || "", 10);
     if (Number.isFinite(steeringIssueNumber) && steeringIssueNumber > 0) {
@@ -4331,7 +4332,7 @@ async function main() {
 
         let newIssue;
         if (steeringIssue) {
-          const labels = [...new Set([...(steeringIssue.labels || []).map(label => (typeof label === "string" ? label : label.name)).filter(Boolean), "agentic-workflows"])];
+          const labels = [...new Set([...(steeringIssue.labels || []).map(label => (typeof label === "string" ? label : label.name || "")).filter(Boolean), "agentic-workflows"])];
           newIssue = await github.rest.issues.update({
             owner,
             repo,
