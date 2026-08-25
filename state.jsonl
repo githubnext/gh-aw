@@ -58,3 +58,4 @@
 {"run_id":"32336306406","timestamp":"2026-08-20T05:37:58.748Z","assignments":{"sub_agent_strategy":"single_agent"}}
 {"run_id":"32451257784","timestamp":"2026-08-21T05:38:16.711Z","assignments":{"sub_agent_strategy":"single_agent"}}
 {"run_id":"32694266049","timestamp":"2026-08-24T05:39:18.425Z","harness_version":"aa7de7da575ffb3beb351b3372675cc7bf9070c98735117696636165226b275f:293c4b34385dc9037a13f78fbafb9c5d1bd6dd644b230af3807df833967e4e12","assignments":{"sub_agent_strategy":"single_agent"}}
+{"run_id":"32813578218","timestamp":"2026-08-25T05:38:05.502Z","harness_version":"aa7de7da575ffb3beb351b3372675cc7bf9070c98735117696636165226b275f:293c4b34385dc9037a13f78fbafb9c5d1bd6dd644b230af3807df833967e4e12","assignments":{"sub_agent_strategy":"single_agent"}}
