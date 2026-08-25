@@ -405,8 +405,8 @@ func buildAgenticAssessments(processedRun ProcessedRun, metrics MetricsData, too
 	return assessments
 }
 
-func generateAgenticAssessmentFindings(assessments []AgenticAssessment) []Finding {
-	findings := make([]Finding, 0, len(assessments))
+func generateAgenticAssessmentFindings(assessments []AgenticAssessment) []AuditFinding {
+	findings := make([]AuditFinding, 0, len(assessments))
 	for _, assessment := range assessments {
 		category := "agentic"
 		impact := "Review recommended"
@@ -430,7 +430,7 @@ func generateAgenticAssessmentFindings(assessments []AgenticAssessment) []Findin
 			category = "coordination"
 			impact = "Context continuity improves downstream debugging and auditability"
 		}
-		findings = append(findings, Finding{
+		findings = append(findings, AuditFinding{
 			Category:    category,
 			Severity:    scanfindings.ParseSeverity(assessment.Severity),
 			Title:       prettifyAssessmentKind(assessment.Kind),

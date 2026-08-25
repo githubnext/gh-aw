@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func hasFindingByCategory(findings []Finding, category string) bool {
+func hasFindingByCategory(findings []AuditFinding, category string) bool {
 	for _, finding := range findings {
 		if finding.Category == category {
 			return true
@@ -118,7 +118,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 
 			// Verify expected categories
 			if tt.hasFailure {
-				var failureFinding *Finding
+				var failureFinding *AuditFinding
 				for _, finding := range findings {
 					if finding.Category == "error" && strings.Contains(finding.Title, "Failed") {
 						failureFinding = &finding
@@ -146,7 +146,7 @@ func TestRecommendationsGeneration(t *testing.T) {
 		name             string
 		run              WorkflowRun
 		metrics          MetricsData
-		findings         []Finding
+		findings         []AuditFinding
 		mcpFailures      []MCPFailureReport
 		missingTools     []MissingToolReport
 		expectedMinCount int
@@ -157,7 +157,7 @@ func TestRecommendationsGeneration(t *testing.T) {
 			run: WorkflowRun{
 				Conclusion: "failure",
 			},
-			findings: []Finding{
+			findings: []AuditFinding{
 				{Severity: "critical", Category: "error"},
 			},
 			expectedMinCount: 1,
@@ -171,7 +171,7 @@ func TestRecommendationsGeneration(t *testing.T) {
 			metrics: MetricsData{
 				Turns: 15,
 			},
-			findings: []Finding{
+			findings: []AuditFinding{
 				{Severity: "high", Category: "cost", Title: "High Cost"},
 				{Severity: "medium", Category: "performance", Title: "Many Iterations"},
 			},
