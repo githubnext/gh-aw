@@ -15,7 +15,7 @@
     "prettier": "^3.9.6",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "undici": "^6.23.0"
