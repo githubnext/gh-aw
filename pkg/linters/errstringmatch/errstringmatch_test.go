@@ -11,6 +11,7 @@ import (
 )
 
 func TestErrStringMatch(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, errstringmatch.Analyzer, "errstringmatch")
 }

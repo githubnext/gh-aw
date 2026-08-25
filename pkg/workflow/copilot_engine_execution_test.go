@@ -112,6 +112,51 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineExecutionStepsWithWebFetchKeepsBuiltinToolSchema(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"web-fetch": nil,
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if strings.Contains(stepContent, "--disable-builtin-mcps") {
+		t.Fatalf("Expected web-fetch workflows to keep Copilot built-in tool schema enabled, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "--allow-tool web_fetch") {
+		t.Fatalf("Expected web-fetch workflows to allow web_fetch, got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithWebFetchAndWildcardBashScopesTools(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash":      []any{"*"},
+			"web-fetch": nil,
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if strings.Contains(stepContent, "--allow-all-tools") {
+		t.Fatalf("Expected wildcard bash with web-fetch to avoid authorizing unrelated built-in tools, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "--allow-tool shell") || !strings.Contains(stepContent, "--allow-tool web_fetch") {
+		t.Fatalf("Expected wildcard bash with web-fetch to authorize only shell and web_fetch, got:\n%s", stepContent)
+	}
+}
+
 // TestCopilotEngineDisablesRubberDuck verifies that the Copilot engine execution steps
 // write a settings file that disables the rubber-duck sub-agent, reducing token overhead
 // and latency for Copilot engine runs.

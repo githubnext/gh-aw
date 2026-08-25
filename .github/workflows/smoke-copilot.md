@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke Copilot
 on:
+  schedule: every 2 days
   restore-memory: true
   slash_command:
     name: smoke-copilot

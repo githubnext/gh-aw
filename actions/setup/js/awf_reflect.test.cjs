@@ -28,6 +28,7 @@ const {
   hasAPIProxyLocalhostAlias,
   inferProviderTypeForModel,
   inferWireApiForModel,
+  parseReflectTimeoutMs,
   resolveOpenAICompatibleEndpointFromReflect,
   resolveProviderEndpointFromReflect,
   resolveMultiProviderFromReflect,
@@ -49,6 +50,14 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS).toBe(2000);
       expect(DEFAULT_API_PROXY_HOST_BRIDGE).toBe("host.docker.internal");
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
+    });
+
+    it("falls back to the default reflect timeout when the environment value is invalid", () => {
+      expect(parseReflectTimeoutMs("")).toBe(60000);
+      expect(parseReflectTimeoutMs("not-a-number")).toBe(60000);
+      expect(parseReflectTimeoutMs("12abc")).toBe(60000);
+      expect(parseReflectTimeoutMs("999999999999999999999999")).toBe(60000);
+      expect(parseReflectTimeoutMs("1234")).toBe(1234);
     });
   });
 
@@ -639,6 +648,29 @@ describe("awf_reflect.cjs", () => {
   describe("fetchAWFReflect", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    });
+
+    it("skips network requests when reflection is disabled", async () => {
+      const fetchMock = vi.fn();
+      const logs = [];
+      vi.stubGlobal("fetch", fetchMock);
+      vi.stubEnv("GH_AW_SKIP_REFLECT", "true");
+
+      await expect(
+        fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath: "/tmp/gh-aw-test-noop.json",
+          logger: msg => logs.push(msg),
+        })
+      ).resolves.toEqual({
+        ok: false,
+        reflectUrl: "http://api-proxy:10000/reflect",
+        outputPath: "/tmp/gh-aw-test-noop.json",
+        reason: "disabled",
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(logs).toContain("awf-reflect: disabled by GH_AW_SKIP_REFLECT");
     });
 
     it("saves enriched reflect data when api-proxy returns null models for configured provider", async () => {

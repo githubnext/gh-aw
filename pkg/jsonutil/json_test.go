@@ -18,6 +18,7 @@ import (
 // - Trailing newline emitted by json.Encoder is trimmed so the result matches json.Marshal style.
 // - Values that json.Marshal cannot encode (e.g. channels, functions) return an error.
 func TestMarshalCompactNoHTMLEscape(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    any

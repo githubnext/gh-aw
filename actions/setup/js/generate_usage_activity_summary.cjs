@@ -11,7 +11,6 @@
 //   working_set: cumulative input-token traffic relative to peak invocation input
 
 const fs = require("fs");
-const { globSync } = require("node:fs");
 const path = require("path");
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
 const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
@@ -28,6 +27,45 @@ const PLACEHOLDER_DOMAIN_KEY = "-";
 const PLACEHOLDER_DEST_KEY = "-:-";
 const ERROR_DOMAIN_PREFIX = "error:";
 const AGENT_TOKEN_USAGE_PATH = "/tmp/gh-aw/usage/agent/token_usage.jsonl";
+
+function findFiles(rootDir, shouldIncludeFile, maxDepth = Number.POSITIVE_INFINITY, currentDepth = 0) {
+  if (!fs.existsSync(rootDir)) {
+    return [];
+  }
+
+  const files = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  for (const entry of entries) {
+    const entryPath = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      if (currentDepth < maxDepth) {
+        files.push(...findFiles(entryPath, shouldIncludeFile, maxDepth, currentDepth + 1));
+      }
+    } else if (entry.isFile() && shouldIncludeFile(entry)) {
+      files.push(entryPath);
+    }
+  }
+  return files;
+}
+
+function findPrefixedDirectories(parentDir, prefix) {
+  if (!fs.existsSync(parentDir)) {
+    return [];
+  }
+  let entries;
+  try {
+    entries = fs.readdirSync(parentDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries.filter(entry => entry.isDirectory() && entry.name.startsWith(prefix)).map(entry => path.join(parentDir, entry.name));
+}
 
 /**
  * @param {string} [tokenUsagePath]
@@ -112,13 +150,15 @@ function parseFirewallLogs() {
     requests_by_domain: {},
   };
 
-  // The sandbox firewall logs may be emitted in nested directories (for example,
-  // api-proxy-logs/*.log), so these patterns are intentionally recursive.
-  const firewallPaths = ["/tmp/gh-aw/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/threat-detection/sandbox/firewall/logs/**/*.log", "/tmp/gh-aw/squid-logs-*/**/*.log", "/tmp/gh-aw/threat-detection/squid-logs-*/**/*.log"];
+  const firewallLogDirs = [
+    "/tmp/gh-aw/sandbox/firewall/logs",
+    "/tmp/gh-aw/threat-detection/sandbox/firewall/logs",
+    ...findPrefixedDirectories("/tmp/gh-aw", "squid-logs-"),
+    ...findPrefixedDirectories("/tmp/gh-aw/threat-detection", "squid-logs-"),
+  ];
 
-  for (const pattern of firewallPaths) {
-    const files = globSync(pattern);
-    for (const logPath of files) {
+  for (const logDir of firewallLogDirs) {
+    for (const logPath of findFiles(logDir, entry => entry.name.endsWith(".log"))) {
       try {
         const content = fs.readFileSync(logPath, "utf-8");
         const lines = content.split("\n");
@@ -222,7 +262,7 @@ function parseFirewallLogs() {
 /**
  * Parse Copilot session event logs and aggregate counters
  */
-function parseSessionLogs() {
+function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state"]) {
   const session = {
     total_events: 0,
     session_starts: 0,
@@ -235,11 +275,8 @@ function parseSessionLogs() {
     failed_tool_executions: 0,
   };
 
-  const sessionPaths = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state/*/events.jsonl", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state/*/events.jsonl"];
-
-  for (const pattern of sessionPaths) {
-    const files = globSync(pattern);
-    for (const eventsPath of files) {
+  for (const logDir of sessionLogDirs) {
+    for (const eventsPath of findFiles(logDir, entry => entry.name === "events.jsonl", 1)) {
       try {
         const content = fs.readFileSync(eventsPath, "utf-8");
         const lines = content.split("\n");

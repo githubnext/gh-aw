@@ -20,6 +20,7 @@ import (
 //	AttributionMapped="mapped", AttributionUnmapped="unmapped", AttributionUnlinked="unlinked",
 //	AttributionAmbiguous="ambiguous", AttributionSuggested="suggested"
 func TestSpec_PublicAPI_AttributionStatusConstants(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, intent.AttributionMapped, intent.AttributionStatus("mapped"),
 		"AttributionMapped should equal \"mapped\" per the spec")
 	assert.Equal(t, intent.AttributionUnmapped, intent.AttributionStatus("unmapped"),
@@ -38,6 +39,7 @@ func TestSpec_PublicAPI_AttributionStatusConstants(t *testing.T) {
 //
 //	SourceExplicitMetadata="explicit_metadata", SourceClosingIssue="closing_issue", etc.
 func TestSpec_PublicAPI_AttributionSourceConstants(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name     string
 		got      intent.AttributionSource
@@ -65,6 +67,7 @@ func TestSpec_PublicAPI_AttributionSourceConstants(t *testing.T) {
 // intent record is returned as-is, with ResolverVersion stamped when absent.
 // Spec: "Explicit intent metadata (PullRequestData.ExplicitIntent) — used as-is."
 func TestSpec_PublicAPI_ResolvePullRequest_ExplicitIntent(t *testing.T) {
+	t.Parallel()
 	resolver := intent.Resolver{ResolverVersion: "v1"}
 
 	explicit := &intent.IntentRecord{
@@ -86,6 +89,7 @@ func TestSpec_PublicAPI_ResolvePullRequest_ExplicitIntent(t *testing.T) {
 // closing issue produces a closing-issue attribution.
 // Spec: "A single closing issue — resolved from the issue's labels."
 func TestSpec_PublicAPI_ResolvePullRequest_SingleClosingIssue(t *testing.T) {
+	t.Parallel()
 	resolver := intent.Resolver{
 		MatchLabels: func(labels []string) []string { return labels },
 	}
@@ -111,6 +115,7 @@ func TestSpec_PublicAPI_ResolvePullRequest_SingleClosingIssue(t *testing.T) {
 // multiple closing issues produce an ambiguous attribution.
 // Spec: "Multiple competing sources were found → ambiguous."
 func TestSpec_PublicAPI_ResolvePullRequest_MultipleClosingIssues(t *testing.T) {
+	t.Parallel()
 	resolver := intent.Resolver{}
 
 	record := resolver.ResolvePullRequest(intent.PullRequestData{
@@ -132,6 +137,7 @@ func TestSpec_PublicAPI_ResolvePullRequest_MultipleClosingIssues(t *testing.T) {
 // are used when no closing issues are present.
 // Spec: "PR labels — used as an artifact fallback when no closing issues are present."
 func TestSpec_PublicAPI_ResolvePullRequest_ArtifactFallback(t *testing.T) {
+	t.Parallel()
 	resolver := intent.Resolver{
 		MatchLabels: func(labels []string) []string { return labels },
 	}
@@ -154,6 +160,7 @@ func TestSpec_PublicAPI_ResolvePullRequest_ArtifactFallback(t *testing.T) {
 // sources produces an unlinked attribution.
 // Spec: "No supported sources — returns an AttributionUnlinked record."
 func TestSpec_PublicAPI_ResolvePullRequest_NoSources(t *testing.T) {
+	t.Parallel()
 	resolver := intent.Resolver{}
 
 	record := resolver.ResolvePullRequest(intent.PullRequestData{})
@@ -170,6 +177,7 @@ func TestSpec_PublicAPI_ResolvePullRequest_NoSources(t *testing.T) {
 // labels produces a mapped intent record.
 // Spec: "Resolver.ResolveIssue — resolves intent for an issue using its labels."
 func TestSpec_PublicAPI_ResolveIssue_Mapped(t *testing.T) {
+	t.Parallel()
 	resolver := intent.Resolver{
 		MatchLabels: func(labels []string) []string { return labels },
 	}
@@ -194,6 +202,7 @@ func TestSpec_PublicAPI_ResolveIssue_Mapped(t *testing.T) {
 // no labels produces an unlinked record.
 // Spec: "No supported sources — returns an AttributionUnlinked record."
 func TestSpec_PublicAPI_ResolveIssue_NoLabelsUnlinked(t *testing.T) {
+	t.Parallel()
 	resolver := intent.Resolver{}
 
 	record := resolver.ResolveIssue("I_kwDOAAABCQ4", "https://github.com/owner/repo/issues/1", nil)

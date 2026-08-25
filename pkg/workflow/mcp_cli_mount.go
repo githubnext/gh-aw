@@ -121,12 +121,13 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 		servers = append(servers, constants.MCPScriptsMCPServerID.String())
 	}
 
-	// Copilot always runs with --disable-builtin-mcps. When at least one CLI mount
-	// trigger is active (safeoutputs/mcpscripts or cli-proxy), the mount script
-	// discovers all MCP servers from the gateway manifest (including GitHub and
-	// custom servers such as azure-devops) and exposes wrappers on PATH. Reflect
-	// that runtime reality in the generated CLI server list so agents can call
-	// these wrappers deterministically instead of guessing command names.
+	// Copilot normally runs with --disable-builtin-mcps. When at least one CLI
+	// mount trigger is active (safeoutputs/mcpscripts or cli-proxy), the mount
+	// script discovers all MCP servers from the gateway manifest (including
+	// GitHub and custom servers such as azure-devops) and exposes wrappers on
+	// PATH. Reflect that runtime reality in the generated CLI server list so
+	// agents can call these wrappers deterministically instead of guessing
+	// command names.
 	//
 	// Use cli-proxy as part of the activation condition because the initial
 	// collection deliberately excludes GitHub: a workflow with cli-proxy: true

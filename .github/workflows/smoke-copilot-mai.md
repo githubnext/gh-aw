@@ -3,6 +3,7 @@ private: true
 emoji: "⚡"
 description: "Smoke test for MAI-Code-1-Flash (mai-code-1-flash-picker) — pricing: $0.75/M input, $0.075/M cached, $4.50/M output"
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-copilot-mai
     strategy: centralized

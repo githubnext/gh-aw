@@ -3,7 +3,8 @@ private: true
 emoji: "🧪"
 name: Smoke Project
 description: Smoke Project - Test project operations
-on: 
+on:
+  schedule: every 2 days
   slash_command:
     name: smoke-project
     strategy: centralized
