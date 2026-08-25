@@ -2328,6 +2328,7 @@ jobs:
           path: |
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/temporary-id-map.json
+            /tmp/gh-aw/safe-output-errors.json
           if-no-files-found: ignore
       - name: Restore actions folder
         if: always()
