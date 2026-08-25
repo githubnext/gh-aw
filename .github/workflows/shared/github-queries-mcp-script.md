@@ -354,22 +354,32 @@ mcp-scripts:
       PAGE_SIZE="$LIMIT"
       [[ -n "$SINCE" ]] && PAGE_SIZE=100
       CURSOR=""
-      OUTPUT="[]"
+      OUTPUT_FILE=$(mktemp)
+      echo '[]' > "$OUTPUT_FILE"
+      cleanup() {
+        rm -f "$OUTPUT_FILE"
+      }
+      trap cleanup EXIT
       while :; do
         GRAPHQL_ARGS=(graphql -f query="$GRAPHQL_QUERY" -f owner="$OWNER" -f name="$NAME" -F first="$PAGE_SIZE")
         [[ -n "$CURSOR" ]] && GRAPHQL_ARGS+=(-f after="$CURSOR")
         GRAPHQL_OUTPUT=$(gh api "${GRAPHQL_ARGS[@]}")
-        PAGE_NODES=$(jq '.data.repository.discussions.nodes' <<< "$GRAPHQL_OUTPUT")
-        [[ "$(jq 'length' <<< "$PAGE_NODES")" -eq 0 ]] && break
-        OUTPUT=$(jq -cn --argjson all "$OUTPUT" --argjson page "$PAGE_NODES" '$all + $page')
+        PAGE_NODES_FILE=$(mktemp)
+        echo "$GRAPHQL_OUTPUT" | jq '.data.repository.discussions.nodes' > "$PAGE_NODES_FILE"
+        [[ "$(jq 'length' < "$PAGE_NODES_FILE")" -eq 0 ]] && { rm -f "$PAGE_NODES_FILE"; break; }
+        MERGED_OUTPUT_FILE=$(mktemp)
+        jq -s '.[0] + .[1]' "$OUTPUT_FILE" "$PAGE_NODES_FILE" > "$MERGED_OUTPUT_FILE"
+        mv "$MERGED_OUTPUT_FILE" "$OUTPUT_FILE"
+        rm -f "$PAGE_NODES_FILE"
         [[ -z "$SINCE" ]] && break
-        [[ "$(jq -r '.[-1].updatedAt // empty' <<< "$PAGE_NODES")" < "$SINCE" ]] && break
+        [[ "$(jq -r '.[-1].updatedAt // empty' < "$OUTPUT_FILE")" < "$SINCE" ]] && break
         [[ "$(jq -r '.data.repository.discussions.pageInfo.hasNextPage' <<< "$GRAPHQL_OUTPUT")" == "true" ]] || break
         CURSOR=$(jq -r '.data.repository.discussions.pageInfo.endCursor' <<< "$GRAPHQL_OUTPUT")
       done
 
       # Transform GraphQL output to match gh discussion list format
-      OUTPUT=$(echo "$OUTPUT" | jq --arg since "$SINCE" '[.[] | select($since == "" or .updatedAt >= $since) | {
+      FILTERED_OUTPUT_FILE=$(mktemp)
+      jq --arg since "$SINCE" '[.[] | select($since == "" or .updatedAt >= $since) | {
         number: .number,
         title: .title,
         author: .author,
@@ -381,15 +391,16 @@ mcp-scripts:
         comments: .comments,
         answer: .answer,
         url: .url
-      }]')
+      }]' "$OUTPUT_FILE" > "$FILTERED_OUTPUT_FILE"
+      mv "$FILTERED_OUTPUT_FILE" "$OUTPUT_FILE"
       
       # Apply jq filter if specified
       if [[ -n "$JQ_FILTER" ]]; then
-        jq "$JQ_FILTER" <<< "$OUTPUT"
+        jq "$JQ_FILTER" "$OUTPUT_FILE"
       else
         # Return schema and size instead of full data
-        ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
-        DATA_SIZE=${#OUTPUT}
+        ITEM_COUNT=$(jq 'length' < "$OUTPUT_FILE")
+        DATA_SIZE=$(wc -c < "$OUTPUT_FILE")
         
         # Validate values are numeric
         if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
