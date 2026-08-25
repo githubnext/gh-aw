@@ -292,7 +292,52 @@ func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 	assert.InEpsilon(t, 0.5, result.SuccessRate, 1e-9)
 }
 
-func TestForecastWorkflow_RequestsCompletedRuns(t *testing.T) {
+func TestSampleLimitRespected(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	runs := []WorkflowRun{
+		{DatabaseID: 1, Status: "completed", Conclusion: "success", StartedAt: start},
+		{DatabaseID: 2, Status: "completed", Conclusion: "failure", StartedAt: start.Add(time.Hour)},
+		{DatabaseID: 3, Status: "in_progress", StartedAt: start.Add(2 * time.Hour)},
+	}
+
+	tests := []struct {
+		name       string
+		sampleSize int
+		want       []int64
+	}{
+		{name: "caps below total", sampleSize: 2, want: []int64{1, 2}},
+		{name: "no-op above total", sampleSize: 10, want: []int64{1, 2, 3}},
+		{name: "zero means no local cap", sampleSize: 0, want: []int64{1, 2, 3}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := filterForecastSampleRuns(runs, "2026-08-01", tt.sampleSize)
+			require.Len(t, got, len(tt.want))
+			for i, wantID := range tt.want {
+				assert.Equal(t, wantID, got[i].DatabaseID)
+			}
+		})
+	}
+}
+
+func TestDateWindowCutoffRespected(t *testing.T) {
+	t.Parallel()
+	cutoff := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	runs := []WorkflowRun{
+		{DatabaseID: 1, Status: "completed", Conclusion: "success", StartedAt: cutoff.Add(-time.Nanosecond)},
+		{DatabaseID: 2, Status: "completed", Conclusion: "success", StartedAt: cutoff},
+		{DatabaseID: 3, Status: "in_progress", StartedAt: cutoff.Add(24 * time.Hour)},
+	}
+
+	got := filterForecastSampleRuns(runs, "2026-08-01", 0)
+	require.Len(t, got, 2)
+	assert.Equal(t, int64(2), got[0].DatabaseID)
+	assert.Equal(t, int64(3), got[1].DatabaseID)
+}
+
+func TestForecastWorkflow_RequestsRecentRuns(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
 	originalLoadAIC := forecastLoadCachedRunAIC
 	t.Cleanup(func() {
@@ -322,10 +367,10 @@ func TestForecastWorkflow_RequestsCompletedRuns(t *testing.T) {
 		SampleSize: 100,
 	}, 30)
 	require.NoError(t, err)
-	assert.Equal(t, "completed", capturedOpts.Status)
+	assert.Empty(t, capturedOpts.Status, "forecast must request all recent run statuses so in-progress partial observations are available")
 }
 
-func TestForecastWorkflow_ExcludesZeroAICRunsFromComputation(t *testing.T) {
+func TestMissingArtifactContributesZeroET(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
 	originalLoadAIC := forecastLoadCachedRunAIC
 	t.Cleanup(func() {
@@ -354,11 +399,113 @@ func TestForecastWorkflow_ExcludesZeroAICRunsFromComputation(t *testing.T) {
 		SampleSize: 100,
 	}, 30)
 	require.NoError(t, err)
-	assert.Equal(t, 1, result.SampledRuns)
-	assert.InDelta(t, 2.0, result.AvgAIC, 1e-9)
+	assert.Equal(t, 2, result.SampledRuns)
+	assert.InDelta(t, 1.0, result.AvgAIC, 1e-9)
 	assert.InEpsilon(t, 1.0, result.SuccessRate, 1e-9)
-	require.Len(t, result.RunSamples, 1)
-	assert.Equal(t, int64(13), result.RunSamples[0].RunID)
+	require.Len(t, result.RunSamples, 2)
+	assert.Equal(t, int64(12), result.RunSamples[0].RunID)
+	assert.Zero(t, result.RunSamples[0].AIC)
+	assert.Equal(t, int64(13), result.RunSamples[1].RunID)
+	assert.InDelta(t, 2.0, result.RunSamples[1].AIC, 1e-9)
+}
+
+func TestEmptySampleProducesNilProjection(t *testing.T) {
+	originalList := forecastListWorkflowRunsPaginated
+	t.Cleanup(func() {
+		forecastListWorkflowRunsPaginated = originalList
+	})
+
+	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		runs := []WorkflowRun{
+			{DatabaseID: 11, Status: "completed", Conclusion: "skipped"},
+			{DatabaseID: 12, Status: "completed", Conclusion: "action_required"},
+		}
+		return runs, len(runs), nil
+	}
+
+	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
+		Days:       30,
+		Period:     "month",
+		SampleSize: 100,
+	}, 30)
+	require.NoError(t, err)
+	assert.Zero(t, result.SampledRuns)
+	assert.Zero(t, result.ProjectedAIC)
+	assert.Nil(t, result.MonteCarlo)
+	assert.Empty(t, result.RunSamples)
+}
+
+func TestInProgressRunIsPartialObservation(t *testing.T) {
+	originalList := forecastListWorkflowRunsPaginated
+	originalLoadAIC := forecastLoadCachedRunAIC
+	t.Cleanup(func() {
+		forecastListWorkflowRunsPaginated = originalList
+		forecastLoadCachedRunAIC = originalLoadAIC
+	})
+
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		runs := []WorkflowRun{
+			{DatabaseID: 12, Status: "completed", Conclusion: "success", Duration: 5 * time.Minute, StartedAt: start, UpdatedAt: start.Add(5 * time.Minute)},
+			{DatabaseID: 13, Status: "in_progress", Duration: 6 * time.Minute, StartedAt: start.Add(10 * time.Minute), UpdatedAt: start.Add(16 * time.Minute)},
+		}
+		return runs, len(runs), nil
+	}
+	runAIC := map[int64]float64{
+		12: 1.0,
+		13: 2.75,
+	}
+	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
+		return runAIC[runID]
+	}
+
+	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
+		Days:       30,
+		Period:     "month",
+		SampleSize: 100,
+	}, 30)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.SampledRuns)
+	assert.InEpsilon(t, 0.5, result.SuccessRate, 1e-9)
+	require.Len(t, result.RunSamples, 2)
+	assert.Equal(t, int64(13), result.RunSamples[1].RunID)
+	assert.InDelta(t, 2.75, result.RunSamples[1].AIC, 1e-9)
+}
+
+func TestProjectedTokensEqualsP50(t *testing.T) {
+	originalList := forecastListWorkflowRunsPaginated
+	originalLoadAIC := forecastLoadCachedRunAIC
+	t.Cleanup(func() {
+		forecastListWorkflowRunsPaginated = originalList
+		forecastLoadCachedRunAIC = originalLoadAIC
+	})
+
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		runs := []WorkflowRun{
+			{DatabaseID: 12, Status: "completed", Conclusion: "success", Duration: 5 * time.Minute, StartedAt: start, UpdatedAt: start.Add(5 * time.Minute)},
+			{DatabaseID: 13, Status: "completed", Conclusion: "failure", Duration: 6 * time.Minute, StartedAt: start.Add(10 * time.Minute), UpdatedAt: start.Add(16 * time.Minute)},
+			{DatabaseID: 14, Status: "completed", Conclusion: "success", Duration: 7 * time.Minute, StartedAt: start.Add(20 * time.Minute), UpdatedAt: start.Add(27 * time.Minute)},
+		}
+		return runs, len(runs), nil
+	}
+	runAIC := map[int64]float64{
+		12: 1.0,
+		13: 2.0,
+		14: 3.0,
+	}
+	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
+		return runAIC[runID]
+	}
+
+	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
+		Days:       30,
+		Period:     "month",
+		SampleSize: 100,
+	}, 30)
+	require.NoError(t, err)
+	require.NotNil(t, result.MonteCarlo)
+	assert.InDelta(t, result.MonteCarlo.P50ProjectedAIC, result.ProjectedAIC, 0)
 }
 
 func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
