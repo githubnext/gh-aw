@@ -25,6 +25,13 @@ These strategies should be applied to every session analysis:
 - Was the task abandoned or aborted?
 - Look for error messages or failure indicators
 - Track completion rate
+- **Exclude `action_required` runs from completion/failure-rate math for any workflow, not
+  only recognized CI-gate names.** A run with `conclusion == "action_required"` never
+  dispatched a job — GitHub is holding it for human approval (for example, an agent- or
+  bot-authored `pull_request`/`issue_comment` trigger). This is expected behavior, not a
+  stalled or broken pipeline, so a workflow whose sample is entirely `action_required`
+  should be reported as "all runs pending approval" rather than as a 0% success rate or a
+  blocked-dependency signal.
 
 ### 2. Loop Detection
 - Identify repetitive agent responses
@@ -203,6 +210,16 @@ Identify common indicators of confusion or inefficiency:
 - Circular reasoning patterns
 - Repeated failed attempts
 - Tool unavailability
+
+**Do not count `action_required` runs as failures or stalls.** Before flagging a workflow's
+low or 0% completion rate as a "genuine-work stall pattern" or "blocked dependency", confirm
+whether the sample consists solely of `action_required` conclusions. If so, this reflects a
+required-approval hold on runs that never dispatched a job (no agent conversation exists to
+analyze), not a failing agent run — this applies to any workflow triggered by a bot/agent
+actor, including agent-implementation pipelines, and is not limited to workflows named as CI
+gates. Only report a stall pattern as a real blocker when there is corroborating evidence
+from dispatched runs (actual conversation transcripts, error logs, or a documented backlog),
+and otherwise note it as an expected approval-gate artifact.
 
 **Example Analysis**:
 ```

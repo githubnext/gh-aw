@@ -138,9 +138,13 @@ steps:
         ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > /tmp/gh-aw/agent/session-data/sessions-schema.json
 
         # Download per-session logs for actual Copilot agent runs.
-        # CI gate runs (e.g. "Smoke CI", "CGO", "CWI" quality gates) always end with
-        # conclusion=action_required because a human must approve them to continue; they
-        # contain no Copilot agent activity and have no conversation transcript.
+        # Any workflow run triggered by a bot/agent actor (e.g. "Smoke CI", "CGO", "CWI"
+        # quality gates, or agent-authored pull_request/issue_comment pipelines such as
+        # "Squad Implement Worker") can end with conclusion=action_required because a human
+        # must approve the run before it dispatches. This is not unique to named CI-gate
+        # workflows and does not indicate the run's own pipeline is broken or stalled: no
+        # job ever ran, so there is no Copilot agent activity and no conversation
+        # transcript to fetch.
         # Prefer structured events.jsonl artifacts; fall back to [cca-engine] turn= lines
         # in raw Actions job logs when no events.jsonl artifact is available.
         SESSION_COUNT=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)
@@ -336,7 +340,7 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 
 ### Session Log Access
 
-The fetcher first downloads non-expired GitHub Actions artifacts for each completed real agent run (status = `completed`, conclusion ≠ `action_required`) and extracts any `events.jsonl` files. When no structured events artifact is available, it falls back to raw GitHub Actions job logs and extracts `[cca-engine] turn=` lines as a transcript. CI gate runs (`action_required`) are skipped because they have no agent conversation.
+The fetcher first downloads non-expired GitHub Actions artifacts for each completed real agent run (status = `completed`, conclusion ≠ `action_required`) and extracts any `events.jsonl` files. When no structured events artifact is available, it falls back to raw GitHub Actions job logs and extracts `[cca-engine] turn=` lines as a transcript. Runs with conclusion `action_required` are skipped regardless of workflow name because they never dispatched a job (they are held for human approval) and so have no agent conversation — this applies equally to named CI-gate workflows and to any other bot/agent-triggered workflow (for example agent-authored pull_request runs of "Squad Implement Worker").
 
 If a real agent run has neither an `events.jsonl` artifact nor a transcript fallback, the fetch step emits a GitHub Actions warning and continues with the available logs. Every per-run failure (job listing error, log download error, empty log, or a downloaded log with no matching `[cca-engine]` lines) is logged individually with its specific reason, and a summary warning breaks down the failure counts by category (API errors, no jobs found, empty logs, no matching lines) so the actual cause is visible instead of a silently empty `logs/` directory. API errors are counted by non-zero `gh api` exit code and can stem from permission errors, rate limiting, or deleted runs — check the per-run log lines for the specific reason rather than assuming a permissions issue.
 
