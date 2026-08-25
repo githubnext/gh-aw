@@ -609,7 +609,9 @@ async function main() {
     }
     core.info(`  Found ${tools.length} tool(s)`);
 
-    // Cache the tool list
+    // Cache the tool list. This file only contains tool name/description/schema
+    // metadata returned by the gateway; it does not contain the API key or any
+    // other secret, so world-readable permissions (0o644) are acceptable here.
     try {
       fs.writeFileSync(toolsFile, JSON.stringify(tools, null, 2), { mode: 0o644 });
     } catch (err) {
@@ -619,7 +621,10 @@ async function main() {
     // Write the CLI wrapper script using the container-accessible URL
     const scriptPath = path.join(CLI_BIN_DIR, name);
     try {
-      fs.writeFileSync(scriptPath, generateCLIWrapperScript(name, containerUrl, toolsFile, apiKey, bridgeScript), { mode: 0o755 });
+      // Owner-only permissions: the wrapper script embeds the plaintext gateway API key,
+      // so it must not be world- or group-readable (matches chmod 600 used elsewhere for
+      // this same credential, e.g. convert_gateway_config_copilot.sh).
+      fs.writeFileSync(scriptPath, generateCLIWrapperScript(name, containerUrl, toolsFile, apiKey, bridgeScript), { mode: 0o700 });
       mountedServers.push(name);
       mountedServerTools.push({ name, tools });
       core.info(`  ✓ Mounted as: ${scriptPath}`);

@@ -1,6 +1,7 @@
 // @ts-check
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
+import http from "http";
 import os from "os";
 import path from "path";
 
@@ -326,5 +327,95 @@ describe("mount_mcp_as_cli.cjs", () => {
     expect(warnings).toHaveLength(2);
     expect(warnings[0]).toContain("retrying");
     expect(warnings[1]).toContain("stopping empty tools/list retries");
+  });
+});
+
+describe("mount_mcp_as_cli.cjs main() file permissions", () => {
+  /** @type {string | undefined} */
+  let tempDir;
+  /** @type {http.Server | undefined} */
+  let server;
+
+  afterEach(async () => {
+    if (server) {
+      await new Promise(resolve => server.close(resolve));
+      server = undefined;
+    }
+    if (tempDir) {
+      // The bin directory is locked to 0o555 by main(); restore write permissions
+      // so the temp directory can be removed during cleanup.
+      const binDir = path.join(tempDir, "gh-aw/mcp-cli/bin");
+      if (fs.existsSync(binDir)) {
+        fs.chmodSync(binDir, 0o755);
+      }
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
+    delete process.env.RUNNER_TEMP;
+    delete process.env.MCP_GATEWAY_API_KEY;
+    delete process.env.MCP_GATEWAY_DOMAIN;
+    delete process.env.MCP_GATEWAY_PORT;
+    vi.resetModules();
+  });
+
+  it("writes the CLI wrapper script with owner-only permissions (0o700), not world-readable (0o755)", async () => {
+    // Minimal fake MCP server that answers initialize / notifications/initialized / tools/list
+    server = http.createServer((req, res) => {
+      let data = "";
+      req.on("data", chunk => (data += chunk));
+      req.on("end", () => {
+        const parsed = JSON.parse(data);
+        if (parsed.method === "tools/list") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", id: parsed.id, result: { tools: [{ name: "echo" }] } }));
+        } else {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", id: parsed.id, result: {} }));
+        }
+      });
+    });
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-cli-mount-test-"));
+    process.env.RUNNER_TEMP = tempDir;
+    process.env.MCP_GATEWAY_API_KEY = "super-secret-gateway-key";
+    delete process.env.MCP_GATEWAY_DOMAIN;
+    delete process.env.MCP_GATEWAY_PORT;
+
+    const manifestDir = path.join(tempDir, "gh-aw/mcp-cli");
+    fs.mkdirSync(manifestDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(manifestDir, "manifest.json"),
+      JSON.stringify({ servers: [{ name: "testserver", url: `http://127.0.0.1:${port}/mcp` }] }),
+      "utf8"
+    );
+
+    vi.resetModules();
+    const mod = await import("./mount_mcp_as_cli.cjs?t=" + Date.now());
+
+    const infos = [];
+    const warnings = [];
+    global.core = {
+      info: msg => infos.push(msg),
+      warning: msg => warnings.push(msg),
+      addPath: () => {},
+      setOutput: () => {},
+    };
+
+    await mod.main();
+
+    const scriptPath = path.join(tempDir, "gh-aw/mcp-cli/bin/testserver");
+    expect(fs.existsSync(scriptPath)).toBe(true);
+
+    const mode = fs.statSync(scriptPath).mode & 0o777;
+    expect(mode).toBe(0o700);
+    expect(mode).not.toBe(0o755);
+
+    const scriptContent = fs.readFileSync(scriptPath, "utf8");
+    expect(scriptContent).toContain("super-secret-gateway-key");
+
+    delete global.core;
   });
 });
