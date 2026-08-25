@@ -1,3 +1,13 @@
+## Trend Data (2026-08-25, ~12:23Z cycle, window since 06:25Z baseline #55692)
+
+- **Issue activity this cycle**: 5 issues filed, 0 comments added, 11 new discussions processed (55689,55712,55715,55717,55721,55722,55734,55749,55752,55753,55764).
+- **Weekly issues snapshot** (from `/tmp/gh-aw/agent/weekly-issues-data/issues.json`): 73 open / 427 closed. Top labels: agentic-workflows(268), automation(165), cookie(90), cascade-suspected(73), testing(53), code-quality(43). 0 issues open >7 days (healthy triage throughput). Top non-bot authors: dsyme(6), lpcox(3).
+- **Reliability signal**: Auto-Triage 100% success (#55689); Daily News healthy/thriving (#55721); GitHub API Consumption Report (#55749) — data-quality gap this run (log collection hit MCP `logs` tool continuation-page limit, only 300/379 run dirs parsed, 2026-08-21 and 08-24 have zero collected runs), so the ~128K calls/day figure is not a reliable 7-day rate — treat next cycle's figure with the same caution until the window is contiguous again.
+- **GitHub MCP Structural Analysis** (#55764): day-1 baseline of a new 30-day rolling scan, 10 tools tested, avg usefulness 3.6/5, 8,235 tokens. Notable structural finding (not yet actioned): raw GitHub MCP responses repeat a base64 server-icon block in `_meta.serverInfo` on every call, tripling token cost for small payloads (`get_label`, `search_code`, `search_users`, `list_discussions`); the `mcpscripts` wrapper avoids this entirely. No trend yet (single data point) — revisit in ~7-14 days once more daily runs accumulate before deciding whether this is worth an upstream/wrapper fix.
+- **Prompt Clustering** (#55734): container/MCP-CVE cluster merge rate 63.4% vs 81.5% baseline, straddles the close date of matching fix #53687 (closed completed 2026-08-18) within its 18-day sample window — see [[known_patterns]] for the general lesson. Monitor next cycle once the window fully rolls past 08-18.
+
+See [[known_patterns]], [[flagged_items]] for details.
+
 ## Trend Data (2026-08-25, ~06:25Z cycle)
 
 Window since 00:34Z baseline (#55538, own prior briefing #55557 excluded), 13 new discussions (55337,55581,55584,55585,55604,55621,55623,55629,55646,55647,55657,55666,55671), all read in full — short ~6h window, roughly 2/3 the prior cycle's volume, no coverage gap.

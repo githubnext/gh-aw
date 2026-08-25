@@ -1,3 +1,13 @@
+## DeepReport Memory (2026-08-25, ~12:23Z cycle, baseline #55692)
+
+### New pattern: check the ADR directory before treating a repeatedly-requested feature as an unfixed gap
+The Daily Experiment Report has asked for >2-variant automatic decisions in nearly every cycle's memory ([[known_patterns]] entry from earlier this cycle window references `docs/adr/` search for a related ask). This cycle, `docs/adr/54978-deterministic-experiment-decision-engine.md` (Accepted, dated just 2 days prior) explicitly states: "Automatic adjudication is limited to exactly two variants; multi-variant comparisons remain descriptive" — listed under **Consequences → Negative** as a known, accepted tradeoff, not an oversight. **Lesson: before filing (or re-filing) a "please extend X" ask that a source workflow keeps raising, grep `docs/adr/` for the subsystem name — if an Accepted ADR already documents the limitation as a deliberate tradeoff, decline permanently rather than re-surfacing it as a gap, and note the ADR number so future cycles don't re-litigate it.**
+
+### New pattern: a "closed completed" fix and a still-bad metric can both be true when the sample window straddles the fix date
+Prompt Clustering's container/MCP-CVE cluster still shows a 63.4% merge rate this cycle, matching a fix (#53687) closed completed exactly one week ago. Rather than treating this as "the fix didn't stick" (per the [[known_patterns]] copilot-session-transcript lesson) or "already handled" (naively trusting the closure), the right read is: the analysis window (18 days) spans both sides of the fix date, so the aggregate metric can't yet reflect a fix applied only in the second half. **Lesson: when a recurring bad metric's window overlaps a recent "completed" fix, check whether the reporting workflow's sample window is long enough to have fully rolled over past the fix date before concluding either "fixed" or "still broken" — if it straddles, the correct action is neither re-file nor dismiss, but flag for monitoring next cycle when the window will have rolled past.**
+
+See [[flagged_items]], [[trend_data]] for details.
+
 ## DeepReport Memory (2026-08-25, ~00:34Z cycle, baseline #55473)
 
 ### Correction: a memory entry citing "already tracked via #NNNNN" can go stale when that issue gets closed for a different reason than you remember

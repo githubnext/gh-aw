@@ -1,3 +1,14 @@
+## Extracted code-quality tasks (2026-08-25, ~12:23Z cycle)
+
+All from Typist discussion #55753 (Go type-consistency scan), each verified live against code and deduped via `gh api search/issues` before filing:
+
+1. **Filed**: rename `pkg/cli.Finding` to `AuditFinding` — collides with `pkg/scanfindings.Finding` (verified `pkg/cli/audit_report.go:67` vs `pkg/scanfindings/scanfindings.go:107`).
+2. **Filed**: add `ArtifactName`/`Filename`/`FilePath` semantic types to `pkg/constants` — extends the existing `JobName`/`StepID`-style convention to ~90 currently-untyped constants (e.g. `SafeOutputArtifactName`, `AgentOutputFilename`, `AWFConfigFilePath`).
+3. **Filed**: type `GitHubReposScope` instead of bare `any` — verified live at `pkg/workflow/tools_types.go:306`.
+4. **Filed**: consolidate `BoundedQueriesConfig`/`AWFBoundedQueriesConfig` duplicate structs (hand-synced, identical fields) — verified `pkg/workflow/tools_types.go:414` vs `pkg/workflow/awf_config.go:111`; code comments already flag the manual-sync burden.
+
+**Declined this cycle** (not code-quality tasks, or judged not independently actionable — see [[flagged_items]] for full reasoning): Copilot Session Insights transcript-fetch gap (chronic, standing), Daily Experiment Report multi-variant ask (ADR-54978 accepted tradeoff), Prompt Clustering container/CVE cluster (inconclusive, straddling-window), Design Decision Gate allowed-files mismatch (needs product judgment call, not a one-line fix), Terminal Stylist fmt.Fprintf cleanup (low-priority help-text formatting).
+
 ## Extracted code-quality tasks (2026-08-25 ~00:34Z cycle)
 
 6 filed, 0 comments, window since 18:25Z baseline #55473 (8 new discussions: 55467,55477,55503,55505,55514,55519,55526,55538):

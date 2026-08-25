@@ -1,3 +1,16 @@
+## Flagged Items (2026-08-25, ~12:23Z cycle, window since 06:25Z baseline #55692, 11 new discussions: 55689,55712,55715,55717,55721,55722,55734,55749,55752,55753,55764)
+
+- **[new, filed]** Rename `pkg/cli.Finding` → `AuditFinding` (collides with `pkg/scanfindings.Finding`) — Typist #55753, verified live.
+- **[new, filed]** Add `ArtifactName`/`Filename`/`FilePath` semantic types to `pkg/constants`, retype ~90 untyped constants — Typist #55753, extends existing convention.
+- **[new, filed]** Type `GitHubReposScope` (currently bare `any`) with custom YAML unmarshaling — Typist #55753, verified live at tools_types.go:306.
+- **[new, filed]** Consolidate `BoundedQueriesConfig`/`AWFBoundedQueriesConfig` duplicate structs — Typist #55753 Cluster 4, verified live, code comments already flag manual-sync burden.
+- **[new, filed]** Investigate Squad Implement Worker's 0/4 `action_required` stall — Copilot Session Insights #55712.
+- **[declined, chronic]** Copilot Session Insights conversation-transcript fetch gap (#55712), 47th+ consecutive empty-log day — standing policy, not re-filed.
+- **[declined, inconclusive/monitor]** Prompt Clustering container/MCP-CVE cluster 63.4% merge rate (#55734) — matching fix #53687 closed completed 2026-08-18, but 18-day sample window straddles that date; can't tell if the fix is holding. Monitoring.
+- **[declined, accepted design tradeoff]** Daily Experiment Report's recurring >2-variant decision-engine ask (#55715) — confirmed deliberate per ADR-54978 (Accepted, 2026-08-23): "Automatic adjudication is limited to exactly two variants." Not a bug.
+- **[declined, needs design call]** Design Decision Gate PR #55641 allowed-files mismatch (#55717 Daily Storify) — gate is scoped to `docs/adr/**` only; widening allowlist vs. tightening the agent's own write scope is a judgment call, not filed this cycle.
+- **[declined, healthy]** Terminal Stylist (#55722, console system already strong), Daily News (#55721), Auto-Triage (#55689, 100% success), API Consumption (#55749, partial-data run), MCP Structural Analysis (#55764, day-1 baseline) — no action.
+
 ## Flagged Items (2026-08-25, ~00:34Z cycle, window since 18:25Z baseline #55473, 8 new discussions: 55467,55477,55503,55505,55514,55519,55526,55538)
 
 - **[new, filed, HIGH]** Codex `driver_exit`/context-rebuild-runaway collapse, 49.4% success (41/83 runs) — #55526 Finding 1; confirmed #54393 (closed) covers an unrelated root cause, so this was genuinely untracked.
