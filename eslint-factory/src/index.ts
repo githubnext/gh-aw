@@ -22,6 +22,7 @@ import { requireRmSyncTryCatchRule } from "./rules/require-rmsync-try-catch";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
 import { requireSpawnErrorListenerRule } from "./rules/require-spawn-error-listener";
+import { requireDecodeURIComponentTryCatchRule } from "./rules/require-decodeuricomponent-try-catch";
 import { requireNewUrlTryCatchRule } from "./rules/require-new-url-try-catch";
 import { preferCoreLoggingRule } from "./rules/prefer-core-logging";
 import { noCoreErrorThenProcessExitRule } from "./rules/no-core-error-then-process-exit";
@@ -87,6 +88,7 @@ const plugin = {
     "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
     "require-spawn-error-listener": requireSpawnErrorListenerRule,
     "require-new-url-try-catch": requireNewUrlTryCatchRule,
+    "require-decodeuricomponent-try-catch": requireDecodeURIComponentTryCatchRule,
     "prefer-core-logging": preferCoreLoggingRule,
     "no-core-error-then-process-exit": noCoreErrorThenProcessExitRule,
     "no-core-error-then-process-exitcode": noCoreErrorThenProcessExitCodeRule,

@@ -175,6 +175,13 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "github"},
 		},
 		{
+			name: "web-fetch tool",
+			tools: map[string]any{
+				"web-fetch": nil,
+			},
+			expected: []string{"--allow-tool", "web_fetch"},
+		},
+		{
 			name: "github tool with multiple allowed tools sorted",
 			tools: map[string]any{
 				"github": map[string]any{

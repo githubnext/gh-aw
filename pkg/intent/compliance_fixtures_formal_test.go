@@ -63,6 +63,7 @@ type fixtureExpectedPolicy struct {
 }
 
 func TestFormalFixture_ExplicitIntentWinsOverLinkedIssues(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "explicit-intent-wins.yaml")
 
 	rec := matchingResolver().ResolvePullRequest(buildFixturePullRequest(fixture))
@@ -71,6 +72,7 @@ func TestFormalFixture_ExplicitIntentWinsOverLinkedIssues(t *testing.T) {
 }
 
 func TestFormalFixture_AmbiguousRootIssueSet(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "ambiguous-root-closing-issues.yaml")
 
 	rec := matchingResolver().ResolvePullRequest(buildFixturePullRequest(fixture))
@@ -79,6 +81,7 @@ func TestFormalFixture_AmbiguousRootIssueSet(t *testing.T) {
 }
 
 func TestFormalFixture_UnlinkedPullRequestFailsClosed(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "unlinked-pr-fail-closed.yaml")
 
 	rec := matchingResolver().ResolvePullRequest(buildFixturePullRequest(fixture))
@@ -87,6 +90,7 @@ func TestFormalFixture_UnlinkedPullRequestFailsClosed(t *testing.T) {
 }
 
 func TestFormalFixture_AmbiguousResolvesToSafestPolicy(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "ambiguous-root-closing-issues.yaml")
 
 	rec := matchingResolver().ResolvePullRequest(buildFixturePullRequest(fixture))
@@ -96,6 +100,7 @@ func TestFormalFixture_AmbiguousResolvesToSafestPolicy(t *testing.T) {
 }
 
 func TestFormalFixture_UnlinkedResolvesToSafestPolicy(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "unlinked-pr-fail-closed.yaml")
 
 	rec := matchingResolver().ResolvePullRequest(buildFixturePullRequest(fixture))
@@ -105,6 +110,7 @@ func TestFormalFixture_UnlinkedResolvesToSafestPolicy(t *testing.T) {
 }
 
 func TestFormalFixture_MappedExplicitStatusIsNotFailClosed(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "explicit-intent-wins.yaml")
 
 	rec := matchingResolver().ResolvePullRequest(buildFixturePullRequest(fixture))
@@ -117,6 +123,7 @@ func TestFormalFixture_MappedExplicitStatusIsNotFailClosed(t *testing.T) {
 }
 
 func TestFormalFixture_PolicyDeterminismAcrossRepeatedResolution(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "explicit-intent-wins.yaml")
 	pr := buildFixturePullRequest(fixture)
 	resolver := matchingResolver()
@@ -150,6 +157,7 @@ func TestFormalFixture_SingleSourcePerRecordAcrossAllFixtures(t *testing.T) {
 }
 
 func TestFormalFixture_AmbiguousOrderIndependence(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "ambiguous-root-closing-issues.yaml")
 	resolver := matchingResolver()
 	compiler := fixturePolicyCompiler(t)
@@ -168,6 +176,7 @@ func TestFormalFixture_AmbiguousOrderIndependence(t *testing.T) {
 }
 
 func TestFormalFixture_UnlinkedWithEmptyLabelsSlice(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "unlinked-pr-fail-closed.yaml")
 	pr := buildFixturePullRequest(fixture)
 	pr.Labels = []string{}
@@ -178,6 +187,7 @@ func TestFormalFixture_UnlinkedWithEmptyLabelsSlice(t *testing.T) {
 }
 
 func TestFormalFixture_ExplicitIntentOverridesSingleClosingIssue(t *testing.T) {
+	t.Parallel()
 	fixture := loadIntentComplianceFixture(t, "explicit-intent-wins.yaml")
 	pr := buildFixturePullRequest(fixture)
 	pr.ClosingIssues = pr.ClosingIssues[:1]

@@ -11,6 +11,7 @@ import (
 )
 
 func TestCtxBackground(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, ctxbackground.Analyzer, "ctxbackground")
 }
