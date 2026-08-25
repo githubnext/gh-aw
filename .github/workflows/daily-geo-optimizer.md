@@ -374,6 +374,12 @@ false negative and select the next actionable recommendation instead.
 
 If **all scores are already Excellent (90+/100)** and there are no actionable recommendations, use `noop` and skip issue creation.
 
+### Retry guard
+
+Before creating the issue, query closed pull requests with `gh pr list --state closed --author Copilot --limit 1000 --json number,title,closedAt,mergedAt`. Normalize both the candidate title and each PR title by repeatedly removing leading bracketed prefixes (for example `[geo-optimizer]` or `[WIP]`), lowercasing, replacing non-alphanumeric runs with one space, and trimming.
+
+If any normalized title matches the candidate and `mergedAt` is null, do **not** create the issue. Use `noop` instead, naming the matching PR numbers and close dates. Do not treat a closed PR as a reason to retry automatically; a maintainer must create or approve a follow-up issue after reviewing the prior attempt.
+
 ### Issue title
 
 `[geo-optimizer] <one-line summary of the improvement>`
