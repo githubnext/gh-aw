@@ -291,6 +291,84 @@ describe("process_runner.cjs", () => {
       expect(logs.some(line => line.includes("post-result watchdog terminating idle process"))).toBe(false);
     });
 
+    it("terminates a running process when runtime guard requests it", async () => {
+      const logs = [];
+      let checks = 0;
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setInterval(() => process.stdout.write('.'), 20);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        runtimeGuard: {
+          shouldTerminate: () => {
+            checks += 1;
+            if (checks < 3) return false;
+            return { terminate: true, reason: "test guard tripped" };
+          },
+          pollIntervalMs: 25,
+          termGraceMs: 200,
+        },
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.runtimeGuardFired).toBe(true);
+      expect(result.runtimeGuardReason).toContain("test guard tripped");
+      expect(result.watchdogFired).toBe(false);
+      expect(logs.some(line => line.includes("runtime guard requested termination"))).toBe(true);
+    });
+
+    it("escalates to SIGKILL after the grace period even when the poll interval is longer", async () => {
+      const logs = [];
+      const started = Date.now();
+      const result = await runProcess({
+        command: process.execPath,
+        // Ignores SIGTERM, so only SIGKILL can stop it.
+        args: ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 50);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        runtimeGuard: {
+          shouldTerminate: () => ({ terminate: true, reason: "kill escalation test" }),
+          pollIntervalMs: 50,
+          // Grace period is far shorter than the poll interval below would allow.
+          termGraceMs: 150,
+        },
+      });
+      const elapsed = Date.now() - started;
+      expect(result.runtimeGuardFired).toBe(true);
+      expect(result.exitCode).not.toBe(0);
+      expect(logs.some(line => line.includes("runtime guard forcing process exit after 150ms grace (SIGKILL)"))).toBe(true);
+      // Without the dedicated escalation timer this would take multiple poll cycles.
+      expect(elapsed).toBeLessThan(5000);
+    });
+
+    it("supports an asynchronous shouldTerminate without overlapping polls", async () => {
+      const logs = [];
+      let inFlight = 0;
+      let maxInFlight = 0;
+      let checks = 0;
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setInterval(() => process.stdout.write('.'), 20);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        runtimeGuard: {
+          shouldTerminate: async () => {
+            inFlight += 1;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            await new Promise(resolve => setTimeout(resolve, 60));
+            inFlight -= 1;
+            checks += 1;
+            return checks < 2 ? false : { terminate: true, reason: "async guard tripped" };
+          },
+          pollIntervalMs: 25,
+          termGraceMs: 200,
+        },
+      });
+      expect(maxInFlight).toBe(1);
+      expect(result.runtimeGuardFired).toBe(true);
+      expect(result.runtimeGuardReason).toContain("async guard tripped");
+      expect(result.watchdogFired).toBe(false);
+    });
+
     it("does not enable watchdog when inactivityTimeoutMs is missing or invalid", async () => {
       const logs = [];
       const result = await runProcess({
