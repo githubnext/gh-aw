@@ -562,6 +562,10 @@ safe-outputs:
   add-comment: {}
 ```
 
+### Steering Issue (`create-pull-request.steer`)
+
+An experimental `create-pull-request` safe-output option that creates a run-scoped issue during the activation job, before the agent starts. Users add comments containing the keyword `steer` while the run is in progress, and the injected prompt instructs the agent to read relevant user-authored comments with the GitHub MCP `issue_read` tool. Enabling `steer: true` requires the GitHub MCP issues toolset and top-level `issues: read` permission; the compiler reports an error instead of adding the permission automatically. On success, the conclusion job closes the steering issue and links the created pull request; on failure, the same issue is retitled and updated with the failure report. `steer` cannot be combined with `safe-outputs.failure-issue-repo`, and no steering issue is created in staged mode. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#steering-issues).
+
 ## Workflow Components
 
 ### Activation Token (`on.github-token:`, `on.github-app:`)
@@ -1605,6 +1609,18 @@ A unique identifier enabling external monitoring and coordination without bidire
 ### Workflow Inputs
 
 Parameters provided when manually triggering a workflow with `workflow_dispatch`. Defined in the `on.workflow_dispatch.inputs` section with type, description, default value, and required status.
+
+### Workflow Documentation URL (`metadata.docs`)
+
+An optional field under top-level `metadata:` frontmatter holding an absolute HTTPS URL to human-facing documentation for a workflow. The compiler preserves the value in the generated lock file's metadata without fetching it or altering workflow execution. See [Frontmatter Reference](/gh-aw/reference/frontmatter-full/).
+
+### Graders (`graders:`)
+
+Deterministic, non-LLM checks that compute metrics from a workflow run's post-agent execution trace. Configured under the top-level `graders:` frontmatter field; an empty map (`graders: {}`) enables all built-in graders with default settings, and omitting the field disables grading entirely. Built-in graders cover tool success rate, retries, loop detection, trajectory efficiency, execution duration, and similar metrics. Custom inline graders run a trusted, sandboxed JavaScript expression against the preprocessed `trace` object. Graders are an experimental feature. See [Graders Reference](/gh-aw/reference/trace-graders/).
+
+### Operational Value Grader (`graders.operational-value`)
+
+A reserved grader that evaluates operational repository outcomes using a repository-relative Bash evaluator script, frozen at compile time with its SHA-256 digest recorded for reproducibility. It returns an absolute operational attainment value in `[0,1]` for the run's assigned case, alongside the evaluation's evidence timestamp, maturity, and provenance. A frozen baseline is optional metadata used to derive `deltaFromBaseline` without changing the primary value. The evaluator receives the workflow token via `GH_TOKEN` with the agent job's declared permissions, but not workflow secrets, and enabling the grader does not add evidence permissions to the agent job. Historical runs can be recomputed with `gh aw graders operational-value <run-id> --evidence-at <timestamp>`. See [Graders Reference](/gh-aw/reference/trace-graders/#operational-value-grader) and the `aw-value` skill.
 
 ## Operational Patterns
 
