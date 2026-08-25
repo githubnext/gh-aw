@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test to validate --allow-host-service-ports with Redis service container
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-service-ports
     strategy: centralized

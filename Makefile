@@ -259,6 +259,7 @@ check-cjs-syntax:
 .PHONY: test-js
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
+	cd eslint-factory && npm test
 
 # Test impacted JavaScript unit tests only (excluding integration tests)
 .PHONY: test-impacted-js
@@ -806,6 +807,7 @@ deps: check-node-version
 	go mod download
 	go mod tidy
 	cd actions/setup/js && npm ci
+	cd eslint-factory && npm ci
 
 # Install development tools (including linter)
 .PHONY: deps-dev

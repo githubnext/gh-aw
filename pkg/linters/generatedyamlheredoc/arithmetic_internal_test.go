@@ -5,6 +5,7 @@ package generatedyamlheredoc
 import "testing"
 
 func TestHasOpenShellArithmeticExpression(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		line string

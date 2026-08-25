@@ -4,6 +4,7 @@ emoji: "🧪"
 name: Smoke Multi PR
 description: Test creating multiple pull requests in a single workflow run
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-multi-pr
     strategy: centralized

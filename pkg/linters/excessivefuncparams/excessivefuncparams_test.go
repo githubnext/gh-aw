@@ -12,5 +12,6 @@ import (
 )
 
 func TestExcessiveFuncParams(t *testing.T) {
+	t.Parallel()
 	analysistest.Run(t, analysistest.TestData(), excessivefuncparams.Analyzer, "a")
 }

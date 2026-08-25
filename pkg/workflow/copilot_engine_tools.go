@@ -65,6 +65,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	var args []string
 	hasRestrictedBashAllowlist := false
+	hasUnrestrictedBash := false
 
 	// Check if bash has wildcard - if so, use --allow-all-tools instead
 	if bashConfig, hasBash := tools["bash"]; hasBash {
@@ -73,6 +74,10 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			for _, cmd := range bashCommands {
 				if cmdStr, ok := cmd.(string); ok {
 					if cmdStr == ":*" || cmdStr == "*" {
+						if copilotNeedsBuiltinMCPs(workflowData) {
+							hasUnrestrictedBash = true
+							break
+						}
 						// Use --allow-all-tools flag instead of individual tool permissions
 						copilotEngineToolsLog.Print("Bash wildcard detected, using --allow-all-tools")
 						return []string{"--allow-all-tools"}
@@ -83,7 +88,9 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	}
 
 	// Handle bash/shell tools (when no wildcard)
-	if bashConfig, hasBash := tools["bash"]; hasBash {
+	if hasUnrestrictedBash {
+		args = append(args, "--allow-tool", "shell")
+	} else if bashConfig, hasBash := tools["bash"]; hasBash {
 		if bashCommands, ok := bashConfig.([]any); ok {
 			hasRestrictedBashAllowlist = true
 			// Add specific shell commands

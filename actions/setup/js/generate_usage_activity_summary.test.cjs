@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const req = createRequire(import.meta.url);
-const { parseFirewallLogs, parseSafeOutputsManifest, parseExperimentsData, calculateWorkingSetFromJSONL, parseWorkingSetMetrics, MANIFEST_FILE_PATH } = req("./generate_usage_activity_summary.cjs");
+const { parseFirewallLogs, parseSessionLogs, parseSafeOutputsManifest, parseExperimentsData, calculateWorkingSetFromJSONL, parseWorkingSetMetrics, MANIFEST_FILE_PATH } = req("./generate_usage_activity_summary.cjs");
 
 describe("generate_usage_activity_summary.cjs", () => {
   /** Unique directory for each test to avoid cross-test interference */
@@ -93,6 +93,26 @@ describe("generate_usage_activity_summary.cjs", () => {
       expect(result.blocked_requests).toBe(1);
       expect(result.allowed_domains).toContain("api.github.com:443");
       expect(result.blocked_domains).toContain("blocked.example.com:443");
+    });
+  });
+
+  describe("parseSessionLogs", () => {
+    it("matches events.jsonl one directory below the session-state directory", () => {
+      const sessionRoot = fs.mkdtempSync(path.join(os.tmpdir(), "session-logs-test-"));
+      try {
+        fs.mkdirSync(path.join(sessionRoot, "session-1"), { recursive: true });
+        fs.writeFileSync(path.join(sessionRoot, "session-1", "events.jsonl"), `${JSON.stringify({ type: "session.start" })}\n`);
+        fs.mkdirSync(path.join(sessionRoot, "nested", "too-deep"), { recursive: true });
+        fs.writeFileSync(path.join(sessionRoot, "nested", "too-deep", "events.jsonl"), `${JSON.stringify({ type: "assistant.message" })}\n`);
+
+        expect(parseSessionLogs([sessionRoot])).toMatchObject({
+          total_events: 1,
+          session_starts: 1,
+          assistant_messages: 0,
+        });
+      } finally {
+        fs.rmSync(sessionRoot, { recursive: true, force: true });
+      }
     });
   });
 
