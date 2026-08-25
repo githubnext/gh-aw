@@ -46,8 +46,10 @@ timeout-minutes: 30
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
+
 ---
 
 # Chaos PR Bundle Fuzzer

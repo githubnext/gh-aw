@@ -18,6 +18,7 @@ network:
   - defaults
 imports:
 - shared/otlp.md
+- shared/graders.md
 safe-outputs:
   create-issue:
     close-older-issues: true
@@ -59,6 +60,7 @@ evals:
     question: Did the agent create a GitHub issue with an A/B experiment campaign for a selected workflow?
   - id: workflow_targeted
     question: Did the agent identify and target a workflow that lacks an experiments section?
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
