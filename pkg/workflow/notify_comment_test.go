@@ -1685,14 +1685,13 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 	t.Run("no issues: write or actions: read when all conclusion issue-writing paths are disabled", func(t *testing.T) {
 		compiler := NewCompiler()
 		falseReportFailedJobs := false
-		trueVal := "true"
 		workflowData := &WorkflowData{
 			Name: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				ReportFailedJobs:     &falseReportFailedJobs,
 				ReportFailureAsIssue: &falseTemplatable,
 				MissingTool: &MissingToolConfig{
-					CreateIssue: &trueVal,
+					CreateIssue: &falseVal,
 				},
 			},
 		}
@@ -1708,6 +1707,39 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 		}
 		if strings.Contains(job.Permissions, "actions: read") {
 			t.Errorf("conclusion job should NOT have 'actions: read' when report-failed-jobs is disabled, got: %q", job.Permissions)
+		}
+	})
+
+	t.Run("no issues: write when default threat detection is enabled but issue-writing paths are disabled", func(t *testing.T) {
+		compiler := NewCompiler()
+		falseReportFailedJobs := false
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				UpdateRelease:        &UpdateReleaseConfig{},
+				ReportFailedJobs:     &falseReportFailedJobs,
+				ReportFailureAsIssue: &falseTemplatable,
+				MissingTool: &MissingToolConfig{
+					CreateIssue: &falseVal,
+				},
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if strings.Contains(job.Permissions, "issues: write") {
+			t.Errorf("conclusion job should NOT have 'issues: write' when only threat detection is enabled, got: %q", job.Permissions)
+		}
+		if strings.Contains(job.Permissions, "actions: read") {
+			t.Errorf("conclusion job should NOT have 'actions: read' when report-failed-jobs is disabled, got: %q", job.Permissions)
+		}
+		if !strings.Contains(job.Permissions, "contents: write") {
+			t.Errorf("conclusion job should preserve update-release permissions, got: %q", job.Permissions)
 		}
 	})
 
@@ -1761,15 +1793,18 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("issues: write present when detection reporting is enabled", func(t *testing.T) {
+	t.Run("issues: write present when missing-tool issue reporting is enabled", func(t *testing.T) {
 		compiler := NewCompiler()
 		falseReportFailedJobs := false
+		trueVal := "true"
 		workflowData := &WorkflowData{
 			Name: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				ReportFailedJobs:     &falseReportFailedJobs,
 				ReportFailureAsIssue: &falseTemplatable,
-				ThreatDetection:      &ThreatDetectionConfig{},
+				MissingTool: &MissingToolConfig{
+					CreateIssue: &trueVal,
+				},
 			},
 		}
 		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
@@ -1780,7 +1815,7 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 			t.Fatal("Expected conclusion job to be non-nil")
 		}
 		if !strings.Contains(job.Permissions, "issues: write") {
-			t.Errorf("conclusion job should have 'issues: write' when detection reporting is enabled, got: %q", job.Permissions)
+			t.Errorf("conclusion job should have 'issues: write' when missing-tool issue reporting is enabled, got: %q", job.Permissions)
 		}
 	})
 }

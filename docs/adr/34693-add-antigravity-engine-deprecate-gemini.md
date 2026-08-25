@@ -41,7 +41,7 @@ Mark `gemini` deprecated and remove it on a fixed date / version. Rejected becau
 #### Negative
 - Two engines with nearly identical wiring (`antigravity_engine.go` plus `_logs.go`, `_mcp.go`, `_tools.go` mirror the Gemini files) — every future Gemini/Antigravity engine change must be made in two places until Gemini is removed.
 - Shared port (`AntigravityLLMGatewayPort = 10003 = GeminiLLMGatewayPort`) means a single workflow cannot run both engines concurrently in the same job; this is implicit and not statically enforced today.
-- Domain and target aliasing (`GeminiDefaultDomains` → `AntigravityDefaultDomains`, dual keys in `awf_config.go`) is correct now but is a latent footgun: changes to one set must be mirrored to the other or one engine silently diverges.
+- Domain and target aliasing (`GeminiDefaultDomains` → `AntigravityDefaultDomains`, dual keys in `awf_config_build.go`) is correct now but is a latent footgun: changes to one set must be mirrored to the other or one engine silently diverges.
 - Carrying the deprecation warning indefinitely means CI logs for Gemini workflows will accumulate warning noise; there is no end-of-life date in this ADR.
 
 #### Neutral
@@ -78,7 +78,7 @@ Mark `gemini` deprecated and remove it on a fixed date / version. Rejected becau
 
 ### AWF Proxy and Domain Configuration
 
-1. `awf_config.go` **MUST** populate both `antigravity` and `gemini` target keys whenever either engine is in use.
+1. `awf_config_build.go` **MUST** populate both `antigravity` and `gemini` target keys whenever either engine is in use.
 2. `awf-config.schema.json` **MUST** accept `antigravity` as a valid proxy target key.
 3. `GeminiDefaultDomains` **MUST** remain available as an alias of `AntigravityDefaultDomains` (or vice versa) so that existing references in the codebase compile.
 4. `GetGeminiAPITarget` and `DefaultGeminiAPITarget` **MUST** remain exported as deprecated aliases and **MUST** return the same values they did before this change.

@@ -142,6 +142,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 		expected               *SandboxConfig
 		expectDefaultWritePath bool
 		expectedAllowWrite     []string
+		unexpectedAllowWrite   []string
 	}{
 		{
 			name:                   "nil config creates default with AWF",
@@ -245,7 +246,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 			// Cloud Hypervisor narrows the /workspace and /tmp/gh-aw exports independently,
 			// so the default write path alone would leave /workspace (and the CH-managed
 			// HOME under it) read-only. See ensureDefaultAgentWritePath.
-			name: "cloud-hypervisor runtime seeds agent, workspace and awf-home write paths",
+			name: "cloud-hypervisor runtime seeds agent, logs, workspace and awf-home write paths",
 			config: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type:    SandboxTypeAWF,
@@ -254,7 +255,25 @@ func TestApplySandboxDefaults(t *testing.T) {
 			},
 			engine:                 &EngineConfig{ID: "copilot"},
 			expectDefaultWritePath: true,
+			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, defaultAgentLogsWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		},
+		{
+			name: "cloud-hypervisor runtime does not grant Copilot logs path to other engines",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Runtime: AgentRuntimeCloudHypervisor,
+				},
+			},
+			engine:                 &EngineConfig{ID: "claude"},
+			expectDefaultWritePath: true,
 			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
+			unexpectedAllowWrite:   []string{defaultAgentLogsWritePath},
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -285,8 +304,41 @@ func TestApplySandboxDefaults(t *testing.T) {
 				require.NotNil(t, result.Agent.Config.Filesystem)
 				assert.Contains(t, result.Agent.Config.Filesystem.AllowWrite, expectedPath)
 			}
+			for _, unexpectedPath := range tt.unexpectedAllowWrite {
+				require.NotNil(t, result.Agent.Config)
+				require.NotNil(t, result.Agent.Config.Filesystem)
+				assert.NotContains(t, result.Agent.Config.Filesystem.AllowWrite, unexpectedPath)
+			}
 		})
 	}
+}
+
+func TestEnsureCacheMemoryWritePaths(t *testing.T) {
+	sandboxConfig := applySandboxDefaults(&SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Type:    SandboxTypeAWF,
+			Runtime: AgentRuntimeCloudHypervisor,
+		},
+	}, &EngineConfig{ID: "claude"})
+	cacheMemoryConfig := &CacheMemoryConfig{
+		Caches: []CacheMemoryEntry{
+			{ID: "default"},
+			{ID: "session"},
+		},
+	}
+
+	ensureCacheMemoryWritePaths(sandboxConfig, cacheMemoryConfig)
+	ensureCacheMemoryWritePaths(sandboxConfig, cacheMemoryConfig)
+
+	require.NotNil(t, sandboxConfig.Agent.Config)
+	require.NotNil(t, sandboxConfig.Agent.Config.Filesystem)
+	assert.Equal(t, []string{
+		defaultAgentWorkspaceWritePath,
+		cloudHypervisorWorkspaceWritePath,
+		cloudHypervisorAwfHomeWritePath,
+		"/tmp/gh-aw/cache-memory",
+		"/tmp/gh-aw/cache-memory-session",
+	}, sandboxConfig.Agent.Config.Filesystem.AllowWrite)
 }
 
 func TestMergeImportedSandboxAgentMounts(t *testing.T) {

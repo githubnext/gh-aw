@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var permissionsLog = logger.New("workflow:permissions")
@@ -12,7 +13,7 @@ var validPermissionScopes = func() map[string]struct{} {
 	scopes := GetAllPermissionScopes()
 	appOnlyScopes := GetAllGitHubAppOnlyScopes()
 
-	m := make(map[string]struct{}, safeAllocationCapacity(len(scopes), len(appOnlyScopes), 1))
+	m := make(map[string]struct{}, typeutil.SafeAllocationCapacity(len(scopes), len(appOnlyScopes), 1))
 	for _, scope := range scopes {
 		m[string(scope)] = struct{}{}
 	}

@@ -140,6 +140,9 @@ const GraderManifestFilename = "grader_manifest.json"
 // by trace_graders.cjs. Contains deterministic metric values computed from trace files.
 const GraderResultsFilename = "grader_results.json"
 
+// OperationalValueEvaluatorFilename is the filename of the frozen operational-value evaluator archived for replay.
+const OperationalValueEvaluatorFilename = "operational_value_evaluator.sh"
+
 // GradersDir is the subdirectory under TmpGhAwAgentDir where grader output files are written.
 const GradersDir = TmpGhAwDir + "/agent/graders"
 

@@ -12,6 +12,7 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var awfHelpersLog = logger.New("workflow:awf_helpers")
@@ -120,7 +121,7 @@ func buildModelsJSONPathExportScript(isArcDind bool) string {
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 	ecosystemDomains := getLoadedEcosystemDomains()
 	awfHelpersLog.Printf("buildWorkflowCallNetworkAllowedUpdateScript: ecosystems=%d, compoundEcosystems=%d", len(ecosystemDomains), len(compoundEcosystems))
-	ecosystemMap := make(map[string][]string, safeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
+	ecosystemMap := make(map[string][]string, typeutil.SafeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
 	for ecosystem := range ecosystemDomains {
 		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
 	}

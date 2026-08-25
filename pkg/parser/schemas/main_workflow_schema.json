@@ -150,6 +150,16 @@
     "metadata": {
       "type": "object",
       "description": "Optional metadata field for storing custom key-value pairs compatible with the custom agent spec. Key names are limited to 64 characters, and values are limited to 1024 characters.",
+      "properties": {
+        "docs": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^https://\\S+$",
+          "description": "Optional absolute HTTPS URL for human-facing workflow documentation. Preserved in generated lock-file metadata without being fetched during compilation.",
+          "examples": ["https://docs.example.com/automation/repository-health"]
+        }
+      },
       "patternProperties": {
         "^.{1,64}$": {
           "type": "string",
@@ -7471,7 +7481,7 @@
                 },
                 "branch-prefix": {
                   "type": "string",
-                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name."
+                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name. In steer mode, this prefix is also used for the workflow-owned pre-created pull request branch and must be a static valid branch-name prefix."
                 },
                 "require-temporary-id": {
                   "type": "boolean",
@@ -11315,6 +11325,29 @@
                   "type": "string",
                   "description": "Model override for threat detection engine execution."
                 },
+                "engine-timeout": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(0|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$"
+                    },
+                    {
+                      "type": "integer",
+                      "const": 0
+                    }
+                  ],
+                  "description": "Per-attempt timeout for threat detection engine execution as a Go duration (for example '90s', '10m', '1h30m'). Set to 0 to disable timeout enforcement in threat-detect."
+                },
+                "max-turns": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Detector-only per-attempt max-turns override passed to threat-detect. When omitted, threat-detect falls back to GH_AW_MAX_TURNS (if set) and then to its own built-in default."
+                },
+                "retries": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Detector-only retry count passed to threat-detect for clean exits without a verdict."
+                },
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run before engine execution",
@@ -12849,7 +12882,7 @@
       "examples": ["gpt-5.4", "claude-3-5-sonnet-20241022", "gpt-4"]
     },
     "graders": {
-      "description": "\u26a0\ufe0f Experimental. Deterministic graders to compute post-agent metrics from execution artifacts. Map keys are grader IDs. Built-in graders can be configured by ID; custom graders require a script.",
+      "description": "\u26a0\ufe0f Experimental. Deterministic graders for workflow-run observations. Built-in graders use execution artifacts, custom graders use inline scripts, and the operational-value grader uses a repository evaluator.",
       "type": "object",
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9-]{0,63}$",
@@ -12908,6 +12941,11 @@
                 "minLength": 1,
                 "maxLength": 4096,
                 "description": "Custom grader JavaScript script body (trusted workflows only)."
+              },
+              "run": {
+                "type": "string",
+                "pattern": "^\\.github/graders/.+\\.sh$",
+                "description": "Repository-relative Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
               }
             }
           }

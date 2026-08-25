@@ -89,7 +89,10 @@ skills: []
 # limited to 1024 characters.
 # (optional)
 metadata:
-  {}
+  # Optional absolute HTTPS URL for human-facing workflow documentation. Preserved
+  # in generated lock-file metadata without being fetched during compilation.
+  # (optional)
+  docs: "https://docs.example.com/automation/repository-health"
 
 # Workflow specifications to import. Supports array form (list of paths) or object
 # form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative
@@ -8866,7 +8869,9 @@ safe-outputs:
     max: "example-value"
 
     # Optional prefix to prepend to the pull request branch name (e.g. "signed/").
-    # Applied before the agent-specified or auto-generated branch name.
+    # Applied before the agent-specified or auto-generated branch name. In steer
+    # mode, this prefix is also used for the workflow-owned pre-created pull request
+    # branch and must be a static valid branch-name prefix.
     # (optional)
     branch-prefix: "example-value"
 

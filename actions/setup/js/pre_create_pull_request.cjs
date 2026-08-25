@@ -10,6 +10,16 @@ const { applyTitlePrefix, sanitizeTitle } = require("./sanitize_title.cjs");
 const WIP_TITLE_MARKER = "[WIP] ";
 const MAX_PULL_REQUEST_TITLE_LENGTH = 256;
 const MAX_PRE_CREATED_TITLE_BODY_LENGTH = MAX_PULL_REQUEST_TITLE_LENGTH - WIP_TITLE_MARKER.length;
+const DEFAULT_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX = "gh-aw/pre-created/";
+
+function getPreCreatedPullRequestBranchPrefix() {
+  const branchPrefix = process.env.GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX || DEFAULT_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX;
+  const normalizedBranchPrefix = normalizeBranchName(branchPrefix);
+  if (!normalizedBranchPrefix || branchPrefix.trim() === "" || normalizedBranchPrefix !== branchPrefix) {
+    throw new Error(`Invalid pre-created pull request branch prefix: "${branchPrefix}"`);
+  }
+  return branchPrefix;
+}
 
 /**
  * Best-effort deletion of a pre-allocated branch so a failed allocation does not
@@ -32,7 +42,7 @@ async function deleteBranch(branch) {
 async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || context.workflow || "Agentic workflow";
   const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-  const branch = `gh-aw/pre-created/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
+  const branch = `${getPreCreatedPullRequestBranchPrefix()}${context.runId}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
 
   // Resolve the base branch the eventual pull request will target (configured base-branch,
   // otherwise the event-derived branch) so the pre-created branch is forked from the same

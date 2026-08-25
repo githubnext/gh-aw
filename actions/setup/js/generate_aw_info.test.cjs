@@ -28,6 +28,14 @@ const mockContext = {
   repo: { owner: "github", repo: "my-repo" },
 };
 
+const mockGithub = {
+  rest: {
+    actions: {
+      getWorkflowRun: vi.fn(),
+    },
+  },
+};
+
 describe("generate_aw_info.cjs", () => {
   let main;
   let awInfoPath;
@@ -64,6 +72,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_BODY_MODIFIED = "";
     process.env.GH_AW_INFO_FEATURES = "";
     process.env.GH_AW_INFO_SKILLS = "";
+    delete process.env.GH_AW_INFO_FETCH_RUN_CREATED_AT;
 
     // Dynamic import to get fresh module state
     const module = await import("./generate_aw_info.cjs");
@@ -104,6 +113,20 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.firewall_enabled).toBe(false);
     expect(awInfo.features).toBeUndefined();
     expect(awInfo.created_at).toBeTruthy();
+  });
+
+  it("should expose the authoritative run creation time when requested", async () => {
+    process.env.GH_AW_INFO_FETCH_RUN_CREATED_AT = "true";
+    mockGithub.rest.actions.getWorkflowRun.mockResolvedValue({ data: { created_at: "2026-08-24T12:00:00Z" } });
+
+    await main(mockCore, mockContext, mockGithub);
+
+    expect(mockGithub.rest.actions.getWorkflowRun).toHaveBeenCalledWith({
+      owner: "github",
+      repo: "my-repo",
+      run_id: 12345,
+    });
+    expect(mockCore.setOutput).toHaveBeenCalledWith("run_created_at", "2026-08-24T12:00:00Z");
   });
 
   it("should include features from GH_AW_INFO_FEATURES and preserve value types", async () => {

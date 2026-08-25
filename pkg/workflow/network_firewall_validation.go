@@ -20,6 +20,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var networkFirewallValidationLog = logger.New("workflow:network_firewall_validation")
@@ -156,7 +157,7 @@ func isKnownEcosystemIdentifier(id string) bool {
 // including both the base identifiers from ecosystemDomains and compound identifiers.
 func getValidEcosystemIdentifiers() []string {
 	ecosystemDomains := getLoadedEcosystemDomains()
-	ids := make([]string, 0, safeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
+	ids := make([]string, 0, typeutil.SafeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
 	for id := range ecosystemDomains {
 		ids = append(ids, id)
 	}

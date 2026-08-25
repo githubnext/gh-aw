@@ -17,6 +17,7 @@ import (
 // haiku-printer without the required `message` input, hard-failing the
 // safe_outputs job after an otherwise successful (and expensive) run.
 func TestSmokeCopilotAOAIWorkflowDispatchContract(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)

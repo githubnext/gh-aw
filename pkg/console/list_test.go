@@ -10,6 +10,7 @@ import (
 )
 
 func TestNewListItem(t *testing.T) {
+	t.Parallel()
 	item := NewListItem("Title", "Description", "value")
 
 	assert.Equal(t, "Title", item.title)
@@ -17,6 +18,7 @@ func TestNewListItem(t *testing.T) {
 }
 
 func TestShowInteractiveList_EmptyItems(t *testing.T) {
+	t.Parallel()
 	items := []ListItem{}
 	_, err := ShowInteractiveList("Test", items)
 	require.Error(t, err)

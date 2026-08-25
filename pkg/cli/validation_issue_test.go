@@ -10,6 +10,8 @@ import (
 )
 
 func TestValidationIssueJSONCompatibility(t *testing.T) {
+	t.Parallel()
+
 	compileResult := ValidationResult{
 		Workflow: "test.md",
 		Valid:    false,
@@ -82,6 +84,8 @@ func TestValidationIssueJSONCompatibility(t *testing.T) {
 }
 
 func TestValidationIssueToFindingUsesSuppliedSeverity(t *testing.T) {
+	t.Parallel()
+
 	issue := ValidationIssue{
 		Type:    "schema_validation",
 		Message: "Unknown property",

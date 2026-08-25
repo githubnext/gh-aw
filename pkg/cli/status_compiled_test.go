@@ -13,6 +13,7 @@ import (
 )
 
 func TestIsCompiledUpToDate(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Minimal valid workflow markdown

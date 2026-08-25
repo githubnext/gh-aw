@@ -567,6 +567,41 @@ process.exit(1);`,
       expect(result.stderr).toContain("invalid_request_error (HTTP 400) — not retrying");
     });
 
+    it("exits 0 when the AWF API proxy returns HTTP 403 max-AI-credits as an authentication failure", () => {
+      // Same proxy signature as the claude_harness.test.cjs regression, replayed against codex.
+      // CODEX_API_KEY is set so the `!isMissingApiKey` guard cannot suppress the budget path.
+      const tempDir = makeHarnessTempDir("codex-ai-credits-proxy-403-");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+fs.appendFileSync(process.env.CODEX_HARNESS_STUB_CALLS, "called\\n");
+process.stdout.write(JSON.stringify({ type: "error", error: "authentication_failed", message: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)." }) + "\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          GH_AW_HARNESS_MAX_RETRIES: "0",
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+
+      expect(fs.readFileSync(callsPath, "utf8").trim().split("\n")).toHaveLength(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("trusted budget-abort evidence");
+      expect(result.stderr).toContain("AI credits budget enforced");
+    });
+
     it("retries on rate limit error even without output", () => {
       const result = { exitCode: 1, hasOutput: false, output: "rate_limit_exceeded" };
       expect(shouldRetry(result, 0)).toBe(true);

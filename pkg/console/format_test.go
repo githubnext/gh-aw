@@ -5,6 +5,7 @@ package console
 import "testing"
 
 func TestFormatFileSize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		size     int64
 		expected string

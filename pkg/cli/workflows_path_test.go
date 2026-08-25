@@ -12,6 +12,7 @@ import (
 
 // TestReadWorkflowFileWithRelativePath tests that readWorkflowFile correctly handles relative paths on all platforms
 func TestReadWorkflowFileWithRelativePath(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
@@ -46,6 +47,7 @@ func TestReadWorkflowFileWithRelativePath(t *testing.T) {
 
 // TestReadWorkflowFileWithAbsolutePath tests that readWorkflowFile correctly handles absolute paths
 func TestReadWorkflowFileWithAbsolutePath(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
@@ -79,6 +81,7 @@ func TestReadWorkflowFileWithAbsolutePath(t *testing.T) {
 
 // TestReadWorkflowFilePathSeparators tests that the function works correctly regardless of path separator
 func TestReadWorkflowFilePathSeparators(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
@@ -118,6 +121,7 @@ func TestReadWorkflowFilePathSeparators(t *testing.T) {
 
 // TestReadWorkflowFileNonExistent tests error handling for non-existent files
 func TestReadWorkflowFileNonExistent(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")

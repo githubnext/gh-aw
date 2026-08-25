@@ -17,6 +17,7 @@ import (
 
 // TestIsShellcheckableShell tests the shell filter.
 func TestIsShellcheckableShell(t *testing.T) {
+	t.Parallel()
 	t.Run("empty shell defaults to bash", func(t *testing.T) {
 		assert.True(t, isShellcheckableShell(""))
 	})
@@ -45,6 +46,7 @@ func TestIsShellcheckableShell(t *testing.T) {
 
 // TestShellcheckShell verifies the --shell= argument selection.
 func TestShellcheckShell(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "bash", shellcheckShell(""))
 	assert.Equal(t, "bash", shellcheckShell("bash"))
 	assert.Equal(t, "sh", shellcheckShell("sh"))
@@ -54,6 +56,7 @@ func TestShellcheckShell(t *testing.T) {
 
 // TestExtractRunStepsFromLockFile tests YAML parsing and step extraction.
 func TestExtractRunStepsFromLockFile(t *testing.T) {
+	t.Parallel()
 	t.Run("extracts bash and sh steps", func(t *testing.T) {
 		content := `
 jobs:
@@ -215,6 +218,7 @@ jobs:
 // TestSanitizeGHAExpressions verifies that ${{ ... }} expressions are replaced
 // with a shell-safe placeholder before shellcheck runs.
 func TestSanitizeGHAExpressions(t *testing.T) {
+	t.Parallel()
 	t.Run("replaces simple expression", func(t *testing.T) {
 		assert.Equal(t, `echo __GHA_EXPR__`, sanitizeGHAExpressions(`echo ${{ github.actor }}`))
 	})
@@ -241,6 +245,7 @@ func TestSanitizeGHAExpressions(t *testing.T) {
 
 // TestStepLabel tests the diagnostic label helper.
 func TestStepLabel(t *testing.T) {
+	t.Parallel()
 	t.Run("includes step name when set", func(t *testing.T) {
 		info := runStepInfo{Name: "my step", LockFile: "/a/b/foo.lock.yml"}
 		label := stepLabel(info)
@@ -256,6 +261,7 @@ func TestStepLabel(t *testing.T) {
 
 // TestDefaultIgnoreCodes verifies the well-known false-positive codes are present.
 func TestDefaultIgnoreCodes(t *testing.T) {
+	t.Parallel()
 	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC2016")
 	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC1090")
 	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC1091")
@@ -279,6 +285,7 @@ func TestRunShellcheckOnLockFilesSkipsWhenUnavailable(t *testing.T) {
 
 // TestRunShellcheckOnLockFilesEmpty returns nil for an empty list.
 func TestRunShellcheckOnLockFilesEmpty(t *testing.T) {
+	t.Parallel()
 	err := runShellcheckOnLockFiles(context.Background(), nil, false, false)
 	assert.NoError(t, err)
 }

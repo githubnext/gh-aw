@@ -28,6 +28,7 @@ jobs:
 `
 
 func TestFilterRunnerGuardIgnoredFindings(t *testing.T) {
+	t.Parallel()
 	gitRoot := t.TempDir()
 	writeWorkflow(t, gitRoot, "inline-ignore.lock.yml", inlineIgnoreWorkflow)
 
@@ -46,6 +47,7 @@ func TestFilterRunnerGuardIgnoredFindings(t *testing.T) {
 }
 
 func TestFilterGeneratedSafeOutputPermissionFindings(t *testing.T) {
+	t.Parallel()
 	gitRoot := t.TempDir()
 	writeWorkflow(t, gitRoot, "generated.lock.yml", "# To regenerate this workflow, run:\n#   gh aw compile\njobs:\n  safe_outputs:\n")
 	writeWorkflow(t, gitRoot, "user-workflow.yml", "jobs:\n  safe_outputs:\n")
@@ -66,6 +68,7 @@ func TestFilterGeneratedSafeOutputPermissionFindings(t *testing.T) {
 }
 
 func TestHasRunnerGuardInlineIgnore(t *testing.T) {
+	t.Parallel()
 	lines := []string{
 		"      - name: Public index request", // 1
 		"        run: |",                     // 2
@@ -81,6 +84,7 @@ func TestHasRunnerGuardInlineIgnore(t *testing.T) {
 }
 
 func TestHasRunnerGuardInlineIgnoreAllowsNearbyGeneratedLineOffsets(t *testing.T) {
+	t.Parallel()
 	lines := []string{
 		"      - name: Configure host",                      // 1
 		"        run: |",                                    // 2

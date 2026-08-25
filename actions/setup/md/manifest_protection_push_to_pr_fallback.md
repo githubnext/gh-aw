@@ -1,7 +1,7 @@
 > [!WARNING]
 > **Protected Files**
 >
-> The push to pull request branch was blocked because the patch modifies protected files.
+> The push to pull request branch was blocked because the change modifies protected files.
 >
 > **Target Pull Request:** [#{pull_number}]({pr_url})
 >
@@ -19,19 +19,12 @@
 <details>
 <summary>Apply the patch after review</summary>
 
-The patch is available in the workflow run artifacts:
+The changes are available in the workflow run artifacts:
 
-**Workflow Run:** [View run details and download patch artifact]({run_url})
+**Workflow Run:** [View run details and download the artifact]({run_url})
 
 ```sh
-# Download the artifact from the workflow run
-gh run download {run_id} -n agent -D /tmp/agent-{run_id}
-
-# Apply the patch to the pull request branch
-git fetch origin {branch_name}
-git checkout {branch_name}
-git am --3way /tmp/agent-{run_id}/{patch_file_name}
-git push origin {branch_name}
+{apply_instructions}
 ```
 
 </details>

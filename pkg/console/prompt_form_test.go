@@ -3,8 +3,10 @@
 package console
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"charm.land/huh/v2"
@@ -12,8 +14,10 @@ import (
 )
 
 func TestPromptWrappersReturnNonNilForms(t *testing.T) {
+	t.Parallel()
 	var inputValue string
-	require.NotNil(t, NewInputForm(huh.NewInput().Value(&inputValue)))
+	inputForm := NewInputForm(huh.NewInput().Value(&inputValue))
+	require.NotNil(t, inputForm)
 
 	var selectValue string
 	require.NotNil(t, NewSelectForm(huh.NewSelect[string]().
@@ -24,7 +28,30 @@ func TestPromptWrappersReturnNonNilForms(t *testing.T) {
 	require.NotNil(t, NewConfirmForm(huh.NewConfirm().Value(&confirmValue)))
 }
 
+func TestPromptFormClearsCompletedQuestion(t *testing.T) {
+	t.Parallel()
+	var output bytes.Buffer
+	form := &PromptForm{out: &output, clearOnRun: true}
+
+	err := form.run(func() error { return nil })
+
+	require.NoError(t, err)
+	require.Equal(t, strings.Repeat("\n", promptReservedRows)+cursorUp(promptReservedRows)+ansiSaveCursor+"\n"+ansiRestoreCursor+ansiClearScreenBelow, output.String())
+}
+
+func TestPromptFormDoesNotClearAccessibleOrNonTTYQuestion(t *testing.T) {
+	t.Parallel()
+	var output bytes.Buffer
+	form := &PromptForm{out: &output, clearOnRun: false}
+
+	err := form.run(func() error { return nil })
+
+	require.NoError(t, err)
+	require.Equal(t, "\n", output.String())
+}
+
 func TestIsCancelled(t *testing.T) {
+	t.Parallel()
 	t.Run("returns true for huh.ErrUserAborted", func(t *testing.T) {
 		require.True(t, IsCancelled(huh.ErrUserAborted))
 	})

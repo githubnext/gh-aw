@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var exactSetupStepIDPattern = regexp.MustCompile(`(?m)^\s*id:\s*setup\s*$`)
@@ -71,7 +72,7 @@ func insertSetupStepsAtStart(steps []string, setupSteps []string) []string {
 		return steps
 	}
 
-	result := make([]string, 0, safeAllocationCapacity(len(steps), len(setupSteps)))
+	result := make([]string, 0, typeutil.SafeAllocationCapacity(len(steps), len(setupSteps)))
 	result = append(result, setupSteps...)
 	result = append(result, steps...)
 	return result
@@ -143,7 +144,7 @@ func insertPreStepsAtEarliestBoundary(steps []string, preSteps []string) []strin
 		insertIdx = len(steps)
 	}
 
-	result := make([]string, 0, safeAllocationCapacity(len(steps), len(preSteps)))
+	result := make([]string, 0, typeutil.SafeAllocationCapacity(len(steps), len(preSteps)))
 	result = append(result, steps[:insertIdx]...)
 	result = append(result, preSteps...)
 	result = append(result, steps[insertIdx:]...)

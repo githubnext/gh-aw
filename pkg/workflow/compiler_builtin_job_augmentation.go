@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
@@ -97,7 +98,7 @@ func insertActivationStepsBeforeArtifactStaging(jobName string, steps []string, 
 		}
 	}
 
-	result := make([]string, 0, safeAllocationCapacity(len(steps), len(activationSteps)))
+	result := make([]string, 0, typeutil.SafeAllocationCapacity(len(steps), len(activationSteps)))
 	result = append(result, steps[:insertIdx]...)
 	result = append(result, activationSteps...)
 	result = append(result, steps[insertIdx:]...)

@@ -13,6 +13,7 @@ import (
 )
 
 func TestSharedPRDiffDataFetchValidatesHeadSHAForCacheHit(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)
@@ -29,6 +30,7 @@ func TestSharedPRDiffDataFetchValidatesHeadSHAForCacheHit(t *testing.T) {
 }
 
 func TestTopReviewWorkflowsHaveHeadAwarePRDataCacheKeys(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)
@@ -51,6 +53,7 @@ func TestTopReviewWorkflowsHaveHeadAwarePRDataCacheKeys(t *testing.T) {
 }
 
 func TestImpeccableSkillsReviewerHasDeterministicSkillSelectionGuidance(t *testing.T) {
+	t.Parallel()
 	repoRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skipf("Skipping test: not in a git repository: %v", err)

@@ -29,7 +29,13 @@ describe("require-getexecoutput-exitcode-check", () => {
         `async function f() { const { stdout } = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: false }); }`,
         // rest element could capture exitCode; don't flag
         `async function f() { const { ...rest } = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true }); console.log(rest.exitCode); }`,
-        // spread in options can't be statically ruled out, so not flagged; but exitCode also directly accessed
+        // options composed only from a spread can't be statically resolved — out of scope
+        `async function f() { const { stdout } = await exec.getExecOutput("git", ["status"], { ...opts }); }`,
+        // trailing spread may override ignoreReturnCode with an unresolvable value — out of scope
+        `async function f() { const { stdout } = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true, ...opts }); }`,
+        // options passed as an identifier can't be statically inspected
+        `async function f() { const { stdout } = await exec.getExecOutput("git", ["status"], options); }`,
+        // explicit ignoreReturnCode: true after a spread is resolvable; exitCode is directly accessed
         `async function f() { const r = (await exec.getExecOutput("git", ["status"], { ...opts, ignoreReturnCode: true })).exitCode; }`,
         // direct member access on the awaited result
         `async function f() { const code = (await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true })).exitCode; }`,
@@ -64,6 +70,11 @@ describe("require-getexecoutput-exitcode-check", () => {
         },
         {
           code: `async function f() { return await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true }); }`,
+          errors: [{ messageId: "missingExitCodeCheck" }],
+        },
+        {
+          // explicit ignoreReturnCode: true overrides whatever the preceding spread carried
+          code: `async function f() { const { stdout } = await exec.getExecOutput("git", ["status"], { ...baseGitOpts, ignoreReturnCode: true }); }`,
           errors: [{ messageId: "missingExitCodeCheck" }],
         },
       ],

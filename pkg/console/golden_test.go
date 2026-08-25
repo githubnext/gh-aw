@@ -86,6 +86,7 @@ func TestGolden_TableRendering(t *testing.T) {
 
 // TestGolden_BoxRendering tests box rendering with various content
 func TestGolden_BoxRendering(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		title string
@@ -133,6 +134,7 @@ func TestGolden_BoxRendering(t *testing.T) {
 
 // TestGolden_ErrorFormatting tests error formatting with context
 func TestGolden_ErrorFormatting(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  CompilerError
@@ -224,6 +226,7 @@ func TestGolden_ErrorFormatting(t *testing.T) {
 
 // TestGolden_ErrorWithSuggestions tests error formatting with suggestions
 func TestGolden_ErrorWithSuggestions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		message     string
@@ -272,6 +275,7 @@ func TestGolden_ErrorWithSuggestions(t *testing.T) {
 
 // TestGolden_MessageFormatting tests various message formatting functions
 func TestGolden_MessageFormatting(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		message string
@@ -330,6 +334,7 @@ func nonTTYProgressBar(total int64) *ProgressBar {
 // ttyCheck is overridden to always return false so the tests run unconditionally,
 // even when a developer executes them in an interactive terminal.
 func TestGolden_ProgressBarNonTTY(t *testing.T) {
+	t.Parallel()
 	t.Run("determinate_0pct", func(t *testing.T) {
 		bar := nonTTYProgressBar(1024)
 		golden.RequireEqual(t, []byte(bar.Update(0)))
@@ -353,6 +358,7 @@ func TestGolden_ProgressBarNonTTY(t *testing.T) {
 
 // TestGolden_InfoSection tests info section rendering
 func TestGolden_InfoSection(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string

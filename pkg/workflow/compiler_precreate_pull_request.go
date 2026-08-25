@@ -3,6 +3,18 @@ package workflow
 import "fmt"
 
 const preCreatePullRequestAppTokenStepID = "pre-create-pull-request-app-token"
+const defaultPreCreatedPullRequestBranchPrefix = "gh-aw/pre-created/"
+
+func preCreatedPullRequestBranchPrefix(data *WorkflowData) string {
+	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BranchPrefix != "" {
+		return data.SafeOutputs.CreatePullRequests.BranchPrefix
+	}
+	return defaultPreCreatedPullRequestBranchPrefix
+}
+
+func preCreatedPullRequestBranchRef(data *WorkflowData) string {
+	return preCreatedPullRequestBranchPrefix(data) + "${{ github.run_id }}-${{ github.run_attempt }}"
+}
 
 func isPreCreatePullRequestEnabled(data *WorkflowData) bool {
 	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !isPreCreatePullRequestConfigured(data.SafeOutputs.CreatePullRequests) {
@@ -88,15 +100,31 @@ func (c *Compiler) addActivationPreCreatePullRequestStep(ctx *activationJobBuild
 	if titlePrefix := ctx.data.SafeOutputs.CreatePullRequests.TitlePrefix; titlePrefix != "" {
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", titlePrefix))
 	}
+	if branchPrefix := ctx.data.SafeOutputs.CreatePullRequests.BranchPrefix; branchPrefix != "" {
+		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH_PREFIX: %q\n", branchPrefix))
+	}
 	ctx.steps = append(ctx.steps,
 		"        with:\n",
 		fmt.Sprintf("          github-token: %s\n", token),
 		"          script: |\n",
 		generateGitHubScriptWithRequire("pre_create_pull_request.cjs"),
 	)
+	ctx.steps = append(ctx.steps,
+		"      - name: Validate pre-created pull request branch\n",
+		"        id: validate-pre-created-pull-request\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)),
+		"        env:\n",
+		"          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ steps.pre-create-pull-request.outputs.pull_request_number }}\n",
+		"          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ steps.pre-create-pull-request.outputs.branch }}\n",
+		fmt.Sprintf("          GH_AW_EXPECTED_PRE_CREATED_PULL_REQUEST_BRANCH: %s\n", preCreatedPullRequestBranchRef(ctx.data)),
+		"        with:\n",
+		fmt.Sprintf("          github-token: %s\n", token),
+		"          script: |\n",
+		generateGitHubScriptWithRequire("validate_pre_created_pull_request.cjs"),
+	)
 	ctx.outputs["pre_created_pull_request_number"] = "${{ steps.pre-create-pull-request.outputs.pull_request_number }}"
 	ctx.outputs["pre_created_pull_request_url"] = "${{ steps.pre-create-pull-request.outputs.pull_request_url }}"
-	ctx.outputs["pre_created_pull_request_branch"] = "${{ steps.pre-create-pull-request.outputs.branch }}"
+	ctx.outputs["pre_created_pull_request_branch"] = "${{ steps.validate-pre-created-pull-request.outputs.branch }}"
 	ctx.outputs["pre_created_pull_request_check_run_id"] = "${{ steps.pre-create-pull-request.outputs.check_run_id }}"
 }
 
@@ -125,6 +153,8 @@ func (c *Compiler) buildConclusionPreCreatedCheckRunStep(data *WorkflowData) []s
 		"          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ needs.activation.outputs.pre_created_pull_request_number }}\n",
 		"          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ needs.activation.outputs.pre_created_pull_request_branch }}\n",
 		"          GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER: ${{ needs.safe_outputs.outputs.created_pr_number }}\n",
+		"          GH_AW_FAILURE_ISSUE_NUMBER: ${{ steps.handle_agent_failure.outputs.failure_issue_number }}\n",
+		"          GH_AW_FAILURE_ISSUE_URL: ${{ steps.handle_agent_failure.outputs.failure_issue_url }}\n",
 	)
 	// The conclusion job runs the no-op handler before this step, so the discarded
 	// pre-created pull request can be commented with the same no-op message.

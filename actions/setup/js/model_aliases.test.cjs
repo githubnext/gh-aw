@@ -57,6 +57,19 @@ describe("reduceModelNameToIdentifier", () => {
     expect(reduceModelNameToIdentifier("Auto")).toBe("auto");
   });
 
+  it("strips the provider prefix before building the identifier", () => {
+    // "copilot/mai-code-1-flash-picker" must not collapse to the provider name ("cop10")
+    expect(reduceModelNameToIdentifier("copilot/mai-code-1-flash-picker")).toBe("mai10");
+    expect(reduceModelNameToIdentifier("copilot/claude-sonnet-4.5")).toBe("sonnet45");
+    expect(reduceModelNameToIdentifier("openai/gpt-5")).toBe("gpt50");
+    expect(reduceModelNameToIdentifier("copilot/auto")).toBe("auto");
+    expect(reduceModelNameToIdentifier("azure/openai/gpt-4o")).toBe("gpt40");
+  });
+
+  it("falls back to the full name (including slash) when there is no model part after the prefix", () => {
+    expect(reduceModelNameToIdentifier("copilot/")).toBe("cop00");
+  });
+
   it("uses fallback identifier for unrecognized longer model names", () => {
     // "unknown-model" -> compact "unknownmodel" (12 chars) -> letterPart "unk", digitPart "00" -> "unk00"
     expect(reduceModelNameToIdentifier("unknown-model")).toBe("unk00");
