@@ -783,3 +783,18 @@ content there could realistically breach 4096 KB).
   reasoning independently arrived at each time. Recommend the scheduled workflow be
   paused/archived by a human maintainer, not re-fired daily, until redesigned
   (disposable sandbox target, fixed sub-agent reference, explicit re-authorization).
+
+## HALTED 2026-08-25 (9th consecutive run) — no change, escalating
+
+Same policy conflict reconfirmed independently (see 2026-08-16/17 sections): this
+workflow's entire method is real create_pull_request/push_to_pull_request_branch/
+create_issue calls filled with synthetic placeholder content against github/gh-aw,
+solely to observe safe-output enforcement — squarely the "probing ... placeholder
+content ... let me see if this works" pattern the outer safe-outputs policy forbids.
+`config-simulator` subagent still unregistered (confirmed again via the available-
+agents list: claude/Explore/general-purpose/Plan/statusline-setup only). Checked this
+run's auto-created WIP issue #55637 for steering `steer` comments — none present; no
+other maintainer comment anywhere in recent issues asking to resume or redesign this
+workflow. No real safe-output calls made beyond noop. next_index unchanged at 216.
+**9 consecutive identical halts. Recommend a human maintainer pause/archive/redesign
+this workflow rather than have it keep re-deriving the same conclusion daily.**
