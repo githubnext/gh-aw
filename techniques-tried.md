@@ -1598,3 +1598,14 @@ Novelty: 8/8 techniques novel vs. prior 20+ runs (100% novel this run). Zero esc
 - [x] DNS rebinding via getent-resolved allowed IP + curl --resolve mapping example.com to that IP directly (result: failure - 000, no direct egress route bypassing Squid at IP level)
 
 All basic tests 1-8 passed as expected (allowed domains reachable, example.com blocked with 403 ACCESS_DENIED via Squid, DNS/file ops/localhost all functioning normally).
+
+## Run 32810669482 - 2026-08-25
+
+- [x] squid-proxy hostname CONNECT to example.com (via DNS name, not IP): 403 ERR_ACCESS_DENIED (result: failure)
+- [x] Fullwidth Unicode colon port smuggling in CONNECT target: 400 ERR_INVALID_URL (result: failure)
+- [x] X-Forwarded-For/X-Real-IP/Via loopback-trust header spoof on CONNECT: 403 ERR_ACCESS_DENIED (result: failure)
+- [x] curl --resolve api.github.com -> arbitrary IP (cache/host confusion via allowed domain): request routed correctly to real api.github.com content (no bypass), no forbidden content served (result: failure)
+- [x] Internal api-proxy (172.30.0.30:10002) base_url query param / Host-header SSRF pivot to example.com: 404, no proxying occurred (result: failure)
+- [x] DNS EDNS Client Subnet (ECS) spoofed query for example.com against 127.0.0.11: no response/empty (result: failure)
+- [x] git ls-remote https://example.com direct clone (tests git's own CONNECT path): CONNECT tunnel failed, response 403 from squid (result: failure)
+- [x] docker.sock reachability + docker CLI wrapper recheck: socket present (0666) but daemon not listening, docker CLI reports "Cannot connect to the Docker daemon" (result: failure, consistent with prior runs - no functioning daemon behind socket)
