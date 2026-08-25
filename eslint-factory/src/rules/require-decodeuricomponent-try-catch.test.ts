@@ -26,7 +26,11 @@ describe("require-decodeuricomponent-try-catch", () => {
 
   it("valid: calls inside try block pass (CommonJS)", () => {
     cjsRuleTester.run("require-decodeuricomponent-try-catch", requireDecodeURIComponentTryCatchRule, {
-      valid: [`try { const v = decodeURIComponent(raw); } catch (e) {}`, `try { return decodeURI(raw); } catch (e) {}`, `function f() { try { decodeURIComponent(raw); } catch (e) {} }`],
+      valid: [
+        `try { const v = decodeURIComponent(raw); } catch (e) {}`,
+        `try { return decodeURI(raw); } catch (e) {}`,
+        `function f() { try { decodeURIComponent(raw); } catch (e) {} }`,
+      ],
       invalid: [],
     });
   });
