@@ -335,7 +335,7 @@ func renderMCPMapProperty(yaml *strings.Builder, property string, isLast bool, m
 	case "env":
 		renderMCPEnvMap(yaml, isLast, mcpConfig, renderer, headerSecrets)
 	case "http_headers":
-		writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", renderCustomMCPHeadersTOML(mcpConfig.Headers))
+		writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", renderCustomMCPHeadersTOML(mcpConfig.Headers, headerSecrets))
 	case "headers":
 		renderMCPHeadersMap(yaml, isLast, mcpConfig, renderer, headerSecrets)
 	}
@@ -349,10 +349,10 @@ func renderMCPMapProperty(yaml *strings.Builder, property string, isLast bool, m
 // text (RGS-008). Rewriting the expression as a ${VAR} shell reference keeps the secret
 // out of the script: it is resolved by the shell from the step's `env:` mapping, which
 // already carries every secret referenced by HTTP MCP headers.
-func renderCustomMCPHeadersTOML(headers map[string]string) map[string]string {
+func renderCustomMCPHeadersTOML(headers map[string]string, headerSecrets map[string]string) map[string]string {
 	renderedHeaders := make(map[string]string, len(headers))
 	for headerKey, headerValue := range headers {
-		renderedHeaders[headerKey] = ReplaceSecretsWithShellEnvVars(headerValue, ExtractSecretsFromValue(headerValue))
+		renderedHeaders[headerKey] = ReplaceSecretsWithShellEnvVars(headerValue, headerSecrets)
 	}
 	return renderedHeaders
 }
