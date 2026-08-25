@@ -90,6 +90,19 @@ describe("trace_graders", () => {
       expect(summary).toContain("inline\\|source");
       expect(summary).toContain("unit\\|&amp;");
     });
+
+    it("escapes backslashes before pipes", () => {
+      const summary = buildGradersSummaryBody([{ id: "custom", name: "A\\|B", value: 1, unit: "count", status: "pass", source: "inline" }]);
+
+      expect(summary).toContain("| Pass | A\\\\\\|B | inline | 1 | count |");
+    });
+
+    it("surrounds the table with blank lines for details rendering", () => {
+      const summary = buildGradersSummaryBody([{ id: "custom", name: "Custom", value: 1, unit: "count", status: "pass", source: "inline" }]);
+
+      expect(summary.startsWith("\n\n")).toBe(true);
+      expect(summary.endsWith("\n\n")).toBe(true);
+    });
   });
 
   describe("archiveOperationalValueEvaluator", () => {

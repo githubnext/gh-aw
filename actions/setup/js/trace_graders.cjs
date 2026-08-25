@@ -460,6 +460,7 @@ function evaluateThreshold(value, direction, threshold) {
 function sanitizeSummaryText(value) {
   return String(value ?? "")
     .replace(/\r?\n/g, " ")
+    .replace(/\\/g, "\\\\")
     .replace(/\|/g, "\\|")
     .replace(/[<>&]/g, ch => (ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&amp;"))
     .trim();
@@ -481,7 +482,7 @@ function hasComputedValue(result) {
 function buildGradersSummaryBody(results) {
   const computedResults = results.filter(hasComputedValue);
   if (computedResults.length === 0) {
-    return "No grader values available.";
+    return "\n\nNo grader values available.\n\n";
   }
 
   const statusLabels = { pass: "Pass", fail: "Fail", error: "Error", unavailable: "Unavailable" };
@@ -490,7 +491,7 @@ function buildGradersSummaryBody(results) {
     return `| ${statusLabels[result.status] || "Unknown"} | ${sanitizeSummaryText(result.name)} | ${sanitizeSummaryText(result.source)} | ${value} | ${sanitizeSummaryText(result.unit || "—")} |`;
   });
 
-  return ["| Status | Grader | Source | Value | Unit |", "| --- | --- | --- | --- | --- |", ...rows].join("\n");
+  return ["", "", "| Status | Grader | Source | Value | Unit |", "| --- | --- | --- | --- | --- |", ...rows, "", ""].join("\n");
 }
 
 /**
