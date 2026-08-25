@@ -100,7 +100,6 @@ jobs:
           assert_success_response() {
             local label="$1"
             local http_code="$2"
-            echo "$label responded with HTTP $http_code."
             if [ "$http_code" != "200" ]; then
               echo "$label failed with HTTP $http_code."
               echo "- ❌ $label: HTTP $http_code" >> "$GITHUB_STEP_SUMMARY"
@@ -112,6 +111,7 @@ jobs:
               fi
               exit 1
             fi
+            echo "$label responded with HTTP $http_code."
 
             read_json_response
             if ! jq -e . "$json_file" >/dev/null 2>&1; then
@@ -139,8 +139,8 @@ jobs:
           session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ { gsub(/\r/, "", $2); print $2; exit }' "$initialize_headers_file")"
           session_args=()
           if [ -n "$session_id" ]; then
-            session_args=(-H "Mcp-Session-Id: $session_id")
             echo "::add-mask::$session_id"
+            session_args=(-H "Mcp-Session-Id: $session_id")
             log_info "initialize: received an Mcp-Session-Id header"
           else
             log_info "initialize: no Mcp-Session-Id header returned"
