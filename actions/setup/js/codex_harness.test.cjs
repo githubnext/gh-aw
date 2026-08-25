@@ -31,6 +31,8 @@ const {
   resolveRetryConfig,
   resolveContextRebuildCircuitBreakerConfig,
   evaluateContextRebuildCircuitBreaker,
+  readWorkingSetFromTokenUsage,
+  TOKEN_USAGE_PATHS,
   DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
   DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
   DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS,
@@ -261,6 +263,40 @@ describe("codex_harness.cjs", () => {
           config
         ).terminate
       ).toBe(false);
+    });
+
+    it("falls back to the default cumulative floor for fractional overrides below one token", () => {
+      const cfg = resolveContextRebuildCircuitBreakerConfig({
+        GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS: "0.5",
+      });
+      expect(cfg.minCumulativeInputTokens).toBe(DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
+    });
+
+    it("skips token-usage candidates whose measurements are unavailable", () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
+      const malformed = path.join(dir, "malformed.jsonl");
+      const valid = path.join(dir, "valid.jsonl");
+      fs.writeFileSync(malformed, "not json\n{oops\n");
+      fs.writeFileSync(valid, `${JSON.stringify({ input_tokens: 100 })}\n${JSON.stringify({ input_tokens: 900 })}\n`);
+      try {
+        const workingSet = readWorkingSetFromTokenUsage([malformed, valid]);
+        expect(workingSet).not.toBeNull();
+        expect(workingSet.measurement_state).toBe("measured");
+        expect(workingSet.cumulative_input_tokens).toBe(1000);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns null when no candidate yields usable measurements", () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
+      const malformed = path.join(dir, "malformed.jsonl");
+      fs.writeFileSync(malformed, "not json\n");
+      try {
+        expect(readWorkingSetFromTokenUsage([malformed, path.join(dir, "missing.jsonl")])).toBeNull();
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 
@@ -1074,6 +1110,63 @@ process.exit(1);`,
       expect(result.status).toBe(1);
       // The watchdog-suppression path must not have fired
       expect(result.stderr).not.toContain("late-activity exit suppressed");
+    });
+  });
+
+  describe("context rebuild circuit breaker termination", () => {
+    it("stops and fails the run when the guard fires even if the process exits 0 on SIGTERM", () => {
+      const tempDir = makeHarnessTempDir("codex-rebuild-breaker-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      const tokenUsagePath = TOKEN_USAGE_PATHS[0];
+      const tokenUsageExisted = fs.existsSync(tokenUsagePath);
+      if (tokenUsageExisted) return; // never clobber a real token-usage log
+      fs.mkdirSync(path.dirname(tokenUsagePath), { recursive: true });
+      fs.writeFileSync(tokenUsagePath, [100, 100, 100].map(t => JSON.stringify({ input_tokens: t })).join("\n") + "\n", "utf8");
+      // Stub stays alive until SIGTERM, then exits cleanly (exit code 0). Without the
+      // guard-fired normalization this would be misreported as a successful run.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("rebuilding context...\\n");
+process.on("SIGTERM", () => process.exit(0));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "do the work", "utf8");
+
+      try {
+        const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+          cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+          env: {
+            ...process.env,
+            CODEX_HARNESS_STUB_CALLS: callsPath,
+            GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+            CODEX_API_KEY: "fake-key-for-test",
+            GH_AW_HARNESS_MAX_RETRIES: "1",
+            GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+            GH_AW_CODEX_MAX_REBUILD_FACTOR: "2",
+            GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS: "10",
+            GH_AW_CODEX_REBUILD_GUARD_POLL_MS: "1000",
+            GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS: "250",
+          },
+          encoding: "utf8",
+          timeout: 20000,
+        });
+        const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+        // The circuit breaker stops the retry loop after the first attempt.
+        expect(callCount).toBe(1);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("runtime guard requested termination");
+        expect(result.stderr).toContain("normalizing exit code to 1");
+        expect(result.stderr).toContain("not retrying (circuit breaker)");
+      } finally {
+        fs.rmSync(tokenUsagePath, { force: true });
+      }
     });
   });
 

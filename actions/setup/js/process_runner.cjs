@@ -113,6 +113,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
       settled = true;
       if (postResultWatchdogTimer) clearInterval(postResultWatchdogTimer);
       if (runtimeGuardTimer) clearInterval(runtimeGuardTimer);
+      if (runtimeGuardKillTimer) clearTimeout(runtimeGuardKillTimer);
       if (stallWatchdogTimer) clearInterval(stallWatchdogTimer);
       resolve(result);
     }
@@ -148,6 +149,8 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     let postResultWatchdogTimer = null;
     /** @type {NodeJS.Timeout | null} */
     let runtimeGuardTimer = null;
+    /** @type {NodeJS.Timeout | null} */
+    let runtimeGuardKillTimer = null;
     /** @type {NodeJS.Timeout | null} */
     let stallWatchdogTimer = null;
     const stallIntervalMs = Number.isFinite(Number(stallWarningIntervalMs)) ? Math.max(0, Number(stallWarningIntervalMs)) : resolveStallWarningIntervalMs(env ?? process.env);
@@ -240,14 +243,17 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     }
 
     if (runtimeGuard && typeof runtimeGuard.shouldTerminate === "function") {
+      // SIGKILL escalation uses a dedicated timeout rather than the poll interval so the
+      // grace period is honoured exactly, even when the guard polls infrequently.
+      const escalateToSigkill = () => {
+        runtimeGuardKillTimer = null;
+        if (settled || sentSigkillAt > 0) return;
+        sentSigkillAt = Date.now();
+        log(`attempt ${attempt + 1}: runtime guard forcing process exit after ${runtimeGuardTermGraceMs}ms grace (SIGKILL)`);
+        child.kill("SIGKILL");
+      };
       runtimeGuardTimer = setInterval(() => {
         if (settled) return;
-        if (runtimeGuardFired && sentSigtermAt > 0 && sentSigkillAt === 0 && Date.now() - sentSigtermAt >= runtimeGuardTermGraceMs) {
-          sentSigkillAt = Date.now();
-          log(`attempt ${attempt + 1}: runtime guard forcing process exit after ${runtimeGuardTermGraceMs}ms grace (SIGKILL)`);
-          child.kill("SIGKILL");
-          return;
-        }
         if (runtimeGuardFired || sentSigtermAt > 0) return;
         /** @type {boolean | { terminate: boolean, reason?: string }} */
         let decision = false;
@@ -259,11 +265,16 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         const terminate = typeof decision === "boolean" ? decision : !!decision && decision.terminate === true;
         if (!terminate) return;
         runtimeGuardFired = true;
-        runtimeGuardReason = typeof decision === "object" && typeof decision.reason === "string" ? decision.reason : "";
+        runtimeGuardReason = typeof decision === "object" && decision !== null && typeof decision.reason === "string" ? decision.reason : "";
         const reasonSuffix = runtimeGuardReason ? ` (${runtimeGuardReason})` : "";
         sentSigtermAt = Date.now();
         log(`attempt ${attempt + 1}: runtime guard requested termination${reasonSuffix} (SIGTERM)`);
         child.kill("SIGTERM");
+        if (runtimeGuardTimer) {
+          clearInterval(runtimeGuardTimer);
+          runtimeGuardTimer = null;
+        }
+        runtimeGuardKillTimer = setTimeout(escalateToSigkill, runtimeGuardTermGraceMs);
       }, runtimeGuardPollIntervalMs);
     }
 

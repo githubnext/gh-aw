@@ -544,13 +544,17 @@ function resolveContextRebuildCircuitBreakerConfig(env = process.env) {
   return {
     enabled,
     maxRebuildFactor: Number.isFinite(maxRebuildFactorRaw) && maxRebuildFactorRaw > 1 ? maxRebuildFactorRaw : DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
-    minCumulativeInputTokens: Number.isFinite(minCumulativeInputTokensRaw) && minCumulativeInputTokensRaw > 0 ? Math.floor(minCumulativeInputTokensRaw) : DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
+    minCumulativeInputTokens: Number.isFinite(minCumulativeInputTokensRaw) && Math.floor(minCumulativeInputTokensRaw) >= 1 ? Math.floor(minCumulativeInputTokensRaw) : DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
     pollIntervalMs: Number.isFinite(pollIntervalRaw) && pollIntervalRaw > 0 ? Math.max(1000, Math.floor(pollIntervalRaw)) : DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS,
     termGraceMs: Number.isFinite(termGraceRaw) && termGraceRaw > 0 ? Math.max(250, Math.floor(termGraceRaw)) : DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS,
   };
 }
 
 /**
+ * Returns the working set from the first candidate that yields usable measurements.
+ * Candidates whose contents are missing, empty, or unparseable (`measurement_state`
+ * of `"unavailable"`) are skipped so a stale or malformed file cannot mask a later
+ * valid token-usage source and silently disable the circuit breaker.
  * @param {string[]} paths
  * @returns {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null}
  */
@@ -562,7 +566,9 @@ function readWorkingSetFromTokenUsage(paths = TOKEN_USAGE_PATHS) {
       if (!stat || stat.size <= 0) continue;
       const content = fs.readFileSync(candidate, "utf8");
       if (!content.trim()) continue;
-      return calculateWorkingSetFromJSONL(content).workingSet;
+      const workingSet = calculateWorkingSetFromJSONL(content).workingSet;
+      if (!workingSet || workingSet.measurement_state === "unavailable") continue;
+      return workingSet;
     } catch {
       continue;
     }
@@ -739,6 +745,13 @@ async function main() {
             }
           : undefined,
       });
+      // A guard-terminated run must never be reported as a success: Codex may handle SIGTERM
+      // and exit cleanly, and `runHarnessRetryLoop` short-circuits on exitCode 0 before
+      // `handleFailure` runs. Normalize the exit code so the failure handler always sees it.
+      if (result.runtimeGuardFired && result.exitCode === 0) {
+        log(`attempt ${attempt + 1}: runtime guard fired but process exited 0 — normalizing exit code to 1`);
+        return { ...result, exitCode: 1, safeOutputsByteOffset };
+      }
       return { ...result, safeOutputsByteOffset };
     },
     handleFailure: ({ attempt, result }) => {
