@@ -29,7 +29,7 @@
     "@primer/octicons": "^19.33.0",
     "astro": "^7.2.2",
     "astro-mermaid": "^2.1.0",
-    "mermaid": "^11.16.1",
+    "mermaid": "^11.17.0",
     "pdfjs-dist": "^6.2.108",
     "sharp": "^0.35.3",
     "starlight-blog": "^0.28.0",
