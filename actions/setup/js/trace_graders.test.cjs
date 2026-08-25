@@ -20,6 +20,7 @@ const {
   runBuiltinGrader,
   runCustomGrader,
   normalizeResult,
+  buildGradersSummaryBody,
   evaluateThreshold,
   BUILTIN_GRADERS,
   BUILTIN_META,
@@ -68,6 +69,29 @@ function makeTrace(overrides = {}) {
 }
 
 describe("trace_graders", () => {
+  describe("buildGradersSummaryBody", () => {
+    it("renders all computed grader values without emojis", () => {
+      const summary = buildGradersSummaryBody([
+        { id: "tool-success-rate", name: "Tool success rate", value: 0.98765, unit: "ratio", status: "pass", source: "builtin" },
+        { id: "custom", name: "Custom", value: 2, unit: "count", status: "fail", source: "inline" },
+        { id: "unavailable", name: "Unavailable", value: null, unit: "", status: "unavailable", source: "builtin" },
+      ]);
+
+      expect(summary).toContain("| Pass | Tool success rate | builtin | 0.9877 | ratio |");
+      expect(summary).toContain("| Fail | Custom | inline | 2 | count |");
+      expect(summary).not.toContain("Unavailable");
+      expect(summary).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+    });
+
+    it("escapes untrusted table cells", () => {
+      const summary = buildGradersSummaryBody([{ id: "custom", name: "Custom | <grader>", value: 1, unit: "unit|&", status: "pass", source: "inline|source" }]);
+
+      expect(summary).toContain("Custom \\| &lt;grader&gt;");
+      expect(summary).toContain("inline\\|source");
+      expect(summary).toContain("unit\\|&amp;");
+    });
+  });
+
   describe("archiveOperationalValueEvaluator", () => {
     it("writes only evaluator bytes matching the frozen digest", () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "operational-value-evaluator-archive-"));

@@ -460,8 +460,29 @@ function evaluateThreshold(value, direction, threshold) {
 function sanitizeSummaryText(value) {
   return String(value ?? "")
     .replace(/\r?\n/g, " ")
+    .replace(/\|/g, "\\|")
     .replace(/[<>&]/g, ch => (ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&amp;"))
     .trim();
+}
+
+/**
+ * Build the Graders section body for the GitHub Actions step summary.
+ * @param {GraderResult[]} results
+ * @returns {string}
+ */
+function buildGradersSummaryBody(results) {
+  const computedResults = results.filter(result => result.value !== null);
+  if (computedResults.length === 0) {
+    return "No grader values available.";
+  }
+
+  const statusLabels = { pass: "Pass", fail: "Fail", error: "Error", unavailable: "Unavailable" };
+  const rows = computedResults.map(result => {
+    const value = String(Number(result.value.toFixed(4)));
+    return `| ${statusLabels[result.status] || "Unknown"} | ${sanitizeSummaryText(result.name)} | ${sanitizeSummaryText(result.source)} | ${value} | ${sanitizeSummaryText(result.unit || "—")} |`;
+  });
+
+  return ["| Status | Grader | Source | Value | Unit |", "| --- | --- | --- | --- | --- |", ...rows].join("\n");
 }
 
 /**
@@ -806,25 +827,7 @@ async function main(manifestB64, execSpecB64) {
   }
 
   // Step summary
-  core.summary.addHeading("Graders", 3);
-  const tableResults = results.filter(r => r.status !== "unavailable");
-  if (tableResults.length > 0) {
-    const rows = tableResults.map(r => {
-      const statusIcon = r.status === "pass" ? "✅" : r.status === "fail" ? "❌" : "⚠️";
-      const val = r.value !== null ? String(Number(r.value.toFixed(4))) : "—";
-      return [statusIcon, sanitizeSummaryText(r.name), r.source, val, sanitizeSummaryText(r.unit || "—")];
-    });
-    core.summary.addTable([
-      [
-        { data: "", header: true },
-        { data: "Grader", header: true },
-        { data: "Source", header: true },
-        { data: "Value", header: true },
-        { data: "Unit", header: true },
-      ],
-      ...rows,
-    ]);
-  }
+  core.summary.addDetails("Graders", buildGradersSummaryBody(results));
   const errResults = results.filter(r => r.error);
   if (errResults.length > 0) {
     const errLines = errResults.map(r => `- **${sanitizeSummaryText(r.id)}**: runtime error (see step logs)`).join("\n");
@@ -850,6 +853,7 @@ module.exports = {
   runCustomGrader,
   runOperationalValueGrader,
   normalizeResult,
+  buildGradersSummaryBody,
   evaluateThreshold,
   BUILTIN_GRADERS,
   BUILTIN_META,
