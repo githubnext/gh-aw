@@ -2,7 +2,8 @@
 private: true
 emoji: "🧪"
 description: Smoke test to validate common development tools are available in the agent container
-on: 
+on:
+  schedule: every 2 days
   slash_command:
     name: smoke-test-tools
     strategy: centralized
