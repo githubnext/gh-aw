@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"maps"
 	"strings"
 
@@ -303,7 +304,30 @@ const (
 
 // GitHubReposScope represents the repository scope for guard policy enforcement
 // Can be one of: "all", "public", or an array of repository patterns
-type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
+type GitHubReposScope []string
+
+// UnmarshalYAML normalizes scalar and array repository scopes to a string slice.
+func (s *GitHubReposScope) UnmarshalYAML(unmarshal func(any) error) error {
+	var single string
+	if err := unmarshal(&single); err == nil {
+		*s = GitHubReposScope{single}
+		return nil
+	}
+
+	var many []any
+	if err := unmarshal(&many); err != nil {
+		return err
+	}
+	*s = make(GitHubReposScope, 0, len(many))
+	for _, value := range many {
+		repo, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("repository scope entries must be strings, got %T", value)
+		}
+		*s = append(*s, repo)
+	}
+	return nil
+}
 
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings

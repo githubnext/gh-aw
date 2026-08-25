@@ -3,10 +3,44 @@
 package workflow
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/types"
+	"gopkg.in/yaml.v3"
 )
+
+func TestGitHubReposScopeUnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    GitHubReposScope
+		wantErr bool
+	}{
+		{name: "scalar", input: "all", want: GitHubReposScope{"all"}},
+		{name: "array", input: "[owner/repo, owner/*]", want: GitHubReposScope{"owner/repo", "owner/*"}},
+		{name: "non-string array item", input: "[owner/repo, 42]", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var scope GitHubReposScope
+			err := yaml.Unmarshal([]byte(tt.input), &scope)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected unmarshal error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unmarshal GitHubReposScope: %v", err)
+			}
+			if !reflect.DeepEqual(tt.want, scope) {
+				t.Errorf("scope = %v, want %v", scope, tt.want)
+			}
+		})
+	}
+}
 
 func TestNewTools(t *testing.T) {
 	t.Run("creates empty tools from nil map", func(t *testing.T) {
@@ -252,6 +286,28 @@ func TestGitHubConfigParsing(t *testing.T) {
 
 		if len(config.Toolset) != 2 {
 			t.Errorf("expected 2 toolsets, got %d", len(config.Toolset))
+		}
+	})
+
+	t.Run("normalizes repository scopes", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			value any
+			want  GitHubReposScope
+		}{
+			{name: "scalar", value: "all", want: GitHubReposScope{"all"}},
+			{name: "array", value: []any{"owner/repo", "owner/*"}, want: GitHubReposScope{"owner/repo", "owner/*"}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				tools := NewTools(map[string]any{
+					"github": map[string]any{"allowed-repos": tt.value},
+				})
+				if !reflect.DeepEqual(tt.want, tools.GitHub.AllowedRepos) {
+					t.Errorf("AllowedRepos = %v, want %v", tools.GitHub.AllowedRepos, tt.want)
+				}
+			})
 		}
 	})
 

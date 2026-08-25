@@ -48,36 +48,12 @@ func hasGuardPolicyFields(github *workflow.GitHubToolConfig) bool {
 // "public", or an array of repository patterns) as a human-readable string
 // for the dry-run report.
 func formatGuardPolicyReposScope(scope workflow.GitHubReposScope) string {
-	switch v := scope.(type) {
-	case nil:
+	if len(scope) == 0 {
 		return "all (default)"
-	case string:
-		if v == "" {
-			return "all (default)"
-		}
-		return v
-	case []any:
-		patterns := make([]string, 0, len(v))
-		for _, item := range v {
-			if s, ok := item.(string); ok && s != "" {
-				patterns = append(patterns, s)
-			}
-		}
-		sort.Strings(patterns)
-		if len(patterns) == 0 {
-			return "all (default)"
-		}
-		return strings.Join(patterns, ", ")
-	case []string:
-		patterns := append([]string(nil), v...)
-		sort.Strings(patterns)
-		if len(patterns) == 0 {
-			return "all (default)"
-		}
-		return strings.Join(patterns, ", ")
-	default:
-		return fmt.Sprintf("%v", v)
 	}
+	patterns := append([]string(nil), scope...)
+	sort.Strings(patterns)
+	return strings.Join(patterns, ", ")
 }
 
 // buildGuardPolicyDryRunReport builds a guardPolicyDryRunReport for a

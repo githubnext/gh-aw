@@ -77,6 +77,27 @@ func parseCommaSeparatedOrNewlineList(s string) []string {
 	return result
 }
 
+func parseGitHubReposScope(value any) GitHubReposScope {
+	switch repos := value.(type) {
+	case string:
+		return GitHubReposScope{repos}
+	case []string:
+		return GitHubReposScope(repos)
+	case []any:
+		result := make(GitHubReposScope, 0, len(repos))
+		for _, repo := range repos {
+			value, ok := repo.(string)
+			if !ok {
+				return GitHubReposScope{}
+			}
+			result = append(result, value)
+		}
+		return result
+	default:
+		return GitHubReposScope{}
+	}
+}
+
 // toAnySlice converts a []string to []any for storage in a map[string]any.
 func toAnySlice(ss []string) []any {
 	out := make([]any, len(ss))
@@ -295,13 +316,14 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 
 		// Parse guard policy fields (flat syntax: allowed-repos/repos and min-integrity directly under github:)
 		if allowedRepos, ok := configMap["allowed-repos"]; ok {
-			config.AllowedRepos = allowedRepos // Store as-is, validation will happen later
+			config.AllowedRepos = parseGitHubReposScope(allowedRepos)
 		} else if repos, ok := configMap["repos"]; ok {
 			// Deprecated: use 'allowed-repos' instead of 'repos'.
 			// The deprecation warning is emitted by the generic schema-driven walker in
 			// warnDeprecatedFrontmatterFields; no extra hard-coded warning is needed here.
-			config.AllowedRepos = repos // Populate canonical field for validation
+			config.AllowedRepos = parseGitHubReposScope(repos)
 		}
+
 		if integrity, ok := configMap["min-integrity"].(string); ok {
 			config.MinIntegrity = GitHubIntegrityLevel(integrity)
 		}
