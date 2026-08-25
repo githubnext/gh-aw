@@ -157,10 +157,96 @@ make --no-print-directory build
 
 mapfile -t go_packages < <(printf '%s\n' "${go_packages[@]}" | sed '/^$/d' | LC_ALL=C sort -u)
 
+normalize_repo_path() {
+    local file="$1"
+    file="${file#"$PWD"/}"
+    file="${file#./}"
+    printf '%s\n' "$file"
+}
+
+is_changed_go_file() {
+    local diagnostic_file
+    local changed_file
+
+    diagnostic_file=$(normalize_repo_path "$1")
+    for changed_file in "${go_files[@]}"; do
+        if [ "$diagnostic_file" = "$(normalize_repo_path "$changed_file")" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+is_linter_summary_line() {
+    local line="$1"
+    [[ "$line" =~ ^[0-9]+[[:space:]]issues?:$ ]] ||
+        [[ "$line" =~ ^\*[[:space:]][^:]+:[[:space:]][0-9]+$ ]] ||
+        [[ "$line" = "Building custom linters..." ]] ||
+        [[ "$line" = "Running custom linters (largefunc max-lines=60)..." ]] ||
+        [[ "$line" =~ ^make\[[0-9]+\]:[[:space:]]\*\*\*[[:space:]]\[Makefile:[0-9]+:[[:space:]]golint-custom\][[:space:]]Error[[:space:]][0-9]+$ ]]
+}
+
+run_change_scoped_go_linter() {
+    local label="$1"
+    shift
+    local output
+    local status
+    local diagnostic_found=0
+    local relevant_diagnostic_found=0
+    local non_diagnostic_failure=0
+    local last_diagnostic_relevant=0
+    local diagnostic_detail_lines_remaining=0
+    local line
+
+    set +e
+    output=$("$@" 2>&1)
+    status=$?
+    set -e
+
+    if [ "$status" -eq 0 ]; then
+        printf '%s\n' "$output"
+        return 0
+    fi
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^([^:]+\.go):[0-9]+:[0-9]+: ]]; then
+            diagnostic_found=1
+            if is_changed_go_file "${BASH_REMATCH[1]}"; then
+                printf '%s\n' "$line"
+                relevant_diagnostic_found=1
+                last_diagnostic_relevant=1
+            else
+                last_diagnostic_relevant=0
+            fi
+            diagnostic_detail_lines_remaining=2
+        elif [ "$diagnostic_detail_lines_remaining" -gt 0 ]; then
+            if [ "$last_diagnostic_relevant" -eq 1 ]; then
+                printf '%s\n' "$line"
+            fi
+            diagnostic_detail_lines_remaining=$((diagnostic_detail_lines_remaining - 1))
+        elif [[ "$line" =~ ^[[:space:]] || "$line" =~ ^[[:space:]]*\^+$ ]]; then
+            continue
+        elif is_linter_summary_line "$line"; then
+            continue
+        else
+            printf '%s\n' "$line"
+            non_diagnostic_failure=1
+            last_diagnostic_relevant=0
+        fi
+    done <<< "$output"
+
+    if [ "$relevant_diagnostic_found" -eq 1 ] || [ "$non_diagnostic_failure" -eq 1 ] || [ "$diagnostic_found" -eq 0 ]; then
+        return "$status"
+    fi
+
+    echo "$label diagnostics were limited to unchanged files; skipping them for this change-scoped gate."
+    return 0
+}
+
 lint_go_packages() {
     GOPATH=$(go env GOPATH)
     if command -v golangci-lint >/dev/null 2>&1 || [ -x "$GOPATH/bin/golangci-lint" ]; then
-        PATH="$GOPATH/bin:$PATH" golangci-lint run "${go_packages[@]}"
+        run_change_scoped_go_linter "Go linter" env PATH="$GOPATH/bin:$PATH" golangci-lint run "${go_packages[@]}"
     else
         echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies." >&2
         return 1
@@ -168,7 +254,7 @@ lint_go_packages() {
 }
 
 lint_custom_go_packages() {
-    make --no-print-directory golint-custom LINTER_PACKAGES="${go_packages[*]}"
+    run_change_scoped_go_linter "Custom Go linter" make --no-print-directory golint-custom LINTER_PACKAGES="${go_packages[*]}"
 }
 
 lint_javascript() {

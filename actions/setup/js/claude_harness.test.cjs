@@ -30,6 +30,12 @@ const {
 } = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
+const harnessChildEnv = {
+  ...process.env,
+  GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+  GH_AW_HARNESS_MAX_DELAY_MS: "1",
+  GH_AW_SKIP_REFLECT: "true",
+};
 
 function makeHarnessTempDir(name) {
   fs.mkdirSync(agentTempDir, { recursive: true });
@@ -46,7 +52,7 @@ function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = []
 
   const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", ...extraArgs, "--prompt-file", promptPath], {
     cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-    env: { ...process.env, ...extraEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath },
+    env: { ...harnessChildEnv, ...extraEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath },
     encoding: "utf8",
     timeout: 45000,
   });
@@ -896,7 +902,7 @@ process.exit(0);`,
 
       const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-        env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        env: { ...harnessChildEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -928,7 +934,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-        env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        env: { ...harnessChildEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -975,7 +981,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-        env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
+        env: { ...harnessChildEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -1008,7 +1014,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./claude_harness.cjs")),
-        env: { ...process.env, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
+        env: { ...harnessChildEnv, CLAUDE_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -1040,7 +1046,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./claude_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           CLAUDE_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_AGENT_OUTPUT: agentOutputPath,
@@ -1077,7 +1083,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./claude_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           CLAUDE_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_HARNESS_MAX_RETRIES: "0",
@@ -1112,7 +1118,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["claude_harness.cjs", process.execPath, stubPath, "--print", "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./claude_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           CLAUDE_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_HARNESS_MAX_RETRIES: "0",
