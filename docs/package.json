@@ -33,7 +33,7 @@
     "pdfjs-dist": "^6.2.108",
     "sharp": "^0.35.3",
     "starlight-blog": "^0.29.0",
-    "starlight-changelogs": "^0.5.1",
+    "starlight-changelogs": "^0.6.0",
     "starlight-links-validator": "^0.25.3",
     "yaml": "^2.9.0"
   },
