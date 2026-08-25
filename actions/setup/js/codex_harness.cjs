@@ -543,7 +543,9 @@ function resolveContextRebuildCircuitBreakerConfig(env = process.env) {
   const termGraceRaw = Number(env.GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS);
   return {
     enabled,
-    maxRebuildFactor: Number.isFinite(maxRebuildFactorRaw) && maxRebuildFactorRaw > 1 ? maxRebuildFactorRaw : DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
+    // A rebuild factor of exactly 1 means "no rebuild at all", so it is accepted as the
+    // most aggressive valid threshold; anything below 1 is not a reachable factor.
+    maxRebuildFactor: Number.isFinite(maxRebuildFactorRaw) && maxRebuildFactorRaw >= 1 ? maxRebuildFactorRaw : DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
     minCumulativeInputTokens: Number.isFinite(minCumulativeInputTokensRaw) && Math.floor(minCumulativeInputTokensRaw) >= 1 ? Math.floor(minCumulativeInputTokensRaw) : DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
     pollIntervalMs: Number.isFinite(pollIntervalRaw) && pollIntervalRaw > 0 ? Math.max(1000, Math.floor(pollIntervalRaw)) : DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS,
     termGraceMs: Number.isFinite(termGraceRaw) && termGraceRaw > 0 ? Math.max(250, Math.floor(termGraceRaw)) : DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS,
@@ -551,20 +553,32 @@ function resolveContextRebuildCircuitBreakerConfig(env = process.env) {
 }
 
 /**
- * Returns the working set from the first candidate that yields usable measurements.
- * Candidates whose contents are missing, empty, or unparseable (`measurement_state`
- * of `"unavailable"`) are skipped so a stale or malformed file cannot mask a later
- * valid token-usage source and silently disable the circuit breaker.
+ * Returns the working set from the most recently written candidate that yields usable
+ * measurements. Candidates are ordered by modification time (newest first) so the breaker
+ * tracks the active run rather than whichever path happens to be listed first, and
+ * candidates that are missing, empty, or unparseable (`measurement_state` of
+ * `"unavailable"`) are skipped so a stale or malformed file cannot silently disable it.
+ * File access is asynchronous to avoid blocking the driver's event loop while polling.
  * @param {string[]} paths
- * @returns {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null}
+ * @returns {Promise<ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null>}
  */
-function readWorkingSetFromTokenUsage(paths = TOKEN_USAGE_PATHS) {
+async function readWorkingSetFromTokenUsage(paths = TOKEN_USAGE_PATHS) {
+  /** @type {{ path: string, mtimeMs: number }[]} */
+  const candidates = [];
   for (const candidate of paths) {
+    if (!candidate) continue;
     try {
-      if (!candidate || !fs.existsSync(candidate)) continue;
-      const stat = fs.statSync(candidate);
-      if (!stat || stat.size <= 0) continue;
-      const content = fs.readFileSync(candidate, "utf8");
+      const stat = await fs.promises.stat(candidate);
+      if (!stat.isFile() || stat.size <= 0) continue;
+      candidates.push({ path: candidate, mtimeMs: stat.mtimeMs });
+    } catch {
+      continue;
+    }
+  }
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  for (const candidate of candidates) {
+    try {
+      const content = await fs.promises.readFile(candidate.path, "utf8");
       if (!content.trim()) continue;
       const workingSet = calculateWorkingSetFromJSONL(content).workingSet;
       if (!workingSet || workingSet.measurement_state === "unavailable") continue;
@@ -731,8 +745,8 @@ async function main() {
           ? {
               pollIntervalMs: contextRebuildCircuitBreaker.pollIntervalMs,
               termGraceMs: contextRebuildCircuitBreaker.termGraceMs,
-              shouldTerminate: () =>
-                evaluateContextRebuildCircuitBreaker(readWorkingSetFromTokenUsage(TOKEN_USAGE_PATHS), {
+              shouldTerminate: async () =>
+                evaluateContextRebuildCircuitBreaker(await readWorkingSetFromTokenUsage(TOKEN_USAGE_PATHS), {
                   maxRebuildFactor: contextRebuildCircuitBreaker.maxRebuildFactor,
                   minCumulativeInputTokens: contextRebuildCircuitBreaker.minCumulativeInputTokens,
                 }),

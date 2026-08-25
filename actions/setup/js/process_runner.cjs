@@ -81,7 +81,7 @@ function sleep(ms) {
  *     termGraceMs?: number
  *   },
  *   runtimeGuard?: {
- *     shouldTerminate: () => boolean | { terminate: boolean, reason?: string },
+ *     shouldTerminate: () => boolean | { terminate: boolean, reason?: string } | Promise<boolean | { terminate: boolean, reason?: string }>,
  *     pollIntervalMs?: number,
  *     termGraceMs?: number
  *   },
@@ -137,8 +137,12 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     let watchdogArmed = false;
     let runtimeGuardFired = false;
     let runtimeGuardReason = "";
-    let sentSigtermAt = 0;
-    let sentSigkillAt = 0;
+    // Each termination source tracks its own SIGTERM/SIGKILL timestamps so the two
+    // grace periods never interfere with one another.
+    let watchdogSentSigtermAt = 0;
+    let watchdogSentSigkillAt = 0;
+    let guardSentSigtermAt = 0;
+    let guardSentSigkillAt = 0;
     const watchdogPollIntervalMs = Math.max(50, Number(postResultWatchdog?.pollIntervalMs) || 1000);
     const watchdogTermGraceMs = Math.max(50, Number(postResultWatchdog?.termGraceMs) || 5000);
     const runtimeGuardPollIntervalMs = Math.max(50, Number(runtimeGuard?.pollIntervalMs) || 1000);
@@ -226,17 +230,15 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         }
         if (!watchdogArmed) return;
         const idleMs = Date.now() - lastActivityAt;
-        if (sentSigtermAt === 0 && idleMs >= watchdogInactivityTimeoutMs) {
-          sentSigtermAt = Date.now();
+        if (watchdogSentSigtermAt === 0 && idleMs >= watchdogInactivityTimeoutMs) {
+          watchdogSentSigtermAt = Date.now();
           log(`attempt ${attempt + 1}: post-result watchdog terminating idle process after ${idleMs}ms (SIGTERM)`);
           child.kill("SIGTERM");
           return;
         }
-        const termGraceMs = runtimeGuardFired ? runtimeGuardTermGraceMs : watchdogTermGraceMs;
-        if (sentSigtermAt > 0 && sentSigkillAt === 0 && Date.now() - sentSigtermAt >= termGraceMs) {
-          sentSigkillAt = Date.now();
-          const source = runtimeGuardFired ? "runtime guard" : "post-result watchdog";
-          log(`attempt ${attempt + 1}: ${source} forcing process exit after ${termGraceMs}ms grace (SIGKILL)`);
+        if (watchdogSentSigtermAt > 0 && watchdogSentSigkillAt === 0 && Date.now() - watchdogSentSigtermAt >= watchdogTermGraceMs) {
+          watchdogSentSigkillAt = Date.now();
+          log(`attempt ${attempt + 1}: post-result watchdog forcing process exit after ${watchdogTermGraceMs}ms grace (SIGKILL)`);
           child.kill("SIGKILL");
         }
       }, watchdogPollIntervalMs);
@@ -247,27 +249,33 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
       // grace period is honoured exactly, even when the guard polls infrequently.
       const escalateToSigkill = () => {
         runtimeGuardKillTimer = null;
-        if (settled || sentSigkillAt > 0) return;
-        sentSigkillAt = Date.now();
+        if (settled || guardSentSigkillAt > 0) return;
+        guardSentSigkillAt = Date.now();
         log(`attempt ${attempt + 1}: runtime guard forcing process exit after ${runtimeGuardTermGraceMs}ms grace (SIGKILL)`);
         child.kill("SIGKILL");
       };
-      runtimeGuardTimer = setInterval(() => {
-        if (settled) return;
-        if (runtimeGuardFired || sentSigtermAt > 0) return;
+      // Guards against overlapping polls when `shouldTerminate` is asynchronous.
+      let guardCheckInFlight = false;
+      runtimeGuardTimer = setInterval(async () => {
+        if (settled || guardCheckInFlight) return;
+        if (runtimeGuardFired) return;
+        guardCheckInFlight = true;
         /** @type {boolean | { terminate: boolean, reason?: string }} */
         let decision = false;
         try {
-          decision = runtimeGuard.shouldTerminate();
+          decision = await runtimeGuard.shouldTerminate();
         } catch {
           decision = false;
+        } finally {
+          guardCheckInFlight = false;
         }
+        if (settled || runtimeGuardFired) return;
         const terminate = typeof decision === "boolean" ? decision : !!decision && decision.terminate === true;
         if (!terminate) return;
         runtimeGuardFired = true;
         runtimeGuardReason = typeof decision === "object" && decision !== null && typeof decision.reason === "string" ? decision.reason : "";
         const reasonSuffix = runtimeGuardReason ? ` (${runtimeGuardReason})` : "";
-        sentSigtermAt = Date.now();
+        guardSentSigtermAt = Date.now();
         log(`attempt ${attempt + 1}: runtime guard requested termination${reasonSuffix} (SIGTERM)`);
         child.kill("SIGTERM");
         if (runtimeGuardTimer) {
@@ -290,7 +298,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
       // crashes (e.g. SIGSYS) are visible to exit-code-based retry classification even
       // when the shell/runtime never reports a raw numeric exit status.
       const exitCode = code ?? exitCodeForSignal(signal) ?? 1;
-      const watchdogFired = sentSigtermAt > 0 && !runtimeGuardFired;
+      const watchdogFired = watchdogSentSigtermAt > 0;
       log(
         `attempt ${attempt + 1}: process closed` +
           ` exitCode=${exitCode}` +

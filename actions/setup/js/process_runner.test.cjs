@@ -340,6 +340,35 @@ describe("process_runner.cjs", () => {
       expect(elapsed).toBeLessThan(5000);
     });
 
+    it("supports an asynchronous shouldTerminate without overlapping polls", async () => {
+      const logs = [];
+      let inFlight = 0;
+      let maxInFlight = 0;
+      let checks = 0;
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setInterval(() => process.stdout.write('.'), 20);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        runtimeGuard: {
+          shouldTerminate: async () => {
+            inFlight += 1;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            await new Promise(resolve => setTimeout(resolve, 60));
+            inFlight -= 1;
+            checks += 1;
+            return checks < 2 ? false : { terminate: true, reason: "async guard tripped" };
+          },
+          pollIntervalMs: 25,
+          termGraceMs: 200,
+        },
+      });
+      expect(maxInFlight).toBe(1);
+      expect(result.runtimeGuardFired).toBe(true);
+      expect(result.runtimeGuardReason).toContain("async guard tripped");
+      expect(result.watchdogFired).toBe(false);
+    });
+
     it("does not enable watchdog when inactivityTimeoutMs is missing or invalid", async () => {
       const logs = [];
       const result = await runProcess({

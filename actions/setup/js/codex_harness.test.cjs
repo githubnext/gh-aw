@@ -272,14 +272,37 @@ describe("codex_harness.cjs", () => {
       expect(cfg.minCumulativeInputTokens).toBe(DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
     });
 
-    it("skips token-usage candidates whose measurements are unavailable", () => {
+    it("does not trip when rebuild_factor is just below the threshold", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 3.99, cumulative_input_tokens: 2000 }, config).terminate).toBe(false);
+    });
+
+    it("trips when rebuild_factor is exactly at the threshold", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 4, cumulative_input_tokens: 2000 }, config).terminate).toBe(true);
+    });
+
+    it("does not trip for null, empty, or non-finite working sets", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(evaluateContextRebuildCircuitBreaker(null, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({}, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: Number.NaN, cumulative_input_tokens: 5000 }, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: Number.POSITIVE_INFINITY, cumulative_input_tokens: 5000 }, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 9, cumulative_input_tokens: Number.NaN }, config).terminate).toBe(false);
+    });
+
+    it("accepts a rebuild factor threshold of exactly 1", () => {
+      expect(resolveContextRebuildCircuitBreakerConfig({ GH_AW_CODEX_MAX_REBUILD_FACTOR: "1" }).maxRebuildFactor).toBe(1);
+    });
+
+    it("skips token-usage candidates whose measurements are unavailable", async () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
       const malformed = path.join(dir, "malformed.jsonl");
       const valid = path.join(dir, "valid.jsonl");
       fs.writeFileSync(malformed, "not json\n{oops\n");
       fs.writeFileSync(valid, `${JSON.stringify({ input_tokens: 100 })}\n${JSON.stringify({ input_tokens: 900 })}\n`);
       try {
-        const workingSet = readWorkingSetFromTokenUsage([malformed, valid]);
+        const workingSet = await readWorkingSetFromTokenUsage([malformed, valid]);
         expect(workingSet).not.toBeNull();
         expect(workingSet.measurement_state).toBe("measured");
         expect(workingSet.cumulative_input_tokens).toBe(1000);
@@ -288,12 +311,30 @@ describe("codex_harness.cjs", () => {
       }
     });
 
-    it("returns null when no candidate yields usable measurements", () => {
+    it("prefers the most recently written token-usage candidate", async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
+      const stale = path.join(dir, "stale.jsonl");
+      const fresh = path.join(dir, "fresh.jsonl");
+      fs.writeFileSync(stale, `${JSON.stringify({ input_tokens: 7 })}\n`);
+      fs.writeFileSync(fresh, `${JSON.stringify({ input_tokens: 500 })}\n${JSON.stringify({ input_tokens: 500 })}\n`);
+      const now = Date.now() / 1000;
+      fs.utimesSync(stale, now - 600, now - 600);
+      fs.utimesSync(fresh, now, now);
+      try {
+        // `stale` is listed first, but `fresh` has the newer mtime and must win.
+        const workingSet = await readWorkingSetFromTokenUsage([stale, fresh]);
+        expect(workingSet.cumulative_input_tokens).toBe(1000);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns null when no candidate yields usable measurements", async () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
       const malformed = path.join(dir, "malformed.jsonl");
       fs.writeFileSync(malformed, "not json\n");
       try {
-        expect(readWorkingSetFromTokenUsage([malformed, path.join(dir, "missing.jsonl")])).toBeNull();
+        expect(await readWorkingSetFromTokenUsage([malformed, path.join(dir, "missing.jsonl")])).toBeNull();
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }
@@ -1121,8 +1162,9 @@ process.exit(1);`,
       const promptPath = path.join(tempDir, "prompt.txt");
       const callsPath = path.join(tempDir, "calls.jsonl");
       const tokenUsagePath = TOKEN_USAGE_PATHS[0];
-      const tokenUsageExisted = fs.existsSync(tokenUsagePath);
-      if (tokenUsageExisted) return; // never clobber a real token-usage log
+      // Preserve any pre-existing token-usage log so the test never destroys real data,
+      // while still always executing its assertions.
+      const previousTokenUsage = fs.existsSync(tokenUsagePath) ? fs.readFileSync(tokenUsagePath) : null;
       fs.mkdirSync(path.dirname(tokenUsagePath), { recursive: true });
       fs.writeFileSync(tokenUsagePath, [100, 100, 100].map(t => JSON.stringify({ input_tokens: t })).join("\n") + "\n", "utf8");
       // Stub stays alive until SIGTERM, then exits cleanly (exit code 0). Without the
@@ -1165,7 +1207,11 @@ setInterval(() => {}, 1000);`,
         expect(result.stderr).toContain("normalizing exit code to 1");
         expect(result.stderr).toContain("not retrying (circuit breaker)");
       } finally {
-        fs.rmSync(tokenUsagePath, { force: true });
+        if (previousTokenUsage === null) {
+          fs.rmSync(tokenUsagePath, { force: true });
+        } else {
+          fs.writeFileSync(tokenUsagePath, previousTokenUsage);
+        }
       }
     });
   });
