@@ -1,7 +1,7 @@
 # ADR-55703: Split Over-Length Compiler Functions into Named Helpers
 
 **Date**: 2026-08-25
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -42,4 +42,4 @@ A more aggressive restructuring — for example, a `CompilerConfigResolver` type
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent]. Reviewed and accepted: the implemented changes (`resolveToolsAndConfig`, `buildSafeOutputsSetupSteps`, `buildSafeOutputsDownloadSteps`, `buildSafeOutputsUserProvidedSteps`) match this decision with no logic or control flow changes.*
