@@ -1,6 +1,6 @@
 ---
 title: Using Pi with GitHub Agentic Workflows
-description: Select and authenticate the Pi AI engine for GitHub Agentic Workflows (gh-aw), configure its required proxies, understand its limitations, and start from an example.
+description: Select and authenticate the Pi AI engine for GitHub Agentic Workflows, configure its required proxies, understand its limitations, and start from an example.
 ---
 
 GitHub Agentic Workflows (`gh-aw`) includes Pi as a provider-agnostic AI engine. GitHub Actions runs Pi from the same Markdown workflow format as the stable engines, but Pi has additional tool requirements and selects authentication from the provider prefix in `model:`.

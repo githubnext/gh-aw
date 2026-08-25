@@ -1,6 +1,6 @@
 ---
 title: Using GitHub Copilot with GitHub Agentic Workflows
-description: Select and authenticate GitHub Copilot as the AI engine for GitHub Agentic Workflows (gh-aw), understand its capabilities and limitations, and start from an example.
+description: Select and authenticate GitHub Copilot as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
 ---
 
 GitHub Agentic Workflows (`gh-aw`) uses GitHub Copilot as its default AI engine. GitHub Actions runs the Copilot agent from a Markdown workflow, while `gh-aw` supplies event routing, sandbox controls, and safe outputs for controlled repository writes.
@@ -65,7 +65,7 @@ Choose GitHub Agentic Workflows for scheduled or event-driven automation, Markdo
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
 - [Examples by task](/gh-aw/examples/)
-- [AI issue triage](/gh-aw/guides/ai-issue-triage/)
-- [Automated AI pull request review](/gh-aw/guides/automated-pr-review/)
-- [AI-generated release notes and reports](/gh-aw/guides/ai-release-notes/)
-- [Keeping documentation up to date automatically](/gh-aw/guides/docs-automation/)
+- [AI issue triage](/gh-aw/examples/ai-issue-triage/)
+- [Automated AI pull request review](/gh-aw/examples/automated-pr-review/)
+- [AI-generated release notes and reports](/gh-aw/examples/ai-release-notes/)
+- [Keeping documentation up to date automatically](/gh-aw/examples/docs-automation/)

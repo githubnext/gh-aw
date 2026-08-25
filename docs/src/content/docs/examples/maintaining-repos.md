@@ -138,26 +138,13 @@ This is useful in monorepo or multi-repo setups where the agent should only read
 
 ### Quick Start: AI-Assisted Debugging
 
-The fastest path to a root cause is to hand the failing run URL to the Copilot CLI:
+For any AI assistant or coding agent, share the URL to the standalone debugging prompt:
+
 
 ```bash
-copilot
-```
+Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
 
-Inside the CLI:
-
-```text
-agentic-workflows
-
-Debug this run: https://github.com/OWNER/REPO/actions/runs/RUN_ID
-```
-
-The agent loads the `debug-agentic-workflow` prompt, audits the run, and explains what went wrong. Follow up with specific questions about blocked domains, missing tools, or safe-output failures.
-
-On GitHub.com with [agentic authoring configured](/gh-aw/guides/agentic-authoring/):
-
-```text
-agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 ### Manual Debugging with CLI Commands

@@ -14,6 +14,7 @@ permissions:
 
 
 tracker-id: linter-miner
+model: copilot/gpt-5.4
 engine:
   id: copilot
   copilot-sdk: true
@@ -62,8 +63,8 @@ pre-agent-steps:
         echo "[]" > /tmp/gh-aw/agent/prior-linters.json
       fi
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[linter-miner] "
     labels: [automation, go-linters, cookie]
     reviewers: [copilot]
@@ -213,7 +214,7 @@ Be concise. List at most 5 candidates.
 ## agent: `code-pattern-scanner`
 ---
 description: Scans the Go source with Serena and grep to find error-prone patterns that would benefit from a custom linter
-model: large
+model: copilot/gpt-5.4
 ---
 You are a Go static-analysis expert. Scan the non-test Go files under `pkg/` and `cmd/` of this repository for recurring error-prone patterns that are not already caught by existing linters.
 
@@ -230,7 +231,7 @@ Output a JSON array of candidate linter ideas (same schema as discussion-miner).
 ## agent: `linter-writer`
 ---
 description: Implements a new Go analysis linter package following the pkg/linters/largefunc conventions
-model: large
+model: copilot/gpt-5.4
 ---
 You are a Go engineer implementing a custom `go/analysis` linter.
 

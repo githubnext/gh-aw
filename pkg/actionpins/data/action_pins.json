@@ -78,10 +78,10 @@
       "version": "v7.0.0",
       "sha": "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"
     },
-    "actions/setup-java@v5.7.0": {
+    "actions/setup-java@v6.0.0": {
       "repo": "actions/setup-java",
-      "version": "v5.7.0",
-      "sha": "b6effb05e454b25005698d916606bdc6ffcbf961"
+      "version": "v6.0.0",
+      "sha": "dd06d9cba3e5552c54d9f8ea23572deb30010f7c"
     },
     "actions/setup-node@v7.0.0": {
       "repo": "actions/setup-node",

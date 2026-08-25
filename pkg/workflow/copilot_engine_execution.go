@@ -230,8 +230,12 @@ func (e *CopilotEngine) buildCopilotArgs(workflowData *WorkflowData) []string {
 	isDetectionJob := isDetectionRun(workflowData)
 	copilotArgs := e.buildCopilotBaseArgs(sandboxEnabled)
 
-	// Add --disable-builtin-mcps to disable built-in MCP servers
-	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
+	// Disable Copilot CLI built-in MCP servers unless a workflow opts into
+	// web-fetch. The CLI exposes web_fetch through its built-in tool schema, so
+	// disabling built-ins would leave --allow-tool web_fetch with no callable tool.
+	if !copilotNeedsBuiltinMCPs(workflowData) {
+		copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
+	}
 	// Add --no-ask-user to enable fully autonomous runs (suppresses interactive prompts).
 	// Emitted for both agent and detection jobs when the Copilot CLI version supports it
 	// (v1.0.19+). Latest and unspecified versions always include the flag.
@@ -239,6 +243,7 @@ func (e *CopilotEngine) buildCopilotArgs(workflowData *WorkflowData) []string {
 		copilotExecLog.Print("Adding --no-ask-user for fully autonomous run")
 		copilotArgs = append(copilotArgs, "--no-ask-user")
 	}
+
 	// Add --agent flag if specified via engine.agent
 	// Note: Agent imports (.github/agents/*.md) still work for importing markdown content,
 	// but they do NOT automatically set the --agent flag. Only engine.agent controls the flag.
@@ -255,6 +260,14 @@ func (e *CopilotEngine) buildCopilotArgs(workflowData *WorkflowData) []string {
 		copilotArgs = append(copilotArgs, "--autopilot", "--max-autopilot-continues", strconv.Itoa(maxCont))
 	}
 	return e.buildCopilotFeatureArgs(workflowData, copilotArgs)
+}
+
+func copilotNeedsBuiltinMCPs(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.Tools == nil {
+		return false
+	}
+	_, hasWebFetch := workflowData.Tools["web-fetch"]
+	return hasWebFetch
 }
 
 func (e *CopilotEngine) buildCopilotBaseArgs(sandboxEnabled bool) []string {

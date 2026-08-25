@@ -129,7 +129,7 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "agent resolves to agent artifact and output fallback",
 			sets:     []string{"agent"},
-			expected: []string{constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 		},
 		{
 			name:     "mcp resolves to agent artifact",
@@ -169,12 +169,12 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "multiple sets are merged and deduplicated",
 			sets:     []string{"activation", "agent"},
-			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.ActivationArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 		},
 		{
 			name:     "github-api and agent deduplicates agent",
 			sets:     []string{"github-api", "agent"},
-			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.ActivationArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 		},
 	}
 

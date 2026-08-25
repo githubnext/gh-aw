@@ -1,6 +1,6 @@
 ---
 title: Using Google Gemini with GitHub Agentic Workflows
-description: Select and authenticate Google Gemini as the AI engine for GitHub Agentic Workflows (gh-aw), understand its capabilities and limitations, and start from an example.
+description: Select and authenticate Google Gemini as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
 ---
 
 Google Gemini is Google's model family for coding and repository analysis. GitHub Agentic Workflows (`gh-aw`) runs the Gemini CLI through GitHub Actions from a Markdown workflow and adds GitHub event triggers, sandbox controls, and safe outputs for constrained, reviewable automation.
@@ -52,7 +52,7 @@ Gemini supports top-level `max-turns`, custom API targets, and per-command bash 
 
 ## GitHub Agentic Workflows vs. running Gemini directly in Actions
 
-Choose GitHub Agentic Workflows when the workflow should be authored in Markdown, share one structure across engines, and route configured GitHub writes through validated safe outputs. Run Gemini directly in Actions when the job needs a custom script pipeline and all security and review controls are managed manually.
+Running coding agent CLIs directly in GitHub Actions without an adequate security architecture is not recommended. We recommend the use of GitHub Agentic Workflows, giving simple workflow definitions in Markdown, the `gh-aw` security architecture, portability across AI engines, and using safe outputs for validated GitHub writes.
 
 ## Related pages
 
@@ -61,7 +61,7 @@ Choose GitHub Agentic Workflows when the workflow should be authored in Markdown
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
 - [Examples by task](/gh-aw/examples/)
-- [AI issue triage](/gh-aw/guides/ai-issue-triage/)
-- [Automated AI pull request review](/gh-aw/guides/automated-pr-review/)
-- [AI-generated release notes and reports](/gh-aw/guides/ai-release-notes/)
-- [Keeping documentation up to date automatically](/gh-aw/guides/docs-automation/)
+- [AI issue triage](/gh-aw/examples/ai-issue-triage/)
+- [Automated AI pull request review](/gh-aw/examples/automated-pr-review/)
+- [AI-generated release notes and reports](/gh-aw/examples/ai-release-notes/)
+- [Keeping documentation up to date automatically](/gh-aw/examples/docs-automation/)

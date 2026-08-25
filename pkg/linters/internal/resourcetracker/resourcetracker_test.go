@@ -64,11 +64,13 @@ var testAnalyzer = resourcetracker.NewAnalyzer(resourcetracker.Config[types.Obje
 })
 
 func TestAnalyzer(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, testAnalyzer, "resourcetracker")
 }
 
 func TestNewAnalyzerMetadata(t *testing.T) {
+	t.Parallel()
 	if testAnalyzer.Name != "resourcetrackertest" {
 		t.Errorf("Name = %q, want %q", testAnalyzer.Name, "resourcetrackertest")
 	}

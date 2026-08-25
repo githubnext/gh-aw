@@ -23,3 +23,4 @@ Add your repository-specific standards here, for example:
 - For workflows that will be enforced by repository or organization pull request rulesets, keep workflow/job names stable for required checks and use `inlined-imports: true` when imports are present
 - When documenting or recommending Copilot authentication, state that `permissions: { copilot-requests: write }` uses `${{ github.token }}` for inference and does not require a PAT or `COPILOT_GITHUB_TOKEN` secret
 - When you need prior art for workflow design, shared components, tool configuration, or safe-output patterns, use GitHub APIs or `gh` to inspect `https://github.com/gm3dmo/the-power` before inventing a new pattern
+- When authoring or reasoning about an `operational-value` grader, use the `operational value designer` skill (`/operational-value-designer`) to infer operational value from the target agentic workflow before finalizing the grader contract

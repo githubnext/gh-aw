@@ -81,7 +81,7 @@ A response pattern used by the `gh aw` MCP server's `logs` tool when a gateway t
 
 ### QMD Documentation Search (`qmd:`)
 
-A built-in tool that provides vector similarity search over documentation files. Configured via `tools.qmd:` in frontmatter, the `qmd` tool runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query. The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`. Supports indexing from repository checkouts, GitHub code search queries, and cache-only read-only mode. See [QMD Documentation Search](/gh-aw/reference/qmd/).
+A built-in tool that provides vector similarity search over documentation files. Configured via `tools.qmd:` in frontmatter, the `qmd` tool runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query. The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`. Supports indexing from repository checkouts, GitHub code search queries, and cache-only read-only mode. See [QMD Documentation Search](/gh-aw/experimental/qmd/).
 
 ### Tools
 
@@ -200,7 +200,7 @@ The simplest useful unit for measuring workflow effectiveness. An outcome is acc
 
 ### Outcome Efficiency
 
-A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
+A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/practices/measuring-impact/).
 
 ### Pwn Request
 
@@ -1010,7 +1010,7 @@ A frontmatter field that enables OpenTelemetry trace
 export from workflow runs. It supports single-endpoint and
 multi-endpoint OTLP export with optional headers.
 
-See [OpenTelemetry](/gh-aw/guides/open-telemetry/) for
+See [OpenTelemetry](/gh-aw/reference/open-telemetry/) for
 setup, runtime variables, and span semantics.
 
 ### OTLP If-Missing (`observability.otlp.if-missing`)
@@ -1019,11 +1019,11 @@ Controls behavior when OTLP endpoint or header values resolve to empty at runtim
 
 ### OTLP Resource Attributes (`observability.otlp.resource-attributes`)
 
-A frontmatter option that appends custom key/value pairs to the standard gh-aw and GitHub resource attribute set exported with each OTLP trace. Use static strings or GitHub Actions expressions. Do not use `secrets.*` or `vars.*` values because resource attributes are sent to external observability backends and are not treated as secret values. See [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-resource-attributes).
+A frontmatter option that appends custom key/value pairs to the standard gh-aw and GitHub resource attribute set exported with each OTLP trace. Use static strings or GitHub Actions expressions. Do not use `secrets.*` or `vars.*` values because resource attributes are sent to external observability backends and are not treated as secret values. See [OpenTelemetry](/gh-aw/reference/open-telemetry/#custom-resource-attributes).
 
 ### Custom Span (`logSpan`)
 
-A telemetry API provided by the `otlp.cjs` helper that lets shared workflow imports emit their own OTLP spans alongside built-in gh-aw telemetry. Call `otlp.logSpan(toolName, attributes, options)` inside a `github-script` step to attach domain-specific measurements to the same distributed trace as the workflow run. The function is non-fatal and never throws — export failures are surfaced as warnings. See [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-spans-from-shared-imports).
+A telemetry API provided by the `otlp.cjs` helper that lets shared workflow imports emit their own OTLP spans alongside built-in gh-aw telemetry. Call `otlp.logSpan(toolName, attributes, options)` inside a `github-script` step to attach domain-specific measurements to the same distributed trace as the workflow run. The function is non-fatal and never throws — export failures are surfaced as warnings. See [OpenTelemetry](/gh-aw/reference/open-telemetry/#custom-spans-from-shared-imports).
 
 ### Activation Steps (`jobs.activation.steps`)
 
@@ -1233,7 +1233,7 @@ A CLI command that orchestrates full workflow rollout to a target repository in 
 
 ### `gh aw env`
 
-A CLI command that reads and writes [`GH_AW_DEFAULT_*`](#gh_aw_default_) governance variables as GitHub Actions variables at enterprise, organization, or repository scope. Use `gh aw env get` to export current values to a YAML file and `gh aw env update` to apply changes from a YAML file. Supports `--dry-run` to preview changes before applying and `--yes` to skip the confirmation prompt in automation. Defaults percolate through scopes following a most-specific-wins model: workflow frontmatter overrides repository variables, which override organization variables, which override enterprise defaults. See [Governance](/gh-aw/guides/governance/).
+A CLI command that reads and writes [`GH_AW_DEFAULT_*`](#gh_aw_default_) governance variables as GitHub Actions variables at enterprise, organization, or repository scope. Use `gh aw env get` to export current values to a YAML file and `gh aw env update` to apply changes from a YAML file. Supports `--dry-run` to preview changes before applying and `--yes` to skip the confirmation prompt in automation. Defaults percolate through scopes following a most-specific-wins model: workflow frontmatter overrides repository variables, which override organization variables, which override enterprise defaults. See [Governance](/gh-aw/reference/governance/).
 
 ### AI Credits (AIC)
 
@@ -1459,7 +1459,7 @@ A family of boolean GitHub Actions variables that enforce runtime capability gat
 Currently defined:
 - `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` — disables `safe-outputs.create-pull-request` when set to `"false"`.
 
-See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide) and [Runtime Policy Variables](/gh-aw/reference/environment-variables/#runtime-policy-variables).
+See [Governance](/gh-aw/reference/governance/#disabling-create-pull-request-org-wide) and [Runtime Policy Variables](/gh-aw/reference/environment-variables/#runtime-policy-variables).
 
 ### `GH_DEBUG=api`
 
@@ -1605,6 +1605,18 @@ A unique identifier enabling external monitoring and coordination without bidire
 ### Workflow Inputs
 
 Parameters provided when manually triggering a workflow with `workflow_dispatch`. Defined in the `on.workflow_dispatch.inputs` section with type, description, default value, and required status.
+
+### Workflow Documentation URL (`metadata.docs`)
+
+An optional field under top-level `metadata:` frontmatter holding an absolute HTTPS URL to human-facing documentation for a workflow. The compiler preserves the value in the generated lock file's metadata without fetching it or altering workflow execution. See [Frontmatter Reference](/gh-aw/reference/frontmatter-full/).
+
+### Graders (`graders:`)
+
+Deterministic, non-LLM checks that compute metrics from a workflow run's post-agent execution trace. Configured under the top-level `graders:` frontmatter field; an empty map (`graders: {}`) enables all built-in graders with default settings, and omitting the field disables grading entirely. Built-in graders cover tool success rate, retries, loop detection, trajectory efficiency, execution duration, and similar metrics. Custom inline graders run a trusted, sandboxed JavaScript expression against the preprocessed `trace` object. Graders are an experimental feature. See [Graders Reference](/gh-aw/reference/trace-graders/).
+
+### Operational Value Grader (`graders.operational-value`)
+
+A reserved grader that evaluates operational repository outcomes using a repository-relative Bash evaluator script, frozen at compile time with its SHA-256 digest recorded for reproducibility. It returns an absolute operational attainment value in `[0,1]` for the run's assigned case, alongside the evaluation's evidence timestamp, maturity, and provenance. A frozen baseline is optional metadata used to derive `deltaFromBaseline` without changing the primary operational value. The evaluator receives the workflow token via `GH_TOKEN` with the agent job's declared permissions, but not workflow secrets, and enabling the grader does not add evidence permissions to the agent job. Historical runs can be recomputed with `gh aw graders operational-value <run-id> --evidence-at <timestamp>`. See [Graders Reference](/gh-aw/reference/trace-graders/#operational-value-grader) and the `operational value designer` skill (`/operational-value-designer`) for inferring operational value from an agentic workflow.
 
 ## Operational Patterns
 

@@ -2,7 +2,8 @@
 private: true
 emoji: "🧪"
 description: Smoke Copilot - AOAI (apikey)
-on: 
+on:
+  schedule: every 2 days
   slash_command:
     name: smoke-copilot-aoai-apikey
     strategy: centralized

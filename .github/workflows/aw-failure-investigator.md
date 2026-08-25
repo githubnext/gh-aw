@@ -64,6 +64,7 @@ imports:
 
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+  - shared/graders.md
 steps:
   - name: Deterministic pre-fetch for failure analysis
     env:
@@ -346,6 +347,7 @@ evals:
     question: Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?
   - id: issues_created_or_closed
     question: Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?
+
 ---
 
 # [aw] Failure Investigator (6h)

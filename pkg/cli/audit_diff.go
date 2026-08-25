@@ -992,7 +992,7 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 	// Firewall audit logs are now included in the unified agent artifact.
 	// Skip silently when the artifact was intentionally excluded to avoid spurious warnings.
 	var analysis *FirewallAnalysis
-	if artifactMatchesFilter(constants.AgentArtifactName, artifactFilter) {
+	if artifactMatchesFilter(constants.AgentArtifactName.String(), artifactFilter) {
 		var err error
 		analysis, err = analyzeFirewallLogs(runOutputDir, verbose)
 		if err != nil {

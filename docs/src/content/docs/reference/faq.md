@@ -1,6 +1,6 @@
 ---
 title: GitHub Agentic Workflows FAQ
-description: Answers about GitHub Agentic Workflows (gh-aw), GitHub Actions, AI engines, workflow security, permissions, costs, and configuration.
+description: Answers about GitHub Agentic Workflows, GitHub Actions, AI engines, workflow security, permissions, costs, and configuration.
 sidebar:
   order: 50
 head:
@@ -17,7 +17,7 @@ head:
             "name": "What is GitHub Agentic Workflows?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "GitHub Agentic Workflows (gh-aw) lets developers define AI-powered repository automation in Markdown with YAML frontmatter, compile it into GitHub Actions workflows, and run AI agents with configurable security controls. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi."
+              "text": "GitHub Agentic Workflows lets developers define AI-powered repository automation in Markdown with YAML frontmatter, compile it into GitHub Actions workflows, and run AI agents with configurable security controls. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi."
             }
           },
           {
@@ -774,9 +774,9 @@ See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) fo
 
 - [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/) — install `gh-aw` and run a first workflow
 - [Create a GitHub Agentic Workflow](/gh-aw/setup/creating-workflows/) — author Markdown instructions and compile them into GitHub Actions
-- [AI Issue Triage on GitHub](/gh-aw/guides/ai-issue-triage/) — labeling, deduplication, and clarifying questions
-- [Automated AI Pull Request Review](/gh-aw/guides/automated-pr-review/) — review diffs and post feedback on new PRs
-- [AI Release Notes and Reports](/gh-aw/guides/ai-release-notes/) — generate release summaries automatically
-- [Keeping Documentation Up to Date Automatically](/gh-aw/guides/docs-automation/) — propose docs updates as pull requests
+- [AI Issue Triage on GitHub](/gh-aw/examples/ai-issue-triage/) — labeling, deduplication, and clarifying questions
+- [Automated AI Pull Request Review](/gh-aw/examples/automated-pr-review/) — review diffs and post feedback on new PRs
+- [AI Release Notes and Reports](/gh-aw/examples/ai-release-notes/) — generate release summaries automatically
+- [Keeping Documentation Up to Date Automatically](/gh-aw/examples/docs-automation/) — propose docs updates as pull requests
 - [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) — compare Copilot, Claude Code, Codex, Gemini, and Pi
 - [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) — understand configurable permissions, isolation, and controlled writes

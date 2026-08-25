@@ -189,7 +189,7 @@ func validateArtifactName(name string) error {
 // criticalArtifactNames lists the artifact names that are essential for audit analysis.
 // When a bulk download fails partially (e.g., due to non-zip artifacts), these artifacts
 // are retried individually so that flattening and audit extraction have data to work with.
-var criticalArtifactNames = []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName}
+var criticalArtifactNames = []string{constants.ActivationArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()}
 
 // retryCriticalArtifacts downloads critical artifacts individually when the bulk download
 // was only partially successful. gh run download aborts on the first non-zip artifact,

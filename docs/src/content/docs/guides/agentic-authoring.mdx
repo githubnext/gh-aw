@@ -35,10 +35,6 @@ Make sure to commit and push the files to your repository.
    thumbnail="/gh-aw/videos/create-workflow-on-github.png"
 />
 
-> [!TIP]
-> On the first run in a new repository, the workflow will surely fail because the secrets are not configured.
-> The agentic workflow should detect the missing tokens and create an issue with instructions on how to configure them.
-
 ## Remixing Workflows Between Repositories
 
 When you need to adapt an existing workflow from another repository, use the `create-agentic-agent` to perform AI-assisted migration. The agent analyzes the source workflow, identifies dependencies, adapts configuration for your repository, and validates the result. This is useful for forking workflows as starting points or one-time migrations requiring substantial changes. For synchronized updates across repositories, use [Reusing Workflows](/gh-aw/guides/reusing-workflows/) with `gh aw add` instead.
@@ -50,23 +46,6 @@ Adapt permissions and repository-specific references for our structure.
 ```
 
 ## Debugging Workflows
-
-Use the `agentic-workflows` skill to diagnose and fix failing workflow runs.
-
-### Through Copilot
-
-If your repository is [configured for agentic authoring](#configuring-your-repository), use the `agentic-workflows` skill in Copilot Chat:
-
-```text wrap
-agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
-```
-
-The coding agent audits the run, identifies the root cause (missing tools, permission errors, network blocks), and suggests targeted fixes.
-
-> [!TIP]
-> Copy this prompt, replace `OWNER`, `REPO`, and `RUN_ID` with your values, and paste it into Copilot Chat. You can find the run URL on the GitHub Actions run page.
-
-### Self-Contained (with URL)
 
 For any AI assistant or coding agent, share the URL to the standalone debugging prompt:
 

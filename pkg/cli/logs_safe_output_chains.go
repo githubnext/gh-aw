@@ -106,7 +106,7 @@ func loadResolvedTemporaryIDTargets(logsPath string) (map[string]resolvedTempora
 		return nil, ""
 	}
 
-	content, err := os.ReadFile(filepath.Join(logsPath, constants.TemporaryIdMapFilename))
+	content, err := os.ReadFile(filepath.Join(logsPath, constants.TemporaryIdMapFilename.String()))
 	if err != nil || len(content) == 0 {
 		return nil, temporaryIDMapStatusMissing
 	}
@@ -123,7 +123,11 @@ func safeOutputArtifactsPresent(logsPath string) bool {
 		return false
 	}
 
-	for _, filename := range []string{safeOutputItemsManifestFilename, constants.TemporaryIdMapFilename} {
+	for _, filename := range []string{
+		safeOutputItemsManifestFilename,
+		constants.TemporaryIdMapFilename.String(),
+		constants.SafeOutputErrorsFilename,
+	} {
 		if _, err := os.Stat(filepath.Join(logsPath, filename)); err == nil {
 			return true
 		}
