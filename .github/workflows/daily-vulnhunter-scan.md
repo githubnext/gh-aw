@@ -134,8 +134,8 @@ safe-outputs:
     close-older-issues: true
     max: 1
   noop:
-timeout-minutes: 30
-max-turns: 40
+timeout-minutes: 45
+max-turns: 80
 strict: true
 network:
   allowed:
