@@ -28,7 +28,7 @@ const PLACEHOLDER_DEST_KEY = "-:-";
 const ERROR_DOMAIN_PREFIX = "error:";
 const AGENT_TOKEN_USAGE_PATH = "/tmp/gh-aw/usage/agent/token_usage.jsonl";
 
-function findFiles(rootDir, shouldIncludeFile) {
+function findFiles(rootDir, shouldIncludeFile, maxDepth = Number.POSITIVE_INFINITY, currentDepth = 0) {
   if (!fs.existsSync(rootDir)) {
     return [];
   }
@@ -44,7 +44,9 @@ function findFiles(rootDir, shouldIncludeFile) {
   for (const entry of entries) {
     const entryPath = path.join(rootDir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...findFiles(entryPath, shouldIncludeFile));
+      if (currentDepth < maxDepth) {
+        files.push(...findFiles(entryPath, shouldIncludeFile, maxDepth, currentDepth + 1));
+      }
     } else if (entry.isFile() && shouldIncludeFile(entry)) {
       files.push(entryPath);
     }
@@ -260,7 +262,7 @@ function parseFirewallLogs() {
 /**
  * Parse Copilot session event logs and aggregate counters
  */
-function parseSessionLogs() {
+function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state"]) {
   const session = {
     total_events: 0,
     session_starts: 0,
@@ -273,10 +275,8 @@ function parseSessionLogs() {
     failed_tool_executions: 0,
   };
 
-  const sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state"];
-
   for (const logDir of sessionLogDirs) {
-    for (const eventsPath of findFiles(logDir, entry => entry.name === "events.jsonl")) {
+    for (const eventsPath of findFiles(logDir, entry => entry.name === "events.jsonl", 1)) {
       try {
         const content = fs.readFileSync(eventsPath, "utf-8");
         const lines = content.split("\n");
