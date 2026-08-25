@@ -45,6 +45,33 @@ to verify, not as evidence for advisory details.
   unrelated to compiler security enforcement unless separate evidence requires
   an agent compatibility change.
 
+## Write remediation guidance
+
+Provide concise, actionable remediation in `.github/aw/compat.md` and the final
+report. Follow established security-advisory terminology:
+
+1. Identify the affected product or component, GHSA identifier, CVE identifier
+   when assigned, affected versions, and first fixed or unaffected version.
+   Use exact bounded ranges and do not broaden the advisory's claims.
+2. State the permanent remediation in imperative language. Give exact,
+   copyable upgrade and regeneration commands verified against official
+   documentation. For compiler advisories, explain whether existing generated
+   workflows must be recompiled and redeployed; blocking a vulnerable version
+   prevents execution but does not repair generated artifacts.
+3. Separate remediation from mitigations and workarounds. Include a temporary
+   measure only when the advisory documents it. If the retrieved advisory does
+   not identify one, say so without claiming that no workaround exists.
+4. Include a verification step that checks the installed version and any
+   regenerated artifacts. Do not treat a successful install alone as proof that
+   deployed workflows were remediated.
+5. Link the advisory, fixed release, and authoritative upgrade documentation.
+   Mention severity, CVSS, known exploitation, CISA KEV status, deadlines, or
+   urgency only when verified from authoritative evidence.
+
+Do not invent commands, CVE identifiers, affected configurations, mitigations,
+or timelines. If remediation details cannot be verified, identify the missing
+evidence and leave the instructions explicitly incomplete.
+
 ## Safe edit procedure
 
 1. Parse the current JSON and record all four policy areas above.
@@ -56,7 +83,8 @@ to verify, not as evidence for advisory details.
    formatting unless the selected policy specifically requires changing them.
 4. When changing `blockedVersions`, update `.github/aw/compat.md` in the same
    change. Account for every blocked version, state why each version or
-   contiguous range is blocked, and link to the corresponding advisory.
+   contiguous range is blocked, link to the corresponding advisory, and provide
+   the remediation and verification steps defined above.
 5. Review the final diff and reject unrelated changes.
 
 ## Required validation
@@ -84,5 +112,6 @@ required check, report it as outstanding.
 Cite advisory retrieval attempts and patched-version verification. State which
 field changed, old and new values, why that policy is correct, which fields were
 preserved, and the compatibility task, schema, documentation, and runtime
-validation results. Clearly separate verified facts, user-provided inputs, and
-unavailable advisory details.
+validation results. Include the remediation, any advisory-supported temporary
+mitigation, and verification steps. Clearly separate verified facts,
+user-provided inputs, and unavailable advisory details.
