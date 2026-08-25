@@ -24,6 +24,14 @@ tools:
   edit:
   bash:
     - "*"
+pre-agent-steps:
+  - name: Ensure safe outputs path is writable
+    run: |
+      set -euo pipefail
+      GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
+      mkdir -p "$(dirname "$GH_AW_SAFE_OUTPUTS")"
+      touch "$GH_AW_SAFE_OUTPUTS"
+      chmod 0666 "$GH_AW_SAFE_OUTPUTS"
 safe-outputs:
   create-pull-request:
     steer: true
