@@ -4,7 +4,7 @@ set -euo pipefail
 
 skill_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 repo_root=$(CDPATH='' cd -- "$skill_dir/../../.." && pwd)
-work_dir=$(mktemp -d "$repo_root/.aw-value-test.XXXXXX")
+work_dir=$(mktemp -d "$repo_root/.operational-value-designer-test.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
 path=$("$skill_dir/scripts/operational-value-evaluator-path.sh" daily-file-diet)
@@ -95,4 +95,4 @@ EOF
 chmod +x "$evaluator_path"
 
 "$skill_dir/scripts/verify-operational-value-evaluator.sh" "$evaluator_path" >/dev/null
-printf 'aw-value skill tests passed\n'
+printf 'operational-value-designer skill tests passed\n'

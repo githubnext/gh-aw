@@ -1,6 +1,6 @@
 ---
-name: aw-value
-description: "Design and verify a deterministic operational-value grader for a GitHub Agentic Workflow. Use for per-run operational value, evidence attribution, maturation, baselines, and operational-value evaluators. Usage: /aw-value OWNER/REPO WORKFLOW-NAME."
+name: operational-value-designer
+description: "Design and verify a deterministic operational-value grader for a GitHub Agentic Workflow. Use for per-run operational value, evidence attribution, maturation, baselines, and operational-value evaluators. Usage: /operational-value-designer OWNER/REPO WORKFLOW-NAME."
 argument-hint: "OWNER/REPO WORKFLOW-NAME"
 allowed-tools: bash jq gh
 metadata:
@@ -29,7 +29,7 @@ graders:
     run: .github/graders/WORKFLOW-NAME-operational-value.sh
 ```
 
-The grader's primary `value` is absolute attainment in `[0,1]`. A comparable frozen baseline may be reported separately as `baselineValue`; gh-aw derives `deltaFromBaseline`. Never define the primary value as a difference from baseline.
+The grader's primary operational value (`value`) is absolute attainment in `[0,1]`. A comparable frozen baseline may be reported separately as `baselineValue`; gh-aw derives `deltaFromBaseline`. Never define the primary operational value as a difference from baseline.
 
 ## Design Procedure
 
@@ -47,7 +47,7 @@ The grader's primary `value` is absolute attainment in `[0,1]`. A comparable fro
 7. Implement the evaluator interface below and run:
 
    ```bash
-  .github/skills/aw-value/scripts/verify-operational-value-evaluator.sh .github/graders/WORKFLOW-NAME-operational-value.sh
+  .github/skills/operational-value-designer/scripts/verify-operational-value-evaluator.sh .github/graders/WORKFLOW-NAME-operational-value.sh
    gh aw compile .github/workflows/WORKFLOW-NAME.md
    ```
 
@@ -57,7 +57,7 @@ The evaluator uses Bash 3.2-compatible Bash plus `jq` and supports:
 
 - `--definition`: print the frozen schema-version 4 contract.
 - `--metric`: read one evidence object on stdin and print a deterministic number in `[0,1]` or `null`.
-- `--grade-run`: read a run request on stdin and print one value observation.
+- `--grade-run`: read a run request on stdin and print one operational-value observation.
 
 `--grade-run` receives:
 
@@ -97,7 +97,7 @@ It returns:
 }
 ```
 
-The function must cap `evidenceCutoff` at the earlier of `evidenceAt` and `maturesAt`. A run is never intrinsically pending: the value is an as-of observation and may be recomputed until maturity. After maturity, the cap makes the result stable.
+The function must cap `evidenceCutoff` at the earlier of `evidenceAt` and `maturesAt`. A run is never intrinsically pending: the operational value is an as-of observation and may be recomputed until maturity. After maturity, the cap makes the result stable.
 
 ## Regrade a Historical Run
 
@@ -126,7 +126,7 @@ For `baseline-comparable`, baseline value must be in `[0,1]` and have immutable 
 
 ## Interpretation Rules
 
-- `value` answers “how fully was this run's assigned opportunity attained?”
+- `value` answers “what operational value did this run attain for its assigned opportunity?”
 - `deltaFromBaseline` answers “how far is this observation above or below the frozen pre-adoption reference?”
 - Neither establishes that the workflow caused the outcome.
 - Compare runs only under the same evaluator digest and evidence horizon.
