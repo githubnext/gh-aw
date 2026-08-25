@@ -678,6 +678,98 @@ func TestEnsureCopilotSetupSteps_CreateWithDevMode(t *testing.T) {
 	}
 }
 
+func TestGenerateCopilotSetupStepsYAMLDevModeUsesDefaultBranchFromGitHubAPI(t *testing.T) {
+	const (
+		defaultBranch = "stable"
+		resolvedSHA   = "1111111111111111111111111111111111111111"
+		sha256Digest  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	)
+
+	defaultBranchCalled := false
+	resolveRefCalled := false
+	originalDefaultBranch := resolveGhAwDefaultBranchForCopilotSetup
+	originalResolveRef := resolveGhAwRefForCopilotSetup
+	originalSHA256 := resolveInstallScriptSHA256ForCopilotSetup
+	resolveGhAwDefaultBranchForCopilotSetup = func(_ context.Context, repo string) (string, error) {
+		defaultBranchCalled = true
+		if repo != "github/gh-aw" {
+			t.Fatalf("repo = %q, want github/gh-aw", repo)
+		}
+		return defaultBranch, nil
+	}
+	resolveGhAwRefForCopilotSetup = func(_ context.Context, ref string) (string, error) {
+		resolveRefCalled = true
+		if ref != defaultBranch {
+			t.Fatalf("ref = %q, want %q", ref, defaultBranch)
+		}
+		return resolvedSHA, nil
+	}
+	resolveInstallScriptSHA256ForCopilotSetup = func(_ context.Context, commitSHA string) string {
+		if commitSHA != resolvedSHA {
+			t.Fatalf("commitSHA = %q, want %q", commitSHA, resolvedSHA)
+		}
+		return sha256Digest
+	}
+	t.Cleanup(func() {
+		resolveGhAwDefaultBranchForCopilotSetup = originalDefaultBranch
+		resolveGhAwRefForCopilotSetup = originalResolveRef
+		resolveInstallScriptSHA256ForCopilotSetup = originalSHA256
+	})
+
+	content := generateCopilotSetupStepsYAML(context.Background(), workflow.ActionModeDev, "dev", nil)
+
+	if !defaultBranchCalled {
+		t.Fatal("expected default branch resolver to be called")
+	}
+	if !resolveRefCalled {
+		t.Fatal("expected default branch ref to be resolved")
+	}
+	if !strings.Contains(content, "https://raw.githubusercontent.com/github/gh-aw/"+resolvedSHA+"/install-gh-aw.sh") {
+		t.Fatalf("expected install script URL to use resolved SHA %q, got:\n%s", resolvedSHA, content)
+	}
+	if strings.Contains(content, "refs/heads/main") {
+		t.Fatalf("expected generated content not to hard-code refs/heads/main, got:\n%s", content)
+	}
+	if !strings.Contains(content, sha256Digest+"  "+installScriptTempPath) {
+		t.Fatalf("expected generated content to include SHA256 integrity check, got:\n%s", content)
+	}
+}
+
+func TestGenerateCopilotSetupStepsYAMLDevModeFallsBackToDefaultBranchRef(t *testing.T) {
+	const defaultBranch = "stable"
+
+	originalDefaultBranch := resolveGhAwDefaultBranchForCopilotSetup
+	originalResolveRef := resolveGhAwRefForCopilotSetup
+	originalSHA256 := resolveInstallScriptSHA256ForCopilotSetup
+	resolveGhAwDefaultBranchForCopilotSetup = func(_ context.Context, _ string) (string, error) {
+		return defaultBranch, nil
+	}
+	resolveGhAwRefForCopilotSetup = func(_ context.Context, ref string) (string, error) {
+		if ref != defaultBranch {
+			t.Fatalf("ref = %q, want %q", ref, defaultBranch)
+		}
+		return "", errors.New("resolution failed")
+	}
+	resolveInstallScriptSHA256ForCopilotSetup = func(context.Context, string) string {
+		t.Fatal("SHA256 resolver should not be called when ref resolution fails")
+		return ""
+	}
+	t.Cleanup(func() {
+		resolveGhAwDefaultBranchForCopilotSetup = originalDefaultBranch
+		resolveGhAwRefForCopilotSetup = originalResolveRef
+		resolveInstallScriptSHA256ForCopilotSetup = originalSHA256
+	})
+
+	content := generateCopilotSetupStepsYAML(context.Background(), workflow.ActionModeDev, "dev", nil)
+
+	if !strings.Contains(content, "https://raw.githubusercontent.com/github/gh-aw/refs/heads/"+defaultBranch+"/install-gh-aw.sh") {
+		t.Fatalf("expected install script URL to fall back to default branch ref, got:\n%s", content)
+	}
+	if strings.Contains(content, "sha256sum -c -") {
+		t.Fatalf("did not expect SHA256 integrity check without resolved SHA, got:\n%s", content)
+	}
+}
+
 func TestEnsureCopilotSetupSteps_UsesWorkflowDirEnvOverride(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()

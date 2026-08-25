@@ -41,6 +41,12 @@ const copilotSetupStepsStaticSHA256 = "248ccebcb998c6a506548156e1bf9f02429cbbaec
 // sha256HexRegex matches a valid lowercase SHA256 hex digest (exactly 64 hex chars).
 var sha256HexRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
+var (
+	resolveGhAwDefaultBranchForCopilotSetup   = getRepoDefaultBranchCached
+	resolveGhAwRefForCopilotSetup             = workflow.ResolveGhAwRef
+	resolveInstallScriptSHA256ForCopilotSetup = resolveInstallScriptSHA256
+)
+
 func latestCheckoutActionRef() string {
 	return actionpins.ResolveLatestActionPin("actions/checkout", nil)
 }
@@ -189,16 +195,23 @@ func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.Acti
 		return fmt.Sprintf(copilotSetupActionTemplate, checkoutRef, actionRepo, actionRef, version)
 	}
 
-	// Default (dev/script mode): try to resolve the main branch to a pinned SHA so the
-	// downloaded script is immutable; fall back to the mutable branch ref if unavailable.
-	installRef := "refs/heads/main"
+	// Default (dev/script mode): resolve the repository default branch via the
+	// GitHub API, then pin it to a SHA so the downloaded script is immutable.
+	// Fall back to the mutable branch ref if unavailable.
+	defaultBranch := "main"
+	if branch, err := resolveGhAwDefaultBranchForCopilotSetup(ctx, "github/gh-aw"); err == nil && strings.TrimSpace(branch) != "" {
+		defaultBranch = strings.TrimSpace(branch)
+	} else {
+		copilotSetupLog.Printf("Could not resolve github/gh-aw default branch for dev-mode template, falling back to %q: %v", defaultBranch, err)
+	}
+	installRef := "refs/heads/" + defaultBranch
 	installSHA256 := ""
-	if sha, err := workflow.ResolveGhAwRef(ctx, "main"); err == nil && sha != "" {
+	if sha, err := resolveGhAwRefForCopilotSetup(ctx, defaultBranch); err == nil && sha != "" {
 		installRef = sha
 		// Fetch the script to compute an explicit SHA256 integrity check line.
-		installSHA256 = resolveInstallScriptSHA256(ctx, sha)
+		installSHA256 = resolveInstallScriptSHA256ForCopilotSetup(ctx, sha)
 	} else {
-		copilotSetupLog.Printf("Could not resolve github/gh-aw main SHA for dev-mode template, falling back to mutable ref: %v", err)
+		copilotSetupLog.Printf("Could not resolve github/gh-aw %s SHA for dev-mode template, falling back to mutable ref: %v", defaultBranch, err)
 	}
 	sha256Cmd := sha256CheckLine(installSHA256, installScriptTempPath)
 	return fmt.Sprintf(copilotSetupScriptTemplate, installRef, installScriptTempPath, sha256Cmd, installScriptTempPath)
@@ -207,7 +220,8 @@ func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.Acti
 // copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
 // It is built from copilotSetupStepsStaticSHA and copilotSetupStepsStaticSHA256 so that
 // scripts/update-install-script-hashes.sh can refresh both values in a single place.
-// The runtime function generateCopilotSetupStepsYAML resolves the ref dynamically via ResolveGhAwRef.
+// The runtime function generateCopilotSetupStepsYAML resolves the ref dynamically
+// from the repository default branch via the GitHub API.
 var copilotSetupStepsYAML = fmt.Sprintf(
 	copilotSetupScriptTemplate,
 	copilotSetupStepsStaticSHA,
