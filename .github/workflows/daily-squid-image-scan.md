@@ -69,7 +69,7 @@ post-steps:
       # Upstream-owned images (e.g. node:lts-alpine, gh-aw-firewall/*, gh-aw-mcpg,
       # github-mcp-server, grafana) are tracked-only per the workflow's policy and
       # must not fail this daily scan; they are remediated via upstream pin refreshes.
-      vendored_pattern='^ghcr\.io/github/gh-aw-node(@|:)'
+      vendored_pattern='(^|[[:space:]])ghcr\.io/github/gh-aw-node(@|:)'
       if grep -E "$vendored_pattern" "$output" | grep -qE ': error: \[Critical\]'; then
         echo "::error::Critical vulnerabilities detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
