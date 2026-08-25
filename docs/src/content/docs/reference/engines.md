@@ -1,11 +1,11 @@
 ---
-title: AI Engines for GitHub Agentic Workflows
-description: Compare the built-in AI engines for GitHub Agentic Workflows (gh-aw), including selection, authentication, capabilities, limitations, and examples for Copilot, Claude Code, Codex, Gemini, and Pi.
+title: AI Engines
+description: Compare the built-in AI engines for GitHub Agentic Workflows, including selection, authentication, capabilities, limitations, and examples for Copilot, Claude Code, Codex, Gemini, and Pi.
 sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows (`gh-aw`) uses an [AI engine](/gh-aw/reference/glossary/#engine) to run the AI agent that interprets a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
+GitHub Agentic Workflows (`gh-aw`) uses an [AI engine](/gh-aw/reference/glossary/#engine) - usually a coding agent - to interpret a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
 
 ## Built-in AI engines
 
@@ -13,7 +13,7 @@ Set `engine:` in workflow frontmatter and configure the corresponding authentica
 
 | AI engine | `engine:` value | Authentication | Setup and example |
 |---|---|---|---|
-| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (recommended) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | [Using GitHub Copilot with GitHub Agentic Workflows](/gh-aw/engines/copilot/) |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | [Using GitHub Copilot with GitHub Agentic Workflows](/gh-aw/engines/copilot/) |
 | [Claude Code](https://www.anthropic.com/index/claude) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) | [Using Claude Code with GitHub Agentic Workflows](/gh-aw/engines/claude/) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | [Using OpenAI Codex with GitHub Agentic Workflows](/gh-aw/engines/codex/) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) or [Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) | [Using Google Gemini with GitHub Agentic Workflows](/gh-aw/engines/gemini/) |
@@ -317,7 +317,7 @@ network:
     - RESOURCE.openai.azure.com
 ```
 
-See [How to use Azure OpenAI with Copilot BYOK](/gh-aw/guides/azure-openai-byok/)
+See [How to use Azure OpenAI with Copilot BYOK](/gh-aw/reference/azure-openai-byok/)
 for deployment-name mapping, `responses` API guidance for GPT-5 and o-series
 models, and Azure-specific troubleshooting.
 

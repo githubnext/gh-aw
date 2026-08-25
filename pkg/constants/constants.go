@@ -122,10 +122,12 @@ const (
 	// MaxNetworkPort is the maximum valid network port number
 	MaxNetworkPort = 65535
 
-	// CodexLLMGatewayPort is the port for the Codex LLM gateway
+	// CodexLLMGatewayPort is the port for the Codex/OpenAI LLM gateway.
+	// AWF's api-proxy sidecar assigns 10000 to the OpenAI-compatible provider.
 	CodexLLMGatewayPort = 10000
 
-	// ClaudeLLMGatewayPort is the port for the Claude LLM gateway
+	// ClaudeLLMGatewayPort is the port for the Claude/Anthropic LLM gateway.
+	// AWF's api-proxy sidecar assigns 10001 to the Anthropic-compatible provider.
 	ClaudeLLMGatewayPort = 10001
 
 	// CopilotLLMGatewayPort is the port for the Copilot LLM gateway

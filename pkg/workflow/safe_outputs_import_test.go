@@ -594,6 +594,28 @@ func TestMergeSafeOutputsDescriptorMergedFieldsUnit(t *testing.T) {
 	})
 }
 
+func TestMergeSafeOutputsSteer(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	t.Run("imports steer", func(t *testing.T) {
+		result, err := compiler.MergeSafeOutputs(nil, []string{`{"steer":true}`}, nil)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.True(t, result.Steer)
+	})
+
+	t.Run("explicit top-level false overrides import", func(t *testing.T) {
+		result, err := compiler.MergeSafeOutputs(
+			&SafeOutputsConfig{},
+			[]string{`{"steer":true}`},
+			map[string]any{"steer": false},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.False(t, result.Steer)
+	})
+}
+
 // TestMergeSafeOutputsMessagesUnit tests the MergeSafeOutputs function for messages field
 func TestMergeSafeOutputsMessagesUnit(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))

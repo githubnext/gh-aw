@@ -4506,6 +4506,12 @@ cache: []
 # permissions in the main job
 # (optional)
 safe-outputs:
+  # ⚠️ Experimental. Create a run-scoped issue and let the agent read user-authored
+  # issue comments containing the keyword 'steer'. The issue is reused for agent
+  # failure reporting. Requires top-level issues: read permission.
+  # (optional)
+  steer: true
+
   # URL sanitization policy for safe outputs. "allowed-only" sanitizes all
   # non-allowed URLs everywhere. "allowed-or-code-region" preserves URLs inside
   # fenced and inline code regions while sanitizing prose.
@@ -8876,12 +8882,6 @@ safe-outputs:
     # Require create_pull_request tool calls to include a temporary_id.
     # (optional)
     require-temporary-id: true
-
-    # ⚠️ Experimental. Create a run-scoped issue and let the agent read user-authored
-    # issue comments containing the keyword 'steer'. The issue is reused for agent
-    # failure reporting. Requires top-level issues: read permission.
-    # (optional)
-    steer: true
 
     # Optional prefix for the pull request title
     # (optional)

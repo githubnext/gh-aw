@@ -1,6 +1,6 @@
 ---
 title: GitHub Agentic Workflows Examples
-description: Find GitHub Agentic Workflows (gh-aw) examples by task, including issue triage, pull-request review, CI investigation, documentation, dependency analysis, reporting, maintenance, and security review.
+description: Find GitHub Agentic Workflows examples by task, including issue triage, pull-request review, CI investigation, documentation, dependency analysis, reporting, maintenance, and security review.
 sidebar:
   order: 1
 ---
@@ -11,13 +11,13 @@ GitHub Agentic Workflows (`gh-aw`) examples show how Markdown workflows can run 
 
 | Task | When to use it | Example |
 | --- | --- | --- |
-| Issue triage | Classify new issues, identify duplicates, apply bounded labels, and ask for missing information. | [AI issue triage on GitHub](/gh-aw/guides/ai-issue-triage/) |
-| Pull-request review | Inspect diffs for concrete defects and post review feedback through controlled safe outputs. | [Automated AI pull-request review](/gh-aw/guides/automated-pr-review/) |
-| Documentation maintenance | Detect drift between code and documentation and propose reviewable updates. | [Keeping documentation up to date automatically](/gh-aw/guides/docs-automation/) |
+| Issue triage | Classify new issues, identify duplicates, apply bounded labels, and ask for missing information. | [AI issue triage on GitHub](/gh-aw/examples/ai-issue-triage/) |
+| Pull-request review | Inspect diffs for concrete defects and post review feedback through controlled safe outputs. | [Automated AI pull-request review](/gh-aw/examples/automated-pr-review/) |
+| Documentation maintenance | Detect drift between code and documentation and propose reviewable updates. | [Keeping documentation up to date automatically](/gh-aw/examples/docs-automation/) |
 | CI failure investigation | Analyze failed GitHub Actions runs, correlate logs, and open diagnostic issues with likely causes. | [CI Doctor and fault-investigation workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/) |
 | Code improvement | Find unnecessary complexity or duplicated logic and propose focused changes for human review. | [Continuous simplicity workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/) |
 | Dependency analysis | Research dependency usage and upstream changes before creating prioritized follow-up work. | [ResearchPlanAssignOps dependency analysis](/gh-aw/patterns/research-plan-assign-ops/) |
-| Repository reporting | Summarize repository or release activity on an event or schedule. | [AI-generated release notes and reports](/gh-aw/guides/ai-release-notes/) |
+| Repository reporting | Summarize repository or release activity on an event or schedule. | [AI-generated release notes and reports](/gh-aw/examples/ai-release-notes/) |
 | Scheduled maintenance | Review a backlog regularly, select bounded maintenance tasks, and propose controlled changes. | [Automated repository maintenance](/gh-aw/examples/maintaining-repos/) |
 | Security review | Combine deterministic security tools with AI interpretation to report suspicious changes or compliance work. | [Security-related workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/) |
 
