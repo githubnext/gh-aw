@@ -63,6 +63,7 @@ export MCP_GATEWAY_ENCLAVE_POLICY_JSON
 
 mkdir -p "$MCP_LOG_DIR"
 chmod 700 "$MCP_LOG_DIR"
+rm -rf "${MCP_LOG_DIR}/proxy-tls"
 docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
 docker run -d --name "$CONTAINER_NAME" \

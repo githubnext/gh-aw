@@ -127,6 +127,7 @@ func TestEnclaveGitHubProxyScriptsEnforceDedicatedBridgeContract(t *testing.T) {
 	assert.Contains(t, start, `PORT="18443"`)
 	assert.Contains(t, start, `-e MCP_GATEWAY_ENCLAVE_POLICY_JSON`)
 	assert.Contains(t, start, `-e MCP_GATEWAY_ENCLAVE_CAPABILITY_KEY`)
+	assert.Contains(t, start, `rm -rf "${MCP_LOG_DIR}/proxy-tls"`)
 	assert.NotContains(t, start, "--policy")
 	assert.NotContains(t, start, "--tls-dir")
 	assert.Contains(t, start, `proxy-tls/ca.crt`)
