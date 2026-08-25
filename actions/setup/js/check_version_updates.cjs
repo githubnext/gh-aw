@@ -21,6 +21,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json";
 const FETCH_TIMEOUT_MS = 120_000;
+const VERSION_PATTERN = /^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?$/;
 
 /**
  * Parse an official version string (vMAJOR.MINOR.PATCH with an optional prerelease).
@@ -31,7 +32,7 @@ const FETCH_TIMEOUT_MS = 120_000;
  * @returns {{base: number[], prerelease: string[]|null}|null}
  */
 function parseVersion(version) {
-  const match = /^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/.exec(version);
+  const match = VERSION_PATTERN.exec(version);
   if (!match) return null;
   return {
     base: [Number(match[1]), Number(match[2]), Number(match[3])],
@@ -46,12 +47,12 @@ function parseVersion(version) {
  *
  * @param {string} a
  * @param {string} b
- * @returns {number}
+ * @returns {number|null}
  */
 function compareVersions(a, b) {
   const pa = parseVersion(a);
   const pb = parseVersion(b);
-  if (!pa || !pb) return 0;
+  if (!pa || !pb) return null;
   for (let i = 0; i < 3; i++) {
     if (pa.base[i] !== pb.base[i]) return pa.base[i] - pb.base[i];
   }
@@ -67,8 +68,8 @@ function compareVersions(a, b) {
     const leftIsNumeric = /^\d+$/.test(left);
     const rightIsNumeric = /^\d+$/.test(right);
     if (leftIsNumeric && rightIsNumeric) {
-      const difference = Number(left) - Number(right);
-      if (difference !== 0) return difference;
+      if (left.length !== right.length) return left.length - right.length;
+      if (left !== right) return left < right ? -1 : 1;
     } else if (leftIsNumeric) {
       return -1;
     } else if (rightIsNumeric) {
@@ -156,7 +157,8 @@ async function main() {
 
   // Check minimum version — skip if minimumVersion is absent, empty, or has unknown syntax
   if (minimumVersion && parseVersion(minimumVersion) !== null) {
-    if (compareVersions(compiledVersion, minimumVersion) < 0) {
+    const comparison = compareVersions(compiledVersion, minimumVersion);
+    if (comparison !== null && comparison < 0) {
       core.summary
         .addRaw("### ❌ Outdated compile-agentic version\n\n")
         .addRaw(`The compile-agentic version \`${compiledVersion}\` is below the minimum supported version \`${minimumVersion}\`.\n\n`)
@@ -169,7 +171,8 @@ async function main() {
 
   // Check recommended version — skip if minRecommendedVersion is absent, empty, or has unknown syntax
   if (minRecommendedVersion && parseVersion(minRecommendedVersion) !== null) {
-    if (compareVersions(compiledVersion, minRecommendedVersion) < 0) {
+    const comparison = compareVersions(compiledVersion, minRecommendedVersion);
+    if (comparison !== null && comparison < 0) {
       core.warning(
         `Recommended upgrade: compile-agentic version ${compiledVersion} is below the recommended version ${minRecommendedVersion}. Consider updating gh-aw to the latest version and recompiling your workflow with \`gh aw compile\`.`
       );

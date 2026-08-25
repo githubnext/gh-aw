@@ -129,6 +129,14 @@ describe("check_version_updates", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not an official release version"));
   });
 
+  it("should skip check when prerelease numeric identifiers have leading zeroes", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.0-01";
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not an official release version"));
+  });
+
   it("fetches the compatibility matrix from the gh-aw repository", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "" }));
@@ -323,6 +331,41 @@ describe("check_version_updates", () => {
     mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.2.0-..beta"], minimumVersion: "" }));
     await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should ignore a blocked prerelease with leading-zero numeric identifiers", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.0-beta.1";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.2.0-01"], minimumVersion: "" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should not treat different large numeric prerelease identifiers as equal", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.0-alpha.9007199254740992";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.2.0-alpha.9007199254740993"], minimumVersion: "" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should not block a release version with a prerelease block entry", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.0.0-beta.1"], minimumVersion: "" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should not block an earlier prerelease with a later prerelease block entry", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.0.0-alpha.1";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.0.0-alpha.2"], minimumVersion: "" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should compare numeric prerelease identifiers numerically, not lexically", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.0.0-alpha.2";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0-alpha.10" }));
+    await runMain();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Outdated compile-agentic version"));
   });
 
   it("should NOT block version when blocked list entry has no 'v' prefix (unknown format — ignore)", async () => {

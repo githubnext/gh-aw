@@ -811,7 +811,8 @@ jobs:
             if (!Array.isArray(bv)) {
               errors.push("'blockedVersions' must be an array");
             } else {
-              const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+              const prereleaseIdentifierPattern = '(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)';
+              const versionPattern = new RegExp(`^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-${prereleaseIdentifierPattern}(?:\\.${prereleaseIdentifierPattern})*)?$`);
               const seen = new Set();
               bv.forEach((v, i) => {
                 if (typeof v !== 'string') {
@@ -890,7 +891,9 @@ jobs:
             }
           }
 
-          const releaseVersionRe = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+          const stableVersionRe = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
+          const prereleaseIdentifierRe = '(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)';
+          const releaseVersionRe = new RegExp(`^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-${prereleaseIdentifierRe}(?:\\.${prereleaseIdentifierRe})*)?$`);
           if ('blockedVersions' in config) {
             if (!Array.isArray(config.blockedVersions)) {
               errors.push("'blockedVersions' must be an array");
@@ -915,7 +918,7 @@ jobs:
             const mv = config.minimumVersion;
             if (typeof mv !== 'string') {
               errors.push("'minimumVersion' must be a string");
-            } else if (!(mv === '' || releaseVersionRe.test(mv))) {
+            } else if (!(mv === '' || stableVersionRe.test(mv))) {
               errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (vMAJOR.MINOR.PATCH or empty string)`);
             }
           }
@@ -923,7 +926,7 @@ jobs:
             const mrv = config.minRecommendedVersion;
             if (typeof mrv !== 'string') {
               errors.push("'minRecommendedVersion' must be a string");
-            } else if (!(mrv === '' || releaseVersionRe.test(mrv))) {
+            } else if (!(mrv === '' || stableVersionRe.test(mrv))) {
               errors.push(`'minRecommendedVersion' ('${mrv}') does not match expected version pattern (vMAJOR.MINOR.PATCH or empty string)`);
             }
           }
