@@ -36,3 +36,5 @@
 {"id":"report_with_charts_created","question":"Was a report or discussion created with trending charts and quota analysis?","answer":"YES","model":"evals","timestamp":"2026-08-23T11:11:16.468Z","runid":"32634768398"}
 {"id":"api_usage_collected","question":"Did the agent collect GitHub REST API consumption data across agentic workflows?","answer":"NO","model":"evals","timestamp":"2026-08-24T11:17:57.788Z","runid":"32719116837"}
 {"id":"report_with_charts_created","question":"Was a report or discussion created with trending charts and quota analysis?","answer":"YES","model":"evals","timestamp":"2026-08-24T11:17:57.788Z","runid":"32719116837"}
+{"id":"api_usage_collected","question":"Did the agent collect GitHub REST API consumption data across agentic workflows?","answer":"YES","model":"evals","timestamp":"2026-08-25T11:17:47.081Z","runid":"32839438007"}
+{"id":"report_with_charts_created","question":"Was a report or discussion created with trending charts and quota analysis?","answer":"YES","model":"evals","timestamp":"2026-08-25T11:17:47.081Z","runid":"32839438007"}
