@@ -224,8 +224,6 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         if (!watchdogArmed) return;
         const idleMs = Date.now() - lastActivityAt;
         if (sentSigtermAt === 0 && idleMs >= watchdogInactivityTimeoutMs) {
-          runtimeGuardFired = false;
-          runtimeGuardReason = "";
           sentSigtermAt = Date.now();
           log(`attempt ${attempt + 1}: post-result watchdog terminating idle process after ${idleMs}ms (SIGTERM)`);
           child.kill("SIGTERM");

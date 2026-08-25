@@ -535,13 +535,12 @@ function configureCodexProviderFromReflect(options) {
  * @returns {{ enabled: boolean, maxRebuildFactor: number, minCumulativeInputTokens: number, pollIntervalMs: number, termGraceMs: number }}
  */
 function resolveContextRebuildCircuitBreakerConfig(env = process.env) {
-  const sourceEnv = env ?? process.env;
-  const enabledValue = sourceEnv.GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER;
+  const enabledValue = env.GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER;
   const enabled = enabledValue == null || !/^(0|false|off|no)$/i.test(String(enabledValue).trim());
-  const maxRebuildFactorRaw = Number(sourceEnv.GH_AW_CODEX_MAX_REBUILD_FACTOR);
-  const minCumulativeInputTokensRaw = Number(sourceEnv.GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
-  const pollIntervalRaw = Number(sourceEnv.GH_AW_CODEX_REBUILD_GUARD_POLL_MS);
-  const termGraceRaw = Number(sourceEnv.GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS);
+  const maxRebuildFactorRaw = Number(env.GH_AW_CODEX_MAX_REBUILD_FACTOR);
+  const minCumulativeInputTokensRaw = Number(env.GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
+  const pollIntervalRaw = Number(env.GH_AW_CODEX_REBUILD_GUARD_POLL_MS);
+  const termGraceRaw = Number(env.GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS);
   return {
     enabled,
     maxRebuildFactor: Number.isFinite(maxRebuildFactorRaw) && maxRebuildFactorRaw > 1 ? maxRebuildFactorRaw : DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
@@ -556,7 +555,6 @@ function resolveContextRebuildCircuitBreakerConfig(env = process.env) {
  * @returns {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null}
  */
 function readWorkingSetFromTokenUsage(paths = TOKEN_USAGE_PATHS) {
-  const lines = [];
   for (const candidate of paths) {
     try {
       if (!candidate || !fs.existsSync(candidate)) continue;
@@ -564,13 +562,12 @@ function readWorkingSetFromTokenUsage(paths = TOKEN_USAGE_PATHS) {
       if (!stat || stat.size <= 0) continue;
       const content = fs.readFileSync(candidate, "utf8");
       if (!content.trim()) continue;
-      lines.push(content.trim());
+      return calculateWorkingSetFromJSONL(content).workingSet;
     } catch {
       continue;
     }
   }
-  if (lines.length === 0) return null;
-  return calculateWorkingSetFromJSONL(lines.join("\n")).workingSet;
+  return null;
 }
 
 /**
