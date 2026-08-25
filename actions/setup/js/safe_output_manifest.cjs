@@ -5,7 +5,40 @@ const nodePath = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { MANIFEST_FILE_PATH, TEMPORARY_ID_MAP_FILE_PATH, SAFE_OUTPUT_ERRORS_FILE_PATH } = require("./constants.cjs");
-const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
+const { redactBuiltInPatterns, redactSecrets, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
+
+/**
+ * Collect custom secret values for artifact redaction.
+ *
+ * Mirrors the redaction inputs used by redact_secrets.cjs:
+ * - workflow-configured secrets from GH_AW_SECRET_NAMES / SECRET_*
+ * - dynamically minted MCP gateway bearer tokens discovered from config files
+ *
+ * @returns {string[]} Unique secret values suitable for redactSecrets()
+ */
+function collectArtifactSecretValues() {
+  /** @type {Set<string>} */
+  const secretValues = new Set();
+
+  const secretNames = (process.env.GH_AW_SECRET_NAMES || "")
+    .split(",")
+    .map(name => name.trim())
+    .filter(Boolean);
+  for (const secretName of secretNames) {
+    const secretValue = process.env[`SECRET_${secretName}`];
+    if (typeof secretValue === "string" && secretValue.trim() !== "") {
+      secretValues.add(secretValue.trim());
+    }
+  }
+
+  for (const gatewayToken of extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS)) {
+    if (typeof gatewayToken === "string" && gatewayToken.trim() !== "") {
+      secretValues.add(gatewayToken.trim());
+    }
+  }
+
+  return [...secretValues];
+}
 
 /**
  * Safe output types that create new items in GitHub (these typically return a URL,
@@ -222,6 +255,7 @@ function writeSafeOutputErrorReport(report, filePath = SAFE_OUTPUT_ERRORS_FILE_P
   let content = JSON.stringify(entry, null, 2) + "\n";
   try {
     content = redactBuiltInPatterns(content).content;
+    content = redactSecrets(content, collectArtifactSecretValues()).content;
   } catch {
     // Redaction is a safety net; if it fails, drop the free-form text rather
     // than risk writing an unredacted credential into an artifact.

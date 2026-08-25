@@ -492,6 +492,8 @@ describe("safe_output_manifest", () => {
         info: () => {},
         warning: () => {},
       };
+      delete process.env.GH_AW_SECRET_NAMES;
+      delete process.env.SECRET_CUSTOM_TEST;
     });
 
     afterEach(() => {
@@ -500,6 +502,7 @@ describe("safe_output_manifest", () => {
         if (fs.existsSync(testDir)) {
           fs.rmSync(testDir, { recursive: true, force: true });
         }
+        fs.rmSync("/tmp/gh-aw/mcp-config", { recursive: true, force: true });
       } catch (_err) {
         // Ignore cleanup errors
       }
@@ -540,6 +543,43 @@ describe("safe_output_manifest", () => {
 
       const content = fs.readFileSync(testErrorsFile, "utf8");
       expect(content).not.toContain("ghp_aaaa");
+      expect(content).toContain("***REDACTED***");
+    });
+
+    it("should redact workflow-configured custom secrets from the report", () => {
+      process.env.GH_AW_SECRET_NAMES = "CUSTOM_TEST";
+      process.env.SECRET_CUSTOM_TEST = "my-custom-safe-output-secret";
+
+      writeSafeOutputErrorReport({ message: "leaked my-custom-safe-output-secret value" }, testErrorsFile);
+
+      const content = fs.readFileSync(testErrorsFile, "utf8");
+      expect(content).not.toContain("my-custom-safe-output-secret");
+      expect(content).toContain("***REDACTED***");
+    });
+
+    it("should redact MCP gateway bearer tokens and raw credentials from the report", () => {
+      const gatewayCredential = "mcp_gateway_token_for_test_123456";
+      const bearerValue = "Bearer " + gatewayCredential;
+      const gatewayConfigPath = "/tmp/gh-aw/mcp-config/gateway-output.json";
+      fs.mkdirSync(path.dirname(gatewayConfigPath), { recursive: true });
+      fs.writeFileSync(
+        gatewayConfigPath,
+        JSON.stringify({
+          mcpServers: {
+            gateway: {
+              headers: {
+                Authorization: bearerValue,
+              },
+            },
+          },
+        })
+      );
+
+      writeSafeOutputErrorReport({ message: `headers: ${bearerValue} and ${gatewayCredential}` }, testErrorsFile);
+
+      const content = fs.readFileSync(testErrorsFile, "utf8");
+      expect(content).not.toContain(bearerValue);
+      expect(content).not.toContain(gatewayCredential);
       expect(content).toContain("***REDACTED***");
     });
 
