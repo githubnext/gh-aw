@@ -335,10 +335,26 @@ func renderMCPMapProperty(yaml *strings.Builder, property string, isLast bool, m
 	case "env":
 		renderMCPEnvMap(yaml, isLast, mcpConfig, renderer, headerSecrets)
 	case "http_headers":
-		writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", mcpConfig.Headers)
+		writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", renderCustomMCPHeadersTOML(mcpConfig.Headers))
 	case "headers":
 		renderMCPHeadersMap(yaml, isLast, mcpConfig, renderer, headerSecrets)
 	}
+}
+
+// renderCustomMCPHeadersTOML normalizes HTTP MCP header values for TOML output.
+//
+// The TOML config is written inside an expanding heredoc in a `run:` block, so any
+// `${{ secrets.* }}` expression left in a header value would be interpolated into the
+// shell script source before execution, making the raw secret bytes part of the script
+// text (RGS-008). Rewriting the expression as a ${VAR} shell reference keeps the secret
+// out of the script: it is resolved by the shell from the step's `env:` mapping, which
+// already carries every secret referenced by HTTP MCP headers.
+func renderCustomMCPHeadersTOML(headers map[string]string) map[string]string {
+	renderedHeaders := make(map[string]string, len(headers))
+	for headerKey, headerValue := range headers {
+		renderedHeaders[headerKey] = ReplaceSecretsWithShellEnvVars(headerValue, ExtractSecretsFromValue(headerValue))
+	}
+	return renderedHeaders
 }
 
 func renderMCPEnvMap(yaml *strings.Builder, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
