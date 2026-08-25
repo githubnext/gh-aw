@@ -9,6 +9,7 @@ import (
 )
 
 func TestPromptSecretInput(t *testing.T) {
+	t.Parallel()
 	t.Run("function signature", func(t *testing.T) {
 		// Verify the function exists and has the right signature
 		_ = PromptSecretInput
