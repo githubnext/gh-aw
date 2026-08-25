@@ -1084,6 +1084,8 @@ const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--abbrev-ref",
 const branch = stdout.trim();
 ```
 
+`promisify()`-wrapped bindings are resolved too, so `const execAsync = promisify(exec); await execAsync("git status");` is flagged as well. Since a promisified `exec()` / `execFile()` resolves to the captured output rather than a `ChildProcess` handle, the handle-retention exemption below does not apply to those calls.
+
 **Scope:** only files carrying the `/// <reference types="@actions/github-script" />` triple-slash reference are checked. That marker is how `actions/setup/js` identifies modules loaded by `actions/github-script` steps, which are the only ones guaranteed to have the `exec` global. The directory also contains standalone Node entry points (for example the mcp-scripts MCP server) and the modules they load; those processes never get `setupGlobals()`-injected toolkit globals — `shim.cjs` only backfills `core` and `context`, not `exec` — so they carry no marker and the rule stays silent there.
 
 **Out of scope:**
