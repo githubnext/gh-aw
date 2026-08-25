@@ -3,11 +3,7 @@ package intent
 import (
 	"errors"
 	"slices"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
-
-var governanceLog = logger.New("intent:governance")
 
 // ErrToolDenied is returned by Authorizer.AuthorizeTool when the tool appears in
 // the policy's DeniedTools list. A deny always wins, even if the same tool is
