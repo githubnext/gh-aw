@@ -28,7 +28,7 @@ const PLACEHOLDER_DEST_KEY = "-:-";
 const ERROR_DOMAIN_PREFIX = "error:";
 const AGENT_TOKEN_USAGE_PATH = "/tmp/gh-aw/usage/agent/token_usage.jsonl";
 
-function findLogFiles(rootDir) {
+function findFiles(rootDir, shouldIncludeFile) {
   if (!fs.existsSync(rootDir)) {
     return [];
   }
@@ -44,32 +44,8 @@ function findLogFiles(rootDir) {
   for (const entry of entries) {
     const entryPath = path.join(rootDir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...findLogFiles(entryPath));
-    } else if (entry.isFile() && entry.name.endsWith(".log")) {
-      files.push(entryPath);
-    }
-  }
-  return files;
-}
-
-function findSessionEventFiles(rootDir) {
-  if (!fs.existsSync(rootDir)) {
-    return [];
-  }
-
-  const files = [];
-  let entries;
-  try {
-    entries = fs.readdirSync(rootDir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-
-  for (const entry of entries) {
-    const entryPath = path.join(rootDir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...findSessionEventFiles(entryPath));
-    } else if (entry.isFile() && entry.name === "events.jsonl") {
+      files.push(...findFiles(entryPath, shouldIncludeFile));
+    } else if (entry.isFile() && shouldIncludeFile(entry)) {
       files.push(entryPath);
     }
   }
@@ -180,7 +156,7 @@ function parseFirewallLogs() {
   ];
 
   for (const logDir of firewallLogDirs) {
-    for (const logPath of findLogFiles(logDir)) {
+    for (const logPath of findFiles(logDir, entry => entry.name.endsWith(".log"))) {
       try {
         const content = fs.readFileSync(logPath, "utf-8");
         const lines = content.split("\n");
@@ -300,7 +276,7 @@ function parseSessionLogs() {
   const sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state"];
 
   for (const logDir of sessionLogDirs) {
-    for (const eventsPath of findSessionEventFiles(logDir)) {
+    for (const eventsPath of findFiles(logDir, entry => entry.name === "events.jsonl")) {
       try {
         const content = fs.readFileSync(eventsPath, "utf-8");
         const lines = content.split("\n");
