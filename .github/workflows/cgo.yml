@@ -811,13 +811,13 @@ jobs:
             if (!Array.isArray(bv)) {
               errors.push("'blockedVersions' must be an array");
             } else {
-              const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
+              const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/;
               const seen = new Set();
               bv.forEach((v, i) => {
                 if (typeof v !== 'string') {
                   errors.push(`'blockedVersions[${i}]' must be a string`);
                 } else if (!versionPattern.test(v)) {
-                  errors.push(`'blockedVersions[${i}]' ('${v}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3')`);
+                  errors.push(`'blockedVersions[${i}]' ('${v}') does not match expected version pattern (vMAJOR.MINOR.PATCH with an optional prerelease, e.g. 'v1.2.3-beta.1')`);
                 } else if (seen.has(v)) {
                   errors.push(`'blockedVersions' contains duplicate entry: '${v}'`);
                 } else {
@@ -890,7 +890,7 @@ jobs:
             }
           }
 
-          const releaseVersionRe = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
+          const releaseVersionRe = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/;
           if ('blockedVersions' in config) {
             if (!Array.isArray(config.blockedVersions)) {
               errors.push("'blockedVersions' must be an array");
@@ -902,7 +902,7 @@ jobs:
                   return;
                 }
                 if (!releaseVersionRe.test(v)) {
-                  errors.push(`blockedVersions[${i}] ('${v}') must match vMAJOR.MINOR.PATCH`);
+                  errors.push(`blockedVersions[${i}] ('${v}') must match vMAJOR.MINOR.PATCH with an optional prerelease`);
                 }
                 if (seenBlocked.has(v)) {
                   errors.push(`blockedVersions contains duplicate entry '${v}'`);

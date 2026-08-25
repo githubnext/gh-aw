@@ -129,6 +129,13 @@ describe("check_version_updates", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not an official release version"));
   });
 
+  it("fetches the compatibility matrix from the gh-aw repository", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "" }));
+    await runMain();
+    expect(mockFetch).toHaveBeenCalledWith("https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json", expect.any(Object));
+  });
+
   // ---------------------------------------------------------------------------
   // Network / download failure cases (soft fail)
   // ---------------------------------------------------------------------------
@@ -301,6 +308,14 @@ describe("check_version_updates", () => {
     await runMain();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v2.0.0"));
+  });
+
+  it("should fail when a prerelease version is in the blocked list", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.0-beta.1";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.2.0-beta.1"], minimumVersion: "" }));
+    await runMain();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v1.2.0-beta.1"));
   });
 
   it("should NOT block version when blocked list entry has no 'v' prefix (unknown format — ignore)", async () => {

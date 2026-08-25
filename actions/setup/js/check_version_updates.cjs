@@ -6,8 +6,8 @@
  *
  * This script:
  * 1. Reads the compiled version from GH_AW_COMPILED_VERSION env var.
- * 2. Skips the check if the version is not in vMAJOR.MINOR.PATCH official release format.
- * 3. Fetches .github/aw/compat.json from the gh-aw-actions repository via raw.githubusercontent.com.
+ * 2. Skips the check if the version is not in official SemVer release format.
+ * 3. Fetches .github/aw/compat.json from the gh-aw repository via raw.githubusercontent.com.
  *    - Uses withRetry to handle transient network failures.
  * 4. If the download fails or config is invalid JSON, the check is skipped (soft failure).
  * 5. Validates that the compiled version is not in the blocked list.
@@ -19,28 +19,28 @@
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json";
+const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json";
 const FETCH_TIMEOUT_MS = 120_000;
 
 /**
- * Parse an official version string (must be in vMAJOR.MINOR.PATCH format).
+ * Parse an official version string (vMAJOR.MINOR.PATCH with an optional prerelease).
  * Versions without a leading "v" are not treated as official releases and return null.
  * Versions with unknown syntax also return null.
  *
  * @param {string} version
- * @returns {number[]|null}
+ * @returns {{base: number[], prerelease: string[]|null}|null}
  */
 function parseVersion(version) {
-  if (!version.startsWith("v")) return null;
-  const parts = version.slice(1).split(".");
-  if (parts.length !== 3) return null;
-  const nums = parts.map(Number);
-  if (nums.some(isNaN)) return null;
-  return nums;
+  const match = /^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/.exec(version);
+  if (!match) return null;
+  return {
+    base: [Number(match[1]), Number(match[2]), Number(match[3])],
+    prerelease: match[4] ? match[4].split(".") : null,
+  };
 }
 
 /**
- * Compare two official version strings (both must be in vMAJOR.MINOR.PATCH format).
+ * Compare two official SemVer version strings.
  * Returns a negative number if a < b, 0 if equal, positive if a > b.
  * Returns 0 (treat as equal/unknown) if either version cannot be parsed.
  *
@@ -53,7 +53,29 @@ function compareVersions(a, b) {
   const pb = parseVersion(b);
   if (!pa || !pb) return 0;
   for (let i = 0; i < 3; i++) {
-    if (pa[i] !== pb[i]) return pa[i] - pb[i];
+    if (pa.base[i] !== pb.base[i]) return pa.base[i] - pb.base[i];
+  }
+  if (pa.prerelease === null && pb.prerelease === null) return 0;
+  if (pa.prerelease === null) return 1;
+  if (pb.prerelease === null) return -1;
+  const length = Math.max(pa.prerelease.length, pb.prerelease.length);
+  for (let i = 0; i < length; i++) {
+    if (i >= pa.prerelease.length) return -1;
+    if (i >= pb.prerelease.length) return 1;
+    const left = pa.prerelease[i];
+    const right = pb.prerelease[i];
+    const leftIsNumeric = /^\d+$/.test(left);
+    const rightIsNumeric = /^\d+$/.test(right);
+    if (leftIsNumeric && rightIsNumeric) {
+      const difference = Number(left) - Number(right);
+      if (difference !== 0) return difference;
+    } else if (leftIsNumeric) {
+      return -1;
+    } else if (rightIsNumeric) {
+      return 1;
+    } else if (left !== right) {
+      return left < right ? -1 : 1;
+    }
   }
   return 0;
 }
@@ -76,9 +98,9 @@ async function main() {
     return;
   }
 
-  // Only check official releases in vMAJOR.MINOR.PATCH format; ignore unknown syntax
+  // Only check official SemVer releases; ignore unknown syntax.
   if (!parseVersion(compiledVersion)) {
-    core.info(`Skipping version update check: '${compiledVersion}' is not an official release version (expected vMAJOR.MINOR.PATCH format)`);
+    core.info(`Skipping version update check: '${compiledVersion}' is not an official release version (expected vMAJOR.MINOR.PATCH with an optional prerelease)`);
     return;
   }
 
@@ -119,7 +141,7 @@ async function main() {
   const minimumVersion = typeof config.minimumVersion === "string" ? config.minimumVersion : "";
   const minRecommendedVersion = typeof config.minRecommendedVersion === "string" ? config.minRecommendedVersion : "";
 
-  // Check blocked versions — only consider entries in vMAJOR.MINOR.PATCH format; ignore unknown syntax
+  // Check blocked versions — only consider entries in official SemVer format; ignore unknown syntax.
   const isBlocked = blockedVersions.some(v => parseVersion(v) !== null && compareVersions(compiledVersion, v) === 0);
   if (isBlocked) {
     core.summary
