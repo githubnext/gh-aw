@@ -199,10 +199,12 @@ func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.Acti
 	// GitHub API, then pin it to a SHA so the downloaded script is immutable.
 	// Fall back to the mutable branch ref if unavailable.
 	defaultBranch := "main"
-	if branch, err := resolveGhAwDefaultBranchForCopilotSetup(ctx, "github/gh-aw"); err == nil && strings.TrimSpace(branch) != "" {
-		defaultBranch = strings.TrimSpace(branch)
-	} else {
+	if branch, err := resolveGhAwDefaultBranchForCopilotSetup(ctx, "github/gh-aw"); err != nil {
 		copilotSetupLog.Printf("Could not resolve github/gh-aw default branch for dev-mode template, falling back to %q: %v", defaultBranch, err)
+	} else if branch = strings.TrimSpace(branch); branch != "" {
+		defaultBranch = branch
+	} else {
+		copilotSetupLog.Printf("Could not resolve github/gh-aw default branch for dev-mode template: empty branch returned, falling back to %q", defaultBranch)
 	}
 	installRef := "refs/heads/" + defaultBranch
 	installSHA256 := ""
