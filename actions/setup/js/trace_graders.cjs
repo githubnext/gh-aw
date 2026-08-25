@@ -466,12 +466,20 @@ function sanitizeSummaryText(value) {
 }
 
 /**
+ * @param {GraderResult} result
+ * @returns {result is GraderResult & {value: number}}
+ */
+function hasComputedValue(result) {
+  return typeof result.value === "number";
+}
+
+/**
  * Build the Graders section body for the GitHub Actions step summary.
  * @param {GraderResult[]} results
  * @returns {string}
  */
 function buildGradersSummaryBody(results) {
-  const computedResults = results.filter(result => result.value !== null);
+  const computedResults = results.filter(hasComputedValue);
   if (computedResults.length === 0) {
     return "No grader values available.";
   }
