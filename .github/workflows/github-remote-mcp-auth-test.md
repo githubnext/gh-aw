@@ -70,6 +70,7 @@ jobs:
             local response_headers_file="$2"
             shift 2
             local http_code
+            # runner-guard:ignore RGS-012 -- pinned request to the official GitHub remote MCP endpoint (api.githubcopilot.com); verifies the token authenticates and receives the response, no data is exfiltrated to an attacker-controlled host.
             if ! http_code="$(curl -sS -D "$response_headers_file" -o "$body_file" -w "%{http_code}" --max-time 20 \
               -X POST "$server_url" \
               --oauth2-bearer "$GITHUB_MCP_SERVER_TOKEN" \
