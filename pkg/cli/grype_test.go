@@ -318,6 +318,30 @@ func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
 	}
 }
 
+func TestValidateExecArgument(t *testing.T) {
+	tests := []struct {
+		name    string
+		arg     string
+		wantErr bool
+	}{
+		{name: "valid argument", arg: "ghcr.io/anchore/grype:v0.80.0"},
+		{name: "empty argument", arg: "", wantErr: true},
+		{name: "argument with control character", arg: "value\nnext", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExecArgument(tt.arg)
+			if tt.wantErr && err == nil {
+				t.Fatalf("expected error for argument %q", tt.arg)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error for argument %q: %v", tt.arg, err)
+			}
+		})
+	}
+}
+
 func TestGrypeRunOnImage_AcceptsValidImageRef(t *testing.T) {
 	prependFakeDockerToPath(t, `{"matches":[]}`)
 

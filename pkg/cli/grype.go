@@ -295,6 +295,16 @@ func grypeCacheKey(imageRef, configFile string) (string, error) {
 	return fmt.Sprintf("%s\x00%x", imageRef, digest), nil
 }
 
+func validateExecArgument(arg string) error {
+	if arg == "" {
+		return errors.New("argument cannot be empty")
+	}
+	if containsControlCharacters(arg) {
+		return errors.New("argument contains invalid control characters")
+	}
+	return nil
+}
+
 // grypeRunOnImage runs grype on a single container image reference via Docker,
 // using the result cache to avoid re-scanning images already checked in this run.
 // When configFile is non-empty it is mounted read-only into the scanner container
@@ -329,6 +339,11 @@ func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, e
 	dockerArgs, err := grypeDockerArgs(validatedImageRef, configFile)
 	if err != nil {
 		return nil, err
+	}
+	for i, arg := range dockerArgs {
+		if err := validateExecArgument(arg); err != nil {
+			return nil, fmt.Errorf("invalid docker argument %d: %w", i, err)
+		}
 	}
 
 	// #nosec G204 -- dockerPath is resolved from the fixed executable name "docker" and
