@@ -36,6 +36,7 @@ var errNoMatchingArtifact = errors.New("no matching artifact found for filter")
 
 var (
 	forecastLoadCachedRunAIC = loadCachedRunAIC
+	forecastLoadRunAIC       = loadRunAICObservation
 	// forecastDownloadRunArtifacts uses a forecast-specific implementation that downloads
 	// only the usage artifact and skips workflow run log downloads (not needed for AIC computation).
 	forecastDownloadRunArtifacts = forecastDownloadUsageArtifact
@@ -257,7 +258,10 @@ func loadForecastRunAIC(ctx context.Context, sem chan struct{}, runID int64, ver
 		return
 	}
 	defer func() { <-sem }()
-	aic := forecastLoadCachedRunAIC(ctx, runID, verbose)
+	aic, ok := forecastLoadRunAIC(ctx, runID, verbose)
+	if !ok {
+		return
+	}
 	resultsCh <- forecastAICResult{runID: runID, aic: aic}
 }
 
@@ -274,9 +278,14 @@ func loadForecastRunAIC(ctx context.Context, sem chan struct{}, runID int64, ver
 //   - run_summary.json   (shared cache produced by `gh aw logs`)
 //   - forecast_aic.json  (forecast-only cache produced by this function)
 func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
+	aic, _ := loadRunAICObservation(ctx, runID, verbose)
+	return aic
+}
+
+func loadRunAICObservation(ctx context.Context, runID int64, verbose bool) (float64, bool) {
 	dir := filepath.Join(defaultLogsOutputDir, fmt.Sprintf("run-%d", runID))
 	if aic, ok := loadRunSummaryAIC(dir, runID, verbose); ok {
-		return aic
+		return aic, true
 	}
 
 	// Second fast path: a forecast-specific AIC cache written by a previous forecast run.
@@ -284,7 +293,7 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	// directory or re-parsing the usage artifact.
 	if aic, ok := loadForecastAICCache(dir, runID); ok {
 		forecastRunLog.Printf("AIC forecast-cache hit for run %d: aic=%.3f (from %s)", runID, aic, forecastAICCacheFileName)
-		return aic
+		return aic, true
 	}
 
 	forecastRunLog.Printf("AIC cache miss for run %d; downloading usage artifact to %s", runID, dir)
@@ -292,8 +301,11 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading usage artifact for run %d…", runID)))
 	}
 
-	if !downloadForecastUsageForAIC(ctx, runID, dir, verbose) {
-		return 0
+	if err := downloadForecastUsageForAIC(ctx, runID, dir, verbose); err != nil {
+		if errors.Is(err, errNoMatchingArtifact) {
+			return 0, true
+		}
+		return 0, false
 	}
 	return analyzeAndCacheForecastAIC(dir, runID, verbose)
 }
@@ -310,37 +322,37 @@ func loadRunSummaryAIC(dir string, runID int64, verbose bool) (float64, bool) {
 	return 0, false
 }
 
-func downloadForecastUsageForAIC(ctx context.Context, runID int64, dir string, verbose bool) bool {
+func downloadForecastUsageForAIC(ctx context.Context, runID int64, dir string, verbose bool) error {
 	err := forecastDownloadRunArtifacts(ctx, runID, dir, verbose, "", "", "", []string{"usage"})
 	if err == nil {
-		return true
+		return nil
 	}
 	if errors.Is(err, errNoMatchingArtifact) {
 		forecastRunLog.Printf("No usage artifact for run %d; AIC will be 0", runID)
 		saveForecastNoDataCache(dir, runID)
-		return false
+		return err
 	}
 	forecastRunLog.Printf("Usage artifact download for run %d failed: %v", runID, err)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Usage artifact download for run %d failed: %v", runID, err)))
 	}
-	return false
+	return err
 }
 
-func analyzeAndCacheForecastAIC(dir string, runID int64, verbose bool) float64 {
+func analyzeAndCacheForecastAIC(dir string, runID int64, verbose bool) (float64, bool) {
 	tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
 	if err != nil || tokenUsage == nil || tokenUsage.TotalAIC <= 0 {
 		forecastRunLog.Printf("No AIC data in usage artifact for run %d (err=%v, tokenUsage=%v)", runID, err, tokenUsage)
 		// The usage artifact was fetched but carries no AIC data; this is permanent for a
 		// completed run, so negative-cache it to skip the download next time.
 		saveForecastNoDataCache(dir, runID)
-		return 0
+		return 0, true
 	}
 	forecastRunLog.Printf("AIC from usage artifact for run %d: aic=%.3f", runID, tokenUsage.TotalAIC)
 	// Persist the computed AIC so subsequent forecast runs hit the fast forecast cache
 	// instead of re-scanning the directory and re-parsing the usage artifact.
 	saveForecastAICCache(dir, runID, tokenUsage.TotalAIC)
-	return tokenUsage.TotalAIC
+	return tokenUsage.TotalAIC, true
 }
 
 // forecastDownloadUsageArtifact is a forecast-specific replacement for

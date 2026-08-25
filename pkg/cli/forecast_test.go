@@ -183,10 +183,10 @@ func TestObservedRunsPerPeriodConsistency(t *testing.T) {
 // same value reported to the caller in either output format.
 func TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
-	originalLoadAIC := forecastLoadCachedRunAIC
+	originalLoadAIC := forecastLoadRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
-		forecastLoadCachedRunAIC = originalLoadAIC
+		forecastLoadRunAIC = originalLoadAIC
 	})
 
 	const (
@@ -207,8 +207,8 @@ func TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats(t *testing.T) {
 		4: 4.6,
 		5: 4.1,
 	}
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
-		return runAIC[runID]
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
+		return runAIC[runID], true
 	}
 	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 		return completedRuns, len(completedRuns), nil
@@ -257,10 +257,10 @@ func TestForecastRateLimitSleep_CompletesWithoutCancellation(t *testing.T) {
 
 func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
-	originalLoadAIC := forecastLoadCachedRunAIC
+	originalLoadAIC := forecastLoadRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
-		forecastLoadCachedRunAIC = originalLoadAIC
+		forecastLoadRunAIC = originalLoadAIC
 	})
 
 	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
@@ -277,8 +277,8 @@ func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 		12: 1.0,
 		13: 2.0,
 	}
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
-		return runAIC[runID]
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
+		return runAIC[runID], true
 	}
 
 	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
@@ -339,10 +339,10 @@ func TestDateWindowCutoffRespected(t *testing.T) {
 
 func TestForecastWorkflow_RequestsRecentRuns(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
-	originalLoadAIC := forecastLoadCachedRunAIC
+	originalLoadAIC := forecastLoadRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
-		forecastLoadCachedRunAIC = originalLoadAIC
+		forecastLoadRunAIC = originalLoadAIC
 	})
 
 	var capturedOpts ListWorkflowRunsOptions
@@ -354,11 +354,11 @@ func TestForecastWorkflow_RequestsRecentRuns(t *testing.T) {
 		}
 		return runs, len(runs), nil
 	}
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
 		if runID == 12 {
-			return 1.0
+			return 1.0, true
 		}
-		return 0
+		return 0, true
 	}
 
 	_, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
@@ -372,10 +372,10 @@ func TestForecastWorkflow_RequestsRecentRuns(t *testing.T) {
 
 func TestMissingArtifactContributesZeroET(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
-	originalLoadAIC := forecastLoadCachedRunAIC
+	originalLoadAIC := forecastLoadRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
-		forecastLoadCachedRunAIC = originalLoadAIC
+		forecastLoadRunAIC = originalLoadAIC
 	})
 
 	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
@@ -386,11 +386,11 @@ func TestMissingArtifactContributesZeroET(t *testing.T) {
 		}
 		return runs, len(runs), nil
 	}
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
 		if runID == 12 {
-			return 0
+			return 0, true
 		}
-		return 2.0
+		return 2.0, true
 	}
 
 	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
@@ -437,10 +437,10 @@ func TestEmptySampleProducesNilProjection(t *testing.T) {
 
 func TestInProgressRunIsPartialObservation(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
-	originalLoadAIC := forecastLoadCachedRunAIC
+	originalLoadAIC := forecastLoadRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
-		forecastLoadCachedRunAIC = originalLoadAIC
+		forecastLoadRunAIC = originalLoadAIC
 	})
 
 	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
@@ -455,8 +455,8 @@ func TestInProgressRunIsPartialObservation(t *testing.T) {
 		12: 1.0,
 		13: 2.75,
 	}
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
-		return runAIC[runID]
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
+		return runAIC[runID], true
 	}
 
 	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
@@ -474,10 +474,10 @@ func TestInProgressRunIsPartialObservation(t *testing.T) {
 
 func TestProjectedTokensEqualsP50(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
-	originalLoadAIC := forecastLoadCachedRunAIC
+	originalLoadAIC := forecastLoadRunAIC
 	t.Cleanup(func() {
 		forecastListWorkflowRunsPaginated = originalList
-		forecastLoadCachedRunAIC = originalLoadAIC
+		forecastLoadRunAIC = originalLoadAIC
 	})
 
 	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
@@ -494,8 +494,8 @@ func TestProjectedTokensEqualsP50(t *testing.T) {
 		13: 2.0,
 		14: 3.0,
 	}
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
-		return runAIC[runID]
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
+		return runAIC[runID], true
 	}
 
 	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
@@ -612,8 +612,8 @@ func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
 // TestParallelLoadRunAICs_ReturnsAllAICValues verifies that parallelLoadRunAICs collects
 // AIC values for every run, regardless of concurrency level.
 func TestParallelLoadRunAICs_ReturnsAllAICValues(t *testing.T) {
-	originalLoadAIC := forecastLoadCachedRunAIC
-	t.Cleanup(func() { forecastLoadCachedRunAIC = originalLoadAIC })
+	originalLoadAIC := forecastLoadRunAIC
+	t.Cleanup(func() { forecastLoadRunAIC = originalLoadAIC })
 
 	wantAIC := map[int64]float64{
 		1: 1.0,
@@ -622,8 +622,8 @@ func TestParallelLoadRunAICs_ReturnsAllAICValues(t *testing.T) {
 		4: 4.0,
 		5: 5.0,
 	}
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
-		return wantAIC[runID]
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
+		return wantAIC[runID], true
 	}
 
 	runs := []WorkflowRun{
@@ -638,17 +638,37 @@ func TestParallelLoadRunAICs_ReturnsAllAICValues(t *testing.T) {
 	assert.Equal(t, wantAIC, got)
 }
 
+func TestParallelLoadRunAICs_OmitsUnavailableAICValues(t *testing.T) {
+	originalLoadAIC := forecastLoadRunAIC
+	t.Cleanup(func() { forecastLoadRunAIC = originalLoadAIC })
+
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
+		if runID == 2 {
+			return 0, false
+		}
+		return 0, true
+	}
+
+	runs := []WorkflowRun{
+		{DatabaseID: 1, Status: "completed", Conclusion: "success"},
+		{DatabaseID: 2, Status: "completed", Conclusion: "success"},
+	}
+
+	got := parallelLoadRunAICs(context.Background(), runs, ForecastConfig{DownloadConcurrency: 2})
+	assert.Equal(t, map[int64]float64{1: 0}, got)
+}
+
 // TestParallelLoadRunAICs_RespectsContextCancellation verifies that parallelLoadRunAICs
 // stops issuing new downloads and returns promptly when the context is cancelled.
 func TestParallelLoadRunAICs_RespectsContextCancellation(t *testing.T) {
-	originalLoadAIC := forecastLoadCachedRunAIC
-	t.Cleanup(func() { forecastLoadCachedRunAIC = originalLoadAIC })
+	originalLoadAIC := forecastLoadRunAIC
+	t.Cleanup(func() { forecastLoadRunAIC = originalLoadAIC })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
-		return float64(runID)
+	forecastLoadRunAIC = func(_ context.Context, runID int64, _ bool) (float64, bool) {
+		return float64(runID), true
 	}
 
 	runs := []WorkflowRun{
