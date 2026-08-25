@@ -28,7 +28,6 @@ mcp-servers:
       # Excluded feature-flag-gated operations:
       # - "extract_structured"  # Requires liter-llm feature flag at build time
 ---
-<!--
 ## Kreuzberg MCP Server
 
 Kreuzberg is a polyglot document intelligence engine. The MCP server exposes its
@@ -85,4 +84,3 @@ absolute workspace paths (e.g. `${{ github.workspace }}/document.pdf`).
 imports:
   - shared/mcp/kreuzberg.md
 ```
--->
