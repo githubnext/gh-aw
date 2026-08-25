@@ -110,19 +110,26 @@ func TestRunWorkflowsOnGitHubCancellationDuringExecution(t *testing.T) {
 
 // TestDownloadWorkflowLogsTimeoutRespected tests that timeout-minutes is respected
 func TestDownloadWorkflowLogsTimeoutRespected(t *testing.T) {
-	// Use a short timeout in minutes and verify fast-fail behavior still returns quickly
-	ctx := context.Background()
+	originalFetch := logsFetchWorkflowRunBatch
+	t.Cleanup(func() {
+		logsFetchWorkflowRunBatch = originalFetch
+	})
+	logsFetchWorkflowRunBatch = func(ctx context.Context, _ LogsDownloadOptions, _ string, _ int, _ bool) (workflowRunBatch, error) {
+		<-ctx.Done()
+		return workflowRunBatch{}, ctx.Err()
+	}
 
 	start := time.Now()
-	// Use a workflow name that doesn't exist to avoid actual network calls
-	_ = DownloadWorkflowLogs(ctx, LogsDownloadOptions{
-		WorkflowName:   "nonexistent-workflow-12345",
+	err := DownloadWorkflowLogs(context.Background(), LogsDownloadOptions{
+		WorkflowName:   "test-workflow",
 		Count:          100,
-		OutputDir:      "/tmp/test-logs",
+		OutputDir:      t.TempDir(),
 		TimeoutMinutes: 1,
+		TimeoutSeconds: 1,
 	})
 	elapsed := time.Since(start)
 
-	// Should complete within reasonable time (give 5 seconds buffer for test overhead)
-	assert.Less(t, elapsed, 5*time.Second, "Should complete quickly when workflow doesn't exist")
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, elapsed, time.Second, "Should wait for the configured timeout")
+	assert.Less(t, elapsed, 3*time.Second, "Should stop promptly after the configured timeout")
 }
