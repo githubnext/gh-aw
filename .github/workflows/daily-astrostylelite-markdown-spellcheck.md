@@ -12,6 +12,7 @@ timeout-minutes: 30
 
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 
 tracker-id: daily-astrostylelite-markdown-spellcheck

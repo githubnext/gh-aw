@@ -71,6 +71,12 @@ const {
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
+const harnessChildEnv = {
+  ...process.env,
+  GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+  GH_AW_HARNESS_MAX_DELAY_MS: "1",
+  GH_AW_SKIP_REFLECT: "true",
+};
 
 function makeHarnessTempDir(name) {
   fs.mkdirSync(agentTempDir, { recursive: true });
@@ -2617,7 +2623,7 @@ process.exit(0);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -2649,7 +2655,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -2686,7 +2692,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_SAFEOUTPUTS_CLI: "true",
@@ -2728,7 +2734,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
         encoding: "utf8",
         timeout: 15000,
       });
@@ -2760,7 +2766,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_SAFEOUTPUTS_CLI: "true" },
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_SAFEOUTPUTS_CLI: "true" },
         encoding: "utf8",
         timeout: 15000,
       });
@@ -2791,7 +2797,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
         encoding: "utf8",
         timeout: 15000,
       });
@@ -2830,7 +2836,7 @@ setInterval(() => {}, 1000);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
@@ -2870,7 +2876,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           // Override retry config to keep the test fast.
@@ -2914,7 +2920,7 @@ setInterval(() => {}, 1000);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
@@ -2958,7 +2964,7 @@ setInterval(() => {}, 1000);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
@@ -2996,7 +3002,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
         },
@@ -3043,7 +3049,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -3076,7 +3082,7 @@ process.exit(1);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...process.env, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath, GH_AW_AGENT_OUTPUT: agentOutputPath },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -3107,7 +3113,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_HARNESS_MAX_RETRIES: "0",
@@ -3144,7 +3150,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_AGENT_OUTPUT: agentOutputPath,
@@ -3178,7 +3184,7 @@ process.exit(1);`,
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
         env: {
-          ...process.env,
+          ...harnessChildEnv,
           COPILOT_HARNESS_STUB_CALLS: callsPath,
           GH_AW_SAFE_OUTPUTS: safeOutputsPath,
           GH_AW_HARNESS_MAX_RETRIES: "0",

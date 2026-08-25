@@ -1598,3 +1598,45 @@ func TestCodexEngineForwardsSafeOutputsInputEnvVars(t *testing.T) {
 		t.Errorf("Expected GH_AW_INPUT_REPO in step env for TOML env_vars forwarding, got:\n%s", stepContent)
 	}
 }
+
+// TestCodexEngineHttpMCPHeaderSecretsUseEnvVars verifies that secret and env expressions
+// in HTTP MCP headers are rendered as shell environment variable references in the TOML
+// config instead of being interpolated directly into the run block (RGS-008).
+func TestCodexEngineHttpMCPHeaderSecretsUseEnvVars(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tools := map[string]any{
+		"datadog": map[string]any{
+			"type": "http",
+			"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+			"headers": map[string]any{
+				"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
+				"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}",
+				"DD_SITE":            "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+			},
+		},
+	}
+
+	var yaml strings.Builder
+	workflowData := &WorkflowData{Name: "test-workflow"}
+	if err := engine.RenderMCPConfig(&yaml, tools, []string{"datadog"}, workflowData); err != nil {
+		t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+	}
+
+	result := yaml.String()
+
+	if strings.Contains(result, "${{ secrets.") {
+		t.Errorf("Expected no secret expressions in MCP config, got:\n%s", result)
+	}
+
+	expected := []string{
+		`"DD_API_KEY" = "${DD_API_KEY}"`,
+		`"DD_APPLICATION_KEY" = "${DD_APPLICATION_KEY}"`,
+		`"DD_SITE" = "${DD_SITE}"`,
+	}
+	for _, want := range expected {
+		if !strings.Contains(result, want) {
+			t.Errorf("Expected MCP config to contain %q, got:\n%s", want, result)
+		}
+	}
+}

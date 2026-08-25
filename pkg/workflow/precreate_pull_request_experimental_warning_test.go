@@ -26,6 +26,7 @@ on: workflow_dispatch
 engine: copilot
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 safe-outputs:
   create-pull-request:

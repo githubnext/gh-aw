@@ -19,7 +19,23 @@ import (
 var (
 	docBulletRe   = regexp.MustCompile(`^//\s+-\s+([a-z0-9-]+)\s+—`)
 	readmeTableRe = regexp.MustCompile(`^\|\s+` + "`" + `([a-z0-9-]+)` + "`" + `\s+\|`)
+	linterFlagsRe = regexp.MustCompile(`LINTER_FLAGS="([^"]+)"`)
 )
+
+var notYetEnforced = map[string]string{
+	"errorfwrapv":                 "requires an enforcement audit after the recent false-positive fix (#51928)",
+	"errormessage":                "enforced by the dedicated lint-error-messages CI job",
+	"excessivefuncparams":         "legitimate high-parameter functions cannot yet be suppressed",
+	"hardcodedfilepath":           "requires an enforcement audit after the same-package constant fix (#52428)",
+	"largefunc":                   "legitimate large functions cannot yet be suppressed",
+	"lenstringzero":               "requires an enforcement audit after the diagnostic-message fix (#54717)",
+	"manualpathconcat":            "existing production violations need remediation",
+	"packagelevelmutableslicemap": "existing production violations need remediation",
+	"seenmapbool":                 "existing production violations need remediation",
+	"sprintferrdot":               "has not yet completed an enforcement-readiness audit",
+	"ssljson":                     "has not yet completed an enforcement-readiness audit",
+	"stringsconcatloop":           "has not yet completed an enforcement-readiness audit",
+}
 
 // TestDocGo_CountMatchesBullets validates that the "All N active analyzers:"
 // header count in doc.go matches the actual number of bullet entries.
@@ -85,6 +101,41 @@ func TestDocSurfacesMatchRegistryAndSpecList(t *testing.T) {
 	}
 	assert.Equal(t, sortedKeys(readmeSlugs), sortedKeys(documentedLabels),
 		"documentedAnalyzers() labels in spec_test.go must match README Subpackages table labels exactly")
+}
+
+func TestCIEnforcedLintersMatchRegistry(t *testing.T) {
+	workflowBytes, err := os.ReadFile("../../.github/workflows/cgo.yml")
+	require.NoError(t, err, "cgo.yml must be present")
+
+	flagMatches := linterFlagsRe.FindAllStringSubmatch(string(workflowBytes), -1)
+	require.Len(t, flagMatches, 2, "cgo.yml must define native and wasm LINTER_FLAGS values")
+
+	enforced := make(map[string]struct{})
+	for _, match := range flagMatches {
+		for flag := range strings.FieldsSeq(match[1]) {
+			if flag == "-test=false" {
+				continue
+			}
+			require.Truef(t, strings.HasPrefix(flag, "-"), "LINTER_FLAGS entry %q must be a flag", flag)
+			enforced[strings.TrimPrefix(flag, "-")] = struct{}{}
+		}
+	}
+
+	registry := make(map[string]struct{})
+	for _, analyzer := range linters.All() {
+		registry[analyzer.Name] = struct{}{}
+		_, enforcedInCI := enforced[analyzer.Name]
+		_, intentionallyExcluded := notYetEnforced[analyzer.Name]
+		assert.Truef(t, enforcedInCI || intentionallyExcluded,
+			"analyzer %q is in linters.All() but neither cgo.yml LINTER_FLAGS nor notYetEnforced; "+
+				"add it to CI or document why it is not ready", analyzer.Name)
+	}
+
+	for name, reason := range notYetEnforced {
+		assert.Containsf(t, registry, name, "notYetEnforced analyzer %q must be registered", name)
+		assert.NotContainsf(t, enforced, name, "remove %q from notYetEnforced once CI enforces it", name)
+		assert.NotEmptyf(t, reason, "notYetEnforced analyzer %q must have a reason", name)
+	}
 }
 
 func parseDocBulletSet(t *testing.T) map[string]struct{} {

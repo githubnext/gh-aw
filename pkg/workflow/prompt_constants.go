@@ -21,7 +21,7 @@ const (
 	repoMemoryPromptMultiFile               = "repo_memory_prompt_multi.md"
 	safeOutputsPromptFile                   = "safe_outputs_prompt.md"
 	safeOutputsCreatePRFile                 = "safe_outputs_create_pull_request.md"
-	safeOutputsPreCreateSteerFile           = "safe_outputs_pre_create_steer.md"
+	safeOutputsSteeringIssueFile            = "safe_outputs_steering_issue.md"
 	safeOutputsPushToBranchFile             = "safe_outputs_push_to_pr_branch.md"
 	safeOutputsCommentMemoryFile            = "safe_outputs_comment_memory.md"
 	safeOutputsAutoCreateIssueFile          = "safe_outputs_auto_create_issue.md"

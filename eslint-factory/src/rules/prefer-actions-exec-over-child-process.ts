@@ -72,10 +72,43 @@ function isChildProcessModuleBinding(identifierName: string, scopeNode: TSESTree
 }
 
 /**
- * Resolves whether `identifierName` is bound (directly or via destructuring/require) to one of
- * `OUTPUT_CAPTURING_METHODS` from the `child_process` module, and returns the bound method name.
+ * A `child_process` output-capturing method reachable from a call site, along with whether it is
+ * reached through a `promisify()` wrapper. Promisified bindings resolve to the command's output
+ * instead of a `ChildProcess` handle, so the handle-retention exemption does not apply to them.
  */
-function resolveChildProcessOutputMethodBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): string | null {
+type ResolvedChildProcessMethod = { method: string; promisified: boolean };
+
+/**
+ * True when `node` is a `promisify(<something>)` call — either the bare `promisify(...)` binding
+ * (`const { promisify } = require("util")` / `import { promisify } from "util"`) or a member call
+ * such as `util.promisify(...)` / `require("util").promisify(...)`.
+ */
+function isPromisifyCall(node: TSESTree.Node | null | undefined): node is TSESTree.CallExpression {
+  if (!node || node.type !== AST_NODE_TYPES.CallExpression || node.arguments.length !== 1) return false;
+  const callee = node.callee;
+  if (callee.type === AST_NODE_TYPES.Identifier) return callee.name === "promisify";
+  return callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "promisify";
+}
+
+/**
+ * Resolves `childProcess.execSync` / `cp.exec` / `require("child_process").exec` member expressions
+ * to the referenced `OUTPUT_CAPTURING_METHODS` name.
+ */
+function resolveChildProcessMemberMethod(node: TSESTree.MemberExpression, sourceCode: TSESLint.SourceCode): string | null {
+  if (node.computed || node.property.type !== AST_NODE_TYPES.Identifier || !OUTPUT_CAPTURING_METHODS.has(node.property.name)) return null;
+  const isDirectChildProcessRequire = node.object.type === AST_NODE_TYPES.CallExpression && isRequireChildProcess(node.object);
+  const isChildProcessNamespace = node.object.type === AST_NODE_TYPES.Identifier && isChildProcessModuleBinding(node.object.name, node.object, sourceCode);
+  return isDirectChildProcessRequire || isChildProcessNamespace ? node.property.name : null;
+}
+
+/**
+ * Resolves whether `identifierName` is bound (directly or via destructuring/require/`promisify()`)
+ * to one of `OUTPUT_CAPTURING_METHODS` from the `child_process` module.
+ */
+function resolveChildProcessOutputMethodBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode, visited: Set<string> = new Set()): ResolvedChildProcessMethod | null {
+  if (visited.has(identifierName)) return null;
+  visited.add(identifierName);
+
   let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
   while (scope) {
     const variable = scope.set.get(identifierName);
@@ -84,7 +117,7 @@ function resolveChildProcessOutputMethodBinding(identifierName: string, scopeNod
         // ESM: import { execSync } from "child_process"
         if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportSpecifier) {
           const importedName = getImportSpecifierName(def.node);
-          if (importedName && OUTPUT_CAPTURING_METHODS.has(importedName)) return importedName;
+          if (importedName && OUTPUT_CAPTURING_METHODS.has(importedName)) return { method: importedName, promisified: false };
         }
 
         if (def.type !== "Variable") continue;
@@ -96,17 +129,28 @@ function resolveChildProcessOutputMethodBinding(identifierName: string, scopeNod
             if (prop.type !== AST_NODE_TYPES.Property || prop.computed) continue;
             if (prop.key.type !== AST_NODE_TYPES.Identifier || !OUTPUT_CAPTURING_METHODS.has(prop.key.name)) continue;
             const boundName = prop.value.type === AST_NODE_TYPES.Identifier ? prop.value.name : null;
-            if (boundName === identifierName) return prop.key.name;
+            if (boundName === identifierName) return { method: prop.key.name, promisified: false };
           }
         }
 
+        if (declarator.id.type !== AST_NODE_TYPES.Identifier) continue;
+
         // const execSync = childProcess.execSync (or cp.execSync, or require("child_process").execSync)
-        if (declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init?.type === AST_NODE_TYPES.MemberExpression) {
-          const init = declarator.init;
-          if (!init.computed && init.property.type === AST_NODE_TYPES.Identifier && OUTPUT_CAPTURING_METHODS.has(init.property.name)) {
-            const isDirectChildProcessRequire = init.object.type === AST_NODE_TYPES.CallExpression && isRequireChildProcess(init.object);
-            const isChildProcessNamespace = init.object.type === AST_NODE_TYPES.Identifier && isChildProcessModuleBinding(init.object.name, init.object, sourceCode);
-            if (isDirectChildProcessRequire || isChildProcessNamespace) return init.property.name;
+        if (declarator.init?.type === AST_NODE_TYPES.MemberExpression) {
+          const method = resolveChildProcessMemberMethod(declarator.init, sourceCode);
+          if (method) return { method, promisified: false };
+        }
+
+        // const execAsync = promisify(exec) (or promisify(require("child_process").exec))
+        if (isPromisifyCall(declarator.init)) {
+          const wrapped = declarator.init.arguments[0];
+          if (wrapped.type === AST_NODE_TYPES.Identifier) {
+            const resolved = resolveChildProcessOutputMethodBinding(wrapped.name, wrapped, sourceCode, visited);
+            if (resolved) return { method: resolved.method, promisified: true };
+          }
+          if (wrapped.type === AST_NODE_TYPES.MemberExpression) {
+            const method = resolveChildProcessMemberMethod(wrapped, sourceCode);
+            if (method) return { method, promisified: true };
           }
         }
       }
@@ -118,32 +162,20 @@ function resolveChildProcessOutputMethodBinding(identifierName: string, scopeNod
 }
 
 /**
- * Returns the resolved `child_process` output-capturing method name (e.g. `"execSync"`) for a
- * `CallExpression`, or `null` if the call isn't one of `OUTPUT_CAPTURING_METHODS` sourced from
- * `child_process`.
+ * Returns the resolved `child_process` output-capturing method for a `CallExpression`, or `null`
+ * if the call isn't one of `OUTPUT_CAPTURING_METHODS` sourced from `child_process`.
  */
-function resolveChildProcessOutputMethod(node: TSESTree.CallExpression, sourceCode: TSESLint.SourceCode): string | null {
+function resolveChildProcessOutputMethod(node: TSESTree.CallExpression, sourceCode: TSESLint.SourceCode): ResolvedChildProcessMethod | null {
   const callee = node.callee;
 
-  // execSync(...) / exec(...) / execFile(...) / execFileSync(...) — destructured or aliased
+  // execSync(...) / exec(...) / execFile(...) / execFileSync(...) — destructured, aliased, or promisified
   if (callee.type === AST_NODE_TYPES.Identifier) {
     return resolveChildProcessOutputMethodBinding(callee.name, callee, sourceCode);
   }
 
-  if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed || callee.property.type !== AST_NODE_TYPES.Identifier) return null;
-  if (!OUTPUT_CAPTURING_METHODS.has(callee.property.name)) return null;
-
-  // require("child_process").execSync(...)
-  if (callee.object.type === AST_NODE_TYPES.CallExpression && isRequireChildProcess(callee.object)) {
-    return callee.property.name;
-  }
-
-  // childProcess.execSync(...) / cp.execSync(...)
-  if (callee.object.type === AST_NODE_TYPES.Identifier && isChildProcessModuleBinding(callee.object.name, callee.object, sourceCode)) {
-    return callee.property.name;
-  }
-
-  return null;
+  if (callee.type !== AST_NODE_TYPES.MemberExpression) return null;
+  const method = resolveChildProcessMemberMethod(callee, sourceCode);
+  return method ? { method, promisified: false } : null;
 }
 
 export const preferActionsExecOverChildProcessRule = createRule({
@@ -156,7 +188,8 @@ export const preferActionsExecOverChildProcessRule = createRule({
         'Only applies to modules marked with the `/// <reference types="@actions/github-script" />` triple-slash reference, which run as ' +
         "actions/github-script steps with the @actions/exec toolkit already available as `exec`; standalone Node entry points (and the modules they load) " +
         "have no such global and are left alone. spawn()/spawnSync() are never flagged, and exec()/execFile() calls whose returned ChildProcess handle is " +
-        "retained (for stdin/stdout streaming or lifecycle management) are exempt, since @actions/exec has no equivalent for those.",
+        "retained (for stdin/stdout streaming or lifecycle management) are exempt, since @actions/exec has no equivalent for those. Bindings created through " +
+        "promisify() are resolved to the underlying child_process method.",
     },
     schema: [],
     messages: {
@@ -171,14 +204,15 @@ export const preferActionsExecOverChildProcessRule = createRule({
 
     return {
       CallExpression(node) {
-        const method = resolveChildProcessOutputMethod(node, sourceCode);
-        if (!method) return;
-        if (HANDLE_RETURNING_METHODS.has(method) && retainsCallResult(node)) return;
+        const resolved = resolveChildProcessOutputMethod(node, sourceCode);
+        if (!resolved) return;
+        // A promisified binding resolves to captured output, never to a ChildProcess handle.
+        if (!resolved.promisified && HANDLE_RETURNING_METHODS.has(resolved.method) && retainsCallResult(node)) return;
 
         context.report({
           node,
           messageId: "preferActionsExec",
-          data: { method },
+          data: { method: resolved.method },
         });
       },
     };

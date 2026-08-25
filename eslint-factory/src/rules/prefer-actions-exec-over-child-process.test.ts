@@ -138,4 +138,47 @@ describe("prefer-actions-exec-over-child-process", () => {
       ],
     });
   });
+
+  it("flags promisify()-wrapped child_process bindings", () => {
+    cjsRuleTester.run("prefer-actions-exec-over-child-process", preferActionsExecOverChildProcessRule, {
+      valid: [
+        // spawn is out of scope, even when promisified
+        {
+          code: ghScript(`const { promisify } = require("util"); const { spawn } = require("child_process"); const spawnAsync = promisify(spawn); spawnAsync("node", ["server.js"]);`),
+        },
+        // promisify() of an unrelated module's method
+        { code: ghScript(`const { promisify } = require("util"); const { exec } = require("some-other-lib"); const execAsync = promisify(exec); execAsync("git status");`) },
+        // promisify() of a non-child_process function
+        { code: ghScript(`const { promisify } = require("util"); const fs = require("fs"); const readFile = promisify(fs.readFile); readFile("f.txt");`) },
+        // No github-script marker
+        { code: `const { promisify } = require("util"); const { exec } = require("child_process"); const execAsync = promisify(exec); execAsync("git status");` },
+        // Self-referential binding must not loop or resolve
+        { code: ghScript(`const { promisify } = require("util"); let execAsync = promisify(execAsync); execAsync("git status");`) },
+      ],
+      invalid: [
+        {
+          code: ghScript(`const { promisify } = require("util"); const { exec } = require("child_process"); const execAsync = promisify(exec); async function f() { const { stdout } = await execAsync("git status"); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const { promisify } = require("util"); const execAsync = promisify(require("child_process").exec); async function f() { await execAsync("git status"); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const util = require("util"); const cp = require("child_process"); const execFileAsync = util.promisify(cp.execFile); async function f() { await execFileAsync("git", ["status"]); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "execFile" } }],
+        },
+      ],
+    });
+
+    esmRuleTester.run("prefer-actions-exec-over-child-process", preferActionsExecOverChildProcessRule, {
+      valid: [{ code: ghScript(`import { promisify } from "util"; import { spawn } from "child_process"; const spawnAsync = promisify(spawn); spawnAsync("node", ["server.js"]);`) }],
+      invalid: [
+        {
+          code: ghScript(`import { promisify } from "util"; import { exec } from "child_process"; const execAsync = promisify(exec); async function f() { await execAsync("git status"); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+      ],
+    });
+  });
 });

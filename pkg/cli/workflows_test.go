@@ -111,6 +111,7 @@ func TestFetchLatestRunsByRef_ContextCancellation(t *testing.T) {
 }
 
 func TestIsWorkflowFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		filename string
@@ -172,6 +173,7 @@ func TestIsWorkflowFile(t *testing.T) {
 }
 
 func TestFilterWorkflowFiles(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    []string
@@ -337,6 +339,7 @@ func TestGetMarkdownWorkflowFilesExcludesREADME(t *testing.T) {
 }
 
 func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	err := os.MkdirAll(workflowsDir, 0o755)

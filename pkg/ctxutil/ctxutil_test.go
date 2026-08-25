@@ -6,6 +6,7 @@ import (
 )
 
 func TestOrBackground(t *testing.T) {
+	t.Parallel()
 	type key string
 	const testKey key = "test-key"
 
@@ -25,6 +26,7 @@ func TestOrBackground(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := OrBackground(tt.ctx)
 			if got == nil {
 				t.Fatal("OrBackground returned nil")

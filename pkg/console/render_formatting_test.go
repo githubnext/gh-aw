@@ -9,6 +9,7 @@ import (
 )
 
 func TestFormatFieldValue_Pointers(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    any
@@ -50,6 +51,7 @@ func TestFormatFieldValue_Pointers(t *testing.T) {
 }
 
 func TestFormatFieldValue_NumericTypes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    any
@@ -86,6 +88,7 @@ func TestFormatFieldValue_NumericTypes(t *testing.T) {
 }
 
 func TestFormatFieldValue_TimeType(t *testing.T) {
+	t.Parallel()
 	// Test time.Time formatting
 	testTime := time.Date(2025, 10, 28, 14, 30, 45, 0, time.UTC)
 
@@ -130,6 +133,7 @@ func TestFormatFieldValue_TimeTypeWithConfiguredLocation(t *testing.T) {
 }
 
 func TestFormatFieldValue_UnexportedFields(t *testing.T) {
+	t.Parallel()
 	// Test handling of unexported fields (can't use Interface())
 	type testStruct struct {
 		exported   int
@@ -148,6 +152,7 @@ func TestFormatFieldValue_UnexportedFields(t *testing.T) {
 }
 
 func TestFormatFieldValue_BoolType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    bool
@@ -169,6 +174,7 @@ func TestFormatFieldValue_BoolType(t *testing.T) {
 }
 
 func TestFormatFieldValue_InvalidValue(t *testing.T) {
+	t.Parallel()
 	// Test invalid reflect.Value
 	var val reflect.Value
 	result := formatFieldValue(val)
@@ -178,6 +184,7 @@ func TestFormatFieldValue_InvalidValue(t *testing.T) {
 }
 
 func TestFormatFieldValueWithTag_NumberFormat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    any
@@ -209,6 +216,7 @@ func TestFormatFieldValueWithTag_NumberFormat(t *testing.T) {
 }
 
 func TestFormatFieldValueWithTag_CostFormat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    any
@@ -236,6 +244,7 @@ func TestFormatFieldValueWithTag_CostFormat(t *testing.T) {
 }
 
 func TestFormatFieldValueWithTag_DefaultValue(t *testing.T) {
+	t.Parallel()
 	tag := consoleTag{defaultVal: "N/A"}
 
 	tests := []struct {
@@ -261,6 +270,7 @@ func TestFormatFieldValueWithTag_DefaultValue(t *testing.T) {
 }
 
 func TestFormatFieldValueWithTag_EmptyValueWithNumberFormat(t *testing.T) {
+	t.Parallel()
 	// Test that "-" is returned for empty values even with format tag
 	tag := consoleTag{format: "number"}
 
@@ -272,6 +282,7 @@ func TestFormatFieldValueWithTag_EmptyValueWithNumberFormat(t *testing.T) {
 }
 
 func TestFormatFieldValueWithTag_FilesizeFormat(t *testing.T) {
+	t.Parallel()
 	tag := consoleTag{format: "filesize"}
 
 	tests := []struct {
@@ -299,6 +310,7 @@ func TestFormatFieldValueWithTag_FilesizeFormat(t *testing.T) {
 }
 
 func TestFormatFieldValueWithTag_NoFormat(t *testing.T) {
+	t.Parallel()
 	// Test with no format tag - should behave like formatFieldValue
 	tag := consoleTag{}
 

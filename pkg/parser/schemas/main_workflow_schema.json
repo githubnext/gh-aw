@@ -7489,7 +7489,7 @@
                 },
                 "branch-prefix": {
                   "type": "string",
-                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name. In steer mode, this prefix is also used for the workflow-owned pre-created pull request branch and must be a static valid branch-name prefix."
+                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name."
                 },
                 "require-temporary-id": {
                   "type": "boolean",
@@ -7497,7 +7497,7 @@
                 },
                 "steer": {
                   "type": "boolean",
-                  "description": "\u26a0\ufe0f Experimental. Pre-create a draft pull request and let the agent read user-authored pull request comments and review comments containing the keyword 'steer'. Requires top-level pull-requests: read permission.",
+                  "description": "\u26a0\ufe0f Experimental. Create a run-scoped issue and let the agent read user-authored issue comments containing the keyword 'steer'. The issue is reused for agent failure reporting. Requires top-level issues: read permission.",
                   "default": false
                 },
                 "title-prefix": {
@@ -11333,6 +11333,29 @@
                   "type": "string",
                   "description": "Model override for threat detection engine execution."
                 },
+                "engine-timeout": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(0|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$"
+                    },
+                    {
+                      "type": "integer",
+                      "const": 0
+                    }
+                  ],
+                  "description": "Per-attempt timeout for threat detection engine execution as a Go duration (for example '90s', '10m', '1h30m'). Set to 0 to disable timeout enforcement in threat-detect."
+                },
+                "max-turns": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Detector-only per-attempt max-turns override passed to threat-detect. When omitted, threat-detect falls back to GH_AW_MAX_TURNS (if set) and then to its own built-in default."
+                },
+                "retries": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Detector-only retry count passed to threat-detect for clean exits without a verdict."
+                },
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run before engine execution",
@@ -13237,17 +13260,6 @@
       ],
       "description": "Positive integer as a string (supports optional K/M suffix) or a GitHub Actions expression."
     },
-    "positive_effective_tokens_limit": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "minimum": 1
-        },
-        {
-          "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-        }
-      ]
-    },
     "positive_ai_credits_limit": {
       "oneOf": [
         {
@@ -13256,18 +13268,6 @@
         },
         {
           "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-        }
-      ]
-    },
-    "max_effective_tokens_limit": {
-      "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions). Use a negative integer to disable budget enforcement and token steering.",
-      "oneOf": [
-        {
-          "$ref": "#/$defs/positive_effective_tokens_limit"
-        },
-        {
-          "type": "integer",
-          "maximum": -1
         }
       ]
     },

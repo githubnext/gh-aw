@@ -93,6 +93,12 @@ func (c *Compiler) buildConclusionNoOpStep(data *WorkflowData, mainJobName strin
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_AMBIENT_CONTEXT: ${{ needs.%s.outputs.ambient_context }}\n", mainJobName))
 	if data.WorkflowID != "" {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
+		if isSteeringIssueEnabled(data) {
+			envVars = append(envVars,
+				"          GH_AW_STEERING_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}\n",
+				"          GH_AW_STEERING_ISSUE_URL: ${{ needs.activation.outputs.steering_issue_url }}\n",
+			)
+		}
 	}
 	return c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 		StepName:      "Process no-op messages",
@@ -289,6 +295,9 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 // buildAgentFailureActivationStatusVars appends status outputs from safe outputs and activation jobs.
 func buildAgentFailureActivationStatusVars(data *WorkflowData) []string {
 	var envVars []string
+	if isSteeringIssueEnabled(data) {
+		envVars = append(envVars, "          GH_AW_FAILURE_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}\n")
+	}
 	if data.SafeOutputs.AssignToAgent != nil {
 		envVars = append(envVars, "          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}\n")
 		envVars = append(envVars, "          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}\n")
@@ -414,7 +423,7 @@ func buildAgentFailureCacheMemoryVars(data *WorkflowData, mainJobName string) []
 }
 
 // buildAgentFailureStep builds the agent failure handler step.
-func (c *Compiler) buildAgentFailureStep(data *WorkflowData, mainJobName, messagesJSON string) ([]string, error) {
+func (c *Compiler) buildAgentFailureStep(data *WorkflowData, mainJobName, messagesJSON, steeringToken string) ([]string, error) {
 	// Add agent failure handling step - creates/updates an issue when agent job fails
 	// This step always runs and checks if the agent job failed
 	// Build environment variables for the agent failure handler
@@ -437,7 +446,7 @@ func (c *Compiler) buildAgentFailureStep(data *WorkflowData, mainJobName, messag
 		CustomEnvVars: envVars,
 		Script:        "const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_agent_failure.cjs'); await main();",
 		ScriptFile:    "handle_agent_failure.cjs",
-		CustomToken:   "",
+		CustomToken:   steeringToken,
 		StepCondition: "always()",
 	}), nil
 }
@@ -508,12 +517,9 @@ func (c *Compiler) buildConclusionJobCondition(data *WorkflowData, mainJobName s
 		dailyAICExceeded := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_ai_credits_exceeded", constants.ActivationJobName)), BuildStringLiteral("true"))
 		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, dailyAICExceeded)
 	}
-	if isPreCreatePullRequestEnabled(data) {
-		// The pre-created check run must always be completed, including when the run is
-		// cancelled after activation allocated the pull request but before the agent started
-		// (which leaves the agent job skipped).
-		preCreatedCheckExists := BuildNotEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.pre_created_pull_request_check_run_id", constants.ActivationJobName)), BuildStringLiteral(""))
-		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, preCreatedCheckExists)
+	if isSteeringIssueEnabled(data) {
+		steeringIssueExists := BuildNotEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.steering_issue_number", constants.ActivationJobName)), BuildStringLiteral(""))
+		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, steeringIssueExists)
 	}
 	condition := BuildAnd(alwaysFunc, BuildOr(agentNotSkipped, activationGuardrailsFailed))
 

@@ -22,6 +22,7 @@ import (
 // TestSpec_PublicAPI_New validates the documented behavior of New from the
 // README.md specification.
 func TestSpec_PublicAPI_New(t *testing.T) {
+	t.Parallel()
 	t.Run("returns a usable writer wrapping the provided writer", func(t *testing.T) {
 		var buf bytes.Buffer
 		w := colorwriter.New(&buf, []string{"NO_COLOR=1"})
@@ -47,6 +48,7 @@ func TestSpec_PublicAPI_New(t *testing.T) {
 // TestSpec_PublicAPI_Stderr validates the documented behavior of Stderr from the
 // README.md specification.
 func TestSpec_PublicAPI_Stderr(t *testing.T) {
+	t.Parallel()
 	w := colorwriter.Stderr()
 	require.NotNil(t, w, "Stderr should return a non-nil io.Writer")
 	assert.Implements(t, (*io.Writer)(nil), w, "Stderr should return an io.Writer as documented")
@@ -55,6 +57,7 @@ func TestSpec_PublicAPI_Stderr(t *testing.T) {
 // TestSpec_PublicAPI_Degrade validates the documented behavior of Degrade from the
 // README.md specification.
 func TestSpec_PublicAPI_Degrade(t *testing.T) {
+	t.Parallel()
 	const ansiRed = "\x1b[31mhello\x1b[0m"
 
 	tests := []struct {
@@ -99,6 +102,7 @@ func TestSpec_PublicAPI_Degrade(t *testing.T) {
 }
 
 func TestSpec_Implementation_DoesNotImportLogger(t *testing.T) {
+	t.Parallel()
 	files, err := filepath.Glob("*.go")
 	require.NoError(t, err)
 

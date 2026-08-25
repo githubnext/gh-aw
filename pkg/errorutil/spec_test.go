@@ -23,6 +23,7 @@ import (
 //     case-insensitive "404" or "not found" text.
 //   - Returns false for nil and non-matching errors.
 func TestSpec_PublicAPI_IsNotFoundError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -39,6 +40,7 @@ func TestSpec_PublicAPI_IsNotFoundError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsNotFoundError(tt.err)
 			assert.Equal(t, tt.want, got, "IsNotFoundError(%v) mismatch for: %s", tt.err, tt.name)
 		})
@@ -55,6 +57,7 @@ func TestSpec_PublicAPI_IsNotFoundError(t *testing.T) {
 //   - Design note: requires HTTP-style status context so unrelated phrases
 //     like "forbidden character" are not misclassified.
 func TestSpec_PublicAPI_IsForbiddenError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -72,6 +75,7 @@ func TestSpec_PublicAPI_IsForbiddenError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsForbiddenError(tt.err)
 			assert.Equal(t, tt.want, got, "IsForbiddenError(%v) mismatch for: %s", tt.err, tt.name)
 		})
@@ -88,6 +92,7 @@ func TestSpec_PublicAPI_IsForbiddenError(t *testing.T) {
 //   - Design note: requires HTTP-style status context so unrelated phrases
 //     like "gone away" are not misclassified.
 func TestSpec_PublicAPI_IsGoneError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -105,6 +110,7 @@ func TestSpec_PublicAPI_IsGoneError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsGoneError(tt.err)
 			assert.Equal(t, tt.want, got, "IsGoneError(%v) mismatch for: %s", tt.err, tt.name)
 		})
@@ -114,6 +120,7 @@ func TestSpec_PublicAPI_IsGoneError(t *testing.T) {
 // TestSpec_PublicAPI_IsRateLimitError validates the documented behavior of
 // IsRateLimitError as described in the errorutil README.md.
 func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		output string
@@ -128,6 +135,7 @@ func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, errorutil.IsRateLimitError(tt.output))
 		})
 	}
@@ -136,6 +144,7 @@ func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
 // TestSpec_PublicAPI_IsAuthError validates the documented behavior of
 // IsAuthError as described in the errorutil README.md.
 func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		output string
@@ -151,6 +160,7 @@ func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, errorutil.IsAuthError(tt.output))
 		})
 	}
@@ -166,6 +176,7 @@ func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
 //     "INSUFFICIENT_SCOPES" literal.
 //   - Returns false for nil and non-matching errors.
 func TestSpec_PublicAPI_IsInsufficientScopesError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -180,6 +191,7 @@ func TestSpec_PublicAPI_IsInsufficientScopesError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsInsufficientScopesError(tt.err)
 			assert.Equal(t, tt.want, got, "IsInsufficientScopesError(%v) mismatch for: %s", tt.err, tt.name)
 		})
@@ -197,6 +209,7 @@ func TestSpec_PublicAPI_IsInsufficientScopesError(t *testing.T) {
 //   - Returns false for nil, non-matching errors, and failure wording such
 //     as "could not be merged".
 func TestSpec_PublicAPI_IsAlreadyMergedError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -212,6 +225,7 @@ func TestSpec_PublicAPI_IsAlreadyMergedError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsAlreadyMergedError(tt.err)
 			assert.Equal(t, tt.want, got, "IsAlreadyMergedError(%v) mismatch for: %s", tt.err, tt.name)
 		})
@@ -229,6 +243,7 @@ func TestSpec_PublicAPI_IsAlreadyMergedError(t *testing.T) {
 //	if errorutil.IsRateLimitError(output) { ... }
 //	if errorutil.IsAuthError(output) { ... }
 func TestSpec_UsageExample_ErrorClassifiers(t *testing.T) {
+	t.Parallel()
 	notFound := errors.New("HTTP 404: Not Found")
 	forbidden := errors.New("HTTP 403: Forbidden")
 	gone := errors.New("HTTP 410: Gone")

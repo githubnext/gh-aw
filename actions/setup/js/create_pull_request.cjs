@@ -649,7 +649,6 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  * @param {string} [options.remoteTarget] - Remote name or URL used for remote branch existence checks.
  * @param {string} [options.remoteToken] - Optional token used for authenticated remote branch checks.
  * @param {string} [options.cwd] - Optional working directory for git operations; scopes git config overrides to the correct checkout.
- * @param {boolean} [options.allowExistingBranch] - Whether the existing pre-created branch may be reused.
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
  */
 async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {
@@ -673,11 +672,6 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
   }
 
   if (!remoteBranchExists) {
-    return branchName;
-  }
-
-  if (options.allowExistingBranch === true) {
-    core.info(`Remote branch ${branchName} is the pre-created pull request branch - reusing it`);
     return branchName;
   }
 
@@ -774,9 +768,6 @@ async function main(config = {}) {
   const { enabled: autoMerge, mergeMethod: autoMergeMethod } = parseAutoMergeConfig(config.auto_merge);
   const preserveBranchName = config.preserve_branch_name === true;
   const recreateRef = config.recreate_ref === true;
-  const preCreatedPullRequestNumber = Number.parseInt(String(config.pre_created_pull_request_number || ""), 10);
-  const preCreatedPullRequestUrl = config.pre_created_pull_request_url || "";
-  const preCreatedBranch = config.pre_created_branch || "";
   const signedCommits = config.signed_commits !== false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
@@ -1536,16 +1527,11 @@ async function main(config = {}) {
       const originalAgentBranch = branchName;
       const randomHex = crypto.randomBytes(8).toString("hex");
 
-      if (preCreatedBranch) {
-        branchName = preCreatedBranch;
-        core.info(`Using pre-created pull request branch: ${branchName}`);
-      }
-
       // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
       // Branch names from user input must be normalized before use in git commands.
       // When preserve-branch-name is disabled (default), a random salt suffix is
       // appended to avoid collisions.
-      if (branchName && !preCreatedBranch) {
+      if (branchName) {
         const originalBranchName = branchName;
         branchName = normalizeBranchName(branchName, preserveBranchName ? null : randomHex);
 
@@ -1753,14 +1739,12 @@ async function main(config = {}) {
       }
 
       // Apply the configured branch prefix (e.g. "signed/") if it hasn't already been applied.
-      if (!preCreatedBranch && branchPrefix && !branchName.startsWith(branchPrefix)) {
+      if (branchPrefix && !branchName.startsWith(branchPrefix)) {
         branchName = `${branchPrefix}${branchName}`;
         core.info(`Applied branch prefix: ${branchName}`);
       }
 
       core.info(`Generated branch name: ${branchName}`);
-      // The pre-created branch already exists on the remote and must be reused rather than renamed.
-      const allowExistingBranch = branchName === preCreatedBranch;
       core.info(`Base branch: ${baseBranch}`);
 
       // Reject stacks that would depend on themselves: the requested base (or one of its ancestors
@@ -1813,7 +1797,6 @@ async function main(config = {}) {
               remoteTarget: pushRemoteUrl || "origin",
               remoteToken: headGitHubToken,
               cwd: forkCwd,
-              allowExistingBranch,
             });
 
             await pushSignedCommits({
@@ -1932,7 +1915,8 @@ ${pushErrorSection}
 >
 > The bundle file is available in the \`agent\` artifact in the workflow run linked above.
 
-To create a pull request with the changes:
+<details>
+<summary>Create the pull request manually</summary>
 
 \`\`\`sh
 ${recoveryInstructions}
@@ -1942,7 +1926,9 @@ git push ${shellQuote(pushRemoteUrl || "origin")} ${shellQuote(branchName)}
 
 # Create the pull request
 gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --head ${shellQuote(getPullRequestHeadRef(branchName))} --repo ${shellQuote(`${repoParts.owner}/${repoParts.repo}`)}
-\`\`\``;
+\`\`\`
+
+</details>`;
 
                 try {
                   const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
@@ -2204,7 +2190,6 @@ gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --hea
                 remoteTarget: pushRemoteUrl || "origin",
                 remoteToken: headGitHubToken,
                 cwd: forkCwd,
-                allowExistingBranch,
               });
 
               await pushSignedCommits({
@@ -2299,7 +2284,8 @@ ${pushErrorSection}
 >
 > The patch file is available in the \`agent\` artifact in the workflow run linked above.
 
-To create a pull request with the changes:
+<details>
+<summary>Create the pull request manually</summary>
 
 \`\`\`sh
 ${recoveryInstructions}
@@ -2310,6 +2296,8 @@ git push ${shellQuote(pushRemoteUrl || "origin")} ${shellQuote(branchName)}
 # Create the pull request
 gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --head ${shellQuote(getPullRequestHeadRef(branchName))} --repo ${shellQuote(`${repoParts.owner}/${repoParts.repo}`)}
 \`\`\`
+
+</details>
 ${patchPreview}`;
 
                 try {
@@ -2381,7 +2369,6 @@ ${patchPreview}`;
                   remoteTarget: pushRemoteUrl || "origin",
                   remoteToken: headGitHubToken,
                   cwd: forkCwd,
-                  allowExistingBranch,
                 });
 
                 await pushSignedCommits({
@@ -2544,11 +2531,9 @@ ${patchPreview}`;
           branchName: getPullRequestHeadRef(branchName),
           baseBranch,
           draft,
-          preCreatedPullRequestNumber,
-          preCreatedBranch,
         });
 
-        core.info(`${preCreatedPullRequestNumber > 0 ? "Updated pre-created" : "Created"} pull request #${pullRequest.number}: ${pullRequest.html_url || preCreatedPullRequestUrl}`);
+        core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
 
         // Record this pull request so later messages in the same run can stack on top of it.
         // Both the agent-provided branch name and the effective (prefixed/salted) name are keys.

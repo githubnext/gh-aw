@@ -33,6 +33,7 @@ type TestJob struct {
 }
 
 func TestRenderStruct_SimpleStruct(t *testing.T) {
+	t.Parallel()
 	data := TestOverview{
 		RunID:      12345,
 		Workflow:   "test-workflow",
@@ -53,6 +54,7 @@ func TestRenderStruct_SimpleStruct(t *testing.T) {
 }
 
 func TestRenderStruct_UnicodeFieldAlignment(t *testing.T) {
+	t.Parallel()
 	type unicodeFields struct {
 		Wide string `console:"header:名称"`
 		Long string `console:"header:Longest"`
@@ -65,6 +67,7 @@ func TestRenderStruct_UnicodeFieldAlignment(t *testing.T) {
 }
 
 func TestRenderStruct_OmitEmpty(t *testing.T) {
+	t.Parallel()
 	data := TestMetrics{
 		TokenUsage: 1000,
 		Cost:       1.23,
@@ -90,6 +93,7 @@ func TestRenderStruct_OmitEmpty(t *testing.T) {
 }
 
 func TestRenderSlice_AsTable(t *testing.T) {
+	t.Parallel()
 	jobs := []TestJob{
 		{Name: "job-1", Status: "completed", Conclusion: "success"},
 		{Name: "job-2", Status: "in_progress", Conclusion: ""},
@@ -106,6 +110,7 @@ func TestRenderSlice_AsTable(t *testing.T) {
 }
 
 func TestRenderMap(t *testing.T) {
+	t.Parallel()
 	data := map[string]string{
 		"key1": "value1",
 		"key2": "value2",
@@ -121,6 +126,7 @@ func TestRenderMap(t *testing.T) {
 }
 
 func TestParseConsoleTag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		tag      string
@@ -185,6 +191,7 @@ func TestParseConsoleTag(t *testing.T) {
 }
 
 func TestIsZeroValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    any
@@ -211,6 +218,7 @@ func TestIsZeroValue(t *testing.T) {
 }
 
 func TestFormatFieldValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    any
@@ -233,6 +241,7 @@ func TestFormatFieldValue(t *testing.T) {
 }
 
 func TestRenderStruct_ComplexExample(t *testing.T) {
+	t.Parallel()
 	// Test a more complex nested structure
 	type Address struct {
 		Street string `console:"header:Street"`
@@ -268,6 +277,7 @@ func TestRenderStruct_ComplexExample(t *testing.T) {
 }
 
 func TestBuildTableConfig(t *testing.T) {
+	t.Parallel()
 	jobs := []TestJob{
 		{Name: "job-1", Status: "completed", Conclusion: "success"},
 		{Name: "job-2", Status: "in_progress", Conclusion: ""},
@@ -284,6 +294,7 @@ func TestBuildTableConfig(t *testing.T) {
 }
 
 func TestFormatTag_Number(t *testing.T) {
+	t.Parallel()
 	type TestMetrics struct {
 		TokenUsage int `console:"header:Token Usage,format:number"`
 		Errors     int `console:"header:Errors"`
@@ -304,6 +315,7 @@ func TestFormatTag_Number(t *testing.T) {
 }
 
 func TestFormatTag_Cost(t *testing.T) {
+	t.Parallel()
 	type TestBilling struct {
 		Cost float64 `console:"header:Estimated Cost,format:cost"`
 	}
@@ -319,6 +331,7 @@ func TestFormatTag_Cost(t *testing.T) {
 }
 
 func TestFormatTag_InTable(t *testing.T) {
+	t.Parallel()
 	type TestTool struct {
 		Name       string `console:"header:Tool"`
 		CallCount  int    `console:"header:Calls"`
@@ -340,6 +353,7 @@ func TestFormatTag_InTable(t *testing.T) {
 }
 
 func TestFormatNumber(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    int
 		expected string
@@ -394,6 +408,7 @@ func TestFormatNumber(t *testing.T) {
 
 // TestRenderStruct_PointerToStruct tests that pointer-to-struct fields are rendered as nested structs, not raw data
 func TestRenderStruct_PointerToStruct(t *testing.T) {
+	t.Parallel()
 	type Inner struct {
 		Name  string `console:"header:Name"`
 		Value int    `console:"header:Value"`
@@ -426,6 +441,7 @@ func TestRenderStruct_PointerToStruct(t *testing.T) {
 
 // TestRenderStruct_NilPointerToStruct tests that nil pointer-to-struct fields are handled gracefully
 func TestRenderStruct_NilPointerToStruct(t *testing.T) {
+	t.Parallel()
 	type Inner struct {
 		Name string `console:"header:Name"`
 	}
@@ -451,6 +467,7 @@ func TestRenderStruct_NilPointerToStruct(t *testing.T) {
 // TestRenderStruct_EmbeddedStruct tests that anonymous embedded struct fields are
 // inlined into the parent struct output rather than rendered as a nested section.
 func TestRenderStruct_EmbeddedStruct(t *testing.T) {
+	t.Parallel()
 	type Base struct {
 		Name   string `console:"header:Name"`
 		Engine string `console:"header:Engine"`
@@ -477,6 +494,7 @@ func TestRenderStruct_EmbeddedStruct(t *testing.T) {
 }
 
 func TestRenderStruct_EmbeddedStructOmitEmptyAndPointer(t *testing.T) {
+	t.Parallel()
 	type Base struct {
 		Name   string `console:"header:Name"`
 		Engine string `console:"header:Engine,omitempty"`
@@ -501,6 +519,7 @@ func TestRenderStruct_EmbeddedStructOmitEmptyAndPointer(t *testing.T) {
 }
 
 func TestRenderStruct_NestedEmbeddedStruct(t *testing.T) {
+	t.Parallel()
 	type Inner struct {
 		Name string `console:"header:Name"`
 	}
@@ -533,6 +552,7 @@ func TestRenderStruct_NestedEmbeddedStruct(t *testing.T) {
 // TestRenderSlice_EmbeddedStruct tests that a slice of structs with anonymous embedded
 // fields is rendered as a flat table with all promoted fields as columns.
 func TestRenderSlice_EmbeddedStruct(t *testing.T) {
+	t.Parallel()
 	type Base struct {
 		Name   string `console:"header:Name"`
 		Engine string `console:"header:Engine"`
@@ -575,6 +595,7 @@ func TestRenderSlice_EmbeddedStruct(t *testing.T) {
 }
 
 func TestRenderSlice_SkippedEmbeddedStruct(t *testing.T) {
+	t.Parallel()
 	type Base struct {
 		Name string `console:"header:Name"`
 	}
@@ -592,6 +613,7 @@ func TestRenderSlice_SkippedEmbeddedStruct(t *testing.T) {
 }
 
 func TestRenderSlice_EmbeddedPointerStruct(t *testing.T) {
+	t.Parallel()
 	type Base struct {
 		Name string `console:"header:Name"`
 	}

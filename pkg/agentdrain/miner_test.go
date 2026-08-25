@@ -4,8 +4,8 @@ package agentdrain
 
 import (
 	"encoding/json"
-	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -296,7 +296,7 @@ func TestConcurrency(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for i := range linesEach {
-				_, trainErr := m.TrainEvent(AgentEvent{Stage: "work", Fields: map[string]string{"goroutine": fmt.Sprintf("%d", id), "iter": fmt.Sprintf("%d", i)}})
+				_, trainErr := m.TrainEvent(AgentEvent{Stage: "work", Fields: map[string]string{"goroutine": strconv.Itoa(id), "iter": strconv.Itoa(i)}})
 				assert.NoError(t, trainErr, "Train should not error during concurrent access")
 			}
 		}(g)

@@ -23,6 +23,7 @@ import (
 //   - Returns (value, true) on success.
 //   - Returns (nil, false) when the key is absent or the dotted path cannot be traversed.
 func TestSpec_PublicAPI_ResolvePathValue(t *testing.T) {
+	t.Parallel()
 	inputs := map[string]any{
 		"count":  42,
 		"config": map[string]any{"apiKey": "secret"},
@@ -41,6 +42,7 @@ func TestSpec_PublicAPI_ResolvePathValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			value, ok := importinpututil.ResolvePathValue(inputs, tt.inputPath)
 			assert.Equal(t, tt.wantOK, ok, "ResolvePathValue(%q) ok mismatch for: %s", tt.inputPath, tt.name)
 			assert.Equal(t, tt.wantValue, value, "ResolvePathValue(%q) value mismatch for: %s", tt.inputPath, tt.name)
@@ -54,6 +56,7 @@ func TestSpec_PublicAPI_ResolvePathValue(t *testing.T) {
 // Specification:
 //   - Returns (nil, false) when the dotted path cannot be traversed.
 func TestSpec_PublicAPI_ResolvePathValue_DottedPathTraversalFailure(t *testing.T) {
+	t.Parallel()
 	inputs := map[string]any{
 		"count":  42,
 		"config": map[string]any{"apiKey": "secret"},
@@ -70,6 +73,7 @@ func TestSpec_PublicAPI_ResolvePathValue_DottedPathTraversalFailure(t *testing.T
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			value, ok := importinpututil.ResolvePathValue(inputs, tt.inputPath)
 			assert.False(t, ok, "ResolvePathValue(%q) should return ok=false for: %s", tt.inputPath, tt.name)
 			assert.Nil(t, value, "ResolvePathValue(%q) should return nil value for: %s", tt.inputPath, tt.name)
@@ -85,6 +89,7 @@ func TestSpec_PublicAPI_ResolvePathValue_DottedPathTraversalFailure(t *testing.T
 //     "a.b" is valid; "a.b.c" is treated as a lookup for key "b.c" inside the
 //     top-level object "a", which will typically fail.
 func TestSpec_DesignDecision_ResolvePathValue_SingleLevelDotNotation(t *testing.T) {
+	t.Parallel()
 	inputs := map[string]any{
 		"a": map[string]any{
 			"b":   map[string]any{"c": "deep"},
@@ -110,6 +115,7 @@ func TestSpec_DesignDecision_ResolvePathValue_SingleLevelDotNotation(t *testing.
 //   - Typed slices and maps are normalized to []any / map[string]any and JSON-marshalled.
 //   - Returns ("", false) if JSON marshalling fails.
 func TestSpec_PublicAPI_FormatResolvedValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		value   any
@@ -131,6 +137,7 @@ func TestSpec_PublicAPI_FormatResolvedValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			s, ok := importinpututil.FormatResolvedValue(tt.value)
 			assert.Equal(t, tt.wantOK, ok, "FormatResolvedValue ok mismatch for: %s", tt.name)
 			assert.Equal(t, tt.wantStr, s, "FormatResolvedValue string mismatch for: %s", tt.name)
@@ -145,6 +152,7 @@ func TestSpec_PublicAPI_FormatResolvedValue(t *testing.T) {
 //   - Typed slices and maps (e.g. []string, map[string]int) are normalized to
 //     []any / map[string]any via reflection before marshalling.
 func TestSpec_PublicAPI_FormatResolvedValue_TypedCollections(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		value   any
@@ -157,6 +165,7 @@ func TestSpec_PublicAPI_FormatResolvedValue_TypedCollections(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			s, ok := importinpututil.FormatResolvedValue(tt.value)
 			assert.True(t, ok, "FormatResolvedValue should succeed for: %s", tt.name)
 			assert.Equal(t, tt.wantStr, s, "FormatResolvedValue string mismatch for: %s", tt.name)
@@ -173,6 +182,7 @@ func TestSpec_PublicAPI_FormatResolvedValue_TypedCollections(t *testing.T) {
 // A collection value containing an unmarshalable element (a channel cannot be
 // JSON-encoded) must therefore yield the documented ("", false) result.
 func TestSpec_PublicAPI_FormatResolvedValue_MarshalFailure(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		value any
@@ -183,6 +193,7 @@ func TestSpec_PublicAPI_FormatResolvedValue_MarshalFailure(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			s, ok := importinpututil.FormatResolvedValue(tt.value)
 			assert.False(t, ok, "FormatResolvedValue should return ok=false when JSON marshalling fails: %s", tt.name)
 			assert.Empty(t, s, "FormatResolvedValue should return empty string when JSON marshalling fails: %s", tt.name)
@@ -196,6 +207,7 @@ func TestSpec_PublicAPI_FormatResolvedValue_MarshalFailure(t *testing.T) {
 // Specification (Design Notes):
 //   - Map keys in JSON output are sorted lexicographically for deterministic output.
 func TestSpec_DesignDecision_FormatResolvedValue_DeterministicMapKeyOrder(t *testing.T) {
+	t.Parallel()
 	// A typed map with keys deliberately out of lexical order.
 	value := map[string]int{"banana": 2, "apple": 1, "cherry": 3}
 
@@ -217,6 +229,7 @@ func TestSpec_DesignDecision_FormatResolvedValue_DeterministicMapKeyOrder(t *tes
 //	value, ok := importinpututil.ResolvePathValue(importInputs, "config.endpoint")
 //	formatted, ok := importinpututil.FormatResolvedValue(value)
 func TestSpec_UsageExample_ResolveThenFormat(t *testing.T) {
+	t.Parallel()
 	importInputs := map[string]any{
 		"config": map[string]any{"endpoint": "https://example.com"},
 	}

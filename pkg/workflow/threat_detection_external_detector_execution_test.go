@@ -319,6 +319,53 @@ func TestBuildExternalDetectorExecutionStepEmitsTimeoutMinutes(t *testing.T) {
 	}
 }
 
+func TestBuildThreatDetectCommandOmitsUnsetOptionalFlags(t *testing.T) {
+	cmd := buildThreatDetectCommand("setup-path", "copilot", &ThreatDetectionConfig{})
+
+	if strings.Contains(cmd, "--engine-timeout") {
+		t.Fatalf("expected --engine-timeout to be omitted when unset, got: %s", cmd)
+	}
+	if strings.Contains(cmd, "--max-turns") {
+		t.Fatalf("expected --max-turns to be omitted when unset, got: %s", cmd)
+	}
+	if strings.Contains(cmd, "--retries") {
+		t.Fatalf("expected --retries to be omitted when unset, got: %s", cmd)
+	}
+}
+
+func TestBuildThreatDetectCommandEmitsConfiguredOptionalFlags(t *testing.T) {
+	cmd := buildThreatDetectCommand("setup-path", "copilot", &ThreatDetectionConfig{
+		EngineTimeout: strPtr("10m"),
+		MaxTurns: func() *int {
+			v := 100
+			return &v
+		}(),
+		Retries: func() *int {
+			v := 1
+			return &v
+		}(),
+	})
+
+	for _, want := range []string{
+		"--engine-timeout 10m",
+		"--max-turns 100",
+		"--retries 1",
+		"--output /tmp/gh-aw/threat-detection/detection_result.json /tmp/gh-aw/threat-detection",
+	} {
+		if !strings.Contains(cmd, want) {
+			t.Fatalf("expected command to contain %q, got: %s", want, cmd)
+		}
+	}
+}
+
+func TestBuildThreatDetectCommandShellEscapesEngineID(t *testing.T) {
+	cmd := buildThreatDetectCommand("setup-path", "copilot next", &ThreatDetectionConfig{})
+
+	if !strings.Contains(cmd, "--engine 'copilot next'") {
+		t.Fatalf("expected engine argument to be shell-escaped as a single argument, got: %s", cmd)
+	}
+}
+
 // TestBuildInstallAWFForExternalDetectorStepUsesRootless verifies that the detection
 // job installs the AWF binary in the same mode used to invoke awf in that job.
 func TestBuildInstallAWFForExternalDetectorStepUsesRootless(t *testing.T) {

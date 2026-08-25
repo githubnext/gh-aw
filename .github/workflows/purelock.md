@@ -9,6 +9,7 @@ on:
   skip-if-match: 'is:pr is:open in:title "[purelock]"'
 permissions:
   contents: read
+  issues: read
   actions: read
   pull-requests: read
 engine:

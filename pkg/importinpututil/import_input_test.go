@@ -3,6 +3,7 @@ package importinpututil
 import "testing"
 
 func TestResolvePathValue(t *testing.T) {
+	t.Parallel()
 	inputs := map[string]any{
 		"name": "alice",
 		"config": map[string]any{
@@ -26,6 +27,7 @@ func TestResolvePathValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, ok := ResolvePathValue(inputs, tt.path)
 			if ok != tt.found {
 				t.Fatalf("ResolvePathValue(%q) found = %v, want %v", tt.path, ok, tt.found)
@@ -38,6 +40,7 @@ func TestResolvePathValue(t *testing.T) {
 }
 
 func TestFormatResolvedValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		value any
@@ -55,6 +58,7 @@ func TestFormatResolvedValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, ok := FormatResolvedValue(tt.value)
 			if ok != tt.ok {
 				t.Fatalf("FormatResolvedValue(%#v) ok = %v, want %v", tt.value, ok, tt.ok)
