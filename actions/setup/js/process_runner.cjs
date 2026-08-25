@@ -80,6 +80,11 @@ function sleep(ms) {
  *     pollIntervalMs?: number,
  *     termGraceMs?: number
  *   },
+ *   runtimeGuard?: {
+ *     shouldTerminate: () => boolean | { terminate: boolean, reason?: string },
+ *     pollIntervalMs?: number,
+ *     termGraceMs?: number
+ *   },
  *   stallWarningIntervalMs?: number
  * }} options
  *   - command   - The executable to run
@@ -93,20 +98,21 @@ function sleep(ms) {
  *                 GH_AW_HARNESS_STALL_WARNING_MS; 0 disables the warnings. An explicit
  *                 caller value is used as-is (not clamped to the environment range) so
  *                 tests can use short intervals.
- * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean}>}
+ * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean, runtimeGuardFired: boolean, runtimeGuardReason: string}>}
  */
-function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog, stallWarningIntervalMs }) {
+function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog, runtimeGuard, stallWarningIntervalMs }) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Guard against the promise being settled more than once.  On some systems Node
     // emits 'close' after 'error' (or vice-versa); only the first terminal event should
     // log and resolve so callers receive a deterministic result.
     let settled = false;
-    /** @param {{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean}} result */
+    /** @param {{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean, runtimeGuardFired: boolean, runtimeGuardReason: string}} result */
     function settle(result) {
       if (settled) return;
       settled = true;
       if (postResultWatchdogTimer) clearInterval(postResultWatchdogTimer);
+      if (runtimeGuardTimer) clearInterval(runtimeGuardTimer);
       if (stallWatchdogTimer) clearInterval(stallWatchdogTimer);
       resolve(result);
     }
@@ -128,14 +134,20 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     let stderrBytes = 0;
     let lastActivityAt = Date.now();
     let watchdogArmed = false;
+    let runtimeGuardFired = false;
+    let runtimeGuardReason = "";
     let sentSigtermAt = 0;
     let sentSigkillAt = 0;
     const watchdogPollIntervalMs = Math.max(50, Number(postResultWatchdog?.pollIntervalMs) || 1000);
     const watchdogTermGraceMs = Math.max(50, Number(postResultWatchdog?.termGraceMs) || 5000);
+    const runtimeGuardPollIntervalMs = Math.max(50, Number(runtimeGuard?.pollIntervalMs) || 1000);
+    const runtimeGuardTermGraceMs = Math.max(50, Number(runtimeGuard?.termGraceMs) || 5000);
     const rawInactivityTimeout = Number(postResultWatchdog?.inactivityTimeoutMs);
     const watchdogInactivityTimeoutMs = Number.isFinite(rawInactivityTimeout) && rawInactivityTimeout > 0 ? Math.max(50, rawInactivityTimeout) : 0;
     /** @type {NodeJS.Timeout | null} */
     let postResultWatchdogTimer = null;
+    /** @type {NodeJS.Timeout | null} */
+    let runtimeGuardTimer = null;
     /** @type {NodeJS.Timeout | null} */
     let stallWatchdogTimer = null;
     const stallIntervalMs = Number.isFinite(Number(stallWarningIntervalMs)) ? Math.max(0, Number(stallWarningIntervalMs)) : resolveStallWarningIntervalMs(env ?? process.env);
@@ -212,17 +224,49 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         if (!watchdogArmed) return;
         const idleMs = Date.now() - lastActivityAt;
         if (sentSigtermAt === 0 && idleMs >= watchdogInactivityTimeoutMs) {
+          runtimeGuardFired = false;
+          runtimeGuardReason = "";
           sentSigtermAt = Date.now();
           log(`attempt ${attempt + 1}: post-result watchdog terminating idle process after ${idleMs}ms (SIGTERM)`);
           child.kill("SIGTERM");
           return;
         }
-        if (sentSigtermAt > 0 && sentSigkillAt === 0 && Date.now() - sentSigtermAt >= watchdogTermGraceMs) {
+        const termGraceMs = runtimeGuardFired ? runtimeGuardTermGraceMs : watchdogTermGraceMs;
+        if (sentSigtermAt > 0 && sentSigkillAt === 0 && Date.now() - sentSigtermAt >= termGraceMs) {
           sentSigkillAt = Date.now();
-          log(`attempt ${attempt + 1}: post-result watchdog forcing process exit after ${watchdogTermGraceMs}ms grace (SIGKILL)`);
+          const source = runtimeGuardFired ? "runtime guard" : "post-result watchdog";
+          log(`attempt ${attempt + 1}: ${source} forcing process exit after ${termGraceMs}ms grace (SIGKILL)`);
           child.kill("SIGKILL");
         }
       }, watchdogPollIntervalMs);
+    }
+
+    if (runtimeGuard && typeof runtimeGuard.shouldTerminate === "function") {
+      runtimeGuardTimer = setInterval(() => {
+        if (settled) return;
+        if (runtimeGuardFired && sentSigtermAt > 0 && sentSigkillAt === 0 && Date.now() - sentSigtermAt >= runtimeGuardTermGraceMs) {
+          sentSigkillAt = Date.now();
+          log(`attempt ${attempt + 1}: runtime guard forcing process exit after ${runtimeGuardTermGraceMs}ms grace (SIGKILL)`);
+          child.kill("SIGKILL");
+          return;
+        }
+        if (runtimeGuardFired || sentSigtermAt > 0) return;
+        /** @type {boolean | { terminate: boolean, reason?: string }} */
+        let decision = false;
+        try {
+          decision = runtimeGuard.shouldTerminate();
+        } catch {
+          decision = false;
+        }
+        const terminate = typeof decision === "boolean" ? decision : !!decision && decision.terminate === true;
+        if (!terminate) return;
+        runtimeGuardFired = true;
+        runtimeGuardReason = typeof decision === "object" && typeof decision.reason === "string" ? decision.reason : "";
+        const reasonSuffix = runtimeGuardReason ? ` (${runtimeGuardReason})` : "";
+        sentSigtermAt = Date.now();
+        log(`attempt ${attempt + 1}: runtime guard requested termination${reasonSuffix} (SIGTERM)`);
+        child.kill("SIGTERM");
+      }, runtimeGuardPollIntervalMs);
     }
 
     child.on("exit", (code, signal) => {
@@ -237,7 +281,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
       // crashes (e.g. SIGSYS) are visible to exit-code-based retry classification even
       // when the shell/runtime never reports a raw numeric exit status.
       const exitCode = code ?? exitCodeForSignal(signal) ?? 1;
-      const watchdogFired = sentSigtermAt > 0;
+      const watchdogFired = sentSigtermAt > 0 && !runtimeGuardFired;
       log(
         `attempt ${attempt + 1}: process closed` +
           ` exitCode=${exitCode}` +
@@ -245,9 +289,10 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
           ` duration=${formatDuration(durationMs)}` +
           ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}` +
           (watchdogFired ? ` watchdogFired=true` : "") +
+          (runtimeGuardFired ? ` runtimeGuardFired=true` : "") +
           (stallWarnings > 0 ? ` stallWarnings=${stallWarnings}` : "")
       );
-      settle({ exitCode, output: collectedOutput, hasOutput, durationMs, watchdogFired });
+      settle({ exitCode, output: collectedOutput, hasOutput, durationMs, watchdogFired, runtimeGuardFired, runtimeGuardReason });
     });
 
     child.on("error", err => {
@@ -263,6 +308,8 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         hasOutput,
         durationMs,
         watchdogFired: false,
+        runtimeGuardFired: false,
+        runtimeGuardReason: "",
       });
     });
   });

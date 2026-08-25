@@ -29,6 +29,12 @@ const {
   configureCodexProviderFromReflect,
   hasNoopInSafeOutputs,
   resolveRetryConfig,
+  resolveContextRebuildCircuitBreakerConfig,
+  evaluateContextRebuildCircuitBreaker,
+  DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
+  DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
+  DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS,
+  DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS,
   resolvePostResultWatchdogIdleTimeoutMs,
   DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
   MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS,
@@ -202,6 +208,59 @@ describe("codex_harness.cjs", () => {
       const result = buildCodexChildEnv({ PATH: "/usr/bin" }, undefined, undefined);
       expect(result.CODEX_API_KEY).toBeUndefined();
       expect(result.OPENAI_API_KEY).toBeUndefined();
+    });
+  });
+
+  describe("context rebuild circuit breaker", () => {
+    it("uses defaults when env overrides are absent or invalid", () => {
+      const cfg = resolveContextRebuildCircuitBreakerConfig({
+        GH_AW_CODEX_MAX_REBUILD_FACTOR: "nope",
+        GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS: "-1",
+        GH_AW_CODEX_REBUILD_GUARD_POLL_MS: "0",
+        GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS: "0",
+      });
+      expect(cfg.enabled).toBe(true);
+      expect(cfg.maxRebuildFactor).toBe(DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT);
+      expect(cfg.minCumulativeInputTokens).toBe(DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
+      expect(cfg.pollIntervalMs).toBe(DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS);
+      expect(cfg.termGraceMs).toBe(DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS);
+    });
+
+    it("supports explicit disable via env", () => {
+      const cfg = resolveContextRebuildCircuitBreakerConfig({
+        GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false",
+      });
+      expect(cfg.enabled).toBe(false);
+    });
+
+    it("trips only when both rebuild factor and cumulative input exceed thresholds", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(
+        evaluateContextRebuildCircuitBreaker(
+          {
+            measurement_state: "measured",
+            rebuild_factor: 4.5,
+            cumulative_input_tokens: 1400,
+            peak_input_tokens: 311,
+            rebuild_excess_tokens: 1089,
+            invocations: 5,
+          },
+          config
+        ).terminate
+      ).toBe(true);
+      expect(
+        evaluateContextRebuildCircuitBreaker(
+          {
+            measurement_state: "measured",
+            rebuild_factor: 4.5,
+            cumulative_input_tokens: 999,
+            peak_input_tokens: 222,
+            rebuild_excess_tokens: 777,
+            invocations: 4,
+          },
+          config
+        ).terminate
+      ).toBe(false);
     });
   });
 

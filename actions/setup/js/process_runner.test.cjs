@@ -291,6 +291,31 @@ describe("process_runner.cjs", () => {
       expect(logs.some(line => line.includes("post-result watchdog terminating idle process"))).toBe(false);
     });
 
+    it("terminates a running process when runtime guard requests it", async () => {
+      const logs = [];
+      let checks = 0;
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setInterval(() => process.stdout.write('.'), 20);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        runtimeGuard: {
+          shouldTerminate: () => {
+            checks += 1;
+            if (checks < 3) return false;
+            return { terminate: true, reason: "test guard tripped" };
+          },
+          pollIntervalMs: 25,
+          termGraceMs: 200,
+        },
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.runtimeGuardFired).toBe(true);
+      expect(result.runtimeGuardReason).toContain("test guard tripped");
+      expect(result.watchdogFired).toBe(false);
+      expect(logs.some(line => line.includes("runtime guard requested termination"))).toBe(true);
+    });
+
     it("does not enable watchdog when inactivityTimeoutMs is missing or invalid", async () => {
       const logs = [];
       const result = await runProcess({

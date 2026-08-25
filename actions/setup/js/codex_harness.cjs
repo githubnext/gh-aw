@@ -50,13 +50,14 @@ const {
   REFLECT_PROVIDER_ALIASES,
   resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
-const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const { emitInfrastructureIncomplete, emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError, parseAICreditsExceededProxyRejection } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 const { applyModelFallback, injectModelFlagAfterExec } = require("./model_fallback.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
+const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 
 // Pattern to detect OpenAI rate-limit errors.
 // Matches the JSON error type field ("rate_limit_exceeded"), the HTTP status code
@@ -102,6 +103,16 @@ const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeou
 // Types that are NOT terminal safe-outputs (infrastructure/diagnostic signals).
 // A terminal safe-output is any entry whose type is NOT in this set, plus "noop".
 const SAFE_OUTPUT_NON_TERMINAL_TYPES = new Set(["missing_tool", "report_incomplete"]);
+
+const TOKEN_USAGE_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl";
+const TOKEN_USAGE_AWF_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl";
+const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
+const TOKEN_USAGE_PATHS = [TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_AWF_AUDIT_PATH, TOKEN_USAGE_PATH];
+
+const DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT = 25;
+const DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS = 1000000;
+const DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS = 15000;
+const DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS = 5000;
 
 /**
  * Return the current byte size of the safe-outputs file, or 0 if the file does not
@@ -520,6 +531,72 @@ function configureCodexProviderFromReflect(options) {
 }
 
 /**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ enabled: boolean, maxRebuildFactor: number, minCumulativeInputTokens: number, pollIntervalMs: number, termGraceMs: number }}
+ */
+function resolveContextRebuildCircuitBreakerConfig(env = process.env) {
+  const sourceEnv = env ?? process.env;
+  const enabledValue = sourceEnv.GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER;
+  const enabled = enabledValue == null || !/^(0|false|off|no)$/i.test(String(enabledValue).trim());
+  const maxRebuildFactorRaw = Number(sourceEnv.GH_AW_CODEX_MAX_REBUILD_FACTOR);
+  const minCumulativeInputTokensRaw = Number(sourceEnv.GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
+  const pollIntervalRaw = Number(sourceEnv.GH_AW_CODEX_REBUILD_GUARD_POLL_MS);
+  const termGraceRaw = Number(sourceEnv.GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS);
+  return {
+    enabled,
+    maxRebuildFactor: Number.isFinite(maxRebuildFactorRaw) && maxRebuildFactorRaw > 1 ? maxRebuildFactorRaw : DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
+    minCumulativeInputTokens: Number.isFinite(minCumulativeInputTokensRaw) && minCumulativeInputTokensRaw > 0 ? Math.floor(minCumulativeInputTokensRaw) : DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
+    pollIntervalMs: Number.isFinite(pollIntervalRaw) && pollIntervalRaw > 0 ? Math.max(1000, Math.floor(pollIntervalRaw)) : DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS,
+    termGraceMs: Number.isFinite(termGraceRaw) && termGraceRaw > 0 ? Math.max(250, Math.floor(termGraceRaw)) : DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS,
+  };
+}
+
+/**
+ * @param {string[]} paths
+ * @returns {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null}
+ */
+function readWorkingSetFromTokenUsage(paths = TOKEN_USAGE_PATHS) {
+  const lines = [];
+  for (const candidate of paths) {
+    try {
+      if (!candidate || !fs.existsSync(candidate)) continue;
+      const stat = fs.statSync(candidate);
+      if (!stat || stat.size <= 0) continue;
+      const content = fs.readFileSync(candidate, "utf8");
+      if (!content.trim()) continue;
+      lines.push(content.trim());
+    } catch {
+      continue;
+    }
+  }
+  if (lines.length === 0) return null;
+  return calculateWorkingSetFromJSONL(lines.join("\n")).workingSet;
+}
+
+/**
+ * @param {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null} workingSet
+ * @param {{ maxRebuildFactor: number, minCumulativeInputTokens: number }} config
+ * @returns {{ terminate: boolean, reason: string }}
+ */
+function evaluateContextRebuildCircuitBreaker(workingSet, config) {
+  if (!workingSet || typeof workingSet !== "object") {
+    return { terminate: false, reason: "" };
+  }
+  const rebuildFactor = typeof workingSet.rebuild_factor === "number" && Number.isFinite(workingSet.rebuild_factor) ? workingSet.rebuild_factor : null;
+  const cumulativeInputTokens = Number.isFinite(workingSet.cumulative_input_tokens) ? Number(workingSet.cumulative_input_tokens) : 0;
+  if (rebuildFactor == null || rebuildFactor < config.maxRebuildFactor) {
+    return { terminate: false, reason: "" };
+  }
+  if (!Number.isFinite(cumulativeInputTokens) || cumulativeInputTokens < config.minCumulativeInputTokens) {
+    return { terminate: false, reason: "" };
+  }
+  return {
+    terminate: true,
+    reason: `context-rebuild circuit breaker tripped: rebuild_factor=${rebuildFactor.toFixed(2)} cumulative_input_tokens=${Math.round(cumulativeInputTokens)} thresholds=${config.maxRebuildFactor}/${config.minCumulativeInputTokens}`,
+  };
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -618,6 +695,13 @@ async function main() {
   // deadline the guard fires on the next iteration. Individual attempts are expected to
   // complete within the SOFT_TIMEOUT_BUFFER_MS window.
   const softTimeoutGuard = buildSoftTimeoutGuard(driverStartTime);
+  const contextRebuildCircuitBreaker = resolveContextRebuildCircuitBreakerConfig(process.env);
+  log(
+    `context-rebuild circuit breaker: enabled=${contextRebuildCircuitBreaker.enabled}` +
+      ` maxRebuildFactor=${contextRebuildCircuitBreaker.maxRebuildFactor}` +
+      ` minCumulativeInputTokens=${contextRebuildCircuitBreaker.minCumulativeInputTokens}` +
+      ` pollIntervalMs=${contextRebuildCircuitBreaker.pollIntervalMs}`
+  );
   const retryRun = await runHarnessRetryLoop({
     maxRetries: MAX_RETRIES,
     initialDelayMs: INITIAL_DELAY_MS,
@@ -640,6 +724,17 @@ async function main() {
         log,
         logArgs: safeArgs,
         env: codexEnv,
+        runtimeGuard: contextRebuildCircuitBreaker.enabled
+          ? {
+              pollIntervalMs: contextRebuildCircuitBreaker.pollIntervalMs,
+              termGraceMs: contextRebuildCircuitBreaker.termGraceMs,
+              shouldTerminate: () =>
+                evaluateContextRebuildCircuitBreaker(readWorkingSetFromTokenUsage(TOKEN_USAGE_PATHS), {
+                  maxRebuildFactor: contextRebuildCircuitBreaker.maxRebuildFactor,
+                  minCumulativeInputTokens: contextRebuildCircuitBreaker.minCumulativeInputTokens,
+                }),
+            }
+          : undefined,
         postResultWatchdog: safeOutputsPath
           ? {
               shouldArm: () => hasTerminalSafeOutput(safeOutputsPath, safeOutputsByteOffset, { logger: log }),
@@ -650,6 +745,13 @@ async function main() {
       return { ...result, safeOutputsByteOffset };
     },
     handleFailure: ({ attempt, result }) => {
+      if (result.runtimeGuardFired) {
+        const details = result.runtimeGuardReason || "Codex runtime guard terminated the run after context rebuild thresholds were exceeded.";
+        emitInfrastructureIncomplete(details, { logger: log });
+        log(`attempt ${attempt + 1}: ${details} — not retrying (circuit breaker)`);
+        return { action: "stop" };
+      }
+
       // When the post-result watchdog fired (SIGTERM sent to a hanging Codex process) and the
       // safe-outputs file contains a terminal result written during this attempt, treat the run
       // as a success.  The agent completed its work and wrote its output — the hang on exit is
@@ -673,6 +775,7 @@ async function main() {
         `attempt ${attempt + 1} failed:` +
           ` exitCode=${result.exitCode}` +
           ` watchdogFired=${result.watchdogFired}` +
+          ` runtimeGuardFired=${result.runtimeGuardFired}` +
           ` isRateLimitError=${isRateLimit}` +
           ` isTokenPerMinuteRateLimitError=${isTokenPerMinuteRateLimit}` +
           ` isAuthenticationFailedError=${isAuthenticationFailed}` +
@@ -813,6 +916,14 @@ if (typeof module !== "undefined" && module.exports) {
     getConfiguredProviderPortFromReflect,
     validateCodexOpenAIBaseURLFromReflect,
     configureCodexProviderFromReflect,
+    resolveContextRebuildCircuitBreakerConfig,
+    readWorkingSetFromTokenUsage,
+    evaluateContextRebuildCircuitBreaker,
+    TOKEN_USAGE_PATHS,
+    DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
+    DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
+    DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS,
+    DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS,
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     resolveRetryConfig,
