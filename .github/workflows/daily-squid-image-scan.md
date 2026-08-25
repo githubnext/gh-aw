@@ -64,12 +64,18 @@ post-steps:
         echo "::error::Scan output not found. The compile step did not produce output."
         exit 1
       fi
-      if grep -qE ': error: \[Critical\]' "$output"; then
-        echo "::error::Critical vulnerabilities detected in container images."
+      # Only gate the build on findings for the vendored ghcr.io/github/gh-aw-node
+      # image, whose Dockerfile lives in this repo and can be fixed here directly.
+      # Upstream-owned images (e.g. node:lts-alpine, gh-aw-firewall/*, gh-aw-mcpg,
+      # github-mcp-server, grafana) are tracked-only per the workflow's policy and
+      # must not fail this daily scan; they are remediated via upstream pin refreshes.
+      vendored_pattern='(^|[[:space:]])ghcr\.io/github/gh-aw-node(@|:)'
+      if grep -E "$vendored_pattern" "$output" | grep -qE ': error: \[Critical\]'; then
+        echo "::error::Critical vulnerabilities detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
-      if grep -q ': error: license policy violation:' "$output"; then
-        echo "::error::License policy violations detected in container images."
+      if grep -E "$vendored_pattern" "$output" | grep -q ': error: license policy violation:'; then
+        echo "::error::License policy violations detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
 timeout-minutes: 90
