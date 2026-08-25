@@ -21,7 +21,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json";
 const FETCH_TIMEOUT_MS = 120_000;
-const VERSION_PATTERN = /^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?$/;
+const VERSION_PATTERN = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?$/;
 
 /**
  * Parse an official version string (vMAJOR.MINOR.PATCH with an optional prerelease).
@@ -197,4 +197,4 @@ async function main() {
   core.info(`✅ Version check passed: ${compiledVersion}`);
 }
 
-module.exports = { main };
+module.exports = { main, parseVersion, compareVersions };

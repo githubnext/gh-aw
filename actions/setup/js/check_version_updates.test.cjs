@@ -129,6 +129,14 @@ describe("check_version_updates", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not an official release version"));
   });
 
+  it("should skip check when base numeric identifiers have leading zeroes", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.02.0";
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not an official release version"));
+  });
+
   it("should skip check when prerelease numeric identifiers have leading zeroes", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.2.0-01";
     await runMain();
@@ -362,10 +370,11 @@ describe("check_version_updates", () => {
   });
 
   it("should compare numeric prerelease identifiers numerically, not lexically", async () => {
-    process.env.GH_AW_COMPILED_VERSION = "v1.0.0-alpha.2";
-    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0-alpha.10" }));
-    await runMain();
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Outdated compile-agentic version"));
+    expect(checkVersionUpdates.compareVersions("v1.0.0-alpha.2", "v1.0.0-alpha.10")).toBeLessThan(0);
+  });
+
+  it("should compare release versions greater than their prereleases", async () => {
+    expect(checkVersionUpdates.compareVersions("v1.0.0", "v1.0.0-beta.1")).toBeGreaterThan(0);
   });
 
   it("should NOT block version when blocked list entry has no 'v' prefix (unknown format — ignore)", async () => {
