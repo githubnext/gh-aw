@@ -61,9 +61,7 @@ describe("pi_models_json.cjs", () => {
       const reflectData = { endpoints: [{ provider: "openai", configured: true, port: 10000, base_url: "http://api-proxy:10000" }] };
       // Sanity-check the real resolver agrees the fixture resolves to the live port before
       // exercising resolveGatewayBaseUrl(), which delegates to it.
-      expect(resolveProviderEndpointFromReflect({ provider: "openai", reflectData, logger: () => {} }).baseUrl).toBe(
-        "http://api-proxy:10000"
-      );
+      expect(resolveProviderEndpointFromReflect({ provider: "openai", reflectData, logger: () => {} }).baseUrl).toBe("http://api-proxy:10000");
 
       const result = piModelsJson.resolveGatewayBaseUrl({
         provider: "openai",
@@ -82,6 +80,16 @@ describe("pi_models_json.cjs", () => {
         logger: () => {},
       });
       expect(result).toEqual({ baseUrl: "http://api-proxy:10001", source: "fallback" });
+    });
+
+    it("falls back to the compile-time port when /reflect only has another provider configured", () => {
+      const result = piModelsJson.resolveGatewayBaseUrl({
+        provider: "openai",
+        fallbackPort: 10000,
+        reflectData: { endpoints: [{ provider: "anthropic", configured: true, port: 10001, base_url: "http://api-proxy:10001" }] },
+        logger: () => {},
+      });
+      expect(result).toEqual({ baseUrl: "http://api-proxy:10000", source: "fallback" });
     });
   });
 
@@ -110,6 +118,8 @@ describe("pi_models_json.cjs", () => {
     it("writes models.json using the live /reflect baseUrl when available", async () => {
       process.env.GH_AW_PI_MODEL_ID = "gpt-4.1";
       process.env.GH_AW_PI_GATEWAY_SECRET_ENV = "CODEX_API_KEY";
+      // Deliberately pass the wrong fallback port (10001 is anthropic's port, not openai's)
+      // to prove that the live /reflect data overrides the compile-time fallback value.
       process.env.GH_AW_PI_GATEWAY_FALLBACK_PORT = "10001";
       process.env.GH_AW_LLM_PROVIDER = "openai";
       process.env.AWF_REFLECT_ENABLED = "1";

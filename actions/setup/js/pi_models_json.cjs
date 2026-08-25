@@ -31,7 +31,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { fetchAWFReflect, resolveProviderEndpointFromReflect } = require("./awf_reflect.cjs");
+const { fetchAWFReflect, normalizeReflectProviderName, REFLECT_PROVIDER_ALIASES, resolveProviderEndpointFromReflect } = require("./awf_reflect.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const DEFAULT_PI_CODING_AGENT_DIR = "/tmp/gh-aw/pi-agent-dir";
@@ -58,8 +58,14 @@ function resolveGatewayBaseUrl(options) {
     return { baseUrl: fallbackBaseUrl, source: "fallback" };
   }
   const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger });
-  if (resolved && resolved.baseUrl) {
+  const normalizedProvider = normalizeReflectProviderName(provider, "openai");
+  const normalizedEndpointProvider = normalizeReflectProviderName(resolved?.endpointProvider);
+  const providerAliases = REFLECT_PROVIDER_ALIASES[normalizedProvider] || new Set([normalizedProvider]);
+  if (resolved && resolved.baseUrl && providerAliases.has(normalizedEndpointProvider)) {
     return { baseUrl: resolved.baseUrl, source: "reflect" };
+  }
+  if (resolved && resolved.baseUrl) {
+    logger(`warning: /reflect resolved provider=${normalizedProvider} to endpointProvider=${normalizedEndpointProvider}; using fallback port ${fallbackPort}`);
   }
   return { baseUrl: fallbackBaseUrl, source: "fallback" };
 }

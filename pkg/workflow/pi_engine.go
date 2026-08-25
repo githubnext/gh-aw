@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -334,7 +335,7 @@ func (e *PiEngine) buildPiModelsJSONSetup(workflowData *WorkflowData, profile un
 		// api-proxy port for reflectProvider, since AWF's actual port assignment is the
 		// source of truth and can drift from the compiled-in value.
 		setup := fmt.Sprintf(
-			`export GH_AW_PI_MODEL_ID=%s GH_AW_PI_GATEWAY_SECRET_ENV=%s GH_AW_PI_GATEWAY_FALLBACK_PORT=%d GH_AW_LLM_PROVIDER=%s && %s "%s/pi_models_json.cjs" && `,
+			`export GH_AW_PI_MODEL_ID=%s GH_AW_PI_GATEWAY_SECRET_ENV=%s GH_AW_PI_GATEWAY_FALLBACK_PORT=%d GH_AW_LLM_PROVIDER=%s && ( %s "%s/pi_models_json.cjs" ) && `,
 			shellEscapeArg(modelID), shellEscapeArg(gatewaySecretEnvVar), profile.gatewayPort, shellEscapeArg(reflectProvider),
 			nodeRuntimeResolutionCommand, SetupActionDestinationShell,
 		)
@@ -346,7 +347,7 @@ func (e *PiEngine) buildPiModelsJSONSetup(workflowData *WorkflowData, profile un
 	}
 	if !driverConfigured {
 		nativeProvider := piNativeProviderName(backend)
-		piArgs = append(piArgs, "--model", nativeProvider+"/"+modelID)
+		piArgs = append(piArgs, "--model", path.Join(nativeProvider, modelID))
 		piLog.Printf("Pi: using native provider %q for model %q (no firewall)", nativeProvider, modelID)
 	}
 	return "", piArgs
