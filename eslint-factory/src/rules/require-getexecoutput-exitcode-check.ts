@@ -52,6 +52,19 @@ function isExitCodeMemberAccess(memberExpression: TSESTree.MemberExpression, obj
   return memberExpression.property.type === AST_NODE_TYPES.Literal && memberExpression.property.value === "exitCode";
 }
 
+function isReturnedFromFunctionExpression(node: TSESTree.Node): boolean {
+  const parent = node.parent;
+  if (!parent) return false;
+  if (parent.type === AST_NODE_TYPES.ArrowFunctionExpression && parent.body === node) return true;
+  if (parent.type !== AST_NODE_TYPES.ReturnStatement || parent.argument !== node) return false;
+
+  let current: TSESTree.Node | undefined = parent.parent;
+  while (current && current.type !== AST_NODE_TYPES.FunctionDeclaration && current.type !== AST_NODE_TYPES.FunctionExpression && current.type !== AST_NODE_TYPES.ArrowFunctionExpression) {
+    current = current.parent;
+  }
+  return current?.type === AST_NODE_TYPES.FunctionExpression || current?.type === AST_NODE_TYPES.ArrowFunctionExpression;
+}
+
 export const requireGetExecOutputExitCodeCheckRule = createRule({
   name: "require-getexecoutput-exitcode-check",
   meta: {
@@ -106,7 +119,12 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
             const idParent = id.parent;
             return idParent !== undefined && idParent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(idParent, id);
           });
+          const escapesViaReturn = variable?.references.some(ref => isReturnedFromFunctionExpression(ref.identifier));
           if (!usesExitCode) {
+            // Cross-function return/value forwarding is not resolved by this rule.
+            // If the binding is returned from this function, skip reporting here to
+            // avoid false positives and let the caller-side check patterns handle it.
+            if (escapesViaReturn) return;
             context.report({ node: call, messageId: "missingExitCodeCheck" });
           }
           return;
@@ -115,8 +133,28 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
         return;
       }
 
+      // let result; result = await getExecOutput(...); if (result.exitCode !== 0) ...
+      if (parent.type === AST_NODE_TYPES.AssignmentExpression && parent.right === resultNode && parent.left.type === AST_NODE_TYPES.Identifier) {
+        const variable = findInUpperScopes(context.sourceCode.getScope(parent), parent.left.name);
+        const usesExitCode = variable?.references.some(ref => {
+          const id = ref.identifier;
+          const idParent = id.parent;
+          return idParent !== undefined && idParent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(idParent, id);
+        });
+        if (!usesExitCode) {
+          context.report({ node: call, messageId: "missingExitCodeCheck" });
+        }
+        return;
+      }
+
       // Direct member access: (await getExecOutput(...)).exitCode
       if (parent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(parent, resultNode)) {
+        return;
+      }
+
+      // Cross-function return/value forwarding isn't resolved at this callsite.
+      // Skip to avoid false positives for helper/callback-return wrappers.
+      if (isReturnedFromFunctionExpression(resultNode)) {
         return;
       }
 
