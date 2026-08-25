@@ -101,6 +101,37 @@ describe("generateGitBundle (incremental)", () => {
     expect(generatedSize).toBeLessThan(naiveSize);
   });
 
+  it("reports missingRemoteBranch when the branch no longer exists on origin", async () => {
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-remote-"));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-work-"));
+    tempDirs.push(remoteDir, workDir);
+
+    execGit(["init", "--bare"], { cwd: remoteDir });
+    execGit(["clone", remoteDir, workDir]);
+    execGit(["config", "user.name", "Test User"], { cwd: workDir });
+    execGit(["config", "user.email", "test@example.com"], { cwd: workDir });
+
+    fs.writeFileSync(path.join(workDir, "base.txt"), "base\n");
+    execGit(["add", "base.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "base"], { cwd: workDir });
+    execGit(["branch", "-M", "main"], { cwd: workDir });
+    execGit(["push", "-u", "origin", "main"], { cwd: workDir });
+
+    // The PR branch exists locally but not on the remote (e.g. the pull request
+    // was merged and its branch deleted after the workflow started).
+    execGit(["checkout", "-b", "pr-deleted"], { cwd: workDir });
+    fs.writeFileSync(path.join(workDir, "pr.txt"), "agent change\n");
+    execGit(["add", "pr.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "agent change"], { cwd: workDir });
+
+    const { generateGitBundle } = require("./generate_git_bundle.cjs");
+    const result = await generateGitBundle("pr-deleted", "main", { mode: "incremental", cwd: workDir });
+
+    expect(result.success).toBe(false);
+    expect(result.missingRemoteBranch).toBe(true);
+    expect(result.error).toContain("no longer exists on the remote");
+  });
+
   it("falls back to non-exclusion bundle generation when origin/base branch is unavailable", async () => {
     const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-remote-"));
     const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-work-"));
