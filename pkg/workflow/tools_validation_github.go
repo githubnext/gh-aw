@@ -121,6 +121,9 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	}
 
 	github := tools.GitHub
+	if github.reposParseErr != nil {
+		return github.reposParseErr
+	}
 	if hasGitHubLockdownGuardPolicyConflict(github) {
 		toolsValidationLog.Printf("lockdown enabled with guard policy fields in workflow: %s", workflowName)
 	}
@@ -155,7 +158,7 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	// Default allowed-repos to "all" when not specified
 	if !hasRepos {
 		toolsValidationLog.Printf("Defaulting allowed-repos (repos) to 'all' in guard policy for workflow: %s", workflowName)
-		github.AllowedRepos = "all"
+		github.AllowedRepos = GitHubReposScope{"all"}
 	}
 
 	// Validate repos format
@@ -210,57 +213,22 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 }
 
 // validateReposScope validates the repos field in the guard policy
-func validateReposScope(repos any, workflowName string) error {
-	// Case 1: String value ("all" or "public")
-	if reposStr, ok := repos.(string); ok {
-		if reposStr != "all" && reposStr != "public" && !isExactGitHubRepositoryExpression(reposStr) {
-			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
-			return errors.New("'github.allowed-repos' string must be 'all', 'public', or '${{ github.repository }}'. Got: '" + reposStr + "'. Example:\ntools:\n  github:\n    allowed-repos: all")
-		}
+func validateReposScope(repos GitHubReposScope, workflowName string) error {
+	if len(repos) == 0 {
+		toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
+		return errors.New("'github.allowed-repos' array cannot be empty. Provide at least one repository pattern. Example:\ntools:\n  github:\n    allowed-repos: [\"owner/repo\"]")
+	}
+
+	if len(repos) == 1 && (repos[0] == "all" || repos[0] == "public" || isExactGitHubRepositoryExpression(repos[0])) {
 		return nil
 	}
 
-	// Case 2a: Array of patterns from YAML parsing ([]any)
-	if reposArray, ok := repos.([]any); ok {
-		if len(reposArray) == 0 {
-			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
-			return errors.New("'github.allowed-repos' array cannot be empty. Provide at least one repository pattern. Example:\ntools:\n  github:\n    allowed-repos: [\"owner/repo\"]")
+	for _, pattern := range repos {
+		if err := validateRepoPattern(pattern, workflowName); err != nil {
+			return err
 		}
-
-		for i, item := range reposArray {
-			pattern, ok := item.(string)
-			if !ok {
-				toolsValidationLog.Printf("Non-string item in repos array at index %d in workflow: %s", i, workflowName)
-				return errors.New("'github.allowed-repos' array must contain only strings. Example:\ntools:\n  github:\n    allowed-repos: [\"owner/repo\"]")
-			}
-
-			if err := validateRepoPattern(pattern, workflowName); err != nil {
-				return err
-			}
-		}
-
-		return nil
 	}
-
-	// Case 2b: Array of patterns from programmatic construction ([]string)
-	if reposArray, ok := repos.([]string); ok {
-		if len(reposArray) == 0 {
-			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
-			return errors.New("'github.allowed-repos' array cannot be empty. Provide at least one repository pattern. Example:\ntools:\n  github:\n    allowed-repos: [\"owner/repo\"]")
-		}
-
-		for _, pattern := range reposArray {
-			if err := validateRepoPattern(pattern, workflowName); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	// Invalid type
-	toolsValidationLog.Printf("Invalid repos type in workflow: %s", workflowName)
-	return errors.New("'github.allowed-repos' has an unsupported type. Expected 'all', 'public', or an array of repository patterns. Example:\ntools:\n  github:\n    allowed-repos: [\"owner/repo\"]")
+	return nil
 }
 
 // validateRepoPattern validates a single repository pattern

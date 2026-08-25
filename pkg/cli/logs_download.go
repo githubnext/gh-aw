@@ -50,7 +50,7 @@ type downloadArtifactsOptions struct {
 // usage artifact. In this mode, workflow-run log downloads are intentionally skipped
 // to minimize API and transfer volume for lightweight reporting paths.
 func isUsageOnlyArtifactFilter(artifactFilter []string) bool {
-	return len(artifactFilter) == 1 && artifactFilter[0] == constants.UsageArtifactName
+	return len(artifactFilter) == 1 && artifactFilter[0] == constants.UsageArtifactName.String()
 }
 
 func shouldDownloadWorkflowRunLogs(artifactFilter []string) bool {
@@ -58,7 +58,7 @@ func shouldDownloadWorkflowRunLogs(artifactFilter []string) bool {
 		return true
 	}
 	for _, artifact := range artifactFilter {
-		if artifact != constants.ActivationArtifactName && artifact != constants.UsageArtifactName {
+		if artifact != constants.ActivationArtifactName.String() && artifact != constants.UsageArtifactName.String() {
 			return true
 		}
 	}
@@ -612,7 +612,7 @@ func ensureUsageAwInfoFallback(ctx context.Context, opts downloadArtifactsOption
 // copyUsageAwInfoToRunRoot copies aw_info.json from the usage artifact directory to the
 // run root when present. It reports whether the copy succeeded.
 func copyUsageAwInfoToRunRoot(outputDir, awInfoPath string) bool {
-	usageDir := findArtifactDir(outputDir, constants.UsageArtifactName, "")
+	usageDir := findArtifactDir(outputDir, constants.UsageArtifactName.String(), "")
 	if usageDir == "" {
 		return false
 	}
@@ -639,16 +639,16 @@ func resolveActivationArtifactNames(ctx context.Context, opts downloadArtifactsO
 	artifactNames, err := listRunArtifactNames(ctx, opts.runID, opts.owner, opts.repo, opts.hostname, opts.verbose)
 	if err != nil {
 		logsDownloadLog.Printf("Failed to list artifacts for activation fallback: %v", err)
-		return []string{constants.ActivationArtifactName}
+		return []string{constants.ActivationArtifactName.String()}
 	}
 	var matched []string
 	for _, name := range artifactNames {
-		if artifactMatchesFilter(name, []string{constants.ActivationArtifactName}) {
+		if artifactMatchesFilter(name, []string{constants.ActivationArtifactName.String()}) {
 			matched = append(matched, name)
 		}
 	}
 	if len(matched) == 0 {
-		return []string{constants.ActivationArtifactName}
+		return []string{constants.ActivationArtifactName.String()}
 	}
 	return matched
 }

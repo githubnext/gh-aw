@@ -233,5 +233,5 @@ func isKnownUnscannedButAllowedForUpload(path string) bool {
 	if !isUnderGhAwDir {
 		return false
 	}
-	return filepath.Ext(path) == ".bundle" || path == constants.GradersDirSlash+constants.OperationalValueEvaluatorFilename
+	return filepath.Ext(path) == ".bundle" || path == constants.GradersDirSlash+constants.OperationalValueEvaluatorFilename.String()
 }

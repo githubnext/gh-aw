@@ -51,7 +51,7 @@ func TestRunHasEvals(t *testing.T) {
 			name: "root-level evals.jsonl (flattenSingleFileArtifacts output)",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
-				require.NoError(t, os.WriteFile(filepath.Join(dir, constants.EvalsResultFilename), []byte("{}"), 0600))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, constants.EvalsResultFilename.String()), []byte("{}"), 0600))
 			},
 			expected: true,
 		},
@@ -59,9 +59,9 @@ func TestRunHasEvals(t *testing.T) {
 			name: "evals/evals.jsonl (un-flattened artifact directory)",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
-				evalsDir := filepath.Join(dir, constants.EvalsArtifactName)
+				evalsDir := filepath.Join(dir, constants.EvalsArtifactName.String())
 				require.NoError(t, os.Mkdir(evalsDir, 0700))
-				require.NoError(t, os.WriteFile(filepath.Join(evalsDir, constants.EvalsResultFilename), []byte("{}"), 0600))
+				require.NoError(t, os.WriteFile(filepath.Join(evalsDir, constants.EvalsResultFilename.String()), []byte("{}"), 0600))
 			},
 			expected: true,
 		},
@@ -69,9 +69,9 @@ func TestRunHasEvals(t *testing.T) {
 			name: "hash-prefixed {hash}-evals/evals.jsonl (workflow_call variant)",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
-				evalsDir := filepath.Join(dir, "abc123-"+constants.EvalsArtifactName)
+				evalsDir := filepath.Join(dir, "abc123-"+constants.EvalsArtifactName.String())
 				require.NoError(t, os.Mkdir(evalsDir, 0700))
-				require.NoError(t, os.WriteFile(filepath.Join(evalsDir, constants.EvalsResultFilename), []byte("{}"), 0600))
+				require.NoError(t, os.WriteFile(filepath.Join(evalsDir, constants.EvalsResultFilename.String()), []byte("{}"), 0600))
 			},
 			expected: true,
 		},
@@ -79,7 +79,7 @@ func TestRunHasEvals(t *testing.T) {
 			name: "evals/ directory exists but contains no evals.jsonl",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
-				evalsDir := filepath.Join(dir, constants.EvalsArtifactName)
+				evalsDir := filepath.Join(dir, constants.EvalsArtifactName.String())
 				require.NoError(t, os.Mkdir(evalsDir, 0700))
 				require.NoError(t, os.WriteFile(filepath.Join(evalsDir, "other.txt"), []byte("data"), 0600))
 			},
@@ -89,9 +89,9 @@ func TestRunHasEvals(t *testing.T) {
 			name: "usage/evals.jsonl (compact usage artifact)",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
-				usageDir := filepath.Join(dir, constants.UsageArtifactName)
+				usageDir := filepath.Join(dir, constants.UsageArtifactName.String())
 				require.NoError(t, os.Mkdir(usageDir, 0700))
-				require.NoError(t, os.WriteFile(filepath.Join(usageDir, constants.EvalsResultFilename), []byte("{}"), 0600))
+				require.NoError(t, os.WriteFile(filepath.Join(usageDir, constants.EvalsResultFilename.String()), []byte("{}"), 0600))
 			},
 			expected: true,
 		},
@@ -99,9 +99,9 @@ func TestRunHasEvals(t *testing.T) {
 			name: "hash-prefixed {hash}-usage/evals.jsonl (workflow_call compact usage artifact)",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
-				usageDir := filepath.Join(dir, "abc123-"+constants.UsageArtifactName)
+				usageDir := filepath.Join(dir, "abc123-"+constants.UsageArtifactName.String())
 				require.NoError(t, os.Mkdir(usageDir, 0700))
-				require.NoError(t, os.WriteFile(filepath.Join(usageDir, constants.EvalsResultFilename), []byte("{}"), 0600))
+				require.NoError(t, os.WriteFile(filepath.Join(usageDir, constants.EvalsResultFilename.String()), []byte("{}"), 0600))
 			},
 			expected: true,
 		},

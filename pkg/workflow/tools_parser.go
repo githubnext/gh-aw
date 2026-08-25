@@ -295,13 +295,20 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 
 		// Parse guard policy fields (flat syntax: allowed-repos/repos and min-integrity directly under github:)
 		if allowedRepos, ok := configMap["allowed-repos"]; ok {
-			config.AllowedRepos = allowedRepos // Store as-is, validation will happen later
+			config.AllowedRepos, config.reposParseErr = parseGitHubReposScope(allowedRepos)
+			if config.reposParseErr != nil {
+				config.reposParseErr = fmt.Errorf("github.allowed-repos: %w", config.reposParseErr)
+			}
 		} else if repos, ok := configMap["repos"]; ok {
 			// Deprecated: use 'allowed-repos' instead of 'repos'.
 			// The deprecation warning is emitted by the generic schema-driven walker in
 			// warnDeprecatedFrontmatterFields; no extra hard-coded warning is needed here.
-			config.AllowedRepos = repos // Populate canonical field for validation
+			config.AllowedRepos, config.reposParseErr = parseGitHubReposScope(repos)
+			if config.reposParseErr != nil {
+				config.reposParseErr = fmt.Errorf("github.repos: %w", config.reposParseErr)
+			}
 		}
+
 		if integrity, ok := configMap["min-integrity"].(string); ok {
 			config.MinIntegrity = GitHubIntegrityLevel(integrity)
 		}
