@@ -1644,6 +1644,58 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
     });
 
+    function createWorkspaceRepoWithDeletedRemoteBranch() {
+      const remoteDir = path.join(testWorkspaceDir, "remote.git");
+      fs.mkdirSync(remoteDir, { recursive: true });
+      execSync("git init --bare -b main", { cwd: remoteDir, stdio: "pipe" });
+
+      execSync("git init -b main", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: testWorkspaceDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(testWorkspaceDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync(`git remote add origin ${remoteDir}`, { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git push origin main", { cwd: testWorkspaceDir, stdio: "pipe" });
+
+      // The PR branch exists locally but was never pushed (or was deleted on the
+      // remote after the workflow started), so origin/<branch> cannot be resolved.
+      execSync("git checkout -b feature-branch", { cwd: testWorkspaceDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(testWorkspaceDir, "README.md"), "agent change\n");
+      execSync("git add README.md", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git commit -m 'agent commit'", { cwd: testWorkspaceDir, stdio: "pipe" });
+    }
+
+    it("should skip instead of erroring when the PR branch is gone and ignore-missing-branch-failure is set", async () => {
+      createWorkspaceRepoWithDeletedRemoteBranch();
+      const skipHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: { ignore_missing_branch_failure: true, patch_format: "am" },
+      });
+
+      const result = await skipHandlers.pushToPullRequestBranchHandler({ branch: "feature-branch" });
+
+      expect(result.isError).toBeFalsy();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("skipped");
+      expect(responseData.reason).toContain("no longer exists on the remote");
+      expect(responseData.details).toContain("Do not retry");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should error when the PR branch is gone and ignore-missing-branch-failure is not set", async () => {
+      createWorkspaceRepoWithDeletedRemoteBranch();
+      const strictHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: { patch_format: "am" },
+      });
+
+      const result = await strictHandlers.pushToPullRequestBranchHandler({ branch: "feature-branch" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
     it("should return error response when patch generation fails (not throw)", async () => {
       // This test verifies the error is returned as content, not thrown
       const args = {

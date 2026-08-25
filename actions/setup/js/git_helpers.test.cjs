@@ -2101,4 +2101,20 @@ describe("git_helpers.cjs - integration (real git repo)", () => {
       expect(isTransientGitError(new Error("error: pathspec 'x' did not match any file(s) known to git"))).toBe(false);
     });
   });
+
+  describe("looksLikeMissingRemoteRefError", () => {
+    it("recognizes remote refs that do not exist", async () => {
+      const { looksLikeMissingRemoteRefError } = await import("./git_helpers.cjs");
+      expect(looksLikeMissingRemoteRefError(new Error("fatal: couldn't find remote ref gh-aw/pre-created/1-1"))).toBe(true);
+      expect(looksLikeMissingRemoteRefError("fatal: could not find remote ref feature")).toBe(true);
+      expect(looksLikeMissingRemoteRefError(new Error("error: pathspec 'x' did not match any file(s) known to git"))).toBe(true);
+    });
+
+    it("does not classify authentication or transport failures as missing refs", async () => {
+      const { looksLikeMissingRemoteRefError } = await import("./git_helpers.cjs");
+      expect(looksLikeMissingRemoteRefError(new Error("fatal: Authentication failed"))).toBe(false);
+      expect(looksLikeMissingRemoteRefError(new Error("fatal: unable to access 'https://github.com/o/r.git/': Failed to connect"))).toBe(false);
+      expect(looksLikeMissingRemoteRefError(undefined)).toBe(false);
+    });
+  });
 });

@@ -12,7 +12,7 @@ const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
-const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
+const { ensureOriginRemoteTrackingRef, execGitSync, looksLikeMissingRemoteRefError } = require("./git_helpers.cjs");
 const { isAncestorCommit, describeGitFailure } = require("./git_patch_utils.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
@@ -177,13 +177,16 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             }
           } else {
             debugLog(`Strategy 1 (incremental): origin/${branchName} not present locally and remote fetch failed (${incrementalRefResult.fetchError ? getErrorMessage(incrementalRefResult.fetchError) : "no error"}), failing`);
-            errorMessage =
-              `Cannot generate incremental bundle: refs/remotes/origin/${branchName} is not present in checkout '${cwd}' and could not be fetched ` +
-              `(the safe-outputs MCP server has no credentials for private repositories). ` +
-              `Add ${JSON.stringify(branchName)} to the workflow's checkout.fetch list so the branch is fetched during setup.`;
+            const missingRemoteBranch = looksLikeMissingRemoteRefError(incrementalRefResult.fetchError);
+            errorMessage = missingRemoteBranch
+              ? `Cannot generate incremental bundle: branch ${JSON.stringify(branchName)} no longer exists on the remote (it may have been deleted after this workflow started).`
+              : `Cannot generate incremental bundle: refs/remotes/origin/${branchName} is not present in checkout '${cwd}' and could not be fetched ` +
+                `(the safe-outputs MCP server has no credentials for private repositories). ` +
+                `Add ${JSON.stringify(branchName)} to the workflow's checkout.fetch list so the branch is fetched during setup.`;
             return {
               success: false,
               error: errorMessage,
+              missingRemoteBranch,
               bundlePath,
             };
           }

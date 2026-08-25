@@ -1281,3 +1281,64 @@ describe("generateGitPatch – incremental mode diffSize excludes merged base-br
     expect(result.diffSize ?? 0).toBeGreaterThan(0);
   });
 });
+
+describe("generateGitPatch – incremental mode with a deleted remote branch", () => {
+  let repoDir;
+  let remoteDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GITHUB_SHA: process.env.GITHUB_SHA };
+
+    global.core = { debug: () => {}, info: () => {}, warning: () => {}, error: () => {} };
+
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-deleted-branch-"));
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-deleted-branch-remote-"));
+
+    execSync("git init --bare -b main", { cwd: remoteDir });
+    execSync("git init -b main", { cwd: repoDir });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir });
+    execSync('git config user.name "Test"', { cwd: repoDir });
+    execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir });
+
+    fs.writeFileSync(path.join(repoDir, "README.md"), "# Repo\n");
+    execSync("git add .", { cwd: repoDir });
+    execSync('git commit -m "init"', { cwd: repoDir });
+    execSync("git push origin main", { cwd: repoDir });
+
+    delete process.env.GITHUB_WORKSPACE;
+    delete process.env.GITHUB_SHA;
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+  });
+
+  afterEach(() => {
+    Object.entries(originalEnv).forEach(([k, v]) => {
+      if (v !== undefined) process.env[k] = v;
+      else delete process.env[k];
+    });
+    if (repoDir && fs.existsSync(repoDir)) {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+    if (remoteDir && fs.existsSync(remoteDir)) {
+      fs.rmSync(remoteDir, { recursive: true, force: true });
+    }
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+    delete global.core;
+  });
+
+  it("reports missingRemoteBranch when the branch no longer exists on origin", async () => {
+    // The agent has a local PR branch, but the branch was deleted on the remote
+    // (e.g. the pull request was merged after the workflow started).
+    execSync("git checkout -b pr-deleted", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "agent.txt"), "agent change\n");
+    execSync("git add agent.txt", { cwd: repoDir });
+    execSync('git commit -m "agent: change"', { cwd: repoDir });
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("pr-deleted", "main", { cwd: repoDir, mode: "incremental" });
+
+    expect(result.success).toBe(false);
+    expect(result.missingRemoteBranch).toBe(true);
+    expect(result.error).toContain("no longer exists on the remote");
+  });
+});

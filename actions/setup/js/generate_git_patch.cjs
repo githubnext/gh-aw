@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
+const { ensureOriginRemoteTrackingRef, execGitSync, looksLikeMissingRemoteRefError } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const {
   sanitizeForFilename,
@@ -217,13 +217,16 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             }
           } else {
             debugLog(`Strategy 1 (incremental): origin/${branchName} not present locally and remote fetch failed (${incrementalRefResult.fetchError ? getErrorMessage(incrementalRefResult.fetchError) : "no error"}), failing`);
-            errorMessage =
-              `Cannot generate incremental patch: refs/remotes/origin/${branchName} is not present in checkout '${cwd}' and could not be fetched ` +
-              `(the safe-outputs MCP server has no credentials for private repositories). ` +
-              `Add ${JSON.stringify(branchName)} to the workflow's checkout.fetch list so the branch is fetched during setup.`;
+            const missingRemoteBranch = looksLikeMissingRemoteRefError(incrementalRefResult.fetchError);
+            errorMessage = missingRemoteBranch
+              ? `Cannot generate incremental patch: branch ${JSON.stringify(branchName)} no longer exists on the remote (it may have been deleted after this workflow started).`
+              : `Cannot generate incremental patch: refs/remotes/origin/${branchName} is not present in checkout '${cwd}' and could not be fetched ` +
+                `(the safe-outputs MCP server has no credentials for private repositories). ` +
+                `Add ${JSON.stringify(branchName)} to the workflow's checkout.fetch list so the branch is fetched during setup.`;
             return {
               success: false,
               error: errorMessage,
+              missingRemoteBranch,
               patchPath: patchPath,
             };
           }

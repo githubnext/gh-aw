@@ -1513,6 +1513,26 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       const errorMsg = patchResult.error || "Failed to generate patch";
       server.debug(`Patch generation failed: ${errorMsg}`);
 
+      // The pull request branch was deleted on the remote (e.g. the pull request was
+      // merged after this workflow started). When ignore-missing-branch-failure is
+      // configured, report the push as skipped instead of an error so the agent stops
+      // retrying a push that can never succeed.
+      if (patchResult.missingRemoteBranch && pushConfig.ignore_missing_branch_failure === true) {
+        server.debug(`Branch '${entry.branch}' is missing on the remote; skipping push as configured by ignore-missing-branch-failure`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "skipped",
+                reason: errorMsg,
+                details: "The push was skipped because ignore-missing-branch-failure is enabled for this workflow. Do not retry push_to_pull_request_branch for this branch.",
+              }),
+            },
+          ],
+        };
+      }
+
       // Return error as content so the agent can see it, rather than throwing
       // which causes the tool call to fail silently in some MCP clients
       return {

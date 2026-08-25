@@ -19,7 +19,14 @@ const { checkFileProtection, checkFileProtectionPostApply } = require("./manifes
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
+const {
+  ensureFullHistoryForBundle,
+  extractBundlePrerequisiteCommits,
+  isShallowOrSparseCheckout,
+  linearizeRangeAsCommit,
+  ensureSafeDirectoryTrust,
+  MISSING_REMOTE_REF_PATTERNS: GIT_MISSING_REMOTE_REF_PATTERNS,
+} = require("./git_helpers.cjs");
 const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
@@ -34,15 +41,9 @@ const { buildManualBranchApplyCommands } = require("./create_pull_request_helper
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "push_to_pull_request_branch";
 const MISSING_BRANCH_ERROR_TEMPLATE = branchName => `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
-const MISSING_REMOTE_REF_PATTERNS = [
-  "couldn't find remote ref",
-  "could not find remote ref",
-  "remote ref does not exist",
-  "did not match any file(s) known to git",
-  "unknown revision or path not in the working tree",
-  "fatal: couldn't find remote ref",
-  "exit code 128",
-];
+// The shared patterns identify a ref the remote does not have; "exit code 128"
+// additionally covers git failures surfaced by @actions/exec without stderr.
+const MISSING_REMOTE_REF_PATTERNS = [...GIT_MISSING_REMOTE_REF_PATTERNS, "exit code 128"];
 /**
  * @param {unknown} value
  * @returns {boolean}

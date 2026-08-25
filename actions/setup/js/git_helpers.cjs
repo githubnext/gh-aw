@@ -305,6 +305,28 @@ function ensureOriginRemoteTrackingRef(branch, options) {
 }
 
 /**
+ * Git error fragments that identify a ref which does not exist on the remote
+ * (as opposed to an authentication or transport failure). Matched
+ * case-insensitively against the error message.
+ * @type {string[]}
+ */
+const MISSING_REMOTE_REF_PATTERNS = ["couldn't find remote ref", "could not find remote ref", "remote ref does not exist", "did not match any file(s) known to git", "unknown revision or path not in the working tree"];
+
+/**
+ * Determine whether a git failure means the requested ref is absent from the
+ * remote (for example, the pull request branch was deleted after the workflow
+ * was triggered). Authentication and transport failures return false so callers
+ * can distinguish "branch is gone" from "we could not reach the remote".
+ *
+ * @param {unknown} value - Error or message produced by a git operation
+ * @returns {boolean} True when the remote reports the ref as missing
+ */
+function looksLikeMissingRemoteRefError(value) {
+  const text = getErrorMessage(value).toLowerCase();
+  return MISSING_REMOTE_REF_PATTERNS.some(pattern => text.includes(pattern));
+}
+
+/**
  * Maximum number of commits in a `base..head` range before it is considered
  * implausible for a shallow checkout.  A shallow clone with `fetch-depth: 1`
  * will report the entire local history as the range when the base ref is not
@@ -905,5 +927,7 @@ module.exports = {
   hasMergeCommitsInRange,
   isShallowOrSparseCheckout,
   linearizeRangeAsCommit,
+  looksLikeMissingRemoteRefError,
+  MISSING_REMOTE_REF_PATTERNS,
   SHALLOW_RANGE_MAX_COMMITS,
 };

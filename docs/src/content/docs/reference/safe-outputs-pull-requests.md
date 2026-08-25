@@ -543,6 +543,8 @@ When `fallback-as-pull-request` is enabled (default), non-fast-forward push fail
 
 When `ignore-missing-branch-failure: true` is set, push failures caused by a deleted or missing PR branch return `skipped: true` instead of a hard failure. This is useful when the PR branch may have been deleted before the safe-output job runs (for example, on auto-merged PRs). Without this flag, a missing branch is a terminal error.
 
+The same flag also applies while the agent is running: if the `push_to_pull_request_branch` tool cannot build a patch because the branch no longer exists on the remote, the tool returns a `skipped` result instead of an error, so the agent stops retrying a push that can never succeed.
+
 When `check-branch-protection: false` is set, the branch protection API pre-flight check is skipped. By default (`true`), the handler calls `GET /repos/{owner}/{repo}/branches/{branch}/protection` before pushing to detect whether the target branch is protected. This API call requires `administration: read`. If the token lacks that permission, the check logs a warning and continues (the GitHub platform still enforces protection at push time). Set `check-branch-protection: false` to suppress the warning and avoid the API call entirely.
 
 ## Protected Files
