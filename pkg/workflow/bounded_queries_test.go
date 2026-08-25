@@ -205,7 +205,8 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 		assert.Equal(t, 30, *got.Timeout)
 		assert.Equal(t, "512m", got.MemoryLimit)
 		assert.Equal(t, "python3", got.Interpreter)
-		assert.Equal(t, 32, got.MaxInvocations)
+		require.NotNil(t, got.MaxInvocations)
+		assert.Equal(t, 32, *got.MaxInvocations)
 		require.Len(t, got.PrivateRepos, 2)
 		assert.Equal(t, "my-org/internal-service", got.PrivateRepos[0].Repo)
 		assert.Equal(t, "internal", got.PrivateRepos[0].Sensitivity)
@@ -229,7 +230,7 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 
 		got := extractBoundedQueriesConfig(data)
 		require.NotNil(t, got)
-		assert.Equal(t, 0, got.MaxInvocations, "max-invocations must be zero (omitted) when not set")
+		assert.Nil(t, got.MaxInvocations, "max-invocations must be nil (omitted) when not set")
 		assert.Nil(t, got.Timeout, "timeout must be nil (omitted) when not set")
 	})
 }
@@ -600,17 +601,20 @@ func TestValidateRepoSlug(t *testing.T) {
 func TestAWFBoundedQueriesJSONRoundtrip(t *testing.T) {
 	cfg := &AWFBoundedQueriesConfig{
 		Enabled: true,
-		PrivateRepos: []*AWFBoundedQueryPrivateRepo{
-			{Repo: "my-org/public-docs", Sensitivity: "public"},
-			{Repo: "my-org/internal-service", Sensitivity: "internal"},
-			{Repo: "my-org/confidential-service", Sensitivity: "confidential"},
-			{Repo: "my-org/sealed-service", Sensitivity: "sealed"},
+		BoundedQueriesConfig: BoundedQueriesConfig{
+			PrivateRepos: []*BoundedQueryPrivateRepo{
+				{Repo: "my-org/public-docs", Sensitivity: "public"},
+				{Repo: "my-org/internal-service", Sensitivity: "internal"},
+				{Repo: "my-org/confidential-service", Sensitivity: "confidential"},
+				{Repo: "my-org/sealed-service", Sensitivity: "sealed"},
+			},
+			Runtime:        BoundedQueryRuntimeSbx,
+			Timeout:        new(30),
+			MemoryLimit:    "512m",
+			Interpreter:    "python3",
+			MaxInvocations: new(32),
+			ParseError:     "must not be serialized",
 		},
-		Runtime:        BoundedQueryRuntimeSbx,
-		Timeout:        new(30),
-		MemoryLimit:    "512m",
-		Interpreter:    "python3",
-		MaxInvocations: 32,
 	}
 
 	data, err := json.Marshal(cfg)
@@ -626,6 +630,7 @@ func TestAWFBoundedQueriesJSONRoundtrip(t *testing.T) {
 	assert.Contains(t, jsonStr, `"memoryLimit":"512m"`)
 	assert.Contains(t, jsonStr, `"interpreter":"python3"`)
 	assert.Contains(t, jsonStr, `"maxInvocations":32`)
+	assert.NotContains(t, jsonStr, "ParseError")
 
 	// Round-trip through JSON.
 	var got AWFBoundedQueriesConfig

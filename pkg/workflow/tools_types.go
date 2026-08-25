@@ -415,50 +415,50 @@ type BoundedQueriesConfig struct {
 	// PrivateRepos is the list of private repositories that the agent may query.
 	// At least one entry is required when bounded-queries is configured.
 	// Each entry must have a valid "owner/repo" slug and a sensitivity classification.
-	PrivateRepos []*BoundedQueryPrivateRepo `yaml:"private-repos,omitempty"`
+	PrivateRepos []*BoundedQueryPrivateRepo `yaml:"private-repos,omitempty" json:"privateRepos,omitempty"`
 
 	// Runtime is the container runtime used to execute bounded-query scripts.
 	// Optional; when omitted AWF uses its default runtime.
 	// Supported values: "docker", "gvisor", "sbx".
 	// This is independent from sandbox.agent.runtime. AWF creates a fresh
 	// backend-specific sandbox for every query and never falls back to another runtime.
-	Runtime BoundedQueryRuntime `yaml:"runtime,omitempty"`
+	Runtime BoundedQueryRuntime `yaml:"runtime,omitempty" json:"runtime,omitempty"`
 
 	// Timeout is the maximum execution time in seconds for a single bounded-query invocation.
 	// Optional; when omitted AWF uses its default timeout.
 	// Must be a positive integer in the range 1–540.
 	// A pointer distinguishes "not set" (nil) from an explicitly set zero, which is rejected.
-	Timeout *int `yaml:"timeout,omitempty"`
+	Timeout *int `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 
 	// MemoryLimit is the memory limit for bounded-query container execution (e.g. "512m", "1g").
 	// Optional; when omitted AWF uses its default memory limit.
-	MemoryLimit string `yaml:"memory-limit,omitempty"`
+	MemoryLimit string `yaml:"memory-limit,omitempty" json:"memoryLimit,omitempty"`
 
 	// Interpreter is the script interpreter for bounded-query execution (e.g. "python3").
 	// Optional; when omitted AWF uses its default interpreter.
-	Interpreter string `yaml:"interpreter,omitempty"`
+	Interpreter string `yaml:"interpreter,omitempty" json:"interpreter,omitempty"`
 
 	// MaxInvocations is the maximum number of bounded-query invocations allowed per run.
 	// Optional; when omitted AWF uses its default.
 	// Must be a positive integer in the range 1–10000.
 	// A pointer distinguishes "not set" (nil) from an explicitly set zero, which is rejected.
-	MaxInvocations *int `yaml:"max-invocations,omitempty"`
+	MaxInvocations *int `yaml:"max-invocations,omitempty" json:"maxInvocations,omitempty"`
 
 	// ParseError records a type mismatch or structural error encountered during YAML parsing.
 	// Non-empty when bounded-queries or private-repos had an unexpected type in the frontmatter.
 	// The compiler treats a non-empty ParseError as a hard validation error.
-	ParseError string `yaml:"-"`
+	ParseError string `yaml:"-" json:"-"`
 }
 
 // BoundedQueryPrivateRepo describes one private repository approved for bounded-query access.
 type BoundedQueryPrivateRepo struct {
 	// Repo is the "owner/repo" slug of the private repository.
 	// Must not contain GitHub Actions expressions.
-	Repo string `yaml:"repo"`
+	Repo string `yaml:"repo" json:"repo"`
 
 	// Sensitivity is the confidentiality classification for this repository.
 	// Accepted values: "public", "internal", "confidential", "sealed".
-	Sensitivity string `yaml:"sensitivity"`
+	Sensitivity string `yaml:"sensitivity" json:"sensitivity"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

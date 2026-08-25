@@ -513,25 +513,10 @@ func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesC
 		return nil
 	}
 
-	awfBQ := &AWFBoundedQueriesConfig{
-		Enabled:     true,
-		Runtime:     bq.Runtime,
-		MemoryLimit: bq.MemoryLimit,
-		Interpreter: bq.Interpreter,
+	return &AWFBoundedQueriesConfig{
+		Enabled:              true,
+		BoundedQueriesConfig: *bq,
 	}
-	awfBQ.Timeout = bq.Timeout
-	if bq.MaxInvocations != nil {
-		awfBQ.MaxInvocations = *bq.MaxInvocations
-	}
-
-	for _, r := range bq.PrivateRepos {
-		awfBQ.PrivateRepos = append(awfBQ.PrivateRepos, &AWFBoundedQueryPrivateRepo{
-			Repo:        r.Repo,
-			Sensitivity: r.Sensitivity,
-		})
-	}
-
-	return awfBQ
 }
 
 // getRunnerTopology extracts the runner topology from WorkflowData.
