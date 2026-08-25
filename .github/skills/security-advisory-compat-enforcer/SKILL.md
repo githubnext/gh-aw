@@ -54,19 +54,26 @@ to verify, not as evidence for advisory details.
 3. Make the narrowest evidence-backed edit. Preserve `blockedVersions`,
    `minRecommendedVersion`, every `agent-compat-v1` row, key ordering, and
    formatting unless the selected policy specifically requires changing them.
-4. Review the final diff and reject unrelated changes.
+4. When changing `blockedVersions`, update `.github/aw/compat.md` in the same
+   change. Account for every blocked version, state why each version or
+   contiguous range is blocked, and link to the corresponding advisory.
+5. Review the final diff and reject unrelated changes.
 
 ## Required validation
 
 Before reporting completion:
 
-1. Parse `.github/aw/compat.json` as JSON.
-2. Validate it against `.github/aw/compat.schema.json` using the repository's
-   schema validator.
-3. Exercise the runtime policy semantics with versions immediately below, at,
+1. Run the repository's `Validate compat.json structure and version formats`
+   task from `.github/workflows/cgo.yml`.
+2. Validate `.github/aw/compat.json` against
+   `.github/aw/compat.schema.json` with a JSON Schema Draft 7 validator. JSON
+   parsing or ad hoc field checks are not substitutes for schema validation.
+3. Confirm `.github/aw/compat.md` accounts for every `blockedVersions` entry
+   and that each documented range links to its advisory.
+4. Exercise the runtime policy semantics with versions immediately below, at,
    and above the changed boundary; confirm only the intended hard-fail, warning,
    or exact-block behavior changed.
-4. Confirm semantic-version monotonicity and byte-for-byte preservation of
+5. Confirm semantic-version monotonicity and byte-for-byte preservation of
    unrelated policy fields and agent rows.
 
 Do not claim validation that was not run. If repository constraints prohibit a
@@ -76,5 +83,6 @@ required check, report it as outstanding.
 
 Cite advisory retrieval attempts and patched-version verification. State which
 field changed, old and new values, why that policy is correct, which fields were
-preserved, and the schema/runtime validation results. Clearly separate verified
-facts, user-provided inputs, and unavailable advisory details.
+preserved, and the compatibility task, schema, documentation, and runtime
+validation results. Clearly separate verified facts, user-provided inputs, and
+unavailable advisory details.
