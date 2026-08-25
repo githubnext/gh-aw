@@ -42,7 +42,7 @@ function parseVersion(version) {
 
 /**
  * Compare numeric SemVer identifiers without converting to Number.
- * VERSION_PATTERN rejects leading zeroes, so length plus lexical order is numeric order.
+ * Only call this with numeric identifiers returned by parseVersion. VERSION_PATTERN rejects leading zeroes, so length plus lexical order is numeric order.
  *
  * @param {string} left
  * @param {string} right
