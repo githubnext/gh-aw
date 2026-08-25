@@ -150,7 +150,7 @@ A **Complete Conforming Implementation** MUST satisfy Basic Conformance and:
 
 ### 2.2 Requirements Notation
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
 
 ### 2.3 Compliance Levels
 
@@ -1817,11 +1817,15 @@ Implementations MUST log all access control decisions with the following informa
 
 ### 9.5 Lockdown Override
 
-This subsection documents how the `lockdown` field (§4.2.8) interacts with guard policy fields (`allowed-repos`, `min-integrity`) when both are present in the same workflow. This relates to the decision recorded in guard-policies-specification.md Open Question #3.
+This subsection documents how the `lockdown` field (§4.2.8) interacts with guard policy fields (`allowed-repos`, `min-integrity`) when both are present in the same workflow. This relates to the decision recorded in [guard-policies-specification.md Resolved Decisions, decision record #3](guard-policies-specification.md#resolved-decisions).
 
 #### 9.5.1 Precedence Rule
 
 **`lockdown: true` MUST take absolute precedence over all guard policy configuration.** When `lockdown` is active, the GitHub MCP server is restricted to the triggering repository exclusively; `allowed-repos` and `min-integrity` fields are not evaluated.
+
+**Shared precedence rule**: `lockdown: true` takes absolute precedence over `allowed-repos`, including non-empty allowlists, and over `min-integrity`; implementations MUST ignore those guard-policy fields for authorization while lockdown is active and MUST NOT allow them to widen access beyond the triggering repository.
+
+See also: [guard-policies-specification.md §GP-S002](guard-policies-specification.md#gp-s002-lockdown-supremacy).
 
 - Implementations MUST NOT permit `allowed-repos` or `min-integrity` to widen access beyond the single triggering repository when `lockdown: true` is in effect.
 - Implementations MUST NOT require `allowed-repos` to be set when `lockdown: true` is present; the lockdown restriction supersedes any explicit repository allowlist.
@@ -1842,7 +1846,7 @@ Guard policies are only evaluated when lockdown is not active.
 
 Lockdown is an emergency or security stop that MUST NOT be weakened by other configuration. Guard policies narrow access within an otherwise-open tool session; they do not grant access that lockdown has revoked. This design ensures that `lockdown: true` can always be relied upon as a simple, unconditional safety switch without hidden interactions.
 
-See also: guard-policies-specification.md §Open Questions, decision record for question #3.
+See also: [guard-policies-specification.md §Resolved Decisions](guard-policies-specification.md#resolved-decisions), decision record for question #3.
 
 ### 9.6 Safeguards
 
@@ -1854,9 +1858,9 @@ This subsection specifies normative failure-mode behavior for the case where gua
 - Implementations MUST NOT partially apply a malformed guard policy (for example, enforcing `min-integrity` while ignoring an invalid `allowed-repos` value); validation MUST treat the guard policy as a single unit that either fully passes validation or causes compilation to fail.
 - When a username appears in both `blocked-users` and `trusted-users`, the blocked-user decision MUST take precedence and the item MUST be denied. This deterministic rule prevents a trusted-user grant from weakening an explicit deny list (T-GH-094).
 
-### 9.7 Open Questions
+### 9.7 Resolved Decisions
 
-1. **Should the `--strict` compile-time guard-policy dry-run report (§4.7, deferred design in guard-policies-specification.md Open Question #4) also surface the effective lockdown/guard-policy precedence outcome, so operators can see at a glance which fields are ignored?**
+1. **Should the `--strict` compile-time guard-policy dry-run report (§4.7, deferred design in [guard-policies-specification.md Resolved Decisions, decision record #4](guard-policies-specification.md#resolved-decisions)) also surface the effective lockdown/guard-policy precedence outcome, so operators can see at a glance which fields are ignored?**
 
    **Decision**: Yes. The `--strict` dry-run report MUST include a `lockdown` indicator alongside the reported `allowed-repos`/`min-integrity`/`blocked-users`/`trusted-users`/`approval-labels` values, so that operators reviewing the report can immediately see that guard-policy fields are ignored at runtime when `lockdown: true` is set (§9.5.1). This is implemented in `pkg/cli/compile_guard_policy_report.go` and covered by `pkg/cli/compile_guard_policy_report_test.go` (`TestBuildGuardPolicyDryRunReport_Lockdown`, `TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos`).
    *Rationale*: A dry-run report that omits the lockdown/guard-policy precedence relationship would be misleading — it would list "permitted" repositories that are, in fact, never consulted at runtime because lockdown supersedes them. Surfacing the precedence outcome directly in the report keeps the report consistent with the runtime enforcement behavior it is meant to preview, and reuses the same conflict-detection logic (`hasGitHubLockdownGuardPolicyConflict()`) already used for the compile-time warning (§9.5.2).
@@ -2767,7 +2771,7 @@ Cross-reference of `scratchpad/github-mcp-access-control-specification.md` and `
 | `min-integrity` required when `allowed-repos` present | guard-policies-spec §Conformance GP-02 and GP-11 | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy()`) validates `min-integrity` enum values | **Consistent** |
 | Empty `allowed-repos` array rejected | guard-policies-spec §Conformance GP-04 | `pkg/workflow/tools_validation_github.go` rejects empty arrays | **Consistent** |
 | Derived safe-outputs `write-sink` policy | guard-policies-spec §5 normative requirements | `pkg/workflow/mcp_github_config.go` `deriveSafeOutputsGuardPolicyFromGitHub()` | **Consistent** |
-| `lockdown: true` takes precedence over guard policies | §9.5.1 (this spec) and guard-policies-spec Open Question #3 decision | `pkg/workflow/tools_validation_github.go` now emits a compile-time warning when `lockdown: true` co-exists with guard-policy fields while preserving runtime precedence | **Resolved** |
+| `lockdown: true` takes precedence over guard policies | §9.5.1 (this spec) and guard-policies-spec Resolved Decisions #3 | `pkg/workflow/tools_validation_github.go` now emits a compile-time warning when `lockdown: true` co-exists with guard-policy fields while preserving runtime precedence | **Resolved** |
 
 **Heading alignment note**: §4.4.1 now names `repos` as the gateway-internal field and `allowed-repos` as the frontmatter key. Consumers SHOULD use `allowed-repos` in workflow frontmatter; `repos` remains the internal gateway field name and a deprecated frontmatter alias.
 
@@ -2807,7 +2811,9 @@ When a new access-control field is added (e.g., `trusted-users`, `approval-label
 
 ### Normative References
 
-- **[RFC 2119]** Key words for use in RFCs to Indicate Requirement Levels, S. Bradner. IETF, March 1997. https://www.ietf.org/rfc/rfc2119.txt
+- **[RFC 2119]** Key words for use in RFCs to Indicate Requirement Levels, S. Bradner. IETF, March 1997. https://www.rfc-editor.org/rfc/rfc2119
+
+- **[RFC 8174]** Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words, B. Leiba. IETF, May 2017. https://www.rfc-editor.org/rfc/rfc8174
 
 - **[MCP Spec]** Model Context Protocol Specification, Anthropic. https://spec.modelcontextprotocol.io/
 
