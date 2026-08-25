@@ -623,18 +623,18 @@ func extractCreatedItemsFromManifest(logsPath string) []CreatedItemReport {
 // describeFile provides a short description for known artifact files
 func describeFile(filename string) string {
 	descriptions := map[string]string{
-		"aw_info.json":                     "Engine configuration and workflow metadata",
-		"safe_output.jsonl":                "Safe outputs from workflow execution",
-		safeOutputItemsManifestFilename:    "Created items manifest (audit trail)",
-		constants.SafeOutputErrorsFilename: "Safe outputs failure diagnostics (error code, message, failing types)",
-		constants.AgentOutputFilename:      "Validated safe outputs",
-		"aw.patch":                         "Git patch of changes made during execution",
-		"agent-stdio.log":                  "Agent standard output/error logs",
-		"log.md":                           "Human-readable agent session summary",
-		"firewall.md":                      "Firewall log analysis report",
-		"run_summary.json":                 "Cached summary of workflow run analysis",
-		forecastAICCacheFileName:           "Cached AI Credits (AIC) value for forecasting",
-		"prompt.txt":                       "Input prompt for AI agent",
+		"aw_info.json":                         "Engine configuration and workflow metadata",
+		"safe_output.jsonl":                    "Safe outputs from workflow execution",
+		safeOutputItemsManifestFilename:        "Created items manifest (audit trail)",
+		constants.SafeOutputErrorsFilename:     "Safe outputs failure diagnostics (error code, message, failing types)",
+		constants.AgentOutputFilename.String(): "Validated safe outputs",
+		"aw.patch":                             "Git patch of changes made during execution",
+		"agent-stdio.log":                      "Agent standard output/error logs",
+		"log.md":                               "Human-readable agent session summary",
+		"firewall.md":                          "Firewall log analysis report",
+		"run_summary.json":                     "Cached summary of workflow run analysis",
+		forecastAICCacheFileName:               "Cached AI Credits (AIC) value for forecasting",
+		"prompt.txt":                           "Input prompt for AI agent",
 	}
 
 	if desc, ok := descriptions[filename]; ok {
