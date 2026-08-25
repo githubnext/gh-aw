@@ -71,8 +71,8 @@ The evaluator uses Bash 3.2-compatible Bash plus `jq` and supports:
     "workflow": "Workflow name",
     "ref": "refs/heads/main",
     "sha": "...",
-		"eventName": "schedule",
-		"createdAt": "2026-08-23T11:58:00Z"
+    "eventName": "schedule",
+    "createdAt": "2026-08-23T11:58:00Z"
   },
   "evidenceAt": "2026-08-23T12:00:00.000Z",
   "case": null,
