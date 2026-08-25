@@ -1915,7 +1915,8 @@ ${pushErrorSection}
 >
 > The bundle file is available in the \`agent\` artifact in the workflow run linked above.
 
-To create a pull request with the changes:
+<details>
+<summary>Create the pull request manually</summary>
 
 \`\`\`sh
 ${recoveryInstructions}
@@ -1925,7 +1926,9 @@ git push ${shellQuote(pushRemoteUrl || "origin")} ${shellQuote(branchName)}
 
 # Create the pull request
 gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --head ${shellQuote(getPullRequestHeadRef(branchName))} --repo ${shellQuote(`${repoParts.owner}/${repoParts.repo}`)}
-\`\`\``;
+\`\`\`
+
+</details>`;
 
                 try {
                   const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
@@ -2281,7 +2284,8 @@ ${pushErrorSection}
 >
 > The patch file is available in the \`agent\` artifact in the workflow run linked above.
 
-To create a pull request with the changes:
+<details>
+<summary>Create the pull request manually</summary>
 
 \`\`\`sh
 ${recoveryInstructions}
@@ -2292,6 +2296,8 @@ git push ${shellQuote(pushRemoteUrl || "origin")} ${shellQuote(branchName)}
 # Create the pull request
 gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --head ${shellQuote(getPullRequestHeadRef(branchName))} --repo ${shellQuote(`${repoParts.owner}/${repoParts.repo}`)}
 \`\`\`
+
+</details>
 ${patchPreview}`;
 
                 try {
