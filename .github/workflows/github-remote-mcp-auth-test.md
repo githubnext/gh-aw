@@ -93,12 +93,20 @@ jobs:
             fi
           }
 
+          log_info() {
+            echo "::notice title=Raw GitHub remote MCP canary::$1"
+          }
+
           assert_success_response() {
             local label="$1"
             local http_code="$2"
+            echo "$label responded with HTTP $http_code."
             if [ "$http_code" != "200" ]; then
               echo "$label failed with HTTP $http_code."
               echo "- ❌ $label: HTTP $http_code" >> "$GITHUB_STEP_SUMMARY"
+              if [ -s "$body_file" ]; then
+                echo "response body: $(head -c 500 "$body_file")"
+              fi
               if [ -s "$error_file" ]; then
                 echo "curl error: $(head -c 200 "$error_file")"
               fi
@@ -123,12 +131,19 @@ jobs:
           assert_success_response "MCP initialize" "$initialize_code"
           protocol_version="$(jq -r '.result.protocolVersion // "unknown"' "$json_file")"
           server_info="$(jq -c '.result.serverInfo // {}' "$json_file")"
+          server_capabilities="$(jq -c '.result.capabilities // {}' "$json_file")"
+          log_info "initialize: protocol $protocol_version, server $server_info"
+          echo "server capabilities: $server_capabilities"
           echo "- ✅ MCP initialize: protocol \`$protocol_version\`, server \`$server_info\`" >> "$GITHUB_STEP_SUMMARY"
 
           session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ { gsub(/\r/, "", $2); print $2; exit }' "$initialize_headers_file")"
           session_args=()
           if [ -n "$session_id" ]; then
             session_args=(-H "Mcp-Session-Id: $session_id")
+            echo "::add-mask::$session_id"
+            log_info "initialize: received an Mcp-Session-Id header"
+          else
+            log_info "initialize: no Mcp-Session-Id header returned"
           fi
 
           initialized_code="$(mcp_post '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' "$response_headers_file" "${session_args[@]}")"
@@ -137,16 +152,34 @@ jobs:
             echo "- ❌ MCP notifications/initialized: HTTP $initialized_code" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          log_info "notifications/initialized: HTTP $initialized_code"
           echo "- ✅ MCP notifications/initialized: HTTP $initialized_code" >> "$GITHUB_STEP_SUMMARY"
 
           ping_code="$(mcp_post '{"jsonrpc":"2.0","id":2,"method":"ping"}' "$response_headers_file" "${session_args[@]}")"
           assert_success_response "MCP ping" "$ping_code"
+          log_info "ping: succeeded"
           echo "- ✅ MCP ping" >> "$GITHUB_STEP_SUMMARY"
 
           tools_code="$(mcp_post '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' "$response_headers_file" "${session_args[@]}")"
           assert_success_response "MCP tools/list" "$tools_code"
 
           tool_count="$(jq -r 'if (.result.tools | type) == "array" then (.result.tools | length) else 0 end' "$json_file")"
+          tool_names="$(jq -r '[.result.tools[]?.name] | sort | join(", ")' "$json_file")"
+          next_cursor="$(jq -r '.result.nextCursor // ""' "$json_file")"
+          log_info "tools/list returned $tool_count tools"
+          echo "tools: $tool_names"
+          if [ -n "$next_cursor" ]; then
+            log_info "tools/list is paginated: more tools are available beyond this page"
+          fi
+          {
+            echo "<details><summary>MCP tools/list catalog ($tool_count tools)</summary>"
+            echo
+            jq -r '.result.tools[]? | "- `\(.name)`: \(.description // "" | split("\n")[0])"' "$json_file"
+            echo
+            echo "</details>"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
           if [ "$tool_count" -eq 0 ]; then
             echo "MCP tools/list did not return any tools."
             echo "- ❌ MCP tools/list: empty tool catalog" >> "$GITHUB_STEP_SUMMARY"
@@ -154,9 +187,11 @@ jobs:
           fi
           if ! jq -e '.result.tools[] | select(.name == "get_repository")' "$json_file" >/dev/null; then
             echo 'MCP tools/list did not return the get_repository tool.'
-            echo "- ❌ MCP tools/list: \`get_repository\` is unavailable" >> "$GITHUB_STEP_SUMMARY"
+            echo "available tools: $tool_names"
+            echo "- ❌ MCP tools/list: \`get_repository\` is unavailable (available tools: $tool_names)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          log_info "tools/list: \`get_repository\` is available"
           echo "- ✅ MCP tools/list: $tool_count tools, including \`get_repository\`" >> "$GITHUB_STEP_SUMMARY"
 
           repository_owner="${GITHUB_REPOSITORY%%/*}"
@@ -179,6 +214,7 @@ jobs:
             echo "- ❌ MCP get_repository: result did not identify \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          log_info "get_repository: retrieved $GITHUB_REPOSITORY"
           echo "- ✅ MCP get_repository: retrieved \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Raw GitHub remote MCP handshake succeeded with $tool_count tools available."
 features:
