@@ -30,7 +30,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 | Rank | Grader ID | Runtime requirement | Status |
 |---|---|---|---|
 | 5 | `state-revisit-probability-rep` | Canonical state IDs | Implemented |
-| 6 | `recurrence-determinism` | Canonical state/event sequence | Not started |
+| 6 | `recurrence-determinism` | Canonical state/event sequence | Implemented |
 | 7 | `recurrence-laminarity` | Canonical states | Not started |
 | 8 | `recurrence-trapping-time` | Canonical states | Not started |
 | 9 | `recurrence-rate` | Canonical states | Not started |
