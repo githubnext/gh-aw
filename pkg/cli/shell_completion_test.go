@@ -173,6 +173,7 @@ func TestDetectShellPrioritizesVersionVariable(t *testing.T) {
 }
 
 func TestShellTypeString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		shellType ShellType
 		expected  string
@@ -416,6 +417,7 @@ func TestUninstallShellCompletion(t *testing.T) {
 }
 
 func TestValidateRcPath(t *testing.T) {
+	t.Parallel()
 	t.Run("returns cleaned path for absolute path", func(t *testing.T) {
 		homeDir := t.TempDir()
 		cleanPath, err := validateRcPath("bashrc", filepath.Join(homeDir, ".", ".bashrc"))

@@ -12,6 +12,8 @@ import (
 )
 
 func TestBuildOrgWorkflowSearchQuery(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(
 		t,
 		`org:octo path:.github/workflows filename:.lock.yml`,

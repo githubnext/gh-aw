@@ -158,16 +158,25 @@ echo "Merge Rate: $merge_rate"
 mkdir -p /tmp/gh-aw/agent/data
 
 # Total LOC by language
-# Scope: All source files in repository
-cloc . --json --quiet > /tmp/gh-aw/agent/data/cloc_output.json
+# Scope: git-tracked files only (deterministic, reproducible day-over-day).
+# IMPORTANT: use --vcs=git so cloc enumerates files via `git ls-files` instead of
+# walking the working tree — this avoids counting untracked/build artifacts
+# (node_modules/, dist/, build/, etc.) that may or may not be present between runs
+# and would otherwise cause implausible day-over-day LOC swings.
+cloc --vcs=git --json --quiet . > /tmp/gh-aw/agent/data/cloc_output.json
 
 # Check if cloc produced valid output
 if [ -f /tmp/gh-aw/agent/data/cloc_output.json ] && [ -s /tmp/gh-aw/agent/data/cloc_output.json ]; then
     lines_of_code_total=$(jq '.SUM.code' /tmp/gh-aw/agent/data/cloc_output.json)
-    
+    # Record the file count and exact command used so future runs can detect scope drift
+    cloc_file_count=$(jq '.SUM.nFiles' /tmp/gh-aw/agent/data/cloc_output.json)
+    cloc_command="cloc --vcs=git --json --quiet ."
+
     # Test LOC (find test files and measure)
-    # Scope: Files matching test patterns (*_test.go, *.test.js, *.test.cjs, test_*.py, *_test.py, *Tests.cs, *Test.cs)
-    test_files=$(find . -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" -o -name "test_*.py" -o -name "*_test.py" -o -name "*Tests.cs" -o -name "*Test.cs" 2>/dev/null)
+    # Scope: git-tracked files matching test patterns (*_test.go, *.test.js, *.test.cjs, test_*.py, *_test.py, *Tests.cs, *Test.cs)
+    # Use `git ls-files` (not `find .`) so test-file discovery is also limited to
+    # tracked files and stays consistent with the git-scoped total LOC above.
+    test_files=$(git ls-files | grep -E '(_test\.go|\.test\.js|\.test\.cjs|(^|/)test_[^/]*\.py|_test\.py|Tests\.cs|Test\.cs)$' 2>/dev/null)
     
     if [ -n "$test_files" ]; then
         echo "$test_files" | xargs cloc --json --quiet > /tmp/gh-aw/agent/data/test_cloc.json
@@ -194,6 +203,7 @@ if [ -f /tmp/gh-aw/agent/data/cloc_output.json ] && [ -s /tmp/gh-aw/agent/data/c
     echo "Test LOC: $test_lines_of_code"
     echo "Source LOC (excluding tests): $source_lines_of_code"
     echo "Test-to-Source Ratio: $test_to_source_ratio"
+    echo "Cloc file count (scope check): $cloc_file_count"
 else
     echo "Error: cloc did not produce valid output"
     exit 1

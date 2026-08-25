@@ -713,8 +713,18 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 	// File sections for tools with multi-step instructions
 	if safeOutputs.CreatePullRequests != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsCreatePRFile, IsFile: true})
-		if isPreCreatePullRequestConfigured(safeOutputs.CreatePullRequests) {
-			sections = append(sections, PromptSection{Content: safeOutputsPreCreateSteerFile, IsFile: true})
+		if isSteeringIssueEnabled(&WorkflowData{SafeOutputs: safeOutputs}) {
+			steeringContent := "<issue-steering>\nThe steering issue for this run is #${{ needs.activation.outputs.steering_issue_number }}.\n"
+			extractor := NewExpressionExtractor()
+			envVars := map[string]string{}
+			if mappings, err := extractor.ExtractExpressions(steeringContent); err == nil {
+				steeringContent = extractor.ReplaceExpressionsWithEnvVars(steeringContent)
+				for _, mapping := range mappings {
+					envVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
+				}
+			}
+			sections = append(sections, PromptSection{Content: steeringContent, IsFile: false, EnvVars: envVars})
+			sections = append(sections, PromptSection{Content: safeOutputsSteeringIssueFile, IsFile: true})
 		}
 	}
 	if safeOutputs.PushToPullRequestBranch != nil {

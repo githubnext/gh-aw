@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 // buildDetectionJobSteps builds the threat detection steps to be run in the separate detection job.
@@ -483,7 +484,7 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 			// Inject the detection guard condition unless the user already provided an if: condition.
 			if _, hasIf := stepMap["if"]; !hasIf {
 				// Clone the map to avoid mutating the original config.
-				injected := make(map[string]any, safeAllocationCapacity(len(stepMap), 1))
+				injected := make(map[string]any, typeutil.SafeAllocationCapacity(len(stepMap), 1))
 				maps.Copy(injected, stepMap)
 				injected["if"] = detectionStepCondition
 				stepMap = injected

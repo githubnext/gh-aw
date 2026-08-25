@@ -9,6 +9,7 @@ import (
 
 // TestWorkflowRunInfo tests the WorkflowRunInfo struct
 func TestWorkflowRunInfo(t *testing.T) {
+	t.Parallel()
 	// Test struct initialization
 	runInfo := WorkflowRunInfo{
 		URL:        "https://github.com/owner/repo/actions/runs/123456",
@@ -37,6 +38,7 @@ func TestWorkflowRunInfo(t *testing.T) {
 
 // TestWorkflowRunInfo_EmptyValues tests handling of empty values
 func TestWorkflowRunInfo_EmptyValues(t *testing.T) {
+	t.Parallel()
 	// Test with empty values - should be valid
 	runInfo := WorkflowRunInfo{
 		URL:        "",
@@ -56,6 +58,7 @@ func TestWorkflowRunInfo_EmptyValues(t *testing.T) {
 
 // TestWorkflowRunInfo_StatusValues tests various status values
 func TestWorkflowRunInfo_StatusValues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		status     string
@@ -90,6 +93,7 @@ func TestWorkflowRunInfo_StatusValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			runInfo := WorkflowRunInfo{
 				URL:        "https://github.com/owner/repo/actions/runs/123456",
 				DatabaseID: 123456,
@@ -110,6 +114,7 @@ func TestWorkflowRunInfo_StatusValues(t *testing.T) {
 
 // TestWorkflowRunInfo_TimestampHandling tests timestamp handling
 func TestWorkflowRunInfo_TimestampHandling(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		createdAt time.Time
@@ -139,6 +144,7 @@ func TestWorkflowRunInfo_TimestampHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			runInfo := WorkflowRunInfo{
 				URL:        "https://github.com/owner/repo/actions/runs/123456",
 				DatabaseID: 123456,
@@ -156,6 +162,7 @@ func TestWorkflowRunInfo_TimestampHandling(t *testing.T) {
 
 // TestWorkflowRunInfo_URLFormats tests various URL formats
 func TestWorkflowRunInfo_URLFormats(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		url  string
@@ -180,6 +187,7 @@ func TestWorkflowRunInfo_URLFormats(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			runInfo := WorkflowRunInfo{
 				URL:        tt.url,
 				DatabaseID: 123456,

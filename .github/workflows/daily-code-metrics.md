@@ -116,6 +116,11 @@ All metrics use standardized names from scratchpad/metrics-glossary.md:
 
 **Size**: LOC by language (`lines_of_code_total`), by directory (cmd, pkg, docs, workflows), file counts/distribution
 
+**LOC Calculation (deterministic scoping — CRITICAL for day-over-day comparability)**:
+  - Always compute LOC with `cloc --vcs=git --json --quiet .` (never bare `cloc .`). The `--vcs=git` flag makes cloc enumerate files via `git ls-files`, so the scan is limited to git-tracked files only and automatically excludes `.gitignore`d paths (e.g. `node_modules/`, `dist/`, `build/`) regardless of what untracked/build artifacts happen to exist in the working tree that day. This is what makes the count reproducible run-to-run.
+  - Record the exact command used (`cloc_command`) and the number of files scanned (`cloc_file_count`, from `.SUM.nFiles` in the cloc JSON) alongside `lines_of_code_total` — see Data Storage below.
+  - Before reporting, compare today's `cloc_file_count` to the most recent history entry. If the file count changes by more than 20% without a corresponding explanation (e.g. a large merged PR), do not silently treat the new number as a "baseline" — flag it explicitly in the report as a **possible file-scoping change** and show both the old and new file counts so readers can judge plausibility.
+
 **Quality**: Large files (>500 LOC), avg file size, function count, comment lines, comment ratio
 
 **Tests**: Test files/LOC (`test_lines_of_code`), test-to-source ratio (`test_to_source_ratio`)
@@ -137,7 +142,11 @@ Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
   "date": "2024-01-15", 
   "timestamp": 1705334400, 
   "metrics": {
-    "size": {...}, 
+    "size": {
+      "lines_of_code_total": 0,
+      "cloc_command": "cloc --vcs=git --json --quiet .",
+      "cloc_file_count": 0
+    }, 
     "quality": {...}, 
     "tests": {...}, 
     "churn": {
@@ -162,6 +171,8 @@ Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
 ```
 
 **Note**: Churn metrics are split into `source` (excludes `*.lock.yml` and `actions-lock.json`) and `generated_files` (only `*.lock.yml` and `actions-lock.json`) for separate tracking.
+
+**Note**: `size.cloc_command` and `size.cloc_file_count` pin the exact LOC scoping used for that day's run. Always populate both fields — they let future runs (and the regulatory report) detect when a day-over-day LOC swing is caused by a change in file scoping rather than genuine repository change.
 
 ## Update Memory
 
@@ -210,6 +221,10 @@ Use `figsize=(12, 7)` (see `python-dataviz.md` for full chart setup and upload p
 ## Trend Calculation
 
 For each metric: current value, 7-day % change, 30-day % change, trend indicator (⬆️/➡️/⬇️)
+
+**Implausible swing guard**: If `lines_of_code_total`, `test_to_source_ratio`, or churn's active-files-in-7d changes by more than ±20% versus the prior entry, do not describe it as a new "baseline". Instead, compare today's `size.cloc_command`/`size.cloc_file_count` to the prior entry's values:
+  - If the command or file count diverges, report it explicitly as a **scoping change**, not a trend, and show old vs. new file counts.
+  - If the command and file count both match (or the file-count delta is small) but the metric still swung sharply, report it as a **genuine change requiring investigation** and cite the specific commits/PRs responsible.
 
 ## Report Format
 

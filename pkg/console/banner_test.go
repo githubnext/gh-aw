@@ -8,6 +8,7 @@ import (
 )
 
 func TestFormatBanner(t *testing.T) {
+	t.Parallel()
 	banner := FormatBanner()
 
 	// Check that the banner contains the expected ASCII art patterns
@@ -28,6 +29,7 @@ func TestFormatBanner(t *testing.T) {
 }
 
 func TestBannerLogoEmbedded(t *testing.T) {
+	t.Parallel()
 	// Check that the embedded logo is not empty
 	if bannerLogo == "" {
 		t.Error("bannerLogo should not be empty")
@@ -44,6 +46,7 @@ func TestBannerLogoEmbedded(t *testing.T) {
 }
 
 func TestBannerStyleInitialized(t *testing.T) {
+	t.Parallel()
 	// Ensure FormatBanner always returns visible banner content.
 	banner := FormatBanner()
 	if banner == "" {

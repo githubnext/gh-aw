@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.28.5<br>
+**Version**: 1.28.6<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-08-20<br>
+**Publication Date**: 2026-08-24<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -76,6 +76,8 @@ This specification uses the following terms with precise definitions:
 **Integrity Branch**: A Git branch within the cache memory repository corresponding to a specific integrity level. Each branch holds data written exclusively by runs at that integrity level.
 
 **Cache Poisoning**: A Bell-LaPadula write-up violation where a lower-integrity agent writes data to a shared cache store that is subsequently consumed by a higher-integrity run without provenance verification.
+
+**Steering Issue**: A run-scoped issue allocated during activation when `safe-outputs.create-pull-request.steer` is enabled. It collects user-authored steering comments and is reused as the agent failure issue when the run fails.
 
 ---
 
@@ -396,6 +398,21 @@ Agent execution context MUST NOT gain access to safe output job credentials thro
 ∀ t ∈ [agent_start, agent_end]:
   accessible_credentials(agent_context, t) ∩ safe_output_credentials = ∅
 ```
+
+**Requirement AR5: Steering Issue Provenance**
+
+When steering is enabled, the activation phase MUST create the steering issue in the workflow repository and export its number and URL from the trusted activation job. The issue identity MUST NOT be selected from agent-controlled content, issue comments, or event payload values.
+
+Before reusing the steering issue for failure reporting, the conclusion phase MUST validate all of the following:
+
+1. The issue number is a positive safe integer.
+2. The issue exists in the workflow repository.
+3. The item is an issue, not a pull request.
+4. The issue remains open.
+
+If validation fails, the implementation MUST NOT update another issue as the failure report.
+
+*Rationale*: Activation outputs cross a job boundary. Re-fetching and validating the item before mutation prevents a malformed output from turning failure reporting into an arbitrary issue update.
 
 ### 3.2 Threat Model and Mitigations
 
@@ -2428,6 +2445,8 @@ safe-outputs:
 9. **Owner-Qualified Head Reference**: When `head-repo` differs from `target-repo`, the created pull request MUST use an owner-qualified head reference identifying the head repository owner and pushed branch. Unqualified same-name branch references MUST NOT be used in fork-backed mode.
 10. **Ephemeral Fork Branch Model**: When `head-repo` differs from `target-repo`, implementations SHOULD create or refresh an ephemeral branch in `head-repo` from the resolved upstream base SHA, apply the agent changes, and open the pull request back to the upstream base. Implementations MAY support explicit synchronization of that ephemeral branch with a newer upstream base, but implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
 11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
+12. **Steering Issue Creation**: When `steer: true` is configured, activation MUST create a workflow-repository issue before agent execution and expose its number to the agent prompt.
+13. **Failure Issue Reuse**: If failure reporting is activated, the conclusion phase MUST update the validated steering issue with the failure title and body instead of creating a separate failure issue. Steering MUST NOT alter pull request branch creation or checkout references.
 
 **Configuration Parameters**:
 
@@ -2449,6 +2468,7 @@ safe-outputs:
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
+- `steer`: Experimental. When `true`, creates a run-scoped issue during activation and allows the agent to read user-authored issue comments as steering feedback. The implementation MUST reuse this issue for agent failure reporting and SHOULD close it after successful completion. This mode requires top-level `issues: read`, MUST NOT be combined with `failure-issue-repo` or expression-valued staged mode, and MUST NOT change normal pull request branch creation or checkout behavior.
 
 **Security Requirements**:
 
@@ -2458,6 +2478,8 @@ safe-outputs:
 - `head-repo` MUST be either the same repository as `target-repo` or an explicitly configured automation-owned fork; arbitrary contributor forks MUST NOT be used as write targets
 - Both `target-repo` and `head-repo` MUST be validated against the configured allowlist before any push or pull request API call
 - When distinct upstream and head credentials are configured, implementations MUST use the least-privilege head-repository credential only for branch writes and the upstream credential only for upstream pull request management
+- Steering issue reuse MUST validate that the activation output identifies an open issue in the workflow repository and not a pull request.
+- Steering issue metadata MUST NOT be used as a checkout ref or otherwise change normal pull request branch handling.
 
 **Required Permissions**:
 
@@ -5500,6 +5522,13 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.28.6** (2026-08-24):
+
+- **Specified**: Pre-created pull request branches MUST be validated after creation and before downstream jobs treat them as trusted workflow state.
+- **Specified**: Pre-created pull request validation MUST confirm the expected deterministic branch ref, valid pull request number, workflow-repository head, and workflow-repository base.
+- **Specified**: Agent and safe-output checkouts in pre-created pull request mode MUST use the deterministic workflow-owned branch ref directly rather than activation-output-derived refs.
+- **Updated**: Publication metadata to 1.28.6.
 
 **Version 1.28.5** (2026-08-20):
 

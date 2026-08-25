@@ -32,7 +32,7 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.237"
+const DefaultClaudeCodeVersion Version = "2.1.245"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -45,16 +45,16 @@ const DefaultCopilotVersion Version = "1.0.80"
 const DefaultCopilotSDKVersion Version = "1.0.11"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.148.0"
+const DefaultCodexVersion Version = "0.149.1"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.55.1"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.84.2"
+const DefaultPiVersion Version = "0.84.3"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.10.0"
+const DefaultGitHubMCPServerVersion Version = "v1.10.1"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.10.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.6"
+const DefaultFirewallVersion Version = "v0.28.7"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -208,7 +208,7 @@ const DefaultGitHubScriptVersion Version = "v9"
 // This is used by the default external threat-detection path and when
 // `features: gh-aw-detection: true` is set in the workflow frontmatter, enabling the external
 // threat-detect binary path instead of the inline engine execution path.
-const DefaultThreatDetectVersion Version = "v0.4.11"
+const DefaultThreatDetectVersion Version = "v0.4.12"
 
 // GhSkillsMinVersion is the minimum gh CLI version required for frontmatter skill support
 // (installing gh extensions via `gh extension install`). Workflows that install frontmatter

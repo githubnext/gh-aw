@@ -205,8 +205,11 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
-			Tools:         map[string]any{"github": map[string]any{"mode": "gh-proxy"}},
-			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeCloudHypervisor}},
+			Tools: map[string]any{"github": map[string]any{"mode": "gh-proxy"}},
+			SandboxConfig: applySandboxDefaults(
+				&SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeCloudHypervisor}},
+				&EngineConfig{ID: "copilot"},
+			),
 		},
 	}
 
@@ -218,6 +221,7 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 	assert.Contains(t, jsonStr, `"topologyAttach":["awmg-mcpg"]`)
 	assert.NotContains(t, jsonStr, "awmg-cli-proxy")
 	assert.Contains(t, jsonStr, `"agentTimeout":60`)
+	assert.Contains(t, jsonStr, `"allowWrite":["/tmp/gh-aw/agent","/tmp/gh-aw/sandbox/agent/logs","/workspace","/workspace/.awf-home"]`)
 }
 
 func TestCloudHypervisorValidationArcDindIncompatible(t *testing.T) {
@@ -366,6 +370,40 @@ sandbox:
 	assert.NotContains(t, lockStr, "--mount")
 	assert.NotContains(t, lockStr, "--tty")
 	assert.NotContains(t, lockStr, "--legacy-security")
+}
+
+func TestCloudHypervisorCacheMemoryAllowWrite(t *testing.T) {
+	workflowsDir := t.TempDir()
+	markdown := `---
+on:
+  workflow_dispatch:
+engine: claude
+strict: false
+tools:
+  cache-memory: true
+sandbox:
+  agent:
+    id: awf
+    runtime: cloud-hypervisor
+---
+
+# Test cache-memory write access
+`
+
+	testFile := filepath.Join(workflowsDir, "test-cache-memory-allow-write.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0o644))
+	require.NoError(t, NewCompiler().CompileWorkflow(testFile))
+
+	lockContent, err := os.ReadFile(filepath.Join(workflowsDir, "test-cache-memory-allow-write.lock.yml"))
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	assert.Contains(t, lockStr, `\"allowWrite\":[\"/tmp/gh-aw/agent\",\"/workspace\",\"/workspace/.awf-home\",\"/tmp/gh-aw/cache-memory\"]`)
+	createDirIdx := strings.Index(lockStr, "Create cache-memory directory")
+	awfIdx := strings.Index(lockStr, "sudo --preserve-env awf")
+	require.NotEqual(t, -1, createDirIdx)
+	require.NotEqual(t, -1, awfIdx)
+	assert.Less(t, createDirIdx, awfIdx, "cache-memory directory must exist before AWF starts")
 }
 
 func TestIsCloudHypervisorRuntime(t *testing.T) {

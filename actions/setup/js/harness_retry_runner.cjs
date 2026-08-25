@@ -8,7 +8,7 @@ const { emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 /**
  * `nextDelayMs` overrides the delay before the immediately next attempt; following retries
  * resume exponential backoff from that delay.
- * @typedef {{ exitCode: number, output: string, hasOutput: boolean, durationMs?: number, watchdogFired?: boolean, safeOutputsByteOffset?: number }} HarnessAttemptResult
+ * @typedef {{ exitCode: number, output: string, hasOutput: boolean, durationMs?: number, watchdogFired?: boolean, runtimeGuardFired?: boolean, runtimeGuardReason?: string, safeOutputsByteOffset?: number }} HarnessAttemptResult
  * @typedef {{ action: "retry" | "stop", exitCode?: number, nextDelayMs?: number }} HarnessFailureDecision
  */
 

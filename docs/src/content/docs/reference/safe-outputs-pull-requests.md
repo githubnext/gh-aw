@@ -60,27 +60,29 @@ safe-outputs:
 
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `target-repo`, `allowed-repos`, and authentication configuration.
 
-### Pre-created pull requests
+### Steering issues
 
 :::caution[Experimental]
 `steer` is an experimental option. `gh aw compile` emits an experimental feature warning when a workflow uses it.
 :::
 
-Set `steer: true` to allocate a draft pull request during the activation job, before the agent starts. The activation job creates a run-specific branch from the resolved base branch, opens a draft PR titled `[WIP] <title-prefix><workflow name>: work in progress` (the configured `title-prefix` is inserted after the `[WIP]` marker) whose body explains that the run is still in progress, links to the workflow run, and attaches a check linking back to that run. The agent and `safe_outputs` jobs check out the allocated branch, the eventual `create_pull_request` output updates the existing PR instead of opening another one, and the conclusion job completes the check. When the run ends without any changes (for example with `if-no-changes: ignore`, a `noop` output, or a failure before the safe output runs), the conclusion job closes the pre-created pull request and deletes its branch, so empty placeholders are not left behind.
+Set `steer: true` to create a run-scoped issue during the activation job, before the agent starts. Users can add comments containing the keyword `steer` while the run is in progress. The injected prompt identifies the exact issue and instructs the agent to read relevant user-authored comments with the GitHub MCP `issue_read` tool.
 
-`steer` also lets the agent read user-authored comments and review comments containing the keyword `steer` on that pull request as feedback during the run. Steering enables the GitHub MCP pull request toolset for comment reads, and requires top-level `pull-requests: read` permission. The compiler reports an error instead of adding that permission automatically.
+Steering enables the GitHub MCP issues toolset for comment reads and requires top-level `issues: read` permission. The compiler reports an error instead of adding that permission automatically.
 
 ```yaml
 permissions:
   contents: read
-  pull-requests: read
+  issues: read
 
 safe-outputs:
   create-pull-request:
     steer: true
 ```
 
-Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, or `checkout: false`. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode) no pull request is allocated, because staged runs must not perform API side effects. The allocated pull request is always opened as a draft, regardless of the `draft` setting; when `draft: false` is configured, it is marked ready for review in the safe output phase, once the agent's changes are applied.
+The activation and conclusion jobs require `issues: write` through the configured create-pull-request safe-output credential. On success, the conclusion job closes the steering issue and links the created pull request when available. On failure, the same issue is retitled and updated with the agent failure report instead of creating a second issue. Because reuse requires a workflow-repository issue, `steer` cannot be combined with `safe-outputs.failure-issue-repo`.
+
+The pull request itself follows the normal `create-pull-request` flow. Steering does not pre-create or override a branch, so `branch-prefix`, cross-repository targets, allowed branch policies, multiple outputs, and checkout configuration retain their standard behavior. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode), no steering issue is created because staged runs must not perform API side effects.
 
 ### Branch targeting
 

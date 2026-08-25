@@ -72,6 +72,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-lastindex-reset-before-global-exec-loop`](#require-lastindex-reset-before-global-exec-loop) | Require resetting stateful regexes before global `exec()` loops |
 | [`require-page-counter-increment-in-while-true-loop`](#require-page-counter-increment-in-while-true-loop) | Require page counters to advance in manual `while (true)` pagination loops |
 | [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` to be read after `getExecOutput(..., { ignoreReturnCode: true })` |
+| [`prefer-actions-exec-over-child-process`](#prefer-actions-exec-over-child-process) | Prefer `@actions/exec` over `child_process` to spawn processes that run to completion |
 
 ### `no-empty-catch-block`
 
@@ -1062,5 +1063,32 @@ return stdout.split("\n");
 
 **Out of scope:**
 - Calls without `ignoreReturnCode: true` in a statically-inspectable options object (the default throw-on-failure behavior already surfaces failures)
-- Options passed via a spread (`{ ...opts, ignoreReturnCode: true }`) or a non-object-literal identifier, since the merged shape can't be statically resolved
+- Options whose `ignoreReturnCode` value can't be statically resolved: a non-object-literal identifier (`options`), an options literal built only from spreads (`{ ...opts }`), or one where a spread follows the flag (`{ ignoreReturnCode: true, ...opts }`). An explicit `ignoreReturnCode: true` written after a spread (`{ ...opts, ignoreReturnCode: true }`) is resolvable and still checked
 - Results forwarded to a helper function that checks `exitCode` internally, or destructured into an array pattern
+
+### `prefer-actions-exec-over-child-process`
+
+Prefer `@actions/exec`'s `exec()` / `getExecOutput()` over `child_process`'s `exec()`, `execSync()`, `execFile()`, and `execFileSync()` to spawn processes.
+
+Why: modules loaded by `actions/github-script` steps already provide the `@actions/exec` toolkit (bound to `exec` and passed through by `setupGlobals`) without needing an extra dependency. `child_process.exec()` / `execSync()` / `execFile()` / `execFileSync()` all run a command to completion and return or capture its output — exactly what `@actions/exec`'s `exec()` and `getExecOutput()` already do, with consistent GitHub Actions logging, cross-platform argument handling, and (for `getExecOutput()`) throw-on-non-zero-exit behavior built in.
+
+**Flagged form:**
+```js
+const { execFileSync } = require("child_process");
+const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" }).trim();
+```
+
+**Safe alternative:**
+```js
+const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
+const branch = stdout.trim();
+```
+
+`promisify()`-wrapped bindings are resolved too, so `const execAsync = promisify(exec); await execAsync("git status");` is flagged as well. Since a promisified `exec()` / `execFile()` resolves to the captured output rather than a `ChildProcess` handle, the handle-retention exemption below does not apply to those calls.
+
+**Scope:** only files carrying the `/// <reference types="@actions/github-script" />` triple-slash reference are checked. That marker is how `actions/setup/js` identifies modules loaded by `actions/github-script` steps, which are the only ones guaranteed to have the `exec` global. The directory also contains standalone Node entry points (for example the mcp-scripts MCP server) and the modules they load; those processes never get `setupGlobals()`-injected toolkit globals — `shim.cjs` only backfills `core` and `context`, not `exec` — so they carry no marker and the rule stays silent there.
+
+**Out of scope:**
+- `child_process.spawn()` and `child_process.spawnSync()` — used for long-running, detached, or interactively-streamed processes (background servers, sidecars, and similar) for which `@actions/exec` has no equivalent, since `exec()` / `getExecOutput()` always wait for the command to finish before resolving
+- `exec()` / `execFile()` calls that retain the returned `ChildProcess` handle (used as a value: assigned, returned, member-accessed, passed to another call, ...) — those callers can write to `child.stdin`, stream `child.stdout`, or manage the process lifecycle, which `@actions/exec` cannot express; only calls whose result is discarded (pure callback style) are flagged
+- Calls to `exec`/`execSync`/`execFile`/`execFileSync` from any module other than `child_process` (or `node:child_process`)

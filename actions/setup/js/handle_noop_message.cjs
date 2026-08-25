@@ -154,7 +154,7 @@ function buildHistoryLink() {
 
 /**
  * Render the no-op comment body shared by the no-op runs issue comment and the
- * comment posted on a pre-created pull request that is discarded.
+ * comment posted on other run-scoped tracking items.
  * @param {string} workflowName
  * @param {string} message
  * @param {string} runUrl
@@ -241,7 +241,7 @@ async function main() {
     const reportAsIssue = process.env.GH_AW_NOOP_REPORT_AS_ISSUE !== "false"; // Default to true
 
     // Render the comment body once so later steps (e.g. discarding an unused
-    // pre-created pull request) can post the exact same message.
+    // another run-scoped tracking item) can post the exact same message.
     let commentBody = "";
     try {
       commentBody = buildNoopCommentBody(workflowName, noopMessage, runUrl);

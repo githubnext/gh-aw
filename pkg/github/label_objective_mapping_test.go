@@ -11,6 +11,7 @@ import (
 )
 
 func TestObjectiveMapping_ComputeObjectiveValue_Max(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"critical":      100,
@@ -36,6 +37,7 @@ func TestObjectiveMapping_ComputeObjectiveValue_Max(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := mapping.ComputeObjectiveValue(tt.labels)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -43,6 +45,7 @@ func TestObjectiveMapping_ComputeObjectiveValue_Max(t *testing.T) {
 }
 
 func TestObjectiveMapping_ComputeObjectiveValue_Sum(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"critical":      100,
@@ -67,6 +70,7 @@ func TestObjectiveMapping_ComputeObjectiveValue_Sum(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := mapping.ComputeObjectiveValue(tt.labels)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -74,6 +78,7 @@ func TestObjectiveMapping_ComputeObjectiveValue_Sum(t *testing.T) {
 }
 
 func TestObjectiveMapping_ComputeObjectiveValue_First(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"critical":      100,
@@ -99,6 +104,7 @@ func TestObjectiveMapping_ComputeObjectiveValue_First(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := mapping.ComputeObjectiveValue(tt.labels)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -106,16 +112,19 @@ func TestObjectiveMapping_ComputeObjectiveValue_First(t *testing.T) {
 }
 
 func TestObjectiveMapping_ComputeObjectiveValue_Nil(t *testing.T) {
+	t.Parallel()
 	var mapping *ObjectiveMapping
 	assert.Equal(t, 0, mapping.ComputeObjectiveValue([]string{"any"}))
 }
 
 func TestObjectiveMapping_ComputeObjectiveValue_Empty(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{}
 	assert.Equal(t, 0, mapping.ComputeObjectiveValue([]string{"any"}))
 }
 
 func TestObjectiveMapping_FilterObjectiveLabels(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"critical":      100,
@@ -137,6 +146,7 @@ func TestObjectiveMapping_FilterObjectiveLabels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := mapping.FilterObjectiveLabels(tt.labels)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -144,6 +154,7 @@ func TestObjectiveMapping_FilterObjectiveLabels(t *testing.T) {
 }
 
 func TestDefaultObjectiveMapping(t *testing.T) {
+	t.Parallel()
 	mapping := DefaultObjectiveMapping()
 	require.NotNil(t, mapping)
 	assert.NotEmpty(t, mapping.LabelToValue)
@@ -158,6 +169,7 @@ func TestDefaultObjectiveMapping(t *testing.T) {
 }
 
 func TestObjectiveMapping_MarshalJSON(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"critical": 100,
@@ -180,6 +192,7 @@ func TestObjectiveMapping_MarshalJSON(t *testing.T) {
 }
 
 func TestObjectiveMapping_HasObjectiveLabel(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"critical": 100,
@@ -195,6 +208,7 @@ func TestObjectiveMapping_HasObjectiveLabel(t *testing.T) {
 }
 
 func TestObjectiveMapping_GetAllLabels(t *testing.T) {
+	t.Parallel()
 	mapping := &ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"zebra":  10,
@@ -208,6 +222,7 @@ func TestObjectiveMapping_GetAllLabels(t *testing.T) {
 }
 
 func TestObjectiveMapping_String(t *testing.T) {
+	t.Parallel()
 	mapping := DefaultObjectiveMapping()
 	str := mapping.String()
 	assert.Contains(t, str, "ObjectiveMapping")
@@ -289,6 +304,7 @@ func TestLoadObjectiveMapping_IgnoresLegacyPath(t *testing.T) {
 }
 
 func TestObjectiveMapping_RealWorldScenario(t *testing.T) {
+	t.Parallel()
 	// Test realistic scenario from impact efficiency report
 	mapping := DefaultObjectiveMapping()
 

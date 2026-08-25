@@ -89,7 +89,10 @@ skills: []
 # limited to 1024 characters.
 # (optional)
 metadata:
-  {}
+  # Optional absolute HTTPS URL for human-facing workflow documentation. Preserved
+  # in generated lock-file metadata without being fetched during compilation.
+  # (optional)
+  docs: "https://docs.example.com/automation/repository-health"
 
 # Workflow specifications to import. Supports array form (list of paths) or object
 # form with 'aw' (agentic workflow paths) subfield. Path resolution: (1) relative
@@ -8874,9 +8877,9 @@ safe-outputs:
     # (optional)
     require-temporary-id: true
 
-    # ⚠️ Experimental. Pre-create a draft pull request and let the agent read
-    # user-authored pull request comments and review comments containing the keyword
-    # 'steer'. Requires top-level pull-requests: read permission.
+    # ⚠️ Experimental. Create a run-scoped issue and let the agent read user-authored
+    # issue comments containing the keyword 'steer'. The issue is reused for agent
+    # failure reporting. Requires top-level issues: read permission.
     # (optional)
     steer: true
 

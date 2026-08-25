@@ -12,6 +12,7 @@ import (
 )
 
 func TestFormatCommandMessage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		command  string
@@ -67,6 +68,7 @@ func TestFormatCommandMessage(t *testing.T) {
 }
 
 func TestFormatProgressMessage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -112,6 +114,7 @@ func TestFormatProgressMessage(t *testing.T) {
 }
 
 func TestFormatPromptMessage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -152,6 +155,7 @@ func TestFormatPromptMessage(t *testing.T) {
 }
 
 func TestFormatVerboseMessage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -192,6 +196,7 @@ func TestFormatVerboseMessage(t *testing.T) {
 }
 
 func TestFormatListItem(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		item     string
@@ -242,6 +247,7 @@ func TestFormatListItem(t *testing.T) {
 }
 
 func TestFormatErrorMessage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -287,6 +293,7 @@ func TestFormatErrorMessage(t *testing.T) {
 }
 
 func TestApplyStderrStyleWithTTY(t *testing.T) {
+	t.Parallel()
 	t.Run("plain text when stderr is not tty", func(t *testing.T) {
 		result := applyStderrStyleWithTTY(styles.Warning, "warning", func() bool { return false }, []string{"TERM=xterm-256color"})
 		if result != "warning" {
@@ -310,6 +317,7 @@ func TestApplyStderrStyleWithTTY(t *testing.T) {
 }
 
 func TestApplyStyleWithTTYAndEnviron(t *testing.T) {
+	t.Parallel()
 	t.Run("plain text when not tty", func(t *testing.T) {
 		result := applyStyleWithTTYAndEnviron(styles.Warning, "warning", func() bool { return false }, []string{"TERM=xterm-256color"})
 		if result != "warning" {
@@ -333,6 +341,7 @@ func TestApplyStyleWithTTYAndEnviron(t *testing.T) {
 }
 
 func TestFormatErrorStderrWithTTY(t *testing.T) {
+	t.Parallel()
 	err := CompilerError{
 		Position: ErrorPosition{File: "workflow.md", Line: 2, Column: 3},
 		Type:     "warning",
@@ -357,6 +366,7 @@ func TestFormatErrorStderrWithTTY(t *testing.T) {
 }
 
 func TestFormatSectionHeader(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		header   string
@@ -403,6 +413,7 @@ func TestFormatSectionHeader(t *testing.T) {
 
 // Edge case tests for all formatting functions
 func TestFormattingFunctionsWithSpecialCharacters(t *testing.T) {
+	t.Parallel()
 	specialChars := "!@#$%^&*()[]{}|\\:;\"'<>,.?/`~"
 
 	// Test that all functions handle special characters without panicking
@@ -423,6 +434,7 @@ func TestFormattingFunctionsWithSpecialCharacters(t *testing.T) {
 }
 
 func TestFormattingFunctionsWithUnicodeCharacters(t *testing.T) {
+	t.Parallel()
 	unicodeText := "Test with unicode: 你好 🌍 café naïve résumé"
 
 	// Test that all functions handle unicode characters properly
@@ -451,6 +463,7 @@ func TestFormattingFunctionsWithUnicodeCharacters(t *testing.T) {
 }
 
 func TestFormatErrorChain(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		err              error
@@ -531,6 +544,7 @@ func TestFormatErrorChain(t *testing.T) {
 // TestFormatErrorChainDoesNotRepeatContext verifies that the chain format does not
 // duplicate inner messages on the first line when errors are properly wrapped.
 func TestFormatErrorChainDoesNotRepeatContext(t *testing.T) {
+	t.Parallel()
 	inner := errors.New("HTTP 404: Not Found")
 	middle := fmt.Errorf("failed to fetch file: %w", inner)
 	outer := fmt.Errorf("workflow not found: %w", middle)

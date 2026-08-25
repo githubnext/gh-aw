@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,21 +15,22 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-func TestCompilePreCreatePullRequest(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "pre-create-pull-request")
-	workflowPath := filepath.Join(tmpDir, "pre-create.md")
+func TestCompileSteeringIssue(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "steering-issue")
+	workflowPath := filepath.Join(tmpDir, "steering.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
 on: workflow_dispatch
 engine: copilot
 strict: false
 permissions:
-  pull-requests: read
+  issues: read
 safe-outputs:
   create-pull-request:
     steer: true
+    branch-prefix: "signed/"
 ---
 
-# Pre-create test
+# Steering test
 
 Create a change and open a pull request.
 `), 0o644))
@@ -46,16 +48,21 @@ Create a change and open a pull request.
 	safeOutputs := extractJobSection(yaml, "safe_outputs")
 	conclusion := extractJobSection(yaml, "conclusion")
 
-	assert.Contains(t, activation, "id: pre-create-pull-request")
-	assert.Contains(t, activation, "contents: write")
-	assert.Contains(t, activation, "pull-requests: write")
-	assert.Contains(t, activation, "checks: write")
-	assert.Contains(t, agent, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
-	assert.Contains(t, safeOutputs, "ref: ${{ needs.activation.outputs.pre_created_pull_request_branch }}")
-	assert.Contains(t, safeOutputs, "pre_created_pull_request_number")
-	assert.Contains(t, conclusion, "complete_pre_created_check_run.cjs")
-	assert.Contains(t, conclusion, "GH_AW_SAFE_OUTPUT_CREATED_PR_NUMBER")
-	assert.Contains(t, conclusion, "GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}")
+	assert.Contains(t, activation, "id: create-steering-issue")
+	assert.Contains(t, activation, "issues: write")
+	assert.NotContains(t, activation, "contents: write")
+	assert.NotContains(t, activation, "pull-requests: write")
+	assert.NotContains(t, activation, "checks: write")
+	assert.NotContains(t, agent, "gh-aw/pre-created")
+	assert.NotContains(t, safeOutputs, "pre_created_pull_request")
+	assert.Contains(t, conclusion, "complete_steering_issue.cjs")
+	assert.Contains(t, conclusion, "GH_AW_STEERING_ISSUE_NUMBER")
+	failureStepStart := strings.Index(conclusion, "name: Handle agent failure")
+	require.NotEqual(t, -1, failureStepStart)
+	failureStepEnd := strings.Index(conclusion[failureStepStart:], "name: Report failed jobs")
+	require.NotEqual(t, -1, failureStepEnd)
+	failureStep := conclusion[failureStepStart : failureStepStart+failureStepEnd]
+	assert.Contains(t, failureStep, "GH_AW_FAILURE_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}")
 }
 
 func TestCompileRejectsLegacyPreCreatePullRequest(t *testing.T) {

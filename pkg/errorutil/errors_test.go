@@ -16,6 +16,7 @@ import (
 )
 
 func TestIsNotFoundError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -39,6 +40,7 @@ func TestIsNotFoundError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsNotFoundError(tt.err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -46,6 +48,7 @@ func TestIsNotFoundError(t *testing.T) {
 }
 
 func TestIsNotFoundOutput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		output string
@@ -60,12 +63,14 @@ func TestIsNotFoundOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, errorutil.IsNotFoundOutput(tt.output))
 		})
 	}
 }
 
 func TestIsForbiddenError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -86,6 +91,7 @@ func TestIsForbiddenError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsForbiddenError(tt.err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -93,6 +99,7 @@ func TestIsForbiddenError(t *testing.T) {
 }
 
 func TestIsGoneError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -113,6 +120,7 @@ func TestIsGoneError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsGoneError(tt.err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -120,6 +128,7 @@ func TestIsGoneError(t *testing.T) {
 }
 
 func TestIsRateLimitError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		output string
@@ -134,12 +143,14 @@ func TestIsRateLimitError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, errorutil.IsRateLimitError(tt.output))
 		})
 	}
 }
 
 func TestIsAuthError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		output string
@@ -158,12 +169,14 @@ func TestIsAuthError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, errorutil.IsAuthError(tt.output))
 		})
 	}
 }
 
 func TestIsInsufficientScopesError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -179,6 +192,7 @@ func TestIsInsufficientScopesError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsInsufficientScopesError(tt.err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -186,6 +200,7 @@ func TestIsInsufficientScopesError(t *testing.T) {
 }
 
 func TestIsAlreadyMergedError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -204,6 +219,7 @@ func TestIsAlreadyMergedError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := errorutil.IsAlreadyMergedError(tt.err)
 			assert.Equal(t, tt.want, got)
 		})

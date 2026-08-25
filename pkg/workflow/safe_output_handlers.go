@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var safeOutputHandlerLog = logger.New("workflow:safe_output_handlers")
@@ -174,18 +175,12 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			}
 			if getFallbackAsIssue(safeOutputs.CreatePullRequests) {
 				permissions := NewPermissionsContentsWriteIssuesWritePRWrite()
-				if isPreCreatePullRequestConfigured(safeOutputs.CreatePullRequests) {
-					permissions.Set(PermissionChecks, PermissionWrite)
-				}
 				if safeOutputs.CreatePullRequests.AllowWorkflows {
 					permissions.Set(PermissionWorkflows, PermissionWrite)
 				}
 				return permissions
 			}
 			permissions := NewPermissionsContentsWritePRWrite()
-			if isPreCreatePullRequestConfigured(safeOutputs.CreatePullRequests) {
-				permissions.Set(PermissionChecks, PermissionWrite)
-			}
 			if safeOutputs.CreatePullRequests.AllowWorkflows {
 				permissions.Set(PermissionWorkflows, PermissionWrite)
 			}
@@ -621,7 +616,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 var safeOutputHandlersByKey = buildSafeOutputHandlersByKey()
 
 func buildSafeOutputHandlersByKey() map[string]safeOutputHandlerDescriptor {
-	result := make(map[string]safeOutputHandlerDescriptor, safeAllocationCapacity(len(safeOutputHandlers), 1))
+	result := make(map[string]safeOutputHandlerDescriptor, typeutil.SafeAllocationCapacity(len(safeOutputHandlers), 1))
 	for _, handler := range safeOutputHandlers {
 		if handler.Key != "" {
 			result[handler.Key] = handler

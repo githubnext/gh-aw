@@ -85,6 +85,25 @@ Keywords expanding to curated domain lists:
 | `latex` | LaTeX / TeX | `ctan.org`, `mirror.ctan.org`, `miktex.org`, `tug.org` |
 | `lean` | Lean theorem prover | `lean-lang.org`, `elan.lean-lang.org`, `reservoir.lean-lang.org` |
 | `python-native` | Python native build deps | Native toolchain mirrors for building Python packages from source |
+| `copilot-vendor` | Copilot plan-specific APIs / telemetry | `api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`, `telemetry.enterprise.githubcopilot.com` |
+| `threat-detection` | Compatibility alias for Copilot threat detection | Copilot API/telemetry hosts, GitHub API/web, `host.docker.internal`, `registry.npmjs.org` |
+
+## Automatic Engine Domain Sets
+
+Each engine automatically receives the domain set it requires in addition to
+`network.allowed`. These named sets are maintained by the compiler for analysis
+and reporting; they are not valid `network.allowed` identifiers, except for
+the legacy `threat-detection` compatibility alias listed above.
+
+| Engine set | Included domains |
+|---|---|
+| `copilot` | `api.github.com`, `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
+| `claude` | Anthropic APIs, GitHub transport, certificate/OCSP services, Ubuntu package metadata, Playwright downloads, and `host.docker.internal` |
+| `codex` | `172.30.0.1`, `api.github.com`, `api.openai.com`, `chatgpt.com`, `github.com`, `host.docker.internal`, `openai.com` |
+| `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
+| `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
+| `pi-base` | `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; applied as the provider-independent baseline before a provider prefix is resolved |
+| `threat-detection` | Applied automatically only to Copilot threat-detection runs: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. External Claude, Codex, Gemini, and other detection runs use their own engine defaults. |
 
 ## Invalid Shorthands
 

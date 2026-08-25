@@ -15,6 +15,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
@@ -39,6 +40,16 @@ const copilotSetupStepsStaticSHA256 = "248ccebcb998c6a506548156e1bf9f02429cbbaec
 
 // sha256HexRegex matches a valid lowercase SHA256 hex digest (exactly 64 hex chars).
 var sha256HexRegex = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+var (
+	resolveGhAwDefaultBranchForCopilotSetup   = getRepoDefaultBranchCached
+	resolveGhAwRefForCopilotSetup             = workflow.ResolveGhAwRef
+	resolveInstallScriptSHA256ForCopilotSetup = resolveInstallScriptSHA256
+)
+
+func latestCheckoutActionRef() string {
+	return actionpins.ResolveLatestActionPin("actions/checkout", nil)
+}
 
 // resolveInstallScriptSHA256 fetches install-gh-aw.sh at the given immutable commit SHA
 // and returns its SHA256 hex digest for use in a sha256sum integrity check.
@@ -99,15 +110,7 @@ func getActionRef(ctx context.Context, actionMode workflow.ActionMode, version s
 	return "@main"
 }
 
-// generateCopilotSetupStepsYAML generates the copilot-setup-steps.yml content based on action mode
-func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
-	// Determine the action reference - use SHA-pinned or version tag in release/action mode, @main in dev mode
-	actionRef := getActionRef(ctx, actionMode, version, resolver)
-
-	if actionMode.IsRelease() || actionMode.IsAction() {
-		// Determine the action repo based on mode
-		actionRepo := "github/gh-aw-actions/setup-cli"
-		return fmt.Sprintf(`name: "Copilot Setup Steps"
+const copilotSetupActionTemplate = `name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
 on:
@@ -116,9 +119,17 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
   copilot-setup-steps:
+    name: Copilot Setup Steps
     runs-on: ubuntu-latest
 
     # Set minimal permissions for setup steps
@@ -128,27 +139,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: %s
+        with:
+          persist-credentials: false
       - name: Install gh-aw extension
         uses: %s%s
         with:
           version: %s
-`, actionRepo, actionRef, version)
-	}
+`
 
-	// Default (dev/script mode): try to resolve the main branch to a pinned SHA so the
-	// downloaded script is immutable; fall back to the mutable branch ref if unavailable.
-	installRef := "refs/heads/main"
-	installSHA256 := ""
-	if sha, err := workflow.ResolveGhAwRef(ctx, "main"); err == nil && sha != "" {
-		installRef = sha
-		// Fetch the script to compute an explicit SHA256 integrity check line.
-		installSHA256 = resolveInstallScriptSHA256(ctx, sha)
-	} else {
-		copilotSetupLog.Printf("Could not resolve github/gh-aw main SHA for dev-mode template, falling back to mutable ref: %v", err)
-	}
-	sha256Cmd := sha256CheckLine(installSHA256, installScriptTempPath)
-	return fmt.Sprintf(`name: "Copilot Setup Steps"
+const copilotSetupScriptTemplate = `name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
 on:
@@ -157,9 +157,17 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
   copilot-setup-steps:
+    name: Copilot Setup Steps
     runs-on: ubuntu-latest
 
     # Set minimal permissions for setup steps
@@ -173,40 +181,56 @@ jobs:
           mkdir -p /tmp/gh-aw
           curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o %s
 %s          bash %s
-`, installRef, installScriptTempPath, sha256Cmd, installScriptTempPath)
+`
+
+// generateCopilotSetupStepsYAML generates the copilot-setup-steps.yml content based on action mode
+func generateCopilotSetupStepsYAML(ctx context.Context, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver) string {
+	// Determine the action reference - use SHA-pinned or version tag in release/action mode, @main in dev mode
+	actionRef := getActionRef(ctx, actionMode, version, resolver)
+	checkoutRef := latestCheckoutActionRef()
+
+	if actionMode.IsRelease() || actionMode.IsAction() {
+		// Determine the action repo based on mode
+		actionRepo := "github/gh-aw-actions/setup-cli"
+		return fmt.Sprintf(copilotSetupActionTemplate, checkoutRef, actionRepo, actionRef, version)
+	}
+
+	// Default (dev/script mode): resolve the repository default branch via the
+	// GitHub API, then pin it to a SHA so the downloaded script is immutable.
+	// Fall back to the mutable branch ref if unavailable.
+	defaultBranch := "main"
+	if branch, err := resolveGhAwDefaultBranchForCopilotSetup(ctx, "github/gh-aw"); err != nil {
+		copilotSetupLog.Printf("Could not resolve github/gh-aw default branch for dev-mode template, falling back to %q: %v", defaultBranch, err)
+	} else if branch = strings.TrimSpace(branch); branch != "" {
+		defaultBranch = branch
+	} else {
+		copilotSetupLog.Printf("Could not resolve github/gh-aw default branch for dev-mode template: empty branch returned, falling back to %q", defaultBranch)
+	}
+	installRef := "refs/heads/" + defaultBranch
+	installSHA256 := ""
+	if sha, err := resolveGhAwRefForCopilotSetup(ctx, defaultBranch); err == nil && sha != "" {
+		installRef = sha
+		// Fetch the script to compute an explicit SHA256 integrity check line.
+		installSHA256 = resolveInstallScriptSHA256ForCopilotSetup(ctx, sha)
+	} else {
+		copilotSetupLog.Printf("Could not resolve github/gh-aw %s SHA for dev-mode template, falling back to mutable ref: %v", defaultBranch, err)
+	}
+	sha256Cmd := sha256CheckLine(installSHA256, installScriptTempPath)
+	return fmt.Sprintf(copilotSetupScriptTemplate, installRef, installScriptTempPath, sha256Cmd, installScriptTempPath)
 }
 
 // copilotSetupStepsYAML is a static dev-mode template used only for YAML validity tests.
 // It is built from copilotSetupStepsStaticSHA and copilotSetupStepsStaticSHA256 so that
 // scripts/update-install-script-hashes.sh can refresh both values in a single place.
-// The runtime function generateCopilotSetupStepsYAML resolves the ref dynamically via ResolveGhAwRef.
-var copilotSetupStepsYAML = fmt.Sprintf(`name: "Copilot Setup Steps"
-
-# This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - .github/workflows/copilot-setup-steps.yml
-
-jobs:
-  # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
-  copilot-setup-steps:
-    runs-on: ubuntu-latest
-
-    # Set minimal permissions for setup steps
-    # Copilot Agent receives its own token with appropriate permissions
-    permissions:
-      contents: read
-
-    steps:
-      - name: Install gh-aw extension
-        run: |
-          mkdir -p /tmp/gh-aw
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/%s/install-gh-aw.sh -o %s
-          echo "%s  %s" | sha256sum -c -
-          bash %s
-`, copilotSetupStepsStaticSHA, installScriptTempPath, copilotSetupStepsStaticSHA256, installScriptTempPath, installScriptTempPath)
+// The runtime function generateCopilotSetupStepsYAML resolves the ref dynamically
+// from the repository default branch via the GitHub API.
+var copilotSetupStepsYAML = fmt.Sprintf(
+	copilotSetupScriptTemplate,
+	copilotSetupStepsStaticSHA,
+	installScriptTempPath,
+	sha256CheckLine(copilotSetupStepsStaticSHA256, installScriptTempPath),
+	installScriptTempPath,
+)
 
 // copilotSetupStepsJobName is the job name GitHub Copilot coding agent looks for in
 // .github/workflows/copilot-setup-steps.yml. When it is missing (or the workflow cannot
@@ -385,69 +409,7 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 
 	// Check if file already exists
 	if _, err := os.Stat(setupStepsPath); err == nil {
-		copilotSetupLog.Printf("File already exists: %s", setupStepsPath)
-
-		// Read existing file to check if extension install step exists
-		content, err := os.ReadFile(setupStepsPath)
-		if err != nil {
-			return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
-		}
-
-		// Warn about an unusable existing file before any early return below
-		warnIfCopilotSetupStepsInvalid(setupStepsPath, content)
-
-		// Check if the extension install step is already present (check for both modes)
-		contentStr := string(content)
-		hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
-			(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL"))
-		hasActionInstall := strings.Contains(contentStr, "actions/setup-cli")
-
-		// If we have an install step and upgradeVersion is true, this is from upgrade command
-		// In this case, we still update the file for backward compatibility
-		if (hasLegacyInstall || hasActionInstall) && upgradeVersion {
-			copilotSetupLog.Print("Extension install step exists, attempting version upgrade (upgrade command)")
-
-			upgraded, updatedContent, err := upgradeSetupCliVersionInContent(ctx, content, actionMode, version, resolver)
-			if err != nil {
-				return fmt.Errorf("failed to upgrade setup-cli version: %w", err)
-			}
-
-			if !upgraded {
-				copilotSetupLog.Print("No version upgrade needed")
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No version upgrade needed for "+setupStepsPath))
-				}
-				return nil
-			}
-
-			if err := validateCopilotSetupStepsContent(updatedContent); err != nil {
-				return fmt.Errorf("upgraded copilot-setup-steps.yml is not valid: %w", err)
-			}
-
-			if err := os.WriteFile(setupStepsPath, updatedContent, constants.FilePermSensitive); err != nil {
-				return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
-			}
-			copilotSetupLog.Printf("Upgraded version in file: %s", setupStepsPath)
-
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Updated %s with new version %s", setupStepsPath, version)))
-			}
-			return nil
-		}
-
-		// File exists - render instructions instead of editing
-		if hasLegacyInstall || hasActionInstall {
-			copilotSetupLog.Print("Extension install step already exists, file is up to date")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
-			}
-			return nil
-		}
-
-		// File exists but needs update - render instructions
-		copilotSetupLog.Print("File exists without install step, rendering update instructions instead of editing")
-		renderCopilotSetupUpdateInstructions(ctx, setupStepsPath, actionMode, version, resolver)
-		return nil
+		return handleExistingCopilotSetupSteps(ctx, verbose, actionMode, version, resolver, setupStepsPath, upgradeVersion)
 	}
 
 	// File doesn't exist - create it
@@ -460,6 +422,64 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 	}
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
 
+	return nil
+}
+
+func handleExistingCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver, setupStepsPath string, upgradeVersion bool) error {
+	copilotSetupLog.Printf("File already exists: %s", setupStepsPath)
+
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
+	}
+
+	warnIfCopilotSetupStepsInvalid(setupStepsPath, content)
+	contentStr := string(content)
+	hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
+		(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL"))
+	hasActionInstall := strings.Contains(contentStr, "actions/setup-cli")
+
+	if (hasLegacyInstall || hasActionInstall) && upgradeVersion {
+		return upgradeExistingCopilotSetupSteps(ctx, verbose, actionMode, version, resolver, setupStepsPath, content)
+	}
+
+	if hasLegacyInstall || hasActionInstall {
+		copilotSetupLog.Print("Extension install step already exists, file is up to date")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
+		}
+		return nil
+	}
+
+	copilotSetupLog.Print("File exists without install step, rendering update instructions instead of editing")
+	renderCopilotSetupUpdateInstructions(ctx, setupStepsPath, actionMode, version, resolver)
+	return nil
+}
+
+func upgradeExistingCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string, resolver workflow.SHAResolver, setupStepsPath string, content []byte) error {
+	copilotSetupLog.Print("Extension install step exists, attempting version upgrade (upgrade command)")
+
+	upgraded, updatedContent, err := upgradeSetupCliVersionInContent(ctx, content, actionMode, version, resolver)
+	if err != nil {
+		return fmt.Errorf("failed to upgrade setup-cli version: %w", err)
+	}
+	if !upgraded {
+		copilotSetupLog.Print("No version upgrade needed")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No version upgrade needed for "+setupStepsPath))
+		}
+		return nil
+	}
+	if err := validateCopilotSetupStepsContent(updatedContent); err != nil {
+		return fmt.Errorf("upgraded copilot-setup-steps.yml is not valid: %w", err)
+	}
+	if err := os.WriteFile(setupStepsPath, updatedContent, constants.FilePermSensitive); err != nil {
+		return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
+	}
+	copilotSetupLog.Printf("Upgraded version in file: %s", setupStepsPath)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Updated %s with new version %s", setupStepsPath, version)))
+	}
 	return nil
 }
 
@@ -491,7 +511,9 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 	if actionMode.IsRelease() || actionMode.IsAction() {
 		actionRepo := "github/gh-aw-actions/setup-cli"
 		fmt.Fprintln(os.Stderr, "      - name: Checkout repository")
-		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v6")
+		fmt.Fprintln(os.Stderr, "        uses: "+latestCheckoutActionRef())
+		fmt.Fprintln(os.Stderr, "        with:")
+		fmt.Fprintln(os.Stderr, "          persist-credentials: false")
 		fmt.Fprintln(os.Stderr, "      - name: Install gh-aw extension")
 		fmt.Fprintln(os.Stderr, "        uses: "+actionRepo+actionRef)
 		fmt.Fprintln(os.Stderr, "        with:")
@@ -524,6 +546,8 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 var setupCliUsesPattern = regexp.MustCompile(
 	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*)"?([ \t]*)$`)
 
+var checkoutUsesLinePattern = regexp.MustCompile(`^([ \t]*)uses:[ \t]*"?actions/checkout@[^"\n]*"?[ \t]*\r?$`)
+
 // versionInWithPattern matches the version: parameter in the with: block that immediately
 // follows any setup-cli uses: line (any ref format: version tag, SHA-pinned, or quoted).
 // It is anchored to the same action repos as setupCliUsesPattern so that it only updates
@@ -550,9 +574,10 @@ var setupCliUsesPattern = regexp.MustCompile(
 var versionInWithPattern = regexp.MustCompile(
 	`(?s)([ \t]+uses:[ \t]*"?github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*"?[^\n]*\n(?:[^\n]*\n)*?[ \t]+with:[ \t]*\n(?:[^\n]*\n)*?[ \t]+version:[ \t]*)(\S+)([ \t]*(?:\n|$))`)
 
-// upgradeSetupCliVersionInContent replaces the setup-cli action reference and the
-// associated version: parameter in the raw YAML content using targeted regex
-// substitutions, preserving all other formatting in the file.
+// upgradeSetupCliVersionInContent replaces the setup-cli action reference, any
+// actions/checkout reference, and the associated version: parameter in the raw
+// YAML content using targeted regex substitutions, preserving all other
+// formatting in the file.
 //
 // Returns (upgraded, updatedContent, error).  upgraded is false when no change
 // was required (e.g. already at the target version, or file has no setup-cli step).
@@ -571,6 +596,7 @@ func upgradeSetupCliVersionInContent(ctx context.Context, content []byte, action
 
 	// Replace the uses: line, stripping any surrounding quotes in the process.
 	updated := setupCliUsesPattern.ReplaceAll(content, []byte("${1}"+newUses+"${3}"))
+	updated, checkoutUpdated := pinCheckoutUsesInContent(updated)
 
 	// Replace the version: value in the with: block immediately following the
 	// setup-cli uses: line.  versionInWithPattern matches any valid setup-cli
@@ -578,8 +604,88 @@ func upgradeSetupCliVersionInContent(ctx context.Context, content []byte, action
 	// the uses: comment and the version: parameter before the upgrade was run.
 	updated = versionInWithPattern.ReplaceAll(updated, []byte("${1}"+version+"${3}"))
 
-	if bytes.Equal(content, updated) {
+	if !checkoutUpdated && bytes.Equal(content, updated) {
 		return false, content, nil
 	}
 	return true, updated, nil
+}
+
+func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
+	contentStr := string(content)
+	hadTrailingNewline := strings.HasSuffix(contentStr, "\n")
+	lines := strings.Split(strings.TrimSuffix(contentStr, "\n"), "\n")
+	checkoutRef := latestCheckoutActionRef()
+	changed := false
+
+	for i := 0; i < len(lines); i++ {
+		matches := checkoutUsesLinePattern.FindStringSubmatch(lines[i])
+		if matches == nil {
+			continue
+		}
+
+		indent := matches[1]
+		lines[i] = indent + "uses: " + checkoutRef
+		changed = true
+
+		if i+1 < len(lines) && strings.HasPrefix(lines[i+1], indent+"with:") {
+			blockEnd := checkoutWithBlockEnd(lines, i+2, indent)
+			if !checkoutWithBlockHasPersistCredentials(lines, i+2, blockEnd) {
+				insert := indent + "  persist-credentials: false"
+				lines = slices.Insert(lines, i+2, insert)
+				blockEnd++
+			}
+			i = blockEnd - 1
+			continue
+		}
+
+		lines = slices.Insert(lines, i+1,
+			indent+"with:",
+			indent+"  persist-credentials: false",
+		)
+		i += 2
+	}
+
+	if !changed {
+		return content, false
+	}
+	result := strings.Join(lines, "\n")
+	if hadTrailingNewline {
+		result += "\n"
+	}
+	return []byte(result), true
+}
+
+func checkoutWithBlockEnd(lines []string, start int, usesIndent string) int {
+	for i := start; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			if checkoutNextNonBlankLineInBlock(lines, i+1, usesIndent) {
+				continue
+			}
+			return i
+		}
+		if !strings.HasPrefix(lines[i], usesIndent+"  ") {
+			return i
+		}
+	}
+	return len(lines)
+}
+
+func checkoutNextNonBlankLineInBlock(lines []string, start int, usesIndent string) bool {
+	for i := start; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		return strings.HasPrefix(lines[i], usesIndent+"  ")
+	}
+	return false
+}
+
+func checkoutWithBlockHasPersistCredentials(lines []string, start int, end int) bool {
+	for i := start; i < end; i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "persist-credentials:") {
+			return true
+		}
+	}
+	return false
 }

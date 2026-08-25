@@ -11,6 +11,7 @@ import (
 )
 
 func TestValidateGitRef_SafeRefAccepted(t *testing.T) {
+	t.Parallel()
 	refs := []string{
 		"main",
 		"v1.2.3",
@@ -20,12 +21,14 @@ func TestValidateGitRef_SafeRefAccepted(t *testing.T) {
 
 	for _, ref := range refs {
 		t.Run(ref, func(t *testing.T) {
+			t.Parallel()
 			require.NoError(t, ValidateGitRef(ref))
 		})
 	}
 }
 
 func TestValidateGitRef_HyphenPrefixRejected(t *testing.T) {
+	t.Parallel()
 	ref := "-evil"
 	err := ValidateGitRef(ref)
 	require.Error(t, err)
@@ -34,6 +37,7 @@ func TestValidateGitRef_HyphenPrefixRejected(t *testing.T) {
 }
 
 func TestValidateGitRef_NulByteRejected(t *testing.T) {
+	t.Parallel()
 	ref := "main\x00evil"
 	err := ValidateGitRef(ref)
 	require.Error(t, err)
@@ -42,6 +46,7 @@ func TestValidateGitRef_NulByteRejected(t *testing.T) {
 }
 
 func TestValidateGitRef_TraversalRejected(t *testing.T) {
+	t.Parallel()
 	ref := "main..evil"
 	err := ValidateGitRef(ref)
 	require.Error(t, err)
@@ -50,12 +55,14 @@ func TestValidateGitRef_TraversalRejected(t *testing.T) {
 }
 
 func TestValidateGitRef_EmptyRejected(t *testing.T) {
+	t.Parallel()
 	err := ValidateGitRef("")
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "must not be empty")
 }
 
 func TestValidateGitPath_SafePathAccepted(t *testing.T) {
+	t.Parallel()
 	paths := []string{
 		".github/workflows/workflow.md",
 		"file.md",
@@ -64,12 +71,14 @@ func TestValidateGitPath_SafePathAccepted(t *testing.T) {
 
 	for _, p := range paths {
 		t.Run(p, func(t *testing.T) {
+			t.Parallel()
 			require.NoError(t, ValidateGitPath(p))
 		})
 	}
 }
 
 func TestValidateGitPath_HyphenPrefixRejected(t *testing.T) {
+	t.Parallel()
 	p := "-evil"
 	err := ValidateGitPath(p)
 	require.Error(t, err)
@@ -78,6 +87,7 @@ func TestValidateGitPath_HyphenPrefixRejected(t *testing.T) {
 }
 
 func TestValidateGitPath_AbsolutePathRejected(t *testing.T) {
+	t.Parallel()
 	p := "/etc/passwd"
 	err := ValidateGitPath(p)
 	require.Error(t, err)
@@ -86,6 +96,7 @@ func TestValidateGitPath_AbsolutePathRejected(t *testing.T) {
 }
 
 func TestValidateGitPath_TraversalRejected(t *testing.T) {
+	t.Parallel()
 	p := "dir/../../etc/passwd"
 	err := ValidateGitPath(p)
 	require.Error(t, err)
@@ -94,12 +105,14 @@ func TestValidateGitPath_TraversalRejected(t *testing.T) {
 }
 
 func TestValidateGitPath_EmptyRejected(t *testing.T) {
+	t.Parallel()
 	err := ValidateGitPath("")
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "must not be empty")
 }
 
 func TestValidateGitRef_ErrorMessagesAreActionable(t *testing.T) {
+	t.Parallel()
 	invalidRefs := []string{
 		"-evil",
 		"main\x00evil",
@@ -108,6 +121,7 @@ func TestValidateGitRef_ErrorMessagesAreActionable(t *testing.T) {
 
 	for _, ref := range invalidRefs {
 		t.Run(ref, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateGitRef(ref)
 			require.Error(t, err)
 			assert.ErrorContains(t, err, fmt.Sprintf("%q", ref))

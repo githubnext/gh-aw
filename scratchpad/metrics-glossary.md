@@ -390,7 +390,7 @@ When implementing or updating daily report workflows:
 
 **Definition**: Total lines of code in the repository across all languages
 
-**Scope**: All source files, calculated using cloc or similar tool
+**Scope**: Git-tracked files only, calculated with the pinned command `cloc --vcs=git --json --quiet .`. The `--vcs=git` flag makes cloc enumerate files via `git ls-files` rather than walking the working tree, so untracked/build artifacts (`node_modules/`, `dist/`, `build/`, etc.) are excluded regardless of what happens to exist in the working tree that run. Always use this exact command — a plain `cloc .` is not reproducible run-to-run and has caused implausible day-over-day LOC swings (see github/gh-aw#55519).
 
 **Used By**:
 - Daily Code Metrics Report
@@ -399,13 +399,15 @@ When implementing or updating daily report workflows:
 
 **Standardized Name**: Use `lines_of_code_total` for clarity
 
+**Notes**: Report `cloc_command` and `cloc_file_count` (from `.SUM.nFiles` in the cloc JSON output) alongside this metric so day-over-day scope drift can be detected automatically.
+
 ---
 
 ### test_loc / test_lines_of_code
 
 **Definition**: Total lines of code in test files
 
-**Scope**: Files matching test patterns (*_test.go, *.test.js, test_*.py, etc.)
+**Scope**: Git-tracked files (via `git ls-files`) matching test patterns (*_test.go, *.test.js, test_*.py, etc.)
 
 **Used By**:
 - Daily Code Metrics Report

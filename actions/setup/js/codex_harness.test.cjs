@@ -29,6 +29,14 @@ const {
   configureCodexProviderFromReflect,
   hasNoopInSafeOutputs,
   resolveRetryConfig,
+  resolveContextRebuildCircuitBreakerConfig,
+  evaluateContextRebuildCircuitBreaker,
+  readWorkingSetFromTokenUsage,
+  TOKEN_USAGE_PATHS,
+  DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
+  DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
+  DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS,
+  DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS,
   resolvePostResultWatchdogIdleTimeoutMs,
   DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
   MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS,
@@ -202,6 +210,134 @@ describe("codex_harness.cjs", () => {
       const result = buildCodexChildEnv({ PATH: "/usr/bin" }, undefined, undefined);
       expect(result.CODEX_API_KEY).toBeUndefined();
       expect(result.OPENAI_API_KEY).toBeUndefined();
+    });
+  });
+
+  describe("context rebuild circuit breaker", () => {
+    it("uses defaults when env overrides are absent or invalid", () => {
+      const cfg = resolveContextRebuildCircuitBreakerConfig({
+        GH_AW_CODEX_MAX_REBUILD_FACTOR: "nope",
+        GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS: "-1",
+        GH_AW_CODEX_REBUILD_GUARD_POLL_MS: "0",
+        GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS: "0",
+      });
+      expect(cfg.enabled).toBe(true);
+      expect(cfg.maxRebuildFactor).toBe(DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT);
+      expect(cfg.minCumulativeInputTokens).toBe(DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
+      expect(cfg.pollIntervalMs).toBe(DEFAULT_CONTEXT_REBUILD_POLL_INTERVAL_MS);
+      expect(cfg.termGraceMs).toBe(DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS);
+    });
+
+    it("supports explicit disable via env", () => {
+      const cfg = resolveContextRebuildCircuitBreakerConfig({
+        GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false",
+      });
+      expect(cfg.enabled).toBe(false);
+    });
+
+    it("trips only when both rebuild factor and cumulative input exceed thresholds", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(
+        evaluateContextRebuildCircuitBreaker(
+          {
+            measurement_state: "measured",
+            rebuild_factor: 4.5,
+            cumulative_input_tokens: 1400,
+            peak_input_tokens: 311,
+            rebuild_excess_tokens: 1089,
+            invocations: 5,
+          },
+          config
+        ).terminate
+      ).toBe(true);
+      expect(
+        evaluateContextRebuildCircuitBreaker(
+          {
+            measurement_state: "measured",
+            rebuild_factor: 4.5,
+            cumulative_input_tokens: 999,
+            peak_input_tokens: 222,
+            rebuild_excess_tokens: 777,
+            invocations: 4,
+          },
+          config
+        ).terminate
+      ).toBe(false);
+    });
+
+    it("falls back to the default cumulative floor for fractional overrides below one token", () => {
+      const cfg = resolveContextRebuildCircuitBreakerConfig({
+        GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS: "0.5",
+      });
+      expect(cfg.minCumulativeInputTokens).toBe(DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS);
+    });
+
+    it("does not trip when rebuild_factor is just below the threshold", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 3.99, cumulative_input_tokens: 2000 }, config).terminate).toBe(false);
+    });
+
+    it("trips when rebuild_factor is exactly at the threshold", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 4, cumulative_input_tokens: 2000 }, config).terminate).toBe(true);
+    });
+
+    it("does not trip for null, empty, or non-finite working sets", () => {
+      const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
+      expect(evaluateContextRebuildCircuitBreaker(null, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({}, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: Number.NaN, cumulative_input_tokens: 5000 }, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: Number.POSITIVE_INFINITY, cumulative_input_tokens: 5000 }, config).terminate).toBe(false);
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 9, cumulative_input_tokens: Number.NaN }, config).terminate).toBe(false);
+    });
+
+    it("accepts a rebuild factor threshold of exactly 1", () => {
+      expect(resolveContextRebuildCircuitBreakerConfig({ GH_AW_CODEX_MAX_REBUILD_FACTOR: "1" }).maxRebuildFactor).toBe(1);
+    });
+
+    it("skips token-usage candidates whose measurements are unavailable", async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
+      const malformed = path.join(dir, "malformed.jsonl");
+      const valid = path.join(dir, "valid.jsonl");
+      fs.writeFileSync(malformed, "not json\n{oops\n");
+      fs.writeFileSync(valid, `${JSON.stringify({ input_tokens: 100 })}\n${JSON.stringify({ input_tokens: 900 })}\n`);
+      try {
+        const workingSet = await readWorkingSetFromTokenUsage([malformed, valid]);
+        expect(workingSet).not.toBeNull();
+        expect(workingSet.measurement_state).toBe("measured");
+        expect(workingSet.cumulative_input_tokens).toBe(1000);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("prefers the most recently written token-usage candidate", async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
+      const stale = path.join(dir, "stale.jsonl");
+      const fresh = path.join(dir, "fresh.jsonl");
+      fs.writeFileSync(stale, `${JSON.stringify({ input_tokens: 7 })}\n`);
+      fs.writeFileSync(fresh, `${JSON.stringify({ input_tokens: 500 })}\n${JSON.stringify({ input_tokens: 500 })}\n`);
+      const now = Date.now() / 1000;
+      fs.utimesSync(stale, now - 600, now - 600);
+      fs.utimesSync(fresh, now, now);
+      try {
+        // `stale` is listed first, but `fresh` has the newer mtime and must win.
+        const workingSet = await readWorkingSetFromTokenUsage([stale, fresh]);
+        expect(workingSet.cumulative_input_tokens).toBe(1000);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns null when no candidate yields usable measurements", async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-token-usage-"));
+      const malformed = path.join(dir, "malformed.jsonl");
+      fs.writeFileSync(malformed, "not json\n");
+      try {
+        expect(await readWorkingSetFromTokenUsage([malformed, path.join(dir, "missing.jsonl")])).toBeNull();
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 
@@ -565,6 +701,41 @@ process.exit(1);`,
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("isInvalidRequestError=true");
       expect(result.stderr).toContain("invalid_request_error (HTTP 400) — not retrying");
+    });
+
+    it("exits 0 when the AWF API proxy returns HTTP 403 max-AI-credits as an authentication failure", () => {
+      // Same proxy signature as the claude_harness.test.cjs regression, replayed against codex.
+      // CODEX_API_KEY is set so the `!isMissingApiKey` guard cannot suppress the budget path.
+      const tempDir = makeHarnessTempDir("codex-ai-credits-proxy-403-");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+fs.appendFileSync(process.env.CODEX_HARNESS_STUB_CALLS, "called\\n");
+process.stdout.write(JSON.stringify({ type: "error", error: "authentication_failed", message: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)." }) + "\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "fix the bug", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          GH_AW_HARNESS_MAX_RETRIES: "0",
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+
+      expect(fs.readFileSync(callsPath, "utf8").trim().split("\n")).toHaveLength(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("trusted budget-abort evidence");
+      expect(result.stderr).toContain("AI credits budget enforced");
     });
 
     it("retries on rate limit error even without output", () => {
@@ -980,6 +1151,68 @@ process.exit(1);`,
       expect(result.status).toBe(1);
       // The watchdog-suppression path must not have fired
       expect(result.stderr).not.toContain("late-activity exit suppressed");
+    });
+  });
+
+  describe("context rebuild circuit breaker termination", () => {
+    it("stops and fails the run when the guard fires even if the process exits 0 on SIGTERM", () => {
+      const tempDir = makeHarnessTempDir("codex-rebuild-breaker-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      const tokenUsagePath = TOKEN_USAGE_PATHS[0];
+      // Preserve any pre-existing token-usage log so the test never destroys real data,
+      // while still always executing its assertions.
+      const previousTokenUsage = fs.existsSync(tokenUsagePath) ? fs.readFileSync(tokenUsagePath) : null;
+      fs.mkdirSync(path.dirname(tokenUsagePath), { recursive: true });
+      fs.writeFileSync(tokenUsagePath, [100, 100, 100].map(t => JSON.stringify({ input_tokens: t })).join("\n") + "\n", "utf8");
+      // Stub stays alive until SIGTERM, then exits cleanly (exit code 0). Without the
+      // guard-fired normalization this would be misreported as a successful run.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("rebuilding context...\\n");
+process.on("SIGTERM", () => process.exit(0));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "do the work", "utf8");
+
+      try {
+        const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+          cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+          env: {
+            ...process.env,
+            CODEX_HARNESS_STUB_CALLS: callsPath,
+            GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+            CODEX_API_KEY: "fake-key-for-test",
+            GH_AW_HARNESS_MAX_RETRIES: "1",
+            GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+            GH_AW_CODEX_MAX_REBUILD_FACTOR: "2",
+            GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS: "10",
+            GH_AW_CODEX_REBUILD_GUARD_POLL_MS: "1000",
+            GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS: "250",
+          },
+          encoding: "utf8",
+          timeout: 20000,
+        });
+        const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+        // The circuit breaker stops the retry loop after the first attempt.
+        expect(callCount).toBe(1);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("runtime guard requested termination");
+        expect(result.stderr).toContain("normalizing exit code to 1");
+        expect(result.stderr).toContain("not retrying (circuit breaker)");
+      } finally {
+        if (previousTokenUsage === null) {
+          fs.rmSync(tokenUsagePath, { force: true });
+        } else {
+          fs.writeFileSync(tokenUsagePath, previousTokenUsage);
+        }
+      }
     });
   });
 

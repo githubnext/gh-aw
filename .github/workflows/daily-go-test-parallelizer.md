@@ -8,6 +8,7 @@ on:
   skip-if-match: 'is:pr is:open in:title "[test-parallel]"'
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 strict: true
 timeout-minutes: 30

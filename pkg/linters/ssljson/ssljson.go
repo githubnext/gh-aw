@@ -98,80 +98,93 @@ var stepTerminals = map[string]bool{"YIELD_SUCCESS": true, "YIELD_FAIL": true}
 func ValidateDoc(doc SSLDoc) []string {
 	var msgs []string
 
-	sceneIDs := make(map[string]struct {
-	}, len(doc.Scenes))
-	for _, s := range doc.Scenes {
-		// Rule 8a: scene IDs must be unique.
-		if setutil.Contains(sceneIDs, s.ID) {
-			msgs = append(msgs, fmt.Sprintf("duplicate scene id %q", s.ID))
-			continue
-		}
-		sceneIDs[s.ID] = struct {
-		}{}
-	}
-	stepIDs := make(map[string]struct {
-	}, len(doc.LogicSteps))
-	for _, ls := range doc.LogicSteps {
-		// Rule 8b: logic step IDs must be unique.
-		if setutil.Contains(stepIDs, ls.ID) {
-			msgs = append(msgs, fmt.Sprintf("duplicate logic step id %q", ls.ID))
-			continue
-		}
-		stepIDs[ls.ID] = struct {
-		}{}
-	}
+	sceneIDs := collectSceneIDs(doc.Scenes, &msgs)
+	stepIDs := collectStepIDs(doc.LogicSteps, &msgs)
 
 	// Rule 1: entry_scene must reference an existing scene.
 	if doc.Scheduling.EntryScene != "" && !setutil.Contains(sceneIDs, doc.Scheduling.EntryScene) {
 		msgs = append(msgs, fmt.Sprintf("entry_scene %q not found in scenes", doc.Scheduling.EntryScene))
 	}
 
-	for _, scene := range doc.Scenes {
+	validateScenes(doc.Scenes, sceneIDs, stepIDs, &msgs)
+	validateLogicSteps(doc.LogicSteps, sceneIDs, stepIDs, &msgs)
+
+	return msgs
+}
+
+func collectSceneIDs(scenes []SSLScene, msgs *[]string) map[string]struct{} {
+	sceneIDs := make(map[string]struct{}, len(scenes))
+	for _, scene := range scenes {
+		// Rule 8a: scene IDs must be unique.
+		if setutil.Contains(sceneIDs, scene.ID) {
+			*msgs = append(*msgs, fmt.Sprintf("duplicate scene id %q", scene.ID))
+			continue
+		}
+		sceneIDs[scene.ID] = struct{}{}
+	}
+	return sceneIDs
+}
+
+func collectStepIDs(steps []SSLStep, msgs *[]string) map[string]struct{} {
+	stepIDs := make(map[string]struct{}, len(steps))
+	for _, step := range steps {
+		// Rule 8b: logic step IDs must be unique.
+		if setutil.Contains(stepIDs, step.ID) {
+			*msgs = append(*msgs, fmt.Sprintf("duplicate logic step id %q", step.ID))
+			continue
+		}
+		stepIDs[step.ID] = struct{}{}
+	}
+	return stepIDs
+}
+
+func validateScenes(scenes []SSLScene, sceneIDs, stepIDs map[string]struct{}, msgs *[]string) {
+	for _, scene := range scenes {
 		// Rule 2: scene type must be an allowed value.
 		if !allowedSceneTypes[scene.Type] {
-			msgs = append(msgs, fmt.Sprintf("scene %q has invalid type %q", scene.ID, scene.Type))
+			*msgs = append(*msgs, fmt.Sprintf("scene %q has invalid type %q", scene.ID, scene.Type))
 		}
 		// Rule 3: entry_logic_step must reference an existing logic step.
 		if scene.EntryLogicStep != "" && !setutil.Contains(stepIDs, scene.EntryLogicStep) {
-			msgs = append(msgs, fmt.Sprintf("scene %q entry_logic_step %q not found in logic_steps", scene.ID, scene.EntryLogicStep))
+			*msgs = append(*msgs, fmt.Sprintf("scene %q entry_logic_step %q not found in logic_steps", scene.ID, scene.EntryLogicStep))
 		}
 		// Rule 4: scene transition targets must resolve to a scene ID or terminal.
 		for _, rule := range scene.NextSceneRules {
 			if !setutil.Contains(sceneIDs, rule.Target) && !sceneTerminals[rule.Target] {
-				msgs = append(msgs, fmt.Sprintf(
+				*msgs = append(*msgs, fmt.Sprintf(
 					"scene %q transition target %q is not a scene ID or END_SUCCESS/END_FAIL",
 					scene.ID, rule.Target,
 				))
 			}
 		}
 	}
+}
 
-	for _, step := range doc.LogicSteps {
+func validateLogicSteps(steps []SSLStep, sceneIDs, stepIDs map[string]struct{}, msgs *[]string) {
+	for _, step := range steps {
 		// Rule 5: action_type must be an allowed value.
 		if !allowedActionTypes[step.ActionType] {
-			msgs = append(msgs, fmt.Sprintf("logic step %q has invalid action_type %q", step.ID, step.ActionType))
+			*msgs = append(*msgs, fmt.Sprintf("logic step %q has invalid action_type %q", step.ID, step.ActionType))
 		}
 		// Rule 6: resource_scope must be an allowed value.
 		if !allowedResourceScopes[step.ResourceScope] {
-			msgs = append(msgs, fmt.Sprintf("logic step %q has invalid resource_scope %q", step.ID, step.ResourceScope))
+			*msgs = append(*msgs, fmt.Sprintf("logic step %q has invalid resource_scope %q", step.ID, step.ResourceScope))
 		}
 		// Rule 7: logic-step next must be a step ID or a terminal target.
 		if !setutil.Contains(stepIDs, step.Next) && !stepTerminals[step.Next] {
-			msgs = append(msgs, fmt.Sprintf(
+			*msgs = append(*msgs, fmt.Sprintf(
 				"logic step %q next %q is not a step ID or YIELD_SUCCESS/YIELD_FAIL",
 				step.ID, step.Next,
 			))
 		}
 		// Rule 8: logic-step scene_id, when set, must reference an existing scene.
 		if step.SceneID != "" && !setutil.Contains(sceneIDs, step.SceneID) {
-			msgs = append(msgs, fmt.Sprintf(
+			*msgs = append(*msgs, fmt.Sprintf(
 				"logic step %q scene_id %q not found in scenes",
 				step.ID, step.SceneID,
 			))
 		}
 	}
-
-	return msgs
 }
 
 // LoadDoc reads and parses an ssl.json file from disk.

@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/goccy/go-yaml"
 )
@@ -262,11 +263,11 @@ func (c *Compiler) buildCommandTriggerEventsMap(data *WorkflowData) (map[string]
 				if existingMap, ok := existingAny.(map[string]any); ok {
 					switch t := existingMap["types"].(type) {
 					case []string:
-						newTypes := make([]any, len(t)+1)
-						for i, s := range t {
-							newTypes[i] = s
+						newTypes := make([]any, 0, typeutil.SafeAllocationCapacity(len(t), 1))
+						for _, s := range t {
+							newTypes = append(newTypes, s)
 						}
-						newTypes[len(t)] = "labeled"
+						newTypes = append(newTypes, "labeled")
 						existingMap["types"] = newTypes
 					case []any:
 						existingMap["types"] = append(t, "labeled")
@@ -348,7 +349,7 @@ func mergeLabelCommandOtherEvents(labelEventsMap map[string]any, otherEvents map
 			if existingMap != nil && userMap != nil {
 				existingTypes, _ := existingMap["types"].([]any)
 				userTypes, _ := userMap["types"].([]any)
-				merged := make([]any, 0, safeAllocationCapacity(len(existingTypes), len(userTypes)))
+				merged := make([]any, 0, typeutil.SafeAllocationCapacity(len(existingTypes), len(userTypes)))
 				merged = append(merged, existingTypes...)
 				merged = append(merged, userTypes...)
 				existingMap["types"] = merged
@@ -541,10 +542,10 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// Get existing github tool configuration
 	githubTool := tools["github"]
 
-	steerPullRequestComments := isPreCreatePullRequestSteerEnabled(&WorkflowData{SafeOutputs: safeOutputs})
+	steerIssueComments := isSteeringIssueEnabled(&WorkflowData{SafeOutputs: safeOutputs})
 
 	// Check if github is explicitly disabled (github: false)
-	if githubTool == false && !steerPullRequestComments {
+	if githubTool == false && !steerIssueComments {
 		// Remove the github tool entirely when set to false
 		delete(tools, "github")
 	} else {
@@ -579,9 +580,9 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			}
 			githubConfig["allowed"] = existingAllowed
 		}
-		if steerPullRequestComments {
-			ensureGitHubToolset(githubConfig, "pull_requests")
-			ensureGitHubAllowedTool(githubConfig, "pull_request_read")
+		if steerIssueComments {
+			ensureGitHubToolset(githubConfig, "issues")
+			ensureGitHubAllowedTool(githubConfig, "issue_read")
 		}
 		tools["github"] = githubConfig
 	}
@@ -759,7 +760,7 @@ func ensureGitHubAllowedTool(githubConfig map[string]any, tool string) {
 }
 
 func appendStringAny(values []string, value string) []any {
-	result := make([]any, 0, len(values)+1)
+	result := make([]any, 0, typeutil.SafeAllocationCapacity(len(values), 1))
 	for _, existing := range values {
 		result = append(result, existing)
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -21,7 +22,7 @@ var allPermissionScopeNames = sync.OnceValue(func() []string {
 	ghTokenScopes := GetAllPermissionScopes()
 	appOnlyScopes := GetAllGitHubAppOnlyScopes()
 	// +1 for copilot-requests which is not in GetAllPermissionScopes
-	all := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
+	all := make([]string, 0, typeutil.SafeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
 	for _, scope := range ghTokenScopes {
 		all = append(all, string(scope))
 	}

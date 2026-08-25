@@ -5,7 +5,7 @@
 > [!WARNING]
 > **Protected Files — Push Permission Denied**
 >
-> This was originally intended as a pull request, but the patch modifies protected files. A human must create the pull request manually.
+> This was originally intended as a pull request, but the change modifies protected files. A human must create the pull request manually.
 >
 > <details>
 > <summary>Protected files</summary>
@@ -20,14 +20,7 @@
 <summary>Create the pull request manually</summary>
 
 ```sh
-# Download the patch from the workflow run
-gh run download {run_id} -n agent -D /tmp/agent-{run_id}
-
-# Create a new branch
-git checkout -b {branch_name} {base_branch}
-
-# Apply the patch (--3way handles cross-repo patches)
-git am --3way /tmp/agent-{run_id}/{patch_file}
+{apply_instructions}
 
 # Push the branch and create the pull request
 git push origin {branch_name}

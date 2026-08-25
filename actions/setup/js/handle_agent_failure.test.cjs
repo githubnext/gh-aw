@@ -20,6 +20,7 @@ describe("handle_agent_failure", () => {
   let buildDockerSbxSecretsContext;
   let buildAssignmentErrorsContext;
   let buildAssignCopilotFailureContext;
+  let setFailureIssueOutputs;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
   const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
@@ -53,6 +54,7 @@ describe("handle_agent_failure", () => {
       buildDockerSbxSecretsContext,
       buildAssignmentErrorsContext,
       buildAssignCopilotFailureContext,
+      setFailureIssueOutputs,
       getActionFailureIssueExpiresHours,
     } = require("./handle_agent_failure.cjs"));
   });
@@ -89,6 +91,15 @@ describe("handle_agent_failure", () => {
     it("returns default for malformed values with numeric prefixes", () => {
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "0invalid";
       expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
+  });
+
+  describe("setFailureIssueOutputs", () => {
+    it("publishes the created failure issue as step outputs", () => {
+      setFailureIssueOutputs({ number: 99, html_url: "https://github.com/owner/repo/issues/99" });
+
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_number", "99");
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_url", "https://github.com/owner/repo/issues/99");
     });
   });
 
@@ -510,6 +521,8 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
       delete process.env.GH_AW_FAILURE_REPORT_AS_ISSUE;
+      delete process.env.GH_AW_FAILURE_ISSUE_NUMBER;
+      delete process.env.GH_AW_STEERING_ISSUE_URL;
       delete process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT;
       delete process.env.GH_AW_SHELL_EXPANSION_GUARD_REJECTED;
       delete process.env.GITHUB_HEAD_REF;
@@ -557,6 +570,55 @@ describe("handle_agent_failure", () => {
 
       expect(createCommentMock).toHaveBeenCalledOnce();
       expect(createIssueMock).not.toHaveBeenCalled();
+    });
+
+    it("reuses the steering issue instead of searching for or creating a failure issue", async () => {
+      process.env.GH_AW_FAILURE_ISSUE_NUMBER = "42";
+      const updateIssueMock = vi.fn(async options => ({
+        data: {
+          number: options.issue_number,
+          html_url: "https://github.com/owner/repo/issues/42",
+          node_id: "issue-node",
+        },
+      }));
+      const createIssueMock = vi.fn();
+      const searchMock = vi.fn(async () => ({ data: { total_count: 0, items: [] } }));
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: {
+            get: vi.fn(async () => ({
+              data: {
+                number: 42,
+                html_url: "https://github.com/owner/repo/issues/42",
+                node_id: "issue-node",
+                state: "open",
+                labels: [],
+              },
+            })),
+            create: createIssueMock,
+            update: updateIssueMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(updateIssueMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          issue_number: 42,
+          title: "[aw] Test Workflow produced no safe outputs",
+          labels: ["agentic-workflows"],
+          state: "open",
+        })
+      );
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(searchMock.mock.calls.some(([options]) => options.q.includes('"gh-aw-agentic-workflow:"'))).toBe(false);
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_number", "42");
+      expect(global.core.setOutput).toHaveBeenCalledWith("failure_issue_url", "https://github.com/owner/repo/issues/42");
     });
 
     it("skips failure issue creation when the runtime report flag resolves to false", async () => {

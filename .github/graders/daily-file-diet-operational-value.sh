@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export LC_ALL=C
+
 REPOSITORY=github/gh-aw
 WORKFLOW_NAME="Daily File Diet"
 THRESHOLD_LINES=1000
@@ -21,10 +23,10 @@ definition() {
   "operationalValue": "Decompose the run's largest oversized non-test Go file toward 500 lines.",
   "evidence": {
     "opportunity": "Largest non-test pkg/**/*.go blob at the run commit; below 1000 is healthy.",
-    "assignment": "Greatest wc -l, lexical tie-break. Key: go-file:<path> or repository-health:non-test-go-under-1000; duplicates repeat.",
+    "assignment": "Greatest wc -l, reverse lexical tie-break. Key: go-file:<path> or repository-health:non-test-go-under-1000; duplicates repeat.",
     "accepted": "Git evidence of assigned-path reduction toward 500 lines or tree-proven absence; issues and traces are excluded.",
     "repositories": ["github/gh-aw"],
-    "collection": "With contents:read, inspect the run tree and latest default-branch commit by cutoff; count blob newlines.",
+    "collection": "With contents:read, count newlines in the run commit archive for assignment and in the cutoff commit blob for evidence.",
     "maturation": "Two days; five pre-adoption issue/PR pairs (#1636-#3564) took 0.04-0.84 days.",
     "zeroRule": "No reduction from the initial oversized file scores 0.",
     "missingRule": "Invalid, unavailable, or truncated Git evidence scores null; tree-proven path absence is attainment."
@@ -61,12 +63,13 @@ metric() {
 
 normalize_timestamp() {
     jq -nr --arg timestamp "$1" '
-        if $timestamp
-            | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$")
-        then $timestamp | sub("\\.[0-9]+Z$"; "Z")
+        ($timestamp | sub("\\.[0-9]+Z$"; "Z")) as $normalized
+        | if ($normalized | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))
+            and (try (($normalized | fromdateiso8601 | todateiso8601) == $normalized) catch false)
+        then $normalized
         else error("invalid timestamp")
         end
-    '
+    ' 2>/dev/null
 }
 
 timestamp_epoch() {
@@ -83,9 +86,7 @@ github_api() {
 }
 
 blob_line_count() {
-    local repository=$1
-    local blob_sha=$2
-    local output=$3
+    local repository=$1 blob_sha=$2 output=$3
 
     if ! github_api -H "Accept: application/vnd.github.raw+json" \
         "repos/$repository/git/blobs/$blob_sha" >"$output"; then
@@ -95,9 +96,7 @@ blob_line_count() {
 }
 
 load_tree() {
-    local repository=$1
-    local commit_sha=$2
-    local output=$3
+    local repository=$1 commit_sha=$2 output=$3
 
     if ! github_api "repos/$repository/git/trees/$commit_sha?recursive=1" >"$output"; then
         return 1
@@ -106,34 +105,30 @@ load_tree() {
 }
 
 assign_case() {
-    local repository=$1
-    local commit_sha=$2
-    local tree_file="$tmp_dir/assignment-tree.json"
-    local entries_file="$tmp_dir/assignment-entries.tsv"
-    local blob_file="$tmp_dir/assignment-blob"
-    local path
-    local blob_sha
-    local lines
-    local largest_path=
-    local largest_lines=-1
+    local repository=$1 commit_sha=$2
+    local archive_file="$tmp_dir/assignment-archive.tar.gz"
+    local extract_dir="$tmp_dir/assignment-archive"
+    local root_dir path lines
+    local largest_path='' largest_lines=-1
 
-    load_tree "$repository" "$commit_sha" "$tree_file" || return 1
-    jq -r '
-        .tree[]
-        | select(.type == "blob")
-        | select(.path | test("^pkg/.*\\.go$") and (endswith("_test.go") | not))
-        | [.path, .sha]
-        | @tsv
-    ' "$tree_file" | sort >"$entries_file"
+    github_api -H "Accept: application/vnd.github+json" \
+        "repos/$repository/tarball/$commit_sha" >"$archive_file" || return 1
 
-    [[ -s $entries_file ]] || return 1
-    while IFS=$'\t' read -r path blob_sha; do
-        lines=$(blob_line_count "$repository" "$blob_sha" "$blob_file") || return 1
-        if (( lines > largest_lines )); then
+    mkdir -p "$extract_dir"
+    tar -xzf "$archive_file" -C "$extract_dir" || return 1
+    root_dir=$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort | head -1)
+    [[ -n $root_dir && -d $root_dir/pkg ]] || return 1
+
+    while IFS= read -r -d '' path; do
+        lines=$(wc -l <"$root_dir/$path" | tr -d ' ') || return 1
+        if (( lines > largest_lines )) \
+            || { (( lines == largest_lines )) && [[ $path > $largest_path ]]; }; then
             largest_path=$path
             largest_lines=$lines
         fi
-    done <"$entries_file"
+    done < <(cd "$root_dir" && find pkg -type f -name '*.go' ! -name '*_test.go' -print0)
+
+    [[ -n $largest_path ]] || return 1
 
     jq -cn \
         --arg path "$largest_path" \
@@ -141,21 +136,13 @@ assign_case() {
         --argjson thresholdLines "$THRESHOLD_LINES" \
         --argjson targetLines "$TARGET_LINES" \
         --arg subjectSha "$commit_sha" \
-        '{
-            path: $path,
-            initialLines: $initialLines,
-            thresholdLines: $thresholdLines,
-            targetLines: $targetLines,
-            subjectSha: $subjectSha
-        }'
+        '{path: $path, initialLines: $initialLines, thresholdLines: $thresholdLines,
+          targetLines: $targetLines, subjectSha: $subjectSha}'
 }
 
 latest_commit_at_cutoff() {
-    local repository=$1
-    local cutoff=$2
-    local repository_json
-    local default_branch
-    local commits_json
+    local repository=$1 cutoff=$2
+    local repository_json default_branch commits_json
 
     repository_json=$(github_api "repos/$repository") || return 1
     default_branch=$(printf '%s\n' "$repository_json" | jq -er '.default_branch | select(type == "string" and length > 0)') \
@@ -166,11 +153,7 @@ latest_commit_at_cutoff() {
 }
 
 emit_null() {
-    local opportunity_key=$1
-    local case_json=$2
-    local evidence_cutoff=$3
-    local matures_at=$4
-    local reason=$5
+    local opportunity_key=$1 case_json=$2 evidence_cutoff=$3 matures_at=$4 reason=$5
 
     jq -cn \
         --arg opportunityKey "$opportunity_key" \
@@ -178,39 +161,17 @@ emit_null() {
         --arg evidenceCutoff "$evidence_cutoff" \
         --arg maturesAt "$matures_at" \
         --arg reason "$reason" \
-        '{
-            value: null,
-            opportunityKey: $opportunityKey,
-            case: $case,
-            evidenceCutoff: $evidenceCutoff,
-            maturesAt: $maturesAt,
-            provenance: [],
-            diagnostics: {missingReason: $reason}
-        }'
+        '{value: null, opportunityKey: $opportunityKey, case: $case,
+          evidenceCutoff: $evidenceCutoff, maturesAt: $maturesAt,
+          provenance: [], diagnostics: {missingReason: $reason}}'
 }
 
 grade_run() {
-    local request
-    local run_id
-    local repository
-    local workflow
-    local run_sha
-    local created_at
-    local evidence_at
-    local matures_at
-    local evidence_cutoff
-    local evidence_epoch
-    local matures_epoch
-    local case_json
-    local path
-    local initial_lines
-    local opportunity_key
-    local evidence
-    local value
-    local cutoff_commit
+    local request run_id repository workflow run_sha created_at evidence_at
+    local matures_at evidence_cutoff evidence_epoch matures_epoch
+    local case_json path initial_lines opportunity_key evidence value
+    local cutoff_commit blob_sha current_lines
     local tree_file="$tmp_dir/cutoff-tree.json"
-    local blob_sha
-    local current_lines
     local blob_file="$tmp_dir/cutoff-blob"
 
     request=$(cat)
@@ -295,15 +256,10 @@ grade_run() {
             --arg maturesAt "$matures_at" \
             --arg repository "$repository" \
             --arg sha "$run_sha" \
-            '{
-                value: $value,
-                opportunityKey: $opportunityKey,
-                case: $case,
-                evidenceCutoff: $evidenceCutoff,
-                maturesAt: $maturesAt,
-                provenance: [{repository: $repository, kind: "git-tree", ref: $sha}],
-                diagnostics: {repositoryHealthyAtAssignment: true}
-            }'
+            '{value: $value, opportunityKey: $opportunityKey, case: $case,
+              evidenceCutoff: $evidenceCutoff, maturesAt: $maturesAt,
+              provenance: [{repository: $repository, kind: "git-tree", ref: $sha}],
+              diagnostics: {repositoryHealthyAtAssignment: true}}'
         return
     fi
 
@@ -346,18 +302,11 @@ grade_run() {
         --arg cutoffCommit "$cutoff_commit" \
         --arg path "$path" \
         --argjson currentLines "$current_lines" \
-        '{
-            value: $value,
-            opportunityKey: $opportunityKey,
-            case: $case,
-            evidenceCutoff: $evidenceCutoff,
-            maturesAt: $maturesAt,
-            provenance: [
-                {repository: $repository, kind: "git-commit", ref: $cutoffCommit},
-                {repository: $repository, kind: "go-source", ref: ($path + "@" + $cutoffCommit)}
-            ],
-            diagnostics: {currentLines: $currentLines}
-        }'
+        '{value: $value, opportunityKey: $opportunityKey, case: $case,
+          evidenceCutoff: $evidenceCutoff, maturesAt: $maturesAt,
+          provenance: [{repository: $repository, kind: "git-commit", ref: $cutoffCommit},
+                       {repository: $repository, kind: "go-source", ref: ($path + "@" + $cutoffCommit)}],
+          diagnostics: {currentLines: $currentLines}}'
 }
 
 case ${1:-} in

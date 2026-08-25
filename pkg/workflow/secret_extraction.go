@@ -146,6 +146,21 @@ func ExtractEnvExpressionsFromMap(values map[string]string) map[string]string {
 // Example: "${{ secrets.DD_API_KEY }}" -> "\${DD_API_KEY}"
 // The backslash is used to escape the ${} for proper JSON rendering in Copilot configs
 func ReplaceSecretsWithEnvVars(value string, secrets map[string]string) string {
+	// Replace ${{ secrets.VAR }} with \${VAR} (backslash-escaped for copilot JSON config)
+	return replaceSecretsWithPrefixedEnvVars(value, secrets, "\\${")
+}
+
+// ReplaceSecretsWithShellEnvVars replaces secret expressions in a value with plain shell
+// environment variable references, without the backslash escape used for JSON configs.
+// Example: "${{ secrets.DD_API_KEY }}" -> "${DD_API_KEY}"
+// This is used for TOML configs written through an expanding heredoc, so the shell resolves
+// the value from the step's env mapping instead of the secret being interpolated directly
+// into the run block (RGS-008).
+func ReplaceSecretsWithShellEnvVars(value string, secrets map[string]string) string {
+	return replaceSecretsWithPrefixedEnvVars(value, secrets, "${")
+}
+
+func replaceSecretsWithPrefixedEnvVars(value string, secrets map[string]string, prefix string) string {
 	result := value
 	// Sort keys for deterministic output. When multiple secret names share the same
 	// expression (e.g. "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}" maps
@@ -154,8 +169,7 @@ func ReplaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 	// already replaced and are no-ops. This ensures stable lock-file output across runs.
 	for _, varName := range sliceutil.SortedKeys(secrets) {
 		secretExpr := secrets[varName]
-		// Replace ${{ secrets.VAR }} with \${VAR} (backslash-escaped for copilot JSON config)
-		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
+		result = strings.ReplaceAll(result, secretExpr, prefix+varName+"}")
 	}
 	return result
 }

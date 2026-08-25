@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"errors"
-	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -42,69 +41,34 @@ func isStackedPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 	return *config.Stacked
 }
 
-func validatePreCreatePullRequest(data *WorkflowData) error {
-	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !isPreCreatePullRequestConfigured(data.SafeOutputs.CreatePullRequests) {
+func validateSteeringIssue(data *WorkflowData) error {
+	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !data.SafeOutputs.CreatePullRequests.Steer {
 		return nil
 	}
 
 	config := data.SafeOutputs.CreatePullRequests
-	// Staged mode is preview-only: pre-creation is compiled out entirely (see
-	// isPreCreatePullRequestEnabled). A templatable staged value cannot be resolved at
-	// compile time, so the combination is rejected instead of silently picking a mode.
 	if isTemplatableStagedExpression(data.SafeOutputs.Staged) || isTemplatableStagedExpression(config.Staged) {
 		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with an expression-valued staged option")
 	}
-	if isPreCreatePullRequestStaged(data) {
+	if isSteeringIssueStaged(data) {
 		return nil
 	}
-	if data.CheckoutDisabled {
-		return errors.New("safe-outputs.create-pull-request.steer requires the default checkout")
-	}
-	if config.Max != nil {
-		max, err := strconv.Atoi(*config.Max)
-		if err != nil || max != 1 {
-			return errors.New("safe-outputs.create-pull-request.steer requires max: 1")
-		}
-	}
-	if config.TargetRepoSlug != "" || config.HeadRepoSlug != "" || len(config.AllowedRepos) > 0 {
-		return errors.New("safe-outputs.create-pull-request.steer only supports pull requests in the workflow repository")
-	}
-	if config.BranchPrefix != "" || len(config.AllowedBranches) > 0 {
-		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with branch-prefix or allowed-branches")
-	}
-	if len(config.AllowedBaseBranches) > 0 {
-		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with allowed-base-branches because the base branch must be known when the pull request is allocated")
-	}
-	checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
-	if checkout := checkoutManager.GetDefaultCheckoutOverride(); checkout != nil && (checkout.key.repository != "" || checkout.key.wiki) {
-		return errors.New("safe-outputs.create-pull-request.steer requires the default checkout to use the workflow repository")
+	if data.SafeOutputs.FailureIssueRepo != "" {
+		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with safe-outputs.failure-issue-repo because the steering issue is reused for failure reporting")
 	}
 	return nil
 }
 
-// isPreCreatePullRequestConfigured reports whether the workflow should allocate
-// a pull request during activation. steer is the only way to enable pre-creation;
-// it pre-creates a draft pull request and lets the agent read feedback from it.
-func isPreCreatePullRequestConfigured(config *CreatePullRequestsConfig) bool {
-	return config != nil && config.Steer
-}
-
-func isPreCreatePullRequestSteerEnabled(data *WorkflowData) bool {
-	return data != nil &&
-		data.SafeOutputs != nil &&
-		isPreCreatePullRequestConfigured(data.SafeOutputs.CreatePullRequests)
-}
-
-func validatePreCreatePullRequestSteerPermissions(data *WorkflowData, permissions *Permissions) error {
-	if !isPreCreatePullRequestSteerEnabled(data) {
+func validateSteeringIssuePermissions(data *WorkflowData, permissions *Permissions) error {
+	if !isSteeringIssueEnabled(data) {
 		return nil
 	}
 	if permissions == nil {
-		return errors.New("safe-outputs.create-pull-request steering requires pull-requests: read, which is required to read pull-request comments")
+		return errors.New("safe-outputs.create-pull-request steering requires issues: read, which is required to read steering issue comments")
 	}
-	level, ok := permissions.Get(PermissionPullRequests)
+	level, ok := permissions.Get(PermissionIssues)
 	if !ok || (level != PermissionRead && level != PermissionWrite) {
-		return errors.New("safe-outputs.create-pull-request steering requires pull-requests: read, which is required to read pull-request comments")
+		return errors.New("safe-outputs.create-pull-request steering requires issues: read, which is required to read steering issue comments")
 	}
 	return nil
 }
@@ -120,7 +84,7 @@ type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig  `yaml:",inline"`
 	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
-	Steer                          bool             `yaml:"steer,omitempty"`         // Experimental. Pre-create a draft pull request and steer the agent from pull request comments.
+	Steer                          bool             `yaml:"steer,omitempty"`         // Experimental. Create an issue and steer the agent from issue comments.
 	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
 	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
 	Labels                         []string         `yaml:"labels,omitempty"`

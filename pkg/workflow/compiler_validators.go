@@ -154,7 +154,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	if err := c.validateCoreToolConfiguration(workflowData, markdownPath); err != nil {
 		return err
 	}
-	if err := validatePreCreatePullRequestSteerPermissions(workflowData, workflowPermissions); err != nil {
+	if err := validateSteeringIssuePermissions(workflowData, workflowPermissions); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 	if err := c.validateConcurrencyConfiguration(workflowData, markdownPath); err != nil {
@@ -188,7 +188,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating sandbox configuration", validateFn: func() error { return validateSandboxConfig(workflowData) }},
 		{logMessage: "Validating safe-outputs target fields", validateFn: func() error { return validateSafeOutputsTarget(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs max fields", validateFn: func() error { return validateSafeOutputsMax(workflowData.SafeOutputs) }},
-		{logMessage: "Validating pre-created pull request configuration", validateFn: func() error { return validatePreCreatePullRequest(workflowData) }},
+		{logMessage: "Validating steering issue configuration", validateFn: func() error { return validateSteeringIssue(workflowData) }},
 		{logMessage: "Validating safe-outputs data schema", validateFn: func() error { return validateSafeOutputsDataSchema(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs samples entries against MCP tool schemas", validateFn: func() error { return validateSafeOutputsSamples(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs urls policy", validateFn: func() error { return validateSafeOutputsURLs(workflowData.SafeOutputs) }},
@@ -403,7 +403,7 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
 		{enabled: workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0, message: "Using experimental feature: drive-memory"},
 		{enabled: hasContinualExperiment(workflowData.ExperimentConfigs), message: "Using experimental feature: continual experiments"},
-		{enabled: workflowData.SafeOutputs != nil && isPreCreatePullRequestConfigured(workflowData.SafeOutputs.CreatePullRequests), message: "Using experimental feature: create-pull-request steer"},
+		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.Steer, message: "Using experimental feature: create-pull-request steer"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {

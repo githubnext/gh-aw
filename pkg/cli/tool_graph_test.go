@@ -8,6 +8,7 @@ import (
 )
 
 func TestToolGraph(t *testing.T) {
+	t.Parallel()
 	// Test basic tool graph creation and Mermaid generation
 	graph := NewToolGraph()
 
@@ -46,6 +47,7 @@ func TestToolGraph(t *testing.T) {
 }
 
 func TestToolGraphMultipleSequences(t *testing.T) {
+	t.Parallel()
 	graph := NewToolGraph()
 
 	// Add multiple sequences
@@ -77,6 +79,7 @@ func TestToolGraphMultipleSequences(t *testing.T) {
 }
 
 func TestToolGraphEmptySequences(t *testing.T) {
+	t.Parallel()
 	graph := NewToolGraph()
 
 	// Add empty sequence

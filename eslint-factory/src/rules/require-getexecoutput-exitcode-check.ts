@@ -15,28 +15,31 @@ function isGetExecOutputCall(node: TSESTree.Expression): node is TSESTree.CallEx
 }
 
 /**
- * Returns true when the options argument (last argument, if an object literal) contains a
- * statically-true `ignoreReturnCode` property. Only object literals are inspected; spreads
- * and identifiers are treated conservatively as "may set it" since they can't be statically
- * resolved, which would otherwise produce false positives.
+ * Returns true when the options argument (last argument, if an object literal) resolves to a
+ * statically-true `ignoreReturnCode`. Properties are evaluated in source order so that the last
+ * write wins. A spread makes the value unresolvable from that point on, so options that end with
+ * a spread (or that only contain spreads) are treated as out of scope to avoid false positives;
+ * an explicit `ignoreReturnCode: true` written after a spread still counts, since it overrides it.
  */
 function hasIgnoreReturnCodeTrue(node: TSESTree.CallExpression): boolean {
   const optionsArg = node.arguments[node.arguments.length - 1];
   if (!optionsArg || optionsArg.type !== AST_NODE_TYPES.ObjectExpression) return false;
 
+  let ignoreReturnCode: boolean | "unresolved" = false;
+
   for (const prop of optionsArg.properties) {
     if (prop.type === AST_NODE_TYPES.SpreadElement) {
-      // Can't statically confirm the spread doesn't carry ignoreReturnCode: true;
-      // assume it might to avoid false positives on options composed via `{ ...opts }`.
-      return true;
+      // The spread may carry an `ignoreReturnCode` value we can't statically resolve.
+      ignoreReturnCode = "unresolved";
+      continue;
     }
     if (prop.type !== AST_NODE_TYPES.Property || prop.computed) continue;
     const isIgnoreReturnCodeKey = (prop.key.type === AST_NODE_TYPES.Identifier && prop.key.name === "ignoreReturnCode") || (prop.key.type === AST_NODE_TYPES.Literal && prop.key.value === "ignoreReturnCode");
     if (!isIgnoreReturnCodeKey) continue;
-    if (prop.value.type === AST_NODE_TYPES.Literal && prop.value.value === true) return true;
+    ignoreReturnCode = prop.value.type === AST_NODE_TYPES.Literal && typeof prop.value.value === "boolean" ? prop.value.value : "unresolved";
   }
 
-  return false;
+  return ignoreReturnCode === true;
 }
 
 function isExitCodeMemberAccess(memberExpression: TSESTree.MemberExpression, object: TSESTree.Node): boolean {
@@ -47,6 +50,19 @@ function isExitCodeMemberAccess(memberExpression: TSESTree.MemberExpression, obj
   }
 
   return memberExpression.property.type === AST_NODE_TYPES.Literal && memberExpression.property.value === "exitCode";
+}
+
+function isReturnedFromFunctionExpression(node: TSESTree.Node): boolean {
+  const parent = node.parent;
+  if (!parent) return false;
+  if (parent.type === AST_NODE_TYPES.ArrowFunctionExpression && parent.body === node) return true;
+  if (parent.type !== AST_NODE_TYPES.ReturnStatement || parent.argument !== node) return false;
+
+  let current: TSESTree.Node | undefined = parent.parent;
+  while (current && current.type !== AST_NODE_TYPES.FunctionDeclaration && current.type !== AST_NODE_TYPES.FunctionExpression && current.type !== AST_NODE_TYPES.ArrowFunctionExpression) {
+    current = current.parent;
+  }
+  return current?.type === AST_NODE_TYPES.FunctionExpression || current?.type === AST_NODE_TYPES.ArrowFunctionExpression;
 }
 
 export const requireGetExecOutputExitCodeCheckRule = createRule({
@@ -103,7 +119,12 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
             const idParent = id.parent;
             return idParent !== undefined && idParent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(idParent, id);
           });
+          const escapesViaReturn = variable?.references.some(ref => isReturnedFromFunctionExpression(ref.identifier));
           if (!usesExitCode) {
+            // Cross-function return/value forwarding is not resolved by this rule.
+            // If the binding is returned from this function, skip reporting here to
+            // avoid false positives and let the caller-side check patterns handle it.
+            if (escapesViaReturn) return;
             context.report({ node: call, messageId: "missingExitCodeCheck" });
           }
           return;
@@ -112,8 +133,28 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
         return;
       }
 
+      // let result; result = await getExecOutput(...); if (result.exitCode !== 0) ...
+      if (parent.type === AST_NODE_TYPES.AssignmentExpression && parent.right === resultNode && parent.left.type === AST_NODE_TYPES.Identifier) {
+        const variable = findInUpperScopes(context.sourceCode.getScope(parent), parent.left.name);
+        const usesExitCode = variable?.references.some(ref => {
+          const id = ref.identifier;
+          const idParent = id.parent;
+          return idParent !== undefined && idParent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(idParent, id);
+        });
+        if (!usesExitCode) {
+          context.report({ node: call, messageId: "missingExitCodeCheck" });
+        }
+        return;
+      }
+
       // Direct member access: (await getExecOutput(...)).exitCode
       if (parent.type === AST_NODE_TYPES.MemberExpression && isExitCodeMemberAccess(parent, resultNode)) {
+        return;
+      }
+
+      // Cross-function return/value forwarding isn't resolved at this callsite.
+      // Skip to avoid false positives for helper/callback-return wrappers.
+      if (isReturnedFromFunctionExpression(resultNode)) {
         return;
       }
 

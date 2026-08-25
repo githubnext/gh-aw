@@ -570,21 +570,37 @@ func TestFormalStagedMode(t *testing.T) {
 	assert.Equal(t, "true", string(*cfg.Staged))
 }
 
+type formalRunReplaceLabelOpts struct {
+	Staged      bool
+	LabelToAdd  string
+	AllowedAdd  []string
+	Blocked     []string
+	BeforeWrite func() []string
+	OnWrite     func()
+}
+
 // formalRunReplaceLabel models the core execute path of the replace_label handler.
-// onWrite is invoked exactly once when the handler would call the write API
+// OnWrite is invoked exactly once when the handler would call the write API
 // (issues.setLabels). In staged mode the handler must return before reaching
-// onWrite; this is the invariant asserted by TestFormalStagedMode_NoWriteAPI.
-func formalRunReplaceLabel(staged bool, onWrite func()) formalReplaceLabelOutcome {
-	if staged {
+// OnWrite; this is the invariant asserted by TestFormalStagedMode_NoWriteAPI.
+func formalRunReplaceLabel(opts formalRunReplaceLabelOpts) formalReplaceLabelOutcome {
+	if opts.Staged {
 		return formalReplaceLabelOutcome{Success: true, Staged: true}
 	}
-	onWrite()
+	blocked := opts.Blocked
+	if opts.BeforeWrite != nil {
+		blocked = opts.BeforeWrite()
+	}
+	if err := formalValidateSingleLabel(opts.LabelToAdd, opts.AllowedAdd, blocked, "label_to_add"); err != nil {
+		return formalReplaceLabelOutcome{Success: false}
+	}
+	opts.OnWrite()
 	return formalReplaceLabelOutcome{Success: true}
 }
 
 func TestFormalStagedMode_NoWriteAPI(t *testing.T) {
 	writeCalls := 0
-	outcome := formalRunReplaceLabel(true, func() { writeCalls++ })
+	outcome := formalRunReplaceLabel(formalRunReplaceLabelOpts{Staged: true, LabelToAdd: "done", OnWrite: func() { writeCalls++ }})
 	assert.True(t, outcome.Success)
 	assert.True(t, outcome.Staged)
 	assert.Zero(t, writeCalls, "staged mode must not call the write API (setLabels)")
@@ -592,10 +608,26 @@ func TestFormalStagedMode_NoWriteAPI(t *testing.T) {
 
 func TestFormalNonStagedMode_InvokesWriteAPI(t *testing.T) {
 	writeCalls := 0
-	outcome := formalRunReplaceLabel(false, func() { writeCalls++ })
+	outcome := formalRunReplaceLabel(formalRunReplaceLabelOpts{LabelToAdd: "done", OnWrite: func() { writeCalls++ }})
 	assert.True(t, outcome.Success)
 	assert.False(t, outcome.Staged)
 	assert.Equal(t, 1, writeCalls, "non-staged mode must invoke the write API exactly once")
+}
+
+func TestFormalBlockedLabelAddedViaReplaceLabelMidBlocklistChange_NoWriteAPI(t *testing.T) {
+	writeCalls := 0
+	outcome := formalRunReplaceLabel(formalRunReplaceLabelOpts{
+		LabelToAdd: "done",
+		AllowedAdd: []string{"done"},
+		Blocked:    []string{},
+		BeforeWrite: func() []string {
+			return []string{"done"}
+		},
+		OnWrite: func() { writeCalls++ },
+	})
+
+	assert.False(t, outcome.Success)
+	assert.Zero(t, writeCalls, "label_to_add blocked before setLabels must be rejected without calling the write API")
 }
 
 func TestFormalSingleRESTCall(t *testing.T) {
