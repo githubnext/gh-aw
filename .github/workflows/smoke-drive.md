@@ -3,6 +3,7 @@ private: true
 emoji: "💾"
 description: Smoke test workflow that validates experimental GitHub Drives memory
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-drive
     strategy: centralized

@@ -2,7 +2,8 @@
 private: true
 emoji: "🧪"
 description: Smoke Copilot - AOAI (Entra)
-on: 
+on:
+  schedule: every 2 days
   slash_command:
     name: smoke-copilot-aoai-entra
     strategy: centralized

@@ -3,6 +3,7 @@ private: true
 emoji: "🌸"
 description: Smoke Copilot Auto — generates a haiku and posts it as a PR comment
 on:
+  schedule: every 2 days
   label_command:
     name: smoke
     events: [pull_request]
