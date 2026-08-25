@@ -37,16 +37,22 @@ type enclaveGitHubPolicyRepository struct {
 	Sensitivity string `json:"sensitivity"`
 }
 
-var enclaveGitHubIssuesOperations = []string{
-	"issues.comments.list",
-	"issues.get",
-	"issues.list",
+var enclaveGitHubProfileOperations = map[string][]string{
+	enclaveGitHubIssuesProfile: {
+		"issues.comments.list",
+		"issues.get",
+		"issues.list",
+	},
 }
 
 func buildEnclaveGitHubProxyPolicyJSON(workflowData *WorkflowData, workflowRunID string) (string, error) {
 	enclave := enclaveGitHubIssuesConfig(workflowData)
 	if enclave == nil {
 		return "", nil
+	}
+	operations, err := operationsForEnclaveGitHubProfile(enclaveGitHubIssuesProfile)
+	if err != nil {
+		return "", err
 	}
 
 	repositories := make([]enclaveGitHubPolicyRepository, 0, len(enclave.Repos))
@@ -64,7 +70,7 @@ func buildEnclaveGitHubProxyPolicyJSON(workflowData *WorkflowData, workflowRunID
 		Audience:               enclaveGitHubProxyAudience,
 		Repositories:           repositories,
 		PublicMinimumIntegrity: effectivePrimaryGitHubIntegrityFloor(workflowData),
-		AllowedOperations:      enclaveGitHubIssuesOperations,
+		AllowedOperations:      operations,
 		MaxCapabilityTTL:       enclaveGitHubProxyMaxTTL,
 	}
 	policyJSON, err := json.Marshal(policy)
@@ -72,6 +78,14 @@ func buildEnclaveGitHubProxyPolicyJSON(workflowData *WorkflowData, workflowRunID
 		return "", fmt.Errorf("failed to marshal enclave GitHub proxy policy: %w", err)
 	}
 	return string(policyJSON), nil
+}
+
+func operationsForEnclaveGitHubProfile(profile string) ([]string, error) {
+	operations, ok := enclaveGitHubProfileOperations[profile]
+	if !ok {
+		return nil, fmt.Errorf("unsupported enclave GitHub profile: %s", profile)
+	}
+	return operations, nil
 }
 
 func effectivePrimaryGitHubIntegrityFloor(workflowData *WorkflowData) string {

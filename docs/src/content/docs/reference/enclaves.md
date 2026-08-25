@@ -83,6 +83,11 @@ AWF-owned PAT-free local CLI proxy to the enclave. Neither the primary agent
 nor the enclave receives the PAT, mcpg address, root key, container identity,
 CA path, or repository catalog.
 
+Provide `GH_AW_GITHUB_MCP_SERVER_TOKEN` or `GH_AW_GITHUB_TOKEN` with read access
+to the assigned repository's Issues. The fallback `GITHUB_TOKEN` can only
+access repositories that token can already read (typically just the current
+repository in Actions).
+
 The initial integration gates are AWF `v0.28.6` and mcpg `v0.4.11`. These are
 provisional first-supporting versions coordinated with the sibling projects;
 the compiler does not fall back to older versions, and the profile cannot run

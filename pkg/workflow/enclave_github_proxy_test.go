@@ -125,6 +125,7 @@ func TestEnclaveGitHubProxyScriptsEnforceDedicatedBridgeContract(t *testing.T) {
 	assert.NotContains(t, start, `--arg workflow_run_id "$GITHUB_RUN_ID"`)
 	assert.NotContains(t, start, "--enclave-profile")
 	assert.Contains(t, start, `PORT="18443"`)
+	assert.Contains(t, start, `MCP_LOG_DIR="${RUNNER_TEMP:-/tmp}/gh-aw/enclave-github-proxy-logs"`)
 	assert.Contains(t, start, `-e MCP_GATEWAY_ENCLAVE_POLICY_JSON`)
 	assert.Contains(t, start, `-e MCP_GATEWAY_ENCLAVE_CAPABILITY_KEY`)
 	assert.Contains(t, start, `rm -rf "${MCP_LOG_DIR}/proxy-tls"`)
@@ -160,6 +161,14 @@ func TestEnclaveGitHubProxyVersionGates(t *testing.T) {
 	t.Run("old MCPG rejected", func(t *testing.T) {
 		data := enclaveGitHubIssuesWorkflowData()
 		data.SandboxConfig.MCP.Version = "v0.4.10"
+		err := validateEnclavesConfig(data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), string(constants.MCPGEnclaveGitHubIssuesMinVersion))
+	})
+
+	t.Run("nil MCP config rejected", func(t *testing.T) {
+		data := enclaveGitHubIssuesWorkflowData()
+		data.SandboxConfig.MCP = nil
 		err := validateEnclavesConfig(data)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), string(constants.MCPGEnclaveGitHubIssuesMinVersion))
