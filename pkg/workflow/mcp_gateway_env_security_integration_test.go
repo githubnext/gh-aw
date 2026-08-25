@@ -192,6 +192,11 @@ Verify MCP gateway run block does not interpolate secrets.
 	require.GreaterOrEqual(t, runIdx, 0, "expected Start MCP Gateway step to contain a run: block")
 	runBody := gatewayStep[runIdx:]
 
+	// These three expression forms are the risky patterns called out by RGS-008: a bare
+	// ${{ }} expression evaluated inline by GitHub Actions before the shell script runs.
+	// This is distinct from (and does not flag) the safe pattern of reading a value that
+	// was already passed through the step's env: mapping via a shell variable like
+	// "$GITHUB_TOKEN".
 	assert.NotContains(t, runBody, "${{ secrets.")
 	assert.NotContains(t, runBody, "${{ github.token")
 	assert.NotContains(t, runBody, "${{ env.GITHUB_TOKEN")
