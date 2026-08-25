@@ -21,9 +21,6 @@ These similarly named fields control different layers:
 | `tools.github.bounded-queries.runtime` | Selects the backend for bounded-query scripts only | `docker`, `gvisor`, `sbx` |
 | `runtimes` | Installs language toolchains such as Node.js, Python, and Go | Unrelated to agent isolation |
 
-> [!IMPORTANT]
-> Do not set `sandbox.agent.runtime: sbx`. The agent runtime value is `docker-sbx`. The shorter `sbx` value is used only by `tools.github.bounded-queries.runtime` and internally by AWF.
-
 ## Choose a runtime
 
 | Choice | Isolation boundary | Runner requirements | Main tradeoff |
@@ -333,7 +330,7 @@ The compiler uses `runner.topology: arc-dind` to enable sysroot staging, shared-
 
 If a custom `copilot-setup-steps` job installs the Copilot CLI on a runner container with `allowPrivilegeEscalation: false`, invoke `install_copilot_cli.sh --rootless`. This installs the CLI under `~/.local/bin` instead of using `sudo`.
 
-See [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/) for the runner scale-set setup.
+See [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/reference/arc-dind-copilot-agent/) for the runner scale-set setup.
 
 ### ARC DinD tradeoffs
 
