@@ -29,13 +29,21 @@ tools:
   bash:
     - "cat *"
     - "ls *"
+    - "curl *"
+    - "base64 *"
 
-network: defaults
+network:
+  allowed:
+    - defaults
+    - arxiv.org
+    - export.arxiv.org
 
 imports:
   - shared/crush.md
+  - shared/mcp/kreuzberg.md
 
 safe-outputs:
+  allowed-domains: ["arxiv.org", "export.arxiv.org"]
   create-discussion:
     category: "research"
     expires: 14d
@@ -158,11 +166,17 @@ If `new_count` is 0, call `noop` with message:
 "No new arXiv papers today — all N previously processed."
 Then stop immediately.
 
+## Step 1b: Investigate Paper PDFs
+
+For each paper in `papers`, invoke the `preliminary-investigator` sub-agent with its full paper object. Merge the returned `pdf_fetched` and `preliminary_note` fields into that paper object.
+
+PDF extraction failures are non-fatal: continue screening and ranking with an empty `preliminary_note` when `pdf_fetched` is `false`.
+
 ## Step 2: Screen Papers for Relevance
 
 For each paper in `papers`, invoke the `paper-screener` sub-agent with input:
 ```json
-{"title": "...", "abstract": "..."}
+{"title": "...", "abstract": "...", "preliminary_note": "..."}
 ```
 
 Collect only papers where the screener returns `{"relevant": true, ...}`.
@@ -175,7 +189,7 @@ Stop after the ledger update.
 
 For each relevant paper, invoke the `relevance-ranker` sub-agent with:
 ```json
-{"title": "...", "abstract": "..."}
+{"title": "...", "abstract": "...", "preliminary_note": "..."}
 ```
 
 Sort ranked papers by `score` descending. Keep only the top 3.
@@ -240,6 +254,23 @@ Do not end with a plain-text summary only. The final action in the run must be o
 
 ---
 
+## agent: `preliminary-investigator`
+---
+description: Extracts a concise evidence-based note from an arXiv paper PDF
+model: small
+---
+
+Investigate an arXiv paper beyond its abstract before relevance screening.
+
+Input: a full paper JSON object containing `id`, `title`, and `url`.
+
+1. Download `https://arxiv.org/pdf/<id>` to `/tmp/gh-aw/agent/arxiv/<id>.pdf` with `curl`. If the download fails, return `{"pdf_fetched": false, "preliminary_note": ""}`.
+2. Use the `kreuzberg` MCP server's `extract_bytes` tool with the PDF's base64 content to extract its text. If extraction fails or produces no text, return `{"pdf_fetched": false, "preliminary_note": ""}`.
+3. Read only enough extracted text to identify techniques, mechanisms, evaluation results, or implementation details that could apply to gh-aw but are absent from the abstract.
+
+Output exactly one line of valid JSON — no other text:
+`{"pdf_fetched": true, "preliminary_note": "one or two concise sentences"}`
+
 ## agent: `paper-screener`
 ---
 description: Fast relevance screening of arXiv paper abstracts for GitHub Agentic Workflows
@@ -264,7 +295,7 @@ gh-aw compiles markdown workflow files into GitHub Actions YAML, uses AI agents 
 - Computer vision, speech, or domain-specific scientific tasks
 - Medical, biological, or physical science applications
 
-Input: `{"title": "...", "abstract": "..."}` as a JSON string.
+Input: `{"title": "...", "abstract": "...", "preliminary_note": "..."}` as a JSON string. Consider the preliminary note when present; do not reject a paper solely because the abstract is weak when the note identifies a relevant technique.
 
 Output: exactly one line of valid JSON — no other text:
 `{"relevant": true, "reason": "one sentence"}` or `{"relevant": false, "reason": "one sentence"}`
@@ -286,7 +317,7 @@ Score 1–5:
 - 2: tangential; only marginally relevant to gh-aw
 - 1: relevant to AI/agents generally but no clear gh-aw application
 
-Input: `{"title": "...", "abstract": "..."}` as a JSON string.
+Input: `{"title": "...", "abstract": "...", "preliminary_note": "..."}` as a JSON string. Consider the preliminary note when present.
 
 Output: exactly one line of valid JSON — no other text:
 `{"score": <1-5>, "reason": "one sentence"}`
