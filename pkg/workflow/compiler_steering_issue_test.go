@@ -13,7 +13,7 @@ func steeringTestData() *WorkflowData {
 		Name:            "Steering test",
 		MarkdownContent: "# Test",
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
+			Steer: true,
 		},
 	}
 }
@@ -59,8 +59,8 @@ func TestValidateSteeringIssue(t *testing.T) {
 		{
 			name: "supports normal pull request options",
 			data: &WorkflowData{CheckoutDisabled: true, SafeOutputs: &SafeOutputsConfig{
+				Steer: true,
 				CreatePullRequests: &CreatePullRequestsConfig{
-					Steer:               true,
 					TargetRepoSlug:      "owner/repo",
 					AllowedBranches:     []string{"feature/*"},
 					AllowedBaseBranches: []string{"release/*"},
@@ -70,16 +70,16 @@ func TestValidateSteeringIssue(t *testing.T) {
 		{
 			name: "failure issue repo",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
-				FailureIssueRepo:   "owner/repo",
-				CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
+				Steer:            true,
+				FailureIssueRepo: "owner/repo",
 			}},
 			wantErr: "failure-issue-repo",
 		},
 		{
 			name: "expression staged",
 			data: &WorkflowData{SafeOutputs: &SafeOutputsConfig{
-				Staged:             &expression,
-				CreatePullRequests: &CreatePullRequestsConfig{Steer: true},
+				Steer:  true,
+				Staged: &expression,
 			}},
 			wantErr: "expression-valued staged option",
 		},

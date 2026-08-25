@@ -54,8 +54,8 @@ tools:
   edit:
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 1d
     title-prefix: "[community] "
     labels: [community, automation]

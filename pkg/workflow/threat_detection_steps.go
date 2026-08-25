@@ -215,8 +215,8 @@ func (c *Compiler) buildCopyDetectionFirewallLogsStep(data *WorkflowData) []stri
 		return nil
 	}
 
-	proxyLogsDir := constants.AWFProxyLogsDir
-	auditDir := constants.AWFAuditDir
+	proxyLogsDir := constants.AWFProxyLogsDir.String()
+	auditDir := constants.AWFAuditDir.String()
 	if isArcDindTopology(data) {
 		proxyLogsDir = rewriteArcDindPath(proxyLogsDir)
 		auditDir = rewriteArcDindPath(auditDir)
@@ -502,7 +502,7 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 // same reusable workflow is called multiple times within a single workflow run.
 // The prefix comes from the agent job output since the detection job depends on the agent job.
 func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
-	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
+	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName.String()
 	steps := []string{
 		"      - name: Upload threat detection log\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),

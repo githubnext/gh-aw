@@ -42,7 +42,7 @@ func ensureEvalsResultsFromBranch(ctx context.Context, run WorkflowRun, runDir, 
 		}
 		return false
 	}
-	decoded, err := readRemoteRepoBranchFileContext(ctx, repoOverride, refName, constants.EvalsResultFilename, host)
+	decoded, err := readRemoteRepoBranchFileContext(ctx, repoOverride, refName, constants.EvalsResultFilename.String(), host)
 	if err != nil {
 		if !isRemoteFileNotFound(err) {
 			logsOrchestratorLog.Printf("Failed to fetch evals branch file for run %d: branch=%s ref=%s repo=%s err=%v", run.DatabaseID, branchName, refName, repoOverride, err)
@@ -55,7 +55,7 @@ func ensureEvalsResultsFromBranch(ctx context.Context, run WorkflowRun, runDir, 
 		return false
 	}
 
-	dest := filepath.Join(runDir, constants.EvalsResultFilename)
+	dest := filepath.Join(runDir, constants.EvalsResultFilename.String())
 	if writeErr := os.WriteFile(dest, decoded, constants.FilePermPublic); writeErr != nil {
 		logsOrchestratorLog.Printf("Failed to write evals branch file for run %d: %v", run.DatabaseID, writeErr)
 		return false

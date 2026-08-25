@@ -566,7 +566,7 @@ func extractStepEnvLines(step GitHubActionStep) []string {
 // downloadable workflow artifact would create a secret-exfiltration path. It stays on the
 // runner's filesystem and is only ever inspected in-job (e.g. by the conclude step).
 func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string {
-	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
+	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName.String()
 	steps := []string{
 		"      - name: Upload threat detection artifact\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),

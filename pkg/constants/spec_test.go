@@ -236,10 +236,10 @@ func TestSpec_NetworkPorts_Values(t *testing.T) {
 		{name: "MinNetworkPort", actual: constants.MinNetworkPort, expected: 1},
 		// From spec: MaxNetworkPort // 65535
 		{name: "MaxNetworkPort", actual: constants.MaxNetworkPort, expected: 65535},
-		// From spec: ClaudeLLMGatewayPort // 10000
-		{name: "ClaudeLLMGatewayPort", actual: constants.ClaudeLLMGatewayPort, expected: 10000},
-		// From spec: CodexLLMGatewayPort // 10001
-		{name: "CodexLLMGatewayPort", actual: constants.CodexLLMGatewayPort, expected: 10001},
+		// From spec: CodexLLMGatewayPort // 10000
+		{name: "CodexLLMGatewayPort", actual: constants.CodexLLMGatewayPort, expected: 10000},
+		// From spec: ClaudeLLMGatewayPort // 10001
+		{name: "ClaudeLLMGatewayPort", actual: constants.ClaudeLLMGatewayPort, expected: 10001},
 		// From spec: CopilotLLMGatewayPort // 10002
 		{name: "CopilotLLMGatewayPort", actual: constants.CopilotLLMGatewayPort, expected: 10002},
 		// From spec: GeminiLLMGatewayPort // 10003
@@ -506,11 +506,11 @@ func TestSpec_URLConstants_Values(t *testing.T) {
 func TestSpec_AWFConstants_Values(t *testing.T) {
 	t.Parallel()
 	// From spec: AWFDefaultCommand // "awf" (strict mode default; legacy mode uses AWFLegacySecurityCommand)
-	assert.Equal(t, "awf", constants.AWFDefaultCommand,
+	assert.Equal(t, "awf", constants.AWFDefaultCommand.String(),
 		"AWFDefaultCommand should be 'awf' for strict security mode")
 
 	// From spec: AWFProxyLogsDir // "/tmp/gh-aw/sandbox/firewall/logs"
-	assert.Equal(t, "/tmp/gh-aw/sandbox/firewall/logs", constants.AWFProxyLogsDir,
+	assert.Equal(t, "/tmp/gh-aw/sandbox/firewall/logs", constants.AWFProxyLogsDir.String(),
 		"AWFProxyLogsDir should match the documented value")
 
 	// From spec: AWFProxyLogsDirExpr // "${{ runner.temp }}/gh-aw/sandbox/firewall/logs"
@@ -522,7 +522,7 @@ func TestSpec_AWFConstants_Values(t *testing.T) {
 		"AWFProxyLogsDirShell should match the documented value")
 
 	// From spec: AWFAuditDir // "/tmp/gh-aw/sandbox/firewall/audit"
-	assert.Equal(t, "/tmp/gh-aw/sandbox/firewall/audit", constants.AWFAuditDir,
+	assert.Equal(t, "/tmp/gh-aw/sandbox/firewall/audit", constants.AWFAuditDir.String(),
 		"AWFAuditDir should match the documented value")
 
 	// From spec: AWFAuditDirExpr // "${{ runner.temp }}/gh-aw/sandbox/firewall/audit"

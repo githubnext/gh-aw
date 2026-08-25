@@ -227,9 +227,9 @@ func (c *Compiler) buildGitHubScriptStepCommon(data *WorkflowData, config GitHub
 func buildAgentOutputDownloadSteps(prefix string, pinAction func(string) string) []string {
 	safeOutputsStepsLog.Printf("Building agent output download steps with prefix: %q", prefix)
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName:     prefix + constants.AgentArtifactName,               // Unified agent artifact (prefixed in workflow_call)
-		FallbackArtifact: prefix + constants.AgentOutputFallbackArtifactName, // Tiny fallback copy of the agent output
-		ArtifactFilename: constants.AgentOutputFilename,                      // Filename inside the artifact directory
+		ArtifactName:     prefix + constants.AgentArtifactName.String(),               // Unified agent artifact (prefixed in workflow_call)
+		FallbackArtifact: prefix + constants.AgentOutputFallbackArtifactName.String(), // Tiny fallback copy of the agent output
+		ArtifactFilename: constants.AgentOutputFilename.String(),                      // Filename inside the artifact directory
 		DownloadPath:     constants.TmpGhAwDirSlash,
 		SetupEnvStep:     true,
 		EnvVarName:       "GH_AW_AGENT_OUTPUT",
@@ -246,7 +246,7 @@ func buildAgentOutputDownloadSteps(prefix string, pinAction func(string) string)
 func buildDetectionArtifactDownloadSteps(prefix string, pinAction func(string) string) []string {
 	safeOutputsStepsLog.Printf("Building detection artifact download steps with prefix: %q", prefix)
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: prefix + constants.DetectionArtifactName,
+		ArtifactName: prefix + constants.DetectionArtifactName.String(),
 		DownloadPath: constants.ThreatDetectionDir + "/",
 		StepName:     "Download detection artifact",
 		StepID:       "download-detection-artifact",

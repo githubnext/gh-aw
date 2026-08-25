@@ -4,18 +4,6 @@ This prompt guides you, a coding agent, to debug workflow failures in **GitHub A
 
 ## How to Use This Prompt
 
-There are two ways to invoke this debugging workflow:
-
-### Option A: Through Copilot
-
-If your repository is configured with the `agentic-workflows` skill, use Copilot Chat:
-
-```text
-agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
-```
-
-### Option B: Self-Contained (with URL)
-
 Share this file's URL with any AI assistant or coding agent:
 
 ```text

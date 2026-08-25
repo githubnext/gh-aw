@@ -11,6 +11,7 @@ import (
 )
 
 func TestNilCtxPassed(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, nilctxpassed.Analyzer, "nilctxpassed", "nilctxpassed_noctx")
 }

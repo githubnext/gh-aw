@@ -26,6 +26,7 @@ imports:
   - shared/safe-output-upload-artifact.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/graders.md
 sandbox:
   agent:
     runtime: gvisor
@@ -61,6 +62,7 @@ evals:
     question: Did the multi-agent panel evaluate the proposed technical approach?
   - id: validation_feedback_provided
     question: Was structured feedback produced from the Devil's Advocate, Alternatives Scout, Implementation Estimator, and Dead End Detector agents?
+
 ---
 
 # Approach Validator 🔬

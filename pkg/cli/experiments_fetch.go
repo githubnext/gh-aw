@@ -59,7 +59,7 @@ func loadLocalEvalResultsData(workflowID string) []byte {
 		experimentsLog.Printf("Rejecting unsafe git ref: %q", ref)
 		return nil
 	}
-	objectArg, err := buildSafeGitShowObjectArg(ref, constants.EvalsResultFilename)
+	objectArg, err := buildSafeGitShowObjectArg(ref, constants.EvalsResultFilename.String())
 	if err != nil {
 		experimentsLog.Printf("Rejecting unsafe git show argument (ref=%q file=%q): %v", ref, constants.EvalsResultFilename, err)
 		return nil
@@ -74,7 +74,7 @@ func loadLocalEvalResultsData(workflowID string) []byte {
 
 func loadRemoteEvalResultsData(repoOverride, workflowID string) []byte {
 	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
-	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, constants.EvalsResultFilename, "")
+	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, constants.EvalsResultFilename.String(), "")
 	if err != nil {
 		return nil
 	}

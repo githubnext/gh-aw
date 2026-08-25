@@ -38,6 +38,7 @@ type BaseSafeOutputConfig struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
+	Steer                                  bool                                   `yaml:"steer,omitempty"` // Experimental. Create an issue and steer the agent from issue comments.
 	CreateIssues                           *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
 	CreateDiscussions                      *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
 	UpdateDiscussions                      *UpdateDiscussionsConfig               `yaml:"update-discussion,omitempty"`

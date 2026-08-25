@@ -613,6 +613,17 @@ The diff output shows: new or removed network domains, status changes (allowed â
 
 **Options:** `--artifacts`, `--format` (pretty, markdown; default: pretty), `--json/-j`, `--output/-o`, `--repo/-r`
 
+#### `graders`
+
+Inspect and replay workflow graders. `graders operational-value` regrades the operational-value observation from a completed workflow run at an explicit evidence cutoff. It verifies and executes the evaluator archived by the run without modifying the original artifact.
+
+```bash wrap
+gh aw graders operational-value 123456789 \
+  --evidence-at 2026-08-30T12:00:00.000Z --json
+```
+
+**Options:** `--evidence-at` (required), `--json/-j`, `--repo/-r`
+
 #### `outcomes`
 
 Check what happened to a workflow run's safe outputs (accepted, rejected, ignored, or pending).

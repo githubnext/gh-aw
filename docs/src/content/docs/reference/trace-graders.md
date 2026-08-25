@@ -70,7 +70,7 @@ The compiler freezes the evaluator bytes and records their SHA-256 digest. The e
 
 Each result records the complete run subject, operational case, evidence time, maturity, and provenance. Operational-value evaluators may query the repositories declared by their frozen evidence contract. They receive the workflow token through `GH_TOKEN` with the agent job's explicitly declared permissions, but do not receive workflow secrets. Enabling the grader does not add evidence permissions to the agent job.
 
-Use the `aw-value` skill to design and verify an operational-value evaluator.
+Use the `operational value designer` skill (`/operational-value-designer`) to infer operational value from an agentic workflow and design and verify an operational-value evaluator.
 
 ### Regrade a historical run
 

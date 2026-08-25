@@ -32,7 +32,7 @@ type AuditData struct {
 	BehaviorFingerprint     *BehaviorFingerprint     `json:"behavior_fingerprint,omitempty"`
 	AgenticAssessments      []AgenticAssessment      `json:"agentic_assessments,omitempty"`
 	Metrics                 MetricsData              `json:"metrics"`
-	KeyFindings             []Finding                `json:"key_findings,omitempty"`
+	KeyFindings             []AuditFinding           `json:"key_findings,omitempty"`
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
 	ObservabilityInsights   []ObservabilityInsight   `json:"observability_insights,omitempty"`
 	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
@@ -63,8 +63,8 @@ type AuditData struct {
 	Experiments             *ExperimentData          `json:"experiments,omitempty"`
 }
 
-// Finding represents a key insight discovered during audit
-type Finding struct {
+// AuditFinding represents a key insight discovered during audit
+type AuditFinding struct {
 	Category    string                     `json:"category"`         // e.g., "error", "performance", "cost", "tooling"
 	Severity    scanfindings.SeverityLevel `json:"severity"`         // shared severity vocabulary
 	Title       string                     `json:"title"`            // Brief title
@@ -420,7 +420,7 @@ func buildAuditAssessments(processedRun ProcessedRun, metricsData MetricsData, t
 	return taskDomain, behaviorFingerprint, agenticAssessments
 }
 
-func buildAuditNarrative(processedRun ProcessedRun, metricsData MetricsData, errors []ValidationIssue, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, agenticAssessments []AgenticAssessment) ([]Finding, []Recommendation, []ObservabilityInsight) {
+func buildAuditNarrative(processedRun ProcessedRun, metricsData MetricsData, errors []ValidationIssue, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, agenticAssessments []AgenticAssessment) ([]AuditFinding, []Recommendation, []ObservabilityInsight) {
 	findings := generateFindings(processedRun, metricsData, errors)
 	findings = append(findings, generateAgenticAssessmentFindings(agenticAssessments)...)
 
@@ -448,7 +448,7 @@ type auditDataInputs struct {
 	taskDomain            *TaskDomainInfo
 	behaviorFingerprint   *BehaviorFingerprint
 	agenticAssessments    []AgenticAssessment
-	findings              []Finding
+	findings              []AuditFinding
 	recommendations       []Recommendation
 	observabilityInsights []ObservabilityInsight
 }
@@ -623,17 +623,18 @@ func extractCreatedItemsFromManifest(logsPath string) []CreatedItemReport {
 // describeFile provides a short description for known artifact files
 func describeFile(filename string) string {
 	descriptions := map[string]string{
-		"aw_info.json":                  "Engine configuration and workflow metadata",
-		"safe_output.jsonl":             "Safe outputs from workflow execution",
-		safeOutputItemsManifestFilename: "Created items manifest (audit trail)",
-		constants.AgentOutputFilename:   "Validated safe outputs",
-		"aw.patch":                      "Git patch of changes made during execution",
-		"agent-stdio.log":               "Agent standard output/error logs",
-		"log.md":                        "Human-readable agent session summary",
-		"firewall.md":                   "Firewall log analysis report",
-		"run_summary.json":              "Cached summary of workflow run analysis",
-		forecastAICCacheFileName:        "Cached AI Credits (AIC) value for forecasting",
-		"prompt.txt":                    "Input prompt for AI agent",
+		"aw_info.json":                         "Engine configuration and workflow metadata",
+		"safe_output.jsonl":                    "Safe outputs from workflow execution",
+		safeOutputItemsManifestFilename:        "Created items manifest (audit trail)",
+		constants.SafeOutputErrorsFilename:     "Safe outputs failure diagnostics (error code, message, failing types)",
+		constants.AgentOutputFilename.String(): "Validated safe outputs",
+		"aw.patch":                             "Git patch of changes made during execution",
+		"agent-stdio.log":                      "Agent standard output/error logs",
+		"log.md":                               "Human-readable agent session summary",
+		"firewall.md":                          "Firewall log analysis report",
+		"run_summary.json":                     "Cached summary of workflow run analysis",
+		forecastAICCacheFileName:               "Cached AI Credits (AIC) value for forecasting",
+		"prompt.txt":                           "Input prompt for AI agent",
 	}
 
 	if desc, ok := descriptions[filename]; ok {

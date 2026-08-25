@@ -764,12 +764,12 @@ func sortedExperimentNames(experiments map[string][]string) []string {
 // the compiler always sets a non-empty WorkflowID before this function is called.
 func experimentArtifactUploadName(data *WorkflowData, sanitizedID string) string {
 	if hasWorkflowCallTrigger(data.On) {
-		return artifactPrefixExprForActivationJob(data) + constants.ExperimentArtifactName
+		return artifactPrefixExprForActivationJob(data) + constants.ExperimentArtifactName.String()
 	}
 	if sanitizedID == "" {
-		return constants.ExperimentArtifactName
+		return constants.ExperimentArtifactName.String()
 	}
-	return sanitizedID + "-" + constants.ExperimentArtifactName
+	return sanitizedID + "-" + constants.ExperimentArtifactName.String()
 }
 
 // experimentArtifactDownloadName returns the artifact name used when downloading the experiment
@@ -781,13 +781,13 @@ func experimentArtifactUploadName(data *WorkflowData, sanitizedID string) string
 // the compiler always sets a non-empty WorkflowID before this function is called.
 func experimentArtifactDownloadName(data *WorkflowData) string {
 	if hasWorkflowCallTrigger(data.On) {
-		return artifactPrefixExprForDownstreamJob(data) + constants.ExperimentArtifactName
+		return artifactPrefixExprForDownstreamJob(data) + constants.ExperimentArtifactName.String()
 	}
 	sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
 	if sanitizedID == "" {
-		return constants.ExperimentArtifactName
+		return constants.ExperimentArtifactName.String()
 	}
-	return sanitizedID + "-" + constants.ExperimentArtifactName
+	return sanitizedID + "-" + constants.ExperimentArtifactName.String()
 }
 
 // buildExperimentArtifactDownloadSteps creates a download step for the experiment artifact.

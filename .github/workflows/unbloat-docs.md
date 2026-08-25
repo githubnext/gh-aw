@@ -73,8 +73,8 @@ tools:
 
 # Safe outputs configuration
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[docs] "
     labels: [documentation, automation, doc-unbloat]

@@ -106,6 +106,29 @@ Create custom post-processing jobs registered as Model Context Protocol (MCP) to
 
 Mount any public GitHub Action as a once-callable MCP tool. The compiler pins the action reference to a SHA at compile time and derives the tool's input schema from the action's `action.yml`. See [GitHub Action Wrappers](/gh-aw/reference/custom-safe-outputs/#github-action-wrappers-safe-outputsactions).
 
+## Steering Issues (`steer:`)
+
+:::caution[Experimental]
+`steer` is an experimental option. `gh aw compile` emits an experimental feature warning when a workflow uses it.
+:::
+
+Set `steer: true` to create a run-scoped issue during the activation job, before the agent starts. Users can add comments containing the keyword `steer` while the run is in progress. The injected prompt identifies the exact issue and instructs the agent to read relevant user-authored comments with the GitHub MCP `issue_read` tool.
+
+Steering enables the GitHub MCP issues toolset for comment reads and requires top-level `issues: read` permission. The compiler reports an error instead of adding that permission automatically.
+
+```yaml
+permissions:
+  contents: read
+  issues: read
+
+safe-outputs:
+  steer: true
+```
+
+The activation and conclusion jobs require `issues: write` through the global [`github-token`](#custom-github-token-github-token) or [`github-app`](#using-a-github-app-for-authentication-github-app) safe-output credential. On success, the conclusion job closes the steering issue and links a created pull request when available. On failure, the same issue is retitled and updated with the agent failure report instead of creating a second issue. Because reuse requires a workflow-repository issue, `steer` cannot be combined with `safe-outputs.failure-issue-repo`.
+
+In [staged mode](#staged-mode), no steering issue is created because staged runs must not perform API side effects.
+
 ### Issue Creation (`create-issue:`)
 
 Creates GitHub issues based on workflow output.

@@ -163,26 +163,20 @@ func effectiveMCPLogsToolSoftTimeoutSeconds(ctx context.Context, timeoutMinutes 
 // Returns an error if schema generation fails.
 func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	// Generate schema with elicitation defaults
-	logsSchema, err := GenerateSchema[logsArgs]()
+	logsSchema, err := generateSchemaWithDefaults[logsArgs](map[string]any{
+		"count":      defaultMCPLogsToolCount,
+		"max_tokens": 12000,
+		"artifacts":  []string{"usage"},
+	})
 	if err != nil {
 		mcpLog.Printf("Failed to generate logs tool schema: %v", err)
 		return err
-	}
-	// Add elicitation defaults for common parameters
-	if err := AddSchemaDefault(logsSchema, "count", defaultMCPLogsToolCount); err != nil {
-		mcpLog.Printf("Failed to add default for count: %v", err)
 	}
 	// No schema default for timeout: the runtime auto-computes it from the effective
 	// count and workflow_name so that no-workflow queries (which scan across all runs)
 	// receive a higher floor than single-workflow queries.  Setting a static default
 	// here would cause the go-sdk to fill it in before the handler sees the arguments,
 	// bypassing the per-request computation.
-	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
-		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
-	}
-	if err := AddSchemaDefault(logsSchema, "artifacts", []string{"usage"}); err != nil {
-		mcpLog.Printf("Failed to add default for artifacts: %v", err)
-	}
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "logs",
@@ -448,7 +442,7 @@ func normalizeAuditRunInput(input any, fieldName string) (string, bool, error) {
 // Returns an error if schema generation fails.
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	// Generate schema for audit tool
-	auditSchema, err := GenerateSchema[auditArgs]()
+	auditSchema, err := generateSchemaWithDefaults[auditArgs](nil)
 	if err != nil {
 		mcpLog.Printf("Failed to generate audit tool schema: %v", err)
 		return err
@@ -674,7 +668,7 @@ type auditDiffArgs struct {
 // registerAuditDiffTool registers the audit-diff tool with the MCP server.
 // It exposes the `gh aw audit diff` subcommand for comparing two workflow runs.
 func registerAuditDiffTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	schema, err := GenerateSchema[auditDiffArgs]()
+	schema, err := generateSchemaWithDefaults[auditDiffArgs](nil)
 	if err != nil {
 		mcpLog.Printf("Failed to generate audit-diff tool schema: %v", err)
 		return err

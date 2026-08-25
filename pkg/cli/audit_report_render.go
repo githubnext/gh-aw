@@ -232,7 +232,7 @@ func renderConsoleActionableSections(data AuditData) {
 	renderConsoleWarnings(data.Warnings)
 }
 
-func renderConsoleFindings(findings []Finding) {
+func renderConsoleFindings(findings []AuditFinding) {
 	if len(findings) == 0 {
 		return
 	}
@@ -438,8 +438,8 @@ func renderConsoleLogsPath(logsPath string) {
 }
 
 // filterActionableFindings returns findings with severity > info/success
-func filterActionableFindings(findings []Finding) []Finding {
-	var result []Finding
+func filterActionableFindings(findings []AuditFinding) []AuditFinding {
+	var result []AuditFinding
 	for _, f := range findings {
 		if f.Severity.AtLeast(scanfindings.SeverityLow) {
 			result = append(result, f)

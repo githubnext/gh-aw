@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import { createRequire } from "module";
 import {
+  main,
   loadConfig,
   loadHandlers,
   processMessages,
@@ -39,12 +40,19 @@ describe("Safe Output Handler Manager", () => {
 
   afterEach(() => {
     // Clean up environment variables
+    delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
     delete process.env.GH_AW_TRACKER_LABEL;
     delete process.env.GH_AW_SAFE_OUTPUT_JOBS;
     delete process.env.GH_AW_SAFE_OUTPUT_SCRIPTS;
+    delete process.env.GH_AW_SAFE_OUTPUT_ACTIONS;
     delete process.env.GH_AW_DETECTION_CONCLUSION;
+    delete process.env.RUNNER_TEMP;
+    delete global.github;
+    delete global.context;
     fs.rmSync("/tmp/gh-aw/comment-memory", { recursive: true, force: true });
+    fs.rmSync("/tmp/gh-aw/safe-output-errors.json", { force: true });
+    fs.rmSync("/tmp/gh-aw/actions", { recursive: true, force: true });
   });
 
   describe("loadConfig", () => {
@@ -62,6 +70,64 @@ describe("Safe Output Handler Manager", () => {
       expect(result).toHaveProperty("add_comment");
       expect(result.create_issue).toEqual({ max: 5 });
       expect(result.add_comment).toEqual({ max: 1 });
+    });
+
+    describe("main failure diagnostics artifact", () => {
+      it("writes safe-output-errors.json when message processing has fatal failures", async () => {
+        process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = "{}";
+        process.env.GH_AW_SAFE_OUTPUT_SCRIPTS = JSON.stringify({ custom_fail: "custom_fail_handler.cjs" });
+        global.context = {};
+        global.github = {
+          rest: {
+            rateLimit: {
+              get: vi.fn().mockResolvedValue({
+                data: {
+                  resources: {
+                    core: {
+                      remaining: 5000,
+                      limit: 5000,
+                      reset: Math.floor(Date.now() / 1000) + 60,
+                    },
+                  },
+                },
+              }),
+            },
+          },
+          graphql: vi.fn(),
+        };
+
+        const scriptDir = "/tmp/gh-aw/actions";
+        fs.mkdirSync(scriptDir, { recursive: true });
+        fs.writeFileSync(`${scriptDir}/custom_fail_handler.cjs`, `module.exports = { main: async () => async () => ({ success: false, errorCode: "ERR_API", error: "script failure" }) };`);
+
+        const outputFile = "/tmp/gh-aw/custom-failure-agent-output.json";
+        fs.writeFileSync(outputFile, JSON.stringify({ items: [{ type: "custom_fail" }] }));
+        process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+        await main();
+
+        expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("safe output(s) failed"));
+        expect(fs.existsSync("/tmp/gh-aw/safe-output-errors.json")).toBe(true);
+
+        const report = JSON.parse(fs.readFileSync("/tmp/gh-aw/safe-output-errors.json", "utf8"));
+        expect(report.errorCode).toBe("E099");
+        expect(report.message).toContain("custom_fail");
+        expect(report.failures).toEqual([{ type: "custom_fail", error: "script failure" }]);
+      });
+
+      it("writes safe-output-errors.json when main hits the catch path", async () => {
+        delete process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
+
+        await main();
+
+        expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_VALIDATION: Handler manager failed"));
+        expect(fs.existsSync("/tmp/gh-aw/safe-output-errors.json")).toBe(true);
+
+        const report = JSON.parse(fs.readFileSync("/tmp/gh-aw/safe-output-errors.json", "utf8"));
+        expect(report.errorCode).toBe("ERR_VALIDATION");
+        expect(report.message).toContain("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable is required but not set");
+        expect(report.failures).toEqual([]);
+      });
     });
 
     describe("temporary ID dependency ordering", () => {
