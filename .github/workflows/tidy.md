@@ -39,8 +39,8 @@ tools:
   bash: ["make:*", "git restore:*", "git status"]
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[tidy] "
     labels: [automation, maintenance]

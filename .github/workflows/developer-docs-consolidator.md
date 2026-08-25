@@ -22,8 +22,8 @@ imports:
 - shared/mcp/serena-go.md
 - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     draft: false
     expires: 2d
     labels:

@@ -27,8 +27,8 @@ tools:
   bash:
     - "*"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[test-parallel] "
     labels: [automation, testing]
     draft: true

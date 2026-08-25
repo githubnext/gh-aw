@@ -36,8 +36,8 @@ tools:
   edit:
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     draft: true
     expires: 14d
     title-prefix: "[trajectory-grader] "

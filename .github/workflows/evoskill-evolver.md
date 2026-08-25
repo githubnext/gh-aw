@@ -30,8 +30,8 @@ tools:
     - "mkdir -p /tmp/gh-aw/cache-memory"
     - "python3 *"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[evoskill] "
     labels: [automation, prompt-quality]
     expires: 7d
