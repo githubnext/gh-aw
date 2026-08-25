@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -208,7 +209,7 @@ func mergeJobStepField(mainJob map[string]any, importedJob map[string]any, field
 		return append([]any(nil), mainSteps...), true
 	}
 
-	mergedSteps := make([]any, 0, safeAllocationCapacity(len(importedSteps), len(mainSteps)))
+	mergedSteps := make([]any, 0, typeutil.SafeAllocationCapacity(len(importedSteps), len(mainSteps)))
 	mergedSteps = append(mergedSteps, importedSteps...)
 	mergedSteps = append(mergedSteps, mainSteps...)
 	return mergedSteps, true

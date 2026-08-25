@@ -22,8 +22,8 @@ func TestBuildInitialWorkflowData_BasicFields(t *testing.T) {
 
 	// Mock frontmatter result
 	frontmatterResult := &parser.FrontmatterResult{
-		Frontmatter:      map[string]any{"description": "Test workflow", "source": "test-source"},
-		FrontmatterLines: []string{"description: Test workflow", "source: test-source"},
+		Frontmatter:      map[string]any{"description": "Test workflow", "metadata": map[string]any{"docs": "https://docs.example.com/test-workflow"}, "source": "test-source"},
+		FrontmatterLines: []string{"description: Test workflow", "metadata:", "  docs: https://docs.example.com/test-workflow", "source: test-source"},
 		Markdown:         "# Test\n\nContent",
 	}
 
@@ -68,6 +68,7 @@ func TestBuildInitialWorkflowData_BasicFields(t *testing.T) {
 	assert.Equal(t, "Test Workflow", workflowData.Name)
 	assert.Equal(t, "Test Frontmatter Name", workflowData.FrontmatterName)
 	assert.Equal(t, "Test workflow", workflowData.Description)
+	assert.Equal(t, "https://docs.example.com/test-workflow", workflowData.Docs)
 	assert.Equal(t, "test-source", workflowData.Source)
 	assert.Equal(t, "TRACKER-123", workflowData.TrackerID)
 	assert.Equal(t, []string{"/imported/file"}, workflowData.ImportedFiles)

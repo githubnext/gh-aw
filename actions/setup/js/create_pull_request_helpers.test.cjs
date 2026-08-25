@@ -2,6 +2,10 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { createRequire } from "module";
 import crypto from "crypto";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { spawnSync } from "child_process";
 
 const require = createRequire(import.meta.url);
 
@@ -32,7 +36,25 @@ const {
   generatePatchPreview,
   buildManifestProtectionCreatePrUrl,
   buildPushErrorSection,
+  buildManualBranchRecoveryCommands,
+  buildManualBranchApplyCommands,
 } = require("./create_pull_request_helpers.cjs");
+
+function runGit(args, cwd) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  expect(result.status, `git ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
+  return result.stdout.trim();
+}
+
+function runShell(script, cwd) {
+  const result = spawnSync("bash", ["-c", `set -euo pipefail\n${script}`], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  expect(result.status, `shell failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}\nscript:\n${script}`).toBe(0);
+  return result.stdout.trim();
+}
+
+function skipArtifactDownload(commands) {
+  return commands.replace(/^gh run download .*$/m, "# artifact already downloaded");
+}
 
 describe("create_pull_request_helpers - constants", () => {
   it("MANAGED_FALLBACK_ISSUE_LABEL is the correct triage label", () => {
@@ -125,6 +147,117 @@ describe("createBundleTempRef", () => {
 
     expect(ref1).toBe("refs/bundles/create-pr-same-branch-aabbccdd");
     expect(ref2).toBe("refs/bundles/create-pr-same-branch-11223344");
+  });
+});
+
+describe("manual branch recovery/apply commands", () => {
+  it("shell-quotes dynamic recovery arguments and resolves bundle heads", () => {
+    const commands = buildManualBranchRecoveryCommands({
+      hasBundleFile: true,
+      runId: "123; echo injected",
+      artifactFileName: "agent'changes.bundle",
+      branchName: "feature/branch'; echo injected",
+      baseBranch: "main",
+      tempRef: "refs/bundles/tmp'; echo injected",
+    });
+
+    expect(commands).toContain("git bundle list-heads");
+    expect(commands).toContain('$2 == "HEAD"');
+    expect(commands).toContain("gh run download '123; echo injected' -n agent -D '/tmp/agent-123; echo injected'");
+    expect(commands).toContain("bundle_path='/tmp/agent-123; echo injected/agent'\\''changes.bundle'");
+    expect(commands).toContain("target_ref='refs/heads/feature/branch'\\''; echo injected'");
+    expect(commands).not.toContain("refs/heads/feature/branch'; echo injected:");
+  });
+
+  it("manual recovery bundle commands work with a real HEAD-only bundle", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "manual-recovery-head-bundle-"));
+    const artifactRunId = `head-only-recovery-${process.pid}-${Date.now()}`;
+    const artifactDir = path.join(os.tmpdir(), `agent-${artifactRunId}`);
+
+    try {
+      const workDir = path.join(tempRoot, "work");
+      const targetDir = path.join(tempRoot, "target");
+      fs.mkdirSync(artifactDir, { recursive: true });
+      fs.mkdirSync(workDir, { recursive: true });
+      fs.mkdirSync(targetDir, { recursive: true });
+
+      runGit(["init"], workDir);
+      runGit(["config", "user.email", "test@example.com"], workDir);
+      runGit(["config", "user.name", "Test User"], workDir);
+      fs.writeFileSync(path.join(workDir, "file.txt"), "updated\n");
+      runGit(["add", "file.txt"], workDir);
+      runGit(["commit", "-m", "bundle head"], workDir);
+      runGit(["bundle", "create", path.join(artifactDir, "head-only.bundle"), "HEAD"], workDir);
+
+      runGit(["init"], targetDir);
+      const commands = buildManualBranchRecoveryCommands({
+        hasBundleFile: true,
+        runId: artifactRunId,
+        artifactFileName: "head-only.bundle",
+        branchName: "feature/recovered",
+        tempRef: "refs/bundles/manual-recovery",
+      });
+
+      expect(runGit(["bundle", "list-heads", path.join(artifactDir, "head-only.bundle")], targetDir)).toMatch(/\sHEAD$/);
+      runShell(skipArtifactDownload(commands), targetDir);
+
+      expect(fs.readFileSync(path.join(targetDir, "file.txt"), "utf8")).toBe("updated\n");
+      expect(runGit(["rev-parse", "feature/recovered"], targetDir)).toBe(runGit(["rev-parse", "HEAD"], workDir));
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+      fs.rmSync(artifactDir, { recursive: true, force: true });
+    }
+  });
+
+  it("manual apply bundle commands work with a real HEAD-only bundle", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "manual-apply-head-bundle-"));
+    const artifactRunId = `head-only-${process.pid}-${Date.now()}`;
+    const artifactDir = path.join(os.tmpdir(), `agent-${artifactRunId}`);
+
+    try {
+      const remoteDir = path.join(tempRoot, "remote.git");
+      const workDir = path.join(tempRoot, "work");
+      const targetDir = path.join(tempRoot, "target");
+      fs.mkdirSync(artifactDir, { recursive: true });
+
+      runGit(["init", "--bare", remoteDir], tempRoot);
+      fs.mkdirSync(workDir, { recursive: true });
+      runGit(["init"], workDir);
+      runGit(["config", "user.email", "test@example.com"], workDir);
+      runGit(["config", "user.name", "Test User"], workDir);
+      fs.writeFileSync(path.join(workDir, "file.txt"), "base\n");
+      runGit(["add", "file.txt"], workDir);
+      runGit(["commit", "-m", "base"], workDir);
+      runGit(["branch", "-M", "feature"], workDir);
+      runGit(["remote", "add", "origin", remoteDir], workDir);
+      runGit(["push", "-u", "origin", "feature"], workDir);
+
+      runGit(["clone", remoteDir, targetDir], tempRoot);
+      runGit(["checkout", "feature"], targetDir);
+
+      fs.writeFileSync(path.join(workDir, "file.txt"), "updated\n");
+      runGit(["commit", "-am", "update"], workDir);
+      runGit(["bundle", "create", path.join(artifactDir, "head-only.bundle"), "HEAD"], workDir);
+
+      const commands = buildManualBranchApplyCommands({
+        hasBundleFile: true,
+        runId: artifactRunId,
+        artifactFileName: "head-only.bundle",
+        branchName: "feature",
+        branchRemote: "origin",
+      });
+
+      expect(commands).toContain("git checkout -B 'feature' FETCH_HEAD");
+      expect(commands).toContain("git push 'origin' 'HEAD:refs/heads/feature'");
+      expect(runGit(["bundle", "list-heads", path.join(artifactDir, "head-only.bundle")], targetDir)).toMatch(/\sHEAD$/);
+      runShell(skipArtifactDownload(commands), targetDir);
+
+      expect(fs.readFileSync(path.join(targetDir, "file.txt"), "utf8")).toBe("updated\n");
+      expect(runGit(["rev-parse", "feature"], targetDir)).toBe(runGit(["--git-dir", remoteDir, "rev-parse", "feature"], tempRoot));
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+      fs.rmSync(artifactDir, { recursive: true, force: true });
+    }
   });
 });
 

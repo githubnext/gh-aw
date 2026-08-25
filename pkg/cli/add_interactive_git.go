@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,10 +35,8 @@ const (
 )
 
 // createWorkflowChangesAndConfigureSecret writes the workflows, optionally creates and merges a PR, and adds the secret.
-func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string, createPR bool) error {
+func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx context.Context, workflowFiles []string, initFiles []addInitializedFile, secretName, secretValue string, createPR bool) error {
 	addInteractiveLog.Print("Applying changes")
-
-	fmt.Fprintln(os.Stderr, "")
 
 	// Add the workflow using the existing implementation.
 	// Pass the resolved workflows to avoid re-fetching them
@@ -47,7 +47,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		Quiet:                        true,
 		EngineOverride:               c.EngineOverride,
 		Name:                         "",
-		Force:                        false,
+		Force:                        c.forceOverwrite,
 		AppendText:                   c.AppendText,
 		CreatePR:                     createPR,
 		NoGitattributes:              c.NoGitattributes,
@@ -55,9 +55,18 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		NoStopAfter:                  c.NoStopAfter,
 		StopAfter:                    c.StopAfter,
 		DisableSecurityScanner:       c.DisableSecurityScanner,
+		RepoSlug:                     c.RepoOverride,
 		AddCopilotRequestsPermission: c.UseCopilotRequests,
-		initializedFiles:             initFiles,
+		GhAwRef:                      c.GhAwRef,
+		addWizard: &addWizardOptions{
+			initializedFiles:                    initFiles,
+			workingTreePrevalidated:             createPR,
+			showInteractiveProgress:             true,
+			skipSecret:                          c.SkipSecret,
+			disableGitHubAppPermissionInference: c.DisableGitHubAppPermissionInference,
+		},
 	}
+	opts.addWizard.secretSource = c.secretSources["COPILOT_GITHUB_TOKEN"]
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	if err != nil {
 		return fmt.Errorf("failed to add workflow: %w", err)
@@ -65,7 +74,6 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 	c.addResult = result
 
 	if !createPR {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow files written locally. No pull request was created."))
 		return nil
 	}
 
@@ -89,7 +97,6 @@ func (c *AddInteractiveConfig) ensurePullRequestMerged(prNumber int, prURL strin
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+prURL))
-	fmt.Fprintln(os.Stderr, "")
 	return c.runPRMergeLoop(prNumber, prURL)
 }
 
@@ -119,8 +126,6 @@ func (c *AddInteractiveConfig) runPRMergeLoop(prNumber int, prURL string) error 
 			}
 		case mergeActionReview:
 			userReviewing = true
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please review and merge the pull request: "+prURL))
-			fmt.Fprintln(os.Stderr, "")
 		case mergeActionConfirmed:
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Great – continuing with the merged pull request"))
 			mergeDone = true
@@ -136,12 +141,14 @@ func (c *AddInteractiveConfig) runPRMergeLoop(prNumber int, prURL string) error 
 
 func promptMergeAction(prURL string, mergeFailed, userReviewing bool) (mergeAction, error) {
 	var chosen mergeAction
-	selectForm := console.NewSelectForm(
-		huh.NewSelect[mergeAction]().
-			Title("What would you like to do with pull request " + prURL + "?").
-			Options(buildMergeOptions(mergeFailed, userReviewing)...).
-			Value(&chosen),
-	)
+	selectField := huh.NewSelect[mergeAction]().
+		Title("What would you like to do with pull request " + prURL + "?").
+		Options(buildMergeOptions(mergeFailed, userReviewing)...).
+		Value(&chosen)
+	if userReviewing {
+		selectField = selectField.Description("Please review and merge the pull request before continuing: " + prURL)
+	}
+	selectForm := console.NewSelectForm(selectField)
 	if err := selectForm.Run(); err != nil {
 		return "", fmt.Errorf("failed to get user input: %w", err)
 	}
@@ -303,31 +310,176 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 	return nil
 }
 
-// checkCleanWorkingDirectoryForPR verifies the working directory had no user changes
-// before the wizard began repository initialization. It relies on the cleanliness
-// snapshot captured in workingDirDirtyBeforeInit (taken before
-// ensureAddRepositoryInitializedWithDetails ran) rather than re-checking git status and
-// excluding the wizard's init files. Excluding whole init file paths post-hoc would
-// wrongly ignore pre-existing, non-conforming files (e.g. a dirty .gitattributes
-// missing a required entry) that ensureAddRepositoryInitializedWithDetails rewrites in
-// place, letting the PR path silently overwrite or commit pre-existing user edits.
-func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR() error {
-	addInteractiveLog.Print("Checking working directory is clean before PR creation")
+type addWorkingTreeBlockers struct {
+	staged      []string
+	overlapping []string
+}
 
-	if c.workingDirDirtyBeforeInit {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Working directory is not clean."))
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Creating a pull request requires a clean working directory.")
-		fmt.Fprintln(os.Stderr, "Please commit or stash your changes first, or choose the local write option:")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git stash        # Temporarily stash changes"))
-		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'wip'  # Commit changes"))
-		fmt.Fprintln(os.Stderr, "")
-		return errors.New("working directory is not clean")
+func (b addWorkingTreeBlockers) empty() bool {
+	return len(b.staged) == 0 && len(b.overlapping) == 0
+}
+
+type workingTreeResolution string
+
+const (
+	workingTreeOverwrite workingTreeResolution = "overwrite"
+	workingTreeCleaned   workingTreeResolution = "cleaned"
+	workingTreeExit      workingTreeResolution = "exit"
+)
+
+// checkCleanWorkingDirectoryForPR allows unrelated unstaged and untracked files,
+// but requires staged changes and edits to files the wizard will write to be cleaned.
+func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR(workflowFiles, initFiles []string) error {
+	addInteractiveLog.Print("Checking working tree changes before PR creation")
+	gitRoot, err := addFindGitRoot()
+	if err != nil {
+		return fmt.Errorf("failed to determine repository root for PR preflight: %w", err)
+	}
+	plannedPaths, err := c.plannedAddPathsAtRoot(gitRoot, workflowFiles, initFiles)
+	if err != nil {
+		return err
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Working directory is clean"))
-	return nil
+	for {
+		if c.Ctx != nil {
+			select {
+			case <-c.Ctx.Done():
+				return c.Ctx.Err()
+			default:
+			}
+		}
+		blockers, inspectErr := inspectAddWorkingTreeAtRoot(gitRoot, plannedPaths)
+		if inspectErr != nil {
+			return inspectErr
+		}
+		if blockers.empty() {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Working tree is ready for pull request creation"))
+			return nil
+		}
+
+		allowOverwrite := len(blockers.staged) == 0 && len(blockers.overlapping) > 0
+		resolution, promptErr := promptWorkingTreeResolution(c.Ctx, blockers, allowOverwrite)
+		if promptErr != nil {
+			return promptErr
+		}
+		switch resolution {
+		case workingTreeOverwrite:
+			c.forceOverwrite = true
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Overlapping workflow files will be overwritten"))
+			return nil
+		case workingTreeExit:
+			return errors.New("user exited before cleaning the working tree")
+		}
+	}
+}
+
+func (c *AddInteractiveConfig) plannedAddPathsAtRoot(gitRoot string, workflowFiles, initFiles []string) ([]string, error) {
+	workflowDir := c.WorkflowDir
+	if workflowDir == "" {
+		workflowDir = getWorkflowsDir()
+	}
+	planned := make([]string, 0, len(workflowFiles)+len(initFiles))
+	for _, path := range workflowFiles {
+		planned = append(planned, filepath.Join(workflowDir, path))
+	}
+	planned = append(planned, initFiles...)
+	for index, path := range planned {
+		if filepath.IsAbs(path) {
+			rel, relErr := filepath.Rel(gitRoot, path)
+			if relErr != nil {
+				return nil, fmt.Errorf("failed to resolve planned path %s: %w", path, relErr)
+			}
+			path = rel
+		}
+		planned[index] = filepath.ToSlash(filepath.Clean(path))
+	}
+	return planned, nil
+}
+
+func inspectAddWorkingTree(plannedPaths []string) (addWorkingTreeBlockers, error) {
+	gitRoot, err := addFindGitRoot()
+	if err != nil {
+		return addWorkingTreeBlockers{}, fmt.Errorf("failed to determine repository root for PR preflight: %w", err)
+	}
+	return inspectAddWorkingTreeAtRoot(gitRoot, plannedPaths)
+}
+
+func inspectAddWorkingTreeAtRoot(gitRoot string, plannedPaths []string) (addWorkingTreeBlockers, error) {
+	cmd := exec.Command("git", "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	cmd.Dir = gitRoot
+	output, err := cmd.Output()
+	if err != nil {
+		return addWorkingTreeBlockers{}, fmt.Errorf("failed to inspect working tree: %w", err)
+	}
+
+	planned := make(map[string]struct{}, len(plannedPaths))
+	for _, path := range plannedPaths {
+		planned[filepath.ToSlash(filepath.Clean(path))] = struct{}{}
+	}
+	var blockers addWorkingTreeBlockers
+	entries := strings.Split(string(output), "\x00")
+	for index := 0; index < len(entries); index++ {
+		entry := entries[index]
+		if len(entry) < 4 {
+			continue
+		}
+		status := entry[:2]
+		path := filepath.ToSlash(filepath.Clean(entry[3:]))
+		if status[0] != ' ' && status[0] != '?' {
+			blockers.staged = appendUniqueString(blockers.staged, path)
+		}
+		if _, overlaps := planned[path]; overlaps {
+			blockers.overlapping = appendUniqueString(blockers.overlapping, path)
+		}
+		if status[0] == 'R' || status[0] == 'C' {
+			index++
+		}
+	}
+	return blockers, nil
+}
+
+func appendUniqueString(values []string, value string) []string {
+	if slices.Contains(values, value) {
+		return values
+	}
+	return append(values, value)
+}
+
+func promptWorkingTreeResolution(ctx context.Context, blockers addWorkingTreeBlockers, allowOverwrite bool) (workingTreeResolution, error) {
+	var resolution workingTreeResolution
+	form := console.NewSelectForm(
+		huh.NewSelect[workingTreeResolution]().
+			Title("Some working tree changes must be resolved before creating the pull request.").
+			Description(formatWorkingTreeBlockers(blockers)).
+			Options(buildWorkingTreeResolutionOptions(allowOverwrite)...).
+			Value(&resolution),
+	)
+	if err := form.RunWithContext(ctx); err != nil {
+		return "", fmt.Errorf("working tree confirmation failed: %w", err)
+	}
+	return resolution, nil
+}
+
+func formatWorkingTreeBlockers(blockers addWorkingTreeBlockers) string {
+	sections := make([]string, 0, 2)
+	if len(blockers.staged) > 0 {
+		sections = append(sections, "Staged changes:\n  • "+strings.Join(blockers.staged, "\n  • "))
+	}
+	if len(blockers.overlapping) > 0 {
+		sections = append(sections, "Changes overlapping files the wizard will add:\n  • "+strings.Join(blockers.overlapping, "\n  • "))
+	}
+	return strings.Join(sections, "\n")
+}
+
+func buildWorkingTreeResolutionOptions(allowOverwrite bool) []huh.Option[workingTreeResolution] {
+	options := make([]huh.Option[workingTreeResolution], 0, 3)
+	if allowOverwrite {
+		options = append(options, huh.NewOption("Overwrite", workingTreeOverwrite).Selected(true))
+	}
+	return append(options,
+		huh.NewOption("I've cleaned the working tree", workingTreeCleaned),
+		huh.NewOption("Exit, I'm done here", workingTreeExit),
+	)
 }
 
 // squashMergeNotAllowedErr is the lowercase substring of the GitHub GraphQL API error

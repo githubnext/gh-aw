@@ -82,6 +82,38 @@ func TestNewAddCommand(t *testing.T) {
 	// Check stop-after flag
 	stopAfterFlag := flags.Lookup("stop-after")
 	assert.NotNil(t, stopAfterFlag, "Should have 'stop-after' flag")
+
+	ghAwRefFlag := flags.Lookup("gh-aw-ref")
+	assert.NotNil(t, ghAwRefFlag, "Should have 'gh-aw-ref' flag")
+}
+
+func TestResolveAddGhAwRef_FullSHA(t *testing.T) {
+	t.Parallel()
+	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	resolved, err := resolveAddGhAwRef(context.Background(), sha)
+	require.NoError(t, err)
+	assert.Equal(t, sha, resolved)
+}
+
+func TestCompileWorkflowWithActionRef(t *testing.T) {
+	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	tmpDir := t.TempDir()
+	require.NoError(t, initTestGitRepo(tmpDir))
+	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "pinned.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(workflowFile), 0o755))
+	require.NoError(t, os.WriteFile(workflowFile, []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+---
+
+# Pinned workflow
+`), 0o644))
+
+	require.NoError(t, compileWorkflowWithActionRef(context.Background(), workflowFile, false, true, "", sha))
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, ".github", "workflows", "pinned.lock.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), "github/gh-aw/actions/setup@"+sha)
 }
 
 func TestNewAddCommand_MentionsEnterpriseSourceResolution(t *testing.T) {
@@ -522,6 +554,91 @@ func TestEnsureAddRepositoryInitializedWithDetails_AbsolutePaths(t *testing.T) {
 	// The returned path must be absolute.
 	require.True(t, filepath.IsAbs(files[0]), "expected absolute path, got %q", files[0])
 	require.Equal(t, filepath.Join(repoDir, filepath.FromSlash(writtenMarker)), files[0])
+}
+
+func TestConfirmAndInitializeAddRepository(t *testing.T) {
+	originalFindGitRoot := addFindGitRoot
+	originalInitRepository := addInitRepository
+	originalMissingInitMarkers := addMissingInitMarkers
+	originalConfirmAuthoringSupport := addConfirmAuthoringSupport
+	t.Cleanup(func() {
+		addFindGitRoot = originalFindGitRoot
+		addInitRepository = originalInitRepository
+		addMissingInitMarkers = originalMissingInitMarkers
+		addConfirmAuthoringSupport = originalConfirmAuthoringSupport
+	})
+
+	repoDir := t.TempDir()
+	addFindGitRoot = func() (string, error) { return repoDir, nil }
+
+	t.Run("already initialized skips confirmation", func(t *testing.T) {
+		addMissingInitMarkers = func(string, string) ([]string, error) { return nil, nil }
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) {
+			t.Fatal("confirmation should not be shown when all support files exist")
+			return false, nil
+		}
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("initialization should not run when all support files exist")
+			return nil
+		}
+
+		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
+		require.NoError(t, err)
+		assert.Empty(t, files)
+	})
+
+	t.Run("declining creates no support files", func(t *testing.T) {
+		addMissingInitMarkers = func(string, string) ([]string, error) {
+			return []string{bootstrapAgenticSkillPath}, nil
+		}
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return false, nil }
+		addInitRepository = func(InitOptions) error {
+			t.Fatal("initialization should not run after confirmation is declined")
+			return nil
+		}
+
+		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
+		require.NoError(t, err)
+		assert.Empty(t, files)
+	})
+
+	t.Run("accepting quietly initializes support files", func(t *testing.T) {
+		marker := ".vscode/settings.json"
+		addMissingInitMarkers = func(string, string) ([]string, error) { return []string{marker}, nil }
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
+		addInitRepository = func(opts InitOptions) error {
+			assert.True(t, opts.Quiet)
+			assert.Equal(t, "copilot", opts.Engine)
+			path := filepath.Join(repoDir, filepath.FromSlash(marker))
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+			return os.WriteFile(path, []byte(`{}`), 0644)
+		}
+
+		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
+		require.NoError(t, err)
+		require.Equal(t, []addInitializedFile{{
+			path: filepath.Join(repoDir, filepath.FromSlash(marker)), displayPath: marker,
+		}}, files)
+	})
+
+	t.Run("preserves original contents for stale support files", func(t *testing.T) {
+		marker := ".vscode/settings.json"
+		markerPath := filepath.Join(repoDir, filepath.FromSlash(marker))
+		require.NoError(t, os.WriteFile(markerPath, []byte("original"), 0644))
+		addMissingInitMarkers = func(string, string) ([]string, error) { return []string{marker}, nil }
+		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
+		addInitRepository = func(InitOptions) error {
+			return os.WriteFile(markerPath, []byte("updated"), 0644)
+		}
+
+		plan, err := confirmAddRepositoryInitialization(context.Background(), "copilot", false)
+		require.NoError(t, err)
+		files, err := applyAddRepositoryInitialization(plan, "copilot", false, false)
+		require.NoError(t, err)
+		require.Equal(t, []addInitializedFile{{
+			path: markerPath, displayPath: marker, wasExisting: true, originalContent: []byte("original"),
+		}}, files)
+	})
 }
 
 func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {

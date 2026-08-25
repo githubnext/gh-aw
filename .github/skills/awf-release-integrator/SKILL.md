@@ -21,6 +21,9 @@ Consult these sources before editing anything:
 4. The embedded AWF schema in `pkg/workflow/schemas/awf-config.schema.json`.
 5. AWF config integration code in:
    - `pkg/workflow/awf_config.go`
+   - `pkg/workflow/awf_config_build.go`
+   - `pkg/workflow/awf_config_schema.go`
+   - `pkg/workflow/awf_config_policy.go`
    - `pkg/workflow/awf_helpers.go`
    - related AWF tests under `pkg/workflow/`
 

@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
@@ -539,7 +540,7 @@ func mergeOTLPStringMaps(base, override map[string]string) map[string]string {
 	if len(base) == 0 && len(override) == 0 {
 		return nil
 	}
-	merged := make(map[string]string, safeAllocationCapacity(len(base), len(override)))
+	merged := make(map[string]string, typeutil.SafeAllocationCapacity(len(base), len(override)))
 	maps.Copy(merged, override)
 	// base takes precedence
 	maps.Copy(merged, base)
