@@ -98,6 +98,7 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // window.  Retrying with --continue will always produce the same instant failure, so
 // this path must not be retried via --continue (fall back to a fresh run if budget remains).
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
+const AWF_STARTUP_FAILURE_PATTERN = /(?:^|\n)\s*(?:\[?awf\]?|mcp gateway).*?(?:startup|failed|error)\b/i;
 const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
 const MAX_STARTUP_RETRIES = 2;
 
@@ -201,6 +202,15 @@ function isInvalidJsonBodyError(output) {
  */
 function isConnectionRefusedError(output) {
   return CONNECTION_REFUSED_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines whether AWF or the MCP gateway failed before Claude established a session.
+ * @param {string} output
+ * @returns {boolean}
+ */
+function isAWFStartupFailure(output) {
+  return AWF_STARTUP_FAILURE_PATTERN.test(output);
 }
 
 /**
@@ -613,6 +623,16 @@ async function main() {
         return { action: "retry" };
       }
 
+      const awfStartupFailure = isAWFStartupFailure(result.output);
+      // AWF can emit its own startup diagnostics before Claude starts. Those lines make
+      // hasOutput true, but do not make --continue viable because no Claude session exists.
+      if (awfStartupFailure && !sessionHasProgress && attempt < maxRetries && startupRetriesUsed < startupRetryLimit) {
+        startupRetriesUsed++;
+        useContinueOnRetry = false;
+        log(`attempt ${attempt + 1}: no Claude session progress — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${attempt + 2}/${maxRetries + 1})`);
+        return { action: "retry", nextDelayMs: initialDelayMs };
+      }
+
       if (attempt < maxRetries && result.hasOutput) {
         const isSignalTermination = isSignalTerminationExitCode(result.exitCode);
         const isCrashSignal = isCrashSignalExitCode(result.exitCode);
@@ -682,6 +702,7 @@ if (typeof module !== "undefined" && module.exports) {
     isInvalidModelError,
     isInvalidJsonBodyError,
     isConnectionRefusedError,
+    isAWFStartupFailure,
     hasClaudeSessionProgress,
     isSignalTerminationExitCode,
     isCrashSignalExitCode,
