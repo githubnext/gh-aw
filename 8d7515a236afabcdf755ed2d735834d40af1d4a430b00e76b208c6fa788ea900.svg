@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500">
+<rect width="900" height="500" fill="white"/>
+<text x="450.0" y="30" font-size="20" font-weight="bold" text-anchor="middle" font-family="sans-serif">Daily Total Token Usage Trend</text>
+<line x1="70" y1="390.0" x2="870" y2="390.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="394.0" font-size="11" text-anchor="end" font-family="sans-serif">0.0</text>
+<line x1="70" y1="324.0" x2="870" y2="324.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="328.0" font-size="11" text-anchor="end" font-family="sans-serif">1894.0</text>
+<line x1="70" y1="258.0" x2="870" y2="258.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="262.0" font-size="11" text-anchor="end" font-family="sans-serif">3788.1</text>
+<line x1="70" y1="192.0" x2="870" y2="192.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="196.0" font-size="11" text-anchor="end" font-family="sans-serif">5682.1</text>
+<line x1="70" y1="126.0" x2="870" y2="126.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="130.0" font-size="11" text-anchor="end" font-family="sans-serif">7576.2</text>
+<line x1="70" y1="60.0" x2="870" y2="60.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="64.0" font-size="11" text-anchor="end" font-family="sans-serif">9470.2</text>
+<text x="20" y="225.0" font-size="13" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 20 225.0)">Total Tokens</text>
+<rect x="230.0" y="103.0" width="480.0" height="287.0" fill="#FF6B6B" stroke="#333" stroke-width="0.5"/>
+<text x="470.0" y="97.0" font-size="11" text-anchor="middle" font-family="sans-serif">8235</text>
+<text x="470.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 470.0 405)">2026-08-25</text>
+<line x1="70" y1="390" x2="870" y2="390" stroke="#333" stroke-width="1.5"/>
+<line x1="70" y1="60" x2="70" y2="390" stroke="#333" stroke-width="1.5"/>
+</svg>

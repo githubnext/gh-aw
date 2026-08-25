@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+<rect width="900" height="600" fill="white"/>
+<text x="450.0" y="30" font-size="20" font-weight="bold" text-anchor="middle" font-family="sans-serif">Token Size vs Usefulness Rating</text>
+<line x1="70" y1="540.0" x2="870" y2="540.0" stroke="#eee" stroke-width="1"/>
+<text x="60" y="544.0" font-size="11" text-anchor="end" font-family="sans-serif">0.0</text>
+<line x1="70" y1="444.0" x2="870" y2="444.0" stroke="#eee" stroke-width="1"/>
+<text x="60" y="448.0" font-size="11" text-anchor="end" font-family="sans-serif">1.1</text>
+<line x1="70" y1="348.0" x2="870" y2="348.0" stroke="#eee" stroke-width="1"/>
+<text x="60" y="352.0" font-size="11" text-anchor="end" font-family="sans-serif">2.2</text>
+<line x1="70" y1="252.0" x2="870" y2="252.0" stroke="#eee" stroke-width="1"/>
+<text x="60" y="256.0" font-size="11" text-anchor="end" font-family="sans-serif">3.3</text>
+<line x1="70" y1="156.0" x2="870" y2="156.0" stroke="#eee" stroke-width="1"/>
+<text x="60" y="160.0" font-size="11" text-anchor="end" font-family="sans-serif">4.4</text>
+<line x1="70" y1="60.0" x2="870" y2="60.0" stroke="#eee" stroke-width="1"/>
+<text x="60" y="64.0" font-size="11" text-anchor="end" font-family="sans-serif">5.5</text>
+<text x="450.0" y="585" font-size="13" text-anchor="middle" font-family="sans-serif">Tokens</text>
+<text x="20" y="300.0" font-size="13" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 20 300.0)">Usefulness Rating</text>
+<circle cx="85.1" cy="103.6" r="8" fill="#FF6B6B" stroke="#333" stroke-width="1"/>
+<text x="95.1" y="95.6" font-size="10" font-family="sans-serif">github_context</text>
+<circle cx="765.7" cy="278.2" r="8" fill="#4ECDC4" stroke="#333" stroke-width="1"/>
+<text x="775.7" y="270.2" font-size="10" font-family="sans-serif">get_file_contents</text>
+<circle cx="75.2" cy="278.2" r="8" fill="#45B7D1" stroke="#333" stroke-width="1"/>
+<text x="85.2" y="270.2" font-size="10" font-family="sans-serif">list_issues</text>
+<circle cx="74.6" cy="190.9" r="8" fill="#FFA07A" stroke="#333" stroke-width="1"/>
+<text x="84.6" y="182.9" font-size="10" font-family="sans-serif">list_pull_requests</text>
+<circle cx="89.7" cy="103.6" r="8" fill="#98D8C8" stroke="#333" stroke-width="1"/>
+<text x="99.7" y="95.6" font-size="10" font-family="sans-serif">list_workflows</text>
+<circle cx="71.2" cy="190.9" r="8" fill="#DDA0DD" stroke="#333" stroke-width="1"/>
+<text x="81.2" y="182.9" font-size="10" font-family="sans-serif">list_code_scanning_alerts</text>
+<circle cx="128.0" cy="278.2" r="8" fill="#F0E68C" stroke="#333" stroke-width="1"/>
+<text x="138.0" y="270.2" font-size="10" font-family="sans-serif">list_discussions</text>
+<circle cx="121.0" cy="278.2" r="8" fill="#87CEEB" stroke="#333" stroke-width="1"/>
+<text x="131.0" y="270.2" font-size="10" font-family="sans-serif">get_label</text>
+<circle cx="121.0" cy="278.2" r="8" fill="#F4A460" stroke="#333" stroke-width="1"/>
+<text x="131.0" y="270.2" font-size="10" font-family="sans-serif">search_code</text>
+<circle cx="123.3" cy="278.2" r="8" fill="#B0C4DE" stroke="#333" stroke-width="1"/>
+<text x="133.3" y="270.2" font-size="10" font-family="sans-serif">search_users</text>
+<line x1="70" y1="540" x2="870" y2="540" stroke="#333" stroke-width="1.5"/>
+<line x1="70" y1="60" x2="70" y2="540" stroke="#333" stroke-width="1.5"/>
+</svg>

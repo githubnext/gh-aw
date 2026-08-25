@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500">
+<rect width="900" height="500" fill="white"/>
+<text x="450.0" y="30" font-size="20" font-weight="bold" text-anchor="middle" font-family="sans-serif">Usefulness Rating by Toolset (5=Excellent, 1=Poor)</text>
+<line x1="70" y1="390.0" x2="870" y2="390.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="394.0" font-size="11" text-anchor="end" font-family="sans-serif">0.0</text>
+<line x1="70" y1="324.0" x2="870" y2="324.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="328.0" font-size="11" text-anchor="end" font-family="sans-serif">1.1</text>
+<line x1="70" y1="258.0" x2="870" y2="258.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="262.0" font-size="11" text-anchor="end" font-family="sans-serif">2.2</text>
+<line x1="70" y1="192.0" x2="870" y2="192.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="196.0" font-size="11" text-anchor="end" font-family="sans-serif">3.3</text>
+<line x1="70" y1="126.0" x2="870" y2="126.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="130.0" font-size="11" text-anchor="end" font-family="sans-serif">4.4</text>
+<line x1="70" y1="60.0" x2="870" y2="60.0" stroke="#ddd" stroke-width="1"/>
+<text x="60" y="64.0" font-size="11" text-anchor="end" font-family="sans-serif">5.5</text>
+<text x="20" y="225.0" font-size="13" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 20 225.0)">Rating</text>
+<rect x="86.0" y="90.0" width="48.0" height="300.0" fill="#2ECC71" stroke="#333" stroke-width="0.5"/>
+<text x="110.0" y="84.0" font-size="11" text-anchor="middle" font-family="sans-serif">5</text>
+<text x="110.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 110.0 405)">workflow_context</text>
+<rect x="166.0" y="90.0" width="48.0" height="300.0" fill="#2ECC71" stroke="#333" stroke-width="0.5"/>
+<text x="190.0" y="84.0" font-size="11" text-anchor="middle" font-family="sans-serif">5</text>
+<text x="190.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 190.0 405)">actions</text>
+<rect x="246.0" y="150.0" width="48.0" height="240.0" fill="#2ECC71" stroke="#333" stroke-width="0.5"/>
+<text x="270.0" y="144.0" font-size="11" text-anchor="middle" font-family="sans-serif">4</text>
+<text x="270.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 270.0 405)">pull_requests</text>
+<rect x="326.0" y="150.0" width="48.0" height="240.0" fill="#2ECC71" stroke="#333" stroke-width="0.5"/>
+<text x="350.0" y="144.0" font-size="11" text-anchor="middle" font-family="sans-serif">4</text>
+<text x="350.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 350.0 405)">code_security</text>
+<rect x="406.0" y="210.0" width="48.0" height="180.0" fill="#F39C12" stroke="#333" stroke-width="0.5"/>
+<text x="430.0" y="204.0" font-size="11" text-anchor="middle" font-family="sans-serif">3</text>
+<text x="430.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 430.0 405)">repos</text>
+<rect x="486.0" y="210.0" width="48.0" height="180.0" fill="#F39C12" stroke="#333" stroke-width="0.5"/>
+<text x="510.0" y="204.0" font-size="11" text-anchor="middle" font-family="sans-serif">3</text>
+<text x="510.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 510.0 405)">issues</text>
+<rect x="566.0" y="210.0" width="48.0" height="180.0" fill="#F39C12" stroke="#333" stroke-width="0.5"/>
+<text x="590.0" y="204.0" font-size="11" text-anchor="middle" font-family="sans-serif">3</text>
+<text x="590.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 590.0 405)">discussions</text>
+<rect x="646.0" y="210.0" width="48.0" height="180.0" fill="#F39C12" stroke="#333" stroke-width="0.5"/>
+<text x="670.0" y="204.0" font-size="11" text-anchor="middle" font-family="sans-serif">3</text>
+<text x="670.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 670.0 405)">labels</text>
+<rect x="726.0" y="210.0" width="48.0" height="180.0" fill="#F39C12" stroke="#333" stroke-width="0.5"/>
+<text x="750.0" y="204.0" font-size="11" text-anchor="middle" font-family="sans-serif">3</text>
+<text x="750.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 750.0 405)">search</text>
+<rect x="806.0" y="210.0" width="48.0" height="180.0" fill="#F39C12" stroke="#333" stroke-width="0.5"/>
+<text x="830.0" y="204.0" font-size="11" text-anchor="middle" font-family="sans-serif">3</text>
+<text x="830.0" y="405" font-size="11" text-anchor="end" font-family="sans-serif" transform="rotate(-40 830.0 405)">users</text>
+<line x1="70" y1="390" x2="870" y2="390" stroke="#333" stroke-width="1.5"/>
+<line x1="70" y1="60" x2="70" y2="390" stroke="#333" stroke-width="1.5"/>
+</svg>
