@@ -40,7 +40,7 @@ func TestDailyPerformanceSummaryUsesStableWindowMetrics(t *testing.T) {
 		"(issue_df['closedAt'] >= ninety_days_ago)",
 	} {
 		if !strings.Contains(text, token) {
-			t.Fatalf("expected daily-performance-summary.md to contain token %q", token)
+			t.Errorf("expected daily-performance-summary.md to contain token %q", token)
 		}
 	}
 }
