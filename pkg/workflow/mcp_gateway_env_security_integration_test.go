@@ -157,3 +157,42 @@ Verify MCP gateway reserved env name handling.
 	assert.NotContains(t, gatewayStep, `${{ env.GH_AW_MCP_GATEWAY_ENV_5 }}`)
 	assert.NotContains(t, gatewayStep, "GH_AW_MCP_GATEWAY_ENV_5:")
 }
+
+// TestMCPGatewayRunBlockDoesNotInterpolateSecrets is a regression guard for RGS-008:
+// secrets (and github.token) referenced by the "Start MCP Gateway" step must be passed
+// through the step's env: mapping and read from the shell environment inside the run:
+// script body, never interpolated directly as ${{ secrets.* }} / ${{ github.token }}
+// expressions in the script text itself.
+func TestMCPGatewayRunBlockDoesNotInterpolateSecrets(t *testing.T) {
+	lockContent := compileMCPGatewayWorkflowLock(t, `---
+on: workflow_dispatch
+strict: false
+engine: copilot
+tools:
+  github:
+    toolsets: [repos]
+sandbox:
+  mcp:
+    env:
+      MY_SECRET: ${{ secrets.MY_CUSTOM_SECRET }}
+---
+
+# Test Workflow
+
+Verify MCP gateway run block does not interpolate secrets.
+`)
+
+	agentSection := extractJobSection(lockContent, "agent")
+	require.NotEmpty(t, agentSection)
+
+	gatewayStep := extractMCPGatewayStepSection(agentSection, "Start MCP Gateway")
+	require.NotEmpty(t, gatewayStep)
+
+	runIdx := strings.Index(gatewayStep, "\n        run: |\n")
+	require.GreaterOrEqual(t, runIdx, 0, "expected Start MCP Gateway step to contain a run: block")
+	runBody := gatewayStep[runIdx:]
+
+	assert.NotContains(t, runBody, "${{ secrets.")
+	assert.NotContains(t, runBody, "${{ github.token")
+	assert.NotContains(t, runBody, "${{ env.GITHUB_TOKEN")
+}
