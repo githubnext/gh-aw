@@ -11,7 +11,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 const { classifySafeOutputResult, computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId, extractTemporaryIdReferences, getCreatedTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
@@ -21,7 +21,7 @@ const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorC
 const { createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
-const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } = require("./safe_output_manifest.cjs");
+const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile, writeSafeOutputErrorReport } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
@@ -1600,6 +1600,24 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
 }
 
 /**
+ * Best-effort write of the structured safe-output failure report.
+ *
+ * The report is uploaded with the safe-outputs-items artifact (which uses
+ * `if: always()`), so a failing "Process Safe Outputs" step leaves behind
+ * machine-readable diagnostics even after the job logs expire. Writing the
+ * report must never mask the original failure, so errors are swallowed.
+ *
+ * @param {{errorCode?: string, message?: string, failures?: Array<{type?: string, errorCode?: string, error?: string}>}} report
+ */
+function recordSafeOutputFailure(report) {
+  try {
+    writeSafeOutputErrorReport({ status: "failure", ...report });
+  } catch (error) {
+    core.warning(`Failed to write safe output error report: ${getErrorMessage(error)}`);
+  }
+}
+
+/**
  * Main entry point for the handler manager
  * This is called by the consolidated safe output step
  *
@@ -1611,6 +1629,8 @@ async function main() {
   const isStaged = isStagedMode();
   /** @type {string | null} */
   let failedOutputsMessage = null;
+  /** @type {Array<{type?: string, errorCode?: string, error?: string}>} */
+  let failureDetails = [];
   let statusOutputsSet = false;
 
   try {
@@ -1803,6 +1823,11 @@ async function main() {
       const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
       const failedItems = failedItemLines.join("\n");
       failedOutputsMessage = `${failureCount} safe output(s) failed:\n${failedItems}`;
+      failureDetails = fatalFailures.map(r => ({
+        type: r.type,
+        ...(r.errorCode ? { errorCode: r.errorCode } : {}),
+        error: r.error || "Unknown error",
+      }));
     }
     if (reportOnlyFailureCount > 0) {
       const reportOnlyTypes = [...new Set(reportOnlyFailures.map(r => r.type || "unknown"))];
@@ -1906,6 +1931,7 @@ async function main() {
     if (!isStaged) ensureManifestExists();
 
     if (failedOutputsMessage !== null) {
+      recordSafeOutputFailure({ errorCode: SAFE_OUTPUT_E099, message: failedOutputsMessage, failures: failureDetails });
       core.setFailed(failedOutputsMessage);
       return;
     }
@@ -1916,9 +1942,11 @@ async function main() {
       setSafeOutputsStatusOutputs({ itemsSucceeded: 0, itemsFailed: 0, status: "failure" });
     }
     if (failedOutputsMessage !== null) {
+      recordSafeOutputFailure({ errorCode: ERR_VALIDATION, message: `${failedOutputsMessage}\n${handlerError}`, failures: failureDetails });
       core.setFailed(`${failedOutputsMessage}\n${handlerError}`);
       return;
     }
+    recordSafeOutputFailure({ errorCode: ERR_VALIDATION, message: handlerError, failures: failureDetails });
     core.setFailed(handlerError);
   } finally {
     // Guarantee the manifest file exists for artifact upload even when the handler fails.

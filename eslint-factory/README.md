@@ -36,6 +36,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`prefer-structured-clone`](#prefer-structured-clone) | Prefer `structuredClone(...)` over `JSON.parse(JSON.stringify(...))` for deep-cloning data |
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
+| [`require-decodeuricomponent-try-catch`](#require-decodeuricomponent-try-catch) | Require try/catch around `decodeURIComponent(...)` and `decodeURI(...)` on dynamic input |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
 | [`require-error-code-in-thrown-error`](#require-error-code-in-thrown-error) | Require standardized error codes in thrown errors when `error_codes.cjs` is imported |
 | [`require-error-code-for-github-api-throw`](#require-error-code-for-github-api-throw) | Require standardized error codes for `throw new Error(...)` after GitHub API calls |
@@ -516,6 +517,12 @@ try {
 ### `require-new-url-try-catch`
 
 Require `new URL(variable)` calls to be wrapped in `try/catch`.
+
+### `require-decodeuricomponent-try-catch`
+
+Require `decodeURIComponent(...)` and `decodeURI(...)` on dynamic input to be wrapped in `try/catch`.
+
+Malformed percent-encoded input throws `URIError` and can crash the action if left unhandled.
 
 Why: the `URL` constructor throws a `TypeError` when given an invalid or relative URL string, which crashes the action with an unhelpful uncaught exception.
 
