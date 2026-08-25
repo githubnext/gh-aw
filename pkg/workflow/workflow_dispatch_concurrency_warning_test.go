@@ -19,7 +19,12 @@ func TestWorkflowDispatchConcurrencyWarning(t *testing.T) {
 		{
 			name:          "workflow dispatch without discriminator",
 			on:            "on: workflow_dispatch",
-			expectWarning: true,
+			expectWarning: false,
+		},
+		{
+			name:          "workflow dispatch with empty inputs without discriminator",
+			on:            "on:\n  workflow_dispatch:\n    inputs: {}",
+			expectWarning: false,
 		},
 		{
 			name:          "workflow dispatch with inputs without discriminator",
@@ -29,12 +34,22 @@ func TestWorkflowDispatchConcurrencyWarning(t *testing.T) {
 		{
 			name:          "mixed workflow dispatch without discriminator",
 			on:            "on:\n  workflow_dispatch:\n  schedule:\n    - cron: '0 0 * * *'",
+			expectWarning: false,
+		},
+		{
+			name:          "mixed workflow dispatch with inputs without discriminator",
+			on:            "on:\n  workflow_dispatch:\n    inputs:\n      target_repo:\n        type: string\n  schedule:\n    - cron: '0 0 * * *'",
 			expectWarning: true,
 		},
 		{
-			name:          "workflow dispatch with discriminator",
-			on:            "on: workflow_dispatch",
+			name:          "workflow dispatch with inputs and discriminator",
+			on:            "on:\n  workflow_dispatch:\n    inputs:\n      target_repo:\n        type: string",
 			discriminator: "${{ github.run_id }}",
+			expectWarning: false,
+		},
+		{
+			name:          "nested workflow dispatch value without discriminator",
+			on:            "on:\n  workflow_run:\n    workflows: [workflow_dispatch]\n    types: [completed]",
 			expectWarning: false,
 		},
 		{

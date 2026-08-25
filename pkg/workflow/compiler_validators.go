@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/goccy/go-yaml"
 )
 
 // validateExpressions checks expression safety and runtime-import file references
@@ -319,7 +320,7 @@ func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdo
 }
 
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {
-	if strings.Contains(workflowData.On, "workflow_dispatch") && workflowData.ConcurrencyJobDiscriminator == "" {
+	if hasWorkflowDispatchInputs(workflowData.On) && workflowData.ConcurrencyJobDiscriminator == "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"workflow_dispatch workflow has no concurrency.job-discriminator; the generated conclusion concurrency group is shared by all dispatches of this workflow. "+
 				"Set a discriminator (for example, `${{ github.run_id }}`) to give each dispatch its own slot."))
@@ -374,6 +375,23 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	if workflowData.Redirect != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", "workflow redirect configured: updates move to "+workflowData.Redirect))
 	}
+}
+
+func hasWorkflowDispatchInputs(onYAML string) bool {
+	var parsedData map[string]any
+	if err := yaml.Unmarshal([]byte(onYAML), &parsedData); err != nil {
+		return false
+	}
+	onMap, ok := parsedData["on"].(map[string]any)
+	if !ok {
+		return false
+	}
+	workflowDispatch, ok := onMap["workflow_dispatch"].(map[string]any)
+	if !ok {
+		return false
+	}
+	inputs, ok := workflowDispatch["inputs"].(map[string]any)
+	return ok && len(inputs) > 0
 }
 
 func usesSbxBoundedQueryRuntime(workflowData *WorkflowData) bool {
