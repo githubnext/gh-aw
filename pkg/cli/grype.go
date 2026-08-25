@@ -256,6 +256,10 @@ func grypeConfigFile() string {
 // When configFile is non-empty, it is mounted read-only into the scanner container
 // and passed to grype via --config so repository-level ignore rules are applied.
 func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
+	if err := validateExecArgument(validatedImageRef); err != nil {
+		return nil, fmt.Errorf("invalid grype image reference: %w", err)
+	}
+
 	args := []string{"run", "--rm"}
 
 	var configArgs []string
@@ -267,6 +271,9 @@ func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
 		volumeMount, err := buildDockerReadonlyFileMount(configFile, containerConfigPath)
 		if err != nil {
 			return nil, fmt.Errorf("invalid grype config mount: %w", err)
+		}
+		if err := validateExecArgument(volumeMount); err != nil {
+			return nil, fmt.Errorf("invalid grype config volume mount: %w", err)
 		}
 		args = append(args, "-v", volumeMount)
 		configArgs = []string{"--config", containerConfigPath}
@@ -293,6 +300,23 @@ func grypeCacheKey(imageRef, configFile string) (string, error) {
 	}
 	digest := sha256.Sum256(content)
 	return fmt.Sprintf("%s\x00%x", imageRef, digest), nil
+}
+
+// validateExecArgument is a final defense-in-depth gate applied to variable-origin
+// docker argv values (image references, volume mounts, container paths) right where
+// they are constructed. It must not be applied to hardcoded literals such as "--rm"
+// or "-v", since those legitimately start with '-'.
+func validateExecArgument(arg string) error {
+	if arg == "" {
+		return errors.New("argument cannot be empty")
+	}
+	if strings.HasPrefix(arg, "-") {
+		return errors.New("argument must not start with '-' (flag injection risk)")
+	}
+	if containsControlCharacters(arg) {
+		return errors.New("argument contains invalid control characters")
+	}
+	return nil
 }
 
 // grypeRunOnImage runs grype on a single container image reference via Docker,
