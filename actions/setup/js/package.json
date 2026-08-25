@@ -11,6 +11,7 @@
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.8",
     "@vitest/ui": "^4.1.10",
+    "glob": "^11.0.3",
     "minimatch": ">=10.2.6",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2",

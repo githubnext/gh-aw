@@ -639,6 +639,29 @@ describe("awf_reflect.cjs", () => {
   describe("fetchAWFReflect", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    });
+
+    it("skips network requests when reflection is disabled", async () => {
+      const fetchMock = vi.fn();
+      const logs = [];
+      vi.stubGlobal("fetch", fetchMock);
+      vi.stubEnv("GH_AW_SKIP_REFLECT", "true");
+
+      await expect(
+        fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath: "/tmp/gh-aw-test-noop.json",
+          logger: msg => logs.push(msg),
+        })
+      ).resolves.toEqual({
+        ok: false,
+        reflectUrl: "http://api-proxy:10000/reflect",
+        outputPath: "/tmp/gh-aw-test-noop.json",
+        reason: "disabled",
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(logs).toContain("awf-reflect: disabled by GH_AW_SKIP_REFLECT");
     });
 
     it("saves enriched reflect data when api-proxy returns null models for configured provider", async () => {

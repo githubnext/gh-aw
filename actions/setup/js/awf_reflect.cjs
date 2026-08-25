@@ -32,7 +32,7 @@ const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
 // Persist outside the read-only gh-aw infrastructure mount.
 const AWF_REFLECT_OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json");
 // Milliseconds to wait for the /reflect endpoint before giving up.
-const AWF_REFLECT_TIMEOUT_MS = 60000;
+const AWF_REFLECT_TIMEOUT_MS = Number.parseInt(process.env.GH_AW_REFLECT_TIMEOUT_MS || "60000", 10);
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
 // Milliseconds to wait for an api-proxy provider listener to accept a real TCP connection.
@@ -367,7 +367,7 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  *   outputPath: string,
  *   bytesWritten?: number,
  *   reflectData?: object,
- *   reason?: "unexpected_status"|"timeout"|"request_failed",
+ *   reason?: "disabled"|"unexpected_status"|"timeout"|"request_failed",
  *   status?: number,
  *   error?: string,
  * }>}
@@ -379,6 +379,11 @@ async function fetchAWFReflect(options) {
   const modelsTimeoutMs = options && options.modelsTimeoutMs != null ? options.modelsTimeoutMs : AWF_MODELS_URL_TIMEOUT_MS;
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
   const writeFile = (options && options.writeFileSync) || fs.writeFileSync;
+
+  if (process.env.GH_AW_SKIP_REFLECT === "true") {
+    logger("awf-reflect: disabled by GH_AW_SKIP_REFLECT");
+    return { ok: false, reflectUrl, outputPath, reason: "disabled" };
+  }
 
   logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms)`);
 

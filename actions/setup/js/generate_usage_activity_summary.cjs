@@ -11,7 +11,7 @@
 //   working_set: cumulative input-token traffic relative to peak invocation input
 
 const fs = require("fs");
-const { globSync } = require("node:fs");
+const { globSync } = require("glob");
 const path = require("path");
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
 const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");

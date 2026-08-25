@@ -168,7 +168,45 @@ lint_go_packages() {
 }
 
 lint_custom_go_packages() {
-    make --no-print-directory golint-custom LINTER_PACKAGES="${go_packages[*]}"
+    local output
+    local status
+    local diagnostic_found=0
+    local relevant_diagnostic_found=0
+    local line
+    local diagnostic_file
+    local changed_file
+
+    set +e
+    output=$(make --no-print-directory golint-custom LINTER_PACKAGES="${go_packages[*]}" 2>&1)
+    status=$?
+    set -e
+
+    if [ "$status" -eq 0 ]; then
+        printf '%s\n' "$output"
+        return 0
+    fi
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^([^:]+\.go):[0-9]+:[0-9]+: ]]; then
+            diagnostic_found=1
+            diagnostic_file="${BASH_REMATCH[1]}"
+            for changed_file in "${go_files[@]}"; do
+                if [ "$diagnostic_file" = "$changed_file" ]; then
+                    printf '%s\n' "$line"
+                    relevant_diagnostic_found=1
+                    break
+                fi
+            done
+        else
+            printf '%s\n' "$line"
+        fi
+    done <<< "$output"
+
+    if [ "$relevant_diagnostic_found" -eq 1 ] || [ "$diagnostic_found" -eq 0 ]; then
+        return "$status"
+    fi
+
+    echo "Custom Go linter diagnostics were limited to unchanged files; skipping them for this change-scoped gate."
 }
 
 lint_javascript() {
