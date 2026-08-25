@@ -318,6 +318,13 @@ describe("check_version_updates", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v1.2.0-beta.1"));
   });
 
+  it("should ignore an invalid prerelease version in the blocked list", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v1.2.0-beta.1";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: ["v1.2.0-..beta"], minimumVersion: "" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
   it("should NOT block version when blocked list entry has no 'v' prefix (unknown format — ignore)", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v1.0.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: ["1.0.0"], minimumVersion: "" }));

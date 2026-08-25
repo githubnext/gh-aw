@@ -811,7 +811,7 @@ jobs:
             if (!Array.isArray(bv)) {
               errors.push("'blockedVersions' must be an array");
             } else {
-              const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/;
+              const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
               const seen = new Set();
               bv.forEach((v, i) => {
                 if (typeof v !== 'string') {
@@ -890,7 +890,7 @@ jobs:
             }
           }
 
-          const releaseVersionRe = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/;
+          const releaseVersionRe = /^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
           if ('blockedVersions' in config) {
             if (!Array.isArray(config.blockedVersions)) {
               errors.push("'blockedVersions' must be an array");
