@@ -21,7 +21,7 @@ const (
 	evalsLogPath = "/tmp/gh-aw/evals/evals.log"
 
 	// evalsResultsPath is the parsed JSONL results file produced by the parse step.
-	evalsResultsPath = "/tmp/gh-aw/" + constants.EvalsResultFilename
+	evalsResultsPath = "/tmp/gh-aw/" + string(constants.EvalsResultFilename)
 )
 
 // buildEvalsJobSteps builds all steps that run inside the evals job.
@@ -423,7 +423,7 @@ await main();`
 // buildUploadEvalsArtifactStep creates the step that uploads evals.jsonl as the
 // evals artifact for downstream consumption.
 func (c *Compiler) buildUploadEvalsArtifactStep(data *WorkflowData) []string {
-	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName
+	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName.String()
 	return []string{
 		"      - name: Upload evals results\n",
 		"        if: steps.redact_evals_results.outcome == 'success'\n",

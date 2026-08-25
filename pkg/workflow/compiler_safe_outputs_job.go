@@ -242,7 +242,7 @@ func (c *Compiler) buildSafeOutputsDownloadSteps(data *WorkflowData, agentArtifa
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
+			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName.String(),
 			DownloadPath: constants.TmpGhAwDirSlash,
 			SetupEnvStep: false, // No environment variable needed, the script checks the file directly
 			StepName:     "Download patch artifact",
@@ -682,7 +682,7 @@ func (c *Compiler) calculatePreambleInsertIndex(steps []string, data *WorkflowDa
 	}
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
+			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName.String(),
 			DownloadPath: constants.TmpGhAwDirSlash,
 			SetupEnvStep: false,
 			StepName:     "Download patch artifact",

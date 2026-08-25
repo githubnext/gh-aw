@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"maps"
 	"strings"
 
@@ -108,6 +109,9 @@ type Tools = ToolsConfig
 func ParseToolsConfig(toolsMap map[string]any) (*ToolsConfig, error) {
 	toolsTypesLog.Printf("Parsing tools configuration: tool_count=%d", len(toolsMap))
 	config := NewTools(toolsMap)
+	if config.GitHub != nil && config.GitHub.reposParseErr != nil {
+		return nil, config.GitHub.reposParseErr
+	}
 	toolNames := config.GetToolNames()
 	toolsTypesLog.Printf("Parsed tools configuration: result_count=%d, tools=%v", len(toolNames), toolNames)
 	return config, nil
@@ -303,7 +307,42 @@ const (
 
 // GitHubReposScope represents the repository scope for guard policy enforcement
 // Can be one of: "all", "public", or an array of repository patterns
-type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
+type GitHubReposScope []string
+
+func parseGitHubReposScope(value any) (GitHubReposScope, error) {
+	switch repos := value.(type) {
+	case string:
+		return GitHubReposScope{repos}, nil
+	case []string:
+		return GitHubReposScope(repos), nil
+	case []any:
+		result := make(GitHubReposScope, 0, len(repos))
+		for _, repo := range repos {
+			value, ok := repo.(string)
+			if !ok {
+				return nil, fmt.Errorf("repository scope entries must be strings, got %T", repo)
+			}
+			result = append(result, value)
+		}
+		return result, nil
+	default:
+		return nil, fmt.Errorf("repository scope must be a string or array of strings, got %T", value)
+	}
+}
+
+// UnmarshalYAML normalizes scalar and array repository scopes to a string slice.
+func (s *GitHubReposScope) UnmarshalYAML(unmarshal func(any) error) error {
+	var value any
+	if err := unmarshal(&value); err != nil {
+		return err
+	}
+	scope, err := parseGitHubReposScope(value)
+	if err != nil {
+		return err
+	}
+	*s = scope
+	return nil
+}
 
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
@@ -324,7 +363,8 @@ type GitHubToolConfig struct {
 	// Supports: "all", "public", or an array of patterns ["owner/repo", "owner/*"] (lowercase)
 	AllowedRepos GitHubReposScope `yaml:"allowed-repos,omitempty"`
 	// Repos is deprecated. Use AllowedRepos (yaml:"allowed-repos") instead.
-	Repos GitHubReposScope `yaml:"repos,omitempty"`
+	Repos         GitHubReposScope `yaml:"repos,omitempty"`
+	reposParseErr error
 	// MinIntegrity defines the minimum integrity level required: "none", "unapproved", "approved", "merged"
 	MinIntegrity GitHubIntegrityLevel `yaml:"min-integrity,omitempty"`
 	// BlockedUsers is an optional list of GitHub usernames whose content is unconditionally blocked.

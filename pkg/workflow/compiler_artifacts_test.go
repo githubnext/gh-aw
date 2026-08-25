@@ -645,7 +645,7 @@ Body.
 			t.Errorf("Expected %q in fallback upload step, got:\n%s", expected, uploadSection)
 		}
 	}
-	if strings.Contains(uploadSection, constants.OperationalValueEvaluatorFilename) {
+	if strings.Contains(uploadSection, constants.OperationalValueEvaluatorFilename.String()) {
 		t.Errorf("Fallback upload must not include an operational-value evaluator for inline-only graders, got:\n%s", uploadSection)
 	}
 
