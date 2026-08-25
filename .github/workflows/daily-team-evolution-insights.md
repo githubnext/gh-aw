@@ -119,7 +119,7 @@ Create a narrative that tells the story of the team's evolution over the last da
 
 ### 4. Create Discussion
 
-Always create a GitHub Discussion with your findings using this structure:
+Always create a GitHub Discussion with your findings using this structure. The `[DATE]` in the title must be the calendar date of `window_start` (the day being analyzed, e.g. "August 22, 2026"), not the current run date.
 
 ```markdown
 # 🌱 Daily Team Evolution Insights - [DATE]
