@@ -16,12 +16,14 @@ import (
 // TestSSJAnalyzer_NoFalsePositives confirms the analyzer produces no diagnostics
 // when run against a non-anchor package (the testdata fixture).
 func TestSSJAnalyzer_NoFalsePositives(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, ssljson.Analyzer, "ssljson")
 }
 
 // TestValidateDoc_Valid confirms no errors on a well-formed SSL document.
 func TestValidateDoc_Valid(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "example", EntryScene: "scene_act"},
 		Scenes: []ssljson.SSLScene{
@@ -41,6 +43,7 @@ func TestValidateDoc_Valid(t *testing.T) {
 
 // TestValidateDoc_InvalidEntryScene flags a missing entry_scene reference.
 func TestValidateDoc_InvalidEntryScene(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "ghost"},
 		Scenes: []ssljson.SSLScene{
@@ -58,6 +61,7 @@ func TestValidateDoc_InvalidEntryScene(t *testing.T) {
 
 // TestValidateDoc_InvalidSceneType flags a scene with an unknown type.
 func TestValidateDoc_InvalidSceneType(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -76,6 +80,7 @@ func TestValidateDoc_InvalidSceneType(t *testing.T) {
 // TestValidateDoc_InvalidEntryLogicStep flags a scene whose entry_logic_step
 // does not reference any existing logic step.
 func TestValidateDoc_InvalidEntryLogicStep(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -94,6 +99,7 @@ func TestValidateDoc_InvalidEntryLogicStep(t *testing.T) {
 // TestValidateDoc_InvalidTransitionTarget flags a scene with a transition to
 // an unknown target.
 func TestValidateDoc_InvalidTransitionTarget(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -111,6 +117,7 @@ func TestValidateDoc_InvalidTransitionTarget(t *testing.T) {
 
 // TestValidateDoc_InvalidActionType flags a logic step with an unknown action type.
 func TestValidateDoc_InvalidActionType(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -129,6 +136,7 @@ func TestValidateDoc_InvalidActionType(t *testing.T) {
 // TestValidateDoc_InvalidResourceScope flags a logic step with an unknown
 // resource scope.
 func TestValidateDoc_InvalidResourceScope(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -147,6 +155,7 @@ func TestValidateDoc_InvalidResourceScope(t *testing.T) {
 // TestValidateDoc_InvalidStepNext flags a logic step whose next pointer does
 // not resolve to a known step ID or terminal target.
 func TestValidateDoc_InvalidStepNext(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -164,6 +173,7 @@ func TestValidateDoc_InvalidStepNext(t *testing.T) {
 
 // TestValidateDoc_DuplicateSceneID flags two scenes sharing the same ID.
 func TestValidateDoc_DuplicateSceneID(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -183,6 +193,7 @@ func TestValidateDoc_DuplicateSceneID(t *testing.T) {
 
 // TestValidateDoc_DuplicateStepID flags two logic steps sharing the same ID.
 func TestValidateDoc_DuplicateStepID(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{
@@ -202,6 +213,7 @@ func TestValidateDoc_DuplicateStepID(t *testing.T) {
 // TestValidateDoc_InvalidStepSceneID flags a logic step whose scene_id does
 // not resolve to any existing scene.
 func TestValidateDoc_InvalidStepSceneID(t *testing.T) {
+	t.Parallel()
 	doc := ssljson.SSLDoc{
 		Scheduling: ssljson.SSLScheduling{ID: "x", EntryScene: "s"},
 		Scenes: []ssljson.SSLScene{

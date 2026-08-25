@@ -7,6 +7,8 @@ evals:
   question: Did the agent generate an SVG diagram using glowmotion?
 - id: pull_request_created
   question: Was a pull request created with the generated SVG diagram committed?
+imports:
+  - shared/graders.md
 features:
   gh-aw-detection: true
 max-ai-credits: 500
@@ -63,6 +65,7 @@ network:
   - defaults
   - local
   - playwright
+
 ---
 # Archivx — Workflow Visualizer
 

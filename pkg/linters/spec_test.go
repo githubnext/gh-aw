@@ -183,8 +183,10 @@ func documentedAnalyzers() []docAnalyzer {
 // `Analyzer` entry point of type *analysis.Analyzer with its Name and Run wired,
 // so each can be consumed by a go/analysis driver (multichecker/singlechecker).
 func TestSpec_PublicAPI_SubpackageAnalyzers(t *testing.T) {
+	t.Parallel()
 	for _, d := range documentedAnalyzers() {
 		t.Run(d.label, func(t *testing.T) {
+			t.Parallel()
 			require.NotNil(t, d.analyzer, "%s must expose a non-nil *analysis.Analyzer per the README Subpackages table", d.label)
 			assert.IsType(t, (*analysis.Analyzer)(nil), d.analyzer, "%s.Analyzer should be *analysis.Analyzer for go/analysis drivers", d.label)
 			assert.NotEmpty(t, d.analyzer.Name, "%s.Analyzer.Name should be set so go/analysis drivers can identify it", d.label)
@@ -198,6 +200,7 @@ func TestSpec_PublicAPI_SubpackageAnalyzers(t *testing.T) {
 // README "Namespace exports" table.
 // Spec: "ErrorMessageAnalyzer | Compatibility alias to pkg/linters/errormessage.Analyzer"
 func TestSpec_NamespaceExports_ErrorMessageAnalyzer(t *testing.T) {
+	t.Parallel()
 	require.NotNil(t, linters.ErrorMessageAnalyzer,
 		"linters.ErrorMessageAnalyzer must be a non-nil compatibility alias per the README")
 	assert.Same(t, errormessage.Analyzer, linters.ErrorMessageAnalyzer,
@@ -208,6 +211,7 @@ func TestSpec_NamespaceExports_ErrorMessageAnalyzer(t *testing.T) {
 // "8 parameters" threshold for the excessivefuncparams analyzer.
 // Spec: "excessivefuncparams ... defaults to 8 parameters (DefaultMaxParams)."
 func TestSpec_Constants_DefaultMaxParams(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 8, excessivefuncparams.DefaultMaxParams,
 		"DefaultMaxParams should match the documented default of 8")
 }
@@ -216,6 +220,7 @@ func TestSpec_Constants_DefaultMaxParams(t *testing.T) {
 // "60 lines" threshold for the largefunc analyzer.
 // Spec: "largefunc ... defaults to 60 lines (DefaultMaxLines)."
 func TestSpec_Constants_DefaultMaxLines(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 60, largefunc.DefaultMaxLines,
 		"DefaultMaxLines should match the documented default of 60")
 }
@@ -224,6 +229,7 @@ func TestSpec_Constants_DefaultMaxLines(t *testing.T) {
 // analyzer flag for excessivefuncparams.
 // Spec: "excessivefuncparams exposes a -max-params analyzer flag"
 func TestSpec_DesignDecision_MaxParamsFlag(t *testing.T) {
+	t.Parallel()
 	flag := excessivefuncparams.Analyzer.Flags.Lookup("max-params")
 	require.NotNil(t, flag, "excessivefuncparams should expose a -max-params flag per the spec")
 }
@@ -232,6 +238,7 @@ func TestSpec_DesignDecision_MaxParamsFlag(t *testing.T) {
 // analyzer flag for largefunc.
 // Spec: "largefunc exposes a -max-lines analyzer flag"
 func TestSpec_DesignDecision_MaxLinesFlag(t *testing.T) {
+	t.Parallel()
 	flag := largefunc.Analyzer.Flags.Lookup("max-lines")
 	require.NotNil(t, flag, "largefunc should expose a -max-lines flag per the spec")
 }
@@ -242,6 +249,7 @@ func TestSpec_DesignDecision_MaxLinesFlag(t *testing.T) {
 // `_ = <subpackage>.Analyzer` for the documented analyzers; this test exercises
 // the same pattern across all documented subpackages.
 func TestSpec_UsageExample_AnalyzersUsable(t *testing.T) {
+	t.Parallel()
 	for _, d := range documentedAnalyzers() {
 		assert.NotNil(t, d.analyzer, "documented Analyzer %q should be usable in a multichecker/singlechecker slice", d.label)
 	}
@@ -253,6 +261,7 @@ func TestSpec_UsageExample_AnalyzersUsable(t *testing.T) {
 // Spec: "intentionally organized as a namespace ... so individual analyzers
 // remain isolated and independently testable."
 func TestSpec_DesignDecision_UniqueAnalyzerNames(t *testing.T) {
+	t.Parallel()
 	documented := documentedAnalyzers()
 	names := make(map[string]bool, len(documented))
 	for _, d := range documented {
@@ -271,6 +280,7 @@ func TestSpec_DesignDecision_UniqueAnalyzerNames(t *testing.T) {
 // the recurring doc-sync drift gap (gh-aw#40436, #45185, #46131, #46527,
 // #46707, #46977).
 func TestRegistryMatchesDocumentation(t *testing.T) {
+	t.Parallel()
 	allAnalyzers := linters.All()
 	documented := documentedAnalyzers()
 

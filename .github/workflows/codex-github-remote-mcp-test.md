@@ -11,6 +11,7 @@ permissions:
 engine: codex
 imports:
   - shared/otlp.md
+  - shared/graders.md
 tools:
   cli-proxy: true
   github:
@@ -24,6 +25,7 @@ features:
 sandbox:
   agent:
     runtime: cloud-hypervisor
+
 ---
 
 # Codex GitHub Remote MCP Test

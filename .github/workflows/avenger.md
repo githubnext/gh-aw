@@ -123,6 +123,7 @@ safe-outputs:
 timeout-minutes: 45
 imports:
   - shared/otlp.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
 evals:
@@ -130,6 +131,7 @@ evals:
     question: Did the agent assess the current CI state and determine if intervention was needed?
   - id: pr_created_or_skipped
     question: Was a PR created with CI fixes, or was the run correctly skipped because CI was already passing?
+
 ---
 
 # Avenger — Hourly CI Fixer

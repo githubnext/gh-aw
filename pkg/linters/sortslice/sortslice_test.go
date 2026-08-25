@@ -11,6 +11,7 @@ import (
 )
 
 func TestSortSlice(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, sortslice.Analyzer, "sortslice")
 }

@@ -12,6 +12,7 @@ import (
 )
 
 func TestSprintfInt(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, sprintfint.Analyzer, "sprintfint")
 }
