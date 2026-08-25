@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 
@@ -525,9 +526,12 @@ func TestEnsureCopilotSetupSteps_ReleaseMode(t *testing.T) {
 		t.Errorf("Expected copilot-setup-steps.yml to have version: v1.2.3, got:\n%s", contentStr)
 	}
 
-	// Verify it has checkout step
-	if !strings.Contains(contentStr, "actions/checkout@v6") {
-		t.Error("Expected copilot-setup-steps.yml to have checkout step in release mode")
+	// Verify it has a pinned checkout step
+	if !strings.Contains(contentStr, "uses: "+actionpins.ResolveLatestActionPin("actions/checkout", nil)) {
+		t.Error("Expected copilot-setup-steps.yml to have pinned checkout step in release mode")
+	}
+	if !strings.Contains(contentStr, "persist-credentials: false") {
+		t.Error("Expected copilot-setup-steps.yml checkout to disable credential persistence")
 	}
 
 	// Verify it doesn't use curl/install-gh-aw.sh
@@ -615,8 +619,11 @@ func TestEnsureCopilotSetupSteps_CreateWithReleaseMode(t *testing.T) {
 	if !strings.Contains(contentStr, "version: v2.0.0") {
 		t.Errorf("Expected version parameter v2.0.0, got:\n%s", contentStr)
 	}
-	if !strings.Contains(contentStr, "actions/checkout@v6") {
-		t.Errorf("Expected checkout step in release mode")
+	if !strings.Contains(contentStr, "uses: "+actionpins.ResolveLatestActionPin("actions/checkout", nil)) {
+		t.Errorf("Expected pinned checkout step in release mode")
+	}
+	if !strings.Contains(contentStr, "persist-credentials: false") {
+		t.Error("Expected checkout step to disable credential persistence")
 	}
 }
 
@@ -668,6 +675,98 @@ func TestEnsureCopilotSetupSteps_CreateWithDevMode(t *testing.T) {
 	}
 	if !strings.Contains(contentStr, "-o "+installScriptTempPath) {
 		t.Errorf("Expected download to temp file %s in dev mode", installScriptTempPath)
+	}
+}
+
+func TestGenerateCopilotSetupStepsYAMLDevModeUsesDefaultBranchFromGitHubAPI(t *testing.T) {
+	const (
+		defaultBranch = "stable"
+		resolvedSHA   = "1111111111111111111111111111111111111111"
+		sha256Digest  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	)
+
+	defaultBranchCalled := false
+	resolveRefCalled := false
+	originalDefaultBranch := resolveGhAwDefaultBranchForCopilotSetup
+	originalResolveRef := resolveGhAwRefForCopilotSetup
+	originalSHA256 := resolveInstallScriptSHA256ForCopilotSetup
+	resolveGhAwDefaultBranchForCopilotSetup = func(_ context.Context, repo string) (string, error) {
+		defaultBranchCalled = true
+		if repo != "github/gh-aw" {
+			t.Fatalf("repo = %q, want github/gh-aw", repo)
+		}
+		return defaultBranch, nil
+	}
+	resolveGhAwRefForCopilotSetup = func(_ context.Context, ref string) (string, error) {
+		resolveRefCalled = true
+		if ref != defaultBranch {
+			t.Fatalf("ref = %q, want %q", ref, defaultBranch)
+		}
+		return resolvedSHA, nil
+	}
+	resolveInstallScriptSHA256ForCopilotSetup = func(_ context.Context, commitSHA string) string {
+		if commitSHA != resolvedSHA {
+			t.Fatalf("commitSHA = %q, want %q", commitSHA, resolvedSHA)
+		}
+		return sha256Digest
+	}
+	t.Cleanup(func() {
+		resolveGhAwDefaultBranchForCopilotSetup = originalDefaultBranch
+		resolveGhAwRefForCopilotSetup = originalResolveRef
+		resolveInstallScriptSHA256ForCopilotSetup = originalSHA256
+	})
+
+	content := generateCopilotSetupStepsYAML(context.Background(), workflow.ActionModeDev, "dev", nil)
+
+	if !defaultBranchCalled {
+		t.Fatal("expected default branch resolver to be called")
+	}
+	if !resolveRefCalled {
+		t.Fatal("expected default branch ref to be resolved")
+	}
+	if !strings.Contains(content, "https://raw.githubusercontent.com/github/gh-aw/"+resolvedSHA+"/install-gh-aw.sh") {
+		t.Fatalf("expected install script URL to use resolved SHA %q, got:\n%s", resolvedSHA, content)
+	}
+	if strings.Contains(content, "refs/heads/main") {
+		t.Fatalf("expected generated content not to hard-code refs/heads/main, got:\n%s", content)
+	}
+	if !strings.Contains(content, sha256Digest+"  "+installScriptTempPath) {
+		t.Fatalf("expected generated content to include SHA256 integrity check, got:\n%s", content)
+	}
+}
+
+func TestGenerateCopilotSetupStepsYAMLDevModeFallsBackToDefaultBranchRef(t *testing.T) {
+	const defaultBranch = "stable"
+
+	originalDefaultBranch := resolveGhAwDefaultBranchForCopilotSetup
+	originalResolveRef := resolveGhAwRefForCopilotSetup
+	originalSHA256 := resolveInstallScriptSHA256ForCopilotSetup
+	resolveGhAwDefaultBranchForCopilotSetup = func(_ context.Context, _ string) (string, error) {
+		return defaultBranch, nil
+	}
+	resolveGhAwRefForCopilotSetup = func(_ context.Context, ref string) (string, error) {
+		if ref != defaultBranch {
+			t.Fatalf("ref = %q, want %q", ref, defaultBranch)
+		}
+		return "", errors.New("resolution failed")
+	}
+	resolveInstallScriptSHA256ForCopilotSetup = func(context.Context, string) string {
+		t.Fatal("SHA256 resolver should not be called when ref resolution fails")
+		return ""
+	}
+	t.Cleanup(func() {
+		resolveGhAwDefaultBranchForCopilotSetup = originalDefaultBranch
+		resolveGhAwRefForCopilotSetup = originalResolveRef
+		resolveInstallScriptSHA256ForCopilotSetup = originalSHA256
+	})
+
+	content := generateCopilotSetupStepsYAML(context.Background(), workflow.ActionModeDev, "dev", nil)
+
+	if !strings.Contains(content, "https://raw.githubusercontent.com/github/gh-aw/refs/heads/"+defaultBranch+"/install-gh-aw.sh") {
+		t.Fatalf("expected install script URL to fall back to default branch ref, got:\n%s", content)
+	}
+	if strings.Contains(content, "sha256sum -c -") {
+		t.Fatalf("did not expect SHA256 integrity check without resolved SHA, got:\n%s", content)
 	}
 }
 
@@ -1192,6 +1291,16 @@ jobs:
 			resolver:      nil,
 			expectUpgrade: true,
 			validate: func(t *testing.T, got string) {
+				wantCheckoutRef := "uses: " + actionpins.ResolveLatestActionPin("actions/checkout", nil)
+				if !strings.Contains(got, wantCheckoutRef) {
+					t.Errorf("Expected updated checkout uses: line %q, got:\n%s", wantCheckoutRef, got)
+				}
+				if strings.Contains(got, "uses: actions/checkout@v4") {
+					t.Errorf("Old checkout tag should be gone, got:\n%s", got)
+				}
+				if !strings.Contains(got, "persist-credentials: false") {
+					t.Errorf("Expected checkout to disable credential persistence, got:\n%s", got)
+				}
 				if !strings.Contains(got, "uses: github/gh-aw-actions/setup-cli@v2.0.0") {
 					t.Errorf("Expected updated uses: line, got:\n%s", got)
 				}
@@ -1415,7 +1524,9 @@ jobs:
         run: echo "hello" # inline run comment
 `
 
-	// Expected output: identical to input except the two target lines.
+	checkoutRef := actionpins.ResolveLatestActionPin("actions/checkout", nil)
+
+	// Expected output: identical to input except the setup-cli, checkout, and version lines.
 	expected := `# Top-level workflow comment — must survive the upgrade.
 name: "Copilot Setup Steps"
 
@@ -1437,8 +1548,9 @@ jobs:
     steps:
       # Step 1 comment.
       - name: Checkout repository
-        uses: actions/checkout@v4 # pin to stable tag
+        uses: ` + checkoutRef + `
         with:
+          persist-credentials: false
           fetch-depth: 0 # full history
 
       # Step 2 comment — this step should be updated.
@@ -1468,7 +1580,7 @@ jobs:
 		expectedLines := strings.Split(expected, "\n")
 		gotLines := strings.Split(gotStr, "\n")
 
-		t.Errorf("Output does not match expected (only uses: and version: lines should differ).\n")
+		t.Errorf("Output does not match expected (only checkout/setup-cli uses: and version: lines should differ).\n")
 		for i := 0; i < len(expectedLines) || i < len(gotLines); i++ {
 			var exp, act string
 			if i < len(expectedLines) {
@@ -1570,12 +1682,83 @@ jobs:
 		`- .github/workflows/copilot-setup-steps.yml`,
 		`permissions:`,
 		`contents: read`,
-		`uses: actions/checkout@v4`,
 	} {
 		if !strings.Contains(updatedStr, preserved) {
 			t.Errorf("Expected content %q to be preserved, got:\n%s", preserved, updatedStr)
 		}
 	}
+	wantCheckoutRef := "uses: " + actionpins.ResolveLatestActionPin("actions/checkout", nil)
+	if !strings.Contains(updatedStr, wantCheckoutRef) {
+		t.Errorf("Expected checkout uses: line %q, got:\n%s", wantCheckoutRef, updatedStr)
+	}
+	if strings.Contains(updatedStr, "uses: actions/checkout@v4") {
+		t.Errorf("Old checkout tag should be gone, got:\n%s", updatedStr)
+	}
+	if !strings.Contains(updatedStr, "persist-credentials: false") {
+		t.Errorf("Expected checkout to disable credential persistence, got:\n%s", updatedStr)
+	}
+}
+
+func TestPinCheckoutUsesInContent(t *testing.T) {
+	t.Parallel()
+
+	checkoutRef := actionpins.ResolveLatestActionPin("actions/checkout", nil)
+
+	t.Run("preserves missing trailing newline", func(t *testing.T) {
+		t.Parallel()
+		input := "        uses: actions/checkout@v4"
+		got, changed := pinCheckoutUsesInContent([]byte(input))
+		if !changed {
+			t.Fatal("expected checkout line to be updated")
+		}
+		expected := "        uses: " + checkoutRef + "\n        with:\n          persist-credentials: false"
+		if string(got) != expected {
+			t.Fatalf("expected %q, got %q", expected, string(got))
+		}
+	})
+
+	t.Run("blank line ends existing with block", func(t *testing.T) {
+		t.Parallel()
+		input := `      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Other step
+        with:
+          persist-credentials: true
+`
+		got, changed := pinCheckoutUsesInContent([]byte(input))
+		if !changed {
+			t.Fatal("expected checkout line to be updated")
+		}
+		gotStr := string(got)
+		if !strings.Contains(gotStr, "        uses: "+checkoutRef) {
+			t.Fatalf("expected checkout to use %q, got:\n%s", checkoutRef, gotStr)
+		}
+		if !strings.Contains(gotStr, "          persist-credentials: false\n          fetch-depth: 0") {
+			t.Fatalf("expected persist-credentials in checkout with block, got:\n%s", gotStr)
+		}
+	})
+
+	t.Run("blank line inside existing with block", func(t *testing.T) {
+		t.Parallel()
+		input := `      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+          clean: false
+`
+		got, changed := pinCheckoutUsesInContent([]byte(input))
+		if !changed {
+			t.Fatal("expected checkout line to be updated")
+		}
+		gotStr := string(got)
+		if !strings.Contains(gotStr, "          persist-credentials: false\n          fetch-depth: 0\n\n          clean: false") {
+			t.Fatalf("expected persist-credentials at the top of checkout with block, got:\n%s", gotStr)
+		}
+	})
 }
 
 // TestGetActionRef tests the getActionRef helper with and without a resolver
@@ -1873,6 +2056,43 @@ func TestGeneratedCopilotSetupStepsIsValid(t *testing.T) {
 			content := generateCopilotSetupStepsYAML(context.Background(), mode, "v1.2.3", &mockSHAResolver{sha: "abc123"})
 			if err := validateCopilotSetupStepsContent([]byte(content)); err != nil {
 				t.Errorf("Generated copilot-setup-steps.yml for mode %s is not valid: %v\n%s", mode, err, content)
+			}
+		})
+	}
+}
+
+func TestGeneratedCopilotSetupStepsPinsCheckout(t *testing.T) {
+	t.Parallel()
+
+	expectedCheckoutRef := actionpins.ResolveLatestActionPin("actions/checkout", nil)
+	if expectedCheckoutRef == "" {
+		t.Fatal("expected embedded actions/checkout pin")
+	}
+
+	modes := []workflow.ActionMode{
+		workflow.ActionModeRelease,
+		workflow.ActionModeAction,
+	}
+
+	for _, mode := range modes {
+		t.Run(string(mode), func(t *testing.T) {
+			t.Parallel()
+			content := generateCopilotSetupStepsYAML(context.Background(), mode, "v1.2.3", &mockSHAResolver{sha: "bd9c0ca491e6334a2797ef56ad6ee89958d54ab9"})
+			if strings.Contains(content, "uses: actions/checkout@v6") {
+				t.Fatalf("generated copilot setup steps must not use unpinned checkout tag:\n%s", content)
+			}
+			if !strings.Contains(content, "uses: "+expectedCheckoutRef) {
+				t.Fatalf("generated copilot setup steps should use pinned checkout ref %q:\n%s", expectedCheckoutRef, content)
+			}
+			for _, want := range []string{
+				"permissions:\n  contents: read",
+				"concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
+				"name: Copilot Setup Steps",
+				"persist-credentials: false",
+			} {
+				if !strings.Contains(content, want) {
+					t.Fatalf("generated copilot setup steps should contain %q for Zizmor-clean output:\n%s", want, content)
+				}
 			}
 		})
 	}
