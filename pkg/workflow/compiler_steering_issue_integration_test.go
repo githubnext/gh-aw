@@ -62,7 +62,7 @@ Create a change and open a pull request.
 	failureStepEnd := strings.Index(conclusion[failureStepStart:], "name: Report failed jobs")
 	require.NotEqual(t, -1, failureStepEnd)
 	failureStep := conclusion[failureStepStart : failureStepStart+failureStepEnd]
-	assert.Contains(t, failureStep, "GH_AW_STEERING_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}")
+	assert.Contains(t, failureStep, "GH_AW_FAILURE_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}")
 }
 
 func TestCompileRejectsLegacyPreCreatePullRequest(t *testing.T) {

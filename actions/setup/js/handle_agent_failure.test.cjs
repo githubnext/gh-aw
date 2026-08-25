@@ -521,7 +521,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_RUN_URL;
       delete process.env.GH_AW_AGENT_CONCLUSION;
       delete process.env.GH_AW_FAILURE_REPORT_AS_ISSUE;
-      delete process.env.GH_AW_STEERING_ISSUE_NUMBER;
+      delete process.env.GH_AW_FAILURE_ISSUE_NUMBER;
       delete process.env.GH_AW_STEERING_ISSUE_URL;
       delete process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT;
       delete process.env.GH_AW_SHELL_EXPANSION_GUARD_REJECTED;
@@ -573,8 +573,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("reuses the steering issue instead of searching for or creating a failure issue", async () => {
-      process.env.GH_AW_STEERING_ISSUE_NUMBER = "42";
-      process.env.GH_AW_STEERING_ISSUE_URL = "https://github.com/owner/repo/issues/42";
+      process.env.GH_AW_FAILURE_ISSUE_NUMBER = "42";
       const updateIssueMock = vi.fn(async options => ({
         data: {
           number: options.issue_number,

@@ -3722,22 +3722,22 @@ async function main() {
     }
 
     /** @type {{ number: number, labels: Array<string | { name?: string | null }> } | null} */
-    let steeringIssue = null;
-    const steeringIssueNumber = Number.parseInt(process.env.GH_AW_STEERING_ISSUE_NUMBER || "", 10);
-    if (Number.isFinite(steeringIssueNumber) && steeringIssueNumber > 0) {
+    let failureIssue = null;
+    const failureIssueNumber = Number.parseInt(process.env.GH_AW_FAILURE_ISSUE_NUMBER || "", 10);
+    if (Number.isFinite(failureIssueNumber) && failureIssueNumber > 0) {
       const { data: issue } = await github.rest.issues.get({
         owner,
         repo,
-        issue_number: steeringIssueNumber,
+        issue_number: failureIssueNumber,
       });
       if (issue.pull_request) {
-        throw new Error(`Steering item #${steeringIssueNumber} is a pull request, not an issue`);
+        throw new Error(`Failure item #${failureIssueNumber} is a pull request, not an issue`);
       }
       if (issue.state !== "open") {
-        throw new Error(`Steering issue #${steeringIssueNumber} is not open`);
+        throw new Error(`Failure issue #${failureIssueNumber} is not open`);
       }
-      steeringIssue = issue;
-      core.info(`Reusing steering issue #${steeringIssueNumber} for failure reporting`);
+      failureIssue = issue;
+      core.info(`Reusing failure issue #${failureIssueNumber}`);
     }
 
     // Try to find a pull request for the current branch
@@ -3890,7 +3890,7 @@ async function main() {
     core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);
 
     try {
-      const existingIssue = steeringIssue
+      const existingIssue = failureIssue
         ? null
         : await findExistingFailureIssue({
             owner,
@@ -4098,7 +4098,7 @@ async function main() {
       } else {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
-        const cappedCategories = steeringIssue
+        const cappedCategories = failureIssue
           ? []
           : await getCappedFailureCategories({
               owner,
@@ -4331,19 +4331,19 @@ async function main() {
         const issueBody = bodyLines.join("\n");
 
         let newIssue;
-        if (steeringIssue) {
-          const labels = [...new Set([...(steeringIssue.labels || []).map(label => (typeof label === "string" ? label : label.name || "")).filter(Boolean), "agentic-workflows"])];
+        if (failureIssue) {
+          const labels = [...new Set([...(failureIssue.labels || []).map(label => (typeof label === "string" ? label : label.name || "")).filter(Boolean), "agentic-workflows"])];
           newIssue = await github.rest.issues.update({
             owner,
             repo,
-            issue_number: steeringIssue.number,
+            issue_number: failureIssue.number,
             title: issueTitle,
             body: issueBody,
             labels,
             state: "open",
             headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
           });
-          core.info(`✓ Reused steering issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+          core.info(`✓ Reused failure issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         } else {
           newIssue = await github.rest.issues.create({
             owner,

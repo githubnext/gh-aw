@@ -296,7 +296,7 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 func buildAgentFailureActivationStatusVars(data *WorkflowData) []string {
 	var envVars []string
 	if isSteeringIssueEnabled(data) {
-		envVars = append(envVars, "          GH_AW_STEERING_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}\n")
+		envVars = append(envVars, "          GH_AW_FAILURE_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}\n")
 	}
 	if data.SafeOutputs.AssignToAgent != nil {
 		envVars = append(envVars, "          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}\n")
