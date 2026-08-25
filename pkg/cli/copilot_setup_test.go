@@ -1607,6 +1607,49 @@ jobs:
 	}
 }
 
+func TestPinCheckoutUsesInContent(t *testing.T) {
+	t.Parallel()
+
+	checkoutRef := actionpins.ResolveLatestActionPin("actions/checkout", nil)
+
+	t.Run("preserves missing trailing newline", func(t *testing.T) {
+		t.Parallel()
+		input := "        uses: actions/checkout@v4"
+		got, changed := pinCheckoutUsesInContent([]byte(input))
+		if !changed {
+			t.Fatal("expected checkout line to be updated")
+		}
+		expected := "        uses: " + checkoutRef + "\n        with:\n          persist-credentials: false"
+		if string(got) != expected {
+			t.Fatalf("expected %q, got %q", expected, string(got))
+		}
+	})
+
+	t.Run("blank line ends existing with block", func(t *testing.T) {
+		t.Parallel()
+		input := `      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Other step
+        with:
+          persist-credentials: true
+`
+		got, changed := pinCheckoutUsesInContent([]byte(input))
+		if !changed {
+			t.Fatal("expected checkout line to be updated")
+		}
+		gotStr := string(got)
+		if !strings.Contains(gotStr, "        uses: "+checkoutRef) {
+			t.Fatalf("expected checkout to use %q, got:\n%s", checkoutRef, gotStr)
+		}
+		if !strings.Contains(gotStr, "          persist-credentials: false\n          fetch-depth: 0") {
+			t.Fatalf("expected persist-credentials in checkout with block, got:\n%s", gotStr)
+		}
+	})
+}
+
 // TestGetActionRef tests the getActionRef helper with and without a resolver
 func TestGetActionRef(t *testing.T) {
 	tests := []struct {

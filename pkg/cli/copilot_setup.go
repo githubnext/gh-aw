@@ -595,7 +595,9 @@ func upgradeSetupCliVersionInContent(ctx context.Context, content []byte, action
 }
 
 func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
-	lines := strings.SplitAfter(string(content), "\n")
+	contentStr := string(content)
+	hadTrailingNewline := strings.HasSuffix(contentStr, "\n")
+	lines := strings.SplitAfter(contentStr, "\n")
 	checkoutRef := latestCheckoutActionRef()
 	changed := false
 
@@ -632,15 +634,15 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 	if !changed {
 		return content, false
 	}
-	return []byte(strings.Join(lines, "")), true
+	result := strings.Join(lines, "")
+	if !hadTrailingNewline {
+		result = strings.TrimSuffix(result, "\n")
+	}
+	return []byte(result), true
 }
 
 func checkoutWithBlockEnd(lines []string, start int, usesIndent string) int {
 	for i := start; i < len(lines); i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
 		if !strings.HasPrefix(lines[i], usesIndent+"  ") {
 			return i
 		}
