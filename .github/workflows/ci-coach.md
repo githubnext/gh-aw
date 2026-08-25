@@ -13,6 +13,10 @@ permissions:
 
 max-ai-credits: 50000
 tracker-id: ci-coach-daily
+network:
+  allowed:
+    - defaults
+    - node
 engine:
   id: copilot
   copilot-sdk: true

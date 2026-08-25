@@ -16,6 +16,7 @@ network:
   allowed:
     - defaults
     - go
+    - node
 sandbox:
   agent:
     runtime: cloud-hypervisor
