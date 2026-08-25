@@ -7,8 +7,8 @@ sidebar:
 
 # Dashboard Language Specification
 
-**Version:** 0.1.0  
-**Status:** Working Draft  
+**Version:** 0.1.0
+**Status:** Working Draft
 **Editor:** GitHub Agentic Workflows Team
 
 ---
@@ -78,7 +78,7 @@ The language is designed to be minimal, deterministic, auditable, and safe to va
 
 ### 1.4 Basis and Domain Additions
 
-The built-in page requirements are grounded in reviewed Central Agentic Ops surfaces: an overview with rollout-mode filtering, workflow inventory and active state, run status trends and counts, repository and workflow rankings, largest AIC spenders, findings linked to issues, pull requests, or runs, operational-value timelines, explicit provenance and freshness, and empty or unavailable states.
+The built-in page requirements are grounded in reviewed Central Agentic Ops surfaces: an overview with rollout-mode filtering, workflow inventory and active state, run status and conclusion trends and counts, repository and workflow rankings, largest AIC spenders, findings linked to issues, pull requests, or runs, operational-value timelines, explicit provenance and freshness, and empty or unavailable states.
 
 Engine, requested-model, and resolved-model dimensions are GitHub Agentic Workflows domain requirements. They are not represented here as observed Central Agentic Ops surface behavior.
 
@@ -92,28 +92,19 @@ Engine, requested-model, and resolved-model dimensions are GitHub Agentic Workfl
 
 ### 2.2 Conformance Classes
 
-This specification defines two implementation classes:
+This specification defines three conformance classes:
 
-1. **Validator:** parses a dashboard document and reports validity.
-2. **Presenter:** consumes a valid document and a conforming logical data set to expose the specified information.
+1. **Dashboard document:** one YAML document claiming this language version.
+2. **Validator:** parses a dashboard document and reports validity.
+3. **Presenter:** consumes a valid document and conforming logical data to expose the specified information.
 
-### 2.3 Compliance Levels
+### 2.3 Normative Conformance Requirements
 
-| Level | Name | Coverage |
-|---|---|---|
-| 1 | Basic | YAML document structure and vocabulary validation |
-| 2 | Standard | Level 1 plus intrinsic semantics, context, aggregation, provenance, and links |
-| 3 | Complete | Level 2 plus every built-in page, custom views, data states, and accessibility semantics |
-
-An implementation that passes only a documented subset is partially conforming; partial conformance is not equivalent to a conformance level.
-
-### 2.4 Normative Conformance Requirements
-
-- **DLS-CONF-001:** A conformance claim **MUST** identify the implementation class, specification version, compliance level, and test-suite result.
-- **DLS-CONF-002:** A Level 1 validator **MUST** satisfy all `DLS-DOC-*` requirements.
-- **DLS-CONF-003:** A Level 2 implementation **MUST** satisfy Level 1 and all `DLS-SEM-*`, `DLS-CTX-*`, `DLS-AGG-*`, `DLS-DATA-*`, and `DLS-LINK-*` requirements.
-- **DLS-CONF-004:** A Level 3 implementation **MUST** satisfy Level 2 and all `DLS-PAGE-*`, `DLS-VIEW-*`, and `DLS-SAFE-*` requirements.
-- **DLS-CONF-005:** A partially conforming claim **MUST NOT** use a Level 1, Level 2, or Level 3 label and **MUST** enumerate unmet requirements.
+- **DLS-CONF-001:** A conformance claim **MUST** identify its class, specification version, implementation version when applicable, and test-suite result.
+- **DLS-CONF-002:** A conforming dashboard document **MUST** satisfy all `DLS-DOC-*` requirements.
+- **DLS-CONF-003:** A conforming validator **MUST** enforce all `DLS-DOC-*`, `DLS-VAL-*`, and parser-applicable `DLS-SAFE-*` requirements.
+- **DLS-CONF-004:** A conforming presenter **MUST** satisfy all `DLS-SEM-*`, `DLS-CTX-*`, `DLS-AGG-*`, `DLS-DATA-*`, `DLS-LINK-*`, `DLS-PAGE-*`, `DLS-VIEW-*`, presenter-applicable `DLS-SAFE-*`, and `DLS-TEST-*` requirements.
+- **DLS-CONF-005:** A non-conforming implementation **MAY** document supported subsets but **MUST NOT** claim conformance to this specification.
 
 ---
 
@@ -151,7 +142,7 @@ organization
                 └─ operational-value observations
 ```
 
-Graders and evals are definitions. Grader observations and eval observations are records produced using those definitions. An experiment may classify runs through assignments, but this language does not manage experiments.
+Graders and evals are definitions. Grader observations and eval observations are records produced using those definitions. An experiment assignment associates one run with one named variant, but this language does not manage experiments.
 
 ### 3.3 Normative Semantic Foundations
 
@@ -159,17 +150,17 @@ Graders and evals are definitions. Grader observations and eval observations are
 - **DLS-SEM-002:** An implementation **MUST** model a repository as belonging to exactly one organization and as containing zero or more workflows.
 - **DLS-SEM-003:** An implementation **MUST** model a workflow as belonging to exactly one repository and a run as an execution of exactly one workflow.
 - **DLS-SEM-004:** Workflow active state **MUST** use `true`, `false`, or `unknown`; `unknown` **MUST NOT** be treated as either Boolean value.
-- **DLS-SEM-005:** Run lifecycle status **MUST** use `queued`, `in-progress`, `completed`, or `unknown`.
-- **DLS-SEM-006:** Run conclusion **MUST** use `success`, `failure`, `cancelled`, `timed-out`, `skipped`, or `unknown`, and a non-completed run **MUST** have conclusion `unknown`.
-- **DLS-SEM-007:** An experiment assignment **MUST** identify an experiment and run; absence of an assignment **MUST NOT** imply membership in a control or treatment group.
-- **DLS-SEM-008:** A grader observation **MUST** identify its grader, observed subject, observation time, and result; it **MUST NOT** be represented as an eval observation.
-- **DLS-SEM-009:** An eval observation **MUST** identify its eval, observed subject, observation time, and BinEval result of `yes`, `no`, or `unknown`; it **MUST NOT** be represented as a grader observation.
-- **DLS-SEM-010:** A raw-token observation **MUST** retain its `token-class` and **MUST NOT** be labeled or aggregated as `aic`.
+- **DLS-SEM-005:** Run lifecycle status **MUST** use `queued`, `in-progress`, `completed`, or `unknown`; upstream `in_progress` **MUST** normalize to `in-progress`.
+- **DLS-SEM-006:** Run conclusion **MUST** use `success`, `failure`, `cancelled`, `timed-out`, `action-required`, `neutral`, `skipped`, `stale`, `startup-failure`, or `unknown`; upstream underscore-separated values **MUST** normalize to kebab-case. A non-completed run **MUST** have conclusion `unknown`.
+- **DLS-SEM-007:** An experiment assignment **MUST** identify an experiment, variant, and run; absence of an assignment **MUST NOT** imply membership in a control or treatment group.
+- **DLS-SEM-008:** A grader observation **MUST** identify its grader, observed subject, observation time, `value`, and `status`; status **MUST** use `pass`, `fail`, `error`, or `unavailable`. It **MUST NOT** be represented as an eval observation.
+- **DLS-SEM-009:** An eval observation **MUST** identify its eval, observed subject, observation time, and BinEval result of `YES`, `NO`, or `UNKNOWN`; it **MUST NOT** be represented as a grader observation.
+- **DLS-SEM-010:** A usage observation **MUST** retain raw `input-tokens`, `output-tokens`, `cache-read-tokens`, `cache-write-tokens`, and `reasoning-tokens` as separate measures and **MUST NOT** label any of them as `aic`.
 - **DLS-SEM-011:** An AIC observation **MUST** be represented by `aic` and **MUST NOT** be inferred from raw tokens unless the data provenance identifies an authoritative conversion.
 - **DLS-SEM-012:** A run-associated usage observation **MUST** preserve `engine`, `requested-model`, and `resolved-model` as distinct dimensions; an unavailable value **MUST** be `unknown`.
-- **DLS-SEM-013:** An operational-value observation **MUST** identify its definition, observed subject, observation time, evidence cutoff, maturity time, and accepted evidence provenance. Its primary value **MUST** be absolute attainment in `[0,1]` or `null`.
+- **DLS-SEM-013:** An operational-value observation **MUST** identify its definition, operational case, evaluator digest, observed subject, observation time, requested evidence time, effective evidence cutoff, maturity time and status, and accepted evidence provenance. Its primary value **MUST** be absolute attainment in `[0,1]` or `null`.
 - **DLS-SEM-014:** An implementation **MUST NOT** present experiment, grader, eval, usage, outcome, finding, or operational-value associations as causal conclusions.
-- **DLS-SEM-015:** An outcome observation **MUST** identify its safe output and use `accepted`, `rejected`, `pending`, `ignored`, `skipped`, `lifecycle`, `lifecycle-close`, `error`, or `unknown`; it **MUST NOT** be represented as a run conclusion.
+- **DLS-SEM-015:** An outcome observation **MUST** identify its safe output and use `accepted`, `rejected`, `ignored`, `pending`, `lifecycle`, or `lifecycle-close`; upstream `lifecycle_close` **MUST** normalize to `lifecycle-close`. It **MUST NOT** be represented as a run conclusion.
 - **DLS-SEM-016:** An optional operational-value baseline delta **MUST** remain separate from the primary absolute value and **MUST NOT** replace it.
 
 ---
@@ -203,8 +194,8 @@ Language keys and enumerated values use canonical kebab-case. Human-readable tit
 | `defaults` | `scope`, `time`, `filters` |
 | Built-in page | `id`, `kind`, `page`, `title`, `description` |
 | Custom page | `id`, `kind`, `title`, `description`, `views` |
-| View | `id`, `title`, `description`, `source`, `data`, `mark`, `encoding` |
-| View `data` | `scope`, `time`, `filters`, `limit`, `order-by` |
+| View | `id`, `title`, `description`, `data`, `mark`, `encoding` |
+| View `data` | `source`, `scope`, `time`, `filters`, `limit`, `order-by` |
 | Field definition | `field`, `type`, `aggregate`, `time-unit`, `title` |
 
 ### 4.3 Normative Document Requirements
@@ -235,20 +226,21 @@ The `source` vocabulary is closed in version 0.1.0.
 | `workflows` | workflow | `organization`, `repository`, `workflow`, `workflow-name`, `workflow-active`, `rollout-mode`, `observed-at` |
 | `runs` | run | `organization`, `repository`, `workflow`, `run`, `started-at`, `ended-at`, `run-status`, `run-conclusion`, `rollout-mode`, `engine`, `requested-model`, `resolved-model` |
 | `experiments` | experiment | `experiment`, `experiment-name`, `observed-at` |
+| `experiment-assignments` | experiment assignment | scope IDs, `run`, `experiment`, `variant`, `observed-at` |
 | `graders` | grader definition | `grader`, `grader-name`, `observed-at` |
-| `grader-observations` | grader observation | scope IDs, `run`, `experiment`, `grader`, `grader-score`, `grader-result`, `rollout-mode`, `observed-at` |
+| `grader-observations` | grader observation | scope IDs, `run`, `experiment`, `grader`, `value`, `status`, `rollout-mode`, `observed-at` |
 | `evals` | eval definition | `eval`, `eval-name`, `eval-question`, `requested-model`, `observed-at` |
 | `eval-observations` | eval observation | scope IDs, `run`, `experiment`, `eval`, `eval-result`, `requested-model`, `resolved-model`, `rollout-mode`, `observed-at` |
-| `usage` | usage observation | scope IDs, `run`, `engine`, `requested-model`, `resolved-model`, `rollout-mode`, `token-class`, `raw-token-count`, `aic`, `observed-at` |
+| `usage` | model invocation | scope IDs, `run`, `invocation`, `engine`, `requested-model`, `resolved-model`, `rollout-mode`, `input-tokens`, `output-tokens`, `cache-read-tokens`, `cache-write-tokens`, `reasoning-tokens`, `aic`, `observed-at` |
 | `outcomes` | safe-output outcome observation | scope IDs, `run`, `safe-output`, `outcome-state`, `evidence-strength`, `observed-at`, `link` |
 | `findings` | finding | scope IDs, `run`, `finding`, `finding-severity`, `finding-status`, `finding-summary`, `observed-at`, `link` |
-| `operational-values` | value observation | scope IDs, `run`, `experiment`, `rollout-mode`, `operational-value`, `operational-value-definition`, `evidence-at`, `maturity-at`, `delta-from-baseline`, `observed-at`, `evidence-link` |
+| `operational-values` | value observation | scope IDs, `run`, `experiment`, `operational-case`, `evaluator-digest`, `rollout-mode`, `operational-value`, `operational-value-definition`, `requested-evidence-at`, `evidence-cutoff`, `maturity-at`, `maturity-status`, `delta-from-baseline`, `observed-at`, `evidence-link` |
 
 “Scope IDs” means the applicable `organization`, `repository`, and `workflow` fields. Fields that do not apply to an observation are absent rather than fabricated.
 
 ### 5.2 Raw Token Classes
 
-The canonical token classes are `input`, `output`, `cache-read`, `cache-write`, `reasoning`, and `other`. `other` preserves a reported count whose more specific class is not represented by this version.
+The canonical raw-token measures are `input-tokens`, `output-tokens`, `cache-read-tokens`, `cache-write-tokens`, and `reasoning-tokens`. They remain separate because provider reporting conventions may overlap.
 
 ### 5.3 Graders, Evals, and Operational Value
 
@@ -256,10 +248,10 @@ A grader applies a named grading criterion and produces a deterministic grader o
 
 ### 5.4 Normative Source Requirements
 
-- **DLS-SEM-017:** A custom view `source` **MUST** name exactly one source from Section 5.1.
+- **DLS-SEM-017:** A custom view `data.source` **MUST** name exactly one source from Section 5.1.
 - **DLS-SEM-018:** Each logical source **MUST** preserve the grain declared in Section 5.1; duplicated observations **MUST** retain distinct observation identifiers in provenance.
-- **DLS-SEM-019:** `token-class` **MUST** use `input`, `output`, `cache-read`, `cache-write`, `reasoning`, or `other`.
-- **DLS-SEM-020:** Grader scores, eval results, AIC, raw-token counts, outcome states, and operational value **MUST** remain separately named throughout filtering, aggregation, and presentation.
+- **DLS-SEM-019:** A `usage` row **MUST** represent one model invocation and **MUST NOT** repeat invocation-level AIC across token-class rows.
+- **DLS-SEM-020:** Grader values, eval results, AIC, each raw-token measure, outcome states, and operational value **MUST** remain separately named throughout filtering, aggregation, and presentation.
 - **DLS-SEM-021:** `rollout-mode` **MUST** use `staged`, `review`, `live`, or `unknown`.
 
 ---
@@ -272,7 +264,7 @@ A grader applies a named grading criterion and produces a deterministic grader o
 
 ### 6.2 Time
 
-`time` is a mapping containing optional `start` and `end` RFC 3339 timestamps. `start` is inclusive and `end` is exclusive. Missing bounds are unbounded. Time comparisons use instants; calendar time units use UTC.
+`time` is a mapping containing either `range` or optional `start` and `end` RFC 3339 timestamps. `range` is a positive integer followed by `h`, `d`, or `w`, such as `30d`. A relative range resolves to `[evaluated-at - range, evaluated-at)`, where the presenter exposes one RFC 3339 `evaluated-at` instant for the dashboard. Absolute `start` is inclusive and `end` is exclusive. Missing absolute bounds are unbounded. Time comparisons use instants; calendar time units use UTC.
 
 ### 6.3 Filters
 
@@ -290,6 +282,8 @@ Dashboard defaults establish the initial context. A custom view's `data` context
 - **DLS-CTX-006:** `rollout-mode` **MUST** be filterable, groupable, and displayable by the same mechanisms as other dimensions.
 - **DLS-CTX-007:** Missing or `unknown` dimension values **MUST NOT** match a concrete filter value and **MUST** match the explicit value `unknown`.
 - **DLS-CTX-008:** Filtering **MUST** occur before aggregation, ordering, and limiting.
+- **DLS-CTX-009:** `time.range` **MUST** match `^[1-9][0-9]*(h|d|w)$` and **MUST NOT** appear with `start` or `end`.
+- **DLS-CTX-010:** A presenter resolving `time.range` **MUST** expose `evaluated-at` and use it consistently for every page and view in the dashboard.
 
 ---
 
@@ -297,15 +291,19 @@ Dashboard defaults establish the initial context. A custom view's `data` context
 
 ### 7.1 Canonical Dimensions
 
-Canonical dimensions include entity IDs, `workflow-active`, `run-status`, `run-conclusion`, `outcome-state`, `rollout-mode`, `token-class`, `engine`, `requested-model`, `resolved-model`, operational-value definition, categorical observation results, and temporal fields.
+Canonical dimensions include entity IDs, `variant`, `workflow-active`, `run-status`, `run-conclusion`, `outcome-state`, `rollout-mode`, `engine`, `requested-model`, `resolved-model`, operational-value definition, categorical observation results, and temporal fields.
 
 ### 7.2 Canonical Measures
 
 | Measure | Meaning | Additivity |
 |---|---|---|
-| `raw-token-count` | Provider-reported count for one token class | Additive only within compatible provenance and token class |
+| `input-tokens` | Provider-reported input tokens | Additive |
+| `output-tokens` | Provider-reported output tokens | Additive |
+| `cache-read-tokens` | Provider-reported cache-read tokens | Additive |
+| `cache-write-tokens` | Provider-reported cache-write tokens | Additive |
+| `reasoning-tokens` | Provider-reported reasoning tokens | Additive |
 | `aic` | Authoritatively supplied AI Credits | Additive |
-| `grader-score` | Score emitted by a grader | Non-additive by default |
+| `value` on `grader-observations` | Value emitted by a grader | Non-additive by default |
 | `operational-value` | Absolute attainment under a named definition | Non-additive by default |
 
 Entity counts are obtained with `count` or `distinct-count`; they are not stored measures.
@@ -321,10 +319,10 @@ Unaggregated dimensions in an encoding form the grouping key. Aggregated fields 
 ### 7.4 Normative Aggregation Requirements
 
 - **DLS-AGG-001:** An implementation **MUST** group only by dimensions and **MUST** aggregate only measures or entity identifiers compatible with the selected aggregate.
-- **DLS-AGG-002:** `sum` **MUST** be accepted only for `raw-token-count` and `aic`, subject to compatibility requirements.
-- **DLS-AGG-003:** Raw-token counts **MUST NOT** be summed across different `token-class` values because provider reporting classes may overlap; a combined presentation **MUST** retain the separate component classes.
+- **DLS-AGG-002:** `sum` **MUST** be accepted only for the five raw-token measures and `aic`.
+- **DLS-AGG-003:** Different raw-token measures **MUST NOT** be combined into a derived total because provider reporting classes may overlap; a combined presentation **MUST** retain separate measures.
 - **DLS-AGG-004:** AIC aggregation **MUST** sum only available, non-negative AIC observations, retain all contributing provenance, and **MUST NOT** substitute zero for missing AIC.
-- **DLS-AGG-005:** `grader-score` and `operational-value` **MUST** use `none`, `mean`, `min`, or `max`, and aggregation **MUST** retain grader identity or operational-value definition, respectively.
+- **DLS-AGG-005:** Grader `value` and `operational-value` **MUST** use `none`, `mean`, `min`, or `max`, and aggregation **MUST** retain grader identity or operational-value definition, respectively.
 - **DLS-AGG-006:** `count` and `distinct-count` **MUST** ignore absent values and **MUST NOT** substitute zero.
 - **DLS-AGG-007:** A time unit **MUST** be applied before grouping and **MUST** use the UTC boundaries in Section 7.3.
 - **DLS-AGG-008:** Rankings **MUST** disclose the ranked measure, direction, filters, time range, scope, and tie behavior; ties **MUST** then be ordered by canonical entity ID ascending.
@@ -352,27 +350,26 @@ Freshness is an asserted data property. This specification does not define a cac
 
 ### 8.2 Data States
 
-| State | Meaning |
-|---|---|
-| `available` | Data is usable, subject to completeness and freshness metadata. |
-| `empty` | The query completed successfully and returned no observations. |
-| `unavailable` | The source could not supply a usable result. |
-| `partial` | Some expected scope or time coverage is absent. |
-| `stale` | Data is usable but its freshness assertion is `stale`. |
-| `unknown` | Completeness or freshness cannot be established. |
+Data quality has three independent axes:
 
-`partial` and `stale` are independent annotations on available or empty results. `unavailable` indicates that no usable result exists.
+| Axis | Values |
+|---|---|
+| Availability | `available`, `empty`, `unavailable` |
+| Completeness | `complete`, `partial`, `unknown` |
+| Freshness | `fresh`, `stale`, `unknown` |
+
+`empty` means a valid selection returned no observations. It may be partial, stale, or unknown on the other axes. `unavailable` means no usable result exists.
 
 ### 8.3 Normative Data Requirements
 
 - **DLS-DATA-001:** Every consumed logical source **MUST** provide `source-id`, `source-kind`, `as-of`, `retrieved-at`, `completeness`, and `freshness`.
 - **DLS-DATA-002:** Provenance and freshness **MUST** remain associated with derived metrics, tables, charts, rankings, and links.
 - **DLS-DATA-003:** A presenter **MUST** expose `as-of`, freshness, completeness, and source identity for every page or view.
-- **DLS-DATA-004:** An empty result **MUST** be represented as `empty` and **MUST NOT** be represented as zero, success, failure, or unavailable.
+- **DLS-DATA-004:** An empty selection **MUST** have availability `empty`; `count` and `distinct-count` over that selection **MUST** produce zero, while other aggregates **MUST** remain absent.
 - **DLS-DATA-005:** An unavailable result **MUST** identify the affected source and **MUST NOT** fabricate observations or carry forward an unmarked previous value.
 - **DLS-DATA-006:** A partial result **MUST** identify known missing scope or time coverage and **MUST NOT** be labeled complete.
 - **DLS-DATA-007:** A stale result **MUST** retain its original `as-of` value and **MUST** be explicitly identified as stale.
-- **DLS-DATA-008:** `unknown` completeness or freshness **MUST** remain distinct from `complete`, `partial`, `fresh`, and `stale`.
+- **DLS-DATA-008:** Availability, completeness, and freshness **MUST** remain separate; `unknown` completeness or freshness **MUST** remain distinct from every known value on the same axis.
 
 ---
 
@@ -411,19 +408,19 @@ Allowed built-in page names are:
 ### 10.2 Required Content
 
 - **DLS-PAGE-001:** A built-in page **MUST** contain `id`, `kind: built-in`, and one allowed `page`; an omitted title **MUST** default to the page name with words capitalized.
-- **DLS-PAGE-002:** The `overview` page **MUST** expose rollout-mode filtering, workflow active-state inventory, run status counts and trends, repository and workflow rankings, largest AIC spenders, recent linked findings, an operational-value timeline, and provenance and freshness.
+- **DLS-PAGE-002:** The `overview` page **MUST** expose rollout-mode filtering, workflow active-state inventory, run status and conclusion counts and trends, repository and workflow rankings, largest AIC spenders, recent linked findings, an operational-value timeline, and provenance and freshness.
 - **DLS-PAGE-003:** The `organizations` page **MUST** expose organization inventory, repository count, workflow count, run count, available usage measures, and data state by organization.
 - **DLS-PAGE-004:** The `repositories` page **MUST** expose repository inventory and rankings by run count, AIC, and available operational value without combining different operational-value definitions.
 - **DLS-PAGE-005:** The `workflows` page **MUST** expose workflow inventory, active state, rollout mode, run count, run conclusions, downstream outcome counts, available usage, findings, and operational value.
 - **DLS-PAGE-006:** The `runs` page **MUST** expose run status trends and counts, terminal conclusions, downstream outcome observations when available, scope, rollout mode, engine, requested model, resolved model, time, and run links.
-- **DLS-PAGE-007:** The `experiments` page **MUST** expose experiment definitions and observed run assignments, grader observations, eval observations, outcomes, usage, and operational value without claiming causation.
+- **DLS-PAGE-007:** The `experiments` page **MUST** expose experiment definitions and observed run-to-variant assignments, grader observations, eval observations, outcomes, usage, and operational value without claiming causation.
 - **DLS-PAGE-008:** The `graders` page **MUST** keep grader definitions and grader observations distinguishable and expose observed subject, result, score when present, time, and provenance.
-- **DLS-PAGE-009:** The `evals` page **MUST** keep eval definitions and eval observations distinguishable and expose observed subject, `yes`, `no`, or `unknown` result, evaluation model when available, time, and provenance.
-- **DLS-PAGE-010:** The `usage` page **MUST** present raw-token counts by token class separately from AIC and expose engine, requested model, resolved model, scope, rollout mode, time, and provenance.
-- **DLS-PAGE-011:** The `engines-models` page **MUST** expose engine, requested model, and resolved model as separate dimensions with run counts, outcomes, raw tokens, and AIC where available.
-- **DLS-PAGE-012:** The `operational-value` page **MUST** expose a time-ordered absolute-attainment series with definition, subject, evidence cutoff, maturity, accepted evidence provenance, freshness, applicable experiment assignment, and separate baseline delta when available.
+- **DLS-PAGE-009:** The `evals` page **MUST** keep eval definitions and eval observations distinguishable and expose observed subject, `YES`, `NO`, or `UNKNOWN` result, evaluation model when available, time, and provenance.
+- **DLS-PAGE-010:** The `usage` page **MUST** present each raw-token measure separately from AIC and expose engine, requested model, resolved model, scope, rollout mode, time, and provenance.
+- **DLS-PAGE-011:** The `engines-models` page **MUST** expose engine, requested model, and resolved model as separate dimensions with run counts, run conclusions, downstream outcomes, raw tokens, and AIC where available.
+- **DLS-PAGE-012:** The `operational-value` page **MUST** expose a time-ordered absolute-attainment series with definition, operational case, evaluator digest, subject, requested evidence time, effective evidence cutoff, maturity time and status, accepted evidence provenance, freshness, applicable experiment assignment, and separate baseline delta when available.
 - **DLS-PAGE-013:** The `findings` page **MUST** expose finding summary, severity, status, scope, time, provenance, and available issue, pull-request, and run links.
-- **DLS-PAGE-014:** Every built-in page **MUST** honor the dashboard scope, time, and filters and expose explicit `empty`, `unavailable`, `partial`, `stale`, and `unknown` states when applicable.
+- **DLS-PAGE-014:** Every built-in page **MUST** honor the dashboard scope, time, and filters and expose availability, completeness, and freshness independently.
 
 ---
 
@@ -431,22 +428,23 @@ Allowed built-in page names are:
 
 ### 11.1 Syntax and View Classes
 
-A custom page contains a non-empty `views` sequence. Each view has one source, optional data narrowing, one mark, and one encoding.
+A custom page contains a non-empty `views` sequence. Each view has one `data` mapping, one mark, and one encoding.
 
 | Semantic view | `mark` values | Required encoding |
 |---|---|---|
 | Metric | `metric` | `value` |
 | Table | `table` | `columns` |
-| Chart | `bar`, `point` | `x`, `y` |
-| Time series | `line` | `x`, `y`; `x` is temporal |
+| Chart | `chart` | `x`, `y` |
 
 Allowed encoding channels are `value`, `columns`, `x`, `y`, `color`, and `href`. `columns` is a non-empty sequence of field definitions; other channels contain one field definition.
 
 Field `type` values are `nominal`, `ordinal`, `quantitative`, and `temporal`. When omitted, type defaults to the intrinsic field type. A field title defaults to its kebab-case field name with words capitalized.
 
+A `chart` with temporal `x` has a line time-series default. Other charts have a bar default. These known defaults are semantic; this specification does not define visual styling.
+
 ### 11.2 Data Narrowing
 
-View `data` may contain:
+View `data` contains `source` and may also contain:
 
 - `scope`, `time`, and `filters` as defined in Section 6;
 - `limit`, a positive integer; and
@@ -457,11 +455,11 @@ An omitted `data` inherits dashboard defaults. Omitted `limit` means no language
 ### 11.3 Normative Custom-View Requirements
 
 - **DLS-VIEW-001:** A custom page **MUST** contain `id`, `kind: custom`, and a non-empty `views` sequence; an omitted title **MUST** default from its page ID.
-- **DLS-VIEW-002:** Every view **MUST** contain a unique `id`, one canonical `source`, one allowed `mark`, and an `encoding` mapping.
+- **DLS-VIEW-002:** Every view **MUST** contain a unique `id`, a `data` mapping with one canonical `source`, one allowed `mark`, and an `encoding` mapping.
 - **DLS-VIEW-003:** `metric` **MUST** encode exactly one `value` field and **MAY** encode `href`; it **MUST NOT** encode chart or table channels.
 - **DLS-VIEW-004:** `table` **MUST** encode non-empty `columns` and **MAY** encode `href`; it **MUST NOT** encode `value`, `x`, `y`, or `color`.
-- **DLS-VIEW-005:** `bar` and `point` **MUST** encode `x` and `y`, **MAY** encode `color` and `href`, and **MUST NOT** encode `value` or `columns`.
-- **DLS-VIEW-006:** `line` **MUST** encode temporal `x` and quantitative `y`, **MAY** encode `color` and `href`, and **MUST NOT** encode `value` or `columns`.
+- **DLS-VIEW-005:** `chart` **MUST** encode `x` and quantitative `y`, **MAY** encode `color` and `href`, and **MUST NOT** encode `value` or `columns`.
+- **DLS-VIEW-006:** A `chart` with temporal `x` **MUST** use the line time-series default; any other valid `chart` **MUST** use the bar default.
 - **DLS-VIEW-007:** An encoding field **MUST** exist in the selected source and its declared type **MUST** be compatible with its intrinsic type or aggregate output type.
 - **DLS-VIEW-008:** A field definition **MUST** contain `field` and **MAY** contain only `type`, `aggregate`, `time-unit`, and `title` in addition.
 - **DLS-VIEW-009:** `time-unit` **MUST** be used only with a temporal field and **MUST** use an allowed value from Section 7.3.
@@ -510,7 +508,7 @@ Accessible semantics apply independently of visual renderer choice. Each view ha
 - **DLS-SAFE-007:** Every page and view **MUST** have a non-empty accessible name, using its title or title default.
 - **DLS-SAFE-008:** Metrics, charts, and time series **MUST** expose a textual value or tabular equivalent, and tables **MUST** expose labeled columns.
 - **DLS-SAFE-009:** Color **MUST NOT** be the only means of communicating a category, status, outcome, freshness, completeness, or severity.
-- **DLS-SAFE-010:** Empty, unavailable, partial, stale, and unknown states **MUST** have distinct textual labels, and each link **MUST** expose its non-empty label.
+- **DLS-SAFE-010:** Every availability, completeness, and freshness value **MUST** have a distinct textual label, and each link **MUST** expose its non-empty label.
 
 ---
 
@@ -606,8 +604,7 @@ dashboard:
       organizations:
         - octo-org
     time:
-      start: "2026-08-01T00:00:00Z"
-      end: "2026-09-01T00:00:00Z"
+      range: 30d
     filters:
       rollout-mode:
         - review
@@ -625,7 +622,8 @@ dashboard:
       views:
         - id: total-aic
           title: Total AI Credits
-          source: usage
+          data:
+            source: usage
           mark: metric
           encoding:
             value:
@@ -634,8 +632,9 @@ dashboard:
               aggregate: sum
         - id: daily-runs
           title: Daily Runs
-          source: runs
-          mark: line
+          data:
+            source: runs
+          mark: chart
           encoding:
             x:
               field: started-at
@@ -650,8 +649,8 @@ dashboard:
               type: nominal
         - id: largest-spenders
           title: Largest AIC Spenders
-          source: usage
           data:
+            source: usage
             limit: 10
             order-by:
               - field: aic
@@ -716,7 +715,8 @@ Invalid because the ID is not kebab-case and `pages` is empty.
   kind: custom
   views:
     - id: calculated-cost
-      source: usage
+      data:
+        source: usage
       join: runs
       mark: metric
       encoding:
@@ -733,7 +733,8 @@ Invalid because `join` and `expression` are not language vocabulary and arbitrar
   kind: custom
   views:
     - id: value-total
-      source: operational-values
+      data:
+        source: operational-values
       mark: metric
       encoding:
         value:
