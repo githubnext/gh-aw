@@ -562,10 +562,6 @@ safe-outputs:
   add-comment: {}
 ```
 
-### Steering Issue (`create-pull-request.steer`)
-
-An experimental `create-pull-request` safe-output option that creates a run-scoped issue during the activation job, before the agent starts. Users add comments containing the keyword `steer` while the run is in progress, and the injected prompt instructs the agent to read relevant user-authored comments with the GitHub MCP `issue_read` tool. Enabling `steer: true` requires the GitHub MCP issues toolset and top-level `issues: read` permission; the compiler reports an error instead of adding the permission automatically. On success, the conclusion job closes the steering issue and links the created pull request; on failure, the same issue is retitled and updated with the failure report. `steer` cannot be combined with `safe-outputs.failure-issue-repo`, and no steering issue is created in staged mode. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#steering-issues).
-
 ## Workflow Components
 
 ### Activation Token (`on.github-token:`, `on.github-app:`)
