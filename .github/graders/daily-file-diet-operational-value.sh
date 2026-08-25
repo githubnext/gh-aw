@@ -116,7 +116,7 @@ assign_case() {
 
     mkdir -p "$extract_dir"
     tar -xzf "$archive_file" -C "$extract_dir" || return 1
-    root_dir=$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort | head -1)
+    root_dir=$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d -print -quit)
     [[ -n $root_dir && -d $root_dir/pkg ]] || return 1
 
     while IFS= read -r -d '' path; do
