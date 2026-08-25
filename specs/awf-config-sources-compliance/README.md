@@ -76,7 +76,13 @@ go test -v -run "TestDriftRecord|TestAWFConfigSafeguard" ./pkg/workflow/
 
 ## Adding New Safeguard Conformance Tests
 
-1. Assign the next available `T-DR-012+` identifier for new safeguard behavior that is not part of the existing unavailable-source series; `T-DR-012` is currently the next available ID after CR-06a's `T-DR-011`. Use a placeholder such as `T-DR-NNN` in drafts until the table above confirms the exact next ID.
+1. Assign the next available `T-DR-###` identifier for new safeguard behavior that is not part of the existing unavailable-source series by running this deterministic lookup from the repository root:
+   ```bash
+   next=$(grep -Rho 'T-DR-[0-9]\{3\}' specs/awf-config-sources-compliance specs/awf-config-sources-spec.md \
+     | sed 's/T-DR-//' | sort -n | tail -1 | awk '{printf "T-DR-%03d", $1 + 1}')
+   printf '%s\n' "$next"
+   ```
+   The unavailable-source series uses the separate `T-DR-SAFE-###` namespace; continue that series independently when adding another unavailable-source safeguard case.
 2. Add a row to the Safeguards Conformance Tests table with the requirement reference, for example `§8 Safeguards — degraded-run reporting`.
 3. Implement the test in `pkg/workflow/awf_config_safeguards_formal_test.go` when it exercises safeguard behavior, or in the closest AWF config drift test file when the safeguard spans drift output and schema validation.
 4. Cross-reference the new safeguard test ID from the relevant safeguard bullet in `specs/awf-config-sources-spec.md` so the spec and fixture index stay synchronized.
