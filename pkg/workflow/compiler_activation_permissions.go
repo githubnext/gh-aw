@@ -139,10 +139,8 @@ func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext
 	if !ctx.data.StaleCheckDisabled || hasMaxDailyAICGuardrail(ctx.data) || operationalValueGraderEnabled(ctx.data) {
 		permsMap[PermissionActions] = PermissionRead
 	}
-	if isPreCreatePullRequestEnabled(ctx.data) {
-		permsMap[PermissionContents] = PermissionWrite
-		permsMap[PermissionPullRequests] = PermissionWrite
-		permsMap[PermissionChecks] = PermissionWrite
+	if isSteeringIssueEnabled(ctx.data) {
+		permsMap[PermissionIssues] = PermissionWrite
 	}
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
 		onSection:                         ctx.data.On,

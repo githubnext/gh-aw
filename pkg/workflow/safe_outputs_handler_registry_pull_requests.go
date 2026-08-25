@@ -227,12 +227,6 @@ func buildCreatePullRequestHandlerConfig(cfg *SafeOutputsConfig) map[string]any 
 	}
 	c := cfg.CreatePullRequests
 	builder := newCreatePullRequestHandlerConfigBuilder(cfg, c)
-	if isPreCreatePullRequestConfigured(c) {
-		builder.
-			AddDefault("pre_created_pull_request_number", "${{ needs.activation.outputs.pre_created_pull_request_number }}").
-			AddDefault("pre_created_pull_request_url", "${{ needs.activation.outputs.pre_created_pull_request_url }}").
-			AddDefault("pre_created_branch", "${{ needs.activation.outputs.pre_created_pull_request_branch }}")
-	}
 	// Stacked pull requests are enabled by default; only emit the flag when disabled
 	// (e.g. GitHub Enterprise Server instances without stacked pull request support).
 	if !isStackedPullRequestsEnabled(c) {

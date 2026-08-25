@@ -1719,9 +1719,7 @@ function isIssueWritePermissionError(error) {
 }
 
 /**
- * Publish the newly created failure issue as step outputs so that later steps in the
- * conclusion job (for example the pre-created pull request step, which is authenticated
- * with the repository-scoped pull request token) can link to it.
+ * Publish the failure issue as step outputs so later conclusion steps can act on it.
  * @param {{number: number, html_url: string}} issue
  * @returns {void}
  */
@@ -3723,6 +3721,24 @@ async function main() {
       ({ owner, repo } = context.repo);
     }
 
+    let steeringIssue = null;
+    const steeringIssueNumber = Number.parseInt(process.env.GH_AW_STEERING_ISSUE_NUMBER || "", 10);
+    if (Number.isFinite(steeringIssueNumber) && steeringIssueNumber > 0) {
+      const { data: issue } = await github.rest.issues.get({
+        owner,
+        repo,
+        issue_number: steeringIssueNumber,
+      });
+      if (issue.pull_request) {
+        throw new Error(`Steering item #${steeringIssueNumber} is a pull request, not an issue`);
+      }
+      if (issue.state !== "open") {
+        throw new Error(`Steering issue #${steeringIssueNumber} is not open`);
+      }
+      steeringIssue = issue;
+      core.info(`Reusing steering issue #${steeringIssueNumber} for failure reporting`);
+    }
+
     // Try to find a pull request for the current branch
     const pullRequest = await findPullRequestForCurrentBranch();
     const currentBranch = getCurrentBranch();
@@ -3873,12 +3889,14 @@ async function main() {
     core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);
 
     try {
-      const existingIssue = await findExistingFailureIssue({
-        owner,
-        repo,
-        workflowId: workflowID,
-        failureCategories,
-      });
+      const existingIssue = steeringIssue
+        ? null
+        : await findExistingFailureIssue({
+            owner,
+            repo,
+            workflowId: workflowID,
+            failureCategories,
+          });
 
       // Build missing model pricing context once; both issue-create and issue-comment
       // paths render the same remediation block and should not refetch models.dev.
@@ -4079,11 +4097,13 @@ async function main() {
       } else {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
-        const cappedCategories = await getCappedFailureCategories({
-          owner,
-          repo,
-          failureCategories,
-        });
+        const cappedCategories = steeringIssue
+          ? []
+          : await getCappedFailureCategories({
+              owner,
+              repo,
+              failureCategories,
+            });
         if (cappedCategories.length > 0) {
           const summary = cappedCategories.map(({ category, count }) => `${category} (${count}/${FAILURE_ISSUE_CATEGORY_DAILY_CAP})`).join(", ");
           core.warning(`Daily per-category issue cap reached for ${summary}.`);
@@ -4309,16 +4329,32 @@ async function main() {
         const bodyLines = detectionCaution ? [detectionCaution, "", issueBodyContent, "", footerWithExpires] : [issueBodyContent, "", footerWithExpires];
         const issueBody = bodyLines.join("\n");
 
-        const newIssue = await github.rest.issues.create({
-          owner,
-          repo,
-          title: issueTitle,
-          body: issueBody,
-          labels: ["agentic-workflows"],
-          headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
-        });
+        let newIssue;
+        if (steeringIssue) {
+          const labels = [...new Set([...(steeringIssue.labels || []).map(label => (typeof label === "string" ? label : label.name)).filter(Boolean), "agentic-workflows"])];
+          newIssue = await github.rest.issues.update({
+            owner,
+            repo,
+            issue_number: steeringIssue.number,
+            title: issueTitle,
+            body: issueBody,
+            labels,
+            state: "open",
+            headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
+          });
+          core.info(`✓ Reused steering issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+        } else {
+          newIssue = await github.rest.issues.create({
+            owner,
+            repo,
+            title: issueTitle,
+            body: issueBody,
+            labels: ["agentic-workflows"],
+            headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
+          });
+          core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+        }
 
-        core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         setFailureIssueOutputs(newIssue.data);
 
         // Link as sub-issue to parent if parent issue was created

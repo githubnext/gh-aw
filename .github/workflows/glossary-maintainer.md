@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
   pull-requests: read
   actions: read
 

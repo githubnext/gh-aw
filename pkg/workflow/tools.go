@@ -542,10 +542,10 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// Get existing github tool configuration
 	githubTool := tools["github"]
 
-	steerPullRequestComments := isPreCreatePullRequestSteerEnabled(&WorkflowData{SafeOutputs: safeOutputs})
+	steerIssueComments := isSteeringIssueEnabled(&WorkflowData{SafeOutputs: safeOutputs})
 
 	// Check if github is explicitly disabled (github: false)
-	if githubTool == false && !steerPullRequestComments {
+	if githubTool == false && !steerIssueComments {
 		// Remove the github tool entirely when set to false
 		delete(tools, "github")
 	} else {
@@ -580,9 +580,9 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			}
 			githubConfig["allowed"] = existingAllowed
 		}
-		if steerPullRequestComments {
-			ensureGitHubToolset(githubConfig, "pull_requests")
-			ensureGitHubAllowedTool(githubConfig, "pull_request_read")
+		if steerIssueComments {
+			ensureGitHubToolset(githubConfig, "issues")
+			ensureGitHubAllowedTool(githubConfig, "issue_read")
 		}
 		tools["github"] = githubConfig
 	}

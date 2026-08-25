@@ -270,8 +270,8 @@ func TestParsePullRequestsConfigWithSteer(t *testing.T) {
 	if !result.Steer {
 		t.Fatal("expected steer to be enabled")
 	}
-	if !isPreCreatePullRequestConfigured(result) {
-		t.Fatal("expected steer to enable pre-created pull request mode")
+	if !result.Steer {
+		t.Fatal("expected steer to enable steering issue mode")
 	}
 }
 

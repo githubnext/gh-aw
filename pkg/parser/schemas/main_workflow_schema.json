@@ -7481,7 +7481,7 @@
                 },
                 "branch-prefix": {
                   "type": "string",
-                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name. In steer mode, this prefix is also used for the workflow-owned pre-created pull request branch and must be a static valid branch-name prefix."
+                  "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name."
                 },
                 "require-temporary-id": {
                   "type": "boolean",
@@ -7489,7 +7489,7 @@
                 },
                 "steer": {
                   "type": "boolean",
-                  "description": "\u26a0\ufe0f Experimental. Pre-create a draft pull request and let the agent read user-authored pull request comments and review comments containing the keyword 'steer'. Requires top-level pull-requests: read permission.",
+                  "description": "\u26a0\ufe0f Experimental. Create a run-scoped issue and let the agent read user-authored issue comments containing the keyword 'steer'. The issue is reused for agent failure reporting. Requires top-level issues: read permission.",
                   "default": false
                 },
                 "title-prefix": {

@@ -378,13 +378,13 @@ func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 
 	found := false
 	for _, section := range sections {
-		if section.IsFile && section.Content == safeOutputsPreCreateSteerFile {
+		if section.IsFile && section.Content == safeOutputsSteeringIssueFile {
 			found = true
 			break
 		}
 	}
 
-	assert.True(t, found, "Expected pre-create steering guidance file to be included when pre-created pull request is enabled")
+	assert.True(t, found, "Expected steering issue guidance file to be included when steering is enabled")
 }
 
 // the list of tool names in the order they appear, stripping any max-budget annotations
