@@ -616,11 +616,13 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 		changed = true
 
 		if i+1 < len(lines) && strings.HasPrefix(lines[i+1], indent+"with:") {
-			if !checkoutWithBlockHasPersistCredentials(lines, i+2, indent) {
+			blockEnd := checkoutWithBlockEnd(lines, i+2, indent)
+			if !checkoutWithBlockHasPersistCredentials(lines, i+2, blockEnd) {
 				insert := indent + "  persist-credentials: false" + newline
 				lines = slices.Insert(lines, i+2, insert)
+				blockEnd++
 			}
-			i = checkoutWithBlockEnd(lines, i+2, indent) - 1
+			i = blockEnd - 1
 			continue
 		}
 
@@ -650,8 +652,8 @@ func checkoutWithBlockEnd(lines []string, start int, usesIndent string) int {
 	return len(lines)
 }
 
-func checkoutWithBlockHasPersistCredentials(lines []string, start int, usesIndent string) bool {
-	for i := start; i < checkoutWithBlockEnd(lines, start, usesIndent); i++ {
+func checkoutWithBlockHasPersistCredentials(lines []string, start int, end int) bool {
+	for i := start; i < end; i++ {
 		trimmed := strings.TrimSpace(lines[i])
 		if strings.HasPrefix(trimmed, "persist-credentials:") {
 			return true
