@@ -530,7 +530,7 @@ func renderCopilotSetupUpdateInstructions(ctx context.Context, filePath string, 
 var setupCliUsesPattern = regexp.MustCompile(
 	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw(?:-actions)?/(?:actions/)?setup-cli@[^"\n]*)"?([ \t]*)$`)
 
-var checkoutUsesLinePattern = regexp.MustCompile(`^([ \t]*)uses:[ \t]*"?actions/checkout@[^"\n]*"?[ \t]*(\r?\n?)$`)
+var checkoutUsesLinePattern = regexp.MustCompile(`^([ \t]*)uses:[ \t]*"?actions/checkout@[^"\n]*"?[ \t]*\r?$`)
 
 // versionInWithPattern matches the version: parameter in the with: block that immediately
 // follows any setup-cli uses: line (any ref format: version tag, SHA-pinned, or quoted).
@@ -597,7 +597,7 @@ func upgradeSetupCliVersionInContent(ctx context.Context, content []byte, action
 func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 	contentStr := string(content)
 	hadTrailingNewline := strings.HasSuffix(contentStr, "\n")
-	lines := strings.SplitAfter(contentStr, "\n")
+	lines := strings.Split(strings.TrimSuffix(contentStr, "\n"), "\n")
 	checkoutRef := latestCheckoutActionRef()
 	changed := false
 
@@ -608,17 +608,13 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 		}
 
 		indent := matches[1]
-		newline := matches[2]
-		if newline == "" {
-			newline = "\n"
-		}
-		lines[i] = indent + "uses: " + checkoutRef + newline
+		lines[i] = indent + "uses: " + checkoutRef
 		changed = true
 
 		if i+1 < len(lines) && strings.HasPrefix(lines[i+1], indent+"with:") {
 			blockEnd := checkoutWithBlockEnd(lines, i+2, indent)
 			if !checkoutWithBlockHasPersistCredentials(lines, i+2, blockEnd) {
-				insert := indent + "  persist-credentials: false" + newline
+				insert := indent + "  persist-credentials: false"
 				lines = slices.Insert(lines, i+2, insert)
 				blockEnd++
 			}
@@ -627,8 +623,8 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 		}
 
 		lines = slices.Insert(lines, i+1,
-			indent+"with:"+newline,
-			indent+"  persist-credentials: false"+newline,
+			indent+"with:",
+			indent+"  persist-credentials: false",
 		)
 		i += 2
 	}
@@ -636,9 +632,9 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 	if !changed {
 		return content, false
 	}
-	result := strings.Join(lines, "")
-	if !hadTrailingNewline {
-		result = strings.TrimSuffix(result, "\n")
+	result := strings.Join(lines, "\n")
+	if hadTrailingNewline {
+		result += "\n"
 	}
 	return []byte(result), true
 }
