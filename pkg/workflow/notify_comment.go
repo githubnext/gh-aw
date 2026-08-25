@@ -36,7 +36,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	steps = append(steps, c.buildConclusionMissingToolStep(data, mainJobName)...)
 	steps = append(steps, c.buildConclusionReportIncompleteStep(data, mainJobName)...)
 	messagesJSON := serializeConclusionMessagesJSON(data)
-	agentFailureSteps, err := c.buildAgentFailureStep(data, mainJobName, messagesJSON)
+	steeringTokenSteps, steeringToken := c.buildConclusionSteeringIssueTokenSteps(data)
+	steps = append(steps, steeringTokenSteps...)
+	agentFailureSteps, err := c.buildAgentFailureStep(data, mainJobName, messagesJSON, steeringToken)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +61,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomToken:   token,
 		})...)
 	}
-	steps = append(steps, c.buildConclusionPreCreatedCheckRunStep(data)...)
+	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
@@ -103,6 +105,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// derived from the resolved configuration instead of being emitted unconditionally.
 	if conclusionMayCreateIssue(data) {
 		if level, ok := conclusionPerms.Get(PermissionIssues); !ok || level != PermissionWrite {
+			conclusionPerms.Set(PermissionIssues, PermissionWrite)
+		}
+		if isSteeringIssueEnabled(data) {
 			conclusionPerms.Set(PermissionIssues, PermissionWrite)
 		}
 	}

@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 strict: true
 tracker-id: weekly-editors-health-check

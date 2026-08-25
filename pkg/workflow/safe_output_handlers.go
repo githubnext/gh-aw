@@ -175,18 +175,12 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			}
 			if getFallbackAsIssue(safeOutputs.CreatePullRequests) {
 				permissions := NewPermissionsContentsWriteIssuesWritePRWrite()
-				if isPreCreatePullRequestConfigured(safeOutputs.CreatePullRequests) {
-					permissions.Set(PermissionChecks, PermissionWrite)
-				}
 				if safeOutputs.CreatePullRequests.AllowWorkflows {
 					permissions.Set(PermissionWorkflows, PermissionWrite)
 				}
 				return permissions
 			}
 			permissions := NewPermissionsContentsWritePRWrite()
-			if isPreCreatePullRequestConfigured(safeOutputs.CreatePullRequests) {
-				permissions.Set(PermissionChecks, PermissionWrite)
-			}
 			if safeOutputs.CreatePullRequests.AllowWorkflows {
 				permissions.Set(PermissionWorkflows, PermissionWrite)
 			}

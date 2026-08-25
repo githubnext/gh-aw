@@ -9,6 +9,7 @@ on:
 max-daily-ai-credits: 10000
 permissions:
   contents: read
+  issues: read
   pull-requests: read
   security-events: read
   copilot-requests: write

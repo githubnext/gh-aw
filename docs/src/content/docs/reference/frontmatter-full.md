@@ -8869,9 +8869,7 @@ safe-outputs:
     max: "example-value"
 
     # Optional prefix to prepend to the pull request branch name (e.g. "signed/").
-    # Applied before the agent-specified or auto-generated branch name. In steer
-    # mode, this prefix is also used for the workflow-owned pre-created pull request
-    # branch and must be a static valid branch-name prefix.
+    # Applied before the agent-specified or auto-generated branch name.
     # (optional)
     branch-prefix: "example-value"
 
@@ -8879,9 +8877,9 @@ safe-outputs:
     # (optional)
     require-temporary-id: true
 
-    # ⚠️ Experimental. Pre-create a draft pull request and let the agent read
-    # user-authored pull request comments and review comments containing the keyword
-    # 'steer'. Requires top-level pull-requests: read permission.
+    # ⚠️ Experimental. Create a run-scoped issue and let the agent read user-authored
+    # issue comments containing the keyword 'steer'. The issue is reused for agent
+    # failure reporting. Requires top-level issues: read permission.
     # (optional)
     steer: true
 

@@ -1,4 +1,4 @@
-# ADR-53576: Pre-create Pull Request During Activation
+# ADR-53576: Create a Steering Issue During Activation
 
 **Date**: 2026-08-18
 **Status**: Draft
@@ -8,37 +8,40 @@
 
 ### Context
 
-Agentic workflows compiled by gh-aw run for extended periods — agent execution can take minutes to hours. During this window no GitHub artifact (branch or pull request) is visible, so users and reviewers have no link to the work-in-progress and no way to monitor progress from the Pull Requests tab. The existing model defers PR creation to the `safe_outputs` job, which only runs after the agent finishes and its patch has been validated.
+Agentic workflows compiled by gh-aw can run for minutes or hours. Users need a stable place to provide feedback while the agent is running, but creating a pull request early requires a branch, an empty commit, elevated permissions, special checkout behavior, and cleanup. Failures also created a separate issue, splitting steering and diagnostics across two resources.
 
 ### Decision
 
-We will add an opt-in `pre-create: true` flag under `safe-outputs.create-pull-request`. When set, the compiler generates an extra activation step that: (1) creates an empty commit on a run-scoped branch (`gh-aw/pre-created/<runId>-<attempt>`), (2) opens a draft PR titled `[<workflow>] Work in progress`, and (3) attaches an in-progress GitHub Checks run linked to the workflow run. Subsequent agent and `safe_outputs` jobs check out this pre-created branch, and the eventual `create_pull_request` safe-output updates the existing PR (title, body, base) instead of creating a new one. The conclusion job completes the linked check.
+The opt-in `safe-outputs.create-pull-request.steer: true` setting creates a run-scoped issue during activation. The injected prompt identifies that issue and directs the agent to read user-authored comments containing `steer`. Pull request creation and checkout continue through the normal safe-output path without a pre-created branch.
+
+On success, the conclusion job closes the steering issue and links the created pull request when available. On failure, the failure handler retitles and updates the same issue with the normal failure report instead of creating a second issue.
 
 ### Alternatives Considered
 
-#### Alternative 1: Status comment on the triggering issue
+#### Alternative 1: Pre-create a draft pull request
 
-Post a comment on the issue or PR that triggered the workflow with a link to the workflow run. This is zero-cost in terms of permissions and produces no orphan if the agent fails, but leaves no PR artifact; reviewers cannot use the Pull Requests tab or assign reviews until the agent finishes.
+Create an empty commit, a run-scoped branch, a draft pull request, and a check run during activation. This provides early PR visibility but requires special branch validation, checkout overrides, PR reuse logic, and cleanup.
 
-#### Alternative 2: Always create the PR immediately, update it later (non-opt-in)
+#### Alternative 2: Reuse the triggering issue or pull request
 
-Make early PR creation the default behaviour for all `create-pull-request` workflows. This would remove the opt-in complexity but would impose `contents: write`, `pull-requests: write`, and `checks: write` on all activation jobs unconditionally — even workflows that don't need early visibility — violating the principle of least privilege.
+Use the event's issue or pull request for feedback. This avoids creating a resource but is unavailable for scheduled and manually dispatched workflows and can mix unrelated conversations.
 
 ### Consequences
 
 #### Positive
-- Workflow runs are immediately visible as a PR, enabling early review assignment, status tracking, and linking from issues.
-- The linked GitHub Check provides a progress link on the PR's commit that updates to success or failure when the workflow concludes.
-- Downstream jobs receive the pre-allocated branch and PR number as outputs, enabling coherent multi-job coordination without race conditions.
+- Users have a stable steering surface for every trigger type.
+- Agent feedback and failure diagnostics share one issue.
+- Pull request branch creation, validation, and checkout retain their normal behavior.
+- Activation needs only `issues: write` for steering instead of contents, pull-request, and checks write access.
 
 #### Negative
-- Requires elevated activation-job permissions (`contents: write`, `pull-requests: write`, `checks: write`), increasing the blast radius of a compromised activation job.
-- An empty draft PR is left open if the workflow is cancelled or fails before the agent produces any changes, requiring manual closure or additional cleanup logic.
-- The feature is limited to single-repository, single-PR workflows; cross-repository targets and `checkout: false` configurations are not supported.
+- Each steered run creates an issue even when no pull request is ultimately produced.
+- Cancellation or failure before conclusion can leave the steering issue open for manual triage.
+- Steering cannot use a separate `failure-issue-repo` because the run-scoped issue is reused.
 
 #### Neutral
-- Schema validation (`validatePreCreatePullRequest`) enforces the constraints (max:1, same-repo, default checkout) at compile time, so invalid combinations are caught early.
-- Two lock files in the repo (`daily-team-evolution-insights`, `mcp-inspector`) are recompiled as a side effect, removing the `strict` field from their metadata headers.
+- The compiler requires top-level `issues: read` so the agent's GitHub MCP tools can read steering comments.
+- Staged mode does not create a steering issue.
 
 ---
 

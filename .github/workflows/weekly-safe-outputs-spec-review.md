@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 
 tracker-id: weekly-safe-outputs-spec-review
