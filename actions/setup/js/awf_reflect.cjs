@@ -25,6 +25,15 @@ const tls = require("tls");
 const { withRetry, sleep } = require("./error_recovery.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+function parseReflectTimeoutMs(value) {
+  const rawValue = String(value || "").trim();
+  if (!/^\d+$/.test(rawValue)) {
+    return 60000;
+  }
+  const timeoutMs = Number(rawValue);
+  return Number.isSafeInteger(timeoutMs) ? timeoutMs : 60000;
+}
+
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
 // Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
@@ -83,15 +92,6 @@ const REFLECT_PROVIDER_ALIASES = {
   openai: new Set(["openai"]),
   anthropic: new Set(["anthropic"]),
 };
-
-function parseReflectTimeoutMs(value) {
-  const rawValue = String(value || "").trim();
-  if (!/^\d+$/.test(rawValue)) {
-    return 60000;
-  }
-  const timeoutMs = Number(rawValue);
-  return Number.isSafeInteger(timeoutMs) ? timeoutMs : 60000;
-}
 
 const DEFAULT_API_PROXY_HOST_BRIDGE = "host.docker.internal";
 
