@@ -57,6 +57,7 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
 sandbox:
@@ -67,6 +68,7 @@ evals:
     question: Did the workflow complete the blog availability audit, including page access and content validation checks?
   - id: discussion-created
     question: Was an audit discussion created summarizing the pass or fail results and suggested remediation when needed?
+
 ---
 
 # Blog Auditor

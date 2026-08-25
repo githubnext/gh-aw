@@ -32,6 +32,7 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+  - shared/graders.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -74,6 +75,7 @@ evals:
     question: Did the agent analyze AI agent performance and quality metrics across the repository?
   - id: report_produced
     question: Was a report or discussion produced summarizing agent effectiveness findings?
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

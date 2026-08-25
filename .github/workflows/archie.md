@@ -24,6 +24,7 @@ strict: true
 imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
+  - shared/graders.md
 tools:
   cli-proxy: true
   github:
@@ -53,6 +54,7 @@ evals:
     question: Did the agent generate a Mermaid diagram visualizing issue and pull request relationships?
   - id: diagram_posted
     question: Was the diagram posted as a response to the /archie command in the issue or PR?
+
 ---
 
 # Archie - Mermaid Diagram Generator

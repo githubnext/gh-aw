@@ -35,6 +35,7 @@ imports:
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/graders.md
 experiments:
   prompt_style:
     variants: [detailed, concise]
@@ -64,6 +65,7 @@ evals:
     question: Did the workflow check validation-status first and then follow the correct repair or optimization path for this run?
   - id: pr-created-or-noop
     question: Was a focused CI improvement pull request created when actionable work was found, or was noop called when CI was already healthy?
+
 ---
 
 # CI Optimization Coach

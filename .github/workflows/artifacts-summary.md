@@ -40,6 +40,7 @@ imports:
   - shared/reporting.md
   - shared/safe-output-app.md
   - shared/otlp.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
 evals:
@@ -47,6 +48,7 @@ evals:
     question: Did the agent analyze GitHub Actions artifacts usage across all workflows in the repository?
   - id: summary_produced
     question: Was a comprehensive summary report of artifacts usage produced?
+
 ---
 
 ### Artifacts Summary

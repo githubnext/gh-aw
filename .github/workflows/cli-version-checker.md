@@ -18,6 +18,7 @@ imports:
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/graders.md
 sandbox:
   agent:
     runtime: cloud-hypervisor
@@ -44,6 +45,7 @@ evals:
     question: Did the agent check for new versions and digest changes of Docker images in pkg/cli/docker_images.go (actionlint, syft, grype, grant, zizmor, poutine, runner-guard, yamllint)?
   - id: updates_applied_or_noop
     question: Were version or digest updates applied and a PR created, or was noop used when all tools were already up to date?
+
 ---
 
 # CLI Version Checker
