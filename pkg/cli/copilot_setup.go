@@ -596,6 +596,7 @@ func upgradeSetupCliVersionInContent(ctx context.Context, content []byte, action
 
 func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 	lines := strings.SplitAfter(string(content), "\n")
+	checkoutRef := latestCheckoutActionRef()
 	changed := false
 
 	for i := 0; i < len(lines); i++ {
@@ -609,7 +610,7 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 		if newline == "" {
 			newline = "\n"
 		}
-		lines[i] = indent + "uses: " + latestCheckoutActionRef() + newline
+		lines[i] = indent + "uses: " + checkoutRef + newline
 		changed = true
 
 		if i+1 < len(lines) && strings.HasPrefix(lines[i+1], indent+"with:") {
