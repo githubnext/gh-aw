@@ -236,10 +236,10 @@ func TestSpec_NetworkPorts_Values(t *testing.T) {
 		{name: "MinNetworkPort", actual: constants.MinNetworkPort, expected: 1},
 		// From spec: MaxNetworkPort // 65535
 		{name: "MaxNetworkPort", actual: constants.MaxNetworkPort, expected: 65535},
-		// From spec: ClaudeLLMGatewayPort // 10000
-		{name: "ClaudeLLMGatewayPort", actual: constants.ClaudeLLMGatewayPort, expected: 10000},
-		// From spec: CodexLLMGatewayPort // 10001
-		{name: "CodexLLMGatewayPort", actual: constants.CodexLLMGatewayPort, expected: 10001},
+		// From spec: CodexLLMGatewayPort // 10000
+		{name: "CodexLLMGatewayPort", actual: constants.CodexLLMGatewayPort, expected: 10000},
+		// From spec: ClaudeLLMGatewayPort // 10001
+		{name: "ClaudeLLMGatewayPort", actual: constants.ClaudeLLMGatewayPort, expected: 10001},
 		// From spec: CopilotLLMGatewayPort // 10002
 		{name: "CopilotLLMGatewayPort", actual: constants.CopilotLLMGatewayPort, expected: 10002},
 		// From spec: GeminiLLMGatewayPort // 10003

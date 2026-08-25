@@ -545,7 +545,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"model_provider = \"openai-proxy\"",
 			"[model_providers.openai-proxy]",
 			"name = \"OpenAI AWF proxy\"",
-			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
+			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.CodexLLMGatewayPort),
 			"env_key = \"CODEX_API_KEY\"",
 			"wire_api = \"responses\"",
 			"requires_openai_auth = false",
@@ -633,7 +633,7 @@ func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 	engine := NewCodexEngine()
 
 	t.Run("defaults to the OpenAI gateway port", func(t *testing.T) {
-		expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+		expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CodexLLMGatewayPort))
 		workflowData := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}}
 
 		if actual := engine.getOpenAIProxyProviderBaseURL(workflowData); actual != expected {

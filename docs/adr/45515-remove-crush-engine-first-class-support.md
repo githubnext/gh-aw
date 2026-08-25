@@ -8,7 +8,7 @@
 
 ### Context
 
-GitHub Agentic Workflows (gh-aw) previously supported the Crush coding agent (by Charmbracelet) as a first-class built-in engine alongside Copilot, Claude, Codex, and Gemini. This required dedicated Go constants (`CrushEngine`, `EnvVarModelAgentCrush`, etc.), version pinning (`DefaultCrushVersion`), engine registration in `agentic_engine.go`, validation paths, domain configuration, a gateway config conversion script, a smoke test workflow, and extensive documentation. Crush now supports the same MCP/HTTP interface that gh-aw's custom engine path exposes, meaning users can run Crush workflows without any first-class engine support — they can instead implement it as a shared agentic workflow custom engine definition.
+GitHub Agentic Workflows previously supported the Crush coding agent (by Charmbracelet) as a first-class built-in engine alongside Copilot, Claude, Codex, and Gemini. This required dedicated Go constants (`CrushEngine`, `EnvVarModelAgentCrush`, etc.), version pinning (`DefaultCrushVersion`), engine registration in `agentic_engine.go`, validation paths, domain configuration, a gateway config conversion script, a smoke test workflow, and extensive documentation. Crush now supports the same MCP/HTTP interface that gh-aw's custom engine path exposes, meaning users can run Crush workflows without any first-class engine support — they can instead implement it as a shared agentic workflow custom engine definition.
 
 ### Decision
 

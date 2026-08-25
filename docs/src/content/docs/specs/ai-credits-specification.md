@@ -18,7 +18,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines AI Credits (AIC) as the normative inference-cost metric for GitHub Agentic Workflows (gh-aw). It specifies the required calculation model from token usage and provider pricing, the canonical `models.json` catalog format used to store per-model pricing inputs, and the required external references for GitHub Copilot model and billing alignment.
+This specification defines AI Credits (AIC) as the normative inference-cost metric for GitHub Agentic Workflows. It specifies the required calculation model from token usage and provider pricing, the canonical `models.json` catalog format used to store per-model pricing inputs, and the required external references for GitHub Copilot model and billing alignment.
 
 ## Status of This Document
 

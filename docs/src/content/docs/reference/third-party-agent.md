@@ -1,6 +1,6 @@
 ---
-title: How to configure a third-party agent
-description: Use a third-party coding agent with GitHub Agentic Workflows by importing an engine definition file distributed by the agent's publisher.
+title: How to configure a custom AI Engine
+description: Use a custom AI engine with GitHub Agentic Workflows by importing an engine definition file distributed by the engine's publisher.
 sidebar:
   order: 330
 ---

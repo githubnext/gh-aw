@@ -8,7 +8,7 @@
 
 ### Context
 
-The GitHub Agentic Workflows (gh-aw) platform supports multiple AI coding agent engines: `copilot`, `claude`, `codex`, `gemini`, and several experimental engines (`antigravity`, `opencode`, `pi`). The `opencode` engine was an experimental, provider-agnostic, open-source AI coding agent ("bring your own key") that defaulted to Copilot routing and supported 75+ models via a `provider/model` format.
+The GitHub Agentic Workflows platform supports multiple AI coding agent engines: `copilot`, `claude`, `codex`, `gemini`, and several experimental engines (`antigravity`, `opencode`, `pi`). The `opencode` engine was an experimental, provider-agnostic, open-source AI coding agent ("bring your own key") that defaulted to Copilot routing and supported 75+ models via a `provider/model` format.
 
 Supporting `opencode` as a first-class engine option required each generated workflow lock file to include `.opencode` in its sparse-checkout folder list and `opencode.jsonc` in `GH_AW_AGENT_FILES`/`GH_AW_AGENT_FOLDERS`. With 280+ lock files, this creates substantial per-file maintenance overhead whenever opencode-specific configuration changes. The engine documentation in `syntax-engine.md` also listed `opencode` as a recognized engine identifier.
 
