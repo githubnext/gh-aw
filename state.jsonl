@@ -28,3 +28,4 @@
 {"run_id":"31714147293","timestamp":"2026-08-13T15:13:14.014Z","assignments":{"tone_variant":"neutral"}}
 {"run_id":"31813016847","timestamp":"2026-08-14T15:09:27.606Z","assignments":{"tone_variant":"neutral"}}
 {"run_id":"32040804933","timestamp":"2026-08-17T14:58:32.774Z","assignments":{"tone_variant":"urgent"}}
+{"run_id":"32863890424","timestamp":"2026-08-25T15:09:11.195Z","harness_version":"79af3dbc1295222af6b76940759c897a071049d622f2a550882e9d3b0b9581b7:6ba6d6cd18a9f149b3d251165781d88b9dbdfc55118e3fb960d27e07a6f30fca","assignments":{"tone_variant":"neutral"}}
