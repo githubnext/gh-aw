@@ -1,6 +1,6 @@
 ---
 title: Using OpenAI Codex with GitHub Agentic Workflows
-description: Select and authenticate OpenAI Codex as the AI engine for GitHub Agentic Workflows (gh-aw), understand its capabilities and limitations, and start from an example.
+description: Select and authenticate OpenAI Codex as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
 ---
 
 OpenAI Codex is OpenAI's coding-focused agent runtime for repository work. GitHub Agentic Workflows (`gh-aw`) runs Codex through GitHub Actions from a Markdown workflow and adds GitHub triggers, sandbox controls, and safe outputs for event-driven, reviewable automation.
@@ -54,7 +54,7 @@ Codex supports native web search when `tools.web-search` is enabled and can disa
 
 ## GitHub Agentic Workflows vs. running Codex directly in Actions
 
-Choose GitHub Agentic Workflows when the workflow should stay in Markdown, reuse the same structure across engines, and route configured GitHub writes through safe outputs. Run Codex directly in Actions when the job needs a custom script layout and manual control over every integration point.
+Running coding agent CLIs directly in GitHub Actions without an adequate security architecture is not recommended. We recommend the use of GitHub Agentic Workflows, giving simple workflow definitions in Markdown, the `gh-aw` security architecture, portability across AI engines, and using safe outputs for validated GitHub writes.
 
 ## Related pages
 
@@ -63,7 +63,7 @@ Choose GitHub Agentic Workflows when the workflow should stay in Markdown, reuse
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
 - [Examples by task](/gh-aw/examples/)
-- [AI issue triage](/gh-aw/guides/ai-issue-triage/)
-- [Automated AI pull request review](/gh-aw/guides/automated-pr-review/)
-- [AI-generated release notes and reports](/gh-aw/guides/ai-release-notes/)
-- [Keeping documentation up to date automatically](/gh-aw/guides/docs-automation/)
+- [AI issue triage](/gh-aw/examples/ai-issue-triage/)
+- [Automated AI pull request review](/gh-aw/examples/automated-pr-review/)
+- [AI-generated release notes and reports](/gh-aw/examples/ai-release-notes/)
+- [Keeping documentation up to date automatically](/gh-aw/examples/docs-automation/)
