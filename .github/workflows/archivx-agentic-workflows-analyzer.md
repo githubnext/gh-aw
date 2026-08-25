@@ -55,6 +55,14 @@ tools:
   agentic-workflows: null
   bash: true
   cli-proxy: true
+  playwright:
+    mode: cli
+    version: "0.1.18"
+network:
+  allowed:
+  - defaults
+  - local
+  - playwright
 ---
 # Archivx — Workflow Visualizer
 
@@ -139,6 +147,15 @@ python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" docs/src/assets/archivx/agentic
 
 Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-running the Step 3b render command (which rewrites the repository SVG) until the checker prints `0 violations`.
 
+### 3d. Inspect Rendered Readability
+
+The generated `.svg` is an HTML document containing an SVG, so serve `docs/src/assets/archivx/` locally and use `playwright-cli` to inspect `agentic-workflows-archivx.svg` in a browser.
+
+1. Capture a full-page desktop screenshot and inspect the accessibility snapshot.
+2. Use browser evaluation to find text that is clipped outside its containing SVG/card bounds, overlaps another label, or is smaller than 10px.
+3. Calculate WCAG contrast for every visible text element against its effective immediate background. Require at least 4.5:1 for normal text and 3:1 for large text. Check the initial theme and the theme-toggle state.
+4. If any check fails, revise only `/tmp/gh-aw/agent/glowmotion-graph.json`, rerender, rerun `check_diagram.py`, and repeat this inspection until every check passes.
+
 ## Step 4: Create the Diagram Pull Request
 
 Confirm the generated file exists:
@@ -147,7 +164,7 @@ Confirm the generated file exists:
 ls -l docs/src/assets/archivx/agentic-workflows-archivx.svg
 ```
 
-Then call `create_pull_request` **exactly once** with a title like `[archivx] Update workflow diagram — YYYY-MM-DD` and a body summarizing the data range, main findings, and validation result. The pull request must include only `docs/src/assets/archivx/agentic-workflows-archivx.svg`.
+Then call `create_pull_request` **exactly once** with a title like `[archivx] Update workflow diagram — YYYY-MM-DD` and a body summarizing the data range, main findings, and `check_diagram.py` plus Playwright readability validation results. The pull request must include only `docs/src/assets/archivx/agentic-workflows-archivx.svg`.
 
 ## Step 5: Create Discussion
 
