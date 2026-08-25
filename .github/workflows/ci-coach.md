@@ -24,8 +24,8 @@ tools:
     toolsets: [issues, pull_requests]
   edit:
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[ci-coach] "
     protected-files: fallback-to-issue

@@ -62,8 +62,8 @@ pre-agent-steps:
         echo "[]" > /tmp/gh-aw/agent/prior-linters.json
       fi
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[linter-miner] "
     labels: [automation, go-linters, cookie]
     reviewers: [copilot]

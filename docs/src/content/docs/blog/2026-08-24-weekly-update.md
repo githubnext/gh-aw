@@ -14,7 +14,7 @@ Another busy week for [github/gh-aw](https://github.com/github/gh-aw)! We shippe
 
 The [v0.87.4](https://github.com/github/gh-aw/releases/tag/v0.87.4) line of releases focused on compiler robustness, safe-output validation, and internal tooling and observability improvements across the agentic workflow pipeline.
 
-- **Pre-create pull request steering** ([#55171](https://github.com/github/gh-aw/pull/55171)): `safe-outputs.create-pull-request.steer: true` pre-creates a PR and lets agents read user feedback left in PR comments and review comments — without silently expanding workflow permissions. It requires explicit `pull-requests: read` and injects prompting so the agent knows to look for the `steer` keyword.
+- **Run steering** ([#55171](https://github.com/github/gh-aw/pull/55171)): `safe-outputs.steer: true` creates a run-scoped issue and lets agents read user feedback left in issue comments — without silently expanding workflow permissions. It requires explicit `issues: read` and injects prompting so the agent knows to look for the `steer` keyword.
 - **`gh aw models`** ([#55148](https://github.com/github/gh-aw/pull/55148)): a new CLI command surfaces catalog pricing, alias resolution, and observed automation models in one place.
 - **Copilot SDK startup diagnostics** ([#55149](https://github.com/github/gh-aw/pull/55149)): pre-ready crashes now surface the Copilot SDK's startup stderr, making a previously opaque failure mode much easier to debug.
 - **Automatic PR review dismissal ingestion** ([#55180](https://github.com/github/gh-aw/pull/55180)): workflows can now ingest automatic pull request review dismissals as part of their safe-output processing.

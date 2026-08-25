@@ -27,8 +27,8 @@ imports:
 
   - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[fp-enhancer] "
     labels: [refactoring, functional, immutability, code-quality]
     reviewers: [copilot]

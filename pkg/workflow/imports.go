@@ -267,6 +267,11 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 				}{}
 			}
 		}
+		if topRawSafeOutputs != nil {
+			if _, exists := topRawSafeOutputs["steer"]; exists {
+				delete(config, "steer")
+			}
+		}
 
 		importedConfigs = append(importedConfigs, config)
 	}
@@ -422,6 +427,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 
 	// Merge meta-configuration fields (only set if empty/zero in result)
+	if !result.Steer && importedConfig.Steer {
+		result.Steer = true
+	}
 	if len(result.AllowedDomains) == 0 && len(importedConfig.AllowedDomains) > 0 {
 		result.AllowedDomains = importedConfig.AllowedDomains
 	}

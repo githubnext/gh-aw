@@ -76,11 +76,10 @@ permissions:
   issues: read
 
 safe-outputs:
-  create-pull-request:
-    steer: true
+  steer: true
 ```
 
-The activation and conclusion jobs require `issues: write` through the configured create-pull-request safe-output credential. On success, the conclusion job closes the steering issue and links the created pull request when available. On failure, the same issue is retitled and updated with the agent failure report instead of creating a second issue. Because reuse requires a workflow-repository issue, `steer` cannot be combined with `safe-outputs.failure-issue-repo`.
+The activation and conclusion jobs require `issues: write` through the configured global safe-output credential. On success, the conclusion job closes the steering issue and links the created pull request when available. On failure, the same issue is retitled and updated with the agent failure report instead of creating a second issue. Because reuse requires a workflow-repository issue, `steer` cannot be combined with `safe-outputs.failure-issue-repo`.
 
 The pull request itself follows the normal `create-pull-request` flow. Steering does not pre-create or override a branch, so `branch-prefix`, cross-repository targets, allowed branch policies, multiple outputs, and checkout configuration retain their standard behavior. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode), no steering issue is created because staged runs must not perform API side effects.
 

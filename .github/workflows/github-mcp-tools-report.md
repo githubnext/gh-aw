@@ -22,8 +22,8 @@ tools:
   cache-memory: true
   edit:
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[mcp-tools] "
     labels: [documentation, automation]

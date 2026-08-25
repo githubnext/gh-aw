@@ -77,7 +77,7 @@ This specification uses the following terms with precise definitions:
 
 **Cache Poisoning**: A Bell-LaPadula write-up violation where a lower-integrity agent writes data to a shared cache store that is subsequently consumed by a higher-integrity run without provenance verification.
 
-**Steering Issue**: A run-scoped issue allocated during activation when `safe-outputs.create-pull-request.steer` is enabled. It collects user-authored steering comments and is reused as the agent failure issue when the run fails.
+**Steering Issue**: A run-scoped issue allocated during activation when `safe-outputs.steer` is enabled. It collects user-authored steering comments and is reused as the agent failure issue when the run fails.
 
 ---
 
@@ -2445,7 +2445,7 @@ safe-outputs:
 9. **Owner-Qualified Head Reference**: When `head-repo` differs from `target-repo`, the created pull request MUST use an owner-qualified head reference identifying the head repository owner and pushed branch. Unqualified same-name branch references MUST NOT be used in fork-backed mode.
 10. **Ephemeral Fork Branch Model**: When `head-repo` differs from `target-repo`, implementations SHOULD create or refresh an ephemeral branch in `head-repo` from the resolved upstream base SHA, apply the agent changes, and open the pull request back to the upstream base. Implementations MAY support explicit synchronization of that ephemeral branch with a newer upstream base, but implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
 11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
-12. **Steering Issue Creation**: When `steer: true` is configured, activation MUST create a workflow-repository issue before agent execution and expose its number to the agent prompt.
+12. **Steering Issue Creation**: When top-level `safe-outputs.steer: true` is configured, activation MUST create a workflow-repository issue before agent execution and expose its number to the agent prompt.
 13. **Failure Issue Reuse**: If failure reporting is activated, the conclusion phase MUST update the validated steering issue with the failure title and body instead of creating a separate failure issue. Steering MUST NOT alter pull request branch creation or checkout references.
 
 **Configuration Parameters**:
@@ -2468,8 +2468,6 @@ safe-outputs:
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
-- `steer`: Experimental. When `true`, creates a run-scoped issue during activation and allows the agent to read user-authored issue comments as steering feedback. The implementation MUST reuse this issue for agent failure reporting and SHOULD close it after successful completion. This mode requires top-level `issues: read`, MUST NOT be combined with `failure-issue-repo` or expression-valued staged mode, and MUST NOT change normal pull request branch creation or checkout behavior.
-
 **Security Requirements**:
 
 - Branch name sanitization (prevent injection)

@@ -30,12 +30,12 @@ tools:
   bash:
     - "*"
 safe-outputs:
+    steer: true
     allowed-domains: [default-safe-outputs]
     add-comment:
       hide-older-comments: true
       max: 2
     create-pull-request:
-      steer: true
       title-prefix: "[smoke-project] "
       if-no-changes: "warn"
       labels: [ai-generated]

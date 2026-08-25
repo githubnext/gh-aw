@@ -255,23 +255,23 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	}
 }
 
-func TestParsePullRequestsConfigWithSteer(t *testing.T) {
+func TestParseSafeOutputsConfigWithSteer(t *testing.T) {
 	compiler := &Compiler{}
-	outputMap := map[string]any{
-		"create-pull-request": map[string]any{
+	frontmatter := map[string]any{
+		"safe-outputs": map[string]any{
 			"steer": true,
 		},
 	}
 
-	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	result := compiler.extractSafeOutputsConfig(frontmatter)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
 	if !result.Steer {
 		t.Fatal("expected steer to be enabled")
 	}
-	if !result.Steer {
-		t.Fatal("expected steer to enable steering issue mode")
+	if result.CreatePullRequests != nil {
+		t.Fatal("expected steer not to enable create-pull-request")
 	}
 }
 

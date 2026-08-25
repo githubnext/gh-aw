@@ -25,8 +25,8 @@ tools:
   bash:
     - "*"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[aider] "
     labels: [automation, cleanup]
