@@ -641,11 +641,27 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 
 func checkoutWithBlockEnd(lines []string, start int, usesIndent string) int {
 	for i := start; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			if checkoutNextNonBlankLineInBlock(lines, i+1, usesIndent) {
+				continue
+			}
+			return i
+		}
 		if !strings.HasPrefix(lines[i], usesIndent+"  ") {
 			return i
 		}
 	}
 	return len(lines)
+}
+
+func checkoutNextNonBlankLineInBlock(lines []string, start int, usesIndent string) bool {
+	for i := start; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		return strings.HasPrefix(lines[i], usesIndent+"  ")
+	}
+	return false
 }
 
 func checkoutWithBlockHasPersistCredentials(lines []string, start int, end int) bool {

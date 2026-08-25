@@ -1648,6 +1648,25 @@ func TestPinCheckoutUsesInContent(t *testing.T) {
 			t.Fatalf("expected persist-credentials in checkout with block, got:\n%s", gotStr)
 		}
 	})
+
+	t.Run("blank line inside existing with block", func(t *testing.T) {
+		t.Parallel()
+		input := `      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+          clean: false
+`
+		got, changed := pinCheckoutUsesInContent([]byte(input))
+		if !changed {
+			t.Fatal("expected checkout line to be updated")
+		}
+		gotStr := string(got)
+		if !strings.Contains(gotStr, "          persist-credentials: false\n          fetch-depth: 0\n\n          clean: false") {
+			t.Fatalf("expected persist-credentials at the top of checkout with block, got:\n%s", gotStr)
+		}
+	})
 }
 
 // TestGetActionRef tests the getActionRef helper with and without a resolver
