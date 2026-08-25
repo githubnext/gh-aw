@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -274,6 +275,46 @@ func TestApplySandboxDefaults(t *testing.T) {
 			expectDefaultWritePath: true,
 			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
 			unexpectedAllowWrite:   []string{defaultAgentLogsWritePath},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		},
+		{
+			// Codex sets CODEX_HOME to constants.TmpMcpConfigDir and writes its rollout/state
+			// database there at runtime. Without this entry, Cloud Hypervisor narrows the
+			// /tmp/gh-aw export to read-only outside the seeded paths and codex fails with
+			// "failed to initialize in-process app-server client: Read-only file system".
+			name: "cloud-hypervisor runtime seeds mcp-config write path for codex engine",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Runtime: AgentRuntimeCloudHypervisor,
+				},
+			},
+			engine:                 &EngineConfig{ID: "codex"},
+			expectDefaultWritePath: true,
+			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, constants.TmpMcpConfigDir, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
+			unexpectedAllowWrite:   []string{defaultAgentLogsWritePath},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		},
+		{
+			name: "cloud-hypervisor runtime does not grant codex mcp-config path to other engines",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type:    SandboxTypeAWF,
+					Runtime: AgentRuntimeCloudHypervisor,
+				},
+			},
+			engine:                 &EngineConfig{ID: "claude"},
+			expectDefaultWritePath: true,
+			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
+			unexpectedAllowWrite:   []string{constants.TmpMcpConfigDir},
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,

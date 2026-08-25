@@ -122,11 +122,11 @@ const (
 	// MaxNetworkPort is the maximum valid network port number
 	MaxNetworkPort = 65535
 
-	// ClaudeLLMGatewayPort is the port for the Claude LLM gateway
-	ClaudeLLMGatewayPort = 10000
-
 	// CodexLLMGatewayPort is the port for the Codex LLM gateway
-	CodexLLMGatewayPort = 10001
+	CodexLLMGatewayPort = 10000
+
+	// ClaudeLLMGatewayPort is the port for the Claude LLM gateway
+	ClaudeLLMGatewayPort = 10001
 
 	// CopilotLLMGatewayPort is the port for the Copilot LLM gateway
 	CopilotLLMGatewayPort = 10002
