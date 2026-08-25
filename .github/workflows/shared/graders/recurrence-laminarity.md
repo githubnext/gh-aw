@@ -73,9 +73,10 @@ graders:
       const verticalLineLengths = [];
 
       // Scan every column j once, grouping consecutive recurrent rows i into
-      // vertical line lengths. Because the matrix is symmetric, scanning all
-      // columns visits every ordered recurrent pair exactly once, so the
-      // column-wise recurrent count is the total recurrent-point count.
+      // vertical line lengths. Scanning all columns visits every *ordered*
+      // recurrent pair exactly once, so each unordered pair {i, j} counts
+      // twice — the same ordered-pair convention recurrence-determinism uses,
+      // and it applies to both the numerator and the denominator.
       for (let j = 0; j < n; j += 1) {
         let runLength = 0;
         for (let i = 0; i < n; i += 1) {
