@@ -515,6 +515,17 @@
       "avg_agent_duration_minutes": 93.0,
       "success_rate": 0.8696,
       "note": "recomputed using true UTC calendar-day window (2026-08-23T00:00:00Z..2026-08-24T00:00:00Z), superseding the prior rolling-24h snapshot for this date taken while PRs were still in flight; author app/copilot-swe-agent only; agent_prs_total=69 creation cohort, all 69 resolved (0 open) at collection time (~18h after window close); agent_prs_merged_from_created=60, closed_prs=9 (3 were [WIP] placeholder closures: #55158, #55157, #54991; other 6 had substantive bodies); agent_success_rate=agent_prs_merged_from_created/agent_prs_total=87.0%; avg_duration created->merged over the 60 merged PRs = 93.0min; agent_prs_merged (event-scoped, PRs with mergedAt in window regardless of createdAt) = 68, derived from the 30-day pre-fetched dataset as a best-effort figure (not independently paginated-verified) because gh API calls failed with 401 Bad credentials this run; avg_comments not collected for the same reason; success_rate roughly stable vs 08-22 (83.1%->87.0%, +3.9pp, ~4.7% relative, below the 10% significance threshold); avg_duration down sharply vs 08-22 (226.5->93.0min, -59%); volume down 83->69 (-16.9%)"
+    },
+    {
+      "date": "2026-08-24",
+      "agent_prs_total": 57,
+      "agent_prs_merged": 51,
+      "agent_prs_merged_from_created": 48,
+      "closed_prs": 9,
+      "open_prs": 0,
+      "avg_agent_duration_minutes": 151.2,
+      "success_rate": 0.8421,
+      "note": "true UTC calendar-day window (2026-08-24T00:00:00Z..2026-08-25T00:00:00Z); author app/copilot-swe-agent only; agent_prs_total=57 creation cohort, all 57 resolved (0 open) at collection time (~18h after window close); agent_prs_merged_from_created=48, closed_prs=9 (only 1 was a [WIP] placeholder closure: #55415; other 8 had substantive bodies describing real work, e.g. #55521 stall-detection, #55500 SDK event-log crash fix, #55213 AWF sandbox upgrade); agent_success_rate=agent_prs_merged_from_created/agent_prs_total=84.2%; avg_duration created->merged over the 48 merged PRs = 151.2min; agent_prs_merged (event-scoped, PRs with mergedAt in window regardless of createdAt) = 51, derived from the 30-day pre-fetched dataset as a best-effort figure (not independently paginated-verified) because gh API calls failed with 401 Bad credentials this run (same failure mode as 08-23); avg_comments not collected for the same reason; success_rate down vs 08-23 (87.0%->84.2%, -2.8pp, ~3.2% relative, below the 10% significance threshold); avg_duration up vs 08-23 (93.0->151.2min, +62.6%); volume down 69->57 (-17.4%)"
     }
   ],
   "last_updated": "2026-08-20"
