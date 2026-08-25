@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test that validates OTEL span export and query access for Sentry, Grafana, and Datadog
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-otel-backends
     strategy: centralized

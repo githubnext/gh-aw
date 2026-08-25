@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke Copilot ARM64
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-copilot-arm
     strategy: centralized
