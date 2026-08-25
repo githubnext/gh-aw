@@ -77,27 +77,6 @@ func parseCommaSeparatedOrNewlineList(s string) []string {
 	return result
 }
 
-func parseGitHubReposScope(value any) GitHubReposScope {
-	switch repos := value.(type) {
-	case string:
-		return GitHubReposScope{repos}
-	case []string:
-		return GitHubReposScope(repos)
-	case []any:
-		result := make(GitHubReposScope, 0, len(repos))
-		for _, repo := range repos {
-			value, ok := repo.(string)
-			if !ok {
-				return GitHubReposScope{}
-			}
-			result = append(result, value)
-		}
-		return result
-	default:
-		return GitHubReposScope{}
-	}
-}
-
 // toAnySlice converts a []string to []any for storage in a map[string]any.
 func toAnySlice(ss []string) []any {
 	out := make([]any, len(ss))
@@ -316,12 +295,18 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 
 		// Parse guard policy fields (flat syntax: allowed-repos/repos and min-integrity directly under github:)
 		if allowedRepos, ok := configMap["allowed-repos"]; ok {
-			config.AllowedRepos = parseGitHubReposScope(allowedRepos)
+			config.AllowedRepos, config.reposParseErr = parseGitHubReposScope(allowedRepos)
+			if config.reposParseErr != nil {
+				config.reposParseErr = fmt.Errorf("github.allowed-repos: %w", config.reposParseErr)
+			}
 		} else if repos, ok := configMap["repos"]; ok {
 			// Deprecated: use 'allowed-repos' instead of 'repos'.
 			// The deprecation warning is emitted by the generic schema-driven walker in
 			// warnDeprecatedFrontmatterFields; no extra hard-coded warning is needed here.
-			config.AllowedRepos = parseGitHubReposScope(repos)
+			config.AllowedRepos, config.reposParseErr = parseGitHubReposScope(repos)
+			if config.reposParseErr != nil {
+				config.reposParseErr = fmt.Errorf("github.repos: %w", config.reposParseErr)
+			}
 		}
 
 		if integrity, ok := configMap["min-integrity"].(string); ok {

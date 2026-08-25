@@ -121,6 +121,9 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	}
 
 	github := tools.GitHub
+	if github.reposParseErr != nil {
+		return github.reposParseErr
+	}
 	if hasGitHubLockdownGuardPolicyConflict(github) {
 		toolsValidationLog.Printf("lockdown enabled with guard policy fields in workflow: %s", workflowName)
 	}

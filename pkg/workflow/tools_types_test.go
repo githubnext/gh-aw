@@ -309,6 +309,23 @@ func TestGitHubConfigParsing(t *testing.T) {
 				}
 			})
 		}
+
+		t.Run("rejects malformed repository scopes", func(t *testing.T) {
+			toolsMap := map[string]any{
+				"github": map[string]any{"allowed-repos": []any{"owner/repo", 42}},
+			}
+			const want = "github.allowed-repos: repository scope entries must be strings, got int"
+
+			tools := NewTools(toolsMap)
+			if err := validateGitHubGuardPolicy(tools, "test-workflow"); err == nil || err.Error() != want {
+				t.Errorf("validateGitHubGuardPolicy() error = %v, want %q", err, want)
+			}
+
+			_, err := ParseToolsConfig(toolsMap)
+			if err == nil || err.Error() != want {
+				t.Errorf("ParseToolsConfig() error = %v, want %q", err, want)
+			}
+		})
 	})
 
 	t.Run("coerces single string toolsets to slice", func(t *testing.T) {
