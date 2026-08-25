@@ -11,6 +11,7 @@ import (
 )
 
 func TestNewProgressBar(t *testing.T) {
+	t.Parallel()
 	t.Run("creates progress bar successfully", func(t *testing.T) {
 		bar := NewProgressBar(1024)
 
@@ -37,6 +38,7 @@ func TestNewProgressBar(t *testing.T) {
 }
 
 func TestProgressBarUpdate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		total            int64
@@ -104,6 +106,7 @@ func TestProgressBarUpdate(t *testing.T) {
 }
 
 func TestProgressBarMultipleUpdates(t *testing.T) {
+	t.Parallel()
 	bar := NewProgressBar(1000)
 
 	// Simulate progressive updates
@@ -116,6 +119,7 @@ func TestProgressBarMultipleUpdates(t *testing.T) {
 }
 
 func TestFormatBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		bytes    int64
@@ -187,6 +191,7 @@ func TestFormatBytes(t *testing.T) {
 }
 
 func TestProgressBarPercentageCalculation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		total           int64
@@ -246,6 +251,7 @@ func TestProgressBarPercentageCalculation(t *testing.T) {
 }
 
 func TestProgressBarOutputFormat(t *testing.T) {
+	t.Parallel()
 	t.Run("non-TTY format structure", func(t *testing.T) {
 		// This test verifies the output format structure
 		// Skip if running in TTY mode
@@ -264,6 +270,7 @@ func TestProgressBarOutputFormat(t *testing.T) {
 }
 
 func TestProgressBarEdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("current exceeds total", func(t *testing.T) {
 		bar := NewProgressBar(100)
 		output := bar.Update(150)
@@ -295,6 +302,7 @@ func TestProgressBarEdgeCases(t *testing.T) {
 }
 
 func TestProgressBarConcurrency(t *testing.T) {
+	t.Parallel()
 	t.Run("multiple updates are safe", func(t *testing.T) {
 		bar := NewProgressBar(1000)
 
@@ -307,6 +315,7 @@ func TestProgressBarConcurrency(t *testing.T) {
 }
 
 func TestProgressBarNonTTYFallback(t *testing.T) {
+	t.Parallel()
 	// This test documents the expected behavior in non-TTY environments
 	t.Run("non-TTY output is human readable", func(t *testing.T) {
 		// Skip if running in TTY mode as we can't test the fallback
@@ -328,6 +337,7 @@ func TestProgressBarNonTTYFallback(t *testing.T) {
 }
 
 func TestProgressBarModeSelection(t *testing.T) {
+	t.Parallel()
 	t.Run("determinate mode has total and not indeterminate", func(t *testing.T) {
 		bar := NewProgressBar(1024)
 		assert.Equal(t, int64(1024), bar.total, "Determinate mode should have total")
