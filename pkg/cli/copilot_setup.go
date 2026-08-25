@@ -618,6 +618,7 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 				insert := indent + "  persist-credentials: false" + newline
 				lines = slices.Insert(lines, i+2, insert)
 			}
+			i++
 			continue
 		}
 
@@ -625,6 +626,7 @@ func pinCheckoutUsesInContent(content []byte) ([]byte, bool) {
 			indent+"with:"+newline,
 			indent+"  persist-credentials: false"+newline,
 		)
+		i += 2
 	}
 
 	if !changed {
