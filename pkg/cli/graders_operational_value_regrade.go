@@ -231,10 +231,10 @@ func resolveOperationalValueRegradeRepo(repoOverride string) (repoSlug, artifact
 }
 
 func readArchivedOperationalValueEvaluator(runDir string) (string, string, error) {
-	evaluatorPath := filepath.Join(runDir, "agent", "graders", constants.OperationalValueEvaluatorFilename)
+	evaluatorPath := filepath.Join(runDir, "agent", "graders", constants.OperationalValueEvaluatorFilename.String())
 	info, err := os.Lstat(evaluatorPath)
 	if err != nil {
-		evaluatorPath = filepath.Join(runDir, "graders", constants.OperationalValueEvaluatorFilename)
+		evaluatorPath = filepath.Join(runDir, "graders", constants.OperationalValueEvaluatorFilename.String())
 		info, err = os.Lstat(evaluatorPath)
 	}
 	if err != nil {
@@ -270,9 +270,9 @@ func readArchivedOperationalValueEvaluator(runDir string) (string, string, error
 }
 
 func readOperationalValueGraderManifest(runDir string) (*operationalValueGraderManifest, error) {
-	manifestPath := filepath.Join(runDir, "agent", "graders", constants.GraderManifestFilename)
+	manifestPath := filepath.Join(runDir, "agent", "graders", constants.GraderManifestFilename.String())
 	if _, err := os.Stat(manifestPath); err != nil {
-		manifestPath = filepath.Join(runDir, "graders", constants.GraderManifestFilename)
+		manifestPath = filepath.Join(runDir, "graders", constants.GraderManifestFilename.String())
 	}
 	file, err := os.Open(manifestPath)
 	if err != nil {

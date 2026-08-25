@@ -1463,7 +1463,7 @@ func TestUsageArtifactDownloadsUseExactNamesWithDownloadArtifactV3(t *testing.T)
 		return "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0"
 	}), "")
 
-	for _, artifactName := range []string{constants.SafeOutputItemsArtifactName, constants.EvalsArtifactName} {
+	for _, artifactName := range []string{constants.SafeOutputItemsArtifactName.String(), constants.EvalsArtifactName.String()} {
 		if !strings.Contains(steps, "name: "+artifactName) {
 			t.Errorf("Expected download-artifact v3 usage download to use exact name for %q.\nGenerated steps:\n%s", artifactName, steps)
 		}

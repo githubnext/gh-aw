@@ -83,19 +83,19 @@ const (
 // ResolveArtifactFilter means no filter is active so the caller downloads all artifacts).
 var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetAll:        nil, // no filtering – download all artifacts
-	ArtifactSetActivation: {constants.ActivationArtifactName},
-	ArtifactSetAgent:      {constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
-	ArtifactSetMCP:        {constants.AgentArtifactName},
-	ArtifactSetFirewall:   {constants.AgentArtifactName},
-	ArtifactSetDetection:  {constants.DetectionArtifactName},
+	ArtifactSetActivation: {constants.ActivationArtifactName.String()},
+	ArtifactSetAgent:      {constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
+	ArtifactSetMCP:        {constants.AgentArtifactName.String()},
+	ArtifactSetFirewall:   {constants.AgentArtifactName.String()},
+	ArtifactSetDetection:  {constants.DetectionArtifactName.String()},
 	// github-api: both jobs upload github_rate_limits.jsonl; fetch both for a complete view.
-	ArtifactSetGitHubAPI: {constants.ActivationArtifactName, constants.AgentArtifactName},
+	ArtifactSetGitHubAPI: {constants.ActivationArtifactName.String(), constants.AgentArtifactName.String()},
 	// experiment: A/B experiment state uploaded by the activation job.
-	ArtifactSetExperiment: {constants.ExperimentArtifactName},
+	ArtifactSetExperiment: {constants.ExperimentArtifactName.String()},
 	// usage: compact conclusion artifact for lightweight reporting/forecasting.
-	ArtifactSetUsage: {constants.UsageArtifactName},
+	ArtifactSetUsage: {constants.UsageArtifactName.String()},
 	// evals: evals results are now included in the usage artifact.
-	ArtifactSetEvals: {constants.UsageArtifactName},
+	ArtifactSetEvals: {constants.UsageArtifactName.String()},
 }
 
 const maxArtifactHintExamples = 2
@@ -303,11 +303,11 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 }
 
 func agentOutputTransportAlternates(filterEntry, downloadedName string) bool {
-	if filterEntry == constants.AgentArtifactName {
-		return artifactNameMatchesBase(downloadedName, constants.AgentOutputFallbackArtifactName)
+	if filterEntry == constants.AgentArtifactName.String() {
+		return artifactNameMatchesBase(downloadedName, constants.AgentOutputFallbackArtifactName.String())
 	}
-	if filterEntry == constants.AgentOutputFallbackArtifactName {
-		return artifactNameMatchesBase(downloadedName, constants.AgentArtifactName)
+	if filterEntry == constants.AgentOutputFallbackArtifactName.String() {
+		return artifactNameMatchesBase(downloadedName, constants.AgentArtifactName.String())
 	}
 	return false
 }

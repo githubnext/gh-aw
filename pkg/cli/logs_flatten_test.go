@@ -544,33 +544,33 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 func TestFlattenAgentOutputFallbackArtifact(t *testing.T) {
 	t.Run("fallback artifact gets flattened", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "test-flatten-agent-output-fallback-*")
-		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName)
+		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName.String())
 		require.NoError(t, os.MkdirAll(fallbackDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename), []byte(`{"items":[]}`), 0644))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename), []byte("{}\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename.String()), []byte(`{"items":[]}`), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename.String()), []byte("{}\n"), 0644))
 
 		require.NoError(t, flattenAgentOutputFallbackArtifact(tmpDir, true))
 
-		assert.FileExists(t, filepath.Join(tmpDir, constants.AgentOutputFilename))
-		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename))
+		assert.FileExists(t, filepath.Join(tmpDir, constants.AgentOutputFilename.String()))
+		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename.String()))
 		assert.NoDirExists(t, fallbackDir)
 	})
 
 	t.Run("primary files win when fallback duplicates existing files", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "test-flatten-agent-output-fallback-*")
-		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputFilename), []byte("primary"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputFilename.String()), []byte("primary"), 0644))
 
-		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName)
+		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName.String())
 		require.NoError(t, os.MkdirAll(fallbackDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename), []byte("fallback"), 0644))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename), []byte("{}\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename.String()), []byte("fallback"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename.String()), []byte("{}\n"), 0644))
 
 		require.NoError(t, flattenAgentOutputFallbackArtifact(tmpDir, true))
 
-		content, err := os.ReadFile(filepath.Join(tmpDir, constants.AgentOutputFilename))
+		content, err := os.ReadFile(filepath.Join(tmpDir, constants.AgentOutputFilename.String()))
 		require.NoError(t, err)
 		assert.Equal(t, "primary", string(content))
-		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename))
+		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename.String()))
 		assert.NoDirExists(t, fallbackDir)
 	})
 }

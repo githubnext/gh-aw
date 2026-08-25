@@ -177,7 +177,7 @@ func conclusionMayCreateIssue(data *WorkflowData) bool {
 // can include safe-output item counts in the activity summary without requiring a separate artifact download.
 func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
-	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
+	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName.String()
 	safeOutputsDownloadAction := pinAction("actions/download-artifact")
 	steps := []string{
 		"      - name: Download Safe Outputs Items Manifest\n",
@@ -190,7 +190,7 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 	steps = append(steps, downloadArtifactInputLines(safeOutputsItemsArtifactName, safeOutputsDownloadAction)...)
 	steps = append(steps, "          path: /tmp/gh-aw/\n")
 	if hasEvals {
-		evalsArtifactName := prefix + constants.EvalsArtifactName
+		evalsArtifactName := prefix + constants.EvalsArtifactName.String()
 		evalsDownloadAction := pinAction("actions/download-artifact")
 		steps = append(steps,
 			"      - name: Download evals artifact\n",

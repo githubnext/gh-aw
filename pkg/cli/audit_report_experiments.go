@@ -35,9 +35,9 @@ type ExperimentData struct {
 func findExperimentStatePath(logsPath string) string {
 	candidates := []string{
 		filepath.Join(logsPath, "state.jsonl"),
-		filepath.Join(logsPath, constants.ExperimentArtifactName, "state.jsonl"),
+		filepath.Join(logsPath, constants.ExperimentArtifactName.String(), "state.jsonl"),
 		filepath.Join(logsPath, "state.json"),
-		filepath.Join(logsPath, constants.ExperimentArtifactName, "state.json"),
+		filepath.Join(logsPath, constants.ExperimentArtifactName.String(), "state.json"),
 	}
 	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
