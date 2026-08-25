@@ -33,8 +33,8 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[docs] "
     labels: [documentation, glossary]

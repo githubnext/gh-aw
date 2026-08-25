@@ -2,7 +2,18 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-import { MANIFEST_FILE_PATH, TEMPORARY_ID_MAP_FILE_PATH, CREATE_ITEM_TYPES, NOT_LOGGED_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } from "./safe_output_manifest.cjs";
+import {
+  MANIFEST_FILE_PATH,
+  TEMPORARY_ID_MAP_FILE_PATH,
+  SAFE_OUTPUT_ERRORS_FILE_PATH,
+  CREATE_ITEM_TYPES,
+  NOT_LOGGED_TYPES,
+  createManifestLogger,
+  ensureManifestExists,
+  extractCreatedItemFromResult,
+  writeTemporaryIdMapFile,
+  writeSafeOutputErrorReport,
+} from "./safe_output_manifest.cjs";
 
 describe("safe_output_manifest", () => {
   let testManifestFile;
@@ -469,6 +480,111 @@ describe("safe_output_manifest", () => {
     it("should throw when the file cannot be written", () => {
       // Use a path under /dev/null which is a file, not a directory — mkdirSync fails immediately
       expect(() => writeTemporaryIdMapFile({}, "/dev/null/fake/map.json")).toThrow("Failed to write temporary ID map file");
+    });
+  });
+  describe("writeSafeOutputErrorReport", () => {
+    let testErrorsFile;
+
+    beforeEach(() => {
+      const testId = Math.random().toString(36).substring(7);
+      testErrorsFile = `/tmp/test-safe-output-errors-${testId}/safe-output-errors.json`;
+      global.core = {
+        info: () => {},
+        warning: () => {},
+      };
+      delete process.env.GH_AW_SECRET_NAMES;
+      delete process.env.SECRET_CUSTOM_TEST;
+    });
+
+    afterEach(() => {
+      try {
+        const testDir = path.dirname(testErrorsFile);
+        if (fs.existsSync(testDir)) {
+          fs.rmSync(testDir, { recursive: true, force: true });
+        }
+        fs.rmSync("/tmp/gh-aw/mcp-config", { recursive: true, force: true });
+      } catch (_err) {
+        // Ignore cleanup errors
+      }
+    });
+
+    it("should be exported with the expected default path", () => {
+      expect(SAFE_OUTPUT_ERRORS_FILE_PATH).toBe("/tmp/gh-aw/safe-output-errors.json");
+    });
+
+    it("should write structured failure diagnostics", () => {
+      writeSafeOutputErrorReport(
+        {
+          errorCode: "E099",
+          message: "1 safe output(s) failed:\n  - create_issue: boom",
+          failures: [{ type: "create_issue", errorCode: "E007", error: "boom" }],
+        },
+        testErrorsFile
+      );
+
+      const parsed = JSON.parse(fs.readFileSync(testErrorsFile, "utf8"));
+      expect(parsed.status).toBe("failure");
+      expect(parsed.errorCode).toBe("E099");
+      expect(parsed.message).toContain("create_issue: boom");
+      expect(parsed.failures).toEqual([{ type: "create_issue", errorCode: "E007", error: "boom" }]);
+      expect(typeof parsed.timestamp).toBe("string");
+    });
+
+    it("should default failures to an empty array and create parent directories", () => {
+      writeSafeOutputErrorReport({ errorCode: "ERR_VALIDATION", message: "Handler manager failed" }, testErrorsFile);
+
+      const parsed = JSON.parse(fs.readFileSync(testErrorsFile, "utf8"));
+      expect(parsed.failures).toEqual([]);
+      expect(parsed.message).toBe("Handler manager failed");
+    });
+
+    it("should redact credential patterns from the report", () => {
+      writeSafeOutputErrorReport({ message: `token ghp_${"a".repeat(36)} leaked` }, testErrorsFile);
+
+      const content = fs.readFileSync(testErrorsFile, "utf8");
+      expect(content).not.toContain("ghp_aaaa");
+      expect(content).toContain("***REDACTED***");
+    });
+
+    it("should redact workflow-configured custom secrets from the report", () => {
+      process.env.GH_AW_SECRET_NAMES = "CUSTOM_TEST";
+      process.env.SECRET_CUSTOM_TEST = "my-custom-safe-output-secret";
+
+      writeSafeOutputErrorReport({ message: "leaked my-custom-safe-output-secret value" }, testErrorsFile);
+
+      const content = fs.readFileSync(testErrorsFile, "utf8");
+      expect(content).not.toContain("my-custom-safe-output-secret");
+      expect(content).toContain("***REDACTED***");
+    });
+
+    it("should redact MCP gateway bearer tokens and raw credentials from the report", () => {
+      const gatewayCredential = "mcp_gateway_token_for_test_123456";
+      const bearerValue = "Bearer " + gatewayCredential;
+      const gatewayConfigPath = "/tmp/gh-aw/mcp-config/gateway-output.json";
+      fs.mkdirSync(path.dirname(gatewayConfigPath), { recursive: true });
+      fs.writeFileSync(
+        gatewayConfigPath,
+        JSON.stringify({
+          mcpServers: {
+            gateway: {
+              headers: {
+                Authorization: bearerValue,
+              },
+            },
+          },
+        })
+      );
+
+      writeSafeOutputErrorReport({ message: `headers: ${bearerValue} and ${gatewayCredential}` }, testErrorsFile);
+
+      const content = fs.readFileSync(testErrorsFile, "utf8");
+      expect(content).not.toContain(bearerValue);
+      expect(content).not.toContain(gatewayCredential);
+      expect(content).toContain("***REDACTED***");
+    });
+
+    it("should throw when the file cannot be written", () => {
+      expect(() => writeSafeOutputErrorReport({ message: "x" }, "/dev/null/fake/errors.json")).toThrow("Failed to write safe output error report");
     });
   });
 });

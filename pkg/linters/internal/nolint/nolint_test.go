@@ -11,6 +11,7 @@ import (
 )
 
 func TestBuildDirectiveIndex_ParsesDirectiveTokens(t *testing.T) {
+	t.Parallel()
 	const filename = "nolint_tokens.go"
 	const src = `package p
 

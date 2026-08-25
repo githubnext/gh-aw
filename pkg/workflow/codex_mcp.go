@@ -189,7 +189,7 @@ func (e *CodexEngine) getOpenAIProxyProviderBaseURL(workflowData *WorkflowData) 
 	// (copilot/ models) is only served on the Copilot port (10002); the shared
 	// OpenAI/Responses gateway port (10000) answers with a 404 "OpenAI proxy not
 	// configured" error when no OpenAI credentials are present.
-	port := constants.ClaudeLLMGatewayPort
+	port := constants.CodexLLMGatewayPort
 	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
 		port = constants.CopilotLLMGatewayPort
 	}

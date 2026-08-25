@@ -77,7 +77,7 @@ This specification uses the following terms with precise definitions:
 
 **Cache Poisoning**: A Bell-LaPadula write-up violation where a lower-integrity agent writes data to a shared cache store that is subsequently consumed by a higher-integrity run without provenance verification.
 
-**Steering Issue**: A run-scoped issue allocated during activation when `safe-outputs.create-pull-request.steer` is enabled. It collects user-authored steering comments and is reused as the agent failure issue when the run fails.
+**Steering Issue**: A run-scoped issue allocated during activation when `safe-outputs.steer` is enabled. It collects user-authored steering comments and is reused as the agent failure issue when the run fails.
 
 ---
 
@@ -1242,6 +1242,23 @@ MUST NOT:
 - Execute API write operations in staged mode
 - Create partial resources (e.g., issue without closing it)
 - Omit critical operation details from previews
+
+#### GP2a: steer
+
+**Syntax**: `steer: true | false`
+
+**Default**: `false`
+
+**Semantics**: When `true`, activation MUST create a workflow-repository issue before agent execution and expose its number and URL to the agent prompt. The agent MAY read user-authored issue comments containing the `steer` keyword. The conclusion phase MUST update the validated issue with the failure title and body when failure reporting is active, rather than creating a separate failure issue; on successful completion, it SHOULD close the issue and link a created pull request when available.
+
+This mode requires top-level `issues: read` permission for comment reads. The activation and conclusion jobs require `issues: write` through the global safe-output credential (`safe-outputs.github-token` or `safe-outputs.github-app`); a GitHub App token MUST be minted with `issues: write`.
+
+**Constraints**:
+
+- `steer` MUST NOT be combined with `safe-outputs.failure-issue-repo`.
+- `steer` MUST NOT be combined with an expression-valued `safe-outputs.staged`.
+- When `safe-outputs.staged: true`, no steering issue is created.
+- Steering MUST NOT alter pull request branch creation or checkout references.
 
 #### GP3: allowed-domains
 
@@ -2445,9 +2462,6 @@ safe-outputs:
 9. **Owner-Qualified Head Reference**: When `head-repo` differs from `target-repo`, the created pull request MUST use an owner-qualified head reference identifying the head repository owner and pushed branch. Unqualified same-name branch references MUST NOT be used in fork-backed mode.
 10. **Ephemeral Fork Branch Model**: When `head-repo` differs from `target-repo`, implementations SHOULD create or refresh an ephemeral branch in `head-repo` from the resolved upstream base SHA, apply the agent changes, and open the pull request back to the upstream base. Implementations MAY support explicit synchronization of that ephemeral branch with a newer upstream base, but implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
 11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
-12. **Steering Issue Creation**: When `steer: true` is configured, activation MUST create a workflow-repository issue before agent execution and expose its number to the agent prompt.
-13. **Failure Issue Reuse**: If failure reporting is activated, the conclusion phase MUST update the validated steering issue with the failure title and body instead of creating a separate failure issue. Steering MUST NOT alter pull request branch creation or checkout references.
-
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
@@ -2468,8 +2482,6 @@ safe-outputs:
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
-- `steer`: Experimental. When `true`, creates a run-scoped issue during activation and allows the agent to read user-authored issue comments as steering feedback. The implementation MUST reuse this issue for agent failure reporting and SHOULD close it after successful completion. This mode requires top-level `issues: read`, MUST NOT be combined with `failure-issue-repo` or expression-valued staged mode, and MUST NOT change normal pull request branch creation or checkout behavior.
-
 **Security Requirements**:
 
 - Branch name sanitization (prevent injection)
@@ -5740,7 +5752,7 @@ This section maps normative specification requirements (§3–§11) to implement
 | §4.2 Data Flow Sequence | Safe output processing phases (Phase 1–8) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_output_handler_manager.cjs` |
 | §4.3 Configuration Propagation | Compiler-to-runtime config passing | `pkg/workflow/compiler_safe_outputs.go`, `pkg/workflow/compiler_safe_outputs_builder.go` |
 | §5 Configuration Semantics | Frontmatter YAML parsing, type-specific config | `pkg/workflow/compiler_safe_outputs.go`, `pkg/workflow/safe_output_handlers.go` |
-| §5.2 Global Parameters | `footer`, `staged`, global max limits | `actions/setup/js/safe_outputs_config.cjs`, `pkg/workflow/compiler_safe_outputs.go` |
+| §5.2 Global Parameters | `footer`, `staged`, `steer`, global max limits | `actions/setup/js/safe_outputs_config.cjs`, `pkg/workflow/compiler_safe_outputs.go`, `pkg/workflow/compiler_steering_issue.go` |
 | §6 Universal Feature Interpretation | Max limit semantics (MR1–MR4), staged mode (SM1–SM4), footer attribution (FA1–FA6) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_mcp_server.cjs` |
 | §7 Safe Output Type Definitions | Handler implementations for each type | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_tools.json` |
 | §7.0.3 Declared Field Payload Construction | Normalized payload construction, undeclared field stripping, `x-strip-on-error` advisory field handling | `actions/setup/js/collect_ndjson_output.cjs`, `actions/setup/js/safe_output_type_validator.cjs`, `pkg/workflow/safe_outputs_validation_config.go` |

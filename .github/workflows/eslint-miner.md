@@ -42,8 +42,8 @@ tools:
     - "*"
   edit:
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[eslint-miner] "
     labels: [automation, eslint, cookie]
     reviewers: [copilot]

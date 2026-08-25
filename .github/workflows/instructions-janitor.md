@@ -15,8 +15,8 @@ imports:
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     allowed-files:
     - .github/aw/**
     draft: false
