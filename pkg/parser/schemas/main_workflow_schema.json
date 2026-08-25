@@ -13252,17 +13252,6 @@
       ],
       "description": "Positive integer as a string (supports optional K/M suffix) or a GitHub Actions expression."
     },
-    "positive_effective_tokens_limit": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "minimum": 1
-        },
-        {
-          "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-        }
-      ]
-    },
     "positive_ai_credits_limit": {
       "oneOf": [
         {
@@ -13271,18 +13260,6 @@
         },
         {
           "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
-        }
-      ]
-    },
-    "max_effective_tokens_limit": {
-      "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Accepts positive integers (including K/M suffix strings and expressions). Use a negative integer to disable budget enforcement and token steering.",
-      "oneOf": [
-        {
-          "$ref": "#/$defs/positive_effective_tokens_limit"
-        },
-        {
-          "type": "integer",
-          "maximum": -1
         }
       ]
     },
