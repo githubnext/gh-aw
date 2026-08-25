@@ -286,3 +286,13 @@
 - **[declined, lower priority]** Copilot-default framing + missing Claude gh-aw-init automation (#54792) — deferred, not dropped.
 - **[declined, minor]** smoke-aider inconsistent failure message (#54843) — deferred.
 - **[declined, healthy]** Daily Team Evolution (#54907, 30 PRs/24h), overall firewall posture (#54857, 98.9% allowed) — no action.
+
+## Flagged Items (2026-08-25, ~06:25Z cycle, window since 00:34Z baseline #55538)
+
+- **[new, filed]** Cross-workflow safe_outputs "Process Safe Outputs" step failures: PR Sous Chef 4th recurrence (flat_unresolved) + 2 new occurrences (Designer Drift Audit — at least 3rd time, prior instances #54424/#53900 never correlated; Design Decision Gate — new) with no common safe-output config shape, weakening the old "large batch" hypothesis. No raw stderr retrievable for any of the 3 — observability gap flagged in the same issue.
+- **[new, filed]** Daily Compiler Code Quality Report flagged 2 near-threshold functions (`processToolsAndMarkdown` 86 lines, `buildSafeOutputsSetupAndDownloadSteps` 91 lines) in otherwise-healthy compiler orchestrator/safe-outputs files — bundled into 1 issue.
+- **[declined, already self-resolved]** Sergo's registry↔CI-enforcement-drift finding (#55628) — filed and closed COMPLETED within the same 30-min run, no action needed.
+- **[declined, already self-filed]** LintMonster (735-item largefunc tracking issue) and ESLint Refiner (2 grounded rule bugs) both filed their own issues as usual.
+- **[declined, already tracked/declined]** Docs Noob Tester's jargon/glossary finding (#46478, NOT_PLANNED 2026-07-19) and its "fastest path for Copilot" callout (#53927, NOT_PLANNED 2026-08-21, though partially already present at quick-start.mdx:71) — both previously declined, not re-filed a 3rd time.
+- **[watch, not filed]** github-remote-mcp-auth-test.md has a cosmetic bug: report body contains a literal, unexpanded `$(date -u +"%Y-%m-%d %H:%M:%S UTC")` shell placeholder (lines 281 and 314) instead of an actual timestamp. Real but trivial; the workflow itself is chronically broken (30+ historical closed "is missing required tool" issues going back months) and doesn't get fixed, so a standalone issue for the cosmetic date bug was judged low-value this cycle. Revisit if the workflow's core issue ever gets addressed.
+- **[declined, healthy]** Daily Firewall Report (1.5% block rate, sentry.io telemetry + Smoke Copilot's Google-domain browser-automation noise — both known/benign), Firewall Escape Test (SECURE, 8/8 novel techniques blocked), Archivx (91.5% fleet success, 211 runs), Issue Arborist (normal parent/child linking, no anomalies).
