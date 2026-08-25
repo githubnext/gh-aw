@@ -355,9 +355,12 @@ mcp-scripts:
       [[ -n "$SINCE" ]] && PAGE_SIZE=100
       CURSOR=""
       OUTPUT_FILE=$(mktemp)
+      PAGE_NODES_FILE=""
+      MERGED_OUTPUT_FILE=""
+      FILTERED_OUTPUT_FILE=""
       echo '[]' > "$OUTPUT_FILE"
       cleanup() {
-        rm -f "$OUTPUT_FILE"
+        rm -f "$OUTPUT_FILE" "$PAGE_NODES_FILE" "$MERGED_OUTPUT_FILE" "$FILTERED_OUTPUT_FILE"
       }
       trap cleanup EXIT
       while :; do
@@ -370,9 +373,10 @@ mcp-scripts:
         MERGED_OUTPUT_FILE=$(mktemp)
         jq -s '.[0] + .[1]' "$OUTPUT_FILE" "$PAGE_NODES_FILE" > "$MERGED_OUTPUT_FILE"
         mv "$MERGED_OUTPUT_FILE" "$OUTPUT_FILE"
+        MERGED_OUTPUT_FILE=""
+        [[ -n "$SINCE" && "$(jq -r '.[-1].updatedAt // empty' < "$PAGE_NODES_FILE")" < "$SINCE" ]] && { rm -f "$PAGE_NODES_FILE"; break; }
         rm -f "$PAGE_NODES_FILE"
         [[ -z "$SINCE" ]] && break
-        [[ "$(jq -r '.[-1].updatedAt // empty' < "$OUTPUT_FILE")" < "$SINCE" ]] && break
         [[ "$(jq -r '.data.repository.discussions.pageInfo.hasNextPage' <<< "$GRAPHQL_OUTPUT")" == "true" ]] || break
         CURSOR=$(jq -r '.data.repository.discussions.pageInfo.endCursor' <<< "$GRAPHQL_OUTPUT")
       done
@@ -400,7 +404,10 @@ mcp-scripts:
       else
         # Return schema and size instead of full data
         ITEM_COUNT=$(jq 'length' < "$OUTPUT_FILE")
-        DATA_SIZE=$(wc -c < "$OUTPUT_FILE")
+        DATA_SIZE=$(wc -c < "$OUTPUT_FILE" | tr -d '[:space:]')
+        if [[ "$DATA_SIZE" -gt 0 ]]; then
+          DATA_SIZE=$((DATA_SIZE - 1))
+        fi
         
         # Validate values are numeric
         if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
