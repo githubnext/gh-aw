@@ -25,6 +25,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-child-process-interpolated-command`](#no-child-process-interpolated-command) | Disallow interpolated command strings in shell-evaluated `child_process` calls |
 | [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
 | [`no-json-stringify-error`](#no-json-stringify-error) | Disallow `JSON.stringify()` on caught error variables |
+| [`no-json-stringify-equality`](#no-json-stringify-equality) | Disallow comparing two `JSON.stringify()` results for equality |
 | [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
@@ -868,6 +869,25 @@ Interpolating an unescaped, user- or runtime-controlled value directly into a `n
 - `` new RegExp(`^${escapeRegExp(value)}$`) `` — interpolated value passed through a call whose name matches an escaping-helper pattern (contains both "escape" and "reg", e.g. `escapeRegExp`, `utils.escapeRegex`).
 - `` new RegExp(`^${escapedValue}$`) `` — interpolated identifier whose name starts with `escaped` (e.g. `escapedValue`, `ESCAPED_NAME`).
 - Static (non-interpolated) template literals.
+
+### `no-json-stringify-equality`
+
+Disallow comparing two `JSON.stringify()` results with an equality operator (`===`, `!==`, `==`, `!=`). `JSON.stringify()` output depends on object key insertion order, so two deeply-equal objects built with keys inserted in a different order serialize to different strings and are reported as unequal.
+
+**Flagged form:**
+```js
+return JSON.stringify(normalizedLeft) === JSON.stringify(normalizedRight);
+```
+
+**Safe alternative:**
+```js
+return deepEqual(normalizedLeft, normalizedRight);
+```
+
+**Not flagged:**
+- `JSON.stringify(value) === "{}"` — only one operand is a `JSON.stringify()` call, so no key-order ambiguity exists.
+- Non-equality operators such as `<`, `>` or `+`.
+- A locally shadowed `JSON` binding.
 
 ### `no-json-stringify-set-or-map`
 
