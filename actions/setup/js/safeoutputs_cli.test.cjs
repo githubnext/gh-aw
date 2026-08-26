@@ -313,6 +313,16 @@ describe("safeoutputs_cli.cjs", () => {
       }
     });
 
+    it("returns false for missing_data unless explicitly included", () => {
+      const filePath = makeTempFile('{"type":"missing_data","reason":"metadata unavailable"}\n');
+      try {
+        expect(hasTerminalSafeOutput(filePath)).toBe(false);
+        expect(hasTerminalSafeOutput(filePath, { includeMissingData: true })).toBe(true);
+      } finally {
+        fs.rmSync(filePath);
+      }
+    });
+
     it("scopes detection to content after byteOffset", () => {
       const firstLine = '{"type":"noop","message":"old"}\n';
       const filePath = makeTempFile(`${firstLine}{"type":"missing_tool","tool":"x"}\n`);

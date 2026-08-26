@@ -215,6 +215,7 @@ function hasExpectedSafeOutputs(safeOutputsPath, options) {
  * @param {string} safeOutputsPath - Path to the safe-outputs JSONL file
  * @param {{
  *   byteOffset?: number,
+ *   includeMissingData?: boolean,
  *   includeReportIncomplete?: boolean,
  *   logger?: (msg: string) => void,
  *   readFileSync?: (path: string, encoding: BufferEncoding) => string
@@ -249,7 +250,7 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
       const parsed = JSON.parse(trimmed);
       const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
       if (!type) continue;
-      if (type === "noop" || (options?.includeReportIncomplete && type === "report_incomplete") || !NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+      if (type === "noop" || (options?.includeMissingData && type === "missing_data") || (options?.includeReportIncomplete && type === "report_incomplete") || !NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
         logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
         return true;
       }
