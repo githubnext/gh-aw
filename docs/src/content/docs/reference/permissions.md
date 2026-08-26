@@ -39,7 +39,7 @@ See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jo
 **Shorthand Options:**
 
 - **`read-all`**: Read access to all scopes (useful for inspection workflows)
-- **`{}`**: No permissions (for computation-only workflows)
+- **`{}`** or **`none`**: No permissions (for computation-only workflows)
 
 ### GitHub App-Only Permissions
 
