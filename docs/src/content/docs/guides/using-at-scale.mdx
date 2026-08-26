@@ -3,7 +3,19 @@ title: Using at Scale in Organizations
 description: Guidance for adopting, sharing, and governing GitHub Agentic Workflows across teams and repositories.
 ---
 
-When agentic workflows move beyond a single repository and into an organization or enterprise, something qualitatively different becomes possible. Workflows can coordinate or scale across dozens of repositories simultaneously. For example, workflows can:
+When agentic workflows move beyond a single repository and into an organization or enterprise, something qualitatively different becomes possible. Workflows can coordinate or scale across dozens of repositories simultaneously.
+
+In this guide, we will explore recurring topics in organization and enterprise adoption of GitHub Agentic Workflows, including how to:
+- Use cases in organizations and enterprises
+- Share, reuse, and govern workflows across an organization
+- Coordinate agentic work across multiple repositories securely
+- Introduce production writes safely and roll back when needed
+- Track and reduce AI token costs at scale
+- Use with GitHub Enterprise Server and GitHub Enterprise Cloud
+
+## Use Cases in Organizations and Enterprises
+
+In organizations and enterprises, workflows can:
 - [Roll out changes org-wide](/gh-aw/examples/multi-repo/dependabot-rollout/)
 - [Assess code quality across 100s of repos](/gh-aw/examples/multi-repo/code-quality-monitoring/)
 - [Synchronize dependency updates](/gh-aw/examples/multi-repo/dependabot-rollout/)
@@ -11,16 +23,8 @@ When agentic workflows move beyond a single repository and into an organization 
 - [Shrink backlogs in multiple maintained repos](/gh-aw/examples/maintaining-repos/)
 - [Enforce coding standards across teams](/gh-aw/examples/multi-repo/code-quality-monitoring/)
 - [Aggregate issue tracking into a single control plane](/gh-aw/examples/multi-repo/issue-tracking/)
-- and many more possibilities.
 
-The possibilities are vast, but so are the challenges of secure authentication, cost management, and operational control at scale.
-
-In this guide, we will explore recurring topics in organization and enterprise adoption of GitHub Agentic Workflows, including how to:
-- Share, reuse, and govern workflows across an organization
-- Coordinate agentic work across multiple repositories securely
-- Introduce production writes safely and roll back when needed
-- Track and reduce AI token costs at scale
-- Use with GitHub Enterprise Server and GitHub Enterprise Cloud
+The possibilities are vast. Challenges include secure authentication, cost management, and operational control at scale.
 
 ## Reusing and Sharing Workflows in the Organization
 
