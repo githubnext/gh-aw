@@ -100,8 +100,8 @@ type AWFCommandConfig struct {
 	ResolveMaxAICreditsFromEnv bool
 
 	// RetryStartupFailures retries AWF startup/configuration failures before the
-	// engine harness has started. This is used for Claude so failures that happen
-	// outside claude_harness.cjs still consume the Claude startup retry budget.
+	// engine harness has started. This is used by engine harnesses so failures
+	// outside the harness still consume the bounded startup retry budget.
 	RetryStartupFailures bool
 }
 

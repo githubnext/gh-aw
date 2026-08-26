@@ -64,11 +64,27 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		awfArgs:                awfArgs,
 		shellWrappedCommand:    shellWrappedCommand,
 		logFile:                config.LogFile,
-		retryStartupFailures:   config.RetryStartupFailures,
+		engineName:             config.EngineName,
+		retryStartupFailures:   config.RetryStartupFailures || usesBuiltInEngineHarness(config.EngineName, config.EngineCommand),
 	})
 
 	awfHelpersLog.Print("Successfully built AWF command")
 	return command
+}
+
+func usesBuiltInEngineHarness(engineName, engineCommand string) bool {
+	switch engineName {
+	case "claude":
+		return strings.Contains(engineCommand, "claude_harness.cjs")
+	case "codex":
+		return strings.Contains(engineCommand, "codex_harness.cjs")
+	case "copilot":
+		return strings.Contains(engineCommand, "copilot_harness.cjs")
+	case "gemini", "pi":
+		return strings.Contains(engineCommand, "shell_harness.cjs")
+	default:
+		return false
+	}
 }
 
 func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDind bool, arcDindDockerHostProbe string) (string, string) {
@@ -328,6 +344,7 @@ type buildAWFCommandScriptInput struct {
 	awfArgs                []string
 	shellWrappedCommand    string
 	logFile                string
+	engineName             string
 	retryStartupFailures   bool
 }
 
@@ -356,6 +373,13 @@ func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
 }
 
 func buildAWFInvocationCommand(input buildAWFCommandScriptInput) string {
+	engineName := input.engineName
+	if engineName == "" {
+		engineName = "agent"
+	}
+	safeEngineName := safeAWFTempFileNamePart(engineName)
+	harnessMarker := shellEscapeArg(fmt.Sprintf("[%s-harness]", engineName))
+	attemptLogPattern := fmt.Sprintf(`"${RUNNER_TEMP:-/tmp}/gh-aw-awf-%s.XXXXXX"`, safeEngineName)
 	command := fmt.Sprintf(`%s %s %s %s %s \
   -- %s`,
 		input.awfCommand,
@@ -368,7 +392,8 @@ func buildAWFInvocationCommand(input buildAWFCommandScriptInput) string {
 	if !input.retryStartupFailures {
 		return fmt.Sprintf("%s 2>&1 | tee -a %s", command, shellEscapeArg(input.logFile))
 	}
-	return fmt.Sprintf(`gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"
+
+	return fmt.Sprintf(`gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"
 if ! [[ "$gh_aw_awf_startup_retries" =~ ^[0-9]+$ ]]; then
   gh_aw_awf_startup_retries=1
 fi
@@ -382,16 +407,16 @@ fi
 gh_aw_awf_delay_s=$(( (gh_aw_awf_initial_delay_ms + 999) / 1000 ))
 gh_aw_awf_attempt=0
 while true; do
-  gh_aw_awf_attempt_log="$(mktemp "${RUNNER_TEMP:-/tmp}/gh-aw-awf-claude.XXXXXX")"
+  gh_aw_awf_attempt_log="$(mktemp %s)"
   %s 2>&1 | tee -a %s "$gh_aw_awf_attempt_log"
   gh_aw_awf_status=${PIPESTATUS[0]}
   if [ "$gh_aw_awf_status" -eq 0 ]; then
     rm -f "$gh_aw_awf_attempt_log"
     exit 0
   fi
-  if ! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
+  if ! grep -Fq %s "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
     gh_aw_awf_attempt=$((gh_aw_awf_attempt + 1))
-    echo "[claude-awf-retry] AWF startup failed before Claude harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
+    echo "[%s-awf-retry] AWF startup failed before %s harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
     rm -f "$gh_aw_awf_attempt_log"
     sleep "$gh_aw_awf_delay_s"
     continue
@@ -399,9 +424,25 @@ while true; do
   rm -f "$gh_aw_awf_attempt_log"
   exit "$gh_aw_awf_status"
 done`,
+		attemptLogPattern,
 		command,
 		shellEscapeArg(input.logFile),
+		harnessMarker,
+		safeEngineName,
+		safeEngineName,
 	)
+}
+
+func safeAWFTempFileNamePart(value string) string {
+	if value == "" {
+		return "agent"
+	}
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			return r
+		}
+		return '_'
+	}, value)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.

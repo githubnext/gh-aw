@@ -802,7 +802,7 @@ func TestBuildAWFCommandScript_OptionalSections(t *testing.T) {
 	}
 }
 
-func TestBuildAWFCommandScript_RetriesClaudeStartupFailuresOutsideHarness(t *testing.T) {
+func TestBuildAWFCommandScript_RetriesEngineStartupFailuresOutsideHarness(t *testing.T) {
 	input := buildAWFCommandScriptInput{
 		writeAgentCLIStartMs: "start",
 		preCreateLog:         "pre",
@@ -811,40 +811,93 @@ func TestBuildAWFCommandScript_RetriesClaudeStartupFailuresOutsideHarness(t *tes
 		awfArgs:              []string{"--arg", "value"},
 		shellWrappedCommand:  "wrapped",
 		logFile:              "/tmp/test.log",
+		engineName:           "codex",
 		retryStartupFailures: true,
 	}
 
 	command := buildAWFCommandScript(input)
 
-	assert.Contains(t, command, `gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"`)
+	assert.Contains(t, command, `gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"`)
 	assert.Contains(t, command, `gh_aw_awf_initial_delay_ms="${GH_AW_HARNESS_INITIAL_DELAY_MS:-5000}"`)
 	assert.Contains(t, command, "while true; do")
+	assert.Contains(t, command, `mktemp "${RUNNER_TEMP:-/tmp}/gh-aw-awf-codex.XXXXXX"`)
 	assert.Contains(t, command, "awf --expand   --arg value \\\n  -- wrapped 2>&1 | tee -a /tmp/test.log")
-	assert.Contains(t, command, `! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log"`)
+	assert.Contains(t, command, `! grep -Fq '[codex-harness]' "$gh_aw_awf_attempt_log"`)
 	assert.Contains(t, command, "Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error)")
-	assert.Contains(t, command, "AWF startup failed before Claude harness; retrying fresh")
+	assert.Contains(t, command, "[codex-awf-retry] AWF startup failed before codex harness; retrying fresh")
 }
 
-func TestClaudeEngineAWFWrapsOuterInvocationWithStartupRetry(t *testing.T) {
-	engine := NewClaudeEngine()
-	workflowData := &WorkflowData{
-		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "claude"},
-		SandboxConfig: &SandboxConfig{
-			Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+func TestBuiltInEngineAWFWrapsOuterInvocationWithStartupRetry(t *testing.T) {
+	tests := []struct {
+		name          string
+		engineID      string
+		buildStep     func(*WorkflowData) []GitHubActionStep
+		harnessMarker string
+	}{
+		{
+			name:     "claude",
+			engineID: "claude",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewClaudeEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[claude-harness]",
+		},
+		{
+			name:     "codex",
+			engineID: "codex",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewCodexEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[codex-harness]",
+		},
+		{
+			name:     "copilot",
+			engineID: "copilot",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewCopilotEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[copilot-harness]",
+		},
+		{
+			name:     "gemini",
+			engineID: "gemini",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewGeminiEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[gemini-harness]",
+		},
+		{
+			name:     "pi",
+			engineID: "pi",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewPiEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[pi-harness]",
 		},
 	}
 
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
-	}
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: tt.engineID},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+				},
+			}
 
-	assert.Contains(t, stepContent, `gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"`)
-	assert.Contains(t, stepContent, `! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log"`)
-	assert.Contains(t, stepContent, "Refusing to use symlink as bind mountpoint")
-	assert.Contains(t, stepContent, "claude_harness.cjs")
+			steps := tt.buildStep(workflowData)
+			if len(steps) == 0 {
+				t.Fatalf("Expected at least 1 execution step")
+			}
+			stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
+
+			assert.Contains(t, stepContent, `gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"`)
+			assert.Contains(t, stepContent, `! grep -Fq '`+tt.harnessMarker+`' "$gh_aw_awf_attempt_log"`)
+			assert.Contains(t, stepContent, "Refusing to use symlink as bind mountpoint")
+			assert.Contains(t, stepContent, "["+tt.engineID+"-awf-retry] AWF startup failed before "+tt.engineID+" harness; retrying fresh")
+		})
+	}
 }
 
 func argValue(args []string, flag string) string {

@@ -919,6 +919,8 @@ process.exit(1);
 
     it("uses startup retry default and clamps overrides to [0..2]", () => {
       expect(resolveStartupRetryLimit({})).toBe(1);
+      expect(resolveStartupRetryLimit({ GH_AW_HARNESS_STARTUP_RETRIES: "2" })).toBe(2);
+      expect(resolveStartupRetryLimit({ GH_AW_HARNESS_STARTUP_RETRIES: "1", GH_AW_CLAUDE_STARTUP_RETRIES: "0" })).toBe(1);
       expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "2" })).toBe(2);
       expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "-5" })).toBe(0);
       expect(resolveStartupRetryLimit({ GH_AW_CLAUDE_STARTUP_RETRIES: "9" })).toBe(2);

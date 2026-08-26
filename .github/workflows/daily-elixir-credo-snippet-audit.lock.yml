@@ -983,7 +983,7 @@ jobs:
             fi
           fi
           # shellcheck disable=SC1003,SC2016,SC2086
-          gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"
+          gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"
           if ! [[ "$gh_aw_awf_startup_retries" =~ ^[0-9]+$ ]]; then
             gh_aw_awf_startup_retries=1
           fi
@@ -1005,9 +1005,9 @@ jobs:
               rm -f "$gh_aw_awf_attempt_log"
               exit 0
             fi
-            if ! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
+            if ! grep -Fq '[claude-harness]' "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
               gh_aw_awf_attempt=$((gh_aw_awf_attempt + 1))
-              echo "[claude-awf-retry] AWF startup failed before Claude harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
+              echo "[claude-awf-retry] AWF startup failed before claude harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
               rm -f "$gh_aw_awf_attempt_log"
               sleep "$gh_aw_awf_delay_s"
               continue
@@ -1953,7 +1953,7 @@ jobs:
             fi
           fi
           # shellcheck disable=SC1003,SC2016,SC2086
-          gh_aw_awf_startup_retries="${GH_AW_CLAUDE_STARTUP_RETRIES:-1}"
+          gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"
           if ! [[ "$gh_aw_awf_startup_retries" =~ ^[0-9]+$ ]]; then
             gh_aw_awf_startup_retries=1
           fi
@@ -1975,9 +1975,9 @@ jobs:
               rm -f "$gh_aw_awf_attempt_log"
               exit 0
             fi
-            if ! grep -q '\[claude-harness\]' "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
+            if ! grep -Fq '[claude-harness]' "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
               gh_aw_awf_attempt=$((gh_aw_awf_attempt + 1))
-              echo "[claude-awf-retry] AWF startup failed before Claude harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
+              echo "[claude-awf-retry] AWF startup failed before claude harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
               rm -f "$gh_aw_awf_attempt_log"
               sleep "$gh_aw_awf_delay_s"
               continue
