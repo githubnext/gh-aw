@@ -19,13 +19,14 @@
  * @param {Object} [options]
  * @param {string} [options.workerUrl] - URL to compiler-worker.js
  *        (default: resolves relative to this module)
+ * @param {(progress: {stage: string, progress: number|null}) => void} [options.onProgress]
  * @returns {{ compile: (markdown: string, files?: Record<string,string>) => Promise<{yaml: string, warnings: string[], error: string|null}>,
  *             ready: Promise<void>,
  *             terminate: () => void }}
  */
 export function createWorkerCompiler(options = {}) {
-  const moduleDir = new URL('.', import.meta.url).href;
-  const workerUrl = options.workerUrl || new URL('compiler-worker.js', moduleDir).href;
+  const moduleDir = new URL(".", import.meta.url).href;
+  const workerUrl = options.workerUrl || new URL("compiler-worker.js", moduleDir).href;
 
   const worker = new Worker(workerUrl);
 
@@ -53,12 +54,21 @@ export function createWorkerCompiler(options = {}) {
     const msg = event.data;
 
     switch (msg.type) {
-      case 'ready':
+      case "ready":
         isReady = true;
         readyResolve();
         break;
 
-      case 'result': {
+      case "progress":
+        if (typeof options.onProgress === "function") {
+          options.onProgress({
+            stage: msg.stage || "Loading compiler",
+            progress: typeof msg.progress === "number" ? msg.progress : null,
+          });
+        }
+        break;
+
+      case "result": {
         const entry = pending.get(msg.id);
         if (entry) {
           pending.delete(msg.id);
@@ -71,7 +81,7 @@ export function createWorkerCompiler(options = {}) {
         break;
       }
 
-      case 'error': {
+      case "error": {
         // An error with id === null means init failure.
         if (msg.id === null || msg.id === undefined) {
           readyReject(new Error(msg.error));
@@ -82,7 +92,7 @@ export function createWorkerCompiler(options = {}) {
         if (entry) {
           pending.delete(msg.id);
           entry.resolve({
-            yaml: '',
+            yaml: "",
             warnings: [],
             error: msg.error,
           });
@@ -96,7 +106,7 @@ export function createWorkerCompiler(options = {}) {
    * Handle worker-level errors (e.g. script load failure).
    */
   worker.onerror = function (event) {
-    const errorMsg = event.message || 'Unknown worker error';
+    const errorMsg = event.message || "Unknown worker error";
 
     if (!isReady) {
       readyReject(new Error(errorMsg));
@@ -119,14 +129,14 @@ export function createWorkerCompiler(options = {}) {
    */
   function compile(markdown, files) {
     if (isTerminated) {
-      return Promise.reject(new Error('Compiler worker has been terminated.'));
+      return Promise.reject(new Error("Compiler worker has been terminated."));
     }
 
     const id = nextId++;
 
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
-      const msg = { type: 'compile', id, markdown };
+      const msg = { type: "compile", id, markdown };
       if (files && Object.keys(files).length > 0) {
         msg.files = files;
       }
@@ -144,7 +154,7 @@ export function createWorkerCompiler(options = {}) {
 
     // Reject anything still pending.
     for (const [, entry] of pending) {
-      entry.reject(new Error('Compiler worker was terminated.'));
+      entry.reject(new Error("Compiler worker was terminated."));
     }
     pending.clear();
   }

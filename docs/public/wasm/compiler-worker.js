@@ -16,11 +16,11 @@
 
 /* global importScripts, Go, compileWorkflow, WebAssembly */
 
-'use strict';
+"use strict";
 
 (function () {
   // 1. Load Go's wasm_exec.js (provides the global `Go` class)
-  importScripts('./wasm_exec.js');
+  importScripts("./wasm_exec.js");
 
   var ready = false;
 
@@ -31,34 +31,57 @@
     try {
       var go = new Go();
 
-      // Try streaming instantiation first; fall back to array buffer
-      // for servers that don't serve .wasm with application/wasm MIME type.
-      var result;
-      try {
-        result = await WebAssembly.instantiateStreaming(
-          fetch('./gh-aw.wasm'),
-          go.importObject,
-        );
-      } catch (streamErr) {
-        var resp = await fetch('./gh-aw.wasm');
-        var buf = await resp.arrayBuffer();
-        result = await WebAssembly.instantiate(buf, go.importObject);
+      self.postMessage({ type: "progress", stage: "Downloading compiler", progress: 0 });
+      var resp = await fetch("./gh-aw.wasm");
+      if (!resp.ok) {
+        throw new Error("Compiler download failed with HTTP " + resp.status);
       }
+
+      var total = Number(resp.headers.get("content-length")) || 0;
+      var buf;
+      if (resp.body && total > 0) {
+        var reader = resp.body.getReader();
+        var chunks = [];
+        var loaded = 0;
+        while (true) {
+          var chunk = await reader.read();
+          if (chunk.done) break;
+          chunks.push(chunk.value);
+          loaded += chunk.value.byteLength;
+          self.postMessage({
+            type: "progress",
+            stage: "Downloading compiler",
+            progress: Math.min(100, Math.round((loaded / total) * 100)),
+          });
+        }
+        var bytes = new Uint8Array(loaded);
+        var offset = 0;
+        for (var i = 0; i < chunks.length; i++) {
+          bytes.set(chunks[i], offset);
+          offset += chunks[i].byteLength;
+        }
+        buf = bytes.buffer;
+      } else {
+        buf = await resp.arrayBuffer();
+      }
+
+      self.postMessage({ type: "progress", stage: "Initializing compiler", progress: 100 });
+      var result = await WebAssembly.instantiate(buf, go.importObject);
 
       // Start the Go program. go.run() never resolves because main()
       // does `select{}`, so we intentionally do NOT await it.
       go.run(result.instance);
 
       // Poll until the Go code has registered compileWorkflow on globalThis.
-      await waitForGlobal('compileWorkflow', 5000);
+      await waitForGlobal("compileWorkflow", 5000);
 
       ready = true;
-      self.postMessage({ type: 'ready' });
+      self.postMessage({ type: "ready" });
     } catch (err) {
       self.postMessage({
-        type: 'error',
+        type: "error",
         id: null,
-        error: 'Worker initialization failed: ' + err.message,
+        error: "Worker initialization failed: " + err.message,
       });
     }
   }
@@ -70,10 +93,10 @@
     return new Promise(function (resolve, reject) {
       var start = Date.now();
       (function check() {
-        if (typeof self[name] !== 'undefined') {
+        if (typeof self[name] !== "undefined") {
           resolve();
         } else if (Date.now() - start > timeoutMs) {
-          reject(new Error('Timed out waiting for globalThis.' + name));
+          reject(new Error("Timed out waiting for globalThis." + name));
         } else {
           setTimeout(check, 10);
         }
@@ -93,7 +116,7 @@
 
     var msg = event.data;
 
-    if (msg.type !== 'compile') {
+    if (msg.type !== "compile") {
       return;
     }
 
@@ -101,18 +124,18 @@
 
     if (!ready) {
       self.postMessage({
-        type: 'error',
+        type: "error",
         id: id,
-        error: 'Compiler is not ready yet.',
+        error: "Compiler is not ready yet.",
       });
       return;
     }
 
-    if (typeof msg.markdown !== 'string') {
+    if (typeof msg.markdown !== "string") {
       self.postMessage({
-        type: 'error',
+        type: "error",
         id: id,
-        error: 'markdown must be a string.',
+        error: "markdown must be a string.",
       });
       return;
     }
@@ -133,22 +156,22 @@
 
       if (result.error) {
         self.postMessage({
-          type: 'error',
+          type: "error",
           id: id,
           error: String(result.error),
         });
       } else {
         self.postMessage({
-          type: 'result',
+          type: "result",
           id: id,
-          yaml: result.yaml || '',
+          yaml: result.yaml || "",
           warnings: warnings,
           error: null,
         });
       }
     } catch (err) {
       self.postMessage({
-        type: 'error',
+        type: "error",
         id: id,
         error: err.message || String(err),
       });

@@ -2,16 +2,16 @@
 // gh-aw Playground - Application Logic
 // ================================================================
 
-import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
-import { attachHoverTooltips } from './hover-tooltips.js';
+import { createWorkerCompiler } from "/gh-aw/wasm/compiler-loader.js";
+import { attachHoverTooltips } from "./hover-tooltips.js";
 
 // ---------------------------------------------------------------
 // Sample workflow registry
 // ---------------------------------------------------------------
 
 const SAMPLES = {
-  'hello-world': {
-    label: 'Hello World',
+  "hello-world": {
+    label: "Hello World",
     content: `---
 name: hello-world
 description: A simple hello world workflow
@@ -25,8 +25,8 @@ engine: copilot
 Say hello to the world! Check the current date and time, and greet the user warmly.
 `,
   },
-  'issue-triage': {
-    label: 'Issue Triage',
+  "issue-triage": {
+    label: "Issue Triage",
     content: `---
 name: Issue Triage
 description: Automatically labels new issues based on their content
@@ -60,8 +60,8 @@ You are a helpful triage assistant. Analyze the new issue and:
 Be concise in your comment — one or two sentences is ideal.
 `,
   },
-  'ci-doctor': {
-    label: 'CI Doctor',
+  "ci-doctor": {
+    label: "CI Doctor",
     content: `---
 name: CI Doctor
 description: Investigates failed CI runs and posts a diagnosis
@@ -97,8 +97,8 @@ You are a CI diagnostics expert. The \`ci-doctor\` label was applied to a pull r
 Keep the diagnosis focused and actionable. If the failure is unrelated to the PR changes, say so.
 `,
   },
-  'contribution-check': {
-    label: 'Contribution Guidelines Checker',
+  "contribution-check": {
+    label: "Contribution Guidelines Checker",
     content: `---
 name: Contribution Guidelines Checker
 description: Checks if new pull requests follow contribution guidelines
@@ -134,8 +134,8 @@ Review this pull request against the project contribution guidelines.
 Be encouraging and constructive in feedback. Assume good intent.
 `,
   },
-  'daily-repo-status': {
-    label: 'Daily Repo Status',
+  "daily-repo-status": {
+    label: "Daily Repo Status",
     content: `---
 name: Daily Repo Status
 description: Posts a daily summary of repository activity
@@ -173,7 +173,7 @@ Keep the report concise — it should be readable in under 2 minutes.
   },
 };
 
-const DEFAULT_CONTENT = SAMPLES['hello-world'].content;
+const DEFAULT_CONTENT = SAMPLES["hello-world"].content;
 
 // ---------------------------------------------------------------
 // Hash-based deep linking
@@ -189,43 +189,56 @@ function getHashValue() {
 
 function setHashQuietly(value) {
   // Replace state so we don't spam the history
-  history.replaceState(null, '', '#' + encodeURIComponent(value));
+  history.replaceState(null, "", "#" + encodeURIComponent(value));
 }
 
 // ---------------------------------------------------------------
 // DOM Elements
 // ---------------------------------------------------------------
-const $ = (id) => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
-const sampleSelect = $('sampleSelect');
-const editorTextarea = $('editorTextarea');
-const outputPlaceholder = $('outputPlaceholder');
-const outputCode = $('outputCode');
-const outputPre = $('outputPre');
-const statusBadge = $('statusBadge');
-const statusText = $('statusText');
-const statusDot = $('statusDot');
-const loadingOverlay = $('loadingOverlay');
-const errorBanner = $('errorBanner');
-const errorText = $('errorText');
-const warningBanner = $('warningBanner');
-const warningText = $('warningText');
-const divider = $('divider');
-const panelEditor = $('panelEditor');
-const panelOutput = $('panelOutput');
-const panels = $('panels');
+const sampleSelect = $("sampleSelect");
+const editorTextarea = $("editorTextarea");
+const outputPlaceholder = $("outputPlaceholder");
+const outputCode = $("outputCode");
+const outputPre = $("outputPre");
+const statusBadge = $("statusBadge");
+const statusText = $("statusText");
+const statusDot = $("statusDot");
+const loadingOverlay = $("loadingOverlay");
+const errorBanner = $("errorBanner");
+const errorText = $("errorText");
+const warningBanner = $("warningBanner");
+const warningText = $("warningText");
+const divider = $("divider");
+const panelEditor = $("panelEditor");
+const panelOutput = $("panelOutput");
+const panels = $("panels");
+const aiPrompt = $("aiPrompt");
+const aiRunButton = $("aiRunButton");
+const aiProgress = $("aiProgress");
+const aiProgressText = $("aiProgressText");
+const aiProgressBar = $("aiProgressBar");
+const compilerProgress = $("compilerProgress");
+const compilerProgressText = $("compilerProgressText");
+const compilerProgressBar = $("compilerProgressBar");
 
 // ---------------------------------------------------------------
 // State
 // ---------------------------------------------------------------
-const STORAGE_KEY = 'gh-aw-playground-content';
+const STORAGE_KEY = "gh-aw-playground-content";
 let compiler = null;
 let isReady = false;
 let isCompiling = false;
 let compileTimer = null;
-let currentYaml = '';
+let currentYaml = "";
 let pendingCompile = false;
 let isDragging = false;
+let lastCompileError = "";
+let aiWorker = null;
+let aiRequestId = 0;
+let aiPending = null;
+let isAiRunning = false;
 
 // ---------------------------------------------------------------
 // Input Editor (<textarea>)
@@ -235,20 +248,20 @@ const initialContent = savedContent || DEFAULT_CONTENT;
 editorTextarea.value = initialContent;
 
 // Tab inserts 2 spaces (preserving undo); Shift-Tab dedents; Mod-Enter triggers compile
-editorTextarea.addEventListener('keydown', (e) => {
-  if (e.key === 'Tab' && !e.shiftKey) {
+editorTextarea.addEventListener("keydown", e => {
+  if (e.key === "Tab" && !e.shiftKey) {
     e.preventDefault();
     // execCommand preserves the browser undo stack
-    document.execCommand('insertText', false, '  ');
+    document.execCommand("insertText", false, "  ");
   }
-  if (e.key === 'Tab' && e.shiftKey) {
+  if (e.key === "Tab" && e.shiftKey) {
     e.preventDefault();
     const start = editorTextarea.selectionStart;
     const end = editorTextarea.selectionEnd;
     const val = editorTextarea.value;
     // Find the start of the current line
-    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
-    const lineEnd = val.indexOf('\n', start);
+    const lineStart = val.lastIndexOf("\n", start - 1) + 1;
+    const lineEnd = val.indexOf("\n", start);
     const line = val.substring(lineStart, lineEnd === -1 ? val.length : lineEnd);
     const spaces = line.match(/^ {1,2}/);
     if (spaces) {
@@ -256,7 +269,7 @@ editorTextarea.addEventListener('keydown', (e) => {
       // Select the leading spaces and delete them via execCommand to preserve undo
       editorTextarea.selectionStart = lineStart;
       editorTextarea.selectionEnd = lineStart + removed;
-      document.execCommand('delete', false);
+      document.execCommand("delete", false);
       // Restore adjusted selection
       const newStart = Math.max(lineStart, start - removed);
       const newEnd = Math.max(lineStart, end - removed);
@@ -264,7 +277,7 @@ editorTextarea.addEventListener('keydown', (e) => {
       editorTextarea.selectionEnd = newEnd;
     }
   }
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
     e.preventDefault();
     if (isReady) {
       doCompile();
@@ -275,9 +288,12 @@ editorTextarea.addEventListener('keydown', (e) => {
 });
 
 // Save to localStorage and schedule auto-compile on input
-editorTextarea.addEventListener('input', () => {
-  try { localStorage.setItem(STORAGE_KEY, editorTextarea.value); }
-  catch (_) { /* localStorage full or unavailable */ }
+editorTextarea.addEventListener("input", () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, editorTextarea.value);
+  } catch (_) {
+    /* localStorage full or unavailable */
+  }
   if (isReady) {
     scheduleCompile();
   } else {
@@ -290,7 +306,7 @@ attachHoverTooltips(editorTextarea);
 
 // If restoring saved content, clear the dropdown since it may not match any sample
 if (savedContent) {
-  sampleSelect.value = '';
+  sampleSelect.value = "";
 }
 
 // ---------------------------------------------------------------
@@ -300,7 +316,7 @@ if (savedContent) {
 /** Replace editor content and trigger compile */
 function setEditorContent(text) {
   editorTextarea.value = text;
-  editorTextarea.dispatchEvent(new Event('input'));
+  editorTextarea.dispatchEvent(new Event("input"));
 }
 
 /** Load a built-in sample by key */
@@ -328,35 +344,35 @@ function loadFromHash() {
   return false;
 }
 
-sampleSelect.addEventListener('change', () => {
+sampleSelect.addEventListener("change", () => {
   const key = sampleSelect.value;
   loadSample(key);
 });
 
-window.addEventListener('hashchange', () => loadFromHash());
+window.addEventListener("hashchange", () => loadFromHash());
 
 // ---------------------------------------------------------------
 // Status (uses Primer Label component)
 // ---------------------------------------------------------------
 const STATUS_LABEL_MAP = {
-  loading: 'Label--accent',
-  ready: 'Label--success',
-  compiling: 'Label--accent',
-  error: 'Label--danger'
+  loading: "Label--accent",
+  ready: "Label--success",
+  compiling: "Label--accent",
+  error: "Label--danger",
 };
 
 function setStatus(status, text) {
   // Swap Label modifier class
   Object.values(STATUS_LABEL_MAP).forEach(cls => statusBadge.classList.remove(cls));
-  statusBadge.classList.add(STATUS_LABEL_MAP[status] || 'Label--secondary');
-  statusBadge.setAttribute('data-status', status);
+  statusBadge.classList.add(STATUS_LABEL_MAP[status] || "Label--secondary");
+  statusBadge.setAttribute("data-status", status);
   statusText.textContent = text;
 
   // Pulse animation for loading/compiling states
-  if (status === 'loading' || status === 'compiling') {
-    statusDot.style.animation = 'pulse 1.2s ease-in-out infinite';
+  if (status === "loading" || status === "compiling") {
+    statusDot.style.animation = "pulse 1.2s ease-in-out infinite";
   } else {
-    statusDot.style.animation = '';
+    statusDot.style.animation = "";
   }
 }
 
@@ -377,70 +393,188 @@ async function doCompile() {
 
   const md = editorTextarea.value;
   if (!md.trim()) {
-    outputPre.style.display = 'none';
-    outputPlaceholder.classList.remove('d-none');
-    outputPlaceholder.classList.add('d-flex');
-    outputPlaceholder.textContent = 'Compiled YAML will appear here';
-    currentYaml = '';
+    outputPre.style.display = "none";
+    outputPlaceholder.classList.remove("d-none");
+    outputPlaceholder.classList.add("d-flex");
+    outputPlaceholder.textContent = "Compiled YAML will appear here";
+    currentYaml = "";
     return;
   }
 
   isCompiling = true;
-  setStatus('compiling', 'Compiling...');
+  setStatus("compiling", "Compiling...");
 
   // Hide old banners
-  errorBanner.classList.add('d-none');
-  warningBanner.classList.add('d-none');
+  errorBanner.classList.add("d-none");
+  warningBanner.classList.add("d-none");
 
   try {
     const result = await compiler.compile(md);
 
     if (result.error) {
-      setStatus('error', 'Error');
+      lastCompileError = result.error;
+      setStatus("error", "Error");
       errorText.textContent = result.error;
-      errorBanner.classList.remove('d-none');
+      errorBanner.classList.remove("d-none");
     } else {
-      setStatus('ready', 'Ready');
+      lastCompileError = "";
+      setStatus("ready", "Ready");
       currentYaml = result.yaml;
 
       // Update output display
       outputCode.textContent = result.yaml;
-      outputPre.style.display = 'block';
-      outputPlaceholder.classList.add('d-none');
-      outputPlaceholder.classList.remove('d-flex');
+      outputPre.style.display = "block";
+      outputPlaceholder.classList.add("d-none");
+      outputPlaceholder.classList.remove("d-flex");
 
       if (result.warnings && result.warnings.length > 0) {
-        warningText.textContent = result.warnings.join('\n');
-        warningBanner.classList.remove('d-none');
+        warningText.textContent = result.warnings.join("\n");
+        warningBanner.classList.remove("d-none");
       }
     }
   } catch (err) {
-    setStatus('error', 'Error');
+    setStatus("error", "Error");
     errorText.textContent = err.message || String(err);
-    errorBanner.classList.remove('d-none');
+    errorBanner.classList.remove("d-none");
   } finally {
     isCompiling = false;
   }
 }
 
 // ---------------------------------------------------------------
+// Browser-local AI workflow fixer
+// ---------------------------------------------------------------
+function setProgress(progressBar, textElement, stage, progress) {
+  textElement.textContent = progress === null ? stage : `${stage} (${Math.round(progress)}%)`;
+  if (progress === null) {
+    progressBar.removeAttribute("value");
+  } else {
+    progressBar.value = progress;
+  }
+}
+
+function getAiWorker() {
+  if (aiWorker) return aiWorker;
+
+  aiWorker = new Worker("./inference-worker.js", { type: "module" });
+  aiWorker.addEventListener("message", event => {
+    const message = event.data;
+    if (!aiPending || message.id !== aiPending.id) return;
+
+    if (message.type === "progress") {
+      setProgress(aiProgressBar, aiProgressText, message.stage, message.progress);
+    } else if (message.type === "result") {
+      const pending = aiPending;
+      aiPending = null;
+      pending.resolve(message.text);
+    } else if (message.type === "error") {
+      const pending = aiPending;
+      aiPending = null;
+      pending.reject(new Error(message.error));
+    }
+  });
+  aiWorker.addEventListener("error", event => {
+    if (!aiPending) return;
+    const pending = aiPending;
+    aiPending = null;
+    pending.reject(new Error(event.message || "The local AI worker failed."));
+  });
+
+  return aiWorker;
+}
+
+function generateWorkflow(prompt, workflow, diagnostic) {
+  if (aiPending) return Promise.reject(new Error("Local AI is already running."));
+
+  const worker = getAiWorker();
+  const id = ++aiRequestId;
+  return new Promise((resolve, reject) => {
+    aiPending = { id, resolve, reject };
+    worker.postMessage({ type: "generate", id, prompt, workflow, diagnostic });
+  });
+}
+
+function extractWorkflow(text) {
+  if (typeof text !== "string") return "";
+  const tagged = text.match(/<workflow>\s*([\s\S]*?)\s*<\/workflow>/i);
+  if (tagged) return tagged[1].trim();
+  const fenced = text.match(/```(?:markdown|md)?\s*\n([\s\S]*?)```/i);
+  return (fenced ? fenced[1] : text).trim();
+}
+
+async function runLocalAi() {
+  const prompt = aiPrompt.value.trim();
+  if (!prompt || isAiRunning || !isReady || isCompiling) return;
+
+  isAiRunning = true;
+  aiRunButton.disabled = true;
+  aiPrompt.disabled = true;
+  aiProgress.classList.remove("d-none");
+  errorBanner.classList.add("d-none");
+  warningBanner.classList.add("d-none");
+  setProgress(aiProgressBar, aiProgressText, "Loading AI runtime", null);
+
+  let candidate = editorTextarea.value;
+  let diagnostic = lastCompileError;
+
+  try {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const response = await generateWorkflow(prompt, candidate, diagnostic);
+      const nextCandidate = extractWorkflow(response);
+      if (!nextCandidate || nextCandidate === candidate) {
+        throw new Error("Local AI did not return an updated workflow.");
+      }
+
+      candidate = nextCandidate;
+      setProgress(aiProgressBar, aiProgressText, `Checking workflow (${attempt}/3)`, null);
+      const result = await compiler.compile(candidate);
+      if (!result.error) {
+        setEditorContent(candidate);
+        await doCompile();
+        setProgress(aiProgressBar, aiProgressText, "Workflow updated", 100);
+        return;
+      }
+      diagnostic = result.error;
+    }
+
+    throw new Error(`Local AI could not produce a valid workflow after 3 attempts. ${diagnostic}`);
+  } catch (error) {
+    errorText.textContent = error.message || String(error);
+    errorBanner.classList.remove("d-none");
+    setProgress(aiProgressBar, aiProgressText, "Local AI stopped", 0);
+  } finally {
+    isAiRunning = false;
+    aiRunButton.disabled = false;
+    aiPrompt.disabled = false;
+  }
+}
+
+aiRunButton.addEventListener("click", runLocalAi);
+aiPrompt.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    runLocalAi();
+  }
+});
+
+// ---------------------------------------------------------------
 // Banner close
 // ---------------------------------------------------------------
-$('errorClose').addEventListener('click', () => errorBanner.classList.add('d-none'));
-$('warningClose').addEventListener('click', () => warningBanner.classList.add('d-none'));
+$("errorClose").addEventListener("click", () => errorBanner.classList.add("d-none"));
+$("warningClose").addEventListener("click", () => warningBanner.classList.add("d-none"));
 
 // ---------------------------------------------------------------
 // Draggable divider
 // ---------------------------------------------------------------
-divider.addEventListener('mousedown', (e) => {
+divider.addEventListener("mousedown", e => {
   isDragging = true;
-  divider.classList.add('dragging');
-  document.body.style.cursor = 'col-resize';
-  document.body.style.userSelect = 'none';
+  divider.classList.add("dragging");
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
   e.preventDefault();
 });
 
-document.addEventListener('mousemove', (e) => {
+document.addEventListener("mousemove", e => {
   if (!isDragging) return;
   const rect = panels.getBoundingClientRect();
   const fraction = (e.clientX - rect.left) / rect.width;
@@ -449,12 +583,12 @@ document.addEventListener('mousemove', (e) => {
   panelOutput.style.flex = `0 0 ${(1 - clamped) * 100}%`;
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener("mouseup", () => {
   if (isDragging) {
     isDragging = false;
-    divider.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    divider.classList.remove("dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
   }
 });
 
@@ -463,30 +597,35 @@ document.addEventListener('mouseup', () => {
 // ---------------------------------------------------------------
 async function init() {
   // Hide the loading overlay immediately — the editor is already visible
-  loadingOverlay.classList.add('hidden');
+  loadingOverlay.classList.add("hidden");
 
   // Show compiler-loading status in the header badge
-  setStatus('loading', 'Loading compiler...');
+  setStatus("loading", "Loading compiler...");
 
   // Show a helpful placeholder in the output panel while WASM downloads
-  outputPlaceholder.textContent = 'Compiler loading... You can start editing!';
+  outputPlaceholder.textContent = "Compiler loading... You can start editing!";
 
   // Kick off deep-link / sample loading (works before WASM is ready)
   loadFromHash();
 
   try {
     compiler = createWorkerCompiler({
-      workerUrl: '/gh-aw/wasm/compiler-worker.js'
+      workerUrl: "/gh-aw/wasm/compiler-worker.js",
+      onProgress: ({ stage, progress }) => {
+        setProgress(compilerProgressBar, compilerProgressText, stage, progress);
+      },
     });
 
     await compiler.ready;
     isReady = true;
-    setStatus('ready', 'Ready');
+    setStatus("ready", "Ready");
+    aiRunButton.disabled = false;
+    compilerProgress.classList.add("d-none");
 
     // Compile whatever the user has typed (or the default/deep-linked content)
     doCompile();
   } catch (err) {
-    setStatus('error', 'Failed to load');
+    setStatus("error", "Failed to load");
     outputPlaceholder.textContent = `Failed to load compiler: ${err.message}`;
   }
 }

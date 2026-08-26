@@ -117,6 +117,22 @@ html, body {
   to { transform: rotate(360deg); }
 }
 
+/* Local AI controls */
+.ai-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 8px;
+}
+.load-progress {
+  width: min(360px, 100%);
+  height: 8px;
+}
+@media (max-width: 700px) {
+  .ai-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Status dot pulse */
 .status-dot {
   width: 7px;
@@ -242,6 +258,23 @@ html, body {
     <span class="text-mono f6" id="warningText"></span>
   </div>
 
+  <!-- Browser-local AI workflow fixer -->
+  <section class="px-3 py-2 color-bg-subtle border-bottom" aria-label="Local AI workflow fixer">
+    <div class="ai-controls">
+      <input class="form-control input-sm width-full" id="aiPrompt" type="text" maxlength="500"
+        aria-label="Local AI prompt" placeholder="Describe a small workflow change or ask AI to fix compiler errors">
+      <button class="btn btn-sm btn-primary" id="aiRunButton" type="button" disabled>Run locally</button>
+    </div>
+    <p class="f6 color-fg-subtle mt-1 mb-0">Runs privately in this browser. First use downloads and caches a local model (about 250 MB).</p>
+    <div class="d-flex flex-column gap-1 mt-2 d-none" id="aiProgress" role="status" aria-live="polite">
+      <div class="d-flex flex-items-center flex-justify-between f6">
+        <span>Local AI</span>
+        <span class="color-fg-muted" id="aiProgressText">Waiting</span>
+      </div>
+      <progress class="load-progress width-full" id="aiProgressBar" max="100"></progress>
+    </div>
+  </section>
+
   <!-- Main Panels -->
   <div class="panels-container d-flex flex-1" style="min-height: 0;" id="panels">
     <!-- Editor Panel -->
@@ -274,6 +307,13 @@ html, body {
           Compiled YAML will appear here
         </div>
         <pre id="outputPre" style="display: none;"><code id="outputCode"></code></pre>
+      </div>
+      <div class="d-flex flex-column gap-1 px-3 py-2 color-bg-subtle border-top" id="compilerProgress" role="status" aria-live="polite">
+        <div class="d-flex flex-items-center flex-justify-between f6">
+          <span>Compiler</span>
+          <span class="color-fg-muted" id="compilerProgressText">Loading WebAssembly...</span>
+        </div>
+        <progress class="load-progress width-full" id="compilerProgressBar" max="100"></progress>
       </div>
     </div>
   </div>
