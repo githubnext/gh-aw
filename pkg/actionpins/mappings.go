@@ -16,6 +16,7 @@ func applyActionPinMapping(actionRepo, version string, ctx *PinContext) (string,
 	if len(ctx.Mappings) == 0 {
 		return actionRepo, version
 	}
+	actionPinsLog.Printf("Checking action pin mapping for %s@%s (%d mapping(s) configured)", actionRepo, version, len(ctx.Mappings))
 
 	cacheKey := FormatCacheKey(actionRepo, version)
 	mapped, ok := ctx.Mappings[cacheKey]
@@ -47,6 +48,7 @@ func ApplyContainerPinMapping(image string, ctx *PinContext) string {
 	if ctx == nil || len(ctx.ContainerMappings) == 0 {
 		return image
 	}
+	actionPinsLog.Printf("Checking container pin mapping for image=%s (%d mapping(s) configured)", image, len(ctx.ContainerMappings))
 
 	mapped, ok := ctx.ContainerMappings[image]
 	if !ok {
