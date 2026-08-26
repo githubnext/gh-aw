@@ -184,7 +184,7 @@ When a compiler feature that a `CTR-*` rule depends on is removed, the rule MUST
 - The rule's status MUST be updated to `Deprecated` in this specification in the same change set as the implementation removal.
 - The rule catalog entry MUST be retained (not deleted) with a deprecation notice indicating the version in which the rule was retired and the reason.
 - All test IDs mapped to the deprecated rule in Section 7 MUST be marked as `[DEPRECATED]` and MUST NOT be required for conformance after the deprecation version.
-- The implementation mapping in Section 7.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`.
+- The implementation mapping in Section 7.1 for the deprecated rule MUST be cleared; the row MUST remain in the table annotated with `[Deprecated in vX.Y.Z]`. This is enforced mechanically by `TestFormal_DeprecationPolicy_SpecArtifactsConform` in `pkg/workflow/threat_detection_deprecation_policy_formal_test.go`, which fails if a deprecated rule's Section 7.1 implementation cell is non-empty.
 - A change-log entry MUST document the deprecation with the rule ID, deprecation version, and rationale.
 
 ---
