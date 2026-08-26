@@ -343,7 +343,7 @@ export default defineConfig({
           items: [
             { label: "Quick Start", link: "/setup/quick-start/" },
             { label: "Create a New Workflow", link: "/setup/creating-workflows/" },
-            { label: "Creation Prompt Wizard", link: "/wizard/" },
+            { label: "Creation Wizard", link: "/wizard/" },
             { label: "CLI Commands", link: "/setup/cli/" },
           ],
         },
