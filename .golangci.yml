@@ -33,11 +33,22 @@ linters:
     - fatcontext     # Detect nested contexts in loops and function literals
     - nosprintfhostport  # Check for misuse of Sprintf to construct host:port URLs
     - reassign       # Check that package variables are not reassigned
+    - depguard       # Forbid imports of disallowed packages (see settings below)
   disable:
     - errcheck       # Disabled due to exclude-functions not working properly in golangci-lint v2
     - gocritic       # Disabled due to disabled-checks not working properly in golangci-lint v2
     - revive         # Disabled due to exclude-rules not working properly in golangci-lint v2
   settings:
+    depguard:
+      rules:
+        # golang.org/x/crypto is a direct dependency (used for nacl/box), which
+        # pulls the unmaintained openpgp subpackage into the module graph.
+        # openpgp carries advisory GO-2026-5932 with no upstream fix available,
+        # so nothing in this repository may import it.
+        openpgp:
+          deny:
+            - pkg: golang.org/x/crypto/openpgp
+              desc: "golang.org/x/crypto/openpgp is unmaintained and unsafe (GO-2026-5932, no fix available); use a maintained OpenPGP implementation instead"
     gomoddirectives:
       # Forbid replace directives except where necessary for tool-dependency compatibility.
       replace-local: false       # Forbid local replace directives (e.g., replace foo => ../foo)
