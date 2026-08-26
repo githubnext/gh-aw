@@ -412,6 +412,7 @@ func TestParseWorkflowSpec_AutomationsURL(t *testing.T) {
 //	triggers:   workflow_run on "bar" (completed), conclusions: ["failure"]
 //	permissions: security-events: read
 func TestConvertJSONWorkflowToMarkdown_CompilerRoundTrip(t *testing.T) {
+	t.Parallel()
 	// Anonymised real-world payload – sensitive fields replaced with placeholders.
 	raw := `{
 		"id":          "4a803d2b-ef80-44ed-9a01-4617a2984ed2",

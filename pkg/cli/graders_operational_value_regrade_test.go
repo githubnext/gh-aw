@@ -53,12 +53,14 @@ func historicalOperationalValueFixture() (operationalValueGraderManifestEntry, g
 }
 
 func TestVerifyHistoricalOperationalValueIdentity(t *testing.T) {
+	t.Parallel()
 	manifest, result, run := historicalOperationalValueFixture()
 	if err := verifyHistoricalOperationalValueIdentity("github/gh-aw", manifest.Digest, &manifest, &result, run, run.ID); err != nil {
 		t.Fatalf("expected valid identity, got %v", err)
 	}
 
 	t.Run("digest mismatch", func(t *testing.T) {
+		t.Parallel()
 		err := verifyHistoricalOperationalValueIdentity("github/gh-aw", strings.Repeat("b", 64), &manifest, &result, run, run.ID)
 		if err == nil || !strings.Contains(err.Error(), "digest mismatch") {
 			t.Fatalf("expected digest mismatch, got %v", err)
@@ -66,6 +68,7 @@ func TestVerifyHistoricalOperationalValueIdentity(t *testing.T) {
 	})
 
 	t.Run("repository mismatch", func(t *testing.T) {
+		t.Parallel()
 		err := verifyHistoricalOperationalValueIdentity("github/other", manifest.Digest, &manifest, &result, run, run.ID)
 		if err == nil || !strings.Contains(err.Error(), "repository") {
 			t.Fatalf("expected repository mismatch, got %v", err)
@@ -74,6 +77,7 @@ func TestVerifyHistoricalOperationalValueIdentity(t *testing.T) {
 }
 
 func TestExecuteHistoricalOperationalValueEvaluator(t *testing.T) {
+	t.Parallel()
 	manifest, result, _ := historicalOperationalValueFixture()
 	manifest.Config = nil
 	evaluatorContent := `#!/usr/bin/env bash
@@ -115,6 +119,7 @@ esac
 }
 
 func TestVerifyArchivedOperationalValueEvaluatorSource(t *testing.T) {
+	t.Parallel()
 	repoRoot := t.TempDir()
 	evaluatorPath := filepath.Join(repoRoot, ".github", "graders", "example.sh")
 	if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
@@ -155,6 +160,7 @@ func TestVerifyArchivedOperationalValueEvaluatorSource(t *testing.T) {
 }
 
 func TestReadArchivedOperationalValueEvaluatorRejectsSymlink(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink creation requires additional privileges on Windows")
 	}
@@ -178,6 +184,7 @@ func TestReadArchivedOperationalValueEvaluatorRejectsSymlink(t *testing.T) {
 }
 
 func TestOperationalValueEvaluatorEnvironmentUsesRequestedHost(t *testing.T) {
+	t.Parallel()
 	env := operationalValueEvaluatorEnvironment([]string{
 		"PATH=/usr/bin",
 		"GH_TOKEN=token",
@@ -227,6 +234,7 @@ func TestRenderOperationalValueRegradeArtifactWithNullDelta(t *testing.T) {
 }
 
 func TestParseOperationalValueEvaluatorOutputRejectsFutureEvidence(t *testing.T) {
+	t.Parallel()
 	evidenceAt, err := time.Parse(time.RFC3339, "2026-08-24T12:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -245,6 +253,7 @@ func TestParseOperationalValueEvaluatorOutputRejectsFutureEvidence(t *testing.T)
 }
 
 func TestNewGradersCommand(t *testing.T) {
+	t.Parallel()
 	command := NewGradersCommand()
 	operationalValueCommand, _, err := command.Find([]string{"operational-value"})
 	if err != nil {
