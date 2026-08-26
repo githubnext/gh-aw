@@ -88,19 +88,16 @@ func renderPrettyClusterAnalysis(ca *ClusterAnalysis) {
 	}
 }
 
-// clusterDimensionOrder returns unique dimensions in deterministic order.
+// clusterDimensionOrder returns unique dimensions in deterministic sorted order.
 func clusterDimensionOrder(clusters []RunCluster) []string {
 	seen := make(map[string]struct{})
-	var order []string
+	var dims []string
 	for _, c := range clusters {
 		if _, ok := seen[c.Dimension]; !ok {
 			seen[c.Dimension] = struct{}{}
-			order = append(order, c.Dimension)
+			dims = append(dims, c.Dimension)
 		}
 	}
-	// Sort for deterministic output
-	sortedOrder := make([]string, len(order))
-	copy(sortedOrder, order)
-	sort.Strings(sortedOrder)
-	return sortedOrder
+	sort.Strings(dims)
+	return dims
 }

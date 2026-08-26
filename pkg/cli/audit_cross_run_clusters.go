@@ -55,8 +55,8 @@ type ClusterAnalysis struct {
 }
 
 // buildClusterAnalysis derives cluster groupings and cross-cluster patterns from
-// per-run inputs. It clusters along three dimensions: conclusion, task domain,
-// and execution style.
+// per-run inputs. It clusters along four dimensions: conclusion, task domain,
+// execution style, and resource profile.
 func buildClusterAnalysis(inputs []crossRunInput) *ClusterAnalysis {
 	if len(inputs) < 2 {
 		return nil
