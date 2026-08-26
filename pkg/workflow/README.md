@@ -740,11 +740,11 @@ This appendix is generated from the current non-test Go source files in this pac
 
 | Category | Count |
 |----------|------:|
-| Types | 336 |
+| Types | 337 |
 | Constants | 151 |
 | Variables | 43 |
 | Functions and methods | 670 |
-| Additional symbols documented in this appendix | 856 |
+| Additional symbols documented in this appendix | 857 |
 
 ### Additional types
 
@@ -777,6 +777,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | `cache.go` | `CacheMemoryConfig` | `type CacheMemoryConfig struct { Caches []CacheMemoryEntry `yaml:"caches,omitempty"` // cache configurations }` | CacheMemoryConfig holds configuration for cache-memory functionality |
 | `cache.go` | `CacheMemoryEntry` | `type CacheMemoryEntry struct { ID string `yaml:"id"` // cache identifier (required for array notation) Key string `yaml:"key,omitempty"` // custom cache key Description string `yaml:"description,omitempty"` // optional description for this cache RetentionDays *int `yaml:"retention-days,omitempty"` // retention days for upload-artifact action RestoreOnly bool `yaml:"restore-only,omitempty"` // if true, only restore cache without saving Scope string `yaml:"scope,omitempty"` // scope for restore keys: "workflow" (default) or "repo" AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"]) }` | CacheMemoryEntry represents a single cache-memory configuration |
 | `call_workflow.go` | `CallWorkflowConfig` | `type CallWorkflowConfig struct { BaseSafeOutputConfig `yaml:",inline"` Workflows []string `yaml:"workflows,omitempty"` // List of workflow names (without .md extension) to allow calling WorkflowFiles map[string]string `yaml:"workflow_files,omitempty"` // Map of workflow name to file path (relative, e.g. ./.github/workflows/x.lock.yml) - populated at compile time }` | CallWorkflowConfig holds configuration for calling workflows via workflow_call chaining. |
+| `compiler_experiments.go` | `ExperimentStorageMode` | `type ExperimentStorageMode string` | ExperimentStorageMode controls how experiment state is persisted across runs. |
 | `copilot_logs.go` | `SessionContent` | `type SessionContent struct { Type string `json:"type"` Text string `json:"text,omitempty"` ID string `json:"id,omitempty"` Name string `json:"name,omitempty"` Input map[string]any `json:"input,omitempty"` ToolUseID string `json:"tool_use_id,omitempty"` Content string `json:"content,omitempty"` }` | SessionContent represents content items in messages |
 | `copilot_logs.go` | `SessionEntry` | `type SessionEntry struct { Type string `json:"type"` Subtype string `json:"subtype,omitempty"` Message *SessionMessage `json:"message,omitempty"` Usage *SessionUsage `json:"usage,omitempty"` NumTurns int `json:"num_turns,omitempty"` RawData map[string]any `json:"-"` }` | SessionEntry represents a single entry in a Copilot session JSONL file |
 | `copilot_logs.go` | `SessionMessage` | `type SessionMessage struct { Content []SessionContent `json:"content"` }` | SessionMessage represents the message field in session entries |
@@ -927,8 +928,8 @@ This appendix is generated from the current non-test Go source files in this pac
 | `compiler.go` | `const` | `MaxPromptChunks` | `const MaxPromptChunks = 5` | MaxPromptChunks is the maximum number of chunks allowed when splitting prompt text This prevents excessive step generation for extremely large prompt texts |
 | `compiler_aw_context.go` | `const` | `AwContextInputName` | `const AwContextInputName = "aw_context"` | AwContextInputName is the name of the internal aw_context workflow_dispatch input. |
 | `compiler_aw_context.go` | `const` | `NetworkAllowedInputName` | `const NetworkAllowedInputName = "network_allowed"` | NetworkAllowedInputName is the optional workflow_call input that extends the compiled network allowlist at runtime for reusable workflows. |
-| `compiler_experiments.go` | `const` | `ExperimentsStorageCache` | `const ExperimentsStorageCache = "cache"` | ExperimentsStorageCache uses GitHub Actions cache to persist experiment state. |
-| `compiler_experiments.go` | `const` | `ExperimentsStorageRepo` | `const ExperimentsStorageRepo = "repo"` | ExperimentsStorageRepo uses a git branch (repo-memory) to persist experiment state. |
+| `compiler_experiments.go` | `const` | `ExperimentsStorageCache` | `const ExperimentsStorageCache ExperimentStorageMode = "cache"` | ExperimentsStorageCache uses GitHub Actions cache to persist experiment state. |
+| `compiler_experiments.go` | `const` | `ExperimentsStorageRepo` | `const ExperimentsStorageRepo ExperimentStorageMode = "repo"` | ExperimentsStorageRepo uses a git branch (repo-memory) to persist experiment state. |
 | `engine.go` | `const` | `WorkflowCallNetworkAllowedEnvVar` | `const WorkflowCallNetworkAllowedEnvVar = "GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED"` | Exported constant declared in `engine.go`. |
 | `engine_api_targets.go` | `const` | `DefaultGeminiAPITarget` | `const DefaultGeminiAPITarget = "generativelanguage.googleapis.com"` | DefaultGeminiAPITarget is the default Gemini API endpoint hostname. |
 | `engine_definition.go` | `const` | `AuthStrategyAPIKey` | `const AuthStrategyAPIKey AuthStrategy = "api-key"` | AuthStrategyAPIKey uses a direct API key sent via a header (default when Secret is set). |
