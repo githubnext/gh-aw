@@ -2058,7 +2058,7 @@ The `apply_safe_outputs` job downloads the `agent_output.json` artifact from the
 > [!TIP]
 > Find the run URL by opening the failed or cancelled run in the **Actions** tab — the URL in your browser's address bar is the run URL.
 
-## Related Documentation
+## Learn More
 
 - [Staged Mode](/gh-aw/reference/staged-mode/) - Preview safe output operations without making changes
 - [Threat Detection Guide](/gh-aw/reference/threat-detection/) - Complete threat detection documentation and examples

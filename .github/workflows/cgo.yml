@@ -1418,6 +1418,9 @@ jobs:
           make golint
         fi
 
+    - name: Run govulncheck
+      run: make security-govulncheck
+
   lint-go-custom:
     needs: [checkout-cache]
     runs-on: ubuntu-latest

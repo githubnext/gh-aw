@@ -491,7 +491,7 @@ jobs:
 Review the failing tests and apply a fix. Build artifacts are pre-cached.
 ```
 
-## Related Documentation
+## Learn More
 
 - [Network Permissions](/gh-aw/reference/network/) - Configure network access controls
 - [AI Engines](/gh-aw/reference/engines/) - Engine-specific configuration

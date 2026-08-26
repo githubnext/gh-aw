@@ -50,7 +50,7 @@ Examine the diff for potential bugs, security vulnerabilities, performance impli
 Create specific review comments on relevant lines of code and add a summary comment with overall observations and recommendations.
 ```
 
-## Related Documentation
+## Learn More
 
 - [IssueOps](/gh-aw/patterns/issue-ops/) — Event-driven issue automation
 - [DispatchOps](/gh-aw/patterns/dispatch-ops/) — Manual workflow triggers

@@ -132,7 +132,7 @@ gh aw logs --format pretty
 gh aw logs --format markdown --repo owner/repo --count 10
 ```
 
-## Related Documentation
+## Learn More
 
 - [Cost Management](/gh-aw/reference/cost-management/) — Track AIC-first spend and token usage
 - [Artifacts](/gh-aw/reference/artifacts/) — Artifact names, directory structures, and token usage file locations (`token-usage.jsonl` in `firewall-audit-logs`)

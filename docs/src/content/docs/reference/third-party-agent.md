@@ -154,7 +154,7 @@ Engine settings live in workflow frontmatter. Recompile whenever you change the 
 gh aw compile .github/workflows/my-workflow.md --watch
 ```
 
-## Related documentation
+## Learn More
 
 - [AI Engines Reference](/gh-aw/reference/engines/) — built-in engine options and configuration
 - [Imports Reference](/gh-aw/reference/imports/) — how imports and frontmatter merging work

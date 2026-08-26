@@ -486,7 +486,7 @@ These are rough budgeting estimates; actual costs vary by prompt size, tool usag
 > [!TIP]
 > Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
 
-## Related Documentation
+## Learn More
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations

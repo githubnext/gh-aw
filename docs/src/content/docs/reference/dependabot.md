@@ -113,7 +113,7 @@ Updated dependency: [name@version]
 | **Dependency not detected** | Avoid shell variables (`${TOOL}`); use literal package names |
 | **Dependabot not opening PRs** | Verify `.github/dependabot.yml` is valid YAML and manifest files exist |
 
-## Related Documentation
+## Learn More
 
 - [CLI Commands](/gh-aw/setup/cli/#compile) - Complete compile command reference
 - [Compilation Process](/gh-aw/reference/compilation-process/) - How compilation works

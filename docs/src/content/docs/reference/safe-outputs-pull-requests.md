@@ -741,7 +741,7 @@ Protection covers three categories:
 > [!NOTE]
 > Runtime manifests and governance files (`CODEOWNERS`, `DESIGN.md`) are matched by **basename only** (the filename without its directory path), so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.githooks/`, `.husky/`, `.claude/`, `.codex/`) match the full relative path from the repository root.
 
-## Related Documentation
+## Learn More
 
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout, target-repo, allowed-repos, and fork-authentication rules
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Complete safe output reference

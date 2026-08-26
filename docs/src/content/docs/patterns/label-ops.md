@@ -123,7 +123,7 @@ safe-outputs:
 
 Both operations accept glob patterns in `allowed` and `blocked`, and support cross-repository targets via `target-repo`. See the [Add Labels](/gh-aw/reference/safe-outputs/#add-labels-add-labels) and [Remove Labels](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels) reference for the full set of options.
 
-## Related Documentation
+## Learn More
 
 - [IssueOps](/gh-aw/patterns/issue-ops/) — Issue-triggered workflows
 - [ChatOps](/gh-aw/patterns/chat-ops/) — Slash command automation

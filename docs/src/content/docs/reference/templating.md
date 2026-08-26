@@ -174,7 +174,7 @@ Runtime imports are limited to the `.github` folder for files, do not support au
 | GitHub Actions macros | `File template.md contains GitHub Actions macros (${{ ... }}) which are not allowed in runtime imports` |
 | URL fetch failure | `Failed to fetch URL https://example.com/file.txt: HTTP 404` |
 
-## Related Documentation
+## Learn More
 
 - [Markdown](/gh-aw/reference/markdown/) for writing effective agentic markdown
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) for overall workflow organization

@@ -244,7 +244,7 @@ mcp-servers:
     args: ["-y", "@modelcontextprotocol/server-filesystem"]
 ```
 
-## Related Documentation
+## Learn More
 
 - [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations, toolsets, and modes
 - [Playwright](/gh-aw/reference/playwright/) - Browser automation and testing configuration

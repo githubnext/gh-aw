@@ -94,7 +94,7 @@ When `copilot-requests: write` is set, gh-aw uses the GitHub Actions token for a
 
 The only valid value is `write`. See [Authentication → `copilot-requests: write` permission](/gh-aw/reference/auth/#copilot-requests-write-permission) for setup details and prerequisites.
 
-## Related Documentation
+## Learn More
 
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Secure write operations with content sanitization
 - [Security Guide](/gh-aw/introduction/architecture/) - Security best practices and permission strategies

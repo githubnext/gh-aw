@@ -338,8 +338,7 @@ The command displays:
 		Example: `  gh aw mcp list                     # List all workflows with MCP servers
   gh aw mcp list weekly-research     # List MCP servers in weekly-research.md
   gh aw mcp list weekly-research -v  # List with detailed information
-  gh aw mcp list --verbose           # List all workflows with detailed MCP server info
-`,
+  gh aw mcp list --verbose           # List all workflows with detailed MCP server info`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string

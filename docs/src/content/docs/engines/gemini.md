@@ -1,21 +1,23 @@
 ---
-title: Using Google Gemini with GitHub Agentic Workflows
-description: Select and authenticate Google Gemini as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
+title: Using Gemini CLI with GitHub Agentic Workflows
+description: Select and authenticate Google Gemini CLI as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
 ---
 
-Google Gemini is Google's model family for coding and repository analysis. GitHub Agentic Workflows (`gh-aw`) runs the Gemini CLI through GitHub Actions from a Markdown workflow and adds GitHub event triggers, sandbox controls, and safe outputs for constrained, reviewable automation.
+[Google Gemini CLI](https://geminicli.com/) is a coding agent from Google. GitHub Agentic Workflows runs Gemini CLI in GitHub Actions, adding GitHub event triggers, sandbox controls, and safe outputs for constrained, reviewable automation.
 
-## Selection and authentication
+## Selecting Gemini CLI as the AI engine
 
-Set `engine: gemini` and provide [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key), or configure keyless [Google Workload Identity Federation](/gh-aw/reference/auth/#google-workload-identity-federation-wif).
+To select Gemini CLI as the AI engine, with inference hosted and billed through a Google subscription, add this to the workflow frontmatter:
 
-### Initialize the repository
-
-Run `gh aw init --engine gemini` to configure the repository. The `--engine gemini` flag skips Copilot-specific files (MCP server configuration, Copilot dispatcher skill) and writes only the files useful for any engine: `.gitattributes`, VS Code settings, and the custom agent file.
-
-```bash
-gh aw init --engine gemini
+```yaml
+engine: gemini
 ```
+
+To authenticate, either:
+
+1. Provide [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) as a GitHub Actions repository secret, or
+
+2. configure keyless [Google Workload Identity Federation](/gh-aw/reference/auth/#google-workload-identity-federation-wif).
 
 ## Example: scheduled repository report
 
@@ -52,16 +54,12 @@ Gemini supports top-level `max-turns`, custom API targets, and per-command bash 
 
 ## GitHub Agentic Workflows vs. running Gemini directly in Actions
 
-Running coding agent CLIs directly in GitHub Actions without an adequate security architecture is not recommended. We recommend the use of GitHub Agentic Workflows, giving simple workflow definitions in Markdown, the `gh-aw` security architecture, portability across AI engines, and using safe outputs for validated GitHub writes.
+Running coding agent CLIs such as `gemini` directly in GitHub Actions without an adequate security architecture is not recommended.  GitHub Agentic Workflows gives an appropriate security architecure and workflow portability across AI engines.
 
-## Related pages
+## Learn More
 
 - [Quick start](/gh-aw/setup/quick-start/)
 - [Engine reference](/gh-aw/reference/engines/)
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
-- [Examples by task](/gh-aw/examples/)
-- [AI issue triage](/gh-aw/examples/ai-issue-triage/)
-- [Automated AI pull request review](/gh-aw/examples/automated-pr-review/)
-- [AI-generated release notes and reports](/gh-aw/examples/ai-release-notes/)
-- [Keeping documentation up to date automatically](/gh-aw/examples/docs-automation/)
+- [Gallery](/gh-aw/gallery/)

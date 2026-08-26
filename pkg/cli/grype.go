@@ -262,6 +262,11 @@ func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
 
 	args := []string{"run", "--rm"}
 
+	grypeImageRef, err := validateDockerImageRef(GrypeImage)
+	if err != nil {
+		return nil, fmt.Errorf("invalid grype scanner image reference %q: %w", GrypeImage, err)
+	}
+
 	var configArgs []string
 	if configFile != "" {
 		containerConfigPath, err := validateContainerMountPath(grypeContainerConfigPath)
@@ -279,7 +284,7 @@ func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
 		configArgs = []string{"--config", containerConfigPath}
 	}
 
-	args = append(args, GrypeImage)
+	args = append(args, grypeImageRef)
 	args = append(args, configArgs...)
 	args = append(args, validatedImageRef, "-o", "json")
 
@@ -323,7 +328,7 @@ func validateExecArgument(arg string) error {
 // using the result cache to avoid re-scanning images already checked in this run.
 // When configFile is non-empty it is mounted read-only into the scanner container
 // and passed to grype via --config.
-func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, error) {
+func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, error) { //nolint:largefunc
 	cacheKey, err := grypeCacheKey(imageRef, configFile)
 	if err != nil {
 		return nil, err

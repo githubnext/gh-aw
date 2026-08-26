@@ -23,6 +23,8 @@ The YAML frontmatter supports these fields:
   - **`skip-bots:`** - Skip workflow execution when triggered by specific GitHub actors (array)
     - Bot name matching is flexible (handles with/without `[bot]` suffix)
     - Example: `skip-bots: [dependabot, renovate]` - Skip for Dependabot and Renovate
+  - **`skip-author-associations:`** - Skip workflow execution per-event based on the triggering payload's `author_association` (object keyed by event name, e.g. `issue_comment`, `issues`, `pull_request`; each value a string or array of associations like `CONTRIBUTOR`, case-insensitive)
+    - Example: `skip-author-associations: { issue_comment: [first_time_contributor, contributor] }`
   - **`labels:`** - Filter label-triggered events to only fire when the triggering label matches one of these names (string or array)
     - String format: `labels: "my-label"` (single label name)
     - Array format: `labels: [label-a, label-b]` (any matching label fires the workflow)

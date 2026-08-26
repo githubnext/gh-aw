@@ -522,7 +522,7 @@ When `GH_AW_SAFE_OUTPUTS_STAGED === 'true'`, skip the real operation and display
 | Job fails silently | Add `core.info()` logging and ensure `core.setFailed()` is called on errors |
 | Agent calls wrong tool | Make `description` specific and unique; explicitly mention job name in prompt |
 
-## Related Documentation
+## Learn More
 
 - [DeterministicOps](/gh-aw/patterns/deterministic-ops/) - Mixing computation and AI reasoning
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Built-in safe output types

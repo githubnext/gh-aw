@@ -161,7 +161,7 @@ The multi-phase approach is slower than direct execution because developers stil
 | Plan | [`plan`](https://github.com/github/gh-aw/blob/main/.github/workflows/plan.md) | `/plan` slash command—converts issues or discussions into sub-issues |
 | Assign | GitHub UI / workflow | [Assign issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) for automated PR creation |
 
-## Related Documentation
+## Learn More
 
 - [DispatchOps](/gh-aw/patterns/dispatch-ops/) — Manually triggered research and one-off investigations
 - [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing for large backlogs

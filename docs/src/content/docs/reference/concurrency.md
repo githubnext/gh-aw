@@ -146,7 +146,7 @@ Common expressions:
 `job-discriminator` has no effect on workflows triggered by `workflow_dispatch`-only, `push`, or `pull_request` events, or when the engine provides an explicit job-level concurrency configuration.
 :::
 
-## Related Documentation
+## Learn More
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter reference
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output processing and job configuration

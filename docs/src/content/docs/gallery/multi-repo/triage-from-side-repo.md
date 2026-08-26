@@ -192,7 +192,7 @@ Read the issue at ${{ github.event.inputs.issue_url }}, assign the most appropri
 
 Compile: `gh aw compile`.
 
-## Related Documentation
+## Learn More
 
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Side repository pattern and other topologies
 - [IssueOps](/gh-aw/patterns/issue-ops/) — Event-driven issue automation in the main repo

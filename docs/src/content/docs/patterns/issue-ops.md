@@ -68,7 +68,7 @@ Create a parent tracking issue, then sub-issues linked via parent field:
 {"type": "create_issue", "parent": "aw_abc123", "title": "Task 1", "body": "First task"}
 ```
 
-## Related Documentation
+## Learn More
 
 - [ChatOps](/gh-aw/patterns/chat-ops/) — Interactive slash command automation
 - [LabelOps](/gh-aw/patterns/label-ops/) — Label-triggered automation

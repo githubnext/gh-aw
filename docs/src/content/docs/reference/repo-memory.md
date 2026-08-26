@@ -118,6 +118,6 @@ Do not store sensitive data in repo memory. It follows repository permissions, s
 
 See [Deep Report](https://github.com/github/gh-aw/blob/main/.github/workflows/deep-report.md) and [Daily Firewall Report](https://github.com/github/gh-aw/blob/main/.github/workflows/daily-firewall-report.md) for long-term insights and historical data tracking.
 
-## Related Documentation
+## Learn More
 
 See [Cache Memory](/gh-aw/reference/cache-memory/) for 7-day cache storage, [Frontmatter](/gh-aw/reference/frontmatter/) for full configuration details, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for output automation.

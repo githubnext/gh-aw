@@ -18,7 +18,6 @@ permissions:
 
 safe-outputs:
   create-pull-request:
-    branch: docs/automation
     title-prefix: "[docs] "
     draft: true
 ---
@@ -32,7 +31,7 @@ Identify outdated setup steps, missing option descriptions, and examples that no
 
 `create-pull-request` matters for security because the agent does not push directly to the default branch. gh-aw validates the proposed changes and opens a pull request for human review, which keeps documentation updates reviewable before merge.
 
-## Related pages
+## Learn More
 
 - [Run Claude Code in GitHub Actions with gh-aw](/gh-aw/engines/claude/)
 - [Run GitHub Copilot agents in GitHub Actions with gh-aw](/gh-aw/engines/copilot/)

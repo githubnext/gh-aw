@@ -373,7 +373,7 @@ See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment
 
 Common causes include missing tokens, permission mismatches, network restrictions, disabled tools, and rate limits. The quickest path is usually to give an agent the run URL so it can inspect logs and suggest a fix.
 
-Using Copilot Chat (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/#configuring-your-repository)):
+Using Copilot Chat (requires [agentic authoring setup](/gh-aw/guides/working-with-workflows/#configuring-your-repository-for-agentic-authoring)):
 
 ```text wrap
 agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID

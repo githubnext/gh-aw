@@ -354,7 +354,7 @@ gh aw logs --filtered-integrity
 
 This is useful when investigating whether your `min-integrity` configuration is filtering expected content or when tuning the level after observing real traffic patterns.
 
-## Related Documentation
+## Learn More
 
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) — Full `tools.github` configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — Gateway architecture and log format

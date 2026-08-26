@@ -73,7 +73,7 @@ safe-outputs:
 Analyze ${{ github.event.inputs.target_repo }}, apply the required changes, and create a pull request explaining what was changed and why.
 ```
 
-Keep orchestrator permissions narrow; delegate repo-specific writes to workers. Add correlation IDs to dispatch inputs for tracking. See the [Dependabot Rollout example](/gh-aw/examples/multi-repo/dependabot-rollout/) for a complete end-to-end walkthrough.
+Keep orchestrator permissions narrow; delegate repo-specific writes to workers. Add correlation IDs to dispatch inputs for tracking. See the [Dependabot Rollout example](/gh-aw/gallery/multi-repo/dependabot-rollout/) for a complete end-to-end walkthrough.
 
 ## Using a Central Tracker Repository
 
@@ -86,12 +86,12 @@ flowchart LR
     compC[Component repo C] -->|create-issue| central
 ```
 
-Useful for component-based architectures where multiple teams need a shared visibility layer, cross-project initiatives, or aggregating metrics from distributed repositories. See [Cross-Repo Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/) for a complete example.
+Useful for component-based architectures where multiple teams need a shared visibility layer, cross-project initiatives, or aggregating metrics from distributed repositories. See [Cross-Repo Issue Tracking](/gh-aw/gallery/multi-repo/issue-tracking/) for a complete example.
 
-## Related Documentation
+## Learn More
 
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Side repo and downstream sync patterns
-- [Dependabot Rollout](/gh-aw/examples/multi-repo/dependabot-rollout/) — End-to-end org-wide rollout example
-- [Cross-Repo Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/) — Aggregated issue tracking example
+- [Dependabot Rollout](/gh-aw/gallery/multi-repo/dependabot-rollout/) — End-to-end org-wide rollout example
+- [Cross-Repo Issue Tracking](/gh-aw/gallery/multi-repo/issue-tracking/) — Aggregated issue tracking example
 - [Cross-Repository Safe Outputs](/gh-aw/reference/cross-repository/) — Configuration reference
 - [Authentication](/gh-aw/reference/auth/) — PAT and GitHub App setup

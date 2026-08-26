@@ -269,7 +269,7 @@ updates to each PR branch.
 
 `fetch: ["refs/pulls/open/*"]` causes a `git fetch` step to run after `actions/checkout`, downloading all open PR head refs into the workspace. The agent can then inspect and modify those branches directly.
 
-## Related Documentation
+## Learn More
 
 - [GitHub Repository Checkout](/gh-aw/reference/checkout/) - Full checkout configuration reference
 - [MultiRepoOps Pattern](/gh-aw/patterns/multi-repo-ops/) - Cross-repository workflow pattern
@@ -278,4 +278,4 @@ updates to each PR branch.
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/) - `target-repo`, `head-repo`, and fork-branch PR flows
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup
-- [Multi-Repository Examples](/gh-aw/examples/multi-repo/) - Complete working examples
+- [Multi-Repository Examples](/gh-aw/gallery/multi-repo/) - Complete working examples

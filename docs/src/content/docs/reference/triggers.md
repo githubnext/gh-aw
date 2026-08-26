@@ -879,7 +879,7 @@ on: "deployment error"              # deployment_status with state == 'error' gu
 on: "deployment failed or error"    # deployment_status with state == 'failure' or 'error' guard
 ```
 
-## Related Documentation
+## Learn More
 
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
