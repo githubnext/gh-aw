@@ -41,7 +41,7 @@ timeutil.FormatDuration(90 * time.Second)        // "1.5m"
 
 ### `FormatDurationMs(ms int) string`
 
-Formats a duration given in **milliseconds** as a human-readable string.
+Formats a duration given in **milliseconds** as a human-readable string. Values that round up to the next unit at a boundary (e.g. `59999` → `60.0s`) roll over into that next unit instead (`59999` → `1.0m`). Values beyond `time.Duration`'s representable nanosecond range are formatted directly in hours to avoid silent overflow.
 
 | Range | Example |
 |-------|---------|

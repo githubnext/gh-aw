@@ -66,8 +66,8 @@ func TestSpec_PublicAPI_FormatDurationMs(t *testing.T) {
 		// From spec range table: 60s – < 1h → e.g. "1.5m"
 		{name: "minute range outputs m with decimal", inputMs: 90000, expected: "1.5m"},
 		{name: "minute boundary rounds to next minute", inputMs: 119999, expected: "2.0m"},
-		{name: "just under minute rounds up in seconds range", inputMs: 59999, expected: "60.0s"},
-		{name: "just under hour rounds to 60.0m", inputMs: 3599999, expected: "60.0m"},
+		{name: "just under minute rolls over to next minute", inputMs: 59999, expected: "1.0m"},
+		{name: "just under hour rolls over to next hour", inputMs: 3599999, expected: "1.0h"},
 		{name: "hour boundary rolls over to hours", inputMs: 3600000, expected: "1.0h"},
 		// From spec code examples
 		{name: "spec example: 500 → 500ms", inputMs: 500, expected: "500ms"},
