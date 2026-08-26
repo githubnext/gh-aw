@@ -332,14 +332,18 @@ export default defineConfig({
       sidebar: [
         {
           label: "Introduction",
-          items: [{ autogenerate: { directory: "introduction" } }],
+          items: [
+            { label: "What are Agentic Workflows?", link: "/introduction/overview/" },
+            { label: "How Agentic Workflows Work", link: "/introduction/how-they-work/" },
+            { label: "Security Architecture", link: "/introduction/architecture/" },
+          ],
         },
         {
           label: "Setup",
           items: [
             { label: "Quick Start", link: "/setup/quick-start/" },
             { label: "Create a New Workflow", link: "/setup/creating-workflows/" },
-            { label: "Creation Prompt Wizard", link: "/wizard/" },
+            { label: "Creation Wizard", link: "/wizard/" },
             { label: "CLI Commands", link: "/setup/cli/" },
           ],
         },
@@ -367,14 +371,14 @@ export default defineConfig({
           label: "Gallery",
           items: [
             { label: "Issue Triage", link: "/gallery/ai-issue-triage/" },
-            { label: "Pull-Request Review", link: "/gallery/automated-pr-review/" },
+            { label: "Pull Request Review", link: "/gallery/automated-pr-review/" },
             { label: "Documentation Maintenance", link: "/gallery/docs-automation/" },
+            { label: "Repository Maintenance", link: "/gallery/maintaining-repos/" },
             { label: "CI Failure Investigation", link: "/gallery/ci-failure-investigation/" },
             { label: "Code Improvement", link: "/gallery/code-improvement/" },
             { label: "Dependency Analysis", link: "/patterns/research-plan-assign-ops/" },
             { label: "Metrics and Analytics", link: "/gallery/metrics-analytics/" },
             { label: "Repository Reporting", link: "/gallery/ai-release-notes/" },
-            { label: "Repository Maintenance", link: "https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md" },
             { label: "Security Review", link: "/gallery/security-review/" },
             { label: "Triage from Side Repo", link: "/gallery/multi-repo/triage-from-side-repo/" },
             { label: "Code Quality Monitoring", link: "/gallery/multi-repo/code-quality-monitoring/" },

@@ -250,8 +250,5 @@ mcp-servers:
 - [Playwright](/gh-aw/reference/playwright/) - Browser automation and testing configuration
 - [Cache Memory](/gh-aw/reference/cache-memory/) - Persistent memory across workflow runs
 - [Repo Memory](/gh-aw/reference/repo-memory/) - Repository-specific memory storage
-- [QMD Documentation Search](/gh-aw/experimental/qmd/) - Vector similarity search over documentation files
 - [MCP Scripts](/gh-aw/reference/mcp-scripts/) - Define custom inline tools with JavaScript or shell scripts
-- [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
-- [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Complete Model Context Protocol setup and usage

@@ -73,9 +73,7 @@ Create a parent tracking issue, then sub-issues linked via parent field:
 - [ChatOps](/gh-aw/patterns/chat-ops/) — Interactive slash command automation
 - [LabelOps](/gh-aw/patterns/label-ops/) — Label-triggered automation
 - [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing
-- [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
 - [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets
 - [Concurrency](/gh-aw/reference/concurrency/) — Prevent race conditions
-- [Cache Memory](/gh-aw/reference/cache-memory/) — Persistent state across runs
 

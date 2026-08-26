@@ -15,6 +15,7 @@ import (
 // TestFindEventsJSONLFile verifies that findEventsJSONLFile can locate an events.jsonl
 // file both at the canonical copilot-session-state path and via recursive search.
 func TestFindEventsJSONLFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		setupFunc      func(string) error
@@ -57,6 +58,7 @@ func TestFindEventsJSONLFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			require.NoError(t, tt.setupFunc(dir), "setup should succeed")
 
@@ -83,6 +85,7 @@ func realFormatEventsLine(eventType string, dataJSON string) string {
 // turns, tool calls, tool sequences, and token counts from events.jsonl using
 // the real Copilot CLI format (nested data object, tool.execution_start events).
 func TestParseEventsJSONLFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		content       string
@@ -191,6 +194,7 @@ func TestParseEventsJSONLFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			eventsPath := filepath.Join(dir, "events.jsonl")
 			require.NoError(t, os.WriteFile(eventsPath, []byte(tt.content), 0644))
@@ -226,6 +230,7 @@ func TestParseEventsJSONLFile(t *testing.T) {
 // from the actual artifact in run 23883588837 (accf8264 session).
 // Expected: 2 turns, 811242 total tokens (799195+6148 from claude-sonnet + 5442+457 from claude-haiku).
 func TestParseEventsJSONLFile_RealArtifact(t *testing.T) {
+	t.Parallel()
 	content := realFormatEventsLine("session.start", `{"sessionId":"accf8264","copilotVersion":"1.0.15"}`) + "\n" +
 		realFormatEventsLine("user.message", `{"content":"task prompt"}`) + "\n" +
 		realFormatEventsLine("tool.execution_start", `{"toolCallId":"t1","toolName":"report_intent","arguments":{}}`) + "\n" +
@@ -268,7 +273,9 @@ func TestParseEventsJSONLFile_RealArtifact(t *testing.T) {
 // events.jsonl as the primary source when it is present, and falls back to log
 // file parsing when it is absent.
 func TestExtractLogMetrics_EventsJSONLPriority(t *testing.T) {
+	t.Parallel()
 	t.Run("uses events.jsonl when present", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 
 		// Write aw_info.json so the engine is detected
@@ -300,6 +307,7 @@ func TestExtractLogMetrics_EventsJSONLPriority(t *testing.T) {
 	})
 
 	t.Run("falls back to log file walk when events.jsonl absent", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 
 		// Write aw_info.json for copilot engine
@@ -328,12 +336,14 @@ func TestExtractLogMetrics_EventsJSONLPriority(t *testing.T) {
 // TestParseEventsJSONLFile_TBT verifies that Time Between Turns is computed
 // correctly from per-turn timestamps embedded in user.message events.
 func TestParseEventsJSONLFile_TBT(t *testing.T) {
+	t.Parallel()
 	// Helper that produces an events.jsonl line with a specific RFC3339 timestamp.
 	lineWithTimestamp := func(eventType, dataJSON, timestamp string) string {
 		return `{"type":"` + eventType + `","data":` + dataJSON + `,"id":"test-id","timestamp":"` + timestamp + `"}`
 	}
 
 	t.Run("computes avg and max TBT from multi-turn timestamps", func(t *testing.T) {
+		t.Parallel()
 		// Turn 1 at T+0s, Turn 2 at T+30s, Turn 3 at T+90s → intervals: 30s, 60s → avg 45s, max 60s
 		content := lineWithTimestamp("session.start", `{"sessionId":"s1","copilotVersion":"1.0.0"}`, "2026-01-01T10:00:00Z") + "\n" +
 			lineWithTimestamp("user.message", `{"content":"turn 1"}`, "2026-01-01T10:00:00Z") + "\n" +
@@ -354,6 +364,7 @@ func TestParseEventsJSONLFile_TBT(t *testing.T) {
 	})
 
 	t.Run("no TBT when only one turn", func(t *testing.T) {
+		t.Parallel()
 		content := lineWithTimestamp("user.message", `{"content":"single turn"}`, "2026-01-01T10:00:00Z") + "\n" +
 			lineWithTimestamp("session.shutdown", `{"shutdownType":"routine","modelMetrics":{"m":{"usage":{"inputTokens":50,"outputTokens":5}}}}`, "2026-01-01T10:01:00Z") + "\n"
 
@@ -370,6 +381,7 @@ func TestParseEventsJSONLFile_TBT(t *testing.T) {
 	})
 
 	t.Run("no TBT when all timestamps are identical", func(t *testing.T) {
+		t.Parallel()
 		// Use realFormatEventsLine which always uses the same timestamp — no intervals.
 		content := realFormatEventsLine("user.message", `{"content":"turn 1"}`) + "\n" +
 			realFormatEventsLine("user.message", `{"content":"turn 2"}`) + "\n" +
