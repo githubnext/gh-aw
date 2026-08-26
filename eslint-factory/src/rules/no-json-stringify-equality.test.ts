@@ -10,7 +10,7 @@ const cjsRuleTester = new RuleTester({
 });
 
 const messageFor = (operator: string) =>
-  `Comparing JSON.stringify(...) results with '${operator}' is unreliable: two deeply-equal objects with different key insertion order produce different strings, causing false negatives. Use a structural deep-equality check (e.g. a recursive deepEqual helper) instead`;
+  `Comparing JSON.stringify(...) results with '${operator}' is unreliable: two deeply-equal objects with different key insertion order produce different strings, causing false negatives. Use a structural deep-equality check (e.g. a recursive deepEqual helper) instead.`;
 
 describe("no-json-stringify-equality", () => {
   it("uses the correct docs URL", () => {

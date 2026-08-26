@@ -51,7 +51,7 @@ export const noJsonStringifyEqualityRule = createRule({
     schema: [],
     messages: {
       jsonStringifyEquality:
-        "Comparing JSON.stringify(...) results with '{{operator}}' is unreliable: two deeply-equal objects with different key insertion order produce different strings, causing false negatives. Use a structural deep-equality check (e.g. a recursive deepEqual helper) instead",
+        "Comparing JSON.stringify(...) results with '{{operator}}' is unreliable: two deeply-equal objects with different key insertion order produce different strings, causing false negatives. Use a structural deep-equality check (e.g. a recursive deepEqual helper) instead.",
     },
   },
   defaultOptions: [],
