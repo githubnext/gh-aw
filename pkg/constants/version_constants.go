@@ -179,15 +179,15 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.11"
+const DefaultMCPGatewayVersion Version = "v0.4.12"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // MCPGEnclaveGitHubIssuesMinVersion is the first MCPG version with
-// the dedicated issues-read-v1 enclave proxy profile.
-const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.11"
+// the dedicated issues-read-v1 enclave proxy profile and private-alias TLS SANs.
+const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.12"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.79"

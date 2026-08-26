@@ -40,7 +40,7 @@ sandbox:
   agent:
     id: awf
   mcp:
-    version: v0.4.11
+    version: v0.4.12
 enclaves:
   - agent:
       model: gpt-5
@@ -88,5 +88,5 @@ to the assigned repository's Issues. The fallback `GITHUB_TOKEN` can only
 access repositories that token can already read (typically just the current
 repository in Actions).
 
-The minimum supported versions are AWF `v0.28.8` and mcpg `v0.4.11`. The
+The minimum supported versions are AWF `v0.28.8` and mcpg `v0.4.12`. The
 compiler does not fall back to older versions.

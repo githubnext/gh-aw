@@ -206,7 +206,7 @@ sandbox:
     id: awf
     version: latest
   mcp:
-    version: v0.4.11
+    version: v0.4.12
 enclaves:
   - agent:
       model: gpt-5

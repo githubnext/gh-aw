@@ -10,7 +10,7 @@ sandbox:
   agent:
     id: awf
   mcp:
-    version: v0.4.11
+    version: v0.4.12
 enclaves:
   - script:
     repos:
