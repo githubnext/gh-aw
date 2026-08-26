@@ -732,3 +732,29 @@ func TestFormal_FixtureCountConsistency(t *testing.T) {
 			"(update both the README and documentedForecastFixtures when fixtures change)",
 		dir)
 }
+
+// TestFormal_ForecastSpecSyncNoteAnchorsExist mechanically verifies the anchors
+// referenced by the README's "Sync note" (§12.1.3 Data Sampling Tests and §12.1.4
+// Monte Carlo Engine Tests) still exist in the forecast specification. If either
+// heading moves or is renamed, this test fails so the sync note in
+// specs/forecast-compliance-fixtures/README.md cannot silently drift out of date.
+func TestFormal_ForecastSpecSyncNoteAnchorsExist(t *testing.T) {
+	t.Parallel()
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "runtime.Caller must return a valid file path")
+	specPath := filepath.Join(filepath.Dir(thisFile), "..", "..", "docs", "src", "content", "docs", "specs", "forecast-specification.md")
+
+	data, err := os.ReadFile(specPath)
+	require.NoError(t, err, "forecast specification must be readable at %s", specPath)
+	spec := string(data)
+
+	for _, anchor := range []string{
+		"#### 12.1.3 Data Sampling Tests",
+		"#### 12.1.4 Monte Carlo Engine Tests",
+	} {
+		assert.Contains(t, spec, anchor,
+			"forecast-specification.md must still contain heading %q referenced by the "+
+				"Sync note in specs/forecast-compliance-fixtures/README.md; update the sync note "+
+				"if this heading moved or was renamed", anchor)
+	}
+}

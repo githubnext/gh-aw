@@ -32,7 +32,9 @@ safe-outputs:
     if-no-changes: ignore
     protected-files: blocked
     allowed-files:
+      - "docs/src/content/docs/*.mdx"
       - "docs/src/content/docs/**/*.mdx"
+      - "docs/src/assets/diagrams/*.svg"
       - "docs/src/assets/diagrams/**/*.svg"
     max-patch-files: 2
     max-patch-size: 512

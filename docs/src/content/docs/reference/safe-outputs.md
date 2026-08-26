@@ -380,6 +380,8 @@ Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels o
 
 Use `required-labels` to only add labels to issues/PRs that already have **all** of the specified labels. Use `required-title-prefix` to only add labels to issues/PRs whose title starts with the given prefix.
 
+By default, labels that don't already exist in the target repository are rejected with an error. Set `create-if-missing: true` to automatically create any missing labels before they are applied.
+
 ```yaml wrap
 safe-outputs:
   add-labels:
@@ -391,6 +393,7 @@ safe-outputs:
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     required-labels: [automated, bot]  # only operate if item has ALL of these labels
     required-title-prefix: "[bot] "    # only operate if item title starts with this prefix
+    create-if-missing: true            # auto-create labels that don't already exist (default: false)
 ```
 
 #### Blocked Label Patterns
