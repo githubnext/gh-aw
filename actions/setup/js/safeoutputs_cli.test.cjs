@@ -327,6 +327,7 @@ describe("safeoutputs_cli.cjs", () => {
       const firstLine = '{"type":"noop","message":"old"}\n';
       const filePath = makeTempFile(`${firstLine}{"type":"missing_tool","tool":"x"}\n`);
       try {
+        expect(hasTerminalSafeOutput(filePath, { byteOffset: 0 })).toBe(true);
         expect(hasTerminalSafeOutput(filePath, { byteOffset: Buffer.byteLength(firstLine) })).toBe(false);
       } finally {
         fs.rmSync(filePath);
