@@ -68,7 +68,7 @@ func normTestIDsFromOptimizerProtocolTestNames(t *testing.T) map[string]bool {
 
 	ast.Inspect(file, func(n ast.Node) bool {
 		fn, ok := n.(*ast.FuncDecl)
-		if !ok || !isNormTestFuncName(fn.Name.Name) {
+		if !ok || !isTestFuncName(fn.Name.Name) {
 			return true
 		}
 		for _, match := range idPattern.FindAllStringSubmatch(fn.Name.Name, -1) {
@@ -79,6 +79,8 @@ func normTestIDsFromOptimizerProtocolTestNames(t *testing.T) map[string]bool {
 				end, err = strconv.Atoi(match[2])
 				require.NoError(t, err)
 			}
+			require.LessOrEqualf(t, start, end,
+				"malformed T-CTR range in test function name %q: start must not exceed end", fn.Name.Name)
 			for n := start; n <= end; n++ {
 				ids[formalCTRTestIDString(n)] = true
 			}
@@ -89,9 +91,10 @@ func normTestIDsFromOptimizerProtocolTestNames(t *testing.T) map[string]bool {
 	return ids
 }
 
-// isNormTestFuncName reports whether name is a top-level Go test function
-// name (starts with "Test").
-func isNormTestFuncName(name string) bool {
+// isTestFuncName reports whether name is a top-level Go test function name
+// (starts with "Test"). Function names without a TCTR-* ID simply yield no
+// matches from idPattern and contribute no IDs.
+func isTestFuncName(name string) bool {
 	return len(name) >= 4 && name[:4] == "Test"
 }
 
