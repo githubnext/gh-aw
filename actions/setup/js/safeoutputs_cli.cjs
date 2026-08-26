@@ -160,7 +160,7 @@ function emitInfrastructureIncomplete(details, options) {
  * Entries with these types are excluded when checking whether expected outputs were produced.
  */
 const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
-const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
 
 /**
  * Read the safe-outputs JSONL file and check whether it contains at least one
@@ -224,16 +224,18 @@ function hasExpectedSafeOutputs(safeOutputsPath, options) {
  */
 function hasTerminalSafeOutput(safeOutputsPath, options) {
   const logger = options && options.logger ? options.logger : defaultLog;
-  const readFile = options && options.readFileSync ? options.readFileSync : fs.readFileSync;
   const byteOffset = options && Number.isFinite(options.byteOffset) ? Number(options.byteOffset) : 0;
 
   if (!safeOutputsPath) {
     return false;
   }
+  if (byteOffset > 0 && options?.readFileSync) {
+    return false;
+  }
 
   let content;
   try {
-    if (byteOffset > 0 && !options?.readFileSync) {
+    if (byteOffset > 0) {
       const fd = fs.openSync(safeOutputsPath, "r");
       try {
         const stats = fs.fstatSync(fd);
@@ -247,15 +249,11 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
         fs.closeSync(fd);
       }
     } else {
+      const readFile = options && options.readFileSync ? options.readFileSync : fs.readFileSync;
       content = readFile(safeOutputsPath, "utf8");
     }
   } catch {
     return false;
-  }
-  if (byteOffset > 0 && options?.readFileSync) {
-    const contentBuffer = Buffer.from(content, "utf8");
-    if (contentBuffer.length <= byteOffset) return false;
-    content = contentBuffer.subarray(byteOffset).toString("utf8");
   }
 
   for (const line of content.split("\n")) {
@@ -265,7 +263,19 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
       const parsed = JSON.parse(trimmed);
       const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
       if (!type) continue;
-      if (type === "noop" || (options?.includeMissingData && type === "missing_data") || (options?.includeReportIncomplete && type === "report_incomplete") || !NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+      if (type === "noop") {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
+      if (type === "missing_data" && options?.includeMissingData) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
+      if (type === "report_incomplete" && options?.includeReportIncomplete) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
+      if (!NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
         logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
         return true;
       }

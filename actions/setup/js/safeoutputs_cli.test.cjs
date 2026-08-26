@@ -333,6 +333,15 @@ describe("safeoutputs_cli.cjs", () => {
         fs.rmSync(filePath);
       }
     });
+
+    it("does not apply byteOffset slicing to injected string readers", () => {
+      expect(
+        hasTerminalSafeOutput("/fake/path.jsonl", {
+          byteOffset: 1,
+          readFileSync: () => '{"type":"noop","message":"old"}\n',
+        })
+      ).toBe(false);
+    });
   });
 
   describe("hasNoopInSafeOutputs", () => {
