@@ -418,6 +418,37 @@ func renderConsolePolicyAndExperiments(data AuditData) {
 		fmt.Fprintf(os.Stderr, "  firewall_policy: %s\n", data.PolicyAnalysis.PolicySummary)
 	}
 	renderConsoleExperiments(data.Experiments)
+	renderConsoleGraders(data.Graders)
+}
+
+func renderConsoleGraders(graders *GradersData) {
+	if graders == nil || len(graders.Results) == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  graders: pass=%d fail=%d error=%d unavailable=%d\n",
+		graders.PassCount, graders.FailCount, graders.ErrorCount, graders.UnavailableCount)
+	for _, result := range graders.Results {
+		line := fmt.Sprintf("    %s %s=%s", result.Status, result.ID, formatGraderValue(result))
+		if result.Threshold != nil {
+			line += fmt.Sprintf(" threshold=%g", *result.Threshold)
+		}
+		if result.Direction != "" {
+			line += " direction=" + result.Direction
+		}
+		if detail := graderDetailText(result); detail != "" {
+			line += " (" + detail + ")"
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+}
+
+// graderDetailText returns the error text for failed graders, falling back to the
+// informational message when no error was recorded.
+func graderDetailText(result GraderResult) string {
+	if result.Error != "" {
+		return result.Error
+	}
+	return result.Message
 }
 
 func renderConsoleExperiments(experiments *ExperimentData) {

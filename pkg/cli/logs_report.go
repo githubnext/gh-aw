@@ -182,6 +182,7 @@ type RunData struct {
 	GitHubAPICalls             int                    `json:"github_api_calls,omitempty" console:"header:GitHub API Calls,format:number,omitempty"` // GitHub API calls made during the run
 	AvgTimeBetweenTurns        string                 `json:"avg_time_between_turns,omitempty" console:"-"`                                         // Average time between consecutive LLM API calls (TBT)
 	Experiments                *ExperimentData        `json:"experiments,omitempty" console:"-"`                                                    // A/B experiment assignments for this run
+	Graders                    *GradersData           `json:"graders,omitempty" console:"-"`                                                        // Deterministic grader results for this run
 }
 
 // logsAggregate accumulates cross-run totals while runs are converted to RunData.
@@ -482,6 +483,7 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		TokenUsageSummary:          pr.TokenUsage,
 		GitHubAPICalls:             gitHubAPICalls,
 		Experiments:                extractExperimentData(run.LogsPath),
+		Graders:                    extractGradersData(run.LogsPath),
 	}
 }
 

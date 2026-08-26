@@ -22,6 +22,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `experiment` | `constants.ExperimentArtifactName` | Multi-file | A/B experiment state (`state.json`) uploaded by the activation job when experiments are declared in the frontmatter |
 | `usage` | `constants.UsageArtifactName` | Multi-file | Compact conclusion-job artifact with workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths |
 | `evals` | `constants.EvalsArtifactName` | Single-file | BinEval evaluation results (`evals.jsonl`) uploaded by the evals job when `evals` are declared in the workflow frontmatter |
+| `graders` | `constants.GradersArtifactName` | Multi-file | Grader manifest (`grader_manifest.json`) and grader results (`grader_results.json`) uploaded by the agent job when `graders` are declared in the workflow frontmatter; the conclusion job mirrors both files into the `usage` artifact under `graders/` |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Multi-file | Safe output items manifest (`safe-output-items.jsonl`), temporary ID map (`temporary-id-map.json`), and failure diagnostics (`safe-output-errors.json`, written only when the `Process Safe Outputs` step fails) |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
 
@@ -49,6 +50,7 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `experiment` | `experiment` | A/B experiment state (only present when experiments are declared) |
 | `usage` | `usage` | Compact conclusion-job artifact for lightweight reporting and forecasting |
 | `evals` | `evals` | BinEval evaluation results (only present when `evals` are declared) |
+| `graders` | `usage`, `agent` | Deterministic grader results (only present when `graders` are declared) |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
 
 ```bash
@@ -249,6 +251,25 @@ The `gh aw audit` command exposes an `--evals` flag that skips runs without eval
 # Audit only runs that contain evals results
 gh aw audit <run-id> --evals
 ```
+
+## `graders`
+
+The `graders` artifact is uploaded by the agent job only when the workflow frontmatter declares one or more `graders`. The same files are also part of the unified `agent` artifact, and the conclusion job copies them into the `usage` artifact under `graders/` so that lightweight downloads still surface grader outcomes. It contains:
+
+- `grader_manifest.json` — The configured graders with their unit, direction, and threshold
+- `grader_results.json` — The normalized grader results (status, value, pass/fail) computed from the run trace
+
+### Accessing graders data
+
+```bash
+# Download the artifacts that carry grader results
+gh aw logs <run-id> --artifacts graders
+
+# Or with gh run download
+gh run download <run-id> -n graders
+```
+
+`gh aw audit` reports grader outcomes in its console output and includes them in the JSON report under the `graders` key (results, plus `pass_count`, `fail_count`, `error_count`, and `unavailable_count`). Use `gh aw graders operational-value <run-id>` to replay the archived operational-value evaluator at an explicit evidence cutoff.
 
 ## Naming Compatibility
 

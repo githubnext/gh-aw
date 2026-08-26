@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -61,6 +62,7 @@ type AuditData struct {
 	Outcomes                []OutcomeReport          `json:"outcomes,omitempty"`
 	OutcomeSummary          *OutcomeSummary          `json:"outcome_summary,omitempty"`
 	Experiments             *ExperimentData          `json:"experiments,omitempty"`
+	Graders                 *GradersData             `json:"graders,omitempty"`
 }
 
 // AuditFinding represents a key insight discovered during audit
@@ -507,6 +509,7 @@ func assembleAuditData(inputs auditDataInputs) AuditData {
 		MCPToolUsage:            inputs.mcpToolUsage,
 		CreatedItems:            inputs.createdItems,
 		Experiments:             inputs.expData,
+		Graders:                 extractGradersData(run.LogsPath),
 	}
 }
 
@@ -623,18 +626,20 @@ func extractCreatedItemsFromManifest(logsPath string) []CreatedItemReport {
 // describeFile provides a short description for known artifact files
 func describeFile(filename string) string {
 	descriptions := map[string]string{
-		"aw_info.json":                         "Engine configuration and workflow metadata",
-		"safe_output.jsonl":                    "Safe outputs from workflow execution",
-		safeOutputItemsManifestFilename:        "Created items manifest (audit trail)",
-		constants.SafeOutputErrorsFilename:     "Safe outputs failure diagnostics (error code, message, failing types)",
-		constants.AgentOutputFilename.String(): "Validated safe outputs",
-		"aw.patch":                             "Git patch of changes made during execution",
-		"agent-stdio.log":                      "Agent standard output/error logs",
-		"log.md":                               "Human-readable agent session summary",
-		"firewall.md":                          "Firewall log analysis report",
-		"run_summary.json":                     "Cached summary of workflow run analysis",
-		forecastAICCacheFileName:               "Cached AI Credits (AIC) value for forecasting",
-		"prompt.txt":                           "Input prompt for AI agent",
+		"aw_info.json":                            "Engine configuration and workflow metadata",
+		"safe_output.jsonl":                       "Safe outputs from workflow execution",
+		safeOutputItemsManifestFilename:           "Created items manifest (audit trail)",
+		constants.SafeOutputErrorsFilename:        "Safe outputs failure diagnostics (error code, message, failing types)",
+		constants.AgentOutputFilename.String():    "Validated safe outputs",
+		"aw.patch":                                "Git patch of changes made during execution",
+		"agent-stdio.log":                         "Agent standard output/error logs",
+		"log.md":                                  "Human-readable agent session summary",
+		"firewall.md":                             "Firewall log analysis report",
+		"run_summary.json":                        "Cached summary of workflow run analysis",
+		forecastAICCacheFileName:                  "Cached AI Credits (AIC) value for forecasting",
+		"prompt.txt":                              "Input prompt for AI agent",
+		constants.GraderResultsFilename.String():  "Deterministic grader results for the run",
+		constants.GraderManifestFilename.String(): "Grader manifest (configured graders and thresholds)",
 	}
 
 	if desc, ok := descriptions[filename]; ok {
@@ -804,7 +809,7 @@ func scanNestedStepLogs(
 		}
 
 		stepFilePath := filepath.Join(jobDir, stepFile.Name())
-		stepKey := jobName + "/" + stepName
+		stepKey := path.Join(jobName, stepName)
 		lastStep = updateLastStep(lastStep, stepFilePath, num, stepKey)
 		errorAnnotations = appendErrorAnnotation(errorAnnotations, stepFilePath, stepKey, num, maxMessageLen, "step")
 	}

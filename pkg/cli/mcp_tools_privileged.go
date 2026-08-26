@@ -501,6 +501,7 @@ Single-run returns JSON with:
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
 - firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)
 - experiments: A/B experiment assignments if present (assignments map, cumulative_counts map)
+- graders: Deterministic grader results if present (results with id, name, status, value, unit, passed, direction, threshold, plus pass_count, fail_count, error_count, unavailable_count)
 
 Multi-run diff returns JSON describing changes between the base and each comparison run.`
 
