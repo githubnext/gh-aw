@@ -160,7 +160,7 @@ function emitInfrastructureIncomplete(details, options) {
  * Entries with these types are excluded when checking whether expected outputs were produced.
  */
 const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
-const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
 
 /**
  * Read the safe-outputs JSONL file and check whether it contains at least one
@@ -233,11 +233,26 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
 
   let content;
   try {
-    content = readFile(safeOutputsPath, "utf8");
+    if (byteOffset > 0 && !options?.readFileSync) {
+      const fd = fs.openSync(safeOutputsPath, "r");
+      try {
+        const stats = fs.fstatSync(fd);
+        const fileSize = stats.size;
+        if (fileSize <= byteOffset) return false;
+        const length = fileSize - byteOffset;
+        const buf = Buffer.allocUnsafe(length);
+        fs.readSync(fd, buf, 0, length, byteOffset);
+        content = buf.toString("utf8");
+      } finally {
+        fs.closeSync(fd);
+      }
+    } else {
+      content = readFile(safeOutputsPath, "utf8");
+    }
   } catch {
     return false;
   }
-  if (byteOffset > 0) {
+  if (byteOffset > 0 && options?.readFileSync) {
     const contentBuffer = Buffer.from(content, "utf8");
     if (contentBuffer.length <= byteOffset) return false;
     content = contentBuffer.subarray(byteOffset).toString("utf8");
