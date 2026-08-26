@@ -19,6 +19,11 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 strict: true
+network:
+  allowed:
+    - defaults
+    - go
+    - node
 tracker-id: daily-secrets-analysis
 tools:
   cli-proxy: true

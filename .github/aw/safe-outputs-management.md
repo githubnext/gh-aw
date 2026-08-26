@@ -13,6 +13,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       target: "*"                     # Optional: target for updates (default: "triggering")
       title: true                     # Optional: allow updating issue title
       body: true                      # Optional: allow updating issue body
+      required-labels: [approved]     # Optional: ALL of these labels must be present on the issue for the update to run
       max: 3                          # Optional: maximum number of issues to update (default: 1)
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
@@ -40,6 +41,7 @@ description: Safe-output reference for update, label, milestone, project, releas
   safe-outputs:
     merge-pull-request:
       required-labels: [ready-to-merge]   # Optional: ALL listed labels must be present on the PR
+      required-title-prefix: "[bot] "     # Optional: only merge PRs with this title prefix
       allowed-branches: ["feature/*"]    # Optional: glob patterns for allowed source branch names
       target: "triggering"                # Optional: "triggering" (default, current PR) or "*" (any PR with pull_request_number)
       target-repo: "owner/repo"           # Optional: cross-repository
@@ -56,6 +58,7 @@ description: Safe-output reference for update, label, milestone, project, releas
     close-pull-request:
       required-labels: [test, automated]  # Optional: only close PRs with these labels
       required-title-prefix: "[bot]"      # Optional: only close PRs with this title prefix
+      allow-body: false                   # Optional: when false, any body the agent emits is dropped (warning logged) and the PR closes without a comment; defaults to true
       target: "triggering"                # Optional: "triggering" (default), "*" (any PR), or explicit PR number
       max: 10                             # Optional: maximum number of PRs to close (default: 1)
       target-repo: "owner/repo"           # Optional: cross-repository
@@ -83,6 +86,8 @@ description: Safe-output reference for update, label, milestone, project, releas
       blocked: ["~*", "*[bot]"]                   # Optional: blocked label patterns (glob; takes precedence over allowed)
       required-labels: [approved]                 # Optional: ALL of these labels must be present on the issue/PR for the operation to run
       required-title-prefix: "[bot]"              # Optional: issue/PR title must start with this prefix
+      issues: true                                # Optional: set false to exclude issues:write permission (default: true)
+      pull-requests: true                         # Optional: set false to exclude pull-requests:write permission (default: true)
       max: 5                                      # Optional: maximum number of labels (default: 5)
       target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
       target-repo: "owner/repo"                   # Optional: cross-repository
@@ -265,9 +270,13 @@ description: Safe-output reference for update, label, milestone, project, releas
   safe-outputs:
     push-to-pull-request-branch:
       target: "*"                     # Optional: "triggering" (default), "*", or number
-      branch: "triggering"            # Optional: branch to push to (default: "triggering")
-      required-title-prefix: "[bot] " # Optional: require title prefix
+      title-prefix: "[bot] "          # Optional: require title prefix
       required-labels: [automated]    # Optional: require all labels
+      base-branch: "main"             # Optional: base branch for incremental patch computation (defaults to resolving from checkout/repo default branch)
+      target-repo: "owner/repo"       # Optional: cross-repository push target
+      head-repo: "fork-owner/repo"    # Optional: head (fork) repository for cross-repository pushes; defaults to target-repo
+      head-github-token: ${{ secrets.HEAD_REPO_PAT }}  # Optional: token for branch writes to head-repo when it differs from target-repo
+      allowed-repos: [owner/other]    # Optional: additional repos the agent can target
       if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
       ignore-missing-branch-failure: false  # Optional: treat deleted PR branches as skipped pushes (default: false)
       commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
@@ -286,13 +295,13 @@ description: Safe-output reference for update, label, milestone, project, releas
       max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 4096 KB, max: 10240)
   ```
 
-  Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
+  Cross-repository pushes are supported via `target-repo` (and `head-repo`/`head-github-token` for fork-backed PRs) plus an `allowed-repos` allowlist. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
 
   **File Restrictions**: Same as `create-pull-request`: **always specify `allowed-files`** scoped to specific file extensions or paths to limit the agent's reach. `excluded-files` strips files before all checks, and `protected-files` controls handling of sensitive files. Object form supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
   **Compile-time warnings for `target: "*"`**: When `target: "*"` is set, the compiler emits warnings if:
   1. The checkout configuration does not include a wildcard fetch pattern — add `fetch: ["*"]` with `fetch-depth: 0` so the agent can access all PR branches at runtime
-  2. No constraints are provided — add `required-title-prefix` or `required-labels` to restrict which PRs can receive pushes
+  2. No constraints are provided — add `title-prefix` or `required-labels` to restrict which PRs can receive pushes
 
   Example with all recommended settings:
 

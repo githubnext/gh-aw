@@ -36,7 +36,7 @@ type SyftScanResult struct {
 // runSyftOnLockFiles extracts container image references from lock-file manifests
 // and runs syft to generate SBOM data for each unique image.
 // SBOM files are persisted to disk and paths are returned in the results.
-func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error { //nolint:largefunc
 	if len(lockFiles) == 0 {
 		return nil
 	}
@@ -101,7 +101,7 @@ func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return nil
 }
 
-func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool) (*SyftScanResult, error) {
+func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool) (*SyftScanResult, error) { //nolint:largefunc
 	syftLog.Printf("Scanning %s with syft", imageRef)
 
 	// Validate the image reference before it reaches docker: lock-file manifests can carry
@@ -117,6 +117,11 @@ func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool)
 		return nil, fmt.Errorf("docker command not found: %w", err)
 	}
 
+	syftImageRef, err := validateDockerImageRef(SyftImage)
+	if err != nil {
+		return nil, fmt.Errorf("invalid syft scanner image reference %q: %w", SyftImage, err)
+	}
+
 	// #nosec G204 -- dockerPath is resolved from the fixed executable name "docker" and
 	// validatedImageRef is allow-list validated above. exec.CommandContext passes args
 	// directly to the OS without shell interpretation, preventing command injection.
@@ -125,13 +130,13 @@ func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool)
 		dockerPath,
 		"run",
 		"--rm",
-		SyftImage,
+		syftImageRef,
 		validatedImageRef,
 		"-o", "syft-json",
 	)
 
 	if verbose {
-		dockerCmd := shellJoinArgs([]string{"docker", "run", "--rm", SyftImage, validatedImageRef, "-o", "syft-json"})
+		dockerCmd := shellJoinArgs([]string{"docker", "run", "--rm", syftImageRef, validatedImageRef, "-o", "syft-json"})
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run syft directly: "+dockerCmd))
 	}
 

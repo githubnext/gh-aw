@@ -751,6 +751,10 @@ engine:
 
 See [Engines Reference](/gh-aw/reference/engines/).
 
+### Pi Provider Prefix (`model:`)
+
+The provider segment of a Pi engine `model:` value (for example `copilot/gpt-5.4`, `anthropic/claude-sonnet-5`, or `openai/gpt-5`) that Pi uses to select an authentication method. Pi defaults to Copilot authentication, uses `ANTHROPIC_API_KEY` for `anthropic/...` models, and uses `CODEX_API_KEY` or `OPENAI_API_KEY` for `openai/...` and `codex/...` models. See [Quick Start](/gh-aw/setup/quick-start/).
+
 ### Pi Extensions (`engine.extensions`)
 
 A Pi engine configuration field that loads additional plugins via `pi install <extension>` before the agent runs. Each entry is an npm package name. Only the Pi engine reads this field; other engines ignore it. Each listed extension produces one additional install step in the compiled workflow.
@@ -1617,6 +1621,14 @@ Deterministic, non-LLM checks that compute metrics from a workflow run's post-ag
 ### Operational Value Grader (`graders.operational-value`)
 
 A reserved grader that evaluates operational repository outcomes using a repository-relative Bash evaluator script, frozen at compile time with its SHA-256 digest recorded for reproducibility. It returns an absolute operational attainment value in `[0,1]` for the run's assigned case, alongside the evaluation's evidence timestamp, maturity, and provenance. A frozen baseline is optional metadata used to derive `deltaFromBaseline` without changing the primary operational value. The evaluator receives the workflow token via `GH_TOKEN` with the agent job's declared permissions, but not workflow secrets, and enabling the grader does not add evidence permissions to the agent job. Historical runs can be recomputed with `gh aw graders operational-value <run-id> --evidence-at <timestamp>`. See [Graders Reference](/gh-aw/reference/trace-graders/#operational-value-grader) and the `operational value designer` skill (`/operational-value-designer`) for inferring operational value from an agentic workflow.
+
+### Recurrence Trapping Time (RQA TT) (`graders.recurrence-trapping-time`)
+
+A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. It is not a built-in grader: it is an importable `graders:` fragment in the trajectory graders catalog (`.github/workflows/shared/graders/recurrence-trapping-time.md`) that a workflow opts into via `imports:`. See [Graders Reference](/gh-aw/reference/trace-graders/) for built-in graders and grader configuration.
+
+### Dashboard Language
+
+A declarative, YAML-based specification language for describing agentic workflow dashboards covering organizations, repositories, runs, experiments, graders, evals, usage, findings, and operational value. A dashboard is composed of built-in pages or custom pages; custom pages use a constrained Vega-inspired model of `source`, optional `data`, `mark`, and `encoding`. The specification defines intrinsic domain semantics, aggregation and filtering rules, provenance and freshness requirements, explicit unavailable-data states, and conformance tests, but not data retrieval, implementation architecture, or rendering technology. See [Dashboard Language Specification](/gh-aw/specs/dashboard-language-specification/).
 
 ## Operational Patterns
 

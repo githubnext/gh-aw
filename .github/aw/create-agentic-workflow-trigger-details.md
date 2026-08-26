@@ -14,7 +14,7 @@ For the recurring-report window, grouping dimensions, deduplication key, `close-
 
 ## Persona-oriented scenario map
 
-Use these defaults when the requester frames the automation in non-engineering persona language:
+Base persona-to-trigger/tool/output facts are canonical in the [Persona-to-Pattern Quick Matrix](github-agentic-workflows.md#persona-to-pattern-quick-matrix); the table below adds only the prompt-authoring detail that matrix omits.
 
 | Persona or scenario | Trigger and scope | Typical tools and outputs | Required prompt details |
 |---|---|---|---|

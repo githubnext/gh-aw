@@ -8,6 +8,7 @@ import (
 )
 
 func TestCompileDependabotValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		config      CompileConfig
@@ -52,6 +53,7 @@ func TestCompileDependabotValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// We can't actually run CompileWorkflows in all cases because it needs a git repo
 			// So we'll just test the validation logic by checking if it would error early
 
