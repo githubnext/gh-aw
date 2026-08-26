@@ -89,7 +89,7 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 	if err := decodeManifestBootstrapAction(actionMap, &action); err != nil {
 		var typeErr *json.UnmarshalTypeError
 		if errors.As(err, &typeErr) {
-			return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, typeErr.Field, errors.New("has an invalid type"))
+			return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, typeErr.Field, fmt.Errorf("must be a %s, got %s", typeErr.Type, typeErr.Value))
 		}
 		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d] is invalid: %w", manifestPath, index, err)
 	}

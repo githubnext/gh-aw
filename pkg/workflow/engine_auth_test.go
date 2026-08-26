@@ -543,6 +543,21 @@ func TestDecodeEngineConfigRejectsInvalidValues(t *testing.T) {
 			input:  map[string]any{"audience": 42},
 			target: &EngineAuthConfig{},
 		},
+		{
+			name:   "engine auth null scalar field",
+			input:  map[string]any{"audience": nil},
+			target: &EngineAuthConfig{},
+		},
+		{
+			name:   "auth null scalar field",
+			input:  map[string]any{"secret": nil},
+			target: &AuthDefinition{},
+		},
+		{
+			name:   "request null map value",
+			input:  map[string]any{"query": map[string]any{"api-version": nil}},
+			target: &RequestShape{},
+		},
 	}
 
 	for _, tt := range tests {
@@ -551,6 +566,21 @@ func TestDecodeEngineConfigRejectsInvalidValues(t *testing.T) {
 			require.Error(t, decodeEngineConfig(tt.input, tt.target))
 		})
 	}
+}
+
+// TestDecodeEngineConfigDoesNotPartiallyPopulateTargetOnError verifies that a decode
+// failure partway through a configuration leaves target at its zero value instead of
+// a struct with some fields already applied from the malformed input.
+func TestDecodeEngineConfigDoesNotPartiallyPopulateTargetOnError(t *testing.T) {
+	t.Parallel()
+
+	auth := &AuthDefinition{}
+	err := decodeEngineConfig(map[string]any{
+		"secret":      "MY_SECRET",
+		"token-field": 42, // invalid type: should abort the whole decode
+	}, auth)
+	require.Error(t, err)
+	assert.Equal(t, AuthDefinition{}, *auth, "target should remain zero-valued when decode fails")
 }
 
 // newTestCompiler creates a minimal Compiler for unit testing engine-definition logic.

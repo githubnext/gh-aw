@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -151,14 +152,68 @@ func parseRequestShape(requestObj map[string]any) *RequestShape {
 	return shape
 }
 
+// decodeEngineConfig decodes config into target, which must be a non-nil pointer to a
+// struct whose fields carry `json` tags describing the recognized keys. Unknown keys
+// are ignored for backward compatibility, but recognized keys with an explicit JSON
+// null value or an incompatible type are rejected. On error, target is left untouched
+// (it is never partially populated from a malformed configuration).
 func decodeEngineConfig(config map[string]any, target any) error {
+	if err := rejectNullKnownFields(config, target); err != nil {
+		return err
+	}
 	data, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("marshal configuration: %w", err)
 	}
+	// Decode into a fresh value of the same underlying type so a decode failure
+	// partway through never leaves target with a partially-populated struct.
+	fresh := reflect.New(reflect.TypeOf(target).Elem())
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	if err := decoder.Decode(target); err != nil {
+	if err := decoder.Decode(fresh.Interface()); err != nil {
 		return fmt.Errorf("decode configuration: %w", err)
+	}
+	reflect.ValueOf(target).Elem().Set(fresh.Elem())
+	return nil
+}
+
+// rejectNullKnownFields explicitly rejects an explicit JSON null for any key that maps
+// to a recognized struct field (encoding/json otherwise silently accepts null for
+// scalar and map fields, turning them into zero values without an error). It also
+// checks one level of nested map values (e.g. RequestShape.Query / BodyInject) since
+// those are declared as map[string]string and null entries would otherwise be dropped
+// silently as well. Unknown keys are left untouched for compatibility.
+func rejectNullKnownFields(config map[string]any, target any) error {
+	t := reflect.TypeOf(target)
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+	for _, field := range reflect.VisibleFields(t) {
+		name := strings.Split(field.Tag.Get("json"), ",")[0]
+		if name == "" || name == "-" {
+			continue
+		}
+		rawVal, present := config[name]
+		if !present {
+			continue
+		}
+		if rawVal == nil {
+			return fmt.Errorf("field %q must not be null", name)
+		}
+		if field.Type.Kind() != reflect.Map {
+			continue
+		}
+		nested, ok := rawVal.(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, val := range nested {
+			if val == nil {
+				return fmt.Errorf("field %q.%q must not be null", name, key)
+			}
+		}
 	}
 	return nil
 }
