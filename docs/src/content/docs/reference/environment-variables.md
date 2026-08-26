@@ -182,9 +182,9 @@ The warning repeats on each interval while the silence continues, and a `stall w
 | Variable | Engine | Default | Units / range | Description |
 | --- | --- | --- | --- | --- |
 | `GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD` | Copilot | `10000` | tokens; minimum `0` | Token threshold used to classify long-running partial executions as `long_run_exit` instead of a generic partial execution. Invalid or negative values use the default. |
-| `GH_AW_CLAUDE_STARTUP_RETRIES` | Claude | `1` | retry attempts; range `0`-`2` | Additional fresh-run retry budget for zero-output Claude startup failures. Invalid values use the default; out-of-range integers are clamped. |
+| `GH_AW_HARNESS_STARTUP_RETRIES` | All engine harnesses | `1` | retry attempts; range `0`-`2` | Additional fresh-run retry budget for startup failures before the harness records session progress. Invalid values use the default; out-of-range integers are clamped. `GH_AW_CLAUDE_STARTUP_RETRIES` is still accepted as a Claude-compatible fallback when the shared variable is unset. |
 
-There is no separate public Codex, Gemini, or Copilot startup-retry environment variable beyond the shared retry policy above. Copilot SDK driver settings such as `COPILOT_SDK_SEND_TIMEOUT_MS` are documented in [Copilot SDK Support](/gh-aw/reference/engines/#copilot-sdk-support) and the [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/).
+Copilot SDK driver settings such as `COPILOT_SDK_SEND_TIMEOUT_MS` are documented in [Copilot SDK Support](/gh-aw/reference/engines/#copilot-sdk-support) and the [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/).
 
 ### Internal runtime variables
 

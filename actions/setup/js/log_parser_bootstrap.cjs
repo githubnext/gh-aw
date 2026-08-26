@@ -66,6 +66,12 @@ function buildClaudeStartupDiagnostics(rawContent) {
       }
     }
   }
+  if (exitCode === "unknown") {
+    const awfExitCode = content.match(/Process exiting with code:\s*(\d+)\b/i);
+    if (awfExitCode) {
+      exitCode = awfExitCode[1];
+    }
+  }
 
   const inferenceAccessError = INFERENCE_ACCESS_ERROR_PATTERN.test(content);
   const aiCreditsRateLimitError = CLAUDE_RATE_LIMIT_PATTERN.test(content) || CLAUDE_OVERLOAD_PATTERN.test(content);

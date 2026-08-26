@@ -79,6 +79,22 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
           }
         }),
+        it("should report an AWF process exit code when Claude produces no structured logs", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "awf gateway startup failed\nProcess exiting with code: 17\n");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            await runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              `${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. Claude startup failed before structured logging (exitCode=17). startup/configuration failure detected.`
+            );
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+          }
+        }),
         it("should generate plain text summary when logEntries are available", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
             logFile = path.join(tmpDir, "test.log");
