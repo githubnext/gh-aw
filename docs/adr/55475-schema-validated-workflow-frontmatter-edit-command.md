@@ -31,9 +31,11 @@ Add mutation flags to the existing `update` command. The `update` command is sem
 - Automatic recompilation keeps `.lock.yml` atomically in sync with the edited workflow file.
 - Transactional rollback: if recompilation fails, both the workflow source file and the lock file are restored to their pre-edit state.
 - Fuzzy schedule expressions (`daily`, `every 6h`, `daily on weekdays`, etc.) are validated with the shared schedule parser at edit time, providing a user-friendly schedule API.
+- Source-managed workflows can be edited locally while preserving their managed `source:` provenance; by default, later `gh aw update` runs merge those local edits with upstream changes.
 
 #### Negative
-- Source-managed workflows (those with a `source:` key in their frontmatter) are explicitly rejected by the command; users must edit the upstream source or pin/unpin and then run `gh aw update` instead.
+- The managed top-level `source:` field is not user-editable on source-managed workflows; changing provenance still belongs to `gh aw update` or the upstream source.
+- `gh aw update --no-merge` intentionally overwrites local edits instead of preserving them.
 - YAML re-serialization via `go-yaml` may alter key ordering, indentation, comments, or whitespace in the frontmatter beyond the intended change, potentially producing noisy diffs. Edits that change nothing are detected and skip writing entirely, so no-op edits never rewrite a workflow.
 
 #### Neutral
