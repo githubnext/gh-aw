@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -502,5 +503,53 @@ func TestZizmorImageIsPinnedAndValid(t *testing.T) {
 	}
 	if !strings.Contains(ref, "@sha256:") {
 		t.Fatalf("ZizmorImage must be pinned by digest, got %q", ref)
+	}
+}
+
+func TestZizmorScanPathsRejectsSymlinkEscape(t *testing.T) {
+	t.Parallel()
+	gitRoot := t.TempDir()
+	outside := t.TempDir()
+
+	escapeTarget := filepath.Join(outside, "secret.lock.yml")
+	if err := os.WriteFile(escapeTarget, []byte("outside"), 0o600); err != nil {
+		t.Fatalf("failed to write outside file: %v", err)
+	}
+
+	linkPath := filepath.Join(gitRoot, "escape.lock.yml")
+	if err := os.Symlink(escapeTarget, linkPath); err != nil {
+		t.Skipf("symlinks not supported on this platform: %v", err)
+	}
+
+	_, _, err := zizmorScanPaths(gitRoot, []string{linkPath})
+	if err == nil {
+		t.Fatal("expected error for lock file symlink escaping git root, got nil")
+	}
+	if !strings.Contains(err.Error(), "escapes base directory") {
+		t.Fatalf("expected escape error, got %q", err.Error())
+	}
+}
+
+func TestZizmorScanPathsAcceptsFileWithinGitRoot(t *testing.T) {
+	t.Parallel()
+	gitRoot := t.TempDir()
+	lockDir := filepath.Join(gitRoot, ".github", "workflows")
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatalf("failed to create lock dir: %v", err)
+	}
+	lockFile := filepath.Join(lockDir, "a.lock.yml")
+	if err := os.WriteFile(lockFile, []byte("workflow"), 0o600); err != nil {
+		t.Fatalf("failed to write lock file: %v", err)
+	}
+
+	relPaths, containerPaths, err := zizmorScanPaths(gitRoot, []string{lockFile})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(relPaths) != 1 || relPaths[0] != filepath.Join(".github", "workflows", "a.lock.yml") {
+		t.Fatalf("unexpected relPaths: %v", relPaths)
+	}
+	if len(containerPaths) != 1 || containerPaths[0] != "./.github/workflows/a.lock.yml" {
+		t.Fatalf("unexpected containerPaths: %v", containerPaths)
 	}
 }

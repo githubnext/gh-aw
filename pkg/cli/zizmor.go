@@ -68,9 +68,15 @@ func buildZizmorContainerScanPath(scanPath string) (string, error) {
 }
 
 // zizmorScanPaths converts lock file paths into repository-relative paths (for display)
-// and container-safe scan paths (for the docker argv).
+// and container-safe scan paths (for the docker argv). Each candidate is validated with
+// fileutil.ValidatePathWithinBase, which resolves symlinks before comparison, so a
+// lock-file symlink that resolves outside the git root is rejected instead of silently
+// producing a container path that escapes the mounted checkout.
 func zizmorScanPaths(gitRoot string, lockFiles []string) (relPaths []string, containerPaths []string, err error) {
 	for _, lockFile := range lockFiles {
+		if err := fileutil.ValidatePathWithinBase(gitRoot, lockFile); err != nil {
+			return nil, nil, fmt.Errorf("zizmor lock file %q is invalid; expected a path inside the repository at %q: %w", lockFile, gitRoot, err)
+		}
 		relPath, relErr := filepath.Rel(gitRoot, lockFile)
 		if relErr != nil {
 			return nil, nil, fmt.Errorf("failed to get relative path for %s: %w", lockFile, relErr)
@@ -99,6 +105,16 @@ func zizmorDockerArgs(imageRef, volumeMount string, containerPaths []string) []s
 	return append(args, containerPaths...)
 }
 
+// fatalFindingError wraps an error that must fail compilation regardless of strict
+// mode (e.g. high/critical severity scanner findings). handleBatchToolError checks
+// for this type and refuses to suppress it even when strict is false.
+type fatalFindingError struct {
+	err error
+}
+
+func (e *fatalFindingError) Error() string { return e.err.Error() }
+func (e *fatalFindingError) Unwrap() error { return e.err }
+
 // interpretZizmorRunError maps the docker/zizmor exit status onto a gh-aw error.
 // zizmor uses exit codes to indicate findings:
 //
@@ -119,9 +135,10 @@ func interpretZizmorRunError(runErr error, totalWarnings, highSeverityCount int,
 		// Other exit codes are actual errors
 		return fmt.Errorf("zizmor failed with exit code %d on %s", exitCode, fileDescription)
 	}
-	// High/critical severity findings always fail, regardless of strict mode
+	// High/critical severity findings always fail, regardless of strict mode. Wrap in
+	// fatalFindingError so handleBatchToolError does not suppress it in non-strict mode.
 	if highSeverityCount > 0 {
-		return fmt.Errorf("zizmor found %d high/critical severity finding(s) in %s", highSeverityCount, fileDescription)
+		return &fatalFindingError{err: fmt.Errorf("zizmor found %d high/critical severity finding(s) in %s", highSeverityCount, fileDescription)}
 	}
 	// In strict mode, all findings are treated as errors
 	if strict {
