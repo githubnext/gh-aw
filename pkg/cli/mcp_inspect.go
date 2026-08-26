@@ -268,8 +268,7 @@ The command will:
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
-  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
-`,
+  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string

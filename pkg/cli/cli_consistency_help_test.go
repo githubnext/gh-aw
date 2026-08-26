@@ -153,6 +153,29 @@ func TestHelpTextUsesStandardEgPunctuation(t *testing.T) {
 	assert.Contains(t, NewExperimentsAnalyzeSubcommand().Long, "e.g., \"my-workflow\"", "experiments analyze help should use e.g., punctuation")
 }
 
+func TestCommandExamplesDoNotEndWithTrailingNewline(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		cmd  *cobra.Command
+	}{
+		{name: "add", cmd: NewAddCommand(func(string) error { return nil })},
+		{name: "add-wizard", cmd: NewAddWizardCommand(func(string) error { return nil })},
+		{name: "logs", cmd: NewLogsCommand()},
+		{name: "trial", cmd: NewTrialCommand(func(string) error { return nil })},
+		{name: "mcp add", cmd: NewMCPAddSubcommand()},
+		{name: "mcp list", cmd: NewMCPListSubcommand()},
+		{name: "mcp inspect", cmd: NewMCPInspectSubcommand()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.NotEmpty(t, tt.cmd.Example, "%s command should have examples", tt.name)
+			assert.False(t, strings.HasSuffix(tt.cmd.Example, "\n"), "%s command Example should not end with a trailing newline, otherwise help output renders a double blank line before Flags:", tt.name)
+		})
+	}
+}
+
 func TestLegacyNestedGHHelpIsRejected(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
