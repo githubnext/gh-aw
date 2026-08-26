@@ -526,6 +526,17 @@
       "avg_agent_duration_minutes": 151.2,
       "success_rate": 0.8421,
       "note": "true UTC calendar-day window (2026-08-24T00:00:00Z..2026-08-25T00:00:00Z); author app/copilot-swe-agent only; agent_prs_total=57 creation cohort, all 57 resolved (0 open) at collection time (~18h after window close); agent_prs_merged_from_created=48, closed_prs=9 (only 1 was a [WIP] placeholder closure: #55415; other 8 had substantive bodies describing real work, e.g. #55521 stall-detection, #55500 SDK event-log crash fix, #55213 AWF sandbox upgrade); agent_success_rate=agent_prs_merged_from_created/agent_prs_total=84.2%; avg_duration created->merged over the 48 merged PRs = 151.2min; agent_prs_merged (event-scoped, PRs with mergedAt in window regardless of createdAt) = 51, derived from the 30-day pre-fetched dataset as a best-effort figure (not independently paginated-verified) because gh API calls failed with 401 Bad credentials this run (same failure mode as 08-23); avg_comments not collected for the same reason; success_rate down vs 08-23 (87.0%->84.2%, -2.8pp, ~3.2% relative, below the 10% significance threshold); avg_duration up vs 08-23 (93.0->151.2min, +62.6%); volume down 69->57 (-17.4%)"
+    },
+    {
+      "date": "2026-08-25",
+      "agent_prs_total": 78,
+      "agent_prs_merged": 64,
+      "agent_prs_merged_from_created": 68,
+      "closed_prs": 7,
+      "open_prs": 3,
+      "avg_agent_duration_minutes": 138.7,
+      "success_rate": 0.8718,
+      "note": "true UTC calendar-day window (2026-08-25T00:00:00Z..2026-08-26T00:00:00Z); author app/copilot-swe-agent only; agent_prs_total=78 creation cohort, 3 still open at collection time; agent_prs_merged_from_created=68, closed_prs=7 (0 were [WIP] placeholder closures; all 7 had substantive bodies describing real work); agent_success_rate=agent_prs_merged_from_created/agent_prs_total=87.2%; avg_duration created->merged over the 68 merged PRs = 138.7min; agent_prs_merged (event-scoped, PRs with mergedAt in window regardless of createdAt) = 64, derived from the 30-day pre-fetched dataset as a best-effort figure (not independently paginated-verified) because gh API calls failed with 401 Bad credentials this run (same failure mode as 08-23 and 08-24); avg_comments not collected for the same reason; success_rate roughly stable vs 08-24 (84.2%->87.2%, +3.0pp, ~3.5% relative, below the 10% significance threshold); avg_duration down vs 08-24 (151.2->138.7min, -8.3%, below threshold); volume up sharply vs 08-24 (57->78, +36.8%, significant)"
     }
   ],
   "last_updated": "2026-08-20"
