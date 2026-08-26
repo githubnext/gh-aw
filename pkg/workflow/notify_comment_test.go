@@ -1360,6 +1360,12 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(script, "cp /tmp/gh-aw/agent_usage.json /tmp/gh-aw/usage/agent_usage.json") {
 		t.Errorf("Expected collect script to copy agent_usage.json.\nScript:\n%s", script)
 	}
+	if !strings.Contains(script, "cp /tmp/gh-aw/agent/graders/grader_manifest.json /tmp/gh-aw/usage/graders/grader_manifest.json") {
+		t.Errorf("Expected collect script to copy grader manifest into usage.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "cp /tmp/gh-aw/agent/graders/grader_results.json /tmp/gh-aw/usage/graders/grader_results.json") {
+		t.Errorf("Expected collect script to copy grader results into usage.\nScript:\n%s", script)
+	}
 	if !strings.Contains(script, "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
 		t.Errorf("Expected collect script to include firewall audit token usage path for agent.\nScript:\n%s", script)
 	}
@@ -1455,6 +1461,12 @@ func TestConclusionJobIncludesEvalsInUsageArtifact(t *testing.T) {
 
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/evals.jsonl") {
 		t.Errorf("Expected usage artifact upload to include evals results.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/graders/grader_manifest.json") {
+		t.Errorf("Expected usage artifact upload to include grader manifest.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/graders/grader_results.json") {
+		t.Errorf("Expected usage artifact upload to include grader results.\nGenerated steps:\n%s", allSteps)
 	}
 }
 

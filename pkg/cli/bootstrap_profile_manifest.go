@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -13,27 +16,27 @@ type repositoryPackageBootstrap struct {
 }
 
 type repositoryPackageBootstrapAction struct {
-	Type             string
-	Owner            string
-	Value            string
-	Name             string
-	Prompt           string
-	Description      string
-	Default          string
-	Optional         bool
-	Enum             []string
-	When             *repositoryPackageBootstrapCondition
-	Secret           string
-	Strategy         string
-	Message          string
-	Mode             string
-	AppIDVariable    string
-	PrivateKeySecret string
-	AppName          string
-	HomepageURL      string
-	Permissions      map[string]string
-	Events           []string
-	ExistingOnly     bool
+	Type             string                               `json:"type"`
+	Owner            string                               `json:"owner"`
+	Value            string                               `json:"value"`
+	Name             string                               `json:"name"`
+	Prompt           string                               `json:"prompt"`
+	Description      string                               `json:"description"`
+	Default          string                               `json:"default"`
+	Optional         bool                                 `json:"optional"`
+	Enum             []string                             `json:"enum"`
+	When             *repositoryPackageBootstrapCondition `json:"when"`
+	Secret           string                               `json:"secret"`
+	Strategy         string                               `json:"strategy"`
+	Message          string                               `json:"message"`
+	Mode             string                               `json:"mode"`
+	AppIDVariable    string                               `json:"app-id-variable"`
+	PrivateKeySecret string                               `json:"private-key-secret"`
+	AppName          string                               `json:"app-name"`
+	HomepageURL      string                               `json:"homepage-url"`
+	Permissions      map[string]string                    `json:"permissions"`
+	Events           []string                             `json:"events"`
+	ExistingOnly     bool                                 `json:"existing-only"`
 }
 
 type repositoryPackageBootstrapCondition struct {
@@ -80,78 +83,37 @@ func extractManifestConfig(value any, manifestPath string) (*repositoryPackageBo
 }
 
 func parseManifestBootstrapAction(actionType string, actionMap map[string]any, manifestPath string, index int) (repositoryPackageBootstrapAction, error) {
-	action := repositoryPackageBootstrapAction{Type: actionType}
-
-	if owner, ok := stringValue(actionMap["owner"]); ok {
-		action.Owner = strings.TrimSpace(owner)
-	}
-	if value, ok := stringValue(actionMap["value"]); ok {
-		action.Value = strings.TrimSpace(value)
-	}
-	if name, ok := stringValue(actionMap["name"]); ok {
-		action.Name = strings.TrimSpace(name)
-	}
-	if prompt, ok := stringValue(actionMap["prompt"]); ok {
-		action.Prompt = strings.TrimSpace(prompt)
-	}
-	if description, ok := stringValue(actionMap["description"]); ok {
-		action.Description = strings.TrimSpace(description)
-	}
-	if defaultValue, ok := stringValue(actionMap["default"]); ok {
-		action.Default = defaultValue
-	}
-	if secret, ok := stringValue(actionMap["secret"]); ok {
-		action.Secret = strings.TrimSpace(secret)
-	}
-	if strategy, ok := stringValue(actionMap["strategy"]); ok {
-		action.Strategy = strings.TrimSpace(strategy)
-	}
-	if message, ok := stringValue(actionMap["message"]); ok {
-		action.Message = strings.TrimSpace(message)
-	}
-	if mode, ok := stringValue(actionMap["mode"]); ok {
-		action.Mode = strings.TrimSpace(mode)
-	}
-	if appIDVariable, ok := stringValue(actionMap["app-id-variable"]); ok {
-		action.AppIDVariable = strings.TrimSpace(appIDVariable)
-	}
-	if privateKeySecret, ok := stringValue(actionMap["private-key-secret"]); ok {
-		action.PrivateKeySecret = strings.TrimSpace(privateKeySecret)
-	}
-	if appName, ok := stringValue(actionMap["app-name"]); ok {
-		action.AppName = strings.TrimSpace(appName)
-	}
-	if homepageURL, ok := stringValue(actionMap["homepage-url"]); ok {
-		action.HomepageURL = strings.TrimSpace(homepageURL)
-	}
-	if optional, ok := actionMap["optional"].(bool); ok {
-		action.Optional = optional
-	}
-	if existingOnly, ok := actionMap["existing-only"].(bool); ok {
-		action.ExistingOnly = existingOnly
-	}
-	if enumValues, ok, err := stringListValue(actionMap["enum"]); err != nil {
-		return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, "enum", err)
-	} else if ok {
-		action.Enum = enumValues
-	}
-	if events, ok, err := stringListValue(actionMap["events"]); err != nil {
-		return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, "events", err)
-	} else if ok {
-		action.Events = events
-	}
 	if _, exists := actionMap["when"]; exists {
 		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].when is not supported yet. Example: remove the when field and keep only supported keys such as type, name, and prompt", manifestPath, index)
 	}
-	if permissionsValue, exists := actionMap["permissions"]; exists {
-		permissions, err := stringMapValue(permissionsValue)
-		if err != nil {
-			return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, "permissions", err)
+	var action repositoryPackageBootstrapAction
+	if err := decodeManifestBootstrapAction(actionMap, &action); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) {
+			return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, typeErr.Field, fmt.Errorf("must be a %s, got %s", manifestFieldJSONTypeName(typeErr.Type), typeErr.Value))
 		}
-		action.Permissions = permissions
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d] is invalid: %w", manifestPath, index, err)
 	}
+	action.Type = actionType
+	action.Owner = strings.TrimSpace(action.Owner)
+	action.Value = strings.TrimSpace(action.Value)
+	action.Name = strings.TrimSpace(action.Name)
+	action.Prompt = strings.TrimSpace(action.Prompt)
+	action.Description = strings.TrimSpace(action.Description)
+	action.Secret = strings.TrimSpace(action.Secret)
+	action.Strategy = strings.TrimSpace(action.Strategy)
+	action.Message = strings.TrimSpace(action.Message)
+	action.Mode = strings.TrimSpace(action.Mode)
+	action.AppIDVariable = strings.TrimSpace(action.AppIDVariable)
+	action.PrivateKeySecret = strings.TrimSpace(action.PrivateKeySecret)
+	action.AppName = strings.TrimSpace(action.AppName)
+	action.HomepageURL = strings.TrimSpace(action.HomepageURL)
 
-	switch actionType {
+	return validateManifestBootstrapAction(action, manifestPath, index)
+}
+
+func validateManifestBootstrapAction(action repositoryPackageBootstrapAction, manifestPath string, index int) (repositoryPackageBootstrapAction, error) {
+	switch action.Type {
 	case "require-owner-type":
 		if action.Owner != "" && action.Owner != "repo" {
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].owner must be 'repo' when type=require-owner-type. Example: { type: require-owner-type, owner: repo, value: org }", manifestPath, index)
@@ -174,30 +136,7 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].prompt is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
 		}
 	case "github-app":
-		if action.AppName == "" && action.Name != "" {
-			action.AppName = action.Name
-		}
-		if action.ExistingOnly && action.Mode != "" && action.Mode != "existing" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].existing-only requires mode to be 'existing' or unset. Remove mode=%q or set it to 'existing'", manifestPath, index, action.Mode)
-		}
-		if action.ExistingOnly && action.Mode == "" {
-			action.Mode = "existing"
-		}
-		if action.Mode == "" {
-			action.Mode = "create-or-existing"
-		}
-		if action.Mode != "create-or-existing" && action.Mode != "existing" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].mode must be one of: create-or-existing, existing. Example: { type: github-app, mode: existing, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
-		}
-		if action.Owner != "" && action.Owner != "repo" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].owner must be 'repo' when type=github-app. Example: { type: github-app, owner: repo, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
-		}
-		if action.AppIDVariable == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].app-id-variable is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
-		}
-		if action.PrivateKeySecret == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].private-key-secret is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
-		}
+		return validateGitHubAppBootstrapAction(action, manifestPath, index)
 	case "copilot-auth":
 		if action.Secret == "" {
 			action.Secret = "COPILOT_GITHUB_TOKEN"
@@ -217,48 +156,48 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].message is required when type=handoff. Example: { type: handoff, message: Continue with repository-specific setup. }", manifestPath, index)
 		}
 	default:
-		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].type %q is not supported. Example: use one of %s", manifestPath, index, actionType, bootstrapActionTypeExample)
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].type %q is not supported. Example: use one of %s", manifestPath, index, action.Type, bootstrapActionTypeExample)
 	}
 
 	return action, nil
 }
 
-func stringListValue(value any) ([]string, bool, error) {
-	if value == nil {
-		return nil, false, nil
+func validateGitHubAppBootstrapAction(action repositoryPackageBootstrapAction, manifestPath string, index int) (repositoryPackageBootstrapAction, error) {
+	if action.AppName == "" && action.Name != "" {
+		action.AppName = action.Name
 	}
-	items, ok := value.([]any)
-	if !ok {
-		if direct, ok := value.([]string); ok {
-			return direct, true, nil
-		}
-		return nil, false, errors.New("must be a list of strings. Example: [\"issues\", \"pull_request\"]")
+	if action.ExistingOnly && action.Mode != "" && action.Mode != "existing" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].existing-only requires mode to be 'existing' or unset. Remove mode=%q or set it to 'existing'", manifestPath, index, action.Mode)
 	}
-	result := make([]string, 0, len(items))
-	for _, item := range items {
-		stringItem, ok := stringValue(item)
-		if !ok {
-			return nil, false, errors.New("must be a list of strings. Example: [\"issues\", \"pull_request\"]")
-		}
-		result = append(result, stringItem)
+	if action.ExistingOnly && action.Mode == "" {
+		action.Mode = "existing"
 	}
-	return result, true, nil
+	if action.Mode == "" {
+		action.Mode = "create-or-existing"
+	}
+	if action.Mode != "create-or-existing" && action.Mode != "existing" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].mode must be one of: create-or-existing, existing. Example: { type: github-app, mode: existing, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+	}
+	if action.Owner != "" && action.Owner != "repo" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].owner must be 'repo' when type=github-app. Example: { type: github-app, owner: repo, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+	}
+	if action.AppIDVariable == "" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].app-id-variable is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+	}
+	if action.PrivateKeySecret == "" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].private-key-secret is required when type=github-app. Example: { type: github-app, app-id-variable: APP_ID, private-key-secret: APP_PRIVATE_KEY }", manifestPath, index)
+	}
+	return action, nil
 }
 
-func stringMapValue(value any) (map[string]string, error) {
-	root, ok := value.(map[string]any)
-	if !ok {
-		return nil, errors.New("must be a string map. Example: { contents: \"read\", issues: \"write\" }")
+func decodeManifestBootstrapAction(actionMap map[string]any, action *repositoryPackageBootstrapAction) error {
+	data, err := json.Marshal(actionMap)
+	if err != nil {
+		return err
 	}
-	result := make(map[string]string, len(root))
-	for key, rawValue := range root {
-		stringValue, ok := stringValue(rawValue)
-		if !ok {
-			return nil, errors.New("must be a string map. Example: { contents: \"read\", issues: \"write\" }")
-		}
-		result[key] = stringValue
-	}
-	return result, nil
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(action)
 }
 
 func manifestBootstrapFieldError(manifestPath string, index int, field string, err error) error {
@@ -276,5 +215,27 @@ func manifestBootstrapFieldExample(field string) (string, bool) {
 		return `{ contents: "read", issues: "write" }`, true
 	default:
 		return "", false
+	}
+}
+
+// manifestFieldJSONTypeName maps a Go type expected by json.Unmarshal to the JSON
+// type name manifest authors will recognize (e.g. "array" instead of "[]string"),
+// since manifest values are authored as YAML/JSON, not Go.
+func manifestFieldJSONTypeName(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.String:
+		return "string"
+	case reflect.Bool:
+		return "boolean"
+	case reflect.Slice, reflect.Array:
+		return "array"
+	case reflect.Map, reflect.Struct, reflect.Pointer:
+		return "object"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return "number"
+	default:
+		return t.String()
 	}
 }

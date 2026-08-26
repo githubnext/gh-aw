@@ -79,7 +79,7 @@ const {
   inferProviderTypeForModel,
   resolveMultiProviderFromReflect,
 } = require("./awf_reflect.cjs");
-const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError: isCommonAuthenticationFailedError, parseAICreditsExceededProxyRejection } = require("./harness_retry_guard.cjs");
 const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
@@ -265,39 +265,6 @@ function logCopilotInferenceConfiguration(options) {
       ` endpoint=${JSON.stringify(formatInferenceEndpointForLog(primaryProvider?.baseUrl))}`
   );
   logger("inference handoff: SDK driver receives all reflected provider routes; Copilot sidecar receives the selected primary route; authentication values are omitted");
-}
-
-const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
-
-/**
- * Detect whether safe-outputs already contain a terminal agent result.
- * Terminal outputs include noop and any non-diagnostic task output types.
- * @param {string} safeOutputsPath
- * @returns {boolean}
- */
-function hasTerminalSafeOutput(safeOutputsPath) {
-  if (!safeOutputsPath) return false;
-  let content = "";
-  try {
-    content = fs.readFileSync(safeOutputsPath, "utf8");
-  } catch {
-    return false;
-  }
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
-      if (!type) continue;
-      if (type === "noop" || !NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
-        return true;
-      }
-    } catch {
-      // Ignore malformed lines.
-    }
-  }
-  return false;
 }
 
 /**

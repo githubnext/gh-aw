@@ -366,7 +366,7 @@
     "permissions": {
       "type": "string|object",
       "desc": "GitHub token permissions for the workflow.",
-      "enum": ["read-all", "write-all"],
+      "enum": ["read-all", "write-all", "none"],
       "children": {
         "actions": {
           "type": "string",

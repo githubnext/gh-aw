@@ -132,6 +132,11 @@ const SafeOutputsFilename Filename = "safeoutputs.jsonl"
 // consume structured token data without parsing the step summary or GITHUB_OUTPUT.
 const TokenUsageFilename Filename = "agent_usage.json"
 
+// GradersDirName is the directory name holding grader manifest and results files. The agent
+// job writes them under /tmp/gh-aw/agent/graders/ and the conclusion job mirrors them into
+// the graders/ subdirectory of the usage artifact.
+const GradersDirName ArtifactName = "graders"
+
 // GraderManifestFilename is the filename of the grader manifest JSON written to /tmp/gh-aw/agent/graders/
 // by trace_graders.cjs. Lists which graders were configured and their enabled state.
 const GraderManifestFilename Filename = "grader_manifest.json"
