@@ -8,3 +8,7 @@
 {"date":"2026-08-25","loop_name":"avenger-self-repair","direction":"improving output volume, unresolved reliability","evidence":["PR#55481","PR#55388","run:32806021555","run:32809711124"]}
 {"date":"2026-08-25","loop_name":"ai-moderator-codex-exec-failures","direction":"stable/unresolved, scope narrowing toward model/CLI defect","evidence":["run:32778844601","run:32814871853","run:32815511529"]}
 {"date":"2026-08-25","loop_name":"metrics-collector-cost-outlier","direction":"new/watching, 2nd occurrence","evidence":["run:32802543912"]}
+{"date":"2026-08-26","loop_name":"observability-to-allowlist","direction":"accelerating, now same-day turnaround","evidence":["discussion#55825","issue#55845","PR#55890","run:32918532500"]}
+{"date":"2026-08-26","loop_name":"codex-circuit-breaker-false-positive","direction":"new, root-caused, fix proposed","evidence":["issue#55976","run:32924199594","run:32937867689"]}
+{"date":"2026-08-26","loop_name":"ai-moderator-codex-exec-failures","direction":"unresolved, 4th consecutive day, stalled not repairing","evidence":["issue#55894","run:32858109209","run:32910312820"]}
+{"date":"2026-08-26","loop_name":"avenger-self-repair","direction":"quiet, oscillating between burst and lull","evidence":["run:32906916840"]}
