@@ -10,6 +10,7 @@ import (
 func getLatestActionPinReference(repo string) string {
 	pin, ok := GetLatestActionPinByRepo(repo)
 	if !ok {
+		actionPinsLog.Printf("No action pin found for repo=%s", repo)
 		return ""
 	}
 	return FormatPinnedActionReference(repo, pin.SHA, pin.Version)
@@ -21,6 +22,7 @@ func getLatestActionPinReference(repo string) string {
 // a programming error or corrupted action pin data that should already have been rejected.
 func FormatPinnedActionReference(repo, sha, version string) string {
 	if sha == "" {
+		actionPinsLog.Printf("ERROR: empty SHA for repo=%s version=%s, refusing to format pinned reference", repo, version)
 		panic(fmt.Sprintf("FormatPinnedActionReference called with empty SHA for repo=%s version=%s — this would produce invalid workflow YAML", repo, version))
 	}
 	return repo + "@" + sha + " # " + version
@@ -33,6 +35,7 @@ func formatPinnedActionWithResolution(repo, sha, sourceVersion, resolvedVersion 
 	if sourceVersion == "" {
 		return FormatPinnedActionReference(repo, sha, resolvedVersion)
 	}
+	actionPinsLog.Printf("Version resolved: source=%s resolved=%s for repo=%s", sourceVersion, resolvedVersion, repo)
 	return FormatPinnedActionReference(repo, sha, resolvedVersion+" (source "+sourceVersion+")")
 }
 
