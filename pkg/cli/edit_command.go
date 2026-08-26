@@ -26,7 +26,7 @@ func NewEditCommand() *cobra.Command {
 
 The workflow-id may be a workflow name, a Markdown filename, or a path. Changes are
 validated before writing. Workflows managed by a source: declaration can be edited
-locally; future updates will merge in those local changes.
+locally; by default, future updates will merge in those local changes (use --no-merge to override).
 
 Edits that change nothing leave the workflow untouched. When frontmatter does change it is
 re-serialized, so YAML comments, key ordering, and quoting styles are not preserved.`,
@@ -74,6 +74,13 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 	}
 	if len(changes) == 0 {
 		return errors.New("provide an assignment or an edit flag")
+	}
+	if _, managed := parsed.Frontmatter["source"]; managed {
+		for _, change := range changes {
+			if strings.Split(change.path, ".")[0] == "source" {
+				return errors.New("cannot edit source for a source-managed workflow")
+			}
+		}
 	}
 	edited := false
 	for _, change := range changes {

@@ -115,6 +115,32 @@ func TestEditCommandAllowsSourceManagedWorkflow(t *testing.T) {
 	assert.Equal(t, original, string(content))
 }
 
+func TestEditCommandRejectsSourceChangesForSourceManagedWorkflow(t *testing.T) {
+	t.Parallel()
+	for name, args := range map[string][]string{
+		"set":       {"--set", "source=owner/repo@v2", "--dry-run"},
+		"nestedSet": {"--set", "source.ref=v2", "--dry-run"},
+		"unset":     {"--unset", "source", "--dry-run"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			workflowPath := dir + "/workflow.md"
+			original := "---\nsource: owner/repo@v1\non: workflow_dispatch\n---\n"
+			require.NoError(t, os.WriteFile(workflowPath, []byte(original), 0o644))
+
+			cmd := NewEditCommand()
+			cmd.SetArgs(append([]string{workflowPath}, args...))
+			err := cmd.Execute()
+			require.ErrorContains(t, err, "cannot edit source for a source-managed workflow")
+
+			content, readErr := os.ReadFile(workflowPath)
+			require.NoError(t, readErr)
+			assert.Equal(t, original, string(content))
+		})
+	}
+}
+
 // mustApplyEditChange applies a change and asserts that it modified the frontmatter.
 func mustApplyEditChange(t *testing.T, frontmatter map[string]any, change editChange) {
 	t.Helper()
