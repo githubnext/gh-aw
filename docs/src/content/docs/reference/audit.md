@@ -110,6 +110,41 @@ Top-level fields in `--json` output are stable; nested sub-fields may be extende
 
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
+When cross-run behavior data is available, JSON output also includes `cluster_analysis` with:
+
+- `clusters`: groups of runs sharing the same value for a behavioral dimension
+- `patterns`: automatically detected divergence signals across those groups
+
+### Interpreting `cluster_analysis` values
+
+**Cluster dimensions (`clusters[].dimension`)**
+
+| Dimension | Meaning | Typical values |
+|---|---|---|
+| `conclusion` | Workflow completion outcome | `success`, `failure`, `timed_out`, `cancelled` |
+| `task_domain` | Dominant task type inferred from run behavior | e.g. `code_editing`, `testing`, `unknown` |
+| `execution_style` | How the run progresses | e.g. `sequential`, `iterative`, `unknown` |
+| `resource_profile` | Relative resource usage posture | e.g. `light`, `heavy`, `unknown` |
+
+`clusters[].metrics` summarizes each group:
+- `avg_tokens`, `median_tokens`, `stddev_tokens`: token usage center/spread
+- `avg_turns`: average turns per run
+- `avg_duration_ns`: average runtime (nanoseconds)
+- `avg_errors_per_run`: average error count in the cluster
+- `success_rate`: fraction of runs in the cluster with `conclusion == "success"`
+
+Clusters from dimensions with only one observed value are omitted to avoid noise.
+
+**Pattern kinds (`patterns[].kind`)**
+
+| Kind | What it means | Severity rule |
+|---|---|---|
+| `resource_divergence` | Failed runs use more tokens than successful runs | `low` ≥1.5x, `medium` ≥2.0x, `high` ≥3.0x |
+| `failure_correlation` | A non-conclusion dimension value has only failed runs | always `high` |
+| `style_skew` | One non-conclusion value dominates the dataset | `low` when a value is >80% of runs (minimum 5 runs total) |
+
+Use these as triage signals: high-severity patterns are good candidates for immediate investigation; low-severity patterns are often workload-shape hints.
+
 For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, and legacy `effective_tokens`). It is absent when the downloaded artifacts do not contain usable `token-usage.jsonl` or fallback `agent_usage.json` data for that run.
 
 Detailed logs JSON output includes the same `working_set` object when the usage activity summary is available. The default `gh aw logs` runs table (both the compact agent-optimized format and the verbose `-v` format) also surfaces a single `WSRF` column with the rebuild factor rounded to two decimal places, showing `-` when the metric was not measured for that run.
