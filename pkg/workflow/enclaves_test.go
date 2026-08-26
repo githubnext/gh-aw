@@ -78,18 +78,6 @@ func TestValidateEnclavesRequiresNetworkIsolation(t *testing.T) {
 	assert.Contains(t, err.Error(), "requires AWF network isolation")
 }
 
-func TestValidateEnclavesRejectsBoundedQueries(t *testing.T) {
-	data := enclaveWorkflowData(true, false, 30, 0)
-	data.ParsedTools = &ToolsConfig{
-		GitHub: &GitHubToolConfig{
-			BoundedQueries: &BoundedQueriesConfig{},
-		},
-	}
-	err := validateEnclavesConfig(data)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot be combined with tools.github.bounded-queries")
-}
-
 func TestValidateEnclavesRejectsDuplicateTypes(t *testing.T) {
 	data := enclaveWorkflowData(true, false, 30, 0)
 	data.Enclaves = append(data.Enclaves, &EnclaveConfig{
