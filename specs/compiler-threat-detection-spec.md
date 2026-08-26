@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.26
+**Version**: 1.0.27
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.27` | `v0.87.4` (or newer) | No new CTR rules; extends the CTR-006 Template Injection mapping to document `pkg/workflow/mcp_renderer_guard.go`, which escapes MCP gateway guard-policy expressions in generated heredocs via a sentinel-based defer mechanism (`guardExprSentinel`/`renderGuardPoliciesJSON`) so GitHub Actions expressions are deferred to runtime evaluation instead of being expanded inline where the shell (or the template-injection scanner) would flag them; this behavior was already implemented and tested (`pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/copilot_github_mcp_test.go`) but absent from the Section 7.1 mapping table. No `.lock.yml` schema changes. |
 | `1.0.26` | `v0.87.4` (or newer) | Adds CTR-026 Generated Job Timeout Expression Injection, documenting the already-implemented rejection of expression/non-positive-integer `jobs.agent.timeout-minutes` and `jobs.detection.timeout-minutes` values (`extractCustomJobTimeoutMinutes` in `pkg/workflow/compiler_custom_job_properties.go`). `.lock.yml` files now always emit a literal integer job-level `timeout-minutes` for the generated `agent` and `detection` jobs instead of a `${{ vars.GH_AW_DEFAULT_*_TIMEOUT_MINUTES || '<n>' }}` expression; recompilation of existing workflows changes these two lines but does not alter secrets or action-reference manifests (no CTR-016 impact). |
 | `1.0.25` | `v0.87.1` (or newer) | No new CTR rules; the CTR-025 mapping is re-confirmed against the merged `fix-threat-detection-system-block-false-positive` changeset (`stripFrameworkSystemBlock`/`SYSTEM_BLOCK_REMOVED_MARKER` in `actions/setup/js/setup_threat_detection.cjs`), which matches the existing Section 7.1 mapping with no drift. No `.lock.yml` schema changes. |
 | `1.0.24` | `v0.87.1` (or newer) | No new CTR rules; extends existing rule mappings (CTR-005, CTR-006/CTR-009, CTR-007, CTR-012) to cover recently-hardened implementation sites reviewed in this cycle (safe-output field allowlisting, agent-import-path shell escaping, URL-authority userinfo bypass in the markdown/content sanitizer, and generalized wildcard-target validation). No `.lock.yml` schema changes. |
@@ -90,7 +91,8 @@ This section anchors the specification version to the minimum gh-aw binary versi
 Compact changelog: `1.0.8` introduced CTR-016 and CTR-018; `1.0.10`–`1.0.13` added
 CTR-019; `1.0.14` added CTR-020; `1.0.15` added CTR-021; `1.0.20` added CTR-022
 and CTR-023; `1.0.21` corrects the Deprecation Policy subsection numbering; `1.0.23`
-adds CTR-025; and `1.0.26` adds CTR-026. Versions with no distinct lock-file impact are grouped above.
+adds CTR-025; `1.0.26` adds CTR-026; and `1.0.27` extends the CTR-006 mapping
+with `mcp_renderer_guard.go`. Versions with no distinct lock-file impact are grouped above.
 
 When this specification version changes, maintainers MUST update this table in the same pull request as any lock-file compatibility changes.
 
@@ -292,7 +294,7 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
 | CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go` | `pkg/workflow/*sandbox*_test.go` |
 | CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go`; runtime harness field allowlisting in `actions/setup/js/safe_output_type_validator.cjs` (declared-field enforcement) and patch/manifest differential-parsing hardening in `actions/setup/js/patch_path_helpers.cjs`, `actions/setup/js/manifest_file_helpers.cjs` (patch-parser vs. `git am` protected-file bypass defense) | `pkg/workflow/*safe_outputs*_test.go`, `actions/setup/js/safe_output_type_validator.test.cjs`, `actions/setup/js/patch_path_helpers.test.cjs`, `actions/setup/js/manifest_file_helpers.test.cjs` |
-| CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go`, `pkg/workflow/heredoc_validation.go` | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go` |
+| CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go`, `pkg/workflow/heredoc_validation.go`, `pkg/workflow/mcp_renderer_guard.go` (MCP gateway guard-policy sentinel-based expression deferral, preventing shell-side `${{ }}` expansion in generated heredocs) | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go`, `pkg/workflow/copilot_github_mcp_test.go` |
 | CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go`; URL-authority allowlist parity between the stripping and filtering passes (userinfo-prefix bypass, backslash-separator normalization, embedded-whitespace discard) in `actions/setup/js/sanitize_content_core.cjs` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go`, `actions/setup/js/sanitize_content.test.cjs` |
 | CTR-008 Pull Request Target Safety | `pkg/workflow/pull_request_target_validation.go` | `pkg/workflow/pull_request_target_validation_test.go` |
 | CTR-009 Shell Expansion in Safe-Outputs | `pkg/workflow/safe_outputs_steps_shell_expansion_validation.go`; agent-import-path allowlist regex and consistent argument escaping in engine command generation (`pkg/workflow/agent_validation.go` path-character allowlist, `pkg/workflow/shell.go` `shellEscapeArg`/`shellJoinArgs`, `pkg/workflow/engine_helpers.go`) | `pkg/workflow/safe_outputs_steps_shell_expansion_validation_test.go`, `pkg/workflow/engine_agent_import_test.go`, `pkg/workflow/inline_imports_test.go` |
@@ -425,6 +427,14 @@ These optimizer-protocol IDs cover Section 6 norms; they do not add or replace t
 ---
 
 ## 10. Change Log
+
+### 1.0.27 (2026-08-26)
+
+- Daily optimizer review cycle. Reviewed the pending `.changeset/*.md` inventory and current `pkg/workflow` source since the 1.0.26 audit. All reviewed items were found to be already covered by existing `CTR-*` rules or outside compiler-detectable scope: `patch-escape-mcp-template-expressions` (MCP gateway guard-policy expressions are escaped via the sentinel mechanism in `pkg/workflow/mcp_renderer_guard.go` — this was implemented but had not yet been added to the Section 7.1 CTR-006 mapping table, so it is added here as a mapping-only update, not a new rule); `patch-fix-heredoc-delimiter-injection` (heredoc delimiter randomization/normalization, already covered by CTR-006's `heredoc_validation.go` mapping); `patch-fix-multi-repo-configure-git-credentials-template-injection` (already reconciled in the 1.0.25 cycle, confirmed unchanged in `checkout_step_generator.go`); `patch-sanitize-template-delimiters` (Jinja2/Liquid/ERB/JS/Jekyll delimiter neutralization in `sanitize_content_core.cjs`'s `neutralizeTemplateDelimiters`, already covered by CTR-007's markdown-content-security mapping); `patch-fix-shell-escape-agent-path-injection` (already reconciled in the 1.0.24 cycle, CTR-009 mapping unchanged); `patch-fix-codex-threat-detection-proxy`, `patch-threat-detection-ghe-api-target`, `patch-skip-empty-threat-detection` (CTR-019 cache-memory gating scope, no behavior change to detection-skip gating logic), `patch-inject-difc-proxy-pre-agent-gh`, `patch-inject-git-identity-env-vars` (operational/runtime wiring correctness for detection and sandboxed execution, not new detectable compiler patterns), and `hint-jq-file-injection-safe-outputs-prompt` (documentation-only prompt guidance, no compiler detection logic).
+- No `threat-detection-suppress` annotations were found in any live (non-fixture, non-documentation-example) workflow source in this review window, so no `SLA_BREACH` or expiration findings apply.
+- No new threat class was identified requiring a new `CTR-*` rule.
+- Extended Section 7.1 CTR-006 mapping row with `pkg/workflow/mcp_renderer_guard.go` and its test coverage in `pkg/workflow/copilot_github_mcp_test.go`.
+- Updated Section 2 spec-to-implementation sync table with version 1.0.27 entry.
 
 ### 1.0.26 (2026-08-23)
 
