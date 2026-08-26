@@ -195,3 +195,15 @@ Comment added (not counted against quota, avoided a duplicate issue):
 7. Fix engine/permission detection in lockfile-stats analyzer (source: #54908) — filed.
 
 Deferred (not filed, lower priority): Copilot-default framing language in docs (#54792); smoke-aider inconsistent failure message (#54843); 190-unassigned/41-cascade-suspected issue volume (#54838, informational only).
+
+## 2026-08-26T12:26Z — 7 tasks filed this cycle
+
+1. Fix ProgressBar/SpinnerWrapper wasm↔native API drift in pkg/console — source: Typist (#56016); verified pkg/console/progress_wasm.go:20, spinner_wasm.go:28 have no native equivalents.
+2. Type WorkflowData.ExperimentsStorage as an ExperimentStorageMode enum — source: Typist (#56016); verified compiler_experiments.go:24-29, workflow_data.go:195.
+3. Replace manual map[string]any field assertions with struct decode in bootstrap_profile_manifest.go and engine_config_parser.go — source: Typist (#56016); verified bootstrap_profile_manifest.go:60-95.
+4. Consolidate ~10 duplicated string-or-slice any coercion helpers into typeutil.NormalizeStringSlice — source: Typist (#56016).
+5. Root-cause consistently-empty PR comment/review data in Copilot PR Conversation NLP Analysis (4th+ occurrence) — source: discussion #56005; predecessor tracker #53688 expired without fix.
+6. Embed AnalysisBase in PolicyAnalysis and MCPServerStatsBase in GatewayServerMetrics/GatewayToolMetrics — source: Typist (#56016).
+7. Investigate today's 0% CGO/CWI success rate across both branches they fired on — source: Copilot Session Insights (#55979).
+
+Comments added (not new issues): #55772 (repo-maintainer branch-wide stall expansion), #55466 (Prompt Clustering corroboration, 65.2% vs 80.9% merge-rate gap).

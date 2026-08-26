@@ -309,3 +309,11 @@
 - **[declined, already tracked/declined]** Docs Noob Tester's jargon/glossary finding (#46478, NOT_PLANNED 2026-07-19) and its "fastest path for Copilot" callout (#53927, NOT_PLANNED 2026-08-21, though partially already present at quick-start.mdx:71) — both previously declined, not re-filed a 3rd time.
 - **[watch, not filed]** github-remote-mcp-auth-test.md has a cosmetic bug: report body contains a literal, unexpanded `$(date -u +"%Y-%m-%d %H:%M:%S UTC")` shell placeholder (lines 281 and 314) instead of an actual timestamp. Real but trivial; the workflow itself is chronically broken (30+ historical closed "is missing required tool" issues going back months) and doesn't get fixed, so a standalone issue for the cosmetic date bug was judged low-value this cycle. Revisit if the workflow's core issue ever gets addressed.
 - **[declined, healthy]** Daily Firewall Report (1.5% block rate, sentry.io telemetry + Smoke Copilot's Google-domain browser-automation noise — both known/benign), Firewall Escape Test (SECURE, 8/8 novel techniques blocked), Archivx (91.5% fleet success, 211 runs), Issue Arborist (normal parent/child linking, no anomalies).
+
+## 2026-08-26T12:26Z — items to keep monitoring next cycle
+
+- CGO/CWI: 0% success rate today across both branches they fired on (discussion #55979) — issue filed this cycle, watch for resolution or recurrence.
+- copilot/repo-maintainer: all 3 workflows action_required same day — expanded via comment on #55772, watch for branch-level root cause.
+- Draft PR #55973 (npm/go allowlist, Daily Reliability Review / Daily Secrets Analysis): in progress, not yet merged — no new action, recheck merge status next cycle.
+- AI Moderator: 4th consecutive day of Codex exec failures — already covered by open P0 issues, watch for a 5th-day escalation trigger if still unresolved.
+- Copilot PR NLP empty-data bug: newly re-filed this cycle after #53688 expired unfixed — watch whether the new issue gets picked up faster than its predecessor.
