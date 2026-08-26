@@ -118,24 +118,24 @@ type InlineEngineDriver struct {
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
 // AWF_AUTH_* environment variables consumed by the AWF API proxy sidecar.
 type EngineAuthConfig struct {
-	Type     string
-	Audience string
-	Provider string // "azure", "anthropic", or "gcp"
+	Type     string `json:"type"`
+	Audience string `json:"audience"`
+	Provider string `json:"provider"` // "azure", "anthropic", or "gcp"
 	// Azure WIF fields
-	AzureTenantID string
-	AzureClientID string
-	AzureScope    string
-	AzureCloud    string
+	AzureTenantID string `json:"azure-tenant-id"`
+	AzureClientID string `json:"azure-client-id"`
+	AzureScope    string `json:"azure-scope"`
+	AzureCloud    string `json:"azure-cloud"`
 	// Anthropic WIF fields
-	AnthropicFederationRuleID string
-	AnthropicOrganizationID   string
-	AnthropicServiceAccountID string
-	AnthropicWorkspaceID      string
+	AnthropicFederationRuleID string `json:"federation-rule-id"`
+	AnthropicOrganizationID   string `json:"organization-id"`
+	AnthropicServiceAccountID string `json:"service-account-id"`
+	AnthropicWorkspaceID      string `json:"workspace-id"`
 	// Google / Vertex AI WIF fields
-	GoogleWorkloadIdentityProvider string
-	GoogleServiceAccount           string
-	GoogleProject                  string
-	GoogleLocation                 string
+	GoogleWorkloadIdentityProvider string `json:"workload-identity-provider"`
+	GoogleServiceAccount           string `json:"service-account"`
+	GoogleProject                  string `json:"project"`
+	GoogleLocation                 string `json:"location"`
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
