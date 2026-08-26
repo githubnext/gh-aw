@@ -158,7 +158,7 @@ When `allowed-repos` is specified:
 
 Unlike other safe output types, `push-to-pull-request-branch` with `target-repo` requires the target repository to be **checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified. Without a checkout, the agent has no local git history to create and push a patch from.
 
-See the [Scheduled Push to Pull-Request Branch](#example-scheduled-push-to-pull-request-branch) example and the [Push to PR Branch cross-repo usage](/gh-aw/reference/safe-outputs-pull-requests/#cross-repo-usage) documentation for a complete setup.
+See the [Scheduled Push to Pull Request Branch](#example-scheduled-push-to-pull-request-branch) example and the [Push to PR Branch cross-repo usage](/gh-aw/reference/safe-outputs-pull-requests/#cross-repo-usage) documentation for a complete setup.
 
 ## Examples
 
@@ -237,7 +237,7 @@ Compare code structure between main-repo and secondary-repo.
 
 This approach provides full control over checkout timing and configuration.
 
-### Example: Scheduled Push to Pull-Request Branch
+### Example: Scheduled Push to Pull Request Branch
 
 A scheduled workflow that automatically pushes changes to open pull-request branches in another repository needs to fetch those branches after checkout. Without `fetch:`, only the default branch (usually `main`) is available.
 
@@ -273,9 +273,7 @@ updates to each PR branch.
 
 - [GitHub Repository Checkout](/gh-aw/reference/checkout/) - Full checkout configuration reference
 - [MultiRepoOps Pattern](/gh-aw/patterns/multi-repo-ops/) - Cross-repository workflow pattern
-- [MultiRepoOps — Central Control Plane](/gh-aw/patterns/central-repo-ops/#using-a-central-control-repository) — Central control plane pattern
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) - Complete GitHub Tools configuration
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/) - `target-repo`, `head-repo`, and fork-branch PR flows
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup
 - [Multi-Repository Examples](/gh-aw/gallery/multi-repo/) - Complete working examples

@@ -7,6 +7,10 @@ This directory contains fixture stubs for the Section 11 compliance tests of the
 
 ## Sync Guard: pinned spec drift check
 
+**This is a manual/local-only check.** No `.github/workflows/` CI workflow currently invokes this
+script; it is a doc-review guard intended to be run locally (or added to CI) before merging changes
+that touch the pinned specification file.
+
 As a doc-review/CI guard, compare the pinned commit to the current tip commit of
 `scratchpad/github-mcp-access-control-specification.md` and fail on mismatch:
 
@@ -52,7 +56,7 @@ ALLOW(r, c) ≜
 
 Where:
 
-- `P1_ToolAllowed`: if `allowed-tools` is configured, the requested tool name must be present; an empty or absent tool name against a non-empty list also denies
+- `P1_ToolAllowed`: if `allowed-tools` is configured, the requested tool name must be present; an empty or absent tool name against a non-empty list also denies. An explicitly empty `allowed-tools` list (`[]`) is treated as list-omitted (not configured), so it allows all tool names, including an empty tool name.
 - `P2_RepoMatch`: if `repos` is configured, repository matches at least one pattern (`owner/repo`, `owner/*`, `*/repo`, `*/*`); omitted `repos` allows all accessible repositories; empty array is a compile-time validation error (§4.4.1)
 - `P3_RoleAllow`: if `roles` is configured, user role matches one configured role (OR-logic)
 - `P4_PrivateRepoAllow`: private repository access is denied when `private-repos: false`
@@ -90,7 +94,8 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `empty-repos-block.yaml` | Empty `repos` array is rejected at compile time | T-GH-015, T-GH-016 |
 | `role-deny.yaml` | Role filter denies access when user role is insufficient | T-GH-019, T-GH-020 |
 | `tool-name-filter.yaml` | `allowed-tools` filter allows or denies by tool name | T-GH-031, T-GH-032, T-GH-033 |
-| `empty-tool-name-deny.yaml` | Empty tool name is denied against a non-empty `allowed-tools` list | P1_ToolAllowed |
+| `empty-tool-name-deny.yaml` | Empty tool name is denied against a non-empty `allowed-tools` list (list-configured state) | P1_ToolAllowed |
+| `empty-tool-name-empty-list-allow.yaml` | Empty tool name is allowed when `allowed-tools` is an explicitly empty list (list-empty state, treated the same as list-omitted) | P1_ToolAllowed |
 | `blocked-user-deny.yaml` | `blocked-users` denies listed actors unconditionally | T-GH-071, T-GH-072 |
 | `private-repo-block.yaml` | `private-repos: false` blocks access to private repository | T-GH-024, T-GH-025 |
 | `integrity-level-block.yaml` | `min-integrity: approved` blocks content below the threshold | T-GH-051, T-GH-052 |
