@@ -1,0 +1,27 @@
+# Empty Tool Name Against an Empty allowed-tools List — Compliance Fixture
+# Spec: §4.5.3 Tool selection
+
+fixture_id: "empty-tool-name-empty-list-allow"
+description: >
+  An explicitly empty `allowed-tools` list (`[]`) is treated the same as an
+  omitted `allowed-tools` field: the tool-name filter is considered
+  unconfigured, so P1_ToolAllowed passes even for an empty tool name.
+
+spec_refs:
+  - "§4.5.3 — P1_ToolAllowed is evaluated first"
+
+scenarios:
+  - scenario_id: "empty-tool-name-empty-list-allow"
+    description: "Empty tool name is allowed when allowed-tools is an explicitly empty list (list-empty state)"
+    input:
+      tool_config:
+        allowed-repos:
+          - "*/*"
+        allowed-tools: []
+      request:
+        repository: "example/repo"
+        tool_name: ""
+    expected:
+      decision: allow
+      error_code: null
+      reason: "allowed-tools list is empty, so it is treated as not configured (list-omitted-equivalent)"

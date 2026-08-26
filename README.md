@@ -25,7 +25,7 @@ Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Ge
 ## Contents
 
 - [Quick Start](#quick-start)
-- [How GitHub Agentic Workflows works](#how-github-agentic-workflows-works)
+- [How Agentic Workflows work](#how-github-agentic-workflows-works)
 - [Security and permissions](#security-and-permissions)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -43,7 +43,7 @@ gh extension install github/gh-aw
 
 Then follow the [GitHub Agentic Workflows quickstart](https://github.github.com/gh-aw/setup/quick-start/) to select an AI engine, add a sample workflow, and run it through GitHub Actions.
 
-## How GitHub Agentic Workflows works
+## How Agentic Workflows work
 
 An agentic workflow has two parts: YAML frontmatter configures triggers, permissions, tools, and the AI engine; the Markdown body tells the AI agent what to accomplish. The `gh aw compile` command validates this source and generates the `.lock.yml` workflow that GitHub Actions executes. [Learn how GitHub Agentic Workflows works](https://github.github.com/gh-aw/introduction/how-they-work/).
 

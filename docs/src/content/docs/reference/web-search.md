@@ -70,7 +70,6 @@ network:
 
 - [MCP Integration](/gh-aw/guides/mcps/) - Complete MCP server guide
 - [Tools](/gh-aw/reference/tools/) - Tool configuration reference
-- [AI Engines](/gh-aw/reference/engines/) - Engine capabilities and limitations
 - [CLI Commands](/gh-aw/setup/cli/) - CLI commands including `mcp inspect`
 - [Model Context Protocol Specification](https://github.com/modelcontextprotocol/specification)
 - [Tavily MCP Server](https://github.com/tavily-ai/tavily-mcp)

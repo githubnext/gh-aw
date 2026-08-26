@@ -776,7 +776,5 @@ See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) fo
 - [Create a GitHub Agentic Workflow](/gh-aw/setup/creating-workflows/) — author Markdown instructions and compile them into GitHub Actions
 - [AI Issue Triage on GitHub](/gh-aw/gallery/ai-issue-triage/) — labeling, deduplication, and clarifying questions
 - [Automated AI Pull Request Review](/gh-aw/gallery/automated-pr-review/) — review diffs and post feedback on new PRs
-- [AI Release Notes and Reports](/gh-aw/gallery/ai-release-notes/) — generate release summaries automatically
-- [Keeping Documentation Up to Date Automatically](/gh-aw/gallery/docs-automation/) — propose docs updates as pull requests
 - [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) — compare Copilot, Claude Code, Codex, Gemini, and Pi
 - [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) — understand configurable permissions, isolation, and controlled writes
