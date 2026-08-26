@@ -83,10 +83,10 @@ Install the GitHub Agentic Workflows (`gh-aw`) extension:
 gh extension install github/gh-aw
 ```
 
-Use this `gh extension install` command by default — it's the standard way to install `gh-aw` and works for most setups. The curl script and `gh auth login` below are only needed for troubleshooting authentication issues.
+Use this `gh extension install` command by default — it's the standard way to install `gh-aw` and works for most setups.
 
 > [!TIP]
-> If you are encountering authentication issues, use this script instead:
+> **Fallback options only — skip this unless the command above fails.** If you are encountering authentication issues, use this script instead:
 >
 > ```text wrap
 > curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
@@ -100,7 +100,14 @@ Use this `gh extension install` command by default — it's the standard way to 
 
 ### Step 2 - Add the sample workflow and trigger a run
 
-`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `daily-repo-status` is one of the sample workflows it publishes. Use `gh aw add-wizard` for guided interactive setup; use [`gh aw add`](/gh-aw/setup/cli/#add) when you want the non-interactive add command instead.
+There are two commands for adding a workflow — pick one:
+
+| Command | Use it when |
+|---------|-------------|
+| `gh aw add-wizard` | You want guided, interactive prompts for choosing an engine and configuring auth/secrets (used in this guide) |
+| [`gh aw add`](/gh-aw/setup/cli/#add) | You already know the engine and secrets and want a single non-interactive command (for example, in scripts or CI) |
+
+`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `daily-repo-status` is one of the sample workflows it publishes.
 
 From your repository root, run one of these commands:
 
