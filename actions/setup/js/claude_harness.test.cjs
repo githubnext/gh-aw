@@ -735,7 +735,10 @@ if (args.includes("--continue")) {
 process.stderr.write("mcp gateway startup failed before Claude launched\\n");
 process.exit(1);
 `;
-      const { result, calls } = runHarnessWithStub({ stubScript });
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: { GH_AW_CLAUDE_STARTUP_RETRIES: "1" },
+      });
       expect(result.status).toBe(1);
       expect(calls).toHaveLength(2);
       expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
