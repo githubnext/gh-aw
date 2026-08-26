@@ -167,11 +167,13 @@ func TestRenderGatewayMetricsTable(t *testing.T) {
 		TotalErrors:    2,
 		Servers: map[string]*GatewayServerMetrics{
 			"github": {
-				ServerName:    "github",
+				MCPServerStatsBase: MCPServerStatsBase{
+					ServerName:    "github",
+					ToolCallCount: 5,
+					ErrorCount:    1,
+				},
 				RequestCount:  6,
-				ToolCallCount: 5,
 				TotalDuration: 600.0,
-				ErrorCount:    1,
 				Tools: map[string]*GatewayToolMetrics{
 					"get_repository": {
 						ToolName:      "get_repository",
@@ -185,11 +187,13 @@ func TestRenderGatewayMetricsTable(t *testing.T) {
 				},
 			},
 			"playwright": {
-				ServerName:    "playwright",
+				MCPServerStatsBase: MCPServerStatsBase{
+					ServerName:    "playwright",
+					ToolCallCount: 3,
+					ErrorCount:    1,
+				},
 				RequestCount:  4,
-				ToolCallCount: 3,
 				TotalDuration: 400.0,
-				ErrorCount:    1,
 				Tools: map[string]*GatewayToolMetrics{
 					"navigate": {
 						ToolName:      "navigate",
@@ -469,16 +473,16 @@ func TestGetSortedServerNames(t *testing.T) {
 	metrics := &GatewayMetrics{
 		Servers: map[string]*GatewayServerMetrics{
 			"github": {
-				ServerName:   "github",
-				RequestCount: 10,
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github"},
+				RequestCount:       10,
 			},
 			"playwright": {
-				ServerName:   "playwright",
-				RequestCount: 5,
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "playwright"},
+				RequestCount:       5,
 			},
 			"tavily": {
-				ServerName:   "tavily",
-				RequestCount: 15,
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "tavily"},
+				RequestCount:       15,
 			},
 		},
 	}

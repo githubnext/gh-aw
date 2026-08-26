@@ -81,15 +81,16 @@ type GuardPolicyEvent struct {
 	Repository string `json:"repository,omitempty"` // Repository involved (for repo scope blocks)
 }
 
-// GatewayServerMetrics represents usage metrics for a single MCP server
+// GatewayServerMetrics represents usage metrics for a single MCP server.
+// It embeds MCPServerStatsBase to reuse the shared ServerName/ToolCallCount/ErrorCount
+// fields already established for the audit-report family (MCPServerStats,
+// MCPServerHealthDetail and MCPServerCrossRunHealth).
 type GatewayServerMetrics struct {
-	ServerName         string
+	MCPServerStatsBase
 	RequestCount       int
-	ToolCallCount      int
 	TotalDuration      float64 // in milliseconds
-	ErrorCount         int
-	FilteredCount      int // number of DIFC_FILTERED events for this server
-	GuardPolicyBlocked int // number of tool calls blocked by guard policies for this server
+	FilteredCount      int     // number of DIFC_FILTERED events for this server
+	GuardPolicyBlocked int     // number of tool calls blocked by guard policies for this server
 	Tools              map[string]*GatewayToolMetrics
 }
 
@@ -246,8 +247,8 @@ func getOrCreateServer(metrics *GatewayMetrics, serverName string) *GatewayServe
 	}
 
 	server := &GatewayServerMetrics{
-		ServerName: serverName,
-		Tools:      make(map[string]*GatewayToolMetrics),
+		MCPServerStatsBase: MCPServerStatsBase{ServerName: serverName},
+		Tools:              make(map[string]*GatewayToolMetrics),
 	}
 	metrics.Servers[serverName] = server
 	return server

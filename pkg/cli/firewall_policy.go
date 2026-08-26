@@ -76,7 +76,22 @@ type RuleHitStats struct {
 }
 
 // PolicyAnalysis contains the enriched policy analysis results.
+// It embeds AnalysisBase to reuse the shared TotalRequests/AllowedRequests/BlockedRequests
+// counters already established by DomainAnalysis and FirewallAnalysis; the embedded
+// DomainBuckets lists are left unpopulated since PolicyAnalysis reports UniqueDomains as
+// a count rather than domain lists.
 type PolicyAnalysis struct {
+	AnalysisBase
+	PolicySummary  string            `json:"policy_summary"`
+	RuleHits       []RuleHitStats    `json:"rule_hits"`
+	DeniedRequests []EnrichedRequest `json:"denied_requests,omitempty"`
+	UniqueDomains  int               `json:"unique_domains"`
+}
+
+// policyAnalysisWire is the stable JSON schema for PolicyAnalysis. It preserves the
+// original "allowed_count"/"denied_count" field names so that cached JSON produced
+// before the AnalysisBase embedding remains backward-compatible.
+type policyAnalysisWire struct {
 	PolicySummary  string            `json:"policy_summary"`
 	RuleHits       []RuleHitStats    `json:"rule_hits"`
 	DeniedRequests []EnrichedRequest `json:"denied_requests,omitempty"`
@@ -84,6 +99,37 @@ type PolicyAnalysis struct {
 	AllowedCount   int               `json:"allowed_count"`
 	DeniedCount    int               `json:"denied_count"`
 	UniqueDomains  int               `json:"unique_domains"`
+}
+
+// MarshalJSON emits the original "allowed_count"/"denied_count" wire names so existing
+// consumers of the policy-analysis JSON do not see a silent field rename.
+func (p PolicyAnalysis) MarshalJSON() ([]byte, error) {
+	return json.Marshal(policyAnalysisWire{
+		PolicySummary:  p.PolicySummary,
+		RuleHits:       p.RuleHits,
+		DeniedRequests: p.DeniedRequests,
+		TotalRequests:  p.TotalRequests,
+		AllowedCount:   p.AllowedRequests,
+		DeniedCount:    p.BlockedRequests,
+		UniqueDomains:  p.UniqueDomains,
+	})
+}
+
+// UnmarshalJSON accepts the original "allowed_count"/"denied_count" wire names, keeping
+// round-trip compatibility with cached JSON produced before the refactor.
+func (p *PolicyAnalysis) UnmarshalJSON(data []byte) error {
+	var wire policyAnalysisWire
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	p.PolicySummary = wire.PolicySummary
+	p.RuleHits = wire.RuleHits
+	p.DeniedRequests = wire.DeniedRequests
+	p.TotalRequests = wire.TotalRequests
+	p.AllowedRequests = wire.AllowedCount
+	p.BlockedRequests = wire.DeniedCount
+	p.UniqueDomains = wire.UniqueDomains
+	return nil
 }
 
 // loadPolicyManifest loads and parses a policy-manifest.json file.
@@ -315,7 +361,7 @@ func findMatchingRule(entry AuditLogEntry, rules []FirewallPolicyRule) *Firewall
 }
 
 // enrichWithPolicyRules enriches audit log entries with policy rule attribution.
-func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *PolicyAnalysis {
+func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *PolicyAnalysis { //nolint:largefunc
 	firewallPolicyLog.Printf("Enriching %d entries with %d policy rules", len(entries), len(manifest.Rules))
 
 	ruleHitMap := make(map[string]int)
@@ -407,12 +453,14 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 		totalProcessed, allowedCount, deniedCount, len(uniqueDomains))
 
 	return &PolicyAnalysis{
+		AnalysisBase: AnalysisBase{
+			TotalRequests:   totalProcessed,
+			AllowedRequests: allowedCount,
+			BlockedRequests: deniedCount,
+		},
 		PolicySummary:  policySummary,
 		RuleHits:       ruleHits,
 		DeniedRequests: deniedRequests,
-		TotalRequests:  totalProcessed,
-		AllowedCount:   allowedCount,
-		DeniedCount:    deniedCount,
 		UniqueDomains:  len(uniqueDomains),
 	}
 }
@@ -425,7 +473,7 @@ func enrichWithPolicyRules(entries []AuditLogEntry, manifest *PolicyManifest) *P
 //  2. agent/sandbox/firewall/audit/ — non-flattened unified agent artifact (new structure)
 //  3. agent/tmp/gh-aw/sandbox/firewall/audit/ — non-flattened unified agent artifact (old structure)
 //  4. firewall-audit*/ — legacy separate firewall-audit-logs artifact (backward compat)
-func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath string, err error) {
+func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath string, err error) { //nolint:largefunc
 	firewallPolicyLog.Printf("Detecting firewall audit artifacts in: %s", runDir)
 
 	// checkDir probes dir for policy-manifest.json and audit.jsonl, populating the

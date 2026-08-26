@@ -471,8 +471,8 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 
 	t.Run("summary statistics", func(t *testing.T) {
 		assert.Equal(t, 4, analysis.TotalRequests, "Should have 4 total requests")
-		assert.Equal(t, 3, analysis.AllowedCount, "Should have 3 allowed requests")
-		assert.Equal(t, 1, analysis.DeniedCount, "Should have 1 denied request")
+		assert.Equal(t, 3, analysis.AllowedRequests, "Should have 3 allowed requests")
+		assert.Equal(t, 1, analysis.BlockedRequests, "Should have 1 denied request")
 		assert.Equal(t, 4, analysis.UniqueDomains, "Should have 4 unique domains")
 	})
 
@@ -541,8 +541,8 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 		}
 		result := enrichWithPolicyRules(unattribEntries, limitedManifest)
 		assert.Equal(t, 3, result.TotalRequests, "Should process all 3 entries")
-		assert.Equal(t, 2, result.AllowedCount, "Should have 2 allowed (1 attributed + 1 unattributed)")
-		assert.Equal(t, 1, result.DeniedCount, "Should have 1 denied (implicit)")
+		assert.Equal(t, 2, result.AllowedRequests, "Should have 2 allowed (1 attributed + 1 unattributed)")
+		assert.Equal(t, 1, result.BlockedRequests, "Should have 1 denied (implicit)")
 		require.Len(t, result.DeniedRequests, 1, "Should have 1 denied request")
 		assert.Equal(t, "(implicit-deny)", result.DeniedRequests[0].RuleID, "Denied should be implicit-deny")
 		assert.Equal(t, "evil.com:443", result.DeniedRequests[0].Host, "Denied host should match")
@@ -730,8 +730,8 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 		require.NotNil(t, analysis, "Analysis should not be nil")
 
 		assert.Equal(t, 2, analysis.TotalRequests, "Should have 2 total requests")
-		assert.Equal(t, 1, analysis.AllowedCount, "Should have 1 allowed request")
-		assert.Equal(t, 1, analysis.DeniedCount, "Should have 1 denied request")
+		assert.Equal(t, 1, analysis.AllowedRequests, "Should have 1 allowed request")
+		assert.Equal(t, 1, analysis.BlockedRequests, "Should have 1 denied request")
 		require.Len(t, analysis.DeniedRequests, 1, "Should have 1 denied request detail")
 		assert.Equal(t, "deny-all", analysis.DeniedRequests[0].RuleID, "Denied request should be attributed to deny-all")
 	})
