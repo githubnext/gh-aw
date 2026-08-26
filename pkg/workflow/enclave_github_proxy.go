@@ -13,6 +13,7 @@ const (
 	enclaveGitHubProxyRootKeyEnv   = "MCP_GATEWAY_ENCLAVE_CAPABILITY_KEY"
 
 	enclaveGitHubProxyPolicyEnv    = "MCP_GATEWAY_ENCLAVE_POLICY_JSON"
+	enclaveGitHubProxyAliasEnv     = "ENCLAVE_GITHUB_PROXY_ALIAS"
 	enclaveGitHubProxyRunLabel     = "com.github.gh-aw.enclave-github.run"
 	enclaveGitHubProxyContainer    = "awmg-enclave-github-proxy"
 	enclaveGitHubProxyNetworkAlias = "awf-enclave-github-proxy"
@@ -123,6 +124,7 @@ func (c *Compiler) generateStartEnclaveGitHubProxyStep(yaml *strings.Builder, wo
 	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", getEffectiveGitHubToken(""))
 	writeProxyUpstreamEnv(yaml)
 	fmt.Fprintf(yaml, "          ENCLAVE_GITHUB_PROXY_IMAGE: %s\n", quoteYAMLEnvValue(containerImage))
+	fmt.Fprintf(yaml, "          %s: %s\n", enclaveGitHubProxyAliasEnv, enclaveGitHubProxyNetworkAlias)
 	fmt.Fprintf(yaml, "          ENCLAVE_GITHUB_PROXY_POLICY_TEMPLATE: %s\n", quoteYAMLEnvValue(policyTemplate))
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/start_enclave_github_proxy.sh\"\n")

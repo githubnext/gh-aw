@@ -15,10 +15,15 @@ RUN_LABEL="com.github.gh-aw.enclave-github.run"
 MCP_LOG_DIR="${RUNNER_TEMP:-/tmp}/gh-aw/enclave-github-proxy-logs"
 CA_CERT="${MCP_LOG_DIR}/proxy-tls/ca.crt"
 CONTAINER_IMAGE="${ENCLAVE_GITHUB_PROXY_IMAGE:-}"
+PROXY_ALIAS="${ENCLAVE_GITHUB_PROXY_ALIAS:-}"
 POLICY_TEMPLATE="${ENCLAVE_GITHUB_PROXY_POLICY_TEMPLATE:-}"
 
 if [[ -z "$CONTAINER_IMAGE" ]]; then
   echo "::error::Enclave GitHub proxy image is required"
+  exit 1
+fi
+if [[ -z "$PROXY_ALIAS" ]]; then
+  echo "::error::Enclave GitHub proxy alias is required"
   exit 1
 fi
 if [[ -z "$POLICY_TEMPLATE" ]]; then
@@ -84,6 +89,7 @@ docker run -d --name "$CONTAINER_NAME" \
   "$CONTAINER_IMAGE" proxy \
     --listen "0.0.0.0:${PORT}" \
     --log-dir "$MCP_LOG_DIR" \
+    --tls-dns-name "$PROXY_ALIAS" \
     --tls
 
 PROXY_READY=false

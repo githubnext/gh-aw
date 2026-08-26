@@ -82,6 +82,7 @@ func TestGenerateEnclaveGitHubProxySetup(t *testing.T) {
 
 	assert.Contains(t, generated, "- name: Start Enclave GitHub Proxy")
 	assert.Contains(t, generated, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
+	assert.Contains(t, generated, enclaveGitHubProxyAliasEnv+": "+enclaveGitHubProxyNetworkAlias)
 	assert.Contains(t, generated, "ENCLAVE_GITHUB_PROXY_POLICY_TEMPLATE:")
 	assert.Contains(t, generated, `"allowed_operations":["issues.comments.list","issues.get","issues.list"]`)
 	assert.Contains(t, generated, "start_enclave_github_proxy.sh")
@@ -131,6 +132,9 @@ func TestEnclaveGitHubProxyScriptsEnforceDedicatedBridgeContract(t *testing.T) {
 	assert.Contains(t, start, `rm -rf "${MCP_LOG_DIR}/proxy-tls"`)
 	assert.NotContains(t, start, "--policy")
 	assert.NotContains(t, start, "--tls-dir")
+	assert.Contains(t, start, `PROXY_ALIAS="${ENCLAVE_GITHUB_PROXY_ALIAS:-}"`)
+	assert.Contains(t, start, `--tls-dns-name "$PROXY_ALIAS"`)
+	assert.Equal(t, "awf-enclave-github-proxy", enclaveGitHubProxyNetworkAlias)
 	assert.Contains(t, start, `proxy-tls/ca.crt`)
 	assert.Contains(t, start, `AWF_ENCLAVE_GITHUB_PROXY_CONTAINER`)
 	assert.Contains(t, start, `AWF_ENCLAVE_GITHUB_PROXY_IDENTITY`)
