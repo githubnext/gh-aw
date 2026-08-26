@@ -2486,8 +2486,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["read-all", "write-all"],
-          "description": "Simple permissions string: 'read-all' (all read permissions) or 'write-all' (all write permissions)"
+          "enum": ["read-all", "write-all", "none"],
+          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), or 'none' (no permissions)"
         },
         {
           "$ref": "#/$defs/github_actions_permissions"
