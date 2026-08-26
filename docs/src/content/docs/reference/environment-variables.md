@@ -394,11 +394,7 @@ jobs:
 
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [Governance Guide](/gh-aw/reference/governance/) - Roll out and manage defaults across enterprise, organization, and repository scopes
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
-- [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
 - [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Enterprise defaults for timeout, max-turns, detection model, model fallback, and max-ai-credits guardrails
 - [Cost Management](/gh-aw/reference/cost-management/) - Practical model and token guardrail rollout guidance
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration and guard policies
-- [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration
-- [Engines](/gh-aw/reference/engines/) - AI engine configuration and model selection
 - [GitHub Actions Environment Variables](https://docs.github.com/en/actions/learn-github-actions/variables) - GitHub Actions documentation

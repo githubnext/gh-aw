@@ -82,8 +82,6 @@ Use GitHub Apps over PATs for automatic token revocation; scope tokens minimally
 ## Learn More
 
 - [CentralRepoOps](/gh-aw/patterns/central-repo-ops/) — Central control plane and tracker repo patterns
-- [IssueOps](/gh-aw/patterns/issue-ops/) — Single-repo issue automation
-- [ChatOps](/gh-aw/patterns/chat-ops/) — Command-driven workflows
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and `target-repo` configuration
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) — Complete safe output configuration
 - [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets

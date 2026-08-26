@@ -519,6 +519,7 @@ var documentedComplianceFixtures = []string{
 	"role-deny.yaml",
 	"tool-name-filter.yaml",
 	"empty-tool-name-deny.yaml",
+	"empty-tool-name-empty-list-allow.yaml",
 	"blocked-user-deny.yaml",
 	"private-repo-block.yaml",
 	"integrity-level-block.yaml",

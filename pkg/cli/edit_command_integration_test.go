@@ -94,14 +94,35 @@ func TestEditCommandIntegrationDryRunAndFailureSafety(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, shorthand, string(content))
 
-	require.NoError(t, os.WriteFile(workflowPath, []byte("---\nsource: owner/repo@v1\non: workflow_dispatch\n---\n# Managed\n"), 0o644))
-	beforeManaged, err := os.ReadFile(workflowPath)
-	require.NoError(t, err)
-	output = requireEditFails(t, setup, "edit", "edit", "--set", "max-turns=20")
-	assert.Contains(t, output, "source-managed")
+	require.NoError(t, os.WriteFile(workflowPath, []byte("---\nsource: owner/repo/.github/workflows/edit.md@v1\non: workflow_dispatch\n---\n# Managed\n"), 0o644))
+	requireEditSucceeds(t, setup, "edit", "edit", "--set", "max-turns=20")
 	content, err = os.ReadFile(workflowPath)
 	require.NoError(t, err)
-	assert.Equal(t, beforeManaged, content)
+	frontmatter, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+	assert.Equal(t, "owner/repo/.github/workflows/edit.md@v1", frontmatter.Frontmatter["source"])
+	assert.Equal(t, uint64(20), frontmatter.Frontmatter["max-turns"])
+
+	baseManagedContent := "---\non: workflow_dispatch\n---\n# Managed\n"
+	currentManagedContent := string(content)
+	for name, newContent := range map[string]string{
+		"no upstream change": baseManagedContent,
+		"upstream change":    "---\non: workflow_dispatch\n---\n# Managed\n\nUpstream change.\n",
+	} {
+		t.Run("source managed edit survives update merge "+name, func(t *testing.T) {
+			merged, hasConflicts, mergeErr := MergeWorkflowContent(baseManagedContent, currentManagedContent, newContent, "owner/repo/.github/workflows/edit.md@v1", "v2", workflowPath, false)
+			require.NoError(t, mergeErr)
+			require.False(t, hasConflicts, "local source-managed edit should merge without conflicts:\n%s", merged)
+
+			mergedFrontmatter, parseErr := parser.ExtractFrontmatterFromContent(merged)
+			require.NoError(t, parseErr)
+			assert.Equal(t, "owner/repo/.github/workflows/edit.md@v2", mergedFrontmatter.Frontmatter["source"])
+			assert.Equal(t, uint64(20), mergedFrontmatter.Frontmatter["max-turns"])
+			if name == "upstream change" {
+				assert.Contains(t, merged, "Upstream change.")
+			}
+		})
+	}
 }
 
 func requireEditSucceeds(t *testing.T, setup *integrationTestSetup, args ...string) string {
