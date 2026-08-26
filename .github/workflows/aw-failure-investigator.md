@@ -112,7 +112,7 @@ steps:
           try {
             out = execFileSync('gh', args, { encoding: 'utf8' });
           } catch (error) {
-            core.warning(`Warning: command failed: ${cmdDisplay(args)}`);
+            core.warning(`Command failed: ${cmdDisplay(args)}`);
             const output = commandOutput(error);
             if (output) core.warning(output);
             return null;
@@ -120,7 +120,7 @@ steps:
           try {
             return JSON.parse(out);
           } catch (error) {
-            core.warning(`Warning: non-JSON output from command: ${cmdDisplay(args)} (${error.message})`);
+            core.warning(`Non-JSON output from command: ${cmdDisplay(args)} (${error.message})`);
             return null;
           }
         }
@@ -129,7 +129,7 @@ steps:
           try {
             return execFileSync('gh', args, { encoding: 'utf8' });
           } catch (error) {
-            core.warning(`Warning: command failed: ${cmdDisplay(args)}`);
+            core.warning(`Command failed: ${cmdDisplay(args)}`);
             const output = commandOutput(error);
             if (output) core.warning(output);
             return '';
@@ -154,7 +154,7 @@ steps:
           if (AGENTIC_WORKFLOW_PATHS.size > 0) {
             return AGENTIC_WORKFLOW_PATHS.has(normalizedPath);
           }
-          core.warning('Warning: no local .lock.yml workflows found; falling back to workflow path suffix matching');
+          core.warning('No local .lock.yml workflows found; falling back to workflow path suffix matching');
           return normalizedPath.endsWith('.lock.yml');
         }
 
@@ -222,7 +222,7 @@ steps:
 
             if (workflowRuns.length < 100) break;
             if (page >= MAX_DISCOVERY_PAGES) {
-              core.warning(`Warning: reached pagination cap (${MAX_DISCOVERY_PAGES} pages) while listing workflow runs`);
+              core.warning(`Reached pagination cap (${MAX_DISCOVERY_PAGES} pages) while listing workflow runs`);
               break;
             }
             page += 1;
