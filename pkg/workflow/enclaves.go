@@ -21,6 +21,7 @@ const (
 	enclaveMCPGatewayEndpointEnv  = "AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT"
 	enclaveMCPGatewayIdentityEnv  = "AWF_ENCLAVE_MCP_GATEWAY_IDENTITY"
 	enclaveMCPReadinessTimeoutEnv = "AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS"
+	enclaveMCPDeferredServersEnv  = "GH_AW_MCP_DEFERRED_SERVERS"
 	enclaveMCPGatewayRunLabel     = "com.github.gh-aw.mcpg.run"
 	enclaveMCPGatewayContainer    = "awmg-mcpg"
 	enclaveGitHubIssuesProfile    = "issues-read-v1"

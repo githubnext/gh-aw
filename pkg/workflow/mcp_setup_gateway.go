@@ -283,6 +283,8 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_CONTAINER=\"awmg-mcpg\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT=\"http://localhost:${MCP_GATEWAY_PORT}/mcp/awf-enclave\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS=\"120000\"\n")
+		yaml.WriteString("          # The eager checker runs inside start_mcp_gateway.cjs in this step.\n")
+		fmt.Fprintf(yaml, "          export %s=%q\n", enclaveMCPDeferredServersEnv, enclaveMCPServerName)
 		yaml.WriteString("          {\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_CAPABILITY \"$AWF_ENCLAVE_MCP_CAPABILITY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_IDENTITY \"$AWF_ENCLAVE_MCP_GATEWAY_IDENTITY\"\n")
