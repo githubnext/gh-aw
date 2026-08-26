@@ -5,10 +5,15 @@ package timeutil
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFormatDuration(t *testing.T) {
 	t.Parallel()
+	// assert.Equal is intentional for this file's table-driven tests:
+	// each subtest has one assertion, and using assert consistently keeps
+	// the style aligned across all duration-format tests here.
 	tests := []struct {
 		name     string
 		duration time.Duration
@@ -162,9 +167,162 @@ func TestFormatDuration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			result := FormatDuration(tt.duration)
-			if result != tt.expected {
-				t.Errorf("FormatDuration(%v) = %q, want %q", tt.duration, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "FormatDuration(%v) mismatch", tt.duration)
+		})
+	}
+}
+
+func TestFormatDurationMs(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		ms       int
+		expected string
+	}{
+		// Millisecond range
+		{
+			name:     "zero milliseconds",
+			ms:       0,
+			expected: "0ms",
+		},
+		{
+			name:     "sub-second milliseconds",
+			ms:       500,
+			expected: "500ms",
+		},
+		{
+			name:     "just under one second",
+			ms:       999,
+			expected: "999ms",
+		},
+		// Second range
+		{
+			name:     "exactly one second",
+			ms:       1000,
+			expected: "1.0s",
+		},
+		{
+			name:     "seconds with decimal",
+			ms:       1500,
+			expected: "1.5s",
+		},
+		{
+			name: "just under one minute rounds up to 60.0s",
+			ms:   59999,
+			// 59_999 ms is still in the seconds branch (ms < 60_000), and
+			// one-decimal formatting rounds 59.999s to "60.0s" before minute formatting applies.
+			expected: "60.0s",
+		},
+		// Minute range
+		{
+			name:     "exactly one minute",
+			ms:       60000,
+			expected: "1m0s",
+		},
+		{
+			name:     "one minute thirty seconds",
+			ms:       90000,
+			expected: "1m30s",
+		},
+		{
+			name:     "multi-minute composition",
+			ms:       125000,
+			expected: "2m5s",
+		},
+		{
+			name:     "multi-hour value stays in minutes",
+			ms:       3_600_000,
+			expected: "60m0s",
+		},
+		// Negative input is passed through the millisecond branch as-is.
+		{
+			name:     "negative milliseconds",
+			ms:       -500,
+			expected: "-500ms",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := FormatDurationMs(tt.ms)
+			assert.Equal(t, tt.expected, result, "FormatDurationMs(%d) mismatch", tt.ms)
+		})
+	}
+}
+
+func TestFormatDurationNs(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		ns       int64
+		expected string
+	}{
+		// Zero / negative guard
+		{
+			name:     "zero returns em dash",
+			ns:       0,
+			expected: "—",
+		},
+		{
+			name:     "negative returns em dash",
+			ns:       -1,
+			expected: "—",
+		},
+		{
+			name:     "large negative returns em dash",
+			ns:       -90_000_000_000,
+			expected: "—",
+		},
+		// Rounding boundaries
+		{
+			name:     "just under half a second rounds down to zero",
+			ns:       499_999_999,
+			expected: "0s",
+		},
+		{
+			name:     "exactly half a second rounds up",
+			ns:       500_000_000,
+			expected: "1s",
+		},
+		{
+			name:     "one and a half seconds rounds up",
+			ns:       1_500_000_000,
+			expected: "2s",
+		},
+		{
+			name:     "just under one and a half seconds rounds down",
+			ns:       1_499_999_999,
+			expected: "1s",
+		},
+		// Composition
+		{
+			name:     "two seconds",
+			ns:       2_000_000_000,
+			expected: "2s",
+		},
+		{
+			name:     "one minute thirty seconds",
+			ns:       90_000_000_000,
+			expected: "1m30s",
+		},
+		{
+			name:     "multi-hour duration",
+			ns:       7_265_000_000_000,
+			expected: "2h1m5s",
+		},
+		{
+			name:     "multi-hour duration with sub-second rounding",
+			ns:       3_600_500_000_000,
+			expected: "1h0m1s",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := FormatDurationNs(tt.ns)
+			assert.Equal(t, tt.expected, result, "FormatDurationNs(%d) mismatch", tt.ns)
 		})
 	}
 }

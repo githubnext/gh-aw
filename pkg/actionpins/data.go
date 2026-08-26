@@ -155,13 +155,16 @@ func buildByRepoIndex(pins []ActionPin) map[string][]ActionPin {
 // GetActionPinsByRepo returns the sorted (version-descending) list of action pins
 // for the given repository. Returns nil if the repo has no pins.
 func GetActionPinsByRepo(repo string) []ActionPin {
-	return getCachedActionPins().byRepo[repo]
+	pins := getCachedActionPins().byRepo[repo]
+	actionPinsLog.Printf("Looked up action pins for repo=%s: %d found", repo, len(pins))
+	return pins
 }
 
 // GetLatestActionPinByRepo returns the latest ActionPin for a given repository, if any.
 func GetLatestActionPinByRepo(repo string) (ActionPin, bool) {
 	pins := GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
+		actionPinsLog.Printf("No action pins found for repo=%s", repo)
 		return ActionPin{}, false
 	}
 	return pins[0], true
@@ -170,5 +173,6 @@ func GetLatestActionPinByRepo(repo string) (ActionPin, bool) {
 // GetContainerPin returns a pinned container image by its original image reference.
 func GetContainerPin(image string) (ContainerPin, bool) {
 	pin, ok := getCachedActionPins().containers[image]
+	actionPinsLog.Printf("Looked up container pin for image=%s: found=%t", image, ok)
 	return pin, ok
 }
