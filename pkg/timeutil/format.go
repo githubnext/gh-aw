@@ -2,7 +2,6 @@ package timeutil
 
 import (
 	"fmt"
-	"math"
 	"time"
 )
 
@@ -28,26 +27,19 @@ func FormatDuration(d time.Duration) string {
 }
 
 // FormatDurationMs formats a duration given in milliseconds as a human-readable string.
-// Examples: 500 -> "500ms", 1500 -> "1.5s", 90000 -> "1m30s"
+// Examples: 500 -> "500ms", 1500 -> "1.5s", 90000 -> "1.5m"
 func FormatDurationMs(ms int) string {
-	if ms < 1000 {
-		return fmt.Sprintf("%dms", ms)
+	if ms == 0 {
+		return "0ms"
 	}
-	seconds := float64(ms) / 1000.0
-	if seconds < 60 {
-		return fmt.Sprintf("%.1fs", seconds)
-	}
-	minutes := int(seconds) / 60
-	secs := math.Mod(seconds, 60)
-	return fmt.Sprintf("%dm%.0fs", minutes, secs)
+	return FormatDuration(time.Duration(ms) * time.Millisecond)
 }
 
 // FormatDurationNs formats a duration given in nanoseconds as a human-readable string.
-// Returns "—" for zero or negative values. Uses Go's standard duration rounding to seconds.
+// Returns "—" for zero or negative values.
 func FormatDurationNs(ns int64) string {
 	if ns <= 0 {
 		return "—"
 	}
-	d := time.Duration(ns)
-	return d.Round(time.Second).String()
+	return FormatDuration(time.Duration(ns))
 }

@@ -47,22 +47,23 @@ Formats a duration given in **milliseconds** as a human-readable string.
 |-------|---------|
 | `< 1000ms` | `"500ms"` |
 | `1000ms – < 60s` | `"1.5s"` |
-| `≥ 60s` | `"1m30s"` |
+| `60s – < 1h` | `"1.5m"` |
+| `≥ 1h` | `"2.0h"` |
 
 ```go
 timeutil.FormatDurationMs(500)   // "500ms"
 timeutil.FormatDurationMs(1500)  // "1.5s"
-timeutil.FormatDurationMs(90000) // "1m30s"
+timeutil.FormatDurationMs(90000) // "1.5m"
 ```
 
 ### `FormatDurationNs(ns int64) string`
 
-Formats a duration given in **nanoseconds** as a human-readable string. Returns `"—"` for zero or negative values. Uses Go's standard `time.Duration.Round(time.Second)` for output.
+Formats a duration given in **nanoseconds** as a human-readable string. Returns `"—"` for zero or negative values.
 
 ```go
 timeutil.FormatDurationNs(0)              // "—"
-timeutil.FormatDurationNs(2_000_000_000)  // "2s"
-timeutil.FormatDurationNs(90_000_000_000) // "1m30s"
+timeutil.FormatDurationNs(2_000_000_000)  // "2.0s"
+timeutil.FormatDurationNs(90_000_000_000) // "1.5m"
 ```
 
 ## Usage Examples
@@ -77,11 +78,11 @@ timeutil.FormatDuration(90 * time.Second)        // "1.5m"
 
 // Format a duration given in milliseconds (e.g. from GitHub Actions)
 timeutil.FormatDurationMs(1500)  // "1.5s"
-timeutil.FormatDurationMs(90000) // "1m30s"
+timeutil.FormatDurationMs(90000) // "1.5m"
 
 // Format a duration given in nanoseconds (e.g. billing duration)
-timeutil.FormatDurationNs(2_000_000_000)  // "2s"
-timeutil.FormatDurationNs(90_000_000_000) // "1m30s"
+timeutil.FormatDurationNs(2_000_000_000)  // "2.0s"
+timeutil.FormatDurationNs(90_000_000_000) // "1.5m"
 ```
 
 ## Dependencies
@@ -91,6 +92,7 @@ timeutil.FormatDurationNs(90_000_000_000) // "1m30s"
 
 **External**:
 - None beyond the Go standard library (`fmt`, `math`, `time`).
+- None beyond the Go standard library (`fmt`, `time`).
 
 ## Design Decisions
 
