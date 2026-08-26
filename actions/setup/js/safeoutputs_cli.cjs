@@ -159,9 +159,12 @@ function emitInfrastructureIncomplete(details, options) {
  * Diagnostic safe-output types that represent infrastructure signals, not task-level work.
  * Entries with these types are excluded when checking whether expected outputs were produced.
  */
+// Expected-output checks look for task-level outputs only, so noop is diagnostic
+// there. Terminal-output checks treat noop as a completed result, but keep
+// missing_data and report_incomplete non-terminal by default; engines with
+// legacy terminal semantics opt in via flags.
+const TERMINAL_SAFE_OUTPUT_TYPES = new Set(["noop"]);
 const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
-// missing_data and report_incomplete are non-terminal by default for shared
-// harness checks; engines with legacy terminal semantics opt in via flags.
 const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
 
 /**
@@ -265,6 +268,10 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
       const parsed = JSON.parse(trimmed);
       const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
       if (!type) continue;
+      if (TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
       if (type === "missing_data" && options?.includeMissingData) {
         logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
         return true;
