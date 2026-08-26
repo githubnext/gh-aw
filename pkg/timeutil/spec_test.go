@@ -63,12 +63,16 @@ func TestSpec_PublicAPI_FormatDurationMs(t *testing.T) {
 		{name: "sub-second range outputs ms", inputMs: 500, expected: "500ms"},
 		// From spec range table: 1000ms – < 60s → e.g. "1.5s"
 		{name: "second range outputs s with one decimal", inputMs: 1500, expected: "1.5s"},
-		// From spec range table: ≥ 60s → e.g. "1m30s"
-		{name: "minute-and-seconds range outputs m and s", inputMs: 90000, expected: "1m30s"},
+		// From spec range table: 60s – < 1h → e.g. "1.5m"
+		{name: "minute range outputs m with decimal", inputMs: 90000, expected: "1.5m"},
+		{name: "minute boundary rounds to next minute", inputMs: 119999, expected: "2.0m"},
+		{name: "just under minute rolls over to next minute", inputMs: 59999, expected: "1.0m"},
+		{name: "just under hour rolls over to next hour", inputMs: 3599999, expected: "1.0h"},
+		{name: "hour boundary rolls over to hours", inputMs: 3600000, expected: "1.0h"},
 		// From spec code examples
 		{name: "spec example: 500 → 500ms", inputMs: 500, expected: "500ms"},
 		{name: "spec example: 1500 → 1.5s", inputMs: 1500, expected: "1.5s"},
-		{name: "spec example: 90000 → 1m30s", inputMs: 90000, expected: "1m30s"},
+		{name: "spec example: 90000 → 1.5m", inputMs: 90000, expected: "1.5m"},
 	}
 
 	for _, tt := range tests {
@@ -95,8 +99,8 @@ func TestSpec_PublicAPI_FormatDurationNs(t *testing.T) {
 		{name: "zero returns em-dash", inputNs: 0, expected: "—"},
 		{name: "negative returns em-dash", inputNs: -1, expected: "—"},
 		// From spec code examples
-		{name: "spec example: 2 billion ns → 2s", inputNs: 2_000_000_000, expected: "2s"},
-		{name: "spec example: 90 billion ns → 1m30s", inputNs: 90_000_000_000, expected: "1m30s"},
+		{name: "spec example: 2 billion ns → 2.0s", inputNs: 2_000_000_000, expected: "2.0s"},
+		{name: "spec example: 90 billion ns → 1.5m", inputNs: 90_000_000_000, expected: "1.5m"},
 	}
 
 	for _, tt := range tests {
