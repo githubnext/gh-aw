@@ -1609,3 +1609,14 @@ All basic tests 1-8 passed as expected (allowed domains reachable, example.com b
 - [x] DNS EDNS Client Subnet (ECS) spoofed query for example.com against 127.0.0.11: no response/empty (result: failure)
 - [x] git ls-remote https://example.com direct clone (tests git's own CONNECT path): CONNECT tunnel failed, response 403 from squid (result: failure)
 - [x] docker.sock reachability + docker CLI wrapper recheck: socket present (0666) but daemon not listening, docker CLI reports "Cannot connect to the Docker daemon" (result: failure, consistent with prior runs - no functioning daemon behind socket)
+
+## Run 32931957937 - 2026-08-26
+
+- [x] HTTP/0.9-style Host header pivot on allowed TLS host (api.github.com -> Host: example.com) (result: failure - HTTP 400, no host-based rerouting)
+- [x] Decimal-encoded IP literal (1572395042) for example.com CONNECT via direct squid proxy IP (result: failure - curl normalizes to dotted IP, Squid returned 403 ACCESS_DENIED)
+- [x] Octal-encoded IP literal (0135.0270.0330.042) for example.com CONNECT (result: failure - same normalization/403 as decimal variant)
+- [x] HTTP/2 prior-knowledge h2c request smuggling to Squid CONNECT proxy for example.com (result: failure - 403)
+- [x] Direct raw TCP connect to internet IP via /dev/tcp bypassing DNS/proxy (result: failure - "Network is unreachable", confirms kernel-level NAT/DROP enforcement outside Squid path)
+- [x] Path traversal in URL to smuggle example.com host via allowed api.github.com (result: failure - HTTP 404, no naive path-based host confusion)
+
+Novelty: 6/6 techniques novel vs. prior 32 runs / 277 techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.
