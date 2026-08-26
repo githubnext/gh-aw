@@ -91,7 +91,6 @@ timeutil.FormatDurationNs(90_000_000_000) // "1.5m"
 - None
 
 **External**:
-- None beyond the Go standard library (`fmt`, `math`, `time`).
 - None beyond the Go standard library (`fmt`, `time`).
 
 ## Design Decisions

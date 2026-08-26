@@ -29,8 +29,8 @@ func FormatDuration(d time.Duration) string {
 // FormatDurationMs formats a duration given in milliseconds as a human-readable string.
 // Examples: 500 -> "500ms", 1500 -> "1.5s", 90000 -> "1.5m"
 func FormatDurationMs(ms int) string {
-	if ms == 0 {
-		return "0ms"
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
 	}
 	return FormatDuration(time.Duration(ms) * time.Millisecond)
 }
