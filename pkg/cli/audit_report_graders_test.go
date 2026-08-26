@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -68,8 +69,21 @@ func TestExtractGradersDataFromUsageArtifact(t *testing.T) {
 	if len(graders.Results) != 4 {
 		t.Fatalf("expected 4 grader results, got %d", len(graders.Results))
 	}
-	if graders.PassCount != 1 || graders.FailCount != 1 || graders.ErrorCount != 1 || graders.UnavailableCount != 1 {
+	if graders.Total != 4 || graders.Passed != 1 || graders.Failed != 1 || graders.ErrorCount != 1 || graders.UnavailableCount != 1 {
 		t.Fatalf("unexpected status counts: %+v", graders)
+	}
+	data, err := json.Marshal(graders)
+	if err != nil {
+		t.Fatalf("failed to marshal graders data: %v", err)
+	}
+	jsonText := string(data)
+	for _, want := range []string{`"total":4`, `"passed":1`, `"failed":1`} {
+		if !strings.Contains(jsonText, want) {
+			t.Fatalf("expected graders JSON to contain %s, got %s", want, jsonText)
+		}
+	}
+	if strings.Contains(jsonText, "pass_count") || strings.Contains(jsonText, "fail_count") {
+		t.Fatalf("graders JSON should use public count names, got %s", jsonText)
 	}
 
 	// Results are sorted by ID: absent, cost, flaky, turns
@@ -135,12 +149,35 @@ func TestExtractGradersDataMissingAndMalformed(t *testing.T) {
 	}
 }
 
-func TestGradersArtifactSetResolvesToUsageAndAgent(t *testing.T) {
-	filter := artifactSetArtifacts[ArtifactSetGraders]
-	if len(filter) != 2 {
-		t.Fatalf("expected graders set to resolve to 2 artifacts, got %v", filter)
+func TestExtractGradersDataSkipsOversizedManifest(t *testing.T) {
+	runDir := t.TempDir()
+	gradersDir := filepath.Join(runDir, constants.UsageArtifactName.String(), constants.GradersDirName.String())
+	writeGraderFiles(t, gradersDir, sampleGraderResults(), nil)
+	if err := os.WriteFile(
+		filepath.Join(gradersDir, constants.GraderManifestFilename.String()),
+		[]byte(strings.Repeat("x", maxGraderResultsBytes+1)),
+		0o600,
+	); err != nil {
+		t.Fatalf("failed to write oversized manifest: %v", err)
 	}
-	if filter[0] != constants.UsageArtifactName.String() || filter[1] != constants.AgentArtifactName.String() {
+
+	graders := extractGradersData(runDir)
+	if graders == nil {
+		t.Fatal("expected graders data to be extracted despite oversized manifest")
+	}
+	if graders.Results[1].Direction != "" || graders.Results[1].Threshold != nil {
+		t.Fatalf("expected oversized manifest metadata to be ignored, got %+v", graders.Results[1])
+	}
+}
+
+func TestGradersArtifactSetResolvesToUsageAgentAndFallback(t *testing.T) {
+	filter := artifactSetArtifacts[ArtifactSetGraders]
+	if len(filter) != 3 {
+		t.Fatalf("expected graders set to resolve to 3 artifacts, got %v", filter)
+	}
+	if filter[0] != constants.UsageArtifactName.String() ||
+		filter[1] != constants.AgentArtifactName.String() ||
+		filter[2] != constants.AgentOutputFallbackArtifactName.String() {
 		t.Fatalf("unexpected graders artifact set: %v", filter)
 	}
 }

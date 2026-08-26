@@ -426,7 +426,7 @@ func renderConsoleGraders(graders *GradersData) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "  graders: pass=%d fail=%d error=%d unavailable=%d\n",
-		graders.PassCount, graders.FailCount, graders.ErrorCount, graders.UnavailableCount)
+		graders.Passed, graders.Failed, graders.ErrorCount, graders.UnavailableCount)
 	for _, result := range graders.Results {
 		line := fmt.Sprintf("    %s %s=%s", result.Status, result.ID, formatGraderValue(result))
 		if result.Threshold != nil {

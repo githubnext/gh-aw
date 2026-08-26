@@ -38,8 +38,9 @@ type GraderResult struct {
 type GradersData struct {
 	Version          int            `json:"version,omitempty"`
 	Results          []GraderResult `json:"results"`
-	PassCount        int            `json:"pass_count"`
-	FailCount        int            `json:"fail_count"`
+	Total            int            `json:"total"`
+	Passed           int            `json:"passed"`
+	Failed           int            `json:"failed"`
 	ErrorCount       int            `json:"error_count"`
 	UnavailableCount int            `json:"unavailable_count"`
 }
@@ -187,6 +188,14 @@ func loadGraderManifestEntries(logsPath string) map[string]graderManifestEntry {
 	if manifestPath == "" {
 		return entries
 	}
+	info, err := os.Stat(manifestPath)
+	if err != nil {
+		return entries
+	}
+	if info.Size() > maxGraderResultsBytes {
+		gradersDataLog.Printf("Grader manifest too large (%d bytes), skipping: %s", info.Size(), manifestPath)
+		return entries
+	}
 	data, err := os.ReadFile(manifestPath) // #nosec G304 -- path resolved beneath the run's logs directory
 	if err != nil {
 		gradersDataLog.Printf("Failed to read grader manifest: %v", err)
@@ -254,12 +263,13 @@ func parseGraderValue(raw json.RawMessage) (float64, bool) {
 }
 
 func countGraderStatuses(graders *GradersData) {
+	graders.Total = len(graders.Results)
 	for _, result := range graders.Results {
 		switch result.Status {
 		case "pass":
-			graders.PassCount++
+			graders.Passed++
 		case "fail":
-			graders.FailCount++
+			graders.Failed++
 		case "unavailable":
 			graders.UnavailableCount++
 		default:
