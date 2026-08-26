@@ -236,7 +236,6 @@ Re-run `gh aw compile` after modifying `aw.json` to regenerate all affected lock
 ## Learn More
 
 - [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-runs-on-slim-timeout-minutes) — `runs-on` and `runs-on-slim` syntax reference
-- [Imports](/gh-aw/reference/imports/) — importable fields and merge semantics
 - [Threat Detection](/gh-aw/reference/threat-detection/) — detection job configuration
 - [Network Access](/gh-aw/reference/network/) — configuring outbound network permissions
 - [Sandbox](/gh-aw/reference/sandbox/) — container and Docker requirements

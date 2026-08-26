@@ -71,6 +71,4 @@ Use the generated Repo Assist workflow as a working example when designing repos
 - [Integrity Filtering](/gh-aw/reference/integrity/)
 - [Triggering CI from Agent-Created Pull Requests](/gh-aw/reference/triggering-ci/)
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/)
-- [Cost Management](/gh-aw/reference/cost-management/)
-- [Audit Commands](/gh-aw/reference/audit/)
 - [Debugging Workflows](/gh-aw/troubleshooting/debugging/)
