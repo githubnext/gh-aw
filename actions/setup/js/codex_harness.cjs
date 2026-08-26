@@ -50,7 +50,7 @@ const {
   REFLECT_PROVIDER_ALIASES,
   resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
-const { emitInfrastructureIncomplete, emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const { emitInfrastructureIncomplete, emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError, parseAICreditsExceededProxyRejection } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
@@ -100,10 +100,6 @@ const INVALID_REQUEST_ERROR_PATTERN = /invalid_request_error/i;
 // Constants and resolvePostResultWatchdogIdleTimeoutMs are imported from process_runner.cjs.
 const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
 
-// Types that are NOT terminal safe-outputs (infrastructure/diagnostic signals).
-// A terminal safe-output is any entry whose type is NOT in this set, plus "noop".
-const SAFE_OUTPUT_NON_TERMINAL_TYPES = new Set(["missing_tool", "report_incomplete"]);
-
 const TOKEN_USAGE_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl";
 const TOKEN_USAGE_AWF_AUDIT_PATH = "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl";
 const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
@@ -127,60 +123,6 @@ function getSafeOutputsByteOffset(safeOutputsPath) {
   } catch {
     return 0;
   }
-}
-
-/**
- * Read only the content of the safe-outputs JSONL file appended after byteOffset and
- * return true if at least one terminal safe-output entry is present in that new content.
- * A terminal safe-output is either a "noop" (nothing to do) or a non-diagnostic task
- * result (e.g. add-labels, hide-comment).
- *
- * Using a per-attempt byte offset prevents the watchdog from arming on output produced
- * by an earlier retry: if attempt N wrote a terminal record and exited non-zero before
- * the watchdog polled, attempt N+1 would otherwise arm immediately and be killed even
- * though it produced nothing useful.
- *
- * @param {string} safeOutputsPath
- * @param {number} byteOffset - byte position in the file at the start of the current attempt
- * @param {{ logger?: (msg: string) => void, includeReportIncomplete?: boolean }=} options
- * @returns {boolean}
- */
-function hasTerminalSafeOutput(safeOutputsPath, byteOffset, options) {
-  const logger = options && options.logger ? options.logger : () => {};
-  if (!safeOutputsPath) return false;
-  let content = "";
-  try {
-    const fd = fs.openSync(safeOutputsPath, "r");
-    try {
-      const stats = fs.fstatSync(fd);
-      const fileSize = stats.size;
-      if (fileSize <= byteOffset) return false;
-      const length = fileSize - byteOffset;
-      const buf = Buffer.allocUnsafe(length);
-      fs.readSync(fd, buf, 0, length, byteOffset);
-      content = buf.toString("utf8");
-    } finally {
-      fs.closeSync(fd);
-    }
-  } catch {
-    return false;
-  }
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (!parsed || typeof parsed.type !== "string") continue;
-      const type = parsed.type;
-      if (type === "noop" || (options?.includeReportIncomplete && type === "report_incomplete") || !SAFE_OUTPUT_NON_TERMINAL_TYPES.has(type)) {
-        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
-        return true;
-      }
-    } catch {
-      // Ignore malformed lines.
-    }
-  }
-  return false;
 }
 
 /**
@@ -630,7 +572,7 @@ function evaluateContextRebuildCircuitBreakerForAttempt(workingSet, config, opti
   const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : "";
   const safeOutputsByteOffset = options && Number.isFinite(options.safeOutputsByteOffset) ? Number(options.safeOutputsByteOffset) : 0;
   const logger = options && options.logger ? options.logger : () => {};
-  if (safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, safeOutputsByteOffset, { logger, includeReportIncomplete: true })) {
+  if (safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, { byteOffset: safeOutputsByteOffset, logger, includeReportIncomplete: true })) {
     logger(`context-rebuild circuit breaker threshold exceeded after terminal safe-output was emitted — allowing Codex to exit normally`);
     return { terminate: false, reason: "" };
   }
@@ -783,7 +725,7 @@ async function main() {
           : undefined,
         postResultWatchdog: safeOutputsPath
           ? {
-              shouldArm: () => hasTerminalSafeOutput(safeOutputsPath, safeOutputsByteOffset, { logger: log }),
+              shouldArm: () => hasTerminalSafeOutput(safeOutputsPath, { byteOffset: safeOutputsByteOffset, logger: log }),
               inactivityTimeoutMs: POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
             }
           : undefined,
@@ -810,7 +752,7 @@ async function main() {
       // as a success.  The agent completed its work and wrote its output — the hang on exit is
       // a cosmetic failure, not a task failure.  Check this before logging "attempt failed" so
       // the log stream does not contradict itself for what is ultimately a successful run.
-      if (result.watchdogFired && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, result.safeOutputsByteOffset ?? 0, { logger: log })) {
+      if (result.watchdogFired && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, { byteOffset: result.safeOutputsByteOffset ?? 0, logger: log })) {
         log(`attempt ${attempt + 1}: post-result watchdog fired after terminal safe-output was emitted — treating as success (late-activity exit suppressed)`);
         return { action: "stop", exitCode: 0 };
       }

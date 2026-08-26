@@ -160,6 +160,7 @@ function emitInfrastructureIncomplete(details, options) {
  * Entries with these types are excluded when checking whether expected outputs were produced.
  */
 const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
 
 /**
  * Read the safe-outputs JSONL file and check whether it contains at least one
@@ -198,6 +199,58 @@ function hasExpectedSafeOutputs(safeOutputsPath, options) {
       const parsed = JSON.parse(trimmed);
       if (parsed && parsed.type && !DIAGNOSTIC_SAFE_OUTPUT_TYPES.has(parsed.type)) {
         logger(`hasExpectedSafeOutputs: non-diagnostic entry found in ${safeOutputsPath}: type=${parsed.type}`);
+        return true;
+      }
+    } catch {
+      // Malformed line — ignored, it does not represent a valid entry.
+    }
+  }
+  return false;
+}
+
+/**
+ * Read a safe-outputs JSONL file and check whether it contains a terminal agent
+ * result. Terminal outputs include noop and any non-diagnostic task output types.
+ * `byteOffset` scopes the check to output appended by the current attempt.
+ * @param {string} safeOutputsPath - Path to the safe-outputs JSONL file
+ * @param {{
+ *   byteOffset?: number,
+ *   includeReportIncomplete?: boolean,
+ *   logger?: (msg: string) => void,
+ *   readFileSync?: (path: string, encoding: BufferEncoding) => string
+ * }=} options
+ * @returns {boolean}
+ */
+function hasTerminalSafeOutput(safeOutputsPath, options) {
+  const logger = options && options.logger ? options.logger : defaultLog;
+  const readFile = options && options.readFileSync ? options.readFileSync : fs.readFileSync;
+  const byteOffset = options && Number.isFinite(options.byteOffset) ? Number(options.byteOffset) : 0;
+
+  if (!safeOutputsPath) {
+    return false;
+  }
+
+  let content;
+  try {
+    content = readFile(safeOutputsPath, "utf8");
+  } catch {
+    return false;
+  }
+  if (byteOffset > 0) {
+    const contentBuffer = Buffer.from(content, "utf8");
+    if (contentBuffer.length <= byteOffset) return false;
+    content = contentBuffer.subarray(byteOffset).toString("utf8");
+  }
+
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
+      if (!type) continue;
+      if (type === "noop" || (options?.includeReportIncomplete && type === "report_incomplete") || !NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
         return true;
       }
     } catch {
@@ -267,6 +320,7 @@ if (typeof module !== "undefined" && module.exports) {
     emitMissingToolPermissionIssue,
     emitInfrastructureIncomplete,
     hasExpectedSafeOutputs,
+    hasTerminalSafeOutput,
     hasNoopInSafeOutputs,
   };
 }
