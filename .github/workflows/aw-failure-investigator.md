@@ -108,17 +108,19 @@ steps:
         }
 
         function runJson(args) {
+          let out;
           try {
-            const out = execFileSync('gh', args, { encoding: 'utf8' });
-            return JSON.parse(out);
+            out = execFileSync('gh', args, { encoding: 'utf8' });
           } catch (error) {
-            if (error instanceof SyntaxError) {
-              core.warning(`Warning: non-JSON output from command: ${cmdDisplay(args)} (${error.message})`);
-              return null;
-            }
             core.warning(`Warning: command failed: ${cmdDisplay(args)}`);
             const output = commandOutput(error);
             if (output) core.warning(output);
+            return null;
+          }
+          try {
+            return JSON.parse(out);
+          } catch (error) {
+            core.warning(`Warning: non-JSON output from command: ${cmdDisplay(args)} (${error.message})`);
             return null;
           }
         }
