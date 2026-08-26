@@ -454,3 +454,53 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildZizmorContainerScanPath(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		scanPath string
+		want     string
+		wantErr  string
+	}{
+		{name: "nested relative path", scanPath: ".github/workflows/a.lock.yml", want: "./.github/workflows/a.lock.yml"},
+		{name: "flag-looking path stays positional", scanPath: "--help", want: "./--help"},
+		{name: "path traversal rejected", scanPath: "../escape.lock.yml", wantErr: "must stay local"},
+		{name: "empty path rejected", scanPath: "", wantErr: "cannot be empty"},
+		{name: "absolute path rejected", scanPath: "/etc/passwd", wantErr: "must stay local"},
+		{name: "control character rejected", scanPath: "bad\npath.lock.yml", wantErr: "invalid control characters"},
+		{name: "unicode format character rejected", scanPath: "bad\u202epath.lock.yml", wantErr: "invalid control characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildZizmorContainerScanPath(tt.scanPath)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("expected error containing %q, got %q", tt.wantErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestZizmorImageIsPinnedAndValid(t *testing.T) {
+	t.Parallel()
+	ref, err := validateDockerImageRef(ZizmorImage)
+	if err != nil {
+		t.Fatalf("ZizmorImage must be a valid docker image reference: %v", err)
+	}
+	if !strings.Contains(ref, "@sha256:") {
+		t.Fatalf("ZizmorImage must be pinned by digest, got %q", ref)
+	}
+}
