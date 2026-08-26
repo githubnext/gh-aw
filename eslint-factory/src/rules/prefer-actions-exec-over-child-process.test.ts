@@ -47,6 +47,10 @@ describe("prefer-actions-exec-over-child-process", () => {
         { code: ghScript(`const { exec } = require("child_process"); const child = exec("git status"); child.kill();`) },
         { code: ghScript(`const { execFile } = require("child_process"); execFile("git", ["status"]).stdout.pipe(process.stdout);`) },
         { code: ghScript(`const cp = require("child_process"); function f() { return cp.exec("git status"); }`) },
+        // Retained handles nested inside value-preserving wrappers/containers
+        { code: ghScript(`const { exec } = require("child_process"); async function f() { const child = await exec("git status"); child.kill(); }`) },
+        { code: ghScript(`const { exec } = require("child_process"); const children = [exec("git status")]; children[0].kill();`) },
+        { code: ghScript(`const { exec } = require("child_process"); const holder = { child: exec("git status") }; holder.child.kill();`) },
       ],
       invalid: [
         {
@@ -60,6 +64,18 @@ describe("prefer-actions-exec-over-child-process", () => {
         {
           code: ghScript(`const { execFile } = require("child_process"); execFile("git", ["status"], cb);`),
           errors: [{ messageId: "preferActionsExec", data: { method: "execFile" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); async function f() { await exec("git", args, cb); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); void exec("git", args, cb);`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); exec("git", args, cb) || onError();`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
         },
         {
           code: ghScript(`const { execFileSync } = require("child_process"); execFileSync("git", ["status"]);`),
