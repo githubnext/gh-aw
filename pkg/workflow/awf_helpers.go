@@ -98,6 +98,11 @@ type AWFCommandConfig struct {
 	//   GH_AW_MAX_AI_CREDITS="${GH_AW_MAX_AI_CREDITS:-<default>}"
 	// instead of embedding ${{ vars.* }} directly in run:.
 	ResolveMaxAICreditsFromEnv bool
+
+	// RetryStartupFailures retries AWF startup/configuration failures before the
+	// engine harness has started. This is used by engine harnesses so failures
+	// outside the harness still consume the bounded startup retry budget.
+	RetryStartupFailures bool
 }
 
 func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
