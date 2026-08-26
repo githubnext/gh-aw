@@ -817,6 +817,20 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EnginePermissionMo
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_PermissionsNoneShorthand(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on":          "push",
+		"permissions": "none",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/workflow.md")
+	if err != nil {
+		t.Fatalf("expected 'permissions: none' to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ToolsEditBoolean(t *testing.T) {
 	t.Parallel()
 

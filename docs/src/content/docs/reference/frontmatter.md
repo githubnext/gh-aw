@@ -174,7 +174,15 @@ ambient-folders:
 
 ### Permissions (`permissions:`)
 
-The `permissions:` section uses a syntax similar to standard GitHub Actions permissions syntax to specify the GitHub read permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Tools Read Permissions](/gh-aw/reference/permissions/).
+The `permissions:` section uses syntax similar to standard GitHub Actions permissions to configure the GitHub API scopes available to the workflow. Scopes support their permitted `read`, `write`, and `none` levels, including write-only `copilot-requests` and `id-token` scopes. GitHub App-only scopes, such as `secret-scanning-alerts` and `organization-*`, require an appropriate GitHub App token. See [GitHub Tools Read Permissions](/gh-aw/reference/permissions/).
+
+```yaml wrap
+permissions:
+  contents: write
+  copilot-requests: write
+  id-token: write
+  secret-scanning-alerts: read
+```
 
 ### GitHub App (`github-app:`)
 
@@ -350,6 +358,21 @@ safe-outputs:
 
 When omitted, `report-failed-jobs` defaults to `true`.
 
+Custom safe-output jobs are defined under `safe-outputs.jobs:`. They run after the agent completes and can expose a custom safe-output tool to the agent. The optional `output` field is the success message returned to the agent:
+
+```yaml wrap
+safe-outputs:
+  jobs:
+    notify:
+      description: "Send a notification"
+      runs-on: ubuntu-latest
+      output: "Notification sent"
+      steps:
+        - run: ./scripts/send-notification.sh
+```
+
+See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) for job inputs, secrets, and third-party integrations.
+
 ### Threat Detection Suppression (`threat-detection-suppress:`)
 
 Suppresses specific threat-detection diagnostic rules (`CTR-###` identifiers) that would otherwise block safe-output processing, with a required, auditable justification. Each entry must include a `rule` matching `CTR-###`, a non-empty `reason`, and an optional `expires` date in `YYYY-MM-DD` format; once `expires` has passed (UTC), the suppression is no longer active and the rule is enforced again.
@@ -457,6 +480,16 @@ This guardrail is disabled by default when omitted, and `-1` explicitly disables
 
 ```yaml wrap
 max-daily-ai-credits: 10000
+```
+
+Use the object form to supply a dedicated GitHub App token for the guardrail's API calls:
+
+```yaml wrap
+max-daily-ai-credits:
+  value: 10000
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
 ```yaml wrap

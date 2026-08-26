@@ -617,5 +617,3 @@ mcp-servers:
 - [Security Guide](/gh-aw/introduction/architecture/) - Security considerations for AI engines
 - [Gallery](/gh-aw/gallery/) - Agentic workflows organized by task
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
-- [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) - Timeout tuning for large repositories
-- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Fast hardware for long-running workflows

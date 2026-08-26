@@ -1,4 +1,4 @@
-# ADR-44168: Populate Required-Labels and Required-Title-Prefix in Update-Pull-Request and Update-Issue Parsers
+# ADR-44168: Populate Required-Labels and Required-Title-Prefix in Update-Pull Request and Update-Issue Parsers
 
 **Date**: 2026-07-08
 **Status**: Draft
