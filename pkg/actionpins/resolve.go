@@ -30,6 +30,7 @@ func recordPinResolutionFailure(ctx *PinContext, actionRepo, version string, err
 	if ctx == nil || ctx.RecordResolutionFailure == nil {
 		return
 	}
+	actionPinsLog.Printf("Recording pin resolution failure: repo=%s version=%s error_type=%s", actionRepo, version, errorType)
 	ctx.RecordResolutionFailure(ResolutionFailure{
 		Repo:      actionRepo,
 		Ref:       version,
@@ -99,6 +100,7 @@ func ResolveGHESActionPin(repo string) (string, bool) {
 	if !ok {
 		return "", false
 	}
+	actionPinsLog.Printf("Resolved GHES-compatible pin for repo=%s: version=%s", repo, pin.Version)
 	return FormatPinnedActionReference(pin.Repo, pin.SHA, pin.Version), true
 }
 
@@ -212,12 +214,14 @@ func ResolveLatestActionPin(repo string, ctx *PinContext) string {
 
 	pins := GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
+		actionPinsLog.Printf("No cached pins for repo=%s, falling back to embedded latest pin", repo)
 		return getLatestActionPinReference(repo)
 	}
 
 	latestVersion := pins[0].Version
 	pinnedRef, err := ResolveActionPin(repo, latestVersion, ctx)
 	if err != nil || pinnedRef == "" {
+		actionPinsLog.Printf("Resolution failed for repo=%s latest version=%s, falling back to embedded latest pin", repo, latestVersion)
 		return getLatestActionPinReference(repo)
 	}
 	return pinnedRef
