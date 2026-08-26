@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -89,7 +90,7 @@ func parseManifestBootstrapAction(actionType string, actionMap map[string]any, m
 	if err := decodeManifestBootstrapAction(actionMap, &action); err != nil {
 		var typeErr *json.UnmarshalTypeError
 		if errors.As(err, &typeErr) {
-			return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, typeErr.Field, fmt.Errorf("must be a %s, got %s", typeErr.Type, typeErr.Value))
+			return repositoryPackageBootstrapAction{}, manifestBootstrapFieldError(manifestPath, index, typeErr.Field, fmt.Errorf("must be a %s, got %s", manifestFieldJSONTypeName(typeErr.Type), typeErr.Value))
 		}
 		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d] is invalid: %w", manifestPath, index, err)
 	}
@@ -214,5 +215,27 @@ func manifestBootstrapFieldExample(field string) (string, bool) {
 		return `{ contents: "read", issues: "write" }`, true
 	default:
 		return "", false
+	}
+}
+
+// manifestFieldJSONTypeName maps a Go type expected by json.Unmarshal to the JSON
+// type name manifest authors will recognize (e.g. "array" instead of "[]string"),
+// since manifest values are authored as YAML/JSON, not Go.
+func manifestFieldJSONTypeName(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.String:
+		return "string"
+	case reflect.Bool:
+		return "boolean"
+	case reflect.Slice, reflect.Array:
+		return "array"
+	case reflect.Map, reflect.Struct, reflect.Pointer:
+		return "object"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return "number"
+	default:
+		return t.String()
 	}
 }
