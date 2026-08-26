@@ -47,6 +47,10 @@ describe("prefer-actions-exec-over-child-process", () => {
         { code: ghScript(`const { exec } = require("child_process"); const child = exec("git status"); child.kill();`) },
         { code: ghScript(`const { execFile } = require("child_process"); execFile("git", ["status"]).stdout.pipe(process.stdout);`) },
         { code: ghScript(`const cp = require("child_process"); function f() { return cp.exec("git status"); }`) },
+        // Retained handles nested inside value-preserving wrappers/containers
+        { code: ghScript(`const { exec } = require("child_process"); async function f() { const child = await exec("git status"); child.kill(); }`) },
+        { code: ghScript(`const { exec } = require("child_process"); const children = [exec("git status")]; children[0].kill();`) },
+        { code: ghScript(`const { exec } = require("child_process"); const holder = { child: exec("git status") }; holder.child.kill();`) },
       ],
       invalid: [
         {

@@ -41,8 +41,15 @@ function isGitHubScriptModule(sourceCode: TSESLint.SourceCode): boolean {
 /**
  * True when the returned `ChildProcess` handle is retained or directly exposed for streaming or
  * lifecycle control.
+ *
+ * The check walks outward through value-preserving wrappers — `await`, array literals, object
+ * literals, and spread elements — so a handle nested inside one of those (`const child = await
+ * exec(...)`, `const [child] = [exec(...)]`, `const holder = { child: exec(...) }`) is still
+ * recognized as retained once its enclosing container reaches a retained shape. A bare `await`,
+ * `void`, or logical expression used as a statement is never itself a retained shape, so those
+ * remain flagged.
  */
-function retainsCallResult(node: TSESTree.CallExpression): boolean {
+function retainsCallResult(node: TSESTree.Node): boolean {
   const parent = node.parent;
   if (!parent) return false;
 
@@ -58,7 +65,20 @@ function retainsCallResult(node: TSESTree.CallExpression): boolean {
     case AST_NODE_TYPES.MemberExpression:
       return parent.object === node;
     case AST_NODE_TYPES.CallExpression:
-      return parent.arguments.includes(node);
+      return parent.arguments.some(argument => argument === node);
+    // Value-preserving wrappers/containers: the handle is still reachable through them, so
+    // whether it is retained depends on how the wrapper/container itself is used.
+    case AST_NODE_TYPES.AwaitExpression:
+    case AST_NODE_TYPES.SpreadElement:
+      return retainsCallResult(parent);
+    case AST_NODE_TYPES.ArrayExpression:
+      return parent.elements.some(element => element === node) && retainsCallResult(parent);
+    case AST_NODE_TYPES.Property: {
+      // `parent` is the `Property`; its own parent is the enclosing `ObjectExpression`, which is
+      // the container whose retention actually matters.
+      const objectExpression = parent.parent;
+      return parent.value === node && retainsCallResult(objectExpression);
+    }
     default:
       return false;
   }
