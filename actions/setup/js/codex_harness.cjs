@@ -142,7 +142,7 @@ function getSafeOutputsByteOffset(safeOutputsPath) {
  *
  * @param {string} safeOutputsPath
  * @param {number} byteOffset - byte position in the file at the start of the current attempt
- * @param {{ logger?: (msg: string) => void }=} options
+ * @param {{ logger?: (msg: string) => void, includeReportIncomplete?: boolean }=} options
  * @returns {boolean}
  */
 function hasTerminalSafeOutput(safeOutputsPath, byteOffset, options) {
@@ -172,7 +172,7 @@ function hasTerminalSafeOutput(safeOutputsPath, byteOffset, options) {
       const parsed = JSON.parse(trimmed);
       if (!parsed || typeof parsed.type !== "string") continue;
       const type = parsed.type;
-      if (type === "noop" || !SAFE_OUTPUT_NON_TERMINAL_TYPES.has(type)) {
+      if (type === "noop" || (options?.includeReportIncomplete && type === "report_incomplete") || !SAFE_OUTPUT_NON_TERMINAL_TYPES.has(type)) {
         logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
         return true;
       }
@@ -614,6 +614,31 @@ function evaluateContextRebuildCircuitBreaker(workingSet, config) {
 }
 
 /**
+ * Evaluate the context-rebuild circuit breaker for a single Codex attempt. Once the
+ * agent has emitted a terminal safe-output for this attempt, the breaker must not
+ * preempt it with a synthetic report_incomplete; the post-result watchdog handles
+ * any slow Codex shutdown separately.
+ * @param {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null} workingSet
+ * @param {{ maxRebuildFactor: number, minCumulativeInputTokens: number }} config
+ * @param {{ safeOutputsPath?: string, safeOutputsByteOffset?: number, logger?: (msg: string) => void }=} options
+ * @returns {{ terminate: boolean, reason: string }}
+ */
+function evaluateContextRebuildCircuitBreakerForAttempt(workingSet, config, options) {
+  const decision = evaluateContextRebuildCircuitBreaker(workingSet, config);
+  if (!decision.terminate) return decision;
+
+  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : "";
+  const safeOutputsByteOffset = options && Number.isFinite(options.safeOutputsByteOffset) ? Number(options.safeOutputsByteOffset) : 0;
+  const logger = options && options.logger ? options.logger : () => {};
+  if (safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, safeOutputsByteOffset, { logger, includeReportIncomplete: true })) {
+    logger(`context-rebuild circuit breaker threshold exceeded after terminal safe-output was emitted — allowing Codex to exit normally`);
+    return { terminate: false, reason: "" };
+  }
+
+  return decision;
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -746,10 +771,14 @@ async function main() {
               pollIntervalMs: contextRebuildCircuitBreaker.pollIntervalMs,
               termGraceMs: contextRebuildCircuitBreaker.termGraceMs,
               shouldTerminate: async () =>
-                evaluateContextRebuildCircuitBreaker(await readWorkingSetFromTokenUsage(TOKEN_USAGE_PATHS), {
-                  maxRebuildFactor: contextRebuildCircuitBreaker.maxRebuildFactor,
-                  minCumulativeInputTokens: contextRebuildCircuitBreaker.minCumulativeInputTokens,
-                }),
+                evaluateContextRebuildCircuitBreakerForAttempt(
+                  await readWorkingSetFromTokenUsage(TOKEN_USAGE_PATHS),
+                  {
+                    maxRebuildFactor: contextRebuildCircuitBreaker.maxRebuildFactor,
+                    minCumulativeInputTokens: contextRebuildCircuitBreaker.minCumulativeInputTokens,
+                  },
+                  { safeOutputsPath, safeOutputsByteOffset, logger: log }
+                ),
             }
           : undefined,
         postResultWatchdog: safeOutputsPath
@@ -943,6 +972,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveContextRebuildCircuitBreakerConfig,
     readWorkingSetFromTokenUsage,
     evaluateContextRebuildCircuitBreaker,
+    evaluateContextRebuildCircuitBreakerForAttempt,
     TOKEN_USAGE_PATHS,
     DEFAULT_CONTEXT_REBUILD_FACTOR_LIMIT,
     DEFAULT_CONTEXT_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS,
