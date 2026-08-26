@@ -49,6 +49,7 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `experiment` | `experiment` | A/B experiment state (only present when experiments are declared) |
 | `usage` | `usage` | Compact conclusion-job artifact for lightweight reporting and forecasting |
 | `evals` | `evals` | BinEval evaluation results (only present when `evals` are declared) |
+| `graders` | `usage`, `agent`, `agent-output-fallback` | Deterministic grader results (only present when `graders` are declared) |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
 
 ```bash
@@ -249,6 +250,27 @@ The `gh aw audit` command exposes an `--evals` flag that skips runs without eval
 # Audit only runs that contain evals results
 gh aw audit <run-id> --evals
 ```
+
+## Grader files
+
+When the workflow frontmatter declares one or more `graders`, the grader files are stored inside existing artifacts rather than uploaded as a standalone `graders` artifact. They live under `agent/graders/` in the unified `agent` artifact, under `graders/` in the `agent-output-fallback` artifact when the fallback transport is used, and under `usage/graders/` after the conclusion job mirrors them for lightweight downloads. The files are:
+
+- `grader_manifest.json` — The configured graders with their unit, direction, and threshold
+- `grader_results.json` — The normalized grader results (status, value, pass/fail) computed from the run trace
+
+### Accessing graders data
+
+```bash
+# Download the artifacts that carry grader results
+gh aw logs <run-id> --artifacts graders
+
+# Or with gh run download against the actual artifacts
+gh run download <run-id> -n usage
+gh run download <run-id> -n agent
+gh run download <run-id> -n agent-output-fallback
+```
+
+`gh aw audit` reports grader outcomes in its console output and includes them in the JSON report under the `graders` key (results, plus `total`, `passed`, `failed`, `error_count`, and `unavailable_count`). Use `gh aw graders operational-value <run-id>` to replay the archived operational-value evaluator at an explicit evidence cutoff.
 
 ## Naming Compatibility
 

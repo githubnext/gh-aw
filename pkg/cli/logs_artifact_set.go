@@ -72,6 +72,11 @@ const (
 	// conclusion job (aw-info.jsonl, usage summaries, token usage JSONL).
 	ArtifactSetUsage ArtifactSet = "usage"
 
+	// ArtifactSetGraders downloads the artifacts that carry grader results
+	// (grader_results.json): the compact usage artifact, the agent artifact, and
+	// the fallback artifact used when uploading the unified agent artifact fails.
+	ArtifactSetGraders ArtifactSet = "graders"
+
 	// ArtifactSetEvals downloads the usage artifact, which now includes evals.jsonl
 	// produced by the evals job (copied into usage by the conclusion job).
 	ArtifactSetEvals ArtifactSet = "evals"
@@ -96,6 +101,9 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetUsage: {constants.UsageArtifactName.String()},
 	// evals: evals results are now included in the usage artifact.
 	ArtifactSetEvals: {constants.UsageArtifactName.String()},
+	// graders: grader results are included in the usage artifact, remain part of
+	// the unified agent artifact, and are preserved in the fallback transport.
+	ArtifactSetGraders: {constants.UsageArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 }
 
 const maxArtifactHintExamples = 2

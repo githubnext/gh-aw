@@ -202,9 +202,9 @@ func (s *githubGraderRunArtifactSource) downloadGraderArtifact(ctx context.Conte
 }
 
 func readGraderResultsArtifact(runDir string) graderRunData {
-	resultsPath := filepath.Join(runDir, "agent", "graders", constants.GraderResultsFilename.String())
-	if _, err := os.Stat(resultsPath); err != nil {
-		resultsPath = filepath.Join(runDir, "graders", constants.GraderResultsFilename.String())
+	resultsPath := findGraderFile(runDir, constants.GraderResultsFilename.String())
+	if resultsPath == "" {
+		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
 	info, err := os.Stat(resultsPath)
 	if err != nil {
