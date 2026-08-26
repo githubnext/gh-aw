@@ -92,6 +92,11 @@ type AWFConfigFile struct {
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
 
+	// AppleContainer configures the Apple Container (Virtualization.framework)
+	// workload preview. AWF only resolves the backend when this section sets
+	// previewEnabled together with container.containerRuntime: "apple-container".
+	AppleContainer *AWFAppleContainerConfig `json:"appleContainer,omitempty"`
+
 	// Logging contains logging and diagnostics configuration.
 	Logging *AWFLoggingConfig `json:"logging,omitempty"`
 
@@ -261,9 +266,11 @@ type AWFContainerConfig struct {
 	// Maps to: --docker-host-path-prefix <value>
 	DockerHostPathPrefix string `json:"dockerHostPathPrefix,omitempty"`
 
-	// ContainerRuntime specifies the OCI runtime for the agent container.
-	// "gvisor" enables gVisor's runsc runtime for additional kernel-level isolation.
+	// ContainerRuntime specifies the runtime for the agent workload.
+	// "gvisor" enables gVisor's runsc runtime for additional kernel-level isolation;
 	// AWF translates "gvisor" → "runsc" internally.
+	// "apple-container" selects the Apple Virtualization.framework workload preview
+	// and additionally requires appleContainer.previewEnabled.
 	ContainerRuntime string `json:"containerRuntime,omitempty"`
 
 	// Images is the closed manifest of digest-pinned AWF infrastructure images,
@@ -272,6 +279,39 @@ type AWFContainerConfig struct {
 	// instead of falling back to the official registry, and it cannot be combined
 	// with legacy image selectors such as imageTag or agentImage.
 	Images map[string]string `json:"images,omitempty"`
+}
+
+// AWFAppleContainerConfig is the "appleContainer" section of the AWF config file.
+//
+// It mirrors AWF's AppleContainerOptions (gh-aw-firewall#7764). AWF fails closed
+// unless PreviewEnabled is true AND container.containerRuntime is "apple-container";
+// neither signal alone selects the backend.
+//
+// Sizing (cpus/memory), the init image, and the CLI path are intentionally not
+// exposed as gh-aw frontmatter in this contract layer: the compiler emits only the
+// two required selector fields and lets AWF apply its documented defaults
+// (cpus: 4, memory: "8G", registry-derived digest-pinned init image, CLI on PATH).
+type AWFAppleContainerConfig struct {
+	// PreviewEnabled is the explicit opt-in for the Apple Container
+	// workload-execution preview. AWF refuses to resolve the backend without it.
+	// This is emitted as an explicit `false`-able field with no omitempty so the
+	// opt-in is always visible in the generated config.
+	PreviewEnabled bool `json:"previewEnabled"`
+
+	// CPUs is the guest virtual CPU count. AWF defaults to 4 when omitted.
+	CPUs int `json:"cpus,omitempty"`
+
+	// Memory is the guest memory size, an integer with an optional K/M/G/T/P
+	// suffix. AWF defaults to "8G" when omitted.
+	Memory string `json:"memory,omitempty"`
+
+	// InitImage is the digest-pinned AWF Apple init image carrying the guest
+	// capability relay. AWF derives it from the registry/tag when omitted.
+	InitImage string `json:"initImage,omitempty"`
+
+	// CliPath is the absolute path to the Apple "container" CLI when it is not on
+	// PATH.
+	CliPath string `json:"cliPath,omitempty"`
 }
 
 // AWFLoggingConfig is the "logging" section of the AWF config file.

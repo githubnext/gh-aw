@@ -299,6 +299,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 		agentRuntime = ""
 	}
+	// The apple-container enum value and the appleContainer section were added
+	// together in gh-aw-firewall#7764. Older AWF binaries reject both, so they are
+	// gated as one unit: the selector is never emitted without the opt-in, and the
+	// opt-in is never emitted without the selector.
+	if agentRuntime == string(AgentRuntimeAppleContainer) && !awfSupportsAppleContainer(firewallConfig) {
+		awfConfigLog.Printf("Skipping containerRuntime apple-container: AWF version %q requires at least %s (gh-aw-firewall#7764)", getAWFImageTag(firewallConfig), constants.AWFAppleContainerMinVersion)
+		agentRuntime = ""
+	}
+	if agentRuntime == string(AgentRuntimeAppleContainer) {
+		awfConfig.AppleContainer = &AWFAppleContainerConfig{PreviewEnabled: true}
+		awfConfigLog.Print("Apple Container section: previewEnabled=true")
+	}
 	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" || agentTimeout > 0 || len(containerImages) > 0 {
 		container := &AWFContainerConfig{
 			ImageTag:         awfImageTag,
@@ -392,7 +404,17 @@ func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {
 // The list always includes the MCP gateway and conditionally includes the
 // host-started CLI proxy sidecar when gh-proxy mode is active. Cloud Hypervisor
 // omits the CLI proxy until its control peer supports the proxy's TCP port.
+//
+// Apple Container attaches nothing: AWF fails closed on any non-empty
+// topologyAttach for that runtime because externally owned peers are not
+// published to macOS loopback and cannot be bridged into the NIC-less guest.
+// Infrastructure the guest may reach is instead published as an explicit
+// capability socket by AWF itself. Rewiring the gh-aw MCP gateway onto that
+// transport is the follow-up stack layer's job.
 func buildAWFTopologyAttachList(workflowData *WorkflowData) []string {
+	if isAppleContainerRuntime(workflowData) {
+		return nil
+	}
 	targets := []string{"awmg-mcpg"}
 	if !isCloudHypervisorRuntime(workflowData) && isCliProxyNeeded(workflowData) {
 		targets = append(targets, "awmg-cli-proxy")

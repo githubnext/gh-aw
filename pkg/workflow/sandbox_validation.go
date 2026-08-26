@@ -261,6 +261,11 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Print("cloud-hypervisor runtime configured -- topology, AWF version, and feature compatibility checks passed")
 	}
 
+	// Validate apple-container runtime compatibility (host, AWF version, features).
+	if err := validateAppleContainerCompatibility(workflowData, agentConfig); err != nil {
+		return err
+	}
+
 	// Validate config structure if provided (deprecated - was only for SRT)
 	if sandboxConfig.Config != nil {
 		// Config is no longer used - SRT removed

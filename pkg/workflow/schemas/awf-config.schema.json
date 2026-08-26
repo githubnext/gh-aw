@@ -601,7 +601,8 @@
             "enclaveScript": { "$ref": "#/$defs/pinnedImageReference" },
             "enclaveAgent": { "$ref": "#/$defs/pinnedImageReference" },
             "enclaveMcpServer": { "$ref": "#/$defs/pinnedImageReference" },
-            "dindStaging": { "$ref": "#/$defs/pinnedImageReference" }
+            "dindStaging": { "$ref": "#/$defs/pinnedImageReference" },
+            "appleInit": { "$ref": "#/$defs/pinnedImageReference" }
           }
         },
         "tty": {
@@ -630,8 +631,40 @@
         },
         "containerRuntime": {
           "type": "string",
-          "enum": ["gvisor", "sbx"],
-          "description": "Container runtime for the agent container. \"gvisor\" runs the agent under gVisor's runsc runtime (OCI runtime, compose-based). \"sbx\" runs the agent inside a Docker sbx microVM with hypervisor isolation; infrastructure containers (squid-proxy, api-proxy) stay in Docker Compose on the host and the sbx proxy chains upstream through AWF's Squid for domain filtering. Only the agent uses the custom runtime; infrastructure containers always use the default runc runtime."
+          "enum": ["gvisor", "sbx", "apple-container"],
+          "description": "Container runtime for the agent container. \"gvisor\" runs the agent under gVisor's runsc runtime (OCI runtime, compose-based). \"sbx\" runs the agent inside a Docker sbx microVM with hypervisor isolation; infrastructure containers (squid-proxy, api-proxy) stay in Docker Compose on the host and the sbx proxy chains upstream through AWF's Squid for domain filtering. \"apple-container\" selects the Apple Virtualization.framework workload preview (self-hosted bare-metal Apple Silicon macOS 26+ runners only; the guest runs with no NIC and reaches AWF infrastructure exclusively through published capability sockets) and additionally requires appleContainer.previewEnabled. Only the agent uses the custom runtime; infrastructure containers always use the default runc runtime."
+        }
+      }
+    },
+    "appleContainer": {
+      "type": "object",
+      "description": "Apple Container microVM preview configuration. Requires container.containerRuntime: \"apple-container\" and previewEnabled to execute workloads; supported only on self-hosted bare-metal Apple Silicon runners on macOS 26+ with kern.hv_support=1. GitHub-hosted macOS runners fail preflight and are never silently downgraded to another runtime.",
+      "additionalProperties": false,
+      "properties": {
+        "previewEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the Apple Container workload-execution preview. Requires container.containerRuntime: \"apple-container\" and a self-hosted bare-metal Apple Silicon macOS 26+ runner."
+        },
+        "cpus": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 4,
+          "description": "Number of guest virtual CPUs."
+        },
+        "memory": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*[KMGTP]?$",
+          "default": "8G",
+          "description": "Guest memory as an integer with an optional K/M/G/T/P suffix, e.g. \"8G\"."
+        },
+        "initImage": {
+          "$ref": "#/$defs/pinnedImageReference",
+          "description": "Digest-pinned AWF Apple init image carrying the guest capability relay. Defaults to the registry/tag-derived apple-init reference, which must itself be digest-pinned."
+        },
+        "cliPath": {
+          "type": "string",
+          "description": "Absolute path to the Apple \"container\" CLI when it is not on PATH."
         }
       }
     },

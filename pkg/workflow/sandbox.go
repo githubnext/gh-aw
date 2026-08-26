@@ -77,6 +77,20 @@ const (
 	// AgentRuntimeCloudHypervisor runs the agent inside a Cloud Hypervisor microVM
 	// using AWF's preview cloud-hypervisor runtime mode.
 	AgentRuntimeCloudHypervisor AgentRuntime = "cloud-hypervisor"
+
+	// AgentRuntimeAppleContainer runs the agent inside an Apple
+	// Virtualization.framework microVM using AWF's preview apple-container runtime
+	// mode (gh-aw-firewall#7764).
+	//
+	// The guest has no NIC and reaches AWF infrastructure exclusively through
+	// published Unix-socket capabilities. AWF keeps Squid, the API proxy, the CLI
+	// proxy, and the MCP gateway in Docker Compose on the host, so Docker is still
+	// required; only the agent workload moves to Apple Container.
+	//
+	// Supported host: self-hosted bare-metal Apple Silicon, macOS 26+, native
+	// arm64, kern.hv_support=1. GitHub-hosted macOS runners are VMs without nested
+	// virtualisation and are rejected at compile time.
+	AgentRuntimeAppleContainer AgentRuntime = "apple-container"
 )
 
 // AgentSandboxConfig represents the agent sandbox configuration

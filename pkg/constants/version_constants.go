@@ -109,6 +109,23 @@ const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 // cloud-hypervisor preview runtime and its release assets.
 const AWFCloudHypervisorMinVersion Version = "v0.28.1"
 
+// AWFAppleContainerMinVersion is the minimum AWF version that supports the
+// apple-container preview runtime (Apple Virtualization.framework workloads on
+// self-hosted bare-metal Apple Silicon).
+//
+// The backend is added by gh-aw-firewall#7764, which is not part of any published
+// release yet: the newest release at the time of writing (v0.28.8) still ships a
+// container.containerRuntime enum without "apple-container" and has no
+// appleContainer config section. v0.28.9 is therefore the earliest release that
+// can contain it.
+//
+// This constant is deliberately ABOVE DefaultFirewallVersion so the runtime fails
+// closed by default: a workflow must explicitly pin sandbox.agent.version (or
+// firewall.version) to an AWF build that actually understands the runtime. If
+// gh-aw-firewall#7764 lands in a later release than v0.28.9, bump this constant —
+// never lower it, and never relax the gate to DefaultFirewallVersion.
+const AWFAppleContainerMinVersion Version = "v0.28.9"
+
 // AWFLegacySecurityMinVersion is the minimum AWF version that supports the
 // --legacy-security flag and unconditional API proxy (gh-aw-firewall#6207).
 // Workflows pinning an older AWF version must use the old --security-mode compat behavior.

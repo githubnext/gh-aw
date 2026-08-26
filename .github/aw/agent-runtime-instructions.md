@@ -13,20 +13,25 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - Set `sandbox.agent.runtime: gvisor` only when the runner has a local Docker daemon and can install or already has `runsc`.
 - Set `sandbox.agent.runtime: docker-sbx` only when the runner supports KVM-backed microVMs.
 - Set `sandbox.agent.runtime: cloud-hypervisor` only for the preview microVM runtime on a GitHub-hosted Ubuntu x86_64 runner with `/dev/kvm`; prefer `docker-sbx` or `gvisor` when those host constraints are not guaranteed.
+- Set `sandbox.agent.runtime: apple-container` only for the preview Apple Virtualization.framework microVM runtime on a self-hosted bare-metal Apple Silicon runner (Darwin arm64, macOS 26+, `kern.hv_support=1`). It also requires `runs-on: [self-hosted, macOS, ARM64]` and an AWF version that supports the preview; do not generate it otherwise.
 - Do not set `sandbox.agent.runtime: docker`; Docker is selected by omitting the field.
 - Do not set `sandbox.agent.runtime: sbx`; `sbx` is not a valid `sandbox.agent.runtime` value.
 - Set `runner.topology: arc-dind` for ARC or equivalent Kubernetes runners that use a Docker-in-Docker sidecar. This is a runner topology, not an agent runtime.
 
 ## Compatibility
 
-- Do not combine `runner.topology: arc-dind` with `sandbox.agent.runtime: gvisor`, `sandbox.agent.runtime: docker-sbx`, or `sandbox.agent.runtime: cloud-hypervisor`.
+- Do not combine `runner.topology: arc-dind` with `sandbox.agent.runtime: gvisor`, `sandbox.agent.runtime: docker-sbx`, `sandbox.agent.runtime: cloud-hypervisor`, or `sandbox.agent.runtime: apple-container`.
 - ARC DinD workflows must be rootless: do not add `sudo`, `apt-get install`, or other host package bootstrap steps.
 - Docker sbx requires KVM and normally does not work on ARC DinD because the sbx daemon must run on the runner host.
 - Cloud Hypervisor requires `RUNNER_ENVIRONMENT=github-hosted`, Ubuntu Linux x86_64, and `/dev/kvm`; it is not supported on self-hosted or ARC DinD runners.
+- Apple Container is the inverse: it requires a self-hosted bare-metal Apple Silicon runner and is never valid on a GitHub-hosted `macos-*` label, because those runners are virtual machines without nested virtualization.
+- Apple Container rejects host access, `allow-host-ports`, GitHub Actions `services:` port mappings, enclaves, volume mounts, `filesystem.allowWrite`, `ssl_bump`, Vertex AI credential isolation, and `runtime-install`.
+- Apple Container keeps Docker for the AWF infrastructure containers; only the agent workload moves to the Apple Container runtime.
 
 ## `runtime-install`
 
 - `sandbox.agent.runtime-install` defaults to `true` for gVisor and Docker sbx provisioning.
+- `sandbox.agent.runtime-install` is not valid with `cloud-hypervisor` or `apple-container`.
 - Set `runtime-install: false` only when the runner image or pod is pre-provisioned with the runtime and required daemon or policy.
 - When any imported workflow sets `runtime-install: false`, false wins during import merging.
 - With `runtime-install: false`, gh-aw skips generated runtime checks and setup, so the runner must already satisfy those prerequisites.

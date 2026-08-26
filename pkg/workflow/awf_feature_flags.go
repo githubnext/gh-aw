@@ -65,6 +65,18 @@ func awfSupportsCloudHypervisor(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFCloudHypervisorMinVersion)
 }
 
+// awfSupportsAppleContainer returns true when the effective AWF version supports the
+// apple-container preview runtime: container.containerRuntime: "apple-container",
+// the appleContainer config section, and the container.images appleInit role
+// (gh-aw-firewall#7764).
+//
+// The compiler must never emit any of those fields to an older AWF: strict config
+// validation there rejects the unknown containerRuntime enum value, the unknown
+// top-level appleContainer property, and the unknown appleInit image role.
+func awfSupportsAppleContainer(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFAppleContainerMinVersion)
+}
+
 // awfSupportsLegacySecurity returns true when the effective AWF version supports the
 // --legacy-security flag (v0.27.32+). Older versions default to legacy mode and do not
 // recognize this flag.

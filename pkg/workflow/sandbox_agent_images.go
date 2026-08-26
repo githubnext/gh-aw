@@ -39,6 +39,7 @@ const (
 	awfImageRoleEnclaveAgent     = "enclaveAgent"
 	awfImageRoleEnclaveMcpServer = "enclaveMcpServer"
 	awfImageRoleDindStaging      = "dindStaging"
+	awfImageRoleAppleInit        = "appleInit"
 )
 
 // awfImageRoles lists the supported container.images roles in documentation order.
@@ -53,6 +54,7 @@ var awfImageRoles = []string{
 	awfImageRoleEnclaveAgent,
 	awfImageRoleEnclaveMcpServer,
 	awfImageRoleDindStaging,
+	awfImageRoleAppleInit,
 }
 
 // awfPinnedImagePattern is AWF's canonical digestPinnedImage grammar. It follows
@@ -79,6 +81,11 @@ func isKnownAWFImageRole(role string) bool {
 func requiredAWFImageRoles(workflowData *WorkflowData) []string {
 	required := []string{awfImageRoleSquid, awfImageRoleAgent, awfImageRoleAPIProxy}
 	args := customAWFArgs(workflowData)
+	// Apple Container boots the guest from a dedicated init image that carries the
+	// capability relay. AWF fails closed when a manifest omits it.
+	if isAppleContainerRuntime(workflowData) {
+		required = append(required, awfImageRoleAppleInit)
+	}
 	if isCliProxyNeeded(workflowData) || hasEnabledAWFArg(args, "--difc-proxy-host") {
 		required = append(required, awfImageRoleCliProxy)
 	}
@@ -143,6 +150,8 @@ func defaultAWFImageForRole(role, imageTag string) string {
 		return constants.DefaultFirewallRegistry + "/enclave-mcp-server:" + imageTag
 	case awfImageRoleDindStaging:
 		return constants.DefaultFirewallRegistry + "/agent:latest"
+	case awfImageRoleAppleInit:
+		return constants.DefaultFirewallRegistry + "/apple-init:" + imageTag
 	default:
 		return ""
 	}

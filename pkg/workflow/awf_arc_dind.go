@@ -52,6 +52,11 @@ func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) st
 	if isArcDindTopology(workflowData) {
 		specs = append(specs, digestSpec{name: "build-tools", image: constants.DefaultFirewallRegistry + "/build-tools:" + imageTag})
 	}
+	// Apple Container additionally needs the guest init image pinned: AWF resolves
+	// it from the same registry/tag contract as the agent image.
+	if isAppleContainerRuntime(workflowData) {
+		specs = append(specs, digestSpec{name: "apple-init", image: constants.DefaultFirewallRegistry + "/apple-init:" + imageTag})
+	}
 
 	parts := []string{imageTag}
 	var missing []string

@@ -401,7 +401,8 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 func appendTTYAndContainerRuntimeArgs(config AWFCommandConfig, firewallConfig *FirewallConfig) []string {
 	var awfArgs []string
-	if config.UsesTTY && !isDockerSbxRuntime(config.WorkflowData) && !isCloudHypervisorRuntime(config.WorkflowData) {
+	if config.UsesTTY && !isDockerSbxRuntime(config.WorkflowData) && !isCloudHypervisorRuntime(config.WorkflowData) &&
+		!isAppleContainerRuntime(config.WorkflowData) {
 		awfArgs = append(awfArgs, "--tty")
 	}
 	if isDockerSbxRuntime(config.WorkflowData) && awfSupportsContainerRuntime(firewallConfig) {

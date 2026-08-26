@@ -2236,6 +2236,11 @@ sandbox:
       # (optional)
       dindStaging: "example-value"
 
+      # Apple Container guest init image carrying the capability relay. Required
+      # whenever sandbox.agent.runtime is 'apple-container'.
+      # (optional)
+      appleInit: "example-value"
+
     # Enable or disable model fallback for unresolved model selections. Set to false
     # for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports
     # literal boolean or GitHub Actions expression.
@@ -2263,9 +2268,14 @@ sandbox:
     # (requires DOCKER_PAT and DOCKER_USERNAME secrets and a KVM-capable runner; the
     # compiler handles the required privileged setup); 'cloud-hypervisor' runs the
     # agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu
-    # x86_64, sized at 2 vCPUs and 4096 MiB. Omitting runtime is equivalent to
-    # 'docker'. gvisor, docker-sbx and cloud-hypervisor are incompatible with
-    # runner.topology: arc-dind.
+    # x86_64, sized at 2 vCPUs and 4096 MiB; 'apple-container' runs the agent in AWF's
+    # preview Apple Virtualization.framework microVM (gh-aw-firewall#7764) and
+    # requires a self-hosted bare-metal Apple Silicon runner (Darwin arm64, macOS 26+,
+    # kern.hv_support=1) declared as runs-on: [self-hosted, macOS, ARM64] —
+    # GitHub-hosted macos-* runners are rejected because nested virtualization is
+    # unavailable, and it needs an AWF version that supports the preview. Omitting
+    # runtime is equivalent to 'docker'. gvisor, docker-sbx, cloud-hypervisor and
+    # apple-container are incompatible with runner.topology: arc-dind.
     # (optional)
     runtime: "docker"
 

@@ -70,8 +70,32 @@ func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 		}
 	}
 
+	// The apple-container sandbox runtime is the one case where a macOS runner is
+	// required rather than forbidden, and only for the agent job's own runs-on.
+	// Every other runner field (runs-on-slim and the safe-output job runners) keeps
+	// the blanket macOS rejection because those jobs still need Linux containers.
+	//
+	// Only this workflow's own frontmatter is visible here; runs-on and the sandbox
+	// runtime can also arrive from an import. That is safe in both directions:
+	// validateSandboxConfig re-validates the merged runner for every apple-container
+	// workflow, so an omitted local runs-on is deferred rather than rejected here,
+	// and a runtime that arrives only from an import still gets its host requirement
+	// enforced after merging.
+	appleContainer := frontmatterSelectsAppleContainer(frontmatter)
+
 	for _, field := range runsOnFields {
 		labels := extractRunnerLabels(field.value)
+		if appleContainer && field.name == "runs-on" {
+			if isEmptyRunsOnValue(field.value) {
+				// Defer to the post-merge check, which can see an imported runs-on.
+				continue
+			}
+			if err := validateAppleContainerRunnerLabels(labels, true); err != nil {
+				runsOnValidationLog.Printf("apple-container runs-on validation failed: %v", err)
+				return err
+			}
+			continue
+		}
 		for _, label := range labels {
 			lower := strings.ToLower(label)
 			if strings.HasPrefix(lower, "macos-") || strings.EqualFold(lower, "macos") {
@@ -79,8 +103,9 @@ func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 					fmt.Sprintf("%s includes unsupported runner '%s'.\n\n"+
 						"Agentic workflows require Linux containers and container jobs. Use a Linux runner label or runner-group configuration instead.\n\n"+
 						"Example: runs-on: [self-hosted, linux, x64]\n\n"+
+						"The only exception is sandbox.agent.runtime: apple-container, which requires %s declared in this workflow's own frontmatter.\n\n"+
 						"See %s for details.",
-						field.name, label, macOSRunnerFAQURL), nil)
+						field.name, label, appleContainerRunnerExample, macOSRunnerFAQURL), nil)
 			}
 		}
 	}

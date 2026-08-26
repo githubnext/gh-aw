@@ -81,6 +81,28 @@ var sandboxRuntimeProfiles = map[AgentRuntime]sandboxRuntimeProfile{
 		// legacy-security or host-access flags are implied by the sudo prefix.
 		AWFCommand: constants.AWFCloudHypervisorCommand,
 	},
+	AgentRuntimeAppleContainer: {
+		Runtime: AgentRuntimeAppleContainer,
+		// AWF requires strict --network-isolation for apple-container and refuses to
+		// start without it: the guest has no NIC and reaches Squid, the API proxy,
+		// the CLI proxy, and the MCP gateway only through published capability
+		// sockets.
+		NetworkIsolation: true,
+		// Apple Virtualization.framework is driven through the unprivileged
+		// `container` CLI, so AWF itself runs as the runner user. Docker remains
+		// required for the Compose-based infrastructure containers; "rootless" here
+		// describes the AWF invocation, not the absence of Docker.
+		Rootless:   true,
+		AWFCommand: constants.AWFDefaultCommand.String(),
+		// The Apple Container CLI and the guest init image are provisioned by the
+		// self-hosted runner image, not by compiler-generated steps. Layer 2 of this
+		// stack adds the generated setup; until then runtime-install has nothing to
+		// generate and is rejected rather than silently ignored.
+		SupportsRuntimeInstall: false,
+		// The guest has no NIC, so no host port or GitHub Actions services: mapping
+		// can ever reach it.
+		SupportsHostAccess: false,
+	},
 }
 
 // supportedAgentRuntimes lists the runtime values accepted in frontmatter, in
@@ -91,6 +113,7 @@ var supportedAgentRuntimes = []AgentRuntime{
 	AgentRuntimeGVisor,
 	AgentRuntimeDockerSbx,
 	AgentRuntimeCloudHypervisor,
+	AgentRuntimeAppleContainer,
 }
 
 // supportedAgentRuntimeNames returns the supported runtime values as strings.

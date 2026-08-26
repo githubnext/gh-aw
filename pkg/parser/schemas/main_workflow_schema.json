@@ -3744,6 +3744,10 @@
                         "dindStaging": {
                           "$ref": "#/$defs/awf_pinned_image",
                           "description": "Docker-in-Docker staging image required when raw AWF arguments enable directory or engine-binary pre-staging."
+                        },
+                        "appleInit": {
+                          "$ref": "#/$defs/awf_pinned_image",
+                          "description": "Apple Container guest init image carrying the capability relay. Required whenever sandbox.agent.runtime is 'apple-container'."
                         }
                       },
                       "examples": [
@@ -3766,10 +3770,10 @@
                     },
                     "runtime": {
                       "type": "string",
-                      "description": "Sandbox runtime profile for the agent container. Each value selects one supported security and topology profile: 'docker' (default) runs the agent under Docker with a rootless AWF and network isolation; 'docker-sudo-iptables' runs Docker with a privileged AWF, legacy iptables networking, and host/service access (required for allow-host-ports and GitHub Actions services: connectivity); 'gvisor' runs the agent under gVisor's runsc runtime with strict network isolation; 'docker-sbx' runs the agent inside a Docker sbx KVM microVM (requires DOCKER_PAT and DOCKER_USERNAME secrets and a KVM-capable runner; the compiler handles the required privileged setup); 'cloud-hypervisor' runs the agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu x86_64, sized at 2 vCPUs and 4096 MiB. Omitting runtime is equivalent to 'docker'. gvisor, docker-sbx and cloud-hypervisor are incompatible with runner.topology: arc-dind.",
-                      "enum": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor"],
+                      "description": "Sandbox runtime profile for the agent container. Each value selects one supported security and topology profile: 'docker' (default) runs the agent under Docker with a rootless AWF and network isolation; 'docker-sudo-iptables' runs Docker with a privileged AWF, legacy iptables networking, and host/service access (required for allow-host-ports and GitHub Actions services: connectivity); 'gvisor' runs the agent under gVisor's runsc runtime with strict network isolation; 'docker-sbx' runs the agent inside a Docker sbx KVM microVM (requires DOCKER_PAT and DOCKER_USERNAME secrets and a KVM-capable runner; the compiler handles the required privileged setup); 'cloud-hypervisor' runs the agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu x86_64, sized at 2 vCPUs and 4096 MiB; 'apple-container' runs the agent in AWF's preview Apple Virtualization.framework microVM (gh-aw-firewall#7764) and requires a self-hosted bare-metal Apple Silicon runner (Darwin arm64, macOS 26+, kern.hv_support=1) declared as runs-on: [self-hosted, macOS, ARM64] \u2014 GitHub-hosted macos-* runners are rejected because nested virtualization is unavailable, and it needs an AWF version that supports the preview. Omitting runtime is equivalent to 'docker'. gvisor, docker-sbx, cloud-hypervisor and apple-container are incompatible with runner.topology: arc-dind.",
+                      "enum": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor", "apple-container"],
                       "default": "docker",
-                      "examples": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor"]
+                      "examples": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor", "apple-container"]
                     },
                     "runtime-install": {
                       "type": "boolean",

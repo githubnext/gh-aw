@@ -886,6 +886,11 @@
                   "type": "string",
                   "desc": "Docker-in-Docker staging image required when raw AWF arguments enable directory or engine-binary pre-staging.",
                   "leaf": true
+                },
+                "appleInit": {
+                  "type": "string",
+                  "desc": "Apple Container guest init image carrying the capability relay.",
+                  "leaf": true
                 }
               }
             },
@@ -903,7 +908,7 @@
             "runtime": {
               "type": "string",
               "desc": "Sandbox runtime profile for the agent container.",
-              "enum": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor"],
+              "enum": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor", "apple-container"],
               "leaf": true
             },
             "runtime-install": {

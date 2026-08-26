@@ -124,14 +124,20 @@ func getAgentContainerRuntime(workflowData *WorkflowData) string {
 	if agentConfig == nil || agentConfig.Disabled {
 		return ""
 	}
-	// Only gVisor is an OCI runtime that AWF passes through as
-	// container.containerRuntime. The docker/docker-sudo-iptables profiles use the
+	// gVisor is an OCI runtime that AWF passes through as
+	// container.containerRuntime. apple-container is not an OCI runtime, but AWF
+	// selects the backend through the same config field (there is no dedicated CLI
+	// flag for the selector). The docker/docker-sudo-iptables profiles use the
 	// default Docker runtime, and docker-sbx/cloud-hypervisor pass
 	// --container-runtime via CLI flags in BuildAWFArgs instead.
-	if agentConfig.Runtime != AgentRuntimeGVisor {
+	switch agentConfig.Runtime {
+	case AgentRuntimeGVisor:
+		return string(AgentRuntimeGVisor)
+	case AgentRuntimeAppleContainer:
+		return string(AgentRuntimeAppleContainer)
+	default:
 		return ""
 	}
-	return string(AgentRuntimeGVisor)
 }
 
 // isGVisorRuntime returns true when the agent container should use gVisor (runsc).
@@ -161,6 +167,16 @@ func isCloudHypervisorRuntime(workflowData *WorkflowData) bool {
 		return false
 	}
 	return agentConfig.Runtime == AgentRuntimeCloudHypervisor
+}
+
+// isAppleContainerRuntime returns true when the agent should run inside an Apple
+// Virtualization.framework microVM (preview, gh-aw-firewall#7764).
+func isAppleContainerRuntime(workflowData *WorkflowData) bool {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Disabled {
+		return false
+	}
+	return agentConfig.Runtime == AgentRuntimeAppleContainer
 }
 
 // declaresIgnoredFilesystemAllowWrite returns true when a workflow declares

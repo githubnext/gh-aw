@@ -95,6 +95,14 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		// every AWF consumer is predownloaded under --skip-pull. A closed manifest
 		// is authoritative: its literal references bypass aw.json container_pins.
 		for _, role := range requiredAWFImageRoles(workflowData) {
+			// Apple Container keeps a separate image store that `docker pull` cannot
+			// populate, so the appleInit role is deliberately excluded from Docker
+			// predownload. Runtime-aware provisioning for it lands in the follow-up
+			// Apple Container stack layer.
+			if role == awfImageRoleAppleInit {
+				dockerLog.Print("Skipping AWF appleInit container: Apple Container uses a separate image store")
+				continue
+			}
 			image := defaultAWFImageForRole(role, awfImageTag)
 			if sandboxImages != nil {
 				image = sandboxImages[role]
