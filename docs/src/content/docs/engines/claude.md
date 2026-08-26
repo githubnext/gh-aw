@@ -86,10 +86,10 @@ Running coding agent CLIs such as `claude` directly in GitHub Actions without an
 
 The [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action) workflow has a security model with fewer guardrails. It is not recommended for use in GitHub Actions if GitHub Agentic Workflows are available for use.
 
-## Related pages
+## Learn More
 
 - [Quick start](/gh-aw/setup/quick-start/)
 - [Engine reference](/gh-aw/reference/engines/)
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
-- [Examples by task](/gh-aw/examples/)
+- [Gallery](/gh-aw/gallery/)

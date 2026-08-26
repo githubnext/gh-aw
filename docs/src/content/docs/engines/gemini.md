@@ -56,10 +56,10 @@ Gemini supports top-level `max-turns`, custom API targets, and per-command bash 
 
 Running coding agent CLIs such as `gemini` directly in GitHub Actions without an adequate security architecture is not recommended.  GitHub Agentic Workflows gives an appropriate security architecure and workflow portability across AI engines.
 
-## Related pages
+## Learn More
 
 - [Quick start](/gh-aw/setup/quick-start/)
 - [Engine reference](/gh-aw/reference/engines/)
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
-- [Examples by task](/gh-aw/examples/)
+- [Gallery](/gh-aw/gallery/)

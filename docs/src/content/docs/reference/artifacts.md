@@ -274,6 +274,6 @@ When workflows are invoked via `workflow_call`, GitHub Actions prepends a short 
 # - abc123-firewall-audit-logs    (workflow_call invocation)
 ```
 
-## Related Documentation
+## Learn More
 
 See [Audit Commands](/gh-aw/reference/audit/) for downloading and analyzing workflow run artifacts, [Cost Management](/gh-aw/reference/cost-management/) for token-usage and spend reporting, [Network](/gh-aw/reference/network/) for firewall configuration, and [Compilation Process](/gh-aw/reference/compilation-process/) for how workflows upload artifacts.

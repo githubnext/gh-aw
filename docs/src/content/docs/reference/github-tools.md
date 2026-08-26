@@ -219,7 +219,7 @@ Opting out of cross-visibility protections means the agent may read from private
 
 See [MCP Gateway Specification Section 10.9](/gh-aw/reference/mcp-gateway/#109-cross-visibility-opt-out-private-to-public-flows) for full protocol details.
 
-## Related Documentation
+## Learn More
 
 - [Tools Reference](/gh-aw/reference/tools/) - All tool configurations
 - [Authentication Reference](/gh-aw/reference/auth/) - Token setup and permissions

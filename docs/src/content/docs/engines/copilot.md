@@ -55,10 +55,10 @@ Copilot supports the broadest set of `gh-aw` engine-specific features: native cu
 
 Running coding agent CLIs such as `copilot` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecure and workflow portability across AI engines.
 
-## Related pages
+## Learn More
 
 - [Quick start](/gh-aw/setup/quick-start/)
 - [Engine reference](/gh-aw/reference/engines/)
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
-- [Examples by task](/gh-aw/examples/)
+- [Gallery](/gh-aw/gallery/)

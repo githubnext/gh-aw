@@ -203,7 +203,7 @@ Before adding rollout logic or adaptation prompts, define four deterministic con
 3. **correction review input**: deterministic diff artifact consumed by reporting and adaptation
 4. **rollout gate contract**: evidence or approvals required before direct production writes are enabled
 
-## Related Documentation
+## Learn More
 
 - [Staged Mode](/gh-aw/reference/staged-mode/) — safe-write rollout guidance for CorrectionOps
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — separating workflow infrastructure from production across repositories

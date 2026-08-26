@@ -29,7 +29,7 @@ Use repository and pull request context to distinguish intentional behavior from
 
 `create-code-scanning-alert` converts findings to SARIF and uploads them to GitHub code scanning. The agent does not receive general repository write access. Treat agent findings as leads for maintainer investigation, not as proof that code is malicious.
 
-## See also
+## Learn More
 
 - [Daily Malicious Code Scan source workflow](https://github.com/githubnext/agentics/blob/main/workflows/daily-malicious-code-scan.md)
 - [Code scanning alert safe output](/gh-aw/reference/safe-outputs/#code-scanning-alerts-create-code-scanning-alert)

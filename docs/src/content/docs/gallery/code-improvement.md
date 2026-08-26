@@ -30,7 +30,7 @@ Make only a focused change with a measurable readability or maintainability bene
 
 The workflow opens a draft pull request rather than changing the default branch directly. Keep project-specific build and test commands in `AGENTS.md` so the agent can validate its proposal using the repository's normal contribution process.
 
-## See also
+## Learn More
 
 - [Code Simplifier source workflow](https://github.com/githubnext/agentics/blob/main/workflows/code-simplifier.md)
 - [Safe outputs for pull requests](/gh-aw/reference/safe-outputs-pull-requests/)

@@ -38,7 +38,7 @@ tools:
     min-integrity: none
 ```
 
-## See Also
+## Learn More
 
 - [Integrity Filtering](/gh-aw/reference/integrity/) — Complete reference for `min-integrity`, integrity levels, user blocking, and approval labels
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) — Full `tools.github` configuration

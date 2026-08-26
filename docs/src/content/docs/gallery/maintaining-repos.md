@@ -64,7 +64,7 @@ Repo Assist combines several GitHub Agentic Workflow capabilities in one reusabl
 
 Use the generated Repo Assist workflow as a working example when designing repository-specific maintenance automation. Inspect its permissions, tools, safe outputs, network access, schedule, and prompts, then narrow or adapt them to the repository's policies and maintainer capacity.
 
-## See Also
+## Learn More
 
 - [Repo Assist documentation](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md)
 - [Safe Outputs](/gh-aw/reference/safe-outputs/)

@@ -138,7 +138,7 @@ Pre-create the cache directory (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for f
 
 **Slow initial analysis:** Expected behavior as language servers build indexes. Subsequent runs use cached data.
 
-## Related Documentation
+## Learn More
 
 - [Imports Reference](/gh-aw/reference/imports/) - Full imports and `import-schema` syntax
 - [Using MCPs](/gh-aw/guides/mcps/) - General MCP server configuration

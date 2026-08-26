@@ -182,7 +182,7 @@ Start with conservative limits and increase as needed. Use environments for high
 
 **Workflow dispatch not triggering**: Verify max dispatch limit (default: 1), check 5-second delay, confirm target workflow has `on: workflow_dispatch`, or check pending environment approvals.
 
-## Related Documentation
+## Learn More
 
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Write operations with validation
 - [Concurrency Control](/gh-aw/reference/concurrency/) - Execution serialization

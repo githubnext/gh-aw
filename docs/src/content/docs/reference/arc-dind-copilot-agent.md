@@ -275,7 +275,7 @@ Set `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID` in your runner pod spec
 
 The post-job cleanup tries to make sandbox logs world-readable but fails on non-root containers. This does not affect workflow execution — the agent has already finished. The logs are still present but may require container-level access to read. AWF v0.27.22+ automatically repairs ownership on persistent ARC runners at the start of each run.
 
-## Related documentation
+## Learn More
 
 - [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) — `runs-on` formats, Docker socket overrides, framework job runners, GHES compatibility
 - [Docker socket override for split-daemon topologies](/gh-aw/reference/self-hosted-runners/#docker-socket-override-for-split-daemon-topologies) — `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID` configuration

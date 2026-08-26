@@ -83,8 +83,6 @@ Install the GitHub Agentic Workflows extension:
 gh extension install github/gh-aw
 ```
 
-Use this `gh extension install` command by default — it's the standard way to install `gh-aw` and works for most setups. The curl script and `gh auth login` below are only needed for troubleshooting authentication issues.
-
 > [!TIP]
 > If you are encountering authentication issues, use this script instead:
 >
@@ -100,25 +98,22 @@ Use this `gh extension install` command by default — it's the standard way to 
 
 ### Step 2 - Add the sample workflow and trigger a run
 
-`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `daily-repo-status` is one of the sample workflows it publishes. Use `gh aw add-wizard` for guided interactive setup; use [`gh aw add`](/gh-aw/setup/cli/#add) when you want the non-interactive add command instead.
-
-From your repository root, run one of these commands:
+From your repository root, run one of this command:
 
 ```text wrap
-# default — wizard will ask you to choose an engine interactively
 gh aw add-wizard githubnext/agentics/daily-repo-status
-
-# pre-select Claude and skip the interactive engine prompt
-gh aw add-wizard githubnext/agentics/daily-repo-status --engine claude
 ```
+
+`add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `daily-repo-status` is one of the sample workflows it publishes.
 
 This will take you through an interactive process to:
 
 1. **Check prerequisites** - Verify repository permissions.
 2. **Select an AI engine** - Choose GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi.
 3. **Configure AI engine authentication** - Follow the instructions or see below.
-4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions [lock file](/gh-aw/reference/workflow-structure/#lock-file-header) to `.github/workflows/`.
-5. **Optionally trigger an initial run** - Starts the workflow immediately.
+4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions [lock file](/gh-aw/reference/workflow-structure/#lock-file-header) to `.github/workflows/`, either by direct push or a pull request.
+5. **Optionally add skills for agentic authoring and debugging** - Adds additional files for interactive authoring and debugging of agentic workflows.
+6. **Optionally trigger an initial run** - Starts the workflow immediately.
 
 #### Configuring authentication
 
@@ -201,14 +196,6 @@ To customize it now:
    gh aw compile
    ```
 
-   For example, set your engine in frontmatter:
-
-   ```aw wrap
-   ---
-   engine: claude
-   ---
-   ```
-
 4. Commit and push both files to your repository.
 
 5. Optionally trigger another run by running:
@@ -228,10 +215,10 @@ There are hundreds of other ways to use GitHub Agentic Workflows! Explore the [A
 
 Continue learning with these resources:
 
-- [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/)
+- [Create a New Workflow](/gh-aw/setup/creating-workflows/)
 - [How Agentic Workflows Work](/gh-aw/introduction/how-they-work/)
 - [AI Engines for GitHub Agentic Workflows](/gh-aw/reference/engines/)
-- [GitHub Agentic Workflows Examples](/gh-aw/examples/)
+- [GitHub Agentic Workflows Gallery](/gh-aw/gallery/)
 - [Security Architecture](/gh-aw/introduction/architecture/)
 - [Frequently Asked Questions](/gh-aw/reference/faq/)
 
@@ -241,7 +228,7 @@ For a structured, hands-on learning experience, see the [**gh-aw-workshop**](htt
 
 These use-case guides show specific workflow patterns built on the same foundation you just set up:
 
-- [AI Issue Triage on GitHub](/gh-aw/examples/ai-issue-triage/) — label, deduplicate, and ask clarifying questions on new issues automatically
-- [Automated AI Pull Request Review](/gh-aw/examples/automated-pr-review/) — review diffs and post feedback comments when PRs are opened
-- [AI-Generated Release Notes and Reports](/gh-aw/examples/ai-release-notes/) — generate release summaries and repo reports on a schedule
-- [Keeping Documentation Up to Date Automatically](/gh-aw/examples/docs-automation/) — propose documentation updates as pull requests when code changes
+- [AI Issue Triage on GitHub](/gh-aw/gallery/ai-issue-triage/) — label, deduplicate, and ask clarifying questions on new issues automatically
+- [Automated AI Pull Request Review](/gh-aw/gallery/automated-pr-review/) — review diffs and post feedback comments when PRs are opened
+- [AI-Generated Release Notes and Reports](/gh-aw/gallery/ai-release-notes/) — generate release summaries and repo reports on a schedule
+- [Keeping Documentation Up to Date Automatically](/gh-aw/gallery/docs-automation/) — propose documentation updates as pull requests when code changes

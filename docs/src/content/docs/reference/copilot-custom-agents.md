@@ -122,9 +122,9 @@ Perform detailed security analysis using specialized agent files and tools.
 
 Instead of (or alongside) importing agent files from `.github/agents/`, you can define agents directly inside the workflow markdown. See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the complete syntax reference, including name constraints and frontmatter fields.
 
-## Related Documentation
+## Learn More
 
 - [Imports Reference](/gh-aw/reference/imports/) - Complete import system documentation
 - [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining Copilot sub-agents inside a workflow file
-- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Adding and updating workflows from other repositories
+- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) - Adding workflows from other repositories
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference

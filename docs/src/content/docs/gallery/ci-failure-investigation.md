@@ -35,7 +35,7 @@ Create one issue that includes the failing workflow and job, relevant log eviden
 
 The agent has read-only access to Actions and repository content. `create-issue` is a safe output, so gh-aw validates the report before creating it. Change `workflows: ["CI"]` to the workflow names used by the repository, and create the `ci-failure` label before enabling the example.
 
-## See also
+## Learn More
 
 - [CI Doctor source workflow](https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md)
 - [Workflow run triggers](/gh-aw/reference/triggers/#workflow-run-triggers-workflow_run)

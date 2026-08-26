@@ -103,7 +103,7 @@ useful. Look for cost per successful run moving down, useful
 output rate and acceptance moving up, retries dropping, and
 system overlap decreasing.
 
-## Related Documentation
+## Learn More
 
 See [Cost management](/gh-aw/reference/cost-management/) for spend
 controls and [Outcomes](/gh-aw/reference/outcomes/) for downstream

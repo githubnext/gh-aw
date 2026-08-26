@@ -222,9 +222,9 @@ When multiple `checkout:` entries target the same repository and path, their con
 - **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
 - **Ref/Token/App**: First-seen wins
 
-## Related Documentation
+## Learn More
 
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Reading and writing across multiple repositories
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup
-- [Multi-Repository Examples](/gh-aw/examples/multi-repo/) - Complete working examples
+- [Multi-Repository Examples](/gh-aw/gallery/multi-repo/) - Complete working examples
 - [Checkout Behavior Specification](/gh-aw/specs/checkout-behavior-specification/) - Formal checkout semantics across activation, agent, and safe_outputs jobs

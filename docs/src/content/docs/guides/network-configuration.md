@@ -175,7 +175,7 @@ network: {}
 
 View complete ecosystem domain lists in the [ecosystem domains source](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/ecosystem_domains.json).
 
-## Related Documentation
+## Learn More
 
 - [Network Permissions Reference](/gh-aw/reference/network/) - Complete network configuration reference
 - [Playwright Reference](/gh-aw/reference/playwright/) - Browser automation and network requirements

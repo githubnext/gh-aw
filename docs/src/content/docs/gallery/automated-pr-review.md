@@ -35,7 +35,7 @@ Create inline review comments only for specific problems or concrete improvement
 
 This pattern uses `add-comment` for the summary and `create-pull-request-review-comment` for inline findings. Both are safe outputs, so the agent cannot write directly to the pull request; gh-aw validates the review payload before posting it.
 
-## Related pages
+## Learn More
 
 - [Run Claude Code in GitHub Actions with gh-aw](/gh-aw/engines/claude/)
 - [Run GitHub Copilot agents in GitHub Actions with gh-aw](/gh-aw/engines/copilot/)

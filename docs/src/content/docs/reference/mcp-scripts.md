@@ -275,7 +275,7 @@ MCP Scripts tools run on the GitHub Actions **runner host** — outside the agen
 - **Secret Not Available**: Confirm the secret referenced in `env:` (e.g., `${{ secrets.API_KEY }}`) is defined at the repository or organization level under **Settings > Secrets and variables > Actions**, and that its name matches exactly.
 - **Large Output**: When output exceeds 500 characters, the agent receives a file path instead of inline content (see [Large Output Handling](#large-output-handling)); read that file if the agent's response looks truncated.
 
-## Related Documentation
+## Learn More
 
 - [MCP Scripts Specification](/gh-aw/specs/mcp-scripts-specification/) - Formal W3C-style specification
 - [Tools](/gh-aw/reference/tools/) - Other tool configuration options

@@ -34,7 +34,7 @@ Write a compact JSON snapshot to `metrics/YYYY-MM-DD.json` in repo memory. Inclu
 
 Repository memory lets later workflows compare snapshots without adding reports to the default branch. The agent receives read-only GitHub permissions and has only the `noop` safe output, so collection cannot directly mutate issues or pull requests.
 
-## See also
+## Learn More
 
 - [Repository memory](/gh-aw/reference/repo-memory/)
 - [Audit commands](/gh-aw/reference/audit/)

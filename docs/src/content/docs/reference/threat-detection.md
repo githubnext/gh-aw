@@ -429,7 +429,7 @@ The protection list is composed of four sources:
 | **Large patches cause timeouts** | Increase `jobs.detection.timeout-minutes` (10 minutes by default, or `vars.GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES`), configure `max-patch-size`, truncate content before analysis, or split changes into smaller PRs |
 | **False positives** | Refine prompt with specific exclusions, adjust tool thresholds, add workflow context explaining patterns, review detection logs |
 
-## Related Documentation
+## Learn More
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe outputs configuration
 - [Security Guide](/gh-aw/introduction/architecture/) - Overall security best practices

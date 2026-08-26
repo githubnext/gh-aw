@@ -16,13 +16,13 @@ In this guide, we will explore recurring topics in organization and enterprise a
 ## Use Cases in Organizations and Enterprises
 
 In organizations and enterprises, workflows can:
-- [Roll out changes org-wide](/gh-aw/examples/multi-repo/dependabot-rollout/)
-- [Assess code quality across 100s of repos](/gh-aw/examples/multi-repo/code-quality-monitoring/)
-- [Synchronize dependency updates](/gh-aw/examples/multi-repo/dependabot-rollout/)
-- [Propagate coding policy changes](/gh-aw/examples/multi-repo/feature-sync/)
-- [Shrink backlogs in multiple maintained repos](/gh-aw/examples/maintaining-repos/)
-- [Enforce coding standards across teams](/gh-aw/examples/multi-repo/code-quality-monitoring/)
-- [Aggregate issue tracking into a single control plane](/gh-aw/examples/multi-repo/issue-tracking/)
+- [Roll out changes org-wide](/gh-aw/gallery/multi-repo/dependabot-rollout/)
+- [Assess code quality across 100s of repos](/gh-aw/gallery/multi-repo/code-quality-monitoring/)
+- [Synchronize dependency updates](/gh-aw/gallery/multi-repo/dependabot-rollout/)
+- [Propagate coding policy changes](/gh-aw/gallery/multi-repo/feature-sync/)
+- [Shrink backlogs in multiple maintained repos](/gh-aw/gallery/maintaining-repos/)
+- [Enforce coding standards across teams](/gh-aw/gallery/multi-repo/code-quality-monitoring/)
+- [Aggregate issue tracking into a single control plane](/gh-aw/gallery/multi-repo/issue-tracking/)
 
 The possibilities are vast. Challenges include secure authentication, cost management, and operational control at scale.
 
@@ -30,7 +30,7 @@ The possibilities are vast. Challenges include secure authentication, cost manag
 
 There are two complementary layers to workflow distribution across an organization.
 
-[Reusing Workflows](/gh-aw/guides/reusing-workflows/) covers the developer-facing mechanics: use `gh aw add` or `gh aw add-wizard` to install a workflow from another repository, and `gh aw update` to pull in upstream changes while preserving local edits. Use `imports:` in workflow frontmatter to pull in shared components (tool configs, MCP server definitions, prompt snippets) — see [Imports](/gh-aw/reference/imports/) for the full reference.
+[Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) covers the developer-facing mechanics: use `gh aw add` or `gh aw add-wizard` to install a workflow from another repository, and `gh aw update` to pull in upstream changes while preserving local edits. Use `imports:` in workflow frontmatter to pull in shared components (tool configs, MCP server definitions, prompt snippets) — see [Imports](/gh-aw/reference/imports/) for the full reference.
 
 [Sharing Workflows in the Organization](/gh-aw/practices/sharing-workflows/) covers the organizational governance layer: recommended techniques like maintaining a central `agentic-workflows` repository as the source of truth, versioning with exact tags (`@v1.2.0`), moving major refs (`@v1`), or SHA pins, parameterized shared components via `import-schema`, and controlling discoverability with `private: true`.
 

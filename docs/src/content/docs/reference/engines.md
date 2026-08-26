@@ -609,13 +609,13 @@ mcp-servers:
 > [!WARNING]
 > Do not rely on `tools:` or `mcp-servers: allowed:` for security guarantees in `bypassPermissions` mode. The agent can already run arbitrary shell commands when unrestricted bash is granted, so `--allowed-tools` provides no meaningful additional boundary.
 
-## Related Documentation
+## Learn More
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
 - [Authentication](/gh-aw/reference/auth/) - Engine credentials and identity mechanisms
 - [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
 - [Security Guide](/gh-aw/introduction/architecture/) - Security considerations for AI engines
-- [Examples by Task](/gh-aw/examples/) - Agentic workflow examples and when to use them
+- [Gallery](/gh-aw/gallery/) - Agentic workflows organized by task
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
 - [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) - Timeout tuning for large repositories
 - [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Fast hardware for long-running workflows
