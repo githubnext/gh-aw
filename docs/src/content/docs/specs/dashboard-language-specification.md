@@ -232,11 +232,11 @@ The `source` vocabulary is closed in version 0.1.0.
 | `evals` | eval definition | `eval`, `eval-name`, `eval-question`, `requested-model`, `observed-at` |
 | `eval-observations` | eval observation | scope IDs, `run`, `experiment`, `eval`, `eval-result`, `requested-model`, `resolved-model`, `rollout-mode`, `observed-at` |
 | `usage` | model invocation | scope IDs, `run`, `invocation`, `engine`, `requested-model`, `resolved-model`, `rollout-mode`, `input-tokens`, `output-tokens`, `cache-read-tokens`, `cache-write-tokens`, `reasoning-tokens`, `aic`, `observed-at` |
-| `outcomes` | safe-output outcome observation | scope IDs, `run`, `safe-output`, `outcome-state`, `evidence-strength`, `observed-at`, `link` |
-| `findings` | finding | scope IDs, `run`, `finding`, `finding-severity`, `finding-status`, `finding-summary`, `observed-at`, `link` |
+| `outcomes` | safe-output outcome observation | scope IDs, `run`, `safe-output`, `outcome-state`, `evidence-strength`, `observed-at`, `issue-link`, `pull-request-link`, `run-link`, `external-link` |
+| `findings` | finding | scope IDs, `run`, `finding`, `finding-severity`, `finding-status`, `finding-summary`, `observed-at`, `issue-link`, `pull-request-link`, `run-link`, `external-link` |
 | `operational-values` | value observation | scope IDs, `run`, `experiment`, `operational-case`, `evaluator-digest`, `rollout-mode`, `operational-value`, `operational-value-definition`, `requested-evidence-at`, `evidence-cutoff`, `maturity-at`, `maturity-status`, `delta-from-baseline`, `observed-at`, `evidence-link` |
 
-“Scope IDs” means the applicable `organization`, `repository`, and `workflow` fields. Fields that do not apply to an observation are absent rather than fabricated.
+“Scope IDs” means the applicable `organization`, `repository`, and `workflow` fields. Fields that do not apply to an observation are absent rather than fabricated. Link-bearing source fields are relation-specific optional fields whose intrinsic type is one Section 9.1 link object. `issue-link`, `pull-request-link`, `run-link`, `evidence-link`, and `external-link` correspond to the `issue`, `pull-request`, `run`, `evidence`, and `external` link relations, respectively; a source row MUST NOT encode multiple link relations inside one field.
 
 ### 5.2 Raw Token Classes
 
@@ -377,16 +377,17 @@ Data quality has three independent axes:
 
 ### 9.1 Link Model
 
-A link has `relation`, `href`, and `label`. Allowed relations are `organization`, `repository`, `workflow`, `run`, `issue`, `pull-request`, `evidence`, and `external`.
+A link has `relation`, `href`, and `label`. Allowed relations are `organization`, `repository`, `workflow`, `run`, `issue`, `pull-request`, `evidence`, and `external`. When a relation-specific link field from Section 5.1 is present on a source row, it contains exactly one link object whose `relation` matches the field name.
 
-A finding is an observation with a stable finding ID, summary, status, severity, observation time, provenance, applicable scope, and zero or more links. Finding status uses `open`, `resolved`, `dismissed`, or `unknown`. Severity uses `critical`, `high`, `medium`, `low`, `informational`, or `unknown`.
+A finding is an observation with a stable finding ID, summary, status, severity, observation time, provenance, applicable scope, and zero or more relation-specific link fields. Finding status uses `open`, `resolved`, `dismissed`, or `unknown`. Severity uses `critical`, `high`, `medium`, `low`, `informational`, or `unknown`.
 
 ### 9.2 Normative Link Requirements
 
 - **DLS-LINK-001:** Every link **MUST** contain one allowed `relation`, an absolute HTTPS `href`, and a non-empty `label`.
 - **DLS-LINK-002:** Links **MUST** retain the provenance and subject association from which they were derived.
-- **DLS-LINK-003:** A finding **MUST** expose links to its associated issue, pull request, or run when those associations are available.
-- **DLS-LINK-004:** A finding without an available issue, pull-request, or run association **MUST** remain valid and **MUST NOT** contain a fabricated link.
+- **DLS-LINK-003:** A finding or outcome **MUST** expose relation-specific links to its associated issue, pull request, or run when those associations are available.
+- **DLS-LINK-004:** A finding, outcome, or operational-value observation without an available link association **MUST** remain valid and **MUST NOT** contain a fabricated link.
+- **DLS-LINK-005:** A relation-specific link field, when present, **MUST** contain exactly one Section 9.1 link object and **MUST NOT** contain a sequence, mapping of multiple relations, or scalar URL.
 
 ---
 
@@ -436,7 +437,7 @@ A custom page contains a non-empty `views` sequence. Each view has one `data` ma
 | Table | `table` | `columns` |
 | Chart | `chart` | `x`, `y` |
 
-Allowed encoding channels are `value`, `columns`, `x`, `y`, `color`, and `href`. `columns` is a non-empty sequence of field definitions; other channels contain one field definition.
+Allowed encoding channels are `value`, `columns`, `x`, `y`, `color`, and `href`. `columns` is a non-empty sequence of field definitions; other channels contain one field definition. The `href` channel references a link-typed source field and does not select from multiple links.
 
 Field `type` values are `nominal`, `ordinal`, `quantitative`, and `temporal`. When omitted, type defaults to the intrinsic field type. A field title defaults to its kebab-case field name with words capitalized.
 
@@ -460,13 +461,14 @@ An omitted `data` inherits dashboard defaults. Omitted `limit` means no language
 - **DLS-VIEW-004:** `table` **MUST** encode non-empty `columns` and **MAY** encode `href`; it **MUST NOT** encode `value`, `x`, `y`, or `color`.
 - **DLS-VIEW-005:** `chart` **MUST** encode `x` and quantitative `y`, **MAY** encode `color` and `href`, and **MUST NOT** encode `value` or `columns`.
 - **DLS-VIEW-006:** A `chart` with temporal `x` **MUST** use the line time-series default; any other valid `chart` **MUST** use the bar default.
-- **DLS-VIEW-007:** An encoding field **MUST** exist in the selected source and its declared type **MUST** be compatible with its intrinsic type or aggregate output type.
+- **DLS-VIEW-007:** An encoding field **MUST** exist in the selected source and its declared type **MUST** be compatible with its intrinsic type or aggregate output type; an `href` field **MUST** have intrinsic type link.
 - **DLS-VIEW-008:** A field definition **MUST** contain `field` and **MAY** contain only `type`, `aggregate`, `time-unit`, and `title` in addition.
 - **DLS-VIEW-009:** `time-unit` **MUST** be used only with a temporal field and **MUST** use an allowed value from Section 7.3.
 - **DLS-VIEW-010:** `data.limit` **MUST** be a positive integer, and `data.order-by` fields **MUST** exist in the selected source or be encoded aggregate outputs.
 - **DLS-VIEW-011:** A custom view **MUST NOT** contain scripts, joins, formulas, expressions, templates, plugins, or undeclared transforms.
 - **DLS-VIEW-012:** A custom view **MUST** apply defaults, filtering, aggregation, ordering, and limiting in the order defined by Sections 6, 7, and 11.2.
 - **DLS-VIEW-013:** A custom view **MUST** expose its source provenance, freshness, completeness, effective scope, effective time range, and effective filters.
+- **DLS-VIEW-014:** A presenter rendering `href` **MUST** use the referenced link object's `href` as the navigation target and **MUST** expose the link object's `label` as the accessible link label. If the referenced link field is absent for a datum, the datum **MUST** remain valid and **MUST** render without a link.
 
 ---
 
@@ -476,7 +478,7 @@ Validation proceeds conceptually through YAML syntax, document count, structural
 
 - **DLS-VAL-001:** A validator **MUST** report every detected error with an error code, a human-readable message, and a location identifying the nearest YAML path.
 - **DLS-VAL-002:** A validator **MUST** reject a document when any Level 1 structural requirement fails.
-- **DLS-VAL-003:** A Level 2 or Level 3 validator **MUST** reject incompatible source fields, filters, aggregates, encodings, links, or data relationships.
+- **DLS-VAL-003:** A Level 2 or Level 3 validator **MUST** reject incompatible source fields, filters, aggregates, encodings, links, or data relationships. A validator **MUST** reject an `href` reference to a non-link field or an ambiguous multi-link field with link-specific error code `DLS-E009`.
 - **DLS-VAL-004:** Error reporting **MUST NOT** expose credentials, secret values, or sensitive source payloads.
 
 Error codes are listed in Appendix B.
@@ -536,16 +538,67 @@ In the table, “accept” means validation succeeds; “reject” means validat
 | DLS-CTX-001–008 | T-CTX-001 | 2 | Exercise ancestry, boundary times, Boolean filter rules, inheritance, rollout mode, unknown, and operation order. |
 | DLS-AGG-001–008 | T-AGG-001 | 2 | Exercise allowed aggregates, compatibility, nulls, UTC buckets, ranking disclosure, and deterministic ties. |
 | DLS-DATA-001–008 | T-DATA-001 | 2 | Exercise required metadata, derivation traceability, and each distinct data state. |
-| DLS-LINK-001–004 | T-LINK-001 | 2 | Validate link shape, safety, provenance, available associations, and absent associations. |
+| DLS-LINK-001–005 | T-LINK-001 | 2 | Validate link shape, safety, provenance, available associations, absent associations, and one-link-per-field cardinality. |
 | DLS-PAGE-001–014 | T-PAGE-001 | 3 | Evaluate each built-in fixture for required content, defaults, context, and data states. |
 | DLS-VIEW-001–006 | T-VIEW-001 | 3 | Validate custom structure and every allowed mark/channel combination. |
-| DLS-VIEW-007–013 | T-VIEW-002 | 3 | Validate fields, types, time units, ordering, exclusions, operation order, and exposed context. |
+| DLS-VIEW-007–014 | T-VIEW-002 | 3 | Validate fields, types, link-compatible `href`, time units, ordering, exclusions, operation order, exposed context, and link labels. |
 | DLS-VAL-001–004 | T-VAL-001 | 1–3 | Verify rejection, coded path-specific errors, semantic checks, and secret redaction. |
 | DLS-SAFE-001–006 | T-SAFE-001 | 3 | Exercise safe YAML, inert content, sanitization, HTTPS links, secrets, and authorization boundaries. |
 | DLS-SAFE-007–010 | T-SAFE-002 | 3 | Inspect names, textual alternatives, labels, and non-color semantics. |
 | DLS-TEST-001–003 | T-TEST-001 | 1–3 | Inspect coverage, result metadata, time boundaries, and missing-data distinctions. |
 
-### 14.3 Recommended Execution Procedure
+
+### 14.3 Custom Link Fixture Requirements
+
+A Level 3 compliance suite MUST include at least one positive and one negative custom-view fixture for `href` link rendering and validation. The positive fixture MUST include a custom view whose `href.field` references a relation-specific link field and logical data containing one row where that field is present and one row where it is absent. The expected semantic output MUST use the present link object's `href` as the navigation target, expose its `label` as the accessible link label, and leave the absent-link row unlinked.
+
+```yaml
+language-version: "0.1.0"
+dashboard:
+  id: findings-links
+  title: Findings Links
+  pages:
+    - id: findings-table
+      kind: custom
+      title: Findings with Pull Requests
+      views:
+        - id: open-findings
+          data:
+            source: findings
+            filters:
+              finding-status: open
+          mark: table
+          encoding:
+            columns:
+              - field: finding-summary
+              - field: finding-severity
+            href:
+              field: pull-request-link
+```
+
+The negative fixture MUST include a custom view whose `href.field` references a field that is not link-typed, such as `finding-summary`, or an implementation extension field that contains multiple links. The expected validation result MUST reject the document with `DLS-E009`.
+
+```yaml
+language-version: "0.1.0"
+dashboard:
+  id: invalid-finding-links
+  title: Invalid Finding Links
+  pages:
+    - id: findings-table
+      kind: custom
+      views:
+        - id: invalid-href
+          data:
+            source: findings
+          mark: table
+          encoding:
+            columns:
+              - field: finding-summary
+            href:
+              field: finding-summary
+```
+
+### 14.4 Recommended Execution Procedure
 
 1. Validate positive and negative YAML fixtures.
 2. Validate semantic fixtures and relationships.
@@ -677,7 +730,7 @@ dashboard:
 | `DLS-E006` | Unknown source, field, or reference |
 | `DLS-E007` | Incompatible mark, channel, type, or time unit |
 | `DLS-E008` | Forbidden executable or transformation feature |
-| `DLS-E009` | Unsafe or invalid link |
+| `DLS-E009` | Unsafe, invalid, ambiguous, or incompatible link or `href` reference |
 | `DLS-E010` | Invalid scope, filter, time range, or aggregation |
 | `DLS-E011` | Invalid entity relationship or source grain |
 | `DLS-E012` | Missing required provenance or data-state metadata |

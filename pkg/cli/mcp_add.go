@@ -336,8 +336,7 @@ The command will:
   gh aw mcp add weekly-research makenotion/notion-mcp-server  # Add Notion MCP server to weekly-research.md
   gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio  # Prefer stdio transport
   gh aw mcp add weekly-research makenotion/notion-mcp-server --registry https://custom.registry.com/v1  # Use custom registry
-  gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion  # Use custom tool ID
-`,
+  gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion  # Use custom tool ID`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
