@@ -18,7 +18,6 @@ permissions:
 
 safe-outputs:
   create-pull-request:
-    branch: docs/automation
     title-prefix: "[docs] "
     draft: true
 ---

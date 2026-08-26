@@ -5,21 +5,22 @@ sidebar:
   order: 1
 ---
 
-GitHub Agentic Workflows (`gh-aw`) examples show how Markdown workflows can run AI agents through GitHub Actions for repository tasks that require reasoning, interpretation, investigation, or generation. Use this catalog to choose a starting point; each entry explains when the pattern is useful and links to maintained guidance or workflow source.
+GitHub Agentic Workflows examples show how Markdown workflows can run AI agents through GitHub Actions for repository tasks that require reasoning, interpretation, investigation, or generation. Use this catalog to choose a starting point; each entry explains when the pattern is useful and links to maintained guidance or workflow source.
 
 ## Examples by task
 
-| Task | When to use it | Example |
-| --- | --- | --- |
-| Issue triage | Classify new issues, identify duplicates, apply bounded labels, and ask for missing information. | [AI issue triage on GitHub](/gh-aw/examples/ai-issue-triage/) |
-| Pull-request review | Inspect diffs for concrete defects and post review feedback through controlled safe outputs. | [Automated AI pull-request review](/gh-aw/examples/automated-pr-review/) |
-| Documentation maintenance | Detect drift between code and documentation and propose reviewable updates. | [Keeping documentation up to date automatically](/gh-aw/examples/docs-automation/) |
-| CI failure investigation | Analyze failed GitHub Actions runs, correlate logs, and open diagnostic issues with likely causes. | [CI Doctor and fault-investigation workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/) |
-| Code improvement | Find unnecessary complexity or duplicated logic and propose focused changes for human review. | [Continuous simplicity workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/) |
-| Dependency analysis | Research dependency usage and upstream changes before creating prioritized follow-up work. | [ResearchPlanAssignOps dependency analysis](/gh-aw/patterns/research-plan-assign-ops/) |
-| Repository reporting | Summarize repository or release activity on an event or schedule. | [AI-generated release notes and reports](/gh-aw/examples/ai-release-notes/) |
-| Scheduled maintenance | Review a backlog regularly, select bounded maintenance tasks, and propose controlled changes. | [Automated repository maintenance](/gh-aw/examples/maintaining-repos/) |
-| Security review | Combine deterministic security tools with AI interpretation to report suspicious changes or compliance work. | [Security-related workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/) |
+| Task | When to use it |
+| --- | --- |
+| [Issue triage](/gh-aw/examples/ai-issue-triage/) | Automatically classify new issues, identify duplicates, apply bounded labels, and ask for missing information. |
+| [Pull-request review](/gh-aw/examples/automated-pr-review/) | Automatically inspect diffs for concrete defects and post review feedback through controlled safe outputs. |
+| [Documentation maintenance](/gh-aw/examples/docs-automation/) | Automatically detect drift between code and documentation and propose reviewable updates. |
+| [CI failure investigation](/gh-aw/examples/ci-failure-investigation/) | Automatically analyze failed GitHub Actions runs, correlate logs, and open diagnostic issues with likely causes. |
+| [Code improvement](/gh-aw/examples/code-improvement/) | Automatically find unnecessary complexity or duplicated logic and propose focused changes for human review. |
+| [Dependency analysis](/gh-aw/patterns/research-plan-assign-ops/) | Automatically research dependency usage and upstream changes before creating prioritized follow-up work. |
+| [Metrics and analytics](/gh-aw/examples/metrics-analytics/) | Automatically collect workflow activity and store structured snapshots for health and performance analysis. |
+| [Repository reporting](/gh-aw/examples/ai-release-notes/) | Automatically summarize repository or release activity on an event or schedule. |
+| [Repository maintenance](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) | Automatically review a backlog, perform bounded maintenance tasks, and propose controlled changes on a schedule. |
+| [Security review](/gh-aw/examples/security-review/) | Automatically combine repository evidence with AI interpretation to report suspicious changes through code scanning. |
 
 ## Examples and AI engines
 
