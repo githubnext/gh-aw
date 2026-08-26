@@ -49,6 +49,28 @@ function resolveEffectiveContext(invocationContext, rawContext) {
   };
 }
 
+function resolvePRHeadBaselineForPush(branchName, repoSlug, server) {
+  const baselineBranch = (process.env.GH_AW_PR_HEAD_BASE_BRANCH || "").trim();
+  const baselineRepo = (process.env.GH_AW_PR_HEAD_BASE_REPO || "").trim();
+  const baselineRef = (process.env.GH_AW_PR_HEAD_BASE_REF || "").trim();
+  const baselineSha = (process.env.GH_AW_PR_HEAD_BASE_SHA || "").trim();
+
+  if (!baselineBranch || baselineBranch !== branchName || (!baselineRef && !baselineSha)) {
+    return null;
+  }
+
+  if (baselineRepo && baselineRepo.toLowerCase() !== repoSlug.toLowerCase()) {
+    server.debug(`Ignoring PR-head baseline for ${baselineBranch}: recorded repo ${baselineRepo} does not match target repo ${repoSlug}`);
+    return null;
+  }
+
+  server.debug(`Using recorded PR-head baseline for incremental push patch: ${baselineRef || baselineSha}`);
+  return {
+    ref: baselineRef,
+    sha: baselineSha,
+  };
+}
+
 /**
  * Read and parse a JSON file.
  * @param {string} filePath
@@ -1342,6 +1364,28 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return buildIntentErrorResponse(intentValidationError);
     }
 
+    const prHeadBaseline = resolvePRHeadBaselineForPush(entry.branch, itemRepo, server);
+
+    // Build common options for both patch and bundle generation
+    const pushTransportOptions = { mode: "incremental" };
+    if (prHeadBaseline) {
+      if (prHeadBaseline.ref) {
+        pushTransportOptions.incrementalBaseRef = prHeadBaseline.ref;
+      }
+      if (prHeadBaseline.sha) {
+        pushTransportOptions.incrementalBaseSha = prHeadBaseline.sha;
+      }
+    }
+    if (repoCwd) {
+      pushTransportOptions.cwd = repoCwd;
+      pushTransportOptions.repoSlug = repoResult.repo;
+    }
+    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
+    // Falls back to GITHUB_TOKEN if not set.
+    if (pushConfig["github-token"]) {
+      pushTransportOptions.token = pushConfig["github-token"];
+    }
+
     // Determine transport format: "bundle" (default) uses git bundle (preserves merge topology),
     // "am" uses git format-patch / git am (good for linear histories).
     // Use ?? (nullish coalescing) so an empty-string resolved value is preserved and
@@ -1379,23 +1423,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // only local refs (no extra fetch); a detection miss simply preserves the
     // existing behavior.
     if (!useBundle && !patchFormatExplicit && entry.branch) {
-      const hasMerges = hasMergeCommitsInRange(`refs/remotes/origin/${entry.branch}`, entry.branch, { cwd: repoCwd || undefined });
+      const rangeBaseRef = prHeadBaseline?.sha || prHeadBaseline?.ref || `refs/remotes/origin/${entry.branch}`;
+      const hasMerges = hasMergeCommitsInRange(rangeBaseRef, entry.branch, { cwd: repoCwd || undefined });
       if (hasMerges) {
-        server.debug(`push_to_pull_request_branch: detected merge commit(s) in incremental range origin/${entry.branch}..${entry.branch}; auto-switching to bundle transport (set patch-format: am to override).`);
+        server.debug(`push_to_pull_request_branch: detected merge commit(s) in incremental range ${rangeBaseRef}..${entry.branch}; auto-switching to bundle transport (set patch-format: am to override).`);
         useBundle = true;
       }
-    }
-
-    // Build common options for both patch and bundle generation
-    const pushTransportOptions = { mode: "incremental" };
-    if (repoCwd) {
-      pushTransportOptions.cwd = repoCwd;
-      pushTransportOptions.repoSlug = repoResult.repo;
-    }
-    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
-    // Falls back to GITHUB_TOKEN if not set.
-    if (pushConfig["github-token"]) {
-      pushTransportOptions.token = pushConfig["github-token"];
     }
 
     // SECURITY: Pin the branch ref to a SHA before generating any transport artifacts.

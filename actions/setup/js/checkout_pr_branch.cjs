@@ -35,6 +35,20 @@ const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs")
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API, ERR_PERMISSION } = require("./error_codes.cjs");
 const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
+const PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
+
+function exportPRHeadBaseline({ branchName, baseRepo, baseSha }) {
+  if (!branchName || !baseSha) {
+    return;
+  }
+  core.exportVariable("GH_AW_PR_HEAD_BASE_BRANCH", branchName);
+  core.exportVariable("GH_AW_PR_HEAD_BASE_SHA", baseSha);
+  if (baseRepo) {
+    core.exportVariable("GH_AW_PR_HEAD_BASE_REPO", baseRepo);
+  }
+  core.exportVariable("GH_AW_PR_HEAD_BASE_REF", PR_HEAD_BASE_REF);
+  core.info(`Recorded PR head baseline for incremental patches: ${branchName}@${baseSha}`);
+}
 
 /**
  * Determine whether the current repository is a shallow clone.
@@ -313,6 +327,11 @@ async function main() {
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", branchName]);
 
+      exportPRHeadBaseline({
+        branchName,
+        baseRepo: pullRequest.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
+        baseSha: pullRequest.head.sha,
+      });
       core.info(`✅ Successfully checked out branch: ${branchName}`);
     } else {
       // For pull_request_target, fork pull_request events, and other PR events,
@@ -350,12 +369,17 @@ async function main() {
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const prFetchArgs = await depthArgs(fetchDepth);
       core.info(prFetchArgs.length > 0 ? `Fetching with ${prFetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:refs/remotes/origin/pr-head`, ...prFetchArgs]);
+      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs]);
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
 
+      exportPRHeadBaseline({
+        branchName,
+        baseRepo: fullPR.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
+        baseSha: fullPR.head?.sha,
+      });
       core.info(`✅ Successfully checked out PR #${prNumber}`);
       core.info(`Current branch: ${branchName}`);
     }
