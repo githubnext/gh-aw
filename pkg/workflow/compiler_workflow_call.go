@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
 
@@ -171,7 +172,7 @@ func (c *Compiler) injectWorkflowCallOutputs(onSection string, safeOutputs *Safe
 		return onSection
 	}
 
-	return strings.TrimSuffix(string(newYAML), "\n")
+	return finalizeWorkflowCallOnSection(newYAML)
 }
 
 // buildWorkflowCallOutputsMap constructs the outputs map for on.workflow_call.outputs
@@ -350,5 +351,12 @@ func injectWorkflowCallSecretsSection(onSection string, secrets []string) string
 		return onSection
 	}
 
-	return strings.TrimSuffix(string(newYAML), "\n")
+	return finalizeWorkflowCallOnSection(newYAML)
+}
+
+// finalizeWorkflowCallOnSection post-processes a re-marshaled on: section so it matches
+// the formatting produced by extractTopLevelYAMLSection. The YAML library drops quotes
+// from cron expressions such as "0 0 */2 * *", so they are re-quoted here.
+func finalizeWorkflowCallOnSection(marshaled []byte) string {
+	return strings.TrimSuffix(parser.QuoteCronExpressions(string(marshaled)), "\n")
 }

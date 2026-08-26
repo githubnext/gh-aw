@@ -139,19 +139,20 @@ func TestInjectWorkflowCallOutputs(t *testing.T) {
 			expectUnchanged: true,
 		},
 		{
-			name: "schedule sequence stays indented under its key",
+			name: "schedule sequence stays indented and cron stays quoted",
 			onSection: `"on":
   schedule:
-    - cron: 0 0 */2 * *
+    - cron: "0 0 */2 * *"
   workflow_call:`,
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
 			expectContains: []string{
-				"  schedule:\n    - cron:",
+				"  schedule:\n    - cron: \"0 0 */2 * *\"",
 			},
 			expectAbsent: []string{
 				"  schedule:\n  - cron:",
+				"- cron: 0 0",
 			},
 		},
 		{
@@ -438,14 +439,14 @@ func TestInjectWorkflowCallSecretsSection(t *testing.T) {
 			wantContain: []string{"USER_SECRET", "AUTO_SECRET"},
 		},
 		{
-			name: "schedule sequence stays indented under its key",
+			name: "schedule sequence stays indented and cron stays quoted",
 			onSection: `"on":
   schedule:
-    - cron: 0 0 */2 * *
+    - cron: "0 0 */2 * *"
   workflow_call: {}`,
 			secrets:     []string{"MY_TOKEN"},
-			wantContain: []string{"MY_TOKEN", "  schedule:\n    - cron:"},
-			wantAbsent:  []string{"  schedule:\n  - cron:"},
+			wantContain: []string{"MY_TOKEN", "  schedule:\n    - cron: \"0 0 */2 * *\""},
+			wantAbsent:  []string{"  schedule:\n  - cron:", "- cron: 0 0"},
 		},
 		{
 			name:        "handles string shorthand on: workflow_call",
