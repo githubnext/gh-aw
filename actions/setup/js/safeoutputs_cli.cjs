@@ -160,9 +160,10 @@ function emitInfrastructureIncomplete(details, options) {
  * Entries with these types are excluded when checking whether expected outputs were produced.
  */
 // Expected-output checks look for task-level outputs only, so noop is diagnostic
-// there. Terminal-output checks treat noop as a completed result, but keep
-// missing_data and report_incomplete non-terminal by default; engines with
-// legacy terminal semantics opt in via flags.
+// there even though terminal-output checks treat noop as a completed result.
+// missing_data is not an infrastructure diagnostic for expected-output checks,
+// but it is non-terminal for shared harness checks by default. Engines with
+// legacy terminal semantics opt missing_data/report_incomplete in via flags.
 const TERMINAL_SAFE_OUTPUT_TYPES = new Set(["noop"]);
 const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
 const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
@@ -235,6 +236,7 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
     return false;
   }
   if (byteOffset > 0 && options?.readFileSync) {
+    logger("hasTerminalSafeOutput: byteOffset is unsupported with injected readFileSync; returning false");
     return false;
   }
 

@@ -335,12 +335,15 @@ describe("safeoutputs_cli.cjs", () => {
     });
 
     it("returns false when byteOffset is used with an injected string reader", () => {
+      const logs = [];
       expect(
         hasTerminalSafeOutput("/fake/path.jsonl", {
           byteOffset: 1,
+          logger: message => logs.push(message),
           readFileSync: () => '{"type":"noop","message":"old"}\n',
         })
       ).toBe(false);
+      expect(logs.some(message => message.includes("byteOffset is unsupported"))).toBe(true);
     });
   });
 
