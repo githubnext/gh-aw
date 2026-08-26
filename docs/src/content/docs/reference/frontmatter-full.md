@@ -1551,8 +1551,8 @@ plugins: []
 # (optional)
 # Accepted formats:
 
-# Format 1: Simple permissions string: 'read-all' (all read permissions) or
-# 'write-all' (all write permissions)
+# Format 1: Simple permissions string: 'read-all' (all read permissions),
+# 'write-all' (all write permissions), or 'none' (no permissions)
 permissions: "read-all"
 
 # Format 2: Detailed permissions object with granular control over specific GitHub

@@ -800,7 +800,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_PermissionsNoneSho
 		"permissions": "none",
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/permissions-none-shorthand-valid-test.md")
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/workflow.md")
 	if err != nil {
 		t.Fatalf("expected 'permissions: none' to pass schema validation, got: %v", err)
 	}
