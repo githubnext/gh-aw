@@ -11,6 +11,9 @@ import (
 
 func TestFormatDuration(t *testing.T) {
 	t.Parallel()
+	// assert.Equal is intentional for this file's table-driven tests:
+	// each subtest has one assertion, and using assert consistently keeps
+	// the style aligned across all duration-format tests here.
 	tests := []struct {
 		name     string
 		duration time.Duration
@@ -204,8 +207,10 @@ func TestFormatDurationMs(t *testing.T) {
 			expected: "1.5s",
 		},
 		{
-			name:     "just under one minute rounds up to 60.0s",
-			ms:       59999,
+			name: "just under one minute rounds up to 60.0s",
+			ms:   59999,
+			// 59_999 ms is still in the seconds branch (ms < 60_000), and
+			// one-decimal formatting rounds 59.999s to "60.0s" before minute formatting applies.
 			expected: "60.0s",
 		},
 		// Minute range
