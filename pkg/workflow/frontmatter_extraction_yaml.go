@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var frontmatterLog = logger.New("workflow:frontmatter_extraction")
@@ -253,7 +254,7 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 			var events []string
 			centralized := false
 			placeholder := ""
-			names := normalizeStringOrStringSlice(commandMap["name"])
+			names := typeutil.NormalizeStringSlice(commandMap["name"])
 
 			// Extract events field
 			if eventsValue, hasEvents := commandMap["events"]; hasEvents {
@@ -309,10 +310,10 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 		var events []string
 		decentralized := false
 		removeLabelVal := true // default to true
-		names := normalizeStringOrStringSlice(lcMap["name"])
+		names := typeutil.NormalizeStringSlice(lcMap["name"])
 
 		if namesVal, hasNames := lcMap["names"]; hasNames {
-			names = append(names, normalizeStringOrStringSlice(namesVal)...)
+			names = append(names, typeutil.NormalizeStringSlice(namesVal)...)
 		}
 
 		if eventsVal, hasEvents := lcMap["events"]; hasEvents {

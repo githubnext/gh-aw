@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var knownNeedsLog = logger.New("workflow:known_needs")
@@ -244,10 +245,7 @@ func getCustomJobsBeforeActivation(data *WorkflowData) []string {
 // The needs field can be a string (single dependency) or an array of strings
 func parseNeedsField(needsField any) []string {
 	// GitHub Actions allows `needs: "single-dep"` as shorthand for `needs: ["single-dep"]`
-	if s, ok := needsField.(string); ok {
-		return []string{s}
-	}
-	result := parseStringSliceAny(needsField, nil)
+	result := typeutil.NormalizeStringSlice(needsField)
 	if result == nil {
 		return []string{}
 	}

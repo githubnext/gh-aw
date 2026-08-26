@@ -10,7 +10,7 @@ Functions are grouped into four categories: **strict conversions** (return a `(v
 
 Choose the right category based on the source: use strict conversions for YAML config fields where the YAML library has already typed the value; use lenient conversions for heterogeneous sources such as JSON metrics or log-parsed data where a zero default on failure is acceptable; use map-extraction helpers when working with JSON/YAML-decoded `map[string]any` structures.
 
-**File layout**: numeric conversion functions live in `convert.go`; map-extraction helpers (`ParseBool`, `LookupMap`, `LookupString`, `LookupStringPath`) live in `lookup.go`.
+**File layout**: numeric conversion functions live in `convert.go`; map-extraction helpers (`ParseBool`, `LookupMap`, `LookupString`, `LookupStringPath`) live in `lookup.go`; the string-or-slice coercion helper (`NormalizeStringSlice`) lives in `stringslice.go`.
 
 ## Public API
 
@@ -30,6 +30,7 @@ Choose the right category based on the source: use strict conversions for YAML c
 | `LookupString` | Safe string extraction from `map[string]any` by key |
 | `LookupStringPath` | Safe nested string extraction by key path |
 | `SafeAllocationCapacity` | Overflow-safe sum of capacity hints for slice/map preallocation |
+| `NormalizeStringSlice` | Coerce a scalar string, `[]string`, or `[]any` into `[]string` |
 
 ### Strict Conversions
 
@@ -146,6 +147,30 @@ n := typeutil.SafeAllocationCapacity(len(a), len(b))
 result := make([]Item, 0, n)
 ```
 
+### String Slice Normalization
+
+> Defined in `stringslice.go`.
+
+#### `NormalizeStringSlice(v any) []string`
+
+Coerces a value that YAML/JSON decoding may produce as a scalar string, a `[]string`, or a `[]any` into a `[]string`. This is the canonical replacement for the near-identical `string | []any | []string → []string` type switches that were previously reimplemented across the compiler and CLI.
+
+Coercion rules:
+
+- `string` — returned as a single-element slice (GitHub Actions commonly allows a scalar as shorthand for a one-element list, e.g. `needs: build`)
+- `[]string` — returned as a copy, so callers can mutate the result safely
+- `[]any` — string elements are kept in order; non-string elements are skipped
+- anything else, including `nil` — `nil`
+
+An empty `[]any` yields an empty, non-`nil` slice so callers can distinguish "present but empty" from "absent". Trimming, empty-string filtering, deduplication, and sorting are intentionally left to the caller.
+
+```go
+needs := typeutil.NormalizeStringSlice(job.Needs)
+// "build"                  -> []string{"build"}
+// []any{"a", 42, "b"}      -> []string{"a", "b"}
+// nil                      -> nil
+```
+
 ## Choosing the Right Function
 
 | Situation | Function to use |
@@ -161,6 +186,7 @@ result := make([]Item, 0, n)
 | Token/limit string with optional `K`/`M` suffix | `ParseInt64KMSuffix` |
 | Canonicalize a `K`/`M`-suffixed string to base-10 | `NormalizeInt64KMSuffix` |
 | Summing capacity hints for slice/map preallocation | `SafeAllocationCapacity` |
+| Scalar-or-list YAML/JSON field that should become `[]string` | `NormalizeStringSlice` |
 
 ## Usage Examples
 
@@ -204,6 +230,7 @@ merged := make([]Item, 0, cap)
 - `float64 → int` truncation is logged at debug level when the fractional part is lost.
 - `uint64 → int` overflow returns `0` rather than panicking, following the defensive convention used elsewhere in the codebase.
 - Map-extraction helpers (`ParseBool`, `LookupMap`, `LookupString`, `LookupStringPath`) are defined in `lookup.go` to keep `convert.go` focused on single-value numeric conversion.
+- `NormalizeStringSlice` (`stringslice.go`) returns `nil` for unsupported shapes rather than an error, matching the lenient convention used by the other coercion helpers; callers that need strict validation should type-check before calling it.
 - `SafeAllocationCapacity` (`allocation.go`) returns `0` on overflow or negative inputs rather than panicking, matching the defensive-zero convention used by the other overflow-safe conversions in this package.
 
 ---

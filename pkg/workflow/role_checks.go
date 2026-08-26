@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var roleLog = logger.New("workflow:role_checks")
@@ -190,19 +191,7 @@ func parseBotsValue(botsValue any, fieldName string) []string {
 // parseOptionalStringSliceField parses string-list fields that accept either
 // a single string or an array. Empty strings are filtered out.
 func parseOptionalStringSliceField(value any, fieldName string) []string {
-	if singleValue, ok := value.(string); ok {
-		if singleValue == "" {
-			return nil
-		}
-		roleLog.Printf("Extracted single %s: %s", fieldName, singleValue)
-		return []string{singleValue}
-	}
-
-	values := parseStringSliceAny(value, roleLog)
-	if len(values) == 0 {
-		roleLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
-		return nil
-	}
+	values := typeutil.NormalizeStringSlice(value)
 
 	result := make([]string, 0, len(values))
 	for _, item := range values {
@@ -211,6 +200,7 @@ func parseOptionalStringSliceField(value any, fieldName string) []string {
 		}
 	}
 	if len(result) == 0 {
+		roleLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
 		return nil
 	}
 

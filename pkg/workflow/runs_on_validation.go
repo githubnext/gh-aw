@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var runsOnValidationLog = logger.New("workflow:runs_on_validation")
@@ -173,18 +174,9 @@ func isEmptyRunsOnValue(value any) bool {
 //   - array: ["self-hosted", "linux"]
 //   - object with labels: {group: "...", labels: ["linux"]}
 func extractRunnerLabels(runsOn any) []string {
-	var labels []string
-
-	switch v := runsOn.(type) {
-	case string:
-		labels = append(labels, v)
-	case []any:
-		labels = parseStringSliceAny(v, nil)
-	case map[string]any:
-		if labelsVal, ok := v["labels"]; ok {
-			labels = parseStringSliceAny(labelsVal, nil)
-		}
+	if v, ok := runsOn.(map[string]any); ok {
+		return typeutil.NormalizeStringSlice(v["labels"])
 	}
 
-	return labels
+	return typeutil.NormalizeStringSlice(runsOn)
 }

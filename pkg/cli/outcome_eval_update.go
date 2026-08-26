@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var outcomeEvalUpdateLog = logger.New("cli:outcome_eval_update")
@@ -197,28 +198,22 @@ func mutableBool(raw any) bool {
 	return ok && value
 }
 
+// mutableStringSlice normalizes a string-list state value into a trimmed, sorted
+// slice with empty entries removed, so two states can be compared regardless of the
+// shape ([]string or []any) the value was decoded into.
 func mutableStringSlice(raw any) []string {
-	switch values := raw.(type) {
-	case []string:
-		out := slices.Clone(values)
-		for i := range out {
-			out[i] = strings.TrimSpace(out[i])
-		}
-		slices.Sort(out)
-		return out
-	case []any:
-		out := make([]string, 0, len(values))
-		for _, value := range values {
-			s := strings.TrimSpace(fmt.Sprint(value))
-			if s != "" {
-				out = append(out, s)
-			}
-		}
-		slices.Sort(out)
-		return out
-	default:
+	values := typeutil.NormalizeStringSlice(raw)
+	if values == nil {
 		return nil
 	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 func extractCurrentIssueUpdateState(ctx context.Context, repo string, number int) (map[string]any, bool, error) {

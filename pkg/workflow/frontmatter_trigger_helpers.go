@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var frontmatterTriggerLog = logger.New("workflow:frontmatter_trigger_helpers")
@@ -30,15 +31,6 @@ func extractOnTriggerMap(frontmatter map[string]any, trigger string) (map[string
 	}
 	triggerMap, ok := value.(map[string]any)
 	return triggerMap, ok
-}
-
-// normalizeStringOrStringSlice converts a string or string-like array value into a
-// []string, ignoring non-string array elements.
-func normalizeStringOrStringSlice(raw any) []string {
-	if s, ok := raw.(string); ok {
-		return []string{s}
-	}
-	return parseStringSliceAny(raw, nil)
 }
 
 // validDeploymentStatusStates is the exhaustive list of state values that GitHub
@@ -74,7 +66,7 @@ func extractDeploymentStatusStateCondition(frontmatter map[string]any) (string, 
 	}
 
 	// GitHub Actions allows state as a single string or an array
-	states := normalizeStringOrStringSlice(stateValue)
+	states := typeutil.NormalizeStringSlice(stateValue)
 
 	if len(states) == 0 {
 		return "", nil
@@ -134,7 +126,7 @@ func extractWorkflowRunConclusionCondition(frontmatter map[string]any) (string, 
 		return "", nil
 	}
 
-	conclusions := normalizeStringOrStringSlice(conclusionValue)
+	conclusions := typeutil.NormalizeStringSlice(conclusionValue)
 
 	if len(conclusions) == 0 {
 		return "", nil

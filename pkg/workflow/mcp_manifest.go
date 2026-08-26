@@ -7,6 +7,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 func collectMCPServersForManifest(data *WorkflowData) []GHAWManifestMCPServer {
@@ -37,7 +38,7 @@ func collectMCPServersForManifest(data *WorkflowData) []GHAWManifestMCPServer {
 		case "github":
 			add("github", collectGitHubMCPManifestTools(data.Tools["github"]))
 		case "playwright":
-			add("playwright", anySliceToStrings(GetPlaywrightTools()))
+			add("playwright", typeutil.NormalizeStringSlice(GetPlaywrightTools()))
 		case "agentic-workflows":
 			add(constants.AgenticWorkflowsMCPServerID.String(), []string{"*"})
 		case "safe-outputs":
@@ -136,30 +137,17 @@ func collectSafeOutputsManifestTools(safeOutputs *SafeOutputsConfig) []string {
 	return tools
 }
 
-func anySliceToStrings(values []any) []string {
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		if str, ok := value.(string); ok {
-			result = append(result, str)
-		}
-	}
-	return result
-}
-
+// stringsFromAnySlice normalizes a tool allow-list value into []string, falling back
+// to the wildcard entry when the value is empty or of an unsupported shape.
 func stringsFromAnySlice(value any) []string {
-	switch items := value.(type) {
-	case []any:
-		return anySliceToStrings(items)
-	case []string:
-		return append([]string(nil), items...)
-	case string:
-		if items != "" {
-			return []string{items}
-		}
-		return []string{"*"}
-	default:
+	if items, ok := value.(string); ok && items == "" {
 		return []string{"*"}
 	}
+	items := typeutil.NormalizeStringSlice(value)
+	if items == nil {
+		return []string{"*"}
+	}
+	return items
 }
 
 func normalizedMapKeys[V any](value map[string]V) []string {

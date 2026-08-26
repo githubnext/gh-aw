@@ -10,6 +10,8 @@ package workflow
 import (
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 // permissionScopesWithoutAppManifestEquivalent lists Actions-only permission scopes
@@ -108,22 +110,14 @@ var labelCommandDefaultWebhookEvents = []string{"issues", "pull_request", "discu
 // "on" frontmatter value, which may be a string, a list of strings, or a mapping of
 // trigger name to trigger configuration.
 func rawOnSectionTriggerNames(onValue any) []string {
-	var names []string
-	switch value := onValue.(type) {
-	case string:
-		names = append(names, value)
-	case []any:
-		for _, item := range value {
-			if name, ok := item.(string); ok {
-				names = append(names, name)
-			}
-		}
-	case map[string]any:
+	if value, ok := onValue.(map[string]any); ok {
+		names := make([]string, 0, len(value))
 		for name := range value {
 			names = append(names, name)
 		}
+		return names
 	}
-	return names
+	return typeutil.NormalizeStringSlice(onValue)
 }
 
 // NormalizeGitHubAppWebhookEvents extracts the set of GitHub App webhook events that

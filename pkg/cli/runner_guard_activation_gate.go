@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
+
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 // runnerGuardActivationGateRule is the runner-guard rule that flags comment-triggered
@@ -135,7 +137,7 @@ func trustedActivationGatedJobs(path string) map[string]struct{} {
 			if _, isGated := gated[jobID]; isGated {
 				continue
 			}
-			if hasTrustedActivationCheck(job.If) || anyJobGated(gated, jobNeeds(job.Needs)) {
+			if hasTrustedActivationCheck(job.If) || anyJobGated(gated, typeutil.NormalizeStringSlice(job.Needs)) {
 				gated[jobID] = struct{}{}
 				changed = true
 			}
@@ -214,25 +216,4 @@ func anyJobGated(gated map[string]struct{}, needs []string) bool {
 		}
 	}
 	return false
-}
-
-// jobNeeds normalizes the needs: field, which GitHub Actions allows to be either a single
-// string or a list of strings.
-func jobNeeds(needs any) []string {
-	switch value := needs.(type) {
-	case string:
-		return []string{value}
-	case []any:
-		result := make([]string, 0, len(value))
-		for _, item := range value {
-			if name, ok := item.(string); ok {
-				result = append(result, name)
-			}
-		}
-		return result
-	case []string:
-		return value
-	default:
-		return nil
-	}
 }

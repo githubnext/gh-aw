@@ -33,6 +33,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var eventValidationLog = logger.New("workflow:event_validation")
@@ -101,6 +102,22 @@ var ghAwOnSectionKeys = map[string]bool{
 	"stop-after":                         true,
 }
 
+// eventNamesFromOnSection extracts the event names declared in an 'on:' section,
+// which may be a scalar string, a list of strings, or a mapping of event name to
+// event configuration. The second return value is false when the value has an
+// unsupported shape.
+func eventNamesFromOnSection(on any) ([]string, bool) {
+	if v, ok := on.(map[string]any); ok {
+		eventNames := make([]string, 0, len(v))
+		for key := range v {
+			eventNames = append(eventNames, key)
+		}
+		return eventNames, true
+	}
+	eventNames := typeutil.NormalizeStringSlice(on)
+	return eventNames, eventNames != nil
+}
+
 // ValidateEventTypes validates that the event types in the 'on:' section of a
 // workflow are recognized GitHub Actions events. It only warns about potential
 // typos (when the unknown name is close to a known event), rather than erroring
@@ -113,22 +130,8 @@ func ValidateEventTypes(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// Extract event names from the on: section (handles string, []any, map formats)
-	var eventNames []string
-	switch v := on.(type) {
-	case string:
-		eventNames = []string{v}
-	case []any:
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				eventNames = append(eventNames, s)
-			}
-		}
-	case map[string]any:
-		for key := range v {
-			eventNames = append(eventNames, key)
-		}
-	default:
+	eventNames, ok := eventNamesFromOnSection(on)
+	if !ok {
 		eventValidationLog.Printf("'on' section has unexpected type %T, skipping event type validation", on)
 		return nil
 	}

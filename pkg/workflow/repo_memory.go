@@ -18,6 +18,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var repoMemoryLog = logger.New("workflow:repo_memory")
@@ -239,13 +240,13 @@ func applyRepoMemoryDefaultBranch(entry *RepoMemoryEntry, workflowID, branchPref
 }
 
 func applyRepoMemoryFileFields(entry *RepoMemoryEntry, memoryMap map[string]any) error {
-	entry.FileGlob = parseRepoMemoryStringList(memoryMap["file-glob"])
+	entry.FileGlob = typeutil.NormalizeStringSlice(memoryMap["file-glob"])
 	if len(entry.FileGlob) > 0 {
 		if err := validateFileGlobPatterns(entry.FileGlob); err != nil {
 			return err
 		}
 	}
-	allowedExtensions := parseRepoMemoryStringList(memoryMap["allowed-extensions"])
+	allowedExtensions := typeutil.NormalizeStringSlice(memoryMap["allowed-extensions"])
 	if len(allowedExtensions) > 0 {
 		entry.AllowedExtensions = allowedExtensions
 	}
@@ -306,23 +307,6 @@ func finalizeRepoMemoryEntry(entry *RepoMemoryEntry, explicitBranchName bool) {
 		entry.BranchName = "master"
 	}
 	entry.CreateOrphan = false
-}
-
-func parseRepoMemoryStringList(value any) []string {
-	switch v := value.(type) {
-	case []any:
-		result := make([]string, 0, len(v))
-		for _, item := range v {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
-		return result
-	case string:
-		return []string{v}
-	default:
-		return nil
-	}
 }
 
 func parseRepoMemoryInt(value any) (int, bool) {

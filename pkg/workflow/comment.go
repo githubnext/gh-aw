@@ -1,6 +1,9 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
+)
 
 var commentLog = logger.New("workflow:comment")
 
@@ -82,12 +85,7 @@ func ParseCommandEvents(eventsValue any) []string {
 
 	// Handle array of strings
 	if arr, ok := eventsValue.([]any); ok {
-		result := make([]string, 0, len(arr))
-		for _, item := range arr {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
+		result := typeutil.NormalizeStringSlice(arr)
 		if len(result) > 0 {
 			commentLog.Printf("Parsing command events: array of %d events", len(result))
 			return result

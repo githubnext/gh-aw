@@ -16,7 +16,10 @@
 
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
+)
 
 var parseHelpersLog = logger.New("workflow:parse_helpers")
 
@@ -67,6 +70,10 @@ func coerceStringOrArrayFields(configData map[string]any, keys []string, debugLo
 //
 //	if s, ok := raw.(string); ok { return []string{s} }
 //	return parseStringSliceAny(raw, debugLog)
+//
+// Callers that do want scalar shorthand and no debug logging should use
+// typeutil.NormalizeStringSlice directly, which this function delegates to for the
+// []any case.
 func parseStringSliceAny(raw any, debugLog *logger.Logger) []string {
 	if raw == nil {
 		return nil
@@ -76,20 +83,13 @@ func parseStringSliceAny(raw any, debugLog *logger.Logger) []string {
 		// Already the right type — return directly without copying.
 		return v
 	case []any:
-		result := make([]string, 0, len(v))
-		skipped := 0
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				result = append(result, s)
-			} else {
-				skipped++
-				if debugLog != nil {
-					debugLog.Printf("parseStringSliceAny: skipping non-string item: %T", item)
-				}
+		result := typeutil.NormalizeStringSlice(v)
+		if skipped := len(v) - len(result); skipped > 0 {
+			log := debugLog
+			if log == nil {
+				log = parseHelpersLog
 			}
-		}
-		if skipped > 0 && debugLog == nil {
-			parseHelpersLog.Printf("parseStringSliceAny: skipped %d non-string item(s) from []any of length %d", skipped, len(v))
+			log.Printf("parseStringSliceAny: skipped %d non-string item(s) from []any of length %d", skipped, len(v))
 		}
 		return result
 	default:

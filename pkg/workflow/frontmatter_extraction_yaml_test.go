@@ -327,41 +327,6 @@ func TestExtractOnTriggerMap(t *testing.T) {
 	}
 }
 
-func TestNormalizeStringOrStringSlice(t *testing.T) {
-	tests := []struct {
-		name  string
-		input any
-		want  []string
-	}{
-		{
-			name:  "single string",
-			input: "deploy",
-			want:  []string{"deploy"},
-		},
-		{
-			name:  "string array",
-			input: []any{"deploy", "review"},
-			want:  []string{"deploy", "review"},
-		},
-		{
-			name:  "mixed array keeps only strings",
-			input: []any{"deploy", 1, true, "review"},
-			want:  []string{"deploy", "review"},
-		},
-		{
-			name:  "unexpected type returns nil",
-			input: 42,
-			want:  nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, normalizeStringOrStringSlice(tt.input))
-		})
-	}
-}
-
 func TestExtractLabelCommandConfig(t *testing.T) {
 	c := &Compiler{}
 

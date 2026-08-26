@@ -169,14 +169,6 @@ func TestFilterRunnerGuardFindingsKeepsFindingsForUnresolvableFiles(t *testing.T
 	assert.Len(t, filterRunnerGuardFindings(findings, gitRoot), 2)
 }
 
-func TestJobNeeds(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, []string{"a"}, jobNeeds("a"))
-	assert.Equal(t, []string{"a", "b"}, jobNeeds([]any{"a", "b", 42}))
-	assert.Equal(t, []string{"a"}, jobNeeds([]string{"a"}))
-	assert.Nil(t, jobNeeds(nil))
-}
-
 func TestHasWorkflowRunActorAllowlistCheck(t *testing.T) {
 	t.Parallel()
 	assert.True(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
