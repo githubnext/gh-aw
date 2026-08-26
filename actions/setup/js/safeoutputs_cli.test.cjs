@@ -334,7 +334,7 @@ describe("safeoutputs_cli.cjs", () => {
       }
     });
 
-    it("does not apply byteOffset slicing to injected string readers", () => {
+    it("returns false when byteOffset is used with an injected string reader", () => {
       expect(
         hasTerminalSafeOutput("/fake/path.jsonl", {
           byteOffset: 1,
