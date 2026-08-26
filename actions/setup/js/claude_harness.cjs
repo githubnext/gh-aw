@@ -613,11 +613,16 @@ async function main() {
         return { action: "retry" };
       }
 
-      if (!sessionHasProgress && result.hasOutput && !isSignalTerminationExitCode(result.exitCode) && !isCrashSignalExitCode(result.exitCode) && attempt < maxRetries && startupRetriesUsed < startupRetryLimit) {
+      const isNoProgressOutputFailure = !sessionHasProgress && result.hasOutput && !isSignalTerminationExitCode(result.exitCode) && !isCrashSignalExitCode(result.exitCode);
+      if (isNoProgressOutputFailure && attempt < maxRetries && startupRetriesUsed < startupRetryLimit) {
         startupRetriesUsed++;
         useContinueOnRetry = false;
         log(`attempt ${attempt + 1}: output produced but no Claude session progress — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${attempt + 2}/${maxRetries + 1})`);
         return { action: "retry", nextDelayMs: initialDelayMs };
+      }
+      if (isNoProgressOutputFailure) {
+        log(`attempt ${attempt + 1}: output produced but no Claude session progress — not retrying (startup retry budget exhausted: ${startupRetriesUsed}/${startupRetryLimit})`);
+        return { action: "stop" };
       }
 
       if (attempt < maxRetries && result.hasOutput) {

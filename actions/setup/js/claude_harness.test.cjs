@@ -722,6 +722,26 @@ process.exit(0);
       expect(result.stderr).toContain("output produced but no Claude session progress — retrying startup as fresh run");
     });
 
+    it("does not fall through to --continue after no-progress output exhausts startup retries", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (args.includes("--continue")) {
+  process.stderr.write("startup retry unexpectedly used --continue\\n");
+  process.exit(9);
+}
+process.stderr.write("mcp gateway startup failed before Claude launched\\n");
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+      expect(result.status).toBe(1);
+      expect(calls).toHaveLength(2);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
+      expect(result.stderr).toContain("output produced but no Claude session progress — not retrying (startup retry budget exhausted: 1/1)");
+    });
+
     it("does not retry no-output startup failure when GH_AW_CLAUDE_STARTUP_RETRIES=0", () => {
       const stubScript = `
 const fs = require("fs");
