@@ -27,6 +27,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -126,7 +127,8 @@ func handleBatchToolError(toolName string, err error, strict, verbose bool) erro
 	if err == nil {
 		return nil
 	}
-	if strict {
+	var fatal *fatalFindingError
+	if strict || errors.As(err, &fatal) {
 		return fmt.Errorf("%s failed: %w", toolName, err)
 	}
 	// In non-strict mode, errors are warnings
