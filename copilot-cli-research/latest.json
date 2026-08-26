@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-08-25T03:57:00Z",
-  "total_workflows": 292,
-  "copilot_workflows": 109,
+  "timestamp": "2026-08-26T04:00:00Z",
+  "total_workflows": 294,
+  "copilot_workflows": 89,
   "features_available": ["--add-dir","--share","--disable-builtin-mcps","--agent","--autopilot/max-continuations","--allow-all-paths","--no-custom-instructions","--log-level","engine.args","engine.env","engine.agent (custom agent files)","plugins","repo-memory","cache-memory","BYOK (COPILOT_PROVIDER_*)","copilot-sdk: true","engine.harness","max-tool-denials"],
-  "features_used": ["engine.agent custom agents (~7, unchanged 3 runs)","max-continuations(10)","cache-memory(105+)","repo-memory(present)","copilot-sdk(61, unchanged from run 2)","cli-proxy/gh-proxy(205/156)","model overrides(40+, mixed conventions)","bare mode(21)","max-tool-denials(55)"],
-  "opportunities_found": 9,
-  "notes": "Third research cycle. Persistent 0% adoption across all 3 runs: engine.version pinning, --share manual usage, plugins. Custom agent usage stagnant at ~7 workflows across all runs despite repeated recommendation. No shared copilot-defaults.md snippet created yet despite run-2 recommendation. copilot-sdk adoption flat at 61 (no growth since run 2)."
+  "features_used": ["max-continuations(10)","cache-memory(80)","repo-memory(30)","copilot-sdk(61, flat 3 runs)","model overrides(40+)","bare mode(21)","max-tool-denials(55, flat vs run 3)"],
+  "opportunities_found": 7,
+  "notes": "Fourth research cycle. Persistent 0% adoption across all 4 runs: engine.version pinning, --share manual usage, plugins. engine.agent persona usage re-measured at 0 with stricter query (vs ~7 in prior cycles using looser 'agent:' match) - likely prior counts conflated agent-file imports with the --agent flag. shared/copilot-defaults.md STILL not created despite recommendation in run 2 and escalation in run 3 - now 2 cycles overdue, flagged as top action item. copilot-sdk adoption confirmed flat at exactly 61 for 3 consecutive measurements. id:copilot and cache-memory counts dropped vs run 2/3 (109->89, 105->80) while total workflow count rose - likely query methodology difference, flagged for reconciliation not treated as regression."
 }

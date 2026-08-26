@@ -46,3 +46,23 @@ Changes since last run:
 Escalation: the three most persistent, non-improving gaps (version pinning, --share, plugins, agent personas) are being escalated as concrete action items in this run's issue rather than repeated vague opportunities, since 3 cycles of flagging without action indicates these need either a decision to intentionally deprioritize or a committed implementation plan.
 
 Follow-up: check whether shared/copilot-defaults.md gets created before next run; check if copilot-sdk adoption resumes growth or has truly plateaued at 61.
+
+## Run: 2026-08-26 (workflow-run-id: 32928414627)
+Fourth analysis. Compared to 2026-08-23, 08-24, and 08-25 baselines.
+
+Changes since last run:
+- total_workflows grew 292 -> 294
+- copilot_workflows (id: copilot) dropped 109 -> 89; cache-memory dropped 105 -> 80. Both drops coincide with this cycle using a stricter/different grep pattern than prior cycles — flagged as a likely methodology discrepancy, NOT a real adoption regression. Next cycle should standardize and record the exact query pattern used.
+- copilot-sdk: true confirmed flat at 61 for a THIRD consecutive measurement — genuinely plateaued, not noise.
+- max-tool-denials held steady at 55 (same as run 3) — stable moderate adoption.
+- engine.agent persona usage re-measured with a stricter query (matching `agent:` nested directly under `engine:` block) and found 0, versus ~7 in runs 2-3 which used a looser top-level `agent:` match. Likely the prior ~7 conflated agent-file *imports* (`imports: [.github/agents/x.md]`) with the actual `--agent` CLI flag trigger (`engine.agent`). This is a metric-definition fix, not necessarily an adoption drop.
+- shared/copilot-defaults.md: STILL does not exist. This is now 2 full cycles (08-24 recommendation, 08-25 escalation, 08-26 this run) with zero action — the single most overdue, actionable item in the backlog.
+- engine.version pinning, --share manual use, and plugins adoption: all confirmed still at 0/89 (or 0/294 for plugins) for the 4th consecutive cycle.
+
+Escalation (continued from run 3): version pinning, --share, plugins, and agent personas remain unactioned after 3-4 cycles of flagging. This run explicitly recommends a decide-or-implement framing for shared/copilot-defaults.md specifically, since it is the lowest-effort, highest-leverage item and unblocks systemic fixes for the other three.
+
+Follow-up for next cycle:
+1. Standardize and document the exact grep pattern for `id: copilot` and `cache-memory:` counts to stop cross-cycle discrepancies.
+2. Check whether shared/copilot-defaults.md was created (3rd cycle asking).
+3. Manually spot-check 3-5 workflows previously flagged as "agent users" (e.g. archie.md) to determine ground truth on engine.agent vs. agent-file imports.
+4. Confirm with a maintainer whether `plugins` is still a supported/relevant feature before continuing to track its 0% adoption a 5th time.
