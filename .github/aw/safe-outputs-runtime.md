@@ -257,6 +257,8 @@ Fields that influence permission computation (`add-comment.discussions`, `hide-c
     - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
     - `owner:` - Optional App installation owner (defaults to current repository owner)
     - `repositories:` - Optional list of repositories to grant access to
+    - `ignore-if-missing:` - When `true`, skip token minting instead of failing when `client-id`/`private-key` resolve empty (boolean, default: `false`)
+    - `permissions:` - Optional map of extra `permission-*` fields to merge into the minted token
   - Example:
 
     ```yaml
