@@ -28,13 +28,11 @@ import WorkflowHero from '../../components/WorkflowHero.astro';
 
 <WorkflowHero />
 
-Wake up to ready-to-review repository improvements — automated triage, CI insights, docs updates, and test enhancements.
+Wake up to ready-to-review repository improvements — automated triage, CI insights, docs updates, and test enhancements. Use event-triggered and scheduled jobs to augment your existing, deterministic CI/CD with AI-powered intelligence.
 
-GitHub Agentic Workflows deliver repository automation: simple markdown workflows running the coding agents you know and love, in GitHub Actions, with strong guardrails and security-first design principles.
+GitHub Agentic Workflows deliver repository automation: simple markdown workflows running the coding agents you know and love, in GitHub Actions, with strong guardrails and security-first design principles. Supported AI engines include GitHub Copilot, Claude Code, Google Gemini and OpenAI Codex.
 
-Use event-triggered and scheduled jobs to augment your existing, deterministic CI/CD with AI-powered intelligence. Supported AI engines include GitHub Copilot, Claude Code, Google Gemini and OpenAI Codex.
-
-Developed by GitHub and Microsoft, workflows run with strong guardrails, using safe outputs and sandboxed execution to help keep your repository safe.
+Developed by GitHub, GitHub Agentic Workflows run with strong guardrails, using safe outputs and sandboxed execution to help keep your repository safe.
 
 ## Core capabilities
 
@@ -54,15 +52,14 @@ Developed by GitHub and Microsoft, workflows run with strong guardrails, using s
   <FeatureCard icon="mark-github" title="GitHub Integration" href="/gh-aw/reference/github-tools/">
     Deep integration with Actions, Issues, PRs, Discussions, and repository management
   </FeatureCard>
-  <FeatureCard icon="server" title="GitHub Actions or Self-Hosted" href="/gh-aw/reference/self-hosted-runners/">
-    Use GitHub Actions or self-hosted runners, including ARC with Docker-in-Docker
+  <FeatureCard icon="server" title="Use at Scale" href="/gh-aw/guides/using-at-scale">
+    Use at scale in you organization or enterprise across multiple repositores
   </FeatureCard>
 </FeatureGrid>
 
 ## Guardrails Built-In
 
 AI agents can be manipulated by prompt injection or malicious content. GitHub Agentic Workflows uses layered controls: sandboxing, scoped permissions, gated outputs and threat detection. See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model.
-
 
 ```mermaid
 flowchart LR
@@ -151,24 +148,24 @@ Create an upbeat daily status report for the team as a GitHub issue.
 
 The `gh aw compile` command turns this source into a hardened `.lock.yml` GitHub Actions workflow. GitHub Actions then runs the selected AI engine in the configured agent environment on the declared trigger. The AI agent reads allowed repository context and requests only the tools and outputs configured in frontmatter.
 
-## GitHub Agentic Workflows examples
+## Gallery
 
 [Browse examples by repository task](/gh-aw/examples/) to find a starting point and learn when to use each workflow.
 
 <FeatureGrid columns={3}>
-  <FeatureCard icon="issue-opened" title="Repository Maintenance" href="/gh-aw/examples/maintaining-repos/">
-    Use Repo Assist to triage backlogs and make focused project improvements
+  <FeatureCard icon="issue-opened" title="Automated Repository Maintenance" href="https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md">
+    Use Repo Assist to automatically label issues, triage issues, fix backlogs and make focused project improvements
   </FeatureCard>
-  <FeatureCard icon="book" title="Docs Automation" href="/gh-aw/examples/docs-automation/">
+  <FeatureCard icon="book" title="Automated Docs" href="/gh-aw/examples/docs-automation/">
     Keep documentation in sync with code changes via automated PRs
   </FeatureCard>
-  <FeatureCard icon="code-review" title="Continuous Improvement" href="/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/">
+  <FeatureCard icon="code-review" title="Continuous Improvement" href="/gh-aw/examples/code-improvement/">
     Daily code simplification, refactoring, and style improvements
   </FeatureCard>
-  <FeatureCard icon="pulse" title="Metrics & Analytics" href="/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/">
+  <FeatureCard icon="pulse" title="Metrics & Analytics" href="/gh-aw/examples/metrics-analytics/">
     Daily reports, trend analysis, and workflow health monitoring
   </FeatureCard>
-  <FeatureCard icon="tools" title="Quality & Testing" href="/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/">
+  <FeatureCard icon="tools" title="Quality & Testing" href="/gh-aw/examples/ci-failure-investigation/">
     CI failure diagnosis, test improvements, and quality checks
   </FeatureCard>
   <FeatureCard icon="repo" title="Multi-Repository" href="/gh-aw/examples/multi-repo/">

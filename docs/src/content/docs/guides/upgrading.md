@@ -82,8 +82,6 @@ Always commit both `.md` and `.lock.yml` files together.
 
 **Breaking changes:** Revert with `git checkout backup-before-upgrade` and review [release notes](https://github.com/github/gh-aw/releases).
 
-## Advanced Topics
-
 **Upgrading across versions:** Review the [changelog](https://github.com/github/gh-aw/blob/main/CHANGELOG.md) for cumulative changes when upgrading across multiple releases.
 
 See the [troubleshooting guide](/gh-aw/troubleshooting/common-issues/) if you run into issues.
