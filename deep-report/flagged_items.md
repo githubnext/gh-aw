@@ -1,3 +1,19 @@
+## Flagged Items (2026-08-26, ~18:56Z cycle, window since 12:37Z baseline #56035, 9 new discussions: 56036,56041,56045,56065,56070,56073,56074,56095,56096)
+
+- **[new, filed]** CI ratchet for full-repo error-message audit (2,631 violations, currently unenforced) — Repository Quality #56045 Task 1.
+- **[new, filed]** Migrate 5 high-traffic `pkg/workflow/*_validation.go` files to `NewValidationError` — Repository Quality #56045 Task 2.
+- **[new, filed]** Sweep top 5 `pkg/cli` files by error-message violation count (~236 violations, 9% of total) — Repository Quality #56045 Task 3.
+- **[new, filed]** Remove duplicate H2 heading in Agent of the Day blog post — Delight #56070, exact before/after supplied.
+- **[new, filed]** Auto-label WIP/tracker issues at creation (54/1000 unlabeled) — Daily Issues Report #56065.
+- **[new, filed]** Make `gh aw init --engine claude/codex` equally prominent in quick-start.mdx — Claude Code User Docs Review #56036.
+- **[new, filed]** Document Pi model-prefix fallback + Codex web-search enabled-state — Claude Code User Docs Review #56036 Priority 3.
+- **[escalated, root-caused]** Avenger `ERR_CONFIG` startup failures — #55860 updated this window with root cause: sandbox refuses to bind-mount `/usr/bin/go` when it's a symlink. Agent Performance Report #56041's "67% failure, new regression" flag is this same issue, already tracked; not re-filed.
+- **[declined, chronic]** `CLAUDE_CODE_OAUTH_TOKEN` doc gap (#56036), 5th consecutive daily flag — 15+ prior closed attempts per 2026-08-25 log below; not re-filed.
+- **[declined, already tracked]** #56000 E007 mention-limit false-positive, corroborated by Daily Issues #56065 — already open with suggested fixes; cited not duplicated.
+- **[declined, already tracked]** AI Moderator Codex 404/engine-switch ask (#56041) — covered by #56092 + prior P0s #54242/#55412/#55682.
+- **[declined, already tracked]** UK AI Governance remediation queue (#56074) — redirect-check/#54037, GraphQL sprintf/#52749, untrusted write/#53737, prompt-injection sanitization/#28775+#19967+#5437, circuit breaker/#28776 all pre-existing; container-image backlog SLA too process-level to scope, monitor only.
+- **[declined, healthy]** Daily Secrets Analysis (#56095, 100% redaction coverage), Copilot PR Merged Report (#56073, 38 PRs), Smoke Copilot (#56096) — no action.
+
 ## Flagged Items (2026-08-25, ~12:23Z cycle, window since 06:25Z baseline #55692, 11 new discussions: 55689,55712,55715,55717,55721,55722,55734,55749,55752,55753,55764)
 
 - **[new, filed]** Rename `pkg/cli.Finding` → `AuditFinding` (collides with `pkg/scanfindings.Finding`) — Typist #55753, verified live.
