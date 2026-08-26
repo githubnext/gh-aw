@@ -38,12 +38,14 @@ const APPROVABLE_RUN_STATUSES = new Set(["action_required", "waiting"]);
 /**
  * Detect permission-class API failures that should fail fast without retrying.
  *
- * @param {string} message
+ * @param {unknown} error
  * @returns {boolean}
  */
-function isPermissionDeniedError(message) {
-  const normalized = String(message || "").toLowerCase();
-  return normalized.includes("resource not accessible");
+function isPermissionDeniedError(error) {
+  const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+  const normalized = getErrorMessage(error).toLowerCase();
+  const isKnownPermissionMessage = normalized.includes("resource not accessible by personal access token") || normalized.includes("resource not accessible by integration");
+  return isKnownPermissionMessage || (status === 403 && normalized.includes("resource not accessible"));
 }
 
 /**
@@ -234,6 +236,8 @@ async function main(config = {}) {
   const githubToken = config["github-token"];
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
   let processedCount = 0;
+  // main() is constructed once per safe-outputs pass; cache token-level approval
+  // denials on this handler instance so subsequent messages can fail fast.
   let approvePermissionDenied = false;
 
   core.info(`Approve workflow run configuration: max=${maxCount}`);
@@ -369,7 +373,6 @@ async function main(config = {}) {
         }
       }
 
-      processedCount++;
       try {
         await githubClient.rest.actions.approveWorkflowRun({
           owner: context.repo.owner,
@@ -377,9 +380,8 @@ async function main(config = {}) {
           run_id: runId,
         });
       } catch (error) {
-        processedCount--;
         const errorMessage = getErrorMessage(error);
-        if (isPermissionDeniedError(errorMessage)) {
+        if (isPermissionDeniedError(error)) {
           approvePermissionDenied = true;
           const reason = `Skipping approval for workflow run ${runId} because the configured token cannot approve workflow runs (${errorMessage})`;
           core.warning(reason);
@@ -393,6 +395,7 @@ async function main(config = {}) {
         }
         throw error;
       }
+      processedCount++;
 
       core.info(`Approved workflow run ${runId}: ${run.html_url}`);
 

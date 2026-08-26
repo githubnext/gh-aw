@@ -566,6 +566,31 @@ describe("approve_workflow_run", () => {
     expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    new Error("Resource not accessible by personal access token"),
+    new Error("Resource Not Accessible by Personal Access Token"),
+    new Error("Resource not accessible by integration"),
+    { status: 403, message: "Resource not accessible" },
+    { status: 403, message: "Resource Not Accessible" },
+  ])("detects permission-denied approval error %#", error => {
+    const { isPermissionDeniedError } = require("./approve_workflow_run.cjs");
+
+    expect(isPermissionDeniedError(error)).toBe(true);
+  });
+
+  const nonPermissionDeniedErrors = [
+    new Error("Resource not accessible to this webhook"),
+    { status: 404, message: "Resource not accessible" },
+    { status: 401, message: "Resource not accessible with unauthorized status" },
+    new Error("temporary API failure"),
+  ];
+
+  it.each(nonPermissionDeniedErrors)("does not over-match unrelated approval error %#", error => {
+    const { isPermissionDeniedError } = require("./approve_workflow_run.cjs");
+
+    expect(isPermissionDeniedError(error)).toBe(false);
+  });
+
   it("skips permission-denied approval failures instead of failing", async () => {
     mockApproveWorkflowRun.mockRejectedValueOnce(new Error("Resource not accessible by personal access token"));
     const { main } = require("./approve_workflow_run.cjs");
