@@ -1624,7 +1624,7 @@ A reserved grader that evaluates operational repository outcomes using a reposit
 
 ### Recurrence Trapping Time (RQA TT) (`graders.recurrence-trapping-time`)
 
-A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. See [Graders Reference](/gh-aw/reference/trace-graders/).
+A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. It is not a built-in grader: it is an importable `graders:` fragment in the trajectory graders catalog (`.github/workflows/shared/graders/recurrence-trapping-time.md`) that a workflow opts into via `imports:`. See [Graders Reference](/gh-aw/reference/trace-graders/) for built-in graders and grader configuration.
 
 ### Dashboard Language
 
