@@ -817,14 +817,14 @@ func TestBuildAWFCommandScript_RetriesEngineStartupFailuresOutsideHarness(t *tes
 
 	command := buildAWFCommandScript(input)
 
-	assert.Contains(t, command, `gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"`)
-	assert.Contains(t, command, `gh_aw_awf_initial_delay_ms="${GH_AW_HARNESS_INITIAL_DELAY_MS:-5000}"`)
-	assert.Contains(t, command, "while true; do")
-	assert.Contains(t, command, `mktemp "${RUNNER_TEMP:-/tmp}/gh-aw-awf-codex.XXXXXX"`)
-	assert.Contains(t, command, "awf --expand   --arg value \\\n  -- wrapped 2>&1 | tee -a /tmp/test.log")
-	assert.Contains(t, command, `! grep -Fq '[codex-harness]' "$gh_aw_awf_attempt_log"`)
-	assert.Contains(t, command, "Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error)")
-	assert.Contains(t, command, "[codex-awf-retry] AWF startup failed before codex harness; retrying fresh")
+	assert.Contains(t, command, `bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" --`)
+	assert.Contains(t, command, `GH_AW_AWF_ENGINE_NAME=codex`)
+	assert.Contains(t, command, `GH_AW_AWF_HARNESS_MARKER='[codex-harness]'`)
+	assert.Contains(t, command, `GH_AW_AWF_LOG_FILE=/tmp/test.log`)
+	assert.Contains(t, command, `GH_AW_AWF_ATTEMPT_LOG_NAME=codex`)
+	assert.Contains(t, command, "awf --expand   --arg value \\\n  -- wrapped")
+	assert.NotContains(t, command, "while true; do")
+	assert.NotContains(t, command, "Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint")
 }
 
 func TestBuiltInEngineAWFWrapsOuterInvocationWithStartupRetry(t *testing.T) {
@@ -892,10 +892,10 @@ func TestBuiltInEngineAWFWrapsOuterInvocationWithStartupRetry(t *testing.T) {
 			}
 			stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
 
-			assert.Contains(t, stepContent, `gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"`)
-			assert.Contains(t, stepContent, `! grep -Fq '`+tt.harnessMarker+`' "$gh_aw_awf_attempt_log"`)
-			assert.Contains(t, stepContent, "Refusing to use symlink as bind mountpoint")
-			assert.Contains(t, stepContent, "["+tt.engineID+"-awf-retry] AWF startup failed before "+tt.engineID+" harness; retrying fresh")
+			assert.Contains(t, stepContent, `bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" --`)
+			assert.Contains(t, stepContent, `GH_AW_AWF_ENGINE_NAME=`+tt.engineID)
+			assert.Contains(t, stepContent, `GH_AW_AWF_HARNESS_MARKER='`+tt.harnessMarker+`'`)
+			assert.Contains(t, stepContent, `GH_AW_AWF_ATTEMPT_LOG_NAME=`+tt.engineID)
 		})
 	}
 }

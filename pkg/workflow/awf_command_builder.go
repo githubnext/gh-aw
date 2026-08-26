@@ -379,7 +379,6 @@ func buildAWFInvocationCommand(input buildAWFCommandScriptInput) string {
 	}
 	safeEngineName := safeAWFTempFileNamePart(engineName)
 	harnessMarker := shellEscapeArg(fmt.Sprintf("[%s-harness]", engineName))
-	attemptLogPattern := fmt.Sprintf(`"${RUNNER_TEMP:-/tmp}/gh-aw-awf-%s.XXXXXX"`, safeEngineName)
 	command := fmt.Sprintf(`%s %s %s %s %s \
   -- %s`,
 		input.awfCommand,
@@ -393,43 +392,17 @@ func buildAWFInvocationCommand(input buildAWFCommandScriptInput) string {
 		return fmt.Sprintf("%s 2>&1 | tee -a %s", command, shellEscapeArg(input.logFile))
 	}
 
-	return fmt.Sprintf(`gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"
-if ! [[ "$gh_aw_awf_startup_retries" =~ ^[0-9]+$ ]]; then
-  gh_aw_awf_startup_retries=1
-fi
-if [ "$gh_aw_awf_startup_retries" -gt 2 ]; then
-  gh_aw_awf_startup_retries=2
-fi
-gh_aw_awf_initial_delay_ms="${GH_AW_HARNESS_INITIAL_DELAY_MS:-5000}"
-if ! [[ "$gh_aw_awf_initial_delay_ms" =~ ^[0-9]+$ ]]; then
-  gh_aw_awf_initial_delay_ms=5000
-fi
-gh_aw_awf_delay_s=$(( (gh_aw_awf_initial_delay_ms + 999) / 1000 ))
-gh_aw_awf_attempt=0
-while true; do
-  gh_aw_awf_attempt_log="$(mktemp %s)"
-  %s 2>&1 | tee -a %s "$gh_aw_awf_attempt_log"
-  gh_aw_awf_status=${PIPESTATUS[0]}
-  if [ "$gh_aw_awf_status" -eq 0 ]; then
-    rm -f "$gh_aw_awf_attempt_log"
-    exit 0
-  fi
-  if ! grep -Fq %s "$gh_aw_awf_attempt_log" && grep -Eqi '(Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint|mcp gateway[^[:cntrl:]]{0,80}(startup failed|failed to start|startup error))' "$gh_aw_awf_attempt_log" && [ "$gh_aw_awf_attempt" -lt "$gh_aw_awf_startup_retries" ]; then
-    gh_aw_awf_attempt=$((gh_aw_awf_attempt + 1))
-    echo "[%s-awf-retry] AWF startup failed before %s harness; retrying fresh (startup retry ${gh_aw_awf_attempt}/${gh_aw_awf_startup_retries})"
-    rm -f "$gh_aw_awf_attempt_log"
-    sleep "$gh_aw_awf_delay_s"
-    continue
-  fi
-  rm -f "$gh_aw_awf_attempt_log"
-  exit "$gh_aw_awf_status"
-done`,
-		attemptLogPattern,
-		command,
-		shellEscapeArg(input.logFile),
+	return fmt.Sprintf(`GH_AW_AWF_ENGINE_NAME=%s \
+GH_AW_AWF_HARNESS_MARKER=%s \
+GH_AW_AWF_LOG_FILE=%s \
+GH_AW_AWF_ATTEMPT_LOG_NAME=%s \
+bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" -- \
+  %s`,
+		shellEscapeArg(engineName),
 		harnessMarker,
-		safeEngineName,
-		safeEngineName,
+		shellEscapeArg(input.logFile),
+		shellEscapeArg(safeEngineName),
+		command,
 	)
 }
 
