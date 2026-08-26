@@ -1,4 +1,5 @@
 // @ts-check
+import fs from "node:fs";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
 describe("check_version_updates", () => {
@@ -68,6 +69,10 @@ describe("check_version_updates", () => {
     const promise = checkVersionUpdates.main();
     await vi.runAllTimersAsync();
     return promise;
+  }
+
+  function readSchema(path) {
+    return JSON.parse(fs.readFileSync(path, "utf8"));
   }
 
   // ---------------------------------------------------------------------------
@@ -150,6 +155,32 @@ describe("check_version_updates", () => {
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "" }));
     await runMain();
     expect(mockFetch).toHaveBeenCalledWith("https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json", expect.any(Object));
+  });
+
+  it("keeps blocked-version schema patterns in sync with the runtime parser", () => {
+    const compatSchema = readSchema("../../../.github/aw/compat.schema.json");
+    const releasesSchema = readSchema("../../../.github/aw/releases.schema.json");
+
+    expect(compatSchema.properties.blockedVersions.items.pattern).toBe(checkVersionUpdates.VERSION_PATTERN_SOURCE);
+    expect(releasesSchema.properties.blockedVersions.items.pattern).toBe(checkVersionUpdates.VERSION_PATTERN_SOURCE);
+  });
+
+  it("keeps stable policy schema patterns in sync with runtime policy validation", () => {
+    const compatSchema = readSchema("../../../.github/aw/compat.schema.json");
+    const releasesSchema = readSchema("../../../.github/aw/releases.schema.json");
+
+    for (const schema of [compatSchema, releasesSchema]) {
+      expect(schema.properties.minimumVersion.pattern).toBe(checkVersionUpdates.CONFIG_STABLE_VERSION_PATTERN_SOURCE);
+      expect(schema.properties.minRecommendedVersion.pattern).toBe(checkVersionUpdates.CONFIG_STABLE_VERSION_PATTERN_SOURCE);
+    }
+  });
+
+  it("keeps workflow blocked-version patterns in sync with the runtime parser", () => {
+    const cgoWorkflow = fs.readFileSync("../../../.github/workflows/cgo.yml", "utf8");
+    const yamlEscapedPattern = checkVersionUpdates.VERSION_PATTERN_SOURCE.replaceAll("\\", "\\\\");
+
+    expect(cgoWorkflow.match(/const blockedVersionPatternSource = /g)).toHaveLength(2);
+    expect(Array.from(cgoWorkflow.matchAll(/const blockedVersionPatternSource = '([^']+)'/g), match => match[1])).toEqual([yamlEscapedPattern, yamlEscapedPattern]);
   });
 
   // ---------------------------------------------------------------------------
@@ -474,6 +505,14 @@ describe("check_version_updates", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Version check passed"));
   });
 
+  it("should skip minimum check when minimumVersion is a prerelease", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.1.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0-alpha.1" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Version check passed"));
+  });
+
   it("should write summary when version is below minimum", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v0.8.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "v1.0.0" }));
@@ -578,6 +617,14 @@ describe("check_version_updates", () => {
   it("should skip recommended check when minRecommendedVersion is a garbage string", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v0.5.0";
     mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "latest" }));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).not.toHaveBeenCalled();
+  });
+
+  it("should skip recommended check when minRecommendedVersion is a prerelease", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.5.0";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: [], minimumVersion: "", minRecommendedVersion: "v1.0.0-alpha.1" }));
     await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();

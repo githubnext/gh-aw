@@ -21,7 +21,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json";
 const FETCH_TIMEOUT_MS = 120_000;
-const VERSION_PATTERN = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?$/;
+const VERSION_PATTERN_SOURCE = "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?$";
+const STABLE_VERSION_PATTERN_SOURCE = "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$";
+const CONFIG_STABLE_VERSION_PATTERN_SOURCE = "^(v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*))?$";
+const VERSION_PATTERN = new RegExp(VERSION_PATTERN_SOURCE);
+const STABLE_VERSION_PATTERN = new RegExp(STABLE_VERSION_PATTERN_SOURCE);
 
 /**
  * Parse an official version string (vMAJOR.MINOR.PATCH with an optional prerelease).
@@ -42,7 +46,8 @@ function parseVersion(version) {
 
 /**
  * Compare numeric SemVer identifiers without converting to Number.
- * Only call this with numeric identifiers returned by parseVersion. VERSION_PATTERN rejects leading zeroes, so length plus lexical order is numeric order.
+ * Only call this with numeric identifiers returned by parseVersion. VERSION_PATTERN
+ * rejects leading zeroes, so length plus lexical order is numeric order.
  *
  * @param {string} left
  * @param {string} right
@@ -57,7 +62,7 @@ function compareNumericIdentifiers(left, right) {
 /**
  * Compare two official SemVer version strings.
  * Returns a negative number if a < b, 0 if equal, positive if a > b.
- * Returns 0 (treat as equal/unknown) if either version cannot be parsed.
+ * Returns null if either version cannot be parsed.
  *
  * @param {string} a
  * @param {string} b
@@ -171,8 +176,8 @@ async function main() {
     return;
   }
 
-  // Check minimum version — skip if minimumVersion is absent, empty, or has unknown syntax
-  if (minimumVersion && parseVersion(minimumVersion) !== null) {
+  // Check minimum version — skip if minimumVersion is absent, empty, prerelease, or has unknown syntax
+  if (minimumVersion && STABLE_VERSION_PATTERN.test(minimumVersion)) {
     const comparison = compareVersions(compiledVersion, minimumVersion);
     if (comparison !== null && comparison < 0) {
       core.summary
@@ -185,8 +190,8 @@ async function main() {
     }
   }
 
-  // Check recommended version — skip if minRecommendedVersion is absent, empty, or has unknown syntax
-  if (minRecommendedVersion && parseVersion(minRecommendedVersion) !== null) {
+  // Check recommended version — skip if minRecommendedVersion is absent, empty, prerelease, or has unknown syntax
+  if (minRecommendedVersion && STABLE_VERSION_PATTERN.test(minRecommendedVersion)) {
     const comparison = compareVersions(compiledVersion, minRecommendedVersion);
     if (comparison !== null && comparison < 0) {
       core.warning(
@@ -198,4 +203,11 @@ async function main() {
   core.info(`✅ Version check passed: ${compiledVersion}`);
 }
 
-module.exports = { main, parseVersion, compareVersions };
+module.exports = {
+  main,
+  parseVersion,
+  compareVersions,
+  VERSION_PATTERN_SOURCE,
+  STABLE_VERSION_PATTERN_SOURCE,
+  CONFIG_STABLE_VERSION_PATTERN_SOURCE,
+};
