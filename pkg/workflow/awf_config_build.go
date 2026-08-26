@@ -342,16 +342,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
 
-	// ── Bounded queries section ──────────────────────────────────────────────
-	if bq := extractBoundedQueriesConfig(config.WorkflowData); bq != nil {
-		if awfSupportsBoundedQueries(firewallConfig) {
-			awfConfig.BoundedQueries = bq
-			awfConfigLog.Printf("Bounded queries section: %d private repo(s)", len(bq.PrivateRepos))
-		} else {
-			awfConfigLog.Printf("Skipping boundedQueries: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFBoundedQueriesMinVersion)
-		}
-	}
-
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
 		return "", fmt.Errorf("invalid AWF config values: expected generated output to be JSON-serializable; encountered serialization error: %w. This indicates a compiler bug; please report it", err)
@@ -495,43 +485,6 @@ func extractModelCostProviders(workflowData *WorkflowData) map[string]any {
 	clone := make(map[string]any, len(providers))
 	maps.Copy(clone, providers)
 	return clone
-}
-
-// extractBoundedQueriesConfig returns an AWFBoundedQueriesConfig populated from
-// tools.github.bounded-queries, or nil when the field is absent.
-// Only fields explicitly set in frontmatter are included; optional fields that
-// were not specified are omitted so that AWF remains the source of truth for defaults.
-func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesConfig {
-	if workflowData == nil {
-		return nil
-	}
-	if workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
-		return nil
-	}
-	bq := workflowData.ParsedTools.GitHub.BoundedQueries
-	if bq == nil {
-		return nil
-	}
-
-	awfBQ := &AWFBoundedQueriesConfig{
-		Enabled:     true,
-		Runtime:     bq.Runtime,
-		MemoryLimit: bq.MemoryLimit,
-		Interpreter: bq.Interpreter,
-	}
-	awfBQ.Timeout = bq.Timeout
-	if bq.MaxInvocations != nil {
-		awfBQ.MaxInvocations = *bq.MaxInvocations
-	}
-
-	for _, r := range bq.PrivateRepos {
-		awfBQ.PrivateRepos = append(awfBQ.PrivateRepos, &AWFBoundedQueryPrivateRepo{
-			Repo:        r.Repo,
-			Sensitivity: r.Sensitivity,
-		})
-	}
-
-	return awfBQ
 }
 
 // getRunnerTopology extracts the runner topology from WorkflowData.

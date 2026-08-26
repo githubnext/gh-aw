@@ -522,6 +522,35 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsEngineToken
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsGitHubBoundedQueries(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "push",
+		"tools": map[string]any{
+			"github": map[string]any{
+				"bounded-queries": map[string]any{
+					"runtime": "sbx",
+					"private-repos": []any{
+						map[string]any{
+							"name":        "octo-org/private-service",
+							"sensitivity": "confidential",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/github-bounded-queries-rejected-test.md")
+	if err == nil {
+		t.Fatal("expected tools.github.bounded-queries to fail schema validation")
+	}
+	if !strings.Contains(err.Error(), "Unknown property: bounded-queries") {
+		t.Fatalf("expected bounded-queries rejection error, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPattern(t *testing.T) {
 	t.Parallel()
 

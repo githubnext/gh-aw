@@ -147,12 +147,6 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 		enclavesLog.Print("Rejecting enclaves: AWF network isolation is not enabled")
 		return errors.New("enclaves requires AWF network isolation; enable the agent sandbox with a network-isolated runtime such as sandbox.agent.runtime: docker")
 	}
-	if workflowData.ParsedTools != nil &&
-		workflowData.ParsedTools.GitHub != nil &&
-		workflowData.ParsedTools.GitHub.BoundedQueries != nil {
-		enclavesLog.Print("Rejecting enclaves: incompatible with tools.github.bounded-queries")
-		return errors.New("enclaves cannot be combined with tools.github.bounded-queries; remove tools.github.bounded-queries to use enclaves. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential")
-	}
 	seenTypes := make(map[string]struct{}, len(workflowData.Enclaves))
 	repositorySensitivities := make(map[string]string)
 	for i, enclave := range workflowData.Enclaves {

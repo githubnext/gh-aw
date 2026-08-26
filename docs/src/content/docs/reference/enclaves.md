@@ -73,8 +73,8 @@ otherwise the compiler uses the primary-agent default, `approved`. The
 enclave entry cannot weaken this floor. The assigned repository is available
 to its invocation. Other repositories are available only when an exact
 visibility check reports that they are public; all other failures receive the
-same denial. Private repository responses carry both `private:<owner>` and
-`private:<owner>/<repo>` DIFC secrecy labels.
+same denial. Private repository responses carry the
+`private:<owner>/<repo>` DIFC secrecy label.
 
 The compiler starts a dedicated mcpg proxy in Docker bridge mode. The PAT
 remains in that proxy. AWF attaches it to a private control network, mints a
@@ -88,8 +88,5 @@ to the assigned repository's Issues. The fallback `GITHUB_TOKEN` can only
 access repositories that token can already read (typically just the current
 repository in Actions).
 
-The initial integration gates are AWF `v0.28.6` and mcpg `v0.4.11`. These are
-provisional first-supporting versions coordinated with the sibling projects;
-the compiler does not fall back to older versions, and the profile cannot run
-until matching artifacts are published. The global defaults are not changed
-by this preview.
+The minimum supported versions are AWF `v0.28.8` and mcpg `v0.4.11`. The
+compiler does not fall back to older versions.

@@ -166,12 +166,10 @@ func TestEnclaveGitHubProxyVersionGates(t *testing.T) {
 		assert.Contains(t, err.Error(), string(constants.MCPGEnclaveGitHubIssuesMinVersion))
 	})
 
-	t.Run("nil MCP config rejected", func(t *testing.T) {
+	t.Run("nil MCP config uses supporting default", func(t *testing.T) {
 		data := enclaveGitHubIssuesWorkflowData()
 		data.SandboxConfig.MCP = nil
-		err := validateEnclavesConfig(data)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), string(constants.MCPGEnclaveGitHubIssuesMinVersion))
+		require.NoError(t, validateEnclavesConfig(data))
 	})
 
 	t.Run("omitted profile keeps compatibility", func(t *testing.T) {

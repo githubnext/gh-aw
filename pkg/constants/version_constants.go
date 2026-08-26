@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.10.1"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.7"
+const DefaultFirewallVersion Version = "v0.28.8"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -154,15 +154,9 @@ const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
 // AWFFilesystemAllowWriteMinVersion.
 const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
-// AWFEnclaveGitHubIssuesMinVersion is the provisional first AWF version whose
+// AWFEnclaveGitHubIssuesMinVersion is the first AWF version whose
 // config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
-// Keep this gate separate from DefaultFirewallVersion until release artifacts exist.
-const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.6"
-
-// AWFBoundedQueriesMinVersion is the minimum AWF version that supports
-// the boundedQueries section in awf-config.json.
-// Workflows pinning an older AWF version must not emit this section.
-const AWFBoundedQueriesMinVersion Version = "v0.27.44"
+const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.8"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
@@ -185,15 +179,14 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.10"
+const DefaultMCPGatewayVersion Version = "v0.4.11"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
-// MCPGEnclaveGitHubIssuesMinVersion is the provisional first MCPG version with
+// MCPGEnclaveGitHubIssuesMinVersion is the first MCPG version with
 // the dedicated issues-read-v1 enclave proxy profile.
-// Keep this gate separate from DefaultMCPGatewayVersion until release artifacts exist.
 const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.11"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package

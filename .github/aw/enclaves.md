@@ -71,14 +71,13 @@ enclaves:
 - V1 allows at most one non-`public` repository in the agent entry.
 - Public data inherits explicit `tools.github.min-integrity`, or the compiler's
   primary default (`approved`) when the primary GitHub tool is omitted.
-- Private repository responses carry `private:<owner>` and
-  `private:<owner>/<repo>` DIFC secrecy labels.
+- Private repository responses carry the `private:<owner>/<repo>` DIFC secrecy
+  label.
 - The compiler starts a dedicated bridge-mode mcpg proxy holding the PAT. AWF
   supplies only its own local PAT-free proxy to the enclave and keeps the
   `awf-egh1` invocation capability in a mode-`0600` file.
 - The primary agent receives no enclave proxy address, key, CA path, container
   identity, capability, PAT, or repository catalog.
-- Provisional minimums are AWF `v0.28.6` and mcpg `v0.4.11`; do not claim the
-  profile is available until both sibling artifacts are published.
+- Minimum versions are AWF `v0.28.8` and mcpg `v0.4.11`.
 
 See also: [agent-runtime-instructions.md](agent-runtime-instructions.md) for `sandbox.agent` fields, and [network.md](network.md) for network isolation defaults.
