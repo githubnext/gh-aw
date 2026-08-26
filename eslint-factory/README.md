@@ -163,6 +163,20 @@ Safe alternatives:
 - `getErrorMessage(err)` from `error_helpers.cjs` (auto-suggested fix).
 - `JSON.stringify({ message: err.message, stack: err.stack })` — explicitly serializing safe string properties.
 
+### `no-json-stringify-equality`
+
+Disallow comparing two `JSON.stringify()` calls for equality (`===`, `!==`, `==`, `!=`). `JSON.stringify()` output depends on object key insertion order, so two objects that are deeply equal but were built with keys in a different order produce different strings — causing false negatives that silently break change-detection logic.
+
+Flagged forms:
+- `JSON.stringify(a) === JSON.stringify(b)`
+- `JSON.stringify(a) !== JSON.stringify(b)`
+- `JSON.stringify(a) == JSON.stringify(b)`
+- `JSON.stringify(a) != JSON.stringify(b)`
+
+Not flagged: comparing a single `JSON.stringify()` call against a string literal or an unrelated expression (only one side is derived from an object, so key-order ambiguity does not apply), and non-equality operators (`<`, `>`, etc.).
+
+Safe alternative: use a structural deep-equality check (a recursive `deepEqual` helper, or normalize both sides to have keys in the same order before stringifying) instead of comparing serialized strings directly.
+
 ### `no-math-minmax-array-spread`
 
 Disallow spreading an array of unknown size into `Math.min(...)` / `Math.max(...)`. Spreading an array into call arguments pushes every element onto the call stack, so a large array throws `RangeError: Maximum call stack size exceeded` (the limit is engine and version dependent, commonly in the tens of thousands of elements). Arrays built from workflow runs, API responses, or file scans have no static size bound, so the crash only appears on large inputs.
