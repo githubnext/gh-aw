@@ -1551,8 +1551,8 @@ plugins: []
 # (optional)
 # Accepted formats:
 
-# Format 1: Simple permissions string: 'read-all' (all read permissions) or
-# 'write-all' (all write permissions)
+# Format 1: Simple permissions string: 'read-all' (all read permissions),
+# 'write-all' (all write permissions), or 'none' (no permissions)
 permissions: "read-all"
 
 # Format 2: Detailed permissions object with granular control over specific GitHub
@@ -12226,16 +12226,17 @@ safe-outputs:
   # (optional)
   # Accepted formats:
 
-  # Format 1: Null configuration allows any labels. Labels will be created if they
-  # don't already exist in the repository.
+  # Format 1: Null configuration allows any labels. Labels must already exist in the
+  # repository unless 'create-if-missing' is enabled.
   add-labels: null
 
   # Format 2: Configuration for adding labels to issues/PRs from agentic workflow
-  # output. Labels will be created if they don't already exist in the repository.
+  # output. Labels must already exist in the repository unless 'create-if-missing'
+  # is enabled.
   add-labels:
-    # Optional list of allowed labels that can be added. Labels will be created if
-    # they don't already exist in the repository. If omitted, any labels are allowed
-    # (including creating new ones).
+    # Optional list of allowed labels that can be added. Labels must already exist in
+    # the repository unless 'create-if-missing' is enabled. If omitted, any labels are
+    # allowed.
     # (optional)
     allowed: []
       # Array of strings
@@ -12306,6 +12307,11 @@ safe-outputs:
     # output type.
     # (optional)
     issue-intent: true
+
+    # When true, automatically creates labels that don't already exist in the target
+    # repository. Default (omitted or false) rejects labels that don't already exist.
+    # (optional)
+    create-if-missing: true
 
     # When true, emit step summary messages instead of making GitHub API calls for
     # this specific output type (preview mode)
