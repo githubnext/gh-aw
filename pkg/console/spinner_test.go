@@ -24,6 +24,18 @@ func TestNewSpinner(t *testing.T) {
 	spinner.Stop()
 }
 
+func TestSpinnerIsEnabled(t *testing.T) {
+	enabled := &SpinnerWrapper{enabled: true}
+	if !enabled.IsEnabled() {
+		t.Fatal("IsEnabled should report true for enabled spinner")
+	}
+
+	disabled := &SpinnerWrapper{enabled: false}
+	if disabled.IsEnabled() {
+		t.Fatal("IsEnabled should report false for disabled spinner")
+	}
+}
+
 func TestSpinnerAccessibilityMode(t *testing.T) {
 	// Save original environment
 	origAccessible := os.Getenv("ACCESSIBLE")

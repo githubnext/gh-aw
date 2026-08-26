@@ -37,6 +37,19 @@ func TestNewProgressBar(t *testing.T) {
 	})
 }
 
+func TestNewIndeterminateProgressBar(t *testing.T) {
+	t.Parallel()
+	bar := NewIndeterminateProgressBar()
+
+	require.NotNil(t, bar, "NewIndeterminateProgressBar should not return nil")
+	assert.True(t, bar.indeterminate, "Indeterminate progress bar should use indeterminate mode")
+	assert.Equal(t, int64(0), bar.total, "Indeterminate progress bar should not require a total")
+
+	bar.ttyCheck = func() bool { return false }
+	assert.Equal(t, "Processing...", bar.Update(0), "Indeterminate progress should handle zero current")
+	assert.Equal(t, "Processing... (1.0KB)", bar.Update(1024), "Indeterminate progress should report current bytes")
+}
+
 func TestProgressBarUpdate(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

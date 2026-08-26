@@ -70,6 +70,13 @@ func NewProgressBar(total int64) *ProgressBar {
 	}
 }
 
+// NewIndeterminateProgressBar creates a new progress bar for unknown total size.
+func NewIndeterminateProgressBar() *ProgressBar {
+	bar := NewProgressBar(0)
+	bar.indeterminate = true
+	return bar
+}
+
 // Update updates the current progress and returns a formatted string
 // In determinate mode:
 //   - TTY: Returns a visual progress bar with gradient and percentage

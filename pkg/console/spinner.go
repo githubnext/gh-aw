@@ -163,6 +163,8 @@ func NewSpinner(message string) *SpinnerWrapper {
 	return s
 }
 
+func (s *SpinnerWrapper) IsEnabled() bool { return s.enabled }
+
 func (s *SpinnerWrapper) Start() {
 	if s.enabled && s.program != nil {
 		shouldStart := func() bool {
