@@ -23,5 +23,5 @@ git diff -- .github/workflows
 Confirm that `gh aw version` reports `v0.85.4` or later and commit the regenerated
 `.lock.yml` files. Blocking the affected compiler versions prevents their
 workflows from activating but does not regenerate existing workflow artifacts.
-See [Upgrading Agentic Workflows](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/guides/upgrading.md)
+See [Upgrading Workflows](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/guides/working-with-workflows.mdx#upgrading-workflows)
 for the supported upgrade process.
