@@ -10,14 +10,14 @@ The GitHub Agentic Workflows gallery shows how Markdown workflows can run AI age
 | Task | When to use it |
 | --- | --- |
 | [Issue Triage](/gh-aw/gallery/ai-issue-triage/) | Automatically classify new issues, identify duplicates, apply bounded labels, and ask for missing information. |
-| [Pull-Request Review](/gh-aw/gallery/automated-pr-review/) | Automatically inspect diffs for concrete defects and post review feedback through controlled safe outputs. |
+| [Pull Request Review](/gh-aw/gallery/automated-pr-review/) | Automatically inspect diffs for concrete defects and post review feedback through controlled safe outputs. |
 | [Documentation Maintenance](/gh-aw/gallery/docs-automation/) | Automatically detect drift between code and documentation and propose reviewable updates. |
 | [CI Failure Investigation](/gh-aw/gallery/ci-failure-investigation/) | Automatically analyze failed GitHub Actions runs, correlate logs, and open diagnostic issues with likely causes. |
 | [Code Improvement](/gh-aw/gallery/code-improvement/) | Automatically find unnecessary complexity or duplicated logic and propose focused changes for human review. |
 | [Dependency Analysis](/gh-aw/patterns/research-plan-assign-ops/) | Automatically research dependency usage and upstream changes before creating prioritized follow-up work. |
 | [Metrics and Analytics](/gh-aw/gallery/metrics-analytics/) | Automatically collect workflow activity and store structured snapshots for health and performance analysis. |
 | [Repository Reporting](/gh-aw/gallery/ai-release-notes/) | Automatically summarize repository or release activity on an event or schedule. |
-| [Repository Maintenance](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) | Automatically review a backlog, perform bounded maintenance tasks, and propose controlled changes on a schedule. |
+| [Repository Maintenance](/gh-aw/gallery/maintaining-repos/) | Automated repository assistance by reviewing a backlog, performing bounded maintenance tasks, and proposing controlled changes on a schedule. |
 | [Security Review](/gh-aw/gallery/security-review/) | Automatically combine repository evidence with AI interpretation to report suspicious changes through code scanning. |
 | [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/) | Automatically triage a main repository from an isolated side repository through a slash-command bridge. |
 | [Code Quality Monitoring](/gh-aw/gallery/multi-repo/code-quality-monitoring/) | Automatically analyze code quality across repositories and create focused, actionable issues. |

@@ -13,6 +13,7 @@ import (
 
 // TestRunWorkflowOnGitHubWithCancellation tests that RunWorkflowOnGitHub respects context cancellation
 func TestRunWorkflowOnGitHubWithCancellation(t *testing.T) {
+	t.Parallel()
 	// Create a context that's already cancelled
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -26,6 +27,7 @@ func TestRunWorkflowOnGitHubWithCancellation(t *testing.T) {
 
 // TestRunWorkflowsOnGitHubWithCancellation tests that RunWorkflowsOnGitHub respects context cancellation
 func TestRunWorkflowsOnGitHubWithCancellation(t *testing.T) {
+	t.Parallel()
 	// Create a context that's already cancelled
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -39,6 +41,7 @@ func TestRunWorkflowsOnGitHubWithCancellation(t *testing.T) {
 
 // TestCompileWorkflowsWithCancellation tests that CompileWorkflows respects context cancellation
 func TestCompileWorkflowsWithCancellation(t *testing.T) {
+	t.Parallel()
 	// Create a context that's already cancelled
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -66,6 +69,7 @@ func TestCompileWorkflowsWithCancellation(t *testing.T) {
 
 // TestDownloadWorkflowLogsWithCancellation tests that DownloadWorkflowLogs respects context cancellation
 func TestDownloadWorkflowLogsWithCancellation(t *testing.T) {
+	t.Parallel()
 	// Create a context that's already cancelled
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -82,6 +86,7 @@ func TestDownloadWorkflowLogsWithCancellation(t *testing.T) {
 
 // TestAuditWorkflowRunWithCancellation tests that AuditWorkflowRun respects context cancellation
 func TestAuditWorkflowRunWithCancellation(t *testing.T) {
+	t.Parallel()
 	// Create a context that's already cancelled
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -97,6 +102,7 @@ func TestAuditWorkflowRunWithCancellation(t *testing.T) {
 
 // TestRunWorkflowsOnGitHubCancellationDuringExecution tests cancellation during workflow execution
 func TestRunWorkflowsOnGitHubCancellationDuringExecution(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 

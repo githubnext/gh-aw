@@ -8546,15 +8546,15 @@
           "oneOf": [
             {
               "type": "null",
-              "description": "Null configuration allows any labels. Labels will be created if they don't already exist in the repository."
+              "description": "Null configuration allows any labels. Labels must already exist in the repository unless 'create-if-missing' is enabled."
             },
             {
               "type": "object",
-              "description": "Configuration for adding labels to issues/PRs from agentic workflow output. Labels will be created if they don't already exist in the repository.",
+              "description": "Configuration for adding labels to issues/PRs from agentic workflow output. Labels must already exist in the repository unless 'create-if-missing' is enabled.",
               "properties": {
                 "allowed": {
                   "type": "array",
-                  "description": "Optional list of allowed labels that can be added. Labels will be created if they don't already exist in the repository. If omitted, any labels are allowed (including creating new ones).",
+                  "description": "Optional list of allowed labels that can be added. Labels must already exist in the repository unless 'create-if-missing' is enabled. If omitted, any labels are allowed.",
                   "items": {
                     "type": "string"
                   },
@@ -8627,6 +8627,10 @@
                 "issue-intent": {
                   "type": "boolean",
                   "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
+                },
+                "create-if-missing": {
+                  "type": "boolean",
+                  "description": "When true, automatically creates labels that don't already exist in the target repository. Default (omitted or false) rejects labels that don't already exist."
                 },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",

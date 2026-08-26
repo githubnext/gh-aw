@@ -47,6 +47,7 @@ func newTestBillingClient(t *testing.T, srv *httptest.Server) *api.RESTClient {
 }
 
 func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		handler    http.HandlerFunc
@@ -148,6 +149,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 }
 
 func TestDetectOrgCopilotCLIBillingWithClient_NetworkError(t *testing.T) {
+	t.Parallel()
 	// Use a server that closes immediately to simulate a network error.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Close the connection abruptly.
@@ -167,6 +169,7 @@ func TestDetectOrgCopilotCLIBillingWithClient_NetworkError(t *testing.T) {
 }
 
 func TestDetectOrgCopilotCLIBillingWithClient_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	// A handler that signals it has started, then blocks until the test ends.
 	// Using a buffered channel so the handler send never blocks even if the
 	// goroutine below hasn't reached the receive yet.
@@ -208,6 +211,7 @@ func TestDetectOrgCopilotCLIBillingWithClient_ContextCancellation(t *testing.T) 
 }
 
 func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		handler   http.HandlerFunc
@@ -297,6 +301,7 @@ func TestProbeCopilotBillingForOrgWithClient(t *testing.T) {
 }
 
 func TestProbeCopilotBillingForOrgWithClient_NetworkError(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hj, ok := w.(http.Hijacker)
 		if ok {
