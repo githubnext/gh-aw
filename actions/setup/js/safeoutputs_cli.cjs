@@ -166,6 +166,8 @@ function emitInfrastructureIncomplete(details, options) {
 // legacy terminal semantics opt missing_data/report_incomplete in via flags.
 const TERMINAL_SAFE_OUTPUT_TYPES = new Set(["noop"]);
 const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
+// Types in this set are excluded by the catch-all fallthrough; opt-in checks for
+// missing_data/report_incomplete must run before that fallthrough.
 const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
 
 /**
