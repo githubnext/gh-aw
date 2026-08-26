@@ -37,14 +37,50 @@ const { ERR_API, ERR_PERMISSION } = require("./error_codes.cjs");
 const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
 const PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
 
-function exportPRHeadBaseline({ branchName, baseRepo, baseSha }) {
-  if (!branchName || !baseSha) {
+/**
+ * Resolve the commit SHA actually checked out at HEAD.
+ *
+ * Payload/API `head.sha` values can go stale if the PR advances between the
+ * event/API read and the `git fetch` above, or be absent from a shallow
+ * fetch. Resolving `HEAD^{commit}` after checkout reflects exactly what was
+ * fetched and checked out, so patch generation never ranges over commits the
+ * workflow never saw.
+ *
+ * @returns {Promise<string | null>}
+ */
+async function resolveCheckedOutHeadSha() {
+  try {
+    const result = await exec.getExecOutput("git", ["rev-parse", "HEAD^{commit}"], {
+      silent: true,
+      ignoreReturnCode: true,
+    });
+    if (result.exitCode !== 0) {
+      return null;
+    }
+    const sha = result.stdout.trim();
+    return sha || null;
+  } catch (e) {
+    core.warning(`Could not resolve checked-out HEAD commit: ${getErrorMessage(e)}`);
+    return null;
+  }
+}
+
+async function exportPRHeadBaseline({ branchName, baseRepo, prNumber }) {
+  if (!branchName) {
+    return;
+  }
+  const baseSha = await resolveCheckedOutHeadSha();
+  if (!baseSha) {
+    core.warning("Could not resolve checked-out HEAD commit; skipping PR head baseline export for incremental patches.");
     return;
   }
   core.exportVariable("GH_AW_PR_HEAD_BASE_BRANCH", branchName);
   core.exportVariable("GH_AW_PR_HEAD_BASE_SHA", baseSha);
   if (baseRepo) {
     core.exportVariable("GH_AW_PR_HEAD_BASE_REPO", baseRepo);
+  }
+  if (prNumber != null) {
+    core.exportVariable("GH_AW_PR_HEAD_BASE_PR_NUMBER", String(prNumber));
   }
   core.exportVariable("GH_AW_PR_HEAD_BASE_REF", PR_HEAD_BASE_REF);
   core.info(`Recorded PR head baseline for incremental patches: ${branchName}@${baseSha}`);
@@ -327,10 +363,10 @@ async function main() {
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", branchName]);
 
-      exportPRHeadBaseline({
+      await exportPRHeadBaseline({
         branchName,
         baseRepo: pullRequest.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
-        baseSha: pullRequest.head.sha,
+        prNumber: pullRequest.number,
       });
       core.info(`✅ Successfully checked out branch: ${branchName}`);
     } else {
@@ -375,10 +411,10 @@ async function main() {
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
 
-      exportPRHeadBaseline({
+      await exportPRHeadBaseline({
         branchName,
         baseRepo: fullPR.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
-        baseSha: fullPR.head?.sha,
+        prNumber,
       });
       core.info(`✅ Successfully checked out PR #${prNumber}`);
       core.info(`Current branch: ${branchName}`);

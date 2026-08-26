@@ -93,6 +93,7 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GH_AW_PR_HEAD_BASE_REPO;
     delete process.env.GH_AW_PR_HEAD_BASE_REF;
     delete process.env.GH_AW_PR_HEAD_BASE_SHA;
+    delete process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER;
   });
 
   describe("probe intent helpers", () => {
@@ -2107,6 +2108,7 @@ describe("safe_outputs_handlers", () => {
       process.env.GH_AW_PR_HEAD_BASE_REPO = "test-owner/test-repo";
       process.env.GH_AW_PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
       process.env.GH_AW_PR_HEAD_BASE_SHA = prHeadSha;
+      process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER = "123";
       try {
         const result = await handlers.pushToPullRequestBranchHandler({
           branch: "feature/fork-only",
@@ -2120,6 +2122,66 @@ describe("safe_outputs_handlers", () => {
           expect.objectContaining({
             type: "push_to_pull_request_branch",
             branch: "feature/fork-only",
+            base_commit: prHeadSha,
+          })
+        );
+      } finally {
+        mockContext.eventName = originalEventName;
+        mockContext.payload = originalPayload;
+        process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+        delete process.env.GITHUB_BASE_REF;
+      }
+    });
+
+    it("ignores recorded PR-head baseline when the PR number does not match the target PR", async () => {
+      const repoDir = path.join(testWorkspaceDir, "fork-pr-repo-mismatch");
+      fs.mkdirSync(repoDir, { recursive: true });
+      execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@test.com'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/owner/repo.git", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+      execSync("git add README.md && git commit -m init", { cwd: repoDir, stdio: "pipe" });
+
+      execSync("git checkout -b feature/fork-only", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "fork.txt"), "fork PR head\n");
+      execSync("git add fork.txt && git commit -m 'fork PR head'", { cwd: repoDir, stdio: "pipe" });
+      const prHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+      execSync(`git update-ref refs/remotes/origin/pr-head ${prHeadSha}`, { cwd: repoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(repoDir, "agent.txt"), "agent follow-up\n");
+      execSync("git add agent.txt && git commit -m 'agent follow-up'", { cwd: repoDir, stdio: "pipe" });
+
+      const originalEventName = mockContext.eventName;
+      const originalPayload = mockContext.payload;
+      mockContext.eventName = "pull_request";
+      // Triggering PR is #123, but this call targets a different fork PR (#456)
+      // that happens to share the same branch name and base repo.
+      mockContext.payload = { pull_request: { number: 123 } };
+      process.env.GITHUB_WORKSPACE = repoDir;
+      process.env.GITHUB_BASE_REF = "main";
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_BRANCH = "feature/fork-only";
+      process.env.GH_AW_PR_HEAD_BASE_REPO = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
+      process.env.GH_AW_PR_HEAD_BASE_SHA = prHeadSha;
+      process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER = "123";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          branch: "feature/fork-only",
+          pull_request_number: 456,
+        });
+
+        // The mismatched baseline must not be reused: with no origin/<branch> present
+        // and the recorded PR-head baseline rejected, patch generation should fail
+        // rather than silently diffing against the wrong PR's baseline.
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
             base_commit: prHeadSha,
           })
         );

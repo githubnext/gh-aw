@@ -49,11 +49,12 @@ function resolveEffectiveContext(invocationContext, rawContext) {
   };
 }
 
-function resolvePRHeadBaselineForPush(branchName, repoSlug, server) {
+function resolvePRHeadBaselineForPush(branchName, repoSlug, prNumber, server) {
   const baselineBranch = (process.env.GH_AW_PR_HEAD_BASE_BRANCH || "").trim();
   const baselineRepo = (process.env.GH_AW_PR_HEAD_BASE_REPO || "").trim();
   const baselineRef = (process.env.GH_AW_PR_HEAD_BASE_REF || "").trim();
   const baselineSha = (process.env.GH_AW_PR_HEAD_BASE_SHA || "").trim();
+  const baselinePRNumber = (process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER || "").trim();
 
   if (!baselineBranch || baselineBranch !== branchName || (!baselineRef && !baselineSha)) {
     return null;
@@ -61,6 +62,16 @@ function resolvePRHeadBaselineForPush(branchName, repoSlug, server) {
 
   if (baselineRepo && baselineRepo.toLowerCase() !== repoSlug.toLowerCase()) {
     server.debug(`Ignoring PR-head baseline for ${baselineBranch}: recorded repo ${baselineRepo} does not match target repo ${repoSlug}`);
+    return null;
+  }
+
+  // Branch name + repo alone don't uniquely identify a fork PR: two forks can open
+  // identically-named branches against the same base repo. In wildcard/batch workflows
+  // where the target PR differs from the triggering PR, require the recorded PR number
+  // to match the effective target PR before reusing the baseline.
+  const effectivePRNumber = prNumber != null ? String(prNumber).trim() : "";
+  if (!baselinePRNumber || !effectivePRNumber || effectivePRNumber !== baselinePRNumber) {
+    server.debug(`Ignoring PR-head baseline for ${baselineBranch}: recorded PR #${baselinePRNumber || "unknown"} does not match target PR #${effectivePRNumber || "unknown"}`);
     return null;
   }
 
@@ -1364,7 +1375,17 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return buildIntentErrorResponse(intentValidationError);
     }
 
-    const prHeadBaseline = resolvePRHeadBaselineForPush(entry.branch, itemRepo, server);
+    // Resolve the effective target PR number so a recorded PR-head baseline can be
+    // validated against it: branch name + repo alone don't uniquely identify a fork PR
+    // (two forks can open identically-named branches against the same base repo).
+    let effectivePushPRNumber = entry.pull_request_number != null ? parseInt(String(entry.pull_request_number), 10) : undefined;
+    if (effectivePushPRNumber == null || Number.isNaN(effectivePushPRNumber)) {
+      const pushInvocationContext = resolveInvocationContext(context);
+      const { effectivePayload: pushEffectivePayload } = resolveEffectiveContext(pushInvocationContext, context);
+      effectivePushPRNumber = pushEffectivePayload?.pull_request?.number || pushEffectivePayload?.issue?.number || undefined;
+    }
+
+    const prHeadBaseline = resolvePRHeadBaselineForPush(entry.branch, itemRepo, effectivePushPRNumber, server);
 
     // Build common options for both patch and bundle generation
     const pushTransportOptions = { mode: "incremental" };

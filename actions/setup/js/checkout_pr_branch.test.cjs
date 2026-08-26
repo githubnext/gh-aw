@@ -26,8 +26,14 @@ describe("checkout_pr_branch.cjs", () => {
     // Mock exec
     mockExec = {
       exec: vi.fn().mockResolvedValue(0),
-      // Default: repository is shallow, so --depth is preserved
-      getExecOutput: vi.fn().mockResolvedValue({ stdout: "true\n", stderr: "", exitCode: 0 }),
+      // Default: repository is shallow (so --depth is preserved), and HEAD resolves
+      // to a fixed commit for the checked-out-HEAD baseline lookup.
+      getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+        if (Array.isArray(args) && args.includes("HEAD^{commit}")) {
+          return Promise.resolve({ stdout: "checked-out-head-sha\n", stderr: "", exitCode: 0 });
+        }
+        return Promise.resolve({ stdout: "true\n", stderr: "", exitCode: 0 });
+      }),
     };
 
     // Mock context
@@ -407,7 +413,8 @@ If the pull request is still open, verify that:
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_BRANCH", "feature-branch");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_REPO", "test-owner/test-repo");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_REF", "refs/remotes/origin/pr-head");
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_SHA", "head-sha-123");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_SHA", "checked-out-head-sha");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_PR_NUMBER", "123");
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
