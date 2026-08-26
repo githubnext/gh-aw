@@ -132,6 +132,6 @@ See the [`w3c-specification-writer` agent](https://github.com/github/gh-aw/blob/
 
 The [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/) is a live example — maintained by the `layout-spec-maintainer` workflow and implemented in [gh-aw-mcpg](https://github.com/github/gh-aw-mcpg).
 
-## Related Documentation
+## Learn More
 
 See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for cross-repository coordination, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout and target-repo configuration, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for secure write operations.

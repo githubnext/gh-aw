@@ -5,7 +5,7 @@ sidebar:
   order: 1000
 ---
 
-Definitions of key terms used in GitHub Agentic Workflows (`gh-aw`), a system for running AI-powered repository automation through GitHub Actions.
+Definitions of key terms used in GitHub Agentic Workflows, a system for running AI-powered repository automation through GitHub Actions.
 
 ## Core Concepts
 
@@ -251,7 +251,7 @@ An MCP Gateway write-sink guard field that declares the visibility of the safe-o
 
 ### Integrity Reactions (`features.integrity-reactions`)
 
-A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/examples/maintaining-repos/#reactions-as-trust-signals).
+A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Promoting and demoting items via reactions](/gh-aw/reference/integrity/#promoting-and-demoting-items-via-reactions).
 
 ### Soft-Skip
 
@@ -751,6 +751,10 @@ engine:
 
 See [Engines Reference](/gh-aw/reference/engines/).
 
+### Pi Provider Prefix (`model:`)
+
+The provider segment of a Pi engine `model:` value (for example `copilot/gpt-5.4`, `anthropic/claude-sonnet-5`, or `openai/gpt-5`) that Pi uses to select an authentication method. Pi defaults to Copilot authentication, uses `ANTHROPIC_API_KEY` for `anthropic/...` models, and uses `CODEX_API_KEY` or `OPENAI_API_KEY` for `openai/...` and `codex/...` models. See [Quick Start](/gh-aw/setup/quick-start/).
+
 ### Pi Extensions (`engine.extensions`)
 
 A Pi engine configuration field that loads additional plugins via `pi install <extension>` before the agent runs. Each entry is an npm package name. Only the Pi engine reads this field; other engines ignore it. Each listed extension produces one additional install step in the compiled workflow.
@@ -1193,7 +1197,7 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 
 ### Codemod
 
-An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading](/gh-aw/guides/upgrading/).
+An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading Workflows](/gh-aw/guides/working-with-workflows/#upgrading-workflows).
 
 ### Doctor (`gh aw doctor`)
 
@@ -1378,7 +1382,7 @@ A runtime HTTP endpoint exposed by the AWF API proxy at `http://api-proxy:10000/
 
 ### Bridge Pattern
 
-A cross-repository event forwarding architecture for side repository workflows. Because GitHub Actions only delivers webhook events to the repository where they occur, `slash_command:` triggers cannot fire directly in a side repository. The bridge pattern solves this with two workflows: a thin relay workflow in the main repository that receives the slash command and forwards it to the side repository via `workflow_dispatch`, and a worker workflow in the side repository that performs the actual work. See [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/).
+A cross-repository event forwarding architecture for side repository workflows. Because GitHub Actions only delivers webhook events to the repository where they occur, `slash_command:` triggers cannot fire directly in a side repository. The bridge pattern solves this with two workflows: a thin relay workflow in the main repository that receives the slash command and forwards it to the side repository via `workflow_dispatch`, and a worker workflow in the side repository that performs the actual work. See [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/).
 
 ### Cache Memory
 
@@ -1617,6 +1621,14 @@ Deterministic, non-LLM checks that compute metrics from a workflow run's post-ag
 ### Operational Value Grader (`graders.operational-value`)
 
 A reserved grader that evaluates operational repository outcomes using a repository-relative Bash evaluator script, frozen at compile time with its SHA-256 digest recorded for reproducibility. It returns an absolute operational attainment value in `[0,1]` for the run's assigned case, alongside the evaluation's evidence timestamp, maturity, and provenance. A frozen baseline is optional metadata used to derive `deltaFromBaseline` without changing the primary operational value. The evaluator receives the workflow token via `GH_TOKEN` with the agent job's declared permissions, but not workflow secrets, and enabling the grader does not add evidence permissions to the agent job. Historical runs can be recomputed with `gh aw graders operational-value <run-id> --evidence-at <timestamp>`. See [Graders Reference](/gh-aw/reference/trace-graders/#operational-value-grader) and the `operational value designer` skill (`/operational-value-designer`) for inferring operational value from an agentic workflow.
+
+### Recurrence Trapping Time (RQA TT) (`graders.recurrence-trapping-time`)
+
+A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. It is not a built-in grader: it is an importable `graders:` fragment in the trajectory graders catalog (`.github/workflows/shared/graders/recurrence-trapping-time.md`) that a workflow opts into via `imports:`. See [Graders Reference](/gh-aw/reference/trace-graders/) for built-in graders and grader configuration.
+
+### Dashboard Language
+
+A declarative, YAML-based specification language for describing agentic workflow dashboards covering organizations, repositories, runs, experiments, graders, evals, usage, findings, and operational value. A dashboard is composed of built-in pages or custom pages; custom pages use a constrained Vega-inspired model of `source`, optional `data`, `mark`, and `encoding`. The specification defines intrinsic domain semantics, aggregation and filtering rules, provenance and freshness requirements, explicit unavailable-data states, and conformance tests, but not data retrieval, implementation architecture, or rendering technology. See [Dashboard Language Specification](/gh-aw/specs/dashboard-language-specification/).
 
 ## Operational Patterns
 

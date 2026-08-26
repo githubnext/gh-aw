@@ -244,7 +244,7 @@ func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	assert.NotContains(t, generated, `"required": false`)
 	assert.NotRegexp(t, `AWF_ENCLAVE_MCP_CAPABILITY=[0-9a-f]{64}`, generated)
 	deferred := strings.Index(generated, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
-	gatewayRunner := strings.Index(generated, "start_mcp_gateway.cjs")
+	gatewayRunner := strings.Index(generated, `| "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"`)
 	require.Greater(t, deferred, -1)
 	require.Greater(t, gatewayRunner, deferred)
 

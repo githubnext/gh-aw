@@ -233,7 +233,7 @@ Re-run `gh aw compile` after modifying `aw.json` to regenerate all affected lock
 > [!NOTE]
 > Neither `action_pins` nor `container_pins` is supported in individual workflow frontmatter. Both are repository-level settings in `aw.json` that apply across all workflows in the repository.
 
-## Related documentation
+## Learn More
 
 - [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-runs-on-slim-timeout-minutes) — `runs-on` and `runs-on-slim` syntax reference
 - [Imports](/gh-aw/reference/imports/) — importable fields and merge semantics

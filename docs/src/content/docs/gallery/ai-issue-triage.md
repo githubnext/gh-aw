@@ -48,7 +48,7 @@ Use `duplicate` only when the match is strong and include the issue number in th
 
 Every label listed under `allowed` must already exist in the target repository. `bug`, `feature`, and `question` ship as GitHub defaults, but labels such as `needs-info`, `priority/p0`, `priority/p1`, and `priority/p2` do not, and applying a missing label fails at runtime. Create them before the first run with `gh label create needs-info` (repeat per label) or from the repository's Settings > Labels page.
 
-## Related pages
+## Learn More
 
 - [Run Claude Code in GitHub Actions with gh-aw](/gh-aw/engines/claude/)
 - [Run GitHub Copilot agents in GitHub Actions with gh-aw](/gh-aw/engines/copilot/)

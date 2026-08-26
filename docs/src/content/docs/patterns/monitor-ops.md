@@ -33,7 +33,7 @@ This pattern is useful for repository-wide monitoring because it creates a durab
 
 Use this pattern when a repository has enough workflow activity that maintainers need a regular summary instead of checking each run manually. It also helps when workflows span multiple teams and failures or waste need to be surfaced in a shared location.
 
-## Related Documentation
+## Learn More
 
 - [BatchOps](/gh-aw/patterns/batch-ops/) — Process large volumes in parallel chunks
 - [Audit Commands](/gh-aw/reference/audit/) — Investigate individual runs and regressions

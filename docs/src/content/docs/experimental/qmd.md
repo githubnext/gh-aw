@@ -176,7 +176,7 @@ tools:
 ---
 ```
 
-## Related Documentation
+## Learn More
 
 - [Tools](/gh-aw/reference/tools/) - Overview of all available tools and configuration
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide

@@ -159,6 +159,6 @@ A common adoption pattern is:
 > [!TIP]
 > Keep staged mode enabled while iterating on prompt changes, and re-enable it for a single output type when introducing a new safe output.
 
-## Related Documentation
+## Learn More
 
 See [Safe Outputs](/gh-aw/reference/safe-outputs/) for built-in output types, [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) for custom jobs with staged mode support, [Frontmatter (Full)](/gh-aw/reference/frontmatter-full/) for the full configuration reference, and [Threat Detection](/gh-aw/reference/threat-detection/) for security scanning of safe output content.

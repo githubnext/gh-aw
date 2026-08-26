@@ -8,11 +8,17 @@ disable-agentic-editing: true
 
 import Video from '../../../components/Video.astro';
 
-This page describes authentication settings for GitHub Agentic Workflows (`gh-aw`). AI engine inference credentials are separate from credentials used for GitHub API operations, safe outputs, CI triggering, and Git commit attribution.
+This page describes authentication settings for GitHub Agentic Workflows.
 
-## Which secret do I need?
+Two kinds of authentication are needed
 
-Configure the authentication method your engine needs before running your first workflow. Some engines require a GitHub Actions secret, while Copilot can use `permissions: { copilot-requests: write }` with `${{ github.token }}` and no PAT:
+1. Authentication for model inference for your chosen AI engine.
+
+2. Authentication for GitHub API operations, safe outputs and other GitHub operations.
+
+## Authenticating your AI Engine
+
+Configure the authentication method your AI engine needs before running your first workflow.
 
 ### Copilot (default)
 
@@ -532,7 +538,7 @@ The same field is accepted under `tools.github.github-app:` and applies consiste
 
 ---
 
-## Related Documentation
+## Learn More
 
 - [Engines](/gh-aw/reference/engines/) - Engine-specific authentication
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output token configuration

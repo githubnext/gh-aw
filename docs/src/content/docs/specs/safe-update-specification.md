@@ -18,7 +18,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines safe update behavior in GitHub Agentic Workflows (`gh-aw`) compilation. It standardizes when safe update enforcement is active, how baseline manifests are loaded and trusted, which secret/action/redirect/event changes require review, how warnings are surfaced, and how approval and strict-mode settings affect enforcement.
+This specification defines safe update behavior in GitHub Agentic Workflows compilation. It standardizes when safe update enforcement is active, how baseline manifests are loaded and trusted, which secret/action/redirect/event changes require review, how warnings are surfaced, and how approval and strict-mode settings affect enforcement.
 
 ## Status of This Document
 

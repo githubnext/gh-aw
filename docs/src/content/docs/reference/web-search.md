@@ -66,7 +66,7 @@ network:
     - "*.tavily.com"
 ```
 
-## Related Documentation
+## Learn More
 
 - [MCP Integration](/gh-aw/guides/mcps/) - Complete MCP server guide
 - [Tools](/gh-aw/reference/tools/) - Tool configuration reference

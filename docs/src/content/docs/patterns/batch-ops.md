@@ -243,7 +243,7 @@ Aggregate results from previous batch runs stored in `/tmp/gh-aw/cache-memory/ba
 4. For each failed item, create a sub-issue so it can be retried.
 ```
 
-## Related Documentation
+## Learn More
 
 - [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential queue processing with issue checklists, sub-issues, cache-memory, and Discussions
 - [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign for developer-supervised work

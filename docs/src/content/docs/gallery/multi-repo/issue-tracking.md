@@ -411,9 +411,9 @@ gh aw secrets set GH_AW_CROSS_REPO_PAT --value "ghp_your_token_here"
 
 For enhanced security, use GitHub App installation tokens. See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for complete configuration including repository scoping options.
 
-## Related Documentation
+## Learn More
 
 - [MultiRepoOps Design Pattern](/gh-aw/patterns/multi-repo-ops/) - Complete multi-repo overview
-- [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) - Code sync patterns
+- [Feature Synchronization](/gh-aw/gallery/multi-repo/feature-sync/) - Code sync patterns
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Issue creation configuration
 - [GitHub Tools](/gh-aw/reference/github-tools/) - API access configuration

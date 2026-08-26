@@ -32,9 +32,7 @@ Generate release notes for the published release.
 Summarize the most important merged pull requests, user-visible fixes, documentation updates, and any upgrade or rollback notes. Create one issue containing the draft release notes and a short follow-up checklist for human review before publication elsewhere.
 ```
 
-`create-issue` matters for security because the agent only proposes the release report. gh-aw validates the issue payload and creates the issue on the workflow's behalf, which keeps repository writes bounded to the configured safe output.
-
-## Related pages
+## Learn More
 
 - [Run Claude Code in GitHub Actions with gh-aw](/gh-aw/engines/claude/)
 - [Run GitHub Copilot agents in GitHub Actions with gh-aw](/gh-aw/engines/copilot/)

@@ -222,7 +222,7 @@ Start the dev server on localhost:3000, then drive a full user journey with
 failures with screenshots.
 ```
 
-## Related Documentation
+## Learn More
 
 - [Tools Reference](/gh-aw/reference/tools/) — All tool configurations
 - [Network Permissions](/gh-aw/reference/network/) — Network access control

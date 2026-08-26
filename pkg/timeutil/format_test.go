@@ -3,6 +3,8 @@
 package timeutil
 
 import (
+	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -142,9 +144,9 @@ func TestFormatDuration(t *testing.T) {
 			expected: "1.0s",
 		},
 		{
-			name:     "just under minute",
+			name:     "just under minute rolls over",
 			duration: 59*time.Second + 999*time.Millisecond,
-			expected: "60.0s",
+			expected: "1.0m",
 		},
 		{
 			name:     "exactly 1 minute",
@@ -152,9 +154,9 @@ func TestFormatDuration(t *testing.T) {
 			expected: "1.0m",
 		},
 		{
-			name:     "just under hour",
+			name:     "just under hour rolls over",
 			duration: 59*time.Minute + 59*time.Second,
-			expected: "60.0m",
+			expected: "1.0h",
 		},
 		{
 			name:     "exactly 1 hour",
@@ -207,32 +209,32 @@ func TestFormatDurationMs(t *testing.T) {
 			expected: "1.5s",
 		},
 		{
-			name: "just under one minute rounds up to 60.0s",
+			name: "just under one minute rolls over to minutes",
 			ms:   59999,
-			// 59_999 ms is still in the seconds branch (ms < 60_000), and
-			// one-decimal formatting rounds 59.999s to "60.0s" before minute formatting applies.
-			expected: "60.0s",
+			// 59_999 ms rounds to 60.0s, which rolls over into the minute
+			// range instead of rendering the "60.0s" artifact.
+			expected: "1.0m",
 		},
 		// Minute range
 		{
 			name:     "exactly one minute",
 			ms:       60000,
-			expected: "1m0s",
+			expected: "1.0m",
 		},
 		{
 			name:     "one minute thirty seconds",
 			ms:       90000,
-			expected: "1m30s",
+			expected: "1.5m",
 		},
 		{
 			name:     "multi-minute composition",
 			ms:       125000,
-			expected: "2m5s",
+			expected: "2.1m",
 		},
 		{
-			name:     "multi-hour value stays in minutes",
+			name:     "multi-hour value rolls over to hours",
 			ms:       3_600_000,
-			expected: "60m0s",
+			expected: "1.0h",
 		},
 		// Negative input is passed through the millisecond branch as-is.
 		{
@@ -246,6 +248,44 @@ func TestFormatDurationMs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			result := FormatDurationMs(tt.ms)
+			assert.Equal(t, tt.expected, result, "FormatDurationMs(%d) mismatch", tt.ms)
+		})
+	}
+}
+
+// TestFormatDurationMsOverflowGuard verifies that millisecond values beyond
+// time.Duration's representable nanosecond range are formatted directly in
+// hours instead of silently overflowing. Skipped on platforms where int is
+// narrower than 64 bits, since the tested values cannot be represented there.
+func TestFormatDurationMsOverflowGuard(t *testing.T) {
+	if strconv.IntSize < 64 {
+		t.Skip("requires a 64-bit int to represent the tested values")
+	}
+
+	var beyondRange int64 = 9_223_372_036_855
+	atBoundary := math.MaxInt64 / int64(time.Millisecond)
+
+	tests := []struct {
+		name     string
+		ms       int64
+		expected string
+	}{
+		{
+			name:     "value beyond time.Duration range formats in hours",
+			ms:       beyondRange,
+			expected: "2562047.8h",
+		},
+		{
+			name:     "value at time.Duration boundary uses standard path",
+			ms:       atBoundary,
+			expected: "2562047.8h",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := FormatDurationMs(int(tt.ms))
 			assert.Equal(t, tt.expected, result, "FormatDurationMs(%d) mismatch", tt.ms)
 		})
 	}
@@ -276,45 +316,45 @@ func TestFormatDurationNs(t *testing.T) {
 		},
 		// Rounding boundaries
 		{
-			name:     "just under half a second rounds down to zero",
+			name:     "just under half a second stays in milliseconds",
 			ns:       499_999_999,
-			expected: "0s",
+			expected: "499ms",
 		},
 		{
-			name:     "exactly half a second rounds up",
+			name:     "exactly half a second stays in milliseconds",
 			ns:       500_000_000,
-			expected: "1s",
+			expected: "500ms",
 		},
 		{
-			name:     "one and a half seconds rounds up",
+			name:     "one and a half seconds",
 			ns:       1_500_000_000,
-			expected: "2s",
+			expected: "1.5s",
 		},
 		{
-			name:     "just under one and a half seconds rounds down",
+			name:     "just under one and a half seconds",
 			ns:       1_499_999_999,
-			expected: "1s",
+			expected: "1.5s",
 		},
 		// Composition
 		{
 			name:     "two seconds",
 			ns:       2_000_000_000,
-			expected: "2s",
+			expected: "2.0s",
 		},
 		{
 			name:     "one minute thirty seconds",
 			ns:       90_000_000_000,
-			expected: "1m30s",
+			expected: "1.5m",
 		},
 		{
 			name:     "multi-hour duration",
 			ns:       7_265_000_000_000,
-			expected: "2h1m5s",
+			expected: "2.0h",
 		},
 		{
 			name:     "multi-hour duration with sub-second rounding",
 			ns:       3_600_500_000_000,
-			expected: "1h0m1s",
+			expected: "1.0h",
 		},
 	}
 

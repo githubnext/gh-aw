@@ -127,7 +127,7 @@ tools:
 
 Without `min-integrity`, `integrity-proxy` has no effect. When both are configured, the proxy enforces network-boundary integrity filtering in addition to the MCP gateway-level filtering. Set `integrity-proxy: false` when you only need gateway-level filtering.
 
-## Related Documentation
+## Learn More
 
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) — Complete frontmatter field reference
 - [AI Engines](/gh-aw/reference/engines/) — Engine configuration including Copilot BYOK

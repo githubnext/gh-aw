@@ -3,11 +3,23 @@ title: Using Claude Code with GitHub Agentic Workflows
 description: Select and authenticate Claude Code as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
 ---
 
-Claude Code is Anthropic's agentic coding interface for repository analysis and code changes. GitHub Agentic Workflows (`gh-aw`) runs Claude Code through GitHub Actions from a Markdown workflow, adds GitHub event triggers, and can route configured writes through validated safe outputs.
+[Claude Code](https://claude.com/product/claude-code) is Anthropic's agentic coding interface for repository analysis and code changes. GitHub Agentic Workflows runs Claude Code in GitHub Actions, adding GitHub event triggers and guardrails.
 
-## Selection and authentication
+## Selecting Claude Code as the AI engine
 
-Set `engine: claude` in workflow frontmatter and provide [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), or configure keyless [Anthropic Workload Identity Federation](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif). Claude subscription OAuth tokens such as `CLAUDE_CODE_OAUTH_TOKEN` are not supported.
+To select Claude Code as the AI engine, with inference hosted and and billed through an Anthropic subscription, add this to the workflow frontmatter:
+
+```yaml
+engine: claude
+```
+
+To authenticate, either
+
+1. Provide [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) as a GitHub Actions repository secret, or
+
+2. Use keyless [Anthropic Workload Identity Federation](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif).
+
+Claude subscription OAuth tokens such as `CLAUDE_CODE_OAUTH_TOKEN` are not supported.
 
 ## Example: scheduled repository report
 
@@ -70,18 +82,14 @@ After the files are committed, set `engine: claude` in workflow frontmatter (if 
 
 ## GitHub Agentic Workflows vs. Claude Code in Actions
 
-Running coding agent CLIs directly in GitHub Actions without an adequate security architecture is not recommended. We recommend the use of GitHub Agentic Workflows, giving simple workflow definitions in Markdown, the `gh-aw` security architecture, portability across AI engines, and using safe outputs for validated GitHub writes.
+Running coding agent CLIs such as `claude` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecure and workflow portability across AI engines.
 
-The [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action) workflow has a security model with fewer guardrails and is not recommended if GitHub Agentic Workflows are available.
+The [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action) workflow has a security model with fewer guardrails. It is not recommended for use in GitHub Actions if GitHub Agentic Workflows are available for use.
 
-## Related pages
+## Learn More
 
 - [Quick start](/gh-aw/setup/quick-start/)
 - [Engine reference](/gh-aw/reference/engines/)
 - [Authentication](/gh-aw/reference/auth/)
 - [Security architecture](/gh-aw/introduction/architecture/)
-- [Examples by task](/gh-aw/examples/)
-- [AI issue triage](/gh-aw/examples/ai-issue-triage/)
-- [Automated AI pull request review](/gh-aw/examples/automated-pr-review/)
-- [AI-generated release notes and reports](/gh-aw/examples/ai-release-notes/)
-- [Keeping documentation up to date automatically](/gh-aw/examples/docs-automation/)
+- [Gallery](/gh-aw/gallery/)

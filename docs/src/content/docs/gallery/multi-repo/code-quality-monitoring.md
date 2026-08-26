@@ -200,6 +200,6 @@ cd ${{ github.workspace }}/repo
 
 Without it, the agent starts in `$GITHUB_WORKSPACE` (the side repo) and may analyze the wrong directory.
 
-## Related Documentation
+## Learn More
 
-See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for side-repository topologies, [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) for a related issue-triage workflow, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout configuration and `current: true`, [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for issue creation with `max` and labels.
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for side-repository topologies, [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/) for a related issue-triage workflow, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout configuration and `current: true`, [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for issue creation with `max` and labels.

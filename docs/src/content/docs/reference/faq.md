@@ -82,12 +82,12 @@ head:
 
 ## What is GitHub Agentic Workflows?
 
-GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation and run AI agents through GitHub Actions. Authors write Markdown instructions with YAML frontmatter, then `gh aw compile` generates the `.lock.yml` GitHub Actions workflow. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi.
+GitHub Agentic Workflows lets developers define AI-powered repository automation and run AI agents through GitHub Actions. Authors write Markdown instructions with YAML frontmatter, then `gh aw compile` generates the `.lock.yml` GitHub Actions workflow. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi.
 
 > [!NOTE]
 > GitHub Agentic Workflows is in Public Preview.
 
-Start with the [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/), learn how to [create an agentic workflow](/gh-aw/setup/creating-workflows/), or browse [examples by repository task](/gh-aw/examples/).
+Start with the [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/), learn how to [create an agentic workflow](/gh-aw/setup/creating-workflows/), or browse the [gallery by repository task](/gh-aw/gallery/).
 
 ## Determinism
 
@@ -139,7 +139,7 @@ Yes. Private repositories can support proprietary code, a "sidecar" repository w
 
 ### Can I edit workflows directly on GitHub.com without recompiling?
 
-Yes, for the **markdown body** (AI instructions) — loaded at runtime, takes effect on the next run. **Frontmatter** (tools, permissions, triggers, network rules) is embedded at compile time and requires `gh aw compile my-workflow` after edits. See [Editing Workflows](/gh-aw/guides/editing-workflows/).
+Yes, for the **markdown body** (AI instructions) — loaded at runtime, takes effect on the next run. **Frontmatter** (tools, permissions, triggers, network rules) is embedded at compile time and requires `gh aw compile my-workflow` after edits. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows).
 
 ### Can workflows trigger other workflows?
 
@@ -228,7 +228,7 @@ imports:
   - githubnext/agentics/shared/common-tools.md
 ```
 
-See [Imports](/gh-aw/reference/imports/) and [Packaging Imports](/gh-aw/guides/reusing-workflows/).
+See [Imports](/gh-aw/reference/imports/) and [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows).
 
 ### Can I run workflows on a schedule?
 
@@ -770,13 +770,13 @@ These entries are **merged** with the built-in catalog at runtime — they overr
 
 See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) for budgeting options alongside custom pricing.
 
-## Related documentation
+## Learn More
 
 - [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/) — install `gh-aw` and run a first workflow
 - [Create a GitHub Agentic Workflow](/gh-aw/setup/creating-workflows/) — author Markdown instructions and compile them into GitHub Actions
-- [AI Issue Triage on GitHub](/gh-aw/examples/ai-issue-triage/) — labeling, deduplication, and clarifying questions
-- [Automated AI Pull Request Review](/gh-aw/examples/automated-pr-review/) — review diffs and post feedback on new PRs
-- [AI Release Notes and Reports](/gh-aw/examples/ai-release-notes/) — generate release summaries automatically
-- [Keeping Documentation Up to Date Automatically](/gh-aw/examples/docs-automation/) — propose docs updates as pull requests
+- [AI Issue Triage on GitHub](/gh-aw/gallery/ai-issue-triage/) — labeling, deduplication, and clarifying questions
+- [Automated AI Pull Request Review](/gh-aw/gallery/automated-pr-review/) — review diffs and post feedback on new PRs
+- [AI Release Notes and Reports](/gh-aw/gallery/ai-release-notes/) — generate release summaries automatically
+- [Keeping Documentation Up to Date Automatically](/gh-aw/gallery/docs-automation/) — propose docs updates as pull requests
 - [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) — compare Copilot, Claude Code, Codex, Gemini, and Pi
 - [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) — understand configurable permissions, isolation, and controlled writes

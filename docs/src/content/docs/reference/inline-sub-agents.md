@@ -139,7 +139,7 @@ description: Reviews code for quality issues
 Review the given code for bugs, style issues, and potential improvements.
 ```
 
-## Related Documentation
+## Learn More
 
 - [Importing Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/) for agents stored in `.github/agents/`
 - [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for combining deterministic steps with AI reasoning

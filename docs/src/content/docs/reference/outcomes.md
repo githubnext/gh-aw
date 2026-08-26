@@ -101,7 +101,7 @@ The outcomes model is deliberately narrow. It does not try to estimate the full 
 
 Those questions may matter later, but they are separate from the base outcomes model described here.
 
-## Related Documentation
+## Learn More
 
 - [Cost Management](/gh-aw/reference/cost-management/) explains how workflow cost is measured and reduced.
 - [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry-attributes/) describes the span attributes and artifacts that carry workflow telemetry.

@@ -266,6 +266,6 @@ Monitor progress in Actions and in the PRs or issues created in each target repo
 
 Keep `max: 5` during the initial rollout, add the `[dependabot]` title prefix so PRs are easy to filter, use `concurrency` groups to prevent duplicate worker runs for the same repository, and manually review a few worker PRs before expanding the rollout.
 
-## Related Documentation
+## Learn More
 
-See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for other control-plane topologies, [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) for upstream-to-downstream sync, [Cross-Repository Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/) for a hub-and-spoke example, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout and `target-repo` configuration, [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for secure write operations.
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for other control-plane topologies, [Feature Synchronization](/gh-aw/gallery/multi-repo/feature-sync/) for upstream-to-downstream sync, [Cross-Repository Issue Tracking](/gh-aw/gallery/multi-repo/issue-tracking/) for a hub-and-spoke example, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout and `target-repo` configuration, [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for secure write operations.
