@@ -1102,6 +1102,45 @@ setInterval(() => {}, 1000);`,
       expect(result.stderr).toContain("late-activity exit suppressed");
     });
 
+    it("exits 0 without retrying when a report_incomplete safe-output was produced and the process hangs on exit", () => {
+      const tempDir = makeHarnessTempDir("codex-watchdog-report-incomplete-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"report_incomplete",reason:"infrastructure_error"}) + "\\n");
+process.stdout.write("report_incomplete recorded. Waiting...\\n");
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "moderate the issue", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      expect(callCount).toBe(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
+      expect(result.stderr).toContain("late-activity exit suppressed");
+    });
+
     it("still retries partial_execution when no terminal safe-output was produced (watchdog not armed)", () => {
       const tempDir = makeHarnessTempDir("codex-watchdog-no-output-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");

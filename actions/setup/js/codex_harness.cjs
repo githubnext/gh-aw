@@ -725,7 +725,13 @@ async function main() {
           : undefined,
         postResultWatchdog: safeOutputsPath
           ? {
-              shouldArm: () => hasTerminalSafeOutput(safeOutputsPath, { byteOffset: safeOutputsByteOffset, includeMissingData: true, logger: log }),
+              shouldArm: () =>
+                hasTerminalSafeOutput(safeOutputsPath, {
+                  byteOffset: safeOutputsByteOffset,
+                  includeMissingData: true,
+                  includeReportIncomplete: true,
+                  logger: log,
+                }),
               inactivityTimeoutMs: POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
             }
           : undefined,
@@ -752,7 +758,16 @@ async function main() {
       // as a success.  The agent completed its work and wrote its output — the hang on exit is
       // a cosmetic failure, not a task failure.  Check this before logging "attempt failed" so
       // the log stream does not contradict itself for what is ultimately a successful run.
-      if (result.watchdogFired && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, { byteOffset: result.safeOutputsByteOffset ?? 0, includeMissingData: true, logger: log })) {
+      if (
+        result.watchdogFired &&
+        safeOutputsPath &&
+        hasTerminalSafeOutput(safeOutputsPath, {
+          byteOffset: result.safeOutputsByteOffset ?? 0,
+          includeMissingData: true,
+          includeReportIncomplete: true,
+          logger: log,
+        })
+      ) {
         log(`attempt ${attempt + 1}: post-result watchdog fired after terminal safe-output was emitted — treating as success (late-activity exit suppressed)`);
         return { action: "stop", exitCode: 0 };
       }
