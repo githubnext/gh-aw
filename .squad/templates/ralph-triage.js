@@ -287,30 +287,33 @@ function normalizeName(value) {
     .trim();
 }
 
+/**
+ * Search the roster for a member whose given field exactly matches (when
+ * `exact` is true) or overlaps as a substring with normalizedTarget.
+ */
+function findMemberByField(normalizedTarget, roster, field, exact) {
+  for (const member of roster) {
+    const memberValue = normalizeName(member[field]);
+    if (exact ? memberValue === normalizedTarget : normalizedTarget.includes(memberValue) || memberValue.includes(normalizedTarget)) {
+      return member;
+    }
+  }
+  return null;
+}
+
 function findMember(target, roster) {
   const normalizedTarget = normalizeName(target);
   if (!normalizedTarget) return null;
 
-  for (const member of roster) {
-    if (normalizeName(member.name) === normalizedTarget) return member;
-  }
-
-  for (const member of roster) {
-    if (normalizeName(member.role) === normalizedTarget) return member;
-  }
-
-  for (const member of roster) {
-    const memberName = normalizeName(member.name);
-    if (normalizedTarget.includes(memberName) || memberName.includes(normalizedTarget)) {
-      return member;
-    }
-  }
-
-  for (const member of roster) {
-    const memberRole = normalizeName(member.role);
-    if (normalizedTarget.includes(memberRole) || memberRole.includes(normalizedTarget)) {
-      return member;
-    }
+  // Priority: exact name > exact role > substring name > substring role.
+  for (const [field, exact] of [
+    ['name', true],
+    ['role', true],
+    ['name', false],
+    ['role', false],
+  ]) {
+    const match = findMemberByField(normalizedTarget, roster, field, exact);
+    if (match) return match;
   }
 
   return null;
@@ -356,29 +359,23 @@ function findBestRuleMatch(issueText, rules) {
   return best;
 }
 
+/** Role/issue keyword pairs checked in order by {@link findRoleKeywordMatch}. */
+const ROLE_KEYWORD_MATCHERS = [
+  { roleKeywords: ['frontend', 'ui'], issueKeywords: ['ui', 'frontend', 'css'], reason: 'Matched frontend/UI role keywords' },
+  { roleKeywords: ['backend', 'api', 'server'], issueKeywords: ['api', 'backend', 'database'], reason: 'Matched backend/API role keywords' },
+  { roleKeywords: ['test', 'qa'], issueKeywords: ['test', 'bug', 'fix'], reason: 'Matched testing/QA role keywords' },
+];
+
 function findRoleKeywordMatch(issueText, roster) {
   for (const member of roster) {
     const role = member.role.toLowerCase();
 
-    if (
-      (role.includes('frontend') || role.includes('ui')) &&
-      (issueText.includes('ui') || issueText.includes('frontend') || issueText.includes('css'))
-    ) {
-      return { agent: member, reason: 'Matched frontend/UI role keywords' };
-    }
-
-    if (
-      (role.includes('backend') || role.includes('api') || role.includes('server')) &&
-      (issueText.includes('api') || issueText.includes('backend') || issueText.includes('database'))
-    ) {
-      return { agent: member, reason: 'Matched backend/API role keywords' };
-    }
-
-    if (
-      (role.includes('test') || role.includes('qa')) &&
-      (issueText.includes('test') || issueText.includes('bug') || issueText.includes('fix'))
-    ) {
-      return { agent: member, reason: 'Matched testing/QA role keywords' };
+    for (const matcher of ROLE_KEYWORD_MATCHERS) {
+      const roleMatches = matcher.roleKeywords.some((keyword) => role.includes(keyword));
+      const issueMatches = matcher.issueKeywords.some((keyword) => issueText.includes(keyword));
+      if (roleMatches && issueMatches) {
+        return { agent: member, reason: matcher.reason };
+      }
     }
   }
 
