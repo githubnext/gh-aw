@@ -285,7 +285,11 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS=\"120000\"\n")
 		yaml.WriteString("          # The eager checker runs inside start_mcp_gateway.cjs in this step.\n")
 		fmt.Fprintf(yaml, "          export %s=%q\n", enclaveMCPDeferredServersEnv, enclaveMCPServerName)
+		// Masked values may be suppressed as GitHub Actions step outputs. Enclave host setup
+		// therefore carries the gateway key through the same GITHUB_ENV channel as its other
+		// AWF-only handoffs; --exclude-env keeps it out of the primary agent.
 		yaml.WriteString("          {\n")
+		yaml.WriteString("            printf '%s=%s\\n' MCP_GATEWAY_API_KEY \"$MCP_GATEWAY_API_KEY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_CAPABILITY \"$AWF_ENCLAVE_MCP_CAPABILITY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_IDENTITY \"$AWF_ENCLAVE_MCP_GATEWAY_IDENTITY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_CONTAINER \"$AWF_ENCLAVE_MCP_GATEWAY_CONTAINER\"\n")

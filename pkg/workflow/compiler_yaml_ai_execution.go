@@ -164,11 +164,14 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	yaml.WriteString("        continue-on-error: true\n")
 
 	// Add environment variables for graceful shutdown via /close endpoint
-	// These values come from the Start MCP Gateway step outputs
+	// These values normally come from Start MCP Gateway step outputs. Enclave workflows
+	// inherit the masked API key from the compiler-owned GITHUB_ENV handoff instead.
 	// Security: Pass all step outputs through environment variables to prevent template injection
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}\n")
-	yaml.WriteString("          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}\n")
+	if !enclavesEnabled(data) {
+		yaml.WriteString("          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}\n")
+	}
 	yaml.WriteString("          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}\n")
 
 	yaml.WriteString("        run: |\n")
