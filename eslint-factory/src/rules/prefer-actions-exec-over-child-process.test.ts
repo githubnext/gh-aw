@@ -62,6 +62,18 @@ describe("prefer-actions-exec-over-child-process", () => {
           errors: [{ messageId: "preferActionsExec", data: { method: "execFile" } }],
         },
         {
+          code: ghScript(`const { exec } = require("child_process"); async function f() { await exec("git", args, cb); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); void exec("git", args, cb);`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); exec("git", args, cb) || onError();`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
           code: ghScript(`const { execFileSync } = require("child_process"); execFileSync("git", ["status"]);`),
           errors: [{ messageId: "preferActionsExec", data: { method: "execFileSync" } }],
         },

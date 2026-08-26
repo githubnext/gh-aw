@@ -39,11 +39,29 @@ function isGitHubScriptModule(sourceCode: TSESLint.SourceCode): boolean {
 }
 
 /**
- * True when the result of `node` is used as a value (assigned, returned, member-accessed, passed on,
- * ...) rather than being discarded as a bare expression statement.
+ * True when the returned `ChildProcess` handle is retained or directly exposed for streaming or
+ * lifecycle control.
  */
 function retainsCallResult(node: TSESTree.CallExpression): boolean {
-  return node.parent != null && node.parent.type !== AST_NODE_TYPES.ExpressionStatement;
+  const parent = node.parent;
+  if (!parent) return false;
+
+  switch (parent.type) {
+    case AST_NODE_TYPES.VariableDeclarator:
+      return parent.init === node;
+    case AST_NODE_TYPES.AssignmentExpression:
+      return parent.right === node;
+    case AST_NODE_TYPES.ReturnStatement:
+      return parent.argument === node;
+    case AST_NODE_TYPES.ArrowFunctionExpression:
+      return parent.body === node;
+    case AST_NODE_TYPES.MemberExpression:
+      return parent.object === node;
+    case AST_NODE_TYPES.CallExpression:
+      return parent.arguments.includes(node);
+    default:
+      return false;
+  }
 }
 
 function getImportSpecifierName(node: TSESTree.ImportSpecifier): string | null {
