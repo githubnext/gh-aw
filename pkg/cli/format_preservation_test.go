@@ -10,6 +10,7 @@ import (
 )
 
 func TestFormatPreservation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -236,6 +237,7 @@ engine: claude
 }
 
 func TestFormatPreservationSubtests(t *testing.T) {
+	t.Parallel()
 	content := `---
 on:
     workflow_dispatch:
