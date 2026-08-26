@@ -157,7 +157,6 @@ func decodeEngineConfig(config map[string]any, target any) error {
 		return fmt.Errorf("marshal configuration: %w", err)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode configuration: %w", err)
 	}

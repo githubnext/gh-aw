@@ -539,8 +539,8 @@ func TestDecodeEngineConfigRejectsInvalidValues(t *testing.T) {
 			target: &RequestShape{},
 		},
 		{
-			name:   "unknown engine auth field",
-			input:  map[string]any{"unknown": "value"},
+			name:   "engine auth field wrong type",
+			input:  map[string]any{"audience": 42},
 			target: &EngineAuthConfig{},
 		},
 	}
