@@ -212,26 +212,39 @@ func clusterSeverityRank(s string) int {
 // detectResourceDivergence checks if failed runs consume significantly more tokens
 // than successful runs within the "conclusion" dimension.
 func detectResourceDivergence(clusters []RunCluster) []ClusterPattern {
-	var successCluster, failureCluster *RunCluster
+	var successCluster *RunCluster
+	var failureClusters []*RunCluster
 	for i := range clusters {
 		if clusters[i].Dimension != "conclusion" {
 			continue
 		}
-		switch clusters[i].Value {
-		case "success":
+		if clusters[i].Value == "success" {
 			successCluster = &clusters[i]
-		case "failure":
-			failureCluster = &clusters[i]
+			continue
+		}
+		if isFailureConclusion(clusters[i].Value) {
+			failureClusters = append(failureClusters, &clusters[i])
 		}
 	}
-	if successCluster == nil || failureCluster == nil {
+	if successCluster == nil || len(failureClusters) == 0 {
 		return nil
 	}
 	if successCluster.Metrics.AvgTokens == 0 {
 		return nil
 	}
 
-	ratio := float64(failureCluster.Metrics.AvgTokens) / float64(successCluster.Metrics.AvgTokens)
+	var failureTokenTotal int
+	var failureCount int
+	for _, fc := range failureClusters {
+		failureTokenTotal += fc.Metrics.AvgTokens * fc.Count
+		failureCount += fc.Count
+	}
+	if failureCount == 0 {
+		return nil
+	}
+
+	failureAvgTokens := failureTokenTotal / failureCount
+	ratio := float64(failureAvgTokens) / float64(successCluster.Metrics.AvgTokens)
 	if ratio < 1.5 {
 		return nil
 	}
@@ -248,8 +261,8 @@ func detectResourceDivergence(clusters []RunCluster) []ClusterPattern {
 		Severity: severity,
 		Title:    "Failed runs consume disproportionate resources",
 		Description: formatResourceDivergenceDesc(
-			failureCluster.Metrics.AvgTokens, successCluster.Metrics.AvgTokens, ratio,
-			failureCluster.Count, successCluster.Count,
+			failureAvgTokens, successCluster.Metrics.AvgTokens, ratio,
+			failureCount, successCluster.Count,
 		),
 		Evidence: formatResourceDivergenceEvidence(ratio),
 	}}

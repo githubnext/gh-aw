@@ -73,6 +73,29 @@ func TestBuildClusterAnalysis_ResourceDivergencePattern(t *testing.T) {
 	assert.True(t, found, "Expected resource_divergence pattern")
 }
 
+func TestBuildClusterAnalysis_ResourceDivergencePattern_WithTimedOutAndCancelled(t *testing.T) {
+	t.Parallel()
+	inputs := []crossRunInput{
+		{RunID: 1, Conclusion: "success", Metrics: LogMetrics{TokenUsage: 1000, Turns: 5}},
+		{RunID: 2, Conclusion: "success", Metrics: LogMetrics{TokenUsage: 1200, Turns: 6}},
+		{RunID: 3, Conclusion: "timed_out", Metrics: LogMetrics{TokenUsage: 4000, Turns: 12}},
+		{RunID: 4, Conclusion: "cancelled", Metrics: LogMetrics{TokenUsage: 5000, Turns: 8}},
+	}
+
+	ca := buildClusterAnalysis(inputs)
+	require.NotNil(t, ca)
+
+	var found bool
+	for _, p := range ca.Patterns {
+		if p.Kind == "resource_divergence" {
+			found = true
+			assert.Equal(t, "high", p.Severity) // (4000+5000)/2 vs (1000+1200)/2 => ~4.1x
+			break
+		}
+	}
+	assert.True(t, found, "Expected resource_divergence pattern with timed_out/cancelled runs")
+}
+
 func TestBuildClusterAnalysis_FailureCorrelation(t *testing.T) {
 	t.Parallel()
 	inputs := []crossRunInput{
