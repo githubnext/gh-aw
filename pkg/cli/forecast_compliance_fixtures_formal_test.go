@@ -342,6 +342,7 @@ func TestFormal_P10_DurationDerivation(t *testing.T) {
 // Formal predicate: config.Days ∉ {7, 30} → RunForecast returns error
 // Specification reference: R-CLI-001; forecast.go:227-229
 func TestFormal_P11_FlagValidation_Days(t *testing.T) {
+	t.Parallel()
 	invalidCases := []int{0, 1, 6, 8, 14, 29, 31, 60, 90, 365}
 	for _, days := range invalidCases {
 		cfg := ForecastConfig{Days: days, Period: "month", JSONOutput: true, SampleSize: 10}
@@ -595,6 +596,7 @@ func TestFormal_FC_P8_RunSummaryRoundTrip(t *testing.T) {
 // Formal predicate (FC-P9): ∀f ∈ Fixtures: f.Run.StartedAt ≤ f.Run.UpdatedAt
 // Specification reference: §6.2.2 Duration Derivation
 func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
+	t.Parallel()
 	fixtures := []string{
 		"run_summary_minimal.json",
 		"run_summary_zero_et.json",
