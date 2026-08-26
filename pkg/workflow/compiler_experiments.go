@@ -21,12 +21,17 @@ const experimentsCacheDir = "/tmp/gh-aw/experiments"
 // experimentStateFile is the path to the experiment run-ledger JSONL file written by pick_experiment.cjs.
 const experimentStateFile = experimentsCacheDir + "/state.jsonl"
 
-// ExperimentsStorageCache uses GitHub Actions cache to persist experiment state.
-const ExperimentsStorageCache = "cache"
+// ExperimentStorageMode controls how experiment state is persisted across runs.
+type ExperimentStorageMode string
 
-// ExperimentsStorageRepo uses a git branch (repo-memory) to persist experiment state.
-// This is the default because experiment data is valuable and repo storage is more durable.
-const ExperimentsStorageRepo = "repo"
+const (
+	// ExperimentsStorageCache uses GitHub Actions cache to persist experiment state.
+	ExperimentsStorageCache ExperimentStorageMode = "cache"
+
+	// ExperimentsStorageRepo uses a git branch (repo-memory) to persist experiment state.
+	// This is the default because experiment data is valuable and repo storage is more durable.
+	ExperimentsStorageRepo ExperimentStorageMode = "repo"
+)
 
 // experimentsBranchPrefix is the git branch prefix used when storage: repo is selected.
 // Branches are named "experiments/{sanitizedWorkflowID}".
@@ -90,7 +95,7 @@ func extractExperimentConfigsFromFrontmatter(frontmatter map[string]any) map[str
 // extractExperimentsStorageFromFrontmatter reads the "storage" key from the experiments
 // map and returns the resolved storage mode.  Returns ExperimentsStorageRepo when the
 // key is absent or has an unrecognised value.
-func extractExperimentsStorageFromFrontmatter(frontmatter map[string]any) string {
+func extractExperimentsStorageFromFrontmatter(frontmatter map[string]any) ExperimentStorageMode {
 	raw, ok := frontmatter["experiments"]
 	if !ok || raw == nil {
 		return ExperimentsStorageRepo
@@ -101,9 +106,10 @@ func extractExperimentsStorageFromFrontmatter(frontmatter map[string]any) string
 	}
 	if storageRaw, ok := rawMap[experimentsStorageReservedKey]; ok {
 		if s, ok := storageRaw.(string); ok {
-			switch s {
+			storage := ExperimentStorageMode(s)
+			switch storage {
 			case ExperimentsStorageCache, ExperimentsStorageRepo:
-				return s
+				return storage
 			default:
 				experimentsLog.Printf("Unknown experiments storage %q; falling back to %q", s, ExperimentsStorageRepo)
 			}
