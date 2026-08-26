@@ -520,6 +520,39 @@ func TestParseRequestShape(t *testing.T) {
 	}
 }
 
+func TestDecodeEngineConfigRejectsInvalidValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		input  map[string]any
+		target any
+	}{
+		{
+			name:   "auth field wrong type",
+			input:  map[string]any{"secret": 42},
+			target: &AuthDefinition{},
+		},
+		{
+			name:   "request map value wrong type",
+			input:  map[string]any{"query": map[string]any{"api-version": 42}},
+			target: &RequestShape{},
+		},
+		{
+			name:   "unknown engine auth field",
+			input:  map[string]any{"unknown": "value"},
+			target: &EngineAuthConfig{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Error(t, decodeEngineConfig(tt.input, tt.target))
+		})
+	}
+}
+
 // newTestCompiler creates a minimal Compiler for unit testing engine-definition logic.
 func newTestCompiler(t *testing.T) *Compiler {
 	t.Helper()
