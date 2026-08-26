@@ -17,10 +17,20 @@ set +o histexpand
 set -e
 
 # Timing helper functions
+# `date +%s%3N` is GNU coreutils only; BSD date (macOS, where self-hosted Apple
+# Container runners live) has no %N and would emit a literal "3N", breaking every
+# timing arithmetic expression below.
+if [ "$(date +%3N 2>/dev/null)" = "3N" ] || ! date +%s%3N >/dev/null 2>&1; then
+  now_ms() { echo "$(($(date +%s) * 1000))"; }
+else
+  now_ms() { date +%s%3N; }
+fi
+
 print_timing() {
   local start_time=$1
   local label=$2
-  local end_time=$(date +%s%3N)
+  local end_time
+  end_time=$(now_ms)
   local duration=$((end_time - start_time))
   echo "⏱️  TIMING: $label took ${duration}ms"
 }
@@ -70,13 +80,13 @@ is_optional_server() {
 }
 
 # Start overall timing
-SCRIPT_START_TIME=$(date +%s%3N)
+SCRIPT_START_TIME=$(now_ms)
 
 echo "Checking MCP servers..."
 echo ""
 
 # Validate configuration file exists
-CONFIG_VALIDATION_START=$(date +%s%3N)
+CONFIG_VALIDATION_START=$(now_ms)
 if [ ! -f "$GATEWAY_CONFIG_PATH" ]; then
   echo "ERROR: Gateway configuration file not found: ${GATEWAY_CONFIG_PATH@Q}" >&2
   exit 1
@@ -119,7 +129,7 @@ MAX_RETRIES=3
 # Iterate through each server
 while IFS= read -r SERVER_NAME; do
   SERVERS_CHECKED=$((SERVERS_CHECKED + 1))
-  SERVER_START_TIME=$(date +%s%3N)
+  SERVER_START_TIME=$(now_ms)
   
   # Extract server configuration
   SERVER_CONFIG=$(echo "$MCP_SERVERS" | jq -r ".\"$SERVER_NAME\"" 2>/dev/null)
@@ -142,13 +152,32 @@ while IFS= read -r SERVER_NAME; do
   
   # Extract server URL (should be HTTP URL pointing to gateway)
   SERVER_URL=$(echo "$SERVER_CONFIG" | jq -r '.url // empty' 2>/dev/null)
-  
+
   if [ -z "$SERVER_URL" ] || [ "$SERVER_URL" = "null" ]; then
     echo "⚠ $SERVER_NAME: skipped (not HTTP)"
     SERVERS_SKIPPED=$((SERVERS_SKIPPED + 1))
     continue
   fi
-  
+
+  # Re-anchor the URL on the caller-supplied GATEWAY_URL origin, keeping only the
+  # path from the gateway's own output.
+  #
+  # The gateway writes URLs using the port it listens on INSIDE its container,
+  # which is not necessarily the port it was published on: under the
+  # apple-container runtime the gateway is published on 127.0.0.1:9100 but
+  # reports 8080. These requests carry the gateway API key in an Authorization
+  # header, so probing the reported address would send that credential to
+  # whichever local process owns that port on a long-lived self-hosted runner.
+  # Only the origin gh-aw published is ever contacted.
+  if [ -n "$GATEWAY_URL" ]; then
+    SERVER_PATH="${SERVER_URL#*://}"
+    case "$SERVER_PATH" in
+      */*) SERVER_PATH="/${SERVER_PATH#*/}" ;;
+      *)   SERVER_PATH="/" ;;
+    esac
+    SERVER_URL="${GATEWAY_URL%/}${SERVER_PATH}"
+  fi
+
   # Extract authentication headers from gateway configuration
   AUTH_HEADER=""
   if echo "$SERVER_CONFIG" | jq -e '.headers.Authorization' >/dev/null 2>&1; then

@@ -25,6 +25,45 @@ set +o histexpand
 
 set -euo pipefail
 
+# GNU coreutils `timeout` is not present on macOS, where self-hosted runners host
+# the apple-container runtime's Docker infrastructure. Resolve an implementation
+# once, preferring the real thing (`timeout`, or Homebrew coreutils' `gtimeout`)
+# and falling back to a plain watchdog so the pull is still bounded.
+#
+# The exit status contract is preserved in every branch: 124 means the deadline
+# was hit, which the retry loop below reports as a timeout rather than a
+# transient failure.
+PULL_TIMEOUT_SECONDS="${GH_AW_DOCKER_PULL_TIMEOUT_SECONDS:-300}"
+
+if command -v timeout >/dev/null 2>&1; then
+  pull_with_deadline() { timeout "${PULL_TIMEOUT_SECONDS}" docker pull --quiet "$1" 2>&1; }
+elif command -v gtimeout >/dev/null 2>&1; then
+  pull_with_deadline() { gtimeout "${PULL_TIMEOUT_SECONDS}" docker pull --quiet "$1" 2>&1; }
+else
+  pull_with_deadline() {
+    local image="$1" pull_pid watchdog_pid status
+    docker pull --quiet "$image" 2>&1 &
+    pull_pid=$!
+    ( sleep "${PULL_TIMEOUT_SECONDS}"; kill -TERM "$pull_pid" 2>/dev/null ) &
+    watchdog_pid=$!
+    if wait "$pull_pid"; then
+      status=0
+    else
+      status=$?
+    fi
+    kill -TERM "$watchdog_pid" 2>/dev/null || true
+    wait "$watchdog_pid" 2>/dev/null || true
+    # A SIGTERM'd child reports 143; translate it to the `timeout` convention so
+    # the caller's timeout branch stays correct on every platform.
+    if [ "$status" -eq 143 ]; then
+      return 124
+    fi
+    return "$status"
+  }
+fi
+export PULL_TIMEOUT_SECONDS
+export -f pull_with_deadline
+
 # Helper function to pull Docker images with retry logic
 docker_pull_with_retry() {
   local image="$1"
@@ -34,7 +73,7 @@ docker_pull_with_retry() {
   for attempt in $(seq 1 $max_attempts); do
     echo "Attempt $attempt of $max_attempts: Pulling $image..."
     
-    if timeout 5m docker pull --quiet "$image" 2>&1; then
+    if pull_with_deadline "$image"; then
       echo "Successfully pulled $image"
 
       # When pulling with a digest pin, Docker may not create a digest-free
@@ -78,7 +117,7 @@ docker_pull_with_retry() {
     
     # Timeout produces exit code 124
     if [ $exit_code -eq 124 ]; then
-      echo "docker pull timed out for $image after 5 minutes"
+      echo "docker pull timed out for $image after ${PULL_TIMEOUT_SECONDS}s"
       return 1
     fi
     

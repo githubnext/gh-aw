@@ -164,6 +164,10 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 			steps = append(steps, generateCloudHypervisorHostPreflightStep())
 			steps = append(steps, generateCloudHypervisorBundleSetupStep(getAWFVersionForSetup(workflowData)))
 		}
+		// Apple Container must be installed, started and stocked with its own
+		// images before AWF runs: its image store is separate from Docker's, so
+		// the Docker pre-download step cannot satisfy the agent VM.
+		steps = append(steps, generateAppleContainerSetupSteps(workflowData)...)
 
 		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
 		if len(awfInstall) > 0 {

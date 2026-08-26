@@ -179,6 +179,75 @@ const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 // https://github.com/google/gvisor/releases.
 const DefaultGVisorVersion = "20250707.0"
 
+// DefaultAppleContainerVersion is the pinned apple/container release installed by
+// the compiler-generated setup step for sandbox.agent.runtime: apple-container.
+//
+// AWF's init-image contract pins the supported `container` CLI window to
+// >= AppleContainerMinCLIVersion and < AppleContainerMaxCLIVersionExclusive
+// (gh-aw-firewall#7762, transport-capabilities.ts). apple/container has since
+// released a 1.x line, and every 1.x release is OUTSIDE that window: a major bump
+// may relocate the real `vminitd` inside the init image, which would boot a guest
+// with no capability relay at all. 0.12.3 is the newest release inside the window,
+// so it is the pin.
+//
+// Bump this only together with AWF's contract range, never to "latest".
+const DefaultAppleContainerVersion = "0.12.3"
+
+// DefaultAppleContainerPkgSHA256 is the SHA-256 of
+// container-<DefaultAppleContainerVersion>-installer-signed.pkg from
+// https://github.com/apple/container/releases.
+//
+// apple/container publishes no checksums file, so the digest is pinned here and
+// verified by the setup script before `installer` is ever invoked. It must be
+// recomputed whenever DefaultAppleContainerVersion changes.
+const DefaultAppleContainerPkgSHA256 = "83f363126ac1f064588de39cd6b474340d489c1926492a2c4e59c4d54aa6d8e3"
+
+// AppleContainerPkgSigningIdentity is the Developer ID Installer identity the
+// pinned package must be signed with, as reported by `pkgutil --check-signature`.
+//
+// The digest pin alone proves the bytes are the ones this repository reviewed;
+// the signature check additionally proves those bytes came from Apple's
+// Containerization team and are notarised, so a compromised release asset cannot
+// be laundered through a checksum bump alone.
+const AppleContainerPkgSigningIdentity = "Developer ID Installer: Apple Inc. - Containerization (UPBK2H6LZM)"
+
+// AppleContainerPkgIdentifier is the installer receipt identifier, used to read
+// the installed version back with `pkgutil --pkg-info`.
+const AppleContainerPkgIdentifier = "com.apple.container-installer"
+
+// AppleContainerMinCLIVersion and AppleContainerMaxCLIVersionExclusive mirror
+// APPLE_CONTAINER_TRANSPORT_MIN_CLI_VERSION and
+// APPLE_CONTAINER_TRANSPORT_MAX_CLI_VERSION_EXCLUSIVE in AWF. AWF re-checks the
+// range itself; gh-aw checks it during setup so an incompatible preinstalled CLI
+// is reported before any image is pulled or any VM is created.
+const (
+	AppleContainerMinCLIVersion          = "0.4.0"
+	AppleContainerMaxCLIVersionExclusive = "1.0.0"
+)
+
+// AppleContainerMinMacOSMajor is the minimum macOS major version Apple
+// Virtualization.framework requires for the container workloads AWF launches.
+const AppleContainerMinMacOSMajor = 26
+
+// AppleContainerMCPGatewayHostPort is the macOS loopback port gh-aw binds the MCP
+// gateway container (awmg-mcpg) to when the apple-container runtime is active,
+// and the value it passes to AWF as appleContainer.mcpGatewayUpstreamPort
+// (gh-aw-firewall#7768).
+//
+// AWF relays that loopback port into the zero-NIC guest as the mcp-gateway
+// capability socket. It refuses any port reserved for its own sidecars — Squid
+// (3128) and the API proxy provider ports (10000-10004) — so the gateway must
+// own a distinct port. 9100 is outside both ranges and outside the ephemeral
+// port range, and one agent job runs one gateway, so a fixed value is safe and
+// keeps the generated configuration reproducible.
+const AppleContainerMCPGatewayHostPort = 9100
+
+// AppleContainerMCPGatewayGuestPort is the loopback port the AWF guest relay
+// serves the MCP gateway on inside the VM. It is compiled into both halves of
+// AWF's transport contract and is not negotiable, so the generated MCP client
+// configuration must address exactly http://127.0.0.1:8080.
+const AppleContainerMCPGatewayGuestPort = 8080
+
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
 // Workflows using an older Copilot CLI version must not emit --no-ask-user or the run will fail.

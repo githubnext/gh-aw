@@ -17,6 +17,10 @@ const appleContainerRunsOn = "runs-on:\n  - self-hosted\n  - macOS\n  - ARM64"
 
 // newAppleContainerWorkflow builds a minimal apple-container workflow that passes
 // every check, so each test can mutate exactly one thing.
+//
+// The `github` MCP tool is required, not incidental: an enabled agent sandbox is
+// rejected outright without at least one MCP server, and the gateway reaches the
+// zero-NIC guest through AWF's mcp-gateway capability socket.
 func newAppleContainerWorkflow() *WorkflowData {
 	return &WorkflowData{
 		RunsOn:       appleContainerRunsOn,
@@ -50,7 +54,7 @@ func TestAppleContainerRuntimeProfile(t *testing.T) {
 	assert.False(t, profile.LegacySecurity, "apple-container rejects legacy iptables security")
 	assert.True(t, profile.Rootless, "AWF itself runs as the runner user")
 	assert.Equal(t, constants.AWFDefaultCommand.String(), profile.AWFCommand)
-	assert.False(t, profile.SupportsRuntimeInstall, "layer 1 generates no Apple Container provisioning steps")
+	assert.True(t, profile.SupportsRuntimeInstall, "layer 2 generates the Apple Container provisioning steps")
 	assert.False(t, profile.SupportsHostAccess, "the guest has no NIC")
 }
 
@@ -152,7 +156,7 @@ func TestAppleContainerAWFConfigEmitsBothSelectors(t *testing.T) {
 
 	assert.Contains(t, jsonStr, `"containerRuntime":"apple-container"`,
 		"AWF selects the backend through container.containerRuntime")
-	assert.Contains(t, jsonStr, `"appleContainer":{"previewEnabled":true}`,
+	assert.Contains(t, jsonStr, `"appleContainer":{"previewEnabled":true`,
 		"AWF also requires the explicit appleContainer.previewEnabled opt-in")
 }
 
@@ -590,14 +594,14 @@ func TestAppleContainerRejectsHostPortsAndRuntimeInstall(t *testing.T) {
 		require.ErrorContains(t, err, "services")
 	})
 
-	t.Run("runtime-install", func(t *testing.T) {
+	// runtime-install is accepted from layer 2 onwards: the compiler now generates
+	// the pinned, checksum- and signature-verified Apple Container installation.
+	t.Run("runtime-install is now supported", func(t *testing.T) {
 		t.Parallel()
 		workflowData := newAppleContainerWorkflow()
 		runtimeInstall := true
 		workflowData.SandboxConfig.Agent.RuntimeInstall = &runtimeInstall
-		err := validateSandboxConfig(workflowData)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "runtime-install")
+		require.NoError(t, validateSandboxConfig(workflowData))
 	})
 }
 

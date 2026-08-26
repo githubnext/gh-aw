@@ -17,6 +17,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -280,6 +281,25 @@ func validateAppleContainerCompatibility(workflowData *WorkflowData, agentConfig
 		}
 	}
 
+	if err := validateAppleContainerFeatures(workflowData, agentConfig, firewallConfig); err != nil {
+		return err
+	}
+
+	// The MCP gateway is checked last. Everything above is a property of the
+	// declared configuration that the author can see and change directly; this one
+	// depends on the transport contract lining up.
+	if err := validateAppleContainerMCPGateway(workflowData); err != nil {
+		return err
+	}
+
+	appleContainerLog.Print("apple-container runtime configured -- AWF version, runner, and feature compatibility checks passed")
+	return nil
+}
+
+// validateAppleContainerFeatures rejects each workflow feature AWF refuses under
+// this runtime. It is split from validateAppleContainerCompatibility so the
+// host/version gate and the feature matrix stay independently readable.
+func validateAppleContainerFeatures(workflowData *WorkflowData, agentConfig *AgentSandboxConfig, firewallConfig *FirewallConfig) error {
 	if isArcDindTopology(workflowData) {
 		return appleContainerIncompatibility(
 			"apple-container is incompatible with runner.topology: arc-dind",
@@ -339,6 +359,54 @@ func validateAppleContainerCompatibility(workflowData *WorkflowData, agentConfig
 		}
 	}
 
-	appleContainerLog.Print("apple-container runtime configured -- AWF version, runner, and feature compatibility checks passed")
 	return nil
+}
+
+// hasMCPGatewayForAppleContainer reports whether this workflow starts the gh-aw
+// MCP gateway. The predicate is collectMCPTools, which is exactly what
+// generateMCPGatewaySetup uses to decide whether awmg-mcpg runs, so the AWF
+// capability is requested if and only if there is something to reach.
+func hasMCPGatewayForAppleContainer(workflowData *WorkflowData) bool {
+	if !isAppleContainerRuntime(workflowData) {
+		return false
+	}
+	return len(collectMCPTools(workflowData)) > 0
+}
+
+// validateAppleContainerMCPGateway enforces the one part of the MCP transport
+// contract gh-aw cannot simply satisfy on the author's behalf: the guest-side
+// port.
+//
+// AWF compiles the guest relay's loopback port into both halves of its transport
+// contract, so the agent always finds the gateway at
+// http://127.0.0.1:AppleContainerMCPGatewayGuestPort. A workflow that pins
+// sandbox.mcp.port to anything else would generate an MCP client configuration
+// addressing a port nothing listens on inside the VM, which would surface as an
+// agent hanging on an unreachable endpoint rather than as a configuration error.
+func validateAppleContainerMCPGateway(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.SandboxConfig == nil {
+		return nil
+	}
+	mcpConfig := workflowData.SandboxConfig.MCP
+	if mcpConfig == nil || mcpConfig.Port == 0 {
+		return nil
+	}
+	if mcpConfig.Port == constants.AppleContainerMCPGatewayGuestPort {
+		return nil
+	}
+
+	appleContainerLog.Printf("apple-container: rejecting sandbox.mcp.port %d", mcpConfig.Port)
+	return NewValidationError(
+		"sandbox.mcp.port",
+		strconv.Itoa(mcpConfig.Port),
+		fmt.Sprintf("sandbox.agent.runtime: %s requires the default MCP gateway port %d", AgentRuntimeAppleContainer, constants.AppleContainerMCPGatewayGuestPort),
+		fmt.Sprintf("The agent VM has no NIC. AWF bridges the gateway in as a Unix socket and its guest relay serves it on "+
+			"http://127.0.0.1:%d, a port compiled into both halves of AWF's transport contract and not configurable. "+
+			"gh-aw publishes the gateway container on macOS loopback port %d and tells AWF to relay it, but the port the "+
+			"agent addresses inside the guest is fixed.\n\nRemove sandbox.mcp.port (or set it to %d), or change sandbox.agent.runtime.\n\nSee: %s",
+			constants.AppleContainerMCPGatewayGuestPort,
+			constants.AppleContainerMCPGatewayHostPort,
+			constants.AppleContainerMCPGatewayGuestPort,
+			constants.DocsSandboxURL),
+	)
 }

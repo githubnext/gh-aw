@@ -94,11 +94,12 @@ var sandboxRuntimeProfiles = map[AgentRuntime]sandboxRuntimeProfile{
 		// describes the AWF invocation, not the absence of Docker.
 		Rootless:   true,
 		AWFCommand: constants.AWFDefaultCommand.String(),
-		// The Apple Container CLI and the guest init image are provisioned by the
-		// self-hosted runner image, not by compiler-generated steps. Layer 2 of this
-		// stack adds the generated setup; until then runtime-install has nothing to
-		// generate and is rejected rather than silently ignored.
-		SupportsRuntimeInstall: false,
+		// The compiler generates the full Apple Container provisioning sequence:
+		// host preflight, pinned CLI verification or installation, service start
+		// with a run-scoped application root, and digest-pinned image pulls into
+		// Apple Container's separate store. runtime-install additionally permits
+		// the pinned, checksum- and signature-verified package installation.
+		SupportsRuntimeInstall: true,
 		// The guest has no NIC, so no host port or GitHub Actions services: mapping
 		// can ever reach it.
 		SupportsHostAccess: false,

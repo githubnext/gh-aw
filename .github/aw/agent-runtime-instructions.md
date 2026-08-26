@@ -25,13 +25,16 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - Docker sbx requires KVM and normally does not work on ARC DinD because the sbx daemon must run on the runner host.
 - Cloud Hypervisor requires `RUNNER_ENVIRONMENT=github-hosted`, Ubuntu Linux x86_64, and `/dev/kvm`; it is not supported on self-hosted or ARC DinD runners.
 - Apple Container is the inverse: it requires a self-hosted bare-metal Apple Silicon runner and is never valid on a GitHub-hosted `macos-*` label, because those runners are virtual machines without nested virtualization.
-- Apple Container rejects host access, `allow-host-ports`, GitHub Actions `services:` port mappings, enclaves, volume mounts, `filesystem.allowWrite`, `ssl_bump`, Vertex AI credential isolation, and `runtime-install`.
+- Apple Container rejects host access, `allow-host-ports`, GitHub Actions `services:` port mappings, enclaves, volume mounts, `filesystem.allowWrite`, `ssl_bump`, and Vertex AI credential isolation.
+- Apple Container requires the default `sandbox.mcp.port`: AWF's guest relay serves the MCP gateway on a fixed loopback port inside the VM, so any other value is rejected.
+- Apple Container requires bash 4+ and Docker on the runner, and an Actions runner installed as a per-user LaunchAgent (`container system start` registers a per-user service).
 - Apple Container keeps Docker for the AWF infrastructure containers; only the agent workload moves to the Apple Container runtime.
 
 ## `runtime-install`
 
-- `sandbox.agent.runtime-install` defaults to `true` for gVisor and Docker sbx provisioning.
-- `sandbox.agent.runtime-install` is not valid with `cloud-hypervisor` or `apple-container`.
+- `sandbox.agent.runtime-install` defaults to `true` for gVisor, Docker sbx, and Apple Container provisioning.
+- `sandbox.agent.runtime-install` is not valid with `cloud-hypervisor`.
+- For Apple Container, `runtime-install: false` reduces the CLI step to verifying a preinstalled `container` CLI in AWF's supported range instead of installing the pinned, checksum- and signature-verified release.
 - Set `runtime-install: false` only when the runner image or pod is pre-provisioned with the runtime and required daemon or policy.
 - When any imported workflow sets `runtime-install: false`, false wins during import merging.
 - With `runtime-install: false`, gh-aw skips generated runtime checks and setup, so the runner must already satisfy those prerequisites.

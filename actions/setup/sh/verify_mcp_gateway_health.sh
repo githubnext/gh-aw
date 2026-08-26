@@ -7,10 +7,22 @@ set +o histexpand
 set -e
 
 # Timing helper functions
+#
+# `date +%s%3N` is GNU coreutils only: BSD date (macOS, where self-hosted Apple
+# Container runners live) does not implement %N and would emit a literal "3N",
+# turning every timing arithmetic expression into a syntax error. Resolve a
+# millisecond clock once, falling back to whole seconds scaled to milliseconds.
+if [ "$(date +%3N 2>/dev/null)" = "3N" ] || ! date +%s%3N >/dev/null 2>&1; then
+  now_ms() { echo "$(($(date +%s) * 1000))"; }
+else
+  now_ms() { date +%s%3N; }
+fi
+
 print_timing() {
   local start_time=$1
   local label=$2
-  local end_time=$(date +%s%3N)
+  local end_time
+  end_time=$(now_ms)
   local duration=$((end_time - start_time))
   echo "⏱️  TIMING: $label took ${duration}ms"
 }
@@ -36,7 +48,7 @@ mcp_config_path="$2"
 logs_folder="$3"
 
 # Start overall timing
-SCRIPT_START_TIME=$(date +%s%3N)
+SCRIPT_START_TIME=$(now_ms)
 
 echo 'Waiting for MCP Gateway to be ready...'
 echo ''
@@ -61,7 +73,7 @@ echo ''
 
 # Wait for gateway to be ready FIRST before checking config
 echo '=== Testing Gateway Health ==='
-HEALTH_CHECK_START=$(date +%s%3N)
+HEALTH_CHECK_START=$(now_ms)
 
 # Capture both response body and HTTP code with custom retry loop
 echo "Calling health endpoint: ${gateway_url}/health"
@@ -80,7 +92,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   
   # Calculate elapsed time since health check started
-  ELAPSED_MS=$(($(date +%s%3N) - HEALTH_CHECK_START))
+  ELAPSED_MS=$(($(now_ms) - HEALTH_CHECK_START))
   ELAPSED_SEC=$((ELAPSED_MS / 1000))
   
   # Show progress every 10 retries or on first attempt
@@ -150,7 +162,7 @@ echo ''
 
 # Now that gateway is ready, check the config file
 echo '=== MCP Configuration File ==='
-CONFIG_CHECK_START=$(date +%s%3N)
+CONFIG_CHECK_START=$(now_ms)
 if [ -f "$mcp_config_path" ]; then
   echo "✓ Config file exists at: $mcp_config_path"
   echo "File size: $(stat -f%z "$mcp_config_path" 2>/dev/null || stat -c%s "$mcp_config_path" 2>/dev/null || echo 'unknown') bytes"
@@ -190,7 +202,7 @@ echo ''
 
 # Test MCP server connectivity through gateway
 echo '=== Testing MCP Server Connectivity ==='
-CONNECTIVITY_TEST_START=$(date +%s%3N)
+CONNECTIVITY_TEST_START=$(now_ms)
 
 # Extract first external MCP server name from config (excluding safeinputs/safeoutputs)
 mcp_server=$(jq -r '.mcpServers | to_entries[] | select(.key != "safeinputs" and .key != "safeoutputs") | .key' "$mcp_config_path" | head -n 1)

@@ -190,6 +190,13 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 			// (the Docker bridge gateway). Use this as the MCP gateway domain so that the
 			// CLI wrapper scripts generated inside the microVM point to the correct host.
 			domain = "host.docker.internal"
+		} else if isAppleContainerRuntime(workflowData) {
+			// The Apple Container guest has no NIC and reaches the gateway only
+			// through AWF's mcp-gateway capability socket. AWF's guest relay serves
+			// it on 127.0.0.1:<AppleContainerMCPGatewayGuestPort>, a port compiled
+			// into both halves of its transport contract, so the agent addresses
+			// loopback inside the VM rather than any Docker hostname.
+			domain = "127.0.0.1"
 		} else if isAWFNetworkIsolationEnabled(workflowData) {
 			domain = "awmg-mcpg"
 		} else {
@@ -237,6 +244,18 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
+	// MCP_GATEWAY_HOST_PORT is the port the gateway container is published on for
+	// host-side consumers (health probes, MCP server checks). It equals
+	// MCP_GATEWAY_PORT everywhere except apple-container, where the published port
+	// has to differ from the guest-facing port: AWF relays macOS loopback
+	// AppleContainerMCPGatewayHostPort into the guest, whose relay then serves the
+	// fixed guest port. Health checks run on the host and must probe the published
+	// port, or they would poll a port nothing is listening on and time out.
+	hostPort := port
+	if isAppleContainerRuntime(workflowData) {
+		hostPort = constants.AppleContainerMCPGatewayHostPort
+	}
+	yaml.WriteString("          export MCP_GATEWAY_HOST_PORT=\"" + strconv.Itoa(hostPort) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 	// MCP_GATEWAY_HOST_DOMAIN is the domain used by host-side clients (e.g. Gemini CLI).
 	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
@@ -360,6 +379,17 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 			// Docker sbx microVMs: publish to 0.0.0.0 so the guest can reach the gateway via
 			// host.docker.internal (the Docker bridge gateway, 172.17.0.1).
 			containerCmd.WriteString(" -p 0.0.0.0:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
+		} else if isAppleContainerRuntime(workflowData) {
+			// Apple Container: publish to a distinct macOS loopback port that AWF
+			// relays into the NIC-less guest as the mcp-gateway capability socket
+			// (gh-aw-firewall#7768). It must not collide with the ports AWF binds for
+			// its own sidecars — Squid (3128) and the API proxy providers
+			// (10000-10004) — which AWF rejects outright.
+			//
+			// 127.0.0.1 is deliberate and not merely conventional: binding 0.0.0.0
+			// would expose an API-key-authenticated gateway with a Docker socket
+			// mount on every interface the self-hosted Mac sits on.
+			containerCmd.WriteString(" -p 127.0.0.1:" + strconv.Itoa(constants.AppleContainerMCPGatewayHostPort) + ":${MCP_GATEWAY_PORT}")
 		} else {
 			// Publish the gateway port to the host so host-side clients (e.g. Gemini CLI)
 			// can reach the gateway at localhost:${MCP_GATEWAY_PORT}.

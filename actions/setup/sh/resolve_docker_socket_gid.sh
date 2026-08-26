@@ -48,8 +48,10 @@ fi
 # Resolve the Docker socket group. GH_AW_DOCKER_SOCK_GID takes precedence, letting
 # operators supply the group directly. stat -Lc follows symlinks so a symlinked socket
 # resolves to the real socket's group without requiring a matching chown -h on the link.
-# Note: stat -Lc is GNU coreutils (Linux only). macOS self-hosted runners must set
-# GH_AW_DOCKER_SOCK_GID explicitly to bypass stat.
+# stat -Lc is GNU coreutils; BSD stat (macOS) spells the same query stat -Lf '%g', so
+# both are tried before giving up. Automatic discovery therefore works on a
+# self-hosted Mac too, and GH_AW_DOCKER_SOCK_GID is only needed where neither can
+# see the socket (split-daemon / ARC-DinD setups).
 # Fail loudly instead of silently falling back to group 0 (root): passing --group-add 0
 # to a non-root container gives no Docker-socket access and produces a confusing
 # downstream "Docker daemon is not accessible" error.
@@ -57,6 +59,9 @@ if [ -n "${GH_AW_DOCKER_SOCK_GID:-}" ]; then
   DOCKER_SOCK_GID="$GH_AW_DOCKER_SOCK_GID"
 else
   DOCKER_SOCK_GID=$(stat -Lc '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || true)
+  if [ -z "$DOCKER_SOCK_GID" ]; then
+    DOCKER_SOCK_GID=$(stat -Lf '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || true)
+  fi
   if [ -z "$DOCKER_SOCK_GID" ]; then
     echo "::error::Cannot determine Docker socket group for '$DOCKER_SOCK_PATH'. Set GH_AW_DOCKER_SOCK_PATH and GH_AW_DOCKER_SOCK_GID to configure the socket path and group explicitly." >&2
     [ -e "$DOCKER_SOCK_PATH" ] || echo "::warning::'$DOCKER_SOCK_PATH' does not exist on this runner." >&2

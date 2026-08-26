@@ -17,10 +17,29 @@ set -e
 umask 077
 
 # Timing helper functions
+#
+# `date +%s%3N` is GNU coreutils only: BSD date (macOS, where self-hosted Apple
+# Container runners live) does not implement %N and would emit a literal "3N",
+# turning every timing arithmetic expression into a syntax error. Resolve a
+# millisecond clock once, falling back to whole seconds scaled to milliseconds.
+if [ "$(date +%3N 2>/dev/null)" = "3N" ] || ! date +%s%3N >/dev/null 2>&1; then
+  now_ms() { echo "$(($(date +%s) * 1000))"; }
+else
+  now_ms() { date +%s%3N; }
+fi
+
+# MCP_GATEWAY_HOST_PORT is the port the gateway container is published on for
+# host-side consumers. It equals MCP_GATEWAY_PORT for every runtime except
+# apple-container, where AWF relays a distinct macOS loopback port into the
+# NIC-less guest. Defaulted here so the script stays correct if an older caller
+# does not export it.
+: "${MCP_GATEWAY_HOST_PORT:=${MCP_GATEWAY_PORT}}"
+
 print_timing() {
   local start_time=$1
   local label=$2
-  local end_time=$(date +%s%3N)
+  local end_time
+  end_time=$(now_ms)
   local duration=$((end_time - start_time))
   echo "⏱️  TIMING: $label took ${duration}ms"
 }
@@ -114,11 +133,11 @@ if ! echo "$MCP_GATEWAY_DOCKER_COMMAND" | grep -qE -- '--network'; then
 fi
 
 # Start overall timing
-SCRIPT_START_TIME=$(date +%s%3N)
+SCRIPT_START_TIME=$(now_ms)
 
 # Read MCP configuration from stdin
 echo "Reading MCP configuration from stdin..."
-CONFIG_READ_START=$(date +%s%3N)
+CONFIG_READ_START=$(now_ms)
 MCP_CONFIG=$(cat)
 print_timing $CONFIG_READ_START "Configuration read from stdin"
 echo ""
@@ -128,7 +147,7 @@ echo "MCP configuration received; contents withheld because it may contain crede
 echo ""
 
 # Validate configuration is valid JSON
-CONFIG_VALIDATION_START=$(date +%s%3N)
+CONFIG_VALIDATION_START=$(now_ms)
 if ! echo "$MCP_CONFIG" | jq empty 2>/tmp/gh-aw/mcp-config/jq-error.log; then
   echo "ERROR: Configuration is not valid JSON"
   echo ""
@@ -184,7 +203,7 @@ echo ""
 # Start gateway process with container
 echo "Starting gateway container..."
 echo ""
-GATEWAY_START_TIME=$(date +%s%3N)
+GATEWAY_START_TIME=$(now_ms)
 # Note: MCP_GATEWAY_DOCKER_COMMAND is the full docker command with all flags, mounts, and image
 # Pass MCP_GATEWAY_LOG_DIR to the container via -e flag
 echo "$MCP_CONFIG" | MCP_GATEWAY_LOG_DIR="$MCP_GATEWAY_LOG_DIR" $MCP_GATEWAY_DOCKER_COMMAND \
@@ -222,14 +241,14 @@ echo ""
 # Note: Gateway may take 40-50 seconds when starting multiple MCP servers
 # (e.g., serena alone takes ~22 seconds to start)
 echo "Waiting for gateway to be ready..."
-HEALTH_CHECK_START=$(date +%s%3N)
+HEALTH_CHECK_START=$(now_ms)
 # Use localhost for health check since:
 # 1. This script runs on the host (not in a container)
 # 2. The gateway uses --network host, so it's accessible on localhost
 # Note: MCP_GATEWAY_DOMAIN may be set to host.docker.internal for use by containers,
 # but the health check should always use localhost since we're running on the host.
 HEALTH_CHECK_HOST="localhost"
-echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
+echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_HOST_PORT}/health"
 echo "(Note: MCP_GATEWAY_DOMAIN is '${MCP_GATEWAY_DOMAIN}' for container access)"
 echo "Retrying up to 120 times with exponential backoff (250ms to 1s, ~120s total timeout)"
 echo ""
@@ -249,10 +268,10 @@ CURL_EXIT_CODE=1
 echo "=== Health Check Progress ==="
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
-  RETRY_START=$(date +%s%3N)
+  RETRY_START=$(now_ms)
   
   # Calculate elapsed time since health check started
-  ELAPSED_MS=$(($(date +%s%3N) - HEALTH_CHECK_START))
+  ELAPSED_MS=$(($(now_ms) - HEALTH_CHECK_START))
   ELAPSED_SEC=$((ELAPSED_MS / 1000))
   
   if [ $((RETRY_COUNT % 10)) -eq 1 ] || [ $RETRY_COUNT -eq 1 ]; then
@@ -260,7 +279,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   fi
   
   # Try to connect to health endpoint
-  RESPONSE=$(curl -s --max-time 2 --connect-timeout 1 -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health" 2>&1)
+  RESPONSE=$(curl -s --max-time 2 --connect-timeout 1 -w "\n%{http_code}" "http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_HOST_PORT}/health" 2>&1)
   CURL_EXIT_CODE=$?
   
   # Parse response
@@ -335,7 +354,7 @@ echo ""
 
 # Wait for gateway output (rewritten configuration)
 echo "Reading gateway output configuration..."
-OUTPUT_WAIT_START=$(date +%s%3N)
+OUTPUT_WAIT_START=$(now_ms)
 WAIT_ATTEMPTS=10
 WAIT_ATTEMPT=0
 while [ $WAIT_ATTEMPT -lt $WAIT_ATTEMPTS ]; do
@@ -373,7 +392,7 @@ fi
 
 # Convert gateway output to agent-specific format
 echo "Converting gateway configuration to agent format..."
-CONFIG_CONVERT_START=$(date +%s%3N)
+CONFIG_CONVERT_START=$(now_ms)
 export MCP_GATEWAY_OUTPUT=/tmp/gh-aw/mcp-config/gateway-output.json
 
 # Validate MCP_GATEWAY_API_KEY is set (required by converter scripts)
@@ -450,12 +469,12 @@ echo ""
 
 # Check MCP server functionality
 echo "Checking MCP server functionality..."
-MCP_CHECK_START=$(date +%s%3N)
+MCP_CHECK_START=$(now_ms)
 if [ -f ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh ]; then
   echo "Running MCP server checks..."
   if ! bash ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh \
     /tmp/gh-aw/mcp-config/gateway-output.json \
-    "http://localhost:${MCP_GATEWAY_PORT}" \
+    "http://localhost:${MCP_GATEWAY_HOST_PORT}" \
     "${MCP_GATEWAY_API_KEY}"; then
     echo "ERROR: MCP server checks failed - no servers could be connected"
     echo "Gateway process will be terminated"
@@ -496,7 +515,7 @@ fi
 echo ""
 
 echo "MCP gateway is running:"
-echo "  - From host: http://localhost:${MCP_GATEWAY_PORT}"
+echo "  - From host: http://localhost:${MCP_GATEWAY_HOST_PORT}"
 echo "  - From containers: http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 echo "Gateway PID: $GATEWAY_PID"
 
@@ -508,6 +527,7 @@ echo ""
 {
   echo "gateway-pid=$GATEWAY_PID"
   echo "gateway-port=${MCP_GATEWAY_PORT}"
+  echo "gateway-host-port=${MCP_GATEWAY_HOST_PORT}"
   echo "gateway-api-key=${MCP_GATEWAY_API_KEY}"
   echo "gateway-domain=${MCP_GATEWAY_DOMAIN}"
 } >> "$GITHUB_OUTPUT"

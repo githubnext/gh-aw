@@ -15,8 +15,8 @@ These similarly named fields control different layers:
 
 | Field | Purpose | Values covered here |
 | --- | --- | --- |
-| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `docker`, `docker-sudo-iptables`, `gvisor`, `docker-sbx`, `cloud-hypervisor`, or omitted for Docker |
-| `sandbox.agent.runtime-install` | Controls whether gh-aw installs and prepares gVisor or Docker sbx | `true` by default; `false` for a pre-provisioned runner |
+| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `docker`, `docker-sudo-iptables`, `gvisor`, `docker-sbx`, `cloud-hypervisor`, `apple-container`, or omitted for Docker |
+| `sandbox.agent.runtime-install` | Controls whether gh-aw installs and prepares gVisor, Docker sbx, or Apple Container | `true` by default; `false` for a pre-provisioned runner |
 | `runner.topology` | Describes how the runner reaches Docker | `arc-dind`, or omitted for a local Docker daemon |
 | `runtimes` | Installs language toolchains such as Node.js, Python, and Go | Unrelated to agent isolation |
 
@@ -28,6 +28,7 @@ These similarly named fields control different layers:
 | gVisor | A `runsc` user-space kernel between the agent and host kernel | Local Docker daemon, `sudo`, systemd, and access to gVisor downloads | Stronger kernel isolation with syscall compatibility and performance overhead |
 | Docker sbx | A KVM-backed microVM for the agent | KVM, nested virtualization, `sudo`, apt, Docker Hub credentials, and local Docker | Strongest boundary here, but has the most setup cost and platform constraints |
 | Cloud Hypervisor (preview) | A KVM-backed microVM for the agent | GitHub-hosted Ubuntu x86_64 runner with `/dev/kvm` and AWF release asset download access | Preview-only path with strict host requirements and release-asset provisioning |
+| Apple Container (preview) | An Apple Virtualization.framework VM with no network interfaces | Self-hosted bare-metal Apple Silicon, macOS 26+, `kern.hv_support=1`, plus Docker for infrastructure | Only macOS runtime and the strictest network boundary, but needs dedicated hardware and is unvalidated on real hardware |
 | ARC DinD | Standard Docker agent container in a DinD sidecar | ARC or equivalent Kubernetes runner with a privileged DinD sidecar and shared work volume | Supports Kubernetes runner fleets, but adds split-filesystem and daemon-connectivity complexity |
 
 Apply this selection order:
@@ -36,13 +37,14 @@ Apply this selection order:
 2. Otherwise, use **Docker sbx** when the user requires a hardware-virtualized boundary and the runner exposes working KVM.
 3. Use **Cloud Hypervisor (preview)** only when the runtime must be Cloud Hypervisor and the runner is GitHub-hosted Ubuntu x86_64 with `/dev/kvm`.
 4. Otherwise, use **gVisor** when untrusted agent code warrants a smaller host-kernel attack surface and the workload is compatible with `runsc`.
-5. Use the default **Docker** runtime when compatibility, startup time, or runner portability is more important than an additional kernel or VM boundary.
+5. Use **Apple Container (preview)** only when the workload must run on Apple Silicon macOS and a dedicated bare-metal self-hosted Mac is available.
+6. Use the default **Docker** runtime when compatibility, startup time, or runner portability is more important than an additional kernel or VM boundary.
 
 If the user's requirement is unclear, prefer Docker. Do not select a stronger runtime until the runner prerequisites are known to be available.
 
 ## Requirements shared by all choices
 
-The main agent job requires a Linux runner. macOS and Windows runners are not supported. The runner must have enough CPU, memory, and disk for the agent, AWF, the MCP gateway, proxy containers, and any configured MCP servers.
+The main agent job requires a Linux runner, except for `sandbox.agent.runtime: apple-container`, which requires a self-hosted bare-metal Apple Silicon macOS runner. Windows runners are not supported. The runner must have enough CPU, memory, and disk for the agent, AWF, the MCP gateway, proxy containers, and any configured MCP servers.
 
 Docker must be reachable by the runner user. On a conventional runner, this normally means that `/var/run/docker.sock` exists and the runner user can access it. Verify the baseline before investigating a specialized runtime:
 
@@ -295,6 +297,93 @@ AWF launches with host privileges required to create the VM, but the runtime rem
 
 > [!IMPORTANT]
 > This runtime is preview-only. Keep expectations aligned with AWF preview support and prefer Docker sbx or gVisor when Cloud Hypervisor host constraints are not guaranteed.
+
+## Apple Container (preview)
+
+Apple Container runs the agent in an Apple Virtualization.framework VM on macOS. It is the only runtime that does not run the agent on Linux, and the only one that requires a self-hosted runner.
+
+```aw wrap
+---
+on: issues
+runs-on: [self-hosted, macOS, ARM64]
+sandbox:
+  agent:
+    id: awf
+    runtime: apple-container
+    version: "v0.28.9"
+---
+
+Investigate this issue.
+```
+
+### Runner requirements
+
+Self-hosted bare-metal Apple Silicon only:
+
+- `runs-on` must list `self-hosted`, `macOS`, and `ARM64` explicitly. Extra pool labels are allowed; a runner group alone, a GitHub Actions expression, or a contradicting OS/arch label is rejected at compile time.
+- macOS 26 or newer, arm64, with `sysctl kern.hv_support` reporting `1`.
+- The Actions runner must run as an unprivileged user in a real user (Aqua) session — install it with `./svc.sh install` under an auto-logged-in account. `container system start` registers a per-user LaunchAgent, so a LaunchDaemon or a bare SSH session cannot start it.
+- bash 4 or newer on `PATH` (`brew install bash`). macOS ships bash 3.2, which cannot run gh-aw's generated setup scripts.
+- A working Docker daemon and Compose plugin.
+
+> [!CAUTION]
+> GitHub-hosted macOS runners can never run this runtime, including the Apple Silicon `macos-*-xlarge` images. They are themselves virtual machines, report `kern.hv_support=0`, and cannot nest another hypervisor. Every `macos-*` label is rejected at compile time rather than failing late on the runner.
+
+### Docker is still required
+
+Only the agent moves into the VM. AWF keeps Squid, the API proxy, the CLI proxy, and the MCP gateway running under Docker on the host, so a Mac without Docker cannot run this runtime.
+
+### How the agent reaches anything
+
+The guest is created with `--network none` and has **zero network interfaces**. Direct IP egress, DNS, DoH, IPv6, raw sockets, and the cloud metadata address do not exist inside it. AWF bridges a fixed allowlist of services in as Unix sockets published into the VM, where a guest-side relay serves each on loopback:
+
+| Service | Host | Guest |
+| --- | --- | --- |
+| Squid (sole egress path) | `127.0.0.1:3128` | `127.0.0.1:3128` |
+| API proxy (OpenAI, Anthropic, Copilot, Gemini) | `127.0.0.1:10000-10003` | same ports |
+| CLI proxy | `127.0.0.1:18443` | same port |
+| MCP gateway | `127.0.0.1:9100` | `127.0.0.1:8080` |
+
+The MCP gateway is the one asymmetric entry. gh-aw starts `awmg-mcpg` itself as a Docker container outside AWF's Compose file, so it publishes it on macOS loopback port **9100** and passes that port to AWF as `appleContainer.mcpGatewayUpstreamPort`. AWF health-probes the port, then publishes `mcp-gateway.sock` into the guest, whose relay serves it on `127.0.0.1:8080`. That guest port is compiled into both halves of AWF's transport contract, so `sandbox.mcp.port` must be left at its default; any other value is rejected at compile time. Gateway API-key authentication, allowed mount roots, and safe-output path permissions are unchanged.
+
+`network.topologyAttach` is never emitted for this runtime. AWF rejects it, because externally owned peers are not published to macOS loopback and cannot be bridged into a NIC-less guest.
+
+### Runtime provisioning
+
+The compiler emits four steps before AWF runs, and a teardown step after the agent:
+
+1. **Host preflight** — refuses an ineligible runner before anything is downloaded: runner provenance, macOS version, arm64, `kern.hv_support`, the launchd user domain, bash 4, and Docker.
+2. **CLI setup** — verifies a preinstalled `container` CLI inside AWF's supported range (`>=0.4.0 <1.0.0`). If none is present and `sandbox.agent.runtime-install` is not `false`, it installs the pinned `apple/container` release, verified by SHA-256 **and** by its `Developer ID Installer: Apple Inc. - Containerization` signature before `installer` runs. Installing requires passwordless `sudo`; set `runtime-install: false` to make the step verification-only.
+3. **Service start** — starts `container system start --enable-kernel-install` non-interactively (the default prompts on stdin and would hang a headless runner), gates on `container system status`, and pins one application root for the job.
+4. **Image pull** — pulls the digest-pinned agent and `appleInit` images into Apple Container's store. This store is separate from Docker's, so the Docker pre-download step cannot populate it and `docker pull` cannot help. Floating references are refused.
+
+> [!NOTE]
+> Every current `apple/container` release is 1.x, which is **outside** AWF's validated range. A major version bump may relocate the real `vminitd` inside the init image and boot a guest with no capability relay, so the pin stays on the newest 0.x release.
+
+Apple Container state is run-scoped by default: the application root lives under `${RUNNER_TEMP}/gh-aw/apple-container/<run>/app-root` and is removed at teardown, so nothing an earlier job left on the persistent runner can influence this one. Set `GH_AW_APPLE_CONTAINER_APP_ROOT` to keep a warm content store instead; run isolation then becomes the operator's responsibility. `CONTAINER_APP_ROOT` is exported so the service, the image pull, AWF, and teardown all address the same store.
+
+Teardown stops containers, stops the system services, and removes run-scoped state. Set `GH_AW_APPLE_CONTAINER_PRESERVE=true` to keep everything for inspection.
+
+### Images
+
+`sandbox.agent.images` must include the `appleInit` role whenever a manifest is present, and every reference must be digest-pinned. Publishing the AWF `apple-init` image depends on an `APPLE_VMINIT_IMAGE` repository variable on the `gh-aw-firewall` side: when it is unset, no `apple-init` digest is published and the runtime simply cannot be selected rather than falling back to an unknown init.
+
+### Not supported
+
+Each of these is rejected at compile time with a message naming the reason:
+
+- `enclaves`, `network.topologyAttach`, and `runner.topology: arc-dind`
+- `sandbox.agent.allow-host-ports`, GitHub Actions `services:` with published ports, and `--enable-host-access`
+- `sandbox.agent.mounts`, extra `--volume` mounts, and `filesystem.allowWrite`
+- Google Vertex AI credential isolation — its provider port is not in the capability allowlist
+- `ssl_bump`, DNS-over-HTTPS, `--legacy-security`, `--dind`, `--tty`, `--build-local`, sysroot/chroot options, and custom agent images
+
+### Diagnostics
+
+Teardown prints `container system status`, the container list, and the last five minutes of Apple Container system logs. Container `inspect` output is deliberately not captured: it carries `initProcess.environment`.
+
+> [!IMPORTANT]
+> This runtime is preview-only, and no part of it has been validated on real hardware — bare-metal Apple Silicon runners are not available in hosted CI, and AWF fails preflight on GitHub-hosted macOS by design. Prefer Docker sbx or gVisor unless the Apple Silicon requirement is deliberate.
 
 ## ARC with Docker-in-Docker
 

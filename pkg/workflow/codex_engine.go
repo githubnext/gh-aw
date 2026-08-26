@@ -196,6 +196,10 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 			steps = append(steps, generateCloudHypervisorHostPreflightStep())
 			steps = append(steps, generateCloudHypervisorBundleSetupStep(getAWFVersionForSetup(workflowData)))
 		}
+		// Apple Container must be installed, started and stocked with its own
+		// images before AWF runs: its image store is separate from Docker's, so
+		// the Docker pre-download step cannot satisfy the agent VM.
+		steps = append(steps, generateAppleContainerSetupSteps(workflowData)...)
 
 		// Install AWF binary (or skip if custom command is specified)
 		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)

@@ -309,7 +309,17 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 	if agentRuntime == string(AgentRuntimeAppleContainer) {
 		awfConfig.AppleContainer = &AWFAppleContainerConfig{PreviewEnabled: true}
-		awfConfigLog.Print("Apple Container section: previewEnabled=true")
+		// The MCP gateway is gh-aw's own Docker container on macOS loopback, not an
+		// AWF Compose service, so AWF cannot discover it. Declaring the upstream port
+		// is what activates the mcp-gateway capability and gets a socket published
+		// into the NIC-less guest; without it the agent would have no MCP transport
+		// at all (gh-aw-firewall#7768).
+		if hasMCPGatewayForAppleContainer(config.WorkflowData) {
+			awfConfig.AppleContainer.MCPGatewayUpstreamPort = constants.AppleContainerMCPGatewayHostPort
+			awfConfigLog.Printf("Apple Container section: previewEnabled=true, mcpGatewayUpstreamPort=%d", constants.AppleContainerMCPGatewayHostPort)
+		} else {
+			awfConfigLog.Print("Apple Container section: previewEnabled=true (no MCP gateway)")
+		}
 	}
 	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" || agentTimeout > 0 || len(containerImages) > 0 {
 		container := &AWFContainerConfig{

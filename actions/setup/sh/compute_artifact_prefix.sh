@@ -53,7 +53,17 @@ echo "  Inputs JSON length: ${#INPUTS} chars"
 # string values), so different inputs cannot produce the same pre-hash string
 # as each other or as a different run attempt.
 HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
-PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+# sha256sum is GNU coreutils and is absent on macOS, where self-hosted runners
+# host the apple-container runtime. shasum ships with macOS and produces the
+# identical digest, so the computed prefix is stable across platforms.
+if command -v sha256sum >/dev/null 2>&1; then
+  PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+elif command -v shasum >/dev/null 2>&1; then
+  PREFIX=$(printf '%s' "$HASH_INPUT" | shasum -a 256 | cut -c1-8)
+else
+  echo "ERROR: neither sha256sum nor shasum is available" >&2
+  exit 1
+fi
 
 echo "  SHA256 digest (first 8 chars): ${PREFIX}"
 echo "  Artifact prefix: ${PREFIX}-"

@@ -91,8 +91,21 @@ fi
 # from earlier jobs on the same runner. Limit cleanup to directories owned by
 # root or the current runner user so we do not delete unrelated /tmp entries
 # that happen to match the name pattern.
-echo "Cleaning up stale AWF chroot directories..."
-if command -v sudo >/dev/null 2>&1; then
+# Clean up any stale AWF chroot directories left by previous runs before we
+# execute awf. Rootless AWF can fail its writeConfigs startup path with EACCES
+# when stale /tmp/awf-*-chroot-home or /tmp/awf-chroot-* directories remain
+# from earlier jobs on the same runner. Limit cleanup to directories owned by
+# root or the current runner user so we do not delete unrelated /tmp entries
+# that happen to match the name pattern.
+#
+# Skipped entirely on macOS: the chroot sysroot is a Linux-container concept and
+# is never created there. Running it anyway would invoke sudo on a self-hosted
+# Mac that may have no passwordless sudo, emitting a confusing prompt-failure
+# diagnostic for a cleanup that had nothing to clean.
+if [ "$OS" = "Darwin" ]; then
+  echo "Skipping stale AWF chroot cleanup (not applicable on macOS)"
+elif command -v sudo >/dev/null 2>&1; then
+  echo "Cleaning up stale AWF chroot directories..."
   sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d \( -user root -o -user "$(id -un)" \) -exec rm -rf -- {} + || true
   sudo find /tmp -maxdepth 1 -name 'awf-chroot-*' -type d \( -user root -o -user "$(id -un)" \) -exec rm -rf -- {} + || true
 else
@@ -232,12 +245,20 @@ install_darwin_binary() {
     *) echo "ERROR: Unsupported macOS architecture: ${ARCH}"; exit 1 ;;
   esac
 
-  echo "Note: AWF uses iptables for network firewalling, which is not available on macOS."
-  echo "      The AWF CLI will be installed but container-based firewalling will not work natively."
+  # macOS is a supported AWF host for the apple-container runtime, where the
+  # agent runs in an Apple Virtualization.framework VM and Squid, the API proxy
+  # and the CLI proxy run under Docker Compose. There is no iptables path there,
+  # and none is needed: the guest has no NIC at all.
+  #
+  # For every other runtime macOS remains unsupported, because those depend on
+  # Linux container networking. AWF itself fails preflight in that case.
+  echo "Installing the macOS ${ARCH} AWF binary (${awf_binary})."
+  echo "Note: on macOS, only the apple-container runtime is supported; the Linux"
+  echo "      iptables-based runtimes cannot run here."
   echo ""
 
   local binary_url="${BASE_URL}/${awf_binary}"
-  echo "Downloading binary from ${binary_url@Q}..."
+  echo "Downloading binary from ${binary_url}..."
   curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
 
   # Verify checksum

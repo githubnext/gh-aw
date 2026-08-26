@@ -54,7 +54,9 @@ func TestSandboxRuntimeProfiles(t *testing.T) {
 	t.Run("runtime-install is only meaningful for provisioned runtimes", func(t *testing.T) {
 		for _, runtime := range supportedAgentRuntimes {
 			profile := resolveSandboxRuntimeProfile(&AgentSandboxConfig{Runtime: runtime})
-			expected := runtime == AgentRuntimeGVisor || runtime == AgentRuntimeDockerSbx
+			expected := runtime == AgentRuntimeGVisor ||
+				runtime == AgentRuntimeDockerSbx ||
+				runtime == AgentRuntimeAppleContainer
 			assert.Equal(t, expected, profile.SupportsRuntimeInstall, "runtime %q runtime-install support", runtime)
 		}
 	})

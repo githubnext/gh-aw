@@ -168,6 +168,11 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	// Security: Pass all step outputs through environment variables to prevent template injection
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}\n")
+	// The published host port differs from the gateway's own port under
+	// apple-container. The stop script sends the gateway API key in an
+	// Authorization header, so it must address the port gh-aw actually published
+	// and never a port some unrelated local process happens to own.
+	yaml.WriteString("          MCP_GATEWAY_HOST_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-host-port }}\n")
 	yaml.WriteString("          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}\n")
 	yaml.WriteString("          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}\n")
 
@@ -513,6 +518,19 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 		gitConfigStepsAfterAgent := c.generateGitConfigurationStepsForData(data)
 		for _, line := range gitConfigStepsAfterAgent {
 			yaml.WriteString(line)
+		}
+	}
+
+	// Apple Container teardown runs as soon as the agent step is done, before the
+	// log collection below, so the guest is quiesced and the run-scoped
+	// application root is released even when the agent failed or the job was
+	// cancelled. It is if: always() / continue-on-error, so it never rewrites the
+	// agent's own outcome, and it deliberately leaves the Docker infrastructure
+	// containers alone — they still hold the Squid logs collected next.
+	if isAppleContainerRuntime(data) {
+		for _, line := range generateAppleContainerTeardownStep() {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
 		}
 	}
 

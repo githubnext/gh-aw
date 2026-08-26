@@ -493,6 +493,7 @@ test-scripts: build
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	bash actions/setup/sh/copy_gh_aw_binary_for_mcp_test.sh
+	bash actions/setup/sh/apple_container_setup_cli_test.sh
 	@echo "✓ All Bash script tests passed"
 
 # Test all code (Go, JavaScript, wasm golden, and shell scripts)

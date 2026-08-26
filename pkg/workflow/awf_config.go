@@ -312,6 +312,19 @@ type AWFAppleContainerConfig struct {
 	// CliPath is the absolute path to the Apple "container" CLI when it is not on
 	// PATH.
 	CliPath string `json:"cliPath,omitempty"`
+
+	// MCPGatewayUpstreamPort is the macOS loopback port an externally owned MCP
+	// gateway listens on (gh-aw-firewall#7768).
+	//
+	// gh-aw starts awmg-mcpg itself, outside AWF's Compose file, so AWF has no
+	// service to publish for it. Setting this port is the only way to add the
+	// mcp-gateway capability: AWF health-probes 127.0.0.1:<port>, then publishes
+	// mcp-gateway.sock into the zero-NIC guest, where its relay serves
+	// http://127.0.0.1:8080. The host is fixed to 127.0.0.1 by AWF and is not
+	// configurable.
+	//
+	// AWF rejects any port reserved for its own sidecars (3128, 10000-10004).
+	MCPGatewayUpstreamPort int `json:"mcpGatewayUpstreamPort,omitempty"`
 }
 
 // AWFLoggingConfig is the "logging" section of the AWF config file.

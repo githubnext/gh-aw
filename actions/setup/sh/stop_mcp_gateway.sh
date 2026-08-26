@@ -45,11 +45,26 @@ fi
 # - Gracefully terminates containers and cleans up resources
 if [ -n "$MCP_GATEWAY_PORT" ] && [ -n "$MCP_GATEWAY_API_KEY" ]; then
   echo "Attempting graceful shutdown via /close endpoint..."
-  
-  # Use localhost for health check since:
-  # 1. This script runs on the host (not in a container)
-  # 2. The gateway uses --network host, so it's accessible on localhost
-  CLOSE_URL="http://localhost:${MCP_GATEWAY_PORT}/close"
+
+  # Address the port gh-aw actually PUBLISHED the gateway on, not the port the
+  # gateway listens on inside its container. Those differ under the
+  # apple-container runtime (published 9100 -> container 8080), and this request
+  # carries MCP_GATEWAY_API_KEY in an Authorization header: sending it to a port
+  # gh-aw does not own would hand the gateway credential to whatever local
+  # process happens to be listening there. On a long-lived self-hosted runner
+  # that is a realistic local-foothold-to-credential-theft path, and `curl -f`
+  # failures here are tolerated, so it would be silent.
+  gateway_host_port="${MCP_GATEWAY_HOST_PORT:-$MCP_GATEWAY_PORT}"
+  case "$gateway_host_port" in
+    ''|*[!0-9]*)
+      echo "Refusing to send the gateway API key: MCP_GATEWAY_HOST_PORT='${gateway_host_port}' is not a port number"
+      gateway_host_port=""
+      ;;
+  esac
+fi
+
+if [ -n "${gateway_host_port:-}" ] && [ -n "$MCP_GATEWAY_API_KEY" ]; then
+  CLOSE_URL="http://127.0.0.1:${gateway_host_port}/close"
   
   # Try to invoke the /close endpoint (with timeout)
   # Per spec, the endpoint requires Authorization header with the API key

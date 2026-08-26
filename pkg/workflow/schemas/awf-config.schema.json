@@ -665,6 +665,12 @@
         "cliPath": {
           "type": "string",
           "description": "Absolute path to the Apple \"container\" CLI when it is not on PATH."
+        },
+        "mcpGatewayUpstreamPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "macOS loopback port an externally owned MCP gateway listens on. Setting it adds the mcp-gateway capability: AWF health-probes 127.0.0.1:<port>, then publishes mcp-gateway.sock into the zero-NIC guest, whose relay serves http://127.0.0.1:8080. The host is fixed to 127.0.0.1 and is not configurable. Ports reserved for AWF sidecars (3128 and 10000-10004) are rejected."
         }
       }
     },
