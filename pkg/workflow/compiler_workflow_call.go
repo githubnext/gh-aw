@@ -162,9 +162,8 @@ func (c *Compiler) injectWorkflowCallOutputs(onSection string, safeOutputs *Safe
 	workflowCallMap["outputs"] = mergedOutputs
 	onMap["workflow_call"] = workflowCallMap
 
-	// Re-marshal to YAML. IndentSequence(true) keeps sequence items (e.g. schedule
-	// cron lists) indented under their parent key, matching extractTopLevelYAMLSection
-	// and satisfying yamllint's default indentation rule.
+	// Re-marshal to YAML. IndentSequence(true) matches extractTopLevelYAMLSection so
+	// sequence items (e.g. schedule cron lists) stay indented under their parent key.
 	newOnData := map[string]any{"on": onMap}
 	newYAML, err := yaml.MarshalWithOptions(newOnData, yaml.IndentSequence(true))
 	if err != nil {
