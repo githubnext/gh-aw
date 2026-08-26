@@ -263,6 +263,21 @@ func TestGetGitHubGuardPoliciesToolCallLimits(t *testing.T) {
 	}
 }
 
+func TestRenderGitHubGuardPoliciesDefersRuntimeExpressions(t *testing.T) {
+	var output strings.Builder
+	renderGuardPoliciesJSON(&output, getGitHubGuardPolicies(map[string]any{
+		"allowed": []any{
+			map[string]any{"name": "issue_read", "max-calls": 1},
+		},
+	}), "")
+
+	result := output.String()
+	for _, field := range []string{"blocked-users", "trusted-users", "approval-labels"} {
+		assert.Contains(t, result, `"`+field+`": ${{ steps.parse-guard-vars.outputs.`+strings.ReplaceAll(field, "-", "_")+` }}`)
+	}
+	assert.NotContains(t, result, guardExprSentinel)
+}
+
 func TestParseGitHubToolAllowedObjectEntries(t *testing.T) {
 	parsed := parseGitHubTool(map[string]any{
 		"allowed": []any{
