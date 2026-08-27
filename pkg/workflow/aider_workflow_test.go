@@ -118,33 +118,35 @@ func TestAiderHarnessPreservesProcessFailureDetails(t *testing.T) {
 	}
 }
 
-func TestDailyCodeDebtAiderUsesSafeoutputsCLI(t *testing.T) {
-	content, err := os.ReadFile("../../.github/workflows/daily-code-debt-aider.md")
-	if err != nil {
-		t.Fatalf("failed to read Daily Code Debt Aider workflow: %v", err)
-	}
-	workflow := string(content)
-	for _, expected := range []string{
-		"safeoutputs create_pull_request",
-		"safeoutputs noop",
+func TestAiderWorkflowsUseSafeoutputsCLI(t *testing.T) {
+	for _, path := range []string{
+		"../../.github/workflows/daily-code-debt-aider.md",
+		"../../.github/workflows/daily-go-test-stubs-aider.md",
+		"../../.github/workflows/smoke-aider.md",
 	} {
-		if !strings.Contains(workflow, expected) {
-			t.Errorf("expected workflow to use safeoutputs CLI command %q", expected)
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read Aider workflow %s: %v", path, err)
 		}
-	}
-	if strings.Contains(workflow, "GH_AW_SAFE_OUTPUTS") {
-		t.Error("workflow must not write directly to GH_AW_SAFE_OUTPUTS")
-	}
+		workflow := string(content)
+		if !strings.Contains(workflow, "safeoutputs ") {
+			t.Errorf("expected workflow %s to use the safeoutputs CLI", path)
+		}
+		if strings.Contains(workflow, "GH_AW_SAFE_OUTPUTS") {
+			t.Errorf("workflow %s must not write directly to GH_AW_SAFE_OUTPUTS", path)
+		}
 
-	lockContent, err := os.ReadFile("../../.github/workflows/daily-code-debt-aider.lock.yml")
-	if err != nil {
-		t.Fatalf("failed to read Daily Code Debt Aider lock file: %v", err)
-	}
-	lock := string(lockContent)
-	if !strings.Contains(lock, `GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'`) {
-		t.Error("expected safeoutputs MCP CLI to be mounted")
-	}
-	if strings.Contains(lock, `--mount "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`) {
-		t.Error("Aider execution must not mount the safe-output directory read-write")
+		lockPath := strings.TrimSuffix(path, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("failed to read Aider lock file %s: %v", lockPath, err)
+		}
+		lock := string(lockContent)
+		if !strings.Contains(lock, `GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'`) {
+			t.Errorf("expected safeoutputs MCP CLI to be mounted for %s", path)
+		}
+		if strings.Contains(lock, `--mount "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`) {
+			t.Errorf("Aider execution must not mount the safe-output directory read-write for %s", path)
+		}
 	}
 }
