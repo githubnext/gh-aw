@@ -17,7 +17,7 @@ func TestLogsCommandFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 
 	// Check that all expected flags are present
-	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "ref", "before-run-id", "after-run-id", "filtered-integrity"}
+	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "ref", "before-run-id", "after-run-id", "filtered-integrity", "graders"}
 
 	for _, flagName := range expectedFlags {
 		flag := cmd.Flags().Lookup(flagName)
@@ -600,5 +600,25 @@ func TestFilteredIntegrityFlag(t *testing.T) {
 
 	if flag.Usage == "" {
 		t.Error("Expected 'filtered-integrity' flag to have usage text")
+	}
+}
+
+// TestGradersFlag verifies the --graders flag is registered correctly.
+func TestGradersFlag(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewLogsCommand()
+
+	flag := cmd.Flags().Lookup("graders")
+	if flag == nil {
+		t.Fatal("Expected flag 'graders' not found in logs command")
+	}
+
+	if flag.DefValue != "false" {
+		t.Errorf("Expected 'graders' default to be 'false', got: %s", flag.DefValue)
+	}
+
+	if !strings.Contains(flag.Usage, "grader results") {
+		t.Errorf("Expected 'graders' usage to mention grader results, got: %s", flag.Usage)
 	}
 }
