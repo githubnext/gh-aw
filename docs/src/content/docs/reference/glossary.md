@@ -358,7 +358,7 @@ A safe output capability for adding labels to issues or pull requests. Supports 
 
 ### Remove Labels (`remove-labels:`)
 
-A safe output capability for removing labels from issues or pull requests. Supports `allowed` to restrict which labels can be removed and `blocked` to prevent removal of labels matching glob patterns. Silently skips labels not present on the target. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels).
+A safe output capability for removing labels from issues or pull requests. Supports `allowed` to restrict which labels can be removed and `blocked` to prevent removal of labels matching glob patterns. Silently skips labels not present on the target. Accepts per-target `issues` and `pull-requests` boolean fields (both default to `true`) to omit the corresponding write permission from the compiled workflow when a target type is not needed; disabling both is rejected at compile time. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels).
 
 ### Assign to Agent
 
