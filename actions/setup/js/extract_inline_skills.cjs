@@ -229,9 +229,9 @@ function extractInlineSkills(content) {
 
 /**
  * Ensures every "## skill: `name`" start marker in content has a matching
- * explicit "## end skill: `name`" marker, inserting one at the block's
- * implicit boundary (next H2 heading or EOF) for any start marker that
- * doesn't already have one.
+ * explicit "## end skill: `name`" marker when the implicit boundary is a
+ * following H2 heading. Blocks that naturally end at EOF keep their implicit
+ * EOF boundary and are not rewritten.
  *
  * This is intended for content that is about to be spliced into a larger
  * document (for example a runtime-imported file). Without it, a skill block
@@ -280,7 +280,9 @@ function closeUnterminatedSkillMarkers(content) {
 
     if (matchedEnd === undefined) {
       const contentEnd = h2Positions.find(pos => pos >= lineEnd) ?? content.length;
-      insertions.push({ pos: contentEnd, name });
+      if (contentEnd < content.length) {
+        insertions.push({ pos: contentEnd, name });
+      }
     }
   }
 

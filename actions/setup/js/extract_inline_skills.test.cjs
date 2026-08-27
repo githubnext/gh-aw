@@ -203,10 +203,10 @@ describe("extractInlineSkills", () => {
 describe("closeUnterminatedSkillMarkers", () => {
   const skillEndMarker = name => `## end skill: \`${name}\``;
 
-  it("adds an explicit end marker at EOF for an unterminated skill", () => {
+  it("keeps EOF-terminated skills implicit", () => {
     const content = ["Main.", "", skillMarker("reporting"), "Skill content."].join("\n");
 
-    expect(closeUnterminatedSkillMarkers(content)).toBe(["Main.", "", skillMarker("reporting"), "Skill content.", "", skillEndMarker("reporting"), ""].join("\n"));
+    expect(closeUnterminatedSkillMarkers(content)).toBe(content);
   });
 
   it("adds an explicit end marker before the next H2 boundary", () => {

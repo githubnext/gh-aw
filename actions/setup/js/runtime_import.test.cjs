@@ -744,12 +744,11 @@ describe("runtime_import", () => {
           // Use ../../ to escape .github/workflows and go up to the temp directory
           await expect(processRuntimeImport("../../outside.md", !1, tempDir)).rejects.toThrow("Security: Path");
         }));
-      it("should implicitly close an unterminated inline skill block so it cannot swallow spliced-in content", async () => {
+      it("should keep EOF-terminated inline skill blocks implicit", async () => {
         const content = "## skill: `reporting`\n\nGuidelines here.\n";
         fs.writeFileSync(path.join(workflowsDir, "unterminated-skill.md"), content);
         const result = await processRuntimeImport("unterminated-skill.md", !1, tempDir);
-        expect(result).toContain("## skill: `reporting`");
-        expect(result).toContain("## end skill: `reporting`");
+        expect(result).toBe(content);
       });
       it("should implicitly close an unterminated inline sub-agent block so it cannot swallow spliced-in content", async () => {
         const content = "## agent: `helper`\n\nAgent instructions.\n";
@@ -1122,14 +1121,13 @@ describe("runtime_import", () => {
           const result = await processRuntimeImports("First: {{#runtime-import test.txt:1-2}} Second: {{#runtime-import test.txt:4-5}}", tempDir);
           expect(result).toBe("First: Line 1\nLine 2 Second: Line 4\nLine 5");
         }),
-        it("should not let an unterminated inline skill block from one runtime import swallow a subsequent runtime import's content", async () => {
+        it("should keep EOF-terminated skill boundaries implicit while preserving subsequent import content", async () => {
           fs.writeFileSync(path.join(workflowsDir, "reporting.md"), "## skill: `reporting`\n\nFormatting guidelines.\n");
           fs.writeFileSync(path.join(workflowsDir, "otlp.md"), "## Telemetry\n\nOTLP guidance.\n");
           const result = await processRuntimeImports("{{#runtime-import reporting.md}}\n{{#runtime-import otlp.md}}\nMain body content.", tempDir);
-          // The skill block must be explicitly closed before the next import's
-          // content, otherwise it would swallow "## Telemetry" and everything
-          // after it since there is no other H2 heading to stop at.
-          expect(result).toContain("## end skill: `reporting`");
+          // The next import begins with an H2, so implicit skill termination
+          // must preserve following content without injecting an explicit end marker.
+          expect(result).not.toContain("## end skill: `reporting`");
           expect(result).toContain("## Telemetry");
           expect(result).toContain("Main body content.");
         }),

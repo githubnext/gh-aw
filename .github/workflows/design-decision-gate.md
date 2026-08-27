@@ -472,4 +472,3 @@ The ADR and implementation must be in sync before this PR can merge.
 
 </details>
 ```
-## end skill: `adr-report-templates`
