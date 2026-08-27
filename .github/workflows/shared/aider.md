@@ -116,12 +116,6 @@ engine:
       });
       process.stdout.write(result.stdout || "");
       process.stderr.write(result.stderr || "");
-      if (process.env.GH_AW_SAFE_OUTPUTS) {
-        const { existsSync, statSync, appendFileSync } = require("fs");
-        if (!existsSync(process.env.GH_AW_SAFE_OUTPUTS) || statSync(process.env.GH_AW_SAFE_OUTPUTS).size === 0) {
-          appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, "{\"type\":\"noop\",\"message\":\"Aider did not emit a safe output.\"}\n");
-        }
-      }
       fail(result, `${result.stdout || ""}\n${result.stderr || ""}`, "Aider execution");
 ---
 
@@ -136,8 +130,8 @@ single reply is the whole run. Plan for that:
   line separately, so multi-line commands, backslash continuations and heredocs do not work.
   Chain steps with `&&` or `;` on a single line instead.
 - **Suggest at most a few commands**; they all run from the repository root.
-- **Emit safe outputs with a single-line command**, for example
-  `printf '%s\n' '{"type":"noop","message":"..."}' >> "$GH_AW_SAFE_OUTPUTS"`.
+- **Emit safe outputs through the `safeoutputs` MCP CLI**, for example
+  `safeoutputs noop --message "..."`.
 
 <!--
 # Aider CLI
