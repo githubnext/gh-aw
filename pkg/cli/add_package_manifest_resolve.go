@@ -32,11 +32,6 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		return nil, err
 	}
 	resourceFiles := normalizePackageResourcePaths(manifest.Resources, packagePath)
-	graderResources, err := resolveRepositoryPackageGraderResources(ctx, owner, repo, ref, host, installationSources)
-	if err != nil {
-		return nil, err
-	}
-	resourceFiles = appendUniquePackageResources(resourceFiles, graderResources)
 
 	docsPath, err := resolveRepositoryPackageDocsPath(ctx, owner, repo, packagePath, ref, host)
 	if err != nil {
@@ -178,7 +173,7 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 
 func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, packagePath, ref, host string) (string, []byte, error) {
 	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
-	repoSlug := strings.Join([]string{owner, repo}, "/")
+	repoSlug := owner + "/" + repo
 	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
 	content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, manifestPath, ref, host)
 	if err != nil {

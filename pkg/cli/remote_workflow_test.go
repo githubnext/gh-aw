@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1800,6 +1801,73 @@ resources:
 	resources, err := extractResources(content)
 	require.NoError(t, err, "should not error for valid resources")
 	assert.Equal(t, []string{"triage-issue.md", "close-stale.md", "my-action.yml"}, resources, "should extract all listed resources")
+}
+
+func TestExtractResources_IncludesGraderEvaluator(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - .github/graders/example-operational-value.sh
+graders:
+  operational-value:
+    run: .github/graders/example-operational-value.sh
+---
+
+# Workflow
+`
+	resources, err := extractResources(content)
+	require.NoError(t, err)
+	assert.Equal(t, []string{".github/graders/example-operational-value.sh"}, resources)
+}
+
+func TestFetchAndSaveRemoteResources_InstallsAndRestoresGraderEvaluator(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupMinimalGitRepo(t, tmpDir)
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+
+	const evaluatorPath = ".github/graders/example-operational-value.sh"
+	content := `---
+on: workflow_dispatch
+graders:
+  operational-value:
+    run: .github/graders/example-operational-value.sh
+---
+
+# Workflow
+`
+	evaluatorContent := []byte("#!/usr/bin/env bash\necho old\n")
+	originalDownload := downloadResourceFileFromGitHub
+	t.Cleanup(func() { downloadResourceFileFromGitHub = originalDownload })
+	downloadResourceFileFromGitHub = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+		assert.Equal(t, evaluatorPath, filePath)
+		return evaluatorContent, nil
+	}
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main"},
+		WorkflowPath: "workflows/graded.md",
+	}
+	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil))
+
+	installedPath := filepath.Join(tmpDir, filepath.FromSlash(evaluatorPath))
+	installed, err := os.ReadFile(installedPath)
+	require.NoError(t, err)
+	assert.Equal(t, evaluatorContent, installed)
+
+	workflowPath := filepath.Join(workflowsDir, "graded.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
+	compiler := workflow.NewCompiler()
+	compiler.SetNoEmit(true)
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	require.NoError(t, os.Remove(installedPath))
+	evaluatorContent = []byte("#!/usr/bin/env bash\necho new\n")
+	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, true, nil))
+	restored, err := os.ReadFile(installedPath)
+	require.NoError(t, err)
+	assert.Equal(t, evaluatorContent, restored)
 }
 
 // TestExtractResources_MacroRejected verifies that an entry with GitHub Actions expression syntax causes an error.
