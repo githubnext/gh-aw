@@ -18,6 +18,7 @@ import {
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   injectCustomGatewayEnvArgs,
+  MCP_GATEWAY_HEALTH_RETRY_CONFIG,
   normalizeSinkVisibilityEncoding,
   resolveCopilotConfigPaths,
 } from "./start_mcp_gateway.cjs";
@@ -37,6 +38,20 @@ describe("start_mcp_gateway logging", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).toContain(`stdio: ["pipe", outputFd, stderrFd]`);
     expect(source).toContain(`path.join(os.tmpdir(), "gh-aw-mcp-gateway-")`);
+  });
+});
+
+describe("start_mcp_gateway health timeout", () => {
+  it("allows cleanup and registration time after the 120-second backend startup timeout", () => {
+    const { maxTotalAttempts, initialDelayMs, maxDelayMs, backoffMultiplier } = MCP_GATEWAY_HEALTH_RETRY_CONFIG;
+    let delayMs = initialDelayMs;
+    let retryBudgetMs = 0;
+    for (let retry = 1; retry < maxTotalAttempts; retry += 1) {
+      delayMs = Math.min(delayMs * backoffMultiplier, maxDelayMs);
+      retryBudgetMs += delayMs;
+    }
+
+    expect(retryBudgetMs).toBeGreaterThanOrEqual(145_000);
   });
 });
 

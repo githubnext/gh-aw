@@ -52,6 +52,12 @@ const CONTAINER_STATUS_TIMEOUT_MS = getSetupTimeoutMs("mcpContainerStatus");
 const CONFIG_CONVERTER_TIMEOUT_MS = getSetupTimeoutMs("mcpConfigConverter");
 const DOCKER_CLEANUP_TIMEOUT_MS = getSetupTimeoutMs("mcpDockerCleanup");
 const MCP_SERVER_CHECK_TIMEOUT_MS = getSetupTimeoutMs("mcpServerCheck");
+const MCP_GATEWAY_HEALTH_RETRY_CONFIG = Object.freeze({
+  maxTotalAttempts: 150,
+  initialDelayMs: 250,
+  maxDelayMs: 1000,
+  backoffMultiplier: 2,
+});
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -830,13 +836,12 @@ async function main() {
 
   core.info(`Health endpoint: ${healthUrl}`);
   core.info(`(Note: MCP_GATEWAY_DOMAIN is '${gatewayDomain}' for container access)`);
-  core.info("Retrying up to 120 times with exponential backoff (250ms to 1s, ~120s total timeout)");
+  core.info(`Retrying up to ${MCP_GATEWAY_HEALTH_RETRY_CONFIG.maxTotalAttempts} times with exponential backoff (250ms to 1s, ~150s total timeout)`);
   core.info("");
 
-  const maxTotalAttempts = 120;
+  const maxTotalAttempts = MCP_GATEWAY_HEALTH_RETRY_CONFIG.maxTotalAttempts;
   // withRetry's maxRetries excludes the initial attempt.
   const maxRetryCount = maxTotalAttempts - 1;
-  const initialRetryDelayMs = 250;
   let httpCode = 0;
   let healthBody = "";
   let succeeded = false;
@@ -865,9 +870,9 @@ async function main() {
       },
       {
         maxRetries: maxRetryCount,
-        initialDelayMs: initialRetryDelayMs,
-        maxDelayMs: 1000,
-        backoffMultiplier: 2,
+        initialDelayMs: MCP_GATEWAY_HEALTH_RETRY_CONFIG.initialDelayMs,
+        maxDelayMs: MCP_GATEWAY_HEALTH_RETRY_CONFIG.maxDelayMs,
+        backoffMultiplier: MCP_GATEWAY_HEALTH_RETRY_CONFIG.backoffMultiplier,
         jitterMs: 0,
         // Preserve previous loop behavior: retry any health-check failure until attempts are exhausted.
         shouldRetry: () => true,
@@ -1245,6 +1250,7 @@ module.exports = {
   getJSONParseErrorContext,
   getGatewayStartupMarkerPath,
   injectCustomGatewayEnvArgs,
+  MCP_GATEWAY_HEALTH_RETRY_CONFIG,
   normalizeSinkVisibilityEncoding,
   redactGatewayDiagnostics,
   resolveCopilotConfigPaths,
