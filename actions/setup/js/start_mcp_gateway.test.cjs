@@ -18,6 +18,13 @@ import {
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   injectCustomGatewayEnvArgs,
+  computeHealthRetryBudgetMs,
+  MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS,
+  MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS,
+  MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT,
+  MCP_GATEWAY_HEALTH_RETRY_DEFAULTS,
+  MCP_GATEWAY_HEALTH_RETRY_ENV,
+  resolveGatewayHealthRetryConfig,
   normalizeSinkVisibilityEncoding,
   resolveCopilotConfigPaths,
 } from "./start_mcp_gateway.cjs";
@@ -37,6 +44,70 @@ describe("start_mcp_gateway logging", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).toContain(`stdio: ["pipe", outputFd, stderrFd]`);
     expect(source).toContain(`path.join(os.tmpdir(), "gh-aw-mcp-gateway-")`);
+  });
+});
+
+describe("start_mcp_gateway health timeout", () => {
+  it("allows cleanup and registration time after the backend startup timeout", () => {
+    const config = resolveGatewayHealthRetryConfig({});
+
+    expect(config).toMatchObject(MCP_GATEWAY_HEALTH_RETRY_DEFAULTS);
+    expect(config.retryBudgetMs).toBe(computeHealthRetryBudgetMs(MCP_GATEWAY_HEALTH_RETRY_DEFAULTS));
+    expect(config.retryBudgetMs).toBeGreaterThanOrEqual(MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS);
+  });
+
+  it("applies environment overrides for every retry parameter", () => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: "10",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: "100",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs]: "400",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: "1.5",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "1000",
+    });
+
+    expect(config).toMatchObject({ maxTotalAttempts: 10, initialDelayMs: 100, maxDelayMs: 400, backoffMultiplier: 1.5, backendStartupTimeoutMs: 1000 });
+    expect(config.retryBudgetMs).toBe(computeHealthRetryBudgetMs(config));
+  });
+
+  it("falls back to defaults for invalid overrides", () => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: "not-a-number",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: "-5",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs]: "",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: "0",
+    });
+
+    expect(config).toMatchObject(MCP_GATEWAY_HEALTH_RETRY_DEFAULTS);
+  });
+
+  it("raises the delay cap when it is below the initial delay", () => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: "2000",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs]: "500",
+    });
+
+    expect(config.maxDelayMs).toBe(2000);
+  });
+
+  it("clamps a shrinking backoff multiplier to a constant delay", () => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: "0.5",
+    });
+
+    expect(config.backoffMultiplier).toBe(1);
+  });
+
+  it("caps an excessive attempt count", () => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: "1000000000",
+    });
+
+    expect(config.maxTotalAttempts).toBe(MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT);
+  });
+
+  it("computes the cumulative retry delay withRetry will sleep", () => {
+    // withRetry multiplies before its first sleep: 500ms, then 1000ms capped.
+    expect(computeHealthRetryBudgetMs({ maxTotalAttempts: 3, initialDelayMs: 250, maxDelayMs: 1000, backoffMultiplier: 2 })).toBe(1500);
   });
 });
 

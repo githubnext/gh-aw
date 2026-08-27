@@ -36,8 +36,7 @@ export const requireFetchResponseBodyTryCatchRule = createRule({
       description:
         "Require .json()/.text() calls on a fetch() Response in actions/setup/js scripts to be wrapped in try/catch. " +
         "Both methods reject when the body stream errors mid-read or (for .json()) when the payload is not valid JSON, " +
-        "which crashes the action with an unhelpful uncaught exception if the response was obtained via a bare `await fetch(...)` " +
-        "with no surrounding try/catch.",
+        "so a call-site try/catch preserves the original error as `{ cause }` and produces a specific message instead of a generic engine-level stack.",
     },
     schema: [],
     messages: {

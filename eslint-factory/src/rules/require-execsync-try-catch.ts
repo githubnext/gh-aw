@@ -83,11 +83,13 @@ export const requireExecSyncTryCatchRule = createRule({
       description:
         "Require execSync calls in actions/setup/js scripts to be wrapped in try/catch. " +
         "execSync throws an Error containing child-process result fields when the child process exits with a non-zero status code or is killed by a signal; " +
-        "an unhandled throw crashes the action without surfacing a useful diagnostic.",
+        "without a call-site try/catch, the entrypoint-level catch produces a generic engine-level stack instead of a specific message that preserves the error as `{ cause }`.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap execSync({{arg}}) in try/catch — execSync throws when the process exits non-zero or is killed by a signal, " + "and will crash the action if the error is unhandled.",
+      requireTryCatch:
+        "Wrap execSync({{arg}}) in try/catch — execSync throws when the process exits non-zero or is killed by a signal; " +
+        "without a call-site try/catch, you lose the original error context and get a generic engine-level stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },

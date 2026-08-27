@@ -92,7 +92,7 @@ Use the pre-downloaded 24h logs first. If coverage is incomplete, run one additi
 {
   "start_date": "-1d",
   "count": 3000,
-  "artifacts": ["usage", "agent", "mcp", "github-api", "firewall", "experiment"]
+  "artifacts": ["usage"]
 }
 ```
 
