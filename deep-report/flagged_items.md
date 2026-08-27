@@ -333,3 +333,11 @@
 - Draft PR #55973 (npm/go allowlist, Daily Reliability Review / Daily Secrets Analysis): in progress, not yet merged — no new action, recheck merge status next cycle.
 - AI Moderator: 4th consecutive day of Codex exec failures — already covered by open P0 issues, watch for a 5th-day escalation trigger if still unresolved.
 - Copilot PR NLP empty-data bug: newly re-filed this cycle after #53688 expired unfixed — watch whether the new issue gets picked up faster than its predecessor.
+
+## 2026-08-27T02:02Z — items to keep monitoring next cycle
+
+- **[new, filed, P0-equivalent]** Go toolchain mismatch (go.mod 1.26.6 vs runner 1.26.7) caused a ~1-hour fleet-wide smoke-test cascade (#56174 rollup, #56175 root-cause). Watch next cycle for whether the fix landed and cascade-suspected issues got batch-closed.
+- **[new, filed]** Daily Firewall Report trend charts still broken (2nd cycle noting it, #55914 → #56140) — now has a dedicated fix issue.
+- **[watch, not filed]** dispatch-workflow ref-bypass (#56121, blozano-tt) — security-relevant: omitted `ref` on issue_comment triggers silently dispatches default branch, bypassing allowed-refs. Already a well-scoped user report; watch for maintainer triage priority given security implications.
+- **[watch, not filed]** sandbox.agent.version pinning drops AWF images from digest-pinned to tag-only with no restore path (#56135, prpercival) — supply-chain-adjacent, well-scoped, watch for triage.
+- **[declined, already tracked]** codex 74.5% success rate (worst engine, #56143) — already covered by open P0/P1 issues per prior cycles' cluster mapping, not re-filed.
