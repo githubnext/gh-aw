@@ -998,12 +998,38 @@ function formatOTLPExportFailureMessage(response, reason) {
  */
 
 /**
+ * Normalizes GH_AW_OTLP_IF_MISSING to a supported mode. Mirrors the compiler's
+ * getOTLPIfMissingMode (pkg/workflow/observability_otlp.go) and the equivalent
+ * helper in start_mcp_gateway.cjs so every OTLP consumer applies the same
+ * missing-configuration policy.
+ * @param {string | undefined} value
+ * @returns {"error" | "warn" | "ignore"}
+ */
+function getOTLPIfMissingMode(value) {
+  const normalized = (value || "").trim().toLowerCase();
+  if (normalized === "warn" || normalized === "ignore") {
+    return normalized;
+  }
+  return "error";
+}
+
+/**
  * Resolve the list of configured OTLP endpoints for the current run.
  *
  * Reads `GH_AW_OTLP_ENDPOINTS` (JSON-encoded array produced by the gh-aw
  * compiler for all endpoint configurations, including single-endpoint setups).
  * Returns an empty array when no endpoint is configured, so callers can skip
  * the export step without additional checks.
+ *
+ * When `GH_AW_OTLP_IF_MISSING=ignore` (set only for the enterprise-default
+ * endpoint/headers fallback — see resolveOTLPEndpointEntries in
+ * pkg/workflow/observability_otlp.go), an endpoint with a URL but no headers is
+ * dropped rather than exported unauthenticated. This is the single choke point
+ * used by every span emitter (job-setup, conclusion, outcome, MCP gateway), so
+ * the guard applies uniformly regardless of job ordering — a half-configured
+ * default (endpoint set, headers secret unset) can never leak telemetry before
+ * the agent job's check_otlp_default_credentials.sh step runs, because that
+ * step only runs in one job while this function runs in all of them.
  *
  * @returns {OTLPEndpointEntry[]}
  */
@@ -1013,9 +1039,19 @@ function parseOTLPEndpoints() {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
+      const ignoreMissingCredentials = getOTLPIfMissingMode(process.env.GH_AW_OTLP_IF_MISSING) === "ignore";
       /** @type {OTLPEndpointEntry[]} */
       const valid = parsed
         .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
+        .filter(e => {
+          const hasHeaders = typeof e.headers === "string" && e.headers !== "";
+          if (ignoreMissingCredentials && !hasHeaders) {
+            // Enterprise-default endpoint configured without matching credentials:
+            // treat as unconfigured instead of exporting unauthenticated telemetry.
+            return false;
+          }
+          return true;
+        })
         .map(e => ({
           url: e.url,
           ...(typeof e.headers === "string" && e.headers ? { headers: e.headers } : {}),
