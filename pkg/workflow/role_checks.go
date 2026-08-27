@@ -343,6 +343,7 @@ func (c *Compiler) inferEventsFromTriggers(frontmatter map[string]any) []string 
 	// Sort events alphabetically for consistent output
 	sort.Strings(events)
 	if len(events) == 0 {
+		// If "on" exists but has no supported rate-limit triggers, keep the omitted-events fallback broad.
 		return append([]string(nil), rateLimitProgrammaticEvents...)
 	}
 	return events
