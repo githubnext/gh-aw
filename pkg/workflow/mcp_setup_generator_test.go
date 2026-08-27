@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -953,6 +954,18 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 		"Safe outputs MCP server should receive the runtime tools path")
 	assert.Contains(t, yamlStr, `"GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST": "\${GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST}"`,
 		"Safe outputs MCP server should receive the runtime create-pull-request policy")
+	for _, name := range []string{
+		"GH_AW_PR_HEAD_BASE_BRANCH",
+		"GH_AW_PR_HEAD_BASE_SHA",
+		"GH_AW_PR_HEAD_BASE_REPO",
+		"GH_AW_PR_HEAD_BASE_PR_NUMBER",
+		"GH_AW_PR_HEAD_BASE_REF",
+	} {
+		assert.Contains(t, yamlStr, " -e "+name,
+			"MCP gateway container should receive PR head baseline metadata")
+		assert.Contains(t, yamlStr, fmt.Sprintf(`"%s": "\${%s}"`, name, name),
+			"Safe outputs MCP server should receive PR head baseline metadata")
+	}
 	assert.Contains(t, yamlStr, `"RUNNER_TEMP": "\${RUNNER_TEMP}"`,
 		"Safe outputs MCP server should receive RUNNER_TEMP for staging helpers")
 	assert.NotContains(t, yamlStr, "Start Safe Outputs MCP HTTP Server",

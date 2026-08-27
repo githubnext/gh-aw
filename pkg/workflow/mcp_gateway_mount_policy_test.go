@@ -141,6 +141,15 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 	appendMCPGatewayBaseEnvFlags(&containerCmd, "")
 	assert.Contains(t, containerCmd.String(), " -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
 	assert.Contains(t, containerCmd.String(), " -e RUNNER_TOOL_CACHE")
+	for _, name := range []string{
+		"GH_AW_PR_HEAD_BASE_BRANCH",
+		"GH_AW_PR_HEAD_BASE_SHA",
+		"GH_AW_PR_HEAD_BASE_REPO",
+		"GH_AW_PR_HEAD_BASE_PR_NUMBER",
+		"GH_AW_PR_HEAD_BASE_REF",
+	} {
+		assert.Contains(t, containerCmd.String(), " -e "+name)
+	}
 }
 
 // TestWriteMCPGatewayExportsIncludesAllowedMountRoots verifies the run script
