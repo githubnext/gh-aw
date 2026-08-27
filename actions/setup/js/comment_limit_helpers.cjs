@@ -28,6 +28,30 @@ const MAX_MENTIONS = 10;
 /** @type {number} Maximum number of links allowed per comment */
 const MAX_LINKS = 50;
 
+const { applyToNonCodeRegions } = require("./sanitize_content_core.cjs");
+
+// Mirrors the mention grammar used by neutralizeAllMentions in sanitize_content_core.cjs:
+// a mention must start at a non-alphanumeric boundary (so email addresses such as
+// user@example.com are not mentions) and the alias follows GitHub's login/scope grammar.
+const MENTION_PATTERN = /(^|[^A-Za-z0-9])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g;
+
+/**
+ * Counts @mentions outside markdown code spans/fences and HTML <code> regions.
+ * Mentions inside inert code regions cannot ping users and should not count.
+ *
+ * @param {string} body
+ * @returns {number}
+ */
+function countMentionsOutsideCodeRegions(body) {
+  let mentions = 0;
+  applyToNonCodeRegions(body, segment => {
+    const segmentWithoutHtmlCode = segment.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, " ");
+    mentions += (segmentWithoutHtmlCode.match(MENTION_PATTERN) || []).length;
+    return segment;
+  });
+  return mentions;
+}
+
 /**
  * Enforces maximum limits on comment parameters to prevent resource exhaustion attacks.
  * Per Safe Outputs specification requirement MR3, limits must be enforced before API calls.
@@ -42,7 +66,7 @@ function enforceCommentLimits(body) {
   }
 
   // Count mentions (@username pattern) - max limit exceeded check
-  const mentions = (body.match(/@\w+/g) || []).length;
+  const mentions = countMentionsOutsideCodeRegions(body);
   if (mentions > MAX_MENTIONS) {
     throw new Error(`E007: Comment contains ${mentions} mentions, maximum is ${MAX_MENTIONS}. Reduce the number of @mentions to ${MAX_MENTIONS} or fewer.`);
   }
