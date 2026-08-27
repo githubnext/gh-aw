@@ -34,6 +34,26 @@ observability:
 
 Once configured, gh-aw exports built-in workflow spans such as setup and conclusion events to the configured OTLP backend.
 
+### Organization-wide defaults
+
+When a workflow does not configure `observability.otlp` (in its own frontmatter or through an import), the compiler falls back to a default OTLP configuration read from the GitHub Actions environment:
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `GH_AW_DEFAULT_OTLP_ENDPOINT` | Variable | OTLP endpoint URL used when no endpoint is configured in frontmatter |
+| `GH_AW_DEFAULT_OTLP_HEADERS` | Secret | Exporter headers (`key=value` pairs, comma-separated) sent to that endpoint |
+
+Because both are resolved at run time, setting them at the repository, organization, or enterprise level enables telemetry for every agentic workflow without editing any workflow file.
+
+Behavior:
+
+- When the variable is unset, the endpoint resolves to an empty string and OTLP export is a no-op.
+- When the variable is set but `GH_AW_DEFAULT_OTLP_HEADERS` is empty, no span is exported to that endpoint from any job (setup, conclusion, outcome, or MCP gateway) — the runtime treats an endpoint without matching credentials as unconfigured rather than exporting unauthenticated telemetry. The agent job additionally fails with an error so the misconfiguration is visible instead of silently degrading to no telemetry.
+- Any `observability.otlp` configuration in frontmatter or an import overrides these defaults entirely.
+- If the workflow already defines any of the OTLP-related environment variables in its own `env:` block, the compiler skips injecting that specific variable instead of emitting a duplicate key.
+
+Set the values with `gh aw env update`, or with `gh variable set` / `gh secret set`.
+
 ### Google Workload Identity Federation
 
 For Google Cloud Telemetry, configure Google Workload Identity Federation instead of a static authorization header. gh-aw mints and exchanges a GitHub OIDC token in every span-emitting job, and automatically grants those jobs `id-token: write`. The workload identity principal needs permission to write telemetry and, when `service-account` is set, permission to impersonate that service account.

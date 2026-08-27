@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/goccy/go-yaml"
 )
 
@@ -27,6 +28,9 @@ var ghAwInternalSecrets = map[string]bool{
 	"GH_AW_CI_TRIGGER_TOKEN":        true,
 	"GH_AW_PROJECT_GITHUB_TOKEN":    true,
 	"COPILOT_GITHUB_TOKEN":          true,
+	// Enterprise-wide OTLP exporter credentials injected by injectOTLPConfig when
+	// no observability.otlp endpoint is configured in frontmatter.
+	compilerenv.DefaultOTLPHeaders: true,
 }
 
 // PullRequestEventTransition captures the pull_request / pull_request_target trigger

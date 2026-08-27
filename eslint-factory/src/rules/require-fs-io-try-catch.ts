@@ -16,11 +16,13 @@ export const requireFsIoTryCatchRule = createRule({
       description:
         "Require fs.statSync, fs.readdirSync, fs.copyFileSync, fs.unlinkSync, and fs.renameSync calls in actions/setup/js scripts to be wrapped in try/catch. " +
         "These methods throw synchronously on missing files, permission errors, and other I/O failures; " +
-        "an unhandled throw crashes the action without surfacing a useful error message.",
+        "without a call-site try/catch, the entrypoint-level catch produces a generic engine-level stack instead of a specific message that preserves the error as `{ cause }`.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap fs.{{method}}({{arg}}) in try/catch — synchronous fs methods throw on I/O errors " + "(missing file, permission denied, disk full) and will crash the action if unhandled.",
+      requireTryCatch:
+        "Wrap fs.{{method}}({{arg}}) in try/catch — synchronous fs methods throw on I/O errors " +
+        "(missing file, permission denied, disk full); without a call-site try/catch, you lose the original error context and get a generic engine-level stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },

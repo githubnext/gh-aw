@@ -74,7 +74,7 @@ type GraderDefinition struct {
 	Threshold        *float64       // quality threshold (pass/fail boundary)
 	Max              *float64       // theoretical maximum
 	Min              *float64       // theoretical minimum
-	Run              string         // repository-relative operational-value evaluator script
+	Run              string         // operational-value evaluator script path
 	Script           string         // inline JS body for trusted custom graders (built-ins leave empty)
 	Config           map[string]any // arbitrary config passed to grader at runtime
 	evaluatorContent string
@@ -190,7 +190,7 @@ var graderIDPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 //	      return { value: trace.toolCalls.length }
 //	    unit: count
 //	    direction: lower_is_better
-func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*GradersConfig, error) {
+func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*GradersConfig, error) { //nolint:largefunc
 	raw, exists := frontmatter["graders"]
 	if !exists || raw == nil {
 		return nil, nil
@@ -329,7 +329,7 @@ func builtinDefFromMeta(meta *BuiltinGraderMeta) *GraderDefinition {
 }
 
 // parseGraderEntryFields parses individual fields from a grader entry map into the definition.
-func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id string, isBuiltin bool) error {
+func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id string, isBuiltin bool) error { //nolint:largefunc
 	if v, ok := entry["enabled"]; ok {
 		b, ok := v.(bool)
 		if !ok {
@@ -396,8 +396,8 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 		if id != "operational-value" {
 			return fmt.Errorf("graders.%s.run is only supported by the operational-value grader", id)
 		}
-		if !isValidOperationalValueEvaluatorPath(runPath) {
-			return fmt.Errorf("graders.operational-value.run must be a repository-relative .sh file under .github/graders, got %q", runPath)
+		if !IsValidOperationalValueEvaluatorRunPath(runPath) {
+			return fmt.Errorf("graders.operational-value.run must be a workspace-relative or ./ local .sh file, got %q", runPath)
 		}
 		def.Run = runPath
 	}
@@ -433,20 +433,27 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 	return nil
 }
 
-func isValidOperationalValueEvaluatorPath(evaluatorPath string) bool {
-	if evaluatorPath == "" || strings.Contains(evaluatorPath, "\\") {
+// IsValidOperationalValueEvaluatorRunPath reports whether evaluatorPath is a
+// safe shell script path. Paths may be repository-root-relative, or explicitly
+// local to the workflow file when they start with "./". Empty components, ".",
+// and ".." are rejected to avoid traversal.
+func IsValidOperationalValueEvaluatorRunPath(evaluatorPath string) bool {
+	if evaluatorPath == "" || strings.Contains(evaluatorPath, "\\") || strings.HasPrefix(evaluatorPath, "/") {
 		return false
 	}
-	parts := strings.Split(evaluatorPath, "/")
-	if len(parts) < 3 || parts[0] != ".github" || parts[1] != "graders" {
+	pathForValidation := evaluatorPath
+	if trimmed, ok := strings.CutPrefix(pathForValidation, "./"); ok {
+		pathForValidation = trimmed
+	}
+	if pathForValidation == "" || strings.HasPrefix(pathForValidation, "/") {
 		return false
 	}
-	for _, part := range parts {
+	for part := range strings.SplitSeq(pathForValidation, "/") {
 		if part == "" || part == "." || part == ".." {
 			return false
 		}
 	}
-	return strings.HasSuffix(evaluatorPath, ".sh")
+	return strings.HasSuffix(pathForValidation, ".sh")
 }
 
 // parseOptionalFloat parses an optional float64 field from a map.
