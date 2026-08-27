@@ -624,7 +624,7 @@ jobs:
           echo "Commit: $(git rev-parse HEAD)"
           echo "Tag target: $(git rev-list -n 1 "$RELEASE_TAG")"
           echo "Release assets:"
-          find dist -maxdepth 1 -type f -printf '%f (%s bytes)\n' | sort
+          ls -lh dist/
           sha256sum dist/*
           echo "::endgroup::"
           
