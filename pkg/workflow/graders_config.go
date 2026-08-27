@@ -448,7 +448,7 @@ func IsValidOperationalValueEvaluatorRunPath(evaluatorPath string) bool {
 		return false
 	}
 	for part := range strings.SplitSeq(pathForValidation, "/") {
-		if part == "" || part == "." || part == ".." {
+		if part == "" || part == "." || strings.HasPrefix(part, "..") {
 			return false
 		}
 	}

@@ -164,6 +164,7 @@ func TestParseGradersFromFrontmatter_OperationalValueGraderValidation(t *testing
 	}{
 		{name: "missing run", entry: map[string]any{}, errText: "requires a 'run' field"},
 		{name: "path traversal", entry: map[string]any{"run": ".github/workflows/graders/../secret.sh"}, errText: "workspace-relative"},
+		{name: "dot dot prefix", entry: map[string]any{"run": ".github/workflows/graders/..secret.sh"}, errText: "workspace-relative"},
 		{name: "absolute path", entry: map[string]any{"run": "/tmp/operational-value.sh"}, errText: "workspace-relative"},
 		{name: "wrong extension", entry: map[string]any{"run": ".github/workflows/graders/operational-value.js"}, errText: "workspace-relative"},
 		{name: "inline script", entry: map[string]any{"run": ".github/workflows/graders/operational-value.sh", "script": "return 1"}, errText: "cannot have an inline script"},
