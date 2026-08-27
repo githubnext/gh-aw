@@ -1876,6 +1876,11 @@ graders:
 	assert.Equal(t, evaluatorContent, installed)
 	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil))
 
+	evaluatorContent = []byte("#!/usr/bin/env bash\necho conflict\n")
+	err = fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil)
+	require.ErrorContains(t, err, evaluatorPath)
+	require.ErrorContains(t, err, "--force")
+
 	workflowPath := filepath.Join(workflowsDir, "graded.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
 	compiler := workflow.NewCompiler()

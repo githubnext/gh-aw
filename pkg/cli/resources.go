@@ -60,6 +60,8 @@ func extractResourceEntries(content string) ([]extractedResource, error) {
 		return nil, err
 	}
 	if graders != nil {
+		// Include evaluator paths even for disabled graders so package resources stay
+		// complete and gh aw update can restore them if the grader is later re-enabled.
 		for _, grader := range graders.Graders {
 			if grader != nil && grader.Run != "" {
 				resources = append(resources, extractedResource{path: grader.Run, isGraderEvaluator: true})
@@ -143,6 +145,7 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 
 	// Resources are resolved relative to the source workflow's directory in the remote repo.
 	workflowBaseDir := getParentDir(spec.WorkflowPath)
+	var gitRoot string
 
 	for _, resource := range resourcePaths {
 		resourcePath := resource.path
@@ -188,10 +191,13 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 		}
 		targetBaseDir := targetDir
 		if isWorkspaceRelativeGraderEvaluator {
-			targetBaseDir, err = gitutil.FindGitRootFrom(targetDir)
-			if err != nil {
-				return fmt.Errorf("failed to resolve repository root for grader resource %q: %w", resourcePath, err)
+			if gitRoot == "" {
+				gitRoot, err = gitutil.FindGitRootFrom(targetDir)
+				if err != nil {
+					return fmt.Errorf("failed to resolve repository root for grader resource %q: %w", resourcePath, err)
+				}
 			}
+			targetBaseDir = gitRoot
 			localRelPath = filepath.FromSlash(resourcePath)
 		}
 		targetPath := filepath.Join(targetBaseDir, localRelPath)
@@ -242,9 +248,9 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 			continue
 		}
 		if fileExists && !force && resource.isGraderEvaluator {
-			existingContent, err := os.ReadFile(targetPath)
-			if err != nil {
-				return fmt.Errorf("failed to read existing grader resource %q: %w", targetPath, err)
+			existingContent, readErr := os.ReadFile(targetPath)
+			if readErr != nil {
+				return fmt.Errorf("failed to read existing grader resource %q: %w", targetPath, readErr)
 			}
 			if bytes.Equal(existingContent, fileContent) {
 				continue
