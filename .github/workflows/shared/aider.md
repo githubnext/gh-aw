@@ -116,6 +116,12 @@ engine:
       });
       process.stdout.write(result.stdout || "");
       process.stderr.write(result.stderr || "");
+      if (process.env.GH_AW_SAFE_OUTPUTS) {
+        const { existsSync, statSync, appendFileSync } = require("fs");
+        if (!existsSync(process.env.GH_AW_SAFE_OUTPUTS) || statSync(process.env.GH_AW_SAFE_OUTPUTS).size === 0) {
+          appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, "{\"type\":\"noop\",\"message\":\"Aider did not emit a safe output.\"}\n");
+        }
+      }
       fail(result, `${result.stdout || ""}\n${result.stderr || ""}`, "Aider execution");
 ---
 

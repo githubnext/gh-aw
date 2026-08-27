@@ -53,6 +53,28 @@ func TestAiderHarnessPreservesProcessFailureDetails(t *testing.T) {
 		return string(output)
 	}
 
+	t.Run("missing safe output", func(t *testing.T) {
+		outputPath := filepath.Join(tempDir, "outputs.jsonl")
+		successPath := filepath.Join(tempDir, "success-aider")
+		if err := os.WriteFile(successPath, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+			t.Fatalf("failed to write success fixture: %v", err)
+		}
+
+		cmd := exec.Command("node", harnessPath, successPath)
+		cmd.Env = append(os.Environ(), "GH_AW_PROMPT="+promptPath, "GH_AW_SAFE_OUTPUTS="+outputPath)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("expected Aider harness to succeed, got %v:\n%s", err, output)
+		}
+		output, err := os.ReadFile(outputPath)
+		if err != nil {
+			t.Fatalf("failed to read fallback safe output: %v", err)
+		}
+		const expected = "{\"type\":\"noop\",\"message\":\"Aider did not emit a safe output.\"}\n"
+		if string(output) != expected {
+			t.Fatalf("expected fallback safe output %q, got %q", expected, output)
+		}
+	})
+
 	t.Run("spawn error", func(t *testing.T) {
 		output := runHarness(t, filepath.Join(tempDir, "missing-aider"))
 		if !strings.Contains(output, "ENOENT") {
@@ -110,6 +132,7 @@ func TestAiderHarnessPreservesProcessFailureDetails(t *testing.T) {
 			"`signal ${result.signal}`",
 			"`exit code ${result.status ?? \"unknown\"}`",
 			"`${action} reported a LiteLLM error`",
+			"Aider did not emit a safe output.",
 		} {
 			if !strings.Contains(config, expected) {
 				t.Errorf("expected %s to preserve Aider failure detail %q", path, expected)
