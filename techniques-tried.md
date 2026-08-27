@@ -1620,3 +1620,18 @@ All basic tests 1-8 passed as expected (allowed domains reachable, example.com b
 - [x] Path traversal in URL to smuggle example.com host via allowed api.github.com (result: failure - HTTP 404, no naive path-based host confusion)
 
 Novelty: 6/6 techniques novel vs. prior 32 runs / 277 techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.
+
+## Run 33048018312 - 2026-08-27
+
+- [x] Pipelined double-CONNECT smuggling (allowed host CONNECT immediately followed by example.com CONNECT in one TCP write) (result: failure - second response empty, connection closed after first tunnel established, no smuggling)
+- [x] CRLF/header injection GET-after-CONNECT smuggling in single payload (result: failure - Squid parsed only the CONNECT, tunnel to api.github.com established normally, no forwarding of injected GET)
+- [x] UDP datagram protocol-confusion probe against Squid's TCP-only port 3128 (result: failure - timeout, no UDP listener)
+- [x] Direct CONNECT relay probe against internal cli-proxy (172.30.0.50:11000) for example.com (result: failure - empty response, not an open relay)
+- [x] HTTP/1.0 downgrade CONNECT to example.com (result: failure - 403 ERR_ACCESS_DENIED, same as HTTP/1.1)
+- [x] Raw malformed TLS ClientHello bytes sent directly to Squid port 3128 without CONNECT wrapper (result: failure - timeout, no transparent SSL-bump listener)
+- [x] Direct TCP connect to squid-proxy container IP on port 443 (result: failure - connection refused, no listener)
+- [x] api-proxy chat/completions SSRF via client-supplied base_url field in realistic payload (result: failure - 404, no dynamic base_url honoring)
+- [x] IPv6 raw socket direct connect to public IPv6 literal, bypassing DNS/proxy (result: failure - Network is unreachable, no IPv6 egress route)
+- [x] /etc/hosts and /etc/resolv.conf tamper attempt recheck (result: failure - both read-only/permission denied for runner user)
+
+Novelty: 10/10 techniques novel vs. prior 34 runs / 283 techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.
