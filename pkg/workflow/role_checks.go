@@ -15,6 +15,7 @@ import (
 
 var roleLog = logger.New("workflow:role_checks")
 
+// Keep in sync with actions/setup/js/check_rate_limit.cjs and the user-rate-limit.events schema enum.
 var rateLimitProgrammaticEvents = []string{
 	"discussion",
 	"discussion_comment",
