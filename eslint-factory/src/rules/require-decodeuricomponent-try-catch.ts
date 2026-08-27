@@ -41,9 +41,9 @@ export const requireDecodeURIComponentTryCatchRule = createRule({
       return false;
     }
 
-    /** Returns true when an expression is a compile-time constant string (never throws). */
+    /** Returns true when an expression coerces to a compile-time constant without percent-encoding (never throws). */
     function isStaticStringExpression(arg: TSESTree.CallExpressionArgument): boolean {
-      if (arg.type === AST_NODE_TYPES.Literal && typeof (arg as TSESTree.StringLiteral).value === "string") return true;
+      if (arg.type === AST_NODE_TYPES.Literal && (typeof arg.value === "string" || typeof arg.value === "number" || typeof arg.value === "boolean" || arg.value === null)) return true;
       if (arg.type === AST_NODE_TYPES.TemplateLiteral && (arg as TSESTree.TemplateLiteral).expressions.length === 0) return true;
       if (arg.type === AST_NODE_TYPES.BinaryExpression && arg.operator === "+") {
         return isStaticStringExpression(arg.left) && isStaticStringExpression(arg.right);
