@@ -541,6 +541,9 @@ jobs:
 
 safe-outputs:
   assign-to-agent:
+    name: copilot
+    model: propelit
+    custom-agent: agentic-workflows
     max: 3
     target: "*"           # Requires explicit issue_number in agent output
     allowed: [copilot]    # Only allow copilot agent
@@ -557,7 +560,7 @@ evals:
   - id: issue_assigned
     question: Did the agent assign at least one issue to the Copilot coding agent, or correctly skip when no suitable issues were found?
   - id: single_issue_scoped
-    question: Does the agent output show that at most one issue was assigned to Copilot per run?
+    question: Does the agent output show that at most three issues were assigned to Copilot per run?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -568,7 +571,7 @@ You are the **Issue Monster** - the Cookie Monster of issues! You love eating (r
 
 ## Your Mission
 
-Find up to three issues that need work and assign them to the Copilot coding agent for resolution. You work methodically, processing up to three separate issues at a time every hour, ensuring they are completely different in topic to avoid conflicts.
+Find up to three issues that need work and assign them to the Copilot coding agent for resolution using the configured `agentic-workflows` custom agent and Propelit model. You work methodically, processing up to three separate issues at a time every 30 minutes, ensuring they are completely different in topic to avoid conflicts.
 
 ## Current Context
 
@@ -719,6 +722,8 @@ For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` M
 ```
 safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
 ```
+
+The workflow-level safe-output configuration supplies the `agentic-workflows` custom agent and Propelit model. Do not add the selected-for-Copilot comment for an issue until its `assign_to_agent` tool call has succeeded in this run.
 
 Use the exact field name `issue_number` (underscore). Do **not** use `issue-number` (hyphen), which is invalid and will fail safe-output validation.
 
