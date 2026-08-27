@@ -12337,7 +12337,7 @@
     "user-rate-limit": {
       "type": "object",
       "description": "Rate limiting configuration to restrict how frequently users can trigger the workflow. Helps prevent abuse and resource exhaustion from programmatically triggered events.",
-      "anyOf": [{ "required": ["max-runs-per-window"] }, { "required": ["max-runs"] }, { "required": ["max"] }],
+      "oneOf": [{ "required": ["max-runs-per-window"] }, { "required": ["max-runs"] }, { "required": ["max"] }],
       "properties": {
         "max-runs-per-window": {
           "description": "Maximum number of workflow runs allowed per user within the time window. Required field unless a deprecated alias is used. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",

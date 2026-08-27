@@ -428,6 +428,7 @@ func isRoleCheckConfigKey(key string) bool {
 func countWorkflowEvents(onMap map[string]any) int {
 	eventCount := 0
 	for eventName := range onMap {
+		// slash_command is not a standalone GitHub event, but the safety scan still treats it as unsafe.
 		if !isRoleCheckConfigKey(eventName) && eventName != "slash_command" {
 			eventCount++
 		}
