@@ -15,7 +15,7 @@ import (
 
 const maxOperationalValueEvaluatorSize = 64 * 1024
 
-func (c *Compiler) prepareOperationalValueGrader(data *WorkflowData, markdownPath string) error {
+func (c *Compiler) prepareOperationalValueGrader(data *WorkflowData, markdownPath string) error { //nolint:largefunc
 	if data == nil || data.Graders == nil {
 		return nil
 	}
@@ -31,7 +31,7 @@ func (c *Compiler) prepareOperationalValueGrader(data *WorkflowData, markdownPat
 	if err != nil {
 		return fmt.Errorf("cannot resolve graders.operational-value.run %q: workflow is not inside a Git repository", grader.Run)
 	}
-	evaluatorPath := filepath.Join(repoRoot, filepath.FromSlash(grader.Run))
+	evaluatorPath := ResolveOperationalValueEvaluatorPath(repoRoot, markdownPath, grader.Run)
 	if err := fileutil.ValidatePathWithinBase(repoRoot, evaluatorPath); err != nil {
 		return fmt.Errorf("graders.operational-value.run %q escapes the Git repository", grader.Run)
 	}
@@ -80,4 +80,14 @@ func (c *Compiler) prepareOperationalValueGrader(data *WorkflowData, markdownPat
 
 	grader.evaluatorContent = evaluatorContent
 	return nil
+}
+
+// ResolveOperationalValueEvaluatorPath resolves a validated operational-value
+// evaluator run path. Paths starting with "./" are local to the workflow file's
+// directory; all other paths are relative to the repository root.
+func ResolveOperationalValueEvaluatorPath(repoRoot, markdownPath, runPath string) string {
+	if localPath, ok := strings.CutPrefix(runPath, "./"); ok {
+		return filepath.Join(filepath.Dir(markdownPath), filepath.FromSlash(localPath))
+	}
+	return filepath.Join(repoRoot, filepath.FromSlash(runPath))
 }
