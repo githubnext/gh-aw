@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -188,7 +189,9 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 		fileExists := false
 		if fileutil.FileExists(targetPath) {
 			fileExists = true
-			if !force {
+			// Shared evaluators may be referenced by multiple workflows in one package.
+			// Their conflict handling is deferred until the source content can be compared.
+			if !force && !isGraderEvaluator {
 				isMarkdown := strings.HasSuffix(strings.ToLower(targetPath), ".md")
 				if isMarkdown {
 					// For markdown files, allow same-source overwrites.
@@ -219,6 +222,16 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource %s: %v", remoteFilePath, err)))
 			}
 			continue
+		}
+		if fileExists && !force && isGraderEvaluator {
+			existingContent, err := os.ReadFile(targetPath)
+			if err != nil {
+				return fmt.Errorf("failed to read existing grader resource %q: %w", targetPath, err)
+			}
+			if bytes.Equal(existingContent, fileContent) {
+				continue
+			}
+			return fmt.Errorf("resource %q already exists at %s; remove the file or use --force to overwrite", resourcePath, targetPath)
 		}
 
 		// For markdown resources, embed the source field for future conflict detection.

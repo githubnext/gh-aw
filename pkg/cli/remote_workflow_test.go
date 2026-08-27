@@ -1855,6 +1855,7 @@ graders:
 	installed, err := os.ReadFile(installedPath)
 	require.NoError(t, err)
 	assert.Equal(t, evaluatorContent, installed)
+	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil))
 
 	workflowPath := filepath.Join(workflowsDir, "graded.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
