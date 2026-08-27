@@ -1,3 +1,15 @@
+## Flagged Items (2026-08-27, ~09:23Z cycle, window since #56215's own 02:10:40Z creation — memory timestamp was stale, see [[known_patterns]] process note; 9 new discussions: 56231,56234,56249,56254,56277,56285,56290,56291,56292)
+
+- **[new, filed]** Fix `max-daily-ai-credits` default-behavior contradiction across docs/schema/compiler (disabled-by-default vs 5000-AIC-default vs "by the triggering user" stale scoping) — Schema Consistency Checker #56291 findings 1-2, verified live.
+- **[new, filed]** Fix `user-rate-limit` legacy-alias schema gap (`max`/`max-runs` accepted by parser, rejected by schema) + `events` fallback semantics drift — Schema Consistency Checker #56291 findings 3-4, verified live.
+- **[declined, self-filed]** LintMonster 650-finding largefunc backlog (#56231) — self-filed 2 execution-topic issues as usual.
+- **[declined, self-filed]** Workflow Skill Extractor's 3 shared-component proposals (#56249) — all self-filed same run (cross-ref #56245).
+- **[declined, self-filed]** ESLint Refiner's 2 rule-quality findings (#56290) — self-filed as usual.
+- **[declined, self-filed]** Sergo's `notYetEnforced` stale-reason-string finding (#56254, aw_sg62a1) — self-filed.
+- **[declined, chronic]** `CompileWorkflowData` 179-line split (#56234 Daily Compiler Quality) — 3+ prior closed attempts (#50814/#49094/#46178) never stuck, now subsumed by LintMonster's own open trackers #56228/#56229.
+- **[declined, chronic]** GitHub Remote MCP Auth Test toolset unavailability (#56292) — 19th+ occurrence, standing policy.
+- **[declined, healthy]** Firewall Escape Test (#56277, SECURE, 10/10 novel techniques failed), Issue Arborist (#56285, 2 new parent umbrellas created, healthy housekeeping) — no action.
+
 ## Flagged Items (2026-08-26, ~18:56Z cycle, window since 12:37Z baseline #56035, 9 new discussions: 56036,56041,56045,56065,56070,56073,56074,56095,56096)
 
 - **[new, filed]** CI ratchet for full-repo error-message audit (2,631 violations, currently unenforced) — Repository Quality #56045 Task 1.
