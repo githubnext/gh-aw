@@ -290,6 +290,7 @@ global.core = {
   error: message => records.errors.push(String(message)),
   setFailed: message => records.setFailed.push(String(message)),
   setOutput: (name, value) => records.setOutput.push({ name: String(name), value: String(value) }),
+	exportVariable: (name, value) => { process.env[String(name)] = String(value); },
   startGroup: message => records.info.push(String(message)),
   endGroup: () => records.info.push("::endgroup::"),
   summary: {
