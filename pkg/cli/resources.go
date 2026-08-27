@@ -54,7 +54,7 @@ func extractResources(content string) ([]string, error) {
 	}
 	if graders != nil {
 		for _, grader := range graders.Graders {
-			if grader != nil && (grader.Enabled == nil || *grader.Enabled) && grader.Run != "" {
+			if grader != nil && grader.Run != "" {
 				paths = append(paths, grader.Run)
 			}
 		}

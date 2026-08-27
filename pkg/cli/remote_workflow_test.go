@@ -1821,6 +1821,24 @@ graders:
 	assert.Equal(t, []string{".github/graders/example-operational-value.sh"}, resources)
 }
 
+func TestExtractResources_IncludesDisabledGraderEvaluator(t *testing.T) {
+	content := `---
+on: issues
+graders:
+  operational-value:
+    enabled: false
+    run: .github/graders/example-operational-value.sh
+  retries:
+    enabled: true
+---
+
+# Workflow
+`
+	resources, err := extractResources(content)
+	require.NoError(t, err)
+	assert.Equal(t, []string{".github/graders/example-operational-value.sh"}, resources)
+}
+
 func TestFetchAndSaveRemoteResources_InstallsAndRestoresGraderEvaluator(t *testing.T) {
 	tmpDir := t.TempDir()
 	setupMinimalGitRepo(t, tmpDir)
