@@ -21,7 +21,7 @@ func TestMCPScriptsWithFirewallIncludesHostDockerInternal(t *testing.T) {
 			Firewall: &FirewallConfig{
 				Enabled: true,
 			},
-			Allowed: []string{"github.com"},
+			Allowed: []string{"copilot", "github.com"},
 		},
 		MCPScripts: &MCPScriptsConfig{
 			Tools: map[string]*MCPScriptToolConfig{
@@ -52,9 +52,9 @@ func TestMCPScriptsWithFirewallIncludesHostDockerInternal(t *testing.T) {
 
 // TestGetCopilotAllowedDomainsWithMCPScripts tests the domain calculation function
 func TestGetCopilotAllowedDomainsWithMCPScripts(t *testing.T) {
-	t.Run("always includes host.docker.internal in default domains", func(t *testing.T) {
+	t.Run("includes host.docker.internal with explicit copilot domain set", func(t *testing.T) {
 		network := &NetworkPermissions{
-			Allowed: []string{"github.com"},
+			Allowed: []string{"copilot", "github.com"},
 		}
 
 		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
@@ -70,12 +70,12 @@ func TestGetCopilotAllowedDomainsWithMCPScripts(t *testing.T) {
 
 	t.Run("includes host.docker.internal even when mcp-scripts disabled", func(t *testing.T) {
 		network := &NetworkPermissions{
-			Allowed: []string{"github.com"},
+			Allowed: []string{"copilot", "github.com"},
 		}
 
 		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
 
-		// host.docker.internal is now in default domains, so it's always included
+		// host.docker.internal is part of the explicit copilot domain set
 		if !strings.Contains(result, "host.docker.internal") {
 			t.Errorf("Expected result to contain 'host.docker.internal' (now in defaults), got: %s", result)
 		}
@@ -87,12 +87,12 @@ func TestGetCopilotAllowedDomainsWithMCPScripts(t *testing.T) {
 
 	t.Run("backward compatibility with GetCopilotAllowedDomains", func(t *testing.T) {
 		network := &NetworkPermissions{
-			Allowed: []string{"github.com"},
+			Allowed: []string{"copilot", "github.com"},
 		}
 
 		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
 
-		// host.docker.internal is now in default domains
+		// host.docker.internal is part of the explicit copilot domain set
 		if !strings.Contains(result, "host.docker.internal") {
 			t.Errorf("Expected result to contain 'host.docker.internal' (now in defaults), got: %s", result)
 		}

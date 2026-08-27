@@ -4487,8 +4487,8 @@ safe-outputs:
   urls: "allowed-only"
 
   # List of allowed domains for URL redaction in safe output handlers. Supports
-  # ecosystem identifiers (e.g., "python", "node", "default-safe-outputs") like
-  # network.allowed. These domains are unioned with the engine defaults and
+  # domain set identifiers (e.g., "python", "node", "default-safe-outputs",
+  # "copilot") like network.allowed. These domains are unioned with
   # network.allowed when computing the final allowed domain set. localhost and
   # github.com are always included.
   # (optional)

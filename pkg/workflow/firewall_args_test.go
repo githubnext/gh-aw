@@ -18,6 +18,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"copilot"},
 				Firewall: &FirewallConfig{
 					Enabled: true,
 				},
@@ -76,6 +77,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"copilot"},
 				Firewall: &FirewallConfig{
 					Enabled: true,
 					Args:    []string{"--custom-arg", "value", "--another-flag"},

@@ -25,6 +25,7 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 			ID: "claude",
 		},
 		NetworkPermissions: &NetworkPermissions{
+			Allowed:  []string{"claude"},
 			Firewall: &FirewallConfig{Enabled: true},
 		},
 		Tools: map[string]any{

@@ -14,8 +14,9 @@ func TestComputeAllowedDomainsForSanitizationCacheReplacesByPath(t *testing.T) {
 	compiler.markdownPath = "/tmp/workflow-a.md"
 
 	data := &WorkflowData{
-		FrontmatterHash: "hash-1",
-		AI:              "copilot",
+		FrontmatterHash:    "hash-1",
+		AI:                 "copilot",
+		NetworkPermissions: &NetworkPermissions{Allowed: []string{"copilot"}},
 	}
 
 	first, err := compiler.computeAllowedDomainsForSanitization(data)
@@ -25,8 +26,9 @@ func TestComputeAllowedDomainsForSanitizationCacheReplacesByPath(t *testing.T) {
 	require.Equal(t, "hash-1", compiler.allowedDomainsCache["/tmp/workflow-a.md"].frontmatterHash)
 
 	data2 := &WorkflowData{
-		FrontmatterHash: "hash-2",
-		AI:              "copilot",
+		FrontmatterHash:    "hash-2",
+		AI:                 "copilot",
+		NetworkPermissions: &NetworkPermissions{Allowed: []string{"copilot"}},
 	}
 	second, err := compiler.computeAllowedDomainsForSanitization(data2)
 	require.NoError(t, err)
@@ -37,8 +39,9 @@ func TestComputeAllowedDomainsForSanitizationCacheReplacesByPath(t *testing.T) {
 
 	compiler.markdownPath = "/tmp/workflow-b.md"
 	data3 := &WorkflowData{
-		FrontmatterHash: "hash-3",
-		AI:              "copilot",
+		FrontmatterHash:    "hash-3",
+		AI:                 "copilot",
+		NetworkPermissions: &NetworkPermissions{Allowed: []string{"copilot"}},
 	}
 	_, err = compiler.computeAllowedDomainsForSanitization(data3)
 	require.NoError(t, err)
