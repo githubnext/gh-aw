@@ -147,6 +147,7 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 		"GH_AW_PR_HEAD_BASE_REPO",
 		"GH_AW_PR_HEAD_BASE_PR_NUMBER",
 		"GH_AW_PR_HEAD_BASE_REF",
+		"GH_AW_PR_HEAD_REPO",
 	} {
 		assert.Contains(t, containerCmd.String(), " -e "+name)
 	}

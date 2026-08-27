@@ -960,6 +960,7 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 		"GH_AW_PR_HEAD_BASE_REPO",
 		"GH_AW_PR_HEAD_BASE_PR_NUMBER",
 		"GH_AW_PR_HEAD_BASE_REF",
+		"GH_AW_PR_HEAD_REPO",
 	} {
 		assert.Contains(t, yamlStr, " -e "+name,
 			"MCP gateway container should receive PR head baseline metadata")

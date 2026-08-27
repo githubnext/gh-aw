@@ -431,6 +431,7 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_REPO")
 	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_PR_NUMBER")
 	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_REF")
+	containerCmd.WriteString(" -e GH_AW_PR_HEAD_REPO")
 	containerCmd.WriteString(" -e " + compilerenv.PolicyAllowCreatePullRequest)
 	containerCmd.WriteString(" -e GH_AW_ASSETS_BRANCH")
 	containerCmd.WriteString(" -e GH_AW_ASSETS_MAX_SIZE_KB")
