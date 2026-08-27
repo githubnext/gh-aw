@@ -6510,6 +6510,7 @@ describe("parseOTLPEndpoints", () => {
   describe("GH_AW_OTLP_IF_MISSING=ignore (enterprise-default fallback)", () => {
     afterEach(() => {
       delete process.env.GH_AW_OTLP_IF_MISSING;
+      delete process.env.GH_AW_OTLP_ENDPOINTS;
     });
 
     it("drops an endpoint with a URL but no headers to avoid unauthenticated export", () => {
