@@ -155,6 +155,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	if err := validateEngine(engineOverride); err != nil {
 		return err
 	}
+	addLog.Printf("Adding %d workflow source(s): force=%t, create_pr=%t", len(args), forceFlag, createPRFlag || prFlagAlias)
 
 	opts := AddOptions{
 		Verbose:                verbose,
@@ -181,6 +182,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		return err
 	}
 	if _, err := AddResolvedWorkflows(cmd.Context(), args, resolved, opts); err != nil {
+		addLog.Printf("Add command failed while installing resolved workflows: %v", err)
 		return err
 	}
 	return nil

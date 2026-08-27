@@ -34,6 +34,9 @@ global.github = {
         },
       }),
     },
+    pulls: {
+      get: vi.fn(),
+    },
   },
 };
 
@@ -742,6 +745,147 @@ describe("dispatch_workflow handler factory", () => {
     });
   });
 
+  it("should resolve an omitted ref to the PR head for issue_comment events", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockResolvedValueOnce({
+      data: {
+        head: {
+          ref: "feature/add-new-feature",
+        },
+      },
+    });
+
+    const handler = await main({
+      allowed_refs: ["**"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    expect(github.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      pull_number: 456,
+    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "refs/heads/feature/add-new-feature",
+      })
+    );
+  });
+
+  it("should apply allowed-refs to an omitted ref resolved from a PR issue_comment", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockResolvedValueOnce({
+      data: {
+        head: {
+          ref: "feature/add-new-feature",
+        },
+      },
+    });
+
+    const handler = await main({
+      allowed_refs: ["release/*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result).toEqual({
+      success: false,
+      error: "Ref 'refs/heads/feature/add-new-feature' is not in allowed-refs: refs/heads/release/*",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should fail the dispatch when the PR head ref is missing", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockResolvedValueOnce({ data: { head: {} } });
+
+    const handler = await main({
+      allowed_refs: ["**"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Unable to resolve head ref for pull request #456");
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should retry ref resolution after a failed pull request lookup", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockRejectedValueOnce(new Error("API unavailable")).mockResolvedValueOnce({
+      data: {
+        head: {
+          ref: "feature/add-new-feature",
+        },
+      },
+    });
+
+    const handler = await main({
+      allowed_refs: ["**"],
+      max: 2,
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const message = { type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} };
+    const firstResult = await handler(message, {});
+    expect(firstResult.success).toBe(false);
+    expect(firstResult.error).toContain("API unavailable");
+
+    const secondResult = await handler(message, {});
+    expect(secondResult.success).toBe(true);
+    expect(github.rest.pulls.get).toHaveBeenCalledTimes(2);
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "refs/heads/feature/add-new-feature",
+      })
+    );
+  });
+
   it("should use repository default branch when no GITHUB_REF is set", async () => {
     delete process.env.GITHUB_REF;
     delete process.env.GITHUB_HEAD_REF;
@@ -1055,6 +1199,34 @@ describe("dispatch_workflow handler factory", () => {
         ref: "refs/heads/feature-branch",
       })
     );
+  });
+
+  it("should apply allowed-refs to an explicit ref when target-ref is configured", async () => {
+    const config = {
+      "target-repo": "other-org/other-repo",
+      allowed_repos: ["other-org/other-repo"],
+      allowed_refs: ["release/*"],
+      "target-ref": "refs/heads/feature-branch",
+      workflows: ["target-workflow"],
+      workflow_files: { "target-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "target-workflow",
+        ref: "untrusted-branch",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Ref 'refs/heads/untrusted-branch' is not in allowed-refs: refs/heads/release/*",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
   it("should use caller GITHUB_REF when dispatching to same repo without target-ref", async () => {

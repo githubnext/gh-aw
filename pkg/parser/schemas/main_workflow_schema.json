@@ -8713,6 +8713,14 @@
                     }
                   ]
                 },
+                "issues": {
+                  "type": "boolean",
+                  "description": "When false, excludes issues:write for remove-labels from both the safe_outputs job permissions and any minted GitHub App token. Default (omitted or true) includes issues:write."
+                },
+                "pull-requests": {
+                  "type": "boolean",
+                  "description": "When false, excludes pull-requests:write for remove-labels from both the safe_outputs job permissions and any minted GitHub App token. Default (omitted or true) includes pull-requests:write."
+                },
                 "target": {
                   "type": "string",
                   "description": "Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
@@ -12898,8 +12906,8 @@
               },
               "run": {
                 "type": "string",
-                "pattern": "^\\.github/graders/.+\\.sh$",
-                "description": "Repository-relative Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
+                "pattern": "^(?:\\./)?(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+))*\\.sh$",
+                "description": "Workspace-relative or ./ workflow-local Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
               }
             }
           }

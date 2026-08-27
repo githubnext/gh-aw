@@ -24,10 +24,10 @@ var (
 
 var notYetEnforced = map[string]string{
 	"errorfwrapv":                 "requires an enforcement audit after the recent false-positive fix (#51928)",
-	"errormessage":                "enforced by the dedicated lint-error-messages CI job",
-	"excessivefuncparams":         "legitimate high-parameter functions cannot yet be suppressed",
+	"errormessage":                "dedicated lint-error-messages CI job is intentionally advisory (continue-on-error per #54800)",
+	"excessivefuncparams":         "existing production violations need remediation before enforcement; nolint suppression already works",
 	"hardcodedfilepath":           "requires an enforcement audit after the same-package constant fix (#52428)",
-	"largefunc":                   "legitimate large functions cannot yet be suppressed",
+	"largefunc":                   "existing production violations need remediation before enforcement; nolint suppression already works",
 	"lenstringzero":               "requires an enforcement audit after the diagnostic-message fix (#54717)",
 	"manualpathconcat":            "existing production violations need remediation",
 	"packagelevelmutableslicemap": "existing production violations need remediation",

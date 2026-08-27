@@ -64,10 +64,27 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		awfArgs:                awfArgs,
 		shellWrappedCommand:    shellWrappedCommand,
 		logFile:                config.LogFile,
+		engineName:             config.EngineName,
+		retryStartupFailures:   config.RetryStartupFailures || usesBuiltInEngineHarness(config.EngineName, config.EngineCommand),
 	})
 
 	awfHelpersLog.Print("Successfully built AWF command")
 	return command
+}
+
+func usesBuiltInEngineHarness(engineName, engineCommand string) bool {
+	switch engineName {
+	case "claude":
+		return strings.Contains(engineCommand, "claude_harness.cjs")
+	case "codex":
+		return strings.Contains(engineCommand, "codex_harness.cjs")
+	case "copilot":
+		return strings.Contains(engineCommand, "copilot_harness.cjs")
+	case "gemini", "pi":
+		return strings.Contains(engineCommand, "shell_harness.cjs")
+	default:
+		return false
+	}
 }
 
 func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDind bool, arcDindDockerHostProbe string) (string, string) {
@@ -327,6 +344,8 @@ type buildAWFCommandScriptInput struct {
 	awfArgs                []string
 	shellWrappedCommand    string
 	logFile                string
+	engineName             string
+	retryStartupFailures   bool
 }
 
 func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
@@ -348,18 +367,55 @@ func buildAWFCommandScript(input buildAWFCommandScriptInput) string {
 		input.arcDindPrefixProbe,
 		input.toolCacheMountProbe,
 		awfShellcheckDirective,
-		fmt.Sprintf(`%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			input.awfCommand,
-			input.expandableArgs,
-			input.toolCacheMountRef,
-			input.arcDindDockerHostRef,
-			shellJoinArgs(input.awfArgs),
-			input.shellWrappedCommand,
-			shellEscapeArg(input.logFile),
-		),
+		buildAWFInvocationCommand(input),
 	)
 	return strings.Join(lines, "\n")
+}
+
+func buildAWFInvocationCommand(input buildAWFCommandScriptInput) string {
+	engineName := input.engineName
+	if engineName == "" {
+		engineName = "agent"
+	}
+	safeEngineName := safeAWFTempFileNamePart(engineName)
+	harnessMarker := shellEscapeArg(fmt.Sprintf("[%s-harness]", engineName))
+	command := fmt.Sprintf(`%s %s %s %s %s \
+  -- %s`,
+		input.awfCommand,
+		input.expandableArgs,
+		input.toolCacheMountRef,
+		input.arcDindDockerHostRef,
+		shellJoinArgs(input.awfArgs),
+		input.shellWrappedCommand,
+	)
+	if !input.retryStartupFailures {
+		return fmt.Sprintf("%s 2>&1 | tee -a %s", command, shellEscapeArg(input.logFile))
+	}
+
+	return fmt.Sprintf(`GH_AW_AWF_ENGINE_NAME=%s \
+GH_AW_AWF_HARNESS_MARKER=%s \
+GH_AW_AWF_LOG_FILE=%s \
+GH_AW_AWF_ATTEMPT_LOG_NAME=%s \
+bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" -- \
+  %s`,
+		shellEscapeArg(engineName),
+		harnessMarker,
+		shellEscapeArg(input.logFile),
+		shellEscapeArg(safeEngineName),
+		command,
+	)
+}
+
+func safeAWFTempFileNamePart(value string) string {
+	if value == "" {
+		return "agent"
+	}
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			return r
+		}
+		return '_'
+	}, value)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.

@@ -89,6 +89,12 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
     delete process.env.GITHUB_ACTOR;
+    delete process.env.GH_AW_PR_HEAD_BASE_BRANCH;
+    delete process.env.GH_AW_PR_HEAD_BASE_REPO;
+    delete process.env.GH_AW_PR_HEAD_BASE_REF;
+    delete process.env.GH_AW_PR_HEAD_BASE_SHA;
+    delete process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER;
+    delete process.env.GH_AW_PR_HEAD_REPO;
   });
 
   describe("probe intent helpers", () => {
@@ -2070,6 +2076,198 @@ describe("safe_outputs_handlers", () => {
       } finally {
         delete process.env.GITHUB_BASE_REF;
         process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+      }
+    });
+
+    it("uses recorded PR-head baseline when persisting fork PR branch updates", async () => {
+      const repoDir = path.join(testWorkspaceDir, "fork-pr-repo");
+      fs.mkdirSync(repoDir, { recursive: true });
+      execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@test.com'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/owner/repo.git", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+      execSync("git add README.md && git commit -m init", { cwd: repoDir, stdio: "pipe" });
+
+      execSync("git checkout -b feature/fork-only", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "fork.txt"), "fork PR head\n");
+      execSync("git add fork.txt && git commit -m 'fork PR head'", { cwd: repoDir, stdio: "pipe" });
+      const prHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+      execSync(`git update-ref refs/remotes/origin/pr-head ${prHeadSha}`, { cwd: repoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(repoDir, "agent.txt"), "agent follow-up\n");
+      execSync("git add agent.txt && git commit -m 'agent follow-up'", { cwd: repoDir, stdio: "pipe" });
+
+      const originalEventName = mockContext.eventName;
+      const originalPayload = mockContext.payload;
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { pull_request: { number: 123 } };
+      process.env.GITHUB_WORKSPACE = repoDir;
+      process.env.GITHUB_BASE_REF = "main";
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_BRANCH = "feature/fork-only";
+      process.env.GH_AW_PR_HEAD_BASE_REPO = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
+      process.env.GH_AW_PR_HEAD_BASE_SHA = prHeadSha;
+      process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER = "123";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          branch: "feature/fork-only",
+          pull_request_number: 123,
+        });
+
+        expect(result.isError).toBeFalsy();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            branch: "feature/fork-only",
+            base_commit: prHeadSha,
+          })
+        );
+      } finally {
+        mockContext.eventName = originalEventName;
+        mockContext.payload = originalPayload;
+        process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+        delete process.env.GITHUB_BASE_REF;
+      }
+    });
+
+    it("rejects an unconfigured contributor fork but permits the configured head repo", async () => {
+      const repoDir = path.join(testWorkspaceDir, "unconfigured-fork-pr-repo");
+      fs.mkdirSync(repoDir, { recursive: true });
+      execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@test.com'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+      execSync("git add README.md && git commit -m init", { cwd: repoDir, stdio: "pipe" });
+      execSync("git checkout -b feature/contributor-fork", { cwd: repoDir, stdio: "pipe" });
+      const prHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+      execSync(`git update-ref refs/remotes/origin/pr-head ${prHeadSha}`, { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "agent.txt"), "proposed change\n");
+      execSync("git add agent.txt && git commit -m 'proposed change'", { cwd: repoDir, stdio: "pipe" });
+
+      const originalEventName = mockContext.eventName;
+      const originalPayload = mockContext.payload;
+      mockContext.eventName = "pull_request";
+      mockContext.payload = { pull_request: { number: 123 } };
+      process.env.GITHUB_WORKSPACE = repoDir;
+      process.env.GITHUB_BASE_REF = "main";
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_BRANCH = "feature/contributor-fork";
+      process.env.GH_AW_PR_HEAD_BASE_REPO = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
+      process.env.GH_AW_PR_HEAD_BASE_SHA = prHeadSha;
+      process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER = "123";
+      process.env.GH_AW_PR_HEAD_REPO = "contributor/test-repo";
+      try {
+        const handlersWithPAT = createHandlers(mockServer, mockAppendSafeOutput, {
+          push_to_pull_request_branch: {
+            "github-token": "pat-that-may-have-fork-access",
+          },
+        });
+        const result = await handlersWithPAT.pushToPullRequestBranchHandler({
+          branch: "feature/contributor-fork",
+          pull_request_number: 123,
+        });
+
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.error).toContain("contributor fork 'contributor/test-repo'");
+        expect(responseData.error).toContain("head-repo does not authorize that repository");
+        expect(responseData.error).toContain("PAT alone does not authorize an unconfigured fork");
+        expect(responseData.error).toContain("Do not retry this push with the current configuration");
+        expect(responseData.error).toContain("add_comment");
+        expect(responseData.error).toContain("report_incomplete");
+        expect(responseData.error).toContain("proposed code or patch");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+
+        const configuredHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          push_to_pull_request_branch: {
+            "head-repo": "contributor/test-repo",
+          },
+        });
+        const configuredResult = await configuredHandlers.pushToPullRequestBranchHandler({
+          branch: "feature/contributor-fork",
+          pull_request_number: 123,
+        });
+        expect(configuredResult.isError).toBeFalsy();
+        expect(JSON.parse(configuredResult.content[0].text).result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            head_repo: "contributor/test-repo",
+          })
+        );
+      } finally {
+        mockContext.eventName = originalEventName;
+        mockContext.payload = originalPayload;
+        process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+        delete process.env.GITHUB_BASE_REF;
+      }
+    });
+
+    it("ignores recorded PR-head baseline when the PR number does not match the target PR", async () => {
+      const repoDir = path.join(testWorkspaceDir, "fork-pr-repo-mismatch");
+      fs.mkdirSync(repoDir, { recursive: true });
+      execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@test.com'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/owner/repo.git", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+      execSync("git add README.md && git commit -m init", { cwd: repoDir, stdio: "pipe" });
+
+      execSync("git checkout -b feature/fork-only", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "fork.txt"), "fork PR head\n");
+      execSync("git add fork.txt && git commit -m 'fork PR head'", { cwd: repoDir, stdio: "pipe" });
+      const prHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+      execSync(`git update-ref refs/remotes/origin/pr-head ${prHeadSha}`, { cwd: repoDir, stdio: "pipe" });
+
+      fs.writeFileSync(path.join(repoDir, "agent.txt"), "agent follow-up\n");
+      execSync("git add agent.txt && git commit -m 'agent follow-up'", { cwd: repoDir, stdio: "pipe" });
+
+      const originalEventName = mockContext.eventName;
+      const originalPayload = mockContext.payload;
+      mockContext.eventName = "pull_request";
+      // Triggering PR is #123, but this call targets a different fork PR (#456)
+      // that happens to share the same branch name and base repo.
+      mockContext.payload = { pull_request: { number: 123 } };
+      process.env.GITHUB_WORKSPACE = repoDir;
+      process.env.GITHUB_BASE_REF = "main";
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_BRANCH = "feature/fork-only";
+      process.env.GH_AW_PR_HEAD_BASE_REPO = "test-owner/test-repo";
+      process.env.GH_AW_PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
+      process.env.GH_AW_PR_HEAD_BASE_SHA = prHeadSha;
+      process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER = "123";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          branch: "feature/fork-only",
+          pull_request_number: 456,
+        });
+
+        // The mismatched baseline must not be reused: with no origin/<branch> present
+        // and the recorded PR-head baseline rejected, patch generation should fail
+        // rather than silently diffing against the wrong PR's baseline.
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            base_commit: prHeadSha,
+          })
+        );
+      } finally {
+        mockContext.eventName = originalEventName;
+        mockContext.payload = originalPayload;
+        process.env.GITHUB_WORKSPACE = testWorkspaceDir;
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+        delete process.env.GITHUB_BASE_REF;
       }
     });
 

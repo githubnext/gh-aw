@@ -802,6 +802,104 @@ func TestBuildAWFCommandScript_OptionalSections(t *testing.T) {
 	}
 }
 
+func TestBuildAWFCommandScript_RetriesEngineStartupFailuresOutsideHarness(t *testing.T) {
+	input := buildAWFCommandScriptInput{
+		writeAgentCLIStartMs: "start",
+		preCreateLog:         "pre",
+		awfCommand:           "awf",
+		expandableArgs:       "--expand",
+		awfArgs:              []string{"--arg", "value"},
+		shellWrappedCommand:  "wrapped",
+		logFile:              "/tmp/test.log",
+		engineName:           "codex",
+		retryStartupFailures: true,
+	}
+
+	command := buildAWFCommandScript(input)
+
+	assert.Contains(t, command, `bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" --`)
+	assert.Contains(t, command, `GH_AW_AWF_ENGINE_NAME=codex`)
+	assert.Contains(t, command, `GH_AW_AWF_HARNESS_MARKER='[codex-harness]'`)
+	assert.Contains(t, command, `GH_AW_AWF_LOG_FILE=/tmp/test.log`)
+	assert.Contains(t, command, `GH_AW_AWF_ATTEMPT_LOG_NAME=codex`)
+	assert.Contains(t, command, "awf --expand   --arg value \\\n  -- wrapped")
+	assert.NotContains(t, command, "while true; do")
+	assert.NotContains(t, command, "Fatal error:|Process exiting with code:|Refusing to use symlink as bind mountpoint")
+}
+
+func TestBuiltInEngineAWFWrapsOuterInvocationWithStartupRetry(t *testing.T) {
+	tests := []struct {
+		name          string
+		engineID      string
+		buildStep     func(*WorkflowData) []GitHubActionStep
+		harnessMarker string
+	}{
+		{
+			name:     "claude",
+			engineID: "claude",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewClaudeEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[claude-harness]",
+		},
+		{
+			name:     "codex",
+			engineID: "codex",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewCodexEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[codex-harness]",
+		},
+		{
+			name:     "copilot",
+			engineID: "copilot",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewCopilotEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[copilot-harness]",
+		},
+		{
+			name:     "gemini",
+			engineID: "gemini",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewGeminiEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[gemini-harness]",
+		},
+		{
+			name:     "pi",
+			engineID: "pi",
+			buildStep: func(workflowData *WorkflowData) []GitHubActionStep {
+				return NewPiEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			},
+			harnessMarker: "[pi-harness]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: tt.engineID},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+				},
+			}
+
+			steps := tt.buildStep(workflowData)
+			if len(steps) == 0 {
+				t.Fatalf("Expected at least 1 execution step")
+			}
+			stepContent := strings.Join([]string(steps[len(steps)-1]), "\n")
+
+			assert.Contains(t, stepContent, `bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" --`)
+			assert.Contains(t, stepContent, `GH_AW_AWF_ENGINE_NAME=`+tt.engineID)
+			assert.Contains(t, stepContent, `GH_AW_AWF_HARNESS_MARKER='`+tt.harnessMarker+`'`)
+			assert.Contains(t, stepContent, `GH_AW_AWF_ATTEMPT_LOG_NAME=`+tt.engineID)
+		})
+	}
+}
+
 func argValue(args []string, flag string) string {
 	for i, arg := range args {
 		if arg == flag && i+1 < len(args) {

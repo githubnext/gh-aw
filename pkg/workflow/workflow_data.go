@@ -166,6 +166,7 @@ type WorkflowData struct {
 	OTLPEndpoint                   string                          // resolved OTLP endpoint (from observability.otlp.endpoint, including imports; set by injectOTLPConfig)
 	OTLPHeaders                    string                          // normalized OTLP headers in key=value,key=value format (from observability.otlp.headers, including imports; set by injectOTLPConfig)
 	OTLPEndpoints                  string                          // JSON-encoded array of all OTLP endpoints (from observability.otlp.endpoints; set by injectOTLPConfig as GH_AW_OTLP_ENDPOINTS)
+	OTLPUsesEnterpriseDefaults     bool                            // true when the OTLP endpoint/headers come from the enterprise default vars/secrets rather than frontmatter (set by injectOTLPConfig)
 	ResolvedMCPServers             map[string]any                  // fully merged mcp-servers from main workflow and all imports (for mcp inspect)
 	ActionPinWarnings              map[string]bool                 // cache of already-warned action pin failures (key: "repo@version")
 	ActionMode                     ActionMode                      // action mode for workflow compilation (dev, release, script)
@@ -192,7 +193,7 @@ type WorkflowData struct {
 	CachedConcurrencyGroupExprErr  error                           // cached result of validateConcurrencyGroupExpression(ConcurrencyGroupExpr); nil = valid; populated by applyDefaults
 	Experiments                    map[string][]string             // A/B testing experiments: maps experiment name to variant list (from frontmatter)
 	ExperimentConfigs              map[string]*ExperimentConfig    // Full A/B experiment metadata (populated alongside Experiments)
-	ExperimentsStorage             string                          // "cache" or "repo" (default "repo"); controls how experiment state is persisted across runs
+	ExperimentsStorage             ExperimentStorageMode           // "cache" or "repo" (default "repo"); controls how experiment state is persisted across runs
 	CachedConcurrencyGroupExprSet  bool                            // true once CachedConcurrencyGroupExprErr has been populated; distinguishes "valid (nil)" from "not yet computed"
 	CachedParsedToolsets           []string                        // cached result of ParseGitHubToolsets for the GitHub tool (for performance optimization); populated by applyDefaults
 	CachedAllowedDomainsStr        string                          // cached allowed-domains string for sanitization (for performance optimization); computed once and reused across multiple compilation steps

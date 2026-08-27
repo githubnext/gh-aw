@@ -137,6 +137,51 @@ describe("generateGitBundle (incremental)", () => {
     expect(generatedBundleHeads).toBe(naiveBundleHeads);
   });
 
+  it("uses explicit PR-head baseline when a fork PR has no origin/<branch> ref", async () => {
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-remote-"));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-work-"));
+    tempDirs.push(remoteDir, workDir);
+
+    execGit(["init", "--bare"], { cwd: remoteDir });
+    execGit(["clone", remoteDir, workDir]);
+    execGit(["config", "user.name", "Test User"], { cwd: workDir });
+    execGit(["config", "user.email", "test@example.com"], { cwd: workDir });
+
+    fs.writeFileSync(path.join(workDir, "base.txt"), "base\n");
+    execGit(["add", "base.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "base"], { cwd: workDir });
+    execGit(["branch", "-M", "main"], { cwd: workDir });
+    execGit(["push", "-u", "origin", "main"], { cwd: workDir });
+
+    execGit(["checkout", "-b", "feature/fork-only"], { cwd: workDir });
+    fs.writeFileSync(path.join(workDir, "fork.txt"), "fork PR head\n");
+    execGit(["add", "fork.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "fork PR head"], { cwd: workDir });
+    const prHeadSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+    execGit(["update-ref", "refs/remotes/origin/pr-head", prHeadSha], { cwd: workDir });
+
+    fs.writeFileSync(path.join(workDir, "agent.txt"), "agent follow-up\n");
+    execGit(["add", "agent.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "agent follow-up"], { cwd: workDir });
+
+    expect(execGit(["rev-parse", "--verify", "refs/remotes/origin/feature/fork-only"], { cwd: workDir, allowFailure: true }).status).not.toBe(0);
+
+    const { generateGitBundle } = require("./generate_git_bundle.cjs");
+    const result = await generateGitBundle("feature/fork-only", "main", {
+      mode: "incremental",
+      cwd: workDir,
+      incrementalBaseRef: "refs/remotes/origin/pr-head",
+      incrementalBaseSha: prHeadSha,
+    });
+    expect(result.success).toBe(true);
+    expect(result.baseCommit).toBe(prHeadSha);
+    bundlePaths.push(result.bundlePath);
+
+    const bundleHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout.trim();
+    const currentHead = execGit(["rev-parse", "feature/fork-only"], { cwd: workDir }).stdout.trim();
+    expect(bundleHeads).toContain(currentHead);
+  });
+
   it("includes refs/heads/<branchName> in bundle when agent is on the target branch (non-main dispatch scenario)", async () => {
     // Simulates: scanner dispatches worker from a feature branch (non-main ref).
     // The worker checks out the feature branch, creates a new fix branch, commits on

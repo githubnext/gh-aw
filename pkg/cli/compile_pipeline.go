@@ -77,6 +77,7 @@ func compileSpecificFiles(
 	var strictGrantErr error
 	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
 	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
+	var shellcheckResources []workflow.ShellScriptResource
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -177,6 +178,7 @@ func compileSpecificFiles(
 					}
 					if config.shellcheckEnabled() {
 						lockFilesForShellcheck = append(lockFilesForShellcheck, fileResult.lockFile)
+						shellcheckResources = append(shellcheckResources, fileResult.workflowData.ShellScriptResources()...)
 					}
 				}
 			}
@@ -298,11 +300,11 @@ func compileSpecificFiles(
 	}
 
 	// Run shellcheck on run step scripts in all collected lock files.
-	if config.shellcheckEnabled() && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
+	if config.shellcheckEnabled() && !config.NoEmit && (len(lockFilesForShellcheck) > 0 || len(shellcheckResources) > 0) {
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}
-		if err := RunShellcheckOnLockFiles(ctx, lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunShellcheckOnLockFilesAndResources(ctx, lockFilesForShellcheck, shellcheckResources, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -423,6 +425,7 @@ func compileAllFilesInDirectory(
 	var strictGrantErr error
 	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
 	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
+	var shellcheckResources []workflow.ShellScriptResource
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -492,6 +495,7 @@ func compileAllFilesInDirectory(
 					}
 					if config.shellcheckEnabled() {
 						lockFilesForShellcheck = append(lockFilesForShellcheck, fileResult.lockFile)
+						shellcheckResources = append(shellcheckResources, fileResult.workflowData.ShellScriptResources()...)
 					}
 				}
 			}
@@ -607,11 +611,11 @@ func compileAllFilesInDirectory(
 	}
 
 	// Run shellcheck on run step scripts in all collected lock files.
-	if config.shellcheckEnabled() && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
+	if config.shellcheckEnabled() && !config.NoEmit && (len(lockFilesForShellcheck) > 0 || len(shellcheckResources) > 0) {
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}
-		if err := RunShellcheckOnLockFiles(ctx, lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunShellcheckOnLockFilesAndResources(ctx, lockFilesForShellcheck, shellcheckResources, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
