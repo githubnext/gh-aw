@@ -221,11 +221,24 @@ func TestInferEventsFromTriggers(t *testing.T) {
 			expected: []string{"issues"},
 		},
 		{
-			name: "no triggers",
+			name: "no recognized triggers falls back to all programmatic triggers",
 			frontmatter: map[string]any{
-				"on": map[string]any{},
+				"on": map[string]any{
+					"push":     map[string]any{},
+					"schedule": "daily",
+				},
 			},
-			expected: nil,
+			expected: []string{
+				"discussion",
+				"discussion_comment",
+				"issue_comment",
+				"issues",
+				"pull_request",
+				"pull_request_review",
+				"pull_request_review_comment",
+				"repository_dispatch",
+				"workflow_dispatch",
+			},
 		},
 		{
 			name:        "missing on section",
@@ -288,6 +301,30 @@ func TestExtractRateLimitConfig(t *testing.T) {
 			assert.Equal(t, 45, cfg.Window)
 			assert.Equal(t, []string{"issue_comment"}, cfg.Events)
 			assert.Equal(t, []string{"admin"}, cfg.IgnoredRoles)
+		}
+	})
+
+	t.Run("extracts legacy max-runs alias", func(t *testing.T) {
+		cfg := c.extractRateLimitConfig(map[string]any{
+			"user-rate-limit": map[string]any{
+				"max-runs": 4,
+			},
+		})
+
+		if assert.NotNil(t, cfg) {
+			assert.Equal(t, 4, cfg.Max)
+		}
+	})
+
+	t.Run("extracts legacy max alias", func(t *testing.T) {
+		cfg := c.extractRateLimitConfig(map[string]any{
+			"user-rate-limit": map[string]any{
+				"max": 2,
+			},
+		})
+
+		if assert.NotNil(t, cfg) {
+			assert.Equal(t, 2, cfg.Max)
 		}
 	})
 

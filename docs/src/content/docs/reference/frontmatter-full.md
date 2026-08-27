@@ -21976,6 +21976,7 @@ user-rate-limit:
   # Maximum number of workflow runs allowed per user within the time window.
   # Required field. Supports integer or GitHub Actions expression (e.g. '${{
   # inputs.max }}').
+  # (optional)
   # Accepted formats:
 
   # Format 1: integer
@@ -21990,8 +21991,8 @@ user-rate-limit:
   window: 1
 
   # Optional list of event types to apply rate limiting to. If not specified, rate
-  # limiting applies to all programmatically triggered events (e.g.,
-  # workflow_dispatch, issue_comment, pull_request_review).
+  # limiting is inferred from the workflow triggers; if no supported programmatic
+  # triggers are found, it falls back to all supported programmatic events.
   # (optional)
   events: []
     # Array of strings

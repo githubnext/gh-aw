@@ -499,13 +499,13 @@ max-daily-ai-credits: -1
 
 ### Per-User Rate Limiting (`user-rate-limit:`)
 
-Limits how frequently a single user can trigger the workflow. When the limit is exceeded, the pre-activation job cancels the run before the agent executes. Rate limiting applies to programmatically triggered events (such as `workflow_dispatch`, `issue_comment`, and `pull_request_review`); when `events` is omitted, the applicable events are inferred from the `on:` section.
+Limits how frequently a single user can trigger the workflow. When the limit is exceeded, the pre-activation job cancels the run before the agent executes. Rate limiting applies to programmatically triggered events (such as `workflow_dispatch`, `issue_comment`, and `pull_request_review`); when `events` is omitted, the applicable events are inferred from the `on:` section, falling back to all supported programmatic events if no supported triggers are found.
 
 ```yaml wrap
 user-rate-limit:
   max-runs-per-window: 5                      # Required: maximum runs per user per window (1-10)
   window: 60                                  # Optional: window in minutes (default: 60, max: 180)
-  events: [workflow_dispatch, issue_comment]  # Optional: events to rate limit (inferred from `on:` when omitted)
+  events: [workflow_dispatch, issue_comment]  # Optional: events to rate limit (inferred from `on:` when omitted; fallback to all supported programmatic events)
   ignored-roles: [admin, maintain]            # Optional: exempt roles (default: [admin, maintain, write])
 ```
 

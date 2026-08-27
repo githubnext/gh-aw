@@ -9,7 +9,7 @@ const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
  * Prevents users from triggering workflows too frequently
  */
 
-const PROGRAMMATIC_EVENTS = ["workflow_dispatch", "repository_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "discussion_comment"];
+const PROGRAMMATIC_EVENTS = ["discussion", "discussion_comment", "issue_comment", "issues", "pull_request", "pull_request_review", "pull_request_review_comment", "repository_dispatch", "workflow_dispatch"];
 
 async function main() {
   const {
