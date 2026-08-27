@@ -215,6 +215,7 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 				return nil, false, false, "", err
 			}
 			logsOrchestratorLog.Printf("Rate limit wait failed, retrying iteration: %v", err)
+			state.iteration++
 			continue
 		}
 		state.iteration++
