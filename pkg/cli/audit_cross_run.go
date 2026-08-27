@@ -197,6 +197,8 @@ type crossRunInput struct {
 	ErrorCount          int
 	TaskDomain          *TaskDomainInfo
 	BehaviorFingerprint *BehaviorFingerprint
+	GradersCluster      string
+	EvalsCluster        string
 }
 
 // buildCrossRunAuditReport aggregates data from multiple runs into a CrossRunAuditReport.

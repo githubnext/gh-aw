@@ -195,7 +195,34 @@ func processedRunsToCrossRunInputs(processedRuns []ProcessedRun) []crossRunInput
 			ErrorCount:          pr.Run.ErrorCount,
 			TaskDomain:          pr.TaskDomain,
 			BehaviorFingerprint: pr.BehaviorFingerprint,
+			GradersCluster:      deriveGradersClusterValue(pr.Run.LogsPath),
+			EvalsCluster:        deriveEvalsClusterValue(pr.Run.LogsPath),
 		})
 	}
 	return inputs
+}
+
+func deriveGradersClusterValue(logsPath string) string {
+	graders := extractGradersData(logsPath)
+	if graders == nil || graders.Total == 0 {
+		return "absent"
+	}
+	switch graders.Total {
+	case graders.Passed:
+		return "pass"
+	case graders.Failed:
+		return "fail"
+	case graders.ErrorCount:
+		return "error"
+	case graders.UnavailableCount:
+		return "unavailable"
+	}
+	return "mixed"
+}
+
+func deriveEvalsClusterValue(logsPath string) string {
+	if runHasEvals(logsPath, false) {
+		return "present"
+	}
+	return "absent"
 }
