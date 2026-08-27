@@ -212,7 +212,7 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 				break
 			}
 			if errors.Is(err, context.Canceled) {
-				return state.processedRuns, false, state.countLimitReached, state.beforeDate, err
+				return nil, false, false, "", err
 			}
 			logsOrchestratorLog.Printf("Rate limit wait failed, retrying iteration: %v", err)
 			continue
