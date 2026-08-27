@@ -210,6 +210,8 @@ func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 			safeOutputs: map[string]any{
 				"remove-labels": map[string]any{
 					"allowed":       []any{"bug", "feature"},
+					"issues":        true,
+					"pull-requests": false,
 					"target":        "*",
 					"target-repo":   "github/github",
 					"allowed-repos": []any{"github/docs"},

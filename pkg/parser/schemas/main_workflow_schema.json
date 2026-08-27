@@ -8705,6 +8705,14 @@
                     }
                   ]
                 },
+                "issues": {
+                  "type": "boolean",
+                  "description": "When false, excludes issues:write from the minted GitHub App token for remove-labels. Default (omitted or true) includes issues:write."
+                },
+                "pull-requests": {
+                  "type": "boolean",
+                  "description": "When false, excludes pull-requests:write from the minted GitHub App token for remove-labels. Default (omitted or true) includes pull-requests:write."
+                },
                 "target": {
                   "type": "string",
                   "description": "Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
