@@ -35,6 +35,7 @@ type rs05aBridgeResult struct {
 	Errors          []string            `json:"errors"`
 	SetFailed       []string            `json:"setFailed"`
 	SetOutput       []rs05aOutputCall   `json:"setOutput"`
+	ExportVariable  []rs05aOutputCall   `json:"exportVariable"`
 	Exec            []rs05aExecCall     `json:"exec"`
 	PermissionCalls []map[string]string `json:"permissionCalls"`
 	UserCalls       []map[string]string `json:"userCalls"`
@@ -277,6 +278,7 @@ const records = {
   errors: [],
   setFailed: [],
   setOutput: [],
+  exportVariable: [],
   exec: [],
   permissionCalls: [],
   userCalls: [],
@@ -290,6 +292,7 @@ global.core = {
   error: message => records.errors.push(String(message)),
   setFailed: message => records.setFailed.push(String(message)),
   setOutput: (name, value) => records.setOutput.push({ name: String(name), value: String(value) }),
+  exportVariable: (name, value) => records.exportVariable.push({ name: String(name), value: String(value) }),
   startGroup: message => records.info.push(String(message)),
   endGroup: () => records.info.push("::endgroup::"),
   summary: {

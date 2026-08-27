@@ -202,22 +202,7 @@ See [workflow-constraints.md](workflow-constraints.md) for the read-only securit
 
 ### 5. Infer network access from repository files
 
-Do not ask for the ecosystem if it can be inferred from the repository.
-
-Common mappings:
-
-- `.csproj`, `.fsproj`, `*.sln`, `*.slnx`, `global.json` → `dotnet`
-- `requirements.txt`, `pyproject.toml`, `setup.py`, `uv.lock` → `python`
-- `package.json`, `.nvmrc`, `yarn.lock`, `pnpm-lock.yaml` → `node`
-- `go.mod`, `go.sum` → `go`
-- `pom.xml`, `build.gradle`, `build.gradle.kts` → `java`
-- `Gemfile`, `*.gemspec` → `ruby`
-- `Cargo.toml`, `Cargo.lock` → `rust`
-- `Package.swift`, `*.podspec` → `swift`
-- `composer.json` → `php`
-- `pubspec.yaml` → `dart`
-
-Never use `network: defaults` alone for workflows that build, test, or install packages.
+Do not ask for the ecosystem if it can be inferred from the repository. See [network.md#inferring-ecosystem-from-repository-files](network.md#inferring-ecosystem-from-repository-files) for the manifest-to-ecosystem mapping. Never use `network: defaults` alone for workflows that build, test, or install packages.
 
 ### 6. Configure safe outputs
 
@@ -272,12 +257,7 @@ The markdown body should:
 - instruct the agent to call `noop` when no visible change is needed
 - stay concise and task-focused
 
-When the workflow generates reports or markdown output, include these formatting rules only when relevant:
-
-- use GitHub-flavored markdown
-- start nested report headings at `###`
-- use `<details><summary>...</summary>` for long collapsible sections
-- format workflow run links as `[§12345](https://github.com/owner/repo/actions/runs/12345)`
+When the workflow generates reports or markdown output, follow [report.md#report-style-and-structure](report.md#report-style-and-structure) and [report.md#workflow-run-references](report.md#workflow-run-references).
 
 ## Issue-Form Mode Procedure
 

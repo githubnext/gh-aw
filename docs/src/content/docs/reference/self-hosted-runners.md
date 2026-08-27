@@ -212,6 +212,25 @@ Keys and values must use the `owner/repo@ref` format. Each source version must b
 
 Keys are source image references as they appear in compiled workflows. `image` must be a valid image reference without a digest, and `digest` must be a full `sha256:<64 lowercase hex characters>` digest.
 
+### AWF infrastructure image overrides (`sandbox.agent.images`)
+
+Use `container_pins` for general container substitutions, and use `sandbox.agent.images` when replacing AWF infrastructure roles themselves. This is the supported path for self-hosted and air-gapped setups that must mirror and approve AWF sidecar images with explicit digests.
+
+```aw wrap
+sandbox:
+  agent:
+    version: v0.28.8
+    images:
+      squid: registry.example.com/approved/squid:v0.28.8@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      agent: registry.example.com/approved/agent:v0.28.8@sha256:1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      apiProxy: registry.example.com/approved/api-proxy:v0.28.8@sha256:2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+> [!NOTE]
+> The digest values in this example are placeholders. Replace them with the exact digests from your approved registry images.
+
+When this manifest is set, AWF uses these references as authoritative runtime role images. Keep values literal and digest-pinned; expressions are rejected at compile time. For role requirements and constraints (for example `cliProxy` with `tools.github.mode: gh-proxy`, or `buildTools` with `runner.topology: arc-dind`), see [Sandbox custom infrastructure images](/gh-aw/reference/sandbox/#custom-infrastructure-images-sandboxagentimages).
+
 ### Combined example
 
 ```json title=".github/workflows/aw.json"

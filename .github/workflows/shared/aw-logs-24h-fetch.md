@@ -21,7 +21,7 @@ steps:
   - name: Download logs from last 24 hours
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: ./gh-aw logs --start-date -1d --count 3000 -o /tmp/gh-aw/aw-mcp/logs
+    run: ./gh-aw logs --start-date -1d --count 3000 --artifacts usage -o /tmp/gh-aw/aw-mcp/logs
 ---
 
 ## Agentic Workflow Logs (Last 24h)

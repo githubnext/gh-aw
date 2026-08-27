@@ -100,6 +100,8 @@ The YAML frontmatter supports these fields:
     - When `false`, disables the hash check step; useful when workflow files are managed outside the default repository context (e.g., cross-repo org rulesets)
     - When `"full"`, checks both the frontmatter hash and body hash; use when prompt-body edits should also trigger recompilation detection
 
+- **`github-app:`** - Top-level GitHub App credentials, used as a fallback for every nested `github-app` token-minting operation (`on.github-app`, `safe-outputs.github-app`, `checkout.github-app`, `tools.github.github-app`, `dependencies.github-app`) that does not define its own. Same fields as `on.github-app` above (`client-id`/`app-id`, `private-key`, `owner`, `repositories`).
+
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `none` (and limited `write` for specific scopes)
   - Common permission scopes (not exhaustive; standard GitHub Actions scopes plus `models`, `copilot-requests`): `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`, `packages`, `pages`, `attestations`, `copilot-requests`

@@ -32,7 +32,7 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.245"
+const DefaultClaudeCodeVersion Version = "2.1.247"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.80"
 const DefaultCopilotSDKVersion Version = "1.0.11"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.149.1"
+const DefaultCodexVersion Version = "0.150.1"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.55.1"
@@ -54,7 +54,7 @@ const DefaultGeminiVersion Version = "0.55.1"
 const DefaultPiVersion Version = "0.84.3"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.10.1"
+const DefaultGitHubMCPServerVersion Version = "v1.11.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -175,7 +175,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.10"
+const DefaultMCPGatewayVersion Version = "v0.4.12"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
