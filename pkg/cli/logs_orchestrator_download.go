@@ -194,7 +194,24 @@ type logsCollectionState struct {
 func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownloadOptions) ([]ProcessedRun, bool, bool, string, error) {
 	state := logsCollectionState{}
 	for state.iteration < MaxIterations {
-		stop, err := advanceLogsCollectionIteration(&state, runtime, opts)
+		stop, timedOut, err := shouldStopLogsIteration(runtime, opts)
+		if err != nil {
+			return state.processedRuns, state.timeoutReached || timedOut, state.countLimitReached, state.beforeDate, err
+		}
+		if stop {
+			state.timeoutReached = state.timeoutReached || timedOut
+			break
+		}
+		if len(state.processedRuns) >= opts.Count {
+			state.countLimitReached = runtime.fetchAllInRange
+			break
+		}
+		if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration); err != nil {
+			logsOrchestratorLog.Printf("Rate limit wait failed, retrying iteration: %v", err)
+			continue
+		}
+		state.iteration++
+		stop, err = fetchAndProcessLogsBatch(&state, runtime, opts)
 		if err != nil {
 			return state.processedRuns, state.timeoutReached, state.countLimitReached, state.beforeDate, err
 		}
@@ -208,28 +225,6 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 		state.countLimitReached = true
 	}
 	return state.processedRuns, state.timeoutReached, state.countLimitReached, state.beforeDate, nil
-}
-
-func advanceLogsCollectionIteration(state *logsCollectionState, runtime logsDownloadRuntime, opts LogsDownloadOptions) (bool, error) {
-	stop, timedOut, err := shouldStopLogsIteration(runtime, opts)
-	if err != nil {
-		state.timeoutReached = state.timeoutReached || timedOut
-		return true, err
-	}
-	if stop {
-		state.timeoutReached = state.timeoutReached || timedOut
-		return true, nil
-	}
-	if len(state.processedRuns) >= opts.Count {
-		state.countLimitReached = runtime.fetchAllInRange
-		return true, nil
-	}
-	if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration); err != nil {
-		logsOrchestratorLog.Printf("Rate limit wait failed, retrying iteration: %v", err)
-		return false, nil
-	}
-	state.iteration++
-	return fetchAndProcessLogsBatch(state, runtime, opts)
 }
 
 func fetchAndProcessLogsBatch(state *logsCollectionState, runtime logsDownloadRuntime, opts LogsDownloadOptions) (bool, error) {
