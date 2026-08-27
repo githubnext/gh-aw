@@ -148,6 +148,11 @@
       "version": "v4.37.8",
       "sha": "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"
     },
+    "github/codeql-action/upload-sarif@v4.37.9": {
+      "repo": "github/codeql-action/upload-sarif",
+      "version": "v4.37.9",
+      "sha": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+    },
     "github/stale-repos@v9.0.17": {
       "repo": "github/stale-repos",
       "version": "v9.0.17",
@@ -177,11 +182,6 @@
       "repo": "super-linter/super-linter",
       "version": "v8.7.0",
       "sha": "4ce20838b8ab83717e78138c5b3a1407148e0918"
-    },
-    "github/codeql-action/upload-sarif@v4.37.9": {
-      "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.37.9",
-      "sha": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
     }
   },
   "containers": {
@@ -395,6 +395,11 @@
       "digest": "sha256:1817b57d43916532dc002bdc5f344d639bd9fb54a9148d42168458f7c3280567",
       "pinned_image": "ghcr.io/github/github-mcp-server:v1.10.1@sha256:1817b57d43916532dc002bdc5f344d639bd9fb54a9148d42168458f7c3280567"
     },
+    "ghcr.io/github/github-mcp-server:v1.11.0": {
+      "image": "ghcr.io/github/github-mcp-server:v1.11.0",
+      "digest": "sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"
+    },
     "ghcr.io/oraios/serena:1.7.0": {
       "image": "ghcr.io/oraios/serena:1.7.0",
       "digest": "sha256:6c9459e4246a39c9deaa4f23fb05a526ac6e237b24c8e84a927a098fa1ab6730",
@@ -409,11 +414,6 @@
       "image": "node:lts-alpine",
       "digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",
       "pinned_image": "node:lts-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
-    },
-    "ghcr.io/github/github-mcp-server:v1.11.0": {
-      "image": "ghcr.io/github/github-mcp-server:v1.11.0",
-      "digest": "sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699",
-      "pinned_image": "ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"
     }
   }
 }
