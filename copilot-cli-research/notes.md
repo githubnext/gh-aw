@@ -66,3 +66,20 @@ Follow-up for next cycle:
 2. Check whether shared/copilot-defaults.md was created (3rd cycle asking).
 3. Manually spot-check 3-5 workflows previously flagged as "agent users" (e.g. archie.md) to determine ground truth on engine.agent vs. agent-file imports.
 4. Confirm with a maintainer whether `plugins` is still a supported/relevant feature before continuing to track its 0% adoption a 5th time.
+
+## Run: 2026-08-27 (workflow-run-id: 33042746396)
+Fifth analysis. Compared to 08-23, 08-24, 08-25, 08-26 baselines.
+
+Changes since last run:
+- copilot_workflows measured at 108 this cycle using combined `engine: copilot` OR `id: copilot` grep — closer to run 2/3's 109 than run 4's stricter 89. Recommending this combined query as the standard going forward to end the cross-cycle count discrepancy noted in run 4.
+- engine.agent count corrected: run 4 reported 0 due to an overly strict query (matching only literal `agent:` directly under `engine:` in a narrow sed window). Direct ground-truth grep this cycle confirms 7 genuine engine.agent custom-persona usages: archie, contribution-check, daily-file-diet, glossary-maintainer, hourly-ci-cleaner, technical-doc-writer, workflow-generator — consistent with runs 2-3's ~7 estimate. Treat run 4's "0" as a query bug, not a real regression.
+- copilot-sdk: true confirmed flat at 61 for a 4th consecutive measurement — plateau is now very well established.
+- max-tool-denials steady at 55 (3rd consecutive matching measurement).
+- shared/copilot-defaults.md: STILL not created. This is now the 3rd cycle since the original recommendation (run 2) and 2nd since escalation (runs 3-4). No other single item has been flagged for this long without any action.
+- engine.version pinning, --share, plugins: all confirmed at 0 adoption for a 5th consecutive cycle.
+
+Follow-up for next cycle:
+1. Use combined `engine: copilot` OR `id: copilot` grep as the standard copilot_workflows count (108 this cycle) to stop the run-to-run methodology drift.
+2. Check whether shared/copilot-defaults.md was finally created (4th cycle asking) — if not, this item may warrant direct escalation outside the research issue (e.g., a dedicated tracking issue) rather than repeated mention here.
+3. Verify whether --share is still a real, wired-up CLI flag in the current Copilot CLI version, since it was not found directly in copilot_engine_execution.go's flag-construction code this cycle.
+4. Re-check copilot-sdk adoption in 08-28+ cycle; if still flat at 61, consider this fully settled and stop asking, unless a maintainer requests reinvestigation.

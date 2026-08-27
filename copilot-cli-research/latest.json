@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-08-26T04:00:00Z",
+  "timestamp": "2026-08-27T05:34:06Z",
   "total_workflows": 294,
-  "copilot_workflows": 89,
+  "copilot_workflows": 108,
   "features_available": ["--add-dir","--share","--disable-builtin-mcps","--agent","--autopilot/max-continuations","--allow-all-paths","--no-custom-instructions","--log-level","engine.args","engine.env","engine.agent (custom agent files)","plugins","repo-memory","cache-memory","BYOK (COPILOT_PROVIDER_*)","copilot-sdk: true","engine.harness","max-tool-denials"],
-  "features_used": ["max-continuations(10)","cache-memory(80)","repo-memory(30)","copilot-sdk(61, flat 3 runs)","model overrides(40+)","bare mode(21)","max-tool-denials(55, flat vs run 3)"],
+  "features_used": ["max-continuations","cache-memory(80)","repo-memory(30)","copilot-sdk(61, flat 4 runs)","model overrides(40+)","max-tool-denials(55)","engine.agent(7, corrected count)"],
   "opportunities_found": 7,
-  "notes": "Fourth research cycle. Persistent 0% adoption across all 4 runs: engine.version pinning, --share manual usage, plugins. engine.agent persona usage re-measured at 0 with stricter query (vs ~7 in prior cycles using looser 'agent:' match) - likely prior counts conflated agent-file imports with the --agent flag. shared/copilot-defaults.md STILL not created despite recommendation in run 2 and escalation in run 3 - now 2 cycles overdue, flagged as top action item. copilot-sdk adoption confirmed flat at exactly 61 for 3 consecutive measurements. id:copilot and cache-memory counts dropped vs run 2/3 (109->89, 105->80) while total workflow count rose - likely query methodology difference, flagged for reconciliation not treated as regression."
+  "notes": "Fifth research cycle. Corrected run-4's engine.agent undercount (0) - ground-truth spot check confirms 7 genuine engine.agent usages (archie, contribution-check, daily-file-diet, glossary-maintainer, hourly-ci-cleaner, technical-doc-writer, workflow-generator), consistent with runs 2-3 estimate of ~7. copilot-sdk adoption confirmed flat at exactly 61 for a 4th consecutive measurement - genuine plateau. shared/copilot-defaults.md STILL not created - now 3rd cycle overdue since recommendation (run2), 2nd since escalation (run3/4) - remains top unactioned item. engine.version pinning, --share, and plugins confirmed at 0% for a 5th consecutive cycle. max-tool-denials stable at 55. copilot_workflows count this cycle (108) roughly matches run 4 (89 with stricter query) vs runs 2-3 (109) - used 'engine: copilot' OR 'id: copilot' combined grep this cycle; recommend standardizing on this combined query going forward as the most complete count."
 }
