@@ -7,7 +7,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 )
 
 // internalSandboxFieldError returns a standardised strict-mode error for an
@@ -52,7 +51,7 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 		if agent.Command != "" {
 			return internalSandboxFieldError("sandbox.agent.command")
 		}
-		if len(agent.Args) > 0 && !allowsStrictSandboxAgentArgs(agent.Args) {
+		if len(agent.Args) > 0 {
 			return internalSandboxFieldError("sandbox.agent.args")
 		}
 		if len(agent.Env) > 0 {
@@ -82,33 +81,4 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 
 	strictModeValidationLog.Printf("Sandbox customization validation passed")
 	return nil
-}
-
-func allowsStrictSandboxAgentArgs(args []string) bool {
-	for i := 0; i < len(args); i++ {
-		arg := strings.TrimSpace(args[i])
-		if arg == "" {
-			return false
-		}
-		if arg == "--image-tag" {
-			if i+1 >= len(args) {
-				return false
-			}
-			value := strings.TrimSpace(args[i+1])
-			if value == "" || strings.HasPrefix(value, "-") || strings.Contains(value, "${") {
-				return false
-			}
-			i++
-			continue
-		}
-		if value, ok := strings.CutPrefix(arg, "--image-tag="); ok {
-			value = strings.TrimSpace(value)
-			if value == "" || strings.Contains(value, "${") {
-				return false
-			}
-			continue
-		}
-		return false
-	}
-	return true
 }
