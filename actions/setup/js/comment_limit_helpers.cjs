@@ -30,7 +30,10 @@ const MAX_LINKS = 50;
 
 const { applyToNonCodeRegions } = require("./sanitize_content_core.cjs");
 
-const MENTION_PATTERN = /@\w+/g;
+// Mirrors the mention grammar used by neutralizeAllMentions in sanitize_content_core.cjs:
+// a mention must start at a non-alphanumeric boundary (so email addresses such as
+// user@example.com are not mentions) and the alias follows GitHub's login/scope grammar.
+const MENTION_PATTERN = /(^|[^A-Za-z0-9])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g;
 
 /**
  * Counts @mentions outside markdown code spans/fences and HTML <code> regions.

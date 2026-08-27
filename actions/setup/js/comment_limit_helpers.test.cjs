@@ -69,6 +69,11 @@ describe("comment_limit_helpers", () => {
       expect(() => enforceCommentLimits(body)).toThrow(/E007.*mentions/i);
     });
 
+    it("should not count email addresses as mentions", () => {
+      const emails = Array.from({ length: MAX_MENTIONS + 1 }, (_, i) => `user${i}@example.com`).join(" ");
+      expect(() => enforceCommentLimits(emails)).not.toThrow();
+    });
+
     it("should accept comment with exactly maximum links", () => {
       const links = Array.from({ length: MAX_LINKS }, (_, i) => `https://example.com/${i}`).join(" ");
       expect(() => enforceCommentLimits(links)).not.toThrow();
