@@ -453,12 +453,6 @@ jobs:
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_PROJECT_UTC: "-08:00"
-      GH_AW_PR_HEAD_BASE_BRANCH: ""
-      GH_AW_PR_HEAD_BASE_PR_NUMBER: ""
-      GH_AW_PR_HEAD_BASE_REF: ""
-      GH_AW_PR_HEAD_BASE_REPO: ""
-      GH_AW_PR_HEAD_BASE_SHA: ""
-      GH_AW_PR_HEAD_REPO: ""
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: craft
     outputs:
@@ -1670,7 +1664,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
         run: |
-          bash "${RUNNER_TEMP}/gh-aw/actions/install_threat_detect_binary.sh" v0.5.1
+          bash "${RUNNER_TEMP}/gh-aw/actions/install_threat_detect_binary.sh" v0.4.12
       - name: Execute threat detection with AWF
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
