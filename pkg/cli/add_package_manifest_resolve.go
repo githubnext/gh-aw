@@ -6,7 +6,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"path"
 	"strings"
 )
 
@@ -179,7 +178,7 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 
 func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, packagePath, ref, host string) (string, []byte, error) {
 	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
-	repoSlug := path.Join(owner, repo)
+	repoSlug := strings.Join([]string{owner, repo}, "/")
 	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
 	content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, manifestPath, ref, host)
 	if err != nil {

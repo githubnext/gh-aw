@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -136,19 +137,24 @@ func resolveRepositoryPackageGraderResources(ctx context.Context, owner, repo, r
 		if graders == nil {
 			continue
 		}
-		grader := graders.Graders["operational-value"]
-		if grader == nil || grader.Run == "" {
-			continue
+		var runPaths []string
+		for _, grader := range graders.Graders {
+			if grader != nil && grader.Run != "" {
+				runPaths = append(runPaths, grader.Run)
+			}
 		}
-		key := strings.ToLower(grader.Run)
-		if _, exists := seen[key]; exists {
-			continue
+		sort.Strings(runPaths)
+		for _, runPath := range runPaths {
+			key := strings.ToLower(runPath)
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			resources = append(resources, resolvedPackageResource{
+				SourcePath:      runPath,
+				DestinationPath: runPath,
+			})
 		}
-		seen[key] = struct{}{}
-		resources = append(resources, resolvedPackageResource{
-			SourcePath:      grader.Run,
-			DestinationPath: grader.Run,
-		})
 	}
 	return resources, nil
 }
