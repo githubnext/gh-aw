@@ -204,7 +204,6 @@ engine: copilot
 sandbox:
   agent:
     id: awf
-    version: latest
   mcp:
     version: v0.4.12
 enclaves:
@@ -227,6 +226,17 @@ Read the assigned repository's issues through the enclave.
 	lockBytes, err := os.ReadFile(strings.TrimSuffix(workflowPath, ".md") + ".lock.yml")
 	require.NoError(t, err)
 	lock := string(lockBytes)
+
+	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+	for _, imageName := range []string{"enclave-agent", "enclave-mcp-server"} {
+		image := constants.DefaultFirewallRegistry + "/" + imageName + ":" + imageTag
+		pin, ok := getEmbeddedContainerPin(image)
+		require.True(t, ok, "expected embedded pin for %s", image)
+		pinnedImage := pin.Image + "@" + pin.Digest
+		assert.Contains(t, lock, `"image":"`+pin.Image+`","digest":"`+pin.Digest+`","pinned_image":"`+pinnedImage+`"`)
+		assert.Contains(t, lock, "#   - "+pinnedImage)
+		assert.NotContains(t, lock, `"repo":"`+constants.DefaultFirewallRegistry+`/`+imageName+`","ref":"`+imageTag+`","error_type":"container_pin_not_found"`)
+	}
 
 	proxyStart := strings.Index(lock, "- name: Start Enclave GitHub Proxy")
 	gatewayStart := strings.Index(lock, "- name: Start MCP Gateway")
