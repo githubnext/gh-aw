@@ -34,6 +34,25 @@ observability:
 
 Once configured, gh-aw exports built-in workflow spans such as setup and conclusion events to the configured OTLP backend.
 
+### Organization-wide defaults
+
+When a workflow does not configure `observability.otlp` (in its own frontmatter or through an import), the compiler falls back to a default OTLP configuration read from the GitHub Actions environment:
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `GH_AW_DEFAULT_OTLP_ENDPOINT` | Variable | OTLP endpoint URL used when no endpoint is configured in frontmatter |
+| `GH_AW_DEFAULT_OTLP_HEADERS` | Secret | Exporter headers (`key=value` pairs, comma-separated) sent to that endpoint |
+
+Because both are resolved at run time, setting them at the repository, organization, or enterprise level enables telemetry for every agentic workflow without editing any workflow file.
+
+Behavior:
+
+- When the variable is unset, the endpoint resolves to an empty string and OTLP export is a no-op.
+- When the variable is set but `GH_AW_DEFAULT_OTLP_HEADERS` is empty, the workflow fails with an error instead of exporting unauthenticated telemetry.
+- Any `observability.otlp` configuration in frontmatter or an import overrides these defaults entirely.
+
+Set the values with `gh aw env update`, or with `gh variable set` / `gh secret set`.
+
 ### Google Workload Identity Federation
 
 For Google Cloud Telemetry, configure Google Workload Identity Federation instead of a static authorization header. gh-aw mints and exchanges a GitHub OIDC token in every span-emitting job, and automatically grants those jobs `id-token: write`. The workload identity principal needs permission to write telemetry and, when `service-account` is set, permission to impersonate that service account.

@@ -11,6 +11,28 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 )
 
+// otlpTelemetryStepNames are compiler-injected observability steps. They are emitted
+// for every workflow because the OTLP endpoint defaults to the enterprise
+// vars.GH_AW_DEFAULT_OTLP_ENDPOINT / secrets.GH_AW_DEFAULT_OTLP_HEADERS pair, so they
+// are not part of the checkout ordering contract exercised by these tests.
+var otlpTelemetryStepNames = map[string]bool{
+	"Mask OTLP telemetry headers":        true,
+	"Mask OTLP custom attribute values":  true,
+	"Check OTLP telemetry configuration": true,
+}
+
+// filterOTLPTelemetrySteps removes compiler-injected OTLP steps from a step name list.
+func filterOTLPTelemetrySteps(names []string) []string {
+	filtered := make([]string, 0, len(names))
+	for _, name := range names {
+		if otlpTelemetryStepNames[name] {
+			continue
+		}
+		filtered = append(filtered, name)
+	}
+	return filtered
+}
+
 // TestCheckoutRuntimeOrderInCustomSteps verifies that when custom steps contain
 // a checkout step, the temp directory is created first, then the checkout step
 // runs, and runtime setup steps are inserted AFTER the checkout step. This ensures
@@ -118,6 +140,8 @@ steps:
 			}
 		}
 	}
+
+	stepNames = filterOTLPTelemetrySteps(stepNames)
 
 	t.Logf("Found %d steps: %v", len(stepNames), stepNames)
 
@@ -435,6 +459,8 @@ Run node --version to check the Node.js version.
 			}
 		}
 	}
+
+	stepNames = filterOTLPTelemetrySteps(stepNames)
 
 	if len(stepNames) < 4 {
 		t.Fatalf("Expected at least 4 steps, got %d: %v", len(stepNames), stepNames)
