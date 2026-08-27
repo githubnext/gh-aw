@@ -30,6 +30,11 @@ variables in batch at repo, org, or enterprise scope. The defaults file uses
 `default_`-prefixed keys such as `default_max_ai_credits`, `default_max_turn_cache_misses`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`, `default_agent_job_timeout_minutes`, `default_detection_job_timeout_minutes`,
 `default_model_copilot`, and `default_utc`.
 
+```bash
+gh aw env update defaults.yml --scope org --org MY_ORG --visibility all
+gh aw env update defaults.yml --scope ent --enterprise MY_ENT --visibility all
+```
+
 ## Project Timezone
 
 By default, the CLI renders timestamps (table output, expiration footers, and the closing messages on expired issues, pull requests, and discussions) using the runner's local clock. Set a project home UTC offset so these times render consistently regardless of where the CLI runs.

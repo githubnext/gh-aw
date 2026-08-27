@@ -54,9 +54,14 @@ gh aw env get repo-defaults.yml --scope repo --repo OWNER/REPO
 After editing the YAML file, preview and apply the change.
 
 ```bash
-gh aw env update org-defaults.yml --scope org --org MY_ORG --dry-run
-gh aw env update org-defaults.yml --scope org --org MY_ORG
+gh aw env update org-defaults.yml --scope org --org MY_ORG --visibility all --dry-run
+gh aw env update org-defaults.yml --scope org --org MY_ORG --visibility all
 ```
+
+For organization and enterprise scopes, `--visibility` accepts
+`all` (the default), `private`, or `selected`. It applies only when
+creating a variable; existing variables keep their current visibility.
+When using `selected`, attach repositories separately with the GitHub API.
 
 Use `--yes` in automation to skip the interactive
 confirmation prompt.
