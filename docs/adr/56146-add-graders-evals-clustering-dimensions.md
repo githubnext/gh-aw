@@ -12,7 +12,7 @@ The `gh aw audit` cross-run command clusters runs along multiple dimensions (con
 
 ### Decision
 
-We will add `graders` and `evals` as first-class clustering dimensions in `buildRunClusters`, deriving each value from the run's log path at `crossRunInput` construction time. Grader cluster values follow a priority state machine (error > fail > unavailable > pass > mixed > absent); eval cluster values are binary (present/absent). We will also extract the inline cluster-building code from `buildClusterAnalysis` into a dedicated `buildRunClusters` function so that adding new dimensions requires only a single localized change.
+We will add `graders` and `evals` as first-class clustering dimensions in `buildRunClusters`, deriving each value from the run's log path at `crossRunInput` construction time. Grader cluster values label homogeneous outcomes by their shared status (`pass`, `fail`, `error`, `unavailable`), use `mixed` for any run whose graders report more than one status, and `absent` when no grader data exists; eval cluster values are binary (present/absent). We will also extract the inline cluster-building code from `buildClusterAnalysis` into a dedicated `buildRunClusters` function so that adding new dimensions requires only a single localized change.
 
 ### Alternatives Considered
 
@@ -33,11 +33,11 @@ This was not chosen because it would duplicate the cluster-building infrastructu
 #### Positive
 - Multi-run cohort reports now group by grader outcome and eval presence, enabling targeted debugging of quality regressions across sessions.
 - Extracting `buildRunClusters` reduces the coupling between `buildClusterAnalysis` (which owns filtering and reporting) and the dimension enumeration; adding a new dimension now requires only a single function change.
-- The grader state machine (error > fail > unavailable > pass > mixed) provides a well-ordered signal that surfaces the most severe outcome first, consistent with how grader data is surfaced elsewhere.
+- The homogeneous/`mixed` grader mapping keeps each cluster unambiguous: a cluster label describes every grader in the run, and heterogeneous runs are grouped together instead of being attributed to their most severe status.
 
 #### Negative
 - `deriveGradersClusterValue` and `deriveEvalsClusterValue` perform filesystem reads (via `extractGradersData` and `runHasEvals`) during `processedRunsToCrossRunInputs`, adding I/O per run at cross-run input construction time.
-- The grader priority order (error > fail > unavailable > pass > mixed) is hardcoded; runs with mixed outcomes across multiple grader states collapse to a single key, potentially losing nuance for complex grader sets.
+- All heterogeneous runs collapse into the single `mixed` key, so the specific combination of grader statuses (for example, mostly-passing versus mostly-failing) is not distinguishable from the cluster label alone.
 
 #### Neutral
 - The existing trivial-dimension filter means that if all runs in a cohort share the same grader outcome or all lack evals, those dimensions are dropped from the output, consistent with existing behavior for other dimensions.

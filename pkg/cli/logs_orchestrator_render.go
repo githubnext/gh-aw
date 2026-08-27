@@ -207,17 +207,15 @@ func deriveGradersClusterValue(logsPath string) string {
 	if graders == nil || graders.Total == 0 {
 		return "absent"
 	}
-	if graders.ErrorCount > 0 {
-		return "error"
-	}
-	if graders.Failed > 0 {
-		return "fail"
-	}
-	if graders.UnavailableCount > 0 {
-		return "unavailable"
-	}
-	if graders.Passed == graders.Total {
+	switch graders.Total {
+	case graders.Passed:
 		return "pass"
+	case graders.Failed:
+		return "fail"
+	case graders.ErrorCount:
+		return "error"
+	case graders.UnavailableCount:
+		return "unavailable"
 	}
 	return "mixed"
 }
