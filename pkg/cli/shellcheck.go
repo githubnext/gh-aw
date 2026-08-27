@@ -93,7 +93,13 @@ type runStepInfo struct {
 	// An empty string means the GitHub Actions default (bash on Linux runners).
 	Shell string
 	// LockFile is the absolute path of the lock file that contains this step.
+	// For frontmatter-declared resources (which have no lock file), this is
+	// empty and Source is used for diagnostic labeling instead.
 	LockFile string
+	// Source identifies the origin of a frontmatter-declared resource (e.g.
+	// the workflow ID or evaluator file path) for diagnostic messages. Empty
+	// for steps extracted from a lock file, which use LockFile instead.
+	Source string
 }
 
 // isShellcheckAvailable returns true when the shellcheck binary can be found in PATH.
@@ -303,6 +309,12 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 }
 
 func stepLabel(info runStepInfo) string {
+	if info.LockFile == "" && info.Source != "" {
+		if info.Name != "" {
+			return info.Source + " (step: " + info.Name + ")"
+		}
+		return info.Source
+	}
 	if info.Name != "" {
 		return filepath.Base(info.LockFile) + " (step: " + info.Name + ")"
 	}
@@ -447,10 +459,10 @@ func collectShellcheckSteps(lockFiles []string, resources []workflow.ShellScript
 			continue
 		}
 		steps = append(steps, runStepInfo{
-			Name:     resource.Name,
-			Script:   resource.Script,
-			Shell:    resource.Shell,
-			LockFile: "frontmatter",
+			Name:   resource.Name,
+			Script: resource.Script,
+			Shell:  resource.Shell,
+			Source: resource.Source,
 		})
 	}
 	return steps

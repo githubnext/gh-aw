@@ -8,6 +8,11 @@ type ShellScriptResource struct {
 	Name   string
 	Script string
 	Shell  string
+	// Source identifies where the script originated (e.g. the workflow that
+	// declared it and, for graders, the evaluator file path) so findings can
+	// be traced back to the responsible frontmatter, even when multiple
+	// workflows define resources with the same Name.
+	Source string
 }
 
 // ShellScriptResources returns frontmatter shell scripts that require linting
@@ -15,6 +20,11 @@ type ShellScriptResource struct {
 func (data *WorkflowData) ShellScriptResources() []ShellScriptResource {
 	if data == nil {
 		return nil
+	}
+
+	workflowID := data.WorkflowID
+	if workflowID == "" {
+		workflowID = data.Name
 	}
 
 	var resources []ShellScriptResource
@@ -26,6 +36,7 @@ func (data *WorkflowData) ShellScriptResources() []ShellScriptResource {
 					Name:   "mcp-scripts." + name,
 					Script: tool.Run,
 					Shell:  "bash",
+					Source: workflowID,
 				})
 			}
 		}
@@ -35,10 +46,15 @@ func (data *WorkflowData) ShellScriptResources() []ShellScriptResource {
 		for _, name := range sliceutil.SortedKeys(data.Graders.Graders) {
 			grader := data.Graders.Graders[name]
 			if grader != nil && (grader.Enabled == nil || *grader.Enabled) && grader.evaluatorContent != "" {
+				source := workflowID
+				if grader.Run != "" {
+					source = grader.Run
+				}
 				resources = append(resources, ShellScriptResource{
 					Name:   "graders." + name,
 					Script: grader.evaluatorContent,
 					Shell:  "bash",
+					Source: source,
 				})
 			}
 		}
