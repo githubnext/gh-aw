@@ -431,6 +431,8 @@ safe-outputs:
   remove-labels:
     allowed: [automated, team-*] # restrict to specific labels or glob patterns (optional)
     blocked: ["~*"]              # deny removal of labels matching these glob patterns
+    issues: true                 # include issues: write permission (default: true)
+    pull-requests: false         # exclude pull-requests: write permission (default: true)
     max: 3                       # max operations (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
@@ -440,6 +442,8 @@ safe-outputs:
 ```
 
 **Target**: `"triggering"` (requires issue/PR event), `"*"` (any issue/PR), or number (specific issue/PR).
+
+Set `issues: false` or `pull-requests: false` to omit the corresponding write permission. Both default to `true` when omitted, and at least one must be enabled.
 
 When `allowed` is omitted or set to `null`, any labels can be removed. Use `allowed` to restrict removal to specific labels or glob patterns, providing control over which labels agents can manipulate. The `blocked` field takes precedence over `allowed`.
 

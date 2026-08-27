@@ -65,7 +65,7 @@ async function resolveCheckedOutHeadSha() {
   }
 }
 
-async function exportPRHeadBaseline({ branchName, baseRepo, prNumber }) {
+async function exportPRHeadBaseline({ branchName, baseRepo, headRepo, prNumber }) {
   if (!branchName) {
     return;
   }
@@ -78,6 +78,9 @@ async function exportPRHeadBaseline({ branchName, baseRepo, prNumber }) {
   core.exportVariable("GH_AW_PR_HEAD_BASE_SHA", baseSha);
   if (baseRepo) {
     core.exportVariable("GH_AW_PR_HEAD_BASE_REPO", baseRepo);
+  }
+  if (headRepo) {
+    core.exportVariable("GH_AW_PR_HEAD_REPO", headRepo);
   }
   if (prNumber != null) {
     core.exportVariable("GH_AW_PR_HEAD_BASE_PR_NUMBER", String(prNumber));
@@ -366,6 +369,7 @@ async function main() {
       await exportPRHeadBaseline({
         branchName,
         baseRepo: pullRequest.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
+        headRepo: pullRequest.head?.repo?.full_name,
         prNumber: pullRequest.number,
       });
       core.info(`✅ Successfully checked out branch: ${branchName}`);
@@ -414,6 +418,7 @@ async function main() {
       await exportPRHeadBaseline({
         branchName,
         baseRepo: fullPR.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
+        headRepo: fullPR.head?.repo?.full_name,
         prNumber,
       });
       core.info(`✅ Successfully checked out PR #${prNumber}`);

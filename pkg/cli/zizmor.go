@@ -182,6 +182,11 @@ func buildZizmorCommand(lockFiles []string) (cmd *exec.Cmd, relPaths []string, d
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("zizmor scanner image reference %q is invalid; expected a registry reference. Example: ghcr.io/owner/image:tag: %w", ZizmorImage, err)
 	}
+	for _, containerPath := range containerPaths {
+		if err := validateExecArgument(containerPath); err != nil {
+			return nil, nil, nil, fmt.Errorf("invalid zizmor scan path argument %q: %w", containerPath, err)
+		}
+	}
 	dockerArgs = zizmorDockerArgs(zizmorImageRef, volumeMount, containerPaths)
 
 	// #nosec G204 -- dockerPath is resolved from the allowlisted executable name "docker" via

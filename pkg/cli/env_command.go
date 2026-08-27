@@ -37,6 +37,7 @@ type defaultsFile struct {
 	DefaultAgentJobTimeoutMinutes     *string `yaml:"default_agent_job_timeout_minutes"`
 	DefaultDetectionJobTimeoutMinutes *string `yaml:"default_detection_job_timeout_minutes"`
 	DefaultDetectionModel             *string `yaml:"default_detection_model"`
+	DefaultOTLPEndpoint               *string `yaml:"default_otlp_endpoint"`
 	DefaultUTC                        *string `yaml:"default_utc"`
 	DefaultModelCopilot               *string `yaml:"default_model_copilot"`
 	DefaultModelClaude                *string `yaml:"default_model_claude"`
@@ -105,6 +106,7 @@ var defaultsBindings = []defaultsBinding{
 	{envName: compilerenv.DefaultAgentJobTimeoutMinutes, fieldName: "default_agent_job_timeout_minutes", get: func(f *defaultsFile) **string { return &f.DefaultAgentJobTimeoutMinutes }},
 	{envName: compilerenv.DefaultDetectionJobTimeoutMinutes, fieldName: "default_detection_job_timeout_minutes", get: func(f *defaultsFile) **string { return &f.DefaultDetectionJobTimeoutMinutes }},
 	{envName: compilerenv.DefaultDetectionModel, fieldName: "default_detection_model", get: func(f *defaultsFile) **string { return &f.DefaultDetectionModel }},
+	{envName: compilerenv.DefaultOTLPEndpoint, fieldName: "default_otlp_endpoint", get: func(f *defaultsFile) **string { return &f.DefaultOTLPEndpoint }},
 	{envName: compilerenv.DefaultUTC, fieldName: "default_utc", get: func(f *defaultsFile) **string { return &f.DefaultUTC }},
 	{envName: compilerenv.DefaultModelCopilot, fieldName: "default_model_copilot", get: func(f *defaultsFile) **string { return &f.DefaultModelCopilot }},
 	{envName: compilerenv.DefaultModelClaude, fieldName: "default_model_claude", get: func(f *defaultsFile) **string { return &f.DefaultModelClaude }},
@@ -500,7 +502,7 @@ func (t defaultsTarget) variableEndpoint(name string) string {
 func (t defaultsTarget) displayName() string {
 	switch t.scope {
 	case defaultsScopeRepo:
-		return t.repoOwner + "/" + t.repoName
+		return t.repoOwner + "/" + t.repoName //nolint:manualpathconcat // repository slug for display, not a filesystem path
 	case defaultsScopeOrg:
 		return t.org
 	default:
