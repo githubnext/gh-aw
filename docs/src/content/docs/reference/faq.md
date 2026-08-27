@@ -207,7 +207,7 @@ Use the existing image override paths instead of raw `sandbox.agent.args`:
   "container_pins": {
     "ghcr.io/github/github-mcp-server:v1.10.1": {
       "image": "registry.example.com/github-mcp-server:v1.10.1",
-      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "digest": "sha256:3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   }
 }
