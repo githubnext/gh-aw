@@ -219,7 +219,7 @@ async function main(config = {}) {
       } else {
         ref = await getDefaultRef();
       }
-      if (!config["target-ref"] && allowedRefRegexes.length > 0 && !allowedRefRegexes.some(pattern => pattern.test(ref))) {
+      if ((outputRef || !config["target-ref"]) && allowedRefRegexes.length > 0 && !allowedRefRegexes.some(pattern => pattern.test(ref))) {
         const error = `Ref '${ref}' is not in allowed-refs: ${allowedRefPatterns.join(", ")}`;
         core.warning(error);
         return {

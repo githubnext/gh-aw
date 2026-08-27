@@ -1134,6 +1134,34 @@ describe("dispatch_workflow handler factory", () => {
     );
   });
 
+  it("should apply allowed-refs to an explicit ref when target-ref is configured", async () => {
+    const config = {
+      "target-repo": "other-org/other-repo",
+      allowed_repos: ["other-org/other-repo"],
+      allowed_refs: ["release/*"],
+      "target-ref": "refs/heads/feature-branch",
+      workflows: ["target-workflow"],
+      workflow_files: { "target-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "target-workflow",
+        ref: "untrusted-branch",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Ref 'refs/heads/untrusted-branch' is not in allowed-refs: refs/heads/release/*",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
   it("should use caller GITHUB_REF when dispatching to same repo without target-ref", async () => {
     process.env.GITHUB_REF = "refs/heads/feature-branch";
     delete process.env.GITHUB_HEAD_REF;
