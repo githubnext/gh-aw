@@ -21,7 +21,7 @@ func TestCompileWorkflows_ShellScriptResourcesIncludeOperationalValueGrader(t *t
 	tmpDir := t.TempDir()
 	require.NoError(t, initTestGitRepo(tmpDir))
 
-	gradersDir := filepath.Join(tmpDir, ".github", "graders")
+	gradersDir := filepath.Join(tmpDir, ".github", "workflows", "graders")
 	require.NoError(t, os.MkdirAll(gradersDir, 0o755))
 
 	evaluatorScript := "#!/usr/bin/env bash\nset -euo pipefail\necho '{}'\n"
@@ -45,7 +45,7 @@ mcp-scripts:
       git status --short
 graders:
   operational-value:
-    run: .github/graders/example-operational-value.sh
+    run: ./graders/example-operational-value.sh
 ---
 
 # Test Workflow
@@ -78,7 +78,7 @@ This is a test workflow exercising frontmatter shell script resources.
 		case "graders.operational-value":
 			gradersFound = true
 			assert.Equal(t, evaluatorScript, resource.Script)
-			assert.Equal(t, ".github/graders/example-operational-value.sh", resource.Source)
+			assert.Equal(t, "./graders/example-operational-value.sh", resource.Source)
 			assert.Equal(t, "bash", resource.Shell)
 		case "mcp-scripts.inspect":
 			mcpScriptsFound = true

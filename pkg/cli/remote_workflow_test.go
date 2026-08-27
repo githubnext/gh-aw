@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -1808,17 +1809,17 @@ func TestExtractResources_IncludesGraderEvaluator(t *testing.T) {
 engine: copilot
 on: issues
 resources:
-  - .github/graders/example-operational-value.sh
+  - .github/workflows/graders/example-operational-value.sh
 graders:
   operational-value:
-    run: .github/graders/example-operational-value.sh
+    run: .github/workflows/graders/example-operational-value.sh
 ---
 
 # Workflow
 `
 	resources, err := extractResources(content)
 	require.NoError(t, err)
-	assert.Equal(t, []string{".github/graders/example-operational-value.sh"}, resources)
+	assert.Equal(t, []string{".github/workflows/graders/example-operational-value.sh"}, resources)
 }
 
 func TestExtractResources_IncludesDisabledGraderEvaluator(t *testing.T) {
@@ -1827,7 +1828,7 @@ on: issues
 graders:
   operational-value:
     enabled: false
-    run: .github/graders/example-operational-value.sh
+    run: ./graders/example-operational-value.sh
   retries:
     enabled: true
 ---
@@ -1836,7 +1837,7 @@ graders:
 `
 	resources, err := extractResources(content)
 	require.NoError(t, err)
-	assert.Equal(t, []string{".github/graders/example-operational-value.sh"}, resources)
+	assert.Equal(t, []string{"./graders/example-operational-value.sh"}, resources)
 }
 
 func TestFetchAndSaveRemoteResources_InstallsAndRestoresGraderEvaluator(t *testing.T) {
@@ -1845,12 +1846,12 @@ func TestFetchAndSaveRemoteResources_InstallsAndRestoresGraderEvaluator(t *testi
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
 
-	const evaluatorPath = ".github/graders/example-operational-value.sh"
+	const evaluatorPath = ".github/workflows/graders/example-operational-value.sh"
 	content := `---
 on: workflow_dispatch
 graders:
   operational-value:
-    run: .github/graders/example-operational-value.sh
+    run: .github/workflows/graders/example-operational-value.sh
 ---
 
 # Workflow
@@ -1859,7 +1860,7 @@ graders:
 	originalDownload := downloadResourceFileFromGitHub
 	t.Cleanup(func() { downloadResourceFileFromGitHub = originalDownload })
 	downloadResourceFileFromGitHub = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
-		assert.Equal(t, evaluatorPath, filePath)
+		assert.Equal(t, "workflows/graders/example-operational-value.sh", filePath)
 		return evaluatorContent, nil
 	}
 
@@ -1887,6 +1888,74 @@ graders:
 	restored, err := os.ReadFile(installedPath)
 	require.NoError(t, err)
 	assert.Equal(t, evaluatorContent, restored)
+}
+
+func TestFetchAndSaveRemoteResources_InstallsLocalDotGraderEvaluator(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupMinimalGitRepo(t, tmpDir)
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+
+	content := `---
+on: workflow_dispatch
+graders:
+  operational-value:
+    run: ./scripts/example-operational-value.sh
+---
+
+# Workflow
+`
+	evaluatorContent := []byte("#!/usr/bin/env bash\necho local\n")
+	originalDownload := downloadResourceFileFromGitHub
+	t.Cleanup(func() { downloadResourceFileFromGitHub = originalDownload })
+	downloadResourceFileFromGitHub = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+		assert.Equal(t, "workflows/scripts/example-operational-value.sh", filePath)
+		return evaluatorContent, nil
+	}
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main"},
+		WorkflowPath: "workflows/graded.md",
+	}
+	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil))
+
+	installed, err := os.ReadFile(filepath.Join(workflowsDir, "scripts", "example-operational-value.sh"))
+	require.NoError(t, err)
+	assert.Equal(t, evaluatorContent, installed)
+}
+
+func TestFetchAndSaveRemoteResources_RejectsGraderEvaluatorSymlinkedParent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires additional privileges on Windows")
+	}
+	tmpDir := t.TempDir()
+	setupMinimalGitRepo(t, tmpDir)
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+	outsideDir := t.TempDir()
+	require.NoError(t, os.Symlink(outsideDir, filepath.Join(workflowsDir, "scripts")))
+
+	content := `---
+on: workflow_dispatch
+graders:
+  operational-value:
+    run: ./scripts/example-operational-value.sh
+---
+
+# Workflow
+`
+	originalDownload := downloadResourceFileFromGitHub
+	t.Cleanup(func() { downloadResourceFileFromGitHub = originalDownload })
+	downloadResourceFileFromGitHub = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+		return []byte("#!/usr/bin/env bash\necho unsafe\n"), nil
+	}
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main"},
+		WorkflowPath: "workflows/graded.md",
+	}
+	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, true, nil))
+	assert.NoFileExists(t, filepath.Join(outsideDir, "example-operational-value.sh"))
 }
 
 // TestExtractResources_MacroRejected verifies that an entry with GitHub Actions expression syntax causes an error.
