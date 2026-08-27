@@ -227,7 +227,7 @@ Stop and emit a safe output **immediately** when any of the following is true:
    - Missing `pr.diff` → `mcp__github__get_pull_request_diff` (only if `diff_available` is `true` in the summary; if `false`, the diff exceeds the 300-file API limit — use `pr-files.json` instead and do **not** call the diff API)
    - Missing `adr-prefetch-summary.json` → compute manually from PR files and labels
 3. Do **not** perform broad exploration. Only fetch extra data if a required field is missing from pre-fetched files.
-4. Do not use the `Agent`, `Task`, or `Skill` tools, delegate work, run `git add`/`git commit`/`git push`/`gh pr comment`, or investigate safe-output tool availability or permissions. The required safe-output tools are available directly.
+4. Do not use the `Agent` or `Task` tools, delegate work, run `git push`, or investigate safe-output tool availability or permissions. The required safe-output tools are available directly.
 5. Call only the minimum final safe outputs, then stop: use `noop` or `add-comment` for every non-draft outcome; when a draft ADR is generated, call `push-to-pull-request-branch` and then `add-comment`.
 6. If you have enough evidence to decide, stop immediately. Do not gather optional data.
 
@@ -344,7 +344,7 @@ Generate a draft ADR file using the imported `adr-writer` template. Fill the Mic
 mkdir -p ${{ github.workspace }}/docs/adr
 ```
 
-4. **Post the blocking comment.** Use `add-comment` with the **ADR Required** template from the **ADR Report Templates** section below.
+4. **Post the blocking comment.** Read the `adr-report-templates` skill and use `add-comment` with the **ADR Required** template.
 
 ### ADR Found — Verify Implementation
 
@@ -362,7 +362,7 @@ If an ADR **is** found (either in the PR body, on the PR branch, or in a linked 
 3. **Scope creep** — Significant architectural changes not covered by the ADR
 4. **Full alignment** — Code faithfully implements the stated decision
 
-3. **Report findings.** Use `add-comment` with the matching template from the **ADR Report Templates** section below:
+3. **Report findings.** Read the `adr-report-templates` skill and use `add-comment` with the matching template:
 
 - **If the implementation MATCHES the ADR**: use the **ADR Verified** template.
 - **If there are DIVERGENCES**: use the **Implementation Diverges** template.
@@ -375,7 +375,7 @@ If an ADR **is** found (either in the PR body, on the PR branch, or in a linked 
 {"noop": {"message": "No action needed: [brief explanation of what was found and why no action was required]"}}
 ```
 
-## ADR Report Templates
+## skill: `adr-report-templates`
 ---
 description: PR comment templates for the Design Decision Gate (ADR Required, ADR Verified, and Implementation Diverges).
 ---
@@ -472,3 +472,4 @@ The ADR and implementation must be in sync before this PR can merge.
 
 </details>
 ```
+## end skill: `adr-report-templates`
