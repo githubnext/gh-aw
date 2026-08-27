@@ -113,7 +113,7 @@ safe-outputs:
 
 Rules:
 
-- **One open item at a time.** Cap the safe output with `max: 1` and rely on the default `skip-if-match` threshold (`max: 1`) so any single open match skips activation.
+- **One open item at a time.** Cap the safe output with `max: 1`. The string form of `skip-if-match` implies a threshold of `max: 1`, so any single open match skips activation; no extra field is needed.
 - **Match on stable identity.** Prefer the hidden `gh-aw-workflow-id: <workflow-file-name-without-.md>` marker (`in:body`) over a title prefix, because humans rename titles; see [Footer Control](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/footers.md). A title match (`in:title "[all-you-can-eat] "`) works when the workflow also sets `title-prefix:`. The query is auto-scoped to the current repository.
 - **Pull requests use the same shape** with `is:pr is:open` and `create-pull-request`; drafts count as open. Allow a small queue depth by raising the threshold (`skip-if-match: { query: ..., max: 3 }`) when the user can consume several items in parallel.
 - **Do not starve.** If the user never closes the item, the workflow never runs again. Set `expires:` on the safe output (or an equivalent auto-close) so an abandoned item eventually unblocks the schedule.
