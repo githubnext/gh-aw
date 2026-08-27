@@ -82,7 +82,7 @@ After the files are committed, set `engine: claude` in workflow frontmatter (if 
 
 ## GitHub Agentic Workflows vs. Claude Code in Actions
 
-Running coding agent CLIs such as `claude` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecure and workflow portability across AI engines.
+Running coding agent CLIs such as `claude` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecture and workflow portability across AI engines.
 
 The [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action) workflow has a security model with fewer guardrails. It is not recommended for use in GitHub Actions if GitHub Agentic Workflows are available for use.
 
