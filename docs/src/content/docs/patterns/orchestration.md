@@ -5,14 +5,14 @@ sidebar:
   badge: { text: 'Multi-step', variant: 'caution' }
 ---
 
-OrchestratorOps is a pattern where one workflow (the **orchestrator**) fans out work to one or more **worker** workflows. The orchestrator decides what to do and in what order; workers execute concrete tasks with scoped permissions and tools. This keeps complex multi-step operations manageable, observable, and independently resumable.
+OrchestratorOps uses one workflow (the **orchestrator**) to decide what happens next and one or more **worker** workflows to do the concrete work with scoped permissions and tools. This makes multi-step automation easier to manage, observe, and resume.
 
 ```mermaid
 flowchart LR
-    trigger([Trigger]) --> orch[Orchestrator\ndecide & dispatch]
-    orch --> w1[Worker A]
-    orch --> w2[Worker B]
-    orch --> w3[Worker N]
+    Trigger([Trigger]) --> Orchestrator[Orchestrator\ndecide & dispatch]
+    Orchestrator --> WorkerA[Worker A]
+    Orchestrator --> WorkerB[Worker B]
+    Orchestrator --> WorkerN[Worker N]
 ```
 
 ## When to Use OrchestratorOps
@@ -21,7 +21,7 @@ Use OrchestratorOps when a single workflow run is too coarse — the work spans 
 
 ## The Orchestrator/Worker Pattern
 
-The **orchestrator** decides what to do next, splits work into units, and dispatches workers. **Workers** handle the concrete tasks — triage, code changes, or analysis — with scoped permissions and tools. For visibility, both can optionally update a GitHub Project board.
+The **orchestrator** splits work into units and dispatches workers. **Workers** handle the concrete tasks — triage, code changes, or analysis — with only the permissions and tools they need. For visibility, both can optionally update a GitHub Project board.
 
 ## Dispatch Workers with `dispatch-workflow`
 
@@ -34,7 +34,7 @@ safe-outputs:
     max: 10
 ```
 
-During compilation, gh-aw validates the target workflows exist and support `workflow_dispatch`. Workers receive a JSON payload and run asynchronously as independent workflow runs.
+During compilation, gh-aw validates that the target workflows exist and support `workflow_dispatch`. Workers receive a JSON payload and run asynchronously as independent workflow runs. Use this mode when work should continue independently of the orchestrator.
 
 See [`dispatch-workflow` safe output](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow).
 
@@ -49,11 +49,11 @@ safe-outputs:
     max: 1
 ```
 
-The compiler validates that each worker declares `workflow_call`, generates a typed MCP tool per worker from its inputs, and emits a conditional `uses:` job. At runtime the worker whose name the agent selected executes as part of the same workflow run — preserving `github.actor` and billing attribution.
-
-See [`call-workflow` safe output](/gh-aw/reference/safe-outputs/#workflow-call-call-workflow).
+The compiler validates that each worker declares `workflow_call`, generates a typed MCP tool from its inputs, and emits a conditional `uses:` job. At runtime, the selected worker runs inside the same workflow run, preserving `github.actor` and billing attribution.
 
 Use `call-workflow` when actor attribution matters, workers must finish before the orchestrator concludes, or you want zero API overhead. Use `dispatch-workflow` when workers should run asynchronously, outlive the parent run, or need `workflow_dispatch` inputs.
+
+See [`call-workflow` safe output](/gh-aw/reference/safe-outputs/#workflow-call-call-workflow).
 
 ## Passing Correlation IDs
 
@@ -61,6 +61,6 @@ If your workers need shared context, pass an explicit input such as `tracker_id`
 
 ## Learn More
 
-For parallel processing at larger scale, see [BatchOps](/gh-aw/patterns/batch-ops/). For a central control plane across repositories, see [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/). For ordered, sequential processing, see [WorkQueueOps](/gh-aw/patterns/workqueue-ops/).
+For parallel processing at larger scale, see [BatchOps](/gh-aw/patterns/batch-ops/). For a central control plane across repositories, see [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/). For ordered, sequential processing, see [WorkQueueOps](/gh-aw/patterns/workqueue-ops/). For progress tracking, see [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/).
 
-See [Safe Outputs (`dispatch-workflow`)](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) for asynchronous worker dispatch, [Safe Outputs (`call-workflow`)](/gh-aw/reference/safe-outputs/#workflow-call-call-workflow) for reusable workflow calls, and [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) for progress tracking.
+See [Safe Outputs (`dispatch-workflow`)](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) for asynchronous worker dispatch and [Safe Outputs (`call-workflow`)](/gh-aw/reference/safe-outputs/#workflow-call-call-workflow) for reusable workflow calls.
