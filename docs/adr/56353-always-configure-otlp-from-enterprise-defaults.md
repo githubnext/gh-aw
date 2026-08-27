@@ -12,7 +12,7 @@ Agentic workflows in gh-aw previously required per-workflow opt-in for OTLP tele
 
 ### Decision
 
-We will make the compiler always emit OTLP environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `GH_AW_OTLP_ENDPOINTS`, and `GH_AW_OTLP_IF_MISSING`) in compiled workflow YAML, drawing from two new org/enterprise-level defaults — `GH_AW_DEFAULT_OTLP_ENDPOINT` (variable) and `GH_AW_DEFAULT_OTLP_HEADERS` (secret). Existing `observability.otlp` frontmatter wins on precedence so already-configured workflows are unaffected. When neither is set, `GH_AW_OTLP_IF_MISSING: ignore` causes the runtime to silently drop endpoints whose URL is empty, making the default path a no-op. A runtime bash guard (`check_otlp_default_credentials.sh`) fails the job when an endpoint is configured without accompanying headers.
+We will make the compiler always emit OTLP environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `GH_AW_OTLP_ENDPOINTS`, and `GH_AW_OTLP_IF_MISSING`) in compiled workflow YAML, drawing from two new org/enterprise-level defaults — `GH_AW_DEFAULT_OTLP_ENDPOINT` (variable) and `GH_AW_DEFAULT_OTLP_HEADERS` (secret). Existing `observability.otlp` frontmatter wins on precedence so already-configured workflows are unaffected. When neither is set, `GH_AW_OTLP_IF_MISSING: ignore` causes the runtime to silently drop endpoints whose URL is empty, making the default path a no-op. The compiler also skips injecting any OTLP-related env key that the workflow's own `env:` block already defines, avoiding duplicate YAML mapping keys. A half-configured default (endpoint set, headers empty) is rejected in two ways: `parseOTLPEndpoints()` — the single choke point used by every span emitter (job-setup, conclusion, outcome, and MCP gateway) — drops such an endpoint before any network call regardless of which job runs it, and a runtime bash guard (`check_otlp_default_credentials.sh`) additionally fails the agent job so the misconfiguration is visible.
 
 ### Alternatives Considered
 
@@ -38,6 +38,7 @@ Introduce an org-level variable that the existing `observability.otlp` resolutio
 #### Neutral
 - The collector domain is not known at compile time (it is an expression-valued variable), so no firewall allowlist entry is added automatically; enterprises must add their collector to `network.allowed` themselves, which is documented but requires a manual step.
 - `GH_AW_DEFAULT_OTLP_HEADERS` is registered as compiler-internal in `safe_update_enforcement.go` so that safe-update does not flag every recompile as introducing a new secret reference.
+- The credential-emptiness check that drops a half-configured default endpoint is centralized in `parseOTLPEndpoints()` (`actions/setup/js/send_otlp_span.cjs`) rather than only in the agent job's bash guard, so no job ordering can result in one unauthenticated export attempt slipping through before validation runs. The env-key injection in `injectOTLPConfig` (`pkg/workflow/observability_otlp.go`) also checks the workflow's own `env:` block for every OTLP-related key it emits, not only `OTEL_SERVICE_NAME`, to avoid duplicate YAML mapping keys.
 
 ---
 

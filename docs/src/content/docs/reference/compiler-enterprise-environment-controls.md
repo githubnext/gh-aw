@@ -115,8 +115,10 @@ For OTLP observability, precedence is:
 The compiler always emits OTLP environment variables. When no endpoint is configured in frontmatter or an import, it emits
 `${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}` and `${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}` so an organization or enterprise can
 enable telemetry for every agentic workflow without editing individual workflows. An unset variable resolves to an empty string
-and OTLP export becomes a no-op; a configured endpoint without the matching headers secret fails the run instead of exporting
-unauthenticated telemetry.
+and OTLP export becomes a no-op; a configured endpoint without the matching headers secret is dropped by every span-emitting job
+(setup, conclusion, outcome, and MCP gateway) instead of being exported unauthenticated, and the agent job additionally fails the
+run so the misconfiguration is visible. If a workflow's own `env:` block already defines one of the OTLP variables, the compiler
+skips injecting that variable rather than emitting a duplicate mapping key.
 
 For detection engine selection, precedence is:
 
