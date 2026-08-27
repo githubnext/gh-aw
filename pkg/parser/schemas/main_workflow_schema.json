@@ -8707,11 +8707,11 @@
                 },
                 "issues": {
                   "type": "boolean",
-                  "description": "When false, excludes issues:write from the minted GitHub App token for remove-labels. Default (omitted or true) includes issues:write."
+                  "description": "When false, excludes issues:write for remove-labels from both the safe_outputs job permissions and any minted GitHub App token. Default (omitted or true) includes issues:write."
                 },
                 "pull-requests": {
                   "type": "boolean",
-                  "description": "When false, excludes pull-requests:write from the minted GitHub App token for remove-labels. Default (omitted or true) includes pull-requests:write."
+                  "description": "When false, excludes pull-requests:write for remove-labels from both the safe_outputs job permissions and any minted GitHub App token. Default (omitted or true) includes pull-requests:write."
                 },
                 "target": {
                   "type": "string",

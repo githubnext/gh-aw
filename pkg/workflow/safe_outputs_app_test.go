@@ -565,6 +565,40 @@ Test workflow
 	assert.NotContains(t, job.Permissions, "pull-requests: write")
 }
 
+func TestSafeOutputsAppTokenRemoveLabelsIssuesOptOut(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	issuesFalse := false
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.GLOBAL_APP_ID }}",
+				PrivateKey: "${{ secrets.GLOBAL_APP_PRIVATE_KEY }}",
+			},
+			RemoveLabels: &RemoveLabelsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.REMOVE_LABELS_APP_ID }}",
+						PrivateKey: "${{ secrets.REMOVE_LABELS_APP_PRIVATE_KEY }}",
+					},
+				},
+				Issues: &issuesFalse,
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+	assert.Contains(t, stepsStr, "id: remove-labels-app-token")
+	assert.NotContains(t, stepsStr, "permission-issues: write")
+	assert.Contains(t, stepsStr, "permission-pull-requests: write")
+	assert.Contains(t, stepsStr, "steps.remove-labels-app-token.outputs.token")
+}
+
 // TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite is a regression test for the
 // add-comment + add-labels + update-project co-presence case reported after github/gh-aw#30437.
 // update-project must not downgrade issues permission from write to read in the minted GitHub App token.

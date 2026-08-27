@@ -1383,3 +1383,21 @@ Test workflow
 	err := NewCompiler(WithVersion("1.0.0")).CompileWorkflow(testFile)
 	require.ErrorContains(t, err, "safe-outputs.remove-labels: at least one of 'issues' or 'pull-requests' must be enabled")
 }
+
+func TestCompileRemoveLabelsRejectsMalformedPermissionsConfig(t *testing.T) {
+	t.Parallel()
+	testFile := filepath.Join(t.TempDir(), "test.md")
+	content := `---
+on: issues
+strict: false
+safe-outputs:
+  remove-labels:
+    pull-requests: nope
+---
+Test workflow
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+
+	err := NewCompiler(WithVersion("1.0.0")).CompileWorkflow(testFile)
+	require.ErrorContains(t, err, "expected null or boolean")
+}

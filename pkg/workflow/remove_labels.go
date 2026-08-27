@@ -23,9 +23,13 @@ func (c *Compiler) parseRemoveLabelsConfig(outputMap map[string]any) *RemoveLabe
 	return parseConfigScaffoldWithPostProcess(outputMap, "remove-labels", removeLabelsLog,
 		func(err error) *RemoveLabelsConfig {
 			removeLabelsLog.Printf("Failed to unmarshal config: %v", err)
-			// Handle null case: create empty config (allows any labels)
-			removeLabelsLog.Print("Using empty configuration (allows any labels)")
-			return &RemoveLabelsConfig{}
+			removeLabelsLog.Print("Using fail-closed fallback configuration due to parse error")
+			issuesDisabled := false
+			pullRequestsDisabled := false
+			return &RemoveLabelsConfig{
+				Issues:       &issuesDisabled,
+				PullRequests: &pullRequestsDisabled,
+			}
 		},
 		func(config *RemoveLabelsConfig) {
 			removeLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
