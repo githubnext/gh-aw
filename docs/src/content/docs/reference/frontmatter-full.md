@@ -21976,7 +21976,6 @@ user-rate-limit:
   # Maximum number of workflow runs allowed per user within the time window.
   # Required field. Supports integer or GitHub Actions expression (e.g. '${{
   # inputs.max }}').
-  # (optional)
   # Accepted formats:
 
   # Format 1: integer
