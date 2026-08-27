@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var copilotPermissionsLog = logger.New("cli:add_copilot_permissions")
 
 // This file handles Copilot-specific workflow permission injection.
 
@@ -40,7 +43,7 @@ func isCopilotWorkflowContent(content string) bool {
 // (e.g., when `permissions:` is a non-mapping scalar like `read-all`).
 func addCopilotRequestsPermissionToContent(content string) (string, error) {
 	var injectionFailed bool
-	newContent, _, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+	newContent, modified, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 		updated := ensureCopilotRequestsWritePermission(lines)
 		// Detect whether ensureCopilotRequestsWritePermission actually made a change.
 		// When lengths differ, a line was added — modified is true without needing element comparison.
@@ -64,11 +67,13 @@ func addCopilotRequestsPermissionToContent(content string) (string, error) {
 		return updated, modified
 	})
 	if injectionFailed {
+		copilotPermissionsLog.Print("Failed to inject copilot-requests permission: permissions block is a non-mapping scalar")
 		return content, errors.New("permissions.copilot-requests could not be injected because 'permissions' is a non-mapping scalar value. Expected 'permissions' to be a mapping object. Example:\npermissions:\n  contents: read\n  copilot-requests: write")
 	}
 	if err != nil {
 		return content, err
 	}
+	copilotPermissionsLog.Printf("copilot-requests permission injection complete: modified=%t", modified)
 	return newContent, nil
 }
 
