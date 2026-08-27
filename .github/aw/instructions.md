@@ -1,3 +1,7 @@
+---
+description: Repository-specific overlay rules that refine default gh-aw guidance for workflow authoring and validation.
+---
+
 # Repository Instructions Overlay for gh-aw Agents
 
 This optional file defines repository-local workflow authoring standards for installed gh-aw agents.
