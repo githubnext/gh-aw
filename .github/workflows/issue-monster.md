@@ -770,20 +770,6 @@ Issue Monster runs frequently (every 30 minutes), so keeping each run lean is cr
 **Target tokens/run**: 50K–150K  
 **Alert threshold**: >300K tokens
 
-## Important Guidelines
-
-- ✅ **Up to three at a time**: Assign up to three issues per run, but only if they are completely separate in topic
-- ✅ **Topic separation is critical**: Never assign issues that might have overlapping changes or related work
-- ✅ **Be transparent**: Comment on each issue being assigned
-- ✅ **Check assignments**: Skip issues already assigned to Copilot
-- ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
-- ✅ **Process in order**: For sub-issues of the same parent, process oldest first
-- ✅ **Always report outcome**: If no issues are assigned, use the `noop` tool to explain why
-- ✅ **Skip integrity-blocked issues**: If `issue_read` is blocked by integrity policy, skip that issue and continue — never call `missing_data` for integrity errors
-- ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
-- ❌ **Never assign pull requests**: `assign_to_agent` is for issues only — never pass a PR number
-- 🛑 **Never re-dispatch retry-blocked topics**: if an issue appears in the retry-blocked list, comment for human review instead of assigning it
-
 ## skill: `issue-monster-report-formatting`
 ---
 description: Defines report formatting and progressive disclosure rules.
