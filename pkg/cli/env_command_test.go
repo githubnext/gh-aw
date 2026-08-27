@@ -344,6 +344,22 @@ func TestUpsertDefaultsVariableCreateVisibilityError(t *testing.T) {
 	assert.Contains(t, err.Error(), "Example:")
 }
 
+func TestUpsertDefaultsVariableCreateUnrelatedError(t *testing.T) {
+	stubDefaultsExecGH(t, func(args []string) *exec.Cmd {
+		if slices.Contains(args, "PATCH") {
+			return defaultsGHHelperCommand("HTTP 404: Not Found", 1)
+		}
+		return defaultsGHHelperCommand("HTTP 403: Forbidden", 1)
+	})
+
+	target := defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll}
+	err := upsertDefaultsVariable(target, "GH_AW_DEFAULT_MAX_TURNS", "5")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create GH_AW_DEFAULT_MAX_TURNS at org scope")
+	assert.NotContains(t, err.Error(), "variables require a visibility")
+	assert.Contains(t, err.Error(), "HTTP 403: Forbidden")
+}
+
 func stubDefaultsExecGH(t *testing.T, stub func([]string) *exec.Cmd) {
 	t.Helper()
 	original := defaultsExecGH

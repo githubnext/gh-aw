@@ -576,7 +576,8 @@ func upsertDefaultsVariable(target defaultsTarget, name, value string) error {
 	}
 	out, err := runDefaultsGH(args...)
 	if err != nil {
-		if target.scope == defaultsScopeOrg || target.scope == defaultsScopeEnt {
+		if (target.scope == defaultsScopeOrg || target.scope == defaultsScopeEnt) &&
+			strings.Contains(strings.ToLower(string(out)), "visibility") {
 			scopeName := "organization"
 			example := "gh aw env update defaults.yml --scope org --org my-org --visibility all"
 			if target.scope == defaultsScopeEnt {
@@ -586,7 +587,7 @@ func upsertDefaultsVariable(target defaultsTarget, name, value string) error {
 			message := fmt.Sprintf("failed to create %s at %s scope: %s variables require a visibility. Expected one of all, private, selected. Example: %s", name, target.scope, scopeName, example)
 			return fmt.Errorf("%s: %w", console.FormatErrorMessage(message), errWithOutput(err, out))
 		}
-		return fmt.Errorf("failed to set %s: %w", name, errWithOutput(err, out))
+		return fmt.Errorf("failed to create %s at %s scope: %w", name, target.scope, errWithOutput(err, out))
 	}
 	return nil
 }
