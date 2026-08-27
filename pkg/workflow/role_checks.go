@@ -240,7 +240,7 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 
 	rateLimitMap, ok := rateLimitValue.(map[string]any)
 	if !ok {
-		roleLog.Print("No user-rate-limit configuration specified")
+		roleLog.Printf("user-rate-limit value is not an object, ignoring configuration: %T", rateLimitValue)
 		return nil
 	}
 
