@@ -146,6 +146,12 @@ func cleanManifestRelativePath(p string) (string, error) {
 	if strings.HasPrefix(slashed, "/") || strings.HasPrefix(slashed, "\\") || filepath.IsAbs(p) || isWindowsDriveRelativePath(slashed) {
 		return "", errors.New("absolute paths are not allowed")
 	}
+	// A leading "//" or "/\" is interpreted by many URL/path consumers as a
+	// protocol-relative or UNC-style absolute reference even though it does not
+	// match a simple single-leading-slash or backslash check. Reject these too.
+	if len(slashed) > 1 && (slashed[0] == '/' || slashed[0] == '\\') && (slashed[1] == '/' || slashed[1] == '\\') {
+		return "", errors.New("absolute paths are not allowed")
+	}
 	cleaned := path.Clean(slashed)
 	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
 		return "", errors.New("path traversal outside the root is not allowed")
