@@ -144,20 +144,22 @@ func (f Finding) CompilerError() console.CompilerError {
 // FormatMessage builds the standard "[severity] rule: description" message used
 // by the scanner integrations. Empty parts are omitted.
 func FormatMessage(severityLabel, ruleID, description string) string {
-	var parts []string
+	severityPart := ""
 	if severityLabel != "" {
-		parts = append(parts, fmt.Sprintf("[%s]", severityLabel))
+		severityPart = fmt.Sprintf("[%s]", severityLabel)
 	}
-	if ruleID != "" {
-		if description != "" {
-			parts = append(parts, fmt.Sprintf("%s: %s", ruleID, description))
-		} else {
-			parts = append(parts, ruleID)
-		}
-	} else if description != "" {
-		parts = append(parts, description)
+
+	bodyPart := ""
+	switch {
+	case ruleID != "" && description != "":
+		bodyPart = fmt.Sprintf("%s: %s", ruleID, description)
+	case ruleID != "":
+		bodyPart = ruleID
+	case description != "":
+		bodyPart = description
 	}
-	return strings.Join(parts, " ")
+
+	return strings.TrimSpace(strings.Join([]string{severityPart, bodyPart}, " "))
 }
 
 // Render writes the findings to w using the shared console error format.
