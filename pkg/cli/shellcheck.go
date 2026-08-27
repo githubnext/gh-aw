@@ -309,11 +309,15 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 }
 
 func stepLabel(info runStepInfo) string {
-	if info.LockFile == "" && info.Source != "" {
-		if info.Name != "" {
-			return info.Source + " (step: " + info.Name + ")"
+	if info.LockFile == "" {
+		source := info.Source
+		if source == "" {
+			source = "(unknown)"
 		}
-		return info.Source
+		if info.Name != "" {
+			return source + " (step: " + info.Name + ")"
+		}
+		return source
 	}
 	if info.Name != "" {
 		return filepath.Base(info.LockFile) + " (step: " + info.Name + ")"
