@@ -716,6 +716,85 @@ Test workflow`
 	}
 }
 
+// TestExternalDetectorCodexConfigUsesOpenAIProxyPort verifies that the detection
+// config.toml pins Codex to an ingress that speaks the OpenAI Responses wire API.
+// Pointing it at the Anthropic ingress (port 10001) makes every detection request
+// fail with 403 "Credentials for Anthropic (port 10001) are not configured", so the
+// engine never produces a verdict and the detection job fails with ERR_SYSTEM.
+func TestExternalDetectorCodexConfigUsesOpenAIProxyPort(t *testing.T) {
+	tests := []struct {
+		name       string
+		engineYAML string
+	}{
+		{
+			name:       "default provider",
+			engineYAML: "engine:\n  id: codex\n",
+		},
+		{
+			name:       "anthropic provider override",
+			engineYAML: "engine:\n  id: codex\n  model-provider: anthropic\n",
+		},
+	}
+
+	openAIBaseURL := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CodexLLMGatewayPort))
+	anthropicHostPort := net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			tmpDir := testutil.TempDir(t, "test-external-detector-codex-port-*")
+			workflowPath := filepath.Join(tmpDir, "test-codex-port.md")
+
+			workflowContent := `---
+on: push
+` + tt.engineYAML + `safe-outputs:
+  create-issue:
+features:
+  gh-aw-detection: true
+---
+Test workflow`
+
+			if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+			if err := compiler.CompileWorkflow(workflowPath); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			result, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+			if err != nil {
+				t.Fatalf("Failed to read compiled workflow: %v", err)
+			}
+
+			detectionSection := extractJobSection(string(result), "detection")
+			if detectionSection == "" {
+				t.Fatal("Detection job not found in compiled workflow")
+			}
+
+			for _, key := range []string{"base_url", "api_base"} {
+				expected := key + ` = "` + openAIBaseURL + `"`
+				if !strings.Contains(detectionSection, expected) {
+					t.Errorf("Codex detection config must set %s to the OpenAI ingress (%s)", key, openAIBaseURL)
+				}
+			}
+			expectedWSS := `wss_base = "ws://` + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CodexLLMGatewayPort)) + `"`
+			if !strings.Contains(detectionSection, expectedWSS) {
+				t.Errorf("Codex detection config must set wss_base to the OpenAI ingress (%s)", expectedWSS)
+			}
+			if strings.Contains(detectionSection, `base_url = "http://`+anthropicHostPort+`"`) {
+				t.Errorf("Codex detection config must never point at the Anthropic ingress (%s)", anthropicHostPort)
+			}
+			if !strings.Contains(detectionSection, `CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}`) {
+				t.Error("Codex detection execution must use the OpenAI credential expression")
+			}
+			if strings.Contains(detectionSection, `CODEX_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}`) {
+				t.Error("Codex detection execution must never use the Anthropic credential expression")
+			}
+		})
+	}
+}
+
 // TestExternalDetectorCodexConfigModelProviderAtRoot verifies that the top-level
 // model_provider selector is emitted before any TOML table header ([history],
 // [model_providers.*]). If it appears after [history], TOML parses it as
