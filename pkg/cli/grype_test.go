@@ -11,6 +11,7 @@ import (
 )
 
 func TestGrypeDisplayFindings_NilOutput(t *testing.T) {
+	t.Parallel()
 	count := grypeDisplayFindings("test-image:latest", nil)
 	if count != 0 {
 		t.Errorf("Expected 0 findings for nil output, got %d", count)
@@ -18,6 +19,7 @@ func TestGrypeDisplayFindings_NilOutput(t *testing.T) {
 }
 
 func TestGrypeDisplayFindings_EmptyMatches(t *testing.T) {
+	t.Parallel()
 	output := &grypeOutput{Matches: []grypeFinding{}}
 	count := grypeDisplayFindings("test-image:latest", output)
 	if count != 0 {
@@ -26,6 +28,7 @@ func TestGrypeDisplayFindings_EmptyMatches(t *testing.T) {
 }
 
 func TestGrypeDisplayFindings_WithFindings(t *testing.T) {
+	t.Parallel()
 	output := &grypeOutput{
 		Matches: []grypeFinding{
 			makeGrypeFinding("CVE-2021-12345", "High", "libssl", "1.1.1", []string{"1.1.2"}, "https://nvd.nist.gov/vuln/detail/CVE-2021-12345"),
@@ -40,6 +43,7 @@ func TestGrypeDisplayFindings_WithFindings(t *testing.T) {
 }
 
 func TestGrypeDisplayFindings_SeverityMapping(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		severity string
 		wantType string
@@ -56,6 +60,7 @@ func TestGrypeDisplayFindings_SeverityMapping(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.severity, func(t *testing.T) {
+			t.Parallel()
 			output := &grypeOutput{
 				Matches: []grypeFinding{
 					makeGrypeFinding("CVE-2021-00000", tc.severity, "pkg", "1.0", nil, ""),
@@ -72,6 +77,7 @@ func TestGrypeDisplayFindings_SeverityMapping(t *testing.T) {
 }
 
 func TestGrypeCacheGetSet(t *testing.T) {
+	t.Parallel()
 	cache := &grypeCache{
 		results: make(map[string]*grypeOutput),
 		errors:  make(map[string]error),
@@ -105,6 +111,7 @@ func TestGrypeCacheGetSet(t *testing.T) {
 }
 
 func TestGrypeCacheSetError(t *testing.T) {
+	t.Parallel()
 	cache := &grypeCache{
 		results: make(map[string]*grypeOutput),
 		errors:  make(map[string]error),
@@ -127,6 +134,7 @@ func TestGrypeCacheSetError(t *testing.T) {
 }
 
 func TestRunGrypeOnLockFiles_NoLockFiles(t *testing.T) {
+	t.Parallel()
 	err := runGrypeOnLockFiles([]string{}, false, false)
 	if err != nil {
 		t.Errorf("Expected no error for empty lock file list, got: %v", err)
@@ -134,6 +142,7 @@ func TestRunGrypeOnLockFiles_NoLockFiles(t *testing.T) {
 }
 
 func TestCollectContainerImagesFromLockFiles_Nil(t *testing.T) {
+	t.Parallel()
 	images := collectContainerImagesFromLockFiles(nil)
 	if images != nil {
 		t.Errorf("Expected nil for nil input, got %v", images)
@@ -141,6 +150,7 @@ func TestCollectContainerImagesFromLockFiles_Nil(t *testing.T) {
 }
 
 func TestCollectContainerImagesFromLockFiles_Empty(t *testing.T) {
+	t.Parallel()
 	images := collectContainerImagesFromLockFiles([]string{})
 	if images != nil {
 		t.Errorf("Expected nil for empty input, got %v", images)
@@ -148,6 +158,7 @@ func TestCollectContainerImagesFromLockFiles_Empty(t *testing.T) {
 }
 
 func TestCollectContainerImagesFromLockFiles_NonExistentFile(t *testing.T) {
+	t.Parallel()
 	images := collectContainerImagesFromLockFiles([]string{"/nonexistent/path.lock.yml"})
 	if len(images) != 0 {
 		t.Errorf("Expected 0 images for non-existent file, got %d", len(images))
@@ -155,6 +166,7 @@ func TestCollectContainerImagesFromLockFiles_NonExistentFile(t *testing.T) {
 }
 
 func TestCollectContainerImagesFromLockFiles_NoManifest(t *testing.T) {
+	t.Parallel()
 	// A lock file with no gh-aw-manifest header.
 	tmpFile, err := os.CreateTemp("", "test-*.lock.yml")
 	if err != nil {
@@ -174,6 +186,7 @@ func TestCollectContainerImagesFromLockFiles_NoManifest(t *testing.T) {
 }
 
 func TestCollectContainerImagesFromLockFiles_WithManifest(t *testing.T) {
+	t.Parallel()
 	tmpFile, err := os.CreateTemp("", "test-*.lock.yml")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
@@ -199,6 +212,7 @@ func TestCollectContainerImagesFromLockFiles_WithManifest(t *testing.T) {
 }
 
 func TestCollectContainerImagesFromLockFiles_DeduplicatesByPinnedImage(t *testing.T) {
+	t.Parallel()
 	manifest := `# gh-aw-manifest: {"version":1,"secrets":[],"actions":[],"containers":[{"image":"ghcr.io/test/image:v1.0","digest":"sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1","pinned_image":"ghcr.io/test/image:v1.0@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1"}]}`
 
 	file1, err := os.CreateTemp("", "test-*.lock.yml")
@@ -224,6 +238,7 @@ func TestCollectContainerImagesFromLockFiles_DeduplicatesByPinnedImage(t *testin
 }
 
 func TestCollectContainerImagesFromLockFiles_MultipleDistinctImages(t *testing.T) {
+	t.Parallel()
 	manifest1 := `# gh-aw-manifest: {"version":1,"secrets":[],"actions":[],"containers":[{"image":"ghcr.io/test/image-a:v1.0","pinned_image":"ghcr.io/test/image-a:v1.0@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}`
 	manifest2 := `# gh-aw-manifest: {"version":1,"secrets":[],"actions":[],"containers":[{"image":"ghcr.io/test/image-b:v2.0","pinned_image":"ghcr.io/test/image-b:v2.0@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]}`
 
@@ -250,6 +265,7 @@ func TestCollectContainerImagesFromLockFiles_MultipleDistinctImages(t *testing.T
 }
 
 func TestCollectContainerImagesFromLockFiles_EmptyImageIgnored(t *testing.T) {
+	t.Parallel()
 	manifest := `# gh-aw-manifest: {"version":1,"secrets":[],"actions":[],"containers":[{"image":"","pinned_image":""}]}`
 
 	tmpFile, err := os.CreateTemp("", "test-*.lock.yml")
@@ -267,6 +283,7 @@ func TestCollectContainerImagesFromLockFiles_EmptyImageIgnored(t *testing.T) {
 }
 
 func TestCollectContainerImagesFromLockFiles_NoContainers(t *testing.T) {
+	t.Parallel()
 	manifest := `# gh-aw-manifest: {"version":1,"secrets":["MY_SECRET"],"actions":[]}`
 
 	tmpFile, err := os.CreateTemp("", "test-*.lock.yml")
@@ -296,6 +313,7 @@ func makeGrypeFinding(id, severity, pkgName, pkgVersion string, fixVersions []st
 }
 
 func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		imageRef string
@@ -307,6 +325,7 @@ func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := grypeRunOnImage(tt.imageRef, "", false)
 			if err == nil {
 				t.Fatalf("Expected error for unsafe image reference %q", tt.imageRef)
@@ -319,6 +338,7 @@ func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
 }
 
 func TestValidateExecArgument(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		arg     string
@@ -334,6 +354,7 @@ func TestValidateExecArgument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := validateExecArgument(tt.arg)
 			if tt.wantErr && err == nil {
 				t.Fatalf("expected error for argument %q", tt.arg)
@@ -367,6 +388,7 @@ func prependFakeDockerToPath(t *testing.T, stdout string) {
 }
 
 func TestGrypeDockerArgs_WithoutConfig(t *testing.T) {
+	t.Parallel()
 	args, err := grypeDockerArgs("alpine:3.20", "")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
@@ -378,6 +400,7 @@ func TestGrypeDockerArgs_WithoutConfig(t *testing.T) {
 }
 
 func TestGrypeDockerArgs_WithConfig(t *testing.T) {
+	t.Parallel()
 	configFile := filepath.Join(t.TempDir(), grypeConfigFilename)
 	if err := os.WriteFile(configFile, []byte("ignore: []\n"), 0o644); err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
@@ -401,6 +424,7 @@ func TestGrypeDockerArgs_WithConfig(t *testing.T) {
 }
 
 func TestGrypeDockerArgs_MissingConfigFile(t *testing.T) {
+	t.Parallel()
 	missing := filepath.Join(t.TempDir(), "does-not-exist.yaml")
 	if _, err := grypeDockerArgs("alpine:3.20", missing); err == nil {
 		t.Fatal("Expected error for missing config file")
@@ -408,6 +432,7 @@ func TestGrypeDockerArgs_MissingConfigFile(t *testing.T) {
 }
 
 func TestGrypeCacheKeyIncludesConfigContent(t *testing.T) {
+	t.Parallel()
 	imageRef := "alpine:3.20"
 	configFile := filepath.Join(t.TempDir(), grypeConfigFilename)
 	if err := os.WriteFile(configFile, []byte("ignore: []\n"), 0o644); err != nil {
@@ -471,6 +496,7 @@ func TestGrypeRunOnImageCachesSeparatelyByConfigContent(t *testing.T) {
 }
 
 func TestGrypeConfigFileResolvesRepositoryPolicy(t *testing.T) {
+	t.Parallel()
 	configFile := grypeConfigFile()
 	if configFile == "" {
 		t.Skip("Repository Grype policy is unavailable in this checkout")
