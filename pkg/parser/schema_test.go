@@ -112,6 +112,68 @@ func TestValidateMainWorkflowFrontmatter_Plugins(t *testing.T) {
 	}
 }
 
+func TestValidateMainWorkflowFrontmatter_UserRateLimitMaxField(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name        string
+		rateLimit   map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "canonical max-runs-per-window",
+			rateLimit: map[string]any{
+				"max-runs-per-window": 5,
+			},
+		},
+		{
+			name:        "legacy max-runs alias",
+			rateLimit:   map[string]any{"max-runs": 5},
+			wantErr:     true,
+			errContains: "Unknown property: max-runs",
+		},
+		{
+			name:        "legacy max alias",
+			rateLimit:   map[string]any{"max": 5},
+			wantErr:     true,
+			errContains: "Unknown property: max",
+		},
+		{
+			name:        "legacy max-runs expression alias",
+			rateLimit:   map[string]any{"max-runs": "${{ inputs.max_runs }}"},
+			wantErr:     true,
+			errContains: "Unknown property: max-runs",
+		},
+		{
+			name:      "missing max field",
+			rateLimit: map[string]any{"window": 60},
+			wantErr:   true,
+		},
+		{
+			name:        "unknown nested field",
+			rateLimit:   map[string]any{"max-runs-per-window": 5, "limit": 5},
+			wantErr:     true,
+			errContains: "Unknown property: limit",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on":              "workflow_dispatch",
+				"user-rate-limit": tt.rateLimit,
+			}, "workflow.md")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validation error = %v, wantErr %t", err, tt.wantErr)
+			}
+			if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+				t.Fatalf("validation error = %v, want substring %q", err, tt.errContains)
+			}
+		})
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	valid := map[string]any{
 		"on":     "workflow_dispatch",

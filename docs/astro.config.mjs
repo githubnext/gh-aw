@@ -11,7 +11,10 @@ import { unified } from "@astrojs/markdown-remark";
 import remarkStripEmojis from "./src/lib/remark/stripEmojis.js";
 import remarkTableDataLabels from "./src/lib/remark/tableDataLabels.js";
 import remarkInlineMarkdownInHtml from "./src/lib/remark/inlineMarkdownInHtml.js";
+import remarkAgenticsWorkflow from "./src/lib/remark/agenticsWorkflow.js";
 import rehypeTableWrapper from "./src/lib/rehype/tableWrapper.js";
+
+const agenticsWorkflowsDirectory = process.env.AGENTICS_WORKFLOWS_DIR ?? fileURLToPath(new URL("../../agentics/workflows/", import.meta.url));
 
 /**
  * Creates blog authors config with GitHub profile pictures
@@ -35,7 +38,7 @@ export default defineConfig({
   trailingSlash: "always",
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkStripEmojis, remarkTableDataLabels, remarkInlineMarkdownInHtml],
+      remarkPlugins: [remarkStripEmojis, remarkTableDataLabels, remarkInlineMarkdownInHtml, [remarkAgenticsWorkflow, { sourceDirectory: agenticsWorkflowsDirectory }]],
       rehypePlugins: [rehypeTableWrapper],
     }),
   },

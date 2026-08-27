@@ -63,6 +63,7 @@ const logsCommandExampleTemplate = `  # Basic usage
   %[1]s logs --ref feature-xyz         # Filter logs by feature branch
   %[1]s logs --filtered-integrity      # Filter logs containing items that were filtered by gateway integrity checks
   %[1]s logs --evals                    # Filter logs from workflows with evals results
+  %[1]s logs --graders                  # Filter logs from workflows with grader results
   %[1]s logs --exclude-staged          # Exclude staged workflow runs from results
 
   # Run ID range filtering
@@ -203,6 +204,7 @@ func loadStdinLogsOptions(cmd *cobra.Command) (StdinLogsOptions, error) {
 		SafeOutputType:    values.SafeOutputType,
 		FilteredIntegrity: values.FilteredIntegrity,
 		EvalsOnly:         values.EvalsOnly,
+		GradersOnly:       values.GradersOnly,
 		Train:             values.Train,
 		Format:            values.Format,
 		ReportFile:        values.ReportFile,
@@ -267,6 +269,7 @@ func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
 		SafeOutputType:    getStringFlag(cmd, "safe-output"),
 		FilteredIntegrity: getBoolFlag(cmd, "filtered-integrity"),
 		EvalsOnly:         getBoolFlag(cmd, "evals"),
+		GradersOnly:       getBoolFlag(cmd, "graders"),
 		Train:             getBoolFlag(cmd, "train"),
 		Format:            getStringFlag(cmd, "format"),
 		ReportFile:        getStringFlag(cmd, "report-file"),
@@ -277,6 +280,7 @@ func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
 	}
 	if len(options.ArtifactSets) > 0 {
 		options.ArtifactSets = applyEvalsArtifact(options.ArtifactSets, options.EvalsOnly)
+		options.ArtifactSets = applyGradersArtifact(options.ArtifactSets, options.GradersOnly)
 	}
 	return options, nil
 }
@@ -404,6 +408,7 @@ func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")
 	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs containing items that were filtered by gateway integrity checks")
 	logsCmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically includes the usage artifact (which contains evals)")
+	logsCmd.Flags().Bool("graders", false, "Filter to runs containing deterministic grader results; automatically includes grader artifacts")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")

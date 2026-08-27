@@ -262,6 +262,29 @@ func TestLogsToolPassesArtifactsArgument(t *testing.T) {
 	t.Fatal("expected --artifacts flag in command args")
 }
 
+func TestLogsToolPassesGradersArgument(t *testing.T) {
+	var capturedArgs []string
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedArgs = append([]string(nil), args...)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", `{"file_path":"/tmp/gh-aw/aw-mcp/logs/runs.json"}`)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerLogsTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerLogsTool should succeed")
+
+	session := connectInMemory(t, server)
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "logs",
+		Arguments: map[string]any{
+			"graders": true,
+		},
+	})
+	require.NoError(t, err, "logs tool should succeed")
+
+	require.Contains(t, capturedArgs, "--graders", "logs tool should pass --graders through to the CLI")
+}
+
 func TestLogsToolUsesEffectiveCountForTimeoutScaling(t *testing.T) {
 	t.Run("omitted count and no workflow name use all-workflow minimum timeout", func(t *testing.T) {
 		var capturedArgs []string

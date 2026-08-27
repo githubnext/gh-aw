@@ -106,12 +106,13 @@ type logsArgs struct {
 	Firewall          bool     `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
 	NoFirewall        bool     `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
 	FilteredIntegrity bool     `json:"filtered_integrity,omitempty" jsonschema:"Filter to only runs that contain DIFC integrity-filtered events in gateway logs"`
+	Graders           bool     `json:"graders,omitempty" jsonschema:"Filter to only runs with deterministic grader results"`
 	Branch            string   `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 	AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40, 2 minutes for 41-80, 3 minutes for 81-120, and so on)"`
 	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
-	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
+	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, evals, experiment, firewall, github-api, graders, mcp, usage"`
 }
 
 func defaultMCPLogsToolTimeoutMinutesForCount(count int) int {
@@ -239,8 +240,8 @@ func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) f
 		cmdArgs, effectiveCount, timeoutValue := buildLogsCommandArgs(ctx, args)
 
 		// Log the command being executed for debugging
-		mcpLog.Printf("Executing logs tool: workflow=%s, requested_count=%d, effective_count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
-			args.WorkflowName, args.Count, effectiveCount, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
+		mcpLog.Printf("Executing logs tool: workflow=%s, requested_count=%d, effective_count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, graders=%v, timeout=%d, command_args=%v",
+			args.WorkflowName, args.Count, effectiveCount, args.Firewall, args.NoFirewall, args.FilteredIntegrity, args.Graders, timeoutValue, cmdArgs)
 
 		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
 
@@ -346,6 +347,9 @@ func appendLogsFilterArgs(cmdArgs []string, args logsArgs) []string {
 	}
 	if args.FilteredIntegrity {
 		cmdArgs = append(cmdArgs, "--filtered-integrity")
+	}
+	if args.Graders {
+		cmdArgs = append(cmdArgs, "--graders")
 	}
 	if args.Branch != "" {
 		// The MCP parameter is named "branch" for backwards compatibility,

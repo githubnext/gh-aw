@@ -117,7 +117,7 @@ The `user-rate-limit` frontmatter field prevents users from triggering workflows
 user-rate-limit:
   max-runs-per-window: 5        # Required: Maximum runs per window (1-10)
   window: 60    # Optional: Time window in minutes (default: 60, max: 180)
-  events: [workflow_dispatch, issue_comment]  # Optional: Specific events (auto-inferred if omitted)
+  events: [workflow_dispatch, issue_comment]  # Optional: Specific events (inferred from `on:` when omitted; fallback to all supported programmatic events)
   ignored-roles: [admin, maintain]  # Optional: Roles exempt from rate limiting (default: [admin, maintain, write])
 ```
 
