@@ -3,8 +3,15 @@
 package cli
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -44,6 +51,9 @@ func TestNewEnvCommand(t *testing.T) {
 	assert.Contains(t, updateCmd.Long, "--yes")
 	assert.NotNil(t, updateCmd.Flags().Lookup("yes"))
 	assert.NotNil(t, updateCmd.Flags().Lookup("dry-run"))
+	visibilityFlag := updateCmd.Flags().Lookup("visibility")
+	require.NotNil(t, visibilityFlag)
+	assert.Equal(t, defaultsVisibilityAll, visibilityFlag.DefValue)
 
 	getRepoFlag := getCmd.Flags().Lookup("repo")
 	require.NotNil(t, getRepoFlag)
@@ -64,7 +74,7 @@ func TestResolveDefaultsTarget(t *testing.T) {
 	})
 
 	t.Run("repo default scope uses current repo", func(t *testing.T) {
-		target, err := resolveDefaultsTarget("", "", "", "", false)
+		target, err := resolveDefaultsTarget("", "", "", "", "", false)
 		require.NoError(t, err)
 		assert.Equal(t, defaultsScopeRepo, target.scope)
 		assert.Equal(t, "octo-org", target.repoOwner)
@@ -72,22 +82,42 @@ func TestResolveDefaultsTarget(t *testing.T) {
 	})
 
 	t.Run("update requires scope", func(t *testing.T) {
-		_, err := resolveDefaultsTarget("", "", "", "", true)
+		_, err := resolveDefaultsTarget("", "", "", "", "", true)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "scope is required")
 	})
 
 	t.Run("org scope infers owner from repo", func(t *testing.T) {
-		target, err := resolveDefaultsTarget(defaultsScopeOrg, "github/gh-aw", "", "", false)
+		target, err := resolveDefaultsTarget(defaultsScopeOrg, "github/gh-aw", "", "", defaultsVisibilityPriv, false)
 		require.NoError(t, err)
 		assert.Equal(t, defaultsScopeOrg, target.scope)
 		assert.Equal(t, "github", target.org)
+		assert.Equal(t, defaultsVisibilityPriv, target.visibility)
 	})
 
 	t.Run("ent scope requires enterprise", func(t *testing.T) {
-		_, err := resolveDefaultsTarget(defaultsScopeEnt, "", "", "", false)
+		_, err := resolveDefaultsTarget(defaultsScopeEnt, "", "", "", "", false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "--enterprise")
+	})
+}
+
+func TestDefaultsUpdateVisibilityValidation(t *testing.T) {
+	t.Run("rejects unsupported visibility", func(t *testing.T) {
+		cmd := newDefaultsUpdateCommand()
+		cmd.SetArgs([]string{"--scope", "org", "--org", "github", "--visibility", "bogus"})
+		err := cmd.Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `invalid --visibility value "bogus"`)
+		assert.Contains(t, err.Error(), "Expected one of all, private, selected")
+		assert.Contains(t, err.Error(), "Example:")
+	})
+
+	t.Run("rejects visibility at repo scope", func(t *testing.T) {
+		cmd := newDefaultsUpdateCommand()
+		cmd.SetArgs([]string{"--scope", "repo", "--repo", "github/gh-aw", "--visibility", "all"})
+		err := cmd.Execute()
+		require.EqualError(t, err, console.FormatErrorMessage("--visibility is not valid for repo scope. Expected --scope org or --scope ent. Example: gh aw env update defaults.yml --scope org --org my-org --visibility all"))
 	})
 }
 
@@ -226,6 +256,159 @@ func TestDefaultsTargetEndpoints(t *testing.T) {
 	assert.Equal(t, "orgs/github/actions/variables", orgTarget.variablesEndpoint())
 	assert.Equal(t, "enterprises/octo-ent/actions/variables", entTarget.variablesEndpoint())
 	assert.Equal(t, "repos/github/gh-aw/actions/variables/GH_AW_DEFAULT_MAX_TURNS", repoTarget.variableEndpoint("GH_AW_DEFAULT_MAX_TURNS"))
+}
+
+func TestUpsertDefaultsVariableCreateArguments(t *testing.T) {
+	tests := []struct {
+		name               string
+		target             defaultsTarget
+		expectedVisibility string
+	}{
+		{
+			name:               "organization",
+			target:             defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll},
+			expectedVisibility: "visibility=all",
+		},
+		{
+			name:               "enterprise private",
+			target:             defaultsTarget{scope: defaultsScopeEnt, enterprise: "octo-ent", visibility: defaultsVisibilityPriv},
+			expectedVisibility: "visibility=private",
+		},
+		{
+			name:               "organization selected",
+			target:             defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilitySel},
+			expectedVisibility: "visibility=selected",
+		},
+		{
+			name:   "repository",
+			target: defaultsTarget{scope: defaultsScopeRepo, repoOwner: "github", repoName: "gh-aw"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls [][]string
+			stubDefaultsExecGH(t, func(args []string) *exec.Cmd {
+				calls = append(calls, slices.Clone(args))
+				if slices.Contains(args, "PATCH") {
+					return defaultsGHHelperCommand("HTTP 404: Not Found", 1)
+				}
+				return defaultsGHHelperCommand("", 0)
+			})
+
+			err := upsertDefaultsVariable(tt.target, "GH_AW_DEFAULT_MAX_TURNS", "5")
+			require.NoError(t, err)
+			require.Len(t, calls, 2)
+			assert.Contains(t, calls[0], "PATCH")
+			assert.NotContains(t, calls[0], "visibility="+tt.target.visibility)
+			assert.Contains(t, calls[1], "POST")
+			if tt.expectedVisibility == "" {
+				assert.False(t, slices.ContainsFunc(calls[1], func(arg string) bool {
+					return strings.HasPrefix(arg, "visibility=")
+				}))
+			} else {
+				assert.Contains(t, calls[1], tt.expectedVisibility)
+			}
+		})
+	}
+}
+
+func TestUpsertDefaultsVariableExistingOrgPreservesVisibility(t *testing.T) {
+	var calls [][]string
+	stubDefaultsExecGH(t, func(args []string) *exec.Cmd {
+		calls = append(calls, slices.Clone(args))
+		return defaultsGHHelperCommand("", 0)
+	})
+
+	target := defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll}
+	err := upsertDefaultsVariable(target, "GH_AW_DEFAULT_MAX_TURNS", "9")
+	require.NoError(t, err)
+	require.Len(t, calls, 1)
+	assert.Contains(t, calls[0], "PATCH")
+	assert.False(t, slices.ContainsFunc(calls[0], func(arg string) bool {
+		return arg == "visibility=all"
+	}))
+}
+
+func TestUpsertDefaultsVariableCreateVisibilityError(t *testing.T) {
+	stubDefaultsExecGH(t, func(args []string) *exec.Cmd {
+		if slices.Contains(args, "PATCH") {
+			return defaultsGHHelperCommand("HTTP 404: Not Found", 1)
+		}
+		return defaultsGHHelperCommand("HTTP 422: missing visibility", 1)
+	})
+
+	target := defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll}
+	err := upsertDefaultsVariable(target, "GH_AW_DEFAULT_MAX_TURNS", "5")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create GH_AW_DEFAULT_MAX_TURNS at org scope")
+	assert.Contains(t, err.Error(), "organization variables require a visibility")
+	assert.Contains(t, err.Error(), "Expected one of all, private, selected")
+	assert.Contains(t, err.Error(), "Example:")
+}
+
+func TestUpsertDefaultsVariableCreateUnrelatedError(t *testing.T) {
+	stubDefaultsExecGH(t, func(args []string) *exec.Cmd {
+		if slices.Contains(args, "PATCH") {
+			return defaultsGHHelperCommand("HTTP 404: Not Found", 1)
+		}
+		return defaultsGHHelperCommand("HTTP 403: Forbidden", 1)
+	})
+
+	target := defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll}
+	err := upsertDefaultsVariable(target, "GH_AW_DEFAULT_MAX_TURNS", "5")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create GH_AW_DEFAULT_MAX_TURNS at org scope")
+	assert.NotContains(t, err.Error(), "variables require a visibility")
+	assert.Contains(t, err.Error(), "HTTP 403: Forbidden")
+}
+
+func TestUpsertDefaultsVariableCreateInvalidVisibilityError(t *testing.T) {
+	stubDefaultsExecGH(t, func(args []string) *exec.Cmd {
+		if slices.Contains(args, "PATCH") {
+			return defaultsGHHelperCommand("HTTP 404: Not Found", 1)
+		}
+		return defaultsGHHelperCommand("HTTP 422: invalid visibility setting", 1)
+	})
+
+	target := defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll}
+	err := upsertDefaultsVariable(target, "GH_AW_DEFAULT_MAX_TURNS", "5")
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "variables require a visibility")
+	assert.Contains(t, err.Error(), "HTTP 422: invalid visibility setting")
+}
+
+func stubDefaultsExecGH(t *testing.T, stub func([]string) *exec.Cmd) {
+	t.Helper()
+	original := defaultsExecGH
+	defaultsExecGH = func(args ...string) *exec.Cmd {
+		return stub(args)
+	}
+	t.Cleanup(func() {
+		defaultsExecGH = original
+	})
+}
+
+func defaultsGHHelperCommand(output string, exitCode int) *exec.Cmd {
+	cmd := exec.Command(os.Args[0], "-test.run=TestDefaultsGHHelperProcess")
+	cmd.Env = append(os.Environ(),
+		"GH_AW_DEFAULTS_HELPER=1",
+		"GH_AW_DEFAULTS_HELPER_OUTPUT="+output,
+		fmt.Sprintf("GH_AW_DEFAULTS_HELPER_EXIT=%d", exitCode),
+	)
+	return cmd
+}
+
+func TestDefaultsGHHelperProcess(t *testing.T) {
+	if os.Getenv("GH_AW_DEFAULTS_HELPER") != "1" {
+		return
+	}
+	fmt.Fprint(os.Stdout, os.Getenv("GH_AW_DEFAULTS_HELPER_OUTPUT"))
+	exitCode, err := strconv.Atoi(os.Getenv("GH_AW_DEFAULTS_HELPER_EXIT"))
+	if err != nil {
+		os.Exit(2)
+	}
+	os.Exit(exitCode)
 }
 
 func TestDefaultsBuildUpdateChanges(t *testing.T) {
