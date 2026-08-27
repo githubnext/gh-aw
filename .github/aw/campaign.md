@@ -1,3 +1,7 @@
+---
+description: Guidance for designing campaign-style agentic workflows with measurable goals, pacing controls, and safe output constraints.
+---
+
 # Campaign Workflows
 
 Coordinated, time-bounded pushes with measurable outcomes, including **KPI workflows** (measure and improve a metric over time).
