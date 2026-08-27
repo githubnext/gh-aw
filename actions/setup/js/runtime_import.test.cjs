@@ -20,6 +20,7 @@ const {
   extractAndReplacePlaceholders,
   generatePlaceholderName,
 } = require("./runtime_import.cjs");
+const { extractInlineSkills } = require("./extract_inline_skills.cjs");
 describe("runtime_import", () => {
   let tempDir;
   let githubDir;
@@ -1126,10 +1127,12 @@ describe("runtime_import", () => {
           fs.writeFileSync(path.join(workflowsDir, "reporting.md"), "## skill: `reporting`\n\nFormatting guidelines.\n");
           fs.writeFileSync(path.join(workflowsDir, "otlp.md"), "## Telemetry\n\nOTLP guidance.\n");
           const result = await processRuntimeImports("{{#runtime-import reporting.md}}\n{{#runtime-import otlp.md}}\nMain body content.", tempDir);
-          // The skill block must be explicitly closed before the next import's
-          // content, otherwise it would swallow "## Telemetry" and everything
-          // after it since there is no other H2 heading to stop at.
           expect(result).toContain("## end skill: `reporting`");
+          const { mainContent, skills } = extractInlineSkills(result);
+          expect(skills).toHaveLength(1);
+          expect(skills[0].name).toBe("reporting");
+          expect(skills[0].content).not.toContain("## Telemetry");
+          expect(mainContent).toContain("## Telemetry");
           expect(result).toContain("## Telemetry");
           expect(result).toContain("Main body content.");
         }),

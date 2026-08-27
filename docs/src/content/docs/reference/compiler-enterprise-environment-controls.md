@@ -33,6 +33,11 @@ variables in batch at repo, org, or enterprise scope. The defaults file uses
 `default_model_copilot`, `default_otlp_endpoint`, and `default_utc`. `GH_AW_DEFAULT_OTLP_HEADERS` is a secret and must be
 set with `gh secret set` rather than `gh aw env`.
 
+```bash
+gh aw env update defaults.yml --scope org --org MY_ORG --visibility all
+gh aw env update defaults.yml --scope ent --enterprise MY_ENT --visibility all
+```
+
 ## Project Timezone
 
 By default, the CLI renders timestamps (table output, expiration footers, and the closing messages on expired issues, pull requests, and discussions) using the runner's local clock. Set a project home UTC offset so these times render consistently regardless of where the CLI runs.

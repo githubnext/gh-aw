@@ -53,7 +53,7 @@ Use only this closed opt-in:
 ```yaml
 sandbox:
   mcp:
-    version: v0.4.12
+    version: v0.4.13
 enclaves:
   - agent:
       model: gpt-5
@@ -78,6 +78,6 @@ enclaves:
   `awf-egh1` invocation capability in a mode-`0600` file.
 - The primary agent receives no enclave proxy address, key, CA path, container
   identity, capability, PAT, or repository catalog.
-- Minimum versions are AWF `v0.28.8` and mcpg `v0.4.12`.
+- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.13`.
 
 See also: [agent-runtime-instructions.md](agent-runtime-instructions.md) for `sandbox.agent` fields, and [network.md](network.md) for network isolation defaults.

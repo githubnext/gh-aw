@@ -536,6 +536,12 @@ MCP Gateway v0.1.5 introduces stricter MCP server validation:
 
 ### Bug Fixes
 
+#### Create organization and enterprise defaults with explicit variable visibility
+
+`gh aw env update` now sends the required visibility when creating organization
+or enterprise variables. Use `--visibility all|private|selected`; existing
+variables keep their current visibility.
+
 #### Bump the default gh-aw-firewall version to v0.27.7 and sync the embedded AWF config schema.
 
 This updates `DefaultFirewallVersion`, refreshes the embedded AWF schema for the new terminal-cap HTTP 403 behavior and `maxCacheMisses` support, and regenerates pinned workflow artifacts.
