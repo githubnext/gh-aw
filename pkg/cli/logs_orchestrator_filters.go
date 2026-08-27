@@ -109,7 +109,11 @@ func skipByRuntimeFilter(result DownloadResult, opts runFilterOpts, awInfo *AwIn
 }
 
 func skipByStagedFilter(result DownloadResult, opts runFilterOpts, awInfo *AwInfo, awInfoErr error, verbose bool) bool {
-	if !opts.noStaged || awInfoErr != nil || awInfo == nil || !awInfo.Staged {
+	if !opts.noStaged {
+		return false
+	}
+	isStaged := awInfoErr == nil && awInfo != nil && awInfo.Staged
+	if !isStaged {
 		return false
 	}
 	logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --exclude-staged", result.Run.DatabaseID)
