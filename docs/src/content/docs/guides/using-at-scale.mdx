@@ -34,6 +34,11 @@ There are two complementary layers to workflow distribution across an organizati
 
 [Sharing Workflows in the Organization](/gh-aw/practices/sharing-workflows/) covers the organizational governance layer: recommended techniques like maintaining a central `agentic-workflows` repository as the source of truth, versioning with exact tags (`@v1.2.0`), moving major refs (`@v1`), or SHA pins, parameterized shared components via `import-schema`, and controlling discoverability with `private: true`.
 
+import { Image } from 'astro:assets';
+import usingAtScaleSharing from '../../../assets/diagrams/using-at-scale-2026-08-27.svg';
+
+<Image src={usingAtScaleSharing} alt="Diagram showing the agentic-workflows source-of-truth repository feeding two layers: developer-facing mechanics (gh aw add, gh aw update, imports) and organizational governance (version tags, import-schema, private visibility), which together distribute workflows to team repositories" />
+
 ## Private Repositories
 
 Workflows that read from or write to repositories other than the one they run in require explicit authentication. Key references:
