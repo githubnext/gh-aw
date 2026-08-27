@@ -14,6 +14,8 @@ import (
 // TestExtractLogMetrics_FallbackScenario tests the complete scenario where
 // aw_info.json is missing and the fallback parser extracts metrics
 func TestExtractLogMetrics_FallbackScenario(t *testing.T) {
+	t.Parallel()
+
 	// Create a temporary directory structure mimicking a real workflow run
 	tempDir := t.TempDir()
 
@@ -42,6 +44,8 @@ Warning: Memory usage approaching limit
 // TestLogsCommand_DisplayWithFallbackMetrics tests that the logs display
 // correctly shows error and warning counts extracted by the fallback parser
 func TestLogsCommand_DisplayWithFallbackMetrics(t *testing.T) {
+	t.Parallel()
+
 	// Create a temporary directory structure
 	tempDir := t.TempDir()
 	runDir := filepath.Join(tempDir, "run-12345")
@@ -82,6 +86,8 @@ Warning: Disk space low`
 // TestLogsCommand_MixedRunsWithAndWithoutEngine tests that the logs command
 // handles a mix of runs with and without engine detection
 func TestLogsCommand_MixedRunsWithAndWithoutEngine(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	// Run 1: Has aw_info.json (would use engine-specific parser in real scenario)
