@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/typeutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
@@ -27,7 +28,19 @@ var sentryEndpointExpressionPattern = func() *regexp.Regexp {
 	return re
 }()
 var otlpResourceAttributeSecretRefPattern = regexp.MustCompile(`\$\{\{\s*(secrets|vars)\.`)
-var otelServiceNameKeyPattern = regexp.MustCompile(`(?m)^\s*OTEL_SERVICE_NAME:`)
+
+// workflowEnvHasKey reports whether the given top-level key is already defined in a
+// workflow's raw `env:` block text. Used to avoid emitting a duplicate YAML mapping key
+// (which would produce an invalid workflow) when the compiler injects OTLP env vars that
+// a user may have already defined in their own env: block.
+func workflowEnvHasKey(env, key string) bool {
+	if env == "" {
+		return false
+	}
+	pattern := `(?m)^\s*` + regexp.QuoteMeta(key) + `:`
+	matched, err := regexp.MatchString(pattern, env)
+	return err == nil && matched
+}
 
 func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
 	if raw == nil {
@@ -369,6 +382,26 @@ func generateOTLPHeadersMaskStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Mask OTLP telemetry headers\n")
 	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh\"\n")
+	return sb.String()
+}
+
+// isOTLPDefaultCredentialsCheckNeeded returns true when the OTLP endpoint comes
+// from the enterprise default environment (vars.GH_AW_DEFAULT_OTLP_ENDPOINT /
+// secrets.GH_AW_DEFAULT_OTLP_HEADERS) rather than from workflow frontmatter. In
+// that case a runtime check validates that credentials accompany a configured
+// endpoint.
+func isOTLPDefaultCredentialsCheckNeeded(data *WorkflowData) bool {
+	return data != nil && data.OTLPUsesEnterpriseDefaults
+}
+
+// generateOTLPDefaultCredentialsCheckStep returns a GitHub Actions step that runs
+// check_otlp_default_credentials.sh. The script is a no-op when the enterprise
+// default endpoint variable is empty and fails the job when the endpoint is set
+// without the matching headers secret.
+func generateOTLPDefaultCredentialsCheckStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Check OTLP telemetry configuration\n")
+	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_otlp_default_credentials.sh\"\n")
 	return sb.String()
 }
 
@@ -752,9 +785,20 @@ func allOTLPHeaders(entries []otlpEndpointEntry) string {
 //     attributes (including Langfuse session/user IDs) to every span.
 //
 // When no OTLP endpoint is configured the function is a no-op.
-func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
+// resolveOTLPEndpointEntries returns the OTLP endpoint entries configured for the
+// workflow together with a flag indicating whether they came from the enterprise
+// default environment rather than from frontmatter.
+//
+// When no endpoint is configured anywhere in the frontmatter (main workflow or
+// imports), the endpoint is read from the GH_AW_DEFAULT_OTLP_ENDPOINT Actions
+// variable and its headers from the GH_AW_DEFAULT_OTLP_HEADERS secret. Both
+// expressions resolve at run time, so an organization or enterprise can enable
+// telemetry for every agentic workflow without editing individual workflows.
+// When neither is set, the expressions resolve to empty strings and OTLP export
+// is a no-op.
+func resolveOTLPEndpointEntries(workflowData *WorkflowData) (entries []otlpEndpointEntry, usesEnterpriseDefaults bool) {
 	// Collect all endpoint entries from the endpoint field (string, object, or array).
-	entries := collectAllOTLPEndpoints(workflowData.RawFrontmatter)
+	entries = collectAllOTLPEndpoints(workflowData.RawFrontmatter)
 
 	// Fall back to ParsedFrontmatter when raw map extraction found nothing.
 	if len(entries) == 0 {
@@ -769,86 +813,95 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	}
 
 	if len(entries) == 0 {
-		return
+		otlpLog.Print("No OTLP endpoint configured in frontmatter; using enterprise default env vars")
+		return []otlpEndpointEntry{{
+			URL:     compilerenv.BuildDefaultOTLPEndpointExpression(),
+			Headers: compilerenv.BuildDefaultOTLPHeadersExpression(),
+		}}, true
 	}
 
-	otlpLog.Printf("Injecting OTLP configuration: %d endpoint(s)", len(entries))
+	return entries, false
+}
 
-	// 1. Add all static OTLP endpoint domains to the firewall allowlist.
-	// Google workload identity hosts are fixed and must be allowed even when the
-	// endpoint is an expression whose domain cannot be extracted statically.
-	if workloadIdentity := getOTLPWorkloadIdentity(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter); workloadIdentity != nil &&
-		strings.EqualFold(strings.TrimSpace(workloadIdentity.Provider), "google") {
+// allowOTLPEndpointDomains appends the statically resolvable OTLP endpoint
+// hostnames (and the fixed Google workload identity hosts when applicable) to the
+// workflow firewall allowlist. Expression endpoints cannot be resolved at compile
+// time and are skipped.
+func allowOTLPEndpointDomains(workflowData *WorkflowData, entries []otlpEndpointEntry) {
+	allow := func(domains ...string) {
 		if workflowData.NetworkPermissions == nil {
 			workflowData.NetworkPermissions = &NetworkPermissions{}
 		}
-		workflowData.NetworkPermissions.Allowed = append(workflowData.NetworkPermissions.Allowed,
-			"sts.googleapis.com",
-			"iamcredentials.googleapis.com",
-		)
+		workflowData.NetworkPermissions.Allowed = append(workflowData.NetworkPermissions.Allowed, domains...)
+	}
+
+	if workloadIdentity := getOTLPWorkloadIdentity(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter); workloadIdentity != nil &&
+		strings.EqualFold(strings.TrimSpace(workloadIdentity.Provider), "google") {
+		allow("sts.googleapis.com", "iamcredentials.googleapis.com")
 		otlpLog.Print("Added Google workload identity hosts to network allowlist")
 	}
 	for _, e := range entries {
 		if domain := extractOTLPEndpointDomain(e.URL); domain != "" {
-			if workflowData.NetworkPermissions == nil {
-				workflowData.NetworkPermissions = &NetworkPermissions{}
-			}
-			workflowData.NetworkPermissions.Allowed = append(workflowData.NetworkPermissions.Allowed, domain)
+			allow(domain)
 			otlpLog.Printf("Added OTLP domain to network allowlist: %s", domain)
 		}
 	}
+}
 
-	firstEndpoint := entries[0].URL
-	firstHeaders := entries[0].Headers
-	serviceName := otelServiceName(workflowData)
-	ifMissingMode := getOTLPIfMissingMode(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
-
-	// 2. Inject OTEL env vars into the workflow-level env: block.
-	//    OTEL_EXPORTER_OTLP_ENDPOINT is set to the first endpoint for backward
-	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
-	//    workflow-specific when WorkflowID is available.
-	//    If the user has already defined OTEL_SERVICE_NAME in their env block,
-	//    we respect their value and skip injection to avoid duplicate key errors.
-	otlpEnvLines := "  OTEL_EXPORTER_OTLP_ENDPOINT: " + firstEndpoint
-	if otelServiceNameKeyPattern.MatchString(workflowData.Env) {
-		otlpLog.Printf("Skipping OTEL_SERVICE_NAME injection: already defined by user")
-	} else {
-		otlpEnvLines += "\n  OTEL_SERVICE_NAME: " + serviceName
-	}
-	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: '" + escapeYAMLSingleQuoted(otelResourceAttributes(workflowData)) + "'"
-
-	// 3. Inject per-endpoint headers env vars.
-	//    OTEL_EXPORTER_OTLP_HEADERS = first endpoint headers (backward compat).
-	//    GH_AW_OTLP_ALL_HEADERS     = all endpoint headers comma-joined (for masking).
-	if firstHeaders != "" {
-		otlpEnvLines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + firstHeaders
-		otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
+// buildOTLPHeaderEnvLines returns the workflow env: lines carrying OTLP header values.
+// OTEL_EXPORTER_OTLP_HEADERS holds the first endpoint headers (backward compat) and
+// GH_AW_OTLP_ALL_HEADERS holds all endpoint headers comma-joined (used for masking).
+// existingEnv is the workflow's user-defined env: block (before OTLP injection); keys
+// already present there are skipped to avoid emitting a duplicate YAML mapping key.
+func buildOTLPHeaderEnvLines(entries []otlpEndpointEntry, existingEnv string) string {
+	var lines string
+	if firstHeaders := entries[0].Headers; firstHeaders != "" {
+		if workflowEnvHasKey(existingEnv, "OTEL_EXPORTER_OTLP_HEADERS") {
+			otlpLog.Printf("Skipping OTEL_EXPORTER_OTLP_HEADERS injection: already defined by user")
+		} else {
+			lines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + firstHeaders
+			otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
+		}
 	}
 	if allHeaders := allOTLPHeaders(entries); allHeaders != "" && len(entries) > 1 {
-		otlpEnvLines += "\n  GH_AW_OTLP_ALL_HEADERS: " + allHeaders
-		otlpLog.Printf("Injected GH_AW_OTLP_ALL_HEADERS env var for %d endpoints", len(entries))
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_ALL_HEADERS") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_ALL_HEADERS injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_ALL_HEADERS: " + allHeaders
+			otlpLog.Printf("Injected GH_AW_OTLP_ALL_HEADERS env var for %d endpoints", len(entries))
+		}
 	}
+	return lines
+}
 
-	// 4. Inject GH_AW_OTLP_ENDPOINTS (JSON array) so JavaScript can fan out spans.
-	// The value is single-quoted to prevent YAML parsers from interpreting the
-	// leading '[' as a YAML sequence node rather than a plain string.
+// buildOTLPPayloadEnvLines returns the workflow env: lines carrying the encoded OTLP
+// endpoint list, the resolved if-missing policy, and the custom span attributes.
+// JSON values are single-quoted so YAML parsers do not interpret a leading '[' or '{'
+// as a collection node rather than a plain string.
+// existingEnv is the workflow's user-defined env: block (before OTLP injection); keys
+// already present there are skipped to avoid emitting a duplicate YAML mapping key.
+func buildOTLPPayloadEnvLines(workflowData *WorkflowData, entries []otlpEndpointEntry, ifMissingMode string, existingEnv string) string {
+	var lines string
 	if encoded := encodeOTLPEndpoints(entries); encoded != "" {
-		escapedEncoded := escapeYAMLSingleQuoted(encoded)
-		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapedEncoded + "'"
-		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_ENDPOINTS") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_ENDPOINTS injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapeYAMLSingleQuoted(encoded) + "'"
+			otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
+		}
 	}
 	if ifMissingMode == "warn" || ifMissingMode == "ignore" {
-		otlpEnvLines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
-		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_IF_MISSING") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_IF_MISSING injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
+			otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
+		}
 	}
 
-	// 5. Inject OTEL_RESOURCE_ATTRIBUTES so child OTel SDKs (Copilot CLI, MCP
-	//    gateway) inherit gh-aw/GitHub workflow context in their resource block.
-	//
-	// 6. Inject GH_AW_OTLP_ATTRIBUTES (JSON object) for custom per-span attributes.
-	//    Attributes from RawFrontmatter take precedence; ParsedFrontmatter is the
-	//    fallback for workflows that were parsed but whose RawFrontmatter was later
-	//    modified (e.g. during observability merge in the orchestrator).
+	// Attributes from RawFrontmatter take precedence; ParsedFrontmatter is the
+	// fallback for workflows that were parsed but whose RawFrontmatter was later
+	// modified (e.g. during observability merge in the orchestrator).
 	customAttrs := collectOTLPCustomAttributes(workflowData.RawFrontmatter)
 	if len(customAttrs) == 0 && workflowData.ParsedFrontmatter != nil &&
 		workflowData.ParsedFrontmatter.Observability != nil &&
@@ -856,12 +909,69 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		customAttrs = workflowData.ParsedFrontmatter.Observability.OTLP.Attributes
 	}
 	if encoded := encodeOTLPCustomAttributes(customAttrs); encoded != "" {
-		escapedEncoded := escapeYAMLSingleQuoted(encoded)
-		otlpEnvLines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapedEncoded + "'"
-		otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_ATTRIBUTES") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_ATTRIBUTES injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapeYAMLSingleQuoted(encoded) + "'"
+			otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
+		}
+	}
+	return lines
+}
+
+func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
+	entries, usesEnterpriseDefaults := resolveOTLPEndpointEntries(workflowData)
+	workflowData.OTLPUsesEnterpriseDefaults = usesEnterpriseDefaults
+
+	otlpLog.Printf("Injecting OTLP configuration: %d endpoint(s)", len(entries))
+
+	// 1. Add all static OTLP endpoint domains to the firewall allowlist.
+	allowOTLPEndpointDomains(workflowData, entries)
+
+	firstEndpoint := entries[0].URL
+	firstHeaders := entries[0].Headers
+	serviceName := otelServiceName(workflowData)
+	ifMissingMode := getOTLPIfMissingMode(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
+	if usesEnterpriseDefaults && ifMissingMode == "" {
+		// The enterprise default endpoint is opt-in through Actions variables, so an
+		// unset variable must not fail the workflow: unresolved values are ignored.
+		ifMissingMode = "ignore"
 	}
 
-	if workflowData.Env == "" {
+	// 2. Inject OTEL env vars into the workflow-level env: block.
+	//    OTEL_EXPORTER_OTLP_ENDPOINT is set to the first endpoint for backward
+	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
+	//    workflow-specific when WorkflowID is available.
+	//    existingEnv captures the user's env: block as it stood before this function
+	//    started appending lines, so every key below is checked against user-authored
+	//    content only. If the user has already defined any of these keys in their env
+	//    block, we respect their value and skip injection to avoid duplicate key errors.
+	existingEnv := workflowData.Env
+	var envKeyLines []string
+	addEnvLine := func(key, line string) {
+		if workflowEnvHasKey(existingEnv, key) {
+			otlpLog.Printf("Skipping %s injection: already defined by user", key)
+			return
+		}
+		envKeyLines = append(envKeyLines, line)
+	}
+	addEnvLine("OTEL_EXPORTER_OTLP_ENDPOINT", "  OTEL_EXPORTER_OTLP_ENDPOINT: "+firstEndpoint)
+	addEnvLine("OTEL_SERVICE_NAME", "  OTEL_SERVICE_NAME: "+serviceName)
+	addEnvLine("OTEL_RESOURCE_ATTRIBUTES", "  OTEL_RESOURCE_ATTRIBUTES: '"+escapeYAMLSingleQuoted(otelResourceAttributes(workflowData))+"'")
+	otlpEnvLines := strings.Join(envKeyLines, "\n")
+
+	// 3. Inject per-endpoint headers env vars.
+	otlpEnvLines += buildOTLPHeaderEnvLines(entries, existingEnv)
+
+	// 4. Inject GH_AW_OTLP_ENDPOINTS (JSON array) so JavaScript can fan out spans,
+	//    GH_AW_OTLP_IF_MISSING for the resolved missing-configuration policy, and
+	//    GH_AW_OTLP_ATTRIBUTES (JSON object) for custom per-span attributes.
+	otlpEnvLines += buildOTLPPayloadEnvLines(workflowData, entries, ifMissingMode, existingEnv)
+	otlpEnvLines = strings.TrimPrefix(otlpEnvLines, "\n")
+
+	if otlpEnvLines == "" {
+		otlpLog.Printf("No OTLP env vars injected: all keys already defined by user")
+	} else if workflowData.Env == "" {
 		workflowData.Env = "env:\n" + otlpEnvLines
 	} else {
 		workflowData.Env = workflowData.Env + "\n" + otlpEnvLines

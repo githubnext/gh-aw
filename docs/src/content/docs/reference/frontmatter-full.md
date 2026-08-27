@@ -12574,6 +12574,18 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
+    # When false, excludes issues:write for remove-labels from both the safe_outputs
+    # job permissions and any minted GitHub App token. Default (omitted or true)
+    # includes issues:write.
+    # (optional)
+    issues: true
+
+    # When false, excludes pull-requests:write for remove-labels from both the
+    # safe_outputs job permissions and any minted GitHub App token. Default (omitted
+    # or true) includes pull-requests:write.
+    # (optional)
+    pull-requests: true
+
     # Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit
     # issue/PR number
     # (optional)

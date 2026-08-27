@@ -42,12 +42,12 @@ func addResourceFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracke
 		return fmt.Errorf("resource destination %q is invalid", resolved.Spec.DestinationPath)
 	}
 	destFile := filepath.Join(gitRoot, destination)
+	if err := fileutil.ValidatePathWithinBase(gitRoot, destFile); err != nil {
+		return fmt.Errorf("failed to validate resource destination %q: %w", resolved.Spec.DestinationPath, err)
+	}
 	rel, err := filepath.Rel(gitRoot, destFile)
 	if err != nil {
 		return fmt.Errorf("failed to validate resource destination %q: %w", resolved.Spec.DestinationPath, err)
-	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-		return fmt.Errorf("resource destination %q escapes repository root", resolved.Spec.DestinationPath)
 	}
 
 	fileExists := fileutil.FileExists(destFile)

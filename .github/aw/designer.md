@@ -30,18 +30,7 @@ Capture:
 
 ### Phase 1b: Repository Survey for Maintenance Workflows
 
-Before asking the user to choose maintenance tasks, inspect the target repository and establish an evidence-based baseline. Do not ask for information that repository files or GitHub data can answer.
-
-Survey:
-
-- project type and ecosystems from manifests, languages, repository layout, generated files, and monorepo boundaries
-- local rules from `AGENTS.md`, `CONTRIBUTING.md`, `CODEOWNERS`, pull request templates, release documentation, and existing automation
-- recent activity over a representative window: commits, releases, issue and pull request creation/closure, contributor activity, and automation volume
-- issue health: open count, age distribution, unlabelled items, stale items, milestones, recurring categories, response status, and duplicate signals
-- pull request health: open count, age, review state, failed checks, merge conflicts, abandoned work, and bot-owned versus contributor-owned items
-- validation and operational health: available format/lint/build/test commands, recent CI failures, flaky signals, dependency update load, and release cadence
-
-Use bounded queries and report the window, limits, and unavailable data. Separate observed facts from inferred strategy. Based on the survey, recommend two or three low-risk task families, a conservative cadence, per-run limits, state/deduplication needs, and pressure valves. Ask the user only about policy choices that cannot be inferred, such as acceptable maintainer attention, protected areas, or whether contributor-facing comments are allowed.
+Before asking the user to choose maintenance tasks, run the survey in [maintainer.md#survey-the-repository-before-choosing-a-strategy](maintainer.md#survey-the-repository-before-choosing-a-strategy) and separate observed signals from inferred strategy. Based on the survey, recommend two or three low-risk task families, a conservative cadence, per-run limits, state/deduplication needs, and pressure valves. Ask the user only about policy choices that cannot be inferred, such as acceptable maintainer attention, protected areas, or whether contributor-facing comments are allowed.
 
 ### Phase 2: Trigger
 
