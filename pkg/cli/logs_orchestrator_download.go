@@ -225,7 +225,7 @@ func advanceLogsCollectionIteration(state *logsCollectionState, runtime logsDown
 		return true, nil
 	}
 	if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration); err != nil {
-		return false, nil
+		return true, err
 	}
 	state.iteration++
 	return fetchAndProcessLogsBatch(state, runtime, opts)
