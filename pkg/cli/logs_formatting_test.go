@@ -43,6 +43,7 @@ func TestFormatNumber(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := console.FormatNumber(tt.input)
 			assert.Equal(t, tt.expected, result, "FormatNumber(%d)", tt.input)
 		})
@@ -68,6 +69,7 @@ func TestFormatFileSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := console.FormatFileSize(tt.size)
 			assert.Equal(t, tt.expected, result, "FormatFileSize(%d)", tt.size)
 		})
