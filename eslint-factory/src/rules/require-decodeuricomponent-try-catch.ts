@@ -14,12 +14,13 @@ export const requireDecodeURIComponentTryCatchRule = createRule({
       description:
         "Require decodeURIComponent(...) and decodeURI(...) calls on dynamic input in actions/setup/js scripts to be wrapped in try/catch. " +
         "Both throw a URIError on malformed percent-encoding (e.g. a lone '%', an incomplete escape sequence, or a surrogate-pair mismatch), " +
-        "which crashes the action with an uncaught exception when the input comes from an external or untrusted source " +
-        "(HTTP headers, URLs, workflow inputs, or other user-controlled text).",
+        "when the input comes from an external or untrusted source (HTTP headers, URLs, workflow inputs, or other user-controlled text). " +
+        "Without a call-site try/catch, the entrypoint-level catch produces a generic engine-level stack instead of a specific message that preserves the error as `{ cause }`.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap {{callee}}({{arg}}) in try/catch — malformed percent-encoded input throws URIError and will crash the action if unhandled.",
+      requireTryCatch:
+        "Wrap {{callee}}({{arg}}) in try/catch — malformed percent-encoded input throws URIError; without a call-site try/catch, you lose the original error context and get a generic engine-level stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },
