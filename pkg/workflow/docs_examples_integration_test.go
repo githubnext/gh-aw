@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/github/gh-aw/pkg/testutil"
 )
+
+var agenticsWorkflowDirectivePattern = regexp.MustCompile(`^<!-- agentics-workflow: ([a-z0-9][a-z0-9-]*\.md) -->$`)
 
 func TestDocumentationGalleryWorkflowsCompile(t *testing.T) {
 	galleryDir := filepath.Join("..", "..", "docs", "src", "content", "docs", "gallery")
@@ -36,35 +39,119 @@ func TestDocumentationGalleryWorkflowsCompile(t *testing.T) {
 			}
 
 			workflowName, workflowContent, extractErr := extractPrimaryExampleWorkflow(string(content))
-			if extractErr != nil {
+			directiveWorkflowName, directiveErr := extractAgenticsWorkflowName(string(content))
+			if directiveErr != nil {
+				t.Fatal(directiveErr)
+			}
+			if extractErr == nil && directiveWorkflowName != "" {
+				t.Fatal("gallery page must use either an inline primary workflow or an agentics workflow directive, not both")
+			}
+			if extractErr == nil {
+				compileExampleWorkflow(t, workflowName, []byte(workflowContent), pagePath)
+				return
+			}
+			if directiveWorkflowName == "" {
 				t.Fatal(extractErr)
 			}
-			compileExampleWorkflow(t, workflowName, []byte(workflowContent), pagePath)
+
+			const rawURLPrefix = "https://raw.githubusercontent.com/githubnext/agentics/main/workflows/"
+			fetchAndCompileExampleWorkflow(t, directiveWorkflowName, rawURLPrefix+directiveWorkflowName)
 		})
 	}
 
 	t.Run("repo-assist-upstream", func(t *testing.T) {
 		const (
-			sourceURL = "https://github.com/githubnext/agentics/blob/main/workflows/repo-assist.md?plain=1"
-			rawURL    = "https://raw.githubusercontent.com/githubnext/agentics/main/workflows/repo-assist.md"
+			rawURL = "https://raw.githubusercontent.com/githubnext/agentics/main/workflows/repo-assist.md"
 		)
 
-		client := &http.Client{Timeout: 30 * time.Second}
-		response, fetchErr := client.Get(rawURL)
-		if fetchErr != nil {
-			t.Fatalf("fetch %s (raw form of %s): %v", rawURL, sourceURL, fetchErr)
-		}
-		defer response.Body.Close()
-		if response.StatusCode != http.StatusOK {
-			t.Fatalf("fetch %s (raw form of %s): %s", rawURL, sourceURL, response.Status)
+		fetchAndCompileExampleWorkflow(t, "repo-assist.md", rawURL)
+	})
+}
+
+func fetchAndCompileExampleWorkflow(t *testing.T, workflowName, rawURL string) {
+	t.Helper()
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	response, fetchErr := client.Get(rawURL)
+	if fetchErr != nil {
+		t.Fatalf("fetch %s: %v", rawURL, fetchErr)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("fetch %s: %s", rawURL, response.Status)
+	}
+
+	workflowContent, readErr := io.ReadAll(response.Body)
+	if readErr != nil {
+		t.Fatalf("read %s: %v", rawURL, readErr)
+	}
+	compileExampleWorkflow(t, workflowName, workflowContent, rawURL)
+}
+
+func TestExtractAgenticsWorkflowName(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+		wantErr string
+	}{
+		{
+			name:    "valid directive",
+			content: "<!-- agentics-workflow: ci-doctor.md -->",
+			want:    "ci-doctor.md",
+		},
+		{
+			name:    "no directive",
+			content: "# No workflow",
+		},
+		{
+			name:    "multiple directives",
+			content: "<!-- agentics-workflow: ci-doctor.md -->\n<!-- agentics-workflow: issue-triage.md -->",
+			wantErr: "expected exactly one agentics workflow directive, found 2",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := extractAgenticsWorkflowName(tt.content)
+			if tt.wantErr != "" {
+				if err == nil || err.Error() != tt.wantErr {
+					t.Fatalf("extractAgenticsWorkflowName() error = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("extractAgenticsWorkflowName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func extractAgenticsWorkflowName(content string) (string, error) {
+	var workflowName string
+	directiveCount := 0
+
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		match := agenticsWorkflowDirectivePattern.FindStringSubmatch(scanner.Text())
+		if match == nil {
+			continue
 		}
 
-		workflowContent, readErr := io.ReadAll(response.Body)
-		if readErr != nil {
-			t.Fatalf("read %s: %v", rawURL, readErr)
-		}
-		compileExampleWorkflow(t, "repo-assist.md", workflowContent, sourceURL)
-	})
+		directiveCount++
+		workflowName = match[1]
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		return "", scanErr
+	}
+	if directiveCount > 1 {
+		return "", fmt.Errorf("expected exactly one agentics workflow directive, found %d", directiveCount)
+	}
+
+	return workflowName, nil
 }
 
 func compileExampleWorkflow(t *testing.T, workflowName string, workflowContent []byte, source string) {
