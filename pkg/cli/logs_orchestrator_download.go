@@ -232,6 +232,7 @@ func advanceLogsCollectionIteration(state *logsCollectionState, runtime logsDown
 		if errors.Is(err, context.Canceled) {
 			return true, err
 		}
+		logsOrchestratorLog.Printf("Rate limit wait failed, retrying iteration: %v", err)
 		return false, nil
 	}
 	state.iteration++
