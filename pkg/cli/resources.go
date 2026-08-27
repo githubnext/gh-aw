@@ -18,12 +18,12 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-var downloadResourceFileFromGitHub = parser.DownloadFileFromGitHub
-
 type extractedResource struct {
 	path              string
 	isGraderEvaluator bool
 }
+
+type resourceDownloader func(ctx context.Context, owner, repo, filePath, ref string) ([]byte, error)
 
 // extractResourceEntries extracts file paths from the top-level "resources" frontmatter
 // field and validated grader evaluator paths.
@@ -113,7 +113,11 @@ func extractResources(content string) ([]string, error) {
 // from the same source are silently skipped.
 // For non-Markdown resource files: if the target already exists and force is false, an error
 // is returned regardless of origin (non-markdown files have no source tracking).
-func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error { //nolint:largefunc // Keep resource conflict, download, and tracking behavior together.
+func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	return fetchAndSaveRemoteResourcesWithDownloader(ctx, content, spec, targetDir, verbose, force, tracker, parser.DownloadFileFromGitHub)
+}
+
+func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, download resourceDownloader) error { //nolint:largefunc // Keep resource conflict, download, and tracking behavior together.
 	if spec.RepoSlug == "" {
 		return nil
 	}
@@ -162,8 +166,8 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 		// resource behavior; workspace-relative grader evaluators install at their exact
 		// repository-relative run path.
 		var remoteFilePath string
-		isWorkspaceRelativeGraderEvaluator := resource.isGraderEvaluator && !strings.HasPrefix(resourcePath, "./")
-		if isWorkspaceRelativeGraderEvaluator {
+		isRepoRootAnchoredGraderEvaluator := resource.isGraderEvaluator && !strings.HasPrefix(resourcePath, "./")
+		if isRepoRootAnchoredGraderEvaluator {
 			remoteFilePath = resourcePath
 			if strings.HasPrefix(remoteFilePath, constants.WorkflowsDirSlash) && workflowBaseDir != "" {
 				remoteFilePath = path.Join(workflowBaseDir, strings.TrimPrefix(remoteFilePath, constants.WorkflowsDirSlash))
@@ -190,7 +194,7 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 			continue
 		}
 		targetBaseDir := targetDir
-		if isWorkspaceRelativeGraderEvaluator {
+		if isRepoRootAnchoredGraderEvaluator {
 			if gitRoot == "" {
 				gitRoot, err = gitutil.FindGitRootFrom(targetDir)
 				if err != nil {
@@ -240,7 +244,7 @@ func fetchAndSaveRemoteResources(ctx context.Context, content string, spec *Work
 		}
 
 		// Download from source repository
-		fileContent, err := downloadResourceFileFromGitHub(ctx, owner, repo, remoteFilePath, ref)
+		fileContent, err := download(ctx, owner, repo, remoteFilePath, ref)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource %s: %v", remoteFilePath, err)))

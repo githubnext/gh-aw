@@ -12898,7 +12898,7 @@
               },
               "run": {
                 "type": "string",
-                "pattern": "^(?:\\./)?(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*)(?:/(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*))*\\.sh$",
+                "pattern": "^(?:\\./)?(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+))*\\.sh$",
                 "description": "Workspace-relative or ./ workflow-local Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
               }
             }

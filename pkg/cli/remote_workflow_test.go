@@ -1857,9 +1857,7 @@ graders:
 # Workflow
 `
 	evaluatorContent := []byte("#!/usr/bin/env bash\necho old\n")
-	originalDownload := downloadResourceFileFromGitHub
-	t.Cleanup(func() { downloadResourceFileFromGitHub = originalDownload })
-	downloadResourceFileFromGitHub = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+	download := func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
 		assert.Equal(t, "workflows/graders/example-operational-value.sh", filePath)
 		return evaluatorContent, nil
 	}
@@ -1868,16 +1866,16 @@ graders:
 		RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main"},
 		WorkflowPath: "workflows/graded.md",
 	}
-	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil))
+	require.NoError(t, fetchAndSaveRemoteResourcesWithDownloader(t.Context(), content, spec, workflowsDir, false, false, nil, download))
 
 	installedPath := filepath.Join(tmpDir, filepath.FromSlash(evaluatorPath))
 	installed, err := os.ReadFile(installedPath)
 	require.NoError(t, err)
 	assert.Equal(t, evaluatorContent, installed)
-	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil))
+	require.NoError(t, fetchAndSaveRemoteResourcesWithDownloader(t.Context(), content, spec, workflowsDir, false, false, nil, download))
 
 	evaluatorContent = []byte("#!/usr/bin/env bash\necho conflict\n")
-	err = fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil)
+	err = fetchAndSaveRemoteResourcesWithDownloader(t.Context(), content, spec, workflowsDir, false, false, nil, download)
 	require.ErrorContains(t, err, evaluatorPath)
 	require.ErrorContains(t, err, "--force")
 
@@ -1889,7 +1887,7 @@ graders:
 
 	require.NoError(t, os.Remove(installedPath))
 	evaluatorContent = []byte("#!/usr/bin/env bash\necho new\n")
-	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, true, nil))
+	require.NoError(t, fetchAndSaveRemoteResourcesWithDownloader(t.Context(), content, spec, workflowsDir, false, true, nil, download))
 	restored, err := os.ReadFile(installedPath)
 	require.NoError(t, err)
 	assert.Equal(t, evaluatorContent, restored)
@@ -1911,9 +1909,7 @@ graders:
 # Workflow
 `
 	evaluatorContent := []byte("#!/usr/bin/env bash\necho local\n")
-	originalDownload := downloadResourceFileFromGitHub
-	t.Cleanup(func() { downloadResourceFileFromGitHub = originalDownload })
-	downloadResourceFileFromGitHub = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+	download := func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
 		assert.Equal(t, "workflows/scripts/example-operational-value.sh", filePath)
 		return evaluatorContent, nil
 	}
@@ -1922,7 +1918,7 @@ graders:
 		RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main"},
 		WorkflowPath: "workflows/graded.md",
 	}
-	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, false, nil))
+	require.NoError(t, fetchAndSaveRemoteResourcesWithDownloader(t.Context(), content, spec, workflowsDir, false, false, nil, download))
 
 	installed, err := os.ReadFile(filepath.Join(workflowsDir, "scripts", "example-operational-value.sh"))
 	require.NoError(t, err)
@@ -1949,9 +1945,7 @@ graders:
 
 # Workflow
 `
-	originalDownload := downloadResourceFileFromGitHub
-	t.Cleanup(func() { downloadResourceFileFromGitHub = originalDownload })
-	downloadResourceFileFromGitHub = func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+	download := func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
 		return []byte("#!/usr/bin/env bash\necho unsafe\n"), nil
 	}
 
@@ -1959,7 +1953,7 @@ graders:
 		RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main"},
 		WorkflowPath: "workflows/graded.md",
 	}
-	require.NoError(t, fetchAndSaveRemoteResources(t.Context(), content, spec, workflowsDir, false, true, nil))
+	require.NoError(t, fetchAndSaveRemoteResourcesWithDownloader(t.Context(), content, spec, workflowsDir, false, true, nil, download))
 	assert.NoFileExists(t, filepath.Join(outsideDir, "example-operational-value.sh"))
 }
 

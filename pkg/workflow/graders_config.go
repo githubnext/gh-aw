@@ -436,7 +436,7 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 // IsValidOperationalValueEvaluatorRunPath reports whether evaluatorPath is a
 // safe shell script path. Paths may be repository-root-relative, or explicitly
 // local to the workflow file when they start with "./". Empty components, ".",
-// and components starting with ".." are rejected to avoid traversal ambiguity.
+// and ".." are rejected to avoid traversal.
 func IsValidOperationalValueEvaluatorRunPath(evaluatorPath string) bool {
 	if evaluatorPath == "" || strings.Contains(evaluatorPath, "\\") || strings.HasPrefix(evaluatorPath, "/") {
 		return false
@@ -449,7 +449,7 @@ func IsValidOperationalValueEvaluatorRunPath(evaluatorPath string) bool {
 		return false
 	}
 	for part := range strings.SplitSeq(pathForValidation, "/") {
-		if part == "" || part == "." || strings.HasPrefix(part, "..") {
+		if part == "" || part == "." || part == ".." {
 			return false
 		}
 	}

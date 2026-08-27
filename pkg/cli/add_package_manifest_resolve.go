@@ -76,6 +76,7 @@ func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref
 	for _, resource := range resourceFiles {
 		seen[packageResourceDestinationKey(resource.DestinationPath)] = resource.SourcePath
 	}
+	addPackageManifestLog.Printf("resolving grader evaluators from %d installable package source(s)", len(installationSources))
 	for _, installable := range installationSources {
 		if !strings.HasSuffix(strings.ToLower(installable.SourcePath), ".md") {
 			continue

@@ -1126,6 +1126,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OperationalValueGr
 
 	for _, runPath := range []string{
 		".github/workflows/graders/example-operational-value.sh",
+		".github/workflows/graders/..secret.sh",
 		"./graders/example-operational-value.sh",
 	} {
 		t.Run(runPath, func(t *testing.T) {
