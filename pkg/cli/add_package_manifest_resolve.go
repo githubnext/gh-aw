@@ -241,7 +241,7 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 
 func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, packagePath, ref, host string) (string, []byte, error) {
 	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
-	repoSlug := path.Join(owner, repo)
+	repoSlug := fmt.Sprintf("%s/%s", owner, repo)
 	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
 	content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, manifestPath, ref, host)
 	if err != nil {
