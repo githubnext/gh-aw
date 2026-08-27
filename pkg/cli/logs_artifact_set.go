@@ -362,10 +362,30 @@ func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
 	return artifacts
 }
 
+// applyGradersArtifact appends the graders artifact set to artifacts when gradersOnly is true
+// and neither ArtifactSetGraders nor ArtifactSetAll is already present.
+func applyGradersArtifact(artifacts []string, gradersOnly bool) []string {
+	if len(artifacts) == 0 {
+		return artifacts
+	}
+	if gradersOnly &&
+		!slices.Contains(artifacts, string(ArtifactSetGraders)) &&
+		!slices.Contains(artifacts, string(ArtifactSetAll)) {
+		return append(artifacts, string(ArtifactSetGraders))
+	}
+	return artifacts
+}
+
 // isEvalsArtifactRequested reports whether evals were explicitly requested,
 // either via --evals or by including --artifacts evals. Callers use this to
 // decide whether to bypass stale cache entries and trigger legacy dedicated-evals
 // fallback downloads when evals.jsonl is missing from usage artifacts.
 func isEvalsArtifactRequested(evalsOnly bool, artifactSets []string) bool {
 	return evalsOnly || slices.Contains(artifactSets, string(ArtifactSetEvals))
+}
+
+// isGradersArtifactRequested reports whether grader artifacts were explicitly requested,
+// either via --graders or by including --artifacts graders.
+func isGradersArtifactRequested(gradersOnly bool, artifactSets []string) bool {
+	return gradersOnly || slices.Contains(artifactSets, string(ArtifactSetGraders))
 }

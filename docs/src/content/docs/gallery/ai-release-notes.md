@@ -3,7 +3,7 @@ title: AI-generated release notes and reports
 description: Use gh-aw to generate release notes and release reports automatically from GitHub events with validated safe outputs.
 ---
 
-AI-generated release notes with gh-aw means running an agent when a release is published, a branch is pushed, or a scheduled reporting window arrives so it can summarize merged work and produce a publishable report. gh-aw handles the GitHub-side output through safe outputs instead of direct write access from the agent.
+AI-generated release notes with GitHub Agentic Workflows means running an agent when a release is published, a branch is pushed, or a scheduled reporting window arrives so it can summarize merged work and produce a publishable report. gh-aw handles the GitHub-side output through safe outputs instead of direct write access from the agent.
 
 Install the starter with `gh aw add-wizard githubnext/agentics/release-notes`.
 

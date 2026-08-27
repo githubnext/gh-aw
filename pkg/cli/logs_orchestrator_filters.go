@@ -25,6 +25,7 @@ type runFilterOpts struct {
 	safeOutputType    string
 	filteredIntegrity bool
 	evalsOnly         bool
+	gradersOnly       bool
 }
 
 var fetchJobStatusesForProcessedRun = fetchJobStatuses
@@ -54,7 +55,6 @@ func matchRuntimeFilter(awInfo *AwInfo, awInfoErr error, filterRuntime string) (
 // It parses aw_info.json once (lazily) when any filter that needs it is active.
 // Returns true when the run should be skipped / excluded from results.
 func applyRunFilters(ctx context.Context, result DownloadResult, opts runFilterOpts, verbose bool) bool {
-	// Parse aw_info.json once for all filters that need it (optimization).
 	var awInfo *AwInfo
 	var awInfoErr error
 	if opts.engine != "" || opts.runtime != "" || opts.noStaged || opts.firewallOnly || opts.noFirewall {
@@ -62,116 +62,140 @@ func applyRunFilters(ctx context.Context, result DownloadResult, opts runFilterO
 		awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
 	}
 
-	// Apply engine filtering if specified.
-	if opts.engine != "" {
-		engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.engine)
-		if !engineMatches {
-			if detectedEngineID == "" {
-				detectedEngineID = "unknown"
-			}
-			logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, opts.engine, detectedEngineID)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, opts.engine)))
-			}
-			return true
-		}
-	}
+	return skipByEngineFilter(result, opts, awInfo, awInfoErr, verbose) ||
+		skipByRuntimeFilter(result, opts, awInfo, awInfoErr, verbose) ||
+		skipByStagedFilter(result, opts, awInfo, awInfoErr, verbose) ||
+		skipByFirewallFilter(result, opts, awInfo, awInfoErr, verbose) ||
+		skipBySafeOutputFilter(result, opts, verbose) ||
+		skipByFilteredIntegrityFilter(result, opts, verbose) ||
+		skipByEvalsFilter(ctx, result, opts, verbose) ||
+		skipByGradersFilter(result, opts, verbose)
+}
 
-	// Apply runtime filtering if specified.
-	if opts.runtime != "" {
-		runtimeMatches, detectedRuntime := matchRuntimeFilter(awInfo, awInfoErr, opts.runtime)
-		if !runtimeMatches {
-			if detectedRuntime == "" {
-				detectedRuntime = "unknown"
-			}
-			logsOrchestratorLog.Printf("Skipping run %d: runtime filter=%s, detected=%s", result.Run.DatabaseID, opts.runtime, detectedRuntime)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: runtime '%s' does not match filter '%s'", result.Run.DatabaseID, detectedRuntime, opts.runtime)))
-			}
-			return true
-		}
+func skipByEngineFilter(result DownloadResult, opts runFilterOpts, awInfo *AwInfo, awInfoErr error, verbose bool) bool {
+	if opts.engine == "" {
+		return false
 	}
-
-	// Apply staged filtering if --exclude-staged flag is specified.
-	if opts.noStaged {
-		var isStaged bool
-		if awInfoErr == nil && awInfo != nil {
-			isStaged = awInfo.Staged
-		}
-		if isStaged {
-			logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --exclude-staged", result.Run.DatabaseID)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --exclude-staged)", result.Run.DatabaseID)))
-			}
-			return true
-		}
+	engineMatches, detectedEngineID := matchEngineFilter(awInfo, awInfoErr, opts.engine)
+	if engineMatches {
+		return false
 	}
-
-	// Apply firewall filtering if --firewall or --no-firewall flag is specified.
-	if opts.firewallOnly || opts.noFirewall {
-		var hasFirewall bool
-		if awInfoErr == nil && awInfo != nil {
-			// Firewall is enabled if steps.firewall is non-empty (e.g. "squid").
-			hasFirewall = awInfo.Steps.Firewall != ""
-		}
-		if opts.firewallOnly && !hasFirewall {
-			logsOrchestratorLog.Printf("Skipping run %d: no firewall detected, filtered by --firewall", result.Run.DatabaseID)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not use firewall (filtered by --firewall)", result.Run.DatabaseID)))
-			}
-			return true
-		}
-		if opts.noFirewall && hasFirewall {
-			logsOrchestratorLog.Printf("Skipping run %d: firewall detected, filtered by --no-firewall", result.Run.DatabaseID)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
-			}
-			return true
-		}
+	if detectedEngineID == "" {
+		detectedEngineID = "unknown"
 	}
-
-	// Apply safe output type filtering if --safe-output flag is specified.
-	if opts.safeOutputType != "" {
-		hasSafeOutputType, checkErr := runContainsSafeOutputType(result.LogsPath, opts.safeOutputType, verbose)
-		if checkErr != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check safe output type for run %d: %v", result.Run.DatabaseID, checkErr)))
-		}
-		if !hasSafeOutputType {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, opts.safeOutputType)))
-			}
-			return true
-		}
+	logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, opts.engine, detectedEngineID)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, opts.engine)))
 	}
+	return true
+}
 
-	// Apply filtered-integrity filtering if --filtered-integrity flag is specified.
-	if opts.filteredIntegrity {
-		hasFiltered, checkErr := runHasDifcFilteredItems(result.LogsPath, verbose)
-		if checkErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check DIFC filtered items for run %d: %v", result.Run.DatabaseID, checkErr)))
-			return true
-		}
-		if !hasFiltered {
-			logsOrchestratorLog.Printf("Skipping run %d: no DIFC filtered items found", result.Run.DatabaseID)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no DIFC integrity-filtered items found in gateway logs", result.Run.DatabaseID)))
-			}
-			return true
-		}
+func skipByRuntimeFilter(result DownloadResult, opts runFilterOpts, awInfo *AwInfo, awInfoErr error, verbose bool) bool {
+	if opts.runtime == "" {
+		return false
 	}
-
-	// Apply evals filtering if --evals flag is specified.
-	if opts.evalsOnly {
-		if !runHasEvals(result.LogsPath, verbose) && !ensureEvalsResultsFromBranch(ctx, result.Run, result.LogsPath, "", "", "", verbose) {
-			logsOrchestratorLog.Printf("Skipping run %d: no evals results found, filtered by --evals", result.Run.DatabaseID)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have evals results (filtered by --evals)", result.Run.DatabaseID)))
-			}
-			return true
-		}
+	runtimeMatches, detectedRuntime := matchRuntimeFilter(awInfo, awInfoErr, opts.runtime)
+	if runtimeMatches {
+		return false
 	}
+	if detectedRuntime == "" {
+		detectedRuntime = "unknown"
+	}
+	logsOrchestratorLog.Printf("Skipping run %d: runtime filter=%s, detected=%s", result.Run.DatabaseID, opts.runtime, detectedRuntime)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: runtime '%s' does not match filter '%s'", result.Run.DatabaseID, detectedRuntime, opts.runtime)))
+	}
+	return true
+}
 
+func skipByStagedFilter(result DownloadResult, opts runFilterOpts, awInfo *AwInfo, awInfoErr error, verbose bool) bool {
+	if !opts.noStaged {
+		return false
+	}
+	isStaged := awInfoErr == nil && awInfo != nil && awInfo.Staged
+	if !isStaged {
+		return false
+	}
+	logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --exclude-staged", result.Run.DatabaseID)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --exclude-staged)", result.Run.DatabaseID)))
+	}
+	return true
+}
+
+func skipByFirewallFilter(result DownloadResult, opts runFilterOpts, awInfo *AwInfo, awInfoErr error, verbose bool) bool {
+	if !opts.firewallOnly && !opts.noFirewall {
+		return false
+	}
+	hasFirewall := awInfoErr == nil && awInfo != nil && awInfo.Steps.Firewall != ""
+	if opts.firewallOnly && !hasFirewall {
+		logAndMaybeExplainSkip(result.Run.DatabaseID, "no firewall detected, filtered by --firewall", "workflow does not use firewall (filtered by --firewall)", verbose)
+		return true
+	}
+	if opts.noFirewall && hasFirewall {
+		logAndMaybeExplainSkip(result.Run.DatabaseID, "firewall detected, filtered by --no-firewall", "workflow uses firewall (filtered by --no-firewall)", verbose)
+		return true
+	}
 	return false
+}
+
+func skipBySafeOutputFilter(result DownloadResult, opts runFilterOpts, verbose bool) bool {
+	if opts.safeOutputType == "" {
+		return false
+	}
+	hasSafeOutputType, checkErr := runContainsSafeOutputType(result.LogsPath, opts.safeOutputType, verbose)
+	if checkErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check safe output type for run %d: %v", result.Run.DatabaseID, checkErr)))
+	}
+	if hasSafeOutputType {
+		return false
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: no '%s' safe output messages found", result.Run.DatabaseID, opts.safeOutputType)))
+	}
+	return true
+}
+
+func skipByFilteredIntegrityFilter(result DownloadResult, opts runFilterOpts, verbose bool) bool {
+	if !opts.filteredIntegrity {
+		return false
+	}
+	hasFiltered, checkErr := runHasDifcFilteredItems(result.LogsPath, verbose)
+	if checkErr != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check DIFC filtered items for run %d: %v", result.Run.DatabaseID, checkErr)))
+		return true
+	}
+	if hasFiltered {
+		return false
+	}
+	logAndMaybeExplainSkip(result.Run.DatabaseID, "no DIFC filtered items found", "no DIFC integrity-filtered items found in gateway logs", verbose)
+	return true
+}
+
+func skipByEvalsFilter(ctx context.Context, result DownloadResult, opts runFilterOpts, verbose bool) bool {
+	if !opts.evalsOnly {
+		return false
+	}
+	if runHasEvals(result.LogsPath, verbose) || ensureEvalsResultsFromBranch(ctx, result.Run, result.LogsPath, "", "", "", verbose) {
+		return false
+	}
+	logAndMaybeExplainSkip(result.Run.DatabaseID, "no evals results found, filtered by --evals", "workflow does not have evals results (filtered by --evals)", verbose)
+	return true
+}
+
+func skipByGradersFilter(result DownloadResult, opts runFilterOpts, verbose bool) bool {
+	if !opts.gradersOnly || runHasGraders(result.LogsPath) {
+		return false
+	}
+	logAndMaybeExplainSkip(result.Run.DatabaseID, "no grader results found, filtered by --graders", "workflow does not have grader results (filtered by --graders)", verbose)
+	return true
+}
+
+func logAndMaybeExplainSkip(runID int64, logReason, message string, verbose bool) {
+	logsOrchestratorLog.Printf("Skipping run %d: %s", runID, logReason)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: %s", runID, message)))
+	}
 }
 
 // buildProcessedRun constructs a ProcessedRun from a DownloadResult, computing

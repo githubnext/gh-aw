@@ -393,6 +393,21 @@ If the pull request is still open, verify that:
       // Set up fork PR: head repo is different from base repo
       mockContext.payload.pull_request.head.repo.full_name = "fork-owner/test-repo";
       mockContext.payload.pull_request.head.repo.owner.login = "fork-owner";
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: {
+          state: "open",
+          commits: 1,
+          head: {
+            ref: "feature-branch",
+            sha: "head-sha-123",
+            repo: { full_name: "fork-owner/test-repo", owner: { login: "fork-owner" } },
+          },
+          base: {
+            ref: "main",
+            repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } },
+          },
+        },
+      });
 
       await runScript();
 
@@ -412,6 +427,7 @@ If the pull request is still open, verify that:
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_BRANCH", "feature-branch");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_REPO", "test-owner/test-repo");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_REPO", "fork-owner/test-repo");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_REF", "refs/remotes/origin/pr-head");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_SHA", "checked-out-head-sha");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_PR_NUMBER", "123");

@@ -55,6 +55,7 @@ function resolvePRHeadBaselineForPush(branchName, repoSlug, prNumber, server) {
   const baselineRef = (process.env.GH_AW_PR_HEAD_BASE_REF || "").trim();
   const baselineSha = (process.env.GH_AW_PR_HEAD_BASE_SHA || "").trim();
   const baselinePRNumber = (process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER || "").trim();
+  const headRepo = (process.env.GH_AW_PR_HEAD_REPO || "").trim();
 
   if (!baselineBranch || baselineBranch !== branchName || (!baselineRef && !baselineSha)) {
     return null;
@@ -79,6 +80,7 @@ function resolvePRHeadBaselineForPush(branchName, repoSlug, prNumber, server) {
   return {
     ref: baselineRef,
     sha: baselineSha,
+    headRepo,
   };
 }
 
@@ -1189,8 +1191,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * The destination branch is independently derived by the apply-time push handler
    * from pulls.get(pull_number).head.ref.
    *
-   * Note: Fork PR detection is handled by push_to_pull_request_branch.cjs handler
-   * which fetches the PR and calls detectForkPR() with full PR data.
+   * The recorded triggering-PR baseline includes its trusted head repository, so
+   * contributor forks that cannot be written are rejected before persisting an
+   * output. The apply-time handler still validates full PR data independently.
    */
   const pushToPullRequestBranchHandler = async args => {
     const entry = { ...(args || {}), type: "push_to_pull_request_branch" };
@@ -1386,6 +1389,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     const prHeadBaseline = resolvePRHeadBaselineForPush(entry.branch, itemRepo, effectivePushPRNumber, server);
+    if (prHeadBaseline?.headRepo && prHeadBaseline.headRepo.toLowerCase() !== itemRepo.toLowerCase() && prHeadBaseline.headRepo.toLowerCase() !== configuredHeadRepo.toLowerCase()) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Cannot push to pull request #${effectivePushPRNumber}: its branch is in contributor fork '${prHeadBaseline.headRepo}', but safe-outputs.push-to-pull-request-branch.head-repo does not authorize that repository. A github-token or PAT alone does not authorize an unconfigured fork, even if the credential has write access. Configure head-repo as '${prHeadBaseline.headRepo}' with matching credentials to allow the push. Do not retry this push with the current configuration. If add_comment is available, comment on the pull request with the proposed code or patch; otherwise call report_incomplete with the proposed change and this error so the workflow can report it to the maintainer.`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
 
     // Build common options for both patch and bundle generation
     const pushTransportOptions = { mode: "incremental" };

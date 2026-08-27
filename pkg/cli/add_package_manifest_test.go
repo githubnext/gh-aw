@@ -122,6 +122,54 @@ resources:
 			assert.Equal(t, "packages/repo-assist/policy/controls.json", pkg.ResourceFiles[1].SourcePath)
 			assert.Equal(t, ".github/aw/policy/controls.json", pkg.ResourceFiles[1].DestinationPath)
 		})
+
+		t.Run("adds grader evaluators to package resources", func(t *testing.T) {
+			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+				switch path {
+				case "packages/repo-assist/aw.yml":
+					return []byte(`name: Repo Assist
+files:
+  - workflows/review.md
+  - workflows/triage.md
+`), nil
+				case "packages/repo-assist/README.md":
+					return []byte("# Repo Assist\n"), nil
+				case "packages/repo-assist/workflows/review.md":
+					return []byte(`---
+on: pull_request
+graders:
+  operational-value:
+    run: .github/workflows/graders/shared-operational-value.sh
+---
+# Review
+`), nil
+				case "packages/repo-assist/workflows/triage.md":
+					return []byte(`---
+on: issues
+graders:
+  operational-value:
+    run: ./graders/triage-operational-value.sh
+---
+# Triage
+`), nil
+				default:
+					return nil, createRepositoryPackageNotFoundError(path)
+				}
+			}
+			listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+				t.Fatalf("unexpected scan of %s", workflowPath)
+				return nil, nil
+			}
+
+			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
+			require.NoError(t, err)
+			require.Len(t, pkg.ResourceFiles, 2)
+			assert.Equal(t, "packages/repo-assist/workflows/graders/shared-operational-value.sh", pkg.ResourceFiles[0].SourcePath)
+			assert.Equal(t, ".github/workflows/graders/shared-operational-value.sh", pkg.ResourceFiles[0].DestinationPath)
+			assert.Equal(t, "packages/repo-assist/workflows/graders/triage-operational-value.sh", pkg.ResourceFiles[1].SourcePath)
+			assert.Equal(t, ".github/workflows/graders/triage-operational-value.sh", pkg.ResourceFiles[1].DestinationPath)
+			assert.True(t, isPackageResourceDestination(pkg.ResourceFiles[1].DestinationPath))
+		})
 		getRepositoryPackageLatestRelease = func(_ context.Context, repoSlug, host string) (string, error) {
 			assert.Equal(t, "owner/repo", repoSlug)
 			assert.Equal(t, "github.com", host)

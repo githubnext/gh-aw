@@ -12371,7 +12371,7 @@
         },
         "events": {
           "type": "array",
-          "description": "Optional list of event types to apply rate limiting to. If not specified, rate limiting applies to all programmatically triggered events (e.g., workflow_dispatch, issue_comment, pull_request_review).",
+          "description": "Optional list of event types to apply rate limiting to. If not specified, rate limiting is inferred from the workflow triggers; if no supported programmatic triggers are found, it falls back to all supported programmatic events.",
           "items": {
             "type": "string",
             "enum": ["workflow_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "issues", "pull_request", "discussion_comment", "discussion", "repository_dispatch"]
@@ -12898,8 +12898,8 @@
               },
               "run": {
                 "type": "string",
-                "pattern": "^\\.github/graders/.+\\.sh$",
-                "description": "Repository-relative Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
+                "pattern": "^(?:\\./)?(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+))*\\.sh$",
+                "description": "Workspace-relative or ./ workflow-local Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
               }
             }
           }

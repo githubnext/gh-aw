@@ -95,7 +95,7 @@ Drive memory is an experimental, feature-gated GitHub Drives integration. Do not
 configure it unless GitHub has explicitly enrolled the repository in the private
 preview.
 
-The [Drive Memory Reference](/gh-aw/reference/drive-memory/) records the preview
+The [Drive Memory Reference](/gh-aw/experimental/drive-memory/) records the preview
 behavior for enrolled repositories; it is not a recommendation for general use.
 
 ### Repo Memory (`repo-memory:`)

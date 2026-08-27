@@ -30,6 +30,7 @@ type LogsDownloadOptions struct {
 	SafeOutputType    string
 	FilteredIntegrity bool
 	EvalsOnly         bool
+	GradersOnly       bool
 	Train             bool
 	Format            string
 	ArtifactSets      []string
@@ -61,6 +62,7 @@ type StdinLogsOptions struct {
 	SafeOutputType    string
 	FilteredIntegrity bool
 	EvalsOnly         bool
+	GradersOnly       bool
 	Train             bool
 	Format            string
 	ReportFile        string

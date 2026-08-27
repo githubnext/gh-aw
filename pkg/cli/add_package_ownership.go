@@ -243,7 +243,7 @@ func readPackageOwnershipRecords(gitRoot string) ([]packageOwnershipRecord, erro
 	return records, nil
 }
 
-func syncManifestManagedResources(ctx context.Context, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage, ref string, opts UpdateWorkflowsOptions) error {
+func syncManifestManagedResources(ctx context.Context, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage, ref string, opts UpdateWorkflowsOptions) error { //nolint:largefunc
 	if pkg == nil || repoSpec == nil {
 		return nil
 	}
@@ -286,6 +286,9 @@ func syncManifestManagedResources(ctx context.Context, repoSpec *RepoSpec, pkg *
 	for _, resource := range pkg.ResourceFiles {
 		destination := filepath.ToSlash(filepath.Clean(resource.DestinationPath))
 		destPath := filepath.Join(gitRoot, filepath.FromSlash(destination))
+		if err := fileutil.ValidatePathWithinBase(gitRoot, destPath); err != nil {
+			return fmt.Errorf("resource %q escapes repository root: %w", destination, err)
+		}
 		if fileutil.FileExists(destPath) && !opts.Force {
 			if owned, drifted := packageOwnershipAllowsOverwrite(gitRoot, destination, packageBase); !owned || drifted {
 				if owned {
@@ -442,7 +445,8 @@ func upsertPackageOwnershipFile(entries []packageOwnershipFileEntry, next packag
 func isPackageResourceDestination(destination string) bool {
 	return strings.EqualFold(destination, constants.GithubDir+"CODEOWNERS") ||
 		strings.HasPrefix(destination, constants.GithubDir+"ISSUE_TEMPLATE/") ||
-		strings.HasPrefix(destination, constants.GithubDir+"aw/")
+		strings.HasPrefix(destination, constants.GithubDir+"aw/") ||
+		workflow.IsValidOperationalValueEvaluatorRunPath(destination)
 }
 
 func removePackageOwnedFilesIfUnused(packageBase string) error {
