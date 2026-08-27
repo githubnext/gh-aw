@@ -576,8 +576,7 @@ func upsertDefaultsVariable(target defaultsTarget, name, value string) error {
 	}
 	out, err := runDefaultsGH(args...)
 	if err != nil {
-		if (target.scope == defaultsScopeOrg || target.scope == defaultsScopeEnt) &&
-			strings.Contains(strings.ToLower(string(out)), "visibility") {
+		if (target.scope == defaultsScopeOrg || target.scope == defaultsScopeEnt) && isDefaultsMissingVisibilityError(err, out) {
 			scopeName := "organization"
 			example := "gh aw env update defaults.yml --scope org --org my-org --visibility all"
 			if target.scope == defaultsScopeEnt {
@@ -585,7 +584,7 @@ func upsertDefaultsVariable(target defaultsTarget, name, value string) error {
 				example = "gh aw env update defaults.yml --scope ent --enterprise my-ent --visibility all"
 			}
 			message := fmt.Sprintf("failed to create %s at %s scope: %s variables require a visibility. Expected one of all, private, selected. Example: %s", name, target.scope, scopeName, example)
-			return fmt.Errorf("%s: %w", console.FormatErrorMessage(message), errWithOutput(err, out))
+			return fmt.Errorf("%s: %w", message, errWithOutput(err, out))
 		}
 		return fmt.Errorf("failed to create %s at %s scope: %w", name, target.scope, errWithOutput(err, out))
 	}
@@ -609,6 +608,17 @@ func isDefaultsNotFoundError(err error, out []byte) bool {
 		return strings.Contains(strings.ToLower(ghErr.output), "http 404")
 	}
 	return strings.Contains(strings.ToLower(string(out)), "http 404")
+}
+
+func isDefaultsMissingVisibilityError(err error, out []byte) bool {
+	if err == nil {
+		return false
+	}
+	response := strings.ToLower(string(out))
+	return strings.Contains(response, "http 422") &&
+		(strings.Contains(response, "missing visibility") ||
+			strings.Contains(response, `"visibility" is missing`) ||
+			(strings.Contains(response, "missing required") && strings.Contains(response, "visibility")))
 }
 
 func errWithOutput(err error, out []byte) error {

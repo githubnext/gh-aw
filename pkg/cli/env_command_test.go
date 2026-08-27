@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -302,7 +303,9 @@ func TestUpsertDefaultsVariableCreateArguments(t *testing.T) {
 			assert.NotContains(t, calls[0], "visibility="+tt.target.visibility)
 			assert.Contains(t, calls[1], "POST")
 			if tt.expectedVisibility == "" {
-				assert.NotContains(t, calls[1], "visibility=")
+				assert.False(t, slices.ContainsFunc(calls[1], func(arg string) bool {
+					return strings.HasPrefix(arg, "visibility=")
+				}))
 			} else {
 				assert.Contains(t, calls[1], tt.expectedVisibility)
 			}
@@ -338,7 +341,7 @@ func TestUpsertDefaultsVariableCreateVisibilityError(t *testing.T) {
 	target := defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll}
 	err := upsertDefaultsVariable(target, "GH_AW_DEFAULT_MAX_TURNS", "5")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), console.FormatErrorMessage("failed to create GH_AW_DEFAULT_MAX_TURNS at org scope"))
+	assert.Contains(t, err.Error(), "failed to create GH_AW_DEFAULT_MAX_TURNS at org scope")
 	assert.Contains(t, err.Error(), "organization variables require a visibility")
 	assert.Contains(t, err.Error(), "Expected one of all, private, selected")
 	assert.Contains(t, err.Error(), "Example:")
@@ -358,6 +361,21 @@ func TestUpsertDefaultsVariableCreateUnrelatedError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to create GH_AW_DEFAULT_MAX_TURNS at org scope")
 	assert.NotContains(t, err.Error(), "variables require a visibility")
 	assert.Contains(t, err.Error(), "HTTP 403: Forbidden")
+}
+
+func TestUpsertDefaultsVariableCreateInvalidVisibilityError(t *testing.T) {
+	stubDefaultsExecGH(t, func(args []string) *exec.Cmd {
+		if slices.Contains(args, "PATCH") {
+			return defaultsGHHelperCommand("HTTP 404: Not Found", 1)
+		}
+		return defaultsGHHelperCommand("HTTP 422: invalid visibility setting", 1)
+	})
+
+	target := defaultsTarget{scope: defaultsScopeOrg, org: "github", visibility: defaultsVisibilityAll}
+	err := upsertDefaultsVariable(target, "GH_AW_DEFAULT_MAX_TURNS", "5")
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "variables require a visibility")
+	assert.Contains(t, err.Error(), "HTTP 422: invalid visibility setting")
 }
 
 func stubDefaultsExecGH(t *testing.T, stub func([]string) *exec.Cmd) {
