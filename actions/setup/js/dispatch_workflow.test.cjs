@@ -34,6 +34,9 @@ global.github = {
         },
       }),
     },
+    pulls: {
+      get: vi.fn(),
+    },
   },
 };
 
@@ -740,6 +743,80 @@ describe("dispatch_workflow handler factory", () => {
       inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
+  });
+
+  it("should resolve an omitted ref to the PR head for issue_comment events", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockResolvedValueOnce({
+      data: {
+        head: {
+          ref: "feature/add-new-feature",
+        },
+      },
+    });
+
+    const handler = await main({
+      allowed_refs: ["**"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    expect(github.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      pull_number: 456,
+    });
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "refs/heads/feature/add-new-feature",
+      })
+    );
+  });
+
+  it("should apply allowed-refs to an omitted ref resolved from a PR issue_comment", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockResolvedValueOnce({
+      data: {
+        head: {
+          ref: "feature/add-new-feature",
+        },
+      },
+    });
+
+    const handler = await main({
+      allowed_refs: ["release/*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result).toEqual({
+      success: false,
+      error: "Ref 'refs/heads/feature/add-new-feature' is not in allowed-refs: refs/heads/release/*",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
   it("should use repository default branch when no GITHUB_REF is set", async () => {
