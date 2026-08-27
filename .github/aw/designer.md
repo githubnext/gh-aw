@@ -1,3 +1,7 @@
+---
+description: Structured interview playbook for turning user goals into complete, runnable agentic workflow specifications.
+---
+
 # Workflow Designer
 
 Use this skill to run a structured interview with users who know their goal but not the workflow syntax yet, then generate one complete workflow `.md` file.

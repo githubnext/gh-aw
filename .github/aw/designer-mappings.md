@@ -1,3 +1,7 @@
+---
+description: Quick reference mappings from user requirements to agentic workflow triggers, outputs, tools, and guardrails.
+---
+
 # Designer Decision Heuristics
 
 Quick-reference mapping tables for `.github/aw/designer.md`. Load this file during Phase 2–7 of the interview when translating user answers into workflow syntax.
@@ -151,4 +155,3 @@ Never suggest committing plaintext tokens.
 | "just respond to a comment" | no pre-fetch needed (event payload is enough) |
 | "process each item individually" | suggest sub-agent pattern with `model: small` |
 | "weekly digest", "compliance report", "license review", "policy audit" | pre-fetch with `gh` + `jq` into `/tmp/gh-aw/data/`; point prompt to those files |
-
