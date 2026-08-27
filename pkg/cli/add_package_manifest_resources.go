@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -8,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 type repositoryPackageResource struct {
@@ -103,6 +106,67 @@ func normalizePackageResourcePaths(resources []repositoryPackageResource, packag
 		})
 	}
 	return normalized
+}
+
+func resolveRepositoryPackageGraderResources(ctx context.Context, owner, repo, ref, host string, installables []resolvedPackageInstallable) ([]resolvedPackageResource, error) {
+	var resources []resolvedPackageResource
+	seen := make(map[string]struct{})
+	for _, installable := range installables {
+		if !strings.HasSuffix(strings.ToLower(installable.SourcePath), ".md") {
+			continue
+		}
+		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, installable.SourcePath, ref, host)
+		if err != nil {
+			if isRepositoryFileNotFound(err) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to inspect packaged workflow %q for grader resources: %w", installable.SourcePath, err)
+		}
+		result, err := parser.ExtractFrontmatterFromContent(string(content))
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect packaged workflow %q for grader resources: %w", installable.SourcePath, err)
+		}
+		if result.Frontmatter == nil {
+			continue
+		}
+		graders, err := workflow.ParseGradersFromFrontmatter(result.Frontmatter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect packaged workflow %q for grader resources: %w", installable.SourcePath, err)
+		}
+		if graders == nil {
+			continue
+		}
+		grader := graders.Graders["operational-value"]
+		if grader == nil || grader.Run == "" {
+			continue
+		}
+		key := strings.ToLower(grader.Run)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		resources = append(resources, resolvedPackageResource{
+			SourcePath:      grader.Run,
+			DestinationPath: grader.Run,
+		})
+	}
+	return resources, nil
+}
+
+func appendUniquePackageResources(resources, additional []resolvedPackageResource) []resolvedPackageResource {
+	seen := make(map[string]struct{}, len(resources)+len(additional))
+	for _, resource := range resources {
+		seen[strings.ToLower(filepath.ToSlash(filepath.Clean(resource.DestinationPath)))] = struct{}{}
+	}
+	for _, resource := range additional {
+		key := strings.ToLower(filepath.ToSlash(filepath.Clean(resource.DestinationPath)))
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		resources = append(resources, resource)
+	}
+	return resources
 }
 
 func normalizeLocalPackageResourcePaths(resources []repositoryPackageResource, packageDir string) ([]resolvedPackageResource, error) {

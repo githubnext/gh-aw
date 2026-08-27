@@ -19,6 +19,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSyncManifestManagedResources_RestoresGraderEvaluator(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupMinimalGitRepo(t, tmpDir)
+	t.Chdir(tmpDir)
+
+	const evaluatorPath = ".github/graders/example-operational-value.sh"
+	oldContent := []byte("#!/usr/bin/env bash\necho old\n")
+	newContent := []byte("#!/usr/bin/env bash\necho new\n")
+	downloadContent := oldContent
+
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() { downloadPackageFileFromGitHubForHost = originalDownload })
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+		require.Equal(t, evaluatorPath, path)
+		return downloadContent, nil
+	}
+
+	pkg := &resolvedRepositoryPackage{
+		ResourceFiles: []resolvedPackageResource{{
+			SourcePath:      evaluatorPath,
+			DestinationPath: evaluatorPath,
+		}},
+	}
+	repoSpec := &RepoSpec{RepoSlug: "owner/repo"}
+	require.NoError(t, syncManifestManagedResources(context.Background(), repoSpec, pkg, "v1.0.0", UpdateWorkflowsOptions{}))
+	installedPath := filepath.Join(tmpDir, filepath.FromSlash(evaluatorPath))
+	installed, err := os.ReadFile(installedPath)
+	require.NoError(t, err)
+	assert.Equal(t, oldContent, installed)
+
+	require.NoError(t, os.Remove(installedPath))
+	downloadContent = newContent
+	require.NoError(t, syncManifestManagedResources(context.Background(), repoSpec, pkg, "v2.0.0", UpdateWorkflowsOptions{}))
+	restored, err := os.ReadFile(installedPath)
+	require.NoError(t, err)
+	assert.Equal(t, newContent, restored)
+}
+
 func TestReconcileManifestManagedAssets_AddsPackageOwnedAssets(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "manifest-assets-*")
 	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))

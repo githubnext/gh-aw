@@ -122,6 +122,45 @@ resources:
 			assert.Equal(t, "packages/repo-assist/policy/controls.json", pkg.ResourceFiles[1].SourcePath)
 			assert.Equal(t, ".github/aw/policy/controls.json", pkg.ResourceFiles[1].DestinationPath)
 		})
+		t.Run("includes grader evaluator scripts as resources", func(t *testing.T) {
+			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+				switch path {
+				case "aw.yml":
+					return []byte(`name: Grader Package
+files:
+  - workflows/graded.md
+`), nil
+				case "workflows/graded.md":
+					return []byte(`---
+on: workflow_dispatch
+graders:
+  operational-value:
+    run: .github/graders/example-operational-value.sh
+---
+# Graded workflow
+`), nil
+				case "README.md":
+					return []byte("# Grader Package\n"), nil
+				default:
+					return nil, createRepositoryPackageNotFoundError(path)
+				}
+			}
+			listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+				t.Fatalf("unexpected scan of %s", workflowPath)
+				return nil, nil
+			}
+
+			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
+			require.NoError(t, err)
+			require.Len(t, pkg.ResourceFiles, 1)
+			assert.Equal(t, ".github/graders/example-operational-value.sh", pkg.ResourceFiles[0].SourcePath)
+			assert.Equal(t, ".github/graders/example-operational-value.sh", pkg.ResourceFiles[0].DestinationPath)
+
+			specs := appendRepositoryPackageWorkflowSpecs(nil, &RepoSpec{RepoSlug: "owner/repo"}, pkg)
+			require.Len(t, specs, 2)
+			assert.True(t, specs[1].IsPackageResourceFile)
+			assert.Equal(t, ".github/graders/example-operational-value.sh", specs[1].DestinationPath)
+		})
 		getRepositoryPackageLatestRelease = func(_ context.Context, repoSlug, host string) (string, error) {
 			assert.Equal(t, "owner/repo", repoSlug)
 			assert.Equal(t, "github.com", host)
