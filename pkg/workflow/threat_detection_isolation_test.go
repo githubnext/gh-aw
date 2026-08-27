@@ -785,6 +785,12 @@ Test workflow`
 			if strings.Contains(detectionSection, `base_url = "http://`+anthropicHostPort+`"`) {
 				t.Errorf("Codex detection config must never point at the Anthropic ingress (%s)", anthropicHostPort)
 			}
+			if !strings.Contains(detectionSection, `CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}`) {
+				t.Error("Codex detection execution must use the OpenAI credential expression")
+			}
+			if strings.Contains(detectionSection, `CODEX_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}`) {
+				t.Error("Codex detection execution must never use the Anthropic credential expression")
+			}
 		})
 	}
 }
