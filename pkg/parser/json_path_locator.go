@@ -50,11 +50,11 @@ func ExtractJSONPathFromValidationError(err error) []JSONPathInfo {
 
 // JSONPathInfo holds information about a validation error and its path
 type JSONPathInfo struct {
-	Path      string               // JSON path like "/tools/1" or "/age"
-	Message   string               // Error message
-	Location  []string             // Instance location from jsonschema (e.g., ["tools", "1"])
-	ErrorKind jsonschema.ErrorKind // Structural error kind; nil when built from a string-only context
-	Causes    []*jsonschema.ValidationError
+	Path      string                        // JSON path like "/tools/1" or "/age"
+	Message   string                        // Error message
+	Location  []string                      // Instance location from jsonschema (e.g., ["tools", "1"])
+	ErrorKind jsonschema.ErrorKind          // Structural error kind; nil when built from a string-only context
+	Causes    []*jsonschema.ValidationError // Nested validation errors from a composite error kind such as OneOf or Group
 }
 
 // convertInstanceLocationToJSONPath converts jsonschema InstanceLocation to JSON path string
