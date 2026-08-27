@@ -99,6 +99,10 @@ func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDin
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
 	}
+	if !isCloudHypervisor && config.EngineName == "aider" && config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil {
+		expandableArgs += fmt.Sprintf(` --mount "%s"`, constants.DefaultSafeOutputsMount)
+		awfHelpersLog.Print("Added read-write mount for Aider safe outputs")
+	}
 	return appendExpandableServiceAndHypervisorArgs(config, isCloudHypervisor, expandableArgs), arcDindDockerHostProbe
 }
 

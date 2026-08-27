@@ -744,6 +744,22 @@ func TestBuildAWFCommand_ServicePortsRequireLegacy(t *testing.T) {
 	})
 }
 
+func TestBuildAWFCommandMountsSafeOutputsForAider(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{ID: "aider"},
+		SafeOutputs:  &SafeOutputsConfig{},
+	}
+
+	command := BuildAWFCommand(AWFCommandConfig{
+		WorkflowData:  workflowData,
+		EngineName:    "aider",
+		EngineCommand: "aider",
+	})
+
+	assert.Contains(t, command, `--mount "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw"`)
+}
+
 func TestBuildAWFCommandScript_OptionalSections(t *testing.T) {
 	base := buildAWFCommandScriptInput{
 		writeAgentCLIStartMs:   "start",
