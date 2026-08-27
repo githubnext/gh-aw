@@ -54,6 +54,48 @@ func TestValidateStrictSandboxCustomization(t *testing.T) {
 			errorMsg:    "strict mode: 'sandbox.agent.args' is not allowed because it is an internal implementation detail",
 		},
 		{
+			name: "sandbox.agent.args allows --image-tag with inline value",
+			sandbox: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:   "awf",
+					Args: []string{"--image-tag=0.28.8,squid=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,agent=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "sandbox.agent.args allows --image-tag with split value",
+			sandbox: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:   "awf",
+					Args: []string{"--image-tag", "0.28.8,squid=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "sandbox.agent.args rejects non-image-tag args",
+			sandbox: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:   "awf",
+					Args: []string{"--image-tag=0.28.8", "--debug"},
+				},
+			},
+			expectError: true,
+			errorMsg:    "strict mode: 'sandbox.agent.args' is not allowed because it is an internal implementation detail",
+		},
+		{
+			name: "sandbox.agent.args rejects expression image-tag value",
+			sandbox: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:   "awf",
+					Args: []string{"--image-tag=${{ inputs.image_tag }}"},
+				},
+			},
+			expectError: true,
+			errorMsg:    "strict mode: 'sandbox.agent.args' is not allowed because it is an internal implementation detail",
+		},
+		{
 			name: "sandbox.agent.env is rejected",
 			sandbox: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
