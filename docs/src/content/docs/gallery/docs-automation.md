@@ -3,7 +3,7 @@ title: Keeping documentation up to date automatically
 description: Use gh-aw to detect documentation drift and open reviewable pull requests that update docs automatically.
 ---
 
-Documentation automation with gh-aw means running an agent on a schedule or after code changes so it can detect drift between code and docs, prepare updates, and propose them as a pull request. gh-aw keeps the agent inside a controlled workflow and uses a safe output to turn proposed documentation changes into a reviewable PR.
+Documentation automation with GitHub Agentic Workflows means running an agent on a schedule or after code changes so it can detect drift between code and docs, prepare updates, and propose them as a pull request. gh-aw keeps the agent inside a controlled workflow and uses a safe output to turn proposed documentation changes into a reviewable PR.
 
 Install the starter with `gh aw add-wizard githubnext/agentics/docs-updater`.
 
