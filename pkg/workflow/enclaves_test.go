@@ -244,6 +244,13 @@ func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	assert.NotContains(t, generated, `printf '%s=%s\n' GH_AW_MCP_DEFERRED_SERVERS`)
 	assert.NotContains(t, generated, `"required": false`)
 	assert.NotRegexp(t, `AWF_ENCLAVE_MCP_CAPABILITY=[0-9a-f]{64}`, generated)
+	gatewayCommand := strings.Index(generated, `export MCP_GATEWAY_DOCKER_COMMAND=`)
+	require.Greater(t, gatewayCommand, -1)
+	for _, name := range optionalPRHeadEnvVars {
+		emptyDefault := `export ` + name + `="${` + name + `:-}"`
+		assert.Contains(t, generated, emptyDefault)
+		assert.Less(t, strings.Index(generated, emptyDefault), gatewayCommand)
+	}
 	gatewayKeyMask := strings.Index(generated, `::add-mask::${MCP_GATEWAY_API_KEY}`)
 	gatewayKeyHandoff := strings.Index(generated, `printf '%s=%s\n' MCP_GATEWAY_API_KEY "$MCP_GATEWAY_API_KEY"`)
 	deferred := strings.Index(generated, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
