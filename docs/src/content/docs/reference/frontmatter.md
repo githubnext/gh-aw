@@ -503,7 +503,7 @@ Limits how frequently a single user can trigger the workflow. When the limit is 
 
 ```yaml wrap
 user-rate-limit:
-  max-runs-per-window: 5                      # Required unless using a deprecated alias: maximum runs per user per window (1-10)
+  max-runs-per-window: 5                      # Required: maximum runs per user per window (1-10)
   window: 60                                  # Optional: window in minutes (default: 60, max: 180)
   events: [workflow_dispatch, issue_comment]  # Optional: events to rate limit (inferred from `on:` when omitted; fallback to all supported programmatic events)
   ignored-roles: [admin, maintain]            # Optional: exempt roles (default: [admin, maintain, write])
@@ -513,7 +513,7 @@ user-rate-limit:
 
 Users with any of the `ignored-roles` are not rate limited. The default exemptions are `admin`, `maintain`, and `write`; set `ignored-roles: []` to rate limit every user, including administrators.
 
-Legacy frontmatter that used a top-level `rate-limit:` section, or `max:`/`max-runs:` instead of `max-runs-per-window:`, is migrated automatically by `gh aw fix`.
+Legacy frontmatter that used a top-level `rate-limit:` section, or `max:`/`max-runs:` instead of `max-runs-per-window:`, must be migrated with `gh aw fix`.
 
 See [Rate Limiting and Controls](/gh-aw/reference/rate-limiting-controls/) for more details.
 

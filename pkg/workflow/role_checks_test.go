@@ -314,7 +314,7 @@ func TestExtractRateLimitConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("extracts legacy max-runs alias", func(t *testing.T) {
+	t.Run("ignores legacy max-runs alias", func(t *testing.T) {
 		cfg := c.extractRateLimitConfig(map[string]any{
 			"user-rate-limit": map[string]any{
 				"max-runs": 4,
@@ -322,11 +322,11 @@ func TestExtractRateLimitConfig(t *testing.T) {
 		})
 
 		if assert.NotNil(t, cfg) {
-			assert.Equal(t, 4, cfg.Max)
+			assert.Zero(t, cfg.Max)
 		}
 	})
 
-	t.Run("extracts legacy max alias", func(t *testing.T) {
+	t.Run("ignores legacy max alias", func(t *testing.T) {
 		cfg := c.extractRateLimitConfig(map[string]any{
 			"user-rate-limit": map[string]any{
 				"max": 2,
@@ -334,7 +334,7 @@ func TestExtractRateLimitConfig(t *testing.T) {
 		})
 
 		if assert.NotNil(t, cfg) {
-			assert.Equal(t, 2, cfg.Max)
+			assert.Zero(t, cfg.Max)
 		}
 	})
 

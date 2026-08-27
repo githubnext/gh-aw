@@ -2760,20 +2760,6 @@
           "desc": "Maximum number of workflow runs allowed per user within the time window.",
           "leaf": true
         },
-        "max-runs": {
-          "type": "integer|string",
-          "desc": "Deprecated alias for max-runs-per-window.",
-          "deprecated": true,
-          "x-deprecation-message": "Use user-rate-limit.max-runs-per-window instead.",
-          "leaf": true
-        },
-        "max": {
-          "type": "integer|string",
-          "desc": "Deprecated alias for max-runs-per-window.",
-          "deprecated": true,
-          "x-deprecation-message": "Use user-rate-limit.max-runs-per-window instead.",
-          "leaf": true
-        },
         "window": {
           "type": "integer",
           "desc": "Time window in minutes for rate limiting.",

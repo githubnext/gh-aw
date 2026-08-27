@@ -246,7 +246,7 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 	}
 
 	config := &RateLimitConfig{
-		Max:          extractRateLimitInt(rateLimitMap, "max-runs-per-window", "max-runs", "max"),
+		Max:          extractRateLimitInt(rateLimitMap, "max-runs-per-window"),
 		Window:       extractRateLimitInt(rateLimitMap, "window"),
 		Events:       c.extractRateLimitEvents(rateLimitMap, frontmatter),
 		IgnoredRoles: extractRateLimitIgnoredRoles(rateLimitMap),

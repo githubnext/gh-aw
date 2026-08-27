@@ -12337,44 +12337,10 @@
     "user-rate-limit": {
       "type": "object",
       "description": "Rate limiting configuration to restrict how frequently users can trigger the workflow. Helps prevent abuse and resource exhaustion from programmatically triggered events.",
-      "oneOf": [{ "required": ["max-runs-per-window"] }, { "required": ["max-runs"] }, { "required": ["max"] }],
+      "required": ["max-runs-per-window"],
       "properties": {
         "max-runs-per-window": {
-          "description": "Maximum number of workflow runs allowed per user within the time window. Required field unless a deprecated alias is used. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
-          "oneOf": [
-            {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 10
-            },
-            {
-              "type": "string",
-              "pattern": "^\\$\\{\\{.*\\}\\}$",
-              "description": "GitHub Actions expression that resolves to an integer at runtime"
-            }
-          ]
-        },
-        "max-runs": {
-          "description": "Deprecated alias for max-runs-per-window. Use max-runs-per-window in new workflows.",
-          "deprecated": true,
-          "x-deprecation-message": "Use user-rate-limit.max-runs-per-window instead.",
-          "oneOf": [
-            {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 10
-            },
-            {
-              "type": "string",
-              "pattern": "^\\$\\{\\{.*\\}\\}$",
-              "description": "GitHub Actions expression that resolves to an integer at runtime"
-            }
-          ]
-        },
-        "max": {
-          "description": "Deprecated alias for max-runs-per-window. Use max-runs-per-window in new workflows.",
-          "deprecated": true,
-          "x-deprecation-message": "Use user-rate-limit.max-runs-per-window instead.",
+          "description": "Maximum number of workflow runs allowed per user within the time window. Required field. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
           "oneOf": [
             {
               "type": "integer",
