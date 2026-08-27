@@ -67,7 +67,7 @@ Codex supports native web search when `tools.web-search` is enabled and can disa
 
 ## GitHub Agentic Workflows vs. running Codex directly in Actions
 
-Running coding agent CLIs such as `codex` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecure and workflow portability across AI engines.
+Running coding agent CLIs such as `codex` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecture and workflow portability across AI engines.
 
 ## Learn More
 
