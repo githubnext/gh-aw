@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -953,6 +954,19 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 		"Safe outputs MCP server should receive the runtime tools path")
 	assert.Contains(t, yamlStr, `"GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST": "\${GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST}"`,
 		"Safe outputs MCP server should receive the runtime create-pull-request policy")
+	for _, name := range []string{
+		"GH_AW_PR_HEAD_BASE_BRANCH",
+		"GH_AW_PR_HEAD_BASE_SHA",
+		"GH_AW_PR_HEAD_BASE_REPO",
+		"GH_AW_PR_HEAD_BASE_PR_NUMBER",
+		"GH_AW_PR_HEAD_BASE_REF",
+		"GH_AW_PR_HEAD_REPO",
+	} {
+		assert.Contains(t, yamlStr, " -e "+name,
+			"MCP gateway container should receive PR head baseline metadata")
+		assert.Contains(t, yamlStr, fmt.Sprintf(`"%s": "\${%s}"`, name, name),
+			"Safe outputs MCP server should receive PR head baseline metadata")
+	}
 	assert.Contains(t, yamlStr, `"RUNNER_TEMP": "\${RUNNER_TEMP}"`,
 		"Safe outputs MCP server should receive RUNNER_TEMP for staging helpers")
 	assert.NotContains(t, yamlStr, "Start Safe Outputs MCP HTTP Server",
@@ -1144,8 +1158,10 @@ Test that OTEL_EXPORTER_OTLP_HEADERS is forwarded to the MCP gateway container.
 		"headers must not be embedded in the gateway JSON config")
 }
 
-// TestOTLPHeadersEnvVarNotPassedWithoutOTLP verifies that OTEL_EXPORTER_OTLP_HEADERS is NOT
-// added to the docker command when observability.otlp is not configured.
+// TestOTLPHeadersEnvVarNotPassedWithoutOTLP verifies that OTEL_EXPORTER_OTLP_HEADERS is
+// still passed to the docker command when observability.otlp is not configured, since the
+// compiler now falls back to the enterprise default OTLP endpoint/headers expressions
+// (GH_AW_DEFAULT_OTLP_ENDPOINT / GH_AW_DEFAULT_OTLP_HEADERS) for every workflow.
 func TestOTLPHeadersEnvVarNotPassedWithoutOTLP(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch
@@ -1158,7 +1174,8 @@ tools:
 
 # Test No OTLP
 
-Test that OTEL_EXPORTER_OTLP_HEADERS is NOT added when no OTLP is configured.
+Test that OTEL_EXPORTER_OTLP_HEADERS is passed through the enterprise default fallback
+even when no explicit OTLP config is present.
 `
 
 	compiler := NewCompiler()
@@ -1177,7 +1194,8 @@ Test that OTEL_EXPORTER_OTLP_HEADERS is NOT added when no OTLP is configured.
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
-	// Verify OTEL_EXPORTER_OTLP_HEADERS is NOT in the docker command
-	assert.NotContains(t, yamlStr, "-e OTEL_EXPORTER_OTLP_HEADERS",
-		"OTEL_EXPORTER_OTLP_HEADERS should NOT be in docker command without OTLP config")
+	// Verify OTEL_EXPORTER_OTLP_HEADERS IS in the docker command, resolved via the
+	// enterprise default secret expression rather than a literal value.
+	assert.Contains(t, yamlStr, "-e OTEL_EXPORTER_OTLP_HEADERS",
+		"OTEL_EXPORTER_OTLP_HEADERS should be passed through via the enterprise default fallback")
 }
