@@ -145,7 +145,7 @@ safe-outputs:
 
 ### Enclaves (`enclaves:`)
 
-A top-level frontmatter array that enables finite-disclosure access to approved private repositories from within a public-facing workflow. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler can launch mcpg in bridge mode. Each request uses a fresh masked capability generated per workflow run, passed only to mcpg and AWF and excluded from the primary agent environment. See [Private Repository Enclaves](/gh-aw/reference/enclaves/).
+A top-level frontmatter array that enables finite-disclosure access to approved private repositories from within a public-facing workflow. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler can launch mcpg in bridge mode. Each request uses a fresh masked capability generated per workflow run, passed only to mcpg and AWF and excluded from the primary agent environment. See [Private Repository Enclaves](/gh-aw/experimental/enclaves/).
 
 ### MCP Scripts
 
@@ -358,7 +358,7 @@ A safe output capability for adding labels to issues or pull requests. Supports 
 
 ### Remove Labels (`remove-labels:`)
 
-A safe output capability for removing labels from issues or pull requests. Supports `allowed` to restrict which labels can be removed and `blocked` to prevent removal of labels matching glob patterns. Silently skips labels not present on the target. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels).
+A safe output capability for removing labels from issues or pull requests. Supports `allowed` to restrict which labels can be removed and `blocked` to prevent removal of labels matching glob patterns. Silently skips labels not present on the target. Accepts per-target `issues` and `pull-requests` boolean fields (both default to `true`) to omit the corresponding write permission from the compiled workflow when a target type is not needed; disabling both is rejected at compile time. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels).
 
 ### Assign to Agent
 

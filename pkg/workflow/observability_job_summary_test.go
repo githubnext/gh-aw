@@ -49,7 +49,7 @@ engine: copilot
 	}
 }
 
-func TestCompileWorkflow_DoesNotIncludeObservabilitySummaryStepWithoutOTLP(t *testing.T) {
+func TestCompileWorkflow_IncludesObservabilitySummaryStepWithEnterpriseDefaultOTLP(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowPath := filepath.Join(tmpDir, "no-observability-summary.md")
 	content := `---
@@ -78,11 +78,13 @@ engine: copilot
 	}
 
 	compiled := string(lockContent)
-	if strings.Contains(compiled, "- name: Generate observability summary") {
-		t.Fatal("Did not expect observability summary step when OTLP is not configured")
+	// Without observability frontmatter the compiler falls back to the enterprise
+	// default OTLP environment, so the observability summary step is still emitted.
+	if !strings.Contains(compiled, "- name: Generate observability summary") {
+		t.Fatal("Expected observability summary step when the enterprise default OTLP endpoint is used")
 	}
-	if strings.Contains(compiled, "GH_AW_OBSERVABILITY_JOB_SUMMARY") {
-		t.Fatal("Did not expect GH_AW_OBSERVABILITY_JOB_SUMMARY env var in compiled workflow")
+	if !strings.Contains(compiled, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}") {
+		t.Fatal("Expected the enterprise default OTLP endpoint variable in the compiled workflow")
 	}
 }
 

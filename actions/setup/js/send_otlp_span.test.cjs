@@ -6506,6 +6506,34 @@ describe("parseOTLPEndpoints", () => {
     const result = parseOTLPEndpoints();
     expect(result).toEqual([{ url: "https://traces.example.com:4317" }]);
   });
+
+  describe("GH_AW_OTLP_IF_MISSING=ignore (enterprise-default fallback)", () => {
+    afterEach(() => {
+      delete process.env.GH_AW_OTLP_IF_MISSING;
+      delete process.env.GH_AW_OTLP_ENDPOINTS;
+    });
+
+    it("drops an endpoint with a URL but no headers to avoid unauthenticated export", () => {
+      process.env.GH_AW_OTLP_IF_MISSING = "ignore";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317" }]);
+      const result = parseOTLPEndpoints();
+      expect(result).toEqual([]);
+    });
+
+    it("keeps an endpoint when both URL and headers are set", () => {
+      process.env.GH_AW_OTLP_IF_MISSING = "ignore";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers: "Authorization=******" }]);
+      const result = parseOTLPEndpoints();
+      expect(result).toEqual([{ url: "https://traces.example.com:4317", headers: "Authorization=******" }]);
+    });
+
+    it("does not drop endpoints without headers when if-missing is not ignore", () => {
+      process.env.GH_AW_OTLP_IF_MISSING = "warn";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317" }]);
+      const result = parseOTLPEndpoints();
+      expect(result).toEqual([{ url: "https://traces.example.com:4317" }]);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
