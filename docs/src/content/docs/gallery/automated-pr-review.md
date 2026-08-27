@@ -3,7 +3,7 @@ title: Automated AI pull request review on GitHub
 description: Use gh-aw to review pull requests automatically, post summary feedback, and add inline review comments through safe outputs.
 ---
 
-Automated AI pull request review with gh-aw means running an agent on each pull request update so it can inspect the diff, identify likely defects, and return review feedback in GitHub-native review surfaces. The workflow keeps the agent read-only and uses safe outputs for the review summary and inline comments.
+Automated AI pull request review with GitHub Agentic Workflows means running an agent on each pull request update so it can inspect the diff, identify likely defects, and return review feedback in GitHub-native review surfaces. The workflow keeps the agent read-only and uses safe outputs for the review summary and inline comments.
 
 Install the starter with `gh aw add-wizard githubnext/agentics/pr-review`.
 

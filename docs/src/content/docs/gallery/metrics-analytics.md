@@ -3,7 +3,7 @@ title: Automated workflow metrics and analytics
 description: Use a scheduled gh-aw workflow to record repository workflow health and performance data automatically.
 ---
 
-Metrics and analytics with gh-aw means collecting recent GitHub Actions activity on a schedule and storing a compact snapshot for later trend analysis. This example works with any repository that uses GitHub Actions.
+Metrics and analytics with GitHub Agentic Workflows means collecting recent GitHub Actions activity on a schedule and storing a compact snapshot for later trend analysis. This example works with any repository that uses GitHub Actions.
 
 ```aw wrap title=".github/workflows/metrics-collector.md"
 ---

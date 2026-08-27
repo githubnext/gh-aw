@@ -293,6 +293,32 @@ func TestApplyEvalsArtifact(t *testing.T) {
 	})
 }
 
+func TestApplyGradersArtifact(t *testing.T) {
+	t.Parallel()
+	t.Run("returns empty slice unchanged when artifact list is empty", func(t *testing.T) {
+		t.Parallel()
+		assert.Empty(t, applyGradersArtifact(nil, true))
+		assert.Empty(t, applyGradersArtifact([]string{}, true))
+	})
+
+	t.Run("appends graders when graders requested and artifact list narrowed", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, []string{"usage", "graders"}, applyGradersArtifact([]string{"usage"}, true))
+	})
+
+	t.Run("does not append graders when already present", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, []string{"graders"}, applyGradersArtifact([]string{"graders"}, true))
+	})
+}
+
+func TestIsGradersArtifactRequested(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isGradersArtifactRequested(true, nil))
+	assert.True(t, isGradersArtifactRequested(false, []string{"graders"}))
+	assert.False(t, isGradersArtifactRequested(false, []string{"usage"}))
+}
+
 func TestIsEvalsArtifactRequested(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
