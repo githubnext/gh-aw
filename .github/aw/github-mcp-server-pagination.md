@@ -1,3 +1,7 @@
+---
+description: Pagination guidance for GitHub MCP tools to stay within token limits while retrieving complete result sets.
+---
+
 # GitHub MCP Server — Pagination
 
 See [github-mcp-server.md](github-mcp-server.md) for toolset and tool reference.

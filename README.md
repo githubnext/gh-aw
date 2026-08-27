@@ -177,7 +177,7 @@ To build and test repository custom linters:
 [@dsfaccini (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsfaccini)
 [@dsibilio (4)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsibilio)
 [@dsolteszopyn (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsolteszopyn)
-[@dsyme (37)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsyme)
+[@dsyme (38)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsyme)
 [@duncankmckinnon (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aduncankmckinnon)
 [@eaftan (3)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aeaftan)
 [@edburns (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aedburns)
@@ -332,7 +332,7 @@ To build and test repository custom linters:
 [@r-garcia-de-oliveira (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Ar-garcia-de-oliveira)
 [@rabo-unumed (4)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Arabo-unumed)
 [@racedale (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aracedale)
-[@radiantspace (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aradiantspace)
+[@radiantspace (3)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aradiantspace)
 [@rafael-unloan (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Arafael-unloan)
 [@rbstp (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Arbstp)
 [@reggie-k (4)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Areggie-k)
@@ -403,12 +403,18 @@ To build and test repository custom linters:
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
 
 
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
+
+- **@jeffhandley** for [Add repo-specific extension hooks to gh aw upgrade for post-upgrade synchronization](https://github.com/github/gh-aw/issues/41994) — closed 2026-08-02, reason: NOT_PLANNED
+- **@silambarasan** for [GH_AW_GITHUB_TOKEN secret not propagated to safeoutputs MCP container in agent job](https://github.com/github/gh-aw/issues/55516) — closed 2026-08-25, reason: NOT_PLANNED
+
 GitHub Agentic Workflows is supported by companion projects that provide additional security and integration capabilities:
 
 - **[Agent Workflow Firewall (AWF)](https://github.com/github/gh-aw-firewall)** - Network egress control for AI agents, providing domain-based access controls and activity logging for secure workflow execution
 - **[MCP Gateway](https://github.com/github/gh-aw-mcpg)** - Routes Model Context Protocol (MCP) server calls through a unified HTTP gateway for centralized access management
 - **[gh-aw-actions](https://github.com/github/gh-aw-actions)** - Shared library of custom GitHub Actions used by compiled workflows, providing functionality such as MCP server file management
-
 ## Workshop
 
 > [!TIP]

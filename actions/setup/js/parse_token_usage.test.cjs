@@ -552,6 +552,24 @@ describe("parse_token_usage", () => {
       expect(section).toContain("Per-request AI credits and token totals");
     });
 
+    test("buildStepSummarySection emits the WSRF block after the token usage details block", () => {
+      const section = buildStepSummarySection("Token Usage", "| Alias |\n| --- |\n", {
+        measurement_state: "measured",
+        rebuild_factor: 1,
+        cumulative_input_tokens: 100,
+        peak_input_tokens: 100,
+        rebuild_excess_tokens: 0,
+        invocations: 1,
+      });
+
+      const tableIndex = section.indexOf("| Alias |");
+      const closingIndex = section.indexOf("</details>");
+      const wsrfIndex = section.indexOf("Working-Set Rebuild Factor");
+      expect(tableIndex).toBeGreaterThan(-1);
+      expect(tableIndex).toBeLessThan(closingIndex);
+      expect(wsrfIndex).toBeGreaterThan(closingIndex);
+    });
+
     test("buildWorkingSetDetailsSection renders measured WSRF details", () => {
       const section = buildWorkingSetDetailsSection({
         measurement_state: "measured",

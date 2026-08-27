@@ -146,6 +146,24 @@ includes:
 			contains: "absolute paths are not allowed",
 		},
 		{
+			name: "rejects protocol-relative source",
+			includes: `  - source: //evil/reviewer.md
+    destination: .github/workflows/reviewer.md`,
+			contains: "absolute paths are not allowed",
+		},
+		{
+			name: "rejects slash-backslash source",
+			includes: `  - source: /\evil/reviewer.md
+    destination: .github/workflows/reviewer.md`,
+			contains: "absolute paths are not allowed",
+		},
+		{
+			name: "rejects double-leading-backslash source",
+			includes: `  - source: '\\server\share\reviewer.md'
+    destination: .github/workflows/reviewer.md`,
+			contains: "absolute paths are not allowed",
+		},
+		{
 			name: "rejects destination path traversal",
 			includes: `  - source: payload/reviewer.md
     destination: ../../.github/workflows/reviewer.md`,

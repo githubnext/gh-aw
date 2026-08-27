@@ -1280,4 +1280,74 @@ describe("generateGitPatch – incremental mode diffSize excludes merged base-br
     // so at least the agent commits are included
     expect(result.diffSize ?? 0).toBeGreaterThan(0);
   });
+
+  it("uses explicit PR-head baseline when the fork branch has no origin/<branch> ref", async () => {
+    // Simulate checkout_pr_branch.cjs for a fork PR: refs/pull/N/head was fetched
+    // to origin/pr-head, then checked out as a local branch named after head.ref.
+    execSync("git checkout -b feature/fork-only", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "fork-file.txt"), "fork PR content\n");
+    execSync("git add fork-file.txt", { cwd: repoDir });
+    execSync('git commit -m "fork PR head"', { cwd: repoDir });
+    const prHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+    execSync(`git update-ref refs/remotes/origin/pr-head ${prHeadSha}`, { cwd: repoDir });
+
+    fs.writeFileSync(path.join(repoDir, "agent-change.txt"), "agent follow-up\n");
+    execSync("git add agent-change.txt", { cwd: repoDir });
+    execSync('git commit -m "agent follow-up"', { cwd: repoDir });
+
+    expect(() => execSync("git rev-parse --verify refs/remotes/origin/feature/fork-only", { cwd: repoDir, stdio: "pipe" })).toThrow();
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("feature/fork-only", "main", {
+      cwd: repoDir,
+      mode: "incremental",
+      incrementalBaseRef: "refs/remotes/origin/pr-head",
+      incrementalBaseSha: prHeadSha,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.baseCommit).toBe(prHeadSha);
+    const patch = fs.readFileSync(result.patchPath, "utf8");
+    expect(patch).toContain("agent-change.txt");
+    expect(patch).not.toContain("fork-file.txt");
+  });
+
+  it("prefers explicit PR-head baseline over same-named origin branch from base repo", async () => {
+    // A base repository can have a branch with the same name as a fork PR head.
+    // Incremental patch generation must not use that origin/<branch> ref because
+    // it belongs to the base repo, not the fork PR.
+    execSync("git checkout -b feature/native_versions", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "base-same-name.txt"), "base repo branch content\n");
+    execSync("git add base-same-name.txt", { cwd: repoDir });
+    execSync('git commit -m "base repo same-named branch"', { cwd: repoDir });
+    const baseRepoSameNameSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+    execSync(`git update-ref refs/remotes/origin/feature/native_versions ${baseRepoSameNameSha}`, { cwd: repoDir });
+
+    execSync("git checkout main", { cwd: repoDir });
+    execSync("git checkout -B feature/native_versions", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "fork-file.txt"), "fork PR content\n");
+    execSync("git add fork-file.txt", { cwd: repoDir });
+    execSync('git commit -m "fork PR head"', { cwd: repoDir });
+    const forkPrHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+    execSync(`git update-ref refs/remotes/origin/pr-head ${forkPrHeadSha}`, { cwd: repoDir });
+
+    fs.writeFileSync(path.join(repoDir, "agent-change.txt"), "agent follow-up\n");
+    execSync("git add agent-change.txt", { cwd: repoDir });
+    execSync('git commit -m "agent follow-up"', { cwd: repoDir });
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("feature/native_versions", "main", {
+      cwd: repoDir,
+      mode: "incremental",
+      incrementalBaseRef: "refs/remotes/origin/pr-head",
+      incrementalBaseSha: forkPrHeadSha,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.baseCommit).toBe(forkPrHeadSha);
+    const patch = fs.readFileSync(result.patchPath, "utf8");
+    expect(patch).toContain("agent-change.txt");
+    expect(patch).not.toContain("fork-file.txt");
+    expect(patch).not.toContain("base-same-name.txt");
+  });
 });

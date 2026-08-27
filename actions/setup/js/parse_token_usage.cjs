@@ -98,6 +98,9 @@ function getSummaryTitle() {
 
 /**
  * Builds the token usage section for the GitHub step summary.
+ * The Working-Set Rebuild Factor block is emitted as a sibling of the token
+ * usage block: nesting a <details> inside another <details> prevents GitHub
+ * from rendering the markdown table that follows it.
  * @param {string} title
  * @param {string} markdown
  * @param {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null} workingSet
@@ -105,7 +108,7 @@ function getSummaryTitle() {
  */
 function buildStepSummarySection(title, markdown, workingSet = null) {
   const workingSetSection = buildWorkingSetDetailsSection(workingSet);
-  return `<details>\n<summary>${title}</summary>\n\nPer-request AI credits and token totals\n\n${workingSetSection}${markdown}</details>\n\n`;
+  return `<details>\n<summary>${title}</summary>\n\nPer-request AI credits and token totals\n\n${markdown}</details>\n\n${workingSetSection}`;
 }
 
 /**
@@ -134,6 +137,7 @@ function buildWorkingSetDetailsSection(workingSet) {
     `- Rebuild excess tokens: ${displayExcess}`,
     "",
     "</details>",
+    "",
     "",
   ].join("\n");
 }

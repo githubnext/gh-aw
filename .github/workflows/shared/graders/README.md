@@ -33,7 +33,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 | 6 | `recurrence-determinism` | Canonical state/event sequence | Implemented |
 | 7 | `recurrence-laminarity` | Canonical states | Implemented |
 | 8 | `recurrence-trapping-time` | Canonical states | Implemented |
-| 9 | `recurrence-rate` | Canonical states | Not started |
+| 9 | `recurrence-rate` | Canonical states | Implemented |
 | 10 | `event-entropy-rate` | Event sequence only | Not started |
 | 11 | `lempel-ziv-trajectory-complexity` | Event sequence only | Not started |
 

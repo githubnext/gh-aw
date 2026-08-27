@@ -211,6 +211,24 @@ The JavaScript setup helpers bound child processes, archive operations, and setu
 | `GH_AW_OUTCOME_GH_TIMEOUT_MS` | `300000` | `gh` CLI calls made by outcome evaluation. |
 | `GH_AW_SAFEOUTPUTS_CLI_TIMEOUT_MS` | `120000` | `safeoutputs` CLI invocations used for structured diagnostics. |
 
+### MCP gateway readiness polling
+
+The MCP gateway startup step polls the gateway `/health` endpoint with exponential backoff until the gateway reports ready. Each retry parameter can be overridden; unset, zero, negative, or non-numeric values fall back to the default with a warning.
+
+| Variable | Default | Applies to |
+| --- | --- | --- |
+| `GH_AW_MCP_GATEWAY_HEALTH_MAX_ATTEMPTS` | `150` | Total health-check attempts, including the first one. |
+| `GH_AW_MCP_GATEWAY_HEALTH_INITIAL_DELAY_MS` | `250` | Delay the backoff starts from. |
+| `GH_AW_MCP_GATEWAY_HEALTH_MAX_DELAY_MS` | `1000` | Cap applied to every retry delay. |
+| `GH_AW_MCP_GATEWAY_HEALTH_BACKOFF_MULTIPLIER` | `2` | Multiplier applied to the delay before every retry. |
+| `GH_AW_MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_MS` | `120000` | MCP backend startup timeout the retry budget must outlast. |
+
+These values are cross-validated at startup:
+
+- A backoff multiplier below `1` is raised to `1` (constant delay).
+- A delay cap below the initial delay is raised to the initial delay.
+- The cumulative retry delay must cover the backend startup timeout plus 25 seconds for backend cleanup and final server registration; otherwise a warning is emitted that the health check may give up before the gateway is ready.
+
 ## CLI Configuration Variables
 
 These variables configure the `gh aw` CLI tool. Set them in your local shell environment or as repository/organization variables in GitHub Actions.

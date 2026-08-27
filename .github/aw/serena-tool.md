@@ -1,3 +1,7 @@
+---
+description: Guidance for when to use the Serena LSP MCP server for semantic code analysis in agentic workflow tasks.
+---
+
 # Serena Language Server Tool
 
 Serena is an **LSP MCP server** for semantic code analysis. Use ONLY when you need deep code understanding beyond text manipulation.
