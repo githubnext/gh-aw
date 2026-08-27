@@ -325,8 +325,8 @@ func TestPrereleaseChannelNotice(t *testing.T) {
 			latestStable:       "v0.74.8",
 			includePrereleases: false,
 			want: []string{
-				"Current gh-aw version v0.75.3-beta.1 (pre-release) is newer than the latest stable release v0.74.8.",
-				"Run `gh aw upgrade --pre-releases` to check for newer pre-releases.",
+				"Current gh-aw version v0.75.3-beta.1 (pre-release) is newer than the latest stable release v0.74.8; upgrading without --pre-releases would downgrade to that release.",
+				"Run `gh aw upgrade --pre-releases` to get the latest pre-release.",
 			},
 		},
 		{
