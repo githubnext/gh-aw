@@ -819,6 +819,73 @@ describe("dispatch_workflow handler factory", () => {
     expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
+  it("should fail the dispatch when the PR head ref is missing", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockResolvedValueOnce({ data: { head: {} } });
+
+    const handler = await main({
+      allowed_refs: ["**"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Unable to resolve head ref for pull request #456");
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should retry ref resolution after a failed pull request lookup", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    global.context.eventName = "issue_comment";
+    global.context.payload.issue = {
+      number: 456,
+      pull_request: {
+        url: "https://api.github.com/repos/test-owner/test-repo/pulls/456",
+      },
+    };
+    github.rest.pulls.get.mockRejectedValueOnce(new Error("API unavailable")).mockResolvedValueOnce({
+      data: {
+        head: {
+          ref: "feature/add-new-feature",
+        },
+      },
+    });
+
+    const handler = await main({
+      allowed_refs: ["**"],
+      max: 2,
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    });
+
+    const message = { type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} };
+    const firstResult = await handler(message, {});
+    expect(firstResult.success).toBe(false);
+    expect(firstResult.error).toContain("API unavailable");
+
+    const secondResult = await handler(message, {});
+    expect(secondResult.success).toBe(true);
+    expect(github.rest.pulls.get).toHaveBeenCalledTimes(2);
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "refs/heads/feature/add-new-feature",
+      })
+    );
+  });
+
   it("should use repository default branch when no GITHUB_REF is set", async () => {
     delete process.env.GITHUB_REF;
     delete process.env.GITHUB_HEAD_REF;

@@ -148,7 +148,15 @@ async function main(config = {}) {
   };
   /** @type {Promise<string> | undefined} */
   let defaultRefPromise;
-  const getDefaultRef = () => (defaultRefPromise ??= resolveDefaultRef());
+  // Cache the resolved ref so multiple dispatches share a single API lookup, but drop the
+  // cache on failure so a transient error doesn't poison every later dispatch in the run.
+  const getDefaultRef = () => {
+    defaultRefPromise ??= resolveDefaultRef().catch(error => {
+      defaultRefPromise = undefined;
+      throw error;
+    });
+    return defaultRefPromise;
+  };
 
   /**
    * Message handler function that processes a single dispatch_workflow message
@@ -219,6 +227,9 @@ async function main(config = {}) {
       } else {
         ref = await getDefaultRef();
       }
+      // Enforce allowed-refs for every agent-supplied ref, and for context-derived refs unless
+      // the ref came from the compiler-injected target-ref (which is trusted by construction and
+      // may legitimately point outside the allowlist for cross-repo dispatch).
       if ((outputRef || !config["target-ref"]) && allowedRefRegexes.length > 0 && !allowedRefRegexes.some(pattern => pattern.test(ref))) {
         const error = `Ref '${ref}' is not in allowed-refs: ${allowedRefPatterns.join(", ")}`;
         core.warning(error);
