@@ -3,14 +3,34 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestRateLimitProgrammaticEventsMatchJavaScript(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "check_rate_limit.cjs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	match := regexp.MustCompile(`const PROGRAMMATIC_EVENTS = (\[[^;]+\]);`).FindSubmatch(source)
+	if len(match) != 2 {
+		t.Fatal("PROGRAMMATIC_EVENTS not found in check_rate_limit.cjs")
+	}
+
+	var javascriptEvents []string
+	if err := json.Unmarshal(match[1], &javascriptEvents); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, rateLimitProgrammaticEvents, javascriptEvents)
+}
 
 // TestRoleMembershipUsesGitHubToken tests that the role membership check
 // explicitly uses the GitHub Actions token (GITHUB_TOKEN) and not any other secret
