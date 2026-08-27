@@ -63,28 +63,7 @@ func buildClusterAnalysis(inputs []crossRunInput) *ClusterAnalysis {
 	}
 	auditCrossRunClustersLog.Printf("Building cluster analysis from %d inputs", len(inputs))
 
-	clusters := make([]RunCluster, 0)
-	clusters = append(clusters, buildDimensionClusters("conclusion", inputs, func(in crossRunInput) string {
-		return in.Conclusion
-	})...)
-	clusters = append(clusters, buildDimensionClusters("task_domain", inputs, func(in crossRunInput) string {
-		if in.TaskDomain == nil {
-			return "unknown"
-		}
-		return in.TaskDomain.Name
-	})...)
-	clusters = append(clusters, buildDimensionClusters("execution_style", inputs, func(in crossRunInput) string {
-		if in.BehaviorFingerprint == nil {
-			return "unknown"
-		}
-		return in.BehaviorFingerprint.ExecutionStyle
-	})...)
-	clusters = append(clusters, buildDimensionClusters("resource_profile", inputs, func(in crossRunInput) string {
-		if in.BehaviorFingerprint == nil {
-			return "unknown"
-		}
-		return in.BehaviorFingerprint.ResourceProfile
-	})...)
+	clusters := buildRunClusters(inputs)
 
 	// Filter out trivial clusters (single-value dimensions where all runs are in one cluster)
 	filtered := make([]RunCluster, 0, len(clusters))
@@ -110,6 +89,44 @@ func buildClusterAnalysis(inputs []crossRunInput) *ClusterAnalysis {
 		Clusters: filtered,
 		Patterns: patterns,
 	}
+}
+
+func buildRunClusters(inputs []crossRunInput) []RunCluster {
+	clusters := make([]RunCluster, 0)
+	clusters = append(clusters, buildDimensionClusters("conclusion", inputs, func(in crossRunInput) string {
+		return in.Conclusion
+	})...)
+	clusters = append(clusters, buildDimensionClusters("task_domain", inputs, func(in crossRunInput) string {
+		if in.TaskDomain == nil {
+			return "unknown"
+		}
+		return in.TaskDomain.Name
+	})...)
+	clusters = append(clusters, buildDimensionClusters("execution_style", inputs, func(in crossRunInput) string {
+		if in.BehaviorFingerprint == nil {
+			return "unknown"
+		}
+		return in.BehaviorFingerprint.ExecutionStyle
+	})...)
+	clusters = append(clusters, buildDimensionClusters("resource_profile", inputs, func(in crossRunInput) string {
+		if in.BehaviorFingerprint == nil {
+			return "unknown"
+		}
+		return in.BehaviorFingerprint.ResourceProfile
+	})...)
+	clusters = append(clusters, buildDimensionClusters("graders", inputs, func(in crossRunInput) string {
+		if in.GradersCluster == "" {
+			return "absent"
+		}
+		return in.GradersCluster
+	})...)
+	clusters = append(clusters, buildDimensionClusters("evals", inputs, func(in crossRunInput) string {
+		if in.EvalsCluster == "" {
+			return "absent"
+		}
+		return in.EvalsCluster
+	})...)
+	return clusters
 }
 
 // buildDimensionClusters groups inputs by a keying function and returns clusters.

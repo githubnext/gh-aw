@@ -49,6 +49,48 @@ func TestBuildClusterAnalysis_ClustersConclusion(t *testing.T) {
 	assert.Contains(t, failureCluster.RunIDs, int64(3))
 }
 
+func TestBuildClusterAnalysis_ClustersGradersAndEvals(t *testing.T) {
+	t.Parallel()
+	inputs := []crossRunInput{
+		{RunID: 1, Conclusion: "success", Metrics: LogMetrics{TokenUsage: 1000, Turns: 5}, GradersCluster: "pass", EvalsCluster: "present"},
+		{RunID: 2, Conclusion: "success", Metrics: LogMetrics{TokenUsage: 1200, Turns: 6}, GradersCluster: "pass", EvalsCluster: "absent"},
+		{RunID: 3, Conclusion: "failure", Metrics: LogMetrics{TokenUsage: 3000, Turns: 10}, GradersCluster: "fail", EvalsCluster: "present"},
+	}
+
+	ca := buildClusterAnalysis(inputs)
+	require.NotNil(t, ca)
+
+	var gradersPass, gradersFail, evalsPresent, evalsAbsent *RunCluster
+	for i := range ca.Clusters {
+		c := &ca.Clusters[i]
+		if c.Dimension == "graders" {
+			switch c.Value {
+			case "pass":
+				gradersPass = c
+			case "fail":
+				gradersFail = c
+			}
+		}
+		if c.Dimension == "evals" {
+			switch c.Value {
+			case "present":
+				evalsPresent = c
+			case "absent":
+				evalsAbsent = c
+			}
+		}
+	}
+
+	require.NotNil(t, gradersPass)
+	require.NotNil(t, gradersFail)
+	require.NotNil(t, evalsPresent)
+	require.NotNil(t, evalsAbsent)
+	assert.Equal(t, 2, gradersPass.Count)
+	assert.Equal(t, 1, gradersFail.Count)
+	assert.Equal(t, 2, evalsPresent.Count)
+	assert.Equal(t, 1, evalsAbsent.Count)
+}
+
 func TestBuildClusterAnalysis_ResourceDivergencePattern(t *testing.T) {
 	t.Parallel()
 	inputs := []crossRunInput{
