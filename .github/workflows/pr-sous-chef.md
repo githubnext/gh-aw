@@ -419,8 +419,7 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 8. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary issue payload and move to the next PR without retrying.
 9. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
 
-{{#if experiments.remove_redundant_context_v1 == 'candidate' }}
-{{#else}}
+{{#if experiments.remove_redundant_context_v1 == 'control' }}
 ## Required skip rules per PR
 
 Skip when **any** of these hold (candidate prefilter eliminates most; these are backup checks):
