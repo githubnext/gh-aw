@@ -195,6 +195,36 @@ tools:
 
 See [Using MCPs](/gh-aw/guides/mcps/).
 
+### How do I use mirrored or approved container images on self-hosted runners?
+
+Use the existing image override paths instead of raw `sandbox.agent.args`:
+
+- For repository-wide container substitutions (tooling images, MCP images, and default AWF tags), configure `.github/workflows/aw.json` `container_pins`.
+- For AWF infrastructure roles specifically (for example `squid`, `agent`, `apiProxy`, `cliProxy`, `buildTools`), configure `sandbox.agent.images` with digest-pinned references.
+
+```json title=".github/workflows/aw.json"
+{
+  "container_pins": {
+    "ghcr.io/github/github-mcp-server:v1.10.1": {
+      "image": "registry.example.com/github-mcp-server:v1.10.1",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}
+```
+
+```aw wrap
+sandbox:
+  agent:
+    version: v0.28.8
+    images:
+      squid: registry.example.com/approved/squid:v0.28.8@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      agent: registry.example.com/approved/agent:v0.28.8@sha256:1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      apiProxy: registry.example.com/approved/api-proxy:v0.28.8@sha256:2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/#action-and-container-substitutions-awjson) and [Sandbox custom infrastructure images](/gh-aw/reference/sandbox/#custom-infrastructure-images-sandboxagentimages).
+
 ### If my agent can use a skill, can agentic workflows use it too?
 
 Usually yes. Prefer frontmatter [`skills:`](/gh-aw/reference/frontmatter/#frontmatter-skills-skills) to install skills for workflow runs: use local paths (for example, `skills/name` or `.github/skills/name`) during development and pinned external references for published workflows. Use [imports](/gh-aw/reference/imports/) for workflow-level config and prompts, and [APM (Agent Package Manager)](https://microsoft.github.io/apm/) for reusable package distribution of skills and other agent primitives. See [APM Dependencies](/gh-aw/reference/dependencies/).
