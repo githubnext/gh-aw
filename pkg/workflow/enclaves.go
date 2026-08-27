@@ -28,7 +28,7 @@ const (
 	enclaveMCPConnectTimeout      = 120
 	enclaveMCPReadinessTimeoutMS  = 120000
 	maxEnclaveTimingBucketSeconds = 600
-	enclaveMCPTransportAllowance  = 30
+	enclaveMCPTransportAllowance  = 60
 )
 
 var enclaveRepoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$`)

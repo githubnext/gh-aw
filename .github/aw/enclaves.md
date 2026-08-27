@@ -44,7 +44,7 @@ enclaves:
 - If the same repository appears in both entries, its `sensitivity` must match — the information budget is shared across executor types.
 - AWF fixes the script enclave's network and interpreter, and the agent enclave's network, internally; do not attempt to override these in workflow frontmatter.
 - A fresh masked capability is generated per workflow run and passed only to the MCP gateway and AWF, never to the primary agent environment.
-- `timeout:` per enclave entry is capped at 540 seconds (AWF reserves the final 60 seconds of its 600-second finite-disclosure bucket for cleanup). The gateway itself enforces a 630-second tool timeout (600s AWF bucket + 30s transport allowance) — treat this as an enforcement bound, not a wall-clock guarantee.
+- `timeout:` per enclave entry is capped at 540 seconds (AWF reserves the final 60 seconds of its 600-second finite-disclosure bucket for cleanup). The gateway itself enforces a 660-second tool timeout (600s AWF bucket + 60s transport allowance) — treat this as an enforcement bound, not a wall-clock guarantee.
 
 ## Agent GitHub Issues profile
 

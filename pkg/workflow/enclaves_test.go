@@ -52,10 +52,10 @@ func TestEnabledEnclaveToolsAndTimeout(t *testing.T) {
 		wantTools             []string
 		wantTimeout           int
 	}{
-		{"script only defaults cover timing bucket", true, false, 0, 0, []string{"enclave_run_script"}, 630},
-		{"agent only defaults cover timing bucket", false, true, 0, 0, []string{"enclave_run_agent"}, 630},
-		{"45 second custom timeout covers timing bucket", true, false, 45, 0, []string{"enclave_run_script"}, 630},
-		{"540 second maximum timeout covers timing bucket", false, true, 0, 540, []string{"enclave_run_agent"}, 630},
+		{"script only defaults cover timing bucket", true, false, 0, 0, []string{"enclave_run_script"}, 660},
+		{"agent only defaults cover timing bucket", false, true, 0, 0, []string{"enclave_run_agent"}, 660},
+		{"45 second custom timeout covers timing bucket", true, false, 45, 0, []string{"enclave_run_script"}, 660},
+		{"540 second maximum timeout covers timing bucket", false, true, 0, 540, []string{"enclave_run_agent"}, 660},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -229,7 +229,7 @@ func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	assert.Contains(t, generated, `"awf-enclave": {`)
 	assert.Contains(t, generated, `"url": "http://awf-enclave-mcp:8080/mcp"`)
 	assert.Contains(t, generated, `"connectTimeout": 120`)
-	assert.Contains(t, generated, `"toolTimeout": 630`)
+	assert.Contains(t, generated, `"toolTimeout": 660`)
 	assert.Contains(t, generated, `"tools": ["enclave_run_script", "enclave_run_agent"]`)
 	assert.Contains(t, generated, `Bearer \${AWF_ENCLAVE_MCP_CAPABILITY}`)
 	assert.Contains(t, generated, `openssl rand -hex 32`)
