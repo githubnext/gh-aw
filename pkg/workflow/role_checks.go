@@ -310,7 +310,7 @@ func extractRateLimitStringSlice(value any) []string {
 func (c *Compiler) inferEventsFromTriggers(frontmatter map[string]any) []string {
 	onValue, exists := frontmatter["on"]
 	if !exists || onValue == nil {
-		return nil
+		return append([]string(nil), rateLimitProgrammaticEvents...)
 	}
 
 	var events []string

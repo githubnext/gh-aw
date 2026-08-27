@@ -149,7 +149,7 @@ func TestValidateMainWorkflowFrontmatter_UserRateLimitMaxAliases(t *testing.T) {
 			name:        "missing max field",
 			rateLimit:   map[string]any{"window": 60},
 			wantErr:     true,
-			errContains: "missing property 'max-runs-per-window'",
+			errContains: "'anyOf' failed",
 		},
 		{
 			name:        "unknown nested field",

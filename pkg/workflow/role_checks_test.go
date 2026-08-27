@@ -243,7 +243,17 @@ func TestInferEventsFromTriggers(t *testing.T) {
 		{
 			name:        "missing on section",
 			frontmatter: map[string]any{},
-			expected:    nil,
+			expected: []string{
+				"discussion",
+				"discussion_comment",
+				"issue_comment",
+				"issues",
+				"pull_request",
+				"pull_request_review",
+				"pull_request_review_comment",
+				"repository_dispatch",
+				"workflow_dispatch",
+			},
 		},
 		{
 			name: "all programmatic triggers",
