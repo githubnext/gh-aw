@@ -12340,7 +12340,7 @@
       "anyOf": [{ "required": ["max-runs-per-window"] }, { "required": ["max-runs"] }, { "required": ["max"] }],
       "properties": {
         "max-runs-per-window": {
-          "description": "Maximum number of workflow runs allowed per user within the time window. Required field. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+          "description": "Maximum number of workflow runs allowed per user within the time window. Required field unless a deprecated alias is used. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
           "oneOf": [
             {
               "type": "integer",

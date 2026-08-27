@@ -21974,9 +21974,8 @@ observability:
 # (optional)
 user-rate-limit:
   # Maximum number of workflow runs allowed per user within the time window.
-  # Required field. Supports integer or GitHub Actions expression (e.g. '${{
-  # inputs.max }}').
-  # (optional)
+  # Required field unless a deprecated alias is used. Supports integer or GitHub
+  # Actions expression (e.g. '${{ inputs.max }}').
   # Accepted formats:
 
   # Format 1: integer
