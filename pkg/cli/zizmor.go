@@ -174,13 +174,28 @@ func buildZizmorCommand(lockFiles []string) (cmd *exec.Cmd, relPaths []string, d
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("docker command not found: %w", err)
 	}
+	dockerPath, err = fileutil.ValidateExecutablePath(dockerPath)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("resolved docker executable path is invalid: %w", err)
+	}
 	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("docker mount path for git root %q is invalid; expected an absolute host path. Example: /home/user/repo: %w", gitRoot, err)
 	}
+	if err := validateExecArgument(volumeMount); err != nil {
+		return nil, nil, nil, fmt.Errorf("invalid docker volume mount argument %q: %w", volumeMount, err)
+	}
 	zizmorImageRef, err := validateDockerImageRef(ZizmorImage)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("zizmor scanner image reference %q is invalid; expected a registry reference. Example: ghcr.io/owner/image:tag: %w", ZizmorImage, err)
+	}
+	if err := validateExecArgument(zizmorImageRef); err != nil {
+		return nil, nil, nil, fmt.Errorf("invalid zizmor scanner image argument %q: %w", zizmorImageRef, err)
+	}
+	for _, containerPath := range containerPaths {
+		if err := validateExecArgument(containerPath); err != nil {
+			return nil, nil, nil, fmt.Errorf("invalid zizmor scan path argument %q: %w", containerPath, err)
+		}
 	}
 	dockerArgs = zizmorDockerArgs(zizmorImageRef, volumeMount, containerPaths)
 
