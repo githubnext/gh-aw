@@ -3,7 +3,6 @@ package workflow
 
 import (
 	"fmt"
-	"net"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,9 +24,12 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
 		detectionData.Model = data.SafeOutputs.ThreatDetection.Model
 	}
-	provider := NewCodexEngine().ResolveLLMProvider(detectionData)
-	profile := llmProviderProfileFor(provider)
-	codexAPIBase := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(profile.gatewayPort))
+	// Reuse the agent job's provider endpoint resolution so detection never pins
+	// Codex at a non-OpenAI api-proxy ingress (e.g. the Anthropic port 10001,
+	// which rejects Codex requests with 403 "Credentials for Anthropic ... are
+	// not configured"). Codex speaks the OpenAI Responses wire API, so only the
+	// OpenAI (10000) or Copilot (10002) ingress can serve it.
+	codexAPIBase := NewCodexEngine().getOpenAIProxyProviderBaseURL(detectionData)
 	codexWSSBase := codexProxyWebsocketBaseURL(codexAPIBase)
 	codexConfig := buildExternalDetectorCodexConfig(codexAPIBase, codexWSSBase)
 	codexConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_DETECTION_CONFIG", codexConfig)
