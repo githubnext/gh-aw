@@ -519,6 +519,8 @@ func TestFindAgentLogFile(t *testing.T) {
 
 // TestRunHasDifcFilteredItems verifies the DIFC filtered-integrity filter helper.
 func TestRunHasDifcFilteredItems(t *testing.T) {
+	t.Parallel()
+
 	const gatewayWithDifc = `{"timestamp":"2025-01-01T00:00:00Z","type":"DIFC_FILTERED","server_id":"github","tool_name":"create_issue","reason":"integrity"}` + "\n"
 	const gatewayWithoutDifc = `{"timestamp":"2025-01-01T00:00:00Z","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":10}` + "\n"
 
@@ -556,6 +558,8 @@ func TestRunHasDifcFilteredItems(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			dir := testutil.TempDir(t, "difc-filter-*")
 
 			if tt.filePath != nil {
@@ -581,6 +585,8 @@ func TestRunHasDifcFilteredItems(t *testing.T) {
 
 // TestFilteredIntegrityFlag verifies the --filtered-integrity flag is registered correctly.
 func TestFilteredIntegrityFlag(t *testing.T) {
+	t.Parallel()
+
 	cmd := NewLogsCommand()
 
 	flag := cmd.Flags().Lookup("filtered-integrity")
