@@ -50,6 +50,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
 | [`require-mkdirsync-try-catch`](#require-mkdirsync-try-catch) | Require try/catch around `fs.mkdirSync` calls |
 | [`require-mkdtempsync-try-catch`](#require-mkdtempsync-try-catch) | Require try/catch around `fs.mkdtempSync` calls |
+| [`require-realpathsync-try-catch`](#require-realpathsync-try-catch) | Require try/catch around `fs.realpathSync` calls |
 | [`require-new-url-try-catch`](#require-new-url-try-catch) | Require try/catch around `new URL(variable)` calls |
 | [`require-parseInt-radix`](#require-parseInt-radix) | Require an explicit radix argument to `parseInt()` |
 | [`require-nan-check-after-env-numeric-parse`](#require-nan-check-after-env-numeric-parse) | Require NaN validation after parsing numeric values from `process.env` |
@@ -512,6 +513,36 @@ try {
   // use tmpDir here
 } catch (err) {
   throw new Error("fs.mkdtempSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+```
+
+### `require-realpathsync-try-catch`
+
+Require `fs.realpathSync` calls to be wrapped in `try/catch`.
+
+Why: `realpathSync` throws on a missing target (`ENOENT`), permission errors (`EACCES`), or symlink cycles (`ELOOP`). This method is frequently used to canonicalize a path immediately before a path-traversal or symlink-escape containment check; if the call throws unhandled, that security check is skipped entirely, and the failure surfaces as a generic engine-level stack instead of a specific message with `{ cause }` naming the path that failed to resolve.
+
+**Detected forms:**
+- `fs.realpathSync(path)` — direct call on a known `require("fs")` result.
+- `fs["realpathSync"](path)` — computed string-literal property access.
+- `const { realpathSync } = require("fs"); realpathSync(path)` — destructured binding from `require("fs")` or `require("node:fs")`.
+- ESM namespace imports: `import * as fs from "fs"; fs.realpathSync(path)`.
+- ESM named imports: `import { realpathSync } from "fs"; realpathSync(path)`.
+
+**Out of scope:**
+- Objects whose `require` source is not the Node `fs` / `node:fs` module (e.g. `mockFs.realpathSync`, `storage.realpathSync`, or `const fs = require("mock-fs"); fs.realpathSync`).
+- Other `fs` methods — use the sibling `require-*-try-catch` rules for `mkdirSync`, `mkdtempSync`, `rmSync`, or `require-fs-io-try-catch`/`require-fs-sync-try-catch` for the remaining sync methods.
+- `try { ... } finally { ... }` without a `catch` clause is still flagged.
+
+**Known limitation — no autofix for `VariableDeclaration`:** when the flagged `fs.realpathSync(...)` appears as the initializer of a variable declaration (`const resolved = fs.realpathSync(path)`), the rule reports the error but emits no autofix suggestion, since wrapping the declaration would move subsequent uses of `resolved` outside the `try` block. Only `ExpressionStatement` and `ReturnStatement` positions receive an autofix suggestion.
+
+**Safe alternative:**
+```js
+try {
+  const resolved = fs.realpathSync(candidate);
+  // use resolved here, e.g. in a containment check
+} catch (err) {
+  throw new Error("fs.realpathSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
 }
 ```
 
