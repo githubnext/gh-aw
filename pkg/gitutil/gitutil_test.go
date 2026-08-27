@@ -235,7 +235,6 @@ func TestExtractBaseRepo(t *testing.T) {
 }
 
 func TestGetwd(t *testing.T) {
-	t.Parallel()
 	t.Run("returns the current working directory", func(t *testing.T) {
 		t.Parallel()
 		dir, err := Getwd()

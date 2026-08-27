@@ -103,6 +103,15 @@ describe("extractInlineSkills", () => {
     expect(skills[0].name).toBe("only");
   });
 
+  it("uses implicit EOF boundary without explicit end marker", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "EOF-terminated content."].join("\n");
+    const { mainContent, skills } = extractInlineSkills(content);
+    expect(mainContent).toBe("Main.");
+    expect(skills).toHaveLength(1);
+    expect(skills[0].name).toBe("reporting");
+    expect(skills[0].content).toBe("EOF-terminated content.");
+  });
+
   it("skill content is trimmed", () => {
     const content = "Main.\n\n" + skillMarker("a") + "\n\n\n  Trimmed.  \n\n";
     const { skills } = extractInlineSkills(content);

@@ -109,6 +109,20 @@ func TestExtractInlineSkills_SkillWithoutFrontmatter(t *testing.T) {
 	assert.Equal(t, "Just a prompt, no frontmatter.", skills[0].Content, "skill content should be the prompt")
 }
 
+func TestExtractInlineSkills_ImplicitEOFBoundaryWithoutTrailingNewline(t *testing.T) {
+	// EOF should implicitly terminate the skill block even when the file has no
+	// trailing newline and no explicit end marker.
+	markdown := "Main.\n\n" + skillLine("reporting") + "\nEOF-terminated content."
+
+	mainMarkdown, skills, err := ExtractInlineSkills(markdown)
+
+	require.NoError(t, err, "implicit EOF boundary should parse without error")
+	require.Len(t, skills, 1)
+	assert.Equal(t, "reporting", skills[0].Name)
+	assert.Equal(t, "EOF-terminated content.", skills[0].Content)
+	assert.Equal(t, "Main.", mainMarkdown)
+}
+
 func TestExtractInlineSkills_SeparatorWithTrailingWhitespace(t *testing.T) {
 	// Trailing whitespace after the closing backtick should be tolerated
 	markdown := "Main.\n\n" + skillLine("padded") + "   \nSkill content."
