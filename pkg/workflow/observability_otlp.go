@@ -28,7 +28,19 @@ var sentryEndpointExpressionPattern = func() *regexp.Regexp {
 	return re
 }()
 var otlpResourceAttributeSecretRefPattern = regexp.MustCompile(`\$\{\{\s*(secrets|vars)\.`)
-var otelServiceNameKeyPattern = regexp.MustCompile(`(?m)^\s*OTEL_SERVICE_NAME:`)
+
+// workflowEnvHasKey reports whether the given top-level key is already defined in a
+// workflow's raw `env:` block text. Used to avoid emitting a duplicate YAML mapping key
+// (which would produce an invalid workflow) when the compiler injects OTLP env vars that
+// a user may have already defined in their own env: block.
+func workflowEnvHasKey(env, key string) bool {
+	if env == "" {
+		return false
+	}
+	pattern := `(?m)^\s*` + regexp.QuoteMeta(key) + `:`
+	matched, err := regexp.MatchString(pattern, env)
+	return err == nil && matched
+}
 
 func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
 	if raw == nil {
@@ -839,15 +851,25 @@ func allowOTLPEndpointDomains(workflowData *WorkflowData, entries []otlpEndpoint
 // buildOTLPHeaderEnvLines returns the workflow env: lines carrying OTLP header values.
 // OTEL_EXPORTER_OTLP_HEADERS holds the first endpoint headers (backward compat) and
 // GH_AW_OTLP_ALL_HEADERS holds all endpoint headers comma-joined (used for masking).
-func buildOTLPHeaderEnvLines(entries []otlpEndpointEntry) string {
+// existingEnv is the workflow's user-defined env: block (before OTLP injection); keys
+// already present there are skipped to avoid emitting a duplicate YAML mapping key.
+func buildOTLPHeaderEnvLines(entries []otlpEndpointEntry, existingEnv string) string {
 	var lines string
 	if firstHeaders := entries[0].Headers; firstHeaders != "" {
-		lines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + firstHeaders
-		otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
+		if workflowEnvHasKey(existingEnv, "OTEL_EXPORTER_OTLP_HEADERS") {
+			otlpLog.Printf("Skipping OTEL_EXPORTER_OTLP_HEADERS injection: already defined by user")
+		} else {
+			lines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + firstHeaders
+			otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
+		}
 	}
 	if allHeaders := allOTLPHeaders(entries); allHeaders != "" && len(entries) > 1 {
-		lines += "\n  GH_AW_OTLP_ALL_HEADERS: " + allHeaders
-		otlpLog.Printf("Injected GH_AW_OTLP_ALL_HEADERS env var for %d endpoints", len(entries))
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_ALL_HEADERS") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_ALL_HEADERS injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_ALL_HEADERS: " + allHeaders
+			otlpLog.Printf("Injected GH_AW_OTLP_ALL_HEADERS env var for %d endpoints", len(entries))
+		}
 	}
 	return lines
 }
@@ -856,15 +878,25 @@ func buildOTLPHeaderEnvLines(entries []otlpEndpointEntry) string {
 // endpoint list, the resolved if-missing policy, and the custom span attributes.
 // JSON values are single-quoted so YAML parsers do not interpret a leading '[' or '{'
 // as a collection node rather than a plain string.
-func buildOTLPPayloadEnvLines(workflowData *WorkflowData, entries []otlpEndpointEntry, ifMissingMode string) string {
+// existingEnv is the workflow's user-defined env: block (before OTLP injection); keys
+// already present there are skipped to avoid emitting a duplicate YAML mapping key.
+func buildOTLPPayloadEnvLines(workflowData *WorkflowData, entries []otlpEndpointEntry, ifMissingMode string, existingEnv string) string {
 	var lines string
 	if encoded := encodeOTLPEndpoints(entries); encoded != "" {
-		lines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapeYAMLSingleQuoted(encoded) + "'"
-		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_ENDPOINTS") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_ENDPOINTS injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapeYAMLSingleQuoted(encoded) + "'"
+			otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
+		}
 	}
 	if ifMissingMode == "warn" || ifMissingMode == "ignore" {
-		lines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
-		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_IF_MISSING") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_IF_MISSING injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
+			otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
+		}
 	}
 
 	// Attributes from RawFrontmatter take precedence; ParsedFrontmatter is the
@@ -877,8 +909,12 @@ func buildOTLPPayloadEnvLines(workflowData *WorkflowData, entries []otlpEndpoint
 		customAttrs = workflowData.ParsedFrontmatter.Observability.OTLP.Attributes
 	}
 	if encoded := encodeOTLPCustomAttributes(customAttrs); encoded != "" {
-		lines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapeYAMLSingleQuoted(encoded) + "'"
-		otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
+		if workflowEnvHasKey(existingEnv, "GH_AW_OTLP_ATTRIBUTES") {
+			otlpLog.Printf("Skipping GH_AW_OTLP_ATTRIBUTES injection: already defined by user")
+		} else {
+			lines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapeYAMLSingleQuoted(encoded) + "'"
+			otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
+		}
 	}
 	return lines
 }
@@ -906,25 +942,36 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    OTEL_EXPORTER_OTLP_ENDPOINT is set to the first endpoint for backward
 	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
 	//    workflow-specific when WorkflowID is available.
-	//    If the user has already defined OTEL_SERVICE_NAME in their env block,
-	//    we respect their value and skip injection to avoid duplicate key errors.
-	otlpEnvLines := "  OTEL_EXPORTER_OTLP_ENDPOINT: " + firstEndpoint
-	if otelServiceNameKeyPattern.MatchString(workflowData.Env) {
-		otlpLog.Printf("Skipping OTEL_SERVICE_NAME injection: already defined by user")
-	} else {
-		otlpEnvLines += "\n  OTEL_SERVICE_NAME: " + serviceName
+	//    existingEnv captures the user's env: block as it stood before this function
+	//    started appending lines, so every key below is checked against user-authored
+	//    content only. If the user has already defined any of these keys in their env
+	//    block, we respect their value and skip injection to avoid duplicate key errors.
+	existingEnv := workflowData.Env
+	var envKeyLines []string
+	addEnvLine := func(key, line string) {
+		if workflowEnvHasKey(existingEnv, key) {
+			otlpLog.Printf("Skipping %s injection: already defined by user", key)
+			return
+		}
+		envKeyLines = append(envKeyLines, line)
 	}
-	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: '" + escapeYAMLSingleQuoted(otelResourceAttributes(workflowData)) + "'"
+	addEnvLine("OTEL_EXPORTER_OTLP_ENDPOINT", "  OTEL_EXPORTER_OTLP_ENDPOINT: "+firstEndpoint)
+	addEnvLine("OTEL_SERVICE_NAME", "  OTEL_SERVICE_NAME: "+serviceName)
+	addEnvLine("OTEL_RESOURCE_ATTRIBUTES", "  OTEL_RESOURCE_ATTRIBUTES: '"+escapeYAMLSingleQuoted(otelResourceAttributes(workflowData))+"'")
+	otlpEnvLines := strings.Join(envKeyLines, "\n")
 
 	// 3. Inject per-endpoint headers env vars.
-	otlpEnvLines += buildOTLPHeaderEnvLines(entries)
+	otlpEnvLines += buildOTLPHeaderEnvLines(entries, existingEnv)
 
 	// 4. Inject GH_AW_OTLP_ENDPOINTS (JSON array) so JavaScript can fan out spans,
 	//    GH_AW_OTLP_IF_MISSING for the resolved missing-configuration policy, and
 	//    GH_AW_OTLP_ATTRIBUTES (JSON object) for custom per-span attributes.
-	otlpEnvLines += buildOTLPPayloadEnvLines(workflowData, entries, ifMissingMode)
+	otlpEnvLines += buildOTLPPayloadEnvLines(workflowData, entries, ifMissingMode, existingEnv)
+	otlpEnvLines = strings.TrimPrefix(otlpEnvLines, "\n")
 
-	if workflowData.Env == "" {
+	if otlpEnvLines == "" {
+		otlpLog.Printf("No OTLP env vars injected: all keys already defined by user")
+	} else if workflowData.Env == "" {
 		workflowData.Env = "env:\n" + otlpEnvLines
 	} else {
 		workflowData.Env = workflowData.Env + "\n" + otlpEnvLines
