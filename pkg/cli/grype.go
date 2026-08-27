@@ -267,7 +267,7 @@ func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
 		return nil, fmt.Errorf("invalid grype scanner image reference %q: %w", GrypeImage, err)
 	}
 	if err := validateExecArgument(grypeImageRef); err != nil {
-		return nil, fmt.Errorf("invalid grype scanner image reference argument: %w", err)
+		return nil, fmt.Errorf("invalid grype scanner image reference argument %q: %w", grypeImageRef, err)
 	}
 
 	var configArgs []string
@@ -277,7 +277,7 @@ func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
 			return nil, fmt.Errorf("invalid grype container config path %q: %w", grypeContainerConfigPath, err)
 		}
 		if err := validateExecArgument(containerConfigPath); err != nil {
-			return nil, fmt.Errorf("invalid grype container config path argument: %w", err)
+			return nil, fmt.Errorf("invalid grype container config path argument %q: %w", containerConfigPath, err)
 		}
 		volumeMount, err := buildDockerReadonlyFileMount(configFile, containerConfigPath)
 		if err != nil {
