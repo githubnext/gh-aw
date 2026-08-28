@@ -56,8 +56,7 @@ Run the workflow.
 			require.NoError(t, err)
 			lockText := string(lockContent)
 
-			assert.Contains(t, lockText, "name: Checkout agent plugin octo-org/private-plugin")
-			assert.Contains(t, lockText, "token: ${{ secrets.PRIVATE_PLUGIN_TOKEN }}")
+			assert.Regexp(t, `(?s)name: Checkout agent plugin octo-org/private-plugin.*?token: \$\{\{ secrets\.PRIVATE_PLUGIN_TOKEN \}\}`, lockText)
 		})
 
 		t.Run(tt.name+" engine installs private plugin with github-app", func(t *testing.T) {
@@ -85,8 +84,7 @@ Run the workflow.
 			lockText := string(lockContent)
 
 			assert.Contains(t, lockText, "id: plugin-app-token-0")
-			assert.Contains(t, lockText, "name: Checkout agent plugin octo-org/private-plugin")
-			assert.Contains(t, lockText, "token: ${{ steps.plugin-app-token-0.outputs.token }}")
+			assert.Regexp(t, `(?s)name: Checkout agent plugin octo-org/private-plugin.*?token: \$\{\{ steps\.plugin-app-token-0\.outputs\.token \}\}`, lockText)
 		})
 	}
 
@@ -135,8 +133,7 @@ Run the workflow.
 		require.NoError(t, err)
 		lockText := string(lockContent)
 
-		assert.Contains(t, lockText, "name: Checkout agent plugin octo-org/private-plugin")
-		assert.Contains(t, lockText, "token: ${{ secrets.PRIVATE_PLUGIN_TOKEN }}")
+		assert.Regexp(t, `(?s)name: Checkout agent plugin octo-org/private-plugin.*?token: \$\{\{ secrets\.PRIVATE_PLUGIN_TOKEN \}\}`, lockText)
 		assert.Contains(t, lockText, "name: Stage agent plugin octo-org/private-plugin")
 	})
 }

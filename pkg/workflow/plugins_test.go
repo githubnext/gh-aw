@@ -653,6 +653,8 @@ func TestGeneratePluginAuthTokenSteps(t *testing.T) {
 		joined := strings.Join(steps[len(steps)-1], "\n")
 		assert.Contains(t, joined, "id: plugin-app-token-0")
 		assert.Contains(t, joined, "actions/create-github-app-token")
+		assert.Contains(t, joined, "owner: octo-org")
+		assert.Contains(t, joined, "repositories: private-plugin")
 	})
 }
 

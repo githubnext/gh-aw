@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -179,7 +180,7 @@ func validateFrontmatterPlugins(frontmatter map[string]any) error {
 
 	plugins, ok := rawPlugins.([]any)
 	if !ok {
-		return fmt.Errorf("plugins must be an array of plugin references. Example: plugins: [\"owner/repo@sha\"]")
+		return errors.New("plugins must be an array of plugin references. Example: plugins: [\"owner/repo@sha\"]")
 	}
 
 	pluginInstallationLog.Printf("validateFrontmatterPlugins: validating %d plugin entr(ies)", len(plugins))

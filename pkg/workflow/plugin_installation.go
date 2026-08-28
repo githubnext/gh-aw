@@ -153,35 +153,19 @@ func (c *Compiler) generatePluginAuthTokenSteps(workflowData *WorkflowData) []Gi
 		if ref.GitHubApp == nil {
 			continue
 		}
+		repoParts := strings.Split(parseSkillRefSpec(ref.Plugin).repoPath, "/")
+		if len(repoParts) < 2 {
+			continue
+		}
 		lines := c.buildGitHubAppTokenMintStepWithMeta(
 			ref.GitHubApp,
 			nil,
-			"",
-			"",
+			repoParts[1],
+			strings.Join(repoParts[:2], "/"),
 			fmt.Sprintf("Generate GitHub App token for agent plugin %d", i+1),
 			pluginAppTokenStepID(i),
 		)
-		steps = append(steps, linesToActionSteps(lines)...)
-	}
-	return steps
-}
-
-// linesToActionSteps groups newline-terminated YAML step lines (as produced by
-// buildGitHubAppTokenMintStepWithMeta) into GitHubActionStep values, one per emitted
-// step, matching the line-per-slice-element convention used elsewhere in this file.
-func linesToActionSteps(lines []string) []GitHubActionStep {
-	var steps []GitHubActionStep
-	var current GitHubActionStep
-	for _, line := range lines {
-		trimmed := strings.TrimSuffix(line, "\n")
-		if strings.HasPrefix(trimmed, "      - ") && len(current) > 0 {
-			steps = append(steps, current)
-			current = nil
-		}
-		current = append(current, trimmed)
-	}
-	if len(current) > 0 {
-		steps = append(steps, current)
+		steps = append(steps, GitHubActionStep(strings.Split(strings.TrimSuffix(strings.Join(lines, ""), "\n"), "\n")))
 	}
 	return steps
 }
@@ -215,19 +199,7 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 		checkoutPath := pluginCheckoutPath(i)
 		installPath := pluginCheckoutSubpath(parsed, i)
 
-		checkoutStep := GitHubActionStep{
-			"      - name: Checkout agent plugin " + parsed.repoPath,
-			"        uses: " + checkoutAction,
-			"        with:",
-			"          repository: " + repository,
-			"          ref: " + parsed.ref,
-			"          path: " + checkoutPath,
-			"          persist-credentials: false",
-		}
-		if tokenExpr := pluginTokenExpression(workflowData, i); tokenExpr != "" {
-			checkoutStep = append(checkoutStep, "          token: "+tokenExpr)
-		}
-		steps = append(steps, checkoutStep)
+		steps = append(steps, newPluginCheckoutStep(workflowData, checkoutAction, parsed, repository, checkoutPath, i))
 
 		if spec.CustomInstall != nil {
 			steps = append(steps, spec.CustomInstall(parsed, checkoutPath, installPath, i)...)
@@ -262,4 +234,20 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 	}
 
 	return steps
+}
+
+func newPluginCheckoutStep(workflowData *WorkflowData, checkoutAction string, parsed parsedSkillRefSpec, repository, checkoutPath string, index int) GitHubActionStep {
+	step := GitHubActionStep{
+		"      - name: Checkout agent plugin " + parsed.repoPath,
+		"        uses: " + checkoutAction,
+		"        with:",
+		"          repository: " + repository,
+		"          ref: " + parsed.ref,
+		"          path: " + checkoutPath,
+		"          persist-credentials: false",
+	}
+	if tokenExpr := pluginTokenExpression(workflowData, index); tokenExpr != "" {
+		step = append(step, "          token: "+tokenExpr)
+	}
+	return step
 }
