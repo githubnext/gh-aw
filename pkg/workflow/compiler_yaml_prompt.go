@@ -399,6 +399,9 @@ func readRuntimeImportMarkdownForAnalysis(ref runtimeImportReference, workspaceR
 		if _, alreadySeen := seen[seenKey]; alreadySeen {
 			return "", false
 		}
+		if !runtimeImportAnalysisRealPathAllowed(candidate, workspaceRoot) {
+			continue
+		}
 		rawContent, err := os.ReadFile(candidate)
 		if err != nil {
 			continue
@@ -434,6 +437,31 @@ func applyRuntimeImportLineRangeForAnalysis(content string, startLine, endLine i
 		return ""
 	}
 	return strings.Join(lines[start-1:end], "\n")
+}
+
+func runtimeImportAnalysisRealPathAllowed(candidate, workspaceRoot string) bool {
+	for _, base := range []string{
+		filepath.Join(workspaceRoot, strings.TrimSuffix(constants.GithubDir, "/")),
+		filepath.Join(workspaceRoot, ".agents"),
+	} {
+		if realPathWithinBase(candidate, base) {
+			return true
+		}
+	}
+	return false
+}
+
+func realPathWithinBase(pathToCheck, baseDir string) bool {
+	realBase, err := filepath.EvalSymlinks(baseDir)
+	if err != nil {
+		return false
+	}
+	realPath, err := filepath.EvalSymlinks(pathToCheck)
+	if err != nil {
+		return false
+	}
+	relativePath, err := filepath.Rel(realBase, realPath)
+	return err == nil && relativePath != ".." && !strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) && !filepath.IsAbs(relativePath)
 }
 
 func runtimeImportAnalysisCandidatePaths(importPath, workspaceRoot string) []string {

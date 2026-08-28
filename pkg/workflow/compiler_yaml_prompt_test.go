@@ -761,6 +761,22 @@ func TestCollectRuntimeImportMarkdownForCompilerAnalysisSkipsUnsafeExpressions(t
 	assert.Empty(t, runtimeImportMarkdown)
 }
 
+func TestCollectRuntimeImportMarkdownForCompilerAnalysisRejectsSymlinkEscape(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "outside.md"), []byte("Outside ${{ needs.outside.outputs.value }}"), 0600))
+	require.NoError(t, os.Symlink(filepath.Join(tmpDir, "outside.md"), filepath.Join(workflowsDir, "outside-link.md")))
+
+	compiler := NewCompiler()
+	compiler.markdownPath = filepath.Join(workflowsDir, "symlink.md")
+	data := &WorkflowData{MarkdownContent: "{{#runtime-import outside-link.md}}"}
+
+	runtimeImportMarkdown := compiler.collectRuntimeImportMarkdownForCompilerAnalysis(data)
+
+	assert.Empty(t, runtimeImportMarkdown)
+}
+
 // TestExtractPromptChunksFromMarkdown tests the extractPromptChunksFromMarkdown function.
 func TestExtractPromptChunksFromMarkdown(t *testing.T) {
 	tests := []struct {

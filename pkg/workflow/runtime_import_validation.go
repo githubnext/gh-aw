@@ -182,7 +182,7 @@ func validateRuntimeImportFileReference(filePath, workspaceDir string, seen map[
 	}
 	seen[absolutePath] = struct{}{}
 
-	content, ok := readRuntimeImportFileForValidation(filePath, absolutePath, result)
+	content, ok := readRuntimeImportFileForValidation(filePath, absolutePath, workspaceDir, result)
 	if !ok {
 		return
 	}
@@ -193,9 +193,13 @@ func validateRuntimeImportFileReference(filePath, workspaceDir string, seen map[
 	}
 }
 
-func readRuntimeImportFileForValidation(filePath, absolutePath string, result *runtimeImportValidationResult) ([]byte, bool) {
+func readRuntimeImportFileForValidation(filePath, absolutePath, workspaceDir string, result *runtimeImportValidationResult) ([]byte, bool) {
 	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
 		expressionValidationLog.Printf("Skipping validation for non-existent file: %s", filePath)
+		return nil, false
+	}
+	if !runtimeImportRealPathWithinBase(absolutePath, workspaceDir) {
+		result.validationErrors = append(result.validationErrors, filePath+": Security: Path must remain within .github folder after resolving symlinks")
 		return nil, false
 	}
 
@@ -205,6 +209,20 @@ func readRuntimeImportFileForValidation(filePath, absolutePath string, result *r
 		return nil, false
 	}
 	return content, true
+}
+
+func runtimeImportRealPathWithinBase(absolutePath, workspaceDir string) bool {
+	githubFolder := filepath.Join(workspaceDir, strings.TrimSuffix(constants.GithubDir, "/"))
+	realBase, err := filepath.EvalSymlinks(githubFolder)
+	if err != nil {
+		return false
+	}
+	realPath, err := filepath.EvalSymlinks(absolutePath)
+	if err != nil {
+		return false
+	}
+	relativePath, err := filepath.Rel(realBase, realPath)
+	return err == nil && relativePath != ".." && !strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) && !filepath.IsAbs(relativePath)
 }
 
 func runtimeImportValidationBody(content []byte) []byte {

@@ -382,6 +382,18 @@ imports:
 	}, expressions)
 }
 
+func TestCollectRuntimeImportTemplateExpressionsSkipsSymlinkEscape(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowDir := filepath.Join(tempDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "outside.md"), []byte("Outside ${{ needs.outside.outputs.value }}"), 0644))
+	require.NoError(t, os.Symlink(filepath.Join(tempDir, "outside.md"), filepath.Join(workflowDir, "outside-link.md")))
+
+	expressions := collectRuntimeImportTemplateExpressions("", "{{#runtime-import outside-link.md}}", workflowDir, DefaultFileReader)
+
+	assert.Empty(t, expressions)
+}
+
 func TestFrontmatterHashIncludesRuntimeImportExpressionSet(t *testing.T) {
 	tempDir := t.TempDir()
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")

@@ -656,6 +656,9 @@ func readRuntimeImportBodyForHash(ref runtimeImportReference, baseDir string, se
 		if setutil.Contains(seen, key) {
 			return "", false
 		}
+		if runtimeImportHashLocalPathExists(candidate) && !runtimeImportHashRealPathAllowed(candidate, baseDir) {
+			continue
+		}
 		rawContent, err := fileReader(candidate)
 		if err != nil {
 			continue
@@ -673,6 +676,37 @@ func readRuntimeImportBodyForHash(ref runtimeImportReference, baseDir string, se
 		return content, true
 	}
 	return "", false
+}
+
+func runtimeImportHashLocalPathExists(candidate string) bool {
+	_, err := os.Stat(candidate)
+	return err == nil
+}
+
+func runtimeImportHashRealPathAllowed(candidate, baseDir string) bool {
+	workspaceRoot := runtimeImportHashWorkspaceRoot(baseDir)
+	for _, base := range []string{
+		filepath.Join(workspaceRoot, strings.TrimSuffix(constants.GithubDir, "/")),
+		filepath.Join(workspaceRoot, ".agents"),
+	} {
+		if realPathWithinBaseForHash(candidate, base) {
+			return true
+		}
+	}
+	return false
+}
+
+func realPathWithinBaseForHash(pathToCheck, baseDir string) bool {
+	realBase, err := filepath.EvalSymlinks(baseDir)
+	if err != nil {
+		return false
+	}
+	realPath, err := filepath.EvalSymlinks(pathToCheck)
+	if err != nil {
+		return false
+	}
+	relativePath, err := filepath.Rel(realBase, realPath)
+	return err == nil && relativePath != ".." && !strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) && !filepath.IsAbs(relativePath)
 }
 
 func applyRuntimeImportLineRangeForHash(content string, startLine, endLine int) string {

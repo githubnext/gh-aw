@@ -453,6 +453,7 @@ async function readRuntimeImportBodyForHash(ref, baseDir, seen, fileReader) {
   for (const candidate of runtimeImportHashCandidatePaths(ref.path, baseDir)) {
     const key = `${candidate}:${ref.startLine ?? 0}-${ref.endLine ?? 0}`;
     if (seen.has(key)) return null;
+    if (fs.existsSync(candidate) && !runtimeImportHashRealPathAllowed(candidate, baseDir)) continue;
     try {
       let content = await fileReader(candidate);
       seen.add(key);
@@ -466,6 +467,25 @@ async function readRuntimeImportBodyForHash(ref, baseDir, seen, fileReader) {
     }
   }
   return null;
+}
+
+function runtimeImportHashRealPathAllowed(candidate, baseDir) {
+  const workspaceRoot = runtimeImportHashWorkspaceRoot(baseDir);
+  for (const base of [path.join(workspaceRoot, ".github"), path.join(workspaceRoot, ".agents")]) {
+    if (realPathWithinBaseForHash(candidate, base)) return true;
+  }
+  return false;
+}
+
+function realPathWithinBaseForHash(pathToCheck, baseDir) {
+  try {
+    const realBase = fs.realpathSync(baseDir);
+    const realPath = fs.realpathSync(pathToCheck);
+    const relativePath = path.relative(realBase, realPath);
+    return relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`) && !path.isAbsolute(relativePath);
+  } catch {
+    return false;
+  }
 }
 
 /**

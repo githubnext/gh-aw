@@ -261,6 +261,20 @@ func TestValidateRuntimeImportFiles_PathNormalization(t *testing.T) {
 	}
 }
 
+func TestValidateRuntimeImportFilesRejectsSymlinkEscape(t *testing.T) {
+	tmpDir := t.TempDir()
+	githubDir := filepath.Join(tmpDir, ".github")
+	sharedDir := filepath.Join(githubDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "outside.md"), []byte("Outside secret: ${{ secrets.OUTSIDE_TOKEN }}"), 0644))
+	require.NoError(t, os.Symlink(filepath.Join(tmpDir, "outside.md"), filepath.Join(sharedDir, "outside-link.md")))
+
+	_, err := validateRuntimeImportFiles("{{#runtime-import shared/outside-link.md}}", tmpDir)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "must remain within .github folder after resolving symlinks")
+}
+
 func TestValidateExpressionsValidatesGeneratedRuntimeImportMacros(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

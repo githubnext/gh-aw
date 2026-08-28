@@ -745,6 +745,20 @@ describe("runtime_import", () => {
           fs.writeFileSync(path.join(tempDir, "outside.md"), "Outside content");
           // Use ../../ to escape .github/workflows and go up to the temp directory
           await expect(processRuntimeImport("../../outside.md", !1, tempDir)).rejects.toThrow("Security: Path");
+        }),
+        it("should reject symlinks escaping the .github folder", async () => {
+          fs.writeFileSync(path.join(tempDir, "outside.md"), "Outside content");
+          fs.symlinkSync(path.join(tempDir, "outside.md"), path.join(workflowsDir, "outside-link.md"));
+
+          await expect(processRuntimeImport("outside-link.md", !1, tempDir)).rejects.toThrow("must remain within its allowed folder after resolving symlinks");
+        }),
+        it("should reject symlinks escaping the .agents folder", async () => {
+          const agentsDir = path.join(tempDir, ".agents");
+          fs.mkdirSync(agentsDir, { recursive: true });
+          fs.writeFileSync(path.join(tempDir, "outside.md"), "Outside content");
+          fs.symlinkSync(path.join(tempDir, "outside.md"), path.join(agentsDir, "outside-link.md"));
+
+          await expect(processRuntimeImport(".agents/outside-link.md", !1, tempDir)).rejects.toThrow("must remain within its allowed folder after resolving symlinks");
         }));
       it("should implicitly close an unterminated inline skill block so it cannot swallow spliced-in content", async () => {
         const content = "## skill: `reporting`\n\nGuidelines here.\n";

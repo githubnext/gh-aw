@@ -204,6 +204,33 @@ on:
       expect(hashB).not.toBe(hashA);
     });
 
+    it("should skip symlink runtime imports that resolve outside the workspace", async () => {
+      const tempDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "frontmatter-hash-symlink-"));
+      const workflowsDir = path.join(tempDir, ".github", "workflows");
+      fs.mkdirSync(workflowsDir, { recursive: true });
+      const workflowPath = path.join(workflowsDir, "runtime-import-hash.md");
+      const outsidePath = path.join(tempDir, "outside.md");
+      const symlinkPath = path.join(workflowsDir, "outside-link.md");
+      fs.writeFileSync(
+        workflowPath,
+        `---
+engine: copilot
+on:
+  workflow_dispatch:
+---
+{{#runtime-import outside-link.md}}
+`
+      );
+      fs.writeFileSync(outsidePath, "Outside $" + "{{ needs.outside.outputs.value }}\n");
+      fs.symlinkSync(outsidePath, symlinkPath);
+
+      const hashA = await computeFrontmatterHash(workflowPath);
+      fs.writeFileSync(outsidePath, "Outside $" + "{{ needs.outside.outputs.changed }}\n");
+      const hashB = await computeFrontmatterHash(workflowPath);
+
+      expect(hashB).toBe(hashA);
+    });
+
     it("should terminate when frontmatter-imported bodies contain cyclic runtime imports", async () => {
       const workflowPath = "/repo/.github/workflows/runtime-import-cycle-hash.md";
       const files = new Map([
