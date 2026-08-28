@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import http from "http";
 const core = { info: vi.fn(), warning: vi.fn(), debug: vi.fn(), setFailed: vi.fn() };
 global.core = core;
@@ -816,6 +817,22 @@ describe("runtime_import", () => {
           const result = await processRuntimeImports("Before {{#runtime-import inline.md}} after", tempDir);
           expect(result).toBe("Before inline content after");
         }),
+        it("should resolve needs output expressions in runtime-imported content from hash env vars", async () => {
+          const issueNumbersExpr = "needs.select.outputs.issue_numbers";
+          const markerExpr = "needs.select.outputs.marker";
+          const issueNumbersEnv = "GH_AW_EXPR_" + crypto.createHash("sha256").update(issueNumbersExpr).digest("hex").slice(0, 8).toUpperCase();
+          const markerEnv = "GH_AW_EXPR_" + crypto.createHash("sha256").update(markerExpr).digest("hex").slice(0, 8).toUpperCase();
+          process.env[issueNumbersEnv] = "[]";
+          process.env[markerEnv] = "ordinary-string";
+          fs.writeFileSync(path.join(workflowsDir, "prompt.md"), "Issue numbers: `${{ needs.select.outputs.issue_numbers }}`\nMarker: `${{ needs.select.outputs.marker }}`");
+          try {
+            const result = await processRuntimeImports("{{#runtime-import prompt.md}}", tempDir);
+            expect(result).toBe("Issue numbers: `[]`\nMarker: `ordinary-string`");
+          } finally {
+            delete process.env[issueNumbersEnv];
+            delete process.env[markerEnv];
+          }
+        }),
         it("should process imports with files containing special characters", async () => {
           fs.writeFileSync(path.join(workflowsDir, "import.md"), "Content with $pecial ch@racters!");
           const result = await processRuntimeImports("{{#runtime-import import.md}}", tempDir);
@@ -1255,6 +1272,22 @@ describe("runtime_import", () => {
           }
         });
 
+        it("should return hash-based env var value for needs output expressions when set", () => {
+          const issueNumbersExpr = "needs.select.outputs.issue_numbers";
+          const markerExpr = "needs.select.outputs.marker";
+          const issueNumbersEnv = "GH_AW_EXPR_" + crypto.createHash("sha256").update(issueNumbersExpr).digest("hex").slice(0, 8).toUpperCase();
+          const markerEnv = "GH_AW_EXPR_" + crypto.createHash("sha256").update(markerExpr).digest("hex").slice(0, 8).toUpperCase();
+          process.env[issueNumbersEnv] = "[]";
+          process.env[markerEnv] = "ordinary-string";
+          try {
+            expect(evaluateExpression(issueNumbersExpr)).toBe("[]");
+            expect(evaluateExpression(markerExpr)).toBe("ordinary-string");
+          } finally {
+            delete process.env[issueNumbersEnv];
+            delete process.env[markerEnv];
+          }
+        });
+
         it("should return env var value for inputs.* expressions when set (workflow_call)", () => {
           process.env.GH_AW_INPUTS_ERRORS = "some error list";
           try {
@@ -1300,17 +1333,19 @@ describe("runtime_import", () => {
           }
         });
 
-        it("should not resolve hyphenated inputs.* when context.payload.inputs is empty", () => {
+        it("should resolve hyphenated inputs.* from hash-based env var when context.payload.inputs is empty", () => {
           // For workflow_call, context.payload.inputs is empty. Hyphenated input names
           // can't be resolved via the simple env var conversion (which produces
           // GH_AW_INPUTS_TASK-DESCRIPTION instead of the compiler's GH_AW_EXPR_<hash>).
-          // The compiler handles this via placeholder substitution in the heredoc-inlined
-          // prompt; runtime-import expressions rely on context.payload.inputs.
+          // Runtime-import expressions resolve through the same hash-based env var.
           global.context.payload.inputs = {};
+          const expr = "inputs.task-description";
+          const envVar = "GH_AW_EXPR_" + crypto.createHash("sha256").update(expr).digest("hex").slice(0, 8).toUpperCase();
+          process.env[envVar] = "workflow-call value";
           try {
-            const result = evaluateExpression("inputs.task-description");
-            expect(result).toContain("inputs.task-description");
+            expect(evaluateExpression(expr)).toBe("workflow-call value");
           } finally {
+            delete process.env[envVar];
             delete global.context.payload.inputs;
           }
         });

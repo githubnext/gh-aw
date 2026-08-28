@@ -182,7 +182,12 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 		return nil
 	}
 
-	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
+	promptContent := data.MarkdownContent
+	if runtimeImportMarkdown := c.collectRuntimeImportMarkdownForAnalysis(data); runtimeImportMarkdown != "" {
+		promptContent += "\n" + runtimeImportMarkdown
+	}
+
+	referencedJobs := c.getReferencedCustomJobs(promptContent, data.Jobs)
 	var result []string
 	for _, jobName := range referencedJobs {
 		jobConfig, ok := data.Jobs[jobName].(map[string]any)

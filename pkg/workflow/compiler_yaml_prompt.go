@@ -98,6 +98,14 @@ func (c *Compiler) enrichExpressionMappings(data *WorkflowData, expressionMappin
 			expressionMappings = append(expressionMappings, mainExprMappings...)
 		}
 	}
+	if runtimeImportMarkdown := c.collectRuntimeImportMarkdownForAnalysis(data); runtimeImportMarkdown != "" {
+		runtimeImportExtractor := NewExpressionExtractor()
+		runtimeImportExprMappings, err := runtimeImportExtractor.ExtractExpressions(runtimeImportMarkdown)
+		if err == nil && len(runtimeImportExprMappings) > 0 {
+			compilerYamlPromptLog.Printf("Extracted %d expressions from runtime-import markdown", len(runtimeImportExprMappings))
+			expressionMappings = append(expressionMappings, runtimeImportExprMappings...)
+		}
+	}
 	expressionMappings = filterExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs)
 	if len(data.Experiments) > 0 {
 		experimentMappings := ExperimentExpressionMappings(data.Experiments)
@@ -331,4 +339,97 @@ func resolveWorkspaceRoot(markdownPath string) string {
 	}
 	// Fallback: use the directory containing the workflow file.
 	return filepath.Dir(markdownPath)
+}
+
+func (c *Compiler) collectRuntimeImportMarkdownForAnalysis(data *WorkflowData) string {
+	if data == nil || c.markdownPath == "" {
+		return ""
+	}
+	workspaceRoot := resolveWorkspaceRoot(c.markdownPath)
+	var seed strings.Builder
+	seed.WriteString(data.MarkdownContent)
+	if data.MainWorkflowMarkdown != "" {
+		seed.WriteByte('\n')
+		seed.WriteString(data.MainWorkflowMarkdown)
+	}
+	for _, importPath := range data.ImportPaths {
+		seed.WriteString("\n{{#runtime-import ")
+		seed.WriteString(filepath.ToSlash(importPath))
+		seed.WriteString("}}")
+	}
+	for _, entry := range data.PromptImports {
+		if entry.ImportPath != "" {
+			seed.WriteString("\n{{#runtime-import ")
+			seed.WriteString(filepath.ToSlash(entry.ImportPath))
+			seed.WriteString("}}")
+		}
+	}
+	seedContent := seed.String()
+	if seedContent == "" {
+		return ""
+	}
+	return collectRuntimeImportMarkdownForAnalysis(seedContent, workspaceRoot, map[string]struct{}{})
+}
+
+func collectRuntimeImportMarkdownForAnalysis(markdownContent, workspaceRoot string, seen map[string]struct{}) string {
+	paths := extractRuntimeImportPaths(markdownContent)
+	if len(paths) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+	for _, importPath := range paths {
+		content, ok := readRuntimeImportMarkdownForAnalysis(importPath, workspaceRoot, seen)
+		if !ok {
+			continue
+		}
+		builder.WriteByte('\n')
+		builder.WriteString(content)
+		if nested := collectRuntimeImportMarkdownForAnalysis(content, workspaceRoot, seen); nested != "" {
+			builder.WriteByte('\n')
+			builder.WriteString(nested)
+		}
+	}
+	return builder.String()
+}
+
+func readRuntimeImportMarkdownForAnalysis(importPath, workspaceRoot string, seen map[string]struct{}) (string, bool) {
+	for _, candidate := range runtimeImportAnalysisCandidatePaths(importPath, workspaceRoot) {
+		if _, alreadySeen := seen[candidate]; alreadySeen {
+			return "", false
+		}
+		rawContent, err := os.ReadFile(candidate)
+		if err != nil {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		importedBody, extractErr := parser.ExtractMarkdownContent(string(rawContent))
+		if extractErr != nil {
+			importedBody = string(rawContent)
+		}
+		return importedBody, true
+	}
+	return "", false
+}
+
+func runtimeImportAnalysisCandidatePaths(importPath, workspaceRoot string) []string {
+	normalized := filepath.ToSlash(importPath)
+	if before, _, ok := strings.Cut(normalized, ":"); ok {
+		normalized = before
+	}
+	normalized = strings.TrimPrefix(normalized, "./")
+
+	githubDir := strings.TrimSuffix(constants.GithubDir, "/")
+	if strings.HasPrefix(normalized, githubDir+"/") {
+		return []string{filepath.Join(workspaceRoot, filepath.FromSlash(normalized))}
+	}
+
+	candidates := []string{
+		filepath.Join(workspaceRoot, githubDir, filepath.FromSlash(normalized)),
+		filepath.Join(workspaceRoot, githubDir, "workflows", filepath.FromSlash(normalized)),
+	}
+	if candidates[0] == candidates[1] {
+		return candidates[:1]
+	}
+	return candidates
 }

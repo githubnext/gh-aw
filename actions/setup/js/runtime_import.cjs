@@ -14,6 +14,7 @@ const { closeUnterminatedSubAgentMarkers } = require("./extract_inline_sub_agent
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 /**
  * Makes any "## skill:"/"## agent:" block in a runtime-imported chunk of
@@ -401,6 +402,15 @@ function isSafeExpression(expr) {
 }
 
 /**
+ * Generates the compiler's hash-based environment variable name for a GitHub expression.
+ * @param {string} expr - The GitHub expression content without ${{ }}.
+ * @returns {string}
+ */
+function generateHashedExpressionEnvVarName(expr) {
+  return "GH_AW_EXPR_" + crypto.createHash("sha256").update(expr).digest("hex").slice(0, 8).toUpperCase();
+}
+
+/**
  * Evaluates a safe GitHub Actions expression at runtime
  * @param {string} expr - The expression to evaluate (without ${{ }})
  * @returns {string} - The evaluated value or original expression if cannot evaluate
@@ -454,6 +464,12 @@ function evaluateExpression(expr) {
     const envValue = process.env[envVarName];
     if (envValue !== undefined && envValue !== null) {
       return envValue;
+    }
+
+    const hashedEnvVarName = generateHashedExpressionEnvVarName(trimmed);
+    const hashedEnvValue = process.env[hashedEnvVarName];
+    if (hashedEnvValue !== undefined && hashedEnvValue !== null) {
+      return hashedEnvValue;
     }
     // If not found in environment, continue to try other evaluation methods below
   }
