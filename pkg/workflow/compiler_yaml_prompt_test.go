@@ -761,6 +761,25 @@ func TestCollectRuntimeImportMarkdownForCompilerAnalysisSkipsUnsafeExpressions(t
 	assert.Empty(t, runtimeImportMarkdown)
 }
 
+func TestCollectRuntimeImportMarkdownForCompilerAnalysisStopsOnUnsafeCandidate(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	promptsDir := filepath.Join(tmpDir, ".github", "prompts")
+	workflowPromptsDir := filepath.Join(workflowsDir, "prompts")
+	require.NoError(t, os.MkdirAll(promptsDir, 0755))
+	require.NoError(t, os.MkdirAll(workflowPromptsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(promptsDir, "ambiguous.md"), []byte("Secret ${{ secrets.PRIVATE_TOKEN }}"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(workflowPromptsDir, "ambiguous.md"), []byte("Safe ${{ needs.safe.outputs.value }}"), 0600))
+
+	compiler := NewCompiler()
+	compiler.markdownPath = filepath.Join(workflowsDir, "ambiguous.md")
+	data := &WorkflowData{MarkdownContent: "{{#runtime-import prompts/ambiguous.md}}"}
+
+	runtimeImportMarkdown := compiler.collectRuntimeImportMarkdownForCompilerAnalysis(data)
+
+	assert.Empty(t, runtimeImportMarkdown)
+}
+
 func TestCollectRuntimeImportMarkdownForCompilerAnalysisRejectsSymlinkEscape(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

@@ -379,7 +379,10 @@ func collectRuntimeImportMarkdownContent(markdownContent, workspaceRoot string, 
 
 	var builder strings.Builder
 	for _, ref := range refs {
-		content, ok := readRuntimeImportMarkdownForAnalysis(ref, workspaceRoot, seen)
+		content, ok, stop := readRuntimeImportMarkdownForAnalysis(ref, workspaceRoot, seen)
+		if stop {
+			return builder.String()
+		}
 		if !ok {
 			continue
 		}
@@ -393,11 +396,11 @@ func collectRuntimeImportMarkdownContent(markdownContent, workspaceRoot string, 
 	return builder.String()
 }
 
-func readRuntimeImportMarkdownForAnalysis(ref runtimeImportReference, workspaceRoot string, seen map[string]struct{}) (string, bool) {
+func readRuntimeImportMarkdownForAnalysis(ref runtimeImportReference, workspaceRoot string, seen map[string]struct{}) (string, bool, bool) {
 	for _, candidate := range runtimeImportAnalysisCandidatePaths(ref.importPath, workspaceRoot) {
 		seenKey := fmt.Sprintf("%s:%d-%d", candidate, ref.startLine, ref.endLine)
 		if _, alreadySeen := seen[seenKey]; alreadySeen {
-			return "", false
+			return "", false, false
 		}
 		if !runtimeImportAnalysisRealPathAllowed(candidate, workspaceRoot) {
 			continue
@@ -416,11 +419,11 @@ func readRuntimeImportMarkdownForAnalysis(ref runtimeImportReference, workspaceR
 			importedBody = content
 		}
 		if err := validateExpressionSafety(importedBody); err != nil {
-			return "", false
+			return "", false, true
 		}
-		return importedBody, true
+		return importedBody, true, false
 	}
-	return "", false
+	return "", false, false
 }
 
 func applyRuntimeImportLineRangeForAnalysis(content string, startLine, endLine int) string {
