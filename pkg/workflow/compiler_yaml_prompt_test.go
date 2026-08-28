@@ -729,6 +729,38 @@ func TestCollectRuntimeImportMarkdownForCompilerAnalysisLegacyImportOnly(t *test
 	assert.Contains(t, runtimeImportMarkdown, "needs.legacy.outputs.value")
 }
 
+func TestCollectRuntimeImportMarkdownForCompilerAnalysisRejectsTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "outside.md"), []byte("Outside ${{ secrets.OUTSIDE_TOKEN }}"), 0600))
+
+	compiler := NewCompiler()
+	compiler.markdownPath = filepath.Join(workflowsDir, "traversal.md")
+	data := &WorkflowData{MarkdownContent: "{{#runtime-import ../outside.md}}"}
+
+	runtimeImportMarkdown := compiler.collectRuntimeImportMarkdownForCompilerAnalysis(data)
+
+	assert.Empty(t, runtimeImportMarkdown)
+}
+
+func TestCollectRuntimeImportMarkdownForCompilerAnalysisSkipsUnsafeExpressions(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(tmpDir, ".github", "shared")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "unsafe.md"), []byte("Secret ${{ secrets.PRIVATE_TOKEN }}"), 0600))
+
+	compiler := NewCompiler()
+	compiler.markdownPath = filepath.Join(workflowsDir, "unsafe.md")
+	data := &WorkflowData{MarkdownContent: "{{#runtime-import shared/unsafe.md}}"}
+
+	runtimeImportMarkdown := compiler.collectRuntimeImportMarkdownForCompilerAnalysis(data)
+
+	assert.Empty(t, runtimeImportMarkdown)
+}
+
 // TestExtractPromptChunksFromMarkdown tests the extractPromptChunksFromMarkdown function.
 func TestExtractPromptChunksFromMarkdown(t *testing.T) {
 	tests := []struct {

@@ -121,6 +121,19 @@ ${{ github.actor
 `
 	require.NoError(t, os.WriteFile(multilineFile, []byte(multilineContent), 0644))
 
+	nestedValidFile := filepath.Join(sharedDir, "nested-valid.md")
+	require.NoError(t, os.WriteFile(nestedValidFile, []byte("Nested actor: ${{ github.actor }}"), 0644))
+	nestedInvalidFile := filepath.Join(sharedDir, "nested-invalid.md")
+	require.NoError(t, os.WriteFile(nestedInvalidFile, []byte("Nested secret: ${{ secrets.NESTED_TOKEN }}"), 0644))
+	nestedRootFile := filepath.Join(sharedDir, "nested-root.md")
+	require.NoError(t, os.WriteFile(nestedRootFile, []byte("Root\n{{#runtime-import shared/nested-valid.md}}\n{{#import: shared/nested-invalid.md}}"), 0644))
+	frontmatterSecretFile := filepath.Join(sharedDir, "frontmatter-secret.md")
+	require.NoError(t, os.WriteFile(frontmatterSecretFile, []byte(`---
+env:
+  TOKEN: ${{ secrets.CONFIG_ONLY_TOKEN }}
+---
+Body actor: ${{ github.actor }}`), 0644))
+
 	tests := []struct {
 		name        string
 		markdown    string
@@ -163,6 +176,23 @@ ${{ github.actor
 		{
 			name:        "URL import (should skip)",
 			markdown:    "{{#runtime-import https://example.com/remote.md}}",
+			expectError: false,
+		},
+		{
+			name:        "nested invalid runtime import",
+			markdown:    "{{#runtime-import shared/nested-root.md}}",
+			expectError: true,
+			errorText:   "secrets.NESTED_TOKEN",
+		},
+		{
+			name:        "traversal path rejected",
+			markdown:    "{{#runtime-import ../outside.md}}",
+			expectError: true,
+			errorText:   "Path must be within .github folder",
+		},
+		{
+			name:        "frontmatter secrets ignored",
+			markdown:    "{{#runtime-import shared/frontmatter-secret.md}}",
 			expectError: false,
 		},
 	}
@@ -229,6 +259,45 @@ func TestValidateRuntimeImportFiles_PathNormalization(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateExpressionsValidatesGeneratedRuntimeImportMacros(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(tmpDir, ".github", "shared")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "unsafe.md"), []byte("Secret: ${{ secrets.FRONTMATTER_IMPORT_TOKEN }}"), 0644))
+
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		MarkdownContent: "No inline runtime imports.",
+		ImportPaths:     []string{".github/shared/unsafe.md"},
+	}
+
+	err := compiler.validateExpressions(data, filepath.Join(workflowsDir, "workflow.md"))
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "FRONTMATTER_IMPORT_TOKEN")
+}
+
+func TestValidateExpressionsValidatesLegacyRuntimeImportMacros(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(tmpDir, ".github", "shared")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "unsafe.md"), []byte("Secret: ${{ secrets.LEGACY_IMPORT_TOKEN }}"), 0644))
+
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		MarkdownContent: "{{#import: shared/unsafe.md}}",
+	}
+
+	err := compiler.validateExpressions(data, filepath.Join(workflowsDir, "workflow.md"))
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "LEGACY_IMPORT_TOKEN")
 }
 
 // TestCompilerIntegration_RuntimeImportValidation tests the compiler integration

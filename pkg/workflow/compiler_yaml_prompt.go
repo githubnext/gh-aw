@@ -412,6 +412,9 @@ func readRuntimeImportMarkdownForAnalysis(ref runtimeImportReference, workspaceR
 		if extractErr != nil {
 			importedBody = content
 		}
+		if err := validateExpressionSafety(importedBody); err != nil {
+			return "", false
+		}
 		return importedBody, true
 	}
 	return "", false
@@ -434,11 +437,20 @@ func applyRuntimeImportLineRangeForAnalysis(content string, startLine, endLine i
 }
 
 func runtimeImportAnalysisCandidatePaths(importPath, workspaceRoot string) []string {
-	normalized := filepath.ToSlash(importPath)
+	normalized := filepath.ToSlash(strings.TrimSpace(importPath))
 	if before, _, ok := strings.Cut(normalized, ":"); ok {
 		normalized = before
 	}
+	if strings.HasPrefix(normalized, "/") {
+		normalized = strings.TrimLeft(normalized, "/")
+		if !strings.HasPrefix(normalized, constants.GithubDir) && !strings.HasPrefix(normalized, ".agents/") {
+			return nil
+		}
+	}
 	normalized = strings.TrimPrefix(normalized, "./")
+	if normalized == "" || strings.HasPrefix(normalized, "../") || strings.Contains(normalized, "/../") {
+		return nil
+	}
 
 	githubDir := strings.TrimSuffix(constants.GithubDir, "/")
 	if strings.HasPrefix(normalized, githubDir+"/") {

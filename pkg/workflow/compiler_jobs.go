@@ -178,7 +178,7 @@ func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string
 // Only jobs with NO explicit needs are returned - jobs that explicitly depend on activation/pre_activation/etc.
 // are excluded because they either already run before activation or cannot run before it.
 func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *WorkflowData) []string {
-	if data == nil || data.Jobs == nil || data.MarkdownContent == "" {
+	if data == nil || data.Jobs == nil {
 		return nil
 	}
 
