@@ -108,6 +108,7 @@ For less common ecosystems (Swift, PHP, Dart, Haskell, Perl, fonts, Deno, Elixir
 | "monitor workflow failures and trends" | `MonitorOps` |
 | "process a big backlog in chunks" | `BatchOps` |
 | "run manually with input parameters" | `DispatchOps` |
+| "keep advancing a feature one chunk at a time" | `Feature Farmer` |
 | "apply a label-based workflow" | `LabelOps` |
 | "operate across multiple repositories" | `MultiRepoOps` |
 | "coordinate multiple sub-agents" | `Orchestration` |
