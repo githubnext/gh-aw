@@ -98,7 +98,7 @@ func (c *Compiler) enrichExpressionMappings(data *WorkflowData, expressionMappin
 			expressionMappings = append(expressionMappings, mainExprMappings...)
 		}
 	}
-	if runtimeImportMarkdown := c.collectRuntimeImportMarkdownForAnalysis(data); runtimeImportMarkdown != "" {
+	if runtimeImportMarkdown := c.collectRuntimeImportMarkdownForCompilerAnalysis(data); runtimeImportMarkdown != "" {
 		runtimeImportExtractor := NewExpressionExtractor()
 		runtimeImportExprMappings, err := runtimeImportExtractor.ExtractExpressions(runtimeImportMarkdown)
 		if err == nil && len(runtimeImportExprMappings) > 0 {
@@ -341,7 +341,7 @@ func resolveWorkspaceRoot(markdownPath string) string {
 	return filepath.Dir(markdownPath)
 }
 
-func (c *Compiler) collectRuntimeImportMarkdownForAnalysis(data *WorkflowData) string {
+func (c *Compiler) collectRuntimeImportMarkdownForCompilerAnalysis(data *WorkflowData) string {
 	if data == nil || c.markdownPath == "" {
 		return ""
 	}
@@ -365,13 +365,13 @@ func (c *Compiler) collectRuntimeImportMarkdownForAnalysis(data *WorkflowData) s
 		}
 	}
 	seedContent := seed.String()
-	if seedContent == "" {
+	if !strings.Contains(seedContent, "{{#runtime-import") {
 		return ""
 	}
-	return collectRuntimeImportMarkdownForAnalysis(seedContent, workspaceRoot, map[string]struct{}{})
+	return collectRuntimeImportMarkdownContent(seedContent, workspaceRoot, map[string]struct{}{})
 }
 
-func collectRuntimeImportMarkdownForAnalysis(markdownContent, workspaceRoot string, seen map[string]struct{}) string {
+func collectRuntimeImportMarkdownContent(markdownContent, workspaceRoot string, seen map[string]struct{}) string {
 	paths := extractRuntimeImportPaths(markdownContent)
 	if len(paths) == 0 {
 		return ""
@@ -385,7 +385,7 @@ func collectRuntimeImportMarkdownForAnalysis(markdownContent, workspaceRoot stri
 		}
 		builder.WriteByte('\n')
 		builder.WriteString(content)
-		if nested := collectRuntimeImportMarkdownForAnalysis(content, workspaceRoot, seen); nested != "" {
+		if nested := collectRuntimeImportMarkdownContent(content, workspaceRoot, seen); nested != "" {
 			builder.WriteByte('\n')
 			builder.WriteString(nested)
 		}

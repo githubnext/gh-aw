@@ -183,7 +183,7 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 	}
 
 	promptContent := data.MarkdownContent
-	if runtimeImportMarkdown := c.collectRuntimeImportMarkdownForAnalysis(data); runtimeImportMarkdown != "" {
+	if runtimeImportMarkdown := c.collectRuntimeImportMarkdownForCompilerAnalysis(data); runtimeImportMarkdown != "" {
 		promptContent += "\n" + runtimeImportMarkdown
 	}
 

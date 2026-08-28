@@ -92,20 +92,20 @@ func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated b
 }
 
 func knownNeedsOutputNames(jobConfig any) []string {
-	outputs := []string{"output"}
+	defaultOutputs := []string{"output"}
 	jobMap, ok := jobConfig.(map[string]any)
 	if !ok {
-		return outputs
+		return defaultOutputs
 	}
 	outputsField, hasOutputs := jobMap["outputs"]
 	if !hasOutputs || outputsField == nil {
-		return outputs
+		return defaultOutputs
 	}
 	outputsMap, ok := outputsField.(map[string]any)
 	if !ok {
-		return outputs
+		return nil
 	}
-	outputs = make([]string, 0, len(outputsMap))
+	outputs := make([]string, 0, len(outputsMap))
 	for output := range outputsMap {
 		outputs = append(outputs, output)
 	}
