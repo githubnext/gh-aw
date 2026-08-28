@@ -105,7 +105,6 @@ func TestCodexEngineCopilotModelUsesGitHubInference(t *testing.T) {
 	expected := []string{
 		`GH_AW_LLM_PROVIDER: github`,
 		`AWF_REFLECT_ENABLED: 1`,
-		`api.githubcopilot.com`,
 		`COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
 		constants.CopilotBYOKDummyAPIKeyEnvVar + `: ` + constants.CopilotBYOKDummyAPIKey,
 		`export CODEX_API_KEY="$` + constants.CopilotBYOKDummyAPIKeyEnvVar + `"`,

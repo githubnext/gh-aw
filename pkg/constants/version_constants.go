@@ -211,7 +211,7 @@ const DefaultGitHubScriptVersion Version = "v9"
 // This is used by the default external threat-detection path and when
 // `features: gh-aw-detection: true` is set in the workflow frontmatter, enabling the external
 // threat-detect binary path instead of the inline engine execution path.
-const DefaultThreatDetectVersion Version = "v0.4.12"
+const DefaultThreatDetectVersion Version = "v0.5.1"
 
 // GhSkillsMinVersion is the minimum gh CLI version required for frontmatter skill support
 // (installing gh extensions via `gh extension install`). Workflows that install frontmatter

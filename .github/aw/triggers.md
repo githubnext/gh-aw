@@ -228,3 +228,13 @@ on:
     branches: [main]
   workflow_dispatch:
 ```
+
+### All You Can Eat Pattern
+
+```yaml
+on:
+  schedule: every 30 minutes
+  skip-if-match: 'is:issue is:open "gh-aw-workflow-id: my-workflow" in:body'
+```
+
+A frequent schedule whose activation is skipped while the previous output of the same workflow is still open, so the next item is produced as soon as the user closes the last one. See [All You Can Eat Pattern](workflow-patterns.md#all-you-can-eat-pattern).

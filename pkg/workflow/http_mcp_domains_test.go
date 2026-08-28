@@ -173,7 +173,7 @@ func TestExtractDomainFromURL(t *testing.T) {
 // TestGetCodexAllowedDomainsWithTools tests that HTTP MCP domains are included in Codex allowed domains
 func TestGetCodexAllowedDomainsWithTools(t *testing.T) {
 	network := &NetworkPermissions{
-		Allowed: []string{"github"},
+		Allowed: []string{"codex", "github"},
 	}
 
 	tools := map[string]any{
@@ -185,16 +185,16 @@ func TestGetCodexAllowedDomainsWithTools(t *testing.T) {
 
 	result := GetAllowedDomainsForEngine(constants.CodexEngine, network, tools, nil)
 
-	// Should include Codex defaults, GitHub ecosystem, and Tavily domain
+	// Should include explicitly requested Codex domain set, GitHub ecosystem, and Tavily domain
 	require.Contains(t, result, "mcp.tavily.com", "Should include HTTP MCP domain")
-	require.Contains(t, result, "api.openai.com", "Should include Codex defaults")
+	require.Contains(t, result, "api.openai.com", "Should include Codex domain set")
 	require.Contains(t, result, "github.githubassets.com", "Should include GitHub ecosystem")
 }
 
 // TestGetCopilotAllowedDomainsWithTools tests that HTTP MCP domains are included in Copilot allowed domains
 func TestGetCopilotAllowedDomainsWithTools(t *testing.T) {
 	network := &NetworkPermissions{
-		Allowed: []string{"python"},
+		Allowed: []string{"copilot", "python"},
 	}
 
 	tools := map[string]any{
@@ -205,16 +205,16 @@ func TestGetCopilotAllowedDomainsWithTools(t *testing.T) {
 
 	result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, nil)
 
-	// Should include Copilot defaults, Python ecosystem, and custom HTTP MCP domain
+	// Should include explicitly requested Copilot domain set, Python ecosystem, and custom HTTP MCP domain
 	require.Contains(t, result, "api.custom.com", "Should include HTTP MCP domain")
-	require.Contains(t, result, "api.githubcopilot.com", "Should include Copilot defaults")
+	require.Contains(t, result, "api.githubcopilot.com", "Should include Copilot domain set")
 	require.Contains(t, result, "pypi.org", "Should include Python ecosystem")
 }
 
 // TestGetClaudeAllowedDomainsWithTools tests that HTTP MCP domains are included in Claude allowed domains
 func TestGetClaudeAllowedDomainsWithTools(t *testing.T) {
 	network := &NetworkPermissions{
-		Allowed: []string{"node"},
+		Allowed: []string{"claude", "node"},
 	}
 
 	tools := map[string]any{
@@ -226,9 +226,9 @@ func TestGetClaudeAllowedDomainsWithTools(t *testing.T) {
 
 	result := GetAllowedDomainsForEngine(constants.ClaudeEngine, network, tools, nil)
 
-	// Should include Claude defaults, Node ecosystem, and example HTTP MCP domain
+	// Should include explicitly requested Claude domain set, Node ecosystem, and example HTTP MCP domain
 	require.Contains(t, result, "mcp.example.org", "Should include HTTP MCP domain")
-	require.Contains(t, result, "anthropic.com", "Should include Claude defaults")
+	require.Contains(t, result, "anthropic.com", "Should include Claude domain set")
 	require.Contains(t, result, "registry.npmjs.org", "Should include Node ecosystem")
 }
 
@@ -297,7 +297,7 @@ func TestExtractPlaywrightDomains(t *testing.T) {
 // TestGetCopilotAllowedDomainsWithPlaywright tests that Playwright domains are automatically included for Copilot engine
 func TestGetCopilotAllowedDomainsWithPlaywright(t *testing.T) {
 	network := &NetworkPermissions{
-		Allowed: []string{"defaults"},
+		Allowed: []string{"copilot", "defaults"},
 	}
 
 	tools := map[string]any{
@@ -306,16 +306,16 @@ func TestGetCopilotAllowedDomainsWithPlaywright(t *testing.T) {
 
 	result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, nil)
 
-	// Should include Copilot defaults and Playwright ecosystem domains
+	// Should include explicitly requested Copilot domain set and Playwright ecosystem domains
 	require.Contains(t, result, "playwright.download.prss.microsoft.com", "Should include Playwright download domain")
 	require.Contains(t, result, "cdn.playwright.dev", "Should include Playwright CDN domain")
-	require.Contains(t, result, "api.githubcopilot.com", "Should include Copilot defaults")
+	require.Contains(t, result, "api.githubcopilot.com", "Should include Copilot domain set")
 }
 
 // TestGetCodexAllowedDomainsWithPlaywright tests that Playwright domains are automatically included for Codex engine
 func TestGetCodexAllowedDomainsWithPlaywright(t *testing.T) {
 	network := &NetworkPermissions{
-		Allowed: []string{"defaults"},
+		Allowed: []string{"codex", "defaults"},
 	}
 
 	tools := map[string]any{
@@ -324,8 +324,8 @@ func TestGetCodexAllowedDomainsWithPlaywright(t *testing.T) {
 
 	result := GetAllowedDomainsForEngine(constants.CodexEngine, network, tools, nil)
 
-	// Should include Codex defaults and Playwright ecosystem domains
+	// Should include explicitly requested Codex domain set and Playwright ecosystem domains
 	require.Contains(t, result, "playwright.download.prss.microsoft.com", "Should include Playwright download domain")
 	require.Contains(t, result, "cdn.playwright.dev", "Should include Playwright CDN domain")
-	require.Contains(t, result, "api.openai.com", "Should include Codex defaults")
+	require.Contains(t, result, "api.openai.com", "Should include Codex domain set")
 }

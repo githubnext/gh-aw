@@ -1,7 +1,7 @@
 # ADR-55461: Centralize Engine Default Domain Sets
 
 **Date**: 2026-08-24
-**Status**: Accepted
+**Status**: Accepted (automatic engine domain injection superseded by explicit `network.allowed` opt-in)
 **Deciders**: Unknown
 
 ---
@@ -13,6 +13,8 @@ Engine-specific unconditional domain allow-lists were scattered across multiple 
 ### Decision
 
 We will centralize all domain allow-list data in the embedded `ecosystem_domains.json` file and load it once with `sync.OnceValues`. Engine-specific unconditional domain allow-lists are exposed in Go through an unexported package-level map (`engineDefaultDomainSets`) and a copy-returning public accessor (`GetEngineDefaultDomainSets()`) for analysis and reporting. Existing exported compatibility variables (`CopilotDefaultDomains`, etc.) derive their values from this registry at initialization time via a `copyEngineDefaultDomainSet` helper. The threat-detection allow-list will live in the engine-default registry while the legacy `network.allowed: [threat-detection]` ecosystem alias is retained as a compatibility path.
+
+Update: engine domain sets remain centralized here, but normal agent runs no longer receive the selected engine's domain set automatically. Workflows must opt in with the matching `network.allowed` identifier (for example, `copilot`, `claude`, `codex`, `gemini`, or `pi`) when direct agent egress to those hosts is required.
 
 ### Alternatives Considered
 
