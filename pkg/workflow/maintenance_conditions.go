@@ -4,6 +4,32 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var maintenanceConditionsLog = logger.New("workflow:maintenance_conditions")
 
+// maintenanceNoOperationValue is the sentinel value used for the workflow_dispatch
+// "operation" choice input to represent "no operation selected". It replaces an
+// empty string option, since actionlint rejects empty strings as workflow_dispatch
+// choice options and requires the default to be one of the declared options.
+// The workflow_call "operation" input remains a plain string with an empty-string
+// default (not subject to the choice/options restriction), so both '' and this
+// sentinel value are treated as "no operation" throughout the generated conditions.
+const maintenanceNoOperationValue = "none"
+
+// buildOperationIsEmptyCondition creates a condition that is true when the
+// `inputs.operation` value represents "no operation selected", i.e. it is
+// either an empty string (workflow_call default) or the choice sentinel value
+// used by the workflow_dispatch "operation" input.
+func buildOperationIsEmptyCondition() ConditionNode {
+	return BuildOr(
+		BuildEquals(
+			BuildPropertyAccess("inputs.operation"),
+			BuildStringLiteral(""),
+		),
+		BuildEquals(
+			BuildPropertyAccess("inputs.operation"),
+			BuildStringLiteral(maintenanceNoOperationValue),
+		),
+	)
+}
+
 // buildNotForkCondition creates a condition to check the repository is not a fork.
 func buildNotForkCondition() ConditionNode {
 	return &NotNode{
@@ -26,10 +52,7 @@ func buildNotDispatchOrCallOrEmptyOperation() ConditionNode {
 				BuildStringLiteral("workflow_call"),
 			),
 		),
-		BuildEquals(
-			BuildPropertyAccess("inputs.operation"),
-			BuildStringLiteral(""),
-		),
+		buildOperationIsEmptyCondition(),
 	)
 }
 
@@ -145,10 +168,7 @@ func buildRunOperationCondition(excludedOperations ...string) ConditionNode {
 			BuildEventTypeEquals("workflow_dispatch"),
 			BuildEventTypeEquals("workflow_call"),
 		),
-		BuildNotEquals(
-			BuildPropertyAccess("inputs.operation"),
-			BuildStringLiteral(""),
-		),
+		&NotNode{Child: buildOperationIsEmptyCondition()},
 	)
 
 	// Exclude each dedicated operation
