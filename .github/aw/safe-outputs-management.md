@@ -299,6 +299,8 @@ description: Safe-output reference for update, label, milestone, project, releas
 
   **File Restrictions**: Same as `create-pull-request`: **always specify `allowed-files`** scoped to specific file extensions or paths to limit the agent's reach. `excluded-files` strips files before all checks, and `protected-files` controls handling of sensitive files. Object form supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
+  `push-to-pull-request-branch` now uses the same `request-review` default as `create-pull-request`. Protected-file changes are still surfaced in the PR as a `REQUEST_CHANGES` review, while `blocked` remains available when a workflow requires a hard failure. `CHANGELOG.md` is excluded from the PR handlers' default protected-file set so routine release updates do not require an explicit exception; other shared handlers continue to protect it.
+
   **Compile-time warnings for `target: "*"`**: When `target: "*"` is set, the compiler emits warnings if:
   1. The checkout configuration does not include a wildcard fetch pattern — add `fetch: ["*"]` with `fetch-depth: 0` so the agent can access all PR branches at runtime
   2. No constraints are provided — add `title-prefix` or `required-labels` to restrict which PRs can receive pushes
