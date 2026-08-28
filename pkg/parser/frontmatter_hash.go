@@ -581,13 +581,13 @@ var (
 )
 
 func collectRuntimeImportTemplateExpressions(frontmatterText, markdownBody, baseDir string, fileReader FileReader) []string {
-	expressions := extractRuntimeImportTemplateExpressionsFromMarkdown(markdownBody, baseDir, map[string]struct{}{}, fileReader)
+	seen := map[string]struct{}{}
+	expressions := extractRuntimeImportTemplateExpressionsFromMarkdown(markdownBody, baseDir, seen, fileReader)
 
 	importedBodies, err := collectImportedBodies(frontmatterText, baseDir, map[string]struct{}{}, fileReader)
 	if err != nil {
 		return expressions
 	}
-	seen := map[string]struct{}{}
 	for _, body := range importedBodies {
 		expressions = mergeSortedUniqueStrings(expressions, extractAllTemplateExpressions(body))
 		expressions = mergeSortedUniqueStrings(expressions, extractRuntimeImportTemplateExpressionsFromMarkdown(body, baseDir, seen, fileReader))
