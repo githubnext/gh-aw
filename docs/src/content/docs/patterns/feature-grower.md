@@ -35,9 +35,9 @@ workflow uses two labels:
   request.
 
 Each scheduled run scans open crops. A crop with an open cookie child is left
-alone. For every eligible crop, the agent reviews the plan, closed children,
+alone. The agent reviews the oldest eligible crop's plan, closed children,
 current repository files, and advisory memory before creating one new cookie as
-a native sub-issue.
+a native sub-issue. The next run is skipped while that cookie remains open.
 
 The open-child gate provides backpressure. It prevents the planner from
 producing work faster than implementation can validate its assumptions and
@@ -63,6 +63,7 @@ entire remaining plan unless the current increment requires that analysis.
 on:
   schedule: daily on weekdays
   workflow_dispatch:
+  skip-if-match: 'is:issue is:open "gh-aw-workflow-id: feature-grower" in:body'
 
 permissions:
   contents: read
@@ -78,7 +79,7 @@ tools:
 safe-outputs:
   create-issue:
     labels: [cookie]
-    max: 5
+    max: 1
 
 concurrency:
   group: feature-grower
@@ -98,8 +99,25 @@ immediately before declaring the safe output to reduce duplicate work caused by
 concurrent human activity.
 
 Do not use `create-issue.group: true`: grouping creates a workflow-owned parent
-instead of attaching the new issue to the existing crop. Do not use a global
-`skip-if-match`, because one active cookie would then block every crop.
+instead of attaching the new issue to the existing crop.
+
+## Scheduling and backpressure
+
+Always configure `skip-if-match` so an older output from the workflow blocks a
+new one while it remains open. Match the stable workflow marker rather than a
+title that a user can edit. Issue-producing workflows use `is:issue is:open`;
+pull-request-producing variants use `is:pr is:open`, and draft pull requests
+also count as open.
+
+Choose the cadence based on how quickly maintainers consume each increment:
+
+- Use the [All You Can Eat pattern](https://github.com/github/gh-aw/blob/main/.github/aw/workflow-patterns.md#all-you-can-eat-pattern)
+  with a frequent schedule, typically every 30 minutes, when the next chunk
+  should appear soon after the previous issue closes or pull request merges.
+- Use a daily or weekday schedule when slower growth is preferable and a delay
+  before the next chunk is acceptable.
+
+In either case, cap creation at one output per run and keep concurrency enabled.
 
 ## When to use this pattern
 

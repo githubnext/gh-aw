@@ -5,6 +5,7 @@ description: Advances crop-labeled features by creating the next actionable cook
 on:
   schedule: daily on weekdays
   workflow_dispatch:
+  skip-if-match: 'is:issue is:open "gh-aw-workflow-id: feature-grower" in:body'
 permissions:
   contents: read
   issues: read
@@ -101,13 +102,13 @@ steps:
         fs.mkdirSync(outputDir, { recursive: true });
         fs.writeFileSync(
           path.join(outputDir, "eligible-crops.json"),
-          JSON.stringify(crops.slice(0, 5), null, 2),
+          JSON.stringify(crops.slice(0, 1), null, 2),
         );
-        core.info(`Found ${crops.length} crop(s) ready to grow; queued ${Math.min(crops.length, 5)}`);
+        core.info(`Found ${crops.length} crop(s) ready to grow; queued ${Math.min(crops.length, 1)}`);
 safe-outputs:
   create-issue:
     labels: [cookie]
-    max: 5
+    max: 1
 timeout-minutes: 20
 sandbox:
   agent:
@@ -118,7 +119,7 @@ sandbox:
 
 Advance long-lived features in small, reviewable increments.
 
-The prefetch step saved up to five eligible `crop` issues in
+The prefetch step saved the oldest eligible `crop` issue in
 `/tmp/gh-aw/agent/feature-grower/eligible-crops.json`. A crop is eligible only
 when it has no open child issue labeled `cookie`.
 
