@@ -75,6 +75,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-page-counter-increment-in-while-true-loop`](#require-page-counter-increment-in-while-true-loop) | Require page counters to advance in manual `while (true)` pagination loops |
 | [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` to be read after `getExecOutput(..., { ignoreReturnCode: true })` |
 | [`prefer-actions-exec-over-child-process`](#prefer-actions-exec-over-child-process) | Prefer `@actions/exec` over `child_process` to spawn processes that run to completion |
+| [`require-realpathsync-try-catch`](#require-realpathsync-try-catch) | Require try/catch around `fs.realpathSync` calls |
 
 ### `no-empty-catch-block`
 
@@ -1119,3 +1120,31 @@ const branch = stdout.trim();
 - `child_process.spawn()` and `child_process.spawnSync()` — used for long-running, detached, or interactively-streamed processes (background servers, sidecars, and similar) for which `@actions/exec` has no equivalent, since `exec()` / `getExecOutput()` always wait for the command to finish before resolving
 - `exec()` / `execFile()` calls that retain the returned `ChildProcess` handle (used as a value: assigned, returned, member-accessed, passed to another call, ...) — those callers can write to `child.stdin`, stream `child.stdout`, or manage the process lifecycle, which `@actions/exec` cannot express; only calls whose result is discarded (pure callback style) are flagged
 - Calls to `exec`/`execSync`/`execFile`/`execFileSync` from any module other than `child_process` (or `node:child_process`)
+
+### `require-realpathsync-try-catch`
+
+Require `fs.realpathSync` calls to be wrapped in `try/catch`.
+
+Why: `realpathSync` throws synchronously on a missing target, permission errors, or symlink cycles. In `actions/setup/js` these calls almost always feed a path-traversal / symlink-escape containment check (`assertPathWithin(...)`) — an unhandled throw doesn't just crash with a generic stack, it means the containment check for that path is skipped entirely, and the failure loses the call-site-specific error context that a wrapped rethrow would preserve as `{ cause }`.
+
+**Detected forms:**
+- `fs.realpathSync(dir)` — direct call on a known `require("fs")` result.
+- `fs["realpathSync"](dir)` — computed string-literal property access.
+- `const { realpathSync } = require("fs"); realpathSync(dir)` — destructured binding from `require("fs")` or `require("node:fs")`.
+- ESM namespace imports: `import * as fs from "fs"; fs.realpathSync(dir)`.
+- ESM named imports: `import { realpathSync } from "fs"; realpathSync(dir)`.
+
+**Out of scope:**
+- Objects whose `require` source is not the Node `fs` / `node:fs` module (e.g. `mockFs.realpathSync`, `storage.realpathSync`, or `const fs = require("mock-fs"); fs.realpathSync`).
+- Other `fs` methods — use `require-mkdirsync-try-catch` for `mkdirSync`, `require-mkdtempsync-try-catch` for `mkdtempSync`, or `require-fs-io-try-catch` for `statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync`.
+- `try { ... } finally { ... }` without a `catch` clause is still flagged.
+
+**Safe alternative:**
+```js
+try {
+  const resolvedRoot = fs.realpathSync(root);
+  assertPathWithin(resolvedRoot, fs.realpathSync(directoryPath));
+} catch (err) {
+  throw new Error("fs.realpathSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+```

@@ -57,6 +57,7 @@ import { requireHttpResponseErrorListenerRule } from "./rules/require-http-respo
 import { noStringFallbackForNonStringMessageRule } from "./rules/no-string-fallback-for-non-string-message";
 import { requireGetExecOutputExitCodeCheckRule } from "./rules/require-getexecoutput-exitcode-check";
 import { preferActionsExecOverChildProcessRule } from "./rules/prefer-actions-exec-over-child-process";
+import { requireRealpathSyncTryCatchRule } from "./rules/require-realpathsync-try-catch";
 
 const plugin = {
   meta: {
@@ -123,6 +124,7 @@ const plugin = {
     "no-string-fallback-for-non-string-message": noStringFallbackForNonStringMessageRule,
     "require-getexecoutput-exitcode-check": requireGetExecOutputExitCodeCheckRule,
     "prefer-actions-exec-over-child-process": preferActionsExecOverChildProcessRule,
+    "require-realpathsync-try-catch": requireRealpathSyncTryCatchRule,
   },
 };
 
