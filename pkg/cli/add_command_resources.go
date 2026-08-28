@@ -50,6 +50,8 @@ func addResourceFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracke
 		return fmt.Errorf("failed to validate resource destination %q: %w", resolved.Spec.DestinationPath, err)
 	}
 
+	addLog.Printf("Adding resource file: dest=%s, content_size=%d bytes", destFile, len(resolved.Content))
+
 	fileExists := fileutil.FileExists(destFile)
 	if fileExists && !opts.Force {
 		packageSource := packageSourceForSpec(resolved.Spec, resolved.SourceInfo)

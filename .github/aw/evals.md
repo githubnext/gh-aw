@@ -35,8 +35,7 @@ on:
     types: [opened]
 engine: copilot
 safe-outputs:
-  comment:
-    allowed-tools: ["*"]
+  add-comment:
 evals:
   - id: response_provided
     question: Does the agent output confirm that a response was written?
@@ -127,6 +126,22 @@ evals:
   model: gpt-4o   # nuanced questions; override default small model
 ```
 
+### Intent-derived scenarios
+
+When a workflow has an `intent:`, load [intent.md](intent.md) during design. Derive representative positive and adversarial scenario fixtures from its required effects and inverse/no-op conditions. BinEval evaluates one provided fixture against one `agent_output.json`, so do not put mutually exclusive scenarios into one unconditional question list. For each fixture, write a scenario-specific question about an observable result:
+
+```yaml
+evals:
+  - id: actionable_case
+    question: Does the agent output show that the novel, actionable case received the configured visible result?
+  - id: duplicate_noop
+    question: Does the agent output show that the already-tracked case produced no visible write action?
+  - id: uncertainty_noop
+    question: Does the agent output show that insufficient evidence produced no visible write action?
+```
+
+If a question is shared across fixtures, state how the provided scenario makes it applicable and return `UNKNOWN` when that scenario was not provided; do not treat missing scenario evidence as `NO`. Do not ask whether the intent is good or whether the agent tried hard. A question must still be a single, falsifiable YES/NO claim answerable from the output alone.
+
 ### Good question checklist
 
 - ✅ Answerable from the agent output alone — no external calls needed.
@@ -188,13 +203,14 @@ on:
     types: [opened]
 engine: copilot
 permissions:
-  issues: write
+  contents: read
+  issues: read
 tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  add-label:
-    allowed-labels: [bug, enhancement, question, needs-triage]
+  add-labels:
+    allowed: [bug, enhancement, question, needs-triage]
 evals:
   - id: label_requested
     question: Does the agent output show that at least one label was requested via a safe-output action?
