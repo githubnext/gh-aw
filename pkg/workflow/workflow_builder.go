@@ -2,8 +2,11 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -112,8 +115,9 @@ func (c *Compiler) buildInitialWorkflowData(
 			}
 		}
 		// permissions.contents: none signals that the default workflow-repository
-		// checkout should be skipped (see ParseFrontmatterConfig for the primary path).
-		if NewPermissionsParserFromValue(result.Frontmatter["permissions"]).ContentsIsNone() {
+		// checkout should be skipped (see checkoutSkipDefaultFromPermissions, the
+		// single source of truth shared with the primary ParseFrontmatterConfig path).
+		if checkoutSkipDefaultFromPermissions(result.Frontmatter["permissions"]) {
 			workflowData.CheckoutSkipDefault = true
 		}
 	}
@@ -139,6 +143,18 @@ func (c *Compiler) buildInitialWorkflowData(
 			}
 			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
 		}
+	}
+
+	// Warn when permissions.contents: none skips the default checkout but no other
+	// checkout: entries (own repo, imports) are configured, since that leaves the
+	// agent with no working-directory checkout at all (effectively equivalent to
+	// checkout: false, but without the explicit intent that flag signals).
+	if workflowData.CheckoutSkipDefault && !workflowData.CheckoutDisabled && len(workflowData.CheckoutConfigs) == 0 {
+		warningMsg := "permissions.contents: none skips the default workflow-repository checkout, " +
+			"but no other checkout: entries are configured; the agent job will have no repository " +
+			"checked out. Add a target checkout: entry, or set checkout: false to make the intent explicit."
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+		c.IncrementWarningCount()
 	}
 
 	// Auto-disable checkout for pull_request_target-only workflows when not explicitly configured.

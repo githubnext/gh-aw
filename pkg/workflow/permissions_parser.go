@@ -204,6 +204,15 @@ func (p *PermissionsParser) ContentsIsNone() bool {
 	return false
 }
 
+// checkoutSkipDefaultFromPermissions reports whether the given frontmatter "permissions"
+// value signals that the default workflow-repository checkout (and the "Checkout PR
+// branch" step) should be skipped, i.e. permissions.contents is "none". This is the
+// single source of truth for that derivation so both the primary ParseFrontmatterConfig
+// path and the raw-frontmatter fallback path (used when full parsing fails) stay in sync.
+func checkoutSkipDefaultFromPermissions(permissionsValue any) bool {
+	return NewPermissionsParserFromValue(permissionsValue).ContentsIsNone()
+}
+
 // IsAllowed checks if a specific permission scope has the specified access level
 // scope: "contents", "issues", "pull-requests", etc.
 // level: "read", "write", "none"

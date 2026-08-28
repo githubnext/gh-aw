@@ -85,7 +85,7 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	// checkout (and "Checkout PR branch" step) should be skipped. Other explicitly
 	// configured checkout entries (e.g. a target-only sidecar checkout of a different
 	// repository) are unaffected and are still checked out normally.
-	if NewPermissionsParserFromValue(frontmatter["permissions"]).ContentsIsNone() {
+	if checkoutSkipDefaultFromPermissions(frontmatter["permissions"]) {
 		config.CheckoutSkipDefault = true
 		frontmatterTypesLog.Print("Skipping default checkout: permissions.contents is none")
 	}
