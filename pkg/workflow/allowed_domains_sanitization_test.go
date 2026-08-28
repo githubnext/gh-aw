@@ -64,10 +64,6 @@ Test workflow with network permissions.
 			expectedDomains: []string{
 				"example.com",
 				"test.org",
-				// Copilot defaults should also be included
-				"api.github.com",
-				"github.com",
-				"raw.githubusercontent.com",
 			},
 			unexpectedDomain: "registry.npmjs.org",
 		},
@@ -96,12 +92,7 @@ Test workflow with network permissions.
 			expectedDomains: []string{
 				"example.com",
 				"test.org",
-				// Claude now has its own default domains with AWF support
-				"api.github.com",
-				"anthropic.com",
-				"api.anthropic.com",
 			},
-			// No unexpected domains - Claude has its own defaults
 			unexpectedDomain: "",
 		},
 		{
@@ -122,14 +113,7 @@ safe-outputs:
 
 Test workflow with defaults network.
 `,
-			expectedDomains: []string{
-				// Should have Copilot defaults
-				"api.github.com",
-				"github.com",
-				"raw.githubusercontent.com",
-				// Note: network: defaults for Copilot doesn't expand ecosystem domains
-				// in GetCopilotAllowedDomains - it only merges when network.allowed has values
-			},
+			expectedDomains:  []string{},
 			unexpectedDomain: "",
 		},
 		{
@@ -149,13 +133,7 @@ safe-outputs:
 
 Test workflow without network config.
 `,
-			expectedDomains: []string{
-				// Should have Copilot defaults
-				"api.github.com",
-				"github.com",
-				"raw.githubusercontent.com",
-				// Note: nil network for Copilot only returns Copilot defaults
-			},
+			expectedDomains:  []string{},
 			unexpectedDomain: "",
 		},
 		{
@@ -319,7 +297,6 @@ Test that empty allowed-domains falls back to network config.
 `,
 			expectedDomains: []string{
 				"example.com",
-				"api.github.com", // Copilot default
 			},
 			unexpectedDomain: "",
 		},
@@ -406,8 +383,6 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			expectedDomains: []string{
 				"example.com",
 				"test.org",
-				"api.github.com", // Copilot default
-				"github.com",     // Copilot default
 			},
 		},
 		{
@@ -422,25 +397,16 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			},
 		},
 		{
-			name:         "Copilot with nil network",
-			engineID:     "copilot",
-			networkPerms: nil,
-			expectedDomains: []string{
-				"api.github.com",            // Copilot default
-				"github.com",                // Copilot default
-				"raw.githubusercontent.com", // Copilot default
-				// Note: When network is nil, GetCopilotAllowedDomains only returns Copilot defaults
-				// It does NOT include ecosystem defaults
-			},
+			name:            "Copilot with nil network",
+			engineID:        "copilot",
+			networkPerms:    nil,
+			expectedDomains: []string{},
 		},
 		{
-			name:         "Claude with nil network",
-			engineID:     "claude",
-			networkPerms: nil,
-			expectedDomains: []string{
-				"json-schema.org",    // ecosystem default
-				"archive.ubuntu.com", // ecosystem default
-			},
+			name:            "Claude with nil network",
+			engineID:        "claude",
+			networkPerms:    nil,
+			expectedDomains: []string{},
 		},
 		{
 			name:     "Codex with custom domains",
@@ -460,8 +426,6 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			expectedDomains: []string{
 				"api.acme.ghe.com", // GHES API domain
 				"acme.ghe.com",     // GHES base domain (derived from api-target)
-				"api.github.com",   // Copilot default
-				"github.com",       // Copilot default
 			},
 		},
 		{
@@ -548,8 +512,6 @@ Test workflow with GHES api-target.
 			expectedDomains: []string{
 				"api.acme.ghe.com", // GHES API domain
 				"acme.ghe.com",     // GHES base domain derived from api-target
-				"api.github.com",   // Copilot default
-				"github.com",       // Copilot default
 			},
 		},
 		{
@@ -963,7 +925,7 @@ func TestAllowedDomainsUnionWithNetworkConfig(t *testing.T) {
 		expectedDomains []string
 	}{
 		{
-			name: "allowed-domains unioned with Copilot defaults and network config",
+			name: "allowed-domains unioned with network config",
 			workflow: `---
 on: push
 permissions:
@@ -987,7 +949,6 @@ Test allowed-domains union with network config.
 			expectedDomains: []string{
 				"extra-domain.com", // from allowed-domains
 				"example.com",      // from network.allowed
-				"api.github.com",   // Copilot default
 				"localhost",        // always included
 				"github.com",       // always included
 			},
@@ -1045,7 +1006,6 @@ Test that allowed-domains does not override network config.
 			expectedDomains: []string{
 				"url-domain.com",     // from allowed-domains
 				"network-domain.com", // from network.allowed - still present (union)
-				"api.github.com",     // Copilot default
 				"localhost",          // always included
 			},
 		},
