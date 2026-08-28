@@ -847,6 +847,31 @@ describe("runtime_import", () => {
             delete process.env[markerEnv];
           }
         }),
+        it("should resolve hash env expressions through nested runtime imports", async () => {
+          const nestedExpr = "needs.select.outputs.nested_value";
+          const nestedEnv = "GH_AW_EXPR_" + crypto.createHash("sha256").update(nestedExpr).digest("hex").slice(0, 8).toUpperCase();
+          process.env[nestedEnv] = "nested-output";
+          fs.writeFileSync(path.join(workflowsDir, "outer.md"), "Outer\n{{#runtime-import nested.md}}");
+          fs.writeFileSync(path.join(workflowsDir, "nested.md"), "Nested: `${{ needs.select.outputs.nested_value }}`");
+          try {
+            const result = await processRuntimeImports("{{#runtime-import outer.md}}", tempDir);
+            expect(result).toBe("Outer\nNested: `nested-output`");
+          } finally {
+            delete process.env[nestedEnv];
+          }
+        }),
+        it("should resolve hash env expressions through legacy import macros", async () => {
+          const legacyExpr = "needs.select.outputs.legacy_value";
+          const legacyEnv = "GH_AW_EXPR_" + crypto.createHash("sha256").update(legacyExpr).digest("hex").slice(0, 8).toUpperCase();
+          process.env[legacyEnv] = "legacy-output";
+          fs.writeFileSync(path.join(workflowsDir, "legacy.md"), "Legacy: `${{ needs.select.outputs.legacy_value }}`");
+          try {
+            const result = await processRuntimeImports("{{#import legacy.md}}", tempDir);
+            expect(result).toBe("Legacy: `legacy-output`");
+          } finally {
+            delete process.env[legacyEnv];
+          }
+        }),
         it("should process imports with files containing special characters", async () => {
           fs.writeFileSync(path.join(workflowsDir, "import.md"), "Content with $pecial ch@racters!");
           const result = await processRuntimeImports("{{#runtime-import import.md}}", tempDir);
