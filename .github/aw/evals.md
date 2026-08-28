@@ -10,15 +10,7 @@ Each eval is a binary YES/NO question answered by an LLM judge reading the agent
 
 ## How Evals Work
 
-Per run:
-
-1. **Setup** — evals job downloads `agent_output.json` and writes a BinEval prompt with all declared questions.
-2. **Execute** — an LLM judge runs in a network-restricted sandbox (same engine as the agent job), answering YES or NO.
-3. **Parse** — engine output becomes per-question records in `evals.jsonl`.
-4. **Redact** — credential patterns are stripped before upload.
-5. **Upload** — `evals.jsonl` uploaded as the `evals` artifact and committed to the `evals/<workflow-id>` branch by `push_evals_state`.
-
-Runs **after** the agent job, **in parallel with** `safe_outputs` — does not block the write path.
+Evals run on the agent output from `safe-outputs`, answering each declared question YES or NO. Results are redacted, uploaded as the `evals.jsonl` artifact, and committed to the `evals/<workflow-id>` branch.
 
 ---
 
