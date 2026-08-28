@@ -1973,6 +1973,66 @@ describe("push_signed_commits integration tests", () => {
       expect(remoteOid).toBe(localOidBeforePush);
     });
 
+    it("should surface a combined error (not swallow it) when the unsigned push fallback is itself rejected, e.g. by branch protection requiring signed commits", async () => {
+      // Simulate a branch-protection rule that requires signed commits by rejecting every
+      // push with a pre-receive hook on the bare "remote" repo.
+      const preReceiveHookPath = path.join(bareDir, "hooks", "pre-receive");
+      fs.writeFileSync(
+        preReceiveHookPath,
+        "#!/bin/sh\n" +
+          "while read oldrev newrev refname; do\n" +
+          '  case "$refname" in\n' +
+          "    refs/heads/protected-conflict-branch)\n" +
+          '      echo "error: commits must be signed" >&2\n' +
+          "      exit 1\n" +
+          "      ;;\n" +
+          "  esac\n" +
+          "done\n" +
+          "exit 0\n"
+      );
+      fs.chmodSync(preReceiveHookPath, 0o755);
+
+      // Base branch starts with shared file.
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add shared file"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      // Agent branch diverges from old main and edits shared.txt.
+      execGit(["checkout", "-b", "protected-conflict-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "agent change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent edit shared"], { cwd: workDir });
+
+      // Base branch advances with conflicting edit.
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "upstream change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Upstream edit shared"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      execGit(["checkout", "protected-conflict-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "protected-conflict-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+        })
+      ).rejects.toThrow(/failed to rebase commit range onto current GraphQL parent[\s\S]*Unsigned git push fallback was also rejected/);
+
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      // The rejected push must not have landed on the "remote".
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/protected-conflict-branch"], { cwd: workDir });
+      expect(lsRemote.stdout.trim()).toBe("");
+    });
+
     it("should still fail (without pushing) when git push fallback is explicitly disabled and rebasing stale commits conflicts", async () => {
       // Base branch starts with shared file.
       fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");

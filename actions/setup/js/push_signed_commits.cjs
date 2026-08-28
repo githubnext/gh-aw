@@ -602,9 +602,17 @@ async function pushSignedCommits({
         // `git push`. GitHub will still create the pull request; it will simply report the
         // branch as having conflicts that need to be resolved, the same as any normal PR.
         core.warning(`${conflictMessage} Falling back to an unsigned git push of the un-rebased commit(s) so the pull request can still be created (it will show as having merge conflicts with the base branch).`);
-        const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
-        core.info(`pushSignedCommits: unsigned git push fallback (unresolved rebase conflict) completed, using pushed SHA ${fallbackSha}`);
-        return fallbackSha;
+        try {
+          const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
+          core.info(`pushSignedCommits: unsigned git push fallback (unresolved rebase conflict) completed, using pushed SHA ${fallbackSha}`);
+          return fallbackSha;
+        } catch (pushError) {
+          // The unsigned push itself can be rejected (e.g. by branch protection rules requiring
+          // signed commits). Surface a clear, combined error instead of letting the raw git-push
+          // failure — or a misleading "success" — propagate; this preserves the original
+          // throw-on-conflict behavior for repos where an unsigned push is not a viable fallback.
+          throw new Error(`${ERR_SYSTEM}: ${conflictMessage} Unsigned git push fallback was also rejected: ${getErrorMessage(pushError)}`, { cause: pushError });
+        }
       }
     }
     const { stdout: rebasedRevListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${firstGraphqlParentOid}..HEAD`], { cwd });
