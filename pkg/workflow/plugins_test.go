@@ -706,3 +706,154 @@ Run the workflow.
 	assert.Contains(t, lockText, "name: Checkout agent plugin octo-org/private-plugin")
 	assert.Contains(t, lockText, "token: ${{ steps.plugin-app-token-0.outputs.token }}")
 }
+
+// TestCompileWorkflowIssuesDistinctTokensPerPlugin is a regression test ensuring that
+// when several plugins are declared together, each plugin's checkout step receives its
+// own credential (or none) rather than a token belonging to a different plugin.
+func TestCompileWorkflowIssuesDistinctTokensPerPlugin(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "multi-plugin-tokens")
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+plugins:
+  - octo-org/public-plugin@`+testPluginSHA+`
+  - plugin: octo-org/private-plugin-token@`+testPluginSHA+`
+    github-token: ${{ secrets.TOKEN_FOR_PLUGIN_1 }}
+  - plugin: octo-org/private-plugin-app@`+testPluginSHA+`
+    github-app:
+      client-id: ${{ vars.APP_CLIENT_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+Run the workflow.
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	lockText := string(lockContent)
+
+	// The public plugin's checkout step must not receive any token override.
+	publicIdx := strings.Index(lockText, "name: Checkout agent plugin octo-org/public-plugin")
+	require.GreaterOrEqual(t, publicIdx, 0)
+	tokenIdx := strings.Index(lockText, "name: Checkout agent plugin octo-org/private-plugin-token")
+	require.Greater(t, tokenIdx, publicIdx)
+	publicBlock := lockText[publicIdx:tokenIdx]
+	assert.NotContains(t, publicBlock, "token:")
+
+	// The github-token plugin's checkout step must carry exactly its own token.
+	appIdx := strings.Index(lockText, "name: Checkout agent plugin octo-org/private-plugin-app")
+	require.Greater(t, appIdx, tokenIdx)
+	tokenBlock := lockText[tokenIdx:appIdx]
+	assert.Contains(t, tokenBlock, "token: ${{ secrets.TOKEN_FOR_PLUGIN_1 }}")
+
+	// The github-app plugin's checkout step must reference its own minted token step.
+	appBlock := lockText[appIdx:]
+	assert.Contains(t, lockText, "id: plugin-app-token-2")
+	assert.Contains(t, appBlock, "token: ${{ steps.plugin-app-token-2.outputs.token }}")
+}
+
+// TestCompileWorkflowIssuesDistinctAppTokensForMultipleGitHubAppPlugins is a regression
+// test ensuring that when several plugins each declare their own github-app credential,
+// the compiler mints a separate token step per plugin and wires each checkout step to
+// its own minted step rather than reusing another plugin's app credentials or token.
+func TestCompileWorkflowIssuesDistinctAppTokensForMultipleGitHubAppPlugins(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "multi-plugin-app-tokens")
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+plugins:
+  - plugin: octo-org/private-plugin-app-a@`+testPluginSHA+`
+    github-app:
+      client-id: ${{ vars.APP_A_CLIENT_ID }}
+      private-key: ${{ secrets.APP_A_PRIVATE_KEY }}
+  - plugin: octo-org/private-plugin-app-b@`+testPluginSHA+`
+    github-app:
+      client-id: ${{ vars.APP_B_CLIENT_ID }}
+      private-key: ${{ secrets.APP_B_PRIVATE_KEY }}
+---
+
+Run the workflow.
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	lockText := string(lockContent)
+
+	mintAIdx := strings.Index(lockText, "id: plugin-app-token-0")
+	mintBIdx := strings.Index(lockText, "id: plugin-app-token-1")
+	require.GreaterOrEqual(t, mintAIdx, 0)
+	require.Greater(t, mintBIdx, mintAIdx)
+
+	mintABlock := lockText[mintAIdx:mintBIdx]
+	assert.Contains(t, mintABlock, "client-id: ${{ vars.APP_A_CLIENT_ID }}")
+	assert.Contains(t, mintABlock, "private-key: ${{ secrets.APP_A_PRIVATE_KEY }}")
+	assert.NotContains(t, mintABlock, "APP_B")
+
+	checkoutAIdx := strings.Index(lockText, "name: Checkout agent plugin octo-org/private-plugin-app-a")
+	checkoutBIdx := strings.Index(lockText, "name: Checkout agent plugin octo-org/private-plugin-app-b")
+	require.Greater(t, checkoutAIdx, mintBIdx)
+	require.Greater(t, checkoutBIdx, checkoutAIdx)
+
+	checkoutABlock := lockText[checkoutAIdx:checkoutBIdx]
+	assert.Contains(t, checkoutABlock, "token: ${{ steps.plugin-app-token-0.outputs.token }}")
+	assert.NotContains(t, checkoutABlock, "plugin-app-token-1")
+
+	checkoutBBlock := lockText[checkoutBIdx:]
+	assert.Contains(t, checkoutBBlock, "token: ${{ steps.plugin-app-token-1.outputs.token }}")
+	assert.NotContains(t, checkoutBBlock, "name: Checkout agent plugin octo-org/private-plugin-app-a")
+}
+
+// TestValidatePluginsMergePreservesAuthWhenHigherVersionHasNone is a regression test for a
+// bug where merging the same plugin path declared twice (for example once in the main
+// workflow with a per-plugin credential, and once via an import at a higher compatible
+// version without one) silently dropped the credential once the higher version won,
+// causing the generated checkout step to fall back to the workflow's default token
+// instead of the explicitly configured one.
+func TestValidatePluginsMergePreservesAuthWhenHigherVersionHasNone(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	data := &WorkflowData{
+		Plugins: []string{
+			"org/plugin@v1.2.0",
+			"org/plugin@v1.3.0",
+		},
+		PluginReferences: []PluginReference{
+			{Plugin: "org/plugin@v1.2.0", GitHubToken: "${{ secrets.ORG_PLUGIN_TOKEN }}"},
+			{Plugin: "org/plugin@v1.3.0"},
+		},
+	}
+
+	require.NoError(t, compiler.validatePlugins(data))
+	require.Len(t, data.PluginReferences, 1)
+	assert.Equal(t, "org/plugin@v1.3.0", data.PluginReferences[0].Plugin)
+	assert.Equal(t, "${{ secrets.ORG_PLUGIN_TOKEN }}", data.PluginReferences[0].GitHubToken,
+		"the credential from the lower-version declaration must survive the version merge")
+}
+
+// TestValidatePluginsMergeRejectsConflictingAuth is a regression test ensuring that when
+// the same plugin path is declared twice with two different credentials, validation fails
+// loudly instead of silently picking one of them (which could install with the wrong
+// identity or leak the discarded credential's intended scope).
+func TestValidatePluginsMergeRejectsConflictingAuth(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	data := &WorkflowData{
+		Plugins: []string{
+			"org/plugin@v1.2.0",
+			"org/plugin@v1.3.0",
+		},
+		PluginReferences: []PluginReference{
+			{Plugin: "org/plugin@v1.2.0", GitHubToken: "${{ secrets.TOKEN_A }}"},
+			{Plugin: "org/plugin@v1.3.0", GitHubToken: "${{ secrets.TOKEN_B }}"},
+		},
+	}
+
+	err := compiler.validatePlugins(data)
+	require.ErrorContains(t, err, `plugin "org/plugin" is declared with conflicting github-token/github-app credentials`)
+}

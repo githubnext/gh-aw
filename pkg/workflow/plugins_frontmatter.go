@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -91,6 +92,43 @@ func pluginRefsToStrings(refs []PluginReference) []string {
 	return plugins
 }
 
+// pluginRefAuthEqual reports whether a and b declare the same per-plugin credential.
+// Used to detect genuine conflicts when the same plugin is declared more than once
+// (for example once in the main workflow and once through an import) with different
+// github-token/github-app values.
+func pluginRefAuthEqual(a, b PluginReference) bool {
+	if a.GitHubToken != b.GitHubToken {
+		return false
+	}
+	return reflect.DeepEqual(a.GitHubApp, b.GitHubApp)
+}
+
+// pluginRefHasAuth reports whether ref declares a per-plugin github-token or github-app
+// credential.
+func pluginRefHasAuth(ref PluginReference) bool {
+	return ref.GitHubToken != "" || ref.GitHubApp != nil
+}
+
+// mergePluginRefAuth folds incoming's credential into target when the two declarations
+// of the same plugin path need to be combined into a single merged entry. If target has
+// no credential, it adopts incoming's. If both declare a credential, they must match,
+// otherwise the generated checkout step could silently use the wrong (or no) token for
+// this plugin depending on which duplicate declaration happened to be processed first.
+func mergePluginRefAuth(target *PluginReference, incoming PluginReference) error {
+	if !pluginRefHasAuth(incoming) {
+		return nil
+	}
+	if !pluginRefHasAuth(*target) {
+		target.GitHubToken = incoming.GitHubToken
+		target.GitHubApp = incoming.GitHubApp
+		return nil
+	}
+	if !pluginRefAuthEqual(*target, incoming) {
+		return fmt.Errorf("plugin %q is declared with conflicting github-token/github-app credentials; use the same credentials for every declaration", parseSkillRefSpec(target.Plugin).repoPath)
+	}
+	return nil
+}
+
 func mergeValidatedPluginRefs(refs []PluginReference) ([]PluginReference, error) {
 	merged := make([]PluginReference, 0, len(refs))
 	indexByPath := make(map[string]int, len(refs))
@@ -106,6 +144,9 @@ func mergeValidatedPluginRefs(refs []PluginReference) ([]PluginReference, error)
 
 		existing := parseSkillRefSpec(merged[index].Plugin)
 		if existing.ref == parsed.ref {
+			if err := mergePluginRefAuth(&merged[index], ref); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		if !semverutil.IsValid(existing.ref) || !semverutil.IsValid(parsed.ref) {
@@ -114,8 +155,11 @@ func mergeValidatedPluginRefs(refs []PluginReference) ([]PluginReference, error)
 		if !semverutil.IsCompatible(existing.ref, parsed.ref) {
 			return nil, fmt.Errorf("plugin %q is declared with incompatible semantic versions %q and %q", parsed.repoPath, existing.ref, parsed.ref)
 		}
+		if err := mergePluginRefAuth(&merged[index], ref); err != nil {
+			return nil, err
+		}
 		if semverutil.Compare(parsed.ref, existing.ref) > 0 {
-			merged[index] = ref
+			merged[index].Plugin = ref.Plugin
 		}
 	}
 
