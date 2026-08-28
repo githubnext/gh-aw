@@ -48,6 +48,7 @@ type WorkflowData struct {
 	FrontmatterFieldLines          map[string]int   // absolute 1-based line numbers of top-level frontmatter keys in the source file (populated by parser)
 	RawMarkdown                    string           // raw markdown body before include expansion, used for frontmatter hash computation without re-reading the file
 	Description                    string           // optional description rendered as comment in lock file
+	Intent                         string           // optional intent (durable outcome the workflow exists to achieve) rendered as comment in lock file
 	Docs                           string           // optional human-facing documentation URL preserved in lock metadata
 	Source                         string           // optional source field (owner/repo@ref/path) rendered as comment in lock file
 	Redirect                       string           // optional redirect field describing a moved workflow location

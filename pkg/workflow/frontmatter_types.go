@@ -345,7 +345,10 @@ type FrontmatterConfig struct {
 	// Core workflow fields
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
-	Emoji       string `json:"emoji,omitempty"` // Optional emoji to represent the workflow visually
+	// Intent captures the durable outcome the workflow exists to achieve
+	// (why it exists), as opposed to Description (what it does).
+	Intent string `json:"intent,omitempty"`
+	Emoji  string `json:"emoji,omitempty"` // Optional emoji to represent the workflow visually
 	// Engine accepts both a plain string engine name (e.g. "copilot") and an object-style
 	// configuration (e.g. {id: copilot, max-continuations: 2}).  Using any prevents
 	// JSON unmarshal failures when the engine is an object, which would otherwise cause
