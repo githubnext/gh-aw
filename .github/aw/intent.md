@@ -45,13 +45,13 @@ For example, an intent to surface actionable CI regressions can require complete
 
 ## Derive Evals from Intent
 
-Create representative positive scenarios from required effects and adversarial scenarios from no-op conditions. Turn each scenario into one observable, falsifiable YES/NO evaluation question about the agent output:
+Create representative positive and adversarial scenario fixtures from required effects and no-op conditions. A BinEval run evaluates one provided scenario and one `agent_output.json`; do not combine mutually exclusive scenarios into one unconditional question list. For each fixture, use a separate scenario-specific eval question about the observable agent output:
 
 - a novel, sufficiently evidenced actionable case produces the intended visible result;
 - a duplicate or known benign case produces no visible write;
 - an uncertain case investigates when appropriate but does not write.
 
-Keep eval questions binary and output-observable. Do not ask a judge whether the intent itself is good or whether the agent made sufficient effort.
+Keep eval questions binary and output-observable. If a shared eval suite must accept different scenarios, make applicability explicit and treat a scenario that was not provided as `UNKNOWN`, not as a failure. Do not ask a judge whether the intent itself is good or whether the agent made sufficient effort.
 
 ## Preserve Intent on Updates
 

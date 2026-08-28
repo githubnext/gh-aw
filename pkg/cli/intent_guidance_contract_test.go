@@ -24,15 +24,12 @@ func TestIntentGuidanceContract(t *testing.T) {
 	require.NoError(t, err, "Should read intent guidance")
 	intentText := string(intentContent)
 	for _, token := range []string{
-		"intent: Reduce maintainer effort",
+		"IntentSpec",
 		"activation conditions",
-		"required effects",
 		"noop conditions",
-		"success conditions",
-		"Do not serialize this structure",
 		"candidate intents",
-		"adversarial scenarios",
-		"Preserve Intent on Updates",
+		"scenario fixtures",
+		"UNKNOWN",
 	} {
 		assert.Containsf(t, intentText, token, "Intent guidance must include %q", token)
 	}

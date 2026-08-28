@@ -34,7 +34,7 @@ Before selecting a trigger or implementation, load [intent.md](intent.md) and de
 
 ### Phase 1b: Repository Survey and Intent Mining
 
-For maintenance or broad automation requests, run the bounded survey in [maintainer.md#survey-the-repository-before-choosing-a-strategy](maintainer.md#survey-the-repository-before-choosing-a-strategy). Separate observed signals from inferred strategy, derive evidence-backed candidate intents, and select and augment one before choosing a portfolio, trigger, or cadence. Ask only about policy choices that cannot be inferred.
+For maintenance or broad automation requests, run the bounded survey in [maintainer.md#survey-the-repository-before-choosing-a-strategy](maintainer.md#survey-the-repository-before-choosing-a-strategy). Record examined sources, observed signals, and confidence; if evidence is insufficient, stop and ask the user rather than inventing a portfolio. Separate observed signals from inferred strategy, derive evidence-backed candidate intents, and present competing candidates when none clearly dominates before selecting and augmenting one. Ask only about policy choices that cannot be inferred.
 
 ### Phase 2: Trigger
 
@@ -246,7 +246,7 @@ Before final output, run this internal self-check:
 - [ ] Skills and plugins are declared in frontmatter — no on-the-fly install steps or prompt-driven installation
 - [ ] `lsp:` is only used with `engine: copilot` (experimental; omit otherwise)
 - [ ] `evals:` questions are binary YES/NO and `safe-outputs:` is declared so `agent_output.json` exists
-- [ ] Evals, when used, cover both an intent-required effect and a counter-case
+- [ ] Evals, when used, cover both an intent-required effect and a counter-case through separate scenario fixtures or scenario-aware questions; do not require mutually exclusive outcomes from one run
 - [ ] For each third-party service/MCP integration, required secrets/env vars are listed
 - [ ] Auth guidance includes least-privilege token scope recommendations
 - [ ] For GHEC/GHES deployments, `engine.api-target` and GHES compatibility guidance are included when needed

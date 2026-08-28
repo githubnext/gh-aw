@@ -128,7 +128,7 @@ evals:
 
 ### Intent-derived scenarios
 
-When a workflow has an `intent:`, load [intent.md](intent.md) during design. Derive representative positive scenarios from its required effects and adversarial scenarios from its inverse/no-op conditions. For each scenario, write a separate question about an observable result:
+When a workflow has an `intent:`, load [intent.md](intent.md) during design. Derive representative positive and adversarial scenario fixtures from its required effects and inverse/no-op conditions. BinEval evaluates one provided fixture against one `agent_output.json`, so do not put mutually exclusive scenarios into one unconditional question list. For each fixture, write a scenario-specific question about an observable result:
 
 ```yaml
 evals:
@@ -140,7 +140,7 @@ evals:
     question: Does the agent output show that insufficient evidence produced no visible write action?
 ```
 
-Do not ask whether the intent is good or whether the agent tried hard. A question must still be a single, falsifiable YES/NO claim answerable from the output alone.
+If a question is shared across fixtures, state how the provided scenario makes it applicable and return `UNKNOWN` when that scenario was not provided; do not treat missing scenario evidence as `NO`. Do not ask whether the intent is good or whether the agent tried hard. A question must still be a single, falsifiable YES/NO claim answerable from the output alone.
 
 ### Good question checklist
 

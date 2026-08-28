@@ -158,6 +158,7 @@ Use the smallest trigger that satisfies the augmented intent. Treat the mappings
 | Backend schema/API review | `pull_request` with backend contract `paths:` and `add-comment` | [Backend review guidance](create-agentic-workflow-trigger-details.md#backend-review-guidance) |
 | PR analyzers deciding comment vs issue vs noop | `pull_request` + escalation logic | [PR analyzer escalation](create-agentic-workflow-trigger-details.md#pr-analyzer-escalation-guidance) |
 | Incident workflows | `workflow_run` / `deployment_status` with `create-issue` dedup | [Incident dedup-key templates](create-agentic-workflow-trigger-details.md#incident-dedup-key-templates-workflow_run-and-deployment_status) |
+| CI regressions tied to a pull request | `workflow_run` with PR-comment escalation; repository-wide or unowned failures use deduplicated `create-issue` | Keep the visible output attached to the affected PR when one is known; use an issue when no single owner can be identified |
 | Dependency-license and policy compliance | `pull_request` with manifest `paths:` | [Compliance review guidance](create-agentic-workflow-trigger-details.md#compliance-review-guidance) |
 | Coverage analysis | `pull_request` or CI-linked triggers with explicit fallback | [Coverage-analysis guidance](create-agentic-workflow-trigger-details.md#coverage-analysis-guidance) |
 
@@ -260,7 +261,7 @@ The markdown body should:
 - instruct the agent to call `noop` with a short reason when an inverse/no-op condition applies, including duplicates or insufficient evidence
 - stay concise and task-focused
 
-When `evals:` are appropriate, derive positive scenarios from required effects and adversarial scenarios from inverse/no-op conditions as described in [intent.md](intent.md).
+When `evals:` are appropriate, derive separate positive and adversarial scenario fixtures from required effects and inverse/no-op conditions as described in [intent.md](intent.md). Each BinEval run receives one fixture; phrase questions for that fixture, or explicitly return `UNKNOWN` when a shared question's scenario is not provided rather than mixing mutually exclusive assertions.
 
 When the workflow generates reports or markdown output, follow [report.md#report-style-and-structure](report.md#report-style-and-structure) and [report.md#workflow-run-references](report.md#workflow-run-references).
 
