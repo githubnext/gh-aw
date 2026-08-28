@@ -210,6 +210,7 @@ var securityConfigFiles = []string{
 	"CONTRIBUTING.md",    // Contribution guidelines; modifying could mislead contributors or agents
 	"SECURITY.md",        // Security policy; tampering could suppress vulnerability disclosure
 	"CODE_OF_CONDUCT.md", // Community conduct policy
+	"CHANGELOG.md",       // Release history; changes should receive human scrutiny
 }
 
 // allManifestFilesBaseCache caches the base (no-extra) result of getAllManifestFiles.

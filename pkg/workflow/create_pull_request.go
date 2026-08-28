@@ -122,6 +122,7 @@ type CreatePullRequestsConfig struct {
 }
 
 // parseCreatePullRequestsConfig handles only create-pull-request (singular) configuration.
+//
 //nolint:funlen // Large config parser keeps all create-pull-request validation in one place for clarity.
 func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *CreatePullRequestsConfig {
 	// Check for singular form only
