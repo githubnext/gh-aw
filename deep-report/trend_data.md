@@ -268,3 +268,12 @@ Next cycle checks: (a) does the codex fleet-wide fix land and restore the 10 aff
 - GitHub API Consumption: 41 runs today (82.93% success), 14,867 REST calls, well under quota; PR Sous Chef top consumer (4,821 calls, ~32% of hourly ceiling).
 - Prompt Clustering: infra/container/MCP PR cluster merge rate 65.2% vs 80.9% baseline (-15.7pts), 57% of its non-merged PRs close with zero comments/reviews (1,043-PR sample) — corroborates #55466.
 - GitHub MCP Structural Analysis: avg tool usefulness 3.7/5 stable day-over-day; list_label and list_code_scanning_alerts remain highest response-size-variance tools.
+
+## 2026-08-28T03:26Z
+
+- **First audit-workflows run in 53 days** (#56459): fleet raw success 69.75% (279/400), 70.28% excl. intentional-failure tests, 75.5% excl. both that and the newly-identified bot-gate false-positive cluster. Today's 400-run volume sits in normal range but the 53-day gap means no trend confirmation of whether the bot-gate issue is new or has been depressing the rate the whole time.
+- **Detection Analysis** (#56468): 99.3% detection-enabled coverage (286/288), 0 misconfigured workflows, 2nd consecutive daily entry (started 2026-08-25) — 5 more needed before a 30-day trend chart is available.
+- **Lockfile Statistics** (#56445): 295 workflows (was 286 on 08-26), 42.9MB total, engine mix copilot 50%/claude 21%/codex 16%/pi 7% — broadly stable vs prior cycles.
+- **Daily Code Metrics** (#56435): first baseline — 4.1M LOC, 7,597 files, quality score 58/100 (vs 72/100 baseline noted 08-25 cycle in a different metric run — methodology/scope likely differs, not a real regression; watch next cycle for consistency).
+- **Copilot Agent Analysis** (#56432): 2026-08-26 window — 31 PRs (down from 78 on 08-25), 77.4% success (down from 87.2%), 4h37m avg duration (up from 2h19m) — filed as issue #7 this cycle, watch for 08-27/08-28 data to confirm direction.
+- **Copilot PR Prompt Analysis** (#56452, 30-day window): 83.0% merge rate, 1000 PRs sampled. Conciseness signal reconfirmed: merged-PR prompts average ~128 words vs ~209 for closed PRs (~63% gap), consistent with prior cycles' finding.
