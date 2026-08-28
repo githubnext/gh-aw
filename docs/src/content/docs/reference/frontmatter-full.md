@@ -15955,9 +15955,10 @@ safe-outputs:
     # legacy request_review spelling is also accepted.
     protected-files: "blocked"
 
-    # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
-    # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
+    # 'fallback-to-issue', 'request-review', or the legacy 'request_review' at
+    # runtime. Use in reusable workflow_call workflows to parameterize the policy per
+    # caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -15973,8 +15974,9 @@ safe-outputs:
       # instead of pushing. The legacy request_review spelling is also accepted.
       policy: "blocked"
 
-      # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
-      # 'fallback-to-issue' at runtime.
+      # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
+      # 'fallback-to-issue', 'request-review', or the legacy 'request_review' at
+      # runtime.
       policy: "example-value"
 
       # List of filenames or path prefixes to remove from the default protected-file

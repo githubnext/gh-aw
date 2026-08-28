@@ -9970,7 +9970,7 @@
                     {
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterize the policy per caller."
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', 'fallback-to-issue', 'request-review', or the legacy 'request_review' at runtime. Use in reusable workflow_call workflows to parameterize the policy per caller."
                     },
                     {
                       "type": "object",
@@ -9986,7 +9986,7 @@
                             {
                               "type": "string",
                               "pattern": "^\\$\\{\\{.*\\}\\}$",
-                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime."
+                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', 'fallback-to-issue', 'request-review', or the legacy 'request_review' at runtime."
                             }
                           ]
                         },
