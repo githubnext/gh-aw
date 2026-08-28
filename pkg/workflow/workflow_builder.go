@@ -126,12 +126,15 @@ func (c *Compiler) buildInitialWorkflowData(
 				workflowBuilderLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
 				continue
 			}
-			importedConfigs, _, err := ParseCheckoutConfigs(raw)
+			importedConfigs, importedSkipDefault, err := ParseCheckoutConfigs(raw)
 			if err != nil {
 				workflowBuilderLog.Printf("Failed to parse imported checkout configs: %v", err)
 				continue
 			}
 			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
+			if importedSkipDefault {
+				workflowData.CheckoutSkipDefault = true
+			}
 		}
 	}
 
