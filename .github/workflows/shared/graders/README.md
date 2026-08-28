@@ -34,7 +34,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 | 7 | `recurrence-laminarity` | Canonical states | Implemented |
 | 8 | `recurrence-trapping-time` | Canonical states | Implemented |
 | 9 | `recurrence-rate` | Canonical states | Implemented |
-| 10 | `event-entropy-rate` | Event sequence only | Not started |
+| 10 | `event-entropy-rate` | Event sequence only | Implemented |
 | 11 | `lempel-ziv-trajectory-complexity` | Event sequence only | Not started |
 
 ## Tier 2 — needs explicit constraints/states/provenance/objectives
