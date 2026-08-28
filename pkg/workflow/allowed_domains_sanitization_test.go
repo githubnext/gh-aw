@@ -459,7 +459,6 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			require.NoError(t, err, "computeAllowedDomainsForSanitization should not return an error for valid test data")
 			if len(tt.expectedDomains) == 0 {
 				require.Empty(t, domainsStr, "expected no domains without network configuration")
-				return
 			}
 
 			// Verify expected domains are present (substring match is fine here since domain names
