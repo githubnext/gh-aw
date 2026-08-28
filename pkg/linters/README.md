@@ -10,6 +10,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `appendoneelement` — reports `append(s, []T{x}...)` calls where a single-element slice literal is spread and can be simplified to `append(s, x)`.
 - `bytescomparestring` — reports `string(a) == string(b)` and `string(a) != string(b)` comparisons where `a` and `b` are `[]byte` values; use `bytes.Equal(a, b)` for `==` and `!bytes.Equal(a, b)` for `!=`.
 - `bytesbufferstring` — reports `string(buf.Bytes())` calls where `buf` is a `bytes.Buffer` value receiver, suggesting `buf.String()` instead.
+- `closereturn` — reports functions that return immediately after a successful resource acquisition without deferring the matching `Close()` call.
 - `contextcancelnotdeferred` — reports context cancel functions that are called directly instead of deferred.
 - `ctxbackground` — reports `context.Background()` calls inside functions that already receive a `context.Context` parameter.
 - `deferinloop` — reports `defer` statements placed directly inside `for`/`range` loop bodies, which execute when the enclosing function returns rather than each iteration and can cause resource leaks.
