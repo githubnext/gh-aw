@@ -103,6 +103,9 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 
 	// Add intent comment if provided
 	if data.Intent != "" {
+		if data.Description != "" {
+			yaml.WriteString("#\n")
+		}
 		cleanIntent := stringutil.StripANSI(data.Intent)
 		intentLines := strings.SplitSeq(strings.TrimSpace(cleanIntent), "\n")
 		first := true
@@ -112,7 +115,8 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 				first = false
 				continue
 			}
-			fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line))
+			// Indent continuation lines so they stay visually attached to the intent block
+			fmt.Fprintf(yaml, "#         %s\n", strings.TrimSpace(line))
 		}
 	}
 
