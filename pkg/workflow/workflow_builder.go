@@ -101,12 +101,14 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.CheckoutConfigs = toolsResult.parsedFrontmatter.CheckoutConfigs
 		workflowData.CheckoutDisabled = toolsResult.parsedFrontmatter.CheckoutDisabled
 		workflowData.CheckoutExplicitlyDisabled = toolsResult.parsedFrontmatter.CheckoutExplicitlyDisabled
+		workflowData.CheckoutSkipDefault = toolsResult.parsedFrontmatter.CheckoutSkipDefault
 	} else if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
 		if checkoutValue, ok := rawCheckout.(bool); ok && !checkoutValue {
 			workflowData.CheckoutDisabled = true
 			workflowData.CheckoutExplicitlyDisabled = true
-		} else if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
+		} else if configs, skipDefaultCheckout, err := ParseCheckoutConfigs(rawCheckout); err == nil {
 			workflowData.CheckoutConfigs = configs
+			workflowData.CheckoutSkipDefault = skipDefaultCheckout
 		}
 	}
 
@@ -124,7 +126,7 @@ func (c *Compiler) buildInitialWorkflowData(
 				workflowBuilderLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
 				continue
 			}
-			importedConfigs, err := ParseCheckoutConfigs(raw)
+			importedConfigs, _, err := ParseCheckoutConfigs(raw)
 			if err != nil {
 				workflowBuilderLog.Printf("Failed to parse imported checkout configs: %v", err)
 				continue

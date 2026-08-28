@@ -59,6 +59,7 @@ checkout:
 | `lfs` | boolean | Download Git LFS objects. |
 | `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
 | `force-clean-git-credentials` | boolean | When `true`, the checkout step is generated with `persist-credentials: true` and followed by a dedicated cleanup step that scrubs both repo and submodule git credentials. Use this for submodule-heavy or sparse checkouts where the default `persist-credentials: false` post-step cleanup fails. See [Cleaning Submodule Credentials](#cleaning-submodule-credentials). |
+| `enabled` | boolean | Defaults to `true`. Set to `false` on the default entry (no `repository`/`path`) to skip only the automatic workflow-repository checkout while keeping other configured checkouts. See [Target-Only Checkout](#target-only-checkout-enabled-false). |
 
 ## Fetching Additional Refs
 
@@ -123,6 +124,27 @@ checkout: false
 ```
 
 This is equivalent to omitting the checkout step from the agent job. Custom dev-mode steps (such as "Checkout actions folder") are unaffected.
+
+## Target-Only Checkout (`enabled: false`)
+
+For sidecar workflows that operate on a target repository and don't need the repository hosting the workflow itself, set `enabled: false` on the default entry (the entry with no `repository` and no `path`) to skip only the automatic workflow-repository checkout. Other configured checkout entries are still processed normally, and the "Checkout PR branch" step is also suppressed since it targets the workflow repository:
+
+```yaml wrap
+checkout:
+  - enabled: false
+  - repository: octo-org/target-repository
+    path: target
+    github-app:
+      client-id: ${{ vars.TARGET_APP_CLIENT_ID }}
+      private-key: ${{ secrets.TARGET_APP_PRIVATE_KEY }}
+      owner: octo-org
+      repositories:
+        - target-repository
+```
+
+This checks out only `octo-org/target-repository`, using the configured GitHub App token exclusively for that checkout. Since the workflow repository is never checked out, workflows that don't otherwise need their own repository content can omit `contents: read` from `permissions:`.
+
+Unlike `checkout: false`, which disables checkout entirely, `enabled: false` on the default entry disables only the implicit workflow-repository checkout — any other entries in the `checkout:` list are unaffected.
 
 ## `pull_request_target` Checkout
 

@@ -63,6 +63,29 @@ strict: false
 			expectedHasDevModeCheckout: true,
 			description:                "When checkout is not set, the default checkout step is included",
 		},
+		{
+			name: "default entry enabled: false skips workflow-repository checkout but keeps target checkout",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: read
+  pull-requests: read
+tools:
+  github:
+    toolsets: [issues]
+engine: claude
+checkout:
+  - enabled: false
+  - repository: octo-org/target-repository
+    path: target
+strict: false
+---`,
+			expectedHasDefaultCheckout: false,
+			expectedHasDevModeCheckout: true,
+			description:                "enabled: false on the default entry should skip only the workflow-repository checkout, not the target checkout",
+		},
 	}
 
 	for _, tt := range tests {
@@ -98,6 +121,10 @@ strict: false
 
 			assert.Equal(t, tt.expectedHasDefaultCheckout, hasDefaultCheckout, "%s: default checkout presence mismatch", tt.description)
 			assert.Equal(t, tt.expectedHasDevModeCheckout, hasDevModeCheckout, "%s: dev-mode checkout should not be affected", tt.description)
+
+			if strings.Contains(tt.frontmatter, "octo-org/target-repository") {
+				assert.Contains(t, agentSection, "octo-org/target-repository", "%s: target-only checkout should still check out the configured target repository", tt.description)
+			}
 		})
 	}
 }

@@ -164,7 +164,7 @@ func TestErrorMessageQuality(t *testing.T) {
 		{
 			name: "checkout field type error includes example",
 			testFunc: func() error {
-				_, err := ParseCheckoutConfigs(map[string]any{"lfs": "yes"})
+				_, _, err := ParseCheckoutConfigs(map[string]any{"lfs": "yes"})
 				return err
 			},
 			shouldContain: []string{
