@@ -3,11 +3,20 @@ package workflow
 import "strings"
 
 func renderStepForRunner(step, runsOn string) string {
-	if strings.TrimSpace(strings.TrimPrefix(runsOn, "runs-on:")) != "windows-latest" || !strings.Contains(step, "run:") {
+	if strings.TrimSpace(strings.TrimPrefix(runsOn, "runs-on:")) != "windows-latest" || !containsRunField(step) {
 		return step
 	}
 
 	return setBashShell(prefixShellScriptWithBash(step))
+}
+
+func containsRunField(step string) bool {
+	for line := range strings.SplitSeq(step, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "run:") {
+			return true
+		}
+	}
+	return false
 }
 
 func prefixShellScriptWithBash(step string) string {
@@ -18,7 +27,7 @@ func prefixShellScriptWithBash(step string) string {
 		if run, ok := strings.CutPrefix(commandLine, "run:"); ok {
 			commandLine = strings.TrimSpace(run)
 		}
-		if commandLine == "" || strings.HasPrefix(commandLine, "bash ") || strings.HasPrefix(commandLine, "sh ") {
+		if commandLine == "" {
 			continue
 		}
 

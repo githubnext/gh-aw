@@ -281,6 +281,12 @@ func TestRenderStepForRunner(t *testing.T) {
 		t.Fatalf("Windows step did not explicitly select Bash:\n%s", got)
 	}
 
+	quotedPath := "      - name: Run script\n        run: './my script.sh' --verbose\n"
+	got = renderStepForRunner(quotedPath, "windows-latest")
+	if !strings.Contains(got, "        run: bash './my script.sh' --verbose\n") {
+		t.Fatalf("Windows step did not invoke a quoted shell script with Bash:\n%s", got)
+	}
+
 	withShell := "      - name: Run script\n        run: ./script.sh\n        shell: pwsh\n"
 	got = renderStepForRunner(withShell, "runs-on: windows-latest")
 	if !strings.Contains(got, "        shell: pwsh\n") {
