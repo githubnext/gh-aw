@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,10 +52,10 @@ func TestEnabledEnclaveToolsAndTimeout(t *testing.T) {
 		wantTools             []string
 		wantTimeout           int
 	}{
-		{"script only defaults cover timing bucket", true, false, 0, 0, []string{"enclave_run_script"}, 630},
-		{"agent only defaults cover timing bucket", false, true, 0, 0, []string{"enclave_run_agent"}, 630},
-		{"45 second custom timeout covers timing bucket", true, false, 45, 0, []string{"enclave_run_script"}, 630},
-		{"540 second maximum timeout covers timing bucket", false, true, 0, 540, []string{"enclave_run_agent"}, 630},
+		{"script only defaults cover timing bucket", true, false, 0, 0, []string{"enclave_run_script"}, 4860},
+		{"agent only defaults cover timing bucket", false, true, 0, 0, []string{"enclave_run_agent"}, 4860},
+		{"45 second custom timeout covers timing bucket", true, false, 45, 0, []string{"enclave_run_script"}, 4860},
+		{"4740 second maximum timeout covers timing bucket", false, true, 0, 4740, []string{"enclave_run_agent"}, 4860},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -164,6 +165,58 @@ func TestBuildAWFConfigJSONEnclaves(t *testing.T) {
 	assert.NotContains(t, configJSON, "boundedAgents")
 }
 
+func TestBuildAWFConfigJSONEnclaveGitHubIssues(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	configJSON, err := BuildAWFConfigJSON(AWFCommandConfig{
+		EngineName: "copilot", WorkflowData: data,
+	})
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+	enclaves := config["enclaves"].([]any)
+	agent := enclaves[0].(map[string]any)["agent"].(map[string]any)
+	assert.Equal(t, map[string]any{"cli": enclaveGitHubIssuesProfile}, agent["github"])
+}
+
+func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	data.Enclaves[0].Repos = append(data.Enclaves[0].Repos, &EnclaveRepository{
+		Repo: "octo-org/another-private-service", Sensitivity: "internal",
+	})
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "supports at most one non-public repository")
+
+	data.Enclaves[0].Repos[1].Sensitivity = "public"
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveGitHubIssuesRepositoryLimitScopesToGitHubEntry(t *testing.T) {
+	data := enclaveWorkflowData(true, true, 30, 120)
+	data.Enclaves[0].Repos = []*EnclaveRepository{{
+		Repo: "octo-org/private-a", Sensitivity: "confidential",
+	}}
+	data.Enclaves[1].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
+	data.Enclaves[1].Repos = []*EnclaveRepository{{
+		Repo: "octo-org/private-b", Sensitivity: "confidential",
+	}}
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveGitHubIssuesMinVersion)
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Version: string(constants.MCPGEnclaveGitHubIssuesMinVersion),
+	}
+
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveGitHubIssuesMode(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	data.Enclaves[0].Agent.GitHub.CLI = "read-only"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `must be "issues-read-v1"`)
+}
+
 func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	data := enclaveWorkflowData(true, true, 45, 180)
 	ensureDefaultMCPGatewayConfig(data)
@@ -176,17 +229,36 @@ func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	assert.Contains(t, generated, `"awf-enclave": {`)
 	assert.Contains(t, generated, `"url": "http://awf-enclave-mcp:8080/mcp"`)
 	assert.Contains(t, generated, `"connectTimeout": 120`)
-	assert.Contains(t, generated, `"toolTimeout": 630`)
+	assert.Contains(t, generated, `"toolTimeout": 4860`)
 	assert.Contains(t, generated, `"tools": ["enclave_run_script", "enclave_run_agent"]`)
 	assert.Contains(t, generated, `Bearer \${AWF_ENCLAVE_MCP_CAPABILITY}`)
 	assert.Contains(t, generated, `openssl rand -hex 32`)
 	assert.Contains(t, generated, `::add-mask::${AWF_ENCLAVE_MCP_CAPABILITY}`)
+	assert.Contains(t, generated, `printf '%s=%s\n' MCP_GATEWAY_API_KEY "$MCP_GATEWAY_API_KEY"`)
 	assert.Contains(t, generated, `--network bridge`)
 	assert.Contains(t, generated, `--label com.github.gh-aw.mcpg.run=`)
 	assert.Contains(t, generated, `${AWF_ENCLAVE_MCP_GATEWAY_IDENTITY}`)
 	assert.Contains(t, generated, `-e AWF_ENCLAVE_MCP_CAPABILITY`)
 	assert.Contains(t, generated, `AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT="http://localhost:${MCP_GATEWAY_PORT}/mcp/awf-enclave"`)
+	assert.Contains(t, generated, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
+	assert.NotContains(t, generated, `printf '%s=%s\n' GH_AW_MCP_DEFERRED_SERVERS`)
+	assert.NotContains(t, generated, `"required": false`)
 	assert.NotRegexp(t, `AWF_ENCLAVE_MCP_CAPABILITY=[0-9a-f]{64}`, generated)
+	gatewayCommand := strings.Index(generated, `export MCP_GATEWAY_DOCKER_COMMAND=`)
+	require.Greater(t, gatewayCommand, -1)
+	for _, name := range optionalPRHeadEnvVars {
+		emptyDefault := `export ` + name + `="${` + name + `:-}"`
+		assert.Contains(t, generated, emptyDefault)
+		assert.Less(t, strings.Index(generated, emptyDefault), gatewayCommand)
+	}
+	gatewayKeyMask := strings.Index(generated, `::add-mask::${MCP_GATEWAY_API_KEY}`)
+	gatewayKeyHandoff := strings.Index(generated, `printf '%s=%s\n' MCP_GATEWAY_API_KEY "$MCP_GATEWAY_API_KEY"`)
+	deferred := strings.Index(generated, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
+	gatewayRunner := strings.Index(generated, `| "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"`)
+	require.Greater(t, gatewayKeyMask, -1)
+	require.Greater(t, gatewayKeyHandoff, gatewayKeyMask)
+	require.Greater(t, deferred, -1)
+	require.Greater(t, gatewayRunner, deferred)
 
 	excluded := ComputeAWFExcludeEnvVarNames(data, nil)
 	assert.Contains(t, excluded, enclaveMCPCapabilityEnv)
@@ -224,11 +296,24 @@ Use the enclave script executor.
 	lock := string(lockBytes)
 
 	gateway := strings.Index(lock, "- name: Start MCP Gateway")
+	gatewayKeyHandoff := strings.Index(lock, `printf '%s=%s\n' MCP_GATEWAY_API_KEY "$MCP_GATEWAY_API_KEY"`)
+	deferred := strings.Index(lock, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
 	awf := strings.Index(lock, "awf --config")
 	require.Greater(t, gateway, -1)
+	require.Greater(t, gatewayKeyHandoff, gateway)
+	require.Greater(t, deferred, gateway)
 	require.Greater(t, awf, -1)
 	assert.Less(t, gateway, awf)
+	assert.Less(t, gatewayKeyHandoff, awf)
+	assert.Less(t, deferred, awf)
 	assert.Contains(t, lock, `"awf-enclave"`)
+	assert.NotContains(t, lock, `"required": false`)
+	assert.Contains(t, lock, "--exclude-env MCP_GATEWAY_API_KEY")
+	if mountStart := strings.Index(lock, "- name: Mount MCP servers as CLIs"); mountStart >= 0 {
+		mountEnd := strings.Index(lock[mountStart:], "\n      - name:")
+		require.Positive(t, mountEnd)
+		assert.NotContains(t, lock[mountStart:mountStart+mountEnd], "steps.start-mcp-gateway.outputs.gateway-api-key")
+	}
 	assert.Contains(t, lock, `\"enclaves\":[{\"repos\":[{\"repo\":\"octo-org/private-service\",\"sensitivity\":\"confidential\"}],\"script\":{},\"timeout\":45}]`)
 	assert.NotContains(t, lock, "Start Enclave MCP")
 	assert.NotContains(t, lock, "start_enclave")

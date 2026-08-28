@@ -21,6 +21,7 @@ network:
     - defaults
     - github
     - go
+    - node
 
 imports:
   - shared/reporting.md

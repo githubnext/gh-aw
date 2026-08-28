@@ -82,6 +82,8 @@ func populateRepositoryPackageManifest(manifest *repositoryPackageManifest, root
 		return nil, err
 	}
 	warnings = append(warnings, metadataWarnings...)
+	addPackageManifestLog.Printf("Parsed manifest metadata from %s: includes=%d files=%d resources=%d skills=%d agents=%d",
+		manifestPath, len(manifest.Includes), len(manifest.Files), len(manifest.Resources), len(manifest.Skills), len(manifest.Agents))
 	return warnings, nil
 }
 
@@ -111,22 +113,13 @@ func populateRepositoryPackageManifestVersions(manifest *repositoryPackageManife
 }
 
 func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) ([]string, error) {
-	var warnings []string
-	if description, ok := stringValue(root["description"]); ok {
-		manifest.Description = description
-		if len(description) > 255 {
-			warnings = append(warnings, fmt.Sprintf("Manifest %s description exceeds the 255-character marketplace display limit", manifestPath))
-		}
-	}
-
+	warnings := populateRepositoryPackageManifestDescription(manifest, root, manifestPath)
 	if emoji, ok := stringValue(root["emoji"]); ok {
 		manifest.Emoji = emoji
 	}
-
 	if license, ok := stringValue(root["license"]); ok {
 		manifest.License = license
 	}
-
 	if includesValue, ok := root["includes"]; ok {
 		includes, includeWarnings, err := extractManifestIncludes(includesValue, manifestPath)
 		if err != nil {
@@ -135,7 +128,6 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		manifest.Includes = includes
 		warnings = append(warnings, includeWarnings...)
 	}
-
 	if filesValue, ok := root["files"]; ok {
 		files, fileWarnings := extractManifestFiles(filesValue, manifestPath)
 		manifest.Files = files
@@ -145,7 +137,6 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 			warnings = append(warnings, "Codemod suggestion:\n"+formatIncludesCodemodSuggestion(codemodManifestFilesToIncludes(files)))
 		}
 	}
-
 	if resourcesValue, ok := root["resources"]; ok {
 		resources, err := extractManifestResources(resourcesValue, manifestPath)
 		if err != nil {
@@ -153,19 +144,16 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		}
 		manifest.Resources = resources
 	}
-
 	if skillsValue, ok := root["skills"]; ok {
 		skills, skillWarnings := extractManifestSkillDirs(skillsValue, manifestPath)
 		manifest.Skills = skills
 		warnings = append(warnings, skillWarnings...)
 	}
-
 	if agentsValue, ok := root["agents"]; ok {
 		agents, agentWarnings := extractManifestAgentFiles(agentsValue, manifestPath)
 		manifest.Agents = agents
 		warnings = append(warnings, agentWarnings...)
 	}
-
 	if configValue, ok := root["config"]; ok {
 		warnings = append(warnings, "Using experimental feature: config")
 		bootstrap, err := extractManifestConfig(configValue, manifestPath)
@@ -174,8 +162,17 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		}
 		manifest.Bootstrap = bootstrap
 	}
-
 	return warnings, nil
+}
+
+func populateRepositoryPackageManifestDescription(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) []string {
+	if description, ok := stringValue(root["description"]); ok {
+		manifest.Description = description
+		if len(description) > 255 {
+			return []string{fmt.Sprintf("Manifest %s description exceeds the 255-character marketplace display limit", manifestPath)}
+		}
+	}
+	return nil
 }
 
 // validateUniqueManifestInstallDestinations rejects manifests where two entries would be
@@ -185,6 +182,7 @@ func validateUniqueManifestInstallDestinations(installables []resolvedPackageIns
 	for _, installable := range installables {
 		key := strings.ToLower(installable.DestinationPath)
 		if previous, exists := seen[key]; exists {
+			addPackageManifestLog.Printf("Rejecting manifest %s: duplicate install destination %q for entries %q and %q", manifestPath, installable.DestinationPath, previous, installable.SourcePath)
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: includes entries %q and %q both install to %q. Each entry must have a unique destination; rename one of the destinations", manifestPath, previous, installable.SourcePath, installable.DestinationPath)
 		}
 		seen[key] = installable.SourcePath
@@ -232,6 +230,7 @@ func validateUniqueManifestWorkflowFilenames(installables []resolvedPackageInsta
 			continue
 		}
 		if previous, exists := seen[key]; exists {
+			addPackageManifestLog.Printf("Rejecting manifest %s: duplicate workflow filename %q for entries %q and %q", manifestPath, filenameWithoutExt, previous, installPath)
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q. Filenames must be unique across a package; rename one of the workflow files. Example:\nfiles:\n  - workflows/%s.md\n  - workflows/%s-2.md", manifestPath, filenameWithoutExt, previous, installPath, filenameWithoutExt, filenameWithoutExt)
 		}
 		seen[key] = installPath
