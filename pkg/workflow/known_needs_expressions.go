@@ -103,7 +103,7 @@ func knownNeedsOutputNames(jobConfig any) []string {
 	}
 	outputsMap, ok := outputsField.(map[string]any)
 	if !ok {
-		return nil
+		return defaultOutputs
 	}
 	outputs := make([]string, 0, len(outputsMap))
 	for output := range outputsMap {
