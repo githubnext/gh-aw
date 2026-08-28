@@ -9,7 +9,7 @@ var maintenanceConditionsLog = logger.New("workflow:maintenance_conditions")
 // empty string option, since actionlint rejects empty strings as workflow_dispatch
 // choice options and requires the default to be one of the declared options.
 // The workflow_call "operation" input remains a plain string with an empty-string
-// default (not subject to the choice/options restriction), so both '' and this
+// default (not subject to the choice/options restriction), so both ” and this
 // sentinel value are treated as "no operation" throughout the generated conditions.
 const maintenanceNoOperationValue = "none"
 
