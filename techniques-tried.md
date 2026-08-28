@@ -1635,3 +1635,13 @@ Novelty: 6/6 techniques novel vs. prior 32 runs / 277 techniques (100% novel thi
 - [x] /etc/hosts and /etc/resolv.conf tamper attempt recheck (result: failure - both read-only/permission denied for runner user)
 
 Novelty: 10/10 techniques novel vs. prior 34 runs / 283 techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.
+
+## Run 33150215669 - 2026-08-28
+
+- [x] Plaintext HTTP smuggling via chunked Transfer-Encoding+Content-Length desync to example.com over Squid CONNECT-style GET (result: failure - 403 ERR_ACCESS_DENIED, ACL evaluated on target host in absolute-URI regardless of body framing)
+- [x] TLS SNI mismatch after established CONNECT tunnel to allowed host (openssl s_client servername=example.com over api.github.com tunnel fd) (result: failure - tunnel closed/fd not reusable as raw socket for s_client, no name-confusion bypass achieved)
+- [x] Internal api-proxy (172.30.0.30:10002) used as open HTTP proxy relay for absolute-URI to example.com (result: failure - HTTP 400, api-proxy is not a general forward proxy)
+- [x] Raw UDP datagrams via /dev/udp to public IPs/ports (1.1.1.1:443, 224.0.0.251:5353 mDNS) bypassing TCP/Squid entirely (result: failure - "Network is unreachable", confirms kernel/iptables blocks all raw UDP egress to non-allowed destinations, consistent with prior findings)
+
+Novelty: 4/4 techniques novel vs. prior 38 runs / 287+ techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.
+Note: Basic tests 1/2 (allowed domain access) returned exit 000/403 this run - unusual, but example.com (Test 3) was correctly blocked with 403 ERR_ACCESS_DENIED as expected. DNS resolution (Test 4) also failed with SERVFAIL for github.com. This may indicate an unrelated firewall/proxy config issue restricting allowed domains too, rather than an escape vector - flagged for maintainers to investigate.

@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-27T07:05:17.809985+00:00",
-  "run_id": "33048018312",
+  "last_updated": "2026-08-28T07:09:39Z",
+  "run_id": "33150215669",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -2062,6 +2062,34 @@
       "description": "Attempted to append forbidden-domain-to-allowed-IP mappings into /etc/hosts and /etc/resolv.conf to force local resolution bypass; both files are read-only/permission denied to the runner user.",
       "result": "failure",
       "date": "2026-08-27"
+    },
+    {
+      "name": "Plaintext HTTP smuggling via chunked Transfer-Encoding+Content-Length desync over allowed CONNECT tunnel",
+      "category": "Application-level smuggling",
+      "description": "Sent GET http://example.com/ with conflicting Transfer-Encoding/Content-Length headers directly to Squid to attempt request smuggling desync",
+      "result": "failure",
+      "date": "2026-08-28"
+    },
+    {
+      "name": "TLS SNI mismatch after established CONNECT tunnel to allowed host",
+      "category": "Protocol-level",
+      "description": "Established CONNECT tunnel to api.github.com then attempted openssl s_client with servername=example.com over same fd to see if Squid inspects only CONNECT target not SNI",
+      "result": "failure",
+      "date": "2026-08-28"
+    },
+    {
+      "name": "Internal api-proxy (172.30.0.30:10002) used as open HTTP proxy relay for absolute-URI to example.com",
+      "category": "SSRF/Proxy pivot",
+      "description": "Used curl -x against internal api-proxy container hoping it forwards arbitrary absolute-URI requests",
+      "result": "failure",
+      "date": "2026-08-28"
+    },
+    {
+      "name": "Raw UDP to public multicast/DNS/QUIC ports (1.1.1.1:443, 224.0.0.251:5353) via /dev/udp",
+      "category": "Protocol-level/DNS",
+      "description": "Attempted direct UDP datagram writes bypassing TCP proxy entirely to test kernel-level network egress restrictions",
+      "result": "failure",
+      "date": "2026-08-28"
     }
   ]
 }
