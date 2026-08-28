@@ -134,7 +134,7 @@ describe("pi_models_json.cjs", () => {
       expect(piModelsJson.resolvePiApiForProvider("github")).toBe("openai-completions");
     });
 
-    it("keeps the anthropic provider on openai-completions (gateway default)", () => {
+    it("keeps the anthropic provider on openai-completions (AWF gateway's normalized wire protocol, distinct from native anthropic-messages)", () => {
       expect(piModelsJson.resolvePiApiForProvider("anthropic")).toBe("openai-completions");
     });
   });

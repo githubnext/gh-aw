@@ -110,6 +110,11 @@ function buildModelsJSON(options) {
  *
  * Other providers (github/copilot, anthropic) keep their existing chat-completions-
  * style gateway protocol, which is unaffected by this OpenAI-specific restriction.
+ * The AWF api-proxy gateway (used here) exposes a normalized chat-completions-style
+ * surface for every backend it fronts, including anthropic — this is a distinct
+ * protocol layer from the native "anthropic-messages" api used in no-firewall mode
+ * (see pi_agent_core_driver.cjs's buildModel), so anthropic intentionally falls
+ * through to "openai-completions" here rather than "anthropic-messages".
  *
  * @param {string} provider - normalized GH_AW_LLM_PROVIDER value (e.g. "openai", "anthropic", "github")
  * @returns {string}
