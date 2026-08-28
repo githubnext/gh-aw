@@ -1,42 +1,38 @@
 # Formal Notes: intent-attribution-agent-governance.md
 
-**Last formalized**: 2026-08-18-15-43-32
-**Notation**: Z3-style guard conjunction / propositional logic
-**Issue**: (see repository issue tracker for this run's created issue)
+**Last formalized**: 2026-08-28-19-32-00
+**Notation**: TLA+-style state predicates + Z3-style schema/enum constraints
+**Issue**: (created via safe-output create_issue; number assigned post-processing)
 
 ## Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
-| P1 | `RiskResolutionDeterminism` | `ResolveRisk(intent)` is a pure function of (Risk, Domains, Priority) |
-| P2 | `RiskExplicitOverride` | Explicit `intent.Risk` always wins over derived rules |
-| P3 | `RiskSecurityCriticalHigh` | `domains ∋ security ∧ priority = critical ⇒ high` |
-| P4 | `RiskProductionHigh` | `domains ∋ production ⇒ high` |
-| P5 | `RiskInfrastructureMedium` | `domains ∋ infrastructure ⇒ medium` |
-| P6 | `RiskDocumentationLow` | `domains ∋ documentation ⇒ low` |
-| P7 | `RiskUnknownDefault` | No matching rule ⇒ `unknown` |
-| P8 | `RiskPrecedenceOrder` | Security+critical rule evaluated before production/infrastructure/documentation |
-| P9 | `AuthorizeToolDeniedWins` | Deny list takes precedence over allow list |
-| P10 | `AuthorizeToolAllowlistGate` | Non-nil AllowedTools rejects tools not listed |
-| P11 | `AuthorizeToolUnrestricted` | `nil` AllowedTools means unrestricted |
-| P12 | `AuthorizeToolEmptyDenyAll` | Non-nil empty AllowedTools means deny-all |
-| P13 | `SafestDefaultFailClosed` | `unlinked`/`ambiguous` status forces safest policy (already implemented and verified against `pkg/intent/policy.go`) |
+| P1 | `AttributionPrecedenceOrder` | Explicit intent > single closing issue > artifact-label fallback |
+| P2 | `SingleSourcePerRecord` | Each attribution record has exactly one source |
+| P3 | `AmbiguousRootDetection` | 2+ distinct closing issues, no explicit override => ambiguous, source=closing_issue |
+| P4 | `AmbiguousNeverArbitrary` | No first/last/random resolution of ambiguity |
+| P5 | `FailClosedSafestPolicy` | unlinked/ambiguous => safest policy regardless of matching rules |
+| P6 | `PolicyDeterminism` | Same inputs => same compiled policy, always |
+| P7 | `IntentPolicyConfigLabelDimensionEnum` | dimension in {priority, domain, risk, initiative} |
+| P8 | `IntentPolicyConfigScoringStrategyEnum` | strategy in {max, sum} |
+| P9 | `IntentPolicyConfigMultipleRootsDefault` | multiple_roots defaults to "ambiguous"; only {ambiguous, first} valid |
+| P10 | `RulesPrecedenceOrdering` | Every rule requires a stable non-empty id; rules ordered highest->lowest precedence |
 
 ## Key Invariants
 
-- Unknown or ambiguous intent must never grant elevated authority (fail-closed default).
-- Policy merging must preserve stricter, higher-precedence constraints when multiple rules match.
-- `ResolveRisk` and `Authorizer.AuthorizeTool` are specified but **not yet implemented** in `pkg/intent` — the spec's own "Authorizer.AuthorizeTool Implementation Audit" section documents this gap; all `ExecutionPolicy` enforcement fields except none are currently wired to runtime.
-- `pkg/intent/policy.go` already implements `PolicyCompiler.Compile` fail-closed behavior for `Unlinked`/`Ambiguous` — this predicate (P13) was verified directly against real code, not a stub.
+- Intent determines authority; execution produces evidence (central spec principle).
+- Fail-closed policy: `autonomy=propose_only`, `write_scope=none`, `human_approval_required=true`, `auto_merge_allowed=false`, `max_attempts=1`.
+- A pull request is an execution artifact, not an objective — multiple PRs on one issue must not multiply completed-objective counts.
 
 ## Edge Cases Identified
 
-- Fully empty intent record (no Risk, Domains, Priority) must resolve to `unknown`, not panic or empty string.
-- `AuthorizeTool` must not panic when both `AllowedTools` and `DeniedTools` are nil (fully unrestricted policy).
-- Multiple matching policy rules must merge with stricter-wins semantics; a later lenient rule must not silently override an earlier strict one.
+- Empty `labels` map in `.github/intent-policy.json` (required field) must be rejected.
+- Unsupported schema `version` (anything other than `1`) must be rejected.
+- No attribution sources present (no explicit intent, no closing issues, no labels) must resolve to `unlinked`, not crash or silently map to a default.
 
 ## Notes for Future Runs
 
-- `pkg/intent` already has `policy.go`, `resolver.go`, `slices.go` plus existing formal test files (`intent_formal_test.go`, `compliance_fixtures_formal_test.go`, `spec_test.go`, `resolver_test.go`) — future formalizations of this spec should check those files first to avoid duplicating predicate coverage (e.g. resolution-order predicates for `Resolver.Resolve`/`ResolvePullRequest` are likely already covered there).
-- Not yet formalized in this run: OpenTelemetry/metrics section, CLI section (`explain policy`, `report outcomes`), Evidence/Outcome record schemas, and the multi-root/fractional-attribution future-policy section. Good candidates for a follow-up pass.
-- `ResolveRisk` and `Authorizer.AuthorizeTool` remain unimplemented in the codebase as of this run — once implemented, replace the stubs in the generated test file with real calls.
+- `pkg/intent` already has strong formal test coverage for `Resolver` and `PolicyCompiler` (see `intent_formal_test.go`, `governance_formal_test.go`, `compliance_fixtures_formal_test.go`, `resolver_test.go`, `spec_test.go`). This run's new test file focuses specifically on the **not-yet-implemented** `.github/intent-policy.json` schema validation (`IntentPolicyConfig` stub), since no concrete parser exists yet in the codebase.
+- Future runs on this spec should watch for: (1) landing of a real `.github/intent-policy.json` parser in `pkg/intent` — once it exists, replace the stub types in the generated test file with real imports; (2) the "Escalation norm" (3+ consecutive CI runs with unaddressed sync warnings => compliance failure) is not yet covered by any Go test — a good candidate for the next formalization pass; (3) the non-normative maintenance split proposal (splitting spec into companion files) may change section anchors — re-verify predicate source citations if that split happens.
+- Cross-spec dependency: `specs/intent-attribution-compliance/README.md` (already processed) contains the YAML compliance fixtures referenced by this spec's "Compliance Fixtures" section — those fixtures are already exercised by `compliance_fixtures_formal_test.go`.

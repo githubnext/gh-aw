@@ -51,9 +51,9 @@
     },
     "specs/intent-attribution-agent-governance.md": {
       "slug": "intent-attribution-agent-governance",
-      "last_formalized": "2026-08-18-15-43-32",
-      "notation": "Z3-style guard conjunction",
-      "predicate_count": 13,
+      "last_formalized": "2026-08-28-19-32-00",
+      "notation": "TLA+-style state predicates / Z3-style schema-enum constraints",
+      "predicate_count": 10,
       "issue_number": null
     },
     "specs/github-mcp-access-control-compliance/README.md": {
