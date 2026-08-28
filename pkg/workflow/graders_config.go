@@ -438,14 +438,14 @@ func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id stri
 // local to the workflow file when they start with "./". Empty components, ".",
 // and ".." are rejected to avoid traversal.
 func IsValidOperationalValueEvaluatorRunPath(evaluatorPath string) bool {
-	if evaluatorPath == "" || strings.Contains(evaluatorPath, "\\") || strings.HasPrefix(evaluatorPath, "/") {
+	if evaluatorPath == "" || strings.Contains(evaluatorPath, "\\") || evaluatorPath[0] == '/' {
 		return false
 	}
 	pathForValidation := evaluatorPath
 	if trimmed, ok := strings.CutPrefix(pathForValidation, "./"); ok {
 		pathForValidation = trimmed
 	}
-	if pathForValidation == "" || strings.HasPrefix(pathForValidation, "/") {
+	if pathForValidation == "" || pathForValidation[0] == '/' {
 		return false
 	}
 	for part := range strings.SplitSeq(pathForValidation, "/") {
