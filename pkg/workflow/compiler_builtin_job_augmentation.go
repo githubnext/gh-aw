@@ -238,11 +238,7 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 			normalizedNeeds = append(normalizedNeeds, need)
 		}
 
-		// Capture compiler-owned needs before adding user-supplied ones.
-		// These are the prerequisites the compiler established (e.g. activation) and
-		// must be guarded explicitly when the user condition contains a status function.
-		compilerOwnedNeeds := make([]string, len(targetJob.Needs))
-		copy(compilerOwnedNeeds, targetJob.Needs)
+		compilerOwnedNeeds := selectCompilerOwnedNeeds(targetJob.Needs, data.Jobs)
 
 		seen := make(map[string]struct{}, len(targetJob.Needs)+len(normalizedNeeds))
 		mergedNeeds := make([]string, 0, len(targetJob.Needs)+len(normalizedNeeds))
@@ -302,6 +298,22 @@ func applyBuiltinJobPermissionsAugmentation(configuredJobName, targetJobName str
 	targetJob.Permissions = merged.RenderToYAML()
 	compilerJobsLog.Printf("Applied jobs.%s.permissions augmentation to %q", configuredJobName, targetJobName)
 	return nil
+}
+
+// selectCompilerOwnedNeeds returns the prerequisites of a built-in job that the compiler owns,
+// i.e. the needs that are not custom jobs declared under top-level `jobs:`. Custom jobs are
+// auto-wired as prerequisites of built-in jobs but remain author-owned, so the author picks
+// their result semantics (for example an `if: always()` agent that analyses a failing probe
+// job). Compiler-owned prerequisites such as activation must stay guarded.
+func selectCompilerOwnedNeeds(needs []string, customJobs map[string]any) []string {
+	owned := make([]string, 0, len(needs))
+	for _, need := range needs {
+		if _, isCustomJob := customJobs[need]; isCustomJob && !isBuiltinJobName(need) {
+			continue
+		}
+		owned = append(owned, need)
+	}
+	return owned
 }
 
 // guardIfAgainstStatusFuncBypass returns userCondition augmented with explicit
