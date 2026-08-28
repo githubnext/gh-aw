@@ -42,6 +42,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		FrontmatterFieldLines:      result.FieldLines,
 		RawMarkdown:                result.Markdown,
 		Description:                c.extractDescription(result.Frontmatter),
+		Intent:                     c.extractIntent(result.Frontmatter),
 		Docs:                       docs,
 		Source:                     c.extractSource(result.Frontmatter),
 		Redirect:                   c.extractRedirect(result.Frontmatter),
