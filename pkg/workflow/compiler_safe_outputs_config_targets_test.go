@@ -132,6 +132,17 @@ func TestMarshalSafeOutputsConfigPreservesExpressionOperators(t *testing.T) {
 	assert.NotContains(t, string(configJSON), `\u0026`)
 }
 
+func TestMarshalSafeOutputsConfigPreservesTemplatableExpressionOperators(t *testing.T) {
+	builder := newHandlerConfigBuilder()
+	builder.AddTemplatableJSONSlice("items", []string{"${{ condition && value || fallback }}"})
+
+	configJSON, err := marshalSafeOutputsConfig(builder.config)
+
+	require.NoError(t, err)
+	assert.Contains(t, string(configJSON), "${{ toJSON(condition && value || fallback) }}")
+	assert.NotContains(t, string(configJSON), `\u0026`)
+}
+
 func TestHandlerConfigCreateCheckRunTarget(t *testing.T) {
 	compiler := NewCompiler()
 

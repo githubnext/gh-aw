@@ -157,11 +157,11 @@ func marshalSafeOutputsConfig(config map[string]any) ([]byte, error) {
 	}
 	result := []byte(configJSON)
 	for _, expression := range templatableJSONExpressions(config) {
-		placeholder, err := json.Marshal(expression.placeholder())
+		placeholderJSON, err := jsonutil.MarshalCompactNoHTMLEscape(expression.placeholder())
 		if err != nil {
 			return nil, err
 		}
-		result = bytes.ReplaceAll(result, placeholder, []byte(expression.expr))
+		result = bytes.ReplaceAll(result, []byte(placeholderJSON), []byte(expression.expr))
 	}
 	return result, nil
 }
