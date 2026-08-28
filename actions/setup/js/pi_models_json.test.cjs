@@ -130,6 +130,10 @@ describe("pi_models_json.cjs", () => {
       expect(piModelsJson.resolvePiApiForProvider("openai")).toBe("openai-responses");
     });
 
+    it("routes the codex provider through openai-responses", () => {
+      expect(piModelsJson.resolvePiApiForProvider("codex")).toBe("openai-responses");
+    });
+
     it("keeps the github provider on openai-completions", () => {
       expect(piModelsJson.resolvePiApiForProvider("github")).toBe("openai-completions");
     });
@@ -140,19 +144,19 @@ describe("pi_models_json.cjs", () => {
   });
 
   describe("main", () => {
-    it("writes models.json using the live /reflect baseUrl when available", async () => {
+    it.each(["openai", "codex"])("writes models.json using the live /reflect baseUrl and responses api for the %s provider", async provider => {
       process.env.GH_AW_PI_MODEL_ID = "gpt-4.1";
       process.env.GH_AW_PI_GATEWAY_SECRET_ENV = "CODEX_API_KEY";
       // Deliberately pass the wrong fallback port (10001 is anthropic's port, not openai's)
       // to prove that the live /reflect data overrides the compile-time fallback value.
       process.env.GH_AW_PI_GATEWAY_FALLBACK_PORT = "10001";
-      process.env.GH_AW_LLM_PROVIDER = "openai";
+      process.env.GH_AW_LLM_PROVIDER = provider;
       process.env.AWF_REFLECT_ENABLED = "1";
       process.env.PI_CODING_AGENT_DIR = tmpDir;
       delete process.env.GH_AW_PI_MODELS_JSON_PATH;
 
       const reflectPayload = {
-        endpoints: [{ provider: "openai", configured: true, port: 10000, base_url: "http://api-proxy:10000", models: [] }],
+        endpoints: [{ provider, configured: true, port: 10000, base_url: "http://api-proxy:10000", models: [] }],
       };
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => reflectPayload }));
 

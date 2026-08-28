@@ -14,20 +14,6 @@ describe("pi_agent_core_driver.cjs", () => {
   });
 
   describe("buildModel", () => {
-    it("routes the openai provider through openai-responses in gateway mode", () => {
-      const model = buildModel(
-        {
-          api: "openai-responses",
-          baseUrl: "http://api-proxy:10000",
-          apiKey: "CODEX_API_KEY",
-          modelId: "gpt-5.4",
-          providerName: "aw-gateway",
-        },
-        "openai/gpt-5.4"
-      );
-      expect(model.api).toBe("openai-responses");
-    });
-
     it("routes the openai provider through openai-responses in native (no-gateway) mode", () => {
       process.env.OPENAI_API_KEY = "test-key";
       const model = buildModel(null, "openai/gpt-5.4");

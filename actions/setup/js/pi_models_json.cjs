@@ -120,7 +120,7 @@ function buildModelsJSON(options) {
  * @returns {string}
  */
 function resolvePiApiForProvider(provider) {
-  return provider === "openai" ? "openai-responses" : "openai-completions";
+  return provider === "openai" || provider === "codex" ? "openai-responses" : "openai-completions";
 }
 
 async function main() {
