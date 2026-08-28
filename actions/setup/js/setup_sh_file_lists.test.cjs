@@ -5,7 +5,20 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SETUP_SH = resolve(__dirname, "../setup.sh");
+const SETUP_ACTION_INDEX = resolve(__dirname, "../index.js");
 const setupShContent = readFileSync(SETUP_SH, "utf8");
+const setupActionIndexContent = readFileSync(SETUP_ACTION_INDEX, "utf8");
+
+describe("setup action Windows support", () => {
+  it("runs setup.sh with Bash", () => {
+    expect(setupActionIndexContent).toContain('spawnSync("bash", [path.join(__dirname, "setup.sh")]');
+  });
+
+  it("converts Windows paths for Bash without changing RUNNER_TEMP", () => {
+    expect(setupShContent).toContain('RUNNER_TEMP_BASH="$(cygpath -u "${RUNNER_TEMP}")"');
+    expect(setupShContent).toContain('DESTINATION="$(cygpath -u "${DESTINATION}")"');
+  });
+});
 
 /**
  * Parse a bash array from setup.sh, e.g.:
