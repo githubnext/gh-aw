@@ -2,3 +2,5 @@
 {"id":"triage_issue_updated_or_noop","question":"Was the triage issue updated with findings, or was noop correctly used when no suspicious activity was detected?","answer":"YES","model":"small","timestamp":"2026-07-26T12:48:55.568Z","runid":"30202694741"}
 {"id":"activity_investigated","question":"Did the agent investigate suspicious repository activity?","answer":"YES","model":"evals","timestamp":"2026-08-23T18:42:15.603Z","runid":"32658665378"}
 {"id":"triage_issue_updated_or_noop","question":"Was the triage issue updated with findings, or was noop correctly used when no suspicious activity was detected?","answer":"YES","model":"evals","timestamp":"2026-08-23T18:42:15.603Z","runid":"32658665378"}
+{"id":"activity_investigated","question":"Did the agent investigate suspicious repository activity?","answer":"YES","model":"evals","timestamp":"2026-08-28T16:38:28.502Z","runid":"33190603433"}
+{"id":"triage_issue_updated_or_noop","question":"Was the triage issue updated with findings, or was noop correctly used when no suspicious activity was detected?","answer":"YES","model":"evals","timestamp":"2026-08-28T16:38:28.502Z","runid":"33190603433"}
