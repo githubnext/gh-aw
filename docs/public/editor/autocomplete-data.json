@@ -10,6 +10,11 @@
       "desc": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
       "leaf": true
     },
+    "intent": {
+      "type": "string",
+      "desc": "Optional statement of the durable outcome the workflow exists to achieve.",
+      "leaf": true
+    },
     "emoji": {
       "type": "string",
       "desc": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
@@ -3625,6 +3630,7 @@
   "sortOrder": [
     "name",
     "description",
+    "intent",
     "on",
     "engine",
     "permissions",

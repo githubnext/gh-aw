@@ -80,6 +80,16 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		}
 	}
 
+	// permissions.contents: none (or the "none" shorthand) signals that the workflow
+	// does not need its own repository content, so the automatic workflow-repository
+	// checkout (and "Checkout PR branch" step) should be skipped. Other explicitly
+	// configured checkout entries (e.g. a target-only sidecar checkout of a different
+	// repository) are unaffected and are still checked out normally.
+	if checkoutSkipDefaultFromPermissions(frontmatter["permissions"]) {
+		config.CheckoutSkipDefault = true
+		frontmatterTypesLog.Print("Skipping default checkout: permissions.contents is none")
+	}
+
 	// Parse checkout field - supports single object, array of objects, or false to disable
 	if config.Checkout != nil {
 		if checkoutValue, ok := config.Checkout.(bool); ok && !checkoutValue {
@@ -111,6 +121,9 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	config.ModelPolicyAllowed, config.ModelPolicyBlocked = extractModelPolicyFromFrontmatter(frontmatter)
 	if rawSkills, ok := frontmatter["skills"].([]any); ok {
 		config.SkillReferences = parseRawSkillReferences(rawSkills)
+	}
+	if rawPlugins, ok := frontmatter["plugins"].([]any); ok {
+		config.PluginReferences = parseRawPluginReferences(rawPlugins)
 	}
 	if ambientFolders, err := extractAmbientFolders(frontmatter); err != nil {
 		return nil, err

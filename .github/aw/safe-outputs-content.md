@@ -107,7 +107,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
 
   `category` accepts name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"); defaults to the first category. Resolution tries ID, then name, then slug.
 
-  `close-older-discussions: true` closes up to 10 older discussions matching the same title prefix or labels as "OUTDATED" with a comment linking to the new one. Requires `title-prefix` or `labels`.
+  `close-older-discussions: true` closes up to 10 older open discussions matching the same embedded workflow-id marker (or `close-older-key` if set) as "OUTDATED" with a comment linking to the new one.
 
   `create_discussion` output validation requires `body` minimum length: **64** characters by default; override with `min-body-length:`.
 

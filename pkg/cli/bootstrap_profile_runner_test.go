@@ -14,6 +14,7 @@ import (
 )
 
 func TestBootstrapActionNeedsMutation(t *testing.T) {
+	t.Parallel()
 	state := &bootstrapProfileExistingState{
 		variables: map[string]struct{}{"EXISTING_VAR": {}, "APP_ID": {}},
 		secrets:   map[string]struct{}{"EXISTING_SECRET": {}},
@@ -81,6 +82,7 @@ func TestBootstrapProfileState(t *testing.T) {
 // against regressions that split actions into pre-install and post-install phases and
 // thereby reorder or omit steps.
 func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
+	t.Parallel()
 	// Declare a profile with an interleaved mix of action types to ensure ordering
 	// cannot be accidentally satisfied by any implicit categorisation.
 	profile := &resolvedBootstrapProfile{

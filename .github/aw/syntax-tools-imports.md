@@ -318,7 +318,7 @@ In the compiled workflow, the order is: copilot-setup-steps → imported steps f
 
 ## Permission Patterns
 
-**IMPORTANT**: Agentic workflows MUST NOT include write permissions (`issues: write`, `pull-requests: write`, `contents: write`). Safe-outputs provide these via separate secured jobs. Granting writes to the main AI job causes a compilation error.
+**IMPORTANT**: Agentic workflows should not include write permissions (`contents: write`, `issues: write`, `pull-requests: write`) on the main agent job. Safe-outputs provide these via separate secured jobs. In `strict: true` mode, granting any of these three write scopes to the main job is a compilation error; outside strict mode it compiles but is against the recommended security posture (see [workflow-constraints.md](workflow-constraints.md)).
 
 ### Read-Only Pattern
 
