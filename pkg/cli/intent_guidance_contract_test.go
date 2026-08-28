@@ -48,4 +48,8 @@ func TestIntentGuidanceContract(t *testing.T) {
 		require.NoErrorf(t, readErr, "Should read %s", name)
 		assert.Containsf(t, string(content), "intent.md", "%s must use shared intent guidance", name)
 	}
+
+	generatorContent, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "workflow-generator.md"))
+	require.NoError(t, err, "Should read workflow generator")
+	assert.Contains(t, string(generatorContent), "canonical intent", "Workflow generator must require intent-driven issue-form design")
 }
