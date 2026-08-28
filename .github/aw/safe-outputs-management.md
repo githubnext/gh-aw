@@ -291,7 +291,7 @@ description: Safe-output reference for update, label, milestone, project, releas
         - "src/**"
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
-      protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
+      protected-files: request-review # Optional: "request-review" (default), "blocked", "fallback-to-issue", or "allowed"
       max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 4096 KB, max: 10240)
   ```
 

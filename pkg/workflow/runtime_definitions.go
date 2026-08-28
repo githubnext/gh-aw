@@ -208,7 +208,6 @@ var securityConfigFiles = []string{
 	"DESIGN.md",          // Captures design-system source of truth consumed by coding agents
 	"README.md",          // Primary documentation file often imported by agents as context
 	"CONTRIBUTING.md",    // Contribution guidelines; modifying could mislead contributors or agents
-	"CHANGELOG.md",       // Release history; modification could misrepresent project state
 	"SECURITY.md",        // Security policy; tampering could suppress vulnerability disclosure
 	"CODE_OF_CONDUCT.md", // Community conduct policy
 }
