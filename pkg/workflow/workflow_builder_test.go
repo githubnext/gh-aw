@@ -10,14 +10,14 @@ import (
 )
 
 func TestExtractFrontmatterPlugins(t *testing.T) {
-	t.Run("uses parsed frontmatter plugins when available", func(t *testing.T) {
-		parsed := &FrontmatterConfig{Plugins: []string{"plugin-a", "plugin-b"}}
+	t.Run("uses parsed frontmatter plugin references when available", func(t *testing.T) {
+		parsed := &FrontmatterConfig{PluginReferences: []PluginReference{{Plugin: "plugin-a"}, {Plugin: "plugin-b"}}}
 		got := extractFrontmatterPlugins(parsed, map[string]any{"plugins": []any{"ignored"}})
 		assert.Equal(t, []string{"plugin-a", "plugin-b"}, got)
 
 		// ensure returned slice is a copy
 		got[0] = "changed"
-		assert.Equal(t, []string{"plugin-a", "plugin-b"}, parsed.Plugins)
+		assert.Equal(t, "plugin-a", parsed.PluginReferences[0].Plugin)
 	})
 
 	t.Run("falls back to raw frontmatter", func(t *testing.T) {
@@ -28,9 +28,10 @@ func TestExtractFrontmatterPlugins(t *testing.T) {
 
 func TestMergeFrontmatterPlugins(t *testing.T) {
 	got := mergeFrontmatterPlugins(
-		&FrontmatterConfig{Plugins: []string{"main-a"}},
+		&FrontmatterConfig{PluginReferences: []PluginReference{{Plugin: "main-a"}}},
 		map[string]any{},
 		[]string{"import-a", "import-b"},
+		nil,
 	)
 	assert.Equal(t, []string{"main-a", "import-a", "import-b"}, got)
 }

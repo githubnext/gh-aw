@@ -59,6 +59,8 @@ An imported workflow can only be imported once per workflow.
 
 In markdown, use `{{#runtime-import filepath}}` to inject the content of another file directly into the body at that position. This is useful for sharing reusable prompt snippets, tone instructions, or reference material across workflows.
 
+Imported markdown can include safe GitHub Actions expressions such as `${{ needs.pre_activation.outputs.activated }}` or `${{ needs.build.outputs.version }}`. gh-aw validates those expressions across the full nested runtime-import tree at compile time, so shared prompt files can reuse job outputs without weakening expression-safety checks.
+
 ```aw wrap
 ---
 on: schedule

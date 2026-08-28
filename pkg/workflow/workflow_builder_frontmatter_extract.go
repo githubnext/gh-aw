@@ -71,26 +71,55 @@ func extractFrontmatterSkills(parsedFrontmatter *FrontmatterConfig, frontmatter 
 }
 
 func extractFrontmatterPlugins(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []string {
-	if parsedFrontmatter != nil {
-		return append([]string(nil), parsedFrontmatter.Plugins...)
-	}
-
-	rawPlugins, ok := frontmatter["plugins"].([]any)
-	if !ok {
+	refs := extractFrontmatterPluginReferences(parsedFrontmatter, frontmatter)
+	if len(refs) == 0 {
 		return nil
 	}
-	plugins := make([]string, 0, len(rawPlugins))
-	for _, rawPlugin := range rawPlugins {
-		if plugin, ok := rawPlugin.(string); ok {
-			plugins = append(plugins, plugin)
+
+	plugins := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.Plugin == "" {
+			continue
 		}
+		plugins = append(plugins, ref.Plugin)
+	}
+	if len(plugins) == 0 {
+		return nil
 	}
 	return plugins
 }
 
-func mergeFrontmatterPlugins(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any, importedPlugins []string) []string {
-	plugins := extractFrontmatterPlugins(parsedFrontmatter, frontmatter)
-	return append(plugins, importedPlugins...)
+func mergeFrontmatterPlugins(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any, importedPlugins []string, importedPluginObjects []map[string]any) []string {
+	return pluginRefsToStrings(mergeFrontmatterPluginReferences(parsedFrontmatter, frontmatter, importedPlugins, importedPluginObjects))
+}
+
+func extractFrontmatterPluginReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []PluginReference {
+	if parsedFrontmatter != nil && len(parsedFrontmatter.PluginReferences) > 0 {
+		return append([]PluginReference(nil), parsedFrontmatter.PluginReferences...)
+	}
+
+	// Fall back to raw frontmatter when ParseFrontmatterConfig failed for non-plugins reasons
+	// (e.g. unrecognized tool shapes). Safe because validateFrontmatterPlugins already ran
+	// and succeeded on this frontmatter before we reach this point.
+	rawPlugins, ok := frontmatter["plugins"].([]any)
+	if !ok || len(rawPlugins) == 0 {
+		return nil
+	}
+
+	return parseRawPluginReferences(rawPlugins)
+}
+
+// mergeFrontmatterPluginReferences merges the main workflow's structured plugin references
+// with plugin specs imported from shared workflows.
+func mergeFrontmatterPluginReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any, importedPlugins []string, importedPluginObjects []map[string]any) []PluginReference {
+	refs := extractFrontmatterPluginReferences(parsedFrontmatter, frontmatter)
+	for _, imported := range importedPlugins {
+		refs = append(refs, PluginReference{Plugin: imported})
+	}
+	for _, imported := range importedPluginObjects {
+		refs = append(refs, parseRawPluginReferences([]any{imported})...)
+	}
+	return refs
 }
 
 func extractFrontmatterSkillReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []SkillReference {
