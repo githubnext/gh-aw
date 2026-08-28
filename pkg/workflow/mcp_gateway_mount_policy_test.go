@@ -141,14 +141,7 @@ func TestMCPGatewayContainerCommandIncludesAllowedMountRootsEnvFlag(t *testing.T
 	appendMCPGatewayBaseEnvFlags(&containerCmd, "")
 	assert.Contains(t, containerCmd.String(), " -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
 	assert.Contains(t, containerCmd.String(), " -e RUNNER_TOOL_CACHE")
-	for _, name := range []string{
-		"GH_AW_PR_HEAD_BASE_BRANCH",
-		"GH_AW_PR_HEAD_BASE_SHA",
-		"GH_AW_PR_HEAD_BASE_REPO",
-		"GH_AW_PR_HEAD_BASE_PR_NUMBER",
-		"GH_AW_PR_HEAD_BASE_REF",
-		"GH_AW_PR_HEAD_REPO",
-	} {
+	for _, name := range optionalPRHeadEnvVars {
 		assert.Contains(t, containerCmd.String(), " -e "+name)
 	}
 }
@@ -167,6 +160,9 @@ func TestWriteMCPGatewayExportsIncludesAllowedMountRoots(t *testing.T) {
 	})
 
 	assert.Contains(t, runScript.String(), `export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS="${GITHUB_WORKSPACE}:rw,${RUNNER_TEMP}/gh-aw:ro,${RUNNER_TEMP}/gh-aw/safeoutputs:rw,/tmp:rw,/usr/bin/gh:ro"`)
+	for _, name := range optionalPRHeadEnvVars {
+		assert.Contains(t, runScript.String(), `export `+name+`="${`+name+`:-}"`)
+	}
 }
 
 // TestWriteMCPGatewayExportsIncludesCustomServerMounts verifies that a custom

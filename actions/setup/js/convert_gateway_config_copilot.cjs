@@ -56,6 +56,13 @@ function resolveCopilotConfigOutputPath() {
  */
 function transformCopilotEntry(entry, urlPrefix) {
   return normalizeGatewayEntry(entry, urlPrefix, transformed => {
+    // The gateway expresses backend tool timeouts in seconds, while Copilot
+    // expects its client-side per-server timeout in milliseconds.
+    if (transformed.timeout === undefined && typeof transformed.toolTimeout === "number" && Number.isFinite(transformed.toolTimeout) && transformed.toolTimeout > 0) {
+      transformed.timeout = transformed.toolTimeout * 1000;
+    }
+    delete transformed.toolTimeout;
+
     // Add tools field if not present
     if (!transformed.tools) {
       transformed.tools = ["*"];

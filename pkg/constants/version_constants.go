@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.11.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.7"
+const DefaultFirewallVersion Version = "v0.28.9"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -154,6 +154,10 @@ const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
 // AWFFilesystemAllowWriteMinVersion.
 const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
+// AWFEnclaveGitHubIssuesMinVersion is the first AWF version whose
+// config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
+const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
+
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
 // reproducible, verifiable installs. Each release provides SHA-512 files for
@@ -175,11 +179,15 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.12"
+const DefaultMCPGatewayVersion Version = "v0.4.13"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
+
+// MCPGEnclaveGitHubIssuesMinVersion is the first MCPG version with
+// gh CLI token authorization for the issues-read-v1 enclave capability.
+const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.13"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.79"

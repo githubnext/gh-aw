@@ -44,6 +44,40 @@ enclaves:
 - If the same repository appears in both entries, its `sensitivity` must match — the information budget is shared across executor types.
 - AWF fixes the script enclave's network and interpreter, and the agent enclave's network, internally; do not attempt to override these in workflow frontmatter.
 - A fresh masked capability is generated per workflow run and passed only to the MCP gateway and AWF, never to the primary agent environment.
-- `timeout:` per enclave entry is capped at 540 seconds (AWF reserves the final 60 seconds of its 600-second finite-disclosure bucket for cleanup). The gateway itself enforces a 630-second tool timeout (600s AWF bucket + 30s transport allowance) — treat this as an enforcement bound, not a wall-clock guarantee.
+- `timeout:` per enclave entry is capped at 4,740 seconds (AWF reserves the final 60 seconds of its 4,800-second finite-disclosure bucket for cleanup). The gateway itself enforces a 4,860-second tool timeout (4,800s AWF bucket + 60s transport allowance) — treat this as an enforcement bound, not a wall-clock guarantee.
+
+## Agent GitHub Issues profile
+
+Use only this closed opt-in:
+
+```yaml
+sandbox:
+  mcp:
+    version: v0.4.13
+enclaves:
+  - agent:
+      model: gpt-5
+      github:
+        cli: issues-read-v1
+    repos:
+      - repo: octo-org/private-service
+        sensitivity: confidential
+```
+
+- `issues-read-v1` permits only paginated REST GETs for issue lists, one issue,
+  and that issue's comments. Use `gh api --method GET`; do not promise stock
+  `gh issue` commands because they may use denied GraphQL calls.
+- GraphQL, search, writes, and all other REST paths fail closed.
+- V1 allows at most one non-`public` repository in the agent entry.
+- Public data inherits explicit `tools.github.min-integrity`, or the compiler's
+  primary default (`approved`) when the primary GitHub tool is omitted.
+- Private repository responses carry the `private:<owner>/<repo>` DIFC secrecy
+  label.
+- The compiler starts a dedicated bridge-mode mcpg proxy holding the PAT. AWF
+  supplies only its own local PAT-free proxy to the enclave and keeps the
+  `awf-egh1` invocation capability in a mode-`0600` file.
+- The primary agent receives no enclave proxy address, key, CA path, container
+  identity, capability, PAT, or repository catalog.
+- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.13`.
 
 See also: [agent-runtime-instructions.md](agent-runtime-instructions.md) for `sandbox.agent` fields, and [network.md](network.md) for network isolation defaults.

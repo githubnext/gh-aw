@@ -19,6 +19,15 @@ const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
 const mcpGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_"
 const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
 
+var optionalPRHeadEnvVars = []string{
+	"GH_AW_PR_HEAD_BASE_BRANCH",
+	"GH_AW_PR_HEAD_BASE_SHA",
+	"GH_AW_PR_HEAD_BASE_REPO",
+	"GH_AW_PR_HEAD_BASE_PR_NUMBER",
+	"GH_AW_PR_HEAD_BASE_REF",
+	"GH_AW_PR_HEAD_REPO",
+}
+
 func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
 	// If the engine provides an MCP config-adapter script (e.g. Goose), write it to disk
 	// before starting the gateway so that start_mcp_gateway.cjs can execute it once the
@@ -275,6 +284,12 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// Allow read-write access to the host paths our built-in MCP servers mount
 	// (workspace, safe-outputs runtime dir, temp dir); see buildMCPGatewayAllowedMountRoots.
 	yaml.WriteString("          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS=\"" + buildMCPGatewayAllowedMountRoots(tools, gatewayConfig) + "\"\n")
+	// These values are populated only for pull request checkouts, but the safe-outputs
+	// server config always references them. Export empty defaults so Docker forwards
+	// defined values and strict gateway config expansion also works for other triggers.
+	for _, envVar := range optionalPRHeadEnvVars {
+		fmt.Fprintf(yaml, "          export %s=\"${%s:-}\"\n", envVar, envVar)
+	}
 	if enclavesEnabled(workflowData) {
 		yaml.WriteString("          AWF_ENCLAVE_MCP_CAPABILITY=$(openssl rand -hex 32)\n")
 		yaml.WriteString("          echo \"::add-mask::${AWF_ENCLAVE_MCP_CAPABILITY}\"\n")
@@ -283,7 +298,13 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_CONTAINER=\"awmg-mcpg\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT=\"http://localhost:${MCP_GATEWAY_PORT}/mcp/awf-enclave\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS=\"120000\"\n")
+		yaml.WriteString("          # The eager checker runs inside start_mcp_gateway.cjs in this step.\n")
+		fmt.Fprintf(yaml, "          export %s=%q\n", enclaveMCPDeferredServersEnv, enclaveMCPServerName)
+		// Masked values may be suppressed as GitHub Actions step outputs. Enclave host setup
+		// therefore carries the gateway key through the same GITHUB_ENV channel as its other
+		// AWF-only handoffs; --exclude-env keeps it out of the primary agent.
 		yaml.WriteString("          {\n")
+		yaml.WriteString("            printf '%s=%s\\n' MCP_GATEWAY_API_KEY \"$MCP_GATEWAY_API_KEY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_CAPABILITY \"$AWF_ENCLAVE_MCP_CAPABILITY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_IDENTITY \"$AWF_ENCLAVE_MCP_GATEWAY_IDENTITY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_CONTAINER \"$AWF_ENCLAVE_MCP_GATEWAY_CONTAINER\"\n")
@@ -426,12 +447,9 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS")
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH")
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH")
-	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_BRANCH")
-	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_SHA")
-	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_REPO")
-	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_PR_NUMBER")
-	containerCmd.WriteString(" -e GH_AW_PR_HEAD_BASE_REF")
-	containerCmd.WriteString(" -e GH_AW_PR_HEAD_REPO")
+	for _, envVar := range optionalPRHeadEnvVars {
+		containerCmd.WriteString(" -e " + envVar)
+	}
 	containerCmd.WriteString(" -e " + compilerenv.PolicyAllowCreatePullRequest)
 	containerCmd.WriteString(" -e GH_AW_ASSETS_BRANCH")
 	containerCmd.WriteString(" -e GH_AW_ASSETS_MAX_SIZE_KB")
@@ -710,6 +728,9 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, customGatewayEnvName
 		"GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "GITHUB_HEAD_REF", "GITHUB_BASE_REF",
 	}
 	for _, envVar := range standardEnvVars {
+		addedEnvVars[envVar] = struct{}{}
+	}
+	for _, envVar := range optionalPRHeadEnvVars {
 		addedEnvVars[envVar] = struct{}{}
 	}
 	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {

@@ -866,7 +866,7 @@
               "timeout": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 540,
+                "maximum": 4740,
                 "default": 30
               },
               "memoryLimit": {
@@ -947,6 +947,17 @@
                     "minimum": 1,
                     "maximum": 32768,
                     "default": 1024
+                  },
+                  "github": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["cli"],
+                    "properties": {
+                      "cli": {
+                        "type": "string",
+                        "enum": ["issues-read-v1"]
+                      }
+                    }
                   }
                 }
               },
@@ -983,7 +994,7 @@
               "timeout": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 540,
+                "maximum": 4740,
                 "default": 120
               },
               "memoryLimit": {
@@ -1084,8 +1095,8 @@
         "timeout": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 540,
-          "description": "Maximum wall-clock time in seconds allowed for a single enclave invocation. Capped at 540 so the 10-minute response bucket reserves its final minute for termination, validation, container removal, and workspace cleanup. Default: 120.",
+          "maximum": 4740,
+          "description": "Maximum wall-clock time in seconds allowed for a single enclave invocation. Capped at 4740 so the 80-minute response bucket reserves its final minute for termination, validation, container removal, and workspace cleanup. Default: 120.",
           "default": 120
         },
         "memoryLimit": {

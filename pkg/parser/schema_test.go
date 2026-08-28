@@ -187,11 +187,14 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 				"timeout": 45,
 			},
 			map[string]any{
-				"agent": map[string]any{"model": "gpt-5"},
+				"agent": map[string]any{
+					"model":  "gpt-5",
+					"github": map[string]any{"cli": "issues-read-v1"},
+				},
 				"repos": []any{
 					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
-				"timeout": 540,
+				"timeout": 4740,
 			},
 		},
 	}
@@ -224,12 +227,34 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 				"repos": []any{
 					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
-				"timeout": 541,
+				"timeout": 4741,
 			},
 		},
 	}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(tooLong, "workflow.md"); err == nil {
-		t.Fatal("expected enclave timeout above 540 seconds to be rejected")
+		t.Fatal("expected enclave timeout above 4740 seconds to be rejected")
+	}
+
+	invalidMode := valid
+	invalidMode["enclaves"].([]any)[1].(map[string]any)["agent"].(map[string]any)["github"] = map[string]any{"cli": "read-only"}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidMode, "workflow.md"); err == nil {
+		t.Fatal("expected generic enclave GitHub CLI mode to be rejected")
+	}
+
+	scriptGitHub := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"script": map[string]any{"github": map[string]any{"cli": "issues-read-v1"}},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(scriptGitHub, "workflow.md"); err == nil {
+		t.Fatal("expected script enclave GitHub configuration to be rejected")
 	}
 }
 
