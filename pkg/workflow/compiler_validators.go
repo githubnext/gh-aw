@@ -41,13 +41,11 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Validate expressions in runtime-import files at compile time
-	if strings.Contains(workflowData.MarkdownContent, "{{#runtime-import") {
+	runtimeImportValidationSeed := runtimeImportValidationMarkdown(workflowData)
+	if strings.Contains(runtimeImportValidationSeed, "{{#runtime-import") || strings.Contains(runtimeImportValidationSeed, "{{#import") {
 		workflowLog.Printf("Validating runtime-import files")
-		// Go up from .github/workflows/file.md to repo root
-		workflowDir := filepath.Dir(markdownPath) // .github/workflows
-		githubDir := filepath.Dir(workflowDir)    // .github
-		workspaceDir := filepath.Dir(githubDir)   // repo root
-		subAgentWarnings, err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir)
+		workspaceDir := resolveWorkspaceRoot(markdownPath)
+		subAgentWarnings, err := validateRuntimeImportFiles(runtimeImportValidationSeed, workspaceDir)
 		// Emit best-effort sub-agent frontmatter warnings through the normal warning path
 		// so they are counted and consistently formatted with all other warnings.
 		for _, w := range subAgentWarnings {
@@ -72,6 +70,33 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	}
 
 	return nil
+}
+
+func runtimeImportValidationMarkdown(workflowData *WorkflowData) string {
+	if workflowData == nil {
+		return ""
+	}
+
+	var seed strings.Builder
+	seed.WriteString(workflowData.MarkdownContent)
+	if workflowData.MainWorkflowMarkdown != "" {
+		seed.WriteByte('\n')
+		seed.WriteString(workflowData.MainWorkflowMarkdown)
+	}
+	for _, importPath := range workflowData.ImportPaths {
+		seed.WriteString("\n{{#runtime-import ")
+		seed.WriteString(filepath.ToSlash(importPath))
+		seed.WriteString("}}")
+	}
+	for _, entry := range workflowData.PromptImports {
+		if entry.ImportPath == "" {
+			continue
+		}
+		seed.WriteString("\n{{#runtime-import ")
+		seed.WriteString(filepath.ToSlash(entry.ImportPath))
+		seed.WriteString("}}")
+	}
+	return seed.String()
 }
 
 // tmpNeedle is the literal prefix to scan for in prompt content.

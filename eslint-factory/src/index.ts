@@ -19,6 +19,7 @@ import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-r
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 import { requireMkdirSyncTryCatchRule } from "./rules/require-mkdirsync-try-catch";
 import { requireMkdtempSyncTryCatchRule } from "./rules/require-mkdtempsync-try-catch";
+import { requireRealpathSyncTryCatchRule } from "./rules/require-realpathsync-try-catch";
 import { requireRmSyncTryCatchRule } from "./rules/require-rmsync-try-catch";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
@@ -84,6 +85,7 @@ const plugin = {
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-mkdirsync-try-catch": requireMkdirSyncTryCatchRule,
     "require-mkdtempsync-try-catch": requireMkdtempSyncTryCatchRule,
+    "require-realpathsync-try-catch": requireRealpathSyncTryCatchRule,
     "require-rmsync-try-catch": requireRmSyncTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,

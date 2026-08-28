@@ -341,6 +341,15 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	}
 
 	if pluginInstaller, ok := engine.(PluginInstallationProvider); ok {
+		pluginAuthSteps := c.generatePluginAuthTokenSteps(data)
+		compilerYamlLog.Printf("Adding %d plugin auth token steps for %s", len(pluginAuthSteps), engine.GetID())
+		for _, step := range pluginAuthSteps {
+			for _, line := range step {
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
+			}
+		}
+
 		pluginInstallSteps := pluginInstaller.GetPluginInstallationSteps(data)
 		compilerYamlLog.Printf("Adding %d plugin installation steps for %s", len(pluginInstallSteps), engine.GetID())
 		for _, step := range pluginInstallSteps {

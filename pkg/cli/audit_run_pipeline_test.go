@@ -135,6 +135,8 @@ func TestCacheRecoveryError(t *testing.T) {
 func TestPrepareRunForAnalysis(t *testing.T) {
 	cfg := auditRunConfig{runID: 77, outputDir: "/tmp/run-77"}
 
+	// Not parallel: this subtest uses testutil.CaptureStderr, which reassigns
+	// the process-wide os.Stderr and would race with other stderr-capturing tests.
 	t.Run("synthesizes metadata when using local cache without run metadata", func(t *testing.T) {
 		var run WorkflowRun
 		output := testutil.CaptureStderr(t, func() {
@@ -148,6 +150,7 @@ func TestPrepareRunForAnalysis(t *testing.T) {
 	})
 
 	t.Run("computes duration from timestamps", func(t *testing.T) {
+		t.Parallel()
 		started := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 		run := prepareRunForAnalysis(WorkflowRun{
 			DatabaseID: 77,
@@ -159,6 +162,7 @@ func TestPrepareRunForAnalysis(t *testing.T) {
 	})
 
 	t.Run("leaves duration unset when timestamps are missing", func(t *testing.T) {
+		t.Parallel()
 		run := prepareRunForAnalysis(WorkflowRun{DatabaseID: 77}, cfg, false)
 		assert.Zero(t, run.Duration)
 	})

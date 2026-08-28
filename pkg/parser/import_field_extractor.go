@@ -39,6 +39,7 @@ type importAccumulator struct {
 	observabilityConfigs       []string          // observability config JSON blobs from all imports (merged into endpoint array)
 	engines                    []string
 	plugins                    []string
+	pluginObjects              []map[string]any
 	safeOutputs                []string
 	gradersBuilder             strings.Builder
 	mcpScripts                 []string
@@ -405,7 +406,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	}
 
 	acc.appendJSONBuilderField(fm, "mcp-servers", "{}", &acc.mcpServersBuilder)
-	acc.plugins = append(acc.plugins, parseStringSliceField(fm["plugins"], false)...)
+	acc.extractPlugins(fm)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
 	acc.appendJSONBuilderField(fm, "graders", "{}", &acc.gradersBuilder)
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
@@ -887,6 +888,7 @@ func parseStringSliceField(value any, keepEmpty bool) []string {
 	if !ok {
 		return nil
 	}
+
 	result := make([]string, 0, len(values))
 	for _, v := range values {
 		if s, ok := v.(string); ok {
@@ -900,6 +902,23 @@ func parseStringSliceField(value any, keepEmpty bool) []string {
 		return nil
 	}
 	return result
+}
+
+func (acc *importAccumulator) extractPlugins(fm map[string]any) {
+	values, ok := fm["plugins"].([]any)
+	if !ok {
+		return
+	}
+	for _, value := range values {
+		switch typed := value.(type) {
+		case string:
+			if typed != "" {
+				acc.plugins = append(acc.plugins, typed)
+			}
+		case map[string]any:
+			acc.pluginObjects = append(acc.pluginObjects, typed)
+		}
+	}
 }
 
 func isModelPolicyKey(key string) bool {
@@ -968,6 +987,7 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		MergedMCPServers:                 acc.mcpServersBuilder.String(),
 		MergedEngines:                    acc.engines,
 		MergedPlugins:                    acc.plugins,
+		MergedPluginObjects:              acc.pluginObjects,
 		MergedSafeOutputs:                acc.safeOutputs,
 		MergedGraders:                    acc.gradersBuilder.String(),
 		MergedMCPScripts:                 acc.mcpScripts,
