@@ -2308,6 +2308,78 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).not.toHaveBeenCalled();
     });
 
+    it("should fall back to an unsigned push when a genuine merge conflict is only revealed after a successful object backfill", async () => {
+      // Base branch starts with a shared file.
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add shared file"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      // Agent branch diverges and edits the shared file.
+      execGit(["checkout", "-b", "backfill-then-conflict-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "agent change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent edit shared"], { cwd: workDir });
+
+      // Base branch advances with a conflicting edit to the same file.
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "upstream change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Upstream edit shared"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      execGit(["checkout", "backfill-then-conflict-branch"], { cwd: workDir });
+
+      // Simulate the FIRST rebase attempt failing due to a promisor object-fetch
+      // failure (recoverable), the backfill "succeeding" (mocked), and then the
+      // SECOND (real) rebase attempt hitting the genuine content conflict.
+      const realExec = makeRealExec(workDir);
+      let rebaseAttempts = 0;
+      global.exec = {
+        getExecOutput: async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "rebase" && args[1] === "--onto") {
+            rebaseAttempts++;
+            if (rebaseAttempts === 1) {
+              return {
+                exitCode: 128,
+                stdout: "",
+                stderr: "fatal: remote error: upload-pack: not our ref 0035eb55fe03ab52d8b95e7fcfaee53548b5e8d6\nfatal: could not fetch 4f0af08119278bacff5772a1ddf987d4b4045be8 from promisor remote\n",
+              };
+            }
+          }
+          if (program === "git" && args[0] === "fetch" && args.includes("--no-filter")) {
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
+          return realExec.getExecOutput(program, args, opts);
+        },
+        exec: realExec.exec,
+      };
+
+      const githubClient = makeMockGithubClient();
+
+      const result = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "backfill-then-conflict-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // The rebase was attempted twice (initial promisor failure + post-backfill
+      // retry, which then hits the real content conflict).
+      expect(rebaseAttempts).toBe(2);
+      // The genuine post-backfill conflict falls back to an unsigned push instead
+      // of throwing, and no GraphQL replay is attempted.
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("even after backfilling the required commit objects"));
+
+      // The original (un-rebased) agent commit landed on the remote as-is.
+      const remoteLog = execGit(["log", "--format=%s", "backfill-then-conflict-branch"], { cwd: bareDir }).stdout.trim().split("\n");
+      expect(remoteLog).toContain("Agent edit shared");
+    });
+
     it("should merge state.json conflicts when a custom resolver is provided", async () => {
       const concurrentDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-signed-concurrent-"));
       try {

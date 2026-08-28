@@ -587,16 +587,37 @@ async function pushSignedCommits({
         if (recovered) {
           rebaseResult = await runRebase();
           if (rebaseResult.exitCode !== 0) {
+            const retryOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
             try {
               await exec.exec("git", ["rebase", "--abort"], { cwd });
-            } catch {
-              // Ignore cleanup failures.
+            } catch (abortError) {
+              throw new Error(
+                `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}) even after backfilling the required commit objects, ` +
+                  `and 'git rebase --abort' also failed to restore branch '${branch}' to its original state. ` +
+                  `Root cause: ${retryOutput.trim()}. Abort failure: ${getErrorMessage(abortError)}`,
+                { cause: abortError }
+              );
             }
-            const retryOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
-            throw new Error(
-              `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}) even after backfilling the required commit objects. ` +
-                `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${retryOutput.trim()}`
-            );
+            if (isPartialCloneObjectFailure(retryOutput)) {
+              // Still a missing-object failure even after the targeted backfill — the shallow/
+              // partial clone genuinely cannot supply what this rebase needs, so there is no
+              // valid replay range to fall back to unsigned; this remains fatal.
+              throw new Error(
+                `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}) even after backfilling the required commit objects. ` +
+                  `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${retryOutput.trim()}`
+              );
+            }
+            // The backfill succeeded (the objects needed to attempt the rebase are now present),
+            // but retrying the rebase still failed — this is a genuine content conflict that was
+            // only revealed once the missing objects were available, not a partial-clone object
+            // issue. Route it through the same unsigned-push fallback as any other genuine
+            // conflict below, instead of unconditionally throwing.
+            const diagnosticMessage =
+              `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}) even after backfilling the required commit objects. ` + `Root cause: ${retryOutput.trim()}`;
+            if (allowGitPushFallback === false) {
+              throw new Error(`${ERR_SYSTEM}: ${diagnosticMessage} Resolve conflicts by rebasing/cherry-picking locally and retry.`);
+            }
+            unsignedPushFallbackReason = diagnosticMessage;
           }
         } else {
           throw new Error(
