@@ -156,7 +156,7 @@ const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
 // AWFEnclaveGitHubIssuesMinVersion is the first AWF version whose
 // config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
-const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.8"
+const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure

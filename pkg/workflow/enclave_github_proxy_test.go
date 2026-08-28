@@ -81,7 +81,7 @@ func TestGenerateEnclaveGitHubProxySetup(t *testing.T) {
 	generated := yaml.String()
 
 	assert.Contains(t, generated, "- name: Start Enclave GitHub Proxy")
-	assert.Contains(t, generated, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
+	assert.Contains(t, generated, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}")
 	assert.Contains(t, generated, enclaveGitHubProxyAliasEnv+": "+enclaveGitHubProxyNetworkAlias)
 	assert.Contains(t, generated, "ENCLAVE_GITHUB_PROXY_POLICY_TEMPLATE:")
 	assert.Contains(t, generated, `"allowed_operations":["issues.comments.list","issues.get","issues.list"]`)
@@ -140,10 +140,17 @@ func TestEnclaveGitHubProxyScriptsEnforceDedicatedBridgeContract(t *testing.T) {
 	assert.Contains(t, start, `AWF_ENCLAVE_GITHUB_PROXY_IDENTITY`)
 	assert.Contains(t, start, `AWF_ENCLAVE_GITHUB_PROXY_CA_CERT`)
 	assert.Contains(t, start, `MCP_GATEWAY_ENCLAVE_CAPABILITY_KEY`)
+	assert.Contains(t, start, `::add-mask::${POLICY_TEMPLATE}`)
+	assert.Contains(t, start, `::add-mask::${MCP_GATEWAY_ENCLAVE_POLICY_JSON}`)
+	assert.Contains(t, start, `--resolve "${PROXY_ALIAS}:${PORT}:${PROXY_IP}"`)
+	assert.Contains(t, start, `--cacert "$CA_CERT"`)
+	assert.NotContains(t, start, `curl -skf`)
 
 	stopScript, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "sh", "stop_enclave_github_proxy.sh"))
 	require.NoError(t, err)
 	assert.Contains(t, string(stopScript), "docker rm -f awmg-enclave-github-proxy")
+	assert.Contains(t, string(stopScript), `MCP_LOG_DIR="${RUNNER_TEMP:-/tmp}/gh-aw/enclave-github-proxy-logs"`)
+	assert.NotContains(t, string(stopScript), "/tmp/gh-aw/enclave-github-proxy-logs")
 	assert.Contains(t, string(stopScript), "MCP_GATEWAY_ENCLAVE_CAPABILITY_KEY=\\n")
 }
 

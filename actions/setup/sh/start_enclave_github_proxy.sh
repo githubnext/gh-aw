@@ -30,6 +30,7 @@ if [[ -z "$POLICY_TEMPLATE" ]]; then
   echo "::error::Enclave GitHub proxy policy is required"
   exit 1
 fi
+echo "::add-mask::${POLICY_TEMPLATE}"
 if [[ -z "${GH_TOKEN:-}" ]]; then
   echo "::error::Enclave GitHub proxy requires an upstream GitHub token"
   exit 1
@@ -64,6 +65,7 @@ MCP_GATEWAY_ENCLAVE_POLICY_JSON="$(
   jq -c --arg workflow_run_id "$PROXY_IDENTITY" \
     '.workflow_run_id = $workflow_run_id' <<<"$POLICY_TEMPLATE"
 )"
+echo "::add-mask::${MCP_GATEWAY_ENCLAVE_POLICY_JSON}"
 export MCP_GATEWAY_ENCLAVE_POLICY_JSON
 
 mkdir -p "$MCP_LOG_DIR"
@@ -96,7 +98,9 @@ PROXY_READY=false
 for ((attempt = 1; attempt <= 30; attempt++)); do
   if [[ -f "$CA_CERT" ]]; then
     PROXY_IP="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CONTAINER_NAME")"
-    if [[ -n "$PROXY_IP" ]] && curl -skf "https://${PROXY_IP}:${PORT}/api/v3/health" -o /dev/null; then
+    if [[ -n "$PROXY_IP" ]] && curl -sf --cacert "$CA_CERT" \
+      --resolve "${PROXY_ALIAS}:${PORT}:${PROXY_IP}" \
+      "https://${PROXY_ALIAS}:${PORT}/api/v3/health" -o /dev/null; then
       PROXY_READY=true
       break
     fi

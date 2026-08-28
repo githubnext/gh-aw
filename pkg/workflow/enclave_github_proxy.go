@@ -121,7 +121,7 @@ func (c *Compiler) generateStartEnclaveGitHubProxyStep(yaml *strings.Builder, wo
 
 	yaml.WriteString("      - name: Start Enclave GitHub Proxy\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", getEffectiveGitHubToken(""))
+	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", getEffectiveEnclaveGitHubToken())
 	writeProxyUpstreamEnv(yaml)
 	fmt.Fprintf(yaml, "          ENCLAVE_GITHUB_PROXY_IMAGE: %s\n", quoteYAMLEnvValue(containerImage))
 	fmt.Fprintf(yaml, "          %s: %s\n", enclaveGitHubProxyAliasEnv, enclaveGitHubProxyNetworkAlias)
