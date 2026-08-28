@@ -11,6 +11,13 @@ on:
         description: "Topic for the haiku"
         required: false
         default: "Windows runners"
+  workflow_call:
+    inputs:
+      topic:
+        description: "Topic for the haiku"
+        required: false
+        type: string
+        default: "Windows runners"
 
 permissions:
   contents: read
