@@ -12,6 +12,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | Artifact Name | Constant | Type | Description |
 |---------------|----------|------|-------------|
 | `agent` | `constants.AgentArtifactName`<br/>Source: `pkg/constants/job_constants.go` | Multi-file | Unified agent job outputs (logs, safe outputs, token usage summary) |
+| `agent-output-fallback` | `constants.AgentOutputFallbackArtifactName` | Multi-file | Small dedicated copy of the processed agent output (`agent_output.json`) and raw safe-output NDJSON (`safeoutputs.jsonl`), used when the larger `agent` upload fails or times out |
 | `activation` | `constants.ActivationArtifactName` | Multi-file | Activation job output (`aw_info.json`, `prompt.txt`, rate limits) |
 | `firewall-audit-logs` | `constants.FirewallAuditArtifactName`<br/>Source: `pkg/constants/constants.go` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
 | `detection` | `constants.DetectionArtifactName` | Conditional | Legacy inline engine (`features.gh-aw-detection: false`): single-file `detection.log`. The default external `gh-aw-detection` engine: multi-file `detection_result.json` + `step-summary.md`; `detection.log` is intentionally **not** uploaded (see below) |

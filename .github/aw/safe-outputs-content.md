@@ -46,7 +46,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       expires: 7   # auto-close after 7 days
   ```
 
-  Without `skip-if-match`, the workflow creates a new issue on every scheduled run even when an identical open issue already exists.
+  Without `skip-if-match`, the workflow creates a new issue on every scheduled run even when an identical open issue already exists. For the frequent-schedule variant that serves one item at a time and learns from how the previous issue was closed, see the [All You Can Eat Pattern](workflow-patterns.md#all-you-can-eat-pattern).
 
   **Temporary IDs and Sub-Issues:**
   When creating multiple issues, use `temporary_id` (format: `aw_` + 3-8 alphanumeric chars) to reference parent issues before creation. References like `#aw_abc123` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
