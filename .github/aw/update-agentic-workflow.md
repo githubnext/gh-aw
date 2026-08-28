@@ -47,6 +47,7 @@ Use [workflow-editing.md](workflow-editing.md) as the source of truth for when r
 - do not rewrite unrelated frontmatter sections
 - preserve the existing `intent:` for implementation-only changes, including trigger or output-channel redesigns
 - when the requested outcome materially expands, contracts, or changes, update `intent:` and re-derive its applicability, required effects, no-op conditions, architecture, and evals using [intent.md](intent.md)
+- when an implementation-only change selects a different architecture, revalidate activation conditions, evidence window, deduplication or previous-result strategy, no-op behavior, and evals so event-specific rules do not survive an incompatible redesign
 - when targeting the Copilot coding agent, recommend `permissions: { copilot-requests: write }` for Copilot authentication
 - prefer `toolsets:` for GitHub tools
 - when the user asks for specific skills or agent plugins, add them to the top-level `skills:` / `plugins:` frontmatter fields; never add on-the-fly install steps or prompt instructions to install them at run time (see [skills.md](skills.md))

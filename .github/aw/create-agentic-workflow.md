@@ -41,11 +41,11 @@ When the user requests specific skills or agent plugins, declare them in the bui
 
 ### Interactive mode
 
-Start with exactly:
+When the user has not already stated an automation goal, start with exactly:
 
 > What do you want to automate today?
 
-Then follow a progressive interview — ask one question at a time, advance only when the current phase is clear:
+When the request already states a goal, infer its intent and ask only for information that is still needed. Then follow a progressive interview — ask one question at a time, advance only when the current phase is clear:
 
 1. **Goal and intent** — confirm the workflow name, description, and a concise outcome-oriented `intent:`. Derive activation, required-effect, no-op, success, and uncertainty conditions before choosing implementation; see [intent.md](intent.md).
 2. **Repository survey and intent mining** — only for maintenance or underspecified automation requests, inspect bounded repository evidence using [maintainer.md](maintainer.md). Summarize observed signals, propose evidence-backed candidate intents, then select and augment one before choosing a portfolio or cadence.
