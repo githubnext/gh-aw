@@ -102,13 +102,19 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.CheckoutDisabled = toolsResult.parsedFrontmatter.CheckoutDisabled
 		workflowData.CheckoutExplicitlyDisabled = toolsResult.parsedFrontmatter.CheckoutExplicitlyDisabled
 		workflowData.CheckoutSkipDefault = toolsResult.parsedFrontmatter.CheckoutSkipDefault
-	} else if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
-		if checkoutValue, ok := rawCheckout.(bool); ok && !checkoutValue {
-			workflowData.CheckoutDisabled = true
-			workflowData.CheckoutExplicitlyDisabled = true
-		} else if configs, skipDefaultCheckout, err := ParseCheckoutConfigs(rawCheckout); err == nil {
-			workflowData.CheckoutConfigs = configs
-			workflowData.CheckoutSkipDefault = skipDefaultCheckout
+	} else {
+		if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
+			if checkoutValue, ok := rawCheckout.(bool); ok && !checkoutValue {
+				workflowData.CheckoutDisabled = true
+				workflowData.CheckoutExplicitlyDisabled = true
+			} else if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
+				workflowData.CheckoutConfigs = configs
+			}
+		}
+		// permissions.contents: none signals that the default workflow-repository
+		// checkout should be skipped (see ParseFrontmatterConfig for the primary path).
+		if NewPermissionsParserFromValue(result.Frontmatter["permissions"]).ContentsIsNone() {
+			workflowData.CheckoutSkipDefault = true
 		}
 	}
 
@@ -126,15 +132,12 @@ func (c *Compiler) buildInitialWorkflowData(
 				workflowBuilderLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
 				continue
 			}
-			importedConfigs, importedSkipDefault, err := ParseCheckoutConfigs(raw)
+			importedConfigs, err := ParseCheckoutConfigs(raw)
 			if err != nil {
 				workflowBuilderLog.Printf("Failed to parse imported checkout configs: %v", err)
 				continue
 			}
 			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
-			if importedSkipDefault {
-				workflowData.CheckoutSkipDefault = true
-			}
 		}
 	}
 

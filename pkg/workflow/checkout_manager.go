@@ -114,15 +114,6 @@ type CheckoutConfig struct {
 	// injects a follow-up cleanup step that removes credentials from git config files
 	// (including submodule configs) without using git submodule foreach.
 	CleanGitCredentials bool `json:"force-clean-git-credentials,omitempty"`
-
-	// Enabled explicitly enables or disables this checkout entry. Defaults to true
-	// (nil) when omitted. Setting `enabled: false` on the default entry (no
-	// repository/path) opts the workflow out of the automatic workflow-repository
-	// checkout while other checkout entries (e.g. a target-only sidecar checkout of
-	// a different repository) continue to be processed normally. This is the
-	// mechanism used to support target-only checkouts for sidecar/MultiRepoOps
-	// workflows that must not check out the repository hosting the workflow.
-	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.

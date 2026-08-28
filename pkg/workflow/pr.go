@@ -18,7 +18,7 @@ var prLog = logger.New("workflow:pr")
 // checkout_pr_branch.cjs fetches refs/pull/<n>/head (the untrusted PR head),
 // which replaces any safe base-SHA checkout and is inaccessible for fork PRs.
 func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
-	if data.CheckoutDisabled || data.CheckoutSkipDefault || data.IsPullRequestTarget {
+	if data.CheckoutDisabled || data.IsPullRequestTarget {
 		return false
 	}
 	if data.CachedPermissions != nil {

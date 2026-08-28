@@ -14775,11 +14775,6 @@
           "type": "boolean",
           "description": "When true, persist credentials during checkout, then immediately run a post-checkout cleanup step that removes credentials from root and submodule git configs. Useful for submodule-safe cleanup behavior.",
           "examples": [true, false]
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "Explicitly enables or disables this checkout entry. Defaults to true. Setting enabled: false on the default entry (no repository/path) skips the automatic workflow-repository checkout while other checkout entries (e.g. a target-only sidecar checkout of a different repository) are still processed, enabling target-only checkouts.",
-          "examples": [true, false]
         }
       }
     },

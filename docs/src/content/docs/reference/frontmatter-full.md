@@ -22596,14 +22596,6 @@ checkout:
   # (optional)
   force-clean-git-credentials: true
 
-  # Explicitly enables or disables this checkout entry. Defaults to true. Setting
-  # enabled: false on the default entry (no repository/path) skips the automatic
-  # workflow-repository checkout while other checkout entries (e.g. a target-only
-  # sidecar checkout of a different repository) are still processed, enabling
-  # target-only checkouts.
-  # (optional)
-  enabled: true
-
 # Format 2: Multiple checkout configurations
 checkout: []
   # Array items: undefined

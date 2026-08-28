@@ -20,6 +20,7 @@ func TestCheckoutDisabled(t *testing.T) {
 		frontmatter                string
 		expectedHasDefaultCheckout bool
 		expectedHasDevModeCheckout bool
+		expectTargetRepo           string
 		description                string
 	}{
 		{
@@ -64,27 +65,27 @@ strict: false
 			description:                "When checkout is not set, the default checkout step is included",
 		},
 		{
-			name: "default entry enabled: false skips workflow-repository checkout but keeps target checkout",
+			name: "permissions.contents: none skips default checkout but keeps target checkout",
 			frontmatter: `---
 on:
   issues:
     types: [opened]
 permissions:
+  contents: none
   issues: read
-  pull-requests: read
 tools:
   github:
     toolsets: [issues]
 engine: claude
 checkout:
-  - enabled: false
   - repository: octo-org/target-repository
     path: target
 strict: false
 ---`,
 			expectedHasDefaultCheckout: false,
 			expectedHasDevModeCheckout: true,
-			description:                "enabled: false on the default entry should skip only the workflow-repository checkout, not the target checkout",
+			expectTargetRepo:           "octo-org/target-repository",
+			description:                "permissions.contents: none should skip only the default workflow-repository checkout while target-only checkout entries are still generated",
 		},
 	}
 
@@ -121,9 +122,8 @@ strict: false
 
 			assert.Equal(t, tt.expectedHasDefaultCheckout, hasDefaultCheckout, "%s: default checkout presence mismatch", tt.description)
 			assert.Equal(t, tt.expectedHasDevModeCheckout, hasDevModeCheckout, "%s: dev-mode checkout should not be affected", tt.description)
-
-			if strings.Contains(tt.frontmatter, "octo-org/target-repository") {
-				assert.Contains(t, agentSection, "octo-org/target-repository", "%s: target-only checkout should still check out the configured target repository", tt.description)
+			if tt.expectTargetRepo != "" {
+				assert.Contains(t, agentSection, tt.expectTargetRepo, "%s: target repository checkout should still be present", tt.description)
 			}
 		})
 	}

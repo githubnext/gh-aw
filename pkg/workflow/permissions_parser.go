@@ -189,6 +189,21 @@ func (p *PermissionsParser) HasContentsReadAccess() bool {
 	return false
 }
 
+// ContentsIsNone returns true when the permissions explicitly deny contents access,
+// either via the top-level "none" shorthand or an explicit "contents: none" entry.
+// This is used as the signal that a workflow does not need its own repository content
+// (e.g. a target-only sidecar checkout), so the automatic workflow-repository checkout
+// can be skipped.
+func (p *PermissionsParser) ContentsIsNone() bool {
+	if p.isShorthand {
+		return p.shorthandValue == "none"
+	}
+	if contentsLevel, exists := p.parsedPerms["contents"]; exists {
+		return contentsLevel == "none"
+	}
+	return false
+}
+
 // IsAllowed checks if a specific permission scope has the specified access level
 // scope: "contents", "issues", "pull-requests", etc.
 // level: "read", "write", "none"

@@ -12,18 +12,11 @@ var checkoutsNoCredentialsWarning string
 
 // ParseCheckoutConfigs converts a raw frontmatter value (single map or array of maps)
 // into a slice of CheckoutConfig entries.
-// Returns (nil, false, nil) if the value is nil; for non-nil values, invalid types or
-// shapes result in a non-nil error.
-//
-// The second return value, skipDefaultCheckout, is true when the default entry (the
-// entry with no repository and no path, representing the workflow-repository checkout)
-// was explicitly disabled via `enabled: false`. Callers should use this to suppress the
-// automatic workflow-repository checkout while still processing any other configured
-// checkout entries — enabling target-only checkouts for sidecar/MultiRepoOps workflows.
-// Disabled entries (whether default or not) are omitted from the returned slice.
-func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, bool, error) {
+// Returns (nil, nil) if the value is nil; for non-nil values, invalid types or shapes
+// result in a non-nil error.
+func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 	if raw == nil {
-		return nil, false, nil
+		return nil, nil
 	}
 	checkoutManagerLog.Printf("Parsing checkout configuration: type=%T", raw)
 
@@ -33,7 +26,7 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, bool, error) {
 	if singleMap, ok := raw.(map[string]any); ok {
 		cfg, err := checkoutConfigFromMap(singleMap)
 		if err != nil {
-			return nil, false, fmt.Errorf("invalid checkout configuration, expected an object with checkout fields such as repository, ref, or path: %w", err)
+			return nil, fmt.Errorf("invalid checkout configuration, expected an object with checkout fields such as repository, ref, or path: %w", err)
 		}
 		configs = []*CheckoutConfig{cfg}
 	} else if arr, ok := raw.([]any); ok {
@@ -42,37 +35,17 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, bool, error) {
 		for i, item := range arr {
 			itemMap, ok := item.(map[string]any)
 			if !ok {
-				return nil, false, fmt.Errorf("checkout[%d]: expected object, got %T", i, item)
+				return nil, fmt.Errorf("checkout[%d]: expected object, got %T", i, item)
 			}
 			cfg, err := checkoutConfigFromMap(itemMap)
 			if err != nil {
-				return nil, false, fmt.Errorf("checkout[%d]: %w", i, err)
+				return nil, fmt.Errorf("checkout[%d]: %w", i, err)
 			}
 			configs = append(configs, cfg)
 		}
 	} else {
-		return nil, false, fmt.Errorf("checkout must be an object or an array of objects, got %T. Expected a single checkout object or a list of checkout objects. Example:\ncheckout:\n  repository: owner/repo", raw)
+		return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T. Expected a single checkout object or a list of checkout objects. Example:\ncheckout:\n  repository: owner/repo", raw)
 	}
-
-	// Filter out explicitly disabled entries (enabled: false). Track whether the
-	// default entry (no repository, no path) was disabled so callers can suppress the
-	// automatic workflow-repository checkout while keeping other entries intact.
-	skipDefaultCheckout := false
-	enabledConfigs := make([]*CheckoutConfig, 0, len(configs))
-	for _, cfg := range configs {
-		if cfg.Enabled != nil && !*cfg.Enabled {
-			isDefault := strings.TrimSpace(cfg.Repository) == "" && strings.TrimSpace(cfg.Path) == ""
-			if isDefault {
-				skipDefaultCheckout = true
-				checkoutManagerLog.Print("Default checkout entry disabled via enabled: false; workflow-repository checkout will be skipped")
-			} else {
-				checkoutManagerLog.Printf("Checkout entry for repository=%q path=%q disabled via enabled: false; omitting", cfg.Repository, cfg.Path)
-			}
-			continue
-		}
-		enabledConfigs = append(enabledConfigs, cfg)
-	}
-	configs = enabledConfigs
 
 	// Validate that at most one logical checkout target has current: true.
 	// Multiple current checkouts are not allowed since only one repo/path pair can be
@@ -96,11 +69,11 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, bool, error) {
 	}
 	if len(currentTargets) > 1 {
 		checkoutManagerLog.Printf("Rejecting checkout config: %d distinct current targets, only one allowed", len(currentTargets))
-		return nil, false, fmt.Errorf("only one checkout target may have current: true, found %d", len(currentTargets))
+		return nil, fmt.Errorf("only one checkout target may have current: true, found %d", len(currentTargets))
 	}
 
-	checkoutManagerLog.Printf("Parsed %d checkout configuration(s), current-targets=%d, skipDefaultCheckout=%t", len(configs), len(currentTargets), skipDefaultCheckout)
-	return configs, skipDefaultCheckout, nil
+	checkoutManagerLog.Printf("Parsed %d checkout configuration(s), current-targets=%d", len(configs), len(currentTargets))
+	return configs, nil
 }
 
 // checkoutConfigFromMap converts a raw map to a CheckoutConfig.
@@ -301,14 +274,6 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 			return nil, errors.New("checkout.force-clean-git-credentials must be a boolean. Example:\ncheckout:\n  force-clean-git-credentials: true")
 		}
 		cfg.CleanGitCredentials = b
-	}
-
-	if v, ok := m["enabled"]; ok {
-		b, ok := v.(bool)
-		if !ok {
-			return nil, errors.New("checkout.enabled must be a boolean. Example:\ncheckout:\n  - enabled: false")
-		}
-		cfg.Enabled = &b
 	}
 
 	return cfg, nil

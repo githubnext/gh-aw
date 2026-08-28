@@ -3341,12 +3341,6 @@
           "desc": "When true, persist credentials during checkout, then immediately run a post-checkout cleanup step that removes creden...",
           "enum": [true, false],
           "leaf": true
-        },
-        "enabled": {
-          "type": "boolean",
-          "desc": "Explicitly enables or disables this checkout entry. Setting enabled: false on the default entry skips the automatic w...",
-          "enum": [true, false],
-          "leaf": true
         }
       },
       "array": true

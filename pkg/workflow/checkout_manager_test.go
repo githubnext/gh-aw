@@ -402,7 +402,7 @@ func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 // TestParseCheckoutConfigs verifies parsing of raw frontmatter values.
 func TestParseCheckoutConfigs(t *testing.T) {
 	t.Run("nil returns nil", func(t *testing.T) {
-		configs, _, err := ParseCheckoutConfigs(nil)
+		configs, err := ParseCheckoutConfigs(nil)
 		require.NoError(t, err, "nil should not error")
 		assert.Nil(t, configs, "nil input should return nil configs")
 	})
@@ -412,7 +412,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 			"fetch-depth":  float64(0),
 			"github-token": "${{ secrets.MY_TOKEN }}",
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "single object should parse without error")
 		require.Len(t, configs, 1, "should produce one config")
 		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].GitHubToken, "github-token should be set")
@@ -425,7 +425,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 			raw := map[string]any{
 				"fetch-depth": depth,
 			}
-			_, _, err := ParseCheckoutConfigs(raw)
+			_, err := ParseCheckoutConfigs(raw)
 			require.Error(t, err)
 			require.ErrorContains(t, err, "checkout.fetch-depth must be >= 0")
 		}
@@ -435,7 +435,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		raw := map[string]any{
 			"token": "${{ secrets.MY_TOKEN }}",
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "legacy token key should parse without error")
 		require.Len(t, configs, 1, "should produce one config")
 		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].GitHubToken, "legacy token should populate GitHubToken")
@@ -449,7 +449,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "github-app config should parse without error")
 		require.Len(t, configs, 1)
 		require.NotNil(t, configs[0].GitHubApp, "github-app config should be set")
@@ -467,7 +467,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"repositories": []any{"repo-a", "repo-b"},
 			},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "github-app config with owner should parse without error")
 		require.Len(t, configs, 1)
 		require.NotNil(t, configs[0].GitHubApp)
@@ -483,7 +483,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "github-app config with client-id should parse without error")
 		require.Len(t, configs, 1)
 		require.NotNil(t, configs[0].GitHubApp, "github-app config should be set")
@@ -498,7 +498,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"private-key": "${{ secrets.SO_APP_PRIVATE_KEY }}",
 			},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "safe-outputs-github-app config should parse without error")
 		require.Len(t, configs, 1)
 		require.NotNil(t, configs[0].SafeOutputGitHubApp, "safe-outputs-github-app config should be set")
@@ -514,7 +514,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"private-key": "${{ secrets.SO_APP_PRIVATE_KEY }}",
 			},
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "safe-output-github-app should be rejected")
 		require.ErrorContains(t, err, "checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
 	})
@@ -527,7 +527,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-token and github-app together should return error")
 		require.ErrorContains(t, err, "mutually exclusive", "error should mention mutual exclusivity")
 	})
@@ -538,7 +538,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-app without app-id should return error")
 		require.ErrorContains(t, err, "client-id (or app-id) and private-key")
 	})
@@ -549,7 +549,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 				"app-id": "${{ vars.APP_ID }}",
 			},
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-app without private-key should return error")
 		require.ErrorContains(t, err, "client-id (or app-id) and private-key")
 	})
@@ -558,7 +558,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		raw := map[string]any{
 			"github-app": "not-an-object",
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "non-object github-app should return error")
 		require.ErrorContains(t, err, "checkout.github-app must be an object")
 	})
@@ -568,7 +568,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 			map[string]any{"path": "."},
 			map[string]any{"repository": "owner/repo", "path": "./libs"},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "array should parse without error")
 		require.Len(t, configs, 2, "should produce two configs")
 		assert.Empty(t, configs[0].Path, "first path should be normalized from '.' to empty")
@@ -576,19 +576,19 @@ func TestParseCheckoutConfigs(t *testing.T) {
 	})
 
 	t.Run("invalid type returns error", func(t *testing.T) {
-		_, _, err := ParseCheckoutConfigs("invalid")
+		_, err := ParseCheckoutConfigs("invalid")
 		assert.Error(t, err, "string value should return an error")
 	})
 
 	t.Run("array with non-object entry returns error", func(t *testing.T) {
 		raw := []any{"not-an-object"}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		assert.Error(t, err, "array with non-object entry should return error")
 	})
 
 	t.Run("submodules as bool true", func(t *testing.T) {
 		raw := map[string]any{"submodules": true}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err)
 		require.Len(t, configs, 1)
 		assert.Equal(t, "true", configs[0].Submodules, "bool true should convert to string 'true'")
@@ -596,7 +596,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 
 	t.Run("submodules as bool false", func(t *testing.T) {
 		raw := map[string]any{"submodules": false}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err)
 		require.Len(t, configs, 1)
 		assert.Equal(t, "false", configs[0].Submodules, "bool false should convert to string 'false'")
@@ -604,48 +604,10 @@ func TestParseCheckoutConfigs(t *testing.T) {
 
 	t.Run("submodules as string recursive", func(t *testing.T) {
 		raw := map[string]any{"submodules": "recursive"}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err)
 		require.Len(t, configs, 1)
 		assert.Equal(t, "recursive", configs[0].Submodules, "string should be preserved")
-	})
-
-	t.Run("default entry with enabled false skips default checkout but keeps other entries", func(t *testing.T) {
-		raw := []any{
-			map[string]any{"enabled": false},
-			map[string]any{"repository": "octo-org/target-repository", "path": "target"},
-		}
-		configs, skipDefault, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err, "target-only checkout config should parse without error")
-		assert.True(t, skipDefault, "disabling the default entry should signal skipDefaultCheckout")
-		require.Len(t, configs, 1, "the disabled default entry should be omitted from the returned configs")
-		assert.Equal(t, "octo-org/target-repository", configs[0].Repository)
-		assert.Equal(t, "target", configs[0].Path)
-	})
-
-	t.Run("non-default entry with enabled false is omitted without skipping default checkout", func(t *testing.T) {
-		raw := []any{
-			map[string]any{"repository": "octo-org/target-repository", "path": "target", "enabled": false},
-		}
-		configs, skipDefault, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err)
-		assert.False(t, skipDefault, "disabling a non-default entry should not affect the default checkout")
-		assert.Empty(t, configs, "the disabled entry should be omitted")
-	})
-
-	t.Run("enabled true is a no-op", func(t *testing.T) {
-		raw := map[string]any{"enabled": true}
-		configs, skipDefault, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err)
-		assert.False(t, skipDefault)
-		require.Len(t, configs, 1)
-	})
-
-	t.Run("enabled with non-boolean value returns error", func(t *testing.T) {
-		raw := map[string]any{"enabled": "false"}
-		_, _, err := ParseCheckoutConfigs(raw)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "checkout.enabled must be a boolean")
 	})
 }
 
@@ -710,7 +672,7 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 			"repository": "owner/target-repo",
 			"current":    true,
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "should parse without error")
 		require.Len(t, configs, 1, "should produce one config")
 		assert.True(t, configs[0].Current, "current flag should be true")
@@ -719,7 +681,7 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 
 	t.Run("parse current: false from map", func(t *testing.T) {
 		raw := map[string]any{"current": false}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "should parse without error")
 		require.Len(t, configs, 1)
 		assert.False(t, configs[0].Current, "current flag should be false")
@@ -727,7 +689,7 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 
 	t.Run("invalid current type returns error", func(t *testing.T) {
 		raw := map[string]any{"current": "yes"}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		assert.Error(t, err, "non-boolean current should return error")
 	})
 
@@ -736,7 +698,7 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 			map[string]any{"repository": "owner/repo1", "path": "./r1", "current": true},
 			map[string]any{"repository": "owner/repo2", "path": "./r2", "current": true},
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "multiple current: true should return error")
 		require.ErrorContains(t, err, "only one checkout target may have current: true", "error should mention the constraint")
 	})
@@ -746,7 +708,7 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 			map[string]any{"path": "."},
 			map[string]any{"repository": "owner/target", "path": "./target", "current": true},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "single current: true in array should be valid")
 		require.Len(t, configs, 2)
 		assert.False(t, configs[0].Current, "first checkout should not be current")
@@ -885,7 +847,7 @@ func TestParseFetchField(t *testing.T) {
 		raw := map[string]any{
 			"fetch": []any{"*", "refs/pulls/open/*"},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "should parse without error")
 		require.Len(t, configs, 1)
 		assert.Equal(t, []string{"*", "refs/pulls/open/*"}, configs[0].Fetch, "fetch should be set")
@@ -895,7 +857,7 @@ func TestParseFetchField(t *testing.T) {
 		raw := map[string]any{
 			"fetch": "*",
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "single string fetch should parse without error")
 		require.Len(t, configs, 1)
 		assert.Equal(t, []string{"*"}, configs[0].Fetch, "single string should become a one-element slice")
@@ -905,7 +867,7 @@ func TestParseFetchField(t *testing.T) {
 		raw := map[string]any{
 			"fetch": []any{"main", "feature/my-branch"},
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err)
 		require.Len(t, configs, 1)
 		assert.Equal(t, []string{"main", "feature/my-branch"}, configs[0].Fetch)
@@ -915,7 +877,7 @@ func TestParseFetchField(t *testing.T) {
 		raw := map[string]any{
 			"fetch": 42,
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		assert.Error(t, err, "integer fetch should return error")
 	})
 
@@ -923,7 +885,7 @@ func TestParseFetchField(t *testing.T) {
 		raw := map[string]any{
 			"fetch": []any{"main", 123},
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		assert.Error(t, err, "array with non-string entry should return error")
 	})
 
@@ -931,7 +893,7 @@ func TestParseFetchField(t *testing.T) {
 		raw := map[string]any{
 			"repository": "owner/repo",
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err)
 		require.Len(t, configs, 1)
 		assert.Empty(t, configs[0].Fetch, "absent fetch should produce empty slice")
@@ -1492,7 +1454,7 @@ func TestWikiCheckout(t *testing.T) {
 			"repository": "owner/repo",
 			"wiki":       true,
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "should parse wiki: true without error")
 		require.Len(t, configs, 1, "should produce one config")
 		assert.True(t, configs[0].Wiki, "wiki field should be true")
@@ -1503,7 +1465,7 @@ func TestWikiCheckout(t *testing.T) {
 			"repository": "owner/repo",
 			"wiki":       false,
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "should parse wiki: false without error")
 		require.Len(t, configs, 1, "should produce one config")
 		assert.False(t, configs[0].Wiki, "wiki field should be false")
@@ -1513,7 +1475,7 @@ func TestWikiCheckout(t *testing.T) {
 		raw := map[string]any{
 			"wiki": "yes",
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "non-boolean wiki should return error")
 		require.ErrorContains(t, err, "checkout.wiki must be a boolean", "error message should mention wiki")
 	})
@@ -1522,7 +1484,7 @@ func TestWikiCheckout(t *testing.T) {
 		raw := map[string]any{
 			"force-clean-git-credentials": true,
 		}
-		configs, _, err := ParseCheckoutConfigs(raw)
+		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "should parse force-clean-git-credentials: true without error")
 		require.Len(t, configs, 1, "should produce one config")
 		assert.True(t, configs[0].CleanGitCredentials, "force-clean-git-credentials should be true")
@@ -1532,7 +1494,7 @@ func TestWikiCheckout(t *testing.T) {
 		raw := map[string]any{
 			"force-clean-git-credentials": "true",
 		}
-		_, _, err := ParseCheckoutConfigs(raw)
+		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "non-boolean force-clean-git-credentials should return error")
 		require.ErrorContains(t, err, "checkout.force-clean-git-credentials must be a boolean", "error message should mention force-clean-git-credentials")
 	})
