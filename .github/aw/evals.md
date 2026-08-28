@@ -35,8 +35,7 @@ on:
     types: [opened]
 engine: copilot
 safe-outputs:
-  comment:
-    allowed-tools: ["*"]
+  add-comment:
 evals:
   - id: response_provided
     question: Does the agent output confirm that a response was written?
@@ -188,13 +187,14 @@ on:
     types: [opened]
 engine: copilot
 permissions:
-  issues: write
+  contents: read
+  issues: read
 tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  add-label:
-    allowed-labels: [bug, enhancement, question, needs-triage]
+  add-labels:
+    allowed: [bug, enhancement, question, needs-triage]
 evals:
   - id: label_requested
     question: Does the agent output show that at least one label was requested via a safe-output action?

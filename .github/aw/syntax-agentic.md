@@ -218,6 +218,17 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     checkout: false
     ```
 
+  - Target-only checkout for sidecar/MultiRepoOps workflows: set `permissions.contents: none` to skip only the automatic workflow-repository checkout while still checking out other explicitly configured `checkout:` entries (e.g. a target repository). Unlike `checkout: false`, additional checkout entries are unaffected:
+
+    ```yaml
+    permissions:
+      contents: none
+    checkout:
+      - repository: octo-org/target-repository
+        path: target
+        github-token: ${{ secrets.TARGET_REPO_PAT }}
+    ```
+
   - Single checkout (object):
 
     ```yaml

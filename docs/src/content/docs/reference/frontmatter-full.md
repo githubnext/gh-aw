@@ -28,6 +28,13 @@ name: "My Workflow"
 # (optional)
 description: "Description of the workflow"
 
+# Optional statement of the durable outcome the workflow exists to achieve. Unlike
+# 'description', which explains what the workflow does, 'intent' explains why the
+# workflow exists and should stay implementation-independent. Rendered as a
+# comment in the generated GitHub Actions YAML file (.lock.yml).
+# (optional)
+intent: "example-value"
+
 # Optional emoji to represent the workflow visually in listings and UI surfaces.
 # (optional)
 emoji: "example-value"
@@ -4488,9 +4495,9 @@ safe-outputs:
 
   # List of allowed domains for URL redaction in safe output handlers. Supports
   # domain set identifiers (e.g., "python", "node", "default-safe-outputs",
-  # "copilot") like network.allowed. These domains are unioned with
-  # network.allowed when computing the final allowed domain set. localhost and
-  # github.com are always included.
+  # "copilot") like network.allowed. These domains are unioned with network.allowed
+  # when computing the final allowed domain set. localhost and github.com are always
+  # included.
   # (optional)
   allowed-domains: []
     # Array of strings
