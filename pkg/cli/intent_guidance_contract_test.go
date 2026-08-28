@@ -1,0 +1,51 @@
+//go:build !integration
+
+package cli
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestIntentGuidanceContract(t *testing.T) {
+	t.Parallel()
+	repoRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		t.Skipf("Skipping test: not in a git repository: %v", err)
+	}
+
+	intentPath := filepath.Join(repoRoot, ".github", "aw", "intent.md")
+	intentContent, err := os.ReadFile(intentPath)
+	require.NoError(t, err, "Should read intent guidance")
+	intentText := string(intentContent)
+	for _, token := range []string{
+		"intent: Reduce maintainer effort",
+		"activation conditions",
+		"required effects",
+		"noop conditions",
+		"success conditions",
+		"Do not serialize this structure",
+		"candidate intents",
+		"adversarial scenarios",
+		"Preserve Intent on Updates",
+	} {
+		assert.Containsf(t, intentText, token, "Intent guidance must include %q", token)
+	}
+
+	for _, name := range []string{
+		"designer.md",
+		"create-agentic-workflow.md",
+		"update-agentic-workflow.md",
+		"evals.md",
+		"maintainer.md",
+	} {
+		content, readErr := os.ReadFile(filepath.Join(repoRoot, ".github", "aw", name))
+		require.NoErrorf(t, readErr, "Should read %s", name)
+		assert.Containsf(t, string(content), "intent.md", "%s must use shared intent guidance", name)
+	}
+}

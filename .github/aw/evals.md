@@ -126,6 +126,22 @@ evals:
   model: gpt-4o   # nuanced questions; override default small model
 ```
 
+### Intent-derived scenarios
+
+When a workflow has an `intent:`, load [intent.md](intent.md) during design. Derive representative positive scenarios from its required effects and adversarial scenarios from its inverse/no-op conditions. For each scenario, write a separate question about an observable result:
+
+```yaml
+evals:
+  - id: actionable_case
+    question: Does the agent output show that the novel, actionable case received the configured visible result?
+  - id: duplicate_noop
+    question: Does the agent output show that the already-tracked case produced no visible write action?
+  - id: uncertainty_noop
+    question: Does the agent output show that insufficient evidence produced no visible write action?
+```
+
+Do not ask whether the intent is good or whether the agent tried hard. A question must still be a single, falsifiable YES/NO claim answerable from the output alone.
+
 ### Good question checklist
 
 - ✅ Answerable from the agent output alone — no external calls needed.

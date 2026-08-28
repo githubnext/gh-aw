@@ -28,9 +28,13 @@ Capture:
 - Brief description
 - Optional emoji
 
-### Phase 1b: Repository Survey for Maintenance Workflows
+### Phase 1a: Intent
 
-Before asking the user to choose maintenance tasks, run the survey in [maintainer.md#survey-the-repository-before-choosing-a-strategy](maintainer.md#survey-the-repository-before-choosing-a-strategy) and separate observed signals from inferred strategy. Based on the survey, recommend two or three low-risk task families, a conservative cadence, per-run limits, state/deduplication needs, and pressure valves. Ask the user only about policy choices that cannot be inferred, such as acceptable maintainer attention, protected areas, or whether contributor-facing comments are allowed.
+Before selecting a trigger or implementation, load [intent.md](intent.md) and derive the concise canonical outcome and transient IntentSpec. Confirm the outcome when it is ambiguous and persist it later as `intent:`. For explicit, narrow requests, keep this step lightweight.
+
+### Phase 1b: Repository Survey and Intent Mining
+
+For maintenance or broad automation requests, run the bounded survey in [maintainer.md#survey-the-repository-before-choosing-a-strategy](maintainer.md#survey-the-repository-before-choosing-a-strategy). Separate observed signals from inferred strategy, derive evidence-backed candidate intents, and select and augment one before choosing a portfolio, trigger, or cadence. Ask only about policy choices that cannot be inferred.
 
 ### Phase 2: Trigger
 
@@ -41,7 +45,7 @@ Follow up only if needed:
 - Any filters (labels, branches, commands)?
 - Scheduled cadence (daily/weekly/hourly)?
 
-Map to the `on:` block.
+Compare candidate architectures against the IntentSpec, then map the selected one to the `on:` block.
 
 ### Phase 3: Scope (Read/Write)
 
@@ -168,6 +172,7 @@ After confirmation, generate one workflow file using the same skeleton style as 
 ---
 emoji: <emoji>
 description: <brief description>
+intent: <concise outcome, not an implementation>
 on:
   <trigger config>
 permissions:
@@ -207,7 +212,9 @@ evals:
 
 ## Task
 
-<clear instructions tied to trigger context>
+Objective: <canonical intent>
+
+Determine applicability from the activation conditions and required context. Produce the required effects only when the evidence threshold is met. If a no-op condition applies, including insufficient evidence or a duplicate, call `noop` with a short reason and take no visible write action.
 If `steps:` includes pre-fetch commands, read the resulting `/tmp/gh-aw/data/*.json` files instead of broad live re-fetches.
 
 ## Safe Outputs
@@ -224,7 +231,9 @@ Before final output, run this internal self-check:
 - [ ] `safe-outputs:` covers every write action mentioned in prompt/instructions
 - [ ] Network access is scoped; avoid blanket wildcard entries
 - [ ] Trigger matches the user's intended activation event
+- [ ] `intent:` is a concise outcome, and the selected architecture follows the augmented IntentSpec
 - [ ] Prompt instructs agent to call `noop` when no action is needed
+- [ ] Prompt states applicability, required effects, and inverse/no-op conditions
 - [ ] Unnecessary defaults are omitted (for example `engine: copilot`)
 - [ ] If reading GitHub data, `steps:` pre-fetches compact JSON (DataOps)
 - [ ] `tools.github.mode` is `gh-proxy` unless broader MCP toolsets are explicitly needed
@@ -237,6 +246,7 @@ Before final output, run this internal self-check:
 - [ ] Skills and plugins are declared in frontmatter — no on-the-fly install steps or prompt-driven installation
 - [ ] `lsp:` is only used with `engine: copilot` (experimental; omit otherwise)
 - [ ] `evals:` questions are binary YES/NO and `safe-outputs:` is declared so `agent_output.json` exists
+- [ ] Evals, when used, cover both an intent-required effect and a counter-case
 - [ ] For each third-party service/MCP integration, required secrets/env vars are listed
 - [ ] Auth guidance includes least-privilege token scope recommendations
 - [ ] For GHEC/GHES deployments, `engine.api-target` and GHES compatibility guidance are included when needed
@@ -256,6 +266,7 @@ In-repo references:
 - `.github/aw/skills.md`
 - `.github/aw/lsp.md`
 - `.github/aw/evals.md`
+- `.github/aw/intent.md`
 
 Portable HTTPS references:
 - `https://github.com/github/gh-aw/blob/main/.github/aw/designer-mappings.md`
