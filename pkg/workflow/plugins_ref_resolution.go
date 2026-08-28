@@ -36,6 +36,9 @@ func (c *Compiler) resolveFrontmatterPluginRefs(workflowData *WorkflowData) erro
 			return fmt.Errorf("plugins[%d]: resolved %q to invalid commit SHA %q; expected a full 40-character lowercase hexadecimal SHA", i, plugin, sha)
 		}
 		workflowData.Plugins[i] = parsed.repoPath + "@" + sha
+		if i < len(workflowData.PluginReferences) {
+			workflowData.PluginReferences[i].Plugin = workflowData.Plugins[i]
+		}
 	}
 
 	return nil

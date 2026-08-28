@@ -571,3 +571,138 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 		require.ErrorContains(t, err, "unsupported behaviors.plugins.directory")
 	})
 }
+
+func TestValidatePluginsAcceptsObjectFormWithGitHubToken(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	data := &WorkflowData{
+		Plugins: []string{"octo-org/private-plugin@main"},
+		PluginReferences: []PluginReference{
+			{Plugin: "octo-org/private-plugin@main", GitHubToken: "${{ secrets.PRIVATE_PLUGIN_TOKEN }}"},
+		},
+	}
+
+	require.NoError(t, compiler.validatePlugins(data))
+	require.Len(t, data.PluginReferences, 1)
+	assert.Equal(t, "${{ secrets.PRIVATE_PLUGIN_TOKEN }}", data.PluginReferences[0].GitHubToken)
+	assert.Equal(t, []string{"octo-org/private-plugin@main"}, data.Plugins)
+}
+
+func TestPluginTokenExpression(t *testing.T) {
+	t.Run("returns empty string without a token or app", func(t *testing.T) {
+		data := &WorkflowData{
+			Plugins:          []string{"octo-org/agent-plugin@main"},
+			PluginReferences: []PluginReference{{Plugin: "octo-org/agent-plugin@main"}},
+		}
+		assert.Empty(t, pluginTokenExpression(data, 0))
+	})
+
+	t.Run("returns the configured github-token expression", func(t *testing.T) {
+		data := &WorkflowData{
+			Plugins: []string{"octo-org/private-plugin@main"},
+			PluginReferences: []PluginReference{
+				{Plugin: "octo-org/private-plugin@main", GitHubToken: "${{ secrets.PRIVATE_PLUGIN_TOKEN }}"},
+			},
+		}
+		assert.Equal(t, "${{ secrets.PRIVATE_PLUGIN_TOKEN }}", pluginTokenExpression(data, 0))
+	})
+
+	t.Run("returns a minted app token expression", func(t *testing.T) {
+		data := &WorkflowData{
+			Plugins: []string{"octo-org/private-plugin@main"},
+			PluginReferences: []PluginReference{
+				{Plugin: "octo-org/private-plugin@main", GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.PLUGIN_APP_CLIENT_ID }}",
+					PrivateKey: "${{ secrets.PLUGIN_APP_PRIVATE_KEY }}",
+				}},
+			},
+		}
+		assert.Equal(t, "${{ steps.plugin-app-token-0.outputs.token }}", pluginTokenExpression(data, 0))
+	})
+
+	t.Run("returns empty string for an out-of-range index", func(t *testing.T) {
+		data := &WorkflowData{Plugins: []string{"octo-org/agent-plugin@main"}}
+		assert.Empty(t, pluginTokenExpression(data, 5))
+	})
+}
+
+func TestGeneratePluginAuthTokenSteps(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+
+	t.Run("no steps without any github-app plugin", func(t *testing.T) {
+		data := &WorkflowData{
+			Plugins: []string{"octo-org/agent-plugin@main"},
+			PluginReferences: []PluginReference{
+				{Plugin: "octo-org/agent-plugin@main", GitHubToken: "${{ secrets.MY_TOKEN }}"},
+			},
+		}
+		assert.Empty(t, compiler.generatePluginAuthTokenSteps(data))
+	})
+
+	t.Run("mints a token for each github-app plugin", func(t *testing.T) {
+		data := &WorkflowData{
+			Plugins: []string{"octo-org/private-plugin@main"},
+			PluginReferences: []PluginReference{
+				{Plugin: "octo-org/private-plugin@main", GitHubApp: &GitHubAppConfig{
+					AppID:      "${{ vars.PLUGIN_APP_CLIENT_ID }}",
+					PrivateKey: "${{ secrets.PLUGIN_APP_PRIVATE_KEY }}",
+				}},
+			},
+		}
+		steps := compiler.generatePluginAuthTokenSteps(data)
+		require.NotEmpty(t, steps)
+		joined := strings.Join(steps[len(steps)-1], "\n")
+		assert.Contains(t, joined, "id: plugin-app-token-0")
+		assert.Contains(t, joined, "actions/create-github-app-token")
+	})
+}
+
+func TestCompileWorkflowInstallsPrivatePluginWithGitHubToken(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "private-plugin-token")
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+plugins:
+  - plugin: octo-org/private-plugin@`+testPluginSHA+`
+    github-token: ${{ secrets.PRIVATE_PLUGIN_TOKEN }}
+---
+
+Run the workflow.
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	lockText := string(lockContent)
+	assert.Contains(t, lockText, "name: Checkout agent plugin octo-org/private-plugin")
+	assert.Contains(t, lockText, "token: ${{ secrets.PRIVATE_PLUGIN_TOKEN }}")
+}
+
+func TestCompileWorkflowInstallsPrivatePluginWithGitHubApp(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "private-plugin-app")
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+plugins:
+  - plugin: octo-org/private-plugin@`+testPluginSHA+`
+    github-app:
+      client-id: ${{ vars.PLUGIN_APP_CLIENT_ID }}
+      private-key: ${{ secrets.PLUGIN_APP_PRIVATE_KEY }}
+---
+
+Run the workflow.
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	lockText := string(lockContent)
+	assert.Contains(t, lockText, "id: plugin-app-token-0")
+	assert.Contains(t, lockText, "name: Checkout agent plugin octo-org/private-plugin")
+	assert.Contains(t, lockText, "token: ${{ steps.plugin-app-token-0.outputs.token }}")
+}
