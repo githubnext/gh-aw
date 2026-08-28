@@ -113,8 +113,8 @@ safe-outputs:
 
 Test workflow with defaults network.
 `,
-			expectedDomains:  []string{},
-			unexpectedDomain: "",
+			expectedDomains:  []string{"json-schema.org", "archive.ubuntu.com"},
+			unexpectedDomain: "api.githubcopilot.com",
 		},
 		{
 			name: "Copilot without network config",
@@ -134,7 +134,7 @@ safe-outputs:
 Test workflow without network config.
 `,
 			expectedDomains:  []string{},
-			unexpectedDomain: "",
+			unexpectedDomain: "api.githubcopilot.com",
 		},
 		{
 			name: "Claude with ecosystem identifier",
@@ -373,6 +373,7 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 		networkPerms      *NetworkPermissions
 		expectedDomains   []string
 		unexpectedDomains []string
+		expectedEmpty     bool
 	}{
 		{
 			name:     "Copilot with custom domains",
@@ -401,12 +402,14 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			engineID:        "copilot",
 			networkPerms:    nil,
 			expectedDomains: []string{},
+			expectedEmpty:   true,
 		},
 		{
 			name:            "Claude with nil network",
 			engineID:        "claude",
 			networkPerms:    nil,
 			expectedDomains: []string{},
+			expectedEmpty:   true,
 		},
 		{
 			name:     "Codex with custom domains",
@@ -457,6 +460,9 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			// Call the function
 			domainsStr, err := compiler.computeAllowedDomainsForSanitization(data)
 			require.NoError(t, err, "computeAllowedDomainsForSanitization should not return an error for valid test data")
+			if tt.expectedEmpty {
+				require.Empty(t, domainsStr, "expected no domains without network configuration")
+			}
 
 			// Verify expected domains are present (substring match is fine here since domain names
 			// in a CSV string that are exact entries won't appear as substrings of other entries
