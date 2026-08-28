@@ -1,5 +1,4 @@
-{"run_id":"31351828695","timestamp":"2026-08-10T03:11:07.598Z","assignments":{"model_size":"claude-haiku-4.5"},"baseline_counts":{"model_size":{"claude-sonnet-4.6":360,"claude-haiku-4.5":374}}}
-{"run_id":"31356739735","timestamp":"2026-08-10T04:51:06.523Z","assignments":{"model_size":"claude-sonnet-4.6"}}
+{"run_id":"31356739735","timestamp":"2026-08-10T04:51:06.523Z","assignments":{"model_size":"claude-sonnet-4.6"},"baseline_counts":{"model_size":{"claude-sonnet-4.6":360,"claude-haiku-4.5":375}}}
 {"run_id":"31357390976","timestamp":"2026-08-10T05:04:18.369Z","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"31377769982","timestamp":"2026-08-10T10:08:46.853Z","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"31377876293","timestamp":"2026-08-10T10:10:20.079Z","assignments":{"model_size":"claude-sonnet-4.6"}}
@@ -510,3 +509,4 @@
 {"run_id":"33199230531","timestamp":"2026-08-28T18:27:07.838Z","harness_version":"6f8565b9946727af6775b091883e4ef529e38e5b72613eef00cc9e619e0b20f7:31ab401e5b7ee4f5eb709116a6c78289f7e52bcd112a17e03ebaff87d069883a","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"33215323517","timestamp":"2026-08-28T22:05:59.986Z","harness_version":"6f8565b9946727af6775b091883e4ef529e38e5b72613eef00cc9e619e0b20f7:31ab401e5b7ee4f5eb709116a6c78289f7e52bcd112a17e03ebaff87d069883a","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"33215451023","timestamp":"2026-08-28T22:07:38.469Z","harness_version":"6f8565b9946727af6775b091883e4ef529e38e5b72613eef00cc9e619e0b20f7:31ab401e5b7ee4f5eb709116a6c78289f7e52bcd112a17e03ebaff87d069883a","assignments":{"model_size":"claude-sonnet-4.6"}}
+{"run_id":"33215484449","timestamp":"2026-08-28T22:08:44.211Z","harness_version":"6f8565b9946727af6775b091883e4ef529e38e5b72613eef00cc9e619e0b20f7:31ab401e5b7ee4f5eb709116a6c78289f7e52bcd112a17e03ebaff87d069883a","assignments":{"model_size":"claude-haiku-4.5"}}
