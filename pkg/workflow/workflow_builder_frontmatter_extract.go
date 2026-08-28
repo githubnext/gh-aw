@@ -89,9 +89,8 @@ func extractFrontmatterPlugins(parsedFrontmatter *FrontmatterConfig, frontmatter
 	return plugins
 }
 
-func mergeFrontmatterPlugins(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any, importedPlugins []string) []string {
-	plugins := extractFrontmatterPlugins(parsedFrontmatter, frontmatter)
-	return append(plugins, importedPlugins...)
+func mergeFrontmatterPlugins(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any, importedPlugins []string, importedPluginObjects []map[string]any) []string {
+	return pluginRefsToStrings(mergeFrontmatterPluginReferences(parsedFrontmatter, frontmatter, importedPlugins, importedPluginObjects))
 }
 
 func extractFrontmatterPluginReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) []PluginReference {
@@ -111,11 +110,14 @@ func extractFrontmatterPluginReferences(parsedFrontmatter *FrontmatterConfig, fr
 }
 
 // mergeFrontmatterPluginReferences merges the main workflow's structured plugin references
-// with plugin specs imported from shared workflows (which carry no per-plugin auth).
-func mergeFrontmatterPluginReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any, importedPlugins []string) []PluginReference {
+// with plugin specs imported from shared workflows.
+func mergeFrontmatterPluginReferences(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any, importedPlugins []string, importedPluginObjects []map[string]any) []PluginReference {
 	refs := extractFrontmatterPluginReferences(parsedFrontmatter, frontmatter)
 	for _, imported := range importedPlugins {
 		refs = append(refs, PluginReference{Plugin: imported})
+	}
+	for _, imported := range importedPluginObjects {
+		refs = append(refs, parseRawPluginReferences([]any{imported})...)
 	}
 	return refs
 }

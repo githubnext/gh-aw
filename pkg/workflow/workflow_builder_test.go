@@ -31,6 +31,7 @@ func TestMergeFrontmatterPlugins(t *testing.T) {
 		&FrontmatterConfig{PluginReferences: []PluginReference{{Plugin: "main-a"}}},
 		map[string]any{},
 		[]string{"import-a", "import-b"},
+		nil,
 	)
 	assert.Equal(t, []string{"main-a", "import-a", "import-b"}, got)
 }

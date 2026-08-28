@@ -175,13 +175,7 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 		return nil
 	}
 
-	// Each plugin contributes at most two steps. Guard the capacity computation so
-	// the multiplication can never overflow for an unexpectedly large plugin list.
-	capacity := len(workflowData.Plugins)
-	if capacity <= math.MaxInt/2 {
-		capacity *= 2
-	}
-	steps := make([]GitHubActionStep, 0, capacity)
+	steps := make([]GitHubActionStep, 0, pluginInstallationStepCapacity(len(workflowData.Plugins)))
 	checkoutAction := getActionPinForData("actions/checkout", workflowData)
 	for i, plugin := range workflowData.Plugins {
 		parsed := parseSkillRefSpec(plugin)
@@ -234,6 +228,13 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 	}
 
 	return steps
+}
+
+func pluginInstallationStepCapacity(pluginCount int) int {
+	if pluginCount <= math.MaxInt/2 {
+		return pluginCount * 2
+	}
+	return pluginCount
 }
 
 func newPluginCheckoutStep(workflowData *WorkflowData, checkoutAction string, parsed parsedSkillRefSpec, repository, checkoutPath string, index int) GitHubActionStep {

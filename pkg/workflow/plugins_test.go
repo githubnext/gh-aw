@@ -219,6 +219,35 @@ Run the workflow.
 	assert.Contains(t, string(lockContent), "ref: "+testPluginSHA)
 }
 
+func TestCompileWorkflowInstallsAuthenticatedImportedPlugin(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "imported-private-plugin")
+	sharedPath := filepath.Join(tmpDir, "shared.md")
+	require.NoError(t, os.WriteFile(sharedPath, []byte(`---
+plugins:
+  - plugin: octo-org/private-plugin@`+testPluginSHA+`
+    github-token: ${{ secrets.PRIVATE_PLUGIN_TOKEN }}
+---
+
+Shared plugin configuration.
+`), 0o644))
+
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+imports:
+  - shared.md
+---
+
+Run the workflow.
+`), 0o644))
+
+	require.NoError(t, NewCompiler(WithVersion("dev")).CompileWorkflow(workflowPath))
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	assert.Regexp(t, `(?s)name: Checkout agent plugin octo-org/private-plugin.*?token: \$\{\{ secrets\.PRIVATE_PLUGIN_TOKEN \}\}`, string(lockContent))
+}
+
 func TestCompileWorkflowMergesImportedPluginVersionsToHighestCompatibleVersion(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "imported-plugin-merge")
 	sharedPath := filepath.Join(tmpDir, "shared.md")

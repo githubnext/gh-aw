@@ -51,8 +51,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		ImportedFiles:              importsResult.ImportedFiles,
 		Skills:                     extractFrontmatterSkills(toolsResult.parsedFrontmatter, result.Frontmatter),
 		SkillReferences:            extractFrontmatterSkillReferences(toolsResult.parsedFrontmatter, result.Frontmatter),
-		Plugins:                    mergeFrontmatterPlugins(toolsResult.parsedFrontmatter, result.Frontmatter, importsResult.MergedPlugins),
-		PluginReferences:           mergeFrontmatterPluginReferences(toolsResult.parsedFrontmatter, result.Frontmatter, importsResult.MergedPlugins),
+		Plugins:                    mergeFrontmatterPlugins(toolsResult.parsedFrontmatter, result.Frontmatter, importsResult.MergedPlugins, importsResult.MergedPluginObjects),
+		PluginReferences:           mergeFrontmatterPluginReferences(toolsResult.parsedFrontmatter, result.Frontmatter, importsResult.MergedPlugins, importsResult.MergedPluginObjects),
 		ImportedMarkdown:           toolsResult.importedMarkdown, // Only imports WITH inputs
 		ImportPaths:                toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
 		PromptImports:              toolsResult.promptImports,    // Ordered prompt contributions from imports
