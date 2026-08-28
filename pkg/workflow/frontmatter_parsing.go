@@ -122,6 +122,9 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	if rawSkills, ok := frontmatter["skills"].([]any); ok {
 		config.SkillReferences = parseRawSkillReferences(rawSkills)
 	}
+	if rawPlugins, ok := frontmatter["plugins"].([]any); ok {
+		config.PluginReferences = parseRawPluginReferences(rawPlugins)
+	}
 	if ambientFolders, err := extractAmbientFolders(frontmatter); err != nil {
 		return nil, err
 	} else if ambientFolders != nil {

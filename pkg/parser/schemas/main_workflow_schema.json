@@ -2461,16 +2461,42 @@
     },
     "plugins": {
       "type": "array",
-      "description": "\u26a0\ufe0f Experimental. Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA. Using this field emits a compile-time warning.",
+      "description": "\u26a0\ufe0f Experimental. Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA. Using this field emits a compile-time warning. Entries may also be objects to configure per-plugin authentication via github-token or github-app, for installing plugins from private repositories.",
       "items": {
-        "type": "string",
-        "minLength": 1,
-        "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
-        "description": "A plugin repository reference in owner/repository[/path]@ref format"
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
+            "description": "A plugin repository reference in owner/repository[/path]@ref format"
+          },
+          {
+            "type": "object",
+            "description": "Object-form plugin reference with per-plugin authentication.",
+            "required": ["plugin"],
+            "additionalProperties": false,
+            "properties": {
+              "plugin": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
+                "description": "A plugin repository reference in owner/repository[/path]@ref format"
+              },
+              "github-token": {
+                "$ref": "#/$defs/github_token",
+                "description": "Optional GitHub token expression used only for this plugin's checkout, for installing plugins from private repositories."
+              },
+              "github-app": {
+                "$ref": "#/$defs/github_app",
+                "description": "Optional GitHub App config used to mint a token for this plugin's checkout, for installing plugins from private repositories."
+              }
+            }
+          }
+        ]
       },
       "minItems": 1,
       "uniqueItems": true,
-      "examples": [["github/awesome-copilot/plugins/example@v1"]]
+      "examples": [["github/awesome-copilot/plugins/example@v1"], [{"plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}"}]]
     },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
