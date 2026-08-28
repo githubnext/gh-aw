@@ -57,6 +57,17 @@ The `windows_probe` job in this same workflow run invoked
 current workflow run, id `${{ github.run_id }}`, and its result is
 `${{ needs.windows_probe.result }}`.
 
+## Target architecture
+
+Windows runner support must keep the agentic-workflow framework and agent
+runtime inside WSL. Compiler-generated commands that would normally use a Unix
+shell must run through WSL rather than directly through a Windows batch shell.
+
+The Windows host should eventually run only the mcp-scripts HTTP server. When
+the agent needs to perform a Windows-host operation, expose a narrow terminal
+tool through that server and mount it into the WSL-based agent environment; do
+not move the agent runtime or other MCP servers onto the host.
+
 ## Your task
 
 1. Use the GitHub Actions tools to list the jobs of run `${{ github.run_id }}`
@@ -70,7 +81,11 @@ current workflow run, id `${{ github.run_id }}`, and its result is
    Windows runner support:
    - When the probe failed, root-cause the failure in the repository sources
      (compiler, generated scripts, shell selection, path handling, container
-     and sandbox usage, or `windows.md` itself) and propose the fix.
+     and sandbox usage, WSL integration, host terminal MCP boundary, or
+     `windows.md` itself) and propose the fix. Keep the target architecture
+     above: prefer the smallest increment that moves Unix-oriented framework
+     commands into WSL, and keep host command execution behind the terminal
+     tool.
    - When the probe succeeded, look for the next real gap in Windows support
      (unsupported features, Linux-only assumptions, missing tests or docs) that
      the probe does not yet exercise, and propose the next increment.
