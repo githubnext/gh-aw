@@ -37,6 +37,10 @@ The reasoning component that interprets an agentic workflow's natural-language i
 
 Configuration section at the top of a workflow file, enclosed between `---` markers. Contains YAML settings controlling when the workflow runs, permissions, and available tools, separating technical configuration from natural language instructions.
 
+### Intent (`intent:`)
+
+Optional frontmatter field describing the durable outcome a workflow exists to achieve, rendered as a comment in the generated lock file. Unlike `description`, which explains what the workflow does, `intent` explains why it exists and stays implementation-independent, so it remains valid even as the workflow's implementation changes.
+
 ### Compilation
 
 Translating Markdown workflows (`.md` files) into GitHub Actions YAML format (`.lock.yml` files), including validation, import resolution, tool configuration, and security hardening.
