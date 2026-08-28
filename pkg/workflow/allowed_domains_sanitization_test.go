@@ -373,7 +373,6 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 		networkPerms      *NetworkPermissions
 		expectedDomains   []string
 		unexpectedDomains []string
-		expectedEmpty     bool
 	}{
 		{
 			name:     "Copilot with custom domains",
@@ -402,14 +401,12 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			engineID:        "copilot",
 			networkPerms:    nil,
 			expectedDomains: []string{},
-			expectedEmpty:   true,
 		},
 		{
 			name:            "Claude with nil network",
 			engineID:        "claude",
 			networkPerms:    nil,
 			expectedDomains: []string{},
-			expectedEmpty:   true,
 		},
 		{
 			name:     "Codex with custom domains",
@@ -460,7 +457,7 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 			// Call the function
 			domainsStr, err := compiler.computeAllowedDomainsForSanitization(data)
 			require.NoError(t, err, "computeAllowedDomainsForSanitization should not return an error for valid test data")
-			if tt.expectedEmpty {
+			if len(tt.expectedDomains) == 0 {
 				require.Empty(t, domainsStr, "expected no domains without network configuration")
 				return
 			}
