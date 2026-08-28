@@ -588,9 +588,23 @@ async function pushSignedCommits({
         } catch {
           // Ignore cleanup failures.
         }
-        throw new Error(
-          `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` + `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`
-        );
+        const conflictMessage =
+          `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` + `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`;
+        if (allowGitPushFallback === false) {
+          throw new Error(conflictMessage);
+        }
+        // Genuine merge conflict (not a shallow/partial-clone object-fetch issue, and no custom
+        // resolver handled it): rebasing the commit range onto the current base cannot be done
+        // automatically, and replaying the stale-base commits through GraphQL would silently
+        // synthesize file content against the wrong parent. Rather than failing the whole
+        // operation (which previously forced callers to fall back to opening an issue instead
+        // of a pull request), push the ORIGINAL un-rebased commits directly via unsigned
+        // `git push`. GitHub will still create the pull request; it will simply report the
+        // branch as having conflicts that need to be resolved, the same as any normal PR.
+        core.warning(`${conflictMessage} Falling back to an unsigned git push of the un-rebased commit(s) so the pull request can still be created (it will show as having merge conflicts with the base branch).`);
+        const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
+        core.info(`pushSignedCommits: unsigned git push fallback (unresolved rebase conflict) completed, using pushed SHA ${fallbackSha}`);
+        return fallbackSha;
       }
     }
     const { stdout: rebasedRevListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${firstGraphqlParentOid}..HEAD`], { cwd });

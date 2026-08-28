@@ -1924,7 +1924,7 @@ describe("push_signed_commits integration tests", () => {
   });
 
   describe("stale-base and synthesized payload safety", () => {
-    it("should fail signed replay when rebasing stale commits onto current base conflicts", async () => {
+    it("should fall back to an unsigned push of the un-rebased commits when rebasing stale commits onto current base conflicts", async () => {
       // Base branch starts with shared file.
       fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
       execGit(["add", "shared.txt"], { cwd: workDir });
@@ -1936,6 +1936,7 @@ describe("push_signed_commits integration tests", () => {
       fs.writeFileSync(path.join(workDir, "shared.txt"), "agent change\n");
       execGit(["add", "shared.txt"], { cwd: workDir });
       execGit(["commit", "-m", "Agent edit shared"], { cwd: workDir });
+      const localOidBeforePush = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
 
       // Base branch advances with conflicting edit.
       execGit(["checkout", "main"], { cwd: workDir });
@@ -1949,18 +1950,69 @@ describe("push_signed_commits integration tests", () => {
       global.exec = makeRealExec(workDir);
       const githubClient = makeMockGithubClient();
 
+      const result = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "stale-conflict-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // GraphQL is never invoked for this path — the un-rebased commits are pushed directly.
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("failed to rebase commit range onto current GraphQL parent"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Falling back to an unsigned git push of the un-rebased commit(s)"));
+
+      // The branch was pushed as-is (still based on the stale parent) so GitHub can create the
+      // pull request and surface the conflict for manual resolution, instead of the whole
+      // operation failing outright.
+      expect(result).toBe(localOidBeforePush);
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/stale-conflict-branch"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      expect(remoteOid).toBe(localOidBeforePush);
+    });
+
+    it("should still fail (without pushing) when git push fallback is explicitly disabled and rebasing stale commits conflicts", async () => {
+      // Base branch starts with shared file.
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add shared file"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      // Agent branch diverges from old main and edits shared.txt.
+      execGit(["checkout", "-b", "stale-conflict-no-fallback-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "agent change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent edit shared"], { cwd: workDir });
+
+      // Base branch advances with conflicting edit.
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "upstream change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Upstream edit shared"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      execGit(["checkout", "stale-conflict-no-fallback-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
       await expect(
         pushSignedCommits({
           githubClient,
           owner: "test-owner",
           repo: "test-repo",
-          branch: "stale-conflict-branch",
+          branch: "stale-conflict-no-fallback-branch",
           baseRef: "origin/main",
           cwd: workDir,
+          allowGitPushFallback: false,
         })
       ).rejects.toThrow("failed to rebase commit range onto current GraphQL parent");
 
       expect(githubClient.graphql).not.toHaveBeenCalled();
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/stale-conflict-no-fallback-branch"], { cwd: workDir });
+      expect(lsRemote.stdout.trim()).toBe("");
     });
 
     it("should recover from a partial-clone object failure by backfilling the exact commit objects and retrying the rebase", async () => {
@@ -2086,6 +2138,7 @@ describe("push_signed_commits integration tests", () => {
           branch: "conflict-no-backfill-branch",
           baseRef: "origin/main",
           cwd: workDir,
+          allowGitPushFallback: false,
         })
       ).rejects.toThrow("failed to rebase commit range onto current GraphQL parent");
 

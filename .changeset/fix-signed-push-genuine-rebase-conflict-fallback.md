@@ -1,0 +1,9 @@
+---
+"gh-aw": patch
+---
+
+Fix `pushSignedCommits` unnecessarily failing the whole pull-request-creation operation when the agent's commits genuinely conflict with the base branch during the pre-replay rebase.
+
+Previously, when the base branch advanced with content that conflicted with the agent's changes (e.g. both edited `CHANGELOG.md`), `pushSignedCommits` aborted the rebase and threw, which caused `create_pull_request` to give up on the pull request entirely and open a fallback issue instead — even though a normal (unsigned) `git push` of the un-rebased commits would have let GitHub create the pull request and simply report it as having conflicts, exactly like any other PR.
+
+`pushSignedCommits` now falls back to an unsigned `git push` of the original, un-rebased commit range when a genuine (non-recoverable) rebase conflict is detected, unless `allowGitPushFallback: false` is explicitly requested. This lets the pull request still be created in a "has conflicts" state so it can be resolved normally, instead of failing the run and falling back to a GitHub issue.
