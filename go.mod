@@ -132,7 +132,7 @@ tool (
 )
 
 // actionlint@v1.7.12 requires go.yaml.in/yaml/v4@v4.0.0-rc.3, which exposes
-// yaml.ParserError and related fields that were removed in rc.6. gosec@v2.28.0
+// yaml.ParserError and related fields that were removed in rc.6. gosec@v2.29.0
 // pulls in rc.6 transitively (but does not import yaml/v4 directly), causing
 // actionlint to fail to compile. Pin the replacement to rc.3 so all
 // consumers in this module use the version actionlint depends on.
