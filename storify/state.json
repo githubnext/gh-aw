@@ -1,17 +1,17 @@
 {
-  "last_run_window": {"start": "2026-08-25T08:20Z", "end": "2026-08-26T08:20Z"},
+  "last_run_window": {"start": "2026-08-27T11:00Z", "end": "2026-08-28T11:00Z"},
   "key_themes": [
-    "Codex context-rebuild circuit breaker root-caused as P1: kills already-completed runs (Metrics Collector, Sub-Issue Closer) via outputs.jsonl blind spot",
-    "Firewall allowlist cleanup accelerating to same-day observability-to-fix turnaround (npm registry gap merged same day as report)",
-    "AI Moderator Codex execution failures now 4 consecutive days, infra/firewall ruled out each time, no durable fix",
-    "Safe-outputs approval storm halted via fail-fast guard on permission-denied approve_workflow_run calls",
-    "Avenger self-repair loop quiet today after yesterday's 5-iteration WIP burst; still 1 scheduled-run failure"
+    "Windows Runner Integration Test: deliberate 3-run experiment on live PR #56501, frontmatter doc update deferred pending green run",
+    "Metrics Collector push_repo_memory: 6th consecutive failure, now reframed as chronic growth-control problem rather than cap-bump target",
+    "Avenger self-repair: symlink bind-mount fix merged same day, but next run hit a distinct claude engine-crash symptom",
+    "Safe-outputs policy-decline miscounted as hard failure for 2nd time (push_to_pull_request_branch, echoing approve_workflow_run 2 days ago)",
+    "Human-reported UX gap: merge-conflict during signed-commit push falls back to bare issue instead of offering conflict-state PR"
   ],
-  "loop_taxonomy": ["infra-bump-review-blackout", "design-decision-gate-persistent-failure", "code-scanning-fixer-silent-stall", "avenger-self-repair", "ai-moderator-codex-exec-failures", "metrics-collector-cost-outlier", "observability-to-allowlist", "codex-circuit-breaker-false-positive"],
+  "loop_taxonomy": ["infra-bump-review-blackout", "design-decision-gate-persistent-failure", "code-scanning-fixer-silent-stall", "avenger-self-repair", "ai-moderator-codex-exec-failures", "metrics-collector-cost-outlier", "observability-to-allowlist", "codex-circuit-breaker-false-positive", "memory-cap-treadmill", "safe-outputs-policy-decline-miscount"],
   "carry_forward_questions": [
-    "Does the outputs.jsonl terminal-check fix for #55976 land and eliminate Metrics Collector/Sub-Issue Closer token-usage outliers?",
-    "Will AI Moderator's Codex exec failure get a root-cause fix by day 5, or become permanent daily churn?",
-    "Does Avenger's failure rate stabilize now that it has gone quiet, or was today a lull before another WIP burst?",
-    "Does draft PR #55973 (npm/go allowlist) merge and extend the same-day observability-to-fix loop to a 4th workflow pair?"
+    "Does Avenger's next scheduled run clear the claude engine-crash symptom or surface a third distinct failure mode?",
+    "Does Windows Runner Integration Test go green, triggering the deferred frontmatter doc update?",
+    "Does a 'policy-decline' outcome type land for safe-output handlers before a 3rd handler shows the same miscount?",
+    "Does Metrics Collector get a growth-control fix (vs another cap bump) to break the treadmill?"
   ]
 }

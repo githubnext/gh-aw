@@ -12,3 +12,6 @@
 {"date":"2026-08-26","loop_name":"codex-circuit-breaker-false-positive","direction":"new, root-caused, fix proposed","evidence":["issue#55976","run:32924199594","run:32937867689"]}
 {"date":"2026-08-26","loop_name":"ai-moderator-codex-exec-failures","direction":"unresolved, 4th consecutive day, stalled not repairing","evidence":["issue#55894","run:32858109209","run:32910312820"]}
 {"date":"2026-08-26","loop_name":"avenger-self-repair","direction":"quiet, oscillating between burst and lull","evidence":["run:32906916840"]}
+{"date":"2026-08-28","loop_name":"memory-cap-treadmill","direction":"chronic, reframed from cap-bump to growth-control","evidence":["issue#56537","issue#48012","issue#49931","issue#43865"]}
+{"date":"2026-08-28","loop_name":"safe-outputs-policy-decline-miscount","direction":"escalating, 2nd occurrence, structural fix proposed","evidence":["issue#56576"]}
+{"date":"2026-08-28","loop_name":"avenger-self-repair","direction":"incremental, one fix merged but new distinct symptom surfaced next run","evidence":["pr#56426","issue#56552","run:33154209958"]}
