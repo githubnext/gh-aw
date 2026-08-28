@@ -56,8 +56,8 @@ describe("pi_provider.cjs", () => {
       ["github-copilot", { apiKey: "copilot-token", api: "openai-completions", baseUrl: "https://copilot.example.test" }],
       ["copilot", { apiKey: "copilot-token", api: "openai-completions", baseUrl: "https://copilot.example.test" }],
       ["anthropic", { apiKey: "anthropic-token", api: "anthropic", baseUrl: "https://anthropic.example.test" }],
-      ["openai", { apiKey: "codex-token", api: "openai-completions", baseUrl: "https://openai.example.test" }],
-      ["codex", { apiKey: "codex-token", api: "openai-completions", baseUrl: "https://openai.example.test" }],
+      ["openai", { apiKey: "codex-token", api: "openai-responses", baseUrl: "https://openai.example.test" }],
+      ["codex", { apiKey: "codex-token", api: "openai-responses", baseUrl: "https://openai.example.test" }],
     ]);
   });
 

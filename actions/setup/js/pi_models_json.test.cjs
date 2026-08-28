@@ -94,7 +94,7 @@ describe("pi_models_json.cjs", () => {
   });
 
   describe("buildModelsJSON", () => {
-    it("builds the aw-gateway provider payload", () => {
+    it("builds the aw-gateway provider payload with the default api", () => {
       const json = piModelsJson.buildModelsJSON({
         baseUrl: "http://api-proxy:10000",
         apiKeyEnvVar: "CODEX_API_KEY",
@@ -111,6 +111,31 @@ describe("pi_models_json.cjs", () => {
           },
         },
       });
+    });
+
+    it("builds the aw-gateway provider payload with an explicit api", () => {
+      const json = piModelsJson.buildModelsJSON({
+        baseUrl: "http://api-proxy:10000",
+        apiKeyEnvVar: "CODEX_API_KEY",
+        modelId: "gpt-5.4",
+        api: "openai-responses",
+      });
+      const parsed = JSON.parse(json);
+      expect(parsed.providers["aw-gateway"].api).toBe("openai-responses");
+    });
+  });
+
+  describe("resolvePiApiForProvider", () => {
+    it("routes the openai provider through openai-responses", () => {
+      expect(piModelsJson.resolvePiApiForProvider("openai")).toBe("openai-responses");
+    });
+
+    it("keeps the github provider on openai-completions", () => {
+      expect(piModelsJson.resolvePiApiForProvider("github")).toBe("openai-completions");
+    });
+
+    it("keeps the anthropic provider on openai-completions (gateway default)", () => {
+      expect(piModelsJson.resolvePiApiForProvider("anthropic")).toBe("openai-completions");
     });
   });
 
@@ -137,6 +162,7 @@ describe("pi_models_json.cjs", () => {
       expect(written.providers["aw-gateway"].baseUrl).toBe("http://api-proxy:10000");
       expect(written.providers["aw-gateway"].apiKey).toBe("CODEX_API_KEY");
       expect(written.providers["aw-gateway"].models).toEqual([{ id: "gpt-4.1" }]);
+      expect(written.providers["aw-gateway"].api).toBe("openai-responses");
       expect(fetch).toHaveBeenCalled();
     });
 
@@ -156,6 +182,7 @@ describe("pi_models_json.cjs", () => {
 
       const written = JSON.parse(fs.readFileSync(path.join(tmpDir, "models.json"), "utf8"));
       expect(written.providers["aw-gateway"].baseUrl).toBe("http://api-proxy:10001");
+      expect(written.providers["aw-gateway"].api).toBe("openai-completions");
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
