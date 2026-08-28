@@ -27,7 +27,7 @@ const (
 	enclaveGitHubIssuesProfile    = "issues-read-v1"
 	enclaveMCPConnectTimeout      = 120
 	enclaveMCPReadinessTimeoutMS  = 120000
-	maxEnclaveTimingBucketSeconds = 600
+	maxEnclaveTimingBucketSeconds = 4800
 	enclaveMCPTransportAllowance  = 60
 )
 

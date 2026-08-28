@@ -194,7 +194,7 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 				"repos": []any{
 					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
-				"timeout": 540,
+				"timeout": 4740,
 			},
 		},
 	}
@@ -227,12 +227,12 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 				"repos": []any{
 					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
-				"timeout": 541,
+				"timeout": 4741,
 			},
 		},
 	}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(tooLong, "workflow.md"); err == nil {
-		t.Fatal("expected enclave timeout above 540 seconds to be rejected")
+		t.Fatal("expected enclave timeout above 4740 seconds to be rejected")
 	}
 
 	invalidMode := valid

@@ -81,10 +81,10 @@ describe("convert_gateway_config_copilot transformCopilotEntry", () => {
       type: "http",
       url: "http://1.2.3.4:80/mcp/awf-enclave",
       connectTimeout: 120,
-      toolTimeout: 660,
+      toolTimeout: 4860,
     };
     const out = transformCopilotEntry(entry, "http://host.docker.internal:8080");
-    expect(out.timeout).toBe(660000);
+    expect(out.timeout).toBe(4860000);
     expect(out.toolTimeout).toBeUndefined();
     expect(out.connectTimeout).toBe(120);
   });
@@ -94,14 +94,14 @@ describe("convert_gateway_config_copilot transformCopilotEntry", () => {
       type: "http",
       url: "http://1.2.3.4:80/mcp/foo",
       timeout: 90000,
-      toolTimeout: 660,
+      toolTimeout: 4860,
     };
     const out = transformCopilotEntry(entry, "http://host.docker.internal:8080");
     expect(out.timeout).toBe(90000);
     expect(out.toolTimeout).toBeUndefined();
   });
 
-  it.each([0, -1, "660", Number.NaN, Number.POSITIVE_INFINITY])("removes invalid gateway toolTimeout without creating a Copilot timeout: %s", toolTimeout => {
+  it.each([0, -1, "4860", Number.NaN, Number.POSITIVE_INFINITY])("removes invalid gateway toolTimeout without creating a Copilot timeout: %s", toolTimeout => {
     const entry = { type: "http", url: "http://1.2.3.4:80/mcp/foo", toolTimeout };
     const out = transformCopilotEntry(entry, "http://host.docker.internal:8080");
     expect(out.timeout).toBeUndefined();
