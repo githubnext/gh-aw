@@ -189,12 +189,12 @@ async function readPdfBytes() {
 async function main() {
   const pdfBytes = await readPdfBytes();
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
-  // readPdfBytes() only ever returns bytes from a fixed, hardcoded GitHub media
-  // URL (constructed from validated repo/ref values) after checking the response
-  // content-type, enforcing a size limit, and verifying the PDF file signature —
-  // or a locally generated placeholder PDF. Neither path writes arbitrary/unvalidated
-  // network data to disk.
-  fs.writeFileSync(OUTPUT_PATH, pdfBytes); // lgtm[js/http-to-file-access]
+  // codeql[js/http-to-file-access]: readPdfBytes() only ever returns bytes from a
+  // fixed, hardcoded GitHub media URL (constructed from validated repo/ref values)
+  // after checking the response content-type, enforcing a size limit, and
+  // verifying the PDF file signature — or a locally generated placeholder PDF.
+  // Neither path writes arbitrary/unvalidated network data to disk.
+  fs.writeFileSync(OUTPUT_PATH, pdfBytes);
   console.log(`✓ Slide PDF ready at ${OUTPUT_PATH}`);
 }
 
