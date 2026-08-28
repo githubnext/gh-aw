@@ -406,7 +406,7 @@ export default defineConfig({
             { label: "ChatOps", link: "/patterns/chat-ops/" },
             { label: "DeterministicOps", link: "/patterns/deterministic-ops/" },
             { label: "DispatchOps", link: "/patterns/dispatch-ops/" },
-            { label: "Feature Farmer", link: "/patterns/feature-farmer/" },
+            { label: "Feature Grower", link: "/patterns/feature-grower/" },
             { label: "IssueOps", link: "/patterns/issue-ops/" },
             { label: "LabelOps", link: "/patterns/label-ops/" },
             { label: "MemoryOps", link: "/patterns/memory-ops/" },

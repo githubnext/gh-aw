@@ -1,11 +1,11 @@
 ---
-title: Feature Farmer
+title: Feature Grower
 description: Grow long-lived features iteratively by creating one implementation-ready sub-issue at a time
 sidebar:
   badge: { text: 'Incremental', variant: 'success' }
 ---
 
-Feature Farmer is a pattern for advancing a long-lived feature in small,
+Feature Grower is a pattern for advancing a long-lived feature in small,
 reviewable increments. A scheduled agent reads the feature plan, assesses the
 current implementation, and creates only the next useful chunk of work. The
 next run reassesses the feature after that chunk has been completed.
@@ -27,7 +27,7 @@ flowchart LR
 ## The crop and cookie model
 
 The included
-[`feature-farmer`](https://github.com/github/gh-aw/blob/main/.github/workflows/feature-farmer.md)
+[`feature-grower`](https://github.com/github/gh-aw/blob/main/.github/workflows/feature-grower.md)
 workflow uses two labels:
 
 - A `crop` labels an open parent issue containing the feature plan.
@@ -58,7 +58,7 @@ entire remaining plan unless the current increment requires that analysis.
 
 ## Workflow shape
 
-```aw wrap title=".github/workflows/feature-farmer.md"
+```aw wrap title=".github/workflows/feature-grower.md"
 ---
 on:
   schedule: daily on weekdays
@@ -70,7 +70,7 @@ permissions:
 
 tools:
   cache-memory:
-    key: feature-farmer
+    key: feature-grower
   github:
     mode: gh-proxy
     toolsets: [issues, repos]
@@ -81,7 +81,7 @@ safe-outputs:
     max: 5
 
 concurrency:
-  group: feature-farmer
+  group: feature-grower
   cancel-in-progress: false
 ---
 
@@ -103,7 +103,7 @@ instead of attaching the new issue to the existing crop. Do not use a global
 
 ## When to use this pattern
 
-Use Feature Farmer when a feature has a stable direction but the best next step
+Use Feature Grower when a feature has a stable direction but the best next step
 depends on implementation feedback. It works well for migrations, broad
 refactors, and capabilities that should land through a series of independently
 reviewable pull requests.

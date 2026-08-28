@@ -1,6 +1,6 @@
 ---
 private: true
-name: Feature Farmer
+name: Feature Grower
 description: Advances crop-labeled features by creating the next actionable cookie sub-issue
 on:
   schedule: daily on weekdays
@@ -10,11 +10,11 @@ permissions:
   issues: read
   copilot-requests: write
 concurrency:
-  group: feature-farmer
+  group: feature-grower
   cancel-in-progress: false
 tools:
   cache-memory:
-    key: feature-farmer
+    key: feature-grower
   github:
     mode: gh-proxy
     toolsets: [issues, repos]
@@ -97,7 +97,7 @@ steps:
           }
         }
 
-        const outputDir = "/tmp/gh-aw/agent/feature-farmer";
+        const outputDir = "/tmp/gh-aw/agent/feature-grower";
         fs.mkdirSync(outputDir, { recursive: true });
         fs.writeFileSync(
           path.join(outputDir, "eligible-crops.json"),
@@ -114,12 +114,12 @@ sandbox:
     runtime: gvisor
 ---
 
-# Feature Farmer
+# Feature Grower
 
 Advance long-lived features in small, reviewable increments.
 
 The prefetch step saved up to five eligible `crop` issues in
-`/tmp/gh-aw/agent/feature-farmer/eligible-crops.json`. A crop is eligible only
+`/tmp/gh-aw/agent/feature-grower/eligible-crops.json`. A crop is eligible only
 when it has no open child issue labeled `cookie`.
 
 For each eligible crop:
