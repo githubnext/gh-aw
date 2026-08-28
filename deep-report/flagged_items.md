@@ -1,3 +1,19 @@
+## Flagged Items (2026-08-28, ~08:xx cycle, true baseline #56580 (memory had gone stale to #56555 again — 2nd+ occurrence of the write-race, see [[known_patterns]]), window #56581-56696, 16 new discussions)
+
+- **[new, filed]** Re-embed `SafeOutputTargetConfig` in remaining 11 safe-output configs — verified live still unfixed after 2 prior "closed" issues; closure was not backed by a merged fix either time. Root cause of re-filing: dedup gate must check linked commit/PR on closed issues, not just state=closed.
+- **[new, filed]** Fix `graderManifestEntry` write/read schema drift (compiler writes 8 fields the CLI-side reader silently drops) — Typist #56632 Cluster 8, verified live at compiler_yaml_graders.go:67 / audit_report_graders.go:67.
+- **[new, filed]** Consolidate `AuditData`/`RunAnalysis` + fix `FirewallTokenUsage`/`TokenUsage` naming drift — Typist #56632 Cluster 2, verified live at audit_report.go:52 / logs_models.go:263.
+- **[new, filed]** Remove duplicate `WorkflowRunInfo` + embed `ToolUsageStatsBase` in `ToolUsageInfo` — Typist #56632 Clusters 3+7, bundled as one issue (both small, same package).
+- **[new, filed]** Extract `MemoryEntryBase` for `CacheMemoryEntry`/`RepoMemoryEntry`/`DriveMemoryEntry` — Typist #56632 Cluster 4.
+- **[new, filed]** Add `SuggestedFixes` to 4 simplest linters lacking auto-fix (`sortslice`, `trimleftright`, `stringbytesroundtrip`, `regexpcompileinfunction`) — discussion #56657, verified live (no matches via grep for all 4).
+- **[new, filed]** Tone down cloclo.md `run-failure` "Intermission..." wording — discussion #56672, obscures actual failures.
+- **[declined, chronic]** GitHubMCPDockerOptions/RemoteOptions consolidation — re-filed once already with "didn't stick" framing, reclosed; not re-filed again this cycle, monitor only.
+- **[declined, stale claim corrected]** `CLAUDE_CODE_OAUTH_TOKEN` "critical blocker" framing (discussion #56650) — verified live that this is already thoroughly documented as unsupported/silently-ignored across 4 doc files (cli.md:284, claude.md:22, faq.md:494-496, auth.mdx:218-220,428). Source report's framing is stale; not filed.
+- **[declined, chronic]** `gh aw init --engine claude` onboarding parity — previously declined multiple times as "too large"; not re-filed.
+- **[declined, already tracked]** Metrics Collector memory cap (#56537, already open), Avenger `driver_exit` (chronic, #56361), Copilot Agent PR Analysis lock-file failure (self-filed as #56698 same run), CodeQL alerts #664/#665/#656 (already self-filed as #56680/#56681).
+- **[declined, deprioritized]** Typist Clusters 5 and 6 — lower impact/space this cycle, candidates for a future cycle if still unaddressed.
+- **[declined, healthy/informational]** Remaining discussions in the window were narrative/status-only with no actionable gap found.
+
 ## Flagged Items (2026-08-27, ~09:23Z cycle, window since #56215's own 02:10:40Z creation — memory timestamp was stale, see [[known_patterns]] process note; 9 new discussions: 56231,56234,56249,56254,56277,56285,56290,56291,56292)
 
 - **[new, filed]** Fix `max-daily-ai-credits` default-behavior contradiction across docs/schema/compiler (disabled-by-default vs 5000-AIC-default vs "by the triggering user" stale scoping) — Schema Consistency Checker #56291 findings 1-2, verified live.

@@ -1,3 +1,17 @@
+## DeepReport Memory (2026-08-28, ~08:xx cycle, true baseline #56580)
+
+### Reconfirmed (now 2nd+ occurrence this month, separate from the 4th+ occurrence logged 2026-08-27): the repo-memory timestamp write lost the race again
+Recorded `last_analysis_timestamp` pointed to #56555, but discussion #56580 ("DeepReport Intelligence Briefing... (2)") had already run and posted after that, covering a later window, with its own memory write not landing. Recovered the true baseline the same way as always: treat the most recent same-titled discussion's own `createdAt`/stated window as authoritative over the recorded file. **This is now a well-worn, reliable recovery procedure — no further action needed each time it recurs, just keep doing the cross-check. The standing structural-fix candidate (write timestamp first, not last) remains unfiled since it's workflow-internal, not application code.**
+
+### New pattern: "closed" on a duplicate-suppression check is not sufficient — verify the closure was backed by a merged fix
+Two prior issues targeting the `SafeOutputTargetConfig` duplication were found closed via `gh api search/issues`, which would normally trigger the dedup-gate decline. But a direct grep of `pkg/workflow/create_issue.go:21-22` showed the raw `TargetRepoSlug`/`AllowedRepos` fields are still there, unembedded — the closures did not correspond to an actual code fix. **Lesson: when a candidate finding maps to a "closed" issue, don't stop at state=closed — spot-check the current code (or the issue's own timeline for a linked merged commit/PR) before declining as a duplicate. A closed-without-fix issue should be treated as still-open for dedup purposes, and re-filed with a note that prior closures didn't stick.**
+
+### New pattern: a single deep-audit discussion can out-yield an entire day's worth of shallower reports
+Discussion #56632 ("Typist" Go Type Consistency Analysis) alone supplied 5 of this cycle's 7 filed issues, via 8 distinct, file:line-verified duplicate/drifted-struct clusters with ready-made recommendations and effort estimates. **Lesson: when a single source discussion contains this much pre-verified, specific technical detail (not just a narrative summary), prioritize mining it exhaustively over spreading equal attention across all 16 discussions — the marginal value of a 9th shallow discussion read is much lower than the 3rd-8th cluster from one rich source.**
+
+### Reconfirmed: large `agenticworkflows logs` pulls (200+ runs) reliably time out in this sandbox at 60s
+Both a 300-run and a 50-run/50s-timeout pull hit `context deadline exceeded`. A 20-run/30s-timeout pull succeeded in ~27s. **Lesson (now 2nd+ occurrence): default to small `count` (≤20-30) with a short explicit `timeout` param for the `logs` tool in this environment rather than trying a wide pull first — it wastes a full minute before failing.**
+
 ## DeepReport Memory (2026-08-27, ~09:23Z cycle, baseline #56215)
 
 ### Reconfirmed (4th+ occurrence): the repo-memory timestamp write regularly loses a race when two DeepReport cycles run close together

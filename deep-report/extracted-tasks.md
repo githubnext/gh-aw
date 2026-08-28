@@ -229,3 +229,12 @@ Not filed (already well-scoped by original authors, cross-referenced only): #561
 5. Investigate Firewall Escape Test anomaly: allowed domains blocked + DNS SERVFAIL — from #56538.
 6. Fix 3 onboarding-doc friction points (add-wizard ordering, Copilot callout, CLI-page tip placement) — from #56532.
 7. Fix `registry.npmjs.org` firewall-allowlist gap in Functional Pragmatist, Package Specification Enforcer — from #56514.
+
+### Extracted 2026-08-28 ~08:xxZ cycle (7 issues filed, baseline #56580)
+1. Embed `SafeOutputTargetConfig` in remaining 11 safe-output configs (3rd filing attempt; 2 prior closures verified not to have landed a fix) — from repo-memory pattern re-check + live grep of create_issue.go:21-22.
+2. Fix `graderManifestEntry` write/read schema drift between compiler and CLI — Typist #56632 Cluster 8.
+3. Consolidate `AuditData`/`RunAnalysis` + fix `FirewallTokenUsage`/`TokenUsage` naming drift — Typist #56632 Cluster 2.
+4. Remove duplicate `WorkflowRunInfo` + embed `ToolUsageStatsBase` in `ToolUsageInfo` — Typist #56632 Clusters 3+7 (bundled).
+5. Extract `MemoryEntryBase` for `CacheMemoryEntry`/`RepoMemoryEntry`/`DriveMemoryEntry` — Typist #56632 Cluster 4.
+6. Add `SuggestedFixes` to `sortslice`, `trimleftright`, `stringbytesroundtrip`, `regexpcompileinfunction` linters — from #56657.
+7. Tone down cloclo.md `run-failure` "Intermission..." wording — from #56672.
