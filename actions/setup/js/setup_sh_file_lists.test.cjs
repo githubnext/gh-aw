@@ -6,8 +6,10 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SETUP_SH = resolve(__dirname, "../setup.sh");
 const SETUP_ACTION_INDEX = resolve(__dirname, "../index.js");
+const INSTALL_COPILOT_CLI_SH = resolve(__dirname, "../sh/install_copilot_cli.sh");
 const setupShContent = readFileSync(SETUP_SH, "utf8");
 const setupActionIndexContent = readFileSync(SETUP_ACTION_INDEX, "utf8");
+const installCopilotCliContent = readFileSync(INSTALL_COPILOT_CLI_SH, "utf8");
 
 describe("setup action Windows support", () => {
   it("runs setup.sh with Bash", () => {
@@ -20,9 +22,10 @@ describe("setup action Windows support", () => {
   });
 
   it("installs the Windows Copilot CLI without sudo", () => {
-    expect(setupShContent).toContain('MINGW*|MSYS*|CYGWIN*)');
-    expect(setupShContent).toContain('TARBALL_NAME="copilot-${PLATFORM}-${ARCH_NAME}.zip"');
-    expect(setupShContent).toContain('unzip -qo "${TEMP_DIR}/${TARBALL_NAME}" -d "${INSTALL_DIR}"');
+    expect(installCopilotCliContent).toContain("MINGW*|MSYS*|CYGWIN*)");
+    expect(installCopilotCliContent).toContain('TARBALL_NAME="copilot-${PLATFORM}-${ARCH_NAME}.zip"');
+    expect(installCopilotCliContent).toContain("unzip is required for Windows installation");
+    expect(installCopilotCliContent).toContain('unzip -qo "${TEMP_DIR}/${TARBALL_NAME}" -d "${INSTALL_DIR}"');
   });
 });
 
