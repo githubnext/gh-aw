@@ -771,12 +771,23 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 // The checkout step is only skipped when:
 //   - Custom steps already contain a checkout action
 //   - checkout: false is set in the workflow frontmatter
+//   - permissions.contents: none is set (target-only checkout: the workflow does
+//     not need its own repository content, but other configured checkout entries
+//     such as a target-repo checkout are still generated)
 //
 // Otherwise, checkout is always added to ensure the agent has access to the repository.
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 	// If checkout was explicitly disabled via checkout: false, skip it
 	if data.CheckoutDisabled {
 		workflowLog.Print("Skipping checkout step: checkout disabled via checkout: false")
+		return false
+	}
+
+	// If permissions.contents: none is set, skip only the default (workflow-repository)
+	// checkout step; other configured checkouts (e.g. a target-only sidecar checkout)
+	// are still generated separately.
+	if data.CheckoutSkipDefault {
+		workflowLog.Print("Skipping default checkout step: permissions.contents is none (target-only checkout)")
 		return false
 	}
 

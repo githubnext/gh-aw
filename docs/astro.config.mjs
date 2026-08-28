@@ -410,6 +410,7 @@ export default defineConfig({
             { label: "LabelOps", link: "/patterns/label-ops/" },
             { label: "MemoryOps", link: "/patterns/memory-ops/" },
             { label: "MonitorOps", link: "/patterns/monitor-ops/" },
+            { label: "FeatureOps", link: "/patterns/feature-grower/" },
             { label: "MultiRepoOps", link: "/patterns/multi-repo-ops/" },
             { label: "OrchestratorOps", link: "/patterns/orchestrator-ops/" },
             { label: "ProjectOps", link: "/patterns/project-ops/" },

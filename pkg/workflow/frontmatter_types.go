@@ -464,6 +464,7 @@ type FrontmatterConfig struct {
 	CheckoutConfigs            []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
 	CheckoutDisabled           bool              `json:"-"`                  // true when checkout: false is set in frontmatter
 	CheckoutExplicitlyDisabled bool              `json:"-"`                  // true only when checkout: false is explicitly written by the user in frontmatter
+	CheckoutSkipDefault        bool              `json:"-"`                  // true when permissions.contents: none skips only the default workflow-repository checkout
 
 	// Model is the top-level LLM model default. An engine.model value overrides it
 	// for that engine instance.
