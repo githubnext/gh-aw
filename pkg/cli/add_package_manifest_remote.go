@@ -48,7 +48,7 @@ func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
 	}
 
 	repoSpec := &RepoSpec{
-		RepoSlug:    slashParts[0] + "/" + slashParts[1],
+		RepoSlug:    path.Join(slashParts[0], slashParts[1]),
 		PackagePath: packagePath,
 	}
 	if len(parts) == 2 {
