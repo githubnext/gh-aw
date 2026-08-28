@@ -1,7 +1,7 @@
 > [!TIP]
 > **Your pull request is ready to create! 🎉 ✅**
 >
-> Everything is OK—the changes have been pushed to branch `{branch_name}`. Create the pull request when you are ready.
+> Everything is OK—the changes have been pushed to branch `{branch_name}`. Please review the changes, including any protected files, before creating the pull request.
 >
 > **[Create the pull request]({create_pr_url})**
 >
