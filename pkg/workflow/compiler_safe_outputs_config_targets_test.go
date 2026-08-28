@@ -120,6 +120,18 @@ func TestHandlerConfigClosePullRequestTargetRepo(t *testing.T) {
 	}
 }
 
+func TestMarshalSafeOutputsConfigPreservesExpressionOperators(t *testing.T) {
+	configJSON, err := marshalSafeOutputsConfig(map[string]any{
+		"create_issue": map[string]any{
+			"target-repo": "${{ condition && value || fallback }}",
+		},
+	})
+
+	require.NoError(t, err)
+	assert.Contains(t, string(configJSON), "${{ condition && value || fallback }}")
+	assert.NotContains(t, string(configJSON), `\u0026`)
+}
+
 func TestHandlerConfigCreateCheckRunTarget(t *testing.T) {
 	compiler := NewCompiler()
 
