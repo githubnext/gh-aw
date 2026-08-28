@@ -454,3 +454,34 @@ on:
 	require.NoError(t, err)
 	assert.NotEqual(t, hashA, hashInsideChanged, "expressions inside the selected runtime-import line range must affect the frontmatter hash")
 }
+
+func TestFrontmatterHashRuntimeImportCyclesTerminate(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowDir := filepath.Join(tempDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	workflowFile := filepath.Join(workflowDir, "runtime-import-cycle-hash.md")
+	workflowContent := `---
+engine: copilot
+imports:
+  - shared/a.md
+on:
+  workflow_dispatch:
+---
+Cycle hash coverage.
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "a.md"), []byte("A ${{ needs.a.outputs.value }}\n{{#runtime-import shared/b.md}}\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "b.md"), []byte("B ${{ needs.b.outputs.value }}\n{{#runtime-import shared/a.md}}\n"), 0644))
+
+	hash, err := ComputeFrontmatterHashFromFile(workflowFile, NewImportCache(workflowDir))
+	require.NoError(t, err)
+	assert.Len(t, hash, 64)
+
+	expressions := collectRuntimeImportTemplateExpressions("imports:\n  - shared/a.md", "Cycle hash coverage.", workflowDir, DefaultFileReader)
+	assert.Equal(t, []string{
+		"${{ needs.a.outputs.value }}",
+		"${{ needs.b.outputs.value }}",
+	}, expressions)
+}

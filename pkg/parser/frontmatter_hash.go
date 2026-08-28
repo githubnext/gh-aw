@@ -587,9 +587,10 @@ func collectRuntimeImportTemplateExpressions(frontmatterText, markdownBody, base
 	if err != nil {
 		return expressions
 	}
+	seen := map[string]struct{}{}
 	for _, body := range importedBodies {
 		expressions = mergeSortedUniqueStrings(expressions, extractAllTemplateExpressions(body))
-		expressions = mergeSortedUniqueStrings(expressions, extractRuntimeImportTemplateExpressionsFromMarkdown(body, baseDir, map[string]struct{}{}, fileReader))
+		expressions = mergeSortedUniqueStrings(expressions, extractRuntimeImportTemplateExpressionsFromMarkdown(body, baseDir, seen, fileReader))
 	}
 
 	return expressions

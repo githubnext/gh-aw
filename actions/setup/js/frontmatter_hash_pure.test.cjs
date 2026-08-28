@@ -203,6 +203,34 @@ on:
       const hashB = await computeFrontmatterHash(workflowPath, { fileReader });
       expect(hashB).not.toBe(hashA);
     });
+
+    it("should terminate when frontmatter-imported bodies contain cyclic runtime imports", async () => {
+      const workflowPath = "/repo/.github/workflows/runtime-import-cycle-hash.md";
+      const files = new Map([
+        [
+          workflowPath,
+          `---
+engine: copilot
+imports:
+  - shared/a.md
+on:
+  workflow_dispatch:
+---
+Cycle hash coverage.
+`,
+        ],
+        ["/repo/.github/workflows/shared/a.md", "A $" + "{{ needs.a.outputs.value }}\n{{#runtime-import shared/b.md}}\n"],
+        ["/repo/.github/workflows/shared/b.md", "B $" + "{{ needs.b.outputs.value }}\n{{#runtime-import shared/a.md}}\n"],
+      ]);
+      const fileReader = async filePath => {
+        if (!files.has(filePath)) throw new Error(`missing ${filePath}`);
+        return files.get(filePath);
+      };
+
+      const hash = await computeFrontmatterHash(workflowPath, { fileReader });
+
+      expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    });
   });
 
   describe("marshalCanonicalJSON", () => {

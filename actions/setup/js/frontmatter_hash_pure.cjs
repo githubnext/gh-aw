@@ -387,9 +387,10 @@ async function collectRuntimeImportTemplateExpressions(frontmatterText, markdown
   let expressions = await extractRuntimeImportTemplateExpressionsFromMarkdown(markdown, baseDir, new Set(), fileReader);
 
   const importedBodies = await collectImportedBodies(frontmatterText, baseDir, new Set(), fileReader);
+  const seen = new Set();
   for (const body of importedBodies) {
     expressions = mergeSortedUniqueStrings(expressions, extractAllTemplateExpressions(body));
-    expressions = mergeSortedUniqueStrings(expressions, await extractRuntimeImportTemplateExpressionsFromMarkdown(body, baseDir, new Set(), fileReader));
+    expressions = mergeSortedUniqueStrings(expressions, await extractRuntimeImportTemplateExpressionsFromMarkdown(body, baseDir, seen, fileReader));
   }
 
   return expressions;
