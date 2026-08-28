@@ -76,7 +76,7 @@ fi
 # immutable. Fail fast here rather than silently running with a broken security boundary.
 RESOLVED_RUNNER_TEMP="$(cd "${RUNNER_TEMP_BASH}" && pwd -P)"
 if [ -z "${RESOLVED_RUNNER_TEMP}" ]; then
-  echo "::error::Failed to resolve canonical path for RUNNER_TEMP: ${RUNNER_TEMP}"
+  echo "::error::Failed to resolve canonical path for RUNNER_TEMP: ${RUNNER_TEMP_BASH}"
   exit 1
 fi
 if [ "${RESOLVED_RUNNER_TEMP%/}" = "/tmp" ]; then
