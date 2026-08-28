@@ -12,12 +12,15 @@ var copilotPermissionsLog = logger.New("cli:add_copilot_permissions")
 
 // This file handles Copilot-specific workflow permission injection.
 
-// isCopilotWorkflowContent returns true when the workflow frontmatter declares engine: copilot.
+// isCopilotWorkflowContent returns true unless the workflow frontmatter explicitly declares a non-Copilot engine.
 // It is used to guard AddCopilotRequestsPermission injection so that the flag is only applied
 // to Copilot workflows even when multiple workflows of different engines are processed together.
 func isCopilotWorkflowContent(content string) bool {
 	lines, _, err := parseFrontmatterLines(content)
 	if err != nil {
+		return false
+	}
+	if len(lines) == 0 {
 		return false
 	}
 	for _, line := range lines {
@@ -30,7 +33,7 @@ func isCopilotWorkflowContent(content string) bool {
 			return val == string(constants.CopilotEngine)
 		}
 	}
-	return false
+	return true
 }
 
 // addCopilotRequestsPermissionToContent injects `permissions.copilot-requests: write`
