@@ -143,11 +143,6 @@
       "version": "v1.24.1",
       "sha": "54075bcc5e249e4758d363f27d099f55d843f124"
     },
-    "github/codeql-action/upload-sarif@v4.37.8": {
-      "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.37.8",
-      "sha": "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"
-    },
     "github/codeql-action/upload-sarif@v4.37.9": {
       "repo": "github/codeql-action/upload-sarif",
       "version": "v4.37.9",
