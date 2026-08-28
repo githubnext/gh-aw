@@ -1,5 +1,5 @@
 ---
-description: Shared design patterns for command workflows, monitoring workflows, large-repository workflows, database migration reviews, and cross-repository operations.
+description: Shared design patterns for command workflows, monitoring workflows, scheduled one-item-at-a-time (All You Can Eat) workflows, large-repository workflows, database migration reviews, and cross-repository operations.
 ---
 
 # Workflow Patterns
@@ -84,6 +84,53 @@ END IF
 ```
 
 Use with pull-context workflows: fetch targeted evidence on demand instead of pushing raw logs into the initial prompt.
+
+## All You Can Eat Pattern
+
+Nickname for a scheduled workflow that keeps at most one *unconsumed* output alive at a time. The workflow wakes up frequently (typically every 30 minutes), but activation is skipped while the previous output from that workflow is still open. As soon as the user consumes the previous output (closes the issue, merges or closes the pull request), the next scheduled run produces the next item — content is served one plate at a time, on demand, and runs proceed sequentially.
+
+Use when:
+
+- the work is an open-ended backlog (improvement ideas, maintenance chores, research notes), not an event-driven reaction
+- each output needs human consumption, so producing another before the previous one is closed only creates noise
+- low latency matters: the next item should appear within one schedule tick after the user clears the last one
+
+Avoid when outputs are independent and reviewable in parallel, or when the schedule is a periodic report tied to a window — use the recurring digest defaults in [report.md](report.md) instead.
+
+### Shape
+
+```yaml
+on:
+  schedule: every 30 minutes
+  skip-if-match: 'is:issue is:open "gh-aw-workflow-id: my-workflow" in:body'
+permissions: read-all
+safe-outputs:
+  create-issue:
+    title-prefix: "[all-you-can-eat] "
+    max: 1
+    expires: 7
+```
+
+Rules:
+
+- **One open item at a time.** Cap the safe output with `max: 1`. The string form of `skip-if-match` implies a threshold of `max: 1`, so any single open match skips activation; no extra field is needed.
+- **Match on stable identity.** Prefer the hidden `gh-aw-workflow-id: <workflow-file-name-without-.md>` marker (`in:body`) over a title prefix, because humans rename titles; see [Footer Control](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/footers.md). A title match (`in:title "[all-you-can-eat] "`) works when the workflow also sets `title-prefix:`. The query is auto-scoped to the current repository.
+- **Pull requests use the same shape** with `is:pr is:open` and `create-pull-request`; drafts count as open. Allow a small queue depth by raising the threshold (`skip-if-match: { query: ..., max: 3 }`) when the user can consume several items in parallel.
+- **Do not starve.** If the user never closes the item, the workflow never runs again. Set `expires:` on the safe output (or an equivalent auto-close) so an abandoned item eventually unblocks the schedule.
+- **Skipped runs are cheap.** The check runs in the `pre_activation` job, so the agent never starts and no tokens are spent on a skipped tick.
+- **Keep concurrency on.** `skip-if-match` is evaluated before activation and cannot cancel a run already in flight; default workflow concurrency prevents two runs from producing at once.
+
+### Learn from the closed output
+
+Because the run only activates after the previous item was closed, the closing action is the feedback signal. Instruct the agent to:
+
+1. search the most recently closed items from this workflow (same marker or title prefix), newest first and bounded — for example the last three
+2. read the close reason (`completed` vs `not planned`), the closing comment, labels, and any review feedback
+3. treat "not planned" or a rejecting comment as a negative signal and do not re-propose the same idea; treat completed/merged as a positive signal for similar work
+4. persist a compact accept/reject list across runs with `cache-memory`, or `repo-memory` when losing the list would cause repeat proposals (see [memory-stateful-patterns.md](memory-stateful-patterns.md))
+5. emit `noop` when nothing clears the quality bar left by past rejections
+
+See also: [triggers.md](triggers.md), [safe-outputs-content.md](safe-outputs-content.md), [maintainer.md](maintainer.md)
 
 ## Large-Repository Improvement Pattern
 
