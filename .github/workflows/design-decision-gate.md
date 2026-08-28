@@ -31,9 +31,9 @@ permissions:
   pull-requests: read
   issues: read
 max-turns: 30
-model: claude-sonnet-4-6
+model: copilot/gpt-5.4
 engine:
-  id: claude
+  id: pi
 safe-outputs:
   add-comment:
     max: 2
@@ -67,17 +67,7 @@ tools:
     mode: gh-proxy
     toolsets: [default, repos]
   edit:
-  bash:
-    - "git diff:*"
-    - "git log:*"
-    - "git ls-remote:*"
-    - "git show:*"
-    - "cat:*"
-    - "grep:*"
-    - "ls:*"
-    - "wc:*"
-    - "find:*"
-    - "echo:*"
+  bash: ["*"]
 steps:
   - name: Pre-fetch ADR gate PR context
     env:
