@@ -24,8 +24,9 @@ describe("setup action Windows support", () => {
   it("installs the Windows Copilot CLI without sudo", () => {
     expect(installCopilotCliContent).toContain("MINGW*|MSYS*|CYGWIN*)");
     expect(installCopilotCliContent).toContain('TARBALL_NAME="copilot-${PLATFORM}-${ARCH_NAME}.zip"');
-    expect(installCopilotCliContent).toContain("unzip is required for Windows installation");
+    expect(installCopilotCliContent).toContain("unzip or 7z is required for Windows installation");
     expect(installCopilotCliContent).toContain('unzip -qo "${TEMP_DIR}/${TARBALL_NAME}" -d "${INSTALL_DIR}"');
+    expect(installCopilotCliContent).toContain('7z x -y "-o${INSTALL_DIR}" "${TEMP_DIR}/${TARBALL_NAME}"');
   });
 });
 

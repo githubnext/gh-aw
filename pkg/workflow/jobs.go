@@ -203,9 +203,13 @@ func (jm *JobManager) WriteJobsYAML(b *strings.Builder) {
 	// jobOrder is kept sorted alphabetically by AddJob
 	for _, jobName := range jm.jobOrder {
 		job := jm.jobs[jobName]
-		var jobYAML strings.Builder
-		jm.renderJobTo(&jobYAML, job)
-		b.WriteString(renderStepForRunner(jobYAML.String(), job.RunsOn))
+		if strings.TrimSpace(strings.TrimPrefix(job.RunsOn, "runs-on:")) == "windows-latest" {
+			var jobYAML strings.Builder
+			jm.renderJobTo(&jobYAML, job)
+			b.WriteString(renderStepForRunner(jobYAML.String(), job.RunsOn))
+			continue
+		}
+		jm.renderJobTo(b, job)
 	}
 }
 

@@ -131,6 +131,21 @@ start_and_validate_mock_server() {
   echo "$server_pid"
 }
 
+create_failing_gateway_client() {
+  local fake_bin="$1"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CURL_MARKER"
+printf '%s\n%s\n' '{"error":"backend_unavailable","retryable":true}' '503'
+EOF
+  cat > "$fake_bin/sleep" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "$fake_bin/curl" "$fake_bin/sleep"
+}
+
 # Test 1: Script syntax is valid
 test_script_syntax() {
   echo ""
@@ -722,6 +737,168 @@ EOF
   rm -rf "$tmpdir"
 }
 
+# Test 16: Deferred enclave server succeeds without an eager probe
+test_deferred_enclave_server_is_not_probed() {
+  echo ""
+  echo "Test 16: Deferred enclave server succeeds without an eager probe"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local config_file="$tmpdir/config.json"
+  local marker="$tmpdir/curl-invocations"
+  local fake_bin="$tmpdir/bin"
+  create_failing_gateway_client "$fake_bin"
+
+  cat > "$config_file" <<'EOF'
+{
+  "mcpServers": {
+    "awf-enclave": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080/mcp/awf-enclave"
+    }
+  }
+}
+EOF
+
+  local output_file="$tmpdir/output.txt"
+  local run_result=0
+  PATH="$fake_bin:$PATH" CURL_MARKER="$marker" GH_AW_MCP_DEFERRED_SERVERS="awf-enclave" \
+    bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:8080" "test-key" >"$output_file" 2>&1 || run_result=$?
+
+  if [ $run_result -eq 0 ]; then
+    print_result "Deferred-only enclave configuration succeeds" "PASS"
+  else
+    print_result "Deferred-only enclave configuration should succeed" "FAIL"
+  fi
+
+  if [ ! -e "$marker" ] && grep -q "awf-enclave: deferred until its AWF-owned backend starts" "$output_file"; then
+    print_result "Deferred enclave server is not probed" "PASS"
+  else
+    print_result "Deferred enclave server should not be probed" "FAIL"
+  fi
+
+  rm -rf "$tmpdir"
+}
+
+# Test 17: Deferred enclave server does not affect healthy required servers
+test_deferred_enclave_with_healthy_required_server() {
+  echo ""
+  echo "Test 17: Deferred enclave server and healthy required server succeed"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "awf-enclave": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/awf-enclave"
+    },
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/github"
+    }
+  }
+}
+EOF
+
+  if GH_AW_MCP_DEFERRED_SERVERS="awf-enclave" \
+    bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >/dev/null 2>&1; then
+    print_result "Healthy required server passes alongside deferred enclave server" "PASS"
+  else
+    print_result "Deferred enclave server should not affect healthy required server" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
+# Test 18: The enclave server remains required without compiler classification
+test_unclassified_enclave_server_is_fatal() {
+  echo ""
+  echo "Test 18: Unclassified enclave server failure remains fatal"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local config_file="$tmpdir/config.json"
+  local marker="$tmpdir/curl-invocations"
+  local fake_bin="$tmpdir/bin"
+  create_failing_gateway_client "$fake_bin"
+
+  cat > "$config_file" <<'EOF'
+{
+  "mcpServers": {
+    "awf-enclave": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080/mcp/awf-enclave"
+    }
+  }
+}
+EOF
+
+  local output_file="$tmpdir/output.txt"
+  local run_result=0
+  PATH="$fake_bin:$PATH" CURL_MARKER="$marker" \
+    bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:8080" "test-key" >"$output_file" 2>&1 || run_result=$?
+
+  if [ $run_result -ne 0 ] && [ -e "$marker" ] && grep -q "failed to connect (required)" "$output_file"; then
+    print_result "Unclassified enclave server remains required and fatal" "PASS"
+  else
+    print_result "Unclassified enclave server failure should remain fatal" "FAIL"
+  fi
+
+  rm -rf "$tmpdir"
+}
+
+# Test 19: Deferred names outside the compiler-owned allowlist remain required
+test_arbitrary_deferred_server_name_is_fatal() {
+  echo ""
+  echo "Test 19: Arbitrary deferred server name remains required"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local config_file="$tmpdir/config.json"
+  local marker="$tmpdir/curl-invocations"
+  local fake_bin="$tmpdir/bin"
+  create_failing_gateway_client "$fake_bin"
+
+  cat > "$config_file" <<'EOF'
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080/mcp/github"
+    }
+  }
+}
+EOF
+
+  local run_result=0
+  PATH="$fake_bin:$PATH" CURL_MARKER="$marker" GH_AW_MCP_DEFERRED_SERVERS="github" \
+    bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:8080" "test-key" >/dev/null 2>&1 || run_result=$?
+
+  if [ $run_result -ne 0 ] && [ -e "$marker" ]; then
+    print_result "Arbitrary deferred server name remains required and probed" "PASS"
+  else
+    print_result "Only the compiler-owned awf-enclave server may be deferred" "FAIL"
+  fi
+
+  rm -rf "$tmpdir"
+}
+
 # Run all tests
 echo "=== Testing check_mcp_servers.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -741,6 +918,10 @@ test_required_server_failure_is_fatal
 test_all_optional_servers_fail_is_error
 test_optional_server_from_env_degrades_to_warning
 test_env_optional_list_does_not_affect_other_servers
+test_deferred_enclave_server_is_not_probed
+test_deferred_enclave_with_healthy_required_server
+test_unclassified_enclave_server_is_fatal
+test_arbitrary_deferred_server_name_is_fatal
 
 # Print summary
 echo ""

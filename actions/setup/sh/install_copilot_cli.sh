@@ -630,11 +630,14 @@ echo "✓ Checksum verification passed for ${TARBALL_NAME}"
 # Extract and install binary
 echo "Installing binary to ${INSTALL_DIR}..."
 if [ "$IS_WINDOWS" = "true" ]; then
-  if ! command -v unzip >/dev/null 2>&1; then
-    echo "ERROR: unzip is required for Windows installation"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -qo "${TEMP_DIR}/${TARBALL_NAME}" -d "${INSTALL_DIR}"
+  elif command -v 7z >/dev/null 2>&1; then
+    7z x -y "-o${INSTALL_DIR}" "${TEMP_DIR}/${TARBALL_NAME}" >/dev/null
+  else
+    echo "ERROR: unzip or 7z is required for Windows installation"
     exit 1
   fi
-  unzip -qo "${TEMP_DIR}/${TARBALL_NAME}" -d "${INSTALL_DIR}"
   cat > "${INSTALL_DIR}/copilot" <<EOF
 #!/usr/bin/env bash
 exec "${INSTALL_DIR}/copilot.exe" "\$@"

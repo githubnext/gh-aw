@@ -287,6 +287,15 @@ func TestRenderStepForRunner(t *testing.T) {
 		t.Fatalf("Windows step did not invoke a quoted shell script with Bash:\n%s", got)
 	}
 
+	multiline := "      - name: Run script\n        run: |\n          SCRIPT=helper.sh\n          ./helper.sh\n          cat <<'EOF'\n          helper.sh\n          EOF\n"
+	got = renderStepForRunner(multiline, "windows-latest")
+	if strings.Contains(got, "bash SCRIPT=helper.sh") || strings.Contains(got, "bash helper.sh\n          EOF") {
+		t.Fatalf("Windows step rewrote an assignment or heredoc:\n%s", got)
+	}
+	if !strings.Contains(got, "          bash ./helper.sh\n") {
+		t.Fatalf("Windows step did not invoke the actual shell script with Bash:\n%s", got)
+	}
+
 	withShell := "      - name: Run script\n        run: ./script.sh\n        shell: pwsh\n"
 	got = renderStepForRunner(withShell, "runs-on: windows-latest")
 	if !strings.Contains(got, "        shell: pwsh\n") {
