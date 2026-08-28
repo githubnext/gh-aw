@@ -32,6 +32,15 @@ Provides a human-readable description of the workflow rendered as a comment in t
 description: "Workflow that analyzes pull requests and provides feedback"
 ```
 
+### Intent (`intent:`)
+
+Describes the durable outcome the workflow exists to achieve, rendered as a comment in the generated lock file. While `description` explains *what* the workflow does, `intent` explains *why* it exists and should stay implementation-independent, so it remains valid when the implementation changes.
+
+```yaml wrap
+intent: "Reduce maintainer attention spent identifying recurring CI regressions."
+description: "Analyzes failed CI runs and opens incidents for novel regressions."
+```
+
 ### Emoji (`emoji:`)
 
 An optional emoji to represent the workflow visually, for example in listings and UI surfaces.

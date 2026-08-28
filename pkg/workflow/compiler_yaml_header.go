@@ -101,6 +101,21 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		}
 	}
 
+	// Add intent comment if provided
+	if data.Intent != "" {
+		cleanIntent := stringutil.StripANSI(data.Intent)
+		intentLines := strings.SplitSeq(strings.TrimSpace(cleanIntent), "\n")
+		first := true
+		for line := range intentLines {
+			if first {
+				fmt.Fprintf(yaml, "# Intent: %s\n", strings.TrimSpace(line))
+				first = false
+				continue
+			}
+			fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line))
+		}
+	}
+
 	// Add source comment if provided
 	if data.Source != "" {
 		yaml.WriteString("#\n")
