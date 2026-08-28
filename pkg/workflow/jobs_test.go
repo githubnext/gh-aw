@@ -271,6 +271,28 @@ func TestJobManager_WriteJobsYAML(t *testing.T) {
 	}
 }
 
+func TestRenderStepForRunner(t *testing.T) {
+	windowsStep := "      - name: Run script\n        run: \"${RUNNER_TEMP}/gh-aw/actions/setup.sh\" --verbose\n"
+	got := renderStepForRunner(windowsStep, "runs-on: windows-latest")
+	if !strings.Contains(got, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/setup.sh\" --verbose\n") {
+		t.Fatalf("Windows step did not invoke the shell script with Bash:\n%s", got)
+	}
+	if !strings.Contains(got, "        shell: bash\n") {
+		t.Fatalf("Windows step did not explicitly select Bash:\n%s", got)
+	}
+
+	withShell := "      - name: Run script\n        run: ./script.sh\n        shell: pwsh\n"
+	got = renderStepForRunner(withShell, "runs-on: windows-latest")
+	if !strings.Contains(got, "        shell: bash\n") {
+		t.Fatalf("Windows step did not override its shell:\n%s", got)
+	}
+
+	ubuntuStep := "      - name: Run script\n        run: ./script.sh\n"
+	if got = renderStepForRunner(ubuntuStep, "runs-on: ubuntu-latest"); got != ubuntuStep {
+		t.Fatalf("Non-Windows step changed:\n%s", got)
+	}
+}
+
 func TestJobManager_GetJob(t *testing.T) {
 	jm := NewJobManager()
 

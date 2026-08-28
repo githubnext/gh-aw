@@ -202,11 +202,16 @@ func (jm *JobManager) WriteJobsYAML(b *strings.Builder) {
 
 	// jobOrder is kept sorted alphabetically by AddJob
 	for _, jobName := range jm.jobOrder {
-		jm.renderJobTo(b, jm.jobs[jobName])
+		job := jm.jobs[jobName]
+		var jobYAML strings.Builder
+		jm.renderJobTo(&jobYAML, job)
+		b.WriteString(renderStepForRunner(jobYAML.String(), job.RunsOn))
 	}
 }
 
 // renderJobTo writes a single job to b directly, with no intermediate string allocation.
+//
+//nolint:largefunc // The renderer preserves the generated workflow field order.
 func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	jobLog.Printf("Rendering job: %s (steps=%d, needs=%d, reusable=%t)", job.Name, len(job.Steps), len(job.Needs), job.Uses != "")
 
