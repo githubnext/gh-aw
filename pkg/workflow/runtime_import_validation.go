@@ -28,8 +28,9 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 )
 
-// runtimeImportMacroRe matches {{#runtime-import filepath}} or {{#runtime-import? filepath}}.
-var runtimeImportMacroRe = regexp.MustCompile(`\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`)
+// runtimeImportMacroRe matches {{#runtime-import filepath}}, {{#runtime-import? filepath}},
+// and deprecated body-level {{#import}} forms normalized by the runtime.
+var runtimeImportMacroRe = regexp.MustCompile(`\{\{#(?:runtime-import|import)\??(?:[ \t]+|[ \t]*:[ \t]*)([^{}]+?)\}\}`)
 
 // lineRangeRe matches a line range suffix of the form "digits-digits" (e.g., "10-20").
 var lineRangeRe = regexp.MustCompile(`^\d+-\d+$`)
@@ -38,11 +39,29 @@ var lineRangeRe = regexp.MustCompile(`^\d+-\d+$`)
 // Returns a list of file paths (not URLs) referenced in {{#runtime-import}} macros.
 // URLs (http:// or https://) are excluded since they are validated separately.
 func extractRuntimeImportPaths(markdownContent string) []string {
+	refs := extractRuntimeImportReferences(markdownContent)
+	if len(refs) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		paths = append(paths, ref.importPath)
+	}
+	return paths
+}
+
+type runtimeImportReference struct {
+	importPath string
+	startLine  int
+	endLine    int
+}
+
+func extractRuntimeImportReferences(markdownContent string) []runtimeImportReference {
 	if markdownContent == "" {
 		return nil
 	}
 
-	var paths []string
+	var refs []runtimeImportReference
 	seen := make(map[string]struct {
 	})
 
@@ -60,11 +79,16 @@ func extractRuntimeImportPaths(markdownContent string) []string {
 
 			// Remove line range if present (e.g., "file.md:10-20" -> "file.md")
 			importPath := pathWithRange
+			startLine := 0
+			endLine := 0
 			if colonIdx := strings.Index(pathWithRange, ":"); colonIdx > 0 {
 				// Check if what follows colon looks like a line range (digits-digits)
 				afterColon := pathWithRange[colonIdx+1:]
 				if lineRangeRe.MatchString(afterColon) {
 					importPath = pathWithRange[:colonIdx]
+					rangeParts := strings.SplitN(afterColon, "-", 2)
+					fmt.Sscanf(rangeParts[0], "%d", &startLine)
+					fmt.Sscanf(rangeParts[1], "%d", &endLine)
 				}
 			}
 
@@ -73,16 +97,42 @@ func extractRuntimeImportPaths(markdownContent string) []string {
 				continue
 			}
 
-			// Add to list if not already seen
-			if !setutil.Contains(seen, importPath) {
-				paths = append(paths, importPath)
-				seen[importPath] = struct {
+			ref := runtimeImportReference{importPath: importPath, startLine: startLine, endLine: endLine}
+
+			key := fmt.Sprintf("%s:%d-%d", ref.importPath, ref.startLine, ref.endLine)
+			if !setutil.Contains(seen, key) {
+				refs = append(refs, ref)
+				seen[key] = struct {
 				}{}
 			}
 		}
 	}
 
-	return paths
+	return refs
+}
+
+func resolveRuntimeImportValidationPath(filePath, workspaceDir string) (string, string, bool) {
+	normalizedPath := filePath
+	if strings.HasPrefix(normalizedPath, constants.GithubDir) {
+		normalizedPath = normalizedPath[len(constants.GithubDir):] // Remove ".github/"
+	} else if strings.HasPrefix(normalizedPath, ".github\\") {
+		normalizedPath = normalizedPath[8:] // Remove ".github\" (Windows)
+	}
+	if strings.HasPrefix(normalizedPath, "./") {
+		normalizedPath = normalizedPath[2:] // Remove "./"
+	} else if strings.HasPrefix(normalizedPath, ".\\") {
+		normalizedPath = normalizedPath[2:] // Remove ".\" (Windows)
+	}
+
+	githubFolder := filepath.Join(workspaceDir, ".github")
+	absolutePath := filepath.Join(githubFolder, normalizedPath)
+	normalizedGithubFolder := filepath.Clean(githubFolder)
+	normalizedAbsolutePath := filepath.Clean(absolutePath)
+	relativePath, err := filepath.Rel(normalizedGithubFolder, normalizedAbsolutePath)
+	if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
+		return absolutePath, relativePath, false
+	}
+	return absolutePath, relativePath, true
 }
 
 // validateRuntimeImportFiles validates expressions in all runtime-import files at compile time.
@@ -106,29 +156,8 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]
 	var subAgentWarnings []string
 
 	for _, filePath := range paths {
-		// Normalize the path to be relative to .github folder
-		normalizedPath := filePath
-		if strings.HasPrefix(normalizedPath, constants.GithubDir) {
-			normalizedPath = normalizedPath[len(constants.GithubDir):] // Remove ".github/"
-		} else if strings.HasPrefix(normalizedPath, ".github\\") {
-			normalizedPath = normalizedPath[8:] // Remove ".github\" (Windows)
-		}
-		if strings.HasPrefix(normalizedPath, "./") {
-			normalizedPath = normalizedPath[2:] // Remove "./"
-		} else if strings.HasPrefix(normalizedPath, ".\\") {
-			normalizedPath = normalizedPath[2:] // Remove ".\" (Windows)
-		}
-
-		// Build absolute path to the file
-		githubFolder := filepath.Join(workspaceDir, ".github")
-		absolutePath := filepath.Join(githubFolder, normalizedPath)
-
-		// Security check: ensure the resolved path is within the .github folder
-		// Use filepath.Rel to check if the path escapes the .github folder
-		normalizedGithubFolder := filepath.Clean(githubFolder)
-		normalizedAbsolutePath := filepath.Clean(absolutePath)
-		relativePath, err := filepath.Rel(normalizedGithubFolder, normalizedAbsolutePath)
-		if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
+		absolutePath, relativePath, ok := resolveRuntimeImportValidationPath(filePath, workspaceDir)
+		if !ok {
 			validationErrors = append(validationErrors, fmt.Sprintf("%s: Security: Path must be within .github folder (resolves to: %s)", filePath, relativePath))
 			continue
 		}
@@ -166,14 +195,18 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]
 
 	if len(validationErrors) > 0 {
 		expressionValidationLog.Printf("Runtime-import validation failed: %d file(s) with errors", len(validationErrors))
-		return subAgentWarnings, NewValidationError(
-			"runtime-import",
-			fmt.Sprintf("%d files with errors", len(validationErrors)),
-			"runtime-import files contain expression errors:\n\n"+strings.Join(validationErrors, "\n\n"),
-			"Fix the expression errors in the imported files listed above. Each file must only use allowed GitHub Actions expressions. See expression security documentation for details.",
-		)
+		return subAgentWarnings, newRuntimeImportValidationError(validationErrors)
 	}
 
 	expressionValidationLog.Print("All runtime-import files validated successfully")
 	return subAgentWarnings, nil
+}
+
+func newRuntimeImportValidationError(validationErrors []string) error {
+	return NewValidationError(
+		"runtime-import",
+		fmt.Sprintf("%d files with errors", len(validationErrors)),
+		"runtime-import files contain expression errors:\n\n"+strings.Join(validationErrors, "\n\n"),
+		"Fix the expression errors in the imported files listed above. Each file must only use allowed GitHub Actions expressions. See expression security documentation for details.",
+	)
 }

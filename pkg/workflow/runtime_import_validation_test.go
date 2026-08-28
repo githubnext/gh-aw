@@ -35,6 +35,11 @@ func TestExtractRuntimeImportPaths(t *testing.T) {
 			expected: []string{"./optional.md"},
 		},
 		{
+			name:     "legacy import macro",
+			content:  "{{#import ./legacy.md}}\n{{#import?: ./optional-legacy.md}}",
+			expected: []string{"./legacy.md", "./optional-legacy.md"},
+		},
+		{
 			name:     "import with line range",
 			content:  "{{#runtime-import ./file.md:10-20}}",
 			expected: []string{"./file.md"},

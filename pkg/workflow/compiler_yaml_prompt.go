@@ -365,21 +365,21 @@ func (c *Compiler) collectRuntimeImportMarkdownForCompilerAnalysis(data *Workflo
 		}
 	}
 	seedContent := seed.String()
-	if !strings.Contains(seedContent, "{{#runtime-import") {
+	if !strings.Contains(seedContent, "{{#runtime-import") && !strings.Contains(seedContent, "{{#import") {
 		return ""
 	}
 	return collectRuntimeImportMarkdownContent(seedContent, workspaceRoot, map[string]struct{}{})
 }
 
 func collectRuntimeImportMarkdownContent(markdownContent, workspaceRoot string, seen map[string]struct{}) string {
-	paths := extractRuntimeImportPaths(markdownContent)
-	if len(paths) == 0 {
+	refs := extractRuntimeImportReferences(markdownContent)
+	if len(refs) == 0 {
 		return ""
 	}
 
 	var builder strings.Builder
-	for _, importPath := range paths {
-		content, ok := readRuntimeImportMarkdownForAnalysis(importPath, workspaceRoot, seen)
+	for _, ref := range refs {
+		content, ok := readRuntimeImportMarkdownForAnalysis(ref, workspaceRoot, seen)
 		if !ok {
 			continue
 		}
@@ -393,23 +393,44 @@ func collectRuntimeImportMarkdownContent(markdownContent, workspaceRoot string, 
 	return builder.String()
 }
 
-func readRuntimeImportMarkdownForAnalysis(importPath, workspaceRoot string, seen map[string]struct{}) (string, bool) {
-	for _, candidate := range runtimeImportAnalysisCandidatePaths(importPath, workspaceRoot) {
-		if _, alreadySeen := seen[candidate]; alreadySeen {
+func readRuntimeImportMarkdownForAnalysis(ref runtimeImportReference, workspaceRoot string, seen map[string]struct{}) (string, bool) {
+	for _, candidate := range runtimeImportAnalysisCandidatePaths(ref.importPath, workspaceRoot) {
+		seenKey := fmt.Sprintf("%s:%d-%d", candidate, ref.startLine, ref.endLine)
+		if _, alreadySeen := seen[seenKey]; alreadySeen {
 			return "", false
 		}
 		rawContent, err := os.ReadFile(candidate)
 		if err != nil {
 			continue
 		}
-		seen[candidate] = struct{}{}
-		importedBody, extractErr := parser.ExtractMarkdownContent(string(rawContent))
+		seen[seenKey] = struct{}{}
+		content := string(rawContent)
+		if ref.startLine > 0 || ref.endLine > 0 {
+			content = applyRuntimeImportLineRangeForAnalysis(content, ref.startLine, ref.endLine)
+		}
+		importedBody, extractErr := parser.ExtractMarkdownContent(content)
 		if extractErr != nil {
-			importedBody = string(rawContent)
+			importedBody = content
 		}
 		return importedBody, true
 	}
 	return "", false
+}
+
+func applyRuntimeImportLineRangeForAnalysis(content string, startLine, endLine int) string {
+	lines := strings.Split(content, "\n")
+	start := startLine
+	if start <= 0 {
+		start = 1
+	}
+	end := endLine
+	if end <= 0 || end > len(lines) {
+		end = len(lines)
+	}
+	if start > end || start > len(lines) {
+		return ""
+	}
+	return strings.Join(lines[start-1:end], "\n")
 }
 
 func runtimeImportAnalysisCandidatePaths(importPath, workspaceRoot string) []string {
