@@ -1986,7 +1986,7 @@ jobs:
             }
           }
           if ($failed) { exit 1 }
-        shell: bash
+        shell: pwsh
 
   evals:
     needs:

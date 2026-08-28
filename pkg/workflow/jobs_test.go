@@ -283,8 +283,8 @@ func TestRenderStepForRunner(t *testing.T) {
 
 	withShell := "      - name: Run script\n        run: ./script.sh\n        shell: pwsh\n"
 	got = renderStepForRunner(withShell, "runs-on: windows-latest")
-	if !strings.Contains(got, "        shell: bash\n") {
-		t.Fatalf("Windows step did not override its shell:\n%s", got)
+	if !strings.Contains(got, "        shell: pwsh\n") {
+		t.Fatalf("Windows step changed its explicit shell:\n%s", got)
 	}
 
 	ubuntuStep := "      - name: Run script\n        run: ./script.sh\n"

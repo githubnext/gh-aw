@@ -3,7 +3,7 @@ package workflow
 import "strings"
 
 func renderStepForRunner(step, runsOn string) string {
-	if strings.TrimSpace(runsOn) != "runs-on: windows-latest" || !strings.Contains(step, "run:") {
+	if strings.TrimSpace(strings.TrimPrefix(runsOn, "runs-on:")) != "windows-latest" || !strings.Contains(step, "run:") {
 		return step
 	}
 
@@ -57,13 +57,7 @@ func setBashShellForStep(step string) string {
 		return step
 	}
 	if strings.Contains(step, "\n        shell:") {
-		lines := strings.SplitAfter(step, "\n")
-		for i, line := range lines {
-			if strings.HasPrefix(line, "        shell:") {
-				lines[i] = "        shell: bash\n"
-			}
-		}
-		return strings.Join(lines, "")
+		return step
 	}
 	return strings.Replace(step, "\n        run:", "\n        shell: bash\n        run:", 1)
 }
