@@ -80,6 +80,7 @@ func isRepositoryPackageManifestNotFound(err error) bool {
 }
 
 func downloadRepositoryPackageFileFromGitHubForHost(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+	addPackageManifestLog.Printf("Downloading repository package file %s from %s/%s@%s (host=%q)", path, owner, repo, ref, host)
 	content, err := parser.DownloadFileFromGitHubForHost(ctx, owner, repo, path, ref, host)
 	return content, normalizeRepositoryPackageRemoteError(err)
 }
@@ -108,6 +109,7 @@ func normalizeRepositoryPackageRemoteError(err error) error {
 	if err == nil || !errorutil.IsNotFoundError(err) {
 		return err
 	}
+	addPackageManifestLog.Printf("Remote package file/dir not found, normalizing error: %v", err)
 	return packageRemoteNotFoundError{cause: err}
 }
 

@@ -228,6 +228,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 		normalized = append(normalized, file)
 	}
 
+	addPackageManifestLog.Printf("Extracted %d files entries from %s (%d warnings)", len(normalized), manifestPath, len(warnings))
 	return normalized, warnings
 }
 
@@ -265,6 +266,7 @@ func splitManifestIncludePaths(includes []repositoryPackageInclude) (installable
 			installable = append(installable, include)
 		}
 	}
+	addPackageManifestLog.Printf("Split %d includes entries into %d installable, %d skill dir(s), %d agent file(s)", len(includes), len(installable), len(skillDirs), len(agentFiles))
 	return installable, skillDirs, agentFiles
 }
 
@@ -335,6 +337,7 @@ func extractManifestAgentFiles(value any, manifestPath string) ([]string, []stri
 		seen[file] = struct{}{}
 		normalized = append(normalized, file)
 	}
+	addPackageManifestLog.Printf("Extracted %d agent files from %s (%d warnings)", len(normalized), manifestPath, len(warnings))
 	return normalized, warnings
 }
 

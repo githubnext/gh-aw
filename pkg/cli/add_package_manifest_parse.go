@@ -175,6 +175,8 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		manifest.Bootstrap = bootstrap
 	}
 
+	addPackageManifestLog.Printf("Parsed manifest metadata from %s: includes=%d files=%d resources=%d skills=%d agents=%d",
+		manifestPath, len(manifest.Includes), len(manifest.Files), len(manifest.Resources), len(manifest.Skills), len(manifest.Agents))
 	return warnings, nil
 }
 
@@ -185,6 +187,7 @@ func validateUniqueManifestInstallDestinations(installables []resolvedPackageIns
 	for _, installable := range installables {
 		key := strings.ToLower(installable.DestinationPath)
 		if previous, exists := seen[key]; exists {
+			addPackageManifestLog.Printf("Rejecting manifest %s: duplicate install destination %q for entries %q and %q", manifestPath, installable.DestinationPath, previous, installable.SourcePath)
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: includes entries %q and %q both install to %q. Each entry must have a unique destination; rename one of the destinations", manifestPath, previous, installable.SourcePath, installable.DestinationPath)
 		}
 		seen[key] = installable.SourcePath
@@ -232,6 +235,7 @@ func validateUniqueManifestWorkflowFilenames(installables []resolvedPackageInsta
 			continue
 		}
 		if previous, exists := seen[key]; exists {
+			addPackageManifestLog.Printf("Rejecting manifest %s: duplicate workflow filename %q for entries %q and %q", manifestPath, filenameWithoutExt, previous, installPath)
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q. Filenames must be unique across a package; rename one of the workflow files. Example:\nfiles:\n  - workflows/%s.md\n  - workflows/%s-2.md", manifestPath, filenameWithoutExt, previous, installPath, filenameWithoutExt, filenameWithoutExt)
 		}
 		seen[key] = installPath
