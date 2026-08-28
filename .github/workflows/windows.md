@@ -4,7 +4,7 @@ description: Windows runner integration test that writes a haiku issue using the
 on:
   slash_command:
     strategy: centralized
-    name: wiki
+    name: windows
   workflow_dispatch:
     inputs:
       topic:
@@ -32,7 +32,7 @@ tools:
 
 safe-outputs:
   create-issue:
-    title-prefix: "[wiki] "
+    title-prefix: "[windows] "
     labels: [automation, ai-generated]
     max: 1
   missing-tool:
@@ -41,7 +41,7 @@ timeout-minutes: 10
 strict: true
 ---
 
-# Wiki - Windows Runner Integration Test
+# Windows Runner Integration Test
 
 You are running on a **Windows** GitHub Actions runner with the Docker agent runtime. This workflow exists to
 validate that agentic workflows execute correctly on Windows.
