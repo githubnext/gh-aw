@@ -18,6 +18,12 @@ describe("setup action Windows support", () => {
     expect(setupShContent).toContain('RUNNER_TEMP_BASH="$(cygpath -u "${RUNNER_TEMP}")"');
     expect(setupShContent).toContain('DESTINATION="$(cygpath -u "${DESTINATION}")"');
   });
+
+  it("installs the Windows Copilot CLI without sudo", () => {
+    expect(setupShContent).toContain('MINGW*|MSYS*|CYGWIN*)');
+    expect(setupShContent).toContain('TARBALL_NAME="copilot-${PLATFORM}-${ARCH_NAME}.zip"');
+    expect(setupShContent).toContain('unzip -qo "${TEMP_DIR}/${TARBALL_NAME}" -d "${INSTALL_DIR}"');
+  });
 });
 
 /**
