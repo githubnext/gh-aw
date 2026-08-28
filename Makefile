@@ -662,7 +662,7 @@ tools: ## Install build-time tools declared in go.mod tool directives
 .PHONY: install-golangci-lint
 install-golangci-lint:
 	@echo "Installing golangci-lint binary..."
-	@GOLANGCI_LINT_VERSION="v2.12.2"; \
+	@GOLANGCI_LINT_VERSION="v2.13.2"; \
 	GOPATH=$$(go env GOPATH); \
 	GOOS=$$(go env GOOS); \
 	GOARCH=$$(go env GOARCH); \
