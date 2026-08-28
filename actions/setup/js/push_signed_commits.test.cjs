@@ -2033,6 +2033,53 @@ describe("push_signed_commits integration tests", () => {
       expect(lsRemote.stdout.trim()).toBe("");
     });
 
+    it("should refuse the unsigned push fallback (not push) when the un-rebased conflicting range violates a file-protection policy", async () => {
+      // Base branch starts with shared file.
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add shared file"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      // Agent branch diverges from old main, edits shared.txt AND touches a protected file.
+      execGit(["checkout", "-b", "policy-conflict-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "agent change\n");
+      fs.writeFileSync(path.join(workDir, "CODEOWNERS"), "* @octocat\n");
+      execGit(["add", "shared.txt", "CODEOWNERS"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent edit shared and touch CODEOWNERS"], { cwd: workDir });
+
+      // Base branch advances with conflicting edit.
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "upstream change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Upstream edit shared"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      execGit(["checkout", "policy-conflict-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "policy-conflict-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          validationConfig: {
+            protected_files: ["CODEOWNERS"],
+            protected_files_policy: "blocked",
+          },
+        })
+      ).rejects.toThrow("Signed-commit payload violates file-protection policy");
+
+      // The blocked commits must not be pushed unsigned just because the rebase conflicted.
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/policy-conflict-branch"], { cwd: workDir });
+      expect(lsRemote.stdout.trim()).toBe("");
+    });
+
     it("should still fail (without pushing) when git push fallback is explicitly disabled and rebasing stale commits conflicts", async () => {
       // Base branch starts with shared file.
       fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
@@ -2072,6 +2119,60 @@ describe("push_signed_commits integration tests", () => {
 
       expect(githubClient.graphql).not.toHaveBeenCalled();
       const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/stale-conflict-no-fallback-branch"], { cwd: workDir });
+      expect(lsRemote.stdout.trim()).toBe("");
+    });
+
+    it("should fail fatally (without attempting any push) when 'git rebase --abort' itself fails after a genuine conflict", async () => {
+      // Base branch starts with shared file.
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add shared file"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      // Agent branch diverges from old main and edits shared.txt.
+      execGit(["checkout", "-b", "abort-failure-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "agent change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent edit shared"], { cwd: workDir });
+
+      // Base branch advances with conflicting edit.
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "shared.txt"), "upstream change\n");
+      execGit(["add", "shared.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Upstream edit shared"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+
+      execGit(["checkout", "abort-failure-branch"], { cwd: workDir });
+
+      // Wrap the real exec so that only "git rebase --abort" is forced to fail, simulating a
+      // broken worktree (e.g. a corrupted rebase-merge state) that prevents cleanup.
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        ...realExec,
+        exec: async (program, args, opts) => {
+          if (program === "git" && args[0] === "rebase" && args[1] === "--abort") {
+            throw new Error("simulated: could not restore original branch state");
+          }
+          return realExec.exec(program, args, opts);
+        },
+      };
+      const githubClient = makeMockGithubClient();
+
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "abort-failure-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+        })
+      ).rejects.toThrow(/git rebase --abort.*also failed/);
+
+      // Nothing must have been pushed — the abort failure must short-circuit before any
+      // unsigned-push fallback is attempted.
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/abort-failure-branch"], { cwd: workDir });
       expect(lsRemote.stdout.trim()).toBe("");
     });
 
