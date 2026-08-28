@@ -4,7 +4,7 @@ description: Guide for adding BinEval-style binary evaluations to agentic workfl
 
 # BinEval Evaluations in Agentic Workflows
 
-Evals let you verify automatically whether an agentic run met its goals. Each evaluation is a binary YES/NO question answered by an LLM judge that reads the agent's output. Results are stored as `evals.jsonl` artifacts and persisted to a dedicated git branch for historical comparison.
+Each eval is a binary YES/NO question answered by an LLM judge reading the agent's output. Results go to an `evals.jsonl` artifact and a dedicated git branch for historical comparison.
 
 ---
 
@@ -12,13 +12,13 @@ Evals let you verify automatically whether an agentic run met its goals. Each ev
 
 Per run:
 
-1. **Setup** — the evals job downloads the agent artifact (`agent_output.json`) and writes a BinEval prompt containing all declared questions.
-2. **Execute** — an LLM judge runs in a network-restricted sandbox (same engine as the agent job) and answers each question with YES or NO.
-3. **Parse** — raw engine output is parsed into per-question records and written to `evals.jsonl`.
-4. **Redact** — any credential patterns are removed from the results before upload.
-5. **Upload** — `evals.jsonl` is uploaded as the `evals` workflow artifact and committed to the `evals/<workflow-id>` git branch by the `push_evals_state` job.
+1. **Setup** — evals job downloads `agent_output.json` and writes a BinEval prompt with all declared questions.
+2. **Execute** — an LLM judge runs in a network-restricted sandbox (same engine as the agent job), answering YES or NO.
+3. **Parse** — engine output becomes per-question records in `evals.jsonl`.
+4. **Redact** — credential patterns are stripped before upload.
+5. **Upload** — `evals.jsonl` uploaded as the `evals` artifact and committed to the `evals/<workflow-id>` branch by `push_evals_state`.
 
-The evals job runs **after** the agent job and **in parallel with** `safe_outputs`, so it does not block the write path.
+Runs **after** the agent job, **in parallel with** `safe_outputs` — does not block the write path.
 
 ---
 
@@ -80,13 +80,13 @@ BinEval questions must be answerable with a strict YES or NO by an LLM reading t
 
 ### 1 — State the goal
 
-Write one sentence describing what a successful run looks like.
+One sentence describing a successful run:
 
 > "The agent should update the CHANGELOG and bump the version number without touching unrelated files."
 
 ### 2 — Identify observable properties
 
-Break the goal into properties that a judge can verify from `agent_output.json`:
+Break the goal into properties a judge can verify from `agent_output.json`:
 
 | Property | Observable signal |
 |---|---|
@@ -96,11 +96,7 @@ Break the goal into properties that a judge can verify from `agent_output.json`:
 
 ### 3 — Write falsifiable YES/NO questions
 
-Each question should:
-
-- Be answerable YES when the property holds, NO otherwise.
-- Reference observable evidence in the agent output — not intent or effort.
-- Cover exactly one property (no compound questions with "and" or "or").
+One property per question, YES when the property holds, referencing observable evidence in the agent output — not intent or effort.
 
 ```yaml
 evals:
@@ -114,7 +110,7 @@ evals:
 
 ### 4 — Assign question cost
 
-Prefer `model: small` (the default) for factual YES/NO checks. Reserve a larger model for questions that require nuanced reasoning by setting `model` at the `evals:` level:
+Prefer `model: small` (the default) for factual checks. Set `model` at the `evals:` level for reasoning-heavy questions:
 
 ```yaml
 evals:
@@ -128,7 +124,7 @@ evals:
 
 ### Intent-derived scenarios
 
-When a workflow has an `intent:`, load [intent.md](intent.md) during design. Derive representative positive and adversarial scenario fixtures from its required effects and inverse/no-op conditions. BinEval evaluates one provided fixture against one `agent_output.json`, so do not put mutually exclusive scenarios into one unconditional question list. For each fixture, write a scenario-specific question about an observable result:
+When a workflow has an `intent:`, load [intent.md](intent.md) during design. Derive positive and adversarial scenario fixtures from its required effects and inverse/no-op conditions. BinEval evaluates one fixture against one `agent_output.json`, so do not put mutually exclusive scenarios into one unconditional question list. Write a scenario-specific question about an observable result per fixture:
 
 ```yaml
 evals:
@@ -140,15 +136,12 @@ evals:
     question: Does the agent output show that insufficient evidence produced no visible write action?
 ```
 
-If a question is shared across fixtures, state how the provided scenario makes it applicable and return `UNKNOWN` when that scenario was not provided; do not treat missing scenario evidence as `NO`. Do not ask whether the intent is good or whether the agent tried hard. A question must still be a single, falsifiable YES/NO claim answerable from the output alone.
+If a question is shared across fixtures, state how the provided scenario makes it applicable and return `UNKNOWN` when that scenario was not provided; do not treat missing scenario evidence as `NO`.
 
 ### Good question checklist
 
-- ✅ Answerable from the agent output alone — no external calls needed.
-- ✅ Exactly one binary claim per question.
 - ✅ Uses YES = success convention consistently.
 - ✅ Avoids subjective terms ("good", "well-written") unless the question explicitly bounds them ("according to the coding style guide").
-- ✅ Each question has a unique `id`.
 
 ---
 
@@ -156,7 +149,7 @@ If a question is shared across fixtures, state how the provided scenario makes i
 
 ### Artifact
 
-Each run uploads `evals.jsonl` as the `evals` artifact (retention follows repository or organization settings). Each line is a JSON object:
+Each run uploads `evals.jsonl` as the `evals` artifact. Each line is a JSON object:
 
 ```json
 {"id":"compiles","question":"Does the generated code compile?","answer":"YES","model":"small","timestamp":"2026-07-15T10:00:00Z","runid":"12345678"}
@@ -164,7 +157,7 @@ Each run uploads `evals.jsonl` as the `evals` artifact (retention follows reposi
 
 ### Git branch
 
-Results are also committed to `evals/<sanitized-workflow-id>` by the `push_evals_state` job (requires `contents: write`). This enables historical comparison across runs even after artifact expiry.
+Results are also committed to `evals/<sanitized-workflow-id>` by the `push_evals_state` job (requires `contents: write`), enabling comparison after artifact expiry.
 
 Read results with:
 
@@ -177,19 +170,14 @@ gh aw logs <workflow-name> --evals        # filter to runs that contain evals re
 
 ## Required Permissions
 
-The evals job itself reads artifacts and runs the engine. The compiler grants `contents: read` by default, and conditionally adds the following when the corresponding features are used in the workflow:
+All of these are added automatically when `evals:` is declared — no manual configuration needed.
+
+The compiler grants `contents: read` by default, and conditionally adds:
 
 - `copilot-requests: write` — when the workflow uses Copilot API requests.
 - `id-token: write` — when the workflow uses GitHub OIDC authentication or OTLP telemetry.
 
-These are added automatically; no manual configuration is needed. The `push_evals_state` job that persists results to a git branch always needs:
-
-```yaml
-permissions:
-  contents: write
-```
-
-This is added automatically when `evals:` is declared.
+The `push_evals_state` job that persists results to a git branch always gets `contents: write`.
 
 ---
 
