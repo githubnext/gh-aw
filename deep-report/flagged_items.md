@@ -367,3 +367,24 @@
 - **[declined, insufficient signal]** Design Decision Gate's 2 genuine ~15min Claude-engine failures (distinct from the bot-gate cluster above) — only 2 occurrences, watch not filed.
 - **[declined, self-reported infra]** audit-workflows' own repo-memory sandbox was read-only this run, blocking its trend/known-issues persistence — a limitation of that specific run, not independently fixable from this analysis; watch for recurrence.
 - **[declined, healthy]** Detection Analysis Report (0 misconfigured workflows, 99.3% detection coverage, #56468), Lockfile Statistics (295 workflows, 42.9MB, stable structural metrics, #56445), Auto-Triage (100% success, 0 unlabeled, #56433), Daily Team Evolution (#56448), Firewall Escape Test (SECURE, prior-cycle carryover).
+
+## Flagged Items (2026-08-28, ~08:xxZ cycle, window since 03:26Z baseline #56496, 11 new discussions: 56514,56516,56518,56532,56534,56538,56539,56545,56551,56553,56555)
+
+### This cycle's 7 filed issues
+1. Go-toolchain firewall-allowlist gaps (Terminal Stylist, Smoke Pi, ESLint Miner; 261+ blocked requests) — from Daily Firewall Report #56514.
+2. `max-runs` schema/parser inconsistency (schema allows 0, parser silently treats as unset) — Schema Consistency Checker #56553 finding 1.
+3. 3 frontmatter doc gaps bundled: undocumented `max-tool-denials`, stale `github-app` "dependencies" claim, `runs-on-slim` macOS example mismatch — #56553 findings 2-4.
+4. Safe-outputs failure classification: policy-decline (E099) miscount + opaque `add_comment` errors — Safe Output Health Audit #56539 WI-1/WI-2.
+5. Firewall Escape Test anomaly: allowed domains (api.github.com, github.com) blocked + DNS SERVFAIL in an otherwise-SECURE run — #56538.
+6. 3 onboarding-doc friction points bundled (add-wizard ordering, Copilot callout, CLI-page tip placement) — Documentation Noob Tester #56532 quick wins.
+7. `registry.npmjs.org` firewall-allowlist gap (Functional Pragmatist, Package Specification Enforcer) — #56514, same recurring domain-gap class as prior cycles.
+
+### Declined/deferred this cycle
+- LintMonster's 690-finding `largefunc` backlog — self-consolidated (#56228 updated, #aw_infra1 created this run).
+- Sergo's `errorfwrapv`/`cacheRecoveryError` finding — self-filed `aw_sg2808a1`.
+- ESLint Refiner's 2 NaN-check rule findings — self-filed.
+- Issue Arborist's new parent-issue housekeeping (#56543) — routine, no action needed.
+- GitHub Remote MCP Auth Test toolset unavailability (#56555) — chronic, 19th+ occurrence, standing policy, not re-filed.
+- Safe Output Health's same-PR concurrent-write-race hypothesis (#56539 WI-3) — 1 occurrence (3-4 workflows in same 23s window), source report itself says needs 1-2 more before confirming; monitoring, not filed.
+- Daily Compiler Quality's `compiler_jobs.go` 787-line split flag (#56516) — chronic pattern, prior partial-scope closures documented in known_patterns.md; not re-filed standalone.
+- ESLint Refiner's own cadence/backlog process note (60 rules, only 18 reviewed) — workflow-internal process observation, not a repo code fix.

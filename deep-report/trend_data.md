@@ -277,3 +277,10 @@ Next cycle checks: (a) does the codex fleet-wide fix land and restore the 10 aff
 - **Daily Code Metrics** (#56435): first baseline — 4.1M LOC, 7,597 files, quality score 58/100 (vs 72/100 baseline noted 08-25 cycle in a different metric run — methodology/scope likely differs, not a real regression; watch next cycle for consistency).
 - **Copilot Agent Analysis** (#56432): 2026-08-26 window — 31 PRs (down from 78 on 08-25), 77.4% success (down from 87.2%), 4h37m avg duration (up from 2h19m) — filed as issue #7 this cycle, watch for 08-27/08-28 data to confirm direction.
 - **Copilot PR Prompt Analysis** (#56452, 30-day window): 83.0% merge rate, 1000 PRs sampled. Conciseness signal reconfirmed: merged-PR prompts average ~128 words vs ~209 for closed PRs (~63% gap), consistent with prior cycles' finding.
+
+## Trend Data (2026-08-28, ~08:xxZ cycle, window since 03:26Z baseline #56496)
+
+- **Issue activity this cycle**: 7 issues filed, 0 comments added, 11 new discussions processed (56514,56516,56518,56532,56534,56538,56539,56545,56551,56553,56555) in a short ~5h window.
+- **Weekly issues snapshot**: 124 open / 376 closed of 500 sampled. Top labels: agentic-workflows(215), automation(139), cookie(87), cascade-suspected(65), code-quality(47). 84 unlabeled (predominantly transient `[WIP]` bot trackers). 0 issues open >7 days — healthy triage throughput. Top non-bot authors: dsyme(6), davidslater(4), loganrosen(2), prpercival(2).
+- **Reliability signal**: Firewall Escape Test held its core security boundary (100% novelty, 4/4 new techniques failed, no escape) but flagged a same-run availability anomaly (allowed domains blocked, DNS SERVFAIL) — filed for investigation. Safe Output Health Audit: 98.60% success (286 executions, 4 failures), in line with the 5-audit rolling band (99.45%→98.94%→98.92%→99.34%→98.60%, no sustained trend).
+- **Firewall posture**: 210 firewall-enabled runs, 29 workflows, 2.66% block rate (413/15,535) — light activity, dominated by Go-toolchain domains (Terminal Stylist/Smoke Pi/ESLint Miner, 261+ blocks) and intermittent Sentry telemetry denial (100 blocks, mostly-allowed elsewhere).
