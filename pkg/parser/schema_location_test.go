@@ -368,7 +368,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			},
 			filePath:    "/test/workflow.md",
 			wantErr:     true,
-			errContains: "roles",
+			errContains: "'roles' belongs under 'on'",
 		},
 		{
 			name: "dispatch-repository key is accepted by schema",
