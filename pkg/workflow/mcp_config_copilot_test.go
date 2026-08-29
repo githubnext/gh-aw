@@ -363,6 +363,16 @@ func TestRenderCustomMCPEnvVars_NonCopilotSecretsEscaped(t *testing.T) {
 	}
 }
 
+func TestRenderCustomMCPEnvVars_TOMLEnvFallbackUsesShellVariable(t *testing.T) {
+	result := renderCustomMCPEnvVars(map[string]string{
+		"SENTRY_HOST": "${{ env.SENTRY_HOST || 'sentry.io' }}",
+	}, true)
+
+	if got := result["SENTRY_HOST"]; got != "${SENTRY_HOST}" {
+		t.Errorf("expected SENTRY_HOST to be rendered as ${SENTRY_HOST}, got %q", got)
+	}
+}
+
 func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 	tests := []struct {
 		name           string
