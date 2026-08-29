@@ -202,8 +202,8 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
   },
   "gateway": {
     "port": 8080,
-    "apiKey": "string",
     "domain": "string",
+    "agentId": "string",
     "startupTimeout": 30,
     "toolTimeout": 60
   },
@@ -244,7 +244,8 @@ The `gateway` section is required and configures gateway-specific behavior:
 |-------|------|----------|-------------|
 | `port` | integer | Yes | HTTP server port |
 | `domain` | string | Yes | Gateway domain (localhost or host.docker.internal) |
-| `apiKey` | string | Yes | API key for authentication |
+| `agentId` | string | Conditional* | Single non-empty agent identifier authorized to access the gateway |
+| `agentIds` | array[string] | Conditional* | Non-empty list of non-empty agent identifiers authorized to access the gateway |
 | `startupTimeout` | integer | No | Server startup timeout in seconds (default: 30) |
 | `toolTimeout` | integer | No | Tool invocation timeout in seconds (default: 60) |
 | `payloadDir` | string | No | Directory path for storing large payload JSON files for authenticated clients |
@@ -256,6 +257,8 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `opentelemetry` | object | No | OpenTelemetry configuration for emitting distributed tracing events for MCP calls. See Section 4.1.3.7 for details. |
 | `forcePublicRepos` | boolean | No | When `true` (default), forces the allow-only policy to `repos="public"` at runtime if the gateway detects it is running in a public repository. When `false`, disables this override — set by the compiler when `private-to-public-flows: allow` is declared in workflow frontmatter. See Section 4.1.3.8 for details. |
 | `sinkVisibilityExemptServers` | array[string] | No | List of server IDs exempt from the default `sink-visibility="public"` enforcement. Use `["*"]` to exempt all servers. Set by the compiler when `private-to-public-flows` lists specific server IDs in workflow frontmatter. See Section 10.9 for details. |
+
+\*Exactly one of `agentId` and `agentIds` is required. The fields are mutually exclusive.
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -330,7 +333,7 @@ payload_dir = "/tmp/jq-payloads"
 payload_path_prefix = "/workspace/payloads"
 port = 8080
 domain = "localhost"
-apiKey = "secret"
+agent_id = "workflow-agent"
 ```
 
 **Use Cases**:
@@ -388,7 +391,7 @@ The optional `trustedBots` field in the gateway configuration passes an addition
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "agentId": "${MCP_GATEWAY_AGENT_ID}",
     "trustedBots": [
       "github-actions[bot]",
       "copilot-swe-agent[bot]"
@@ -432,7 +435,7 @@ The optional `keepaliveInterval` field in the gateway configuration controls how
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "agentId": "${MCP_GATEWAY_AGENT_ID}",
     "keepaliveInterval": 300
   }
 }
@@ -471,7 +474,7 @@ The optional `sessionTimeout` field in the gateway configuration controls how lo
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "agentId": "${MCP_GATEWAY_AGENT_ID}",
     "sessionTimeout": "4h"
   }
 }
@@ -516,7 +519,7 @@ The optional `opentelemetry` object in the gateway configuration enables the gat
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "agentId": "${MCP_GATEWAY_AGENT_ID}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
       "serviceName": "my-mcp-gateway"
@@ -586,7 +589,7 @@ When `forcePublicRepos` is `true` (the default), the gateway overrides the compi
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "agentId": "${MCP_GATEWAY_AGENT_ID}",
     "forcePublicRepos": false
   }
 }
@@ -620,7 +623,7 @@ Custom server types MUST be registered in the `customSchemas` field at the top l
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "secret"
+    "agentId": "workflow-agent"
   },
   "customSchemas": {
     "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
@@ -657,7 +660,7 @@ When a server configuration includes a `type` field with a value not in `["stdio
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "secret"
+    "agentId": "workflow-agent"
   },
   "customSchemas": {
     "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
@@ -848,7 +851,7 @@ POST /close
 ```http
 POST /mcp/{server-name} HTTP/1.1
 Content-Type: application/json
-Authorization: <apiKey>
+Authorization: <agentId>
 
 {
   "jsonrpc": "2.0",
@@ -898,7 +901,7 @@ The gateway MUST provide a `/close` endpoint for graceful shutdown and resource 
 
 ```http
 POST /close HTTP/1.1
-Authorization: <apiKey>
+Authorization: <agentId>
 ```
 
 **Note**: The format of the `Authorization` header is implementation-dependent. Consult your gateway implementation's documentation for the expected format.
@@ -954,7 +957,7 @@ The `/close` endpoint MUST be idempotent:
 
 **Authentication**:
 
-The `/close` endpoint MUST require authentication when `gateway.apiKey` is configured. Requests without valid authentication MUST be rejected with HTTP 401 Unauthorized.
+The `/close` endpoint MUST require authentication using an identifier configured by `gateway.agentId` or `gateway.agentIds`. Requests without valid authentication MUST be rejected with HTTP 401 Unauthorized.
 
 #### 5.1.4 Request Routing
 
@@ -1050,7 +1053,7 @@ After successful initialization, the gateway MUST:
          "type": "http",
          "url": "http://{domain}:{port}/mcp/server-name",
          "headers": {
-           "Authorization": "{apiKey}"
+           "Authorization": "{agentId}"
          },
          "tools": ["*"]
        }
@@ -1126,19 +1129,22 @@ The gateway MUST NOT:
 
 ### 7.1 Authorization Header Format
 
-The MCP Gateway uses a simple API key authentication scheme. When `gateway.apiKey` is configured:
+The MCP Gateway authenticates clients by agent identifier. Exactly one of `gateway.agentId` and `gateway.agentIds` MUST be configured:
 
-- The `Authorization` header contains the API key value
+- `gateway.agentId` authorizes one non-empty identifier.
+- `gateway.agentIds` authorizes each identifier in a non-empty array of non-empty strings.
+- The two fields are mutually exclusive.
+- The `Authorization` header contains one configured agent identifier.
 - Implementations MAY use different formats (e.g., direct value or Bearer scheme)
 - The specific format is implementation-dependent
 
 > [!WARNING]
-> The gateway API key should not be treated as a secure lock against code already running inside the agent container. A sufficiently capable agent may extract it from in-memory process state or other runtime channels. Treat this key as leaked by design and rely on container isolation, network controls, and staged permission boundaries for defense in depth.
+> Gateway agent identifiers should not be treated as secure locks against code already running inside the agent container. A sufficiently capable agent may extract them from in-memory process state or other runtime channels. Treat these identifiers as leaked by design and rely on container isolation, network controls, and staged permission boundaries for defense in depth.
 
 **Example formats**:
 
 ```http
-Authorization: my-secret-api-key-12345
+Authorization: workflow-agent
 ```
 
 or
@@ -1149,23 +1155,23 @@ Authorization: Bearer my-secret-api-key-12345
 
 This authentication scheme provides flexibility for different implementation requirements.
 
-### 7.2 API Key Authentication
+### 7.2 Agent Identifier Authentication
 
-When `gateway.apiKey` is configured, the gateway MUST:
+The gateway MUST:
 
 1. Require `Authorization` header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
    - The specific format of the Authorization header is implementation-dependent
    - Implementations SHOULD document their expected format
 2. Reject requests with missing or invalid tokens (HTTP 401)
 3. Reject requests with malformed Authorization headers (HTTP 400)
-4. NOT log API keys in plaintext
+4. NOT log agent identifiers in plaintext
 
-### 7.3 Optimal Temporary API Key
+### 7.3 Optimal Temporary Agent Identifier
 
-The gateway SHOULD support temporary API keys:
+The gateway SHOULD support temporary agent identifiers:
 
-1. Generate a random API key on startup if not provided
-2. Include key in stdout configuration output
+1. Generate a random agent identifier on startup if not provided
+2. Include the identifier in stdout configuration output
 
 ### 7.4 Authentication Exemptions
 
@@ -1927,7 +1933,7 @@ Implementations SHOULD provide:
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "gateway-secret-token"
+    "agentId": "workflow-agent"
   }
 }
 ```
@@ -1951,7 +1957,7 @@ Implementations SHOULD provide:
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "gateway-secret-token"
+    "agentIds": ["primary-agent", "review-agent"]
   }
 }
 ```
@@ -1979,6 +1985,7 @@ Implementations SHOULD provide:
   "gateway": {
     "port": 8080,
     "domain": "localhost",
+    "agentId": "workflow-agent",
     "startupTimeout": 60,
     "toolTimeout": 120
   }
@@ -1999,7 +2006,8 @@ Implementations SHOULD provide:
   },
   "gateway": {
     "port": 8080,
-    "domain": "localhost"
+    "domain": "localhost",
+    "agentId": "workflow-agent"
   }
 }
 ```
@@ -2035,7 +2043,7 @@ The `registry` field documents the MCP server's installation location in an MCP 
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "gateway-secret-token"
+    "agentId": "workflow-agent"
   }
 }
 ```
@@ -2063,7 +2071,7 @@ The following example configures the gateway to export traces to an OTLP collect
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "agentId": "${MCP_GATEWAY_AGENT_ID}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
       "serviceName": "my-workflow-gateway"
@@ -2091,7 +2099,7 @@ The following example propagates an existing distributed trace into the gateway,
   "gateway": {
     "port": 8080,
     "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "agentId": "${MCP_GATEWAY_AGENT_ID}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
       "traceId": "${PARENT_TRACE_ID}",
@@ -2181,7 +2189,7 @@ Content-Type: application/json
 
 #### D.1 Credential Handling
 
-- API keys MUST NOT be logged
+- Agent identifiers MUST NOT be logged
 - Environment variables MUST be isolated per server
 - Secrets SHOULD be cleared from memory after use
 
@@ -2371,7 +2379,7 @@ Content-Type: application/json
   - Optional directory path where the gateway places large payload JSON files for authenticated clients
   - Enables efficient handling of large response payloads by offloading them to the filesystem
   - Gateway implementations MUST ensure proper isolation between clients' payload files when this feature is used
-  - Payload files are accessible to clients authenticated with the corresponding API key
+  - Payload files are accessible to clients authenticated with the corresponding agent identifier
 - **Added**: Path validation requirements for `payloadDir` field (Section 4.1.3.1)
   - `payloadDir` MUST be an absolute path if provided
   - Unix-like systems: paths MUST start with `/`
@@ -2470,7 +2478,7 @@ Content-Type: application/json
 
 - **BREAKING**: Clarified stdout configuration output requirements (Section 5.4)
   - Gateway MUST include `headers` object in output configuration for each server
-  - `Authorization` header MUST be present with API key value
+  - `Authorization` header MUST be present with a configured agent identifier
   - Made explicit that authorization headers are required for client connectivity
 - Added configuration output compliance tests (T-OUT-001 through T-OUT-007)
 - Updated compliance checklist to include configuration output as Level 1 (Required)

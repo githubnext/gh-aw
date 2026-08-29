@@ -246,10 +246,19 @@
           ],
           "description": "HTTP server port for the gateway. The gateway exposes endpoints at http://{domain}:{port}/. Can be an integer (1-65535) or a variable expression like '${MCP_GATEWAY_PORT}'."
         },
-        "apiKey": {
+        "agentId": {
           "type": "string",
-          "description": "API key for authentication. When configured, clients must include 'Authorization: <apiKey>' header in all RPC requests (the API key is used directly without Bearer or other scheme prefix). Per MCP Gateway Specification section 7.1, the authorization header format is 'Authorization: <apiKey>' where the API key is the complete header value. API keys must not be logged in plaintext per section 7.2.",
+          "description": "Single agent identifier authorized to access the gateway. Clients must include this value in the Authorization header for authenticated requests.",
           "minLength": 1
+        },
+        "agentIds": {
+          "type": "array",
+          "description": "Agent identifiers authorized to access the gateway. Each client must include one of these values in the Authorization header for authenticated requests.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
         },
         "domain": {
           "oneOf": [
@@ -323,7 +332,15 @@
           }
         }
       },
-      "required": ["port", "domain", "apiKey"],
+      "required": ["port", "domain"],
+      "oneOf": [
+        {
+          "required": ["agentId"]
+        },
+        {
+          "required": ["agentIds"]
+        }
+      ],
       "additionalProperties": false
     },
     "writeSinkGuardPolicyConfig": {
@@ -404,7 +421,7 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
-        "apiKey": "gateway-secret-token"
+        "agentId": "workflow-agent"
       }
     },
     {
@@ -420,6 +437,7 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
+        "agentId": "workflow-agent",
         "startupTimeout": 60,
         "toolTimeout": 120
       }
@@ -442,7 +460,7 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
-        "apiKey": "gateway-secret-token"
+        "agentIds": ["primary-agent", "review-agent"]
       }
     },
     {
@@ -466,7 +484,7 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
-        "apiKey": "gateway-secret-token"
+        "agentId": "workflow-agent"
       },
       "customSchemas": {
         "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
