@@ -57,7 +57,7 @@ describe("check_cooldown", () => {
   it("blocks when the last agent run completed within the cooldown", async () => {
     const completedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
-      data: { workflow_runs: [{ id: 99, completed_at: completedAt }] },
+      data: { workflow_runs: [{ id: 99, updated_at: completedAt }] },
     });
     mockGithub.paginate.mockResolvedValue([{ name: "agent", conclusion: "success", started_at: completedAt }]);
 
@@ -70,7 +70,7 @@ describe("check_cooldown", () => {
   it("allows execution when the last agent run completed before the cooldown", async () => {
     const completedAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
-      data: { workflow_runs: [{ id: 98, completed_at: completedAt }] },
+      data: { workflow_runs: [{ id: 98, updated_at: completedAt }] },
     });
     mockGithub.paginate.mockResolvedValue([{ name: "agent", conclusion: "failure", started_at: completedAt }]);
 
@@ -82,7 +82,7 @@ describe("check_cooldown", () => {
   it("ignores completed runs where the agent job was skipped", async () => {
     const completedAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
-      data: { workflow_runs: [{ id: 97, completed_at: completedAt }] },
+      data: { workflow_runs: [{ id: 97, updated_at: completedAt }] },
     });
     mockGithub.paginate.mockResolvedValue([{ name: "agent", conclusion: "skipped", started_at: null }]);
 

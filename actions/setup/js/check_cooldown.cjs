@@ -46,7 +46,7 @@ async function main() {
           continue;
         }
 
-        const completedAt = new Date(run.completed_at ?? run.updated_at ?? "");
+        const completedAt = new Date(run.updated_at ?? "");
         if (Number.isNaN(completedAt.getTime())) {
           core.warning(`Skipping run ${run.id} with an invalid completion time`);
           continue;
