@@ -233,7 +233,7 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 		`"--security-opt"`,
 		`"seccomp=unconfined"`,
 		`"--ipc=host"`,
-		`"--no-sandbox"`,
+		`"--no-sandbox",`,
 	} {
 		if !strings.Contains(result, expected) {
 			t.Errorf("Expected content not found: %q\nActual output:\n%s", expected, result)
