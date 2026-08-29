@@ -163,24 +163,35 @@ func parseStepContinueOnError(val any) *TemplatableBool {
 	return nil
 }
 
+// parseStepTimeoutMinutes converts a YAML `timeout-minutes` value into a positive
+// number of minutes. Values that are not positive integers within the platform int
+// range are ignored (returning 0, which omits the field from the rendered step).
 func parseStepTimeoutMinutes(val any) int {
 	switch v := val.(type) {
 	case int:
-		return v
+		if v > 0 {
+			return v
+		}
 	case int64:
 		if v > 0 && v <= int64(math.MaxInt) {
 			return int(v)
 		}
 	case uint64:
-		if v <= uint64(math.MaxInt) {
+		if v > 0 && v <= uint64(math.MaxInt) {
 			return int(v)
 		}
 	case float64:
-		if v > 0 && v <= float64(math.MaxInt) {
+		// float64 loses integer precision near MaxInt on 64-bit platforms, so treat
+		// values at or above the rounded float boundary as out of range. Only
+		// integral values are accepted so fractional timeouts are not truncated.
+		if math.IsNaN(v) || math.IsInf(v, 0) || v != math.Trunc(v) {
+			return 0
+		}
+		if v >= 1 && v < float64(math.MaxInt) {
 			return int(v)
 		}
 	case string:
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}
 	}
