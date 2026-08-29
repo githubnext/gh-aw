@@ -149,13 +149,17 @@ func extractCopilotAllowedTools(args []string) []string {
 }
 
 func buildCopilotSDKToolConfig(workflowData *WorkflowData, toolArgs []string) copilotSDKToolConfig {
+	if workflowData == nil {
+		workflowData = &WorkflowData{}
+	}
+	tools := workflowData.Tools
 	config := copilotSDKToolConfig{
 		Version: copilotSDKToolConfigVersion,
 		Capabilities: copilotSDKToolCapabilities{
 			Bash:      isCopilotBashToolEnabled(workflowData),
-			Edit:      isCopilotEditToolEnabled(workflowData.Tools, workflowData),
-			WebFetch:  isCopilotToolValueEnabled(workflowData.Tools, "web-fetch"),
-			WebSearch: isCopilotToolValueEnabled(workflowData.Tools, "web-search"),
+			Edit:      isCopilotEditToolEnabled(tools, workflowData),
+			WebFetch:  isCopilotToolValueEnabled(tools, "web-fetch"),
+			WebSearch: isCopilotToolValueEnabled(tools, "web-search"),
 			MCP:       hasCopilotSDKMCPTools(workflowData),
 			CLIProxy:  workflowData.ParsedTools != nil && workflowData.ParsedTools.CLIProxy,
 		},

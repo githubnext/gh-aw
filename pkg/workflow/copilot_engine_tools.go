@@ -94,7 +94,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", "shell")
 	} else if bashConfig, hasBash := tools["bash"]; hasBash && isCopilotToolValueEnabled(tools, "bash") {
 		if bashCommands, ok := bashConfig.([]any); ok {
-			hasRestrictedBashAllowlist = len(bashCommands) > 0 && (workflowData == nil || !workflowData.BashDisabled)
+			hasRestrictedBashAllowlist = len(bashCommands) > 0
 			// Add specific shell commands
 			for _, cmd := range bashCommands {
 				if cmdStr, ok := cmd.(string); ok {
