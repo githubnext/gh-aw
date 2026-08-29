@@ -431,3 +431,11 @@
 - `proxy.golang.org`/firewall allowlist gaps named in #56812 — recognized as the same recurring "missing ecosystem network preset" class filed many times before for different workflow sets; did not independently re-verify this cycle's specific named workflows against a still-open issue before the filing ceiling was reached with other candidates — flagged for a future cycle to check.
 - audit-workflows' own repo-memory read-only mount + 53-day gap preamble (#56739) — chronic/environmental, already declined in the 2026-08-25 cycle; not re-filed.
 - Daily Max AI Credits Test driver_exit-not-intentional anomaly (#56739 finding 7) — noted but not filed, single occurrence, lower priority.
+
+### 2026-08-29T~12:30Z cycle (light window, 6 new discussions since #56856)
+- **[new, filed]** Prompt Clustering Analysis `clean_prompt()` doesn't strip recurring bot-footer signatures (e.g. "PR Sous Chef") before TF-IDF vectorization — self-flagged by the workflow itself as a 63-PR/5.5% noise cluster this run.
+- **[declined, no open tracker currently]** Avenger — 4 more crashes this window ("claude engine terminated before producing output", API-quota climbing while token usage stays 0), but every referenced issue (#56694/#56728/#56737 and #56361) is already closed under the established auto-file/auto-close chronic pattern. Not re-filed per standing policy; worth periodic escalation review if the closed-without-fix pattern continues indefinitely.
+- **[declined, already tracked]** Code Scanning Fixer "Excessive Tool Denials (3/3)" + duration/cache-token blowout (5m→25m, 0→600K+ cache tokens) — already self-filed as open #56857 (confirmed via direct issue body read: identical guardrail signature `guard.tool_denials_exceeded`, last denied `git branch --show-current`).
+- **[declined, already tracked]** Windows Runner Integration Test recurrence — already open #56848 (filed last cycle).
+- **[declined, already tracked]** Metrics Collector cap/token treadmill — already tracked #56537/#56815.
+- **[declined, already tracked]** Copilot Session Insights completion-rate drop (18% vs 40%) — root cause (missing conversation transcripts, 50th+ consecutive day) already tracked via open #56493.
