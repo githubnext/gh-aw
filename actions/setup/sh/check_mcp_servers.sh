@@ -37,7 +37,7 @@ print_timing() {
 #   1 - Invalid arguments, configuration file issues, no successful connections, or required server failures
 
 if [ "$#" -ne 3 ]; then
-  echo "Usage: $0 GATEWAY_CONFIG_PATH GATEWAY_URL GATEWAY_API_KEY" >&2
+  echo "Usage: $0 GATEWAY_CONFIG_PATH GATEWAY_URL GATEWAY_AGENT_ID" >&2
   exit 1
 fi
 

@@ -455,7 +455,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"gateway\": {",
 				"\"port\": $MCP_GATEWAY_PORT,",
 				"\"domain\": \"${MCP_GATEWAY_DOMAIN}\",",
-				"\"apiKey\": \"${MCP_GATEWAY_AGENT_ID}\",",
+				"\"agentId\": \"${MCP_GATEWAY_AGENT_ID}\",",
 				"\"payloadDir\": \"${MCP_GATEWAY_PAYLOAD_DIR}\",",
 				"\"startupTimeout\": 120",
 				"}",

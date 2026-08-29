@@ -18,6 +18,7 @@ const mcpGatewayCustomEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES"
 const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
 const mcpGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_"
 const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
+const mcpGatewayConfiguredAgentIDVar = "GH_AW_MCP_GATEWAY_CONFIGURED_AGENT_ID"
 
 var optionalPRHeadEnvVars = []string{
 	"GH_AW_PR_HEAD_BASE_BRANCH",
@@ -46,7 +47,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
 	customGatewayEnvNames := sanitizedGatewayEnvNames(gatewayConfig.Env)
-	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env, customGatewayEnvNames)
+	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env, customGatewayEnvNames, gatewayConfig.AgentID)
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-config\"\n")
@@ -101,8 +102,8 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
-func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string, customEnvVarNames []string) {
-	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(customEnvVarNames) == 0 {
+func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string, customEnvVarNames []string, configuredAgentID string) {
+	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(customEnvVarNames) == 0 && configuredAgentID == "" {
 		return
 	}
 	yaml.WriteString("        env:\n")
@@ -147,6 +148,9 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 		for i, envVarName := range customEnvVarNames {
 			yaml.WriteString(formatYAMLEnv("          ", mcpGatewayCustomEnvTransportName(i), gatewayEnvVars[envVarName]))
 		}
+	}
+	if configuredAgentID != "" {
+		yaml.WriteString(formatYAMLEnv("          ", mcpGatewayConfiguredAgentIDVar, configuredAgentID))
 	}
 }
 
@@ -272,7 +276,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_AGENT_ID}\"\n")
 		yaml.WriteString("          export MCP_GATEWAY_AGENT_ID\n")
 	} else {
-		yaml.WriteString("          export MCP_GATEWAY_AGENT_ID=\"" + gatewayConfig.AgentID + "\"\n")
+		yaml.WriteString("          export MCP_GATEWAY_AGENT_ID=\"${" + mcpGatewayConfiguredAgentIDVar + "}\"\n")
 		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_AGENT_ID}\"\n")
 	}
 	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_DIR=\"" + payloadDir + "\"\n")

@@ -905,6 +905,11 @@
               "enum": [true, false],
               "leaf": true
             },
+            "ca-cert": {
+              "type": "string",
+              "desc": "Host path to an additional CA certificate for API proxy upstream TLS verification.",
+              "leaf": true
+            },
             "runtime": {
               "type": "string",
               "desc": "Sandbox runtime profile for the agent container.",
@@ -1042,9 +1047,9 @@
               "desc": "Port number for the MCP gateway HTTP server (default: 8080)",
               "leaf": true
             },
-            "api-key": {
+            "agent-id": {
               "type": "string",
-              "desc": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)",
+              "desc": "Agent/session identifier for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)",
               "leaf": true
             },
             "domain": {
