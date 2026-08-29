@@ -274,7 +274,7 @@ func TestMCPGatewayConfigSchemaCopiesStayInSync(t *testing.T) {
 				t.Fatalf("failed to marshal current constraints: %v", err)
 			}
 			if string(referenceJSON) != string(currentJSON) {
-				t.Fatalf("agentId/agentIds constraints in %q do not match %q:\n%s\nvs\n%s", schemaPath, referencePath, currentJSON, referenceJSON)
+				t.Fatalf("agentId/agentIds constraints in %q do not match %q:\nreference (%s):\n%s\ncurrent (%s):\n%s", schemaPath, referencePath, referencePath, referenceJSON, schemaPath, currentJSON)
 			}
 		})
 	}
