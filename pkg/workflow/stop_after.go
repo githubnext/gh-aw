@@ -39,15 +39,21 @@ func parseOnStopAfterValue(onMap map[string]any) (string, error) {
 
 // extractStopAfterFromOn extracts the stop-after value from the on: section
 func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (string, error) {
-	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
-	var onSection any
-	var exists bool
-	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
-		onSection = workflowData[0].ParsedFrontmatter.On
-		exists = true
-	} else {
-		onSection, exists = frontmatter["on"]
+	// Prefer the typed field populated by ParseFrontmatterConfig when available, so
+	// production code has a single source of truth instead of reparsing the raw map.
+	// ParseFrontmatterConfig silently leaves OnStopAfter empty on a parse error (e.g. a
+	// non-string value), so fall back to re-parsing the raw on: map in that edge case to
+	// surface the original compile error instead of silently treating it as unset.
+	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil {
+		pf := workflowData[0].ParsedFrontmatter
+		if pf.OnStopAfter != "" {
+			return pf.OnStopAfter, nil
+		}
+		return parseOnStopAfterValue(pf.On)
 	}
+
+	// Fallback: no typed ParsedFrontmatter available, so parse the raw frontmatter map.
+	onSection, exists := frontmatter["on"]
 
 	if !exists {
 		return "", nil

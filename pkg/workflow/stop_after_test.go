@@ -383,6 +383,63 @@ func TestExtractStopAfterFromOnMatchesTypedFieldValue(t *testing.T) {
 	}
 }
 
+// TestExtractStopAfterFromOnPrefersTypedFieldOverRawMap is a sentinel test proving that
+// extractStopAfterFromOn returns the typed OnStopAfter field instead of reparsing the raw
+// frontmatter map, by making the two diverge: the typed field is set explicitly to a
+// different value than on.stop-after in the raw map. If production code ever regresses to
+// reparsing the raw map instead of consuming the typed field, this test will fail.
+func TestExtractStopAfterFromOnPrefersTypedFieldOverRawMap(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": nil,
+			"stop-after":        "+24h",
+		},
+	}
+
+	parsedFrontmatter := &FrontmatterConfig{
+		On:          frontmatter["on"].(map[string]any),
+		OnStopAfter: "+999h", // deliberately diverges from the raw map's "+24h"
+	}
+
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{ParsedFrontmatter: parsedFrontmatter}
+	stopAfter, err := compiler.extractStopAfterFromOn(frontmatter, workflowData)
+	if err != nil {
+		t.Fatalf("extractStopAfterFromOn failed: %v", err)
+	}
+	if stopAfter != "+999h" {
+		t.Errorf("extractStopAfterFromOn() = %q, want %q (the typed field value, not the raw map's %q)", stopAfter, "+999h", "+24h")
+	}
+}
+
+// TestExtractStopAfterFromOnSurfacesErrorWhenTypedFieldParseFailed verifies that when
+// ParseFrontmatterConfig leaves OnStopAfter empty because the raw value failed to parse
+// (e.g. a non-string value), extractStopAfterFromOn still surfaces the original parse
+// error instead of silently treating stop-after as unset.
+func TestExtractStopAfterFromOnSurfacesErrorWhenTypedFieldParseFailed(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": nil,
+			"stop-after":        123, // invalid: must be a string
+		},
+	}
+
+	parsedFrontmatter, err := ParseFrontmatterConfig(frontmatter)
+	if err != nil {
+		t.Fatalf("ParseFrontmatterConfig failed: %v", err)
+	}
+	if parsedFrontmatter.OnStopAfter != "" {
+		t.Fatalf("Expected typed field to remain empty on parse failure, got %q", parsedFrontmatter.OnStopAfter)
+	}
+
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{ParsedFrontmatter: parsedFrontmatter}
+	_, err = compiler.extractStopAfterFromOn(frontmatter, workflowData)
+	if err == nil {
+		t.Fatal("Expected extractStopAfterFromOn to return an error for invalid stop-after type, got nil")
+	}
+}
+
 // TestProcessStopAfterConfigurationGitHubExpression verifies that a stop-after value
 // expressed as a GitHub Actions expression is passed through verbatim without being
 // parsed as a relative delta or absolute timestamp.
