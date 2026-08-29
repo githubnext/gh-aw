@@ -113,6 +113,20 @@ on:
 
 Human-friendly formats are automatically converted to standard cron expressions, with the original format preserved as a comment in the generated workflow file.
 
+### Cooldown (`cooldown:`)
+
+Set `on.cooldown` to skip agent execution until a duration has elapsed since the latest completed run that executed the `agent` job:
+
+```aw wrap
+on:
+  schedule: hourly
+  cooldown: 30m
+```
+
+The duration uses Go duration syntax, such as `5m`, `1h`, or `1h30m`, and must be at least five minutes. GitHub Actions expressions are not supported. The cooldown starts when the previous workflow run finishes, regardless of whether its agent job succeeded or failed. Runs where the agent job was skipped do not restart the cooldown.
+
+The compiler adds `actions: read` to the pre-activation job so it can inspect completed runs. If run history cannot be queried, the cooldown check fails open and allows the agent to run.
+
 ### Issue Triggers (`issues:`)
 
 Trigger on issue events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issues).
