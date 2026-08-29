@@ -216,7 +216,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 			},
 			filePath:    "/test/workflow.md",
 			wantErr:     true,
-			errContains: "want 1",
+			errContains: "minimum",
 		},
 		{
 			name: "invalid workflow frontmatter with location",
