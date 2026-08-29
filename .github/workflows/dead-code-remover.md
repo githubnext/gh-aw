@@ -30,6 +30,7 @@ imports:
 network:
   allowed:
     - defaults
+    - github
     - go
     - node
 tools:
