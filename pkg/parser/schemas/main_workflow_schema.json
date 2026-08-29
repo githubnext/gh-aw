@@ -4032,9 +4032,9 @@
                   "default": 8080,
                   "description": "Port number for the MCP gateway HTTP server (default: 8080)"
                 },
-                "api-key": {
+                "agent-id": {
                   "type": "string",
-                  "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
+                  "description": "Agent/session identifier for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 },
                 "domain": {
                   "type": "string",
@@ -4070,7 +4070,7 @@
           "mcp": {
             "container": "ghcr.io/githubnext/mcp-gateway",
             "port": 8080,
-            "api-key": "${{ secrets.MCP_GATEWAY_API_KEY }}"
+            "agent-id": "${{ secrets.MCP_GATEWAY_AGENT_ID }}"
           }
         }
       ]

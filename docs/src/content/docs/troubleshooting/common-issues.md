@@ -104,7 +104,7 @@ mcp-servers:
 
 ### OpenCode MCP Tools Not Being Called
 
-OpenCode-compatible engines do not auto-discover MCP servers, so use an explicit `opencode.jsonc` config. Keep the local AWF API proxy at `http://host.docker.internal:10004` when using `--enable-api-proxy`; `MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are expanded from workflow env at runtime, so substitute concrete values outside a workflow:
+OpenCode-compatible engines do not auto-discover MCP servers, so use an explicit `opencode.jsonc` config. Keep the local AWF API proxy at `http://host.docker.internal:10004` when using `--enable-api-proxy`; `MCP_GATEWAY_PORT` and `MCP_GATEWAY_AGENT_ID` are expanded from workflow env at runtime, so substitute concrete values outside a workflow:
 
 ```json
 {
@@ -125,7 +125,7 @@ OpenCode-compatible engines do not auto-discover MCP servers, so use an explicit
     "safeoutputs": {
       "type": "http",
       "url": "http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/safeoutputs",
-      "headers": { "Authorization": "${MCP_GATEWAY_API_KEY}" },
+      "headers": { "Authorization": "${MCP_GATEWAY_AGENT_ID}" },
       "disabled": false,
       "timeout": 30000
     }

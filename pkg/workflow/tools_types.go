@@ -182,7 +182,7 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 
 // ToMap converts the ToolsConfig back to a map[string]any for backward compatibility.
 // This is useful when interfacing with legacy code that expects map[string]any.
-func (t *ToolsConfig) ToMap() map[string]any {
+func (t *ToolsConfig) ToMap() map[string]any { //nolint:largefunc // Existing conversion preserves backwards-compatible map shape.
 	if t == nil {
 		toolsTypesLog.Print("Converting nil ToolsConfig to empty map")
 		return make(map[string]any)
@@ -513,7 +513,7 @@ type MCPGatewayRuntimeConfig struct {
 	EntrypointArgs       []string          `yaml:"entrypointArgs,omitempty"`         // Arguments passed to container entrypoint
 	Env                  map[string]string `yaml:"env,omitempty"`                    // Environment variables for the gateway
 	Port                 int               `yaml:"port,omitempty"`                   // Port for the gateway HTTP server (default: 8080)
-	APIKey               string            `yaml:"api-key,omitempty"`                // API key for gateway authentication
+	AgentID              string            `yaml:"agent-id,omitempty"`               // Agent/session identifier for gateway authentication
 	Domain               string            `yaml:"domain,omitempty"`                 // Domain for gateway URL (localhost or host.docker.internal)
 	Mounts               []string          `yaml:"mounts,omitempty"`                 // Volume mounts for the gateway container (format: "source:dest:mode")
 	PayloadDir           string            `yaml:"payload-dir,omitempty"`            // Directory path for storing large payload JSON files (must be absolute path)

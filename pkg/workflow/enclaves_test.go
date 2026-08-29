@@ -234,7 +234,7 @@ func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	assert.Contains(t, generated, `Bearer \${AWF_ENCLAVE_MCP_CAPABILITY}`)
 	assert.Contains(t, generated, `openssl rand -hex 32`)
 	assert.Contains(t, generated, `::add-mask::${AWF_ENCLAVE_MCP_CAPABILITY}`)
-	assert.Contains(t, generated, `printf '%s=%s\n' MCP_GATEWAY_API_KEY "$MCP_GATEWAY_API_KEY"`)
+	assert.Contains(t, generated, `printf '%s=%s\n' MCP_GATEWAY_AGENT_ID "$MCP_GATEWAY_AGENT_ID"`)
 	assert.Contains(t, generated, `--network bridge`)
 	assert.Contains(t, generated, `--label com.github.gh-aw.mcpg.run=`)
 	assert.Contains(t, generated, `${AWF_ENCLAVE_MCP_GATEWAY_IDENTITY}`)
@@ -251,8 +251,8 @@ func TestGenerateEnclaveGatewayContract(t *testing.T) {
 		assert.Contains(t, generated, emptyDefault)
 		assert.Less(t, strings.Index(generated, emptyDefault), gatewayCommand)
 	}
-	gatewayKeyMask := strings.Index(generated, `::add-mask::${MCP_GATEWAY_API_KEY}`)
-	gatewayKeyHandoff := strings.Index(generated, `printf '%s=%s\n' MCP_GATEWAY_API_KEY "$MCP_GATEWAY_API_KEY"`)
+	gatewayKeyMask := strings.Index(generated, `::add-mask::${MCP_GATEWAY_AGENT_ID}`)
+	gatewayKeyHandoff := strings.Index(generated, `printf '%s=%s\n' MCP_GATEWAY_AGENT_ID "$MCP_GATEWAY_AGENT_ID"`)
 	deferred := strings.Index(generated, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
 	gatewayRunner := strings.Index(generated, `| "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"`)
 	require.Greater(t, gatewayKeyMask, -1)
@@ -296,7 +296,7 @@ Use the enclave script executor.
 	lock := string(lockBytes)
 
 	gateway := strings.Index(lock, "- name: Start MCP Gateway")
-	gatewayKeyHandoff := strings.Index(lock, `printf '%s=%s\n' MCP_GATEWAY_API_KEY "$MCP_GATEWAY_API_KEY"`)
+	gatewayKeyHandoff := strings.Index(lock, `printf '%s=%s\n' MCP_GATEWAY_AGENT_ID "$MCP_GATEWAY_AGENT_ID"`)
 	deferred := strings.Index(lock, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
 	awf := strings.Index(lock, "awf --config")
 	require.Greater(t, gateway, -1)
@@ -308,11 +308,11 @@ Use the enclave script executor.
 	assert.Less(t, deferred, awf)
 	assert.Contains(t, lock, `"awf-enclave"`)
 	assert.NotContains(t, lock, `"required": false`)
-	assert.Contains(t, lock, "--exclude-env MCP_GATEWAY_API_KEY")
+	assert.Contains(t, lock, "--exclude-env MCP_GATEWAY_AGENT_ID")
 	if mountStart := strings.Index(lock, "- name: Mount MCP servers as CLIs"); mountStart >= 0 {
 		mountEnd := strings.Index(lock[mountStart:], "\n      - name:")
 		require.Positive(t, mountEnd)
-		assert.NotContains(t, lock[mountStart:mountStart+mountEnd], "steps.start-mcp-gateway.outputs.gateway-api-key")
+		assert.NotContains(t, lock[mountStart:mountStart+mountEnd], "steps.start-mcp-gateway.outputs.gateway-agent-id")
 	}
 	assert.Contains(t, lock, `\"enclaves\":[{\"repos\":[{\"repo\":\"octo-org/private-service\",\"sensitivity\":\"confidential\"}],\"script\":{},\"timeout\":45}]`)
 	assert.NotContains(t, lock, "Start Enclave MCP")
