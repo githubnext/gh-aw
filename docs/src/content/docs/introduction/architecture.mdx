@@ -11,6 +11,8 @@ head:
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import safeOutputsIsolation from '../../../assets/diagrams/architecture-2026-08-29.svg';
 
 GitHub Agentic Workflows (gh-aw) runs AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions with a defense-in-depth security architecture that protects against prompt injection, rogue MCP servers, and compromised agents. This document provides an overview of the security model and its key components.
 
@@ -164,6 +166,8 @@ flowchart LR
     PR --> API
     LABEL --> API
 ```
+
+<Image src={safeOutputsIsolation} alt="Diagram showing the agent job writing an agent_output.json artifact, which a threat detection job analyzes for secret leaks and malicious patches; only when approved do scoped safe-output jobs such as create_issue, add_comment, and create_pull_request call the GitHub API, while the agent itself never holds write permissions" />
 
 <Aside type="tip">
 The SafeOutputs subsystem provides security by design: the agent never requires write permissions because all write operations are performed by separate, validated jobs with minimal scoped permissions.
