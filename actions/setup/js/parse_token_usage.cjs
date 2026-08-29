@@ -45,15 +45,25 @@ function getReadableTokenUsagePaths(paths) {
 }
 
 /**
+ * Extracts request_id with lightweight matching (no full JSON parse).
+ * @param {string} line
+ * @returns {string}
+ */
+function extractRequestId(line) {
+  const requestMatch = line.match(/"request_id"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  return requestMatch ? requestMatch[1] : "";
+}
+
+/**
  * Extracts a cross-file dedupe key with lightweight matching (no full JSON parse).
  * @param {string} line
  * @returns {string}
  */
 function extractTokenUsageDedupeKey(line) {
-  const requestMatch = line.match(/"request_id"\s*:\s*"((?:\\.|[^"\\])*)"/);
-  if (!requestMatch) return "";
+  const requestId = extractRequestId(line);
+  if (!requestId) return "";
   const eventMatch = line.match(/"event"\s*:\s*"((?:\\.|[^"\\])*)"/);
-  return `${eventMatch ? eventMatch[1] : "token_usage"}:${requestMatch[1]}`;
+  return `${eventMatch ? eventMatch[1] : "token_usage"}:${requestId}`;
 }
 
 /**
@@ -270,10 +280,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     main,
     getReadableTokenUsagePaths,
-    extractRequestId: line => {
-      const key = extractTokenUsageDedupeKey(line);
-      return key ? key.slice(key.indexOf(":") + 1) : "";
-    },
+    extractRequestId,
     extractTokenUsageDedupeKey,
     readDedupedTokenUsage,
     getSummaryTitle,
