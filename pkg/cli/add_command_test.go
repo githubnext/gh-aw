@@ -96,6 +96,7 @@ func TestResolveAddGhAwRef_FullSHA(t *testing.T) {
 }
 
 func TestCompileWorkflowWithActionRef(t *testing.T) {
+	t.Parallel()
 	const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	tmpDir := t.TempDir()
 	require.NoError(t, initTestGitRepo(tmpDir))
