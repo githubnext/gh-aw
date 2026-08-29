@@ -126,6 +126,8 @@ Do not combine mutually exclusive scenarios into one question list. If a questio
 
 ### Good question checklist
 
+- ✅ Answerable from the agent output alone — no external calls needed.
+- ✅ Exactly one binary claim per question.
 - ✅ Uses YES = success convention consistently.
 - ✅ Avoids subjective terms ("good", "well-written") unless the question explicitly bounds them ("according to the coding style guide").
 
