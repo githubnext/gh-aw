@@ -385,7 +385,7 @@ def clean_prompt(text):
         (r'^\s*Comment\s+`?/souschef`?\s+to\s+run\s+again[^\n]*$', re.IGNORECASE | re.MULTILINE),
     ]
     for pattern, flags in bot_footer_patterns:
-        text = re.sub(pattern, ' ', text, flags=flags)
+        text = re.sub(pattern, '', text, flags=flags)
 
     # Remove markdown code blocks
     text = re.sub(r'```[\s\S]*?```', '', text)
