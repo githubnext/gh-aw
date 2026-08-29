@@ -361,6 +361,16 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			errContains: "requird",
 		},
 		{
+			name: "top-level roles field is rejected pointing to on.roles",
+			frontmatter: map[string]any{
+				"on":    "push",
+				"roles": []string{"admin", "maintainer", "write"},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "'roles' belongs under 'on'",
+		},
+		{
 			name: "dispatch-repository key is accepted by schema",
 			frontmatter: map[string]any{
 				"on": "workflow_dispatch",
