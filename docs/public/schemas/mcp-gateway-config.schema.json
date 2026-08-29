@@ -246,10 +246,19 @@
           ],
           "description": "HTTP server port for the gateway. The gateway exposes endpoints at http://{domain}:{port}/. Can be an integer (1-65535) or a variable expression like '${MCP_GATEWAY_PORT}'."
         },
-        "apiKey": {
+        "agentId": {
           "type": "string",
-          "description": "API key for authentication. When configured, clients must include 'Authorization: <apiKey>' header in all RPC requests (the API key is used directly without Bearer or other scheme prefix). Per MCP Gateway Specification section 7.1, the authorization header format is 'Authorization: <apiKey>' where the API key is the complete header value. API keys must not be logged in plaintext per section 7.2.",
+          "description": "Single agent/session identifier used for authentication and DIFC session-state keying. When configured, clients must include an 'Authorization' header containing this identifier in all RPC requests. Mutually exclusive with agentIds. Per MCP Gateway Specification section 7.1, the authorization header value is the complete agent identifier. Agent identifiers must not be logged in plaintext per section 7.2.",
           "minLength": 1
+        },
+        "agentIds": {
+          "type": "array",
+          "description": "List of agent/session identifiers, enabling a primary agent and enclave sessions to share one gateway instance while retaining independent DIFC state and policies. Each entry may be used as an 'Authorization' header value. Mutually exclusive with agentId. Per MCP Gateway Specification section 4.1.3.9.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
         },
         "domain": {
           "oneOf": [
@@ -323,7 +332,17 @@
           }
         }
       },
-      "required": ["port", "domain", "apiKey"],
+      "required": ["port", "domain"],
+      "oneOf": [
+        {
+          "required": ["agentId"],
+          "not": { "required": ["agentIds"] }
+        },
+        {
+          "required": ["agentIds"],
+          "not": { "required": ["agentId"] }
+        }
+      ],
       "additionalProperties": false
     },
     "writeSinkGuardPolicyConfig": {
@@ -404,7 +423,7 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
-        "apiKey": "gateway-secret-token"
+        "agentId": "gateway-secret-token"
       }
     },
     {
@@ -442,7 +461,7 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
-        "apiKey": "gateway-secret-token"
+        "agentId": "gateway-secret-token"
       }
     },
     {
@@ -466,10 +485,25 @@
       "gateway": {
         "port": 8080,
         "domain": "localhost",
-        "apiKey": "gateway-secret-token"
+        "agentId": "gateway-secret-token"
       },
       "customSchemas": {
         "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
+      }
+    },
+    {
+      "mcpServers": {
+        "github": {
+          "container": "ghcr.io/github/github-mcp-server:latest",
+          "env": {
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+          }
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "agentIds": ["primary-agent", "enclave-agent"]
       }
     }
   ]
