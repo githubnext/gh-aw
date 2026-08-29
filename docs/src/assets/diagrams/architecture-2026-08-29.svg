@@ -66,6 +66,6 @@
   <text x="668" y="145" text-anchor="middle" font-size="9" fill="#1f2328">GitHub</text>
   <text x="668" y="159" text-anchor="middle" font-size="9" fill="#1f2328">API</text>
 
-  <line x1="604" y1="150" x2="628" y2="150" stroke="#1f2328" stroke-width="1"/>
+  <line x1="606" y1="150" x2="628" y2="150" stroke="#1f2328" stroke-width="1"/>
   <polygon points="628,150 620,146 620,154" fill="#1f2328"/>
 </svg>
