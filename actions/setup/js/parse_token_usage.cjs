@@ -45,17 +45,19 @@ function getReadableTokenUsagePaths(paths) {
 }
 
 /**
- * Extracts request_id with lightweight matching (no full JSON parse).
+ * Extracts a cross-file dedupe key with lightweight matching (no full JSON parse).
  * @param {string} line
  * @returns {string}
  */
-function extractRequestId(line) {
-  const match = line.match(/"request_id"\s*:\s*"((?:\\.|[^"\\])*)"/);
-  return match ? match[1] : "";
+function extractTokenUsageDedupeKey(line) {
+  const requestMatch = line.match(/"request_id"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  if (!requestMatch) return "";
+  const eventMatch = line.match(/"event"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  return `${eventMatch ? eventMatch[1] : "token_usage"}:${requestMatch[1]}`;
 }
 
 /**
- * Reads token usage files and deduplicates overlapping lines by request_id.
+ * Reads token usage files and deduplicates overlapping lines by event and request_id.
  * Falls back to raw line dedupe when request_id is absent.
  * @param {string[]} paths
  * @returns {string}
@@ -76,8 +78,7 @@ function readDedupedTokenUsage(paths) {
     for (const line of fileContent.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      const requestId = extractRequestId(trimmed);
-      const dedupeKey = requestId ? `request_id:${requestId}` : trimmed;
+      const dedupeKey = extractTokenUsageDedupeKey(trimmed) || trimmed;
       if (uniqueLineKeys.has(dedupeKey)) continue;
       uniqueLineKeys.add(dedupeKey);
       dedupedLines.push(trimmed);
@@ -247,7 +248,7 @@ async function main() {
       core.setOutput("primary_model", primaryModel);
       core.info(`Primary model: ${primaryModel}`);
     }
-    if (summary.totalAIC > 0) {
+    if (summary.aiCreditsSource === "awf_reported" || summary.totalAIC > 0) {
       const aic = formatAICForOutput(summary.totalAIC, summary.aiCreditsSource);
       core.exportVariable("GH_AW_AIC", aic);
       core.setOutput("aic", aic);
@@ -269,7 +270,11 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     main,
     getReadableTokenUsagePaths,
-    extractRequestId,
+    extractRequestId: line => {
+      const key = extractTokenUsageDedupeKey(line);
+      return key ? key.slice(key.indexOf(":") + 1) : "";
+    },
+    extractTokenUsageDedupeKey,
     readDedupedTokenUsage,
     getSummaryTitle,
     buildStepSummarySection,

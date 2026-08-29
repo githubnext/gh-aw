@@ -85,7 +85,7 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 		if err != nil {
 			return nil, err
 		}
-		if summary == nil || summary.TotalAIC <= 0 {
+		if summary == nil || !summary.AICFound {
 			goto fallback
 		}
 		for _, warning := range summary.Warnings {

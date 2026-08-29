@@ -15,17 +15,20 @@ import (
 func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
-	summary := &TokenUsageSummary{
-		ByModel: make(map[string]*ModelTokenUsage),
-	}
-
 	entries, duplicateRecordCount, err := scanTokenUsageEntries(filePath)
 	if err != nil {
 		return nil, err
 	}
+	return buildTokenUsageSummary(entries, duplicateRecordCount), nil
+}
+
+func buildTokenUsageSummary(entries []TokenUsageEntry, duplicateRecordCount int) *TokenUsageSummary {
+	summary := &TokenUsageSummary{
+		ByModel: make(map[string]*ModelTokenUsage),
+	}
 	if len(entries) == 0 {
 		tokenUsageLog.Print("No token usage entries found")
-		return nil, nil
+		return nil
 	}
 
 	for _, entry := range entries {
@@ -69,13 +72,18 @@ func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	}
 	summary.AmbientContext = extractAmbientContextMetrics(entries)
 
-	return summary, nil
+	return summary
 }
 
 func scanTokenUsageEntries(filePath string) ([]TokenUsageEntry, int, error) {
+	entries, duplicateRecordCount, _, err := scanTokenUsageEntriesWithSeen(filePath, nil)
+	return entries, duplicateRecordCount, err
+}
+
+func scanTokenUsageEntriesWithSeen(filePath string, seenRequestIDs map[string]struct{}) ([]TokenUsageEntry, int, bool, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to open token usage file: %w", err)
+		return nil, 0, false, fmt.Errorf("failed to open token usage file: %w", err)
 	}
 	defer file.Close()
 
@@ -83,9 +91,12 @@ func scanTokenUsageEntries(filePath string) ([]TokenUsageEntry, int, error) {
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
 	entries := make([]TokenUsageEntry, 0)
-	seenRequestIDs := make(map[string]struct{})
+	if seenRequestIDs == nil {
+		seenRequestIDs = make(map[string]struct{})
+	}
 	duplicateRecordCount := 0
 	lineNum := 0
+	awfSchemaRecordFound := false
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
@@ -97,6 +108,9 @@ func scanTokenUsageEntries(filePath string) ([]TokenUsageEntry, int, error) {
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
 			continue
+		}
+		if strings.HasPrefix(entry.Schema, "token-usage/") || entry.Event == "token_usage" {
+			awfSchemaRecordFound = true
 		}
 		if entry.RequestID != "" {
 			// AWF defines request_id as unique per API request. Include the event
@@ -117,9 +131,9 @@ func scanTokenUsageEntries(filePath string) ([]TokenUsageEntry, int, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, duplicateRecordCount, fmt.Errorf("error reading token usage file: %w", err)
+		return nil, duplicateRecordCount, awfSchemaRecordFound, fmt.Errorf("error reading token usage file: %w", err)
 	}
-	return entries, duplicateRecordCount, nil
+	return entries, duplicateRecordCount, awfSchemaRecordFound, nil
 }
 
 func extractUsageRecord(value any) map[string]any {

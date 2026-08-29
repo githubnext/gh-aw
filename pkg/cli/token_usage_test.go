@@ -92,7 +92,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 		fixture, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "fixtures", "awf-v0.28.7-aic-token-usage.jsonl"))
 		require.NoError(t, err)
 		legacyLines := make([]string, 0, 5)
-		for _, line := range strings.Split(strings.TrimSpace(string(fixture)), "\n") {
+		for line := range strings.SplitSeq(strings.TrimSpace(string(fixture)), "\n") {
 			var record map[string]any
 			require.NoError(t, json.Unmarshal([]byte(line), &record))
 			delete(record, "ai_credits_this_response")
@@ -541,6 +541,27 @@ func TestAnalyzeTokenUsageAICOnly(t *testing.T) {
 		require.Len(t, summary.Warnings, 1)
 		assert.Contains(t, summary.Warnings[0], "fallback accounting")
 	})
+
+	t.Run("preserves zero AWF-reported totals instead of falling back to agent usage", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only-zero-awf")
+		usageDir := filepath.Join(tmpDir, "usage", "agent")
+		require.NoError(t, os.MkdirAll(usageDir, 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "token_usage.jsonl"),
+			[]byte(`{"_schema":"token-usage/v0.28.7","event":"token_usage","request_id":"zero","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":19288,"output_tokens":35,"ai_credits_this_response":0,"ai_credits_total":0}`+"\n"),
+			0o644,
+		))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(tmpDir, "usage", "agent_usage.json"),
+			[]byte(`{"input_tokens":19288,"output_tokens":35,"ai_credits":2.5,"primary_model":"gpt-4o-mini-2024-07-18"}`),
+			0o644,
+		))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.Zero(t, summary.TotalAIC)
+	})
 }
 
 func TestExtractUsageRecord(t *testing.T) {
@@ -605,6 +626,36 @@ func TestSumAICFromUsageJSONLFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, found)
 		assert.InDelta(t, 1.03602, total, 1e-9)
+	})
+
+	t.Run("deduplicates mirrored AWF records across files before aggregating", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-awf-cross-file-dedupe")
+		fileOne := filepath.Join(tmpDir, "token_usage.jsonl")
+		fileTwo := filepath.Join(tmpDir, "mirrored.jsonl")
+		record := `{"_schema":"token-usage/v0.28.7","event":"token_usage","request_id":"same-request","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":10,"output_tokens":1,"ai_credits_this_response":0.2,"ai_credits_total":0.2}`
+		require.NoError(t, os.WriteFile(fileOne, []byte(record+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(fileTwo, []byte(record+"\n"), 0o644))
+
+		total, found, err := sumAICFromUsageJSONLFiles([]string{fileOne, fileTwo})
+		require.NoError(t, err)
+		assert.True(t, found)
+		assert.InDelta(t, 0.2, total, 1e-9)
+	})
+
+	t.Run("preserves zero ai_credits from agent_usage_json", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "agent-usage-zero-aic")
+		filePath := filepath.Join(tmpDir, "agent_usage.json")
+		require.NoError(t, os.WriteFile(
+			filePath,
+			[]byte(`{"input_tokens":19288,"output_tokens":35,"ai_credits":0,"primary_model":"gpt-4o-mini-2024-07-18"}`),
+			0o644,
+		))
+
+		summary, err := parseAgentUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.True(t, summary.AICFound)
+		assert.Zero(t, summary.TotalAIC)
 	})
 }
 

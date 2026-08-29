@@ -80,13 +80,16 @@ func buildAgentModelTokenUsage(entry agentUsageEntry, provider string) *ModelTok
 }
 
 func populateAgentUsageAIC(summary *TokenUsageSummary, entry agentUsageEntry, model, provider string, hasRawTokenData bool) {
-	if entry.AICredits <= 0 {
+	aic, present, valid := parseOptionalNonNegativeFloat(entry.AICredits)
+	if !present || !valid {
 		if hasRawTokenData {
 			populateAIC(summary)
+			summary.AICFound = summary.TotalAIC > 0
 		}
 		return
 	}
-	summary.TotalAIC = entry.AICredits
+	summary.TotalAIC = aic
+	summary.AICFound = true
 	if summary.ByModel[model] == nil {
 		summary.ByModel[model] = &ModelTokenUsage{}
 	}
@@ -97,5 +100,5 @@ func populateAgentUsageAIC(summary *TokenUsageSummary, entry agentUsageEntry, mo
 	usage.CacheReadTokens = entry.CacheReadTokens
 	usage.CacheWriteTokens = entry.CacheWriteTokens
 	usage.ReasoningTokens = entry.ReasoningTokens
-	usage.AIC = entry.AICredits
+	usage.AIC = aic
 }

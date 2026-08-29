@@ -59,6 +59,7 @@ type TokenUsageSummary struct {
 	CacheEfficiency       float64                     `json:"cache_efficiency"`
 	TotalEffectiveTokens  int                         `json:"total_effective_tokens,omitempty"`
 	TotalAIC              float64                     `json:"total_aic,omitempty"`
+	AICFound              bool                        `json:"-"`
 	AmbientContext        *AmbientContextMetrics      `json:"ambient_context,omitempty"`
 	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
 	SubagentModelRequests []SubagentModelRequest      `json:"subagent_model_requests,omitempty"`
@@ -122,8 +123,8 @@ type agentUsageEntry struct {
 	// AmbientContextTokens is the first-request ambient input token count emitted by parse_token_usage.cjs.
 	AmbientContextTokens *int `json:"ambient_context"`
 	// AICredits is the pre-computed total AI Credits value written by parse_token_usage.cjs.
-	// When present and positive it is used directly so we don't need per-model pricing.
-	AICredits float64 `json:"ai_credits"`
+	// When present and valid it is used directly so we don't need per-model pricing.
+	AICredits json.RawMessage `json:"ai_credits"`
 }
 
 // proxyEventsEntry is a JSONL record from api-proxy-logs/events.jsonl.

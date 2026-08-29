@@ -1999,6 +1999,45 @@ Some content here.`;
       expect(summary.entries[0].deltaAIC).toBe(0);
       expect(summary.totalAIC).toBe(0);
       expect(summary.aiCreditsWarnings).toEqual([]);
+      expect(generateTokenUsageSummary(summary)).toContain("| **Total** | | **1,000** | **100** | **0** | **0** | | **0** |");
+    });
+
+    test("exports AWF-reported zero to the main job output", async () => {
+      const tokenUsagePath = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
+      const content = JSON.stringify({
+        provider: "copilot",
+        model: "gpt-4o-mini-2024-07-18",
+        input_tokens: 1000,
+        output_tokens: 100,
+        ai_credits_this_response: 0,
+        ai_credits_total: 0,
+      });
+      const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(filePath => filePath === tokenUsagePath);
+      const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+        if (filePath === tokenUsagePath) return content;
+        return "";
+      });
+      const coreObj = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        exportVariable: vi.fn(),
+        setOutput: vi.fn(),
+        summary: {
+          addRaw: vi.fn(),
+          write: vi.fn().mockResolvedValue(undefined),
+        },
+      };
+
+      try {
+        await writeStepSummaryWithTokenUsage(coreObj);
+      } finally {
+        existsSpy.mockRestore();
+        readSpy.mockRestore();
+      }
+
+      expect(coreObj.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", "0");
+      expect(coreObj.setOutput).toHaveBeenCalledWith("aic", "0");
+      expect(coreObj.info).toHaveBeenCalledWith("AI Credits: 0");
     });
 
     test("aggregates AWF-reported credits by model without changing the run total", () => {
@@ -2081,6 +2120,25 @@ Some content here.`;
 
       expect(summary.totalAIC).toBeCloseTo(0.0195, 6);
       expect(summary.aiCreditsWarnings).toEqual([expect.stringContaining("invalid input_tokens_include_cache")]);
+    });
+
+    test("does not warn for invalid input_tokens_include_cache when AWF delta is valid", () => {
+      const summary = parseTokenUsageJsonl(
+        JSON.stringify({
+          provider: "copilot",
+          model: "gpt-4o-mini-2024-07-18",
+          input_tokens: 1000,
+          output_tokens: 100,
+          cache_read_tokens: 400,
+          cache_write_tokens: 100,
+          input_tokens_include_cache: "invalid",
+          ai_credits_this_response: 0.123,
+          ai_credits_total: 0.123,
+        })
+      );
+
+      expect(summary.totalAIC).toBe(0.123);
+      expect(summary.aiCreditsWarnings).toEqual([]);
     });
 
     test("uses the chronologically last valid AWF-reported total", () => {

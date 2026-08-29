@@ -87,10 +87,10 @@ function parseNonNegativeFiniteNumber(value) {
  * @returns {string}
  */
 function formatAICForOutput(value, source) {
-  if (!Number.isFinite(value) || value <= 0) return "";
+  if (!Number.isFinite(value) || value < 0) return "";
   if (source !== "awf_reported") return value.toFixed(3);
   const rounded = Number(value.toFixed(6));
-  return String(rounded > 0 ? rounded : value);
+  return String(rounded);
 }
 
 /**
@@ -235,12 +235,10 @@ function parseTokenUsageJsonl(jsonlContent) {
   const hasReportedAIC = summary.entries.some(entry => entry.reportedDeltaAIC !== null || entry.reportedTotalAIC !== null);
   const hasAnyReportedAICFields = summary.entries.some(entry => entry.hasReportedDeltaField || entry.hasReportedTotalField);
   const hasExplicitCacheSemantics = summary.entries.some(entry => typeof entry.inputTokensIncludeCache === "boolean");
-  const invalidCacheSemanticsCount = summary.entries.filter(entry => entry.hasInputTokensIncludeCacheField && typeof entry.inputTokensIncludeCache !== "boolean").length;
-  if (invalidCacheSemanticsCount > 0) {
-    summary.aiCreditsWarnings.push(`${invalidCacheSemanticsCount} token usage record(s) had invalid input_tokens_include_cache values; legacy provider cache semantics were used.`);
-  }
+  let invalidCacheSemanticsCount = 0;
 
   if (!hasAnyReportedAICFields && !hasExplicitCacheSemantics) {
+    invalidCacheSemanticsCount = summary.entries.filter(entry => entry.hasInputTokensIncludeCacheField && typeof entry.inputTokensIncludeCache !== "boolean").length;
     // Preserve the legacy aggregation contract exactly for records emitted before
     // AWF added reported AIC and explicit cache-semantics fields.
     let totalAIC = 0;
@@ -294,9 +292,13 @@ function parseTokenUsageJsonl(jsonlContent) {
       const reportedFieldsMissingOrInvalid = hasAnyReportedAICFields && (!entry.hasReportedDeltaField || entry.reportedDeltaAIC === null || !entry.hasReportedTotalField || entry.reportedTotalAIC === null);
       if (reportedFieldsMissingOrInvalid) fallbackRecordCount++;
 
-      entry.deltaAIC =
-        entry.reportedDeltaAIC ??
-        computeInferenceAIC({
+      if (entry.reportedDeltaAIC !== null) {
+        entry.deltaAIC = entry.reportedDeltaAIC;
+      } else {
+        if (entry.hasInputTokensIncludeCacheField && typeof entry.inputTokensIncludeCache !== "boolean") {
+          invalidCacheSemanticsCount++;
+        }
+        entry.deltaAIC = computeInferenceAIC({
           provider: entry.provider || "",
           model: entry.model,
           inputTokens: entry.inputTokens,
@@ -306,6 +308,7 @@ function parseTokenUsageJsonl(jsonlContent) {
           reasoningTokens: entry.reasoningTokens || 0,
           inputTokensIncludeCache: entry.inputTokensIncludeCache,
         });
+      }
       summary.byModel[entry.model].aic += entry.deltaAIC;
       runningAIC = entry.reportedTotalAIC ?? runningAIC + entry.deltaAIC;
       entry.runningAIC = runningAIC;
@@ -320,6 +323,9 @@ function parseTokenUsageJsonl(jsonlContent) {
     if (summary.aiCreditsSource === "awf_reported" && Math.abs(summedDeltaAIC - summary.totalAIC) > 1e-6 * Math.max(1, Math.abs(summary.totalAIC))) {
       summary.aiCreditsWarnings.push("The AWF-reported cumulative AI Credits total differs from the sum of per-request credits; the cumulative total was preserved for reporting.");
     }
+  }
+  if (invalidCacheSemanticsCount > 0) {
+    summary.aiCreditsWarnings.push(`${invalidCacheSemanticsCount} token usage record(s) had invalid input_tokens_include_cache values; legacy provider cache semantics were used.`);
   }
 
   return summary;
@@ -396,7 +402,7 @@ async function writeStepSummaryWithTokenUsage(coreObj) {
       for (const warning of parsedSummary?.aiCreditsWarnings || []) {
         coreObj.warning?.(`[ai-credits] ${warning}`);
       }
-      if (parsedSummary && parsedSummary.totalAIC > 0) {
+      if (parsedSummary && (parsedSummary.aiCreditsSource === "awf_reported" || parsedSummary.totalAIC > 0)) {
         const aic = formatAICForOutput(parsedSummary.totalAIC, parsedSummary.aiCreditsSource);
         coreObj.exportVariable("GH_AW_AIC", aic);
         coreObj.setOutput("aic", aic);

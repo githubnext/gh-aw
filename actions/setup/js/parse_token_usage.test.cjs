@@ -9,6 +9,7 @@ const {
   main,
   getReadableTokenUsagePaths,
   extractRequestId,
+  extractTokenUsageDedupeKey,
   readDedupedTokenUsage,
   getSummaryTitle,
   buildStepSummarySection,
@@ -356,6 +357,48 @@ describe("parse_token_usage", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("1.03602"));
     });
 
+    test("exports AWF-reported zero AIC instead of treating it as missing", async () => {
+      const agentUsageFile = path.join(tmpDir, "agent_usage.json");
+      const zeroEntry = JSON.stringify({
+        model: "gpt-4o-mini-2024-07-18",
+        provider: "copilot",
+        input_tokens: 1000,
+        output_tokens: 100,
+        ai_credits_this_response: 0,
+        ai_credits_total: 0,
+      });
+
+      fs.existsSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_PATH) return true;
+        if (p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_AWF_AUDIT_PATH) return false;
+        return originalExistsSync(p);
+      });
+      fs.statSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_PATH) return { size: zeroEntry.length };
+        if (p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_AWF_AUDIT_PATH) return { size: 0 };
+        return originalStatSync(p);
+      });
+      fs.readFileSync = vi.fn((p, enc) => {
+        if (p === TOKEN_USAGE_PATH) return zeroEntry;
+        if (p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_AWF_AUDIT_PATH) return "";
+        return originalReadFileSync(p, enc);
+      });
+      fs.writeFileSync = vi.fn((p, data) => {
+        if (p === AGENT_USAGE_PATH) {
+          originalWriteFileSync(agentUsageFile, data);
+        } else {
+          originalWriteFileSync(p, data);
+        }
+      });
+
+      await main();
+
+      const agentUsage = JSON.parse(originalReadFileSync(agentUsageFile, "utf8"));
+      expect(agentUsage.ai_credits).toBe(0);
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", "0");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("aic", "0");
+    });
+
     test("surfaces fallback accounting warnings", async () => {
       const malformedEntry = JSON.stringify({
         model: "gpt-4o-mini-2024-07-18",
@@ -589,6 +632,13 @@ describe("parse_token_usage", () => {
       expect(extractRequestId('{"model":"m"}')).toBe("");
     });
 
+    test("extractTokenUsageDedupeKey includes event and request_id", () => {
+      expect(extractTokenUsageDedupeKey('{"event":"token_usage","request_id":"req-123","model":"m"}')).toBe("token_usage:req-123");
+      expect(extractTokenUsageDedupeKey('{"event":"other","request_id":"req-123","model":"m"}')).toBe("other:req-123");
+      expect(extractTokenUsageDedupeKey('{"request_id":"req-123","model":"m"}')).toBe("token_usage:req-123");
+      expect(extractTokenUsageDedupeKey('{"model":"m"}')).toBe("");
+    });
+
     test("getReadableTokenUsagePaths skips failing stat path and keeps valid path", () => {
       fs.existsSync = vi.fn(p => p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_PATH);
       fs.statSync = vi.fn(p => {
@@ -616,6 +666,22 @@ describe("parse_token_usage", () => {
       expect(deduped).toContain('"request_id":"req-2"');
       expect(deduped).toContain('"request_id":"req-3"');
       expect(deduped.match(/"request_id":"req-1"/g)).toHaveLength(1);
+    });
+
+    test("readDedupedTokenUsage keeps different events with the same request_id", () => {
+      const fileA = '{"event":"token_usage","request_id":"req-1","model":"m1","input_tokens":1}';
+      const fileB = '{"event":"token_steering","request_id":"req-1","model":"m1","input_tokens":2}';
+
+      fs.readFileSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_AUDIT_PATH) return fileA;
+        if (p === TOKEN_USAGE_PATH) return fileB;
+        return originalReadFileSync(p, "utf8");
+      });
+
+      const deduped = readDedupedTokenUsage([TOKEN_USAGE_AUDIT_PATH, TOKEN_USAGE_PATH]);
+      expect(deduped).toContain('"event":"token_usage"');
+      expect(deduped).toContain('"event":"token_steering"');
+      expect(deduped.match(/"request_id":"req-1"/g)).toHaveLength(2);
     });
 
     test("deduplicates mirrored AWF records before aggregating reported credits", () => {

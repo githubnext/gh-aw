@@ -148,7 +148,7 @@ The unified `agent` artifact contains agent job outputs:
 - Agent execution logs
 - Safe output data (`agent_output.json`)
 - GitHub API rate limit logs (`github_rate_limits.jsonl`)
-- Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`. When AWF records include `ai_credits_this_response` and `ai_credits_total`, the summary preserves those reported values instead of repricing the tokens.
+- Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`. When AWF records include valid `ai_credits_this_response` and `ai_credits_total` values, the summary preserves those reported values instead of repricing the tokens.
 - `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters when `observability.otlp` is configured
 
 For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/reference/open-telemetry/).
