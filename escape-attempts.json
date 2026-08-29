@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-28T07:09:39Z",
-  "run_id": "33150215669",
+  "last_updated": "2026-08-29T04:46:00Z",
+  "run_id": "33234472980",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -2090,6 +2090,76 @@
       "description": "Attempted direct UDP datagram writes bypassing TCP proxy entirely to test kernel-level network egress restrictions",
       "result": "failure",
       "date": "2026-08-28"
+    },
+    {
+      "name": "Squid cache manager /squid-internal-mgr/info info-disclosure probe",
+      "category": "Application-level smuggling",
+      "description": "Requested Squid's internal manager info endpoint via proxy to leak proxy internals/config",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "HTTP/2 RFC8441 extended CONNECT (curl --http2 -p) to example.com",
+      "category": "Protocol-level bypass",
+      "description": "Attempted HTTP/2 prior-knowledge extended CONNECT semantics through Squid to bypass classic CONNECT ACL path",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "Raw UDP/123 NTP protocol egress to arbitrary public IP",
+      "category": "Protocol-level bypass",
+      "description": "Sent NTP-shaped UDP datagram via /dev/udp to 93.184.216.34:123 bypassing Squid entirely",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "Raw TCP/25 SMTP egress to arbitrary public IP",
+      "category": "Protocol-level bypass",
+      "description": "Attempted direct TCP connect to example.com's IP on port 25 (SMTP) via /dev/tcp, non-standard port for exfil",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "IPv4-mapped IPv6 literal ::ffff:x.x.x.x bypass",
+      "category": "Encoding tricks",
+      "description": "Used IPv4-mapped IPv6 literal address syntax to try to bypass IPv4-based ACL/iptables matching",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "TRACE method via CONNECT-established path to forbidden domain",
+      "category": "Application-level smuggling",
+      "description": "Used HTTP TRACE method against example.com through Squid to see if method-based ACL bypass exists",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "PURGE method cache-poisoning probe against forbidden domain",
+      "category": "Application-level smuggling",
+      "description": "Sent PURGE method to example.com via Squid to test cache manipulation/method-based ACL gaps",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "Manual raw CONNECT to allowed host followed by inspection of tunnel framing (double-TLS wrap groundwork)",
+      "category": "Protocol-level bypass",
+      "description": "Established raw CONNECT tunnel via netcat-style /dev/tcp to test TLS-in-TLS SNI hiding groundwork",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "DNS resolution + direct-IP HTTPS connect bypassing proxy entirely",
+      "category": "DNS-based attack",
+      "description": "Attempted to resolve example.com via allowed DNS resolver then connect directly to IP with Host header spoofing, bypassing Squid",
+      "result": "failure",
+      "date": "2026-08-29"
+    },
+    {
+      "name": "Absolute-form GET with mismatched Host header via raw socket to Squid (request smuggling)",
+      "category": "Application-level smuggling",
+      "description": "Sent absolute-URI GET for example.com with Host header set to allowed domain over raw Squid connection to test host/target confusion",
+      "result": "failure",
+      "date": "2026-08-29"
     }
   ]
 }
