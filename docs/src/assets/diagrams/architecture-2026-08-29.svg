@@ -54,7 +54,6 @@
 
   <rect x="474" y="172" width="110" height="34" fill="#ffffff" stroke="#1f2328" stroke-width="1"/>
   <text x="529" y="189" text-anchor="middle" font-size="9" fill="#1f2328">create_pull_request</text>
-  <text x="529" y="200" font-size="7"/>
 
   <!-- arrows from detection to jobs -->
   <path d="M452,210 L529,210 L529,114" fill="none" stroke="#0969da" stroke-width="1"/>
