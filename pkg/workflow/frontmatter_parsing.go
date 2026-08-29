@@ -114,6 +114,17 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		}
 	}
 
+	// Parse typed on.stop-after field if on exists. Parse errors (e.g. wrong type) are
+	// intentionally not fatal here: extractStopAfterFromOn re-validates the raw value
+	// and returns the actual compile error at the point stop-after is consumed.
+	if len(config.On) > 0 {
+		stopAfter, err := parseOnStopAfterValue(config.On)
+		if err == nil {
+			config.OnStopAfter = stopAfter
+			frontmatterTypesLog.Printf("Parsed typed on.stop-after config: %q", stopAfter)
+		}
+	}
+
 	// Populate typed ExperimentConfigs from the raw frontmatter map so that both the
 	// legacy bare-array form and the new object form are available as ExperimentConfig
 	// structs without callers needing to type-assert config.Experiments entries.
