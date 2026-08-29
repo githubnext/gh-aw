@@ -836,6 +836,10 @@ safe-outputs:
     allowed: ["@pelikhan"]
   threat-detection: false
 timeout-minutes: 10
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 
 evals:

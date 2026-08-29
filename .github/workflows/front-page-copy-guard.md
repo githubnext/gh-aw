@@ -13,7 +13,9 @@ permissions:
   contents: read
   pull-requests: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: codex
+  model-provider: github
 features:
   gh-aw-detection: true
 timeout-minutes: 10
@@ -30,6 +32,7 @@ safe-outputs:
     max: 1
     hide-older-comments: true
   noop:
+model: copilot/mai-code-1-flash-picker
 ---
 
 # Front Page Copy Guard

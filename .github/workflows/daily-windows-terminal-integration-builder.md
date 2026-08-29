@@ -14,6 +14,7 @@ permissions:
   issues: read
 
 
+  copilot-requests: write
 tools:
   github:
     mode: gh-proxy
@@ -33,6 +34,10 @@ imports:
   - shared/reporting.md
 features:
   gh-aw-detection: true
+engine:
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 ---
 
 ### Daily Windows Terminal Integration Builder

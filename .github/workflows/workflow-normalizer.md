@@ -10,6 +10,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 tracker-id: workflow-normalizer
 timeout-minutes: 30
 network:
@@ -35,6 +36,10 @@ imports:
 sandbox:
   agent:
     runtime: cloud-hypervisor
+engine:
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 ---
 
 # Workflow Normalizer

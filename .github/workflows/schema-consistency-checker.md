@@ -9,9 +9,10 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 max-ai-credits: 1500
 tools:
   cli-proxy: true

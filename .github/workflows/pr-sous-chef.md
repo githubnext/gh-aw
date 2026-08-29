@@ -26,9 +26,10 @@ checkout:
   fetch-depth: 0
 network:
   allowed: ["defaults", "go"]
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 strict: true
 imports:
   - shared/mcp-pagination.md

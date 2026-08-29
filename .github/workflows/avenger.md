@@ -18,9 +18,10 @@ env:
   GH_AW_HARNESS_MAX_RETRIES: "4"
 tracker-id: avenger-ci
 max-turns: 50
-model: claude-haiku-4-5
+model: openai/gpt-5.4
 engine:
-  id: claude
+  id: codex
+  model-provider: openai
 network:
   allowed:
     - defaults

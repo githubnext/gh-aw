@@ -22,14 +22,16 @@ on:
 permissions:
   contents: read
 
+  copilot-requests: write
 concurrency:
   job-discriminator: ${{ github.run_id }}
 
 runs-on: windows-latest
 
-model: copilot/gpt-5.4-mini
+model: copilot/mai-code-1-flash-picker
 engine:
-  id: copilot
+  id: codex
+  model-provider: github
 
 network: {}
 
