@@ -38,8 +38,10 @@ global.context = mockContext;
 
 // Helper to import the module fresh (bust module cache)
 async function loadModule() {
-  const { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint, parseDiscussionEndpoint } = await import("./add_reaction_and_edit_comment.cjs?" + Date.now());
-  return { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint, parseDiscussionEndpoint };
+  const { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint, parseDiscussionEndpoint, requireEventField } = await import(
+    "./add_reaction_and_edit_comment.cjs?" + Date.now()
+  );
+  return { main, addCommentWithWorkflowLink, addReaction, addDiscussionReaction, resolveEventEndpoints, VALID_REACTIONS, expectRestEndpoint, parseDiscussionEndpoint, requireEventField };
 }
 
 describe("add_reaction_and_edit_comment.cjs", () => {
@@ -738,6 +740,36 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       const result = await resolveEventEndpoints("push", "owner", "repo", {});
       expect(result).toBeNull();
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(ERR_VALIDATION));
+    });
+  });
+
+  describe("requireEventField()", () => {
+    it("should return true and not call setFailed for a valid value", async () => {
+      const { requireEventField } = await loadModule();
+      const result = requireEventField(42, "Issue number", ERR_NOT_FOUND);
+      expect(result).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should return true for the number 0", async () => {
+      const { requireEventField } = await loadModule();
+      const result = requireEventField(0, "Issue number", ERR_NOT_FOUND);
+      expect(result).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should call setFailed and return false for null", async () => {
+      const { requireEventField } = await loadModule();
+      const result = requireEventField(null, "Issue number", ERR_NOT_FOUND);
+      expect(result).toBe(false);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
+    });
+
+    it("should call setFailed and return false for undefined", async () => {
+      const { requireEventField } = await loadModule();
+      const result = requireEventField(undefined, "Comment ID", ERR_VALIDATION);
+      expect(result).toBe(false);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Comment ID not found in event payload`);
     });
   });
 });

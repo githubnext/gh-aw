@@ -26,7 +26,7 @@ const VALID_REACTIONS = Object.freeze(Object.keys(REACTION_MAP));
  * @returns {boolean} true if valid, false if missing (setFailed already called)
  */
 function requireEventField(value, fieldName, errorCode) {
-  if (!value) {
+  if (value == null) {
     core.setFailed(`${errorCode}: ${fieldName} not found in event payload`);
     return false;
   }
@@ -296,4 +296,4 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
   }
 }
 
-module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction, expectRestEndpoint, parseDiscussionEndpoint };
+module.exports = { main, addCommentWithWorkflowLink, resolveEventEndpoints, VALID_REACTIONS, addReaction, addDiscussionReaction, expectRestEndpoint, parseDiscussionEndpoint, requireEventField };
