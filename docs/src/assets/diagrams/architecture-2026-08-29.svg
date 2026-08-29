@@ -56,10 +56,10 @@
   <text x="529" y="189" text-anchor="middle" font-size="9" fill="#1f2328">create_pull_request</text>
 
   <!-- arrows from detection to jobs -->
-  <path d="M452,210 L529,210 L529,114" fill="none" stroke="#0969da" stroke-width="1"/>
-  <path d="M452,210 L470,210" fill="none" stroke="#0969da" stroke-width="1"/>
-  <path d="M452,210 L529,210 L529,160" fill="none" stroke="#0969da" stroke-width="1"/>
-  <path d="M452,210 L529,210 L529,206" fill="none" stroke="#0969da" stroke-width="1"/>
+  <path d="M452,210 L464,210 L464,97" fill="none" stroke="#0969da" stroke-width="1"/>
+  <line x1="464" y1="97" x2="474" y2="97" stroke="#0969da" stroke-width="1"/>
+  <line x1="464" y1="143" x2="474" y2="143" stroke="#0969da" stroke-width="1"/>
+  <line x1="464" y1="189" x2="474" y2="189" stroke="#0969da" stroke-width="1"/>
 
   <!-- GitHub API -->
   <rect x="628" y="120" width="80" height="60" fill="#ffffff" stroke="#1f2328" stroke-width="1"/>
