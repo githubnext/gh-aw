@@ -103,10 +103,10 @@
       "version": "v1.4.2",
       "sha": "d8e329117199404bba6fc81efe8093dc7c015e34"
     },
-    "anchore/sbom-action@v0.24.2": {
+    "anchore/sbom-action@v0.24.0": {
       "repo": "anchore/sbom-action",
-      "version": "v0.24.2",
-      "sha": "3ad7283483fc7af8ff2b4ea19663c2d5ca935e26"
+      "version": "v0.24.0",
+      "sha": "e22c389904149dbc22b58101806040fa8d37a610"
     },
     "astral-sh/setup-uv@v10.0.1": {
       "repo": "astral-sh/setup-uv",
@@ -142,6 +142,11 @@
       "repo": "erlef/setup-beam",
       "version": "v1.24.1",
       "sha": "54075bcc5e249e4758d363f27d099f55d843f124"
+    },
+    "github/codeql-action/upload-sarif@v4.37.8": {
+      "repo": "github/codeql-action/upload-sarif",
+      "version": "v4.37.8",
+      "sha": "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"
     },
     "github/codeql-action/upload-sarif@v4.37.9": {
       "repo": "github/codeql-action/upload-sarif",
