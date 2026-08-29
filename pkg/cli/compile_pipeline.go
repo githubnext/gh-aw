@@ -45,7 +45,7 @@ var runBatchYamllintOnFiles = RunYamllintOnFiles
 const fallbackCompilationErrorMessage = "compilation failed (no detailed error message available)"
 
 // compileSpecificFiles compiles a specific list of workflow files
-func compileSpecificFiles(
+func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted compile pipeline.
 	ctx context.Context,
 	compiler *workflow.Compiler,
 	config CompileConfig,
@@ -347,7 +347,7 @@ func compileSpecificFiles(
 }
 
 // compileAllFilesInDirectory compiles all workflow files in a directory
-func compileAllFilesInDirectory(
+func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full directory compile pipeline.
 	ctx context.Context,
 	compiler *workflow.Compiler,
 	config CompileConfig,
@@ -426,6 +426,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
 	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
 	var shellcheckResources []workflow.ShellScriptResource
+	var workflowValidationResultIndexes []int
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -467,6 +468,7 @@ func compileAllFilesInDirectory(
 			stats.Succeeded++
 			if fileResult.workflowData != nil {
 				workflowDataList = append(workflowDataList, fileResult.workflowData)
+				workflowValidationResultIndexes = append(workflowValidationResultIndexes, len(*validationResults))
 			}
 
 			// Collect lock files for batch security tools
@@ -625,8 +627,18 @@ func compileAllFilesInDirectory(
 	// Emit recommendation when many slash commands are present without centralized strategy.
 	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
 
+	duplicateNameWarnings, err := appendDuplicateWorkflowNameWarnings(workflowDataList, workflowValidationResultIndexes, validationResults)
+	if err != nil {
+		return workflowDataList, err
+	}
+	if !config.JSONOutput {
+		for _, warning := range duplicateNameWarnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning.Message))
+		}
+	}
+
 	// Get warning count from compiler
-	stats.Warnings = compiler.GetWarningCount()
+	stats.Warnings = compiler.GetWarningCount() + len(duplicateNameWarnings)
 
 	displayBatchCompilationNotices(compiler, config)
 
@@ -669,6 +681,55 @@ func compileAllFilesInDirectory(
 	}
 
 	return workflowDataList, nil
+}
+
+func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowData, validationResultIndexes []int, validationResults *[]ValidationResult) ([]ValidationIssue, error) {
+	workflowIDsByName := make(map[string][]string)
+	for _, workflowData := range workflowDataList {
+		if workflowData != nil && workflowData.Name != "" {
+			workflowIDsByName[workflowData.Name] = append(workflowIDsByName[workflowData.Name], workflowData.WorkflowID)
+		}
+	}
+
+	warningsByName := make(map[string]ValidationIssue)
+	for name, workflowIDs := range workflowIDsByName {
+		if len(workflowIDs) > 1 {
+			slices.Sort(workflowIDs)
+			warningsByName[name] = ValidationIssue{
+				Type:    "duplicate_workflow_name",
+				Message: fmt.Sprintf("Duplicate workflow name %q in %s; GitHub displays them as the same agentic workflow", name, strings.Join(workflowIDs, ", ")),
+			}
+		}
+	}
+
+	var warnings []ValidationIssue
+	reportedNames := make(map[string]struct{})
+	for workflowIndex, workflowData := range workflowDataList {
+		if workflowData == nil || workflowData.Name == "" {
+			continue
+		}
+
+		warning, duplicate := warningsByName[workflowData.Name]
+		if !duplicate {
+			continue
+		}
+
+		if _, reported := reportedNames[workflowData.Name]; !reported {
+			warnings = append(warnings, warning)
+			reportedNames[workflowData.Name] = struct{}{}
+		}
+
+		if workflowIndex >= len(validationResultIndexes) {
+			return nil, fmt.Errorf("missing validation result index for workflow %q", workflowData.WorkflowID)
+		}
+		resultIndex := validationResultIndexes[workflowIndex]
+		if resultIndex < 0 || resultIndex >= len(*validationResults) {
+			return nil, fmt.Errorf("validation result index %d for workflow %q is out of range", resultIndex, workflowData.WorkflowID)
+		}
+		(*validationResults)[resultIndex].Warnings = append((*validationResults)[resultIndex].Warnings, warning)
+	}
+
+	return warnings, nil
 }
 
 func displayBatchCompilationNotices(compiler *workflow.Compiler, config CompileConfig) {
