@@ -481,6 +481,18 @@
           "enum": ["read", "write", "none"],
           "leaf": true
         },
+        "organization-custom-org-roles": {
+          "type": "string",
+          "desc": "Permission level for organization custom org roles (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "organization-custom-repository-roles": {
+          "type": "string",
+          "desc": "Permission level for organization custom repository roles (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
         "security-events": {
           "type": "string",
           "desc": "Permission level for security events (read/write/none).",

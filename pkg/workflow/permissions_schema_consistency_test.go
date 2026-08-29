@@ -62,6 +62,19 @@ func TestPermissionConstantsMatchSchemaEnum(t *testing.T) {
 		}
 	}
 
+	// Workflow-level permissions continue to accept custom org/repo role scopes,
+	// even though they are only available via GitHub App tokens when minting a
+	// token for the workflow.
+	for _, scope := range []PermissionScope{
+		PermissionOrganizationCustomOrgRoles,
+		PermissionOrganizationCustomRepositoryRoles,
+	} {
+		if _, ok := actionsPermProps[string(scope)]; !ok {
+			t.Errorf("permission scope %q from GetAllGitHubAppOnlyScopes() is missing from "+
+				"$defs.github_actions_permissions.properties in pkg/parser/schemas/main_workflow_schema.json", scope)
+		}
+	}
+
 	// GitHub App-only scopes must appear under either github_actions_permissions
 	// (e.g. organization-projects, which is grouped there for historical reasons) or
 	// github_app_permissions.

@@ -14958,6 +14958,16 @@
           "enum": ["read", "write", "none"],
           "description": "Permission level for organization projects (read/write/none). Controls access to manage organization-level GitHub Projects boards."
         },
+        "organization-custom-org-roles": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for organization custom org roles (read/write/none). Controls access to custom organization role metadata."
+        },
+        "organization-custom-repository-roles": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for organization custom repository roles (read/write/none). Controls access to custom repository role metadata."
+        },
         "security-events": {
           "type": "string",
           "enum": ["read", "write", "none"],
