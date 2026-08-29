@@ -24,6 +24,7 @@ max-daily-ai-credits: 10000
 network:
   allowed:
     - defaults
+    - github
     - go
     - node
 tools:
