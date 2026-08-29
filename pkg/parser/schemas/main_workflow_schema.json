@@ -4771,9 +4771,18 @@
                   }
                 },
                 "mode": {
-                  "type": "string",
-                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
-                  "enum": ["cli", "mcp"]
+                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server. Must be a literal value; GitHub Actions expressions are rejected.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["cli", "mcp"]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "Not allowed at runtime: mode must be a literal 'cli' or 'mcp' value, not a GitHub Actions expression."
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
