@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/importinpututil"
@@ -167,11 +168,17 @@ func parseStepTimeoutMinutes(val any) int {
 	case int:
 		return v
 	case int64:
-		return int(v)
+		if v > 0 && v <= int64(math.MaxInt) {
+			return int(v)
+		}
 	case uint64:
-		return int(v)
+		if v <= uint64(math.MaxInt) {
+			return int(v)
+		}
 	case float64:
-		return int(v)
+		if v > 0 && v <= float64(math.MaxInt) {
+			return int(v)
+		}
 	case string:
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
