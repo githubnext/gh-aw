@@ -216,7 +216,31 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 	}
 }
 
-// TestRenderPlaywrightMCPConfigTOML verifies the TOML format helper for Codex engine
+// TestRenderPlaywrightMCPConfigTOML verifies the TOML format helper for Codex engine.
+func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
+	var output strings.Builder
+
+	renderer := NewMCPConfigRenderer(MCPRendererOptions{
+		Format: "toml",
+		IsLast: true,
+	})
+	renderer.RenderPlaywrightMCP(&output, nil)
+
+	result := output.String()
+	for _, expected := range []string{
+		`[mcp_servers.playwright]`,
+		`container = "mcr.microsoft.com/playwright/mcp"`,
+		`"--security-opt"`,
+		`"seccomp=unconfined"`,
+		`"--ipc=host"`,
+		`"--no-sandbox"`,
+	} {
+		if !strings.Contains(result, expected) {
+			t.Errorf("Expected content not found: %q\nActual output:\n%s", expected, result)
+		}
+	}
+}
+
 // TestRenderSafeOutputsMCPConfigTOML verifies the Safe Outputs TOML format via the production MCPConfigRendererUnified path
 func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 	var output strings.Builder
