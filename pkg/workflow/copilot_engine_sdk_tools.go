@@ -62,7 +62,7 @@ func isCopilotEditToolEnabled(tools map[string]any, workflowData *WorkflowData) 
 	if workflowData != nil && workflowData.ParsedTools != nil {
 		return workflowData.ParsedTools.Edit != nil
 	}
-	return isCopilotToolValueEnabled(tools, "edit")
+	return false
 }
 
 func validateCopilotSDKEngineArgs(workflowData *WorkflowData) error {
