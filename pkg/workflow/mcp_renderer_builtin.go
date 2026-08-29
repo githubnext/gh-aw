@@ -62,7 +62,8 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	// Entrypoint args for Playwright MCP server (goes after container image)
 	yaml.WriteString("          entrypointArgs = [\n")
 	yaml.WriteString("            \"--output-dir\",\n")
-	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
+	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\",\n")
+	yaml.WriteString("            \"--no-sandbox\"")
 
 	// Append custom args if present
 	writeArgsToYAML(yaml, customArgs, "            ")
