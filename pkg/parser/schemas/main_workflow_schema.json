@@ -1353,6 +1353,23 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "conclusion": {
+                  "description": "Filter by workflow run conclusion (for example, failure). Compiled into a guarded if: condition.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
+                      },
+                      "minItems": 1
+                    }
+                  ]
                 }
               },
               "oneOf": [
@@ -2496,7 +2513,7 @@
       },
       "minItems": 1,
       "uniqueItems": true,
-      "examples": [["github/awesome-copilot/plugins/example@v1"], [{"plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}"}]]
+      "examples": [["github/awesome-copilot/plugins/example@v1"], [{ "plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}" }]]
     },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
