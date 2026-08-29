@@ -191,6 +191,34 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "valid max-runs positive integer",
+			frontmatter: map[string]any{
+				"on":       "push",
+				"max-runs": 1,
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
+			name: "valid max-runs expression",
+			frontmatter: map[string]any{
+				"on":       "push",
+				"max-runs": "${{ inputs.max-runs }}",
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
+			name: "invalid max-runs zero",
+			frontmatter: map[string]any{
+				"on":       "push",
+				"max-runs": 0,
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "want 1",
+		},
+		{
 			name: "invalid workflow frontmatter with location",
 			frontmatter: map[string]any{
 				"on":      "push",
