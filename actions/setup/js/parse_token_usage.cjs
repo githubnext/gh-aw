@@ -4,7 +4,7 @@
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
-const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
+const { parseTokenUsageJsonl, generateTokenUsageSummary, formatAICForOutput } = require("./parse_mcp_gateway_log.cjs");
 const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 
 /**
@@ -205,6 +205,9 @@ async function main() {
       core.info("Token usage file contained no valid entries");
       return;
     }
+    for (const warning of summary.aiCreditsWarnings) {
+      core.warning(`[ai-credits] ${warning}`);
+    }
     const markdown = generateTokenUsageSummary(summary);
     const workingSet = calculateWorkingSetFromJSONL(content).workingSet;
     if (markdown.length > 0) {
@@ -234,7 +237,7 @@ async function main() {
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
       ambient_context: Math.round(summary.ambientContextTokens || 0),
-      ai_credits: Number((summary.totalAIC || 0).toFixed(3)),
+      ai_credits: summary.aiCreditsSource === "awf_reported" ? Number(summary.totalAIC.toFixed(6)) : Number((summary.totalAIC || 0).toFixed(3)),
       ...(primaryModel ? { primary_model: primaryModel } : {}),
     };
     fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(agentUsage) + "\n");
@@ -245,7 +248,7 @@ async function main() {
       core.info(`Primary model: ${primaryModel}`);
     }
     if (summary.totalAIC > 0) {
-      const aic = summary.totalAIC.toFixed(3);
+      const aic = formatAICForOutput(summary.totalAIC, summary.aiCreditsSource);
       core.exportVariable("GH_AW_AIC", aic);
       core.setOutput("aic", aic);
       core.info(`AI Credits: ${aic}`);

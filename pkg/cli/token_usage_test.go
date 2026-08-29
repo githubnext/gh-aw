@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -71,6 +72,222 @@ func TestParseTokenUsageFile(t *testing.T) {
 		assert.Equal(t, 1, summary.ByModel["claude-haiku-4-5"].Requests, "haiku requests")
 
 		assert.InDelta(t, 0.0, summary.CacheEfficiency, 0.001, "cache efficiency is not computed from raw token counts")
+	})
+
+	t.Run("prefers exact AWF-reported credits", func(t *testing.T) {
+		fixturePath := filepath.Join("..", "..", "actions", "setup", "js", "fixtures", "awf-v0.28.7-aic-token-usage.jsonl")
+
+		summary, err := parseTokenUsageFile(fixturePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.Equal(t, 5, summary.TotalRequests)
+		assert.InDelta(t, 1.03602, summary.TotalAIC, 1e-9)
+		require.Contains(t, summary.ByModel, "gpt-4o-mini-2024-07-18")
+		assert.InDelta(t, 1.03602, summary.ByModel["gpt-4o-mini-2024-07-18"].AIC, 1e-9)
+		assert.Empty(t, summary.Warnings)
+	})
+
+	t.Run("retains legacy repricing when AWF-reported fields are absent", func(t *testing.T) {
+		fixture, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "fixtures", "awf-v0.28.7-aic-token-usage.jsonl"))
+		require.NoError(t, err)
+		legacyLines := make([]string, 0, 5)
+		for _, line := range strings.Split(strings.TrimSpace(string(fixture)), "\n") {
+			var record map[string]any
+			require.NoError(t, json.Unmarshal([]byte(line), &record))
+			delete(record, "ai_credits_this_response")
+			delete(record, "ai_credits_total")
+			encoded, marshalErr := json.Marshal(record)
+			require.NoError(t, marshalErr)
+			legacyLines = append(legacyLines, string(encoded))
+		}
+		filePath := filepath.Join(testutil.TempDir(t, "token-usage-legacy-aic"), "token-usage.jsonl")
+		require.NoError(t, os.WriteFile(filePath, []byte(strings.Join(legacyLines, "\n")+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.InDelta(t, 0.44538, summary.TotalAIC, 1e-9)
+	})
+
+	t.Run("falls back and warns for malformed AWF-reported credits", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-malformed-aic")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":19288,"output_tokens":35,"cache_read_tokens":0,"cache_write_tokens":0,"ai_credits_this_response":"0.29142","ai_credits_total":-1}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.29142, summary.TotalAIC, 1e-9)
+		require.Len(t, summary.Warnings, 1)
+		assert.Contains(t, summary.Warnings[0], "fallback accounting")
+	})
+
+	t.Run("distinguishes zero AWF-reported credits from absent fields", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-zero-aic")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":19288,"output_tokens":35,"cache_read_tokens":0,"cache_write_tokens":0,"ai_credits_this_response":0,"ai_credits_total":0}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.Zero(t, summary.TotalAIC)
+		assert.Zero(t, summary.ByModel["gpt-4o-mini-2024-07-18"].AIC)
+		assert.Empty(t, summary.Warnings)
+	})
+
+	t.Run("treats null AWF fields as malformed rather than zero", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-null-aic")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":19288,"output_tokens":35,"cache_read_tokens":0,"cache_write_tokens":0,"ai_credits_this_response":null,"ai_credits_total":null}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.29142, summary.TotalAIC, 1e-9)
+		require.Len(t, summary.Warnings, 1)
+		assert.Contains(t, summary.Warnings[0], "fallback accounting")
+	})
+
+	t.Run("treats null cache semantics as absent", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-null-cache-semantics")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":1000,"output_tokens":100,"cache_read_tokens":400,"cache_write_tokens":100,"input_tokens_include_cache":null}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.0195, summary.TotalAIC, 1e-9)
+		assert.Empty(t, summary.Warnings)
+	})
+
+	t.Run("uses legacy provider semantics and warns for invalid cache semantics", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-invalid-cache-semantics")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":1000,"output_tokens":100,"cache_read_tokens":400,"cache_write_tokens":100,"input_tokens_include_cache":"invalid"}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.0195, summary.TotalAIC, 1e-9)
+		require.Len(t, summary.Warnings, 1)
+		assert.Contains(t, summary.Warnings[0], "invalid input_tokens_include_cache")
+	})
+
+	for _, testCase := range []struct {
+		name               string
+		inputIncludesCache bool
+		expectedAIC        float64
+	}{
+		{name: "inclusive cache fields", inputIncludesCache: true, expectedAIC: 0.018},
+		{name: "additive cache fields", inputIncludesCache: false, expectedAIC: 0.0255},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "token-usage-explicit-cache-semantics")
+			filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+			content := fmt.Sprintf(
+				`{"provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":1000,"output_tokens":100,"cache_read_tokens":400,"cache_write_tokens":100,"input_tokens_include_cache":%t}`,
+				testCase.inputIncludesCache,
+			)
+			require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+			summary, err := parseTokenUsageFile(filePath)
+			require.NoError(t, err)
+			require.NotNil(t, summary)
+
+			assert.InDelta(t, testCase.expectedAIC, summary.TotalAIC, 1e-9)
+			assert.Empty(t, summary.Warnings)
+		})
+	}
+
+	t.Run("continues from the last valid reported total after malformed data", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-aic-continuation")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"request_id":"one","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":10,"output_tokens":1,"ai_credits_this_response":0.2,"ai_credits_total":0.2}
+{"request_id":"two","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":10,"output_tokens":1,"ai_credits_this_response":0.3,"ai_credits_total":"invalid"}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.5, summary.TotalAIC, 1e-9)
+		assert.InDelta(t, 0.5, summary.ByModel["gpt-4o-mini-2024-07-18"].AIC, 1e-9)
+		require.Len(t, summary.Warnings, 1)
+	})
+
+	t.Run("aggregates reported credits by model while preserving the run total", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-multi-model-aic")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"request_id":"one","provider":"copilot","model":"gpt-4o-mini","input_tokens":10,"output_tokens":1,"ai_credits_this_response":0.2,"ai_credits_total":0.2}
+{"request_id":"two","provider":"copilot","model":"claude-sonnet-4-6","input_tokens":20,"output_tokens":2,"ai_credits_this_response":0.8,"ai_credits_total":1}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.2, summary.ByModel["gpt-4o-mini"].AIC, 1e-9)
+		assert.InDelta(t, 0.8, summary.ByModel["claude-sonnet-4-6"].AIC, 1e-9)
+		assert.InDelta(t, 1, summary.TotalAIC, 1e-9)
+	})
+
+	t.Run("uses the chronologically last valid reported total", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-chronological-aic")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"timestamp":"2026-08-28T09:00:02Z","request_id":"third","provider":"copilot","model":"gpt-4o-mini","input_tokens":1,"output_tokens":1,"ai_credits_this_response":1,"ai_credits_total":3}
+{"timestamp":"2026-08-28T09:00:00Z","request_id":"first","provider":"copilot","model":"gpt-4o-mini","input_tokens":1,"output_tokens":1,"ai_credits_this_response":1,"ai_credits_total":1}
+{"timestamp":"2026-08-28T09:00:01Z","request_id":"second","provider":"copilot","model":"gpt-4o-mini","input_tokens":1,"output_tokens":1,"ai_credits_this_response":1,"ai_credits_total":2}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 3, summary.TotalAIC, 1e-9)
+		assert.Empty(t, summary.Warnings)
+	})
+
+	t.Run("warns when cumulative and per-request reported credits diverge", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-divergent-aic")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"request_id":"one","provider":"copilot","model":"gpt-4o-mini","input_tokens":1,"output_tokens":1,"ai_credits_this_response":0.2,"ai_credits_total":0.2}
+{"request_id":"two","provider":"copilot","model":"gpt-4o-mini","input_tokens":1,"output_tokens":1,"ai_credits_this_response":0.8,"ai_credits_total":0.9}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.9, summary.TotalAIC, 1e-9)
+		require.Len(t, summary.Warnings, 1)
+		assert.Contains(t, summary.Warnings[0], "differs from the sum")
+	})
+
+	t.Run("deduplicates mirrored requests before aggregating AWF-reported credits", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-duplicate-aic")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		record := `{"request_id":"same-request","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":10,"output_tokens":1,"ai_credits_this_response":0.2,"ai_credits_total":0.2}`
+		require.NoError(t, os.WriteFile(filePath, []byte(record+"\n"+record+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.Equal(t, 1, summary.TotalRequests)
+		assert.InDelta(t, 0.2, summary.TotalAIC, 1e-9)
+		require.Len(t, summary.Warnings, 1)
+		assert.Contains(t, summary.Warnings[0], "duplicate token usage")
 	})
 
 	t.Run("extracts ambient context from first chronological invocation", func(t *testing.T) {
@@ -274,6 +491,56 @@ func TestAnalyzeTokenUsageAICOnly(t *testing.T) {
 		require.NotNil(t, summary)
 		assert.InDelta(t, 94.653, summary.TotalAIC, 1e-6)
 	})
+
+	t.Run("falls back to agent_usage.json when token usage has no priced AIC", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only-unpriced")
+		usageDir := filepath.Join(tmpDir, "usage")
+		agentSubDir := filepath.Join(usageDir, "agent")
+		require.NoError(t, os.MkdirAll(agentSubDir, 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(agentSubDir, "token_usage.jsonl"),
+			[]byte(`{"event":"token_usage","provider":"unknown","model":"unpriced","input_tokens":10,"output_tokens":5}`+"\n"),
+			0o644,
+		))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(usageDir, "agent_usage.json"),
+			[]byte(`{"ai_credits":2.5,"primary_model":"unpriced"}`),
+			0o644,
+		))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.InDelta(t, 2.5, summary.TotalAIC, 1e-9)
+	})
+
+	t.Run("preserves AWF-reported totals from token usage artifacts", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only-awf")
+		usageDir := filepath.Join(tmpDir, "usage", "agent")
+		require.NoError(t, os.MkdirAll(usageDir, 0o755))
+		fixture, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "fixtures", "awf-v0.28.7-aic-token-usage.jsonl"))
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "token_usage.jsonl"), fixture, 0o644))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.InDelta(t, 1.03602, summary.TotalAIC, 1e-9)
+	})
+
+	t.Run("propagates token usage fallback warnings", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only-warnings")
+		usageDir := filepath.Join(tmpDir, "usage", "agent")
+		require.NoError(t, os.MkdirAll(usageDir, 0o755))
+		content := `{"_schema":"token-usage/v0.28.7","event":"token_usage","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":19288,"output_tokens":35,"ai_credits_this_response":null,"ai_credits_total":null}`
+		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "token_usage.jsonl"), []byte(content+"\n"), 0o644))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		require.Len(t, summary.Warnings, 1)
+		assert.Contains(t, summary.Warnings[0], "fallback accounting")
+	})
 }
 
 func TestExtractUsageRecord(t *testing.T) {
@@ -325,6 +592,19 @@ func TestSumAICFromUsageJSONLFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, found)
 		assert.Greater(t, total, 1.25)
+	})
+
+	t.Run("detects AWF token usage records by schema regardless of filename", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-awf-schema")
+		filePath := filepath.Join(tmpDir, "renamed.jsonl")
+		fixture, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "fixtures", "awf-v0.28.7-aic-token-usage.jsonl"))
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filePath, fixture, 0o644))
+
+		total, found, err := sumAICFromUsageJSONLFiles([]string{filePath})
+		require.NoError(t, err)
+		assert.True(t, found)
+		assert.InDelta(t, 1.03602, total, 1e-9)
 	})
 }
 

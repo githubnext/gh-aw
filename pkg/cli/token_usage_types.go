@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -22,6 +24,7 @@ type TokenCoreMetrics struct {
 type TokenUsageEntry struct {
 	Schema    string `json:"_schema,omitempty"` // Self-describing record type, e.g. "token-usage/v0.26.0"
 	Timestamp string `json:"timestamp"`
+	Event     string `json:"event"`
 	RequestID string `json:"request_id"`
 	Provider  string `json:"provider"`
 	Model     string `json:"model"`
@@ -29,8 +32,11 @@ type TokenUsageEntry struct {
 	Status    int    `json:"status"`
 	Streaming bool   `json:"streaming"`
 	TokenCoreMetrics
-	DurationMs    int `json:"duration_ms"`
-	ResponseBytes int `json:"response_bytes"`
+	DurationMs              int             `json:"duration_ms"`
+	ResponseBytes           int             `json:"response_bytes"`
+	AICreditsThisResponse   json.RawMessage `json:"ai_credits_this_response,omitempty"`
+	AICreditsTotal          json.RawMessage `json:"ai_credits_total,omitempty"`
+	InputTokensIncludeCache json.RawMessage `json:"input_tokens_include_cache,omitempty"`
 }
 
 // AmbientContextMetrics captures token footprint for the first LLM invocation.
