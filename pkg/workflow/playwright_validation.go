@@ -55,7 +55,7 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 				"tools.playwright.mode",
 				mode,
 				"mode must be a literal value; expressions are not allowed",
-				"Set mode to either mcp or cli.",
+				"Set mode to either mcp or cli",
 			)
 		}
 	}
