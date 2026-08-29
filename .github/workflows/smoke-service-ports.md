@@ -37,6 +37,8 @@ network:
     - defaults
     - github
 tools:
+  playwright:
+    mode: cli
   bash:
     - "*"
 safe-outputs:

@@ -14,10 +14,6 @@ import-schema:
     type: number
     default: 8129
     description: "TCP port of the static HTTP server serving the page under test"
-tools:
-  playwright:
-    mode: ${{ github.aw.import-inputs.mode }}
-
 network:
   allowed:
     - defaults
