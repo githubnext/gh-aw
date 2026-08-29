@@ -55,7 +55,7 @@ func TestSpec_PublicAPI_MarshalCompactNoHTMLEscape(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := jsonutil.MarshalCompactNoHTMLEscape(tt.input)
 			if tt.wantErr {
-				assert.Error(t, err, "should return error for: %s", tt.name)
+				require.Error(t, err, "should return error for: %s", tt.name)
 				assert.Empty(t, result, "result should be empty on error for: %s", tt.name)
 				return
 			}
