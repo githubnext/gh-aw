@@ -119,7 +119,8 @@ describe("prefer-actions-exec-over-child-process", () => {
           code: ghScript(`const { execSync } = require("child_process"); function f() { execSync("git status"); }`),
           errors: [{ messageId: "preferActionsExec", data: { method: "execSync" } }],
         },
-        // Already-async enclosing function — no additional conversion needed, message unchanged
+        // Already-async enclosing function — even though the result is returned, the enclosing
+        // function is already async, so no caller-chain conversion is needed; message unchanged
         {
           code: ghScript(`const { execSync } = require("child_process"); async function f() { return execSync("git status"); }`),
           errors: [{ messageId: "preferActionsExec", data: { method: "execSync" } }],
