@@ -67,12 +67,10 @@ func renderCustomMCPEnvVars(env map[string]string, tomlFormat bool) map[string]s
 	renderedEnv := make(map[string]string, len(env))
 	for envKey, envValue := range env {
 		if tomlFormat {
-			// Replace template expressions with environment variable references for TOML.
-			// For TOML, we use direct shell variable syntax without backslash.
-			envValue = strings.ReplaceAll(envValue, "${{ secrets.", "${")
-			envValue = strings.ReplaceAll(envValue, "${{ env.", "${")
+			secrets := ExtractSecretsFromValue(envValue)
+			envValue = replaceEnvExpressionsWithPrefixedEnvVars(envValue, "${")
+			envValue = ReplaceSecretsWithShellEnvVars(envValue, secrets)
 			envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
-			envValue = strings.ReplaceAll(envValue, " }}", "}")
 		} else {
 			// For both Copilot and non-Copilot JSON engines, replace all template
 			// expressions with \${VAR} passthrough syntax. This keeps raw secret values
