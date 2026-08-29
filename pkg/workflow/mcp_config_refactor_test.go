@@ -233,11 +233,25 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 		`"--security-opt"`,
 		`"seccomp=unconfined"`,
 		`"--ipc=host"`,
-		`"--no-sandbox",`,
+		`"--no-sandbox"`,
 	} {
 		if !strings.Contains(result, expected) {
 			t.Errorf("Expected content not found: %q\nActual output:\n%s", expected, result)
 		}
+	}
+}
+
+func TestRenderPlaywrightMCPConfigTOMLWithCustomArgs(t *testing.T) {
+	var output strings.Builder
+
+	renderer := NewMCPConfigRenderer(MCPRendererOptions{
+		Format: "toml",
+		IsLast: true,
+	})
+	renderer.RenderPlaywrightMCP(&output, map[string]any{"args": []string{"--browser", "firefox"}})
+
+	if got, want := output.String(), "            \"--no-sandbox\",\n            \"--browser\",\n            \"firefox\"\n"; !strings.Contains(got, want) {
+		t.Errorf("Expected custom args after --no-sandbox without an empty comma line:\n%s", got)
 	}
 }
 
