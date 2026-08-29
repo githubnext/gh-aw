@@ -79,9 +79,9 @@
     },
     "specs/replace-label-compliance/README.md": {
       "slug": "replace-label-compliance-README",
-      "last_formalized": "2026-08-03-16-14-02",
-      "notation": "TLA+ / Z3-style guard conjunction",
-      "predicate_count": 9,
+      "last_formalized": "2026-08-29-15-32-55",
+      "notation": "TLA+-style state predicates / Z3-style guard conjunction",
+      "predicate_count": 10,
       "issue_number": null
     },
     "specs/awf-config-sources-spec.md": {
