@@ -19,8 +19,6 @@ Use conventional GitHub Actions for deterministic builds, tests, linting, deploy
 
 Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi. Agent jobs are read-only and sandboxed by default, and configured GitHub writes are normally applied through validated `safe-outputs` jobs with scoped permissions.
 
-> [!NOTE]
-> **Releases 0.68.4 through 0.71.3 are being retired** due to a bug that impacts billing. If you are running one of these versions, please upgrade to the latest release as soon as possible.
 
 ## Contents
 
