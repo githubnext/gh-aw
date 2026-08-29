@@ -15,3 +15,9 @@
 {"date":"2026-08-28","loop_name":"memory-cap-treadmill","direction":"chronic, reframed from cap-bump to growth-control","evidence":["issue#56537","issue#48012","issue#49931","issue#43865"]}
 {"date":"2026-08-28","loop_name":"safe-outputs-policy-decline-miscount","direction":"escalating, 2nd occurrence, structural fix proposed","evidence":["issue#56576"]}
 {"date":"2026-08-28","loop_name":"avenger-self-repair","direction":"incremental, one fix merged but new distinct symptom surfaced next run","evidence":["pr#56426","issue#56552","run:33154209958"]}
+{"date":"2026-08-29","loop_name":"avenger-self-repair","direction":"stalled, 4th distinct-day recurrence of claude-engine-crash symptom, prior day's symlink fix did not address it","evidence":["issue#56694","issue#56728","issue#56737","run:33216999126"]}
+{"date":"2026-08-29","loop_name":"memory-cap-treadmill","direction":"worsening, cost dimension (1.5M tokens) now compounding size-cap dimension","evidence":["issue#56815","issue#56537","run:33229192909"]}
+{"date":"2026-08-29","loop_name":"code-scanning-fixer-tool-denial-stall","direction":"new pattern this cycle, 3 consecutive 3/3-denial stops, needs investigation before assuming transient","evidence":["run:33192281598","run:33214165512","run:33225306296","run:33239595658"]}
+{"date":"2026-08-29","loop_name":"windows-runner-close-reopen","direction":"improving process, not_planned closure falsified by recurrence but answered with new self-repair workflow same day","evidence":["issue#56502","issue#56848","pr#56667"]}
+{"date":"2026-08-29","loop_name":"cascade-detection-maturing","direction":"improving, first real 10-issue burst correctly auto-grouped instead of scattering as isolated triage items","evidence":["issue#56767"]}
+{"date":"2026-08-29","loop_name":"fleet-health-net-positive","direction":"improving overall per agent-job-health baseline, masks localized chronic regressions","evidence":["discussion#56744"]}
