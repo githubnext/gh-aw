@@ -1359,14 +1359,15 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale"]
+                      "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
                     },
                     {
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale"]
-                      }
+                        "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
+                      },
+                      "minItems": 1
                     }
                   ]
                 }

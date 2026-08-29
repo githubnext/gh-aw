@@ -1219,13 +1219,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclus
 				"workflow_run": map[string]any{
 					"workflows":  []any{"CI"},
 					"types":      []any{"completed"},
-					"conclusion": "failure",
+					"conclusion": "startup_failure",
 				},
 			},
 		}
 
 		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-string-test.md"); err != nil {
-			t.Fatalf("expected on.workflow_run.conclusion (string) to pass schema validation, got: %v", err)
+			t.Fatalf("expected on.workflow_run.conclusion=startup_failure to pass schema validation, got: %v", err)
 		}
 	})
 
@@ -1262,6 +1262,24 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclus
 
 		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-invalid-test.md"); err == nil {
 			t.Fatal("expected on.workflow_run.conclusion with unknown value to fail schema validation")
+		}
+	})
+
+	t.Run("empty conclusion array is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"workflow_run": map[string]any{
+					"workflows":  []any{"CI"},
+					"types":      []any{"completed"},
+					"conclusion": []any{},
+				},
+			},
+		}
+
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-empty-test.md"); err == nil {
+			t.Fatal("expected an empty on.workflow_run.conclusion array to fail schema validation")
 		}
 	})
 }
