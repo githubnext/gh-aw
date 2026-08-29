@@ -45,7 +45,7 @@ var runBatchYamllintOnFiles = RunYamllintOnFiles
 const fallbackCompilationErrorMessage = "compilation failed (no detailed error message available)"
 
 // compileSpecificFiles compiles a specific list of workflow files
-func compileSpecificFiles(
+func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted compile pipeline.
 	ctx context.Context,
 	compiler *workflow.Compiler,
 	config CompileConfig,
@@ -347,7 +347,7 @@ func compileSpecificFiles(
 }
 
 // compileAllFilesInDirectory compiles all workflow files in a directory
-func compileAllFilesInDirectory(
+func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full directory compile pipeline.
 	ctx context.Context,
 	compiler *workflow.Compiler,
 	config CompileConfig,
@@ -426,6 +426,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
 	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
 	var shellcheckResources []workflow.ShellScriptResource
+	var workflowValidationResultIndexes []int
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -467,6 +468,7 @@ func compileAllFilesInDirectory(
 			stats.Succeeded++
 			if fileResult.workflowData != nil {
 				workflowDataList = append(workflowDataList, fileResult.workflowData)
+				workflowValidationResultIndexes = append(workflowValidationResultIndexes, len(*validationResults))
 			}
 
 			// Collect lock files for batch security tools
@@ -625,7 +627,7 @@ func compileAllFilesInDirectory(
 	// Emit recommendation when many slash commands are present without centralized strategy.
 	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
 
-	duplicateNameWarnings := appendDuplicateWorkflowNameWarnings(workflowDataList, validationResults)
+	duplicateNameWarnings := appendDuplicateWorkflowNameWarnings(workflowDataList, workflowValidationResultIndexes, validationResults)
 	if !config.JSONOutput {
 		for _, warning := range duplicateNameWarnings {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning.Message))
@@ -678,7 +680,7 @@ func compileAllFilesInDirectory(
 	return workflowDataList, nil
 }
 
-func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowData, validationResults *[]ValidationResult) []ValidationIssue {
+func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowData, validationResultIndexes []int, validationResults *[]ValidationResult) []ValidationIssue {
 	workflowIDsByName := make(map[string][]string)
 	for _, workflowData := range workflowDataList {
 		if workflowData != nil && workflowData.Name != "" {
@@ -699,7 +701,7 @@ func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowDa
 
 	var warnings []ValidationIssue
 	reportedNames := make(map[string]struct{})
-	for _, workflowData := range workflowDataList {
+	for workflowIndex, workflowData := range workflowDataList {
 		if workflowData == nil || workflowData.Name == "" {
 			continue
 		}
@@ -714,11 +716,12 @@ func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowDa
 			reportedNames[workflowData.Name] = struct{}{}
 		}
 
-		for i := range *validationResults {
-			if (*validationResults)[i].Workflow == workflowData.WorkflowID+".md" {
-				(*validationResults)[i].Warnings = append((*validationResults)[i].Warnings, warning)
-				break
-			}
+		if workflowIndex >= len(validationResultIndexes) {
+			continue
+		}
+		resultIndex := validationResultIndexes[workflowIndex]
+		if resultIndex >= 0 && resultIndex < len(*validationResults) {
+			(*validationResults)[resultIndex].Warnings = append((*validationResults)[resultIndex].Warnings, warning)
 		}
 	}
 

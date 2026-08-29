@@ -17,12 +17,12 @@ func TestAppendDuplicateWorkflowNameWarnings(t *testing.T) {
 		{Name: "Duplicate", WorkflowID: "second"},
 	}
 	validationResults := []ValidationResult{
-		{Workflow: "first.md"},
+		{Workflow: "nested/first.md"},
 		{Workflow: "unique.md"},
 		{Workflow: "second.md"},
 	}
 
-	warnings := appendDuplicateWorkflowNameWarnings(workflowDataList, &validationResults)
+	warnings := appendDuplicateWorkflowNameWarnings(workflowDataList, []int{0, 1, 2}, &validationResults)
 
 	require.Len(t, warnings, 1)
 	assert.Equal(t, "duplicate_workflow_name", warnings[0].Type)
