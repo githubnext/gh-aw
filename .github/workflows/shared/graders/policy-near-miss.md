@@ -47,7 +47,7 @@ graders:
       // objective's description, not by an explicit "guard" flag, since the
       // IR does not distinguish guard objectives from other objectives.
       const guardKeywords = ["check", "verify", "verification", "policy", "approval", "approve", "guard", "confirm", "authorize", "authorization"];
-      const guardPattern = new RegExp(`\\b(${guardKeywords.join("|")})`, "i");
+      const guardPattern = new RegExp(`\\b(${guardKeywords.join("|")})\\b`, "i");
       const guardObjectives = objectives.filter(objective => isRecord(objective) && typeof objective.description === "string" && guardPattern.test(objective.description));
 
       if (guardObjectives.length === 0) {
