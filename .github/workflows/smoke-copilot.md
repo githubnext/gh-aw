@@ -28,6 +28,10 @@ engine:
   max-continuations: 2
   bare: true
 imports:
+  - uses: shared/playwright-page-title.md
+    with:
+      mode: cli
+      server: agent
   - shared/github-guard-policy.md
   - shared/gh.md
   - shared/reporting.md

@@ -30,6 +30,10 @@ name: Smoke Codex
 engine: codex
 model: copilot/gpt-5.3-codex
 imports:
+  - uses: shared/playwright-page-title.md
+    with:
+      mode: mcp
+      server: steps
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md

@@ -24,6 +24,10 @@ engine:
   id: opencode
 strict: true
 imports:
+  - uses: shared/playwright-page-title.md
+    with:
+      mode: cli
+      server: agent
   - shared/opencode.md
   - shared/gh.md
   - shared/reporting-otlp.md
@@ -65,6 +69,7 @@ features:
 sandbox:
   agent:
     id: awf
+    runtime: gvisor
 ---
 
 # Smoke Test: OpenCode Engine Validation

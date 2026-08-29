@@ -21,6 +21,7 @@ strict: true
 sandbox:
   agent:
     runtime: docker-sudo-iptables
+    allow-host-ports: [8129]
 services:
   redis:
     image: redis:7
@@ -50,6 +51,10 @@ safe-outputs:
       run-failure: "❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}"
 timeout-minutes: 5
 imports:
+  - uses: shared/playwright-page-title.md
+    with:
+      mode: cli
+      server: steps
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/reporting.md

@@ -38,6 +38,10 @@ engine:
   id: gemini
 strict: true
 imports:
+  - uses: shared/playwright-page-title.md
+    with:
+      mode: cli
+      server: agent
   - shared/reporting-otlp.md
   - shared/otlp.md
   - shared/token-telemetry-check.md

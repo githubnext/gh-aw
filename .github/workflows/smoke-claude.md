@@ -31,6 +31,10 @@ engine:
   bare: true
 inlined-imports: true
 imports:
+  - uses: shared/playwright-page-title.md
+    with:
+      mode: cli
+      server: steps
   - shared/gh.md
   - shared/mcp/tavily.md
   - shared/go-make.md
