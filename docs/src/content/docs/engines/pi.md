@@ -46,6 +46,8 @@ engine:
 
 To authenticate, provide a [`CODEX_API_KEY`](/gh-aw/reference/auth/#openai_api_key) or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) as a GitHub Actions repository secret.
 
+Pi routes `openai/` and `codex/` models through OpenAI's [Responses API](https://developers.openai.com/api/docs/guides/responses-vs-chat-completions) rather than Chat Completions, since OpenAI rejects function tool calls on Chat Completions whenever reasoning is enabled. This matches Pi's own OpenAI model catalog and requires no additional configuration. The Copilot and Anthropic backends are unaffected and keep using their existing wire protocols.
+
 For any provider, recompile the workflow with `gh aw compile` and commit the changes to the repository.
 
 ## Example: scheduled repository report
