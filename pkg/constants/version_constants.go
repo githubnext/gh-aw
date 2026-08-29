@@ -158,6 +158,12 @@ const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 // config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
 const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 
+// AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
+// apiProxy.caCert in awf-config.json (mapped from frontmatter
+// sandbox.agent.ca-cert). Older AWF versions reject the unknown property
+// under strict config validation.
+const AWFAPIProxyCACertMinVersion Version = "v0.28.10"
+
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
 // reproducible, verifiable installs. Each release provides SHA-512 files for

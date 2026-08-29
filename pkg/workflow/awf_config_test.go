@@ -1490,6 +1490,80 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 	})
 }
 
+// TestBuildAWFConfigJSON_APIProxyCACert verifies that sandbox.agent.ca-cert is
+// mapped to apiProxy.caCert and gated to AWF versions that support the field.
+func TestBuildAWFConfigJSON_APIProxyCACert(t *testing.T) {
+	t.Run("apiProxy.caCert is emitted when configured and AWF supports it", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						CACert: "/etc/ssl/certs/internal-ca.pem",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFAPIProxyCACertMinVersion)},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok, "expected apiProxy object")
+		assert.Equal(t, "/etc/ssl/certs/internal-ca.pem", apiProxy["caCert"], "apiProxy.caCert should be emitted from sandbox.agent.ca-cert")
+	})
+
+	t.Run("apiProxy.caCert is not emitted when AWF version does not support it", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						CACert: "/etc/ssl/certs/internal-ca.pem",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.28.9"},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok, "expected apiProxy object")
+		_, hasCACert := apiProxy["caCert"]
+		assert.False(t, hasCACert, "apiProxy should omit caCert when AWF version does not support it")
+	})
+
+	t.Run("apiProxy.caCert is omitted when not configured", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"caCert"`, "apiProxy should omit caCert when not configured")
+	})
+}
+
 func TestExtractModelCostProviders(t *testing.T) {
 	t.Run("returns a cloned providers map", func(t *testing.T) {
 		workflowData := &WorkflowData{
