@@ -154,6 +154,8 @@ func populateAICFromTokenUsageEntries(summary *TokenUsageSummary, entries []Toke
 	var fallbackRecordCount int
 	var invalidCacheSemanticsCount int
 	summary.TotalAIC, fallbackRecordCount, invalidCacheSemanticsCount = applyTokenUsageAICEntries(summary, entries, state.hasReportedFields)
+	// Any valid reported AWF credit field, including an explicit zero, means AIC
+	// data was found and callers must not fall back to repricing other artifacts.
 	summary.AICFound = state.hasValidReportedFields || summary.TotalAIC > 0
 	appendTokenUsageAICWarnings(summary, state, fallbackRecordCount, invalidCacheSemanticsCount)
 }

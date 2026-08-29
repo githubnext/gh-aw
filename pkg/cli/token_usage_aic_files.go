@@ -40,6 +40,9 @@ func sumAICFromUsageJSONLFilesWithWarnings(filePaths []string) (float64, bool, [
 			return 0, false, nil, err
 		}
 		if awfSchemaRecordFound {
+			// Once a file matches the AWF token-usage schema, parse the file as one
+			// AWF stream. Older token-usage records may lack _schema/event but still
+			// belong to the same stream and should share request deduplication.
 			seenAWFRequestIDs = candidateSeenRequestIDs
 			awfEntries = append(awfEntries, entries...)
 			awfDuplicateRecordCount += duplicateRecordCount
