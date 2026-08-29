@@ -344,6 +344,15 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract ca-cert (host path to an additional CA certificate for API proxy
+	// upstream TLS verification; maps to apiProxy.caCert).
+	if caCertVal, hasCACert := agentObj["ca-cert"]; hasCACert {
+		if value, ok := caCertVal.(string); ok {
+			agentConfig.CACert = strings.TrimSpace(value)
+			frontmatterExtractionSecurityLog.Print("Extracted sandbox.agent.ca-cert")
+		}
+	}
+
 	// Extract targets (per-provider API proxy target overrides, e.g. authHeader, extraHeaders)
 	if targetsVal, hasTargets := agentObj["targets"]; hasTargets {
 		if targetsObj, ok := targetsVal.(map[string]any); ok {

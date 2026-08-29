@@ -186,6 +186,48 @@ func TestParseGradersFromFrontmatter_OperationalValueGraderValidation(t *testing
 	}
 }
 
+func TestIsValidOperationalValueEvaluatorRunPath(t *testing.T) {
+	t.Parallel()
+
+	validCases := []string{
+		"evaluator.sh",
+		".github/workflows/graders/test.sh",
+		"./graders/test.sh",
+		"./evaluator.sh",
+		"scripts/nested/evaluator.sh",
+	}
+	for _, tc := range validCases {
+		t.Run("valid_"+tc, func(t *testing.T) {
+			assert.True(t, IsValidOperationalValueEvaluatorRunPath(tc), "expected %q to be valid", tc)
+		})
+	}
+
+	invalidCases := []string{
+		"",
+		"/abs/path.sh",
+		"//evil.com/test.sh",
+		"\\win\\path.sh",
+		"path\\with\\backslash.sh",
+		".",
+		"..",
+		"./",
+		"../test.sh",
+		"./../test.sh",
+		".github/workflows/../secret.sh",
+		".github/workflows//double_slash.sh",
+		"evaluator.js",
+		"evaluator.sh/",
+		"./.",
+		"./..",
+		"./evaluator.js",
+	}
+	for _, tc := range invalidCases {
+		t.Run("invalid_"+tc, func(t *testing.T) {
+			assert.False(t, IsValidOperationalValueEvaluatorRunPath(tc), "expected %q to be invalid", tc)
+		})
+	}
+}
+
 func TestParseGradersFromFrontmatter_RunRejectedForOtherGraders(t *testing.T) {
 	var c Compiler
 	_, err := c.parseGradersFromFrontmatter(map[string]any{

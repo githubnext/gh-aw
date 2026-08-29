@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -55,6 +57,12 @@ func TestValidatePlaywrightMode(t *testing.T) {
 			expectWarn: false,
 		},
 		{
+			name:        "playwright mode expression is rejected",
+			tools:       map[string]any{"playwright": map[string]any{"mode": "${{ inputs.playwright-mode }}"}},
+			expectError: true,
+			errorSubstr: "mode must be a literal value; expressions are not allowed",
+		},
+		{
 			name:       "playwright mcp mode in strict mode warns only",
 			tools:      map[string]any{"playwright": map[string]any{"mode": "mcp"}},
 			strictMode: true,
@@ -88,6 +96,36 @@ func TestValidatePlaywrightMode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCompileWorkflowRejectsPlaywrightModeExpression ensures that a full compile
+// of a workflow with an expression-valued tools.playwright.mode surfaces the
+// field-specific error from validatePlaywrightMode, rather than the generic
+// JSON schema enum error. This guards against the schema's enum constraint
+// preempting the dedicated validator.
+func TestCompileWorkflowRejectsPlaywrightModeExpression(t *testing.T) {
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "test-workflow.md")
+	content := `---
+on: push
+engine: claude
+tools:
+  playwright:
+    mode: ${{ inputs.playwright-mode }}
+---
+
+# Test Workflow
+
+Test playwright mode expression rejection.
+`
+	require.NoError(t, os.WriteFile(mdPath, []byte(content), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(mdPath)
+
+	require.Error(t, err, "expected compilation to fail for expression-valued playwright mode")
+	assert.Contains(t, err.Error(), "tools.playwright.mode")
+	assert.Contains(t, err.Error(), "mode must be a literal value; expressions are not allowed")
 }
 
 // TestValidatePlaywrightModeNilWorkflow ensures no panic on nil/empty input.

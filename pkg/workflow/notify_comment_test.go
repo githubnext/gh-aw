@@ -650,6 +650,30 @@ func TestConclusionJobActionFailureIssueExpiration_DefaultFromRepoConfig(t *test
 	}
 }
 
+func TestConclusionJobActionFailureIssueExpiration_DisabledWhenFailureReportingIsOff(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp:                 &NoOpConfig{},
+			ReportFailureAsIssue: templatableBoolPtr("false"),
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	jobYAML := strings.Join(job.Steps, "")
+	if !strings.Contains(jobYAML, `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"`) {
+		t.Error("Expected disabled action failure issue expiration env var when failure reporting is disabled")
+	}
+}
+
 func TestConclusionJobActionFailureIssueExpiration_UsesAWJSONConfig(t *testing.T) {
 	gitRoot := t.TempDir()
 	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")

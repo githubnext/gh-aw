@@ -1353,6 +1353,23 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "conclusion": {
+                  "description": "Filter by workflow run conclusion (for example, failure). Compiled into a guarded if: condition.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
+                      },
+                      "minItems": 1
+                    }
+                  ]
                 }
               },
               "oneOf": [
@@ -2496,7 +2513,7 @@
       },
       "minItems": 1,
       "uniqueItems": true,
-      "examples": [["github/awesome-copilot/plugins/example@v1"], [{"plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}"}]]
+      "examples": [["github/awesome-copilot/plugins/example@v1"], [{ "plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}" }]]
     },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
@@ -3804,6 +3821,11 @@
                       "description": "Enable or disable API proxy token steering. Set to false to preserve the explicitly configured provider and model.",
                       "examples": [false]
                     },
+                    "ca-cert": {
+                      "type": "string",
+                      "description": "Host path to an additional CA certificate for API proxy upstream TLS verification. The file is bind-mounted read-only into the API proxy sidecar. Maps to apiProxy.caCert; requires AWF v0.28.10 or later.",
+                      "examples": ["/etc/ssl/certs/internal-ca.pem"]
+                    },
                     "runtime": {
                       "type": "string",
                       "description": "Sandbox runtime profile for the agent container. Each value selects one supported security and topology profile: 'docker' (default) runs the agent under Docker with a rootless AWF and network isolation; 'docker-sudo-iptables' runs Docker with a privileged AWF, legacy iptables networking, and host/service access (required for allow-host-ports and GitHub Actions services: connectivity); 'gvisor' runs the agent under gVisor's runsc runtime with strict network isolation; 'docker-sbx' runs the agent inside a Docker sbx KVM microVM (requires DOCKER_PAT and DOCKER_USERNAME secrets and a KVM-capable runner; the compiler handles the required privileged setup); 'cloud-hypervisor' runs the agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu x86_64, sized at 2 vCPUs and 4096 MiB. Omitting runtime is equivalent to 'docker'. gvisor, docker-sbx and cloud-hypervisor are incompatible with runner.topology: arc-dind.",
@@ -4258,7 +4280,7 @@
       "description": "24-hour AI Credits guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
-      "$ref": "#/$defs/templatable_integer",
+      "$ref": "#/$defs/templatable_positive_integer",
       "default": 500,
       "description": "Deprecated legacy alias for AWF invocation cap (`apiProxy.maxRuns`). Use `max-turns` instead. Defaults to 500 when omitted. Supports GitHub Actions expressions.",
       "deprecated": true,
@@ -4749,9 +4771,18 @@
                   }
                 },
                 "mode": {
-                  "type": "string",
-                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
-                  "enum": ["cli", "mcp"]
+                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server. Must be a literal value; GitHub Actions expressions are rejected.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["cli", "mcp"]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "Not allowed at runtime: mode must be a literal 'cli' or 'mcp' value, not a GitHub Actions expression."
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -13208,6 +13239,20 @@
         {
           "type": "integer",
           "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{\\{.*\\}\\}$",
+          "description": "GitHub Actions expression that resolves to an integer at runtime"
+        }
+      ]
+    },
+    "templatable_positive_integer": {
+      "description": "A positive integer value that may also be specified as a GitHub Actions expression string that resolves to an integer at runtime (e.g. '${{ inputs.max-runs }}').",
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1
         },
         {
           "type": "string",
