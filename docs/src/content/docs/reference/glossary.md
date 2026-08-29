@@ -1630,10 +1630,6 @@ A reserved grader that evaluates operational repository outcomes using a reposit
 
 A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. It is not a built-in grader: it is an importable `graders:` fragment in the trajectory graders catalog (`.github/workflows/shared/graders/recurrence-trapping-time.md`) that a workflow opts into via `imports:`. See [Graders Reference](/gh-aw/experimental/trace-graders/) for built-in graders and grader configuration.
 
-### Dashboard Language
-
-A declarative, YAML-based specification language for describing agentic workflow dashboards covering organizations, repositories, runs, experiments, graders, evals, usage, findings, and operational value. A dashboard is composed of built-in pages or custom pages; custom pages use a constrained Vega-inspired model of `source`, optional `data`, `mark`, and `encoding`. The specification defines intrinsic domain semantics, aggregation and filtering rules, provenance and freshness requirements, explicit unavailable-data states, and conformance tests, but not data retrieval, implementation architecture, or rendering technology. See [Dashboard Language Specification](/gh-aw/specs/dashboard-language-specification/).
-
 ## Operational Patterns
 
 Operational patterns (suffixed with "-Ops") are established workflow architectures for common automation scenarios. Each pattern addresses specific use cases with recommended triggers, tools, and safe outputs.
