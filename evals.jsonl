@@ -1771,3 +1771,6 @@
 {"id":"adr-check-performed","question":"Does the agent output confirm that it checked for existing ADRs before deciding on an action?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-29T19:09:48.373Z","runid":"33269954213"}
 {"id":"action-taken","question":"Did the agent add a PR comment, push a draft ADR, or call noop?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-29T19:09:48.373Z","runid":"33269954213"}
 {"id":"decision-justified","question":"Does the agent output explain why an ADR is required or why no ADR gate was triggered for this PR?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-29T19:09:48.373Z","runid":"33269954213"}
+{"id":"adr-check-performed","question":"Does the agent output confirm that it checked for existing ADRs before deciding on an action?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-08-29T20:57:35.066Z","runid":"33274628268"}
+{"id":"action-taken","question":"Did the agent add a PR comment, push a draft ADR, or call noop?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-29T20:57:35.066Z","runid":"33274628268"}
+{"id":"decision-justified","question":"Does the agent output explain why an ADR is required or why no ADR gate was triggered for this PR?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-08-29T20:57:35.066Z","runid":"33274628268"}
