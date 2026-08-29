@@ -238,3 +238,17 @@ Not filed (already well-scoped by original authors, cross-referenced only): #561
 5. Extract `MemoryEntryBase` for `CacheMemoryEntry`/`RepoMemoryEntry`/`DriveMemoryEntry` — Typist #56632 Cluster 4.
 6. Add `SuggestedFixes` to `sortslice`, `trimleftright`, `stringbytesroundtrip`, `regexpcompileinfunction` linters — from #56657.
 7. Tone down cloclo.md `run-failure` "Intermission..." wording — from #56672.
+
+## 2026-08-29 cycle (7 issues filed + 1 comment, baseline #56713, window #56699-56840)
+
+1. Re-file Windows Runner Integration Test 100% failure at `Setup Scripts` step (recurred 1 day after #56502 closed not_planned) — from Agent Job Health Monitor #56744 + Audit Workflows #56739.
+2. Add typed frontmatter field for `on.stop-after` (currently dynamic-map-only extraction) — from Schema Consistency Checker #56834 finding 2.
+3. Add `organization-custom-org-roles`/`organization-custom-repository-roles` to JSON Schema — from #56834 finding 3.
+4. Add validation error/warning for silently-ignored top-level `roles:` field — from #56834 finding 1.
+5. Add an effective timeout to Visual Regression Checker (2 of 3 recent runs hung 1.6-2.0h before failing) — from Audit Workflows #56739 finding 5.
+6. Fix duplicate CLI Commands heading text + add Mermaid diagram fallback description on home page — from Documentation Noob Test Report #56821 items 2, 4.
+7. Correct `scratchpad/metrics-glossary.md` line 283 (Daily Firewall Report window: 7 days → 24 hours) — from Regulatory Report #56732 warning 1.
+
+Comment (not issue): corroborated PR-gate bloc pattern on open #56489 with today's numbers (57/93 failures) and confirmed root-cause mechanism (`shared/pr-review-base.md` → `shared/github-guard-policy.md` min-integrity gate).
+
+Not filed (verified stale/already-fixed, chronic, or self-handled): "frontmatter undefined until mid-page" (stale, #53614 already fixed it), left-nav label mismatch (unverified, dropped for time), GitHub Remote MCP Auth Test toolset gap (chronic, 19th+), `proxy.golang.org` allowlist gaps in #56812 (recognized as recurring class, not independently re-verified this cycle — candidate for next cycle), Daily Max AI Credits driver_exit anomaly (single occurrence, lower priority).

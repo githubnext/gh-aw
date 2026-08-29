@@ -404,3 +404,30 @@
 - Safe Output Health's same-PR concurrent-write-race hypothesis (#56539 WI-3) — 1 occurrence (3-4 workflows in same 23s window), source report itself says needs 1-2 more before confirming; monitoring, not filed.
 - Daily Compiler Quality's `compiler_jobs.go` 787-line split flag (#56516) — chronic pattern, prior partial-scope closures documented in known_patterns.md; not re-filed standalone.
 - ESLint Refiner's own cadence/backlog process note (60 rules, only 18 reviewed) — workflow-internal process observation, not a repo code fix.
+
+## Flagged Items (2026-08-29, cycle window since baseline #56713, 22 new discussions: 56699,56703,56720,56723,56724,56725,56730,56732,56739,56740,56742,56744,56809,56811,56812,56821,56822,56825,56833,56834,56836,56840)
+
+### This cycle's 7 filed issues
+1. Windows Runner Integration Test 100% failure at `Setup Scripts` step, recurred after #56502 closed not_planned — from Agent Job Health Monitor #56744 + Audit Workflows #56739.
+2. `on.stop-after` dynamically parsed with no typed frontmatter field — Schema Consistency Checker #56834 finding 2.
+3. `organization-custom-org-roles`/`organization-custom-repository-roles` missing from JSON Schema — #56834 finding 3.
+4. Top-level `roles:` frontmatter field silently ignored, falls back to defaults with no warning — #56834 finding 1.
+5. Visual Regression Checker lacks a timeout (1.6-2.0h hangs before failing) — Audit Workflows #56739 finding 5.
+6. Docs bundle: duplicate CLI Commands heading text + home page Mermaid diagram lacks fallback description — Documentation Noob Test Report #56821 items 2 and 4.
+7. `scratchpad/metrics-glossary.md` stale "last 7 days" claim for Daily Firewall Report (actual: 24h) — Regulatory Report #56732 warning 1.
+
+### This cycle's 1 comment (not a new issue)
+- Added corroborating evidence + confirmed root-cause pointer (`shared/pr-review-base.md` → `shared/github-guard-policy.md` min-integrity gate) to open issue #56489 (PR-gate bloc), rather than re-filing — 57/93 daily failures this cycle vs. 30/121 previously.
+
+### Declined/deferred this cycle
+- Home-page jargon (safe outputs/sandboxed execution/threat detection undefined) — chronic, already declined via not-planned #46478.
+- "Frontmatter undefined until mid-page" claim from docs-noob-tester (#56821) — verified stale/already-fixed by closed-completed #53614 (confirmed live at `quick-start.mdx:50`); correctly declined rather than re-filed.
+- Left-nav label/slug mismatch (docs-noob-tester #56821 item 3) — not independently verified this cycle, dropped for time, not filed.
+- GitHub Remote MCP Auth Test toolset unavailability (#56836) — chronic, 19th+ occurrence, standing policy, not re-filed.
+- Sergo (#56822) — 0 issues filed by Sergo itself; reported its own `missing_tool` for absent Go/Node disabling Serena LSP tools; no DeepReport action needed.
+- LintMonster (#56809) and ESLint Refiner (#56840) — self-filed their own issues this run (path-join cleanup, shared-state cleanup, `require-getexecoutput-exitcode-check`, `prefer-actions-exec-over-child-process`); no DeepReport action needed.
+- Cache Strategy Analysis (#56720) — already self-filed issues #56715, #56717, #56718, #56719; no DeepReport action needed.
+- Auto-Triage (#56699), Daily Code Metrics baseline (#56703), Daily Team Evolution (#56723), Lockfile Stats (#56724), Copilot PR Prompt Analysis (#56725), Daily Performance Summary (#56730), Detection Analysis (#56740), Observability Coverage single-run access.log gap (#56742, below filing threshold), Firewall Escape Test SECURE (#56825), Issue Arborist parent-issue grouping (#56833) — healthy/informational/self-consolidating, no action needed.
+- `proxy.golang.org`/firewall allowlist gaps named in #56812 — recognized as the same recurring "missing ecosystem network preset" class filed many times before for different workflow sets; did not independently re-verify this cycle's specific named workflows against a still-open issue before the filing ceiling was reached with other candidates — flagged for a future cycle to check.
+- audit-workflows' own repo-memory read-only mount + 53-day gap preamble (#56739) — chronic/environmental, already declined in the 2026-08-25 cycle; not re-filed.
+- Daily Max AI Credits Test driver_exit-not-intentional anomaly (#56739 finding 7) — noted but not filed, single occurrence, lower priority.
