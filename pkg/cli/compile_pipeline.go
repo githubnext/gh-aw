@@ -625,8 +625,15 @@ func compileAllFilesInDirectory(
 	// Emit recommendation when many slash commands are present without centralized strategy.
 	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
 
+	duplicateNameWarnings := appendDuplicateWorkflowNameWarnings(workflowDataList, validationResults)
+	if !config.JSONOutput {
+		for _, warning := range duplicateNameWarnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning.Message))
+		}
+	}
+
 	// Get warning count from compiler
-	stats.Warnings = compiler.GetWarningCount()
+	stats.Warnings = compiler.GetWarningCount() + len(duplicateNameWarnings)
 
 	displayBatchCompilationNotices(compiler, config)
 
@@ -669,6 +676,53 @@ func compileAllFilesInDirectory(
 	}
 
 	return workflowDataList, nil
+}
+
+func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowData, validationResults *[]ValidationResult) []ValidationIssue {
+	workflowIDsByName := make(map[string][]string)
+	for _, workflowData := range workflowDataList {
+		if workflowData != nil && workflowData.Name != "" {
+			workflowIDsByName[workflowData.Name] = append(workflowIDsByName[workflowData.Name], workflowData.WorkflowID)
+		}
+	}
+
+	warningsByName := make(map[string]ValidationIssue)
+	for name, workflowIDs := range workflowIDsByName {
+		if len(workflowIDs) > 1 {
+			slices.Sort(workflowIDs)
+			warningsByName[name] = ValidationIssue{
+				Type:    "duplicate_workflow_name",
+				Message: fmt.Sprintf("Duplicate workflow name %q in %s; GitHub displays them as the same agentic workflow", name, strings.Join(workflowIDs, ", ")),
+			}
+		}
+	}
+
+	var warnings []ValidationIssue
+	reportedNames := make(map[string]struct{})
+	for _, workflowData := range workflowDataList {
+		if workflowData == nil || workflowData.Name == "" {
+			continue
+		}
+
+		warning, duplicate := warningsByName[workflowData.Name]
+		if !duplicate {
+			continue
+		}
+
+		if _, reported := reportedNames[workflowData.Name]; !reported {
+			warnings = append(warnings, warning)
+			reportedNames[workflowData.Name] = struct{}{}
+		}
+
+		for i := range *validationResults {
+			if (*validationResults)[i].Workflow == workflowData.WorkflowID+".md" {
+				(*validationResults)[i].Warnings = append((*validationResults)[i].Warnings, warning)
+				break
+			}
+		}
+	}
+
+	return warnings
 }
 
 func displayBatchCompilationNotices(compiler *workflow.Compiler, config CompileConfig) {
