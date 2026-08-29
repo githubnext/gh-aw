@@ -352,10 +352,11 @@ func TestParseFrontmatterConfigOnStopAfter(t *testing.T) {
 	}
 }
 
-// TestExtractStopAfterFromOnUsesTypedField verifies that extractStopAfterFromOn reads
-// through the same shared parser used to populate the typed field when a cached
-// ParsedFrontmatter is available on workflowData.
-func TestExtractStopAfterFromOnUsesTypedField(t *testing.T) {
+// TestExtractStopAfterFromOnMatchesTypedFieldValue verifies that extractStopAfterFromOn,
+// when given a cached ParsedFrontmatter, returns a value consistent with the typed
+// OnStopAfter field populated by ParseFrontmatterConfig — both derive from the same
+// shared parseOnStopAfterValue helper, so they cannot diverge.
+func TestExtractStopAfterFromOnMatchesTypedFieldValue(t *testing.T) {
 	frontmatter := map[string]any{
 		"on": map[string]any{
 			"workflow_dispatch": nil,
