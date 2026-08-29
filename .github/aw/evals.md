@@ -1,16 +1,10 @@
 ---
-description: Guide for adding BinEval-style binary evaluations to agentic workflows — syntax, question decomposition methodology, result storage, and anti-patterns.
+description: Guide for adding BinEval-style binary evaluations to agentic workflows — syntax, intent-derived question methodology, and anti-patterns.
 ---
 
 # BinEval Evaluations in Agentic Workflows
 
-Each eval is a binary YES/NO question answered by an LLM judge reading the agent's output. Results go to an `evals.jsonl` artifact and a dedicated git branch for historical comparison.
-
----
-
-## How Evals Work
-
-Evals run on the agent output from `safe-outputs`, answering each declared question YES or NO. Results are redacted, uploaded as the `evals.jsonl` artifact, and committed to the `evals/<workflow-id>` branch.
+Use `evals:` with `safe-outputs` to judge whether an agent achieved its intended outcome. Each eval is a binary YES/NO question about observable agent output.
 
 ---
 
@@ -18,7 +12,7 @@ Evals run on the agent output from `safe-outputs`, answering each declared quest
 
 ### Shorthand — plain list
 
-> **Prerequisite:** `agent_output.json` is only included in the agent artifact when `safe-outputs` is also declared. Without it, the evals job runs with no agent context and every question will receive `UNKNOWN`.
+> **Prerequisite:** Declare `safe-outputs:` with `evals:`.
 
 ```yaml
 ---
@@ -40,7 +34,7 @@ Implement the requested change described in ${{ github.event.issue.body }}.
 
 Each entry requires:
 
-- `id` — unique identifier for the question (used as the key in `evals.jsonl`). Must be a non-empty string; no duplicates allowed.
+- `id` — unique, non-empty identifier for the question.
 - `question` — the binary question the LLM judge will answer YES or NO.
 
 ### Extended form — with model and runs-on overrides
@@ -61,8 +55,8 @@ evals:
 **Fields:**
 
 - `questions:` — list of question objects (required in extended form, ≥ 1 entry).
-- `model:` — LLM model for all questions. Use a model alias (`small`, `gpt-4o`) or a full model ID. Defaults to the engine's detection model (typically a small, cost-effective model).
-- `runs-on:` — optional runner override for the evals job. Defaults to `ubuntu-latest` when omitted.
+- `model:` — LLM model for all questions. Use a model alias (`small`, `gpt-4o`) or a full model ID.
+- `runs-on:` — optional runner override.
 
 ---
 
@@ -114,9 +108,9 @@ evals:
   model: gpt-4o   # nuanced questions; override default small model
 ```
 
-### Intent-derived scenarios
+### PromptPex intent and counter-intent scenarios
 
-When a workflow has an `intent:`, load [intent.md](intent.md) during design. Derive positive and adversarial scenario fixtures from its required effects and inverse/no-op conditions. BinEval evaluates one fixture against one `agent_output.json`, so do not put mutually exclusive scenarios into one unconditional question list. Write a scenario-specific question about an observable result per fixture:
+When a workflow has an `intent:`, load [intent.md](intent.md). Derive a positive scenario from each required effect and a counter-intent scenario from each inverse/no-op condition. Write an observable, scenario-specific question for each:
 
 ```yaml
 evals:
@@ -128,87 +122,12 @@ evals:
     question: Does the agent output show that insufficient evidence produced no visible write action?
 ```
 
-If a question is shared across fixtures, state how the provided scenario makes it applicable and return `UNKNOWN` when that scenario was not provided; do not treat missing scenario evidence as `NO`.
+Do not combine mutually exclusive scenarios into one question list. If a question is shared, state its applicability and return `UNKNOWN` when its scenario was not provided—not `NO`.
 
 ### Good question checklist
 
 - ✅ Uses YES = success convention consistently.
 - ✅ Avoids subjective terms ("good", "well-written") unless the question explicitly bounds them ("according to the coding style guide").
-
----
-
-## Result Storage
-
-### Artifact
-
-Each run uploads `evals.jsonl` as the `evals` artifact. Each line is a JSON object:
-
-```json
-{"id":"compiles","question":"Does the generated code compile?","answer":"YES","model":"small","timestamp":"2026-07-15T10:00:00Z","runid":"12345678"}
-```
-
-### Git branch
-
-Results are also committed to `evals/<sanitized-workflow-id>` by the `push_evals_state` job (requires `contents: write`), enabling comparison after artifact expiry.
-
-Read results with:
-
-```bash
-gh aw audit <run-id> --artifacts evals    # downloads evals.jsonl from the run artifact
-gh aw logs <workflow-name> --evals        # filter to runs that contain evals results
-```
-
----
-
-## Required Permissions
-
-All of these are added automatically when `evals:` is declared — no manual configuration needed.
-
-The compiler grants `contents: read` by default, and conditionally adds:
-
-- `copilot-requests: write` — when the workflow uses Copilot API requests.
-- `id-token: write` — when the workflow uses GitHub OIDC authentication or OTLP telemetry.
-
-The `push_evals_state` job that persists results to a git branch always gets `contents: write`.
-
----
-
-## Minimal Working Example
-
-```markdown
----
-description: Triage new issues and apply labels
-on:
-  issues:
-    types: [opened]
-engine: copilot
-permissions:
-  contents: read
-  issues: read
-tools:
-  github:
-    toolsets: [issues]
-safe-outputs:
-  add-labels:
-    allowed: [bug, enhancement, question, needs-triage]
-evals:
-  - id: label_requested
-    question: Does the agent output show that at least one label was requested via a safe-output action?
-  - id: label_in_allowed_set
-    question: Does the agent output show that the requested label belongs to the allowed set (bug, enhancement, question, needs-triage)?
-  - id: no_extra_labels
-    question: Does the agent output show that no more than two labels were requested?
----
-
-Read ${{ github.event.issue.title }} and ${{ github.event.issue.body }}.
-Apply the most appropriate label(s) from the allowed set.
-```
-
-Compile and deploy:
-
-```bash
-gh aw compile issue-triage
-```
 
 ---
 
@@ -219,5 +138,4 @@ gh aw compile issue-triage
 - ❌ **Duplicate IDs** — `id` must be unique within a workflow; the compiler rejects duplicates.
 - ❌ **Empty questions** — both `id` and `question` must be non-empty strings.
 - ❌ **Using a frontier model for all questions** — factual checks are cheap on small models; save larger models for reasoning-heavy questions.
-- ❌ **Removing `evals:` mid-experiment** — breaks historical trend comparisons stored in the `evals/<id>` branch.
-- ❌ **Questions that require tool calls** — the evals engine runs in a network-restricted sandbox with only `bash`. Questions must be answerable from the downloaded agent artifact.
+- ❌ **Questions that require external evidence** — questions must be answerable from agent output alone.
