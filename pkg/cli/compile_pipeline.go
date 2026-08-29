@@ -627,7 +627,10 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 	// Emit recommendation when many slash commands are present without centralized strategy.
 	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
 
-	duplicateNameWarnings := appendDuplicateWorkflowNameWarnings(workflowDataList, workflowValidationResultIndexes, validationResults)
+	duplicateNameWarnings, err := appendDuplicateWorkflowNameWarnings(workflowDataList, workflowValidationResultIndexes, validationResults)
+	if err != nil {
+		return workflowDataList, err
+	}
 	if !config.JSONOutput {
 		for _, warning := range duplicateNameWarnings {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning.Message))
@@ -680,7 +683,7 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 	return workflowDataList, nil
 }
 
-func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowData, validationResultIndexes []int, validationResults *[]ValidationResult) []ValidationIssue {
+func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowData, validationResultIndexes []int, validationResults *[]ValidationResult) ([]ValidationIssue, error) {
 	workflowIDsByName := make(map[string][]string)
 	for _, workflowData := range workflowDataList {
 		if workflowData != nil && workflowData.Name != "" {
@@ -717,15 +720,16 @@ func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowDa
 		}
 
 		if workflowIndex >= len(validationResultIndexes) {
-			continue
+			return nil, fmt.Errorf("missing validation result index for workflow %q", workflowData.WorkflowID)
 		}
 		resultIndex := validationResultIndexes[workflowIndex]
-		if resultIndex >= 0 && resultIndex < len(*validationResults) {
-			(*validationResults)[resultIndex].Warnings = append((*validationResults)[resultIndex].Warnings, warning)
+		if resultIndex < 0 || resultIndex >= len(*validationResults) {
+			return nil, fmt.Errorf("validation result index %d for workflow %q is out of range", resultIndex, workflowData.WorkflowID)
 		}
+		(*validationResults)[resultIndex].Warnings = append((*validationResults)[resultIndex].Warnings, warning)
 	}
 
-	return warnings
+	return warnings, nil
 }
 
 func displayBatchCompilationNotices(compiler *workflow.Compiler, config CompileConfig) {
