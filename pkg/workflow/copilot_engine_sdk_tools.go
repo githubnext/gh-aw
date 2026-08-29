@@ -46,6 +46,9 @@ func isCopilotToolValueEnabled(tools map[string]any, name string) bool {
 
 func isCopilotEditToolEnabled(tools map[string]any, workflowData *WorkflowData) bool {
 	if workflowData != nil {
+		// ExplicitlyDisabledTools is captured before default-tool resolution can
+		// remove edit:false. Keep this guard before drive-memory so an author
+		// can explicitly refuse write/edit tools even when drive-memory is used.
 		if _, explicitlyDisabled := workflowData.ExplicitlyDisabledTools["edit"]; explicitlyDisabled {
 			return false
 		}

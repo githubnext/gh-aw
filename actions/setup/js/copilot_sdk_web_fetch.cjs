@@ -231,19 +231,31 @@ async function executeCopilotSDKWebFetch(input, options = {}) {
 }
 
 /**
+ * Adapter for the SDK Tool<unknown> handler boundary.
+ *
+ * @param {any} input
+ * @param {{fetchImpl?: typeof fetch, env?: NodeJS.ProcessEnv, timeoutMs?: number, maxRedirects?: number}} options
+ * @returns {Promise<string>}
+ */
+function executeCopilotSDKWebFetchToolHandler(input, options) {
+  return executeCopilotSDKWebFetch(input, options);
+}
+
+/**
  * Create the compiler-controlled web_fetch tool. @github/copilot-sdk 1.0.11
  * explicitly supports replacing a same-name built-in through
- * overridesBuiltInTool; failure or removal of that contract is not caught.
+ * overridesBuiltInTool. Assert that defineTool preserves the override contract
+ * so future incompatible SDK changes fail during session initialization.
  *
  * @param {typeof import("@github/copilot-sdk").defineTool} defineTool
  * @param {{fetchImpl?: typeof fetch, env?: NodeJS.ProcessEnv, timeoutMs?: number, maxRedirects?: number}} [options]
- * @returns {import("@github/copilot-sdk").Tool<CopilotSDKWebFetchInput>}
+ * @returns {import("@github/copilot-sdk").Tool<any>}
  */
 function createCopilotSDKWebFetchTool(defineTool, options = {}) {
   if (typeof defineTool !== "function") {
     throw new Error("Copilot SDK defineTool is required to register web_fetch");
   }
-  return defineTool("web_fetch", {
+  const tool = defineTool("web_fetch", {
     description: "Fetch an HTTP or HTTPS URL from inside the AWF-protected agent boundary.",
     parameters: {
       type: "object",
@@ -258,8 +270,12 @@ function createCopilotSDKWebFetchTool(defineTool, options = {}) {
     },
     overridesBuiltInTool: true,
     defer: "never",
-    handler: input => executeCopilotSDKWebFetch(input, options),
+    handler: input => executeCopilotSDKWebFetchToolHandler(input, options),
   });
+  if (!tool || tool.name !== "web_fetch" || tool.overridesBuiltInTool !== true) {
+    throw new Error("Copilot SDK defineTool did not preserve the required web_fetch override contract");
+  }
+  return tool;
 }
 
 module.exports = {

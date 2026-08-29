@@ -159,6 +159,15 @@ describe("buildCopilotSDKSessionToolConfig", () => {
   it("fails closed when required SDK filtering APIs are missing", () => {
     expect(() => buildCopilotSDKSessionToolConfig(validToolConfig(), {})).toThrow("ToolSet and BuiltInTools.Isolated");
   });
+
+  it("fails closed when the SDK does not preserve the web_fetch override contract", () => {
+    expect(() =>
+      buildCopilotSDKSessionToolConfig(validToolConfig(), {
+        ...fakeSDKTools,
+        defineTool: (name, config) => ({ name, ...config, overridesBuiltInTool: false }),
+      })
+    ).toThrow("web_fetch override contract");
+  });
 });
 
 describe("runWithCopilotSDK compiler-owned catalog", () => {
