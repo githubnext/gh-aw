@@ -817,3 +817,18 @@ reasoning each time. Strongly recommend a human maintainer pause/archive/redesig
 this workflow (disposable sandbox target, fixed sub-agent reference, explicit
 re-authorization) rather than have it keep re-deriving the same conclusion daily —
 this is now pure token burn with zero coverage progress.**
+
+## HALTED 2026-08-29 (12th consecutive run) — re-confirmed, no change
+
+Re-checked both blockers before touching any tooling: (1) outer safe-outputs
+policy still explicitly forbids placeholder/probing writes against github/gh-aw
+(this workflow's entire method); (2) available agent types this run were
+claude/Explore/general-purpose/Plan/statusline-setup only — config-simulator
+still absent. Checked today's WIP issue #56824 for steering comments: none
+(comments array empty). No real create_pull_request/push_to_pull_request_branch/
+create_issue calls attempted; next_index left at 216 (unchanged since idx0-215
+sweep, see durable size laws above, still valid reference material). This is
+the 12th identical halt in a row (2026-08-16 through 2026-08-29) — escalating
+the recommendation from prior runs: this workflow should be paused/disabled or
+redesigned to target a disposable sandbox repo, not re-evaluated daily by an
+autonomous agent reaching the same conclusion.
