@@ -66,6 +66,10 @@ describe("parseCopilotSDKToolConfig", () => {
     expect(parseCopilotSDKToolConfig(JSON.stringify(validToolConfig()))).toEqual(validToolConfig());
   });
 
+  it("treats null explicitlyDisabledTools as absent", () => {
+    expect(parseCopilotSDKToolConfig(JSON.stringify({ ...validToolConfig(), explicitlyDisabledTools: null })).explicitlyDisabledTools).toEqual([]);
+  });
+
   it.each([
     ["invalid JSON", "{", "must be valid JSON"],
     ["unsupported version", JSON.stringify({ ...validToolConfig(), version: 2 }), "unsupported"],

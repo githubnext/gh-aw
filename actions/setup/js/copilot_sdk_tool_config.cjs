@@ -150,7 +150,7 @@ function parseCopilotSDKToolConfig(value) {
     permissions: {
       allowedTools,
     },
-    explicitlyDisabledTools: parsed.explicitlyDisabledTools === undefined ? [] : parseStringArray(parsed.explicitlyDisabledTools, "explicitlyDisabledTools"),
+    explicitlyDisabledTools: parsed.explicitlyDisabledTools == null ? [] : parseStringArray(parsed.explicitlyDisabledTools, "explicitlyDisabledTools"),
   };
   validateToolPermissionParity(config);
   return config;

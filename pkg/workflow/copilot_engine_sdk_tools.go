@@ -50,10 +50,11 @@ func isCopilotEditToolEnabled(tools map[string]any, workflowData *WorkflowData) 
 			return false
 		}
 	}
-	if !isCopilotToolValueEnabled(tools, "edit") {
-		if _, configured := tools["edit"]; configured {
-			return false
+	if value, configured := tools["edit"]; configured {
+		if enabled, ok := value.(bool); ok {
+			return enabled
 		}
+		return true
 	}
 	if workflowData != nil && workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0 {
 		return true
