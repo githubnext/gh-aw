@@ -2496,7 +2496,7 @@
       },
       "minItems": 1,
       "uniqueItems": true,
-      "examples": [["github/awesome-copilot/plugins/example@v1"], [{ "plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}" }]]
+      "examples": [["github/awesome-copilot/plugins/example@v1"], [{"plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}"}]]
     },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
