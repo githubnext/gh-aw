@@ -381,7 +381,8 @@ def clean_prompt(text):
     """Extract and clean the task prompt from PR body."""
     bot_footer_patterns = [
         r'<!--\s*gh-aw-agentic-workflow:.*?-->',
-        r'^\s*(?:#+\s*)?(?:\*\*)?PR Sous Chef\b[^\n]*(?:\n[^\n]*){0,8}?Comment\s+/souschef\s+to\s+run\s+again[^\n]*(?:\n[^\n]*){0,3}',
+        r'^\s*(?:#+\s*)?(?:\*\*)?PR Sous Chef\b[^\n]*$',
+        r'^\s*Comment\s+`?/souschef`?\s+to\s+run\s+again[^\n]*$',
     ]
     for pattern in bot_footer_patterns:
         text = re.sub(pattern, ' ', text, flags=re.IGNORECASE | re.DOTALL | re.MULTILINE)
