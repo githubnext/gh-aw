@@ -379,6 +379,13 @@ When an outlier cluster is detected (>=15 PRs and merge rate >=10 points below o
 ```python
 def clean_prompt(text):
     """Extract and clean the task prompt from PR body."""
+    bot_footer_patterns = [
+        r'<!--\s*gh-aw-agentic-workflow:.*?-->',
+        r'(?m)^\s*(?:#+\s*)?(?:\*\*)?PR Sous Chef\b[^\n]*(?:\n[^\n]*){0,8}?Comment\s+/souschef\s+to\s+run\s+again[^\n]*(?:\n[^\n]*){0,3}',
+    ]
+    for pattern in bot_footer_patterns:
+        text = re.sub(pattern, ' ', text, flags=re.IGNORECASE | re.DOTALL)
+
     # Remove markdown code blocks
     text = re.sub(r'```[\s\S]*?```', '', text)
     
