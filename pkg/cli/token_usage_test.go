@@ -184,6 +184,20 @@ func TestParseTokenUsageFile(t *testing.T) {
 		assert.Contains(t, summary.Warnings[0], "invalid input_tokens_include_cache")
 	})
 
+	t.Run("does not warn for invalid cache semantics when reported credits are valid", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage-valid-aic-invalid-cache-semantics")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+		content := `{"provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":1000,"output_tokens":100,"cache_read_tokens":400,"cache_write_tokens":100,"input_tokens_include_cache":"invalid","ai_credits_this_response":0.123,"ai_credits_total":0.123}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
+
+		summary, err := parseTokenUsageFile(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+
+		assert.InDelta(t, 0.123, summary.TotalAIC, 1e-9)
+		assert.Empty(t, summary.Warnings)
+	})
+
 	for _, testCase := range []struct {
 		name               string
 		inputIncludesCache bool
@@ -561,6 +575,25 @@ func TestAnalyzeTokenUsageAICOnly(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, summary)
 		assert.Zero(t, summary.TotalAIC)
+	})
+
+	t.Run("deduplicates mirrored AWF artifacts while summing distinct legacy usage", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-token-usage-aic-only-mirrored-awf-and-legacy")
+		agentDir := filepath.Join(tmpDir, "usage", "agent")
+		detectionDir := filepath.Join(tmpDir, "usage", "detection")
+		require.NoError(t, os.MkdirAll(agentDir, 0o755))
+		require.NoError(t, os.MkdirAll(detectionDir, 0o755))
+		awfRecord := `{"_schema":"token-usage/v0.28.7","event":"token_usage","request_id":"shared-awf","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":10,"output_tokens":1,"ai_credits_this_response":0.2,"ai_credits_total":0.2}`
+		require.NoError(t, os.WriteFile(filepath.Join(agentDir, "token_usage.jsonl"), []byte(awfRecord+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(detectionDir, "mirrored-token-usage.jsonl"), []byte(awfRecord+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "usage", "detection_usage.jsonl"), []byte(`{"ai_credits":0.75}`+"\n"), 0o644))
+
+		summary, err := analyzeTokenUsageAICOnly(tmpDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.InDelta(t, 0.95, summary.TotalAIC, 1e-9)
+		require.Len(t, summary.Warnings, 1)
+		assert.Contains(t, summary.Warnings[0], "duplicate token usage")
 	})
 }
 

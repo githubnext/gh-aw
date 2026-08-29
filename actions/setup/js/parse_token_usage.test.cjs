@@ -582,6 +582,42 @@ describe("parse_token_usage", () => {
       expect(agentUsage.output_tokens).toBe(305);
     });
 
+    test("deduplicates mirrored AWF token usage files before writing agent_usage", async () => {
+      const agentUsageFile = path.join(tmpDir, "agent_usage.json");
+      const fixtureContent = originalReadFileSync(path.join(__dirname, "fixtures", "awf-v0.28.7-aic-token-usage.jsonl"), "utf8");
+
+      fs.existsSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_PATH) return true;
+        if (p === TOKEN_USAGE_AWF_AUDIT_PATH) return false;
+        return originalExistsSync(p);
+      });
+      fs.statSync = vi.fn(p => {
+        if (p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_PATH) return { size: fixtureContent.length };
+        if (p === TOKEN_USAGE_AWF_AUDIT_PATH) return { size: 0 };
+        return originalStatSync(p);
+      });
+      fs.readFileSync = vi.fn((p, enc) => {
+        if (p === TOKEN_USAGE_AUDIT_PATH || p === TOKEN_USAGE_PATH) return fixtureContent;
+        if (p === TOKEN_USAGE_AWF_AUDIT_PATH) return "";
+        return originalReadFileSync(p, enc);
+      });
+      fs.writeFileSync = vi.fn((p, data) => {
+        if (p === AGENT_USAGE_PATH) {
+          originalWriteFileSync(agentUsageFile, data);
+        } else {
+          originalWriteFileSync(p, data);
+        }
+      });
+
+      await main();
+
+      const agentUsage = JSON.parse(originalReadFileSync(agentUsageFile, "utf8"));
+      expect(agentUsage.input_tokens).toBe(39376);
+      expect(agentUsage.output_tokens).toBe(175);
+      expect(agentUsage.ai_credits).toBe(1.03602);
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", "1.03602");
+    });
+
     test("calls setFailed when an error is thrown", async () => {
       fs.existsSync = vi.fn(p => {
         if (p === TOKEN_USAGE_PATH) return true;
