@@ -49,16 +49,18 @@ function parseTimeDeltaForStopAfter(deltaStr) {
 
 /**
  * Resolves a relative stop-time delta (e.g. "+48h") to an absolute Date, relative to baseTime.
+ * Mirrors pkg/workflow/stop_after.go's resolveStopTime: months and days/weeks are applied
+ * together in a single calendar computation (so date-normalization overflow, e.g. Jan 31 + 1mo,
+ * is resolved consistently), then hours are added on top.
  * @param {string} deltaStr
  * @param {Date} baseTime
  */
 function resolveRelativeStopTime(deltaStr, baseTime) {
   const delta = parseTimeDeltaForStopAfter(deltaStr);
-  const result = new Date(baseTime.getTime());
-  result.setUTCMonth(result.getUTCMonth() + delta.months);
-  result.setUTCDate(result.getUTCDate() + delta.weeks * 7 + delta.days);
-  result.setUTCHours(result.getUTCHours() + delta.hours);
-  return result;
+  const totalDays = delta.weeks * 7 + delta.days;
+  return new Date(
+    Date.UTC(baseTime.getUTCFullYear(), baseTime.getUTCMonth() + delta.months, baseTime.getUTCDate() + totalDays, baseTime.getUTCHours() + delta.hours, baseTime.getUTCMinutes(), baseTime.getUTCSeconds(), baseTime.getUTCMilliseconds())
+  );
 }
 
 async function main() {
