@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { parseCopilotSDKToolConfig, buildCopilotSDKSessionToolConfig } = require("./copilot_sdk_tool_config.cjs");
+const { parseCopilotSDKToolConfig, buildCopilotSDKSessionToolConfig, isReservedSDKPermission } = require("./copilot_sdk_tool_config.cjs");
 const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
 
 function validToolConfig(overrides = {}) {
@@ -99,6 +99,17 @@ describe("parseCopilotSDKToolConfig", () => {
       permissions: { allowedTools: ["read", "safeoutputs", "shell", "web_fetch"] },
     });
     expect(() => parseCopilotSDKToolConfig(JSON.stringify(value))).toThrow("explicitly disabled bash");
+  });
+});
+
+describe("isReservedSDKPermission", () => {
+  it("distinguishes built-in SDK permissions from MCP server grants", () => {
+    expect(isReservedSDKPermission("read")).toBe(true);
+    expect(isReservedSDKPermission("read(pkg/**)")).toBe(true);
+    expect(isReservedSDKPermission("shell(git:*)")).toBe(true);
+    expect(isReservedSDKPermission("web_fetch")).toBe(true);
+    expect(isReservedSDKPermission("web_fetch(get)")).toBe(false);
+    expect(isReservedSDKPermission("github")).toBe(false);
   });
 });
 

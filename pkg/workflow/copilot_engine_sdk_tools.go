@@ -80,7 +80,7 @@ func validateCopilotSDKEngineArgs(workflowData *WorkflowData) error {
 }
 
 func isCopilotBashToolEnabled(workflowData *WorkflowData) bool {
-	if workflowData == nil || workflowData.BashDisabled {
+	if workflowData == nil || workflowData.BashDisabled || workflowData.Tools == nil {
 		return false
 	}
 	value, exists := workflowData.Tools["bash"]

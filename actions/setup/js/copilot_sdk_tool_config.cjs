@@ -75,13 +75,24 @@ function parseCapabilities(value) {
 }
 
 /**
+ * Return true for SDK permission entries that are not MCP server grants.
+ * web_fetch is intentionally only supported as an unscoped built-in/custom tool
+ * permission; entries like web_fetch(...) are not part of the compiler contract.
+ *
+ * @param {string} tool
+ * @returns {boolean}
+ */
+function isReservedSDKPermission(tool) {
+  return tool === "read" || tool === "write" || tool === "web_fetch" || tool === "shell" || (tool.startsWith("read(") && tool.endsWith(")")) || (tool.startsWith("shell(") && tool.endsWith(")"));
+}
+
+/**
  * @param {CopilotSDKToolConfig} config
  */
 function validateToolPermissionParity(config) {
   const allowed = new Set(config.permissions.allowedTools);
   const hasShellPermission = config.permissions.allowedTools.some(tool => tool === "shell" || (tool.startsWith("shell(") && tool.endsWith(")")));
-  const reserved = tool => tool === "read" || tool === "write" || tool === "web_fetch" || tool === "shell" || (tool.startsWith("read(") && tool.endsWith(")")) || (tool.startsWith("shell(") && tool.endsWith(")"));
-  const hasMCPPermission = config.permissions.allowedTools.some(tool => !reserved(tool));
+  const hasMCPPermission = config.permissions.allowedTools.some(tool => !isReservedSDKPermission(tool));
 
   if (config.capabilities.bash !== hasShellPermission) {
     throw new Error("SDK tool contract mismatch: bash visibility and shell permissions differ");
@@ -199,6 +210,7 @@ module.exports = {
   COPILOT_SDK_EDIT_BUILTIN_TOOLS,
   parseStringArray,
   parseCapabilities,
+  isReservedSDKPermission,
   validateToolPermissionParity,
   parseCopilotSDKToolConfig,
   buildCopilotSDKSessionToolConfig,
