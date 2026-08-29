@@ -201,6 +201,12 @@ type AWFAPIProxyConfig struct {
 	AllowedModels []string `json:"allowedModels,omitempty"`
 	// DisallowedModels is the explicit denylist policy for model names/patterns.
 	DisallowedModels []string `json:"disallowedModels,omitempty"`
+
+	// CACert is a host path to an additional CA certificate for api-proxy
+	// upstream TLS verification. Maps to frontmatter sandbox.agent.ca-cert.
+	// Only emitted for AWF v0.28.10+ (see AWFAPIProxyCACertMinVersion); older
+	// AWF strict config validation rejects the unknown property.
+	CACert string `json:"caCert,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.

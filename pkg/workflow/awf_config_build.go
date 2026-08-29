@@ -275,6 +275,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("Models policy: %d disallowed model pattern(s)", len(disallowedModels))
 	}
 
+	if caCert := extractAPIProxyCACert(config.WorkflowData); caCert != "" {
+		if awfSupportsAPIProxyCACert(firewallConfig) {
+			apiProxy.CACert = caCert
+			awfConfigLog.Printf("API proxy: caCert configured")
+		} else {
+			awfConfigLog.Printf("Skipping apiProxy.caCert: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAPIProxyCACertMinVersion)
+		}
+	}
+
 	awfConfig.APIProxy = apiProxy
 
 	// ── Container section ─────────────────────────────────────────────────────
@@ -413,6 +422,16 @@ func extractPlatformType(workflowData *WorkflowData) string {
 		return ""
 	}
 	return workflowData.SandboxConfig.Agent.Platform
+}
+
+// extractAPIProxyCACert returns sandbox.agent.ca-cert, the host path to an
+// additional CA certificate for api-proxy upstream TLS verification, or an
+// empty string when unset.
+func extractAPIProxyCACert(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
+		return ""
+	}
+	return workflowData.SandboxConfig.Agent.CACert
 }
 
 // extractModelFallback returns an AWFModelFallbackConfig if the workflow has configured

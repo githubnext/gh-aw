@@ -3821,6 +3821,11 @@
                       "description": "Enable or disable API proxy token steering. Set to false to preserve the explicitly configured provider and model.",
                       "examples": [false]
                     },
+                    "ca-cert": {
+                      "type": "string",
+                      "description": "Host path to an additional CA certificate for API proxy upstream TLS verification. The file is bind-mounted read-only into the API proxy sidecar. Maps to apiProxy.caCert; requires AWF v0.28.10 or later.",
+                      "examples": ["/etc/ssl/certs/internal-ca.pem"]
+                    },
                     "runtime": {
                       "type": "string",
                       "description": "Sandbox runtime profile for the agent container. Each value selects one supported security and topology profile: 'docker' (default) runs the agent under Docker with a rootless AWF and network isolation; 'docker-sudo-iptables' runs Docker with a privileged AWF, legacy iptables networking, and host/service access (required for allow-host-ports and GitHub Actions services: connectivity); 'gvisor' runs the agent under gVisor's runsc runtime with strict network isolation; 'docker-sbx' runs the agent inside a Docker sbx KVM microVM (requires DOCKER_PAT and DOCKER_USERNAME secrets and a KVM-capable runner; the compiler handles the required privileged setup); 'cloud-hypervisor' runs the agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu x86_64, sized at 2 vCPUs and 4096 MiB. Omitting runtime is equivalent to 'docker'. gvisor, docker-sbx and cloud-hypervisor are incompatible with runner.topology: arc-dind.",
