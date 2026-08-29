@@ -1211,18 +1211,22 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SandboxAgentPlatfo
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclusion(t *testing.T) {
 	t.Parallel()
 
-	t.Run("conclusion as string is accepted", func(t *testing.T) {
-		t.Parallel()
-
-		frontmatter := map[string]any{
+	workflowRunFrontmatter := func(conclusion any) map[string]any {
+		return map[string]any{
 			"on": map[string]any{
 				"workflow_run": map[string]any{
 					"workflows":  []any{"CI"},
 					"types":      []any{"completed"},
-					"conclusion": "startup_failure",
+					"conclusion": conclusion,
 				},
 			},
 		}
+	}
+
+	t.Run("conclusion as string is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := workflowRunFrontmatter("startup_failure")
 
 		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-string-test.md"); err != nil {
 			t.Fatalf("expected on.workflow_run.conclusion=startup_failure to pass schema validation, got: %v", err)
@@ -1232,15 +1236,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclus
 	t.Run("conclusion as array is accepted", func(t *testing.T) {
 		t.Parallel()
 
-		frontmatter := map[string]any{
-			"on": map[string]any{
-				"workflow_run": map[string]any{
-					"workflows":  []any{"CI"},
-					"types":      []any{"completed"},
-					"conclusion": []any{"failure", "cancelled"},
-				},
-			},
-		}
+		frontmatter := workflowRunFrontmatter([]any{"failure", "cancelled"})
 
 		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-array-test.md"); err != nil {
 			t.Fatalf("expected on.workflow_run.conclusion (array) to pass schema validation, got: %v", err)
@@ -1250,15 +1246,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclus
 	t.Run("unknown conclusion value is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		frontmatter := map[string]any{
-			"on": map[string]any{
-				"workflow_run": map[string]any{
-					"workflows":  []any{"CI"},
-					"types":      []any{"completed"},
-					"conclusion": []any{"bogus"},
-				},
-			},
-		}
+		frontmatter := workflowRunFrontmatter([]any{"bogus"})
 
 		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-invalid-test.md"); err == nil {
 			t.Fatal("expected on.workflow_run.conclusion with unknown value to fail schema validation")
@@ -1268,15 +1256,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclus
 	t.Run("empty conclusion array is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		frontmatter := map[string]any{
-			"on": map[string]any{
-				"workflow_run": map[string]any{
-					"workflows":  []any{"CI"},
-					"types":      []any{"completed"},
-					"conclusion": []any{},
-				},
-			},
-		}
+		frontmatter := workflowRunFrontmatter([]any{})
 
 		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-empty-test.md"); err == nil {
 			t.Fatal("expected an empty on.workflow_run.conclusion array to fail schema validation")

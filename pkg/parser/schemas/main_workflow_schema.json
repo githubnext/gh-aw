@@ -1355,7 +1355,7 @@
                   }
                 },
                 "conclusion": {
-                  "description": "Filter by workflow run conclusion. Compiled into a guarded if: condition.",
+                  "description": "Filter by workflow run conclusion (for example, failure). Compiled into a guarded if: condition.",
                   "oneOf": [
                     {
                       "type": "string",
