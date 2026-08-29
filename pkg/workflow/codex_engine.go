@@ -462,7 +462,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,
 		"GITHUB_STEP_SUMMARY":          AgentStepSummaryPath,
 		"RUNNER_TEMP":                  "${{ runner.temp }}",
-		"RUST_LOG":                     "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug' || 'warn' }}",
+		"RUST_LOG":                     "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,codex_exec=debug' || 'warn' }}",
 	}
 	if provider == LLMProviderGitHub {
 		copilotToken := llmProviderSecretExpression(provider, workflowData)
