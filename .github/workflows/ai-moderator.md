@@ -37,14 +37,14 @@ imports:
   - shared/reporting.md
   - shared/graders.md
 tools:
-  bash: false
-  cli-proxy: false
+  bash: ["*"]
+  cli-proxy: true
   cache-memory:
     key: spam-tracking-${{ github.repository_owner }}
     retention-days: 1
     allowed-extensions: [".json"]
   github:
-    mode: local
+    mode: gh-proxy
     read-only: true
     toolsets: [default]
     min-integrity: none
@@ -66,7 +66,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: cloud-hypervisor
+    runtime: gvisor
 pre-agent-steps:
   - name: Pre-fetch moderation context
     env:
