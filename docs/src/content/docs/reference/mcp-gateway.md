@@ -609,7 +609,7 @@ The gateway configuration MUST select exactly one of the following mutually excl
 - A gateway configuration MUST specify exactly one of `agentId` or `agentIds`. Specifying both, or neither, MUST be rejected as invalid configuration.
 - `agentId`, when present, MUST be a non-empty string.
 - `agentIds`, when present, MUST be an array containing at least one item, and every item MUST be a non-empty string.
-- When `agentIds` contains multiple entries, the gateway MUST maintain independent DIFC session-label state per matched identifier (see Section 7.2).
+- `agentIds` enables associating multiple agent/session identifiers with one gateway instance in configuration. Runtime authentication and per-identifier DIFC session-state keying are out of scope for this section and are tracked as follow-up work (see Section 7.2).
 
 **Configuration Example (singular)**:
 
@@ -1198,7 +1198,7 @@ Authorization: my-secret-agent-id-12345
 or
 
 ```http
-Authorization: ******
+Authorization: Token my-other-agent-id-67890
 ```
 
 This authentication scheme provides flexibility for different implementation requirements.
@@ -1210,17 +1210,16 @@ When `gateway.agentId` or `gateway.agentIds` is configured, the gateway MUST:
 1. Require `Authorization` header on all RPC requests to `/mcp/{server-name}` and `/close` endpoints
    - The specific format of the Authorization header is implementation-dependent
    - Implementations SHOULD document their expected format
-   - When `agentIds` is configured, the gateway MUST accept an `Authorization` header value matching any configured entry, and MUST key DIFC session state independently per matched identifier
 2. Reject requests with missing or invalid tokens (HTTP 401)
 3. Reject requests with malformed Authorization headers (HTTP 400)
 4. NOT log agent identifiers in plaintext
 
-### 7.3 Optimal Temporary Agent Identifier
+> [!NOTE]
+> This section covers configuration parsing only. Runtime authentication and routing of individual `agentIds` entries to independent DIFC session state is out of scope for this specification and is tracked as follow-up implementation work.
 
-The gateway SHOULD support temporary agent identifiers:
+### 7.3 Temporary Agent Identifiers
 
-1. Generate a random agent identifier on startup if not provided
-2. Include the identifier in stdout configuration output
+A gateway configuration MUST always specify exactly one of `agentId` or `agentIds` (see Section 4.1.3.9); the gateway MUST NOT silently generate an identifier when neither is provided. Callers that need a short-lived identity (for example, an ephemeral session) SHOULD generate their own temporary identifier and supply it as `agentId` before starting the gateway.
 
 ### 7.4 Authentication Exemptions
 

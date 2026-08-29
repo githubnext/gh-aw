@@ -248,7 +248,7 @@
         },
         "agentId": {
           "type": "string",
-          "description": "Single agent/session identifier used for authentication and DIFC session-state keying. When configured, clients must include an 'Authorization' header containing this identifier in all RPC requests. Mutually exclusive with agentIds. Per MCP Gateway Specification section 7.1, the authorization header value is the complete agent identifier. Agent identifiers must not be logged in plaintext per section 7.2.",
+          "description": "Single agent/session identifier used for authentication and DIFC session-state keying. When configured, clients must include an 'Authorization' header conveying this identifier in all RPC requests; the exact header format (e.g. a bare value or a scheme-prefixed value) is implementation-dependent per MCP Gateway Specification section 7.1. Mutually exclusive with agentIds. Agent identifiers must not be logged in plaintext per section 7.2.",
           "minLength": 1
         },
         "agentIds": {

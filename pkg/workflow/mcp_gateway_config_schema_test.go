@@ -171,14 +171,26 @@ func TestMCPGatewayConfigSchemaAgentIdentifiers(t *testing.T) {
 }
 
 // TestMCPGatewayConfigSchemaCopiesStayInSync verifies that every published
-// mcp-gateway-config.schema.json copy defines agentId/agentIds consistently
-// and no longer defines apiKey, even for copies (like docs/public) that embed
-// additional definitions the schema compiler's regex engine cannot compile.
+// mcp-gateway-config.schema.json copy defines agentId/agentIds identically
+// (same minLength/minItems/item type constraints) and enforces the same
+// required/oneOf mutual-exclusion structure, and no longer defines apiKey,
+// even for copies (like docs/public) that embed additional definitions the
+// schema compiler's regex engine cannot compile.
 func TestMCPGatewayConfigSchemaCopiesStayInSync(t *testing.T) {
 	schemaPaths := []string{
 		"schemas/mcp-gateway-config.schema.json",
 		"../../docs/public/schemas/mcp-gateway-config.schema.json",
 	}
+
+	type agentIdentityConstraints struct {
+		AgentID  any `json:"agentId"`
+		AgentIDs any `json:"agentIds"`
+		Required any `json:"required"`
+		OneOf    any `json:"oneOf"`
+	}
+
+	var reference *agentIdentityConstraints
+	var referencePath string
 
 	for _, schemaPath := range schemaPaths {
 		t.Run(schemaPath, func(t *testing.T) {
@@ -199,10 +211,12 @@ func TestMCPGatewayConfigSchemaCopiesStayInSync(t *testing.T) {
 			if _, hasAPIKey := properties["apiKey"]; hasAPIKey {
 				t.Fatal("expected gatewayConfig.properties to no longer define apiKey")
 			}
-			if _, hasAgentID := properties["agentId"]; !hasAgentID {
+			agentID, hasAgentID := properties["agentId"]
+			if !hasAgentID {
 				t.Fatal("expected gatewayConfig.properties to define agentId")
 			}
-			if _, hasAgentIDs := properties["agentIds"]; !hasAgentIDs {
+			agentIDs, hasAgentIDs := properties["agentIds"]
+			if !hasAgentIDs {
 				t.Fatal("expected gatewayConfig.properties to define agentIds")
 			}
 
@@ -222,6 +236,45 @@ func TestMCPGatewayConfigSchemaCopiesStayInSync(t *testing.T) {
 			oneOf, ok := gatewayConfig["oneOf"].([]any)
 			if !ok || len(oneOf) != 2 {
 				t.Fatalf("expected gatewayConfig.oneOf to encode agentId/agentIds mutual exclusion, got %v", gatewayConfig["oneOf"])
+			}
+
+			// Canonicalize via JSON round-trip so map key ordering doesn't
+			// cause spurious mismatches between the two schema copies.
+			canonicalize := func(v any) any {
+				b, err := json.Marshal(v)
+				if err != nil {
+					t.Fatalf("failed to marshal constraint for comparison: %v", err)
+				}
+				var out any
+				if err := json.Unmarshal(b, &out); err != nil {
+					t.Fatalf("failed to unmarshal constraint for comparison: %v", err)
+				}
+				return out
+			}
+
+			constraints := &agentIdentityConstraints{
+				AgentID:  canonicalize(agentID),
+				AgentIDs: canonicalize(agentIDs),
+				Required: canonicalize(required),
+				OneOf:    canonicalize(oneOf),
+			}
+
+			if reference == nil {
+				reference = constraints
+				referencePath = schemaPath
+				return
+			}
+
+			referenceJSON, err := json.Marshal(reference)
+			if err != nil {
+				t.Fatalf("failed to marshal reference constraints: %v", err)
+			}
+			currentJSON, err := json.Marshal(constraints)
+			if err != nil {
+				t.Fatalf("failed to marshal current constraints: %v", err)
+			}
+			if string(referenceJSON) != string(currentJSON) {
+				t.Fatalf("agentId/agentIds constraints in %q do not match %q:\n%s\nvs\n%s", schemaPath, referencePath, currentJSON, referenceJSON)
 			}
 		})
 	}
