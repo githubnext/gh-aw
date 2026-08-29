@@ -439,3 +439,13 @@
 - **[declined, already tracked]** Windows Runner Integration Test recurrence — already open #56848 (filed last cycle).
 - **[declined, already tracked]** Metrics Collector cap/token treadmill — already tracked #56537/#56815.
 - **[declined, already tracked]** Copilot Session Insights completion-rate drop (18% vs 40%) — root cause (missing conversation transcripts, 50th+ consecutive day) already tracked via open #56493.
+
+## Flagged Items (2026-08-29, ~18:29Z cycle, window since 12:37:41Z baseline #56891)
+
+- **[new, filed]** PureLock + Dead Code Removal Agent: 85% of firewall-blocked traffic (383/448) due to missing `github` network ecosystem preset (currently `[defaults, go, node]` on both). Filed as new issue.
+- **[new, filed]** Invalid YAML in `docs/reference/steps-jobs.md` Job Outputs example (frontmatter + prose in one fenced block). Filed as new issue.
+- **[declined, already tracked]** Metrics Collector `push_repo_memory` job failure (#56815) — root cause re-diagnosed this cycle by Agent Performance Report #56893 as unrelated to its old (closed) citation #43292, but already has an open tracking issue. Not re-filed.
+- **[watch, not yet actionable]** AI Moderator persistent `action_required` (8/100 recent runs per #56893) — old root-cause citation #43925 confirmed stale/closed, symptom persists for a different reason not yet diagnosed.
+- **[watch, not yet actionable]** Q workflow quality-gate regression — fix PR #43527 merged Jul 7 but `AR` symptom still present per #56893.
+- **[watch, needs confirmation not fix]** ChatGPT-domain firewall blocks (Ponytail Reviewer, Issue Monster, Daily Max/Credit Limit Tests, 35 combined blocks per #56917) — likely expected engine traffic, not filed pending confirmation of intent.
+- **[declined, standing informational]** 140 unlabeled / 841 unassigned issues per Daily Issues Report #56903 — consistent with prior "no single code fix, backlog only" declines.
