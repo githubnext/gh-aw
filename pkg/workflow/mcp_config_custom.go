@@ -67,8 +67,9 @@ func renderCustomMCPEnvVars(env map[string]string, tomlFormat bool) map[string]s
 	renderedEnv := make(map[string]string, len(env))
 	for envKey, envValue := range env {
 		if tomlFormat {
+			secrets := ExtractSecretsFromValue(envValue)
 			envValue = replaceEnvExpressionsWithPrefixedEnvVars(envValue, "${")
-			envValue = ReplaceSecretsWithShellEnvVars(envValue, ExtractSecretsFromValue(envValue))
+			envValue = ReplaceSecretsWithShellEnvVars(envValue, secrets)
 			envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
 		} else {
 			// For both Copilot and non-Copilot JSON engines, replace all template

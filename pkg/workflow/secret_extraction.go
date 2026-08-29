@@ -179,6 +179,10 @@ func replaceSecretsWithPrefixedEnvVars(value string, secrets map[string]string, 
 	return result
 }
 
+// replaceEnvExpressionsWithPrefixedEnvVars replaces each GitHub Actions env
+// expression occurrence with a shell environment variable reference using the
+// provided prefix (for example, "${" for TOML or "\${" for escaped JSON).
+// Example: "${{ env.SENTRY_HOST || 'sentry.io' }}" -> "${SENTRY_HOST}".
 func replaceEnvExpressionsWithPrefixedEnvVars(value string, prefix string) string {
 	var result strings.Builder
 	start := 0
