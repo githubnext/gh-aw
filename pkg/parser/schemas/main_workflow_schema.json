@@ -4275,7 +4275,7 @@
       "description": "24-hour AI Credits guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
-      "$ref": "#/$defs/templatable_integer",
+      "$ref": "#/$defs/templatable_positive_integer",
       "default": 500,
       "description": "Deprecated legacy alias for AWF invocation cap (`apiProxy.maxRuns`). Use `max-turns` instead. Defaults to 500 when omitted. Supports GitHub Actions expressions.",
       "deprecated": true,
@@ -13225,6 +13225,20 @@
         {
           "type": "integer",
           "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{\\{.*\\}\\}$",
+          "description": "GitHub Actions expression that resolves to an integer at runtime"
+        }
+      ]
+    },
+    "templatable_positive_integer": {
+      "description": "A positive integer value that may also be specified as a GitHub Actions expression string that resolves to an integer at runtime (e.g. '${{ inputs.max-runs }}').",
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1
         },
         {
           "type": "string",
