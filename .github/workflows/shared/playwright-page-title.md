@@ -4,7 +4,7 @@ import-schema:
     type: choice
     options: [cli, mcp]
     default: cli
-    description: "Playwright integration mode: `cli` (playwright-cli on the runner) or `mcp` (deprecated Docker MCP server)"
+    description: "Playwright integration mode: `cli` (playwright-cli on the runner) or `mcp` (legacy Docker MCP server, kept here for matrix coverage only)"
   server:
     type: choice
     options: [agent, steps]
@@ -17,7 +17,7 @@ import-schema:
   expected-title:
     type: string
     default: "gh-aw playwright smoke"
-    description: "Exact `<title>` the browser must read back from the page"
+    description: "Exact `<title>` the browser must read back from the page; must not contain single quotes"
 
 tools:
   playwright:
