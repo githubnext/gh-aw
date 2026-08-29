@@ -663,6 +663,33 @@ func TestSliceToSteps_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestMapToStep_TimeoutMinutesNumericTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		val  any
+		want int
+	}{
+		{"int", 5, 5},
+		{"int64", int64(10), 10},
+		{"uint64", uint64(15), 15},
+		{"float64", float64(20), 20},
+		{"string", "25", 25},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stepMap := map[string]any{
+				"name":            "Test",
+				"run":             "echo test",
+				"timeout-minutes": tt.val,
+			}
+			step, err := MapToStep(stepMap)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, step.TimeoutMinutes)
+		})
+	}
+}
+
 func TestMapToStep_InvalidTypes(t *testing.T) {
 	tests := []struct {
 		name        string
