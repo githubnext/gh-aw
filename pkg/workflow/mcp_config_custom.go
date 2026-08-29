@@ -82,10 +82,11 @@ func renderCustomMCPEnvVars(env map[string]string, tomlFormat bool) map[string]s
 }
 
 func replaceTemplateExpressionsWithShellEnvVars(value string) string {
-	result := ReplaceSecretsWithShellEnvVars(value, ExtractSecretsFromValue(value))
+	result := value
 	for varName, envExpr := range ExtractEnvExpressionsFromValue(value) {
 		result = strings.ReplaceAll(result, envExpr, "${"+varName+"}")
 	}
+	result = ReplaceSecretsWithShellEnvVars(result, ExtractSecretsFromValue(result))
 	return strings.ReplaceAll(result, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
 }
 
