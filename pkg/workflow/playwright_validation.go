@@ -37,9 +37,9 @@ import (
 
 var playwrightValidationLog = logger.New("workflow:playwright_validation")
 
-// validatePlaywrightMode warns when the playwright tool is configured in MCP
-// mode. MCP mode is deprecated; use mode: cli instead for token-efficient,
-// container-free browser automation.
+// validatePlaywrightMode validates that Playwright mode is static, then warns
+// when the tool is configured in MCP mode. MCP mode is deprecated; use mode:
+// cli instead for token-efficient, container-free browser automation.
 func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.Tools == nil {
 		return nil
@@ -48,6 +48,16 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 	playwrightTool, ok := workflowData.Tools["playwright"]
 	if !ok || playwrightTool == false {
 		return nil
+	}
+	if config, ok := playwrightTool.(map[string]any); ok {
+		if mode, ok := config["mode"].(string); ok && hasExpressionMarker(mode) {
+			return NewValidationError(
+				"tools.playwright.mode",
+				mode,
+				"mode must be a literal value; expressions are not allowed",
+				"Set mode to either mcp or cli.",
+			)
+		}
 	}
 
 	if isPlaywrightCLIMode(workflowData.Tools) {

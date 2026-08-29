@@ -55,6 +55,12 @@ func TestValidatePlaywrightMode(t *testing.T) {
 			expectWarn: false,
 		},
 		{
+			name:        "playwright mode expression is rejected",
+			tools:       map[string]any{"playwright": map[string]any{"mode": "${{ inputs.playwright-mode }}"}},
+			expectError: true,
+			errorSubstr: "mode must be a literal value; expressions are not allowed",
+		},
+		{
 			name:       "playwright mcp mode in strict mode warns only",
 			tools:      map[string]any{"playwright": map[string]any{"mode": "mcp"}},
 			strictMode: true,
