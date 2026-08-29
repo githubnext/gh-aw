@@ -14,11 +14,6 @@ import-schema:
     type: number
     default: 8129
     description: "TCP port of the static HTTP server serving the page under test"
-  expected-title:
-    type: string
-    default: "gh-aw playwright smoke"
-    description: "Exact `<title>` the browser must read back from the page; must not contain single quotes"
-
 tools:
   playwright:
     mode: ${{ github.aw.import-inputs.mode }}
@@ -26,7 +21,6 @@ tools:
 network:
   allowed:
     - defaults
-    - node
     - playwright
 
 pre-agent-steps:
@@ -34,7 +28,7 @@ pre-agent-steps:
     env:
       PW_SERVER: "${{ github.aw.import-inputs.server }}"
       PW_PORT: "${{ github.aw.import-inputs.port }}"
-      PW_TITLE: "${{ github.aw.import-inputs.expected-title }}"
+      PW_TITLE: "gh-aw playwright smoke"
     run: |
       if [ "$PW_SERVER" != "steps" ]; then
         echo "Server placement is '$PW_SERVER'; the agent starts the page server itself."
@@ -66,6 +60,17 @@ pre-agent-steps:
       echo "Page server failed to start on port ${PW_PORT}" >&2
       cat /tmp/gh-aw/agent/pw-site-server.log >&2 || true
       exit 1
+post-steps:
+  - name: Stop static page server
+    if: always()
+    run: |
+      if [ -f /tmp/gh-aw/agent/pw-site-server.pid ]; then
+        PID="$(cat /tmp/gh-aw/agent/pw-site-server.pid)"
+        case "$PID" in
+          *[!0-9]*|'') exit 0 ;;
+        esac
+        kill "$PID" 2>/dev/null || true
+      fi
 ---
 
 <!--
@@ -82,7 +87,7 @@ is exercised end to end. Import it with `with:` values, for example:
 
 ## Playwright Page Title Check
 
-Configuration for this run: **mode `${{ github.aw.import-inputs.mode }}`**, **server `${{ github.aw.import-inputs.server }}`**, **port `${{ github.aw.import-inputs.port }}`**, expected title `${{ github.aw.import-inputs.expected-title }}`.
+Configuration for this run: **mode `${{ github.aw.import-inputs.mode }}`**, **server `${{ github.aw.import-inputs.server }}`**, **port `${{ github.aw.import-inputs.port }}`**, expected title `gh-aw playwright smoke`.
 
 Read the page title **with the browser only**. Never use `curl`, `wget`, `web-fetch`, or any other HTTP client to obtain the title — the whole point of this check is the browser stack.
 
@@ -95,7 +100,7 @@ Follow **only** the section matching the `server` value above.
 
   ```bash
   mkdir -p /tmp/gh-aw/agent/pw-site
-  printf '<html><head><title>%s</title></head><body>playwright smoke page</body></html>' '${{ github.aw.import-inputs.expected-title }}' > /tmp/gh-aw/agent/pw-site/index.html
+  printf '<html><head><title>%s</title></head><body>playwright smoke page</body></html>' 'gh-aw playwright smoke' > /tmp/gh-aw/agent/pw-site/index.html
   nohup python3 -m http.server ${{ github.aw.import-inputs.port }} --bind 0.0.0.0 --directory /tmp/gh-aw/agent/pw-site > /tmp/gh-aw/agent/pw-site-server.log 2>&1 &
   PID=$!
   echo "Page server PID: $PID"
@@ -120,4 +125,4 @@ Add one line to your report (issue body, comment, or noop message):
 
 `Playwright title check (mode=${{ github.aw.import-inputs.mode }}, server=${{ github.aw.import-inputs.server }}): ✅|❌ title="<title read>" url=<url that worked>`
 
-Mark it ✅ only when the browser returned exactly `${{ github.aw.import-inputs.expected-title }}`; otherwise mark ❌ and include the browser error. Do not fail the whole run because of this check — report the outcome and continue.
+Mark it ✅ only when the browser returned exactly `gh-aw playwright smoke`; otherwise mark ❌ and include the browser error. Do not fail the whole run because of this check — report the outcome and continue.

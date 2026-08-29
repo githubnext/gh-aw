@@ -39,6 +39,8 @@ network:
     - defaults
     - github
 tools:
+  playwright:
+    mode: cli
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]

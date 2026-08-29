@@ -35,6 +35,7 @@ imports:
     with:
       mode: cli
       server: steps
+      port: 8131
   - shared/gh.md
   - shared/mcp/tavily.md
   - shared/go-make.md
@@ -55,6 +56,8 @@ network:
     - www.gstatic.com
 sandbox:
   agent:
+    runtime: docker-sudo-iptables
+    allow-host-ports: [8131]
     config:
       filesystem:
         allowWrite:

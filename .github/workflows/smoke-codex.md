@@ -34,6 +34,7 @@ imports:
     with:
       mode: mcp
       server: steps
+      port: 8130
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
@@ -103,6 +104,8 @@ features:
 sandbox:
   agent:
     id: awf
+    runtime: docker-sudo-iptables
+    allow-host-ports: [8130]
 ---
 
 # Smoke Test: Codex Engine Validation
