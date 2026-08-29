@@ -10,8 +10,11 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+model: openai/gpt-5.4
 strict: false
-engine: claude
+engine:
+  id: codex
+  model-provider: openai
 network: 
    allowed: [defaults, node, go, "api.github.com", containers]
 imports:

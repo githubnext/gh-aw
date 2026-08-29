@@ -113,6 +113,10 @@ timeout-minutes: 20
 sandbox:
   agent:
     runtime: gvisor
+engine:
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 ---
 
 # Feature Grower

@@ -16,6 +16,10 @@ tools:
     branch-name: memory/copilot-centralization-optimizer
     description: Long-lived centralization trend snapshots and history
     file-glob: ["*.json", "*.jsonl"]
+engine:
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 strict: true
 max-ai-credits: 250
 max-daily-ai-credits: 1000

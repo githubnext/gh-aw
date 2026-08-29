@@ -14,9 +14,10 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-model: gpt-5.4
+model: openai/gpt-5.4
 engine:
-  id: codex
+  id: pi
+  model-provider: openai
 strict: true
 safe-outputs:
   push-to-pull-request-branch:

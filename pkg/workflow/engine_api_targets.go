@@ -302,6 +302,14 @@ func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
 	case *ClaudeEngine:
 		return []string{"api.anthropic.com"}
 	case *CodexEngine:
+		if resolveEngineLLMProvider(data, LLMProviderOpenAI) == LLMProviderGitHub {
+			return []string{
+				"api.enterprise.githubcopilot.com",
+				"api.githubcopilot.com",
+				"api.business.githubcopilot.com",
+				"api.individual.githubcopilot.com",
+			}
+		}
 		return []string{"api.openai.com"}
 	case *GeminiEngine:
 		return []string{DefaultGeminiAPITarget}

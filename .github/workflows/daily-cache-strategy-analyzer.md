@@ -14,9 +14,10 @@ permissions:
   pull-requests: read
   discussions: read
 tracker-id: daily-cache-strategy-analyzer
-model: "${{ needs.activation.outputs.model_size }}"
+model: openai/gpt-5.4
 engine:
-  id: codex
+  id: pi
+  model-provider: openai
 strict: true
 experiments:
   model_size:

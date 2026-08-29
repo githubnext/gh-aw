@@ -4,9 +4,10 @@ emoji: "🎭"
 description: Explores agentic-workflows custom agent behavior by generating software personas and analyzing responses to common automation tasks
 on: daily
 max-daily-ai-credits: 10000
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 permissions:
   contents: read
   actions: read

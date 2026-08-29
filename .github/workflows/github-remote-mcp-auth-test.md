@@ -11,9 +11,11 @@ permissions:
   discussions: read
 
 
-model: gpt-4.1
+  copilot-requests: write
+model: copilot/mai-code-1-flash-picker
 engine:
-  id: copilot
+  id: codex
+  model-provider: github
 tools:
   cli-proxy: true
   github:

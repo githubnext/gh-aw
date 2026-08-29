@@ -12,8 +12,11 @@ permissions:
   issues: read
   actions: read
   pull-requests: read
+  copilot-requests: write
 engine:
-  id: copilot
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 strict: true
 timeout-minutes: 35
 max-turns: 60

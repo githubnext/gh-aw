@@ -28,9 +28,8 @@ experiments:
     start_date: "2026-07-03"
     issue: 43177
 engine:
-  id: claude
-  mcp:
-    tool-timeout: 10m
+  id: codex
+  model-provider: openai
 tools:
   cli-proxy: true
   agentic-workflows:
@@ -68,6 +67,7 @@ evals:
   - id: issues_identified_or_noop
     question: Were issues, missing tools, errors, and improvement opportunities identified, or was noop used when no problems were found?
 
+model: openai/gpt-5.4
 ---
 
 # Agentic Workflow Audit Agent

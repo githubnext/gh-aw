@@ -44,6 +44,10 @@ tools:
     - "*"
 
 timeout-minutes: 45
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 
 
