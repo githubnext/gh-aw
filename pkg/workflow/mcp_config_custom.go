@@ -67,7 +67,9 @@ func renderCustomMCPEnvVars(env map[string]string, tomlFormat bool) map[string]s
 	renderedEnv := make(map[string]string, len(env))
 	for envKey, envValue := range env {
 		if tomlFormat {
-			envValue = replaceTemplateExpressionsWithShellEnvVars(envValue)
+			envValue = replaceEnvExpressionsWithPrefixedEnvVars(envValue, "${")
+			envValue = ReplaceSecretsWithShellEnvVars(envValue, ExtractSecretsFromValue(envValue))
+			envValue = strings.ReplaceAll(envValue, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
 		} else {
 			// For both Copilot and non-Copilot JSON engines, replace all template
 			// expressions with \${VAR} passthrough syntax. This keeps raw secret values
@@ -79,15 +81,6 @@ func renderCustomMCPEnvVars(env map[string]string, tomlFormat bool) map[string]s
 	}
 
 	return renderedEnv
-}
-
-func replaceTemplateExpressionsWithShellEnvVars(value string) string {
-	result := value
-	for varName, envExpr := range ExtractEnvExpressionsFromValue(value) {
-		result = strings.ReplaceAll(result, envExpr, "${"+varName+"}")
-	}
-	result = ReplaceSecretsWithShellEnvVars(result, ExtractSecretsFromValue(result))
-	return strings.ReplaceAll(result, "${{ github.workspace }}", "${GITHUB_WORKSPACE}")
 }
 
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
