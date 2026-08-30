@@ -97,7 +97,7 @@ func TestBuildCopilotSDKToolConfigPreservesTriState(t *testing.T) {
 				"--allow-tool", "github",
 			},
 			capabilities: copilotSDKToolCapabilities{
-				Bash: true, Edit: true, WebFetch: true, WebSearch: true, MCP: true, CLIProxy: true,
+				Bash: true, Edit: true, WebFetch: true, WebSearch: false, MCP: true, CLIProxy: true,
 			},
 			permissions: []string{"github", "read", "shell", "web_fetch", "write"},
 		},
@@ -112,6 +112,25 @@ func TestBuildCopilotSDKToolConfigPreservesTriState(t *testing.T) {
 			capabilities: copilotSDKToolCapabilities{},
 			permissions:  []string{"read"},
 			disabled:     []string{"bash"},
+		},
+		{
+			// Default-tool resolution re-adds a "github" entry for steering issue comments
+			// even when the author explicitly set github: false. The SDK contract must still
+			// honor the explicit refusal and keep MCP/github out of the visible capabilities.
+			name: "explicit github false stays disabled despite steering issue comments re-adding github",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{CopilotSDK: true},
+				Tools: map[string]any{
+					"github": map[string]any{"allowed": []any{"issue_read"}},
+				},
+				ParsedTools: NewTools(map[string]any{
+					"github": map[string]any{"allowed": []any{"issue_read"}},
+				}),
+				ExplicitlyDisabledTools: map[string]struct{}{"github": {}},
+			},
+			capabilities: copilotSDKToolCapabilities{},
+			permissions:  []string{"read"},
+			disabled:     []string{"github"},
 		},
 	}
 

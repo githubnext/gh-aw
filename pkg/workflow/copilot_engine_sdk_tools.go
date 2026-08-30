@@ -113,6 +113,12 @@ func hasCopilotSDKMCPTools(workflowData *WorkflowData) bool {
 		}
 		switch name {
 		case "github":
+			// ExplicitlyDisabledTools is captured before default-tool resolution, which can
+			// re-add a "github" entry (e.g. for steering issue comments) even when the author
+			// explicitly set github: false. Honor the author's explicit refusal here.
+			if _, explicitlyDisabled := workflowData.ExplicitlyDisabledTools["github"]; explicitlyDisabled {
+				continue
+			}
 			return true
 		case "bash", "edit", "web-fetch", "web-search", "playwright",
 			"agentic-workflows", "cache-memory", "drive-memory", "repo-memory",
@@ -156,10 +162,13 @@ func buildCopilotSDKToolConfig(workflowData *WorkflowData, toolArgs []string) co
 	config := copilotSDKToolConfig{
 		Version: copilotSDKToolConfigVersion,
 		Capabilities: copilotSDKToolCapabilities{
-			Bash:      isCopilotBashToolEnabled(workflowData),
-			Edit:      isCopilotEditToolEnabled(tools, workflowData),
-			WebFetch:  isCopilotToolValueEnabled(tools, "web-fetch"),
-			WebSearch: isCopilotToolValueEnabled(tools, "web-search"),
+			Bash:     isCopilotBashToolEnabled(workflowData),
+			Edit:     isCopilotEditToolEnabled(tools, workflowData),
+			WebFetch: isCopilotToolValueEnabled(tools, "web-fetch"),
+			// The Copilot SDK runtime cannot authorize or execute web-search (see
+			// WebSearch: false in copilot_engine.go), so never advertise it as SDK-visible
+			// even if the workflow declares tools.web-search.
+			WebSearch: false,
 			MCP:       hasCopilotSDKMCPTools(workflowData),
 			CLIProxy:  workflowData.ParsedTools != nil && workflowData.ParsedTools.CLIProxy,
 		},
