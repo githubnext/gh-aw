@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-30, ~11:40Z cycle, baseline #57099)
+
+### New pattern: a source discussion's claim that a specific PR "was merged" is a checkable fact, not a summary to trust — verify with `gh pr view`
+Prompt Clustering Analysis #57129 asserted PR #53674 "was itself a merged fix explicitly targeting this exact failure mode" as evidence the container-vuln zero-diff problem was already being addressed. A direct `gh pr view 53674` showed `state: CLOSED, mergedAt: null` — it was closed unmerged — and `gh api repos/.../contents/.github/skills/task-preflight/SKILL.md` returned 404, confirming the file the PR would have added doesn't exist. **Lesson: "PR #N was merged" inside a source report's prose is a specific, cheaply-verifiable claim (one `gh pr view` call) — verify it directly before accepting a report's "already fixed" framing, especially when the report is using it to explain away a metric that looks bad (here: a doubling-volume, flat-merge-rate cluster). This is a sibling lesson to the existing "closed ≠ fixed, check for a linked merged PR" pattern below, but inverted: here the report claimed a fix landed, and it hadn't.**
+
+### Reconfirmed: tracing an "already addressed" claim back through its full issue chain (original → superseded-by → superseded-by) can reveal the chain terminates without ever landing the fix
+#53448 (original container-vuln zero-diff waste report) was closed "outdated, superseded by #55464/#55465" — but neither successor issue actually covers the same problem (#55464 is issue-dedup, #55465 is session-telemetry). The PR that would have fixed the original ask (#53674) was itself closed unmerged. **Lesson: when a chronic-sounding problem traces through 2-3 "closed as superseded" hops, follow every hop to its actual content rather than stopping at the first "already tracked elsewhere" — a chain of supersession can silently drop the original problem if no successor issue actually inherited its scope.**
+
 ## DeepReport Memory (2026-08-30, ~06:37Z cycle, baseline #56945)
 
 ### New pattern: before filing a "missing network preset" issue, check whether the engine already auto-injects those domains regardless of `network.allowed`
