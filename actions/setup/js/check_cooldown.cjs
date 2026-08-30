@@ -42,7 +42,7 @@ function agentJobExecutedGeneratedStep(job, agenticExecutionStepName) {
   if (job?.name !== "agent" || !Array.isArray(job.steps)) {
     return false;
   }
-  return job.steps.some(step => step?.name === agenticExecutionStepName && step.conclusion !== "skipped" && step.started_at);
+  return job.steps.some(step => step?.name === agenticExecutionStepName && step.started_at);
 }
 
 async function main() {
@@ -68,7 +68,11 @@ async function main() {
     let agentJobLookups = 0;
     let hitPageLimit = false;
 
-    while (page <= MAX_WORKFLOW_RUN_PAGES) {
+    while (true) {
+      if (page > MAX_WORKFLOW_RUN_PAGES) {
+        hitPageLimit = true;
+        break;
+      }
       const response = await github.rest.actions.listWorkflowRuns({
         owner,
         repo,
@@ -126,10 +130,6 @@ async function main() {
       }
 
       if (runs.length < perPage) {
-        break;
-      }
-      if (page === MAX_WORKFLOW_RUN_PAGES) {
-        hitPageLimit = true;
         break;
       }
       page++;

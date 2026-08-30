@@ -194,6 +194,19 @@ describe("check_cooldown", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
   });
 
+  it("warns when the run page scan reaches its limit", async () => {
+    mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
+      data: { workflow_runs: Array.from({ length: 100 }, (_, index) => workflowRun(300 + index, 120)) },
+    });
+
+    await checkCooldown.main();
+
+    expect(mockGithub.rest.actions.listWorkflowRuns).toHaveBeenCalledTimes(5);
+    expect(mockGithub.paginate).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("5 workflow run pages"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
+  });
+
   it("fails open when the workflow id cannot be resolved", async () => {
     mockGithub.rest.actions.getWorkflowRun.mockResolvedValue({ data: {} });
 
