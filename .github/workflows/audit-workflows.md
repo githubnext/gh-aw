@@ -82,6 +82,12 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 
 - **Repository**: ${{ github.repository }}
 
+## Report Formatting
+
+- Begin the final discussion with a concise `### Summary` of the key takeaway and recommendations.
+- Use `###` headings for report sections and `####` headings for subsections. Do not use `#` or `##` headings in the report body.
+- Keep critical findings and key metrics visible, and wrap long audit findings, evidence, or logs in `<details><summary><b>View full findings</b></summary>` blocks.
+
 ## 📊 Trend Charts
 
 Generate 2 charts from past 30 days workflow data:
