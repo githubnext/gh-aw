@@ -61,6 +61,12 @@ describe("require-getexecoutput-exitcode-check", () => {
         `async function f() { const run = async () => { const result = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true }); return result; }; const out = await run(); if (out.exitCode !== 0) throw new Error("failed"); }`,
         // returned via implicit arrow callback passed to a helper; caller checks exitCode
         `async function withToken(cb) { return await cb(); } async function f() { const out = await withToken(async () => exec.getExecOutput("git", ["status"], { ignoreReturnCode: true })); if (out.exitCode !== 0) throw new Error("failed"); }`,
+        // destructuring-assignment (not a declaration) includes exitCode
+        `let stdout, exitCode; async function f() { ({ stdout, exitCode } = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true })); }`,
+        // destructuring-assignment with only exitCode
+        `let exitCode; async function f() { ({ exitCode } = await execApi.getExecOutput("git", ["status"], { ignoreReturnCode: true })); }`,
+        // destructuring-assignment with a rest element that could capture exitCode
+        `let rest; async function f() { ({ ...rest } = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true })); console.log(rest.exitCode); }`,
       ],
       invalid: [],
     });
@@ -97,6 +103,11 @@ describe("require-getexecoutput-exitcode-check", () => {
         },
         {
           code: `async function f() { let result; result = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true }); return result.stdout.trim(); }`,
+          errors: [{ messageId: "missingExitCodeCheck" }],
+        },
+        {
+          // destructuring-assignment with exitCode omitted
+          code: `let stdout; async function f() { ({ stdout } = await exec.getExecOutput("git", ["status"], { ignoreReturnCode: true })); }`,
           errors: [{ messageId: "missingExitCodeCheck" }],
         },
         {

@@ -200,6 +200,14 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
         return;
       }
 
+      // ({ stdout, exitCode } = await getExecOutput(...))
+      if (parent.type === AST_NODE_TYPES.AssignmentExpression && parent.right === resultNode && parent.left.type === AST_NODE_TYPES.ObjectPattern) {
+        if (!objectPatternHasExitCode(parent.left)) {
+          context.report({ node: call, messageId: "missingExitCodeCheck" });
+        }
+        return;
+      }
+
       // let result; result = await getExecOutput(...); if (result.exitCode !== 0) ...
       if (parent.type === AST_NODE_TYPES.AssignmentExpression && parent.right === resultNode && parent.left.type === AST_NODE_TYPES.Identifier) {
         const variable = findInUpperScopes(context.sourceCode.getScope(parent), parent.left.name);
