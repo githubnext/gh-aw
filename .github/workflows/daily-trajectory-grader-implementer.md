@@ -9,7 +9,7 @@ description: >
 on:
   schedule: every 30 minutes
   workflow_dispatch:
-  skip-if-match: 'is:pr is:open in:title "[trajectory-grader]"'
+  skip-if-match: 'is:open in:title "[trajectory-grader]"'
 
 imports:
   - shared/graders/state-revisit-probability-rep.md
