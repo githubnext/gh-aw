@@ -709,7 +709,7 @@ function buildExperimentAttributes(assignments) {
 }
 
 /**
- * Build summary attributes and per-result events from deterministic grader output.
+ * Build summary attributes and per-result events from valid deterministic grader output.
  * Free-form grader messages, details, and errors are intentionally excluded because
  * custom graders may derive them from trace content containing sensitive values.
  *
@@ -734,6 +734,7 @@ function buildGraderTelemetry(graderOutput, eventTimeMs) {
     buildAttr("gh-aw.graders.failed", countByStatus("fail")),
     buildAttr("gh-aw.graders.errors", countByStatus("error")),
     buildAttr("gh-aw.graders.unavailable", countByStatus("unavailable")),
+    buildAttr("gh-aw.graders.other", results.length - countByStatus("pass") - countByStatus("fail") - countByStatus("error") - countByStatus("unavailable")),
   ];
   const timeUnixNano = toNanoString(eventTimeMs);
   const events = results.map(result => {
@@ -2374,9 +2375,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  const graderOutput = readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json");
-  const graderTelemetry = buildGraderTelemetry(graderOutput, endMs);
-  attributes.push(...graderTelemetry.attributes);
+  const graderTelemetry = jobName === "agent" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
@@ -2530,6 +2529,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       await sendOTLPToAllEndpoints(endpoints, agentPayload, { skipJSONL: true });
     }
   }
+
+  // Grader results are run-level outcomes. They belong only on the agent job's
+  // conclusion span, rather than its dedicated child span or downstream jobs
+  // which may have downloaded the agent artifact.
+  attributes.push(...graderTelemetry.attributes);
 
   // Only attach token-usage attributes to jobs that actually executed model usage.
   // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on

@@ -415,12 +415,17 @@ describe("trace_graders", () => {
       expect(r.status).toBe("fail");
     });
 
-    it("handles object results from custom scripts", () => {
+    it("uses manifest metadata for object results from custom scripts", () => {
       const r = normalizeResult("test", { value: 42, unit: "ms", severity: "warning", details: "too slow" }, { ...meta, source: "inline" });
       expect(r.value).toBe(42);
-      expect(r.unit).toBe("ms");
+      expect(r.unit).toBe("count");
       expect(r.severity).toBe("warning");
       expect(r.details).toBe("too slow");
+    });
+
+    it("omits an unrecognized custom severity", () => {
+      const r = normalizeResult("test", { value: 42, severity: "sensitive trace content" }, { ...meta, source: "inline" });
+      expect(r.severity).toBeUndefined();
     });
 
     it("handles null result as unavailable", () => {
@@ -572,7 +577,7 @@ describe("trace_graders", () => {
         }
       `;
       const trace = makeTrace({ toolCalls: [{ name: "a" }, { name: "b" }] });
-      const result = runCustomGrader("test", script, trace, meta);
+      const result = runCustomGrader("test", script, trace, { ...meta, unit: "count" });
       expect(result.value).toBe(2);
       expect(result.unit).toBe("count");
     });

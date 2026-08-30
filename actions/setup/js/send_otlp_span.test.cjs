@@ -2645,6 +2645,30 @@ describe("sendJobConclusionSpan", () => {
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
   });
 
+  it("emits graders only on the agent job conclusion span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/agent/graders/grader_results.json") {
+        return JSON.stringify({ results: [{ id: "quality", status: "pass", value: 0.9 }] });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion");
+    process.env.INPUT_JOB_NAME = "conclusion";
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const spans = mockFetch.mock.calls.map(([, request]) => JSON.parse(request.body).resourceSpans[0].scopeSpans[0].spans[0]);
+    expect(spans[0].attributes).toContainEqual(buildAttr("gh-aw.graders.count", 1));
+    expect(spans[0].events).toContainEqual(expect.objectContaining({ name: "grader.result" }));
+    expect(spans[1].attributes.map(attribute => attribute.key)).not.toContain("gh-aw.graders.count");
+    expect((spans[1].events ?? []).map(event => event.name)).not.toContain("grader.result");
+  });
+
   it("emits live episode attributes on conclusion spans from aw_info workflow_call context", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -2693,6 +2717,9 @@ describe("sendJobConclusionSpan", () => {
       if (filePath === "/tmp/gh-aw/agent_output.json") {
         return JSON.stringify({ items: [{ type: "issue" }, { type: "pull_request" }] });
       }
+      if (filePath === "/tmp/gh-aw/agent/graders/grader_results.json") {
+        return JSON.stringify({ results: [{ id: "quality", status: "pass" }] });
+      }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
@@ -2717,6 +2744,9 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
     expect(agentSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
     expect(conclusionSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
+    expect(agentSpan.attributes.map(attribute => attribute.key)).not.toContain("gh-aw.graders.count");
+    expect(conclusionSpan.attributes).toContainEqual(buildAttr("gh-aw.graders.count", 1));
+    expect(conclusionSpan.events).toContainEqual(expect.objectContaining({ name: "grader.result" }));
     const agentKeys = agentSpan.attributes.map(a => a.key);
     const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
     expect(agentKeys).not.toContain("gh-aw.max_ai_credits");
@@ -6479,7 +6509,14 @@ describe("buildGraderTelemetry", () => {
       1700000000000
     );
 
-    expect(telemetry.attributes).toEqual([buildAttr("gh-aw.graders.count", 4), buildAttr("gh-aw.graders.passed", 1), buildAttr("gh-aw.graders.failed", 1), buildAttr("gh-aw.graders.errors", 1), buildAttr("gh-aw.graders.unavailable", 1)]);
+    expect(telemetry.attributes).toEqual([
+      buildAttr("gh-aw.graders.count", 4),
+      buildAttr("gh-aw.graders.passed", 1),
+      buildAttr("gh-aw.graders.failed", 1),
+      buildAttr("gh-aw.graders.errors", 1),
+      buildAttr("gh-aw.graders.unavailable", 1),
+      buildAttr("gh-aw.graders.other", 0),
+    ]);
     expect(telemetry.events).toHaveLength(4);
     expect(telemetry.events[0]).toEqual({
       timeUnixNano: toNanoString(1700000000000),
@@ -6523,6 +6560,11 @@ describe("buildGraderTelemetry", () => {
 
   it.each([null, {}, { results: [] }, { results: [null, {}, { id: "" }] }])("returns empty telemetry for output without valid results", output => {
     expect(buildGraderTelemetry(output, 1)).toEqual({ attributes: [], events: [] });
+  });
+
+  it("counts unrecognized statuses as other", () => {
+    const telemetry = buildGraderTelemetry({ results: [{ id: "skipped", status: "skipped" }] }, 1);
+    expect(telemetry.attributes).toContainEqual(buildAttr("gh-aw.graders.other", 1));
   });
 });
 
