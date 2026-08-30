@@ -64,6 +64,7 @@ describe("check_cooldown", () => {
       runId: 100,
     };
     process.env.GH_AW_COOLDOWN_SECONDS = "3600";
+    process.env.GH_AW_AGENTIC_EXECUTION_STEP_NAME = "Execute GitHub Copilot CLI";
 
     delete require.cache[require.resolve("./check_cooldown.cjs")];
     checkCooldown = require("./check_cooldown.cjs");
@@ -200,6 +201,15 @@ describe("check_cooldown", () => {
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Cannot resolve workflow id"));
+  });
+
+  it("fails open when the generated execution step name is unavailable", async () => {
+    delete process.env.GH_AW_AGENTIC_EXECUTION_STEP_NAME;
+
+    await checkCooldown.main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GH_AW_AGENTIC_EXECUTION_STEP_NAME"));
   });
 
   it("fails open when run history cannot be queried", async () => {

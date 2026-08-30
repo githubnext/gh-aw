@@ -69,6 +69,7 @@ Run after the cooldown.
 
 	assert.Contains(t, lockContent, "Check workflow cooldown")
 	assert.Contains(t, lockContent, `GH_AW_COOLDOWN_SECONDS: "5400"`)
+	assert.Contains(t, lockContent, `GH_AW_AGENTIC_EXECUTION_STEP_NAME: "Execute Claude Code CLI"`)
 	assert.Contains(t, lockContent, "require(path.join(actionsDir, 'check_cooldown.cjs'))")
 	assert.Contains(t, lockContent, "actions: read")
 	assert.Contains(t, lockContent, "steps.check_cooldown.outputs.cooldown_ok == 'true'")
@@ -95,4 +96,18 @@ Run after the cooldown.
 	require.NoError(t, err)
 
 	assert.Contains(t, string(lockBytes), `GH_AW_COOLDOWN_SECONDS: "301"`)
+}
+
+func TestAgenticExecutionStepNameUsesEngineCatalog(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.engineCatalog.Register(&EngineDefinition{
+		ID:        "test-engine",
+		RuntimeID: "copilot",
+		Behaviors: &EngineBehaviorDefinition{
+			Execution: &EngineExecutionDefinition{StepName: "Execute Test Engine"},
+		},
+	})
+
+	assert.Equal(t, "Execute Test Engine", compiler.agenticExecutionStepName(&WorkflowData{AI: "test-engine"}))
+	assert.Equal(t, "Execute GitHub Copilot CLI", compiler.agenticExecutionStepName(&WorkflowData{AI: "copilot"}))
 }

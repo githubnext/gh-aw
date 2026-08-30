@@ -6,7 +6,6 @@ const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 const MAX_WORKFLOW_RUN_PAGES = 5;
 const MAX_AGENT_JOB_LOOKUPS = 50;
-const AGENTIC_EXECUTION_STEP_NAMES = new Set(["Execute GitHub Copilot CLI", "Execute Claude Code CLI", "Execute Codex CLI", "Execute Gemini CLI", "Execute Pi CLI"]);
 
 async function resolveWorkflowId(githubClient, owner, repo, runId) {
   const currentRun = await githubClient.rest.actions.getWorkflowRun({
@@ -31,11 +30,19 @@ function parseRunCompletedAt(run) {
   return { completedAtMs };
 }
 
-function agentJobExecutedGeneratedStep(job) {
+function resolveAgenticExecutionStepName() {
+  const stepName = (process.env.GH_AW_AGENTIC_EXECUTION_STEP_NAME ?? "").trim();
+  if (!stepName) {
+    throw new Error("GH_AW_AGENTIC_EXECUTION_STEP_NAME environment variable is required");
+  }
+  return stepName;
+}
+
+function agentJobExecutedGeneratedStep(job, agenticExecutionStepName) {
   if (job?.name !== "agent" || !Array.isArray(job.steps)) {
     return false;
   }
-  return job.steps.some(step => AGENTIC_EXECUTION_STEP_NAMES.has(step?.name) && step.conclusion !== "skipped" && step.started_at);
+  return job.steps.some(step => step?.name === agenticExecutionStepName && step.conclusion !== "skipped" && step.started_at);
 }
 
 async function main() {
@@ -53,6 +60,7 @@ async function main() {
   try {
     await fetchAndLogRateLimit(github, "check_cooldown_start");
     const workflowId = await resolveWorkflowId(github, owner, repo, runId);
+    const agenticExecutionStepName = resolveAgenticExecutionStepName();
     core.info(`Checking ${cooldownSeconds}-second cooldown for workflow '${workflowId}'`);
 
     let page = 1;
@@ -106,7 +114,7 @@ async function main() {
           filter: "latest",
           per_page: 100,
         });
-        const agentExecuted = jobs.some(agentJobExecutedGeneratedStep);
+        const agentExecuted = jobs.some(job => agentJobExecutedGeneratedStep(job, agenticExecutionStepName));
         if (!agentExecuted) {
           continue;
         }
@@ -139,4 +147,4 @@ async function main() {
   }
 }
 
-module.exports = { agentJobExecutedGeneratedStep, main, parseRunCompletedAt, resolveWorkflowId };
+module.exports = { agentJobExecutedGeneratedStep, main, parseRunCompletedAt, resolveAgenticExecutionStepName, resolveWorkflowId };
