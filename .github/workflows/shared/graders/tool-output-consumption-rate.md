@@ -31,6 +31,8 @@ graders:
           Array.isArray(value.toolCalls) &&
           value.toolCalls.some(isRecord)
         ) ??
+        // Preserve observations-only traces so missing toolCalls is reported
+        // as no tool-originated observations rather than no observations.
         candidates.find(value => Array.isArray(value.observations) && value.observations.some(isRecord)) ??
         candidates.find(value => Array.isArray(value.observations)) ??
         null;
