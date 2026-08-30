@@ -1,3 +1,12 @@
+## Extracted code-quality tasks (2026-08-30, ~06:37Z cycle)
+
+Both from Schema Consistency Check discussion #57077, each verified live against schema/docs/code and deduped via `gh api search/issues` before filing:
+
+1. **Filed**: restrict `organization-projects`/`organization-custom-org-roles` permission schema enum to `["read","none"]` (drop `"write"`) — App-only scopes must be read-only per `docs/src/content/docs/reference/permissions.md:48` and per the sibling `secret-scanning-alerts` field's existing correct enum; verified `pkg/parser/schemas/main_workflow_schema.json` lines ~14962-14970 vs ~14982-14985, and confirmed real runtime effect via `pkg/workflow/permissions.go:59-90` (forwarded as `permission-*` input when minting GitHub App tokens). Root cause: fresh regression from #56851/#56982 schema-completeness fix, which used the wrong enum. Not a duplicate of #56851/#56982 (both closed, different scope).
+2. **Filed**: prefer `client-id` over deprecated `app-id` in generated `github-app` schema examples — same discussion #57077, verified live. Not a duplicate of #26551/#30968/#26605/#35015 (all closed, different scope).
+
+**Declined this cycle** (not code-quality tasks, or judged not independently actionable — see [[flagged_items]] for full reasoning): ChatGPT-domain firewall blocks (#57031, false-positive avoided — codex engine defaults already auto-inject the domains, see [[known_patterns]]); undici module-not-found 9-issue cluster (#57021-#57065/#57070, already fixed by merged PR #57057, expect self-clear); gateway.jsonl MCP telemetry gap (#57002, chronic, 5+ prior closed-without-fix attempts, standing policy requires verified-merged evidence); Daily Code Metrics/Cache Strategy/Team Evolution/Lockfile Stats/Prompt Analysis/Performance Summary/Detection Analysis/Artifacts Usage (all healthy/informational, no action); Sergo #57053 and ESLint Refiner #57086 (both self-filed by their source workflow same run).
+
 ## Extracted code-quality tasks (2026-08-25, ~12:23Z cycle)
 
 All from Typist discussion #55753 (Go type-consistency scan), each verified live against code and deduped via `gh api search/issues` before filing:

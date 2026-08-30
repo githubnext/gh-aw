@@ -1,13 +1,16 @@
-2026-08-29T18:29Z (window since prior briefing #56891, created 2026-08-29T12:37:41Z)
+2026-08-30T06:37Z (window since prior briefing #56945, created 2026-08-29T18:32:48Z)
 
 ## Cycle summary
-- Prior baseline: discussion #56891 ("DeepReport Intelligence Briefing - 2026-08-29 (follow-up)", 12:37:41Z).
-- This cycle's window: ~6 hours elapsed (under the 20h re-baseline threshold), 7 new discussions (56893, 56899, 56903, 56907, 56917, 56927, 56935), all read in full.
+- Prior baseline: discussion #56945 ("DeepReport Intelligence Briefing - 2026-08-29 (follow-up 2)", 18:32:48Z).
+- This cycle's window: ~12 hours elapsed (under the 20h re-baseline threshold), 15 new discussions (56947, 56950, 56958, 56959, 56963, 56964, 56997, 57002, 57031, 57036, 57053, 57070, 57077, 57086, 57090), all read in full.
 - 2 issues filed:
-  1. Add `github` network ecosystem preset to PureLock and Dead Code Removal Agent workflows (network.allowed currently [defaults, go, node] on both — missing github preset, causing 85% of firewall-blocked traffic per #56917).
-  2. Fix invalid YAML in docs/reference/steps-jobs.md Job Outputs example (frontmatter + prose mixed in one fenced yaml block, per #56907 delight report).
-- 0 comments added; 0 duplicates slipped through dedup gate (verified via `gh api search/issues`: steps-jobs.md fix had no prior issue; PureLock/Dead-Code-Removal network fix had no prior issue; Metrics Collector push_repo_memory failure already tracked at #56815, confirmed open, not re-filed).
-- 1 discussion created (this cycle's briefing, "follow-up 2").
-- Thin cycle again — 2/7 filed, consistent with standing "7 is a ceiling not a quota" lesson.
-- Watch items carried forward (not yet independently actionable): AI Moderator persistent action_required (root cause re-diagnosed as stale by Agent Performance Report #56893, needs fresh investigation); Q workflow quality-gate regression (fix PR #43527 merged but symptom persists); ChatGPT-domain firewall blocks (likely expected engine traffic, needs confirmation not a fix); unlabeled/unassigned issue backlog (standing declined-informational item, no single code fix).
+  1. Restrict `organization-projects`/`organization-custom-org-roles` permission schema to read-only (App-only scopes) — Schema Consistency Check #57077 Critical Issue 1, verified live schema/docs/runtime contradiction. Root cause: recent schema-completeness fix (#56851/#56982) added these fields with the wrong (write-permitting) enum instead of the read-only enum `secret-scanning-alerts` already uses.
+  2. Prefer `client-id` over deprecated `app-id` in generated `github-app` schema examples — Schema Consistency Check #57077 Documentation Gap 2, verified live.
+- 0 comments added; 0 duplicates slipped through dedup gate.
+- 1 discussion created (this cycle's briefing).
+- Thin cycle again (2/7 filed) — consistent with standing "7 is a ceiling not a quota" lesson. Most of the 15 discussions were healthy/informational (Daily Code Metrics baseline, Cache Strategy, Team Evolution, Lockfile Stats, Prompt Analysis, Performance Summary, Detection Analysis 0 misconfigured, Observability Coverage 100%, Artifacts Usage) or already self-filed by their source workflow (Sergo #57053, ESLint Refiner #57086).
+- 2 carried-forward watch items resolved this cycle (see [[known_patterns]] for the investigation method):
+  1. ChatGPT-domain firewall blocks (168 total, flagged as "needs confirmation" for 2 cycles) — CONFIRMED non-actionable: `GetDefaultDomainsForEngine` in `pkg/workflow/domains.go` already auto-injects `chatgpt.com`/`api.openai.com`/`openai.com` for all codex-engine workflows regardless of `network.allowed` contents. Remaining blocks are likely the unrelated `ab.chatgpt.com` analytics subdomain, same category as previously-declined Sentry telemetry blocks. Do not re-open without new evidence of a different domain.
+  2. "Cannot find module 'undici'" failure cascade (9 open `[aw] * failed` issues #57021-#57065, flagged by Issue Arborist #57070 as an unparented cluster) — CONFIRMED already fixed: root-cause PR #57057 merged 2026-08-30T05:21:28Z (pinned `undici@6.28.0`); all 9 issues predate the merge (created 02:34Z-04:49Z). Expect auto-clear on next scheduled run; no action needed.
+- Other watch items carried forward (not independently actionable): AI Moderator persistent action_required (needs fresh investigation, see 2026-08-29 note); Q workflow quality-gate regression (fix PR #43527 merged but symptom persists); unlabeled/unassigned issue backlog (standing declined-informational item); chronic `gateway.jsonl` MCP telemetry gap (5+ prior closed-without-fix attempts, #51807 — requires verified-merged evidence before any future closure, do not re-file on report mention alone).
 - Next cycle should treat this as the baseline; cross-check the most recent "DeepReport Intelligence Briefing" discussion's own `createdAt` per the recurring race-condition lesson in known_patterns.md before assuming staleness.

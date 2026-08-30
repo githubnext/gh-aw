@@ -1,3 +1,13 @@
+## Flagged Items (2026-08-30, ~06:37Z cycle, baseline #56945, window since 18:32:48Z, 15 new discussions: 56947,56950,56958,56959,56963,56964,56997,57002,57031,57036,57053,57070,57077,57086,57090)
+
+- **[new, filed]** `organization-projects`/`organization-custom-org-roles` permission schema wrongly allows `write` (App-only scopes must be read-only per docs and per `secret-scanning-alerts`'s existing enum) — Schema Consistency Check #57077, verified live including the runtime App-token-minting forwarding path. Root cause: fresh regression from #56851/#56982 (schema-completeness fix used the wrong enum).
+- **[new, filed]** Generated `github-app` schema examples still feature deprecated `app-id` instead of preferred `client-id` — Schema Consistency Check #57077, verified live.
+- **[declined, false-positive avoided]** ChatGPT-domain firewall blocks (168 total, #57031) — hypothesized missing `codex` network preset across 23 codex-engine workflows; verified live via `pkg/workflow/domains.go` that codex engine defaults are auto-injected regardless of `network.allowed` contents, so no preset gap exists. Not filed. See [[known_patterns]].
+- **[declined, already resolved]** "Cannot find module 'undici'" 9-issue failure cluster (#57021-#57065, flagged unparented by Issue Arborist #57070) — verified root-cause PR #57057 merged 05:21:28Z, all 9 issues predate the merge. No action; expect self-clear.
+- **[declined, chronic]** `gateway.jsonl` MCP telemetry format absent in all 20 sampled runs (Observability Coverage #57002) — 5+ prior closed-without-fix attempts per #51807 ("closed 25+ times, all still broken"); standing policy requires verified-merged evidence before any future closure, not re-filed.
+- **[declined, healthy/informational]** Daily Code Metrics baseline (#56947, 83.8/100 quality, first run), Cache Strategy (#56950, no new threshold breaches), Team Evolution (#56958), Lockfile Statistics (#56959, 297 workflows stable), Copilot PR Prompt Analysis (#56963, conciseness/WIP-framing trends), Daily Performance Summary (#56964, informational backlog watch), Detection Analysis (#56997, 0 misconfigured/319 runs), "copilot was here" smoke test (#57036, chronic Google-domain blocks already declined), Artifacts Usage Report (#57090, CI/CGO sizes modest, prior retention fixes #32389/#32451 already closed) — no action.
+- **[declined, self-filed]** Sergo's `manualpathconcat` 2-op coverage gap (#57053) and ESLint Refiner's 2 rule-quality findings (#57086) — both self-filed by their source workflow same run.
+
 ## Flagged Items (2026-08-28, ~08:xx cycle, true baseline #56580 (memory had gone stale to #56555 again — 2nd+ occurrence of the write-race, see [[known_patterns]]), window #56581-56696, 16 new discussions)
 
 - **[new, filed]** Re-embed `SafeOutputTargetConfig` in remaining 11 safe-output configs — verified live still unfixed after 2 prior "closed" issues; closure was not backed by a merged fix either time. Root cause of re-filing: dedup gate must check linked commit/PR on closed issues, not just state=closed.
@@ -299,6 +309,7 @@
 - **[verified fixed, same-day]** `agenticworkflows logs` stale-data-by-default bug (filed 12:26Z cycle) → merged PR #53719.
 - **[verified fixed, same-day]** pr-triage-agent.md failure-message next-step, ai-credits blog verify-step (both filed 18:23Z cycle) → merged PR #53798, #53797.
 - **[verified fixed, 3rd attempt succeeded]** compiler_safe_outputs_job.go re-decomposition (#53612) → merged PR #53720, after 2 prior stalls (original #50515 auto-expired, then #53612 stalled ~6h before assignment).
+
 - **[declined, already tracked]** Oversized test files — already covered by #53788 from a prior cycle, reconfirmed by today's Daily Code Metrics report, no duplicate.
 - **[declined, already auto-filed]** 3 schedule blind spots (craft, daily-hippo-learn, smoke-ci) — the Agent Job Health workflow auto-filed this itself as #53855.
 - **[declined, too early to judge]** CVE/vulnerability-advisory PR cluster still ~49% success in Copilot PR Prompt Analysis's 30-day trailing window — the fix (#53709) merged same-day this cycle, trailing window hasn't absorbed it yet.
