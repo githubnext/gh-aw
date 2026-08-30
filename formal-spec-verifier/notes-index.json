@@ -100,9 +100,9 @@
     },
     "specs/replace-label-spec.md": {
       "slug": "replace-label-spec",
-      "last_formalized": "2026-08-07-15-46-35",
+      "last_formalized": "2026-08-30-15-28-16",
       "notation": "TLA+ / Z3-style guard conjunction",
-      "predicate_count": 8,
+      "predicate_count": 13,
       "issue_number": null
     },
     "specs/compiler-threat-detection-compliance/README.md": {
