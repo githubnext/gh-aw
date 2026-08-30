@@ -21,3 +21,6 @@
 {"date":"2026-08-29","loop_name":"windows-runner-close-reopen","direction":"improving process, not_planned closure falsified by recurrence but answered with new self-repair workflow same day","evidence":["issue#56502","issue#56848","pr#56667"]}
 {"date":"2026-08-29","loop_name":"cascade-detection-maturing","direction":"improving, first real 10-issue burst correctly auto-grouped instead of scattering as isolated triage items","evidence":["issue#56767"]}
 {"date":"2026-08-29","loop_name":"fleet-health-net-positive","direction":"improving overall per agent-job-health baseline, masks localized chronic regressions","evidence":["discussion#56744"]}
+{"date":"2026-08-30","loop_name":"avenger-self-repair","direction":"stalled, recurring agent-stage failures despite prior hardening","evidence":["run:33268453851","run:33294778348","issue#56694"]}
+{"date":"2026-08-30","loop_name":"code-scanning-fixer-tool-denial-stall","direction":"stalled, recurring agent failure rather than self-healing","evidence":["run:33269490401","run:33297987600"]}
+{"date":"2026-08-30","loop_name":"windows-runner-close-reopen","direction":"partially improving after human intervention, but recurrence remains open","evidence":["pr#56667","issue#56848"]}
