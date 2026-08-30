@@ -141,7 +141,10 @@ function createWebFetchTransport(options) {
     fetch: async (url, init) => {
       const proxyURL = url.protocol === "https:" ? env.HTTPS_PROXY || env.https_proxy || env.HTTP_PROXY || env.http_proxy : env.HTTP_PROXY || env.http_proxy || env.HTTPS_PROXY || env.https_proxy;
       if (!proxyURL) {
-        return globalThis.fetch(url, init);
+        // AWF must observe every web_fetch destination through its proxy. Fail closed
+        // instead of silently issuing an unobserved direct request when the proxy
+        // environment is missing or misconfigured.
+        throw new Error("web_fetch requires an AWF proxy (HTTPS_PROXY/HTTP_PROXY); refusing unobserved direct request");
       }
       let dispatcher = agents.get(proxyURL);
       if (!dispatcher) {
