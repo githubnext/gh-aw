@@ -64,6 +64,13 @@ imports:
 
   - shared/otlp.md
 pre-agent-steps:
+  - name: Checkout agentics workflows
+    uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    with:
+      repository: githubnext/agentics
+      path: .agentics
+      persist-credentials: false
+      sparse-checkout: workflows
   - name: Resolve slide deck PDF
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -105,6 +112,7 @@ pre-agent-steps:
   - name: Install and build docs
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
+      AGENTICS_WORKFLOWS_DIR: ${{ github.workspace }}/.agentics/workflows
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
       npm install

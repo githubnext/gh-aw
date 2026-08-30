@@ -38,6 +38,11 @@
       "version": "v6.1.0",
       "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
     },
+    "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd": {
+      "repo": "actions/checkout",
+      "version": "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+      "sha": "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+    },
     "actions/checkout@v7.0.1": {
       "repo": "actions/checkout",
       "version": "v7.0.1",
