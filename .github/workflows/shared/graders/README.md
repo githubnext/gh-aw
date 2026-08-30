@@ -41,7 +41,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 
 | Rank | Grader ID | Runtime requirement | Status |
 |---|---|---|---|
-| 1 | `policy-near-miss` | Policy/guard predicates | Not started |
+| 1 | `policy-near-miss` | Policy/guard predicates | Implemented |
 | 2 | `skill-constraint-coverage` | Precompiled constraints | Not started |
 | 3 | `exploration-error` | State/task model | Not started |
 | 4 | `exploitation-error` | State/task model | Not started |
