@@ -13,6 +13,7 @@ import (
 )
 
 func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
+	addPackageManifestLog.Printf("Resolving repository package %q (packagePath=%q, host=%q)", repoSpec.RepoSlug, repoSpec.PackagePath, host)
 	owner, repo, err := splitRepositoryPackageSlug(repoSpec.RepoSlug)
 	if err != nil {
 		return nil, err
@@ -165,12 +166,14 @@ func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, 
 
 	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
 	if len(installationSources) == 0 {
+		addPackageManifestLog.Print("No explicit installable paths in manifest, scanning repository for installables")
 		scanned, err := scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		installationSources = packageInstallablesFromSourcePaths(scanned)
 	}
+	addPackageManifestLog.Printf("Resolved %d installable source(s) for package", len(installationSources))
 	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
 		return nil, nil, nil, err
 	}
