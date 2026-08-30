@@ -73,6 +73,12 @@ Operational value is the degree to which the workflow's intended repository outc
 
 Evals and operational value answer different questions. PromptPex evals test whether output follows the intended behavior for representative scenarios; operational value measures whether the intended repository outcome was attained for a real run. When adding an `operational-value` grader, use the `operational-value-designer` skill to freeze the evidence and metric contract.
 
+## Infer Trace Graders from Intent
+
+Select graders that test a concrete risk to achieving the intent; do not enable metrics merely because they are available. Start with the known builtin graders: use `tool-success-rate` and `tool-failure-count` when reliable collection is required; `retries`, `loops`, `execution-step-count`, and `execution-duration` when boundedness or timely escalation matters; `working-set-rebuild-factor` and `context-growth` when repeated context is an attention or cost risk; `trajectory-efficiency` when unnecessary tool churn is a concern; and `artifact-production` only when producing the intended artifacts is itself useful diagnostic evidence.
+
+Then inspect the implemented fragments in [`shared/graders/`](../workflows/shared/graders/README.md). Use `policy-near-miss` for explicit guard or no-op requirements. For intents that require efficient investigation rather than repeated exploration, consider `state-revisit-probability-rep`, `recurrence-rate`, `recurrence-determinism`, `recurrence-laminarity`, or `recurrence-trapping-time`. For intents where varied, non-repetitive investigation is relevant, consider `event-entropy-rate` or `lempel-ziv-trajectory-complexity`. Import only the applicable implemented fragments and ensure their documented trace prerequisites are available. These trace graders diagnose execution behavior; they do not replace scenario evals or the operational-value attainment metric.
+
 ## Preserve Intent on Updates
 
 Read the existing `intent:` before changing an existing workflow. Preserve it for an implementation-only change, including a trigger or output-channel redesign. Reconsider and update it only when the request materially expands, contracts, or otherwise changes the outcome. When it changes, re-derive conditions, architecture, prompt behavior, and evals.
