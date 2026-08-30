@@ -315,7 +315,7 @@ func BuildDefaultSecretValidationStep(workflowData *WorkflowData, secrets []stri
 }
 
 // collectCommonMCPSecrets returns the MCP-related secret names shared across all engines:
-//   - MCP_GATEWAY_API_KEY (when MCP servers are present)
+//   - MCP_GATEWAY_AGENT_ID (when MCP servers are present)
 //   - mcp-scripts secrets (when mcp-scripts feature is enabled)
 //
 // Parameters:
@@ -327,7 +327,7 @@ func collectCommonMCPSecrets(workflowData *WorkflowData) []string {
 	var secrets []string
 
 	if HasMCPServers(workflowData) {
-		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+		secrets = append(secrets, "MCP_GATEWAY_AGENT_ID")
 	}
 
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {

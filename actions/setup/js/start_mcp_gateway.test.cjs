@@ -121,7 +121,7 @@ describe("start_mcp_gateway startup diagnostics", () => {
   });
 
   it("redacts bearer headers and structured credential keys", () => {
-    const sample = ["Authorization: ******", '{"apiKey":"redact-me"}', "token=redact-me"].join("\n");
+    const sample = ["Authorization: ******", '{"agentId":"redact-me"}', "token=redact-me"].join("\n");
     const redacted = redactGatewayDiagnostics(sample);
     expect(redacted).not.toContain("redact-me");
     expect(redacted.match(/\[REDACTED\]/g)).toHaveLength(3);

@@ -1052,9 +1052,9 @@
               "desc": "Port number for the MCP gateway HTTP server (default: 8080)",
               "leaf": true
             },
-            "api-key": {
+            "agent-id": {
               "type": "string",
-              "desc": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)",
+              "desc": "Agent/session identifier for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)",
               "leaf": true
             },
             "domain": {

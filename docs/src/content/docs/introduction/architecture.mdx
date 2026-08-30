@@ -292,7 +292,7 @@ flowchart LR
 5. When supported by an agent, AWF creates a trusted `api-proxy` that routes model traffic on the agent's behalf while keeping that traffic behind AWF's network controls. This proxy should not be treated as a separate caller-authentication boundary for arbitrary code already running inside the agent container.
 
 > [!WARNING]
-> The MCP gateway API key that is mounted into the agent container is not a strong security boundary against a compromised or malicious agent. An agent running arbitrary code may extract the key from process memory, runtime state, or other in-container channels. Treat this key as leaked by design and rely on substrate isolation, network policy, and staged permission separation for security.
+> The MCP gateway agent ID that is mounted into the agent container is not a strong security boundary against a compromised or malicious agent. An agent running arbitrary code may extract the identifier from process memory, runtime state, or other in-container channels. Treat this identifier as leaked by design and rely on substrate isolation, network policy, and staged permission separation for security.
 
 ## MCP Server Sandboxing
 

@@ -27,6 +27,18 @@ func TestExtractAgentSandboxConfigVersion(t *testing.T) {
 	})
 }
 
+func TestExtractMCPGatewayConfigAgentID(t *testing.T) {
+	compiler := &Compiler{}
+
+	config := compiler.extractMCPGatewayConfig(map[string]any{
+		"container": "ghcr.io/github/gh-aw-mcpg",
+		"agent-id":  "configured-agent-id",
+	})
+
+	require.NotNil(t, config, "Should extract MCP gateway config")
+	assert.Equal(t, "configured-agent-id", config.AgentID, "Should extract sandbox.mcp.agent-id")
+}
+
 func TestExtractAgentSandboxConfigPlatform(t *testing.T) {
 	compiler := &Compiler{}
 

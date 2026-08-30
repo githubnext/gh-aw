@@ -89,7 +89,7 @@ features:
 sandbox:
   mcp:
     port: 8080
-    api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
+    agent-id: "${{ secrets.MCP_GATEWAY_AGENT_ID }}"
 ```
 
 ### Combined Configuration

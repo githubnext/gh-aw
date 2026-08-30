@@ -2461,10 +2461,10 @@ sandbox:
     # (optional)
     port: 1
 
-    # API key for authenticating with the MCP gateway (supports ${{ secrets.* }}
-    # syntax)
+    # Agent/session identifier for authenticating with the MCP gateway (supports ${{
+    # secrets.* }} syntax)
     # (optional)
-    api-key: "example-value"
+    agent-id: "example-value"
 
     # Gateway domain for URL generation (default: 'host.docker.internal' when agent is
     # enabled, 'localhost' when disabled)

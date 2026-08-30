@@ -124,7 +124,7 @@ func HandleCustomMCPToolInSwitch(
 //   - mcpTools: Ordered list of MCP tool names to render
 //   - workflowData: Workflow configuration data
 //   - options: JSON MCP config rendering options
-func RenderJSONMCPConfig(
+func RenderJSONMCPConfig( //nolint:largefunc // Existing renderer keeps MCP JSON emission order stable for golden tests.
 	yaml *strings.Builder,
 	tools map[string]any,
 	mcpTools []string,
@@ -194,9 +194,9 @@ func RenderJSONMCPConfig(
 		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
 		fmt.Fprintf(&configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
 		fmt.Fprintf(&configBuilder, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
-		fmt.Fprintf(&configBuilder, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
+		fmt.Fprintf(&configBuilder, "              \"agentId\": \"%s\"", options.GatewayConfig.AgentID)
 
-		// Add optional fields if specified (apiKey always precedes them without a trailing comma)
+		// Add optional fields if specified (agentId always precedes them without a trailing comma)
 		if options.GatewayConfig.PayloadDir != "" {
 			fmt.Fprintf(&configBuilder, ",\n              \"payloadDir\": \"%s\"", options.GatewayConfig.PayloadDir)
 		}
