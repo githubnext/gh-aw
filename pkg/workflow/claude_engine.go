@@ -265,7 +265,10 @@ func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithM
 	// fine-grained control: Bash(git:*), MCP tool prefixes, path-specific tools, etc.
 	allowedTools = e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.DriveMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
 	if len(workflowData.LSP) > 0 {
-		allowedToolsList := strings.Split(allowedTools, ",")
+		var allowedToolsList []string
+		if allowedTools != "" {
+			allowedToolsList = strings.Split(allowedTools, ",")
+		}
 		allowedToolsList = append(allowedToolsList, "LSP")
 		sort.Strings(allowedToolsList)
 		allowedTools = strings.Join(allowedToolsList, ",")
