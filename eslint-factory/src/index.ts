@@ -6,6 +6,7 @@ import { noJsonStringifyErrorRule } from "./rules/no-json-stringify-error";
 import { noJsonStringifyEqualityRule } from "./rules/no-json-stringify-equality";
 import { noJsonStringifySetOrMapRule } from "./rules/no-json-stringify-set-or-map";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
+import { noUnsafeJsdocErrorTypeCastRule } from "./rules/no-unsafe-jsdoc-error-type-cast";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
 import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
 import { preferGetErrorMessageOverStringRule } from "./rules/prefer-get-error-message-over-string";
@@ -73,6 +74,7 @@ const plugin = {
     "no-json-stringify-equality": noJsonStringifyEqualityRule,
     "no-json-stringify-set-or-map": noJsonStringifySetOrMapRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
+    "no-unsafe-jsdoc-error-type-cast": noUnsafeJsdocErrorTypeCastRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
     "prefer-get-error-message": preferGetErrorMessageRule,
     "prefer-get-error-message-over-string": preferGetErrorMessageOverStringRule,

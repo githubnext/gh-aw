@@ -30,6 +30,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
+| [`no-unsafe-jsdoc-error-type-cast`](#no-unsafe-jsdoc-error-type-cast) | Disallow unsafe property access after a JSDoc `@type {Error}` cast of a caught value |
 | [`no-unsafe-promise-catch-error-property`](#no-unsafe-promise-catch-error-property) | Disallow unsafe property access in promise rejection handlers |
 | [`prefer-get-error-message`](#prefer-get-error-message) | Prefer `getErrorMessage(err)` over the inline ternary pattern |
 | [`prefer-core-logging`](#prefer-core-logging) | Prefer `@actions/core` logging over `console.log` / `console.info` / `console.debug` |
@@ -252,6 +253,19 @@ Accepted guards:
 - `typeof err === "object" && err !== null`
 
 Why: JavaScript can throw non-`Error` values, so `err.message` is not always safe.
+
+### `no-unsafe-jsdoc-error-type-cast`
+
+Disallow accessing `.message`, `.stack`, `.code`, `.status`, `.cause`, or `.name` on a variable that was assigned from a caught value via a `/** @type {Error} */` JSDoc-style cast.
+
+```js
+} catch (error) {
+  const err = /** @type {Error} */ error;
+  log(err.message); // unsafe: the cast is compile-time only
+}
+```
+
+Why: a JSDoc type cast only affects the TypeScript checker (via `checkJs`); it has no runtime effect. If the caught value is not actually an `Error` instance (a thrown string, plain object, or `undefined`), the property access silently returns `undefined` instead of failing loudly or being caught by a real runtime guard. Use `getErrorMessage(err)` from `error_helpers.cjs`, or guard with `err instanceof Error`, instead of casting.
 
 ### `no-unsafe-promise-catch-error-property`
 
