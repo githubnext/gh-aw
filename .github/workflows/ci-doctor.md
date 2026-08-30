@@ -6,6 +6,7 @@ on:
     name: ci-doctor
     events: [pull_request]
     strategy: decentralized
+  cooldown: 1h
 
 max-daily-ai-credits: 10000
 permissions:

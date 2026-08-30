@@ -566,6 +566,18 @@ on:
     branches-ignore: []
       # Array of strings
 
+    # Filter by workflow run conclusion (for example, failure). Compiled into a
+    # guarded if: condition.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: string
+    conclusion: "success"
+
+    # Format 2: array
+    conclusion: []
+      # Array items: string
+
   # Release event trigger
   # (optional)
   release:
@@ -1077,6 +1089,13 @@ on:
   # (optional)
   manual-approval: "example-value"
 
+  # Minimum time after the most recent completed workflow run where the agent job
+  # started before another agent run may start. Uses Go duration syntax (for
+  # example, '5m', '1h', or '1h30m'), must be at least 5 minutes, and does not
+  # support GitHub Actions expressions.
+  # (optional)
+  cooldown: "example-value"
+
   # AI reaction to add/remove on triggering item. Scalar form accepts one of: +1,
   # -1, laugh, confused, heart, hooray, rocket, eyes, none. Object form implies
   # enabled reactions and supports optional `issues`, `pull-requests`, and
@@ -1548,10 +1567,11 @@ on:
 
 # ⚠️ Experimental. Agent Plugins to install after the agentic engine. Each GitHub
 # repository reference must include a ref that the compiler resolves to a commit
-# SHA. Using this field emits a compile-time warning.
+# SHA. Using this field emits a compile-time warning. Entries may also be objects
+# to configure per-plugin authentication via github-token or github-app, for
+# installing plugins from private repositories.
 # (optional)
 plugins: []
-  # Array of A plugin repository reference in owner/repository[/path]@ref format
 
 # GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can
 # access during execution. Use the principle of least privilege - only grant the
@@ -2260,6 +2280,12 @@ sandbox:
     # explicitly configured provider and model.
     # (optional)
     token-steering: true
+
+    # Host path to an additional CA certificate for API proxy upstream TLS
+    # verification. The file is bind-mounted read-only into the API proxy sidecar.
+    # Maps to apiProxy.caCert; requires AWF v0.28.10 or later.
+    # (optional)
+    ca-cert: "example-value"
 
     # Sandbox runtime profile for the agent container. Each value selects one
     # supported security and topology profile: 'docker' (default) runs the agent under
@@ -4073,9 +4099,16 @@ tools:
     # Integration mode: 'cli' (recommended) installs @playwright/cli via npm for
     # token-efficient CLI invocations — use playwright-cli commands in bash and
     # localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP
-    # server.
+    # server. Must be a literal value; GitHub Actions expressions are rejected.
     # (optional)
+    # Accepted formats:
+
+    # Format 1: string
     mode: "cli"
+
+    # Format 2: Not allowed at runtime: mode must be a literal 'cli' or 'mcp' value,
+    # not a GitHub Actions expression.
+    mode: "example-value"
 
   # GitHub Agentic Workflows MCP server for workflow introspection and analysis.
   # Provides tools for checking status, compiling workflows, downloading logs, and

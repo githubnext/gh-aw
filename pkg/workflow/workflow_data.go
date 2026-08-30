@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"time"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/logger"
@@ -96,6 +97,7 @@ type WorkflowData struct {
 	AgentImportSpec                string        // Original import specification for agent file (e.g., "owner/repo/path@ref")
 	RepositoryImports              []string      // Repository-only imports (format: "owner/repo@ref") for .github folder merging
 	StopTime                       string
+	Cooldown                       time.Duration                   // minimum time between completed runs that executed the agent job
 	SkipIfMatch                    *SkipIfMatchConfig              // skip-if-match configuration with query and max threshold
 	SkipIfNoMatch                  *SkipIfNoMatchConfig            // skip-if-no-match configuration with query and min threshold
 	SkipIfCheckFailing             *SkipIfCheckFailingConfig       // skip-if-check-failing configuration

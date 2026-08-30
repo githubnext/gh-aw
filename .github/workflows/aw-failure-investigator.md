@@ -3,7 +3,8 @@ emoji: "🔍"
 description: Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes fixed issues, and opens focused fix sub-issues when needed
 on:
   schedule:
-    - cron: "every 6h"
+    - cron: "every 30m"
+  cooldown: 6h
   workflow_dispatch:
 max-daily-ai-credits: 10000
 permissions:
