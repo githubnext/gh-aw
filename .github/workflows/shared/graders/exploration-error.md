@@ -6,8 +6,8 @@ graders:
   # from distinct state_change event refs, falling back to the declared
   # states[] count when no state_change events are recorded. Runs with all
   # objectives satisfied score 0 (no exploration error to attribute). This is
-  # the complement of exploitation-error (not yet implemented), which covers
-  # runs that had enough evidence but failed anyway. Lower is better: fewer
+  # the complement of exploitation-error, which covers runs that had
+  # enough evidence but failed anyway. Lower is better: fewer
   # unmet objectives attributable to insufficient search.
   exploration-error:
     name: Exploration Error
@@ -86,8 +86,8 @@ refs across events[] of kind "state_change"; when no such events are
 recorded it falls back to the declared states[] count. Runs with all
 objectives satisfied score 0 -- there is no exploration error to attribute,
 since exploration failures only apply to failed runs. This is the
-complement of exploitation-error (not yet implemented), which will cover
-runs that had enough evidence but misused it. Reports not-applicable
+complement of exploitation-error, which covers runs that had enough
+evidence but misused it. Reports not-applicable
 (passed: null) when no objectives are declared, or when neither
 state_change events nor declared states are present in the trace.
 -->
