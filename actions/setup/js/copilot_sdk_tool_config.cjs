@@ -76,14 +76,17 @@ function parseCapabilities(value) {
 
 /**
  * Return true for SDK permission entries that are not MCP server grants.
- * web_fetch is intentionally only supported as an unscoped built-in/custom tool
- * permission; entries like web_fetch(...) are not part of the compiler contract.
+ * web_fetch and web_search are intentionally only supported as unscoped
+ * built-in/custom tool permissions; scoped entries like web_fetch(...) are not
+ * part of the compiler contract and are deliberately treated as MCP grants so
+ * validateToolPermissionParity's webFetch check catches them with a clear
+ * "visibility and permissions differ" error instead of silently allowing them.
  *
  * @param {string} tool
  * @returns {boolean}
  */
 function isReservedSDKPermission(tool) {
-  return tool === "read" || tool === "write" || tool === "web_fetch" || tool === "shell" || (tool.startsWith("read(") && tool.endsWith(")")) || (tool.startsWith("shell(") && tool.endsWith(")"));
+  return tool === "read" || tool === "write" || tool === "web_fetch" || tool === "web_search" || tool === "shell" || (tool.startsWith("read(") && tool.endsWith(")")) || (tool.startsWith("shell(") && tool.endsWith(")"));
 }
 
 /**
@@ -103,8 +106,17 @@ function validateToolPermissionParity(config) {
   if (config.capabilities.webFetch !== allowed.has("web_fetch")) {
     throw new Error("SDK tool contract mismatch: web_fetch visibility and permissions differ");
   }
+  if (config.capabilities.webSearch !== allowed.has("web_search")) {
+    throw new Error("SDK tool contract mismatch: web_search visibility and permissions differ");
+  }
   if (!config.capabilities.mcp && hasMCPPermission) {
     throw new Error("SDK tool contract mismatch: MCP permissions exist while MCP visibility is disabled");
+  }
+  // cli-proxy mounts MCP servers as CLI wrapper scripts on PATH; those scripts are
+  // only reachable through the bash builtin, so a cliProxy capability without a
+  // bash capability is an unreachable, misleading contract.
+  if (config.capabilities.cliProxy && !config.capabilities.bash) {
+    throw new Error("SDK tool contract mismatch: cliProxy capability requires bash capability");
   }
   const disabledCapability = new Map([
     ["bash", "bash"],
@@ -188,8 +200,17 @@ function buildCopilotSDKSessionToolConfig(config, sdk, options = {}) {
   availableTools.addBuiltIn(COPILOT_SDK_NEUTRAL_BUILTIN_TOOLS);
   if (config.capabilities.bash) availableTools.addBuiltIn(COPILOT_SDK_SHELL_BUILTIN_TOOLS);
   if (config.capabilities.edit) availableTools.addBuiltIn(COPILOT_SDK_EDIT_BUILTIN_TOOLS);
+  // The compiler currently always emits webSearch: false (the Copilot SDK runtime
+  // cannot authorize/execute web-search); this branch is kept ready for when a
+  // real implementation and permission are wired, guarded by the parity check
+  // above so a stray webSearch: true without a matching permission fails closed.
   if (config.capabilities.webSearch) availableTools.addBuiltIn("web_search");
   if (config.capabilities.mcp) availableTools.addMcp("*");
+  // cliProxy mounts MCP servers as CLI wrapper scripts on PATH; those scripts are
+  // invoked through the bash builtin (already added above when capabilities.bash
+  // is true), so cliProxy needs no separate SDK tool/availableTools entry here.
+  // validateToolPermissionParity enforces that cliProxy can only be true when
+  // bash is also true, so this capability is never silently unreachable.
 
   /** @type {import("@github/copilot-sdk").Tool<any>[]} */
   const tools = [];

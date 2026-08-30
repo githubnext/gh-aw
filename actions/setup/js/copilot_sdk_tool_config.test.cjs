@@ -84,6 +84,7 @@ describe("parseCopilotSDKToolConfig", () => {
     ["bash", { capabilities: { bash: true }, permissions: { allowedTools: ["read", "safeoutputs", "web_fetch"] } }, "bash visibility"],
     ["edit", { capabilities: { edit: true }, permissions: { allowedTools: ["read", "safeoutputs", "web_fetch"] } }, "edit visibility"],
     ["web_fetch", { capabilities: { webFetch: false }, permissions: { allowedTools: ["read", "safeoutputs", "web_fetch"] } }, "web_fetch visibility"],
+    ["web_search", { capabilities: { webSearch: true }, permissions: { allowedTools: ["read", "safeoutputs", "web_fetch"] } }, "web_search visibility"],
     ["MCP", { capabilities: { mcp: false }, permissions: { allowedTools: ["read", "safeoutputs", "web_fetch"] } }, "MCP permissions"],
   ])("rejects %s catalog/permission drift", (_name, partial, message) => {
     const value = validToolConfig({
@@ -100,6 +101,22 @@ describe("parseCopilotSDKToolConfig", () => {
     });
     expect(() => parseCopilotSDKToolConfig(JSON.stringify(value))).toThrow("explicitly disabled bash");
   });
+
+  it("rejects cliProxy visibility without a matching bash capability", () => {
+    const value = validToolConfig({
+      capabilities: { ...validToolConfig().capabilities, cliProxy: true },
+    });
+    expect(() => parseCopilotSDKToolConfig(JSON.stringify(value))).toThrow("cliProxy capability requires bash capability");
+  });
+
+  it("accepts cliProxy visibility when bash capability is also present", () => {
+    const value = validToolConfig({
+      capabilities: { ...validToolConfig().capabilities, bash: true, cliProxy: true },
+      permissions: { allowedTools: ["read", "safeoutputs", "shell", "web_fetch"] },
+      explicitlyDisabledTools: ["edit"],
+    });
+    expect(() => parseCopilotSDKToolConfig(JSON.stringify(value))).not.toThrow();
+  });
 });
 
 describe("isReservedSDKPermission", () => {
@@ -109,6 +126,7 @@ describe("isReservedSDKPermission", () => {
     expect(isReservedSDKPermission("shell(git:*)")).toBe(true);
     expect(isReservedSDKPermission("web_fetch")).toBe(true);
     expect(isReservedSDKPermission("web_fetch(get)")).toBe(false);
+    expect(isReservedSDKPermission("web_search")).toBe(true);
     expect(isReservedSDKPermission("github")).toBe(false);
   });
 });
@@ -150,6 +168,20 @@ describe("buildCopilotSDKSessionToolConfig", () => {
     });
     const config = buildCopilotSDKSessionToolConfig(toolConfig, fakeSDKTools);
     expect(config.availableTools.toArray()).toEqual(expect.arrayContaining(["builtin:bash", "builtin:read_bash", "builtin:stop_bash", "builtin:list_bash"]));
+  });
+
+  it("admits web_search only when the webSearch capability is enabled", () => {
+    const toolConfig = validToolConfig({
+      capabilities: { ...validToolConfig().capabilities, webSearch: true },
+      permissions: { allowedTools: ["read", "safeoutputs", "web_fetch", "web_search"] },
+    });
+    const config = buildCopilotSDKSessionToolConfig(toolConfig, fakeSDKTools);
+    expect(config.availableTools.toArray()).toContain("builtin:web_search");
+  });
+
+  it("omits web_search when the webSearch capability is disabled", () => {
+    const config = buildCopilotSDKSessionToolConfig(validToolConfig(), fakeSDKTools);
+    expect(config.availableTools.toArray()).not.toContain("builtin:web_search");
   });
 
   it("preserves legacy SDK behavior only when the compiler contract is absent", () => {
