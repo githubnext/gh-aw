@@ -78,29 +78,41 @@ function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: Readonly
   return null;
 }
 
-function getCatchBearingTryAncestor(node: TSESTree.Node, sourceCode: Readonly<TSESLint.SourceCode>): TSESTree.TryStatement | null {
-  const ancestors = sourceCode.getAncestors(node);
-  for (let i = ancestors.length - 1; i >= 0; i--) {
-    const ancestor = ancestors[i];
-    if (ancestor.type !== AST_NODE_TYPES.TryStatement || !ancestor.handler) continue;
-    if (ancestor.block.range[0] <= node.range[0] && node.range[1] <= ancestor.block.range[1]) return ancestor;
-  }
-  return null;
+// Returns the call that `fn` is passed to as an argument, but only when that
+// call is itself awaited directly (for example `await withRetry(() => ..., ...)`).
+// This excludes fire-and-forget callbacks like `setTimeout(() => ..., 0)`,
+// whose bodies run outside the dynamic scope of any enclosing try/catch.
+function getAwaitedCallbackWrapperCall(fn: FunctionNode): TSESTree.CallExpression | null {
+  const parent = fn.parent;
+  if (!parent || parent.type !== AST_NODE_TYPES.CallExpression || !parent.arguments.some(argument => argument === fn)) return null;
+  return parent.parent?.type === AST_NODE_TYPES.AwaitExpression ? parent : null;
+}
+
+function catchClauseRethrows(handler: TSESTree.CatchClause): boolean {
+  return handler.body.body.some(statement => statement.type === AST_NODE_TYPES.ThrowStatement);
 }
 
 function getFunctionsForGitHubApiCall(node: TSESTree.CallExpression, sourceCode: Readonly<TSESLint.SourceCode>): FunctionNode[] {
   const immediateFunction = getImmediateEnclosingFunction(node, sourceCode);
   if (!immediateFunction) return [];
-
   const functions = [immediateFunction];
-  const tryAncestor = getCatchBearingTryAncestor(node, sourceCode);
-  if (!tryAncestor) return functions;
 
-  const tryAncestors = sourceCode.getAncestors(tryAncestor);
-  for (let i = tryAncestors.length - 1; i >= 0; i--) {
-    const ancestor = tryAncestors[i];
-    if (!FUNCTION_BOUNDARY_TYPES.has(ancestor.type)) continue;
-    if (ancestor !== immediateFunction) functions.push(ancestor as FunctionNode);
+  // Only correlate across the callback boundary for the awaited retry-helper
+  // shape; otherwise unrelated deferred callbacks (setTimeout, etc.) would be
+  // incorrectly attributed to whatever function happens to enclose a try.
+  const wrapperCall = getAwaitedCallbackWrapperCall(immediateFunction);
+  if (!wrapperCall) return functions;
+
+  const ancestors = sourceCode.getAncestors(wrapperCall);
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const ancestor = ancestors[i];
+    if (ancestor.type !== AST_NODE_TYPES.TryStatement || !ancestor.handler) continue;
+    if (!(ancestor.block.range[0] <= wrapperCall.range[0] && wrapperCall.range[1] <= ancestor.block.range[1])) continue;
+    // A catch that swallows the error without rethrowing terminates the
+    // failure here, so it must not be attributed to an outer function.
+    if (!catchClauseRethrows(ancestor.handler)) break;
+    const ownerFunction = getImmediateEnclosingFunction(ancestor, sourceCode);
+    if (ownerFunction && ownerFunction !== immediateFunction) functions.push(ownerFunction);
     break;
   }
   return functions;
