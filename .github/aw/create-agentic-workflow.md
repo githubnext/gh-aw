@@ -10,7 +10,7 @@ Design and create new workflow files under `.github/workflows/` using the instal
 ## Load These References First
 
 - [designer.md](designer.md)
-- [intent.md](intent.md)
+- [intent.md](intent.md) for the outcome definition, PromptPex eval derivation, and operational-value inference
 - [github-agentic-workflows.md](github-agentic-workflows.md)
 - [workflow-editing.md](workflow-editing.md)
 - [workflow-constraints.md](workflow-constraints.md)
