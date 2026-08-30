@@ -911,7 +911,7 @@ async function main() {
         log(
           `attempt ${attempt + 1}: configured model does not support Codex's required tool-calling schema` +
             ` ("tools" param rejected with code "unknown_parameter") — not retrying` +
-            ` (choose a Codex-compatible model, e.g. gpt-5.1-codex or gpt-5, or remove the \`model:\` override in workflow frontmatter)`
+            ` (pick a model documented as compatible with Codex CLI, or remove the \`model:\` override in workflow frontmatter to use the engine default)`
         );
         return { action: "stop" };
       }
