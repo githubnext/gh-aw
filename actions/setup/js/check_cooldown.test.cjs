@@ -20,14 +20,7 @@ function agentJob(stepOverrides = {}) {
     name: "agent",
     conclusion: "success",
     started_at: new Date(now - 10 * 60 * 1000).toISOString(),
-    steps: [
-      {
-        name: "Execute GitHub Copilot CLI",
-        conclusion: "success",
-        started_at: new Date(now - 10 * 60 * 1000).toISOString(),
-        ...stepOverrides,
-      },
-    ],
+    ...stepOverrides,
   };
 }
 
@@ -64,7 +57,6 @@ describe("check_cooldown", () => {
       runId: 100,
     };
     process.env.GH_AW_COOLDOWN_SECONDS = "3600";
-    process.env.GH_AW_AGENTIC_EXECUTION_STEP_NAME = "Execute GitHub Copilot CLI";
 
     delete require.cache[require.resolve("./check_cooldown.cjs")];
     checkCooldown = require("./check_cooldown.cjs");
@@ -91,7 +83,7 @@ describe("check_cooldown", () => {
     });
   });
 
-  it("blocks when the generated agent step completed within the cooldown", async () => {
+  it("blocks when the agent job started within the cooldown", async () => {
     mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
       data: { workflow_runs: [workflowRun(99, 10)] },
     });
@@ -114,36 +106,22 @@ describe("check_cooldown", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
   });
 
-  it("ignores an agent job that failed before the generated agent step ran", async () => {
+  it("blocks when the started agent job failed", async () => {
     mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
       data: { workflow_runs: [workflowRun(97, 5)] },
     });
-    mockGithub.paginate.mockResolvedValue([
-      {
-        name: "agent",
-        conclusion: "failure",
-        started_at: new Date(now - 5 * 60 * 1000).toISOString(),
-        steps: [{ name: "Set up job", conclusion: "failure", started_at: new Date(now - 5 * 60 * 1000).toISOString() }],
-      },
-    ]);
+    mockGithub.paginate.mockResolvedValue([agentJob({ conclusion: "failure" })]);
 
     await checkCooldown.main();
 
-    expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "false");
   });
 
-  it("ignores a custom job named agent when it lacks the generated agent step", async () => {
+  it("ignores completed runs where the agent job was skipped", async () => {
     mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
       data: { workflow_runs: [workflowRun(96, 5)] },
     });
-    mockGithub.paginate.mockResolvedValue([
-      {
-        name: "agent",
-        conclusion: "success",
-        started_at: new Date(now - 5 * 60 * 1000).toISOString(),
-        steps: [{ name: "Build", conclusion: "success", started_at: new Date(now - 5 * 60 * 1000).toISOString() }],
-      },
-    ]);
+    mockGithub.paginate.mockResolvedValue([agentJob({ conclusion: "skipped", started_at: null })]);
 
     await checkCooldown.main();
 
@@ -214,15 +192,6 @@ describe("check_cooldown", () => {
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Cannot resolve workflow id"));
-  });
-
-  it("fails open when the generated execution step name is unavailable", async () => {
-    delete process.env.GH_AW_AGENTIC_EXECUTION_STEP_NAME;
-
-    await checkCooldown.main();
-
-    expect(mockCore.setOutput).toHaveBeenCalledWith("cooldown_ok", "true");
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GH_AW_AGENTIC_EXECUTION_STEP_NAME"));
   });
 
   it("fails open when run history cannot be queried", async () => {

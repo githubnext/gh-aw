@@ -317,7 +317,7 @@
         },
         "cooldown": {
           "type": "string",
-          "desc": "Minimum time after the most recent completed workflow run where the generated agent execution step started before ano...",
+          "desc": "Minimum time after the most recent completed workflow run where the agent job started before another agent run may start.",
           "leaf": true
         },
         "reaction": {

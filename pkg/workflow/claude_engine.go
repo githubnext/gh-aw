@@ -15,7 +15,6 @@ import (
 var claudeLog = logger.New("workflow:claude_engine")
 
 const claudeDebugLogFile = constants.TmpGhAwAgentDir + "claude-debug.log"
-const claudeExecutionStepName = "Execute Claude Code CLI"
 
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
@@ -202,7 +201,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Generate the step for Claude CLI execution
 	var stepLines []string
-	stepLines = append(stepLines, "      - name: "+claudeExecutionStepName)
+	stepLines = append(stepLines, "      - name: Execute Claude Code CLI")
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add allowed tools comment before the run section.

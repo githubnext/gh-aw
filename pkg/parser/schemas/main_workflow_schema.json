@@ -2164,7 +2164,7 @@
             "cooldown": {
               "type": "string",
               "minLength": 1,
-              "description": "Minimum time after the most recent completed workflow run where the generated agent execution step started before another agent run may start. Uses Go duration syntax (for example, '5m', '1h', or '1h30m'), must be at least 5 minutes, and does not support GitHub Actions expressions.",
+              "description": "Minimum time after the most recent completed workflow run where the agent job started before another agent run may start. Uses Go duration syntax (for example, '5m', '1h', or '1h30m'), must be at least 5 minutes, and does not support GitHub Actions expressions.",
               "examples": ["5m", "30m", "1h30m"]
             },
             "reaction": {

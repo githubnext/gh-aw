@@ -48,39 +48,8 @@ func (c *Compiler) generateCooldownCheck(data *WorkflowData, steps []string) []s
 	steps = append(steps, "        env:\n")
 	cooldownSeconds := int64((data.Cooldown + time.Second - time.Nanosecond) / time.Second)
 	steps = append(steps, fmt.Sprintf("          GH_AW_COOLDOWN_SECONDS: \"%d\"\n", cooldownSeconds))
-	steps = append(steps, fmt.Sprintf("          GH_AW_AGENTIC_EXECUTION_STEP_NAME: %q\n", c.agenticExecutionStepName(data)))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
 	steps = append(steps, "          script: |\n")
 	return append(steps, generateGitHubScriptWithRequire("check_cooldown.cjs"))
-}
-
-func (c *Compiler) agenticExecutionStepName(data *WorkflowData) string {
-	if data == nil {
-		return ""
-	}
-	engineID := data.AI
-	if c != nil && c.engineCatalog != nil {
-		if resolved, err := c.engineCatalog.Resolve(data.AI, data.EngineConfig); err == nil {
-			if def := resolved.Definition; def != nil && def.Behaviors != nil && def.Behaviors.Execution != nil && def.Behaviors.Execution.StepName != "" {
-				return def.Behaviors.Execution.StepName
-			}
-			if resolved.Runtime != nil {
-				engineID = resolved.Runtime.GetID()
-			}
-		}
-	}
-	switch engineID {
-	case string(constants.CopilotEngine):
-		return copilotExecutionStepName
-	case string(constants.ClaudeEngine):
-		return claudeExecutionStepName
-	case string(constants.CodexEngine):
-		return codexExecutionStepName
-	case string(constants.GeminiEngine):
-		return geminiExecutionStepName
-	case string(constants.PiEngine):
-		return piExecutionStepName
-	}
-	return ""
 }

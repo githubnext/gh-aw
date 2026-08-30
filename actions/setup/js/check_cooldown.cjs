@@ -30,19 +30,8 @@ function parseRunCompletedAt(run) {
   return { completedAtMs };
 }
 
-function resolveAgenticExecutionStepName() {
-  const stepName = (process.env.GH_AW_AGENTIC_EXECUTION_STEP_NAME ?? "").trim();
-  if (!stepName) {
-    throw new Error("GH_AW_AGENTIC_EXECUTION_STEP_NAME environment variable is required");
-  }
-  return stepName;
-}
-
-function agentJobExecutedGeneratedStep(job, agenticExecutionStepName) {
-  if (job?.name !== "agent" || !Array.isArray(job.steps)) {
-    return false;
-  }
-  return job.steps.some(step => step?.name === agenticExecutionStepName && step.started_at);
+function agentJobStarted(job) {
+  return job?.name === "agent" && job.conclusion !== "skipped" && job.started_at;
 }
 
 async function main() {
@@ -60,7 +49,6 @@ async function main() {
   try {
     await fetchAndLogRateLimit(github, "check_cooldown_start");
     const workflowId = await resolveWorkflowId(github, owner, repo, runId);
-    const agenticExecutionStepName = resolveAgenticExecutionStepName();
     core.info(`Checking ${cooldownSeconds}-second cooldown for workflow '${workflowId}'`);
 
     let page = 1;
@@ -118,7 +106,7 @@ async function main() {
           filter: "latest",
           per_page: 100,
         });
-        const agentExecuted = jobs.some(job => agentJobExecutedGeneratedStep(job, agenticExecutionStepName));
+        const agentExecuted = jobs.some(agentJobStarted);
         if (!agentExecuted) {
           continue;
         }
@@ -150,4 +138,4 @@ async function main() {
   }
 }
 
-module.exports = { agentJobExecutedGeneratedStep, main, parseRunCompletedAt, resolveAgenticExecutionStepName, resolveWorkflowId };
+module.exports = { agentJobStarted, main, parseRunCompletedAt, resolveWorkflowId };

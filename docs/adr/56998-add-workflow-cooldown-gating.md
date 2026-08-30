@@ -8,11 +8,11 @@
 
 ### Context
 
-This pull request adds a new `on.cooldown` frontmatter field that changes how compiled workflows decide whether to activate the `agent` job. The implementation parses a literal Go duration, injects a pre-activation run-history check, grants `actions: read` when needed, and skips reruns when the most recent completed workflow run already started the generated agent execution step within the configured window. The PR also documents fail-open behavior when run history cannot be queried and excludes runs where the agent job was skipped or failed before the generated agent execution step started. Because the PR adds more than 100 lines in business-logic directories and introduces a new workflow execution control, the decision should be recorded explicitly.
+This pull request adds a new `on.cooldown` frontmatter field that changes how compiled workflows decide whether to activate the `agent` job. The implementation parses a literal Go duration, injects a pre-activation run-history check, grants `actions: read` when needed, and skips reruns when the most recent completed workflow run already started the `agent` job within the configured window. The PR also documents fail-open behavior when run history cannot be queried and excludes runs where the agent job was skipped. Because the PR adds more than 100 lines in business-logic directories and introduces a new workflow execution control, the decision should be recorded explicitly.
 
 ### Decision
 
-We will support workflow-level cooldown gating through a new `on.cooldown` frontmatter field that compiles into a pre-activation run-history check against recent completed workflow runs. The cooldown must be a literal Go duration string of at least five minutes, and GitHub Actions expressions will be rejected so the compiler can validate behavior deterministically. The generated workflow will inspect prior runs for the generated agent execution step, block execution when that run finished within the cooldown window, and fail open when run history is unavailable. We chose this approach because the PR evidence shows a need to reduce repeated agent executions while keeping configuration declarative and consistent with existing pre-activation gating features.
+We will support workflow-level cooldown gating through a new `on.cooldown` frontmatter field that compiles into a pre-activation run-history check against recent completed workflow runs. The cooldown must be a literal Go duration string of at least five minutes, and GitHub Actions expressions will be rejected so the compiler can validate behavior deterministically. The generated workflow will inspect prior runs for a started `agent` job, block execution when that run finished within the cooldown window, and fail open when run history is unavailable. We chose this approach because the PR evidence shows a need to reduce repeated agent executions while keeping configuration declarative and consistent with existing pre-activation gating features.
 
 ### Alternatives Considered
 
@@ -33,7 +33,7 @@ This was considered because it would make the feature more flexible for advanced
 #### Positive
 - Repositories can declaratively prevent redundant agent executions shortly after a recent completed run without changing the workflow body itself.
 - The compiler keeps cooldown behavior aligned with other pre-activation checks by validating configuration early and generating a dedicated gating step.
-- Ignoring runs where the generated agent execution step did not start avoids restarting the cooldown for executions that never performed agent work.
+- Ignoring runs where the `agent` job did not start avoids restarting the cooldown for skipped executions.
 
 #### Negative
 - The feature increases workflow compiler and setup-script complexity by adding run-history inspection, new constants, schema changes, and pre-activation conditions.

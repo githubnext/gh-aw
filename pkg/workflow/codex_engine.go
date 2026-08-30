@@ -15,8 +15,6 @@ import (
 
 var codexEngineLog = logger.New("workflow:codex_engine")
 
-const codexExecutionStepName = "Execute Codex CLI"
-
 // detectionResponseSchema is the JSON Schema for Codex detection runs.
 // It constrains the model output to exactly the threat detection result fields.
 // The schema is written to detectionSchemaFilePath before Codex runs and passed
@@ -509,7 +507,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 
 func (e *CodexEngine) buildCodexExecutionStep(workflowData *WorkflowData, command string, env map[string]string) GitHubActionStep {
 	stepLines := []string{
-		"      - name: " + codexExecutionStepName,
+		"      - name: Execute Codex CLI",
 		"        id: agentic_execution",
 		"        timeout-minutes: " + resolveStepTimeoutValue(workflowData),
 	}

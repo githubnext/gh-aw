@@ -13,8 +13,6 @@ import (
 
 var piLog = logger.New("workflow:pi_engine")
 
-const piExecutionStepName = "Execute Pi CLI"
-
 // PiEngine represents the Pi AI coding agent.
 // Pi is a provider-agnostic agentic coding assistant that communicates via stdin/stdout
 // and emits a streaming JSONL log for structured event capture.  When engine.model uses
@@ -474,7 +472,7 @@ func (e *PiEngine) buildPiExecutionEnv(workflowData *WorkflowData, profile unive
 
 func (e *PiEngine) buildPiExecutionStep(workflowData *WorkflowData, command string, env map[string]string) GitHubActionStep {
 	stepLines := []string{
-		"      - name: " + piExecutionStepName,
+		"      - name: Execute Pi CLI",
 		"        id: agentic_execution",
 		"        timeout-minutes: " + resolveStepTimeoutValue(workflowData),
 	}
