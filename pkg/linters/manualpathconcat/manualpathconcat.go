@@ -154,6 +154,14 @@ func matchSlashSeparator(bin *ast.BinaryExpr) (left ast.Expr, rightOverride stri
 		return inner.X, "", true
 	}
 	if trimmed, isEmbedded := embeddedSlashLiteral(bin.Y); isEmbedded {
+		// A left operand that is itself a string literal makes the whole
+		// expression a compile-time constant, where filepath.Join is not a
+		// valid substitute (and the caller's constant check would exclude it
+		// anyway); skip it here so matchSlashSeparator's result is correct on
+		// its own.
+		if _, leftIsLit := bin.X.(*ast.BasicLit); leftIsLit {
+			return nil, "", false
+		}
 		return bin.X, trimmed, true
 	}
 	return nil, "", false

@@ -94,6 +94,12 @@ func goodBareSeparatorLeftOfEmbedded() string {
 	return "/" + "/config.yml"
 }
 
+// goodLiteralLeftOfEmbedded is also a compile-time constant (both operands
+// are literals) — not flagged, matching goodConstant below.
+func goodLiteralLeftOfEmbedded() string {
+	return "prefix" + "/config.yml"
+}
+
 // badSuffixAfterJoinShape confirms the nested join shape is still reported.
 func badSuffixAfterJoinShape(dir, file string) string {
 	return dir + "/" + file + ".tmp" // want `manual "/" path concatenation; use filepath\.Join\(dir, file\) \(or path\.Join\) instead`
