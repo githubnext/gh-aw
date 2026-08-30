@@ -35,6 +35,7 @@ const {
   buildCurrentWorkflowCallId,
   buildEpisodeAttributesFromContext,
   buildExperimentAttributes,
+  buildGraderTelemetry,
   hasProxyConfigured,
   resolveEngineId,
   parseOTLPCustomAttributes,
@@ -6446,6 +6447,82 @@ describe("sendJobConclusionSpan", () => {
       expect(keys.some(k => k.startsWith("gh-aw.experiment."))).toBe(false);
       expect(keys).not.toContain("gh-aw.experiments");
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildGraderTelemetry
+// ---------------------------------------------------------------------------
+
+describe("buildGraderTelemetry", () => {
+  it("builds summary attributes and one event per grader result", () => {
+    const telemetry = buildGraderTelemetry(
+      {
+        results: [
+          {
+            id: "quality",
+            name: "Quality",
+            value: 0.75,
+            unit: "ratio",
+            passed: true,
+            status: "pass",
+            source: "builtin",
+            severity: "info",
+            baselineValue: 0.5,
+            deltaFromBaseline: 0.25,
+          },
+          { id: "reliability", name: "Reliability", value: null, passed: false, status: "fail", source: "inline" },
+          { id: "broken", status: "error", source: "inline" },
+          { id: "missing", status: "unavailable", source: "builtin" },
+        ],
+      },
+      1700000000000
+    );
+
+    expect(telemetry.attributes).toEqual([buildAttr("gh-aw.graders.count", 4), buildAttr("gh-aw.graders.passed", 1), buildAttr("gh-aw.graders.failed", 1), buildAttr("gh-aw.graders.errors", 1), buildAttr("gh-aw.graders.unavailable", 1)]);
+    expect(telemetry.events).toHaveLength(4);
+    expect(telemetry.events[0]).toEqual({
+      timeUnixNano: toNanoString(1700000000000),
+      name: "grader.result",
+      attributes: [
+        buildAttr("gh-aw.grader.id", "quality"),
+        buildAttr("gh-aw.grader.name", "Quality"),
+        buildAttr("gh-aw.grader.status", "pass"),
+        buildAttr("gh-aw.grader.source", "builtin"),
+        buildAttr("gh-aw.grader.unit", "ratio"),
+        buildDoubleAttr("gh-aw.grader.value", 0.75),
+        buildAttr("gh-aw.grader.passed", true),
+        buildAttr("gh-aw.grader.severity", "info"),
+        buildDoubleAttr("gh-aw.grader.baseline_value", 0.5),
+        buildDoubleAttr("gh-aw.grader.delta_from_baseline", 0.25),
+      ],
+    });
+  });
+
+  it("omits free-form and non-finite grader values", () => {
+    const telemetry = buildGraderTelemetry(
+      {
+        results: [
+          {
+            id: "custom",
+            status: "error",
+            value: Number.NaN,
+            message: "sensitive message",
+            details: "sensitive details",
+            error: "sensitive error",
+          },
+        ],
+      },
+      1
+    );
+
+    const eventKeys = telemetry.events[0].attributes.map(attribute => attribute.key);
+    expect(eventKeys).toEqual(["gh-aw.grader.id", "gh-aw.grader.status"]);
+    expect(JSON.stringify(telemetry)).not.toContain("sensitive");
+  });
+
+  it.each([null, {}, { results: [] }, { results: [null, {}, { id: "" }] }])("returns empty telemetry for output without valid results", output => {
+    expect(buildGraderTelemetry(output, 1)).toEqual({ attributes: [], events: [] });
   });
 });
 
