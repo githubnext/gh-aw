@@ -108,6 +108,9 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	if !strings.Contains(sdkInstallStep, expectedSDKInstall) {
 		t.Fatalf("Expected SDK install command %q, got:\n%s", expectedSDKInstall, sdkInstallStep)
 	}
+	if !strings.Contains(sdkInstallStep, copilotSDKWebFetchDependency) {
+		t.Fatalf("Expected SDK install command to include %q, got:\n%s", copilotSDKWebFetchDependency, sdkInstallStep)
+	}
 }
 
 func TestCopilotEngineInstallationSteps_WithLSPConfig(t *testing.T) {
