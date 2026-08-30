@@ -21,6 +21,18 @@ func TestRenderAuditOutputConsole(t *testing.T) {
 	assert.Contains(t, output, "Test Workflow")
 }
 
+func TestRenderConsoleTokenUsageWarnings(t *testing.T) {
+	output := testutil.CaptureStderr(t, func() {
+		renderConsoleTokenUsage(&TokenUsageSummary{
+			TotalRequests: 1,
+			Warnings:      []string{"fallback accounting was used"},
+		})
+	})
+
+	assert.Contains(t, output, "token_usage_warnings:")
+	assert.Contains(t, output, "fallback accounting was used")
+}
+
 func TestRenderAuditCompletion(t *testing.T) {
 	outputDir := t.TempDir()
 
