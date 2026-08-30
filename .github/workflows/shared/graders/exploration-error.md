@@ -27,7 +27,16 @@ graders:
         isRecord(trace.agentOutput) ? trace.agentOutput : null,
       ].filter(isRecord);
 
-      const objectives = (candidates.find(value => Array.isArray(value.objectives) && value.objectives.some(isRecord))?.objectives ?? []).filter(isRecord);
+      const candidate =
+        candidates.find(value => Array.isArray(value.objectives) && value.objectives.some(isRecord)) ??
+        candidates.find(value =>
+          Array.isArray(value.objectives) ||
+          Array.isArray(value.events) ||
+          Array.isArray(value.states) ||
+          Array.isArray(value.observations)
+        ) ??
+        null;
+      const objectives = (candidate && Array.isArray(candidate.objectives) ? candidate.objectives : []).filter(isRecord);
       if (objectives.length === 0) {
         return { value: null, unit: "ratio", passed: null, message: "not applicable: no declared objectives in the trace" };
       }
@@ -37,9 +46,9 @@ graders:
         return { value: 0, unit: "ratio", details: `objectives=${objectives.length} unmet=0; all objectives satisfied` };
       }
 
-      const events = (candidates.find(value => Array.isArray(value.events) && value.events.some(isRecord))?.events ?? []).filter(isRecord);
-      const states = (candidates.find(value => Array.isArray(value.states) && value.states.some(isRecord))?.states ?? []).filter(isRecord);
-      const observations = (candidates.find(value => Array.isArray(value.observations) && value.observations.some(isRecord))?.observations ?? []).filter(isRecord);
+      const events = (candidate && Array.isArray(candidate.events) ? candidate.events : []).filter(isRecord);
+      const states = (candidate && Array.isArray(candidate.states) ? candidate.states : []).filter(isRecord);
+      const observations = (candidate && Array.isArray(candidate.observations) ? candidate.observations : []).filter(isRecord);
 
       const stateChangeEvents = events.filter(event => event.kind === "state_change");
       let distinctStatesVisited = 0;
