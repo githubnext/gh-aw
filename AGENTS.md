@@ -71,6 +71,7 @@ When the relevant skill is not obvious, first discover candidates locally and th
 - Doc-writing conventions → `.github/skills/documentation/SKILL.md`
 - Reviewing or writing `git`/`gh`/remote operations against checkouts (per-checkout credentials, sparse/shallow monorepos, safe-outputs MCP runs without credentials) → `.github/skills/checkout-credential-review/SKILL.md`
 - Authoring, validating, or debugging canvas extensions (loopback servers, actions, iframe rendering, state model, theme tokens) → `.github/skills/create-canvas/SKILL.md`
+- Container image vulnerability fixes or large-function refactor tasks (pre-flight feasibility check, blocker reporting instead of empty PRs) → `.github/skills/task-preflight/SKILL.md`
 
 ## Debugging & Logging
 
