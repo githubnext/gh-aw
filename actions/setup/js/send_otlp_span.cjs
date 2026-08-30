@@ -758,7 +758,7 @@ function buildGraderTelemetry(graderOutput, eventTimeMs) {
  * Build summary attributes and per-result events from BinEval JSONL records.
  * Only bounded, structured fields are included; free-form questions are excluded.
  *
- * @param {unknown[]} evalResults
+ * @param {any[]} evalResults
  * @param {number} eventTimeMs
  * @returns {{attributes: Array<{key: string, value: object}>, events: Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>}}
  */
@@ -1528,6 +1528,20 @@ function readJSONIfExists(filePath) {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
     return null;
+  }
+}
+
+/**
+ * Safely read and parse a JSONL file. Returns an empty array on any error.
+ *
+ * @param {string} filePath - Absolute path to the JSONL file
+ * @returns {any[]}
+ */
+function readJSONLIfExists(filePath) {
+  try {
+    return parseJsonlContent(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return [];
   }
 }
 
@@ -2411,19 +2425,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
 
   const graderTelemetry = jobName === "agent" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
-  const evalTelemetry =
-    jobName === "evals"
-      ? buildEvalTelemetry(
-          (() => {
-            try {
-              return parseJsonlContent(fs.readFileSync("/tmp/gh-aw/evals.jsonl", "utf8"));
-            } catch {
-              return [];
-            }
-          })(),
-          endMs
-        )
-      : { attributes: [], events: [] };
+  const evalTelemetry = jobName === "evals" ? buildEvalTelemetry(readJSONLIfExists("/tmp/gh-aw/evals.jsonl"), endMs) : { attributes: [], events: [] };
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
