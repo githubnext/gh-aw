@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -123,5 +124,37 @@ func TestPermissionsSchemaEnumMatchesConstants(t *testing.T) {
 			t.Errorf("schema property %q in $defs.github_app_permissions is not a known PermissionScope constant "+
 				"in pkg/workflow/permissions.go", name)
 		}
+	}
+}
+
+// TestOrganizationCustomRolePermissionsValidateAgainstSchema is a regression test that
+// ensures workflow frontmatter using the organization-custom-org-roles and
+// organization-custom-repository-roles permission scopes validates cleanly against the
+// JSON Schema, and that invalid values for these scopes are still rejected.
+func TestOrganizationCustomRolePermissionsValidateAgainstSchema(t *testing.T) {
+	for _, scope := range []string{"organization-custom-org-roles", "organization-custom-repository-roles"} {
+		t.Run(scope+"/valid", func(t *testing.T) {
+			frontmatter := map[string]any{
+				"on": "workflow_dispatch",
+				"permissions": map[string]any{
+					scope: "read",
+				},
+			}
+			if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err != nil {
+				t.Fatalf("expected %q permission scope to validate cleanly, got error: %v", scope, err)
+			}
+		})
+
+		t.Run(scope+"/invalid-value", func(t *testing.T) {
+			frontmatter := map[string]any{
+				"on": "workflow_dispatch",
+				"permissions": map[string]any{
+					scope: "not-a-real-value",
+				},
+			}
+			if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err == nil {
+				t.Fatalf("expected invalid value for %q permission scope to be rejected", scope)
+			}
+		})
 	}
 }
