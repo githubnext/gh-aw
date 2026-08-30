@@ -754,6 +754,41 @@ function buildGraderTelemetry(graderOutput, eventTimeMs) {
   return { attributes, events };
 }
 
+/**
+ * Build summary attributes and per-result events from BinEval JSONL records.
+ * Only bounded, structured fields are included; free-form questions are excluded.
+ *
+ * @param {any[]} evalResults
+ * @param {number} eventTimeMs
+ * @returns {{attributes: Array<{key: string, value: object}>, events: Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>}}
+ */
+function buildEvalTelemetry(evalResults, eventTimeMs) {
+  if (!Array.isArray(evalResults)) {
+    return { attributes: [], events: [] };
+  }
+  const results = evalResults.filter(result => result && typeof result === "object" && typeof result.id === "string" && result.id);
+  if (results.length === 0) {
+    return { attributes: [], events: [] };
+  }
+
+  const normalizedAnswers = results.map(result => {
+    const answer = typeof result.answer === "string" ? result.answer.trim().toUpperCase() : "UNKNOWN";
+    return answer === "YES" || answer === "NO" ? answer : "UNKNOWN";
+  });
+  const countAnswer = answer => normalizedAnswers.filter(value => value === answer).length;
+  const attributes = [buildAttr("gh-aw.evals.count", results.length), buildAttr("gh-aw.evals.yes", countAnswer("YES")), buildAttr("gh-aw.evals.no", countAnswer("NO")), buildAttr("gh-aw.evals.unknown", countAnswer("UNKNOWN"))];
+  const timeUnixNano = toNanoString(eventTimeMs);
+  const events = results.map((result, index) => {
+    const resultAttributes = [buildAttr("gh-aw.eval.id", result.id), buildAttr("gh-aw.eval.answer", normalizedAnswers[index])];
+    if (typeof result.model === "string" && result.model) {
+      resultAttributes.push(buildAttr("gh-aw.eval.model", result.model));
+    }
+    return { timeUnixNano, name: "eval.result", attributes: resultAttributes };
+  });
+
+  return { attributes, events };
+}
+
 // ---------------------------------------------------------------------------
 // Custom OTLP attributes (GH_AW_OTLP_ATTRIBUTES)
 // ---------------------------------------------------------------------------
@@ -1493,6 +1528,20 @@ function readJSONIfExists(filePath) {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
     return null;
+  }
+}
+
+/**
+ * Safely read and parse a JSONL file. Returns an empty array on any error.
+ *
+ * @param {string} filePath - Absolute path to the JSONL file
+ * @returns {any[]}
+ */
+function readJSONLIfExists(filePath) {
+  try {
+    return parseJsonlContent(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return [];
   }
 }
 
@@ -2376,6 +2425,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
 
   const graderTelemetry = jobName === "agent" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
+  const evalTelemetry = jobName === "evals" ? buildEvalTelemetry(readJSONLIfExists("/tmp/gh-aw/evals.jsonl"), endMs) : { attributes: [], events: [] };
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
@@ -2435,7 +2485,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       });
   };
 
-  const spanEvents = [...buildSpanEvents(endMs), ...graderTelemetry.events];
+  const spanEvents = [...buildSpanEvents(endMs), ...graderTelemetry.events, ...evalTelemetry.events];
 
   // Prefer the timestamp written at the very beginning of the Execute Agent CLI step
   // (captures true step start on the host, before the AWF container launches) so the
@@ -2534,6 +2584,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // conclusion span, rather than its dedicated child span or downstream jobs
   // which may have downloaded the agent artifact.
   attributes.push(...graderTelemetry.attributes);
+  attributes.push(...evalTelemetry.attributes);
 
   // Only attach token-usage attributes to jobs that actually executed model usage.
   // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on
@@ -2620,6 +2671,7 @@ module.exports = {
   appendToOTLPJSONL,
   buildExperimentAttributes,
   buildGraderTelemetry,
+  buildEvalTelemetry,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,
 };

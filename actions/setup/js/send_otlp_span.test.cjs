@@ -36,6 +36,7 @@ const {
   buildEpisodeAttributesFromContext,
   buildExperimentAttributes,
   buildGraderTelemetry,
+  buildEvalTelemetry,
   hasProxyConfigured,
   resolveEngineId,
   parseOTLPCustomAttributes,
@@ -2667,6 +2668,30 @@ describe("sendJobConclusionSpan", () => {
     expect(spans[0].events).toContainEqual(expect.objectContaining({ name: "grader.result" }));
     expect(spans[1].attributes.map(attribute => attribute.key)).not.toContain("gh-aw.graders.count");
     expect((spans[1].events ?? []).map(event => event.name)).not.toContain("grader.result");
+  });
+
+  it("emits eval results only on the evals job conclusion span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "evals";
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/evals.jsonl") {
+        return `${JSON.stringify({ id: "quality", answer: "YES", model: "gpt-5" })}\n`;
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.evals.conclusion");
+    process.env.INPUT_JOB_NAME = "conclusion";
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const spans = mockFetch.mock.calls.map(([, request]) => JSON.parse(request.body).resourceSpans[0].scopeSpans[0].spans[0]);
+    expect(spans[0].attributes).toContainEqual(buildAttr("gh-aw.evals.count", 1));
+    expect(spans[0].events).toContainEqual(expect.objectContaining({ name: "eval.result" }));
+    expect(spans[1].attributes.map(attribute => attribute.key)).not.toContain("gh-aw.evals.count");
+    expect((spans[1].events ?? []).map(event => event.name)).not.toContain("eval.result");
   });
 
   it("emits live episode attributes on conclusion spans from aw_info workflow_call context", async () => {
@@ -6565,6 +6590,35 @@ describe("buildGraderTelemetry", () => {
   it("counts unrecognized statuses as other", () => {
     const telemetry = buildGraderTelemetry({ results: [{ id: "skipped", status: "skipped" }] }, 1);
     expect(telemetry.attributes).toContainEqual(buildAttr("gh-aw.graders.other", 1));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildEvalTelemetry
+// ---------------------------------------------------------------------------
+
+describe("buildEvalTelemetry", () => {
+  it("builds summary attributes and one event per eval result", () => {
+    const telemetry = buildEvalTelemetry(
+      [
+        { id: "quality", question: "Sensitive free-form content", answer: " yes ", model: "gpt-5" },
+        { id: "tests", answer: "NO" },
+        { id: "unknown", answer: "MAYBE" },
+      ],
+      1700000000000
+    );
+
+    expect(telemetry.attributes).toEqual([buildAttr("gh-aw.evals.count", 3), buildAttr("gh-aw.evals.yes", 1), buildAttr("gh-aw.evals.no", 1), buildAttr("gh-aw.evals.unknown", 1)]);
+    expect(telemetry.events[0]).toEqual({
+      timeUnixNano: toNanoString(1700000000000),
+      name: "eval.result",
+      attributes: [buildAttr("gh-aw.eval.id", "quality"), buildAttr("gh-aw.eval.answer", "YES"), buildAttr("gh-aw.eval.model", "gpt-5")],
+    });
+    expect(JSON.stringify(telemetry)).not.toContain("Sensitive free-form content");
+  });
+
+  it.each([null, undefined, [], [null, {}, { id: "" }]])("returns empty telemetry without valid results", results => {
+    expect(buildEvalTelemetry(results, 1)).toEqual({ attributes: [], events: [] });
   });
 });
 
