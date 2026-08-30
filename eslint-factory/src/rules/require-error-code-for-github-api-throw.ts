@@ -78,6 +78,34 @@ function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: Readonly
   return null;
 }
 
+function getCatchBearingTryAncestor(node: TSESTree.Node, sourceCode: Readonly<TSESLint.SourceCode>): TSESTree.TryStatement | null {
+  const ancestors = sourceCode.getAncestors(node);
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const ancestor = ancestors[i];
+    if (ancestor.type !== AST_NODE_TYPES.TryStatement || !ancestor.handler) continue;
+    if (ancestor.block.range[0] <= node.range[0] && node.range[1] <= ancestor.block.range[1]) return ancestor;
+  }
+  return null;
+}
+
+function getFunctionsForGitHubApiCall(node: TSESTree.CallExpression, sourceCode: Readonly<TSESLint.SourceCode>): FunctionNode[] {
+  const immediateFunction = getImmediateEnclosingFunction(node, sourceCode);
+  if (!immediateFunction) return [];
+
+  const functions = [immediateFunction];
+  const tryAncestor = getCatchBearingTryAncestor(node, sourceCode);
+  if (!tryAncestor) return functions;
+
+  const tryAncestors = sourceCode.getAncestors(tryAncestor);
+  for (let i = tryAncestors.length - 1; i >= 0; i--) {
+    const ancestor = tryAncestors[i];
+    if (!FUNCTION_BOUNDARY_TYPES.has(ancestor.type)) continue;
+    if (ancestor !== immediateFunction) functions.push(ancestor as FunctionNode);
+    break;
+  }
+  return functions;
+}
+
 export const requireErrorCodeForGithubApiThrowRule = createRule({
   name: "require-error-code-for-github-api-throw",
   meta: {
@@ -101,11 +129,11 @@ export const requireErrorCodeForGithubApiThrowRule = createRule({
     return {
       CallExpression(node) {
         if (!isGitHubApiCall(node)) return;
-        const fn = getImmediateEnclosingFunction(node, sourceCode);
-        if (!fn) return;
-        const calls = githubApiCallsByFunction.get(fn);
-        if (calls) calls.push(node.range[0]);
-        else githubApiCallsByFunction.set(fn, [node.range[0]]);
+        for (const fn of getFunctionsForGitHubApiCall(node, sourceCode)) {
+          const calls = githubApiCallsByFunction.get(fn);
+          if (calls) calls.push(node.range[0]);
+          else githubApiCallsByFunction.set(fn, [node.range[0]]);
+        }
       },
       ThrowStatement(node) {
         if (!node.argument || node.argument.type !== AST_NODE_TYPES.NewExpression) return;
