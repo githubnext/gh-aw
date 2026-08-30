@@ -75,6 +75,33 @@ Run after the cooldown.
 	assert.Contains(t, lockContent, "# cooldown: 1h30m # Cooldown processed as run history check in pre-activation job")
 }
 
+func TestCooldownCompilationWithScheduleDoesNotRequireMembership(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "cooldown-schedule")
+	workflowPath := filepath.Join(tmpDir, "cooldown-schedule.md")
+	content := `---
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  cooldown: 6h
+engine: claude
+---
+Run after the cooldown.
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o600))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockBytes, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	lockContent := string(lockBytes)
+
+	assert.Contains(t, lockContent, "Check workflow cooldown")
+	assert.Contains(t, lockContent, `GH_AW_COOLDOWN_SECONDS: "21600"`)
+	assert.Contains(t, lockContent, "activated: ${{ steps.check_cooldown.outputs.cooldown_ok == 'true' }}")
+	assert.NotContains(t, lockContent, "check_membership")
+}
+
 func TestCooldownCompilationRoundsSecondsUp(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "cooldown")
 	workflowPath := filepath.Join(tmpDir, "cooldown.md")
