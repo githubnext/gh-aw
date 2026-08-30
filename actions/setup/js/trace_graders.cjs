@@ -524,8 +524,7 @@ function normalizeResult(id, rawResult, meta) {
   if (typeof rawResult === "object" && rawResult !== null && !Array.isArray(rawResult)) {
     // Object result from custom script
     value = rawResult.value;
-    if (rawResult.unit) base.unit = String(rawResult.unit);
-    if (rawResult.severity) base.severity = String(rawResult.severity);
+    if (typeof rawResult.severity === "string" && ["error", "warning", "info", "note"].includes(rawResult.severity)) base.severity = rawResult.severity;
     if (rawResult.details) base.details = String(rawResult.details);
     if (rawResult.message) base.message = String(rawResult.message);
     if (typeof rawResult.passed === "boolean") base.passed = rawResult.passed;

@@ -708,6 +708,52 @@ function buildExperimentAttributes(assignments) {
   return attrs;
 }
 
+/**
+ * Build summary attributes and per-result events from valid deterministic grader output.
+ * Free-form grader messages, details, and errors are intentionally excluded because
+ * custom graders may derive them from trace content containing sensitive values.
+ *
+ * @param {any} graderOutput
+ * @param {number} eventTimeMs
+ * @returns {{attributes: Array<{key: string, value: object}>, events: Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>}}
+ */
+function buildGraderTelemetry(graderOutput, eventTimeMs) {
+  if (!graderOutput || typeof graderOutput !== "object" || !Array.isArray(graderOutput.results) || graderOutput.results.length === 0) {
+    return { attributes: [], events: [] };
+  }
+
+  const results = graderOutput.results.filter(result => result && typeof result === "object" && typeof result.id === "string" && result.id);
+  if (results.length === 0) {
+    return { attributes: [], events: [] };
+  }
+
+  const countByStatus = status => results.filter(result => result.status === status).length;
+  const attributes = [
+    buildAttr("gh-aw.graders.count", results.length),
+    buildAttr("gh-aw.graders.passed", countByStatus("pass")),
+    buildAttr("gh-aw.graders.failed", countByStatus("fail")),
+    buildAttr("gh-aw.graders.errors", countByStatus("error")),
+    buildAttr("gh-aw.graders.unavailable", countByStatus("unavailable")),
+    buildAttr("gh-aw.graders.other", results.length - countByStatus("pass") - countByStatus("fail") - countByStatus("error") - countByStatus("unavailable")),
+  ];
+  const timeUnixNano = toNanoString(eventTimeMs);
+  const events = results.map(result => {
+    const resultAttributes = [buildAttr("gh-aw.grader.id", result.id)];
+    if (typeof result.name === "string" && result.name) resultAttributes.push(buildAttr("gh-aw.grader.name", result.name));
+    if (typeof result.status === "string" && result.status) resultAttributes.push(buildAttr("gh-aw.grader.status", result.status));
+    if (typeof result.source === "string" && result.source) resultAttributes.push(buildAttr("gh-aw.grader.source", result.source));
+    if (typeof result.unit === "string" && result.unit) resultAttributes.push(buildAttr("gh-aw.grader.unit", result.unit));
+    if (typeof result.value === "number" && Number.isFinite(result.value)) resultAttributes.push(buildDoubleAttr("gh-aw.grader.value", result.value));
+    if (typeof result.passed === "boolean") resultAttributes.push(buildAttr("gh-aw.grader.passed", result.passed));
+    if (typeof result.severity === "string" && result.severity) resultAttributes.push(buildAttr("gh-aw.grader.severity", result.severity));
+    if (typeof result.baselineValue === "number" && Number.isFinite(result.baselineValue)) resultAttributes.push(buildDoubleAttr("gh-aw.grader.baseline_value", result.baselineValue));
+    if (typeof result.deltaFromBaseline === "number" && Number.isFinite(result.deltaFromBaseline)) resultAttributes.push(buildDoubleAttr("gh-aw.grader.delta_from_baseline", result.deltaFromBaseline));
+    return { timeUnixNano, name: "grader.result", attributes: resultAttributes };
+  });
+
+  return { attributes, events };
+}
+
 // ---------------------------------------------------------------------------
 // Custom OTLP attributes (GH_AW_OTLP_ATTRIBUTES)
 // ---------------------------------------------------------------------------
@@ -1991,6 +2037,8 @@ function readAgentRuntimeMetrics() {
  * - `/tmp/gh-aw/agent_usage.json` – per-type token breakdown written by parse_token_usage.cjs;
  *                                    provides `input_tokens`, `output_tokens`,
  *                                    `cache_read_tokens`, and `cache_write_tokens` counters
+ * - `/tmp/gh-aw/agent/graders/grader_results.json` – deterministic grader
+ *                                    summary attributes and per-result span events
  *
  * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.conclusion"`)
  * @param {{ startMs?: number }} [options]
@@ -2327,6 +2375,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
+  const graderTelemetry = jobName === "agent" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
+
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
     runId,
@@ -2385,7 +2435,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       });
   };
 
-  const spanEvents = buildSpanEvents(endMs);
+  const spanEvents = [...buildSpanEvents(endMs), ...graderTelemetry.events];
 
   // Prefer the timestamp written at the very beginning of the Execute Agent CLI step
   // (captures true step start on the host, before the AWF container launches) so the
@@ -2480,6 +2530,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
+  // Grader results are run-level outcomes. They belong only on the agent job's
+  // conclusion span, rather than its dedicated child span or downstream jobs
+  // which may have downloaded the agent artifact.
+  attributes.push(...graderTelemetry.attributes);
+
   // Only attach token-usage attributes to jobs that actually executed model usage.
   // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on
   // disk via artifact download but must NOT emit token data — otherwise every
@@ -2564,6 +2619,7 @@ module.exports = {
   OTEL_JSONL_PATH,
   appendToOTLPJSONL,
   buildExperimentAttributes,
+  buildGraderTelemetry,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,
 };
