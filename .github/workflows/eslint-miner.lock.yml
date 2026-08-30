@@ -549,7 +549,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.10 --rootless
       - name: Install GitHub Copilot SDK (Node.js)
-        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.11
+        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.11 undici@6.28.0
       - name: Install TypeScript LSP dependencies
         run: npm install -g --ignore-scripts typescript@5.8.3 typescript-language-server@4.3.3
         env:
@@ -1914,7 +1914,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.10 --rootless
       - name: Install GitHub Copilot SDK (Node.js)
-        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.11
+        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.11 undici@6.28.0
       - name: Execute GitHub Copilot CLI
         if: always()
         continue-on-error: true
