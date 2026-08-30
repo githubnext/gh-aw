@@ -157,6 +157,7 @@ func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData
 		c.validateEngineDriver,
 		c.validateEngineMCPSessionTimeout,
 		c.validateEngineMCPToolTimeout,
+		validateCopilotSDKEngineArgs,
 	}
 	for _, check := range checks {
 		if err := check(workflowData); err != nil {
@@ -407,7 +408,7 @@ func buildMergedEnvSources(mergedEnv map[string]any, topEnv map[string]any, impo
 }
 
 // extractAdditionalConfigurations extracts cache-memory, repo-memory, mcp-scripts, and safe-outputs configurations
-func (c *Compiler) extractAdditionalConfigurations(
+func (c *Compiler) extractAdditionalConfigurations( //nolint:largefunc // Existing orchestration phase remains centralized; this change only adds SDK validation state.
 	frontmatter map[string]any,
 	tools map[string]any,
 	markdownDir string,
@@ -657,7 +658,7 @@ func ensureOnMap(frontmatter map[string]any) map[string]any {
 }
 
 // processOnSectionAndFilters processes the on section configuration and applies various filters
-func (c *Compiler) processOnSectionAndFilters(
+func (c *Compiler) processOnSectionAndFilters( //nolint:largefunc // Existing orchestration phase remains centralized; unrelated to SDK tool catalog changes.
 	frontmatter map[string]any,
 	workflowData *WorkflowData,
 	cleanPath string,

@@ -884,7 +884,6 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
-        # --allow-tool graft
         # --allow-tool graft(graft_ask)
         # --allow-tool graft(graft_callers)
         # --allow-tool graft(graft_check)
@@ -971,7 +970,8 @@ jobs:
           COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'auto' }}
           COPILOT_SDK_URI: http://127.0.0.1:3002
           GH_AW_COPILOT_SDK_DRIVER: 1
-          GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-tool","github","--allow-tool","graft","--allow-tool","graft(graft_ask)","--allow-tool","graft(graft_callers)","--allow-tool","graft(graft_check)","--allow-tool","graft(graft_grep)","--allow-tool","graft(graft_map)","--allow-tool","graft(graft_skeleton)","--allow-tool","safeoutputs","--allow-tool","shell(cat /tmp/gh-aw/agent/graft-changed-files.txt)","--allow-tool","shell(cat /tmp/gh-aw/agent/graft-recent-activity.txt)","--allow-tool","shell(cat)","--allow-tool","shell(date)","--allow-tool","shell(echo)","--allow-tool","shell(gh:*)","--allow-tool","shell(graft:*)","--allow-tool","shell(grep)","--allow-tool","shell(head)","--allow-tool","shell(ls)","--allow-tool","shell(printf)","--allow-tool","shell(pwd)","--allow-tool","shell(safeoutputs:*)","--allow-tool","shell(sort)","--allow-tool","shell(tail)","--allow-tool","shell(uniq)","--allow-tool","shell(wc)","--allow-tool","shell(yq)","--allow-tool","write","--allow-all-paths"]'
+          GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-tool","github","--allow-tool","graft(graft_ask)","--allow-tool","graft(graft_callers)","--allow-tool","graft(graft_check)","--allow-tool","graft(graft_grep)","--allow-tool","graft(graft_map)","--allow-tool","graft(graft_skeleton)","--allow-tool","safeoutputs","--allow-tool","shell(cat /tmp/gh-aw/agent/graft-changed-files.txt)","--allow-tool","shell(cat /tmp/gh-aw/agent/graft-recent-activity.txt)","--allow-tool","shell(cat)","--allow-tool","shell(date)","--allow-tool","shell(echo)","--allow-tool","shell(gh:*)","--allow-tool","shell(graft:*)","--allow-tool","shell(grep)","--allow-tool","shell(head)","--allow-tool","shell(ls)","--allow-tool","shell(printf)","--allow-tool","shell(pwd)","--allow-tool","shell(safeoutputs:*)","--allow-tool","shell(sort)","--allow-tool","shell(tail)","--allow-tool","shell(uniq)","--allow-tool","shell(wc)","--allow-tool","shell(yq)","--allow-tool","write","--allow-all-paths"]'
+          GH_AW_COPILOT_SDK_TOOL_CONFIG: '{"version":1,"capabilities":{"bash":true,"edit":true,"webFetch":false,"webSearch":false,"mcp":true,"cliProxy":false},"permissions":{"allowedTools":["github","graft(graft_ask)","graft(graft_callers)","graft(graft_check)","graft(graft_grep)","graft(graft_map)","graft(graft_skeleton)","read","safeoutputs","shell(cat /tmp/gh-aw/agent/graft-changed-files.txt)","shell(cat /tmp/gh-aw/agent/graft-recent-activity.txt)","shell(cat)","shell(date)","shell(echo)","shell(gh:*)","shell(graft:*)","shell(grep)","shell(head)","shell(ls)","shell(printf)","shell(pwd)","shell(safeoutputs:*)","shell(sort)","shell(tail)","shell(uniq)","shell(wc)","shell(yq)","write"]}}'
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
           GH_AW_MAX_TOOL_DENIALS: 5
@@ -1875,6 +1875,7 @@ jobs:
         continue-on-error: true
         id: evals_agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool shell
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -1934,7 +1935,8 @@ jobs:
           COPILOT_MODEL: evals
           COPILOT_SDK_URI: http://127.0.0.1:3002
           GH_AW_COPILOT_SDK_DRIVER: 1
-          GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-all-tools"]'
+          GH_AW_COPILOT_SDK_SERVER_ARGS: '["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-tool","shell"]'
+          GH_AW_COPILOT_SDK_TOOL_CONFIG: '{"version":1,"capabilities":{"bash":true,"edit":false,"webFetch":false,"webSearch":false,"mcp":false,"cliProxy":false},"permissions":{"allowedTools":["read","shell"]}}'
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS || '400' }}
           GH_AW_MAX_TOOL_DENIALS: 5
