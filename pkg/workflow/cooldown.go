@@ -10,7 +10,6 @@ import (
 )
 
 const minimumCooldown = 5 * time.Minute
-const geminiExecutionStepName = "Execute Gemini CLI"
 
 func init() {
 	ghAwOnSectionKeys["cooldown"] = true
