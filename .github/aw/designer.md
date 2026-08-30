@@ -30,7 +30,7 @@ Capture:
 
 ### Phase 1a: Intent
 
-Before selecting a trigger or implementation, load [intent.md](intent.md) and derive the concise canonical outcome and transient IntentSpec. Confirm the outcome when it is ambiguous and persist it later as `intent:`. For explicit, narrow requests, keep this step lightweight.
+Before selecting a trigger or implementation, load [intent.md](intent.md) and derive the concise canonical outcome and transient IntentSpec. Use it to derive PromptPex eval and inverse-eval scenarios and, when needed, operational value. Confirm the outcome when it is ambiguous and persist it later as `intent:`. For explicit, narrow requests, keep this step lightweight.
 
 ### Phase 1b: Repository Survey and Intent Mining
 
