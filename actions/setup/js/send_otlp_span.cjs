@@ -772,7 +772,7 @@ function buildEvalTelemetry(evalResults, eventTimeMs) {
   }
 
   const normalizedAnswers = results.map(result => {
-    const answer = typeof result.answer === "string" ? result.answer.toUpperCase() : "UNKNOWN";
+    const answer = typeof result.answer === "string" ? result.answer.trim().toUpperCase() : "UNKNOWN";
     return answer === "YES" || answer === "NO" ? answer : "UNKNOWN";
   });
   const countAnswer = answer => normalizedAnswers.filter(value => value === answer).length;

@@ -6601,7 +6601,7 @@ describe("buildEvalTelemetry", () => {
   it("builds summary attributes and one event per eval result", () => {
     const telemetry = buildEvalTelemetry(
       [
-        { id: "quality", question: "Sensitive free-form content", answer: "yes", model: "gpt-5" },
+        { id: "quality", question: "Sensitive free-form content", answer: " yes ", model: "gpt-5" },
         { id: "tests", answer: "NO" },
         { id: "unknown", answer: "MAYBE" },
       ],
