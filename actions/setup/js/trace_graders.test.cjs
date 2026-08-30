@@ -706,6 +706,25 @@ describe("trace_graders", () => {
       expect(result.details).toContain("covered=1");
     });
 
+    it("counts a constraint with an invalid pattern against the denominator instead of dropping it", () => {
+      const result = runSkillConstraintCoverage(
+        {
+          trajectoryIR: {
+            toolCalls: [{ name: "run_lint", arguments: {}, success: true }],
+          },
+        },
+        {
+          constraints: [
+            { id: "lints", pattern: "run_lint" },
+            { id: "broken", pattern: "(" },
+          ],
+        }
+      );
+
+      expect(result.value).toBeCloseTo(0.5);
+      expect(result.details).toContain("constraints=2 exercised=1 covered=1 invalidPattern=1");
+    });
+
     it.each([
       ["no constraints configured", { trajectoryIR: { toolCalls: [{ name: "x", success: true }] } }, {}],
       ["no constraints with a valid pattern", { trajectoryIR: { toolCalls: [{ name: "x", success: true }] } }, { constraints: [{ id: "c", pattern: "" }] }],

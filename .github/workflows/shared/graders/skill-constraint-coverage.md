@@ -57,23 +57,35 @@ graders:
         entries.push({ text: `${type} ${target}`, ok: action.validAtIssueTime !== false });
       }
 
+      // The denominator is every supplied constraint, including ones with an
+      // invalid/empty pattern -- malformed constraints count as unmet rather
+      // than being silently dropped from the fraction (which would inflate
+      // the score). validConstraints tracks how many had a usable pattern.
       let validConstraints = 0;
+      let invalidConstraints = 0;
       let exercised = 0;
       let covered = 0;
       const failing = [];
       for (const constraint of constraints) {
         const patternSource = typeof constraint.pattern === "string" ? constraint.pattern : "";
-        if (patternSource === "") continue;
-        let regex;
-        try {
-          regex = new RegExp(patternSource, "i");
-        } catch {
+        let regex = null;
+        if (patternSource !== "") {
+          try {
+            regex = new RegExp(patternSource, "i");
+          } catch {
+            regex = null;
+          }
+        }
+        if (regex === null) {
+          invalidConstraints += 1;
           continue;
         }
         validConstraints += 1;
         const matches = entries.filter(entry => regex.test(entry.text));
         if (matches.length === 0) continue;
         exercised += 1;
+        // Passing requires every matched entry to have succeeded/been valid
+        // at issue time, unless the constraint opts out via requireSuccess: false.
         const requireSuccess = constraint.requireSuccess !== false;
         const passedConstraint = !requireSuccess || matches.every(entry => entry.ok);
         const label = typeof constraint.id === "string" && constraint.id !== "" ? constraint.id : patternSource;
@@ -89,9 +101,9 @@ graders:
       }
 
       return {
-        value: helpers.ratio(covered, validConstraints),
+        value: helpers.ratio(covered, constraints.length),
         unit: "ratio",
-        details: `constraints=${validConstraints} exercised=${exercised} covered=${covered}${failing.length === 0 ? "" : `; unmet: ${failing.join(", ")}`}`,
+        details: `constraints=${constraints.length} exercised=${exercised} covered=${covered}${invalidConstraints === 0 ? "" : ` invalidPattern=${invalidConstraints}`}${failing.length === 0 ? "" : `; unmet: ${failing.join(", ")}`}`,
       };
 ---
 
@@ -106,7 +118,12 @@ time, unless requireSuccess: false) during the run. Unlike policy-near-miss
 (keyword-matched guard objectives already declared as IR objectives) or the
 not-yet-implemented objective-coverage (inferred per-run objectives),
 constraints here are stable across runs of the same harness/skill, making the
-metric trackable over time. Reports not-applicable (passed: null) when no
+metric trackable over time. The denominator is every supplied constraint,
+including ones with an empty/invalid regex pattern -- malformed constraints
+count as unmet rather than being silently dropped from the fraction, which
+would otherwise inflate the score. A single constraint pattern may match
+multiple entries; passing requires all of them to have succeeded/been valid,
+unless requireSuccess: false. Reports not-applicable (passed: null) when no
 constraints are configured, none have a valid pattern, or the trace lacks
 toolCalls/actions.
 -->
