@@ -88,8 +88,34 @@ function getAwaitedCallbackWrapperCall(fn: FunctionNode): TSESTree.CallExpressio
   return parent.parent?.type === AST_NODE_TYPES.AwaitExpression ? parent : null;
 }
 
+// Checks whether a statement (possibly nested in control-flow constructs)
+// contains a throw, without crossing into nested function bodies.
+function statementRethrows(statement: TSESTree.Statement): boolean {
+  switch (statement.type) {
+    case AST_NODE_TYPES.ThrowStatement:
+      return true;
+    case AST_NODE_TYPES.BlockStatement:
+      return statement.body.some(statementRethrows);
+    case AST_NODE_TYPES.IfStatement:
+      return statementRethrows(statement.consequent) || (statement.alternate !== null && statementRethrows(statement.alternate));
+    case AST_NODE_TYPES.TryStatement:
+      return statementRethrows(statement.block) || (statement.handler !== null && statementRethrows(statement.handler.body)) || (statement.finalizer !== null && statementRethrows(statement.finalizer));
+    case AST_NODE_TYPES.SwitchStatement:
+      return statement.cases.some(switchCase => switchCase.consequent.some(statementRethrows));
+    case AST_NODE_TYPES.ForStatement:
+    case AST_NODE_TYPES.ForInStatement:
+    case AST_NODE_TYPES.ForOfStatement:
+    case AST_NODE_TYPES.WhileStatement:
+    case AST_NODE_TYPES.DoWhileStatement:
+    case AST_NODE_TYPES.LabeledStatement:
+      return statementRethrows(statement.body);
+    default:
+      return false;
+  }
+}
+
 function catchClauseRethrows(handler: TSESTree.CatchClause): boolean {
-  return handler.body.body.some(statement => statement.type === AST_NODE_TYPES.ThrowStatement);
+  return statementRethrows(handler.body);
 }
 
 function getFunctionsForGitHubApiCall(node: TSESTree.CallExpression, sourceCode: Readonly<TSESLint.SourceCode>): FunctionNode[] {

@@ -58,6 +58,18 @@ describe("require-error-code-for-github-api-throw", () => {
     });
   });
 
+  it("invalid: throw after retry-wrapped githubClient.rest call inside a conditional rethrow is flagged", () => {
+    cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); async function withRetry(fn) { return fn(); } const retryConfig = {}; async function f(githubClient, shouldRethrow) { try { await withRetry(() => githubClient.rest.issues.create({}), retryConfig, "create issue"); } catch (error) { if (shouldRethrow) { throw error; } } throw new Error("failed to create issue"); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+      ],
+    });
+  });
+
   it("valid: throw after outer catch is not flagged when inner catch swallows the retry-wrapped call", () => {
     cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
       valid: [
