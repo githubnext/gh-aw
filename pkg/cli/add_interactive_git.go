@@ -86,6 +86,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 }
 
 func (c *AddInteractiveConfig) ensurePullRequestMerged(prNumber int, prURL string) error {
+	addInteractiveLog.Printf("Ensuring PR merged: prNumber=%d", prNumber)
 	if prNumber == 0 {
 		if prURL == "" {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Requested workflow files already exist locally; no pull request was created."))
@@ -501,6 +502,7 @@ func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
 	// GraphQL API and is surfaced verbatim in the gh CLI output.
 	combinedText := strings.ToLower(string(squashOutput) + squashErr.Error())
 	if strings.Contains(combinedText, squashMergeNotAllowedErr) {
+		addInteractiveLog.Printf("Squash merge rejected for PR #%d, retrying with merge commit", prNumber)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Squash merges are not allowed on this repository, retrying with merge commit"))
 		mergeOutput, mergeErr := workflow.RunGHCombined("Merging pull request...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--merge")
 		if mergeErr != nil {
