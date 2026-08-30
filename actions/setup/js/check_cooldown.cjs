@@ -58,6 +58,7 @@ async function main() {
     let page = 1;
     const perPage = 100;
     let agentJobLookups = 0;
+    let hitPageLimit = false;
 
     while (page <= MAX_WORKFLOW_RUN_PAGES) {
       const response = await github.rest.actions.listWorkflowRuns({
@@ -119,10 +120,14 @@ async function main() {
       if (runs.length < perPage) {
         break;
       }
+      if (page === MAX_WORKFLOW_RUN_PAGES) {
+        hitPageLimit = true;
+        break;
+      }
       page++;
     }
 
-    if (page > MAX_WORKFLOW_RUN_PAGES) {
+    if (hitPageLimit) {
       core.warning(`Cooldown check stopped after scanning ${MAX_WORKFLOW_RUN_PAGES} workflow run pages`);
     }
     core.info("Cooldown passed; no recent completed run executed the agent job");

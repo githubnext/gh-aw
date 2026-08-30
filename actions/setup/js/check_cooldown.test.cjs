@@ -157,7 +157,7 @@ describe("check_cooldown", () => {
       if (options.run_id === 94) {
         return Promise.resolve([agentJob()]);
       }
-      return Promise.resolve([agentJob()]);
+      return Promise.reject(new Error(`unexpected run_id ${options.run_id}`));
     });
 
     await checkCooldown.main();
