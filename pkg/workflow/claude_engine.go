@@ -1,8 +1,10 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,14 @@ import (
 var claudeLog = logger.New("workflow:claude_engine")
 
 const claudeDebugLogFile = constants.TmpGhAwAgentDir + "claude-debug.log"
+const claudeLSPPluginDir = constants.TmpGhAwDir + "/claude-lsp-plugin"
+const claudeLSPPluginManifest = `{"name":"gh-aw-lsp","version":"1.0.0","description":"Language servers configured by GitHub Agentic Workflows"}`
+
+type claudeLSPServerConfig struct {
+	Command             string            `json:"command"`
+	Args                []string          `json:"args,omitempty"`
+	ExtensionToLanguage map[string]string `json:"extensionToLanguage"`
+}
 
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
@@ -113,7 +123,8 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	// Skip installation if custom command is specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		claudeLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
+		manager := NewLSPManager(workflowData.LSP)
+		return manager.GenerateInstallSteps(workflowData)
 	}
 
 	// Use version from engine config if provided, otherwise default to pinned version
@@ -145,7 +156,9 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 			false,
 		))
 	}
-	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+	manager := NewLSPManager(workflowData.LSP)
+	return append(steps, manager.GenerateInstallSteps(workflowData)...)
 }
 
 // GetPluginInstallationSteps checks out pinned Agent Plugins for the Claude engine.
@@ -195,6 +208,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build the full command based on whether firewall is enabled
 	command := e.buildClaudeFullCommand(workflowData, claudeCommand, logFile)
+	if lspSetup := buildClaudeLSPPluginSetup(workflowData); lspSetup != "" {
+		command = lspSetup + command
+	}
 
 	// Build environment variables map
 	env := e.buildClaudeCommandEnv(workflowData)
@@ -248,6 +264,12 @@ func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithM
 	// Note: we use --allowed-tools (not the simpler --tools from v2.0.31+) because it provides
 	// fine-grained control: Bash(git:*), MCP tool prefixes, path-specific tools, etc.
 	allowedTools = e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.DriveMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
+	if len(workflowData.LSP) > 0 {
+		allowedToolsList := strings.Split(allowedTools, ",")
+		allowedToolsList = append(allowedToolsList, "LSP")
+		sort.Strings(allowedToolsList)
+		allowedTools = strings.Join(allowedToolsList, ",")
+	}
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
@@ -268,6 +290,9 @@ func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithM
 	}
 
 	claudeArgs = appendClaudePluginArgs(claudeArgs, workflowData)
+	if len(workflowData.LSP) > 0 {
+		claudeArgs = append(claudeArgs, "--plugin-dir", claudeLSPPluginDir)
+	}
 
 	claudeArgs = appendClaudeCustomEngineArgs(claudeArgs, permissionModeValueIndex, workflowData)
 
@@ -282,6 +307,37 @@ func appendClaudePluginArgs(claudeArgs []string, workflowData *WorkflowData) []s
 		claudeArgs = append(claudeArgs, "--plugin-dir", "./"+pluginPath)
 	}
 	return claudeArgs
+}
+
+func buildClaudeLSPPluginSetup(workflowData *WorkflowData) string {
+	if workflowData == nil {
+		return ""
+	}
+	manager := NewLSPManager(workflowData.LSP)
+	if !manager.HasServers() {
+		return ""
+	}
+	servers := make(map[string]claudeLSPServerConfig, len(manager.servers))
+	for language, config := range manager.servers {
+		servers[language] = claudeLSPServerConfig{
+			Command:             config.Command,
+			Args:                config.Args,
+			ExtensionToLanguage: config.FileExtensions,
+		}
+	}
+	configBytes, err := json.Marshal(servers)
+	if err != nil {
+		claudeLog.Printf("Failed to generate Claude LSP plugin configuration: %v", err)
+		return ""
+	}
+	return fmt.Sprintf(
+		"mkdir -p %s/.claude-plugin\nprintf '%%s' %s > %s/.claude-plugin/plugin.json\nprintf '%%s' %s > %s/.lsp.json\n",
+		claudeLSPPluginDir,
+		shellEscapeArg(claudeLSPPluginManifest),
+		claudeLSPPluginDir,
+		shellEscapeArg(string(configBytes)),
+		claudeLSPPluginDir,
+	)
 }
 
 // resolveClaudePermissionMode returns the --permission-mode value to use, applying any

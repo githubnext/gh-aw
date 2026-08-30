@@ -52,7 +52,7 @@ Analyze the repository and create a concise daily status report covering:
 
 ## Capabilities and limitations
 
-Claude Code supports native web search, bare mode, top-level `max-turns`, and per-command bash allowlisting. It does not support Copilot-specific `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
+Claude Code supports native web search, LSP through the experimental top-level `lsp` configuration, bare mode, top-level `max-turns`, and per-command bash allowlisting. LSP cannot be combined with `engine.bare: true` because Claude Code disables plugins and language servers in bare mode. Claude Code does not support Copilot-specific `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
 
 ## Guided workflow authoring with Claude Code
 

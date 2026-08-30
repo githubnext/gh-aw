@@ -5510,7 +5510,7 @@
     },
     "lsp": {
       "type": "object",
-      "description": "\u26a0\ufe0f Experimental. Top-level Language Server Protocol (LSP) configuration for Copilot CLI. Each key is a language identifier and each value defines the server command, args, and file extension mappings. Using this field emits a compile-time warning.",
+      "description": "\u26a0\ufe0f Experimental. Top-level Language Server Protocol (LSP) configuration for the Copilot and Claude engines. Each key is a language identifier and each value defines the server command, args, and file extension mappings. Using this field emits a compile-time warning.",
       "patternProperties": {
         "^[a-zA-Z0-9_-]+$": {
           "type": "object",

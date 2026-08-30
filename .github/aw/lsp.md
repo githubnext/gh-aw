@@ -1,15 +1,15 @@
 ---
-description: Language Server Protocol (LSP) configuration reference for gh-aw Copilot workflows — frontmatter syntax, supported servers, and file extension mapping.
+description: Language Server Protocol (LSP) configuration reference for gh-aw Copilot and Claude workflows — frontmatter syntax, supported servers, and file extension mapping.
 ---
 
 # LSP Configuration
 
-> ⚠️ **Experimental.** `lsp` emits a compile-time warning and may change. **Only supported with `engine: copilot`** — any other engine is a compile-time error.
+> ⚠️ **Experimental.** `lsp` emits a compile-time warning and may change. It is supported with `engine: copilot` and `engine: claude`; any other engine is a compile-time error.
 
-The `lsp` frontmatter field lets Copilot-engine workflows declare language servers. At compile time, the compiler:
+The `lsp` frontmatter field lets Copilot and Claude workflows declare language servers. At compile time, the compiler:
 
-1. Validates the configuration and rejects `lsp` with a non-Copilot engine.
-2. Generates `~/.copilot/settings.json` with an `lspServers` block the Copilot CLI reads at startup.
+1. Validates the configuration and rejects `lsp` with an unsupported engine.
+2. Generates engine-specific configuration: `~/.copilot/settings.json` for Copilot or a temporary Claude Code plugin containing `.lsp.json`.
 3. Injects install steps for known server ecosystems into the agent setup job.
 
 ## Syntax
@@ -54,9 +54,9 @@ For the languages below, the compiler injects the install step automatically —
 
 Language keys not in this table still work — the compiler simply skips the auto-install step. Add a manual `steps:` entry to install the server yourself.
 
-## LSP-enabled Tools (Copilot Engine)
+## LSP-enabled Tools
 
-When `lsp` is configured, Copilot gets semantic code-intelligence tools from the language servers:
+When `lsp` is configured, the selected engine gets semantic code-intelligence tools from the language servers:
 
 | Tool capability | What it's used for |
 |---|---|
@@ -193,7 +193,8 @@ network:
 
 The compiler enforces these rules at compile time:
 
-- `lsp` requires `engine: copilot` — any other engine causes an error.
+- `lsp` requires `engine: copilot` or `engine: claude` — any other engine causes an error.
+- Claude Code's `engine.bare: true` disables plugins and LSP, so it cannot be combined with `lsp`.
 - Each language entry must have a non-empty `command`.
 - Each language entry must define at least one `fileExtensions` mapping.
 - Language keys are case-insensitive and trimmed; duplicate keys that collapse to the same lowercase value are normalized deterministically with the lexicographically first original key winning, but should still be avoided because the result may be surprising.

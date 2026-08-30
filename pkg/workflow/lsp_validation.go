@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -25,9 +26,12 @@ func (c *Compiler) validateLSPSupport(workflowData *WorkflowData) error {
 		engineID = "copilot"
 	}
 
-	if engineID != "copilot" {
+	if engineID != "copilot" && engineID != "claude" {
 		lspValidationLog.Printf("validateLSPSupport: rejecting unsupported engine %q for LSP", engineID)
-		return fmt.Errorf("lsp is currently only supported for engine: copilot (found engine: %s)", engineID)
+		return fmt.Errorf("lsp is currently only supported for engines: copilot and claude (found engine: %s)", engineID)
+	}
+	if engineID == "claude" && workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
+		return errors.New("lsp cannot be used with engine.bare for engine: claude because Claude Code disables LSP in bare mode")
 	}
 
 	lspValidationLog.Printf("validateLSPSupport: LSP validation passed for engine %q", engineID)

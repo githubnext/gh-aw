@@ -339,7 +339,7 @@ func TestValidateWorkflowEngineSettings_LSPRequiresCopilot(t *testing.T) {
 
 	err := compiler.validateWorkflowEngineSettings("workflow.md", workflowData)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "workflow.md: lsp is currently only supported for engine: copilot")
+	require.ErrorContains(t, err, "workflow.md: lsp is currently only supported for engines: copilot and claude")
 }
 
 func TestMergeRawOTLPEndpoints_DedupesAndCountsSources(t *testing.T) {

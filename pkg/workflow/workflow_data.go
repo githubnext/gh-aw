@@ -86,7 +86,7 @@ type WorkflowData struct {
 	Container                      string // container setting for the main job
 	Services                       string // services setting for the main job
 	Tools                          map[string]any
-	LSP                            map[string]LSPServerConfig // top-level LSP server configuration for Copilot CLI
+	LSP                            map[string]LSPServerConfig // top-level LSP server configuration
 	ParsedTools                    *Tools                     // Structured tools configuration (NEW: parsed from Tools map)
 	ExplicitlyDisabledTools        map[string]struct{}        // tool names explicitly set to false before default resolution mutates/removes their map entries
 	BashDisabled                   bool                       // true when tools.bash was fully and explicitly refused (bash: false, or bash: []) after default-tool resolution; used by engines that can fully disable shell execution (e.g. Codex's features.shell_tool=false), see EngineCapabilities.BashDisable

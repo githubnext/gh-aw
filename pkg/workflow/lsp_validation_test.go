@@ -29,13 +29,30 @@ func TestValidateLSPSupport(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("non-copilot engine rejects lsp", func(t *testing.T) {
+	t.Run("claude engine accepts lsp", func(t *testing.T) {
+		err := compiler.validateLSPSupport(&WorkflowData{
+			AI:  "claude",
+			LSP: validLSP,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("claude bare mode rejects lsp", func(t *testing.T) {
+		err := compiler.validateLSPSupport(&WorkflowData{
+			AI:           "claude",
+			EngineConfig: &EngineConfig{Bare: true},
+			LSP:          validLSP,
+		})
+		require.ErrorContains(t, err, "Claude Code disables LSP in bare mode")
+	})
+
+	t.Run("unsupported engine rejects lsp", func(t *testing.T) {
 		err := compiler.validateLSPSupport(&WorkflowData{
 			AI:  "codex",
 			LSP: validLSP,
 		})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "only supported for engine: copilot")
+		require.ErrorContains(t, err, "only supported for engines: copilot and claude")
 	})
 
 	t.Run("invalid lsp config fails validation", func(t *testing.T) {

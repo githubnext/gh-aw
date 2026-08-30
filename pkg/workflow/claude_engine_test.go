@@ -151,6 +151,36 @@ func TestClaudeEngine(t *testing.T) {
 	}
 }
 
+func TestClaudeEngineWithLSPConfig(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		LSP: map[string]LSPServerConfig{
+			"typescript": {
+				Command: "typescript-language-server",
+				Args:    []string{"--stdio"},
+				FileExtensions: map[string]string{
+					".ts": "typescript",
+				},
+			},
+		},
+	}
+
+	installContent := strings.Join(flattenSteps(engine.GetInstallationSteps(workflowData)), "\n")
+	assert.Contains(t, installContent, "Install TypeScript LSP dependencies")
+	assert.Contains(t, installContent, "typescript-language-server@4.3.3")
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	require.Len(t, steps, 1)
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	assert.Contains(t, stepContent, "mkdir -p /tmp/gh-aw/claude-lsp-plugin/.claude-plugin")
+	assert.Contains(t, stepContent, "/tmp/gh-aw/claude-lsp-plugin/.claude-plugin/plugin.json")
+	assert.Contains(t, stepContent, "/tmp/gh-aw/claude-lsp-plugin/.lsp.json")
+	assert.Contains(t, stepContent, `"extensionToLanguage":{".ts":"typescript"}`)
+	assert.Contains(t, stepContent, "--plugin-dir /tmp/gh-aw/claude-lsp-plugin")
+	assert.Contains(t, stepContent, "LS,LSP,NotebookRead")
+}
+
 func TestClaudeEngineWithOutput(t *testing.T) {
 	engine := NewClaudeEngine()
 
