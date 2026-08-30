@@ -469,3 +469,20 @@
 - **[watch, not yet actionable]** Q workflow quality-gate regression — fix PR #43527 merged Jul 7 but `AR` symptom still present per #56893.
 - **[watch, needs confirmation not fix]** ChatGPT-domain firewall blocks (Ponytail Reviewer, Issue Monster, Daily Max/Credit Limit Tests, 35 combined blocks per #56917) — likely expected engine traffic, not filed pending confirmation of intent.
 - **[declined, standing informational]** 140 unlabeled / 841 unassigned issues per Daily Issues Report #56903 — consistent with prior "no single code fix, backlog only" declines.
+
+## Flagged Items (2026-08-30, ~18:27Z cycle, window since 12:38:52Z baseline #57160, 7 new discussions: 57161,57163,57164,57178,57179,57194,57203)
+
+### This cycle's 4 filed issues
+1. Vague `run-failure` message in `breaking-change-checker.md` (line 69) — Delight #57179.
+2. `run-failure` message lacks next-step guidance in `stale-pr-cleanup.md` (line 40) — Delight #57179.
+3. `daily-malicious-code-scan.md` missing `network:` allowlist for `github.com` — live-verified `defaults` preset has zero github domains, so `git fetch --unshallow || echo ...` likely silently degrades this security scanner to shallow history. Corroborated by Security Observability #57194's github.com:443/proxy.golang.org:443 block attribution.
+4. CGO/CWI fresh non-AR `failure` regression on `pull_request` events, distinct from closed #38777 — Agent Performance Analyzer #57164.
+
+### Declined/deferred this cycle
+- CLAUDE_CODE_OAUTH_TOKEN silent-ignore (#57161) — chronic, closed 4-6x, standing policy, not re-filed.
+- `syntax-tools-imports.md` stale toolset list (#57163) — verified live in actual repo, already correct, no gap.
+- shared-alerts.md stale citations (#57164) — confirmed not git-tracked via `find`, runtime state only.
+- Metrics Collector staleness (#57164) — already tracked #56537/#56815.
+- PR Sous Chef github.com:443 blocks (#57194) — investigated live; already has `gh-proxy` mode + `[defaults, go]` allowlist; residual blocks look like legitimate git/cli-proxy ops, not a config gap.
+- ab.chatgpt.com:443 blocks, 37 hits (#57194) — 2nd+ cycle, still a confirm-intent judgment call, not a code fix.
+- Daily Issues Report's WIP-auto-label-at-creation idea (#57178, corroborated by issues-analyst sub-agent: 100 of 100 sampled unlabeled issues are `[WIP] ... work in progress` trackers, overwhelmingly "Daily Trajectory Grader Implementer") — searched `pkg/` and `.github/workflows/` for the `[WIP]`/"work in progress" issue-title template and found no single Go source or shared markdown location; likely emergent per-workflow agent behavior rather than one framework hook. Too diffuse to point at a single-file fix this cycle; worth a deeper source dive next time if it keeps recurring.
