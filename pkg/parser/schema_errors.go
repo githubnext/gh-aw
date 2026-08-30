@@ -312,8 +312,8 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 var knownFieldValidValues = map[string]string{
 	// Both entries mirror $defs/github_actions_permissions in main_workflow_schema.json.
 	// Update both when the schema changes.
-	"/permissions":    "Valid permission scopes: actions, all, attestations, checks, code-quality, copilot-requests, contents, deployments, discussions, id-token, issues, metadata, models, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses, vulnerability-alerts",
-	"/on/permissions": "Valid permission scopes: actions, all, attestations, checks, code-quality, copilot-requests, contents, deployments, discussions, id-token, issues, metadata, models, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses, vulnerability-alerts",
+	"/permissions":    "Valid permission scopes: actions, all, attestations, checks, code-quality, copilot-requests, contents, deployments, discussions, id-token, issues, metadata, models, organization-custom-org-roles, organization-custom-repository-roles, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses, vulnerability-alerts",
+	"/on/permissions": "Valid permission scopes: actions, all, attestations, checks, code-quality, copilot-requests, contents, deployments, discussions, id-token, issues, metadata, models, organization-custom-org-roles, organization-custom-repository-roles, organization-projects, packages, pages, pull-requests, repository-projects, security-events, statuses, vulnerability-alerts",
 }
 
 // knownFieldScopes maps well-known JSON schema paths to a slice of valid scope names.
@@ -325,12 +325,14 @@ var knownFieldScopes = map[string][]string{
 	"/permissions": {
 		"actions", "all", "attestations", "checks", "code-quality", "copilot-requests", "contents", "deployments",
 		"discussions", "id-token", "issues", "metadata", "models",
+		"organization-custom-org-roles", "organization-custom-repository-roles",
 		"organization-projects", "packages", "pages", "pull-requests",
 		"repository-projects", "security-events", "statuses", "vulnerability-alerts",
 	},
 	"/on/permissions": {
 		"actions", "all", "attestations", "checks", "code-quality", "copilot-requests", "contents", "deployments",
 		"discussions", "id-token", "issues", "metadata", "models",
+		"organization-custom-org-roles", "organization-custom-repository-roles",
 		"organization-projects", "packages", "pages", "pull-requests",
 		"repository-projects", "security-events", "statuses", "vulnerability-alerts",
 	},
