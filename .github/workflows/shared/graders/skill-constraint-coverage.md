@@ -15,13 +15,14 @@ graders:
     max: 1.0
     script: |
       const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
-      const constraints = (Array.isArray(config.constraints) ? config.constraints : []).filter(isRecord);
+      const constraints = Array.isArray(config.constraints) ? config.constraints : [];
 
       if (constraints.length === 0) {
         return { value: null, unit: "ratio", passed: null, message: "not applicable: no constraints configured" };
       }
 
       const candidates = [
+        trace,
         trace.trajectoryIR,
         trace.trajectoryIr,
         trace.ir,
@@ -31,8 +32,8 @@ graders:
         isRecord(trace.agentOutput) ? trace.agentOutput : null,
       ].filter(isRecord);
 
-      const toolCalls = (candidates.find(value => Array.isArray(value.toolCalls))?.toolCalls ?? []).filter(isRecord);
-      const actions = (candidates.find(value => Array.isArray(value.actions))?.actions ?? []).filter(isRecord);
+      const toolCalls = (candidates.find(value => Array.isArray(value.toolCalls) && value.toolCalls.some(isRecord))?.toolCalls ?? []).filter(isRecord);
+      const actions = (candidates.find(value => Array.isArray(value.actions) && value.actions.some(isRecord))?.actions ?? []).filter(isRecord);
 
       if (toolCalls.length === 0 && actions.length === 0) {
         return { value: null, unit: "ratio", passed: null, message: "not applicable: trace lacks toolCalls/actions" };
@@ -67,7 +68,8 @@ graders:
       let covered = 0;
       const failing = [];
       for (const constraint of constraints) {
-        const patternSource = typeof constraint.pattern === "string" ? constraint.pattern : "";
+        const constraintRecord = isRecord(constraint) ? constraint : null;
+        const patternSource = constraintRecord !== null && typeof constraintRecord.pattern === "string" ? constraintRecord.pattern : "";
         let regex = null;
         if (patternSource !== "") {
           try {
@@ -86,9 +88,9 @@ graders:
         exercised += 1;
         // Passing requires every matched entry to have succeeded/been valid
         // at issue time, unless the constraint opts out via requireSuccess: false.
-        const requireSuccess = constraint.requireSuccess !== false;
+        const requireSuccess = constraintRecord === null || constraintRecord.requireSuccess !== false;
         const passedConstraint = !requireSuccess || matches.every(entry => entry.ok);
-        const label = typeof constraint.id === "string" && constraint.id !== "" ? constraint.id : patternSource;
+        const label = constraintRecord !== null && typeof constraintRecord.id === "string" && constraintRecord.id !== "" ? constraintRecord.id : patternSource;
         if (passedConstraint) {
           covered += 1;
         } else if (failing.length < 5) {

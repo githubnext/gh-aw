@@ -496,6 +496,24 @@ func validateGraders(cfg *GradersConfig) error {
 	return nil
 }
 
+func deepMergeMaps(dst, src map[string]any) map[string]any {
+	if dst == nil {
+		dst = make(map[string]any)
+	}
+	for key, value := range src {
+		if current, ok := dst[key]; ok {
+			currentMap, currentIsMap := current.(map[string]any)
+			incomingMap, incomingIsMap := value.(map[string]any)
+			if currentIsMap && incomingIsMap {
+				dst[key] = deepMergeMaps(currentMap, incomingMap)
+				continue
+			}
+		}
+		dst[key] = value
+	}
+	return dst
+}
+
 func mergeImportedGradersFrontmatter(frontmatter map[string]any, importedGraders string) (map[string]any, error) {
 	if strings.TrimSpace(importedGraders) == "" {
 		return frontmatter, nil
@@ -511,11 +529,11 @@ func mergeImportedGradersFrontmatter(frontmatter map[string]any, importedGraders
 		if err := json.Unmarshal([]byte(line), &imported); err != nil {
 			return nil, fmt.Errorf("imported graders configuration is not valid JSON: %w", err)
 		}
-		maps.Copy(mergedGraders, imported)
+		mergedGraders = deepMergeMaps(mergedGraders, imported)
 	}
 
 	if raw, ok := frontmatter["graders"].(map[string]any); ok {
-		maps.Copy(mergedGraders, raw)
+		mergedGraders = deepMergeMaps(mergedGraders, raw)
 	}
 	if len(mergedGraders) == 0 {
 		return frontmatter, nil

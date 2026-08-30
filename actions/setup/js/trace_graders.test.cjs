@@ -86,9 +86,7 @@ function runPolicyNearMiss(trace) {
   });
 }
 
-const skillConstraintCoverageScriptMatch = fs
-  .readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/skill-constraint-coverage.md"), "utf8")
-  .match(/script: \|\n([\s\S]*?)\n^---\s*$/m);
+const skillConstraintCoverageScriptMatch = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/skill-constraint-coverage.md"), "utf8").match(/script: \|\n([\s\S]*?)\n^---\s*$/m);
 if (!skillConstraintCoverageScriptMatch?.[1]) {
   throw new Error("unable to extract skill-constraint-coverage grader script");
 }
@@ -704,6 +702,36 @@ describe("trace_graders", () => {
 
       expect(result.value).toBe(1);
       expect(result.details).toContain("covered=1");
+    });
+
+    it("uses the preprocessed trace as a fallback candidate when trajectoryIR is absent", () => {
+      const result = runSkillConstraintCoverage(
+        {
+          toolCalls: [{ name: "read_file", arguments: { path: "a.md" }, success: true }],
+        },
+        {
+          constraints: [{ id: "reads-before-write", pattern: "read_file" }],
+        }
+      );
+
+      expect(result.value).toBe(1);
+      expect(result.details).toContain("constraints=1 exercised=1 covered=1");
+    });
+
+    it("counts non-object constraint entries against the denominator instead of dropping them", () => {
+      const result = runSkillConstraintCoverage(
+        {
+          trajectoryIR: {
+            toolCalls: [{ name: "run_lint", arguments: {}, success: true }],
+          },
+        },
+        {
+          constraints: [null, { id: "lints", pattern: "run_lint" }],
+        }
+      );
+
+      expect(result.value).toBeCloseTo(0.5);
+      expect(result.details).toContain("constraints=2 exercised=1 covered=1 invalidPattern=1");
     });
 
     it("counts a constraint with an invalid pattern against the denominator instead of dropping it", () => {
