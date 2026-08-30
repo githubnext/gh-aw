@@ -1088,10 +1088,10 @@ on:
   # (optional)
   manual-approval: "example-value"
 
-  # Minimum time after the most recent completed workflow run that executed the
-  # agent job before another agent run may start. Uses Go duration syntax (for
-  # example, '5m', '1h', or '1h30m'), must be at least 5 minutes, and does not
-  # support GitHub Actions expressions.
+  # Minimum time after the most recent completed workflow run where the generated
+  # agent execution step started before another agent run may start. Uses Go
+  # duration syntax (for example, '5m', '1h', or '1h30m'), must be at least 5
+  # minutes, and does not support GitHub Actions expressions.
   # (optional)
   cooldown: "example-value"
 

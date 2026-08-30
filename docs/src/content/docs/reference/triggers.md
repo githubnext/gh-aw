@@ -123,7 +123,7 @@ on:
   cooldown: 30m
 ```
 
-The duration uses Go duration syntax, such as `5m`, `1h`, or `1h30m`, and must be at least five minutes. GitHub Actions expressions are not supported. The cooldown starts when the previous workflow run finishes, regardless of whether its agent job succeeded or failed. Runs where the agent job was skipped do not restart the cooldown.
+The duration uses Go duration syntax, such as `5m`, `1h`, or `1h30m`, and must be at least five minutes. GitHub Actions expressions are not supported. The cooldown starts when the previous workflow run finishes, provided the generated agent execution step actually started, regardless of whether that step succeeded or failed. Runs where the agent job was skipped, or where setup failed before the generated agent execution step started, do not restart the cooldown.
 
 The compiler adds `actions: read` to the pre-activation job so it can inspect completed runs. If run history cannot be queried, the cooldown check fails open and allows the agent to run.
 

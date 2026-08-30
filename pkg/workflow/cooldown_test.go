@@ -21,6 +21,7 @@ func TestExtractCooldown(t *testing.T) {
 	}{
 		{name: "missing"},
 		{name: "minimum", value: "5m", want: 5 * time.Minute},
+		{name: "fractional seconds", value: "5m0.9s", want: 5*time.Minute + 900*time.Millisecond},
 		{name: "composite", value: "1h30m", want: 90 * time.Minute},
 		{name: "below minimum", value: "299s", errContains: "must be at least 5m"},
 		{name: "invalid", value: "one hour", errContains: "invalid duration"},
@@ -72,4 +73,26 @@ Run after the cooldown.
 	assert.Contains(t, lockContent, "actions: read")
 	assert.Contains(t, lockContent, "steps.check_cooldown.outputs.cooldown_ok == 'true'")
 	assert.Contains(t, lockContent, "# cooldown: 1h30m # Cooldown processed as run history check in pre-activation job")
+}
+
+func TestCooldownCompilationRoundsSecondsUp(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "cooldown")
+	workflowPath := filepath.Join(tmpDir, "cooldown.md")
+	content := `---
+on:
+  workflow_dispatch:
+  cooldown: 5m0.9s
+engine: claude
+---
+Run after the cooldown.
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o600))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockBytes, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+
+	assert.Contains(t, string(lockBytes), `GH_AW_COOLDOWN_SECONDS: "301"`)
 }

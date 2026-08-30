@@ -315,6 +315,11 @@
           "desc": "Environment name that requires manual approval before the workflow can run.",
           "leaf": true
         },
+        "cooldown": {
+          "type": "string",
+          "desc": "Minimum time after the most recent completed workflow run where the generated agent execution step started before ano...",
+          "leaf": true
+        },
         "reaction": {
           "type": "string|integer|object",
           "desc": "AI reaction to add/remove on triggering item.",
@@ -903,6 +908,11 @@
               "type": "boolean",
               "desc": "Enable or disable API proxy token steering.",
               "enum": [true, false],
+              "leaf": true
+            },
+            "ca-cert": {
+              "type": "string",
+              "desc": "Host path to an additional CA certificate for API proxy upstream TLS verification.",
               "leaf": true
             },
             "runtime": {

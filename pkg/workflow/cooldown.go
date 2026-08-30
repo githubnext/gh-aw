@@ -34,7 +34,7 @@ func extractCooldown(frontmatter map[string]any) (time.Duration, error) {
 		return 0, fmt.Errorf("on.cooldown: invalid duration %q; use Go duration syntax such as \"5m\", \"1h\", or \"1h30m\"", raw)
 	}
 	if duration < minimumCooldown {
-		return 0, fmt.Errorf("on.cooldown: duration %q must be at least 5m", raw)
+		return 0, fmt.Errorf("on.cooldown: duration %q must be at least %s", raw, minimumCooldown)
 	}
 
 	return duration, nil
@@ -46,7 +46,8 @@ func (c *Compiler) generateCooldownCheck(data *WorkflowData, steps []string) []s
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCooldownStepID))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GH_AW_COOLDOWN_SECONDS: \"%d\"\n", int64(data.Cooldown/time.Second)))
+	cooldownSeconds := int64((data.Cooldown + time.Second - time.Nanosecond) / time.Second)
+	steps = append(steps, fmt.Sprintf("          GH_AW_COOLDOWN_SECONDS: \"%d\"\n", cooldownSeconds))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
 	steps = append(steps, "          script: |\n")
