@@ -24,23 +24,18 @@ graders:
         isRecord(trace.agentOutput) ? trace.agentOutput : null,
       ].filter(isRecord);
 
-      let events = [];
-      let objectives = [];
-      for (const candidate of candidates) {
-        if (Array.isArray(candidate.objectives) || Array.isArray(candidate.events)) {
-          events = Array.isArray(candidate.events) ? candidate.events : [];
-          objectives = Array.isArray(candidate.objectives) ? candidate.objectives : [];
-          break;
-        }
-      }
+      const candidate = candidates.find(value => Array.isArray(value.events) && Array.isArray(value.objectives)) ||
+        candidates.find(value => Array.isArray(value.objectives));
+      const events = Array.isArray(candidate?.events) ? candidate.events : [];
+      const objectives = Array.isArray(candidate?.objectives) ? candidate.objectives : [];
 
       if (objectives.length === 0) {
-        return { value: 0, unit: "ratio", passed: null, message: "not applicable: no declared objectives in the trace" };
+        return { value: null, unit: "ratio", passed: null, message: "not applicable: no declared objectives in the trace" };
       }
 
       const reachedOutcome = events.some(event => isRecord(event) && event.kind === "safe_output");
       if (!reachedOutcome) {
-        return { value: 0, unit: "ratio", passed: null, message: "not applicable: no safe_output event; run did not reach an outcome" };
+        return { value: null, unit: "ratio", passed: null, message: "not applicable: no safe_output event; run did not reach an outcome" };
       }
 
       // Guard/policy-shaped objectives: matched by keyword against the
@@ -51,7 +46,7 @@ graders:
       const guardObjectives = objectives.filter(objective => isRecord(objective) && typeof objective.description === "string" && guardPattern.test(objective.description));
 
       if (guardObjectives.length === 0) {
-        return { value: 0, unit: "ratio", passed: null, message: "not applicable: no guard/policy-shaped objectives in the trace" };
+        return { value: null, unit: "ratio", passed: null, message: "not applicable: no guard/policy-shaped objectives in the trace" };
       }
 
       const unmet = guardObjectives.filter(objective => objective.satisfiedAtEventIndex === null || objective.satisfiedAtEventIndex === undefined);

@@ -68,6 +68,22 @@ function makeTrace(overrides = {}) {
   };
 }
 
+const policyNearMissScript = fs
+  .readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/policy-near-miss.md"), "utf8")
+  .match(/script: \|\n([\s\S]*?)\n---/)[1]
+  .split("\n")
+  .map(line => line.slice(6))
+  .join("\n");
+
+function runPolicyNearMiss(trace) {
+  return runCustomGrader("policy-near-miss", policyNearMissScript, makeTrace(trace), {
+    name: "Policy Near-Miss Rate",
+    unit: "ratio",
+    direction: "lower_is_better",
+    source: "inline",
+  });
+}
+
 describe("trace_graders", () => {
   describe("buildGradersSummaryBody", () => {
     it("renders all computed grader values without emojis", () => {
@@ -563,6 +579,49 @@ describe("trace_graders", () => {
       const result = runCustomGrader("test", "while(true){} return 1", makeTrace(), meta);
       expect(result.status).toBe("error");
       expect(result.error).toContain("runtime error");
+    });
+  });
+
+  describe("policy-near-miss custom grader", () => {
+    it("ignores an events-only candidate when a later candidate has canonical objectives", () => {
+      const result = runPolicyNearMiss({
+        trajectoryIR: { events: [{ kind: "safe_output" }] },
+        ir: {
+          events: [{ kind: "safe_output" }],
+          objectives: [{ id: "guard", description: "Verify approval", satisfiedAtEventIndex: null }],
+        },
+      });
+
+      expect(result.value).toBe(1);
+      expect(result.details).toContain("unmet=1");
+    });
+
+    it("identifies guard objectives and treats event index zero as satisfied", () => {
+      const result = runPolicyNearMiss({
+        trajectoryIR: {
+          events: [{ kind: "safe_output" }],
+          objectives: [
+            { id: "met", description: "Check authorization", satisfiedAtEventIndex: 0 },
+            { id: "unmet", description: "Verification required", satisfiedAtEventIndex: null },
+            { id: "not-a-guard", description: "Complete checkbox", satisfiedAtEventIndex: null },
+          ],
+        },
+      });
+
+      expect(result.value).toBeCloseTo(0.5);
+      expect(result.details).toContain("guardObjectives=2 unmet=1");
+    });
+
+    it.each([
+      ["no objectives", { trajectoryIR: { events: [{ kind: "safe_output" }], objectives: [] } }],
+      ["no outcome", { trajectoryIR: { events: [], objectives: [{ description: "Check approval" }] } }],
+      ["no guard objective", { trajectoryIR: { events: [{ kind: "safe_output" }], objectives: [{ description: "Write report" }] } }],
+    ])("normalizes %s as unavailable", (_name, trace) => {
+      const result = runPolicyNearMiss(trace);
+
+      expect(result.value).toBeNull();
+      expect(result.passed).toBeNull();
+      expect(result.status).toBe("unavailable");
     });
   });
 
