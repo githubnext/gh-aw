@@ -68,7 +68,7 @@ function makeTrace(overrides = {}) {
   };
 }
 
-const policyNearMissScriptMatch = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/policy-near-miss.md"), "utf8").match(/script: \|\n([\s\S]*?)\n---/);
+const policyNearMissScriptMatch = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/policy-near-miss.md"), "utf8").match(/script: \|\n([\s\S]*?)\n^---\s*$/m);
 if (!policyNearMissScriptMatch?.[1]) {
   throw new Error("unable to extract policy-near-miss grader script");
 }
@@ -585,13 +585,10 @@ describe("trace_graders", () => {
   });
 
   describe("policy-near-miss custom grader", () => {
-    it("discovers a later canonical candidate after an events-only candidate", () => {
+    it("discovers objectives after an events-only candidate", () => {
       const result = runPolicyNearMiss({
         trajectoryIR: { events: [{ kind: "safe_output" }] },
-        ir: {
-          events: [{ kind: "safe_output" }],
-          objectives: [{ id: "guard", description: "Verify approval", satisfiedAtEventIndex: null }],
-        },
+        ir: { objectives: [{ id: "guard", description: "Verify approval", satisfiedAtEventIndex: null }] },
       });
 
       expect(result.value).toBe(1);

@@ -24,10 +24,9 @@ graders:
         isRecord(trace.agentOutput) ? trace.agentOutput : null,
       ].filter(isRecord);
 
-      const candidate = candidates.find(value => Array.isArray(value.events) && Array.isArray(value.objectives)) ||
-        candidates.find(value => Array.isArray(value.objectives));
-      const events = Array.isArray(candidate?.events) ? candidate.events : [];
-      const objectives = Array.isArray(candidate?.objectives) ? candidate.objectives : [];
+      const candidate = candidates.find(value => Array.isArray(value.events) && Array.isArray(value.objectives));
+      const events = candidate?.events ?? candidates.find(value => Array.isArray(value.events))?.events ?? [];
+      const objectives = candidate?.objectives ?? candidates.find(value => Array.isArray(value.objectives))?.objectives ?? [];
 
       if (objectives.length === 0) {
         return { value: null, unit: "ratio", passed: null, message: "not applicable: no declared objectives in the trace" };
