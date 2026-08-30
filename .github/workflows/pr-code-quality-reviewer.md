@@ -16,9 +16,8 @@ on:
     name: review
     events: [pull_request_comment, pull_request_review_comment]
 engine:
-  id: pi
-  model-provider: openai
-model: openai/gpt-5.4
+  id: copilot
+model: copilot/gpt-5.4
 permissions:
   contents: read
   issues: read
