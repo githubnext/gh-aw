@@ -10,6 +10,7 @@ import (
 )
 
 const minimumCooldown = 5 * time.Minute
+const geminiExecutionStepName = "Execute Gemini CLI"
 
 func init() {
 	ghAwOnSectionKeys["cooldown"] = true
@@ -74,13 +75,13 @@ func (c *Compiler) agenticExecutionStepName(data *WorkflowData) string {
 	case string(constants.CopilotEngine):
 		return copilotExecutionStepName
 	case string(constants.ClaudeEngine):
-		return "Execute Claude Code CLI"
+		return claudeExecutionStepName
 	case string(constants.CodexEngine):
-		return "Execute Codex CLI"
+		return codexExecutionStepName
 	case string(constants.GeminiEngine):
-		return "Execute Gemini CLI"
+		return geminiExecutionStepName
 	case string(constants.PiEngine):
-		return "Execute Pi CLI"
+		return piExecutionStepName
 	}
 	return ""
 }

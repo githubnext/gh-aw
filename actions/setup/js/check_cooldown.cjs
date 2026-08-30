@@ -106,7 +106,7 @@ async function main() {
       candidateRuns.sort((left, right) => right.completedAtMs - left.completedAtMs);
       for (const { run, completedAtMs } of candidateRuns) {
         if (agentJobLookups >= MAX_AGENT_JOB_LOOKUPS) {
-          core.warning(`Cooldown check reached the ${MAX_AGENT_JOB_LOOKUPS}-run job lookup budget before finding an agent execution`);
+          core.warning(`Cooldown check reached the ${MAX_AGENT_JOB_LOOKUPS}-run job lookup budget before confirming no agent execution within the cooldown`);
           core.setOutput("cooldown_ok", "true");
           return;
         }
@@ -129,6 +129,9 @@ async function main() {
         return;
       }
 
+      // Do not stop just because every run on this page is older than the
+      // threshold: listWorkflowRuns is not ordered by run_completed_at, so a
+      // later-created page can still contain a newer completion.
       if (runs.length < perPage) {
         break;
       }
