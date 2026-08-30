@@ -1451,9 +1451,9 @@ func TestCodexEnginePluginConfig(t *testing.T) {
 			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
 		}
 		config := yaml.String()
-		shellPolicyStart := strings.Index(config, "CODEX_SHELL_POLICY")
-		shellPolicyEnd := strings.Index(config[shellPolicyStart:], "EOF")
-		shellPolicy := config[shellPolicyStart : shellPolicyStart+shellPolicyEnd]
+		shellPolicyStart := strings.Index(config, "# Sync converter output")
+		shellPolicyEnd := strings.Index(config, "# Append engine-level custom Codex config")
+		shellPolicy := config[shellPolicyStart:shellPolicyEnd]
 		if strings.Contains(shellPolicy, "[features]") || !strings.Contains(config, "[features]\nplugins = false\n shell_tool = false") {
 			t.Errorf("Expected plugin setting to be merged into custom Codex features table, got:\n%s", config)
 		}
