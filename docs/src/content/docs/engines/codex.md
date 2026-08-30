@@ -67,6 +67,12 @@ Codex supports native web search when `tools.web-search` is enabled and can disa
 
 When a workflow does not declare any `plugins`, GitHub Agentic Workflows writes [`features.plugins=false`](https://developers.openai.com/codex/config-reference/#features) to Codex's generated `config.toml`. This prevents Codex from contacting the ChatGPT plugin catalog or synchronizing the curated plugin repository at startup. Codex does not provide a narrower setting that disables only startup synchronization, so workflows that declare Agent Plugins keep the plugin subsystem and its startup checks enabled. Directly configured MCP servers are unaffected.
 
+### Language Server Protocol
+
+Codex does not currently support Language Server Protocol (LSP) configuration or agent tools out of the box, so the `lsp` workflow field cannot be used with `engine: codex`. OpenAI tracks native LSP integration in [openai/codex#8745](https://github.com/openai/codex/issues/8745). A community implementation that proposed an `[lsp]` configuration section and LSP-backed tools was [closed without merging](https://github.com/openai/codex/pull/9426).
+
+Codex's IDE integration and Model Context Protocol (MCP) support are separate protocols and do not provide native LSP support. Until Codex adds a supported LSP interface, use project lint, type-check, and build commands to give the agent semantic feedback.
+
 ## GitHub Agentic Workflows vs. running Codex directly in Actions
 
 Running coding agent CLIs such as `codex` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecture and workflow portability across AI engines.

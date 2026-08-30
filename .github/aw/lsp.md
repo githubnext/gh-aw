@@ -4,7 +4,7 @@ description: Language Server Protocol (LSP) configuration reference for gh-aw Co
 
 # LSP Configuration
 
-> ⚠️ **Experimental.** `lsp` emits a compile-time warning and may change. **Only supported with `engine: copilot`** — any other engine is a compile-time error.
+> ⚠️ **Experimental.** `lsp` emits a compile-time warning and may change. **Only supported with `engine: copilot`** — any other engine is a compile-time error. In particular, OpenAI Codex does not currently expose native LSP configuration or tools; its [LSP feature request](https://github.com/openai/codex/issues/8745) remains open, and the proposed implementation in [openai/codex#9426](https://github.com/openai/codex/pull/9426) was closed without merging.
 
 The `lsp` frontmatter field lets Copilot-engine workflows declare language servers. At compile time, the compiler:
 
