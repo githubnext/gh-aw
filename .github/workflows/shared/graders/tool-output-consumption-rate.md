@@ -15,6 +15,7 @@ graders:
     script: |
       const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
       const candidates = [
+        trace,
         trace.trajectoryIR,
         trace.trajectoryIr,
         trace.ir,
@@ -59,11 +60,13 @@ graders:
         return { value: null, unit: "ratio", passed: null, message: "not applicable: no tool-originated observations in the trace" };
       }
 
-      const consumed = toolObservations.filter(
-        observation => Array.isArray(observation.consumedByActionIds) && observation.consumedByActionIds.length > 0
-      );
+      const isConsumed = observation =>
+        Array.isArray(observation.consumedByActionIds) &&
+        observation.consumedByActionIds.some(actionId => typeof actionId === "string" && actionId !== "");
+
+      const consumed = toolObservations.filter(isConsumed);
       const unconsumedIds = toolObservations
-        .filter(observation => !Array.isArray(observation.consumedByActionIds) || observation.consumedByActionIds.length === 0)
+        .filter(observation => !isConsumed(observation))
         .slice(0, 5)
         .map(observation =>
           typeof observation.id === "string" && observation.id !== "" ? observation.id : observation.sourceToolCallId

@@ -1057,6 +1057,31 @@ describe("trace_graders", () => {
       expect(result.details).toContain("toolObservations=1 consumed=0");
     });
 
+    it("treats consumedByActionIds arrays containing only non-string/empty entries as unconsumed", () => {
+      const result = runToolOutputConsumptionRate({
+        trajectoryIR: {
+          toolCalls: [{ id: "tc-1" }, { id: "tc-2" }],
+          observations: [
+            { id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: [null] },
+            { id: "obs-2", sourceToolCallId: "tc-2", consumedByActionIds: [42, ""] },
+          ],
+        },
+      });
+
+      expect(result.value).toBe(0);
+      expect(result.details).toContain("toolObservations=2 consumed=0");
+      expect(result.details).toContain("unconsumed: obs-1, obs-2");
+    });
+
+    it("reads observations/toolCalls from the root trace object", () => {
+      const result = runToolOutputConsumptionRate({
+        toolCalls: [{ id: "tc-1" }],
+        observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] }],
+      });
+
+      expect(result.value).toBe(1);
+    });
+
     it("reads a complete IR nested in agentOutput", () => {
       const result = runToolOutputConsumptionRate({
         agentOutput: {
