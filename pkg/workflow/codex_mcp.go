@@ -18,7 +18,7 @@ const (
 )
 
 // RenderMCPConfig generates MCP server configuration for Codex
-func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
+func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error { //nolint:largefunc // Legacy Codex config rendering remains to be migrated.
 	if codexMCPLog.Enabled() {
 		codexMCPLog.Printf("Rendering MCP config for Codex: mcp_tools=%v, tool_count=%d", mcpTools, len(tools))
 	}
@@ -141,6 +141,10 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	var shellPolicyContent strings.Builder
 	if isFirewallEnabled(workflowData) {
 		e.renderOpenAIProxyProviderToml(&shellPolicyContent, "          ", workflowData)
+	}
+	if len(workflowData.Plugins) == 0 {
+		shellPolicyContent.WriteString("          [features]\n")
+		shellPolicyContent.WriteString("          plugins = false\n")
 	}
 	e.renderShellEnvironmentPolicyToml(&shellPolicyContent, tools, mcpTools, "          ")
 	shellPolicyDelimiter := GenerateHeredocDelimiterFromContent("CODEX_SHELL_POLICY", shellPolicyContent.String())

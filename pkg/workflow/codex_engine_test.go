@@ -465,6 +465,8 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"# Sync converter output to writable CODEX_HOME for Codex",
 				"mkdir -p /tmp/gh-aw/mcp-config",
 				"cat > \"/tmp/gh-aw/mcp-config/config.toml\" << GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
+				"[features]",
+				"plugins = false",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
 				"include_only = [\"^CODEX_API_KEY$\", \"^GITHUB_PERSONAL_ACCESS_TOKEN$\", \"^HOME$\", \"^OPENAI_API_KEY$\", \"^PATH$\"]",
@@ -1409,18 +1411,17 @@ func TestCodexEngineBashDisabled(t *testing.T) {
 	})
 }
 
-func TestCodexEnginePlugins(t *testing.T) {
+func TestCodexEnginePluginConfig(t *testing.T) {
 	engine := NewCodexEngine()
 
 	t.Run("disables plugins when none are declared", func(t *testing.T) {
 		workflowData := &WorkflowData{Name: "test-workflow"}
-		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
 		}
-		stepContent := strings.Join([]string(steps[0]), "\n")
-		if !strings.Contains(stepContent, `-c features.plugins=false`) {
-			t.Errorf("Expected Codex plugins to be disabled when no plugins are declared, got:\n%s", stepContent)
+		if config := yaml.String(); !strings.Contains(config, "[features]") || !strings.Contains(config, "plugins = false") {
+			t.Errorf("Expected generated Codex TOML to disable plugins when none are declared, got:\n%s", config)
 		}
 	})
 
@@ -1429,13 +1430,12 @@ func TestCodexEnginePlugins(t *testing.T) {
 			Name:    "test-workflow",
 			Plugins: []string{"octo-org/example@main"},
 		}
-		steps := engine.GetExecutionSteps(workflowData, "test-log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
 		}
-		stepContent := strings.Join([]string(steps[0]), "\n")
-		if strings.Contains(stepContent, `features.plugins=false`) {
-			t.Errorf("Expected Codex plugins to remain enabled when a plugin is declared, got:\n%s", stepContent)
+		if config := yaml.String(); strings.Contains(config, "plugins = false") {
+			t.Errorf("Expected generated Codex TOML to keep plugins enabled when one is declared, got:\n%s", config)
 		}
 	})
 }

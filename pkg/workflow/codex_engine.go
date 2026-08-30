@@ -352,10 +352,6 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 		// per-command allowlist, but it can refuse all shell execution via this feature flag.
 		shellToolParam = ` -c features.shell_tool=false`
 	}
-	pluginsParam := ""
-	if len(workflowData.Plugins) == 0 {
-		pluginsParam = ` -c features.plugins=false`
-	}
 	customArgsParam := ""
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		var sb strings.Builder
@@ -366,11 +362,11 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 	}
 	if harnessScriptName != "" {
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		return fmt.Sprintf("%s exec%s%s%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, webFetchParam, shellToolParam, pluginsParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+		return fmt.Sprintf("%s exec%s%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, webSearchParam, webFetchParam, shellToolParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
-	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s exec%s%s%s%s%s%s%s%s \"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, webFetchParam, shellToolParam, pluginsParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s exec%s%s%s%s%s%s%s \"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, webFetchParam, shellToolParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 }
 
 func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, logFile, codexCommand, harnessScriptName, detectionSchemaWriteCmd string, firewallEnabled bool) string {
