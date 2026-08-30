@@ -43,7 +43,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 |---|---|---|---|
 | 1 | `policy-near-miss` | Policy/guard predicates | Implemented |
 | 2 | `skill-constraint-coverage` | Precompiled constraints | Implemented |
-| 3 | `exploration-error` | State/task model | Not started |
+| 3 | `exploration-error` | State/task model | Implemented |
 | 4 | `exploitation-error` | State/task model | Not started |
 | 12 | `tool-output-consumption-rate` | Provenance/reference IDs | Not started |
 | 13 | `end-to-end-lineage-completeness` | Provenance graph | Not started |
