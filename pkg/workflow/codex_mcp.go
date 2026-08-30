@@ -179,7 +179,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 	if workflowData != nil && workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
 		customConfig := workflowData.EngineConfig.Config
-		if (workflowData == nil || len(workflowData.Plugins) == 0) && hasCustomFeatures {
+		if len(workflowData.Plugins) == 0 && hasCustomFeatures {
 			customConfig = addCodexPluginConfig(customConfig)
 		}
 		customConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_CUSTOM_CONFIG", customConfig)
