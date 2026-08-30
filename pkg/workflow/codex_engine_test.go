@@ -1409,6 +1409,37 @@ func TestCodexEngineBashDisabled(t *testing.T) {
 	})
 }
 
+func TestCodexEnginePlugins(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("disables plugins when none are declared", func(t *testing.T) {
+		workflowData := &WorkflowData{Name: "test-workflow"}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, `-c features.plugins=false`) {
+			t.Errorf("Expected Codex plugins to be disabled when no plugins are declared, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("keeps plugins enabled when one is declared", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:    "test-workflow",
+			Plugins: []string{"octo-org/example@main"},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, `features.plugins=false`) {
+			t.Errorf("Expected Codex plugins to remain enabled when a plugin is declared, got:\n%s", stepContent)
+		}
+	})
+}
+
 func TestCodexEngineWebFetch(t *testing.T) {
 	engine := NewCodexEngine()
 
