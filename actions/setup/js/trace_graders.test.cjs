@@ -68,9 +68,11 @@ function makeTrace(overrides = {}) {
   };
 }
 
-const policyNearMissScript = fs
-  .readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/policy-near-miss.md"), "utf8")
-  .match(/script: \|\n([\s\S]*?)\n---/)[1]
+const policyNearMissScriptMatch = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/policy-near-miss.md"), "utf8").match(/script: \|\n([\s\S]*?)\n---/);
+if (!policyNearMissScriptMatch?.[1]) {
+  throw new Error("unable to extract policy-near-miss grader script");
+}
+const policyNearMissScript = policyNearMissScriptMatch[1]
   .split("\n")
   .map(line => line.slice(6))
   .join("\n");
@@ -583,7 +585,7 @@ describe("trace_graders", () => {
   });
 
   describe("policy-near-miss custom grader", () => {
-    it("ignores an events-only candidate when a later candidate has canonical objectives", () => {
+    it("discovers a later canonical candidate after an events-only candidate", () => {
       const result = runPolicyNearMiss({
         trajectoryIR: { events: [{ kind: "safe_output" }] },
         ir: {
@@ -593,7 +595,7 @@ describe("trace_graders", () => {
       });
 
       expect(result.value).toBe(1);
-      expect(result.details).toContain("unmet=1");
+      expect(result.details).toContain("guardObjectives=1 unmet=1");
     });
 
     it("identifies guard objectives and treats event index zero as satisfied", () => {
