@@ -86,6 +86,27 @@ function runPolicyNearMiss(trace) {
   });
 }
 
+const skillConstraintCoverageScriptMatch = fs
+  .readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/skill-constraint-coverage.md"), "utf8")
+  .match(/script: \|\n([\s\S]*?)\n^---\s*$/m);
+if (!skillConstraintCoverageScriptMatch?.[1]) {
+  throw new Error("unable to extract skill-constraint-coverage grader script");
+}
+const skillConstraintCoverageScript = skillConstraintCoverageScriptMatch[1]
+  .split("\n")
+  .map(line => line.slice(6))
+  .join("\n");
+
+function runSkillConstraintCoverage(trace, config) {
+  return runCustomGrader("skill-constraint-coverage", skillConstraintCoverageScript, makeTrace(trace), {
+    name: "Skill Constraint Coverage",
+    unit: "ratio",
+    direction: "higher_is_better",
+    source: "inline",
+    config,
+  });
+}
+
 describe("trace_graders", () => {
   describe("buildGradersSummaryBody", () => {
     it("renders all computed grader values without emojis", () => {
@@ -622,6 +643,75 @@ describe("trace_graders", () => {
       ["no guard objective", { trajectoryIR: { events: [{ kind: "safe_output" }], objectives: [{ description: "Write report" }] } }],
     ])("normalizes %s as unavailable", (_name, trace) => {
       const result = runPolicyNearMiss(trace);
+
+      expect(result.value).toBeNull();
+      expect(result.passed).toBeNull();
+      expect(result.status).toBe("unavailable");
+    });
+  });
+
+  describe("skill-constraint-coverage custom grader", () => {
+    it("reports full coverage when every constraint is exercised and succeeds", () => {
+      const result = runSkillConstraintCoverage(
+        {
+          trajectoryIR: {
+            toolCalls: [
+              { name: "read_file", arguments: { path: "a.md" }, success: true },
+              { name: "run_lint", arguments: {}, success: true },
+            ],
+          },
+        },
+        {
+          constraints: [
+            { id: "reads-before-write", pattern: "read_file", description: "must read before writing" },
+            { id: "lints", pattern: "run_lint", description: "must lint" },
+          ],
+        }
+      );
+
+      expect(result.value).toBe(1);
+      expect(result.details).toContain("constraints=2 exercised=2 covered=2");
+    });
+
+    it("counts an exercised-but-failing constraint as uncovered", () => {
+      const result = runSkillConstraintCoverage(
+        {
+          trajectoryIR: {
+            toolCalls: [{ name: "run_lint", arguments: {}, success: false }],
+          },
+        },
+        {
+          constraints: [{ id: "lints", pattern: "run_lint" }],
+        }
+      );
+
+      expect(result.value).toBe(0);
+      expect(result.details).toContain("exercised=1 covered=0");
+      expect(result.details).toContain("unmet: lints");
+    });
+
+    it("ignores success when requireSuccess is false", () => {
+      const result = runSkillConstraintCoverage(
+        {
+          trajectoryIR: {
+            actions: [{ type: "comment", target: "issue-1", validAtIssueTime: false }],
+          },
+        },
+        {
+          constraints: [{ id: "comments", pattern: "comment", requireSuccess: false }],
+        }
+      );
+
+      expect(result.value).toBe(1);
+      expect(result.details).toContain("covered=1");
+    });
+
+    it.each([
+      ["no constraints configured", { trajectoryIR: { toolCalls: [{ name: "x", success: true }] } }, {}],
+      ["no constraints with a valid pattern", { trajectoryIR: { toolCalls: [{ name: "x", success: true }] } }, { constraints: [{ id: "c", pattern: "" }] }],
+      ["no toolCalls/actions in trace", { trajectoryIR: {} }, { constraints: [{ id: "c", pattern: "x" }] }],
+    ])("normalizes %s as unavailable", (_name, trace, config) => {
+      const result = runSkillConstraintCoverage(trace, config);
 
       expect(result.value).toBeNull();
       expect(result.passed).toBeNull();
