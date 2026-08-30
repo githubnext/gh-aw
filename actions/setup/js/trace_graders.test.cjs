@@ -104,6 +104,24 @@ function runExplorationError(trace) {
   });
 }
 
+const exploitationErrorScriptMatch = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/exploitation-error.md"), "utf8").match(/script: \|\n([\s\S]*?)\n^---\s*$/m);
+if (!exploitationErrorScriptMatch?.[1]) {
+  throw new Error("unable to extract exploitation-error grader script");
+}
+const exploitationErrorScript = exploitationErrorScriptMatch[1]
+  .split("\n")
+  .map(line => line.slice(6))
+  .join("\n");
+
+function runExploitationError(trace) {
+  return runCustomGrader("exploitation-error", exploitationErrorScript, makeTrace(trace), {
+    name: "Exploitation Error",
+    unit: "ratio",
+    direction: "lower_is_better",
+    source: "inline",
+  });
+}
+
 const skillConstraintCoverageScriptMatch = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/skill-constraint-coverage.md"), "utf8").match(/script: \|\n([\s\S]*?)\n^---\s*$/m);
 if (!skillConstraintCoverageScriptMatch?.[1]) {
   throw new Error("unable to extract skill-constraint-coverage grader script");
@@ -754,6 +772,121 @@ describe("trace_graders", () => {
       expect(result.value).toBeNull();
       expect(result.passed).toBeNull();
       expect(result.message).toContain("no state_change events or declared states");
+    });
+  });
+
+  describe("exploitation-error custom grader", () => {
+    it("reports unavailable when no objectives are declared", () => {
+      const result = runExploitationError({ trajectoryIR: { observations: [{ id: "obs-1" }] } });
+
+      expect(result.value).toBeNull();
+      expect(result.passed).toBeNull();
+      expect(result.message).toContain("no declared objectives");
+    });
+
+    it("returns zero when all objectives are already satisfied", () => {
+      const result = runExploitationError({
+        trajectoryIR: {
+          objectives: [{ id: "goal", description: "Read all files", satisfiedAtEventIndex: 0 }],
+        },
+      });
+
+      expect(result.value).toBe(0);
+      expect(result.details).toContain("all objectives satisfied");
+    });
+
+    it("is unavailable without state_change events or declared states", () => {
+      const result = runExploitationError({
+        trajectoryIR: {
+          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
+          observations: [{ id: "obs-1" }],
+        },
+      });
+
+      expect(result.value).toBeNull();
+      expect(result.passed).toBeNull();
+      expect(result.message).toContain("no state_change events or declared states");
+    });
+
+    it("is unavailable when the trace records no observations", () => {
+      const result = runExploitationError({
+        trajectoryIR: {
+          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
+          states: [{ id: "a" }],
+        },
+      });
+
+      expect(result.value).toBeNull();
+      expect(result.passed).toBeNull();
+      expect(result.message).toContain("no observations");
+    });
+
+    it("defers to exploration-error when exploration was insufficient", () => {
+      const result = runExploitationError({
+        trajectoryIR: {
+          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
+          events: [
+            { kind: "state_change", ref: "repo-root" },
+            { kind: "state_change", ref: "repo-readme" },
+          ],
+          observations: [{ id: "obs-1", consumedByActionIds: ["act-1"] }],
+        },
+      });
+
+      expect(result.value).toBeNull();
+      expect(result.passed).toBeNull();
+      expect(result.message).toContain("exploration was insufficient");
+      expect(result.message).toContain("exploration-error");
+    });
+
+    it("scores the unused fraction of observations when exploration was sufficient", () => {
+      const result = runExploitationError({
+        trajectoryIR: {
+          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
+          events: [
+            { kind: "state_change", ref: "repo-root" },
+            { kind: "state_change", ref: "repo-root" },
+          ],
+          observations: [
+            { id: "obs-1", consumedByActionIds: ["act-1"] },
+            { id: "obs-2", consumedByActionIds: [] },
+          ],
+        },
+      });
+
+      expect(result.value).toBeCloseTo(0.5);
+      expect(result.details).toContain("observations=2 unused=1");
+      expect(result.details).toContain("distinctStatesVisited=1");
+      expect(result.details).toContain("unmet objectives: goal");
+    });
+
+    it("falls back to declared states[] when no state_change events exist", () => {
+      const result = runExploitationError({
+        trajectoryIR: {
+          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
+          states: [{ id: "a" }, { id: "b" }],
+          observations: [{ id: "obs-1" }, { id: "obs-2" }],
+        },
+      });
+
+      expect(result.value).toBe(1);
+      expect(result.details).toContain("from declared states[]");
+    });
+
+    it("prefers the objective-bearing IR candidate over unrelated agentOutput observations", () => {
+      const result = runExploitationError({
+        trajectoryIR: {
+          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
+          states: [{ id: "a" }],
+          observations: [{ id: "obs-1", consumedByActionIds: ["act-1"] }],
+        },
+        agentOutput: {
+          observations: [{ id: "obs-x" }],
+        },
+      });
+
+      expect(result.value).toBe(0);
+      expect(result.details).toContain("observations=1 unused=0");
     });
   });
 
