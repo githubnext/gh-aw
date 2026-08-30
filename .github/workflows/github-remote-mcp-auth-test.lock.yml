@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"c42cc3c80d09c0bb52d1dfd5e8f60f40c61df650937600c137c3912548c9924c","body_hash":"56f9950ffdb46afae7ca16c12844a211460e171090d34f04b8cfe4ac9ab2e754","strict":true,"agent_id":"codex","agent_model":"copilot/mai-code-1-flash-picker","engine_versions":{"codex":"0.150.1"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.10","digest":"sha256:c01e6d16d11ea4f2a46cc023a9f402224a3b3861b026818eec0dc586d7e6918e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.10@sha256:c01e6d16d11ea4f2a46cc023a9f402224a3b3861b026818eec0dc586d7e6918e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.10","digest":"sha256:c3a18aebb8251339117ea998296315de17bada366f8d03919b3348ea71112e64","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.10@sha256:c3a18aebb8251339117ea998296315de17bada366f8d03919b3348ea71112e64"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.10","digest":"sha256:c06076f7aca95df713e0748c44d80c0a3c2538fad67bfdd04296d45158e083e6","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.10@sha256:c06076f7aca95df713e0748c44d80c0a3c2538fad67bfdd04296d45158e083e6"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.13","digest":"sha256:ec4008521c610e1113ed557ecec0ff64a2c2111e4cfa817bab54d9b7da24c7cc","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.13@sha256:ec4008521c610e1113ed557ecec0ff64a2c2111e4cfa817bab54d9b7da24c7cc"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"}],"mcp_servers":[{"name":"github","tools":["get_repository","issue_read","list_issues"]},{"name":"safeoutputs","tools":["create_discussion","missing_data","missing_tool","noop"]}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"a36559b7b01bdc5e027b24cc361cef677fee127ca2affa30f6fa0de1e237781d","body_hash":"3f35ce046ff3ec24910fe6eeaf7dcad4b351e4f19a97c2e0bf979770e2ace5b5","strict":true,"agent_id":"codex","agent_model":"copilot/mai-code-1-flash-picker","engine_versions":{"codex":"0.150.1"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.10","digest":"sha256:c01e6d16d11ea4f2a46cc023a9f402224a3b3861b026818eec0dc586d7e6918e","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.10@sha256:c01e6d16d11ea4f2a46cc023a9f402224a3b3861b026818eec0dc586d7e6918e"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.10","digest":"sha256:c3a18aebb8251339117ea998296315de17bada366f8d03919b3348ea71112e64","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.10@sha256:c3a18aebb8251339117ea998296315de17bada366f8d03919b3348ea71112e64"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.10","digest":"sha256:c06076f7aca95df713e0748c44d80c0a3c2538fad67bfdd04296d45158e083e6","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.10@sha256:c06076f7aca95df713e0748c44d80c0a3c2538fad67bfdd04296d45158e083e6"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.13","digest":"sha256:ec4008521c610e1113ed557ecec0ff64a2c2111e4cfa817bab54d9b7da24c7cc","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.13@sha256:ec4008521c610e1113ed557ecec0ff64a2c2111e4cfa817bab54d9b7da24c7cc"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"}],"mcp_servers":[{"name":"github","tools":["issue_read","list_issues"]},{"name":"safeoutputs","tools":["create_discussion","missing_data","missing_tool","noop"]}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -1868,37 +1868,31 @@ jobs:
             echo "- ❌ MCP tools/list: empty tool catalog" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          if ! jq -e '.result.tools[] | select(.name == "get_repository")' "$json_file" >/dev/null; then
-            echo 'MCP tools/list did not return the get_repository tool.'
+          if ! jq -e '.result.tools[] | select(.name == "list_issues")' "$json_file" >/dev/null; then
+            echo 'MCP tools/list did not return the list_issues tool.'
             echo "available tools: $tool_names"
-            echo "- ❌ MCP tools/list: \`get_repository\` is unavailable (available tools: $tool_names)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ❌ MCP tools/list: \`list_issues\` is unavailable (available tools: $tool_names)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          log_info "tools/list: \`get_repository\` is available"
-          echo "- ✅ MCP tools/list: $tool_count tools, including \`get_repository\`" >> "$GITHUB_STEP_SUMMARY"
+          log_info "tools/list: \`list_issues\` is available"
+          echo "- ✅ MCP tools/list: $tool_count tools, including \`list_issues\`" >> "$GITHUB_STEP_SUMMARY"
 
           repository_owner="${GITHUB_REPOSITORY%%/*}"
           repository_name="${GITHUB_REPOSITORY#*/}"
           call_payload="$(jq -nc \
             --arg owner "$repository_owner" \
             --arg repo "$repository_name" \
-            '{jsonrpc:"2.0",id:4,method:"tools/call",params:{name:"get_repository",arguments:{owner:$owner,repo:$repo}}}')"
+            '{jsonrpc:"2.0",id:4,method:"tools/call",params:{name:"list_issues",arguments:{owner:$owner,repo:$repo,state:"OPEN",perPage:1}}}')"
           call_code="$(mcp_post "$call_payload" "$response_headers_file" "${session_args[@]}")"
-          assert_success_response "MCP get_repository" "$call_code"
+          assert_success_response "MCP list_issues" "$call_code"
           if jq -e '.result.isError == true' "$json_file" >/dev/null; then
             tool_error="$(jq -r '([.result.content[]?.text] | join(" "))[0:200]' "$json_file")"
-            echo "MCP get_repository returned a tool error: $tool_error"
-            echo "- ❌ MCP get_repository: tool error \`$tool_error\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "MCP list_issues returned a tool error: $tool_error"
+            echo "- ❌ MCP list_issues: tool error \`$tool_error\`" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          repository_content="$(jq -r '[.result.content[]? | select(.type == "text") | .text] | join(" ")' "$json_file")"
-          if [[ "$repository_content" != *"$GITHUB_REPOSITORY"* ]]; then
-            echo "MCP get_repository did not return the requested repository."
-            echo "- ❌ MCP get_repository: result did not identify \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          log_info "get_repository: retrieved $GITHUB_REPOSITORY"
-          echo "- ✅ MCP get_repository: retrieved \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
+          log_info "list_issues: retrieved open issues from $GITHUB_REPOSITORY"
+          echo "- ✅ MCP list_issues: retrieved open issues from \`$GITHUB_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Raw GitHub remote MCP handshake succeeded with $tool_count tools available."
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
