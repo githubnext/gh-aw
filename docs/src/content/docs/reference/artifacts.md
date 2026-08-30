@@ -148,7 +148,7 @@ The unified `agent` artifact contains agent job outputs:
 - Agent execution logs
 - Safe output data (`agent_output.json`)
 - GitHub API rate limit logs (`github_rate_limits.jsonl`)
-- Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`
+- Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`. When AWF records include valid `ai_credits_this_response` and `ai_credits_total` values, the summary preserves those reported values instead of repricing the tokens.
 - `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters when `observability.otlp` is configured
 
 For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/reference/open-telemetry/).
@@ -220,6 +220,8 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
 Working-Set Rebuild Factor measures cumulative context reconstruction relative to peak invocation context. It is an efficiency/trajectory metric, not a measurement of semantic coherence debt and not a predictor of task success. It cannot identify missing task facts or classify outcome quality. The metric is conceptually inspired by [“The Working Set of a Coding Agent: Coherence Debt in Repository-Scale Tasks”](https://arxiv.org/abs/2608.16630), while deliberately limiting the implementation to observable token traffic.
 
 ### Accessing usage data
+
+Token-usage files are diagnostic data produced in the agent runtime. Their mirrored AIC fields support usage reporting and analysis, but are not sufficient evidence to classify a provider failure as a trusted budget-enforcement event.
 
 ```bash
 # Download only the usage artifact
