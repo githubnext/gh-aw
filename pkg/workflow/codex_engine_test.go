@@ -1438,6 +1438,33 @@ func TestCodexEnginePluginConfig(t *testing.T) {
 			t.Errorf("Expected generated Codex TOML to keep plugins enabled when one is declared, got:\n%s", config)
 		}
 	})
+
+	t.Run("merges plugin setting into a custom features table", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Config: "[features]\n shell_tool = false\n",
+			},
+		}
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+		config := yaml.String()
+		shellPolicyStart := strings.Index(config, "CODEX_SHELL_POLICY")
+		shellPolicyEnd := strings.Index(config[shellPolicyStart:], "EOF")
+		shellPolicy := config[shellPolicyStart : shellPolicyStart+shellPolicyEnd]
+		if strings.Contains(shellPolicy, "[features]") || !strings.Contains(config, "[features]\nplugins = false\n shell_tool = false") {
+			t.Errorf("Expected plugin setting to be merged into custom Codex features table, got:\n%s", config)
+		}
+	})
+
+	t.Run("accepts nil workflow data", func(t *testing.T) {
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, nil); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+	})
 }
 
 func TestCodexEngineWebFetch(t *testing.T) {

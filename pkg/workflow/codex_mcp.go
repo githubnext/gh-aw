@@ -17,6 +17,26 @@ const (
 	codexOpenAIProxyProviderName = "OpenAI AWF proxy"
 )
 
+func hasCodexFeaturesTable(config string) bool {
+	for line := range strings.SplitSeq(config, "\n") {
+		if strings.TrimSpace(line) == "[features]" {
+			return true
+		}
+	}
+	return false
+}
+
+func addCodexPluginConfig(config string) string {
+	lines := strings.Split(config, "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "[features]" {
+			lines = append(lines[:i+1], append([]string{"plugins = false"}, lines[i+1:]...)...)
+			return strings.Join(lines, "\n")
+		}
+	}
+	return config
+}
+
 // RenderMCPConfig generates MCP server configuration for Codex
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error { //nolint:largefunc // Legacy Codex config rendering remains to be migrated.
 	if codexMCPLog.Enabled() {
@@ -87,7 +107,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 
 	// Append custom config if provided
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
 		mcpConfigContent.WriteString("          \n")
 		mcpConfigContent.WriteString("          # Custom configuration\n")
 		// Write the custom config line by line with proper indentation
@@ -142,7 +162,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	if isFirewallEnabled(workflowData) {
 		e.renderOpenAIProxyProviderToml(&shellPolicyContent, "          ", workflowData)
 	}
-	if len(workflowData.Plugins) == 0 {
+	hasCustomFeatures := workflowData != nil && workflowData.EngineConfig != nil && hasCodexFeaturesTable(workflowData.EngineConfig.Config)
+	if (workflowData == nil || len(workflowData.Plugins) == 0) && !hasCustomFeatures {
 		shellPolicyContent.WriteString("          [features]\n")
 		shellPolicyContent.WriteString("          plugins = false\n")
 	}
@@ -156,13 +177,17 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	} else {
 		yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
 	}
-	if workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
-		customConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_CUSTOM_CONFIG", workflowData.EngineConfig.Config)
+	if workflowData != nil && workflowData.EngineConfig != nil && strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
+		customConfig := workflowData.EngineConfig.Config
+		if (workflowData == nil || len(workflowData.Plugins) == 0) && hasCustomFeatures {
+			customConfig = addCodexPluginConfig(customConfig)
+		}
+		customConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_CUSTOM_CONFIG", customConfig)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Append engine-level custom Codex config\n")
 		yaml.WriteString("          cat >> \"/tmp/gh-aw/mcp-config/config.toml\" << " + customConfigDelimiter + "\n") //nolint:generatedyamlheredoc // Legacy custom config rendering remains to be migrated.
-		yaml.WriteString(workflowData.EngineConfig.Config)
-		if !strings.HasSuffix(workflowData.EngineConfig.Config, "\n") {
+		yaml.WriteString(customConfig)
+		if !strings.HasSuffix(customConfig, "\n") {
 			yaml.WriteString("\n")
 		}
 		yaml.WriteString("          " + customConfigDelimiter + "\n")

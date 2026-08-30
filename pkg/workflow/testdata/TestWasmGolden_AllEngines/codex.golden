@@ -533,6 +533,8 @@ jobs:
           wire_api = "responses"
           requires_openai_auth = false
           supports_websockets = false
+          [features]
+          plugins = false
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^GITHUB_PERSONAL_ACCESS_TOKEN$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
