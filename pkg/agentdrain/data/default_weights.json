@@ -3,7 +3,12 @@
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -47,14 +52,23 @@
     "clusters": [
       {
         "id": 1,
-        "size": 500,
+        "size": 410,
         "stage": "finish",
-        "template": ["stage=finish", "\u003c*\u003e", "tokens=\u003cNUM\u003e"]
+        "template": [
+          "stage=finish",
+          "\u003c*\u003e",
+          "tokens=\u003cNUM\u003e"
+        ]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -95,10 +109,26 @@
     "next_id": 2
   },
   "plan": {
-    "clusters": [],
+    "clusters": [
+      {
+        "id": 1,
+        "size": 57,
+        "stage": "plan",
+        "template": [
+          "stage=plan",
+          "errors=\u003cNUM\u003e",
+          "turns=\u003cNUM\u003e"
+        ]
+      }
+    ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -136,13 +166,18 @@
       "RareClusterThreshold": 2,
       "SimThreshold": 0.4
     },
-    "next_id": 1
+    "next_id": 2
   },
   "retry": {
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -186,7 +221,12 @@
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -230,7 +270,12 @@
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
       "MaskRules": [
         {
           "Name": "uuid",
