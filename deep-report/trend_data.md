@@ -1,3 +1,13 @@
+## Trend Data (2026-08-31, ~01:06Z cycle, window since #57214@18:35:32Z, 9 new discussions)
+
+- **Issue activity this cycle**: 1 issue filed (Detection Analysis Report's first-time misconfiguration flag on 3 workflows), 0 comments, 1 discussion created, 9 new discussions processed (57217,57223,57235,57236,57241,57260,57261,57293,57299) — thinnest cycle in recent memory (1/7), mostly healthy/self-filed.
+- **Weekly issues snapshot**: 139 open / 361 closed of 500 sampled. Top labels: agentic-workflows(217), automation(174), testing(58), cookie(50), cascade-suspected(50, down from 76 last snapshot — matches prediction in prior trend_data entry that this label would stop growing once the undici fix's pre-fix debris self-cleared). 0 issues open >7 days — healthy churn.
+- **Reliability signal**: Detection Analysis (#57261) 403/406 runs detection-enabled (99.3%), 3 newly-flagged misconfigured workflows (filed). Fleet spot-check (20 runs/~2.1h): 15 success/4 failure/1 in-progress, failures isolated single-run smoke variants across 4 different engines, no shared root cause.
+- **Lockfile/engine mix**: 297 lockfiles stable day-over-day except a one-day engine reshuffle (copilot 151→120, codex 46→75, pi 22→29) — no bulk-migration PR found; flagged for monitoring, not filed.
+- **Copilot PR success rate**: 84.0% overall (1000-PR/30-day sample, up from ~80-82% early-July baseline), but CVE/vuln-remediation prompts lag at 65% — root-cause investigation this cycle found no single attributable issue-generation file (see [[known_patterns]]).
+
+See [[known_patterns]], [[flagged_items]] for details.
+
 ## Trend Data (2026-08-30, ~06:37Z cycle, window since #56945@18:32:48Z, 15 new discussions)
 
 - **Issue activity this cycle**: 2 issues filed, 0 comments, 1 discussion created, 15 new discussions processed (56947,56950,56958,56959,56963,56964,56997,57002,57031,57036,57053,57070,57077,57086,57090) — low yield, fleet largely healthy/self-consolidating (Sergo, ESLint Refiner self-filed; Detection Analysis 0 misconfigured; Observability Coverage 100%).

@@ -1,3 +1,8 @@
+## DeepReport Memory (2026-08-31, ~01:06Z cycle, baseline #57214)
+
+### New pattern: a workflow that references a shared tracker issue by number is not necessarily the source of the sub-issues assigned against that tracker
+Copilot PR Prompt Analysis (#57241) found CVE-remediation PRs merge 19 points below baseline and recommended narrower prompt templates. `daily-squid-image-scan.md` (found via grep for "CVE") references tracker #52657 ("Container CVE burn-down"), but its own prompt (steps 4-5) explicitly forbids creating per-image issues or assigning to Copilot — it only updates the single tracker and assigns it to a human (`pelikhan`). **Lesson: finding a workflow that mentions the right tracker/keyword doesn't mean it's the workflow generating the problematic sub-issues — read the actual issue-creation/assignment steps before attributing a fix location; if they explicitly disclaim the behavior in question, the real source is elsewhere (or emergent/manual) and the finding may be too diffuse to file this cycle.**
+
 ## DeepReport Memory (2026-08-30, ~11:40Z cycle, baseline #57099)
 
 ### New pattern: a source discussion's claim that a specific PR "was merged" is a checkable fact, not a summary to trust — verify with `gh pr view`
