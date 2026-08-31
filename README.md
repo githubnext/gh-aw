@@ -31,6 +31,9 @@ Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Ge
 - [Related Projects](#related-projects)
 - [Workshop](#workshop)
 
+> [!NOTE]
+> A [security vulnerability](https://github.com/github/gh-aw/security/advisories/GHSA-8h78-hpm7-29gg) was discovered in versions `>= 0.83.3, < 0.85.4` and, as a result, those releases were retired as a pre-emptive measure.
+
 ## Quick Start
 
 Install the GitHub CLI extension:
