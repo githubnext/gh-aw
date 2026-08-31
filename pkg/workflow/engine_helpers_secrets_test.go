@@ -312,11 +312,13 @@ func TestGetRequiredSecretNames_Codex(t *testing.T) {
 	t.Run("includes MCP gateway agent ID when MCP servers present", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{
-				"playwright": map[string]any{},
+				"example": map[string]any{
+					"type":    "http",
+					"url":     "https://example.com/mcp",
+					"allowed": []any{"read"},
+				},
 			},
-			ParsedTools: &ToolsConfig{
-				Playwright: &PlaywrightToolConfig{},
-			},
+			ParsedTools: &ToolsConfig{},
 		}
 
 		secrets := engine.GetRequiredSecretNames(workflowData)

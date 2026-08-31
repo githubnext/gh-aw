@@ -11,50 +11,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestValidatePlaywrightMode tests the validatePlaywrightMode deprecation warning.
+// TestValidatePlaywrightMode tests the CLI-only Playwright mode validation.
 func TestValidatePlaywrightMode(t *testing.T) {
 	tests := []struct {
 		name        string
 		tools       map[string]any
-		strictMode  bool
-		expectWarn  bool
 		expectError bool
 		errorSubstr string
 	}{
 		{
-			name:       "playwright not configured",
-			tools:      map[string]any{},
-			expectWarn: false,
+			name:  "playwright not configured",
+			tools: map[string]any{},
 		},
 		{
-			name:       "playwright set to false",
-			tools:      map[string]any{"playwright": false},
-			expectWarn: false,
+			name:  "playwright set to false",
+			tools: map[string]any{"playwright": false},
 		},
 		{
-			name:       "playwright nil (enabled with default settings)",
-			tools:      map[string]any{"playwright": nil},
-			expectWarn: true,
+			name:  "playwright nil defaults to CLI",
+			tools: map[string]any{"playwright": nil},
 		},
 		{
-			name:       "playwright enabled with empty map (MCP mode default)",
-			tools:      map[string]any{"playwright": map[string]any{}},
-			expectWarn: true,
+			name:  "playwright empty map defaults to CLI",
+			tools: map[string]any{"playwright": map[string]any{}},
 		},
 		{
-			name:       "playwright explicit mcp mode",
-			tools:      map[string]any{"playwright": map[string]any{"mode": "mcp"}},
-			expectWarn: true,
+			name:        "playwright explicit MCP mode",
+			tools:       map[string]any{"playwright": map[string]any{"mode": "mcp"}},
+			expectError: true,
+			errorSubstr: "built-in Playwright MCP support has been removed",
 		},
 		{
-			name:       "playwright cli mode — no warning",
-			tools:      map[string]any{"playwright": map[string]any{"mode": "cli"}},
-			expectWarn: false,
+			name:  "playwright CLI mode",
+			tools: map[string]any{"playwright": map[string]any{"mode": "cli"}},
 		},
 		{
-			name:       "playwright cli mode uppercase — no warning",
-			tools:      map[string]any{"playwright": map[string]any{"mode": "CLI"}},
-			expectWarn: false,
+			name:  "playwright CLI mode uppercase",
+			tools: map[string]any{"playwright": map[string]any{"mode": "CLI"}},
 		},
 		{
 			name:        "playwright mode expression is rejected",
@@ -62,24 +55,11 @@ func TestValidatePlaywrightMode(t *testing.T) {
 			expectError: true,
 			errorSubstr: "mode must be a literal value; expressions are not allowed",
 		},
-		{
-			name:       "playwright mcp mode in strict mode warns only",
-			tools:      map[string]any{"playwright": map[string]any{"mode": "mcp"}},
-			strictMode: true,
-			expectWarn: true,
-		},
-		{
-			name:       "playwright nil (default MCP) in strict mode warns only",
-			tools:      map[string]any{"playwright": nil},
-			strictMode: true,
-			expectWarn: true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			compiler.strictMode = tt.strictMode
 
 			workflowData := &WorkflowData{
 				Tools: tt.tools,
@@ -96,6 +76,29 @@ func TestValidatePlaywrightMode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompileWorkflowRejectsPlaywrightMCPModeWithMigrationGuidance(t *testing.T) {
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "test-workflow.md")
+	content := `---
+on: push
+engine: claude
+tools:
+  playwright:
+    mode: mcp
+---
+
+# Test Workflow
+`
+	require.NoError(t, os.WriteFile(mdPath, []byte(content), 0644))
+
+	err := NewCompiler().CompileWorkflow(mdPath)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "built-in Playwright MCP support has been removed")
+	assert.Contains(t, err.Error(), "playwright-cli <command>")
+	assert.Contains(t, err.Error(), "mcp-servers")
 }
 
 // TestCompileWorkflowRejectsPlaywrightModeExpression ensures that a full compile

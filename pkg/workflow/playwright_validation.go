@@ -2,10 +2,8 @@
 //
 // # Playwright Mode Validation
 //
-// validatePlaywrightMode warns when playwright is configured in MCP mode
-// (the default when no mode is specified, or when mode: mcp is set explicitly).
-// MCP mode is deprecated in favor of CLI mode (mode: cli), which is more
-// token-efficient and does not require a separate Docker container.
+// validatePlaywrightMode rejects the removed MCP mode. Playwright uses CLI mode
+// when mode is omitted or set to cli.
 //
 // # Migration
 //
@@ -27,19 +25,10 @@
 
 package workflow
 
-import (
-	"fmt"
-	"os"
+import "strings"
 
-	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/logger"
-)
-
-var playwrightValidationLog = logger.New("workflow:playwright_validation")
-
-// validatePlaywrightMode validates that Playwright mode is static, then warns
-// when the tool is configured in MCP mode. MCP mode is deprecated; use mode:
-// cli instead for token-efficient, container-free browser automation.
+// validatePlaywrightMode validates that Playwright mode is static and rejects
+// the removed built-in MCP integration.
 func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.Tools == nil {
 		return nil
@@ -55,26 +44,17 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 				"tools.playwright.mode",
 				mode,
 				"mode must be a literal value; expressions are not allowed",
-				"Set mode to either mcp or cli",
+				"Set mode to cli, or omit mode because CLI is the default",
+			)
+		}
+		if mode, ok := config["mode"].(string); ok && strings.EqualFold(mode, "mcp") {
+			return NewValidationError(
+				"tools.playwright.mode",
+				mode,
+				"built-in Playwright MCP support has been removed",
+				"Remove `mode: mcp` or change it to `mode: cli`, then update prompts to run `playwright-cli <command>` from bash. If MCP is still required, configure Playwright explicitly under `mcp-servers`. See https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/playwright.md",
 			)
 		}
 	}
-
-	if isPlaywrightCLIMode(workflowData.Tools) {
-		playwrightValidationLog.Print("playwright mode: cli — no deprecation warning")
-		return nil
-	}
-
-	playwrightValidationLog.Print("playwright mode: mcp detected — emitting deprecation warning")
-
-	warningMsg := "tools.playwright: MCP mode is deprecated. " +
-		"Migrate to CLI mode by adding `mode: cli` to your playwright configuration. " +
-		"CLI mode runs playwright-cli directly on the runner (no Docker container required), " +
-		"is more token-efficient, and lets you use `localhost` to reach local dev servers. " +
-		"Update your prompts to run `playwright-cli <command>` in bash instead of using MCP browser tools. " +
-		"See: https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/playwright.md"
-
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
-	c.IncrementWarningCount()
 	return nil
 }

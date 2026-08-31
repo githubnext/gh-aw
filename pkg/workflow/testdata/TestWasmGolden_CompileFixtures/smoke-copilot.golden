@@ -350,6 +350,7 @@ jobs:
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: smokecopilot
+      PLAYWRIGHT_MCP_SANDBOX: false
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
@@ -475,6 +476,16 @@ jobs:
           GH_AW_COMPILED_VERSION: dev
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" vAWF_VERSION --rootless
+      - name: Install Playwright CLI
+        run: npm install -g @playwright/cli@0.1.18
+        env:
+          NPM_CONFIG_MIN_RELEASE_AGE: '3'
+        timeout-minutes: 10
+      - name: Install Playwright CLI skills
+        run: playwright-cli install --skills
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        timeout-minutes: 10
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -503,7 +514,7 @@ jobs:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:AWF_VERSION ghcr.io/github/gh-aw-firewall/api-proxy:AWF_VERSION ghcr.io/github/gh-aw-firewall/squid:AWF_VERSION ghcr.io/github/gh-aw-mcpg:MCPG_VERSION ghcr.io/github/github-mcp-server:GH_MCP_VERSION ghcr.io/oraios/serena:latest mcr.microsoft.com/playwright/mcp
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:AWF_VERSION ghcr.io/github/gh-aw-firewall/api-proxy:AWF_VERSION ghcr.io/github/gh-aw-firewall/squid:AWF_VERSION ghcr.io/github/gh-aw-mcpg:MCPG_VERSION ghcr.io/github/github-mcp-server:GH_MCP_VERSION ghcr.io/oraios/serena:latest
       - name: Build and install gh-aw CLI from source
         run: |
           gh extension remove aw || true
@@ -531,8 +542,6 @@ jobs:
             cp "${GITHUB_EVENT_PATH}" "${GH_AW_SAFEOUTPUTS_EVENT_PATH}"
             export GITHUB_EVENT_PATH="${GH_AW_SAFEOUTPUTS_EVENT_PATH}"
           fi
-          mkdir -p /tmp/gh-aw/mcp-logs/playwright
-          chmod 777 /tmp/gh-aw/mcp-logs/playwright
 
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="8080"
@@ -598,21 +607,6 @@ jobs:
                   "allow-only": {
                     "min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
                     "repos": "$GITHUB_MCP_GUARD_REPOS"
-                  }
-                }
-              },
-              "playwright": {
-                "type": "stdio",
-                "container": "mcr.microsoft.com/playwright/mcp",
-                "args": ["--init", "--network", "host", "--security-opt", "seccomp=unconfined", "--ipc=host"],
-                "entrypointArgs": ["--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"],
-                "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"],
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ],
-                    "sink-visibility": "${GH_AW_SINK_VISIBILITY}"
                   }
                 }
               },

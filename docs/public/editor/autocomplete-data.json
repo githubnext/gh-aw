@@ -1900,21 +1900,16 @@
         },
         "playwright": {
           "type": "null|object",
-          "desc": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "desc": "Playwright CLI browser automation tool for web scraping, testing, and UI interactions",
           "children": {
             "version": {
               "type": "string|number",
-              "desc": "Optional version pin.",
+              "desc": "Optional @playwright/cli npm package version pin.",
               "leaf": true
-            },
-            "args": {
-              "type": "array",
-              "desc": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
-              "array": true
             },
             "mode": {
               "type": "string",
-              "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use play...",
+              "desc": "Integration mode.",
               "enum": ["cli", "mcp"],
               "leaf": true
             }

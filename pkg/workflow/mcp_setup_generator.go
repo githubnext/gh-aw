@@ -4,7 +4,7 @@
 //
 // This file generates the complete setup sequence for MCP servers in GitHub Actions
 // workflows. It orchestrates the initialization of all MCP tools including built-in
-// servers (GitHub, Playwright, safe-outputs, mcp-scripts) and custom HTTP/stdio
+// servers (GitHub, safe-outputs, mcp-scripts) and custom HTTP/stdio
 // MCP servers.
 //
 // Key responsibilities:
@@ -74,7 +74,7 @@ import (
 var mcpSetupGeneratorLog = logger.New("workflow:mcp_setup_generator")
 
 // generateMCPSetup generates the MCP server configuration setup
-func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) error {
+func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) error { //nolint:largefunc // Existing setup orchestration preserves step ordering.
 	mcpSetupGeneratorLog.Print("Generating MCP server configuration setup")
 	if workflowData == nil {
 		return nil
@@ -150,12 +150,7 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 			mcpSetupGeneratorLog.Print("Skipping GitHub MCP server registration: tools.github.mode is gh-proxy")
 			continue
 		}
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
-			// Playwright in CLI mode is not an MCP server; skip it here.
-			if toolName == "playwright" && isPlaywrightCLIMode(workflowData.Tools) {
-				mcpSetupGeneratorLog.Print("Skipping playwright MCP registration: tools.playwright.mode is cli")
-				continue
-			}
+		if toolName == "github" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)
 			continue
 		}

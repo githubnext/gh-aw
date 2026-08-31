@@ -1521,6 +1521,16 @@ on:
     # (optional)
     organization-projects: "read"
 
+    # Permission level for organization custom org roles (read/write/none). Controls
+    # access to custom organization role metadata.
+    # (optional)
+    organization-custom-org-roles: "read"
+
+    # Permission level for organization custom repository roles (read/write/none).
+    # Controls access to custom repository role metadata.
+    # (optional)
+    organization-custom-repository-roles: "read"
+
     # Permission level for security events (read/write/none). Controls access to view
     # and manage code scanning alerts and security findings.
     # (optional)
@@ -1676,6 +1686,16 @@ permissions:
   # manage organization-level GitHub Projects boards.
   # (optional)
   organization-projects: "read"
+
+  # Permission level for organization custom org roles (read/write/none). Controls
+  # access to custom organization role metadata.
+  # (optional)
+  organization-custom-org-roles: "read"
+
+  # Permission level for organization custom repository roles (read/write/none).
+  # Controls access to custom repository role metadata.
+  # (optional)
+  organization-custom-repository-roles: "read"
 
   # Permission level for security events (read/write/none). Controls access to view
   # and manage code scanning alerts and security findings.
@@ -4074,40 +4094,32 @@ tools:
   edit:
     {}
 
-  # Playwright browser automation tool for web scraping, testing, and UI
-  # interactions in containerized browsers
+  # Playwright CLI browser automation tool for web scraping, testing, and UI
+  # interactions
   # (optional)
   # Accepted formats:
 
   # Format 1: Enable Playwright tool with default settings
   playwright: null
 
-  # Format 2: Playwright tool configuration with custom version and arguments
+  # Format 2: Playwright CLI configuration
   playwright:
-    # Optional version pin. In CLI mode (recommended): the @playwright/cli npm package
-    # version (e.g., '0.1.11'). In MCP mode (deprecated): the Playwright browser
-    # Docker image version (e.g., 'v1.56.1'). Omit to use the default version.
+    # Optional @playwright/cli npm package version pin. Omit to use the default
+    # version.
     # (optional)
     version: null
 
-    # Optional additional arguments to append to the generated MCP server command (MCP
-    # mode only)
-    # (optional)
-    args: []
-      # Array of strings
-
-    # Integration mode: 'cli' (recommended) installs @playwright/cli via npm for
-    # token-efficient CLI invocations — use playwright-cli commands in bash and
-    # localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP
-    # server. Must be a literal value; GitHub Actions expressions are rejected.
+    # Integration mode. Only 'cli' is supported. The compiler rejects the removed
+    # 'mcp' value with migration guidance. Must be a literal value; GitHub Actions
+    # expressions are rejected.
     # (optional)
     # Accepted formats:
 
     # Format 1: string
     mode: "cli"
 
-    # Format 2: Not allowed at runtime: mode must be a literal 'cli' or 'mcp' value,
-    # not a GitHub Actions expression.
+    # Format 2: Not allowed at runtime: mode must be the literal 'cli' value, not a
+    # GitHub Actions expression.
     mode: "example-value"
 
   # GitHub Agentic Workflows MCP server for workflow introspection and analysis.

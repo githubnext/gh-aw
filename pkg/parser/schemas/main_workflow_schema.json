@@ -4754,7 +4754,7 @@
           ]
         },
         "playwright": {
-          "description": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "description": "Playwright CLI browser automation tool for web scraping, testing, and UI interactions",
           "oneOf": [
             {
               "type": "null",
@@ -4762,22 +4762,15 @@
             },
             {
               "type": "object",
-              "description": "Playwright tool configuration with custom version and arguments",
+              "description": "Playwright CLI configuration",
               "properties": {
                 "version": {
                   "type": ["string", "number"],
-                  "description": "Optional version pin. In CLI mode (recommended): the @playwright/cli npm package version (e.g., '0.1.11'). In MCP mode (deprecated): the Playwright browser Docker image version (e.g., 'v1.56.1'). Omit to use the default version.",
-                  "examples": ["0.1.11", "v1.56.1"]
-                },
-                "args": {
-                  "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
-                  "items": {
-                    "type": "string"
-                  }
+                  "description": "Optional @playwright/cli npm package version pin. Omit to use the default version.",
+                  "examples": ["0.1.18"]
                 },
                 "mode": {
-                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server. Must be a literal value; GitHub Actions expressions are rejected.",
+                  "description": "Integration mode. Only 'cli' is supported. The compiler rejects the removed 'mcp' value with migration guidance. Must be a literal value; GitHub Actions expressions are rejected.",
                   "oneOf": [
                     {
                       "type": "string",
@@ -4786,7 +4779,7 @@
                     {
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "Not allowed at runtime: mode must be a literal 'cli' or 'mcp' value, not a GitHub Actions expression."
+                      "description": "Not allowed at runtime: mode must be the literal 'cli' value, not a GitHub Actions expression."
                     }
                   ]
                 }
