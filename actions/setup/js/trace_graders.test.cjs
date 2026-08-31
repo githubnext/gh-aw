@@ -141,6 +141,24 @@ function runSkillConstraintCoverage(trace, config) {
   });
 }
 
+const toolOutputConsumptionRateScriptMatch = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/shared/graders/tool-output-consumption-rate.md"), "utf8").match(/script: \|\n([\s\S]*?)\n^---\s*$/m);
+if (!toolOutputConsumptionRateScriptMatch?.[1]) {
+  throw new Error("unable to extract tool-output-consumption-rate grader script");
+}
+const toolOutputConsumptionRateScript = toolOutputConsumptionRateScriptMatch[1]
+  .split("\n")
+  .map(line => line.slice(6))
+  .join("\n");
+
+function runToolOutputConsumptionRate(trace) {
+  return runCustomGrader("tool-output-consumption-rate", toolOutputConsumptionRateScript, makeTrace(trace), {
+    name: "Tool Output Consumption Rate",
+    unit: "ratio",
+    direction: "higher_is_better",
+    source: "inline",
+  });
+}
+
 describe("trace_graders", () => {
   describe("buildGradersSummaryBody", () => {
     it("renders all computed grader values without emojis", () => {
@@ -1005,6 +1023,98 @@ describe("trace_graders", () => {
       expect(result.value).toBeNull();
       expect(result.passed).toBeNull();
       expect(result.status).toBe("unavailable");
+    });
+  });
+
+  describe("tool-output-consumption-rate custom grader", () => {
+    it("scores the fraction of matching tool observations that were consumed", () => {
+      const result = runToolOutputConsumptionRate({
+        trajectoryIR: {
+          toolCalls: [{ id: "tc-1" }, { id: "tc-2" }],
+          observations: [
+            { id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] },
+            { id: "obs-2", sourceToolCallId: "tc-2", consumedByActionIds: [] },
+            { id: "obs-3", sourceToolCallId: null, consumedByActionIds: ["act-2"] },
+            { id: "obs-4", sourceToolCallId: "unknown", consumedByActionIds: ["act-3"] },
+          ],
+        },
+      });
+
+      expect(result.value).toBeCloseTo(0.5);
+      expect(result.details).toContain("toolObservations=2 consumed=1");
+      expect(result.details).toContain("unconsumed: obs-2");
+    });
+
+    it("treats malformed consumption metadata as unconsumed", () => {
+      const result = runToolOutputConsumptionRate({
+        trajectoryIR: {
+          toolCalls: [{ id: "tc-1" }],
+          observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: "act-1" }],
+        },
+      });
+
+      expect(result.value).toBe(0);
+      expect(result.details).toContain("toolObservations=1 consumed=0");
+    });
+
+    it("treats consumedByActionIds arrays containing only non-string/empty entries as unconsumed", () => {
+      const result = runToolOutputConsumptionRate({
+        trajectoryIR: {
+          toolCalls: [{ id: "tc-1" }, { id: "tc-2" }],
+          observations: [
+            { id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: [null] },
+            { id: "obs-2", sourceToolCallId: "tc-2", consumedByActionIds: [42, ""] },
+          ],
+        },
+      });
+
+      expect(result.value).toBe(0);
+      expect(result.details).toContain("toolObservations=2 consumed=0");
+      expect(result.details).toContain("unconsumed: obs-1, obs-2");
+    });
+
+    it("reads observations/toolCalls from the root trace object", () => {
+      const result = runToolOutputConsumptionRate({
+        toolCalls: [{ id: "tc-1" }],
+        observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] }],
+      });
+
+      expect(result.value).toBe(1);
+    });
+
+    it("reads a complete IR nested in agentOutput", () => {
+      const result = runToolOutputConsumptionRate({
+        agentOutput: {
+          trajectoryIR: {
+            toolCalls: [{ id: "tc-1" }],
+            observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] }],
+          },
+        },
+      });
+
+      expect(result.value).toBe(1);
+    });
+
+    it.each([
+      ["no observations", { trajectoryIR: { toolCalls: [{ id: "tc-1" }] } }, "no observations"],
+      ["no tool calls", { trajectoryIR: { observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] }] } }, "no tool-originated observations"],
+      [
+        "no matching tool call",
+        {
+          trajectoryIR: {
+            toolCalls: [{ id: "tc-1" }],
+            observations: [{ id: "obs-1", sourceToolCallId: "unknown", consumedByActionIds: ["act-1"] }],
+          },
+        },
+        "no tool-originated observations",
+      ],
+    ])("normalizes %s as unavailable", (_name, trace, message) => {
+      const result = runToolOutputConsumptionRate(trace);
+
+      expect(result.value).toBeNull();
+      expect(result.passed).toBeNull();
+      expect(result.status).toBe("unavailable");
+      expect(result.message).toContain(message);
     });
   });
 
