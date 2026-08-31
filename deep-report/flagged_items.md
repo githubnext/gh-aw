@@ -512,3 +512,14 @@
 - **[declined, not yet resolved, no re-file]** Design Decision Gate allowed-files decline — 2nd consecutive clean day per #57350, but the proposed reclassify-as-non-failure fix (open since 2026-08-28) hasn't shipped; absence of new occurrences may just mean no triggering PRs today, not a landed fix.
 - **[declined, healthy/informational]** Auto-Triage Issues (#57306), Firewall Escape Test (#57349, secure/no escape), Issue Arborist (#57353, informational hierarchy report) — no action.
 - **[declined, healthy]** Weekly issues data (500 issues, 132 open/368 closed): 0 open >7 days, 95 unlabeled all chronic `[WIP]` auto-stub pattern — no fresh gap.
+
+## 2026-08-31 ~12:30Z cycle
+- **[new, filed]** AI Moderator: 94% failure, 3.9-7.5h zero-turn hangs, ~30 CI-hours/week burned — highest-impact fix this cycle. Watch for pickup.
+- **[new, filed]** PR-review 5-bot shared-failure cluster (Ponytail/PR Code Quality/Matt Pocock/Impeccable/Test Quality Sentinel) — 32% failure, likely one shared broken include.
+- **[new, filed]** Daily BYOK Ollama Test — 100% failure, non-functional integration, recommend disable or fix.
+- **[new, filed]** Org Health: 10 stale open PRs (30+ days) + 9 unassigned open issues — triage sweep.
+- **[new, filed]** Cluster 5 (container/MCP/infra) "other/unknown" 27% non-merge bucket — favorably-reviewed PRs closed anyway, distinct from already-addressed WIP/upstream-block causes. Cluster 5 itself remains the lowest-merge outlier for a 3rd consecutive day (66.7%→65.8%→62.9%).
+- **[new, filed]** GitHub MCP `_meta.serverInfo` icon overhead (~2.2-2.8k chars/call) inflating token cost on raw (non-wrapper) GitHub MCP tool calls, stable across 5 measured days.
+- **[new, filed]** `list_issues` integrity-policy redaction hiding one issue every day for 5 consecutive days — silent, unexplained, worth root-causing.
+- **[declined, deliberately closed not_planned]** #56032 (Copilot PR NLP empty-comment-data bug) — #57414 shows the same symptom still recurring today, but #56032 was closed `not_planned` (a maintainer decision) on 2026-08-28, not TTL-expired — correctly NOT re-filed per the expired-vs-declined distinction.
+- **[non-actionable, self-explained]** Copilot Session Insights 4% completion floor — fully explained as a smoke-test-matrix denominator artifact (84% branch concentration record), not a real regression. Its own recommendation (separate smoke-matrix-share metric from gate-bundle-share) noted but not filed as an issue given the 7-ceiling was reached with higher-impact items first.
