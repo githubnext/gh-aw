@@ -4,8 +4,8 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Spec Version: 1.26.0 (2026-07-16)
-# Script Version: 1.26.0 (2026-07-20)
+# Spec Version: 1.28.6 (2026-08-24)
+# Script Version: 1.28.6 (2026-08-31)
 
 set -euo pipefail
 
