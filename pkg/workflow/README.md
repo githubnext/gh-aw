@@ -14,7 +14,7 @@ The package is organized around three major subsystems:
 
 3. **Validation** (`validation.go`, `strict_mode_*.go`, `*_validation.go`): A layered validation system organized by domain. Each validator is a focused file under 300 lines. Validation runs both at compile time and optionally in strict mode for production deployments.
 
-The package is intentionally large (~320 source files) because it encodes all GitHub Actions generation logic, including per-action job builders for every supported safe-output type (add comment, add labels, assign to user, close issue, update PR, etc.).
+The package is intentionally large (~520 source files) because it encodes all GitHub Actions generation logic, including per-action job builders for every supported safe-output type (add comment, add labels, assign to user, close issue, update PR, etc.).
 
 ## Public API
 
