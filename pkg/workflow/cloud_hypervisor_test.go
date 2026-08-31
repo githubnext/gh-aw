@@ -3,7 +3,12 @@
 package workflow
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -440,7 +445,7 @@ func TestCloudHypervisorShellScriptContent(t *testing.T) {
 		},
 		{
 			script:   "cloud_hypervisor_host_preflight.sh",
-			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "/dev/kvm", "test -c /dev/kvm", "cloud-hypervisor preview"},
+			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "/dev/kvm", "test -c /dev/kvm", "cloud-hypervisor preview", "gh rsync docker", "docker info", "/sys/fs/cgroup/cgroup.controllers", "landlock", "/sys/kernel/security/lsm"},
 		},
 		{
 			script:   "cloud_hypervisor_setup_bundle.sh",
@@ -457,4 +462,218 @@ func TestCloudHypervisorShellScriptContent(t *testing.T) {
 			}
 		})
 	}
+}
+
+const cloudHypervisorFixtureReleaseTag = "v9.9.9"
+
+// cloudHypervisorFixtureManifest returns a manifest JSON document that
+// satisfies the jq contract enforced by cloud_hypervisor_setup_bundle.sh,
+// for the given release tag.
+func cloudHypervisorFixtureManifest(releaseTag string) string {
+	sha := strings.Repeat("b", 64)
+	return fmt.Sprintf(`{
+  "schemaVersion": 1,
+  "release": {
+    "repository": "github/gh-aw-firewall",
+    "workflow": "github/gh-aw-firewall/.github/workflows/release.yml",
+    "tag": %q,
+    "sourceCommit": "%s"
+  },
+  "architecture": "x86_64",
+  "artifacts": {
+    "cloudHypervisor": {"file": "cloud-hypervisor", "sha256": "%s"},
+    "virtiofsd": {"file": "virtiofsd", "sha256": "%s"},
+    "kernel": {"file": "vmlinux.bin", "sha256": "%s"},
+    "rootfs": {"file": "rootfs.ext4", "sha256": "%s"},
+    "supervisor": {"file": "awf-supervisor", "sha256": "%s"}
+  }
+}`, releaseTag, strings.Repeat("a", 40), sha, sha, sha, sha, sha)
+}
+
+const cloudHypervisorFixtureBundle = `{"mediaType":"application/vnd.dev.sigstore.bundle.v0.3+json","verificationMaterial":{}}` + "\n"
+
+// buildCloudHypervisorFixtureArchive builds a valid tar.gz guest archive
+// containing the five artifact files cloud_hypervisor_setup_bundle.sh
+// requires after extraction.
+func buildCloudHypervisorFixtureArchive(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	for _, name := range []string{"cloud-hypervisor", "virtiofsd", "vmlinux.bin", "rootfs.ext4", "awf-supervisor"} {
+		content := []byte("fixture-content-" + name)
+		require.NoError(t, tw.WriteHeader(&tar.Header{
+			Name: name,
+			Mode: 0o755,
+			Size: int64(len(content)),
+		}))
+		_, err := tw.Write(content)
+		require.NoError(t, err)
+	}
+	require.NoError(t, tw.Close())
+	require.NoError(t, gz.Close())
+	return buf.Bytes()
+}
+
+// writeCloudHypervisorCurlShim installs a fake curl on PATH that copies
+// files out of fixtureDir instead of performing a network request, keyed by
+// the requested URL's basename. A "<basename>.symlink-target" sidecar file
+// makes the shim create a symlink pointing at its contents instead of
+// copying a regular file, simulating a substituted/tampered artifact. A
+// missing fixture makes the shim fail closed like a real curl 404.
+func writeCloudHypervisorCurlShim(t *testing.T, fixtureDir string) string {
+	t.Helper()
+	binDir := t.TempDir()
+	script := "#!/usr/bin/env bash\n" +
+		"set -euo pipefail\n" +
+		"outfile=\"\"\n" +
+		"prev=\"\"\n" +
+		"for arg in \"$@\"; do\n" +
+		"  if [[ \"$prev\" == \"-o\" ]]; then\n" +
+		"    outfile=\"$arg\"\n" +
+		"  fi\n" +
+		"  prev=\"$arg\"\n" +
+		"done\n" +
+		"url=\"${!#}\"\n" +
+		"name=\"$(basename \"$url\")\"\n" +
+		"src=\"" + fixtureDir + "/${name}\"\n" +
+		"if [[ -f \"${src}.symlink-target\" ]]; then\n" +
+		"  ln -sf \"$(cat \"${src}.symlink-target\")\" \"$outfile\"\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"if [[ ! -e \"$src\" ]]; then\n" +
+		"  exit 22\n" +
+		"fi\n" +
+		"cp \"$src\" \"$outfile\"\n"
+	shimPath := filepath.Join(binDir, "curl")
+	require.NoError(t, os.WriteFile(shimPath, []byte(script), 0o755))
+	return binDir
+}
+
+// runCloudHypervisorSetupBundleScript executes the real
+// cloud_hypervisor_setup_bundle.sh script against fixtureDir via the curl
+// shim, so the script's own validation logic runs end-to-end.
+func runCloudHypervisorSetupBundleScript(t *testing.T, fixtureDir string) (string, error) {
+	t.Helper()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	scriptPath, err := filepath.Abs(filepath.Join(wd, "..", "..", "actions", "setup", "sh", "cloud_hypervisor_setup_bundle.sh"))
+	require.NoError(t, err)
+
+	binDir := writeCloudHypervisorCurlShim(t, fixtureDir)
+	runnerTemp := t.TempDir()
+
+	cmd := exec.Command("bash", scriptPath)
+	cmd.Env = append(os.Environ(),
+		"RUNNER_TEMP="+runnerTemp,
+		"GH_AW_AWF_VERSION="+cloudHypervisorFixtureReleaseTag,
+		"PATH="+binDir+":"+os.Getenv("PATH"),
+	)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+func TestCloudHypervisorSetupBundleScriptExecutesAgainstFixtures(t *testing.T) {
+	validManifest := cloudHypervisorFixtureManifest(cloudHypervisorFixtureReleaseTag)
+	validArchive := buildCloudHypervisorFixtureArchive(t)
+	archiveName := "cloud-hypervisor-test-x86_64.tar.gz"
+	manifestName := "cloud-hypervisor-test-x86_64.manifest.json"
+	bundleName := "cloud-hypervisor-test-x86_64.manifest.sigstore.jsonl"
+
+	t.Run("valid fixtures succeed", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.NoError(t, err, out)
+		assert.Contains(t, out, "cloud-hypervisor bundle prepared")
+	})
+
+	t.Run("missing manifest fails closed", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+	})
+
+	t.Run("missing bundle fails closed", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+	})
+
+	t.Run("malformed manifest json rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(`{"schemaVersion": 1, "not": "a valid manifest"}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+		assert.Contains(t, out, "does not match the cloud-hypervisor release bundle contract")
+	})
+
+	t.Run("release tag mismatch rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(cloudHypervisorFixtureManifest("v1.0.0")), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+		assert.Contains(t, out, "does not match the cloud-hypervisor release bundle contract")
+	})
+
+	t.Run("substituted manifest symlink rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName+".symlink-target"), []byte("/etc/passwd"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+		assert.Contains(t, out, "does not match the cloud-hypervisor release bundle contract")
+	})
+
+	t.Run("malformed bundle jsonl rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte("not-json\n"), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+		assert.Contains(t, out, "is missing or malformed")
+	})
+
+	t.Run("empty bundle rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(""), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+		assert.Contains(t, out, "is missing or malformed")
+	})
+
+	t.Run("substituted bundle symlink rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName+".symlink-target"), []byte("/etc/passwd"), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScript(t, dir)
+		require.Error(t, err, out)
+		assert.Contains(t, out, "is missing or malformed")
+	})
 }
