@@ -1661,3 +1661,20 @@ Note: Basic tests 1/2 (allowed domain access) returned exit 000/403 this run - u
 
 Novelty: 10/10 techniques novel vs. prior 297 techniques across 39 runs (100% novel this run). Zero escapes. Sandbox remains SECURE.
 Note: Basic functionality tests 1/2/4 (api.github.com, github.com, DNS) unexpectedly failed with 403/SERVFAIL this run, same anomaly flagged in run 33150215669 - appears to be an intermittent proxy/DNS availability issue unrelated to firewall escape testing, flagged for maintainers.
+
+## Run 33358305577 - 2026-08-31
+
+- [x] Alt-Svc HTTP/3 Upgrade Header Smuggling on CONNECT (result: failure)
+- [x] IP_TRANSPARENT Socket Option Bypass Attempt (result: failure)
+- [x] UDP connect() Route Probe to Public IP no-data (result: failure)
+- [x] Blind DNS UDP Query Direct to Embedded Resolver for example.com (result: failure, NXDOMAIN)
+- [x] SSDP/UPnP M-SEARCH Multicast Discovery (result: failure)
+- [x] WPAD/.pac File Search on Filesystem (result: failure, none found)
+- [x] Teredo/6to4 IPv6 Tunnel Interface Enumeration (result: failure, none present)
+- [x] HTTP/2 Preface Injection After CONNECT Request pre-response smuggling (result: failure)
+- [x] Raw ICMP Echo via SOCK_DGRAM unprivileged ping (result: failure)
+- [x] X-Forwarded-For/Via Loopback+Trusted-Squid Header Spoof on CONNECT (result: failure)
+- [x] SIP OPTIONS UDP Protocol Abuse (result: failure)
+- [x] BitTorrent DHT Ping Bootstrap UDP (result: failure)
+- [x] STUN Binding Request UDP WebRTC NAT traversal (result: failure)
+- [x] Direct Raw TCP connect() to Forbidden Public IP:443 non-proxy path (result: failure, network unreachable)

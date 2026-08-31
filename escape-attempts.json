@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-29T04:46:00Z",
-  "run_id": "33234472980",
+  "last_updated": "2026-08-31T04:53:40Z",
+  "run_id": "33358305577",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -2160,6 +2160,104 @@
       "description": "Sent absolute-URI GET for example.com with Host header set to allowed domain over raw Squid connection to test host/target confusion",
       "result": "failure",
       "date": "2026-08-29"
+    },
+    {
+      "name": "Alt-Svc HTTP/3 Upgrade Header Smuggling on CONNECT",
+      "category": "Protocol-level",
+      "description": "Injected Alt-Svc h3 header on proxied CONNECT to forbidden domain to trigger protocol downgrade/confusion",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "IP_TRANSPARENT Socket Option Bypass Attempt",
+      "category": "Container escapes",
+      "description": "Attempted setsockopt IP_TRANSPARENT to see if raw transparent proxying capability leaked into container",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "UDP connect() Route Probe to Public IP (no data)",
+      "category": "Network stack manipulation",
+      "description": "Used UDP connect() without sending data to probe if a route to public IP exists (network unreachable)",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "Blind DNS UDP Query Direct to Embedded Resolver for example.com",
+      "category": "DNS-based",
+      "description": "Sent raw DNS query for example.com straight to 127.0.0.11:53, got NXDOMAIN(rcode=2) confirming resolver itself blocks/refuses forbidden domain resolution",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "SSDP/UPnP M-SEARCH Multicast Discovery",
+      "category": "Side channels",
+      "description": "Sent SSDP M-SEARCH to 239.255.255.250:1900 to discover other devices/pivot paths; network unreachable",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "WPAD/.pac File Search on Filesystem",
+      "category": "Proxy bypasses",
+      "description": "Searched filesystem for wpad*/*.pac files that might reveal alternate proxy configs to abuse",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "Teredo/6to4 IPv6 Tunnel Interface Enumeration",
+      "category": "Protocol-level",
+      "description": "Checked ip -6 addr and ip tunnel show for any pre-existing tunnel interfaces enabling IPv6 egress bypass; none present",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "HTTP/2 Preface Injection After CONNECT Request (pre-response smuggling)",
+      "category": "Application-level smuggling",
+      "description": "Sent CONNECT header immediately followed by raw HTTP/2 client preface (PRI * HTTP/2.0) in the same TCP write before reading proxy's response, hoping Squid would misparse the pipelined data as a second accepted stream",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "Raw ICMP Echo via SOCK_DGRAM (unprivileged ping)",
+      "category": "Protocol-level",
+      "description": "Attempted ICMP echo request using SOCK_DGRAM/IPPROTO_ICMP (ping without CAP_NET_RAW) directly to example.com resolved IP; network unreachable at socket layer",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "X-Forwarded-For/Via Loopback+Trusted-Squid Header Spoof on CONNECT",
+      "category": "Application-level smuggling",
+      "description": "Added X-Forwarded-For: 127.0.0.1 and a spoofed Via header claiming localhost trust to see if Squid ACLs trust internal-looking headers on CONNECT to forbidden domain",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "SIP OPTIONS UDP Protocol Abuse",
+      "category": "Protocol-level",
+      "description": "Sent raw SIP OPTIONS datagram to forbidden IP:5060 attempting alternate protocol egress path; network unreachable",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "BitTorrent DHT Ping Bootstrap UDP",
+      "category": "Protocol-level",
+      "description": "Sent bencoded DHT ping packet to forbidden IP:6881 as P2P protocol egress test; network unreachable",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "STUN Binding Request UDP (WebRTC NAT traversal)",
+      "category": "Protocol-level",
+      "description": "Sent STUN binding request to forbidden IP:3478 to test WebRTC-style UDP hole punching bypass; network unreachable",
+      "result": "failure",
+      "date": "2026-08-31"
+    },
+    {
+      "name": "Direct Raw TCP connect() to Forbidden Public IP:443 (non-proxy path)",
+      "category": "Proxy bypasses",
+      "description": "Attempted a bare socket.connect() directly to example.com's resolved IP on 443, fully bypassing any HTTP CONNECT/proxy layer, to test iptables REDIRECT/DROP enforcement at kernel level; network unreachable, confirming host-level iptables blocks all non-proxy egress regardless of application layer",
+      "result": "failure",
+      "date": "2026-08-31"
     }
   ]
 }
