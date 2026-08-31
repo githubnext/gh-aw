@@ -24,3 +24,5 @@
 {"date":"2026-08-30","loop_name":"avenger-self-repair","direction":"stalled, recurring agent-stage failures despite prior hardening","evidence":["run:33268453851","run:33294778348","issue#56694"]}
 {"date":"2026-08-30","loop_name":"code-scanning-fixer-tool-denial-stall","direction":"stalled, recurring agent failure rather than self-healing","evidence":["run:33269490401","run:33297987600"]}
 {"date":"2026-08-30","loop_name":"windows-runner-close-reopen","direction":"partially improving after human intervention, but recurrence remains open","evidence":["pr#56667","issue#56848"]}
+{"date":"2026-08-31","loop_name":"observability-to-allowlist","direction":"stable-but-fraying; blocked telemetry domains still recur across maintenance and issue-response runs","evidence":["run:33366926323","run:33369782753","run:33369895151","pr:57313"]}
+{"date":"2026-08-31","loop_name":"fleet-health-net-positive","direction":"improving; early failures were localized and followed by a cleaner success wave","evidence":["run:33365505787","run:33366102163","run:33366094023","run:33366926323","run:33369782753","run:33369895151"]}
