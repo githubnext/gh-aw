@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🔍"
-description: Runs Markdown quality checks using Super Linter and creates issues for violations
+description: Runs Go module quality checks using Super Linter and creates issues for violations
 on:
   workflow_dispatch:
   schedule:
@@ -49,8 +49,8 @@ jobs:
           CREATE_LOG_FILE: "true"
           LOG_FILE: super-linter.log
           DEFAULT_BRANCH: main
-          # Only validate Markdown - other linters (Go, JS, YAML, Shell) run in CI
-          VALIDATE_MARKDOWN: "true"
+          # Only validate Go modules - other linters run in CI
+          VALIDATE_GO_MODULES: "true"
           # Scheduled runs have no diff, so they must validate the full codebase.
           VALIDATE_ALL_CODEBASE: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
           # Avoid false-negative failures from super-linter summary formatter
@@ -128,7 +128,7 @@ You are an expert code quality analyst for a Go-based GitHub CLI extension proje
    - Categorize errors by severity (critical, high, medium, low)
    - Identify patterns in the errors
    - Determine which errors are most important to fix first
-   - Note: This workflow only validates Markdown files. Other linters (Go, JavaScript, YAML, Shell, etc.) are handled by separate CI jobs
+   - Note: This workflow only validates Go modules. Other linters are handled by separate CI jobs
 3. **Create a detailed issue** with the following structure:
 
 ### Issue Title
@@ -192,7 +192,7 @@ Use format: "Code Quality Report - [Date] - [X] issues found"
 - **Suggest fixes**: Give practical recommendations
 - **Use proper formatting**: Make the issue easy to read and navigate
 - **If no errors found**: Create a positive report celebrating clean code
-- **Remember**: This workflow only validates Markdown files. Other file types (Go, JavaScript, YAML, Shell, GitHub Actions) are handled by separate CI workflows
+- **Remember**: This workflow only validates Go modules. Other file types are handled by separate CI workflows
 
 ## Validating Fixes with Super Linter
 
@@ -207,17 +207,17 @@ To validate your fixes locally before committing, run super-linter using Docker:
 docker run --rm \
   -e DEFAULT_BRANCH=main \
   -e RUN_LOCAL=true \
-  -e VALIDATE_MARKDOWN=true \
+  -e VALIDATE_GO_MODULES=true \
   -v $(pwd):/tmp/lint \
-  ghcr.io/super-linter/super-linter:slim-v8.6.0
+  ghcr.io/super-linter/super-linter:v8.7.0
 
 # Run super-linter on specific file types only
-# For example, to validate only Markdown files:
+# For example, to validate only Go modules:
 docker run --rm \
   -e RUN_LOCAL=true \
-  -e VALIDATE_MARKDOWN=true \
+  -e VALIDATE_GO_MODULES=true \
   -v $(pwd):/tmp/lint \
-  ghcr.io/super-linter/super-linter:slim-v8.6.0
+  ghcr.io/super-linter/super-linter:v8.7.0
 ```
 
 **Note**: The Docker command uses the same super-linter configuration as this workflow. Files are mounted from your current directory to `/tmp/lint` in the container.
