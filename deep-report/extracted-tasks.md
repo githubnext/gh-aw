@@ -261,3 +261,14 @@ Not filed (already well-scoped by original authors, cross-referenced only): #561
 Comment (not issue): corroborated PR-gate bloc pattern on open #56489 with today's numbers (57/93 failures) and confirmed root-cause mechanism (`shared/pr-review-base.md` → `shared/github-guard-policy.md` min-integrity gate).
 
 Not filed (verified stale/already-fixed, chronic, or self-handled): "frontmatter undefined until mid-page" (stale, #53614 already fixed it), left-nav label mismatch (unverified, dropped for time), GitHub Remote MCP Auth Test toolset gap (chronic, 19th+), `proxy.golang.org` allowlist gaps in #56812 (recognized as recurring class, not independently re-verified this cycle — candidate for next cycle), Daily Max AI Credits driver_exit anomaly (single occurrence, lower priority).
+
+## 2026-08-31 cycle (6 issues filed, baseline #57310, window #57306-57361)
+
+1. Add test coverage and error-wrapping to `compiler_safe_outputs_builder.go` (69/100 quality score, no test file, zero error wraps) — from Daily Compiler Quality Check #57324.
+2. Fix PR Code Quality Reviewer's 955K-request registry.npmjs.org retry storm (100% block rate, no npm usage in workflow/imports) — from Daily Firewall Report #57325.
+3. Quick Start docs: fix 3 onboarding friction points (auth-tab hint placement, term re-linking in Step 4, add-wizard push-vs-PR clarity) — from Documentation Noob Tester #57338, verified distinct from closed #55966/#56578.
+4. Reclassify `submit_pull_request_review`'s no-PR-context condition as soft skip instead of hard failure (2nd confirmed occurrence) — from Safe Output Health Report #57350.
+5. Fix max-daily-ai-credits schema description (still contradicts implementation; #56301 closed without landing a fix) — from Schema Consistency Checker #57357 finding 1, re-confirmed via direct code inspection.
+6. Enrich schema descriptions for `redirect` (placeholder behavior) and `tracker-id` (searchability contract) — from Schema Consistency Checker #57357, documentation gaps 1-2 (bundled into one issue).
+
+Not filed (verified false-positive, chronic, or too-early): Schema Consistency Checker finding 2 (permissions schema "omits" organization-projects/organization-custom-org-roles/secret-scanning-alerts — all three already present in schema via already-closed #56982/#54752, claim is stale/false); `update_project` "Bad credentials" (Smoke Project, 1 occurrence, needs credential investigation not a code fix, monitoring for 2nd occurrence); Design Decision Gate allowed-files (2nd clean day but proposed fix hasn't shipped, existing tracker stays open, not re-filed).

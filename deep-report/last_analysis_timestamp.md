@@ -1,18 +1,12 @@
-2026-08-31T01:06Z (window since prior briefing #57214, created 2026-08-30T18:35:32Z)
+2026-08-31T~07:00Z (window since prior briefing #57310, created 2026-08-31T01:15:54Z)
 
 ## Cycle summary
-- Prior baseline: discussion #57214 ("DeepReport Intelligence Briefing - 2026-08-30", 18:35:32Z), confirmed as true baseline (matches recorded last_analysis_timestamp of 18:27Z — no write-race this cycle).
-- This cycle's window: ~6h31m elapsed (under 20h re-baseline threshold), 9 new discussions (57217,57223,57235,57236,57241,57260,57261,57293,57299), all read in full.
-- 1 issue filed: re-enable `gh-aw-detection` on smoke-codex.md:98, smoke-copilot.md:168, daily-github-docs-seo-optimizer.md:37 — from Detection Analysis Report #57261, first-time flag today, verified live at each frontmatter line.
-- 0 comments added, 0 duplicates slipped through dedup gate.
-- 1 discussion created (this cycle's briefing).
-- Very thin cycle (1/7 filed) — consistent with standing "7 is a ceiling not a quota" lesson; most of the window was healthy/informational or self-filed (Daily Cache Strategy Analyzer opened 5 of its own issues).
-- Declined this cycle:
-  - Lockfile Statistics (#57236) engine-mix reshuffle (copilot 151→120, codex 46→75, pi 22→29 in one day) — searched for a bulk-migration PR, found none; most likely explained by the existing experiment/engine-selection system (ADR-29985 precedent), not a bug. Flagged for monitoring only.
-  - Copilot PR Prompt Analysis (#57241) CVE-remediation weak category (65% vs 84% baseline merge rate) — traced toward daily-squid-image-scan.md's container-CVE tracker (#52657), but that workflow explicitly does NOT create per-image issues or assign to Copilot directly (step 4/5 of its prompt) — the actual CVE-issue-to-Copilot pipeline has no single attributable file. Too diffuse this cycle; worth a deeper source dive if the pattern recurs (see [[known_patterns]] "too diffuse" precedent).
-  - Daily Observability Report (#57260) gateway.jsonl absence — chronic, 5+ prior closed-without-fix attempts, standing policy not to re-file without verified-merged evidence.
-  - Daily Code Metrics (#57217), Daily Team Evolution (#57235) — healthy/informational baselines, no gap.
-  - Smoke Copilot/ARM64 (#57293/#57299) — routine passes; Smoke Copilot's chronic Google-domain firewall blocks (browser-automation related) continue, already declined multiple times as a judgment call.
-  - Fleet health spot-check (20-run/~2.1h sample): 4 failures, all single-run "baseline" smoke variants across different engines (Cursor, Codex, Copilot CLI, Gemini) with no shared root cause — isolated flakiness, not a fleet regression.
-  - Weekly issues data (500 issues, 139 open/361 closed): 0 open >7 days (healthy); unlabeled issues are the standing chronic `[WIP] ... work in progress` auto-stub pattern, not re-filed.
-- Next cycle should treat this as the baseline; the write-race pattern hasn't recurred in 4+ cycles now (this file's own recorded timestamp matched the discussion's createdAt cleanly again).
+- Prior baseline: the memory-recorded timestamp file at cycle start still pointed to #57214/#57299 (a stale window) — the write-race pattern recurred. True baseline was recovered by diffing against the actual discussions.json feed, finding #57310 (DeepReport's own next briefing) as the real boundary.
+- This cycle's window: ~5h45m elapsed (well under 20h re-baseline threshold), 11 new discussions (57306,57319,57324,57325,57338,57341,57349,57350,57353,57357,57361), all read in full.
+- 6 issues filed: compiler_safe_outputs_builder.go test+error-wrap gap, PR Code Quality Reviewer npm firewall retry storm, Quick Start docs 3-item onboarding bundle, submit_pull_request_review soft-skip reclassification, max-daily-ai-credits schema contradiction re-file, redirect+tracker-id schema description bundle.
+- 0 comments added, 1 discussion created (this cycle's briefing), 0 duplicates slipped through dedup gate.
+- 1 candidate finding (Schema Consistency Checker's permissions-schema "omitted scopes" claim) investigated in depth and declined as a verified false positive — the named scopes (organization-projects, organization-custom-org-roles, secret-scanning-alerts) are already present in the schema via already-closed #56982/#54752.
+- Sergo, ESLint Refiner, LintMonster self-filed/self-consolidated their own findings — no DeepReport action needed.
+- Weekly issues data (500 issues, 132 open/368 closed): 0 open >7 days (healthy); unlabeled issues remain the standing chronic `[WIP] ... work in progress` auto-stub pattern.
+- Fleet health spot-check (25-run/~1h sample, count-limited before reaching the full 7-day window): 80% success, 5 driver_exit failures all classified "baseline" across 5 unrelated workflows — isolated flakiness, not a fleet regression.
+- Next cycle should treat this as the baseline, but given the write-race has now recurred at least twice after being believed resolved, next cycle MUST still cross-check the recorded window against the live discussions feed rather than trusting this file blindly.
