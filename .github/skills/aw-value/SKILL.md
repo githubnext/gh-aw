@@ -111,6 +111,20 @@ gh aw graders operational-value RUN-ID \
 
 Add `--repo [HOST/]OWNER/REPO` to select the GitHub host for the current repository checkout. The command downloads the original grader artifact, reuses its operational case and complete run subject, and refuses to execute unless the archived evaluator matches both digest records and the evaluator at the recorded commit in the trusted checkout. It prints a new observation and never modifies the original artifact.
 
+## Build a Historical Report
+
+Build a report across all completed runs from the contract's adoption time:
+
+```bash
+gh aw graders operational-value report WORKFLOW-NAME
+```
+
+This writes JSON, SVG, and Markdown artifacts under `reports/operational-value`. It applies the current evaluator digest to every run for comparability and backfills pre-grader runs by passing their run subject with `case: null` and `event: null`. The evaluator must reconstruct assignment from accepted evidence when the case is null.
+
+Mature numeric results are cached by repository, workflow, evaluator digest, and Monday-based UTC week. Unavailable, immature, and failed evaluations are retried. Use `--refresh` to bypass cached observations, `--until` to choose the evidence endpoint, and `--output` or `--cache-dir` to relocate generated files.
+
+Reports preserve all run-level points. Weekly means retain the latest observation per repeated `opportunityKey` within each week. Missing evidence remains null, and changes over time or from a baseline do not establish causation.
+
 ## Definition Contract
 
 `--definition` must contain:
