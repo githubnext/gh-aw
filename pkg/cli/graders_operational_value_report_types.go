@@ -69,6 +69,7 @@ type operationalValueReportEvaluator struct {
 	EvaluatorPath    string
 	EvaluatorContent string
 	EvaluatorDigest  string
+	cleanup          func()
 	Definition       operationalValueReportDefinition
 	GraderName       string
 	GraderUnit       string

@@ -32,7 +32,7 @@ func TestRunOperationalValueReportWritesCompleteArtifacts(t *testing.T) {
 	})
 
 	evaluatorDigest := strings.Repeat("a", 64)
-	definitionJSON := json.RawMessage(`{"schemaVersion":4,"grader":"operational-value","repository":"github/gh-aw","workflowName":"Daily File Diet","sourcePath":".github/workflows/daily-file-diet.md","adoption":{"commit":"abc","adoptedAt":"2026-08-01T00:00:00Z"},"operationalValue":"Improve the assigned file.","evidence":{"opportunity":"file","assignment":"largest","accepted":"Git","repositories":["github/gh-aw"],"collection":"Git API","maturation":"two days","zeroRule":"none","missingRule":"null"},"primaryMetric":{"id":"reduction","formula":"reduction / target","direction":"higher_is_better"},"baseline":{"mode":"attainment-only","value":null,"evidenceCutoff":null,"provenance":[]}}`)
+	definitionJSON := json.RawMessage(`{"schemaVersion":4,"grader":"operational-value","repository":"github/gh-aw","workflowName":"Daily File Diet","sourcePath":".github/workflows/daily-file-diet.md","adoption":{"commit":"abc","adoptedAt":"2026-08-01T00:00:00Z"},"operationalValue":"Improve the assigned file.","evidence":{"opportunity":"file","assignment":"largest","accepted":"Git","repositories":["github/gh-aw"],"collection":"Git API","maturation":"two days","zeroRule":"none","missingRule":"null"},"primaryMetric":{"id":"reduction","formula":"reduction / target","direction":"higher_is_better"},"baseline":{"mode":"attainment-only","value":null,"evidenceCutoff":null,"provenance":[]},"validationExamples":{"sample":{"valid":true}}}`)
 	definition, err := parseOperationalValueReportDefinition(definitionJSON)
 	require.NoError(t, err)
 	operationalValueReportLoadEvaluator = func(context.Context, string, string) (*operationalValueReportEvaluator, error) {
@@ -69,4 +69,6 @@ func TestRunOperationalValueReportWritesCompleteArtifacts(t *testing.T) {
 	require.Len(t, report.Observations, 1)
 	assert.Equal(t, evaluatorDigest, report.Evaluator.SHA256)
 	assert.Equal(t, ".github/graders/daily-file-diet-operational-value.sh", report.Evaluator.Path)
+	assert.Equal(t, "2026-08-31T00:00:00Z", report.Window.EndAt)
+	assert.NotEqual(t, report.Window.EndAt, report.GeneratedAt)
 }

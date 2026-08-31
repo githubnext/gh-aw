@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,4 +83,60 @@ func TestBackfillOperationalValueReportObservationsDoesNotCacheNonFinalResults(t
 			assert.Equal(t, 2, gradeCalls)
 		})
 	}
+}
+
+func TestListOperationalValueReportRunsPathEscapesWorkflowFile(t *testing.T) {
+	originalRunGH := operationalValueReportRunGH
+	t.Cleanup(func() { operationalValueReportRunGH = originalRunGH })
+
+	operationalValueReportRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		require.Contains(t, args[len(args)-1], "daily%23file.lock.yml")
+		return []byte(`[{"total_count":1,"workflow_runs":[{"id":42,"run_attempt":1,"html_url":"https://example.test/42","status":"completed","conclusion":"success","created_at":"2026-08-10T00:00:00Z","event":"schedule","head_branch":"main","head_sha":"abc"}]}]`), nil
+	}
+
+	runs, err := listOperationalValueReportRuns(context.Background(), "github/gh-aw", "github.com", "daily#file.lock.yml", time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.Len(t, runs, 1)
+	assert.Equal(t, "42", runs[0].ID)
+}
+
+func TestListOperationalValueReportRunsSplitsCreatedWindowAtCap(t *testing.T) {
+	originalRunGH := operationalValueReportRunGH
+	t.Cleanup(func() { operationalValueReportRunGH = originalRunGH })
+
+	seenRanges := make([]string, 0)
+	operationalValueReportRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		var createdRange string
+		for index := 0; index < len(args)-1; index++ {
+			if args[index] == "-f" && strings.HasPrefix(args[index+1], "created=") {
+				createdRange = strings.TrimPrefix(args[index+1], "created=")
+				break
+			}
+		}
+		require.NotEmpty(t, createdRange)
+		seenRanges = append(seenRanges, createdRange)
+
+		switch createdRange {
+		case "2026-08-01T00:00:00Z..2026-08-03T00:00:00Z":
+			return []byte(`[{"total_count":1000,"workflow_runs":[]}]`), nil
+		case "2026-08-01T00:00:00Z..2026-08-02T00:00:00Z":
+			return []byte(`[{"total_count":2,"workflow_runs":[{"id":1,"run_attempt":1,"html_url":"https://example.test/1","status":"completed","conclusion":"success","created_at":"2026-08-01T00:00:00Z","event":"schedule","head_branch":"main","head_sha":"a"}]}]`), nil
+		case "2026-08-02T00:00:00Z..2026-08-03T00:00:00Z":
+			return []byte(`[{"total_count":1,"workflow_runs":[{"id":2,"run_attempt":1,"html_url":"https://example.test/2","status":"completed","conclusion":"success","created_at":"2026-08-03T00:00:00Z","event":"schedule","head_branch":"main","head_sha":"b"}]}]`), nil
+		default:
+			return []byte(`[{"total_count":0,"workflow_runs":[]}]`), nil
+		}
+	}
+
+	runs, err := listOperationalValueReportRuns(context.Background(), "github/gh-aw", "github.com", "daily-file-diet.lock.yml", time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.Len(t, runs, 2)
+	assert.Equal(t, "1", runs[0].ID)
+	assert.Equal(t, "2", runs[1].ID)
+
+	payload, err := json.Marshal(seenRanges)
+	require.NoError(t, err)
+	assert.Contains(t, string(payload), "2026-08-01T00:00:00Z..2026-08-03T00:00:00Z")
+	assert.Contains(t, string(payload), "2026-08-01T00:00:00Z..2026-08-02T00:00:00Z")
+	assert.Contains(t, string(payload), "2026-08-02T00:00:00Z..2026-08-03T00:00:00Z")
 }

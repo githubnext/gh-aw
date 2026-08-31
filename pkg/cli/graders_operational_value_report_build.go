@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func buildOperationalValueReport(evaluator *operationalValueReportEvaluator, observations []operationalValueReportObservation, generatedAt time.Time, stats operationalValueReportBackfillStats) operationalValueReport {
+func buildOperationalValueReport(evaluator *operationalValueReportEvaluator, observations []operationalValueReportObservation, generatedAt, windowEndAt time.Time, stats operationalValueReportBackfillStats) operationalValueReport {
 	values := make([]float64, 0, len(observations))
 	distinctNumericOpportunities := make(map[string]struct{})
 	coverage := operationalValueReportCoverage{
@@ -50,7 +50,7 @@ func buildOperationalValueReport(evaluator *operationalValueReportEvaluator, obs
 		OperationalValue: evaluator.Definition.OperationalValue,
 		Window: operationalValueReportWindow{
 			StartAt: startAt,
-			EndAt:   generatedAt.UTC().Format(time.RFC3339),
+			EndAt:   windowEndAt.UTC().Format(time.RFC3339),
 		},
 		Evaluator: operationalValueReportEvaluatorReference{
 			Path:       evaluator.EvaluatorRun,

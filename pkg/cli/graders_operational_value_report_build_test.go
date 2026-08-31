@@ -28,7 +28,7 @@ func TestBuildOperationalValueReportIncludesEveryPointAndDeduplicatesWeeklyMean(
 		{Run: operationalValueReportRun{ID: "3", CreatedAt: time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC)}, Value: &valueThree, Status: "pass", OpportunityKey: "issue:2", Mature: true},
 	}
 
-	report := buildOperationalValueReport(evaluator, observations, time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), operationalValueReportBackfillStats{CacheHits: 2, Evaluated: 1})
+	report := buildOperationalValueReport(evaluator, observations, time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC), time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), operationalValueReportBackfillStats{CacheHits: 2, Evaluated: 1})
 	require.Len(t, report.Observations, 3)
 	require.Len(t, report.Weekly, 1)
 	assert.Equal(t, "2026-08-01T00:00:00Z", report.Window.StartAt)

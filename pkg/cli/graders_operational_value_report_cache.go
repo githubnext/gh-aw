@@ -104,7 +104,7 @@ func saveOperationalValueReportWeeklyCache(path, repository, workflowID, evaluat
 	if err != nil {
 		return fmt.Errorf("cannot encode operational-value cache: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), constants.DirPermPublic); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), constants.DirPermSensitive); err != nil {
 		return fmt.Errorf("cannot create operational-value cache directory: %w", err)
 	}
 	tempFile, err := os.CreateTemp(filepath.Dir(path), ".operational-value-week-"+strconv.FormatInt(time.Now().UnixNano(), 10)+"-*")
@@ -113,7 +113,7 @@ func saveOperationalValueReportWeeklyCache(path, repository, workflowID, evaluat
 	}
 	tempPath := tempFile.Name()
 	defer os.Remove(tempPath)
-	if err := tempFile.Chmod(constants.FilePermPublic); err != nil {
+	if err := tempFile.Chmod(constants.FilePermSensitive); err != nil {
 		_ = tempFile.Close()
 		return fmt.Errorf("cannot set operational-value cache permissions: %w", err)
 	}

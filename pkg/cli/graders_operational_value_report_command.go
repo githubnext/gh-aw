@@ -86,6 +86,9 @@ func RunOperationalValueReport(ctx context.Context, config OperationalValueRepor
 	if err != nil {
 		return err
 	}
+	if evaluator.cleanup != nil {
+		defer evaluator.cleanup()
+	}
 	if !strings.EqualFold(repoSlug, evaluator.Definition.Repository) {
 		return fmt.Errorf("operational-value evaluator repository %q does not match report repository %q", evaluator.Definition.Repository, repoSlug)
 	}
@@ -117,7 +120,7 @@ func RunOperationalValueReport(ctx context.Context, config OperationalValueRepor
 	if err != nil {
 		return err
 	}
-	report := buildOperationalValueReport(evaluator, observations, evidenceAt, stats)
+	report := buildOperationalValueReport(evaluator, observations, time.Now(), evidenceAt, stats)
 	outputDir := config.OutputDir
 	if outputDir == "" {
 		outputDir = defaultOperationalValueReportOutputDir

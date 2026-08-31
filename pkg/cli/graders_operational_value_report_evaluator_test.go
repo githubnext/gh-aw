@@ -17,8 +17,14 @@ func TestLoadOperationalValueReportEvaluatorResolvesRelativeWorkflowPath(t *test
 
 	evaluator, err := loadOperationalValueReportEvaluator(context.Background(), "daily-file-diet", "https://github.com")
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		if evaluator.cleanup != nil {
+			evaluator.cleanup()
+		}
+	})
 	assert.Equal(t, ".github/workflows/daily-file-diet.md", evaluator.Definition.SourcePath)
 	assert.Equal(t, ".github/graders/daily-file-diet-operational-value.sh", evaluator.EvaluatorRun)
+	assert.NotEqual(t, evaluator.EvaluatorRun, evaluator.EvaluatorPath)
 }
 
 func TestParseOperationalValueReportDefinition(t *testing.T) {
@@ -30,9 +36,10 @@ func TestParseOperationalValueReportDefinition(t *testing.T) {
 		"sourcePath":".github/workflows/daily-file-diet.md",
 		"adoption":{"commit":"abc123","adoptedAt":"2025-11-15T13:36:21Z"},
 		"operationalValue":"Decompose the assigned oversized file.",
-		"evidence":{"opportunity":"An oversized file","accepted":"Git evidence","repositories":["github/gh-aw"]},
+		"evidence":{"opportunity":"An oversized file","assignment":"largest file","accepted":"Git evidence","repositories":["github/gh-aw"],"collection":"GitHub API","maturation":"48 hours","zeroRule":"none","missingRule":"null"},
 		"primaryMetric":{"id":"decomposition","formula":"reduction / target","direction":"higher_is_better"},
-		"baseline":{"mode":"baseline-comparable","value":0.25,"evidenceCutoff":"2025-11-15T13:27:11Z","provenance":[]}
+		"baseline":{"mode":"baseline-comparable","value":0.25,"evidenceCutoff":"2025-11-15T13:27:11Z","provenance":[{"repository":"github/gh-aw","kind":"commit","ref":"abc123"}]},
+		"validationExamples":{"sample":{"valid":true}}
 	}`))
 	require.NoError(t, err)
 	assert.Equal(t, "github/gh-aw", definition.Repository)
@@ -48,4 +55,38 @@ func TestParseOperationalValueReportDefinitionRejectsIncompleteContract(t *testi
 	}`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repository, workflowName, and sourcePath")
+}
+
+func TestParseOperationalValueReportDefinitionRejectsMissingEvidenceContractFields(t *testing.T) {
+	_, err := parseOperationalValueReportDefinition([]byte(`{
+		"schemaVersion":4,
+		"grader":"operational-value",
+		"repository":"github/gh-aw",
+		"workflowName":"Daily File Diet",
+		"sourcePath":".github/workflows/daily-file-diet.md",
+		"adoption":{"commit":"abc123","adoptedAt":"2025-11-15T13:36:21Z"},
+		"operationalValue":"Decompose the assigned oversized file.",
+		"evidence":{"opportunity":"x","accepted":"y","repositories":["github/gh-aw"]},
+		"primaryMetric":{"id":"decomposition","formula":"reduction / target","direction":"higher_is_better"},
+		"baseline":{"mode":"attainment-only","value":null,"evidenceCutoff":null,"provenance":[]},
+		"validationExamples":{"sample":{"valid":true}}
+	}`))
+	require.ErrorContains(t, err, "complete evidence contract fields")
+}
+
+func TestParseOperationalValueReportDefinitionRejectsComparableBaselineWithoutCutoff(t *testing.T) {
+	_, err := parseOperationalValueReportDefinition([]byte(`{
+		"schemaVersion":4,
+		"grader":"operational-value",
+		"repository":"github/gh-aw",
+		"workflowName":"Daily File Diet",
+		"sourcePath":".github/workflows/daily-file-diet.md",
+		"adoption":{"commit":"abc123","adoptedAt":"2025-11-15T13:36:21Z"},
+		"operationalValue":"Decompose the assigned oversized file.",
+		"evidence":{"opportunity":"An oversized file","assignment":"largest file","accepted":"Git evidence","repositories":["github/gh-aw"],"collection":"GitHub API","maturation":"48 hours","zeroRule":"none","missingRule":"null"},
+		"primaryMetric":{"id":"decomposition","formula":"reduction / target","direction":"higher_is_better"},
+		"baseline":{"mode":"baseline-comparable","value":0.25,"evidenceCutoff":null,"provenance":[{"repository":"github/gh-aw","kind":"commit","ref":"abc123"}]},
+		"validationExamples":{"sample":{"valid":true}}
+	}`))
+	require.ErrorContains(t, err, "baseline.evidenceCutoff")
 }

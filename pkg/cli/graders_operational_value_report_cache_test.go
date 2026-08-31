@@ -2,9 +2,11 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,4 +53,21 @@ func TestOperationalValueReportWeeklyCacheRejectsSymlink(t *testing.T) {
 func TestOperationalValueUTCWeekStartUsesMonday(t *testing.T) {
 	value := time.Date(2026, time.August, 30, 23, 59, 0, 0, time.FixedZone("offset", -7*60*60))
 	assert.Equal(t, "2026-08-31T00:00:00Z", operationalValueUTCWeekStart(value).Format(time.RFC3339))
+}
+
+func TestOperationalValueReportWeeklyCacheUsesSensitivePermissions(t *testing.T) {
+	cacheRoot := t.TempDir()
+	week := time.Date(2026, time.August, 31, 0, 0, 0, 0, time.UTC)
+	path, err := operationalValueReportWeeklyCachePath(cacheRoot, "github/gh-aw", "daily-file-diet", "abc123", week)
+	require.NoError(t, err)
+
+	require.NoError(t, saveOperationalValueReportWeeklyCache(path, "github/gh-aw", "daily-file-diet", "abc123", week, nil))
+
+	dirInfo, err := os.Stat(filepath.Dir(path))
+	require.NoError(t, err)
+	assert.Equal(t, constants.DirPermSensitive, dirInfo.Mode().Perm())
+
+	fileInfo, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, constants.FilePermSensitive, fileInfo.Mode().Perm())
 }

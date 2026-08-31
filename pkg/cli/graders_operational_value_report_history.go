@@ -1,13 +1,15 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -28,36 +30,58 @@ type operationalValueGitHubWorkflowRun struct {
 }
 
 type operationalValueGitHubWorkflowRunsPage struct {
+	TotalCount   int                                 `json:"total_count"`
 	WorkflowRuns []operationalValueGitHubWorkflowRun `json:"workflow_runs"`
 }
 
 var operationalValueReportListRuns = listOperationalValueReportRuns
 var operationalValueReportGradeRun = gradeOperationalValueReportRun
+var operationalValueReportRunGH = workflow.RunGHCombinedContext
+
+const operationalValueReportCreatedSearchCap = 1000
 
 func listOperationalValueReportRuns(ctx context.Context, repository, hostname, workflowFile string, startAt, endAt time.Time) ([]operationalValueReportRun, error) {
-	endpoint := fmt.Sprintf("repos/%s/actions/workflows/%s/runs", repository, workflowFile)
-	args := []string{"api"}
-	if hostname != "" && hostname != "github.com" {
-		args = append(args, "--hostname", hostname)
-	}
-	args = append(args,
-		"--method", "GET",
-		"--paginate",
-		"--slurp",
-		"-f", "per_page=100",
-		"-f", "created="+startAt.UTC().Format(time.RFC3339)+".."+endAt.UTC().Format(time.RFC3339),
-		endpoint,
-	)
-	output, err := workflow.RunGHCombinedContext(ctx, "Fetching operational-value history...", args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list workflow runs for operational-value report: %w", err)
-	}
-	var pages []operationalValueGitHubWorkflowRunsPage
-	if err := json.Unmarshal(output, &pages); err != nil {
-		return nil, fmt.Errorf("failed to parse workflow runs for operational-value report: %w", err)
-	}
+	startAt = startAt.UTC().Truncate(time.Second)
+	endAt = endAt.UTC().Truncate(time.Second)
 	runs := make([]operationalValueReportRun, 0)
 	seen := make(map[string]struct{})
+	if err := collectOperationalValueReportRuns(ctx, repository, hostname, workflowFile, startAt, endAt, &runs, seen); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(runs, func(left, right operationalValueReportRun) int {
+		if operationalValueReportRunLess(left, right) {
+			return -1
+		}
+		if operationalValueReportRunLess(right, left) {
+			return 1
+		}
+		return 0
+	})
+	return runs, nil
+}
+
+func collectOperationalValueReportRuns(ctx context.Context, repository, hostname, workflowFile string, startAt, endAt time.Time, runs *[]operationalValueReportRun, seen map[string]struct{}) error {
+	pages, totalCount, err := fetchOperationalValueReportRunsRange(ctx, repository, hostname, workflowFile, startAt, endAt)
+	if err != nil {
+		return err
+	}
+	if totalCount >= operationalValueReportCreatedSearchCap {
+		if !startAt.Before(endAt) {
+			return fmt.Errorf("cannot enumerate complete operational-value history: more than %d runs share created_at=%s", operationalValueReportCreatedSearchCap, startAt.Format(time.RFC3339))
+		}
+		mid := time.Unix((startAt.Unix()+endAt.Unix())/2, 0).UTC()
+		if err := collectOperationalValueReportRuns(ctx, repository, hostname, workflowFile, startAt, mid, runs, seen); err != nil {
+			return err
+		}
+		nextStart := mid
+		if nextStart.Equal(startAt) {
+			nextStart = nextStart.Add(time.Second)
+		}
+		if nextStart.After(endAt) {
+			return nil
+		}
+		return collectOperationalValueReportRuns(ctx, repository, hostname, workflowFile, nextStart, endAt, runs, seen)
+	}
 	for _, page := range pages {
 		for _, run := range page.WorkflowRuns {
 			if run.Status != "completed" || run.ID <= 0 || run.CreatedAt.Before(startAt) || run.CreatedAt.After(endAt) {
@@ -76,7 +100,7 @@ func listOperationalValueReportRuns(ctx context.Context, repository, hostname, w
 			if ref != "" && !strings.HasPrefix(ref, "refs/") {
 				ref = "refs/heads/" + ref
 			}
-			runs = append(runs, operationalValueReportRun{
+			*runs = append(*runs, operationalValueReportRun{
 				ID:         strconv.FormatInt(run.ID, 10),
 				Attempt:    attempt,
 				CreatedAt:  run.CreatedAt.UTC(),
@@ -88,10 +112,38 @@ func listOperationalValueReportRuns(ctx context.Context, repository, hostname, w
 			})
 		}
 	}
-	sort.Slice(runs, func(left, right int) bool {
-		return operationalValueReportRunLess(runs[left], runs[right])
-	})
-	return runs, nil
+	return nil
+}
+
+func fetchOperationalValueReportRunsRange(ctx context.Context, repository, hostname, workflowFile string, startAt, endAt time.Time) ([]operationalValueGitHubWorkflowRunsPage, int, error) {
+	endpoint := fmt.Sprintf("repos/%s/actions/workflows/%s/runs", repository, url.PathEscape(workflowFile))
+	args := []string{"api"}
+	if hostname != "" && hostname != "github.com" {
+		args = append(args, "--hostname", hostname)
+	}
+	args = append(args,
+		"--method", "GET",
+		"--paginate",
+		"--slurp",
+		"-f", "per_page=100",
+		"-f", "created="+startAt.UTC().Format(time.RFC3339)+".."+endAt.UTC().Format(time.RFC3339),
+		endpoint,
+	)
+	output, err := operationalValueReportRunGH(ctx, "Fetching operational-value history...", args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list workflow runs for operational-value report: %w", err)
+	}
+	var pages []operationalValueGitHubWorkflowRunsPage
+	if err := json.Unmarshal(output, &pages); err != nil {
+		return nil, 0, fmt.Errorf("failed to parse workflow runs for operational-value report: %w", err)
+	}
+	totalCount := 0
+	for _, page := range pages {
+		if page.TotalCount > totalCount {
+			totalCount = page.TotalCount
+		}
+	}
+	return pages, totalCount, nil
 }
 
 func gradeOperationalValueReportRun(ctx context.Context, evaluator *operationalValueReportEvaluator, run operationalValueReportRun, evidenceAt time.Time, evaluatorHost string) operationalValueReportObservation {
@@ -195,7 +247,7 @@ func backfillOperationalValueReportObservations(ctx context.Context, evaluator *
 	for week := range weeks {
 		weekStarts = append(weekStarts, week)
 	}
-	sort.Slice(weekStarts, func(left, right int) bool { return weekStarts[left].Before(weekStarts[right]) })
+	slices.SortFunc(weekStarts, func(left, right time.Time) int { return cmp.Compare(left.Unix(), right.Unix()) })
 
 	for _, weekStart := range weekStarts {
 		cachePath, err := operationalValueReportWeeklyCachePath(cacheRoot, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart)
@@ -243,8 +295,14 @@ func backfillOperationalValueReportObservations(ctx context.Context, evaluator *
 		for _, observation := range weekCache {
 			cacheObservations = append(cacheObservations, observation)
 		}
-		sort.Slice(cacheObservations, func(left, right int) bool {
-			return operationalValueReportRunLess(cacheObservations[left].Run, cacheObservations[right].Run)
+		slices.SortFunc(cacheObservations, func(left, right operationalValueReportObservation) int {
+			if operationalValueReportRunLess(left.Run, right.Run) {
+				return -1
+			}
+			if operationalValueReportRunLess(right.Run, left.Run) {
+				return 1
+			}
+			return 0
 		})
 		if len(cacheObservations) > 0 {
 			if err := saveOperationalValueReportWeeklyCache(cachePath, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart, cacheObservations); err != nil {
@@ -252,8 +310,14 @@ func backfillOperationalValueReportObservations(ctx context.Context, evaluator *
 			}
 		}
 	}
-	sort.Slice(observations, func(left, right int) bool {
-		return operationalValueReportRunLess(observations[left].Run, observations[right].Run)
+	slices.SortFunc(observations, func(left, right operationalValueReportObservation) int {
+		if operationalValueReportRunLess(left.Run, right.Run) {
+			return -1
+		}
+		if operationalValueReportRunLess(right.Run, left.Run) {
+			return 1
+		}
+		return 0
 	})
 	return observations, stats, nil
 }

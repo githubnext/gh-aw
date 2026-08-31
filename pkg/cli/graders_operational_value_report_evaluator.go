@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/parser"
@@ -55,11 +56,21 @@ func loadOperationalValueReportEvaluator(ctx context.Context, workflowArg, evalu
 	if err != nil {
 		return nil, err
 	}
+	frozenEvaluatorPath, cleanup, err := stageOperationalValueReportEvaluator(evaluatorPath, evaluatorContent)
+	if err != nil {
+		return nil, err
+	}
+	cleanupOnError := true
+	defer func() {
+		if cleanupOnError {
+			cleanup()
+		}
+	}()
 	bashPath := "/bin/bash"
-	if _, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{"-n", evaluatorPath}, nil, operationalValueDefinitionTimeout, evaluatorHost); err != nil {
+	if _, err := runOperationalValueEvaluatorBash(ctx, bashPath, frozenEvaluatorPath, []string{"-n", frozenEvaluatorPath}, nil, operationalValueDefinitionTimeout, evaluatorHost); err != nil {
 		return nil, fmt.Errorf("operational-value evaluator has invalid Bash syntax: %w", err)
 	}
-	definitionJSON, err := runOperationalValueEvaluatorBash(ctx, bashPath, evaluatorPath, []string{evaluatorPath, "--definition"}, nil, operationalValueDefinitionTimeout, evaluatorHost)
+	definitionJSON, err := runOperationalValueEvaluatorBash(ctx, bashPath, frozenEvaluatorPath, []string{frozenEvaluatorPath, "--definition"}, nil, operationalValueDefinitionTimeout, evaluatorHost)
 	if err != nil {
 		return nil, fmt.Errorf("operational-value evaluator --definition failed: %w", err)
 	}
@@ -77,13 +88,15 @@ func loadOperationalValueReportEvaluator(ctx context.Context, workflowArg, evalu
 	}
 
 	workflowID := strings.TrimSuffix(filepath.Base(workflowPath), filepath.Ext(workflowPath))
+	cleanupOnError = false
 	return &operationalValueReportEvaluator{
 		WorkflowID:       workflowID,
 		WorkflowPath:     workflowPath,
 		EvaluatorRun:     grader.Run,
-		EvaluatorPath:    evaluatorPath,
+		EvaluatorPath:    frozenEvaluatorPath,
 		EvaluatorContent: evaluatorContent,
 		EvaluatorDigest:  evaluatorDigest,
+		cleanup:          cleanup,
 		Definition:       definition,
 		GraderName:       grader.Name,
 		GraderUnit:       grader.Unit,
@@ -91,6 +104,32 @@ func loadOperationalValueReportEvaluator(ctx context.Context, workflowArg, evalu
 		GraderThreshold:  grader.Threshold,
 		GraderConfig:     grader.Config,
 	}, nil
+}
+
+func stageOperationalValueReportEvaluator(evaluatorPath, evaluatorContent string) (string, func(), error) {
+	tempFile, err := os.CreateTemp(filepath.Dir(evaluatorPath), "."+filepath.Base(evaluatorPath)+".frozen-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("cannot stage operational-value evaluator: %w", err)
+	}
+	tempPath := tempFile.Name()
+	if err := tempFile.Chmod(constants.FilePermSensitive); err != nil {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+		return "", nil, fmt.Errorf("cannot secure staged operational-value evaluator: %w", err)
+	}
+	if _, err := tempFile.WriteString(evaluatorContent); err != nil {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+		return "", nil, fmt.Errorf("cannot write staged operational-value evaluator: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return "", nil, fmt.Errorf("cannot close staged operational-value evaluator: %w", err)
+	}
+	cleanup := func() {
+		_ = os.Remove(tempPath)
+	}
+	return tempPath, cleanup, nil
 }
 
 func readOperationalValueReportEvaluator(repoRoot, evaluatorPath string) (string, string, error) {
@@ -150,14 +189,41 @@ func parseOperationalValueReportDefinition(data []byte) (operationalValueReportD
 	if definition.PrimaryMetric.Direction != "higher_is_better" {
 		return operationalValueReportDefinition{}, errors.New("operational-value evaluator primaryMetric.direction must be higher_is_better")
 	}
-	if strings.TrimSpace(definition.Evidence.Opportunity) == "" || strings.TrimSpace(definition.Evidence.Accepted) == "" || len(definition.Evidence.Repositories) == 0 {
-		return operationalValueReportDefinition{}, errors.New("operational-value evaluator definition requires evidence opportunity, accepted evidence, and repositories")
+	if strings.TrimSpace(definition.Evidence.Opportunity) == "" ||
+		strings.TrimSpace(definition.Evidence.Assignment) == "" ||
+		strings.TrimSpace(definition.Evidence.Accepted) == "" ||
+		len(definition.Evidence.Repositories) == 0 ||
+		strings.TrimSpace(definition.Evidence.Collection) == "" ||
+		strings.TrimSpace(definition.Evidence.Maturation) == "" ||
+		strings.TrimSpace(definition.Evidence.ZeroRule) == "" ||
+		strings.TrimSpace(definition.Evidence.MissingRule) == "" {
+		return operationalValueReportDefinition{}, errors.New("operational-value evaluator definition requires complete evidence contract fields")
 	}
 	if definition.Baseline.Mode == "baseline-comparable" && (definition.Baseline.Value == nil || *definition.Baseline.Value < 0 || *definition.Baseline.Value > 1) {
 		return operationalValueReportDefinition{}, errors.New("baseline-comparable operational-value evaluators require a baseline value in [0,1]")
 	}
 	if definition.Baseline.Mode == "attainment-only" && definition.Baseline.Value != nil {
 		return operationalValueReportDefinition{}, errors.New("attainment-only operational-value evaluators must have a null baseline value")
+	}
+	if definition.Baseline.Mode == "baseline-comparable" {
+		if definition.Baseline.EvidenceCutoff == nil {
+			return operationalValueReportDefinition{}, errors.New("baseline-comparable operational-value evaluators require baseline.evidenceCutoff")
+		}
+		if _, err := parseOperationalValueTimestamp(*definition.Baseline.EvidenceCutoff, "baseline.evidenceCutoff"); err != nil {
+			return operationalValueReportDefinition{}, err
+		}
+		if len(definition.Baseline.Provenance) == 0 {
+			return operationalValueReportDefinition{}, errors.New("baseline-comparable operational-value evaluators require baseline.provenance")
+		}
+	}
+	var definitionEnvelope struct {
+		ValidationExamples map[string]json.RawMessage `json:"validationExamples"`
+	}
+	if err := json.Unmarshal(data, &definitionEnvelope); err != nil {
+		return operationalValueReportDefinition{}, fmt.Errorf("operational-value evaluator returned an invalid definition: %w", err)
+	}
+	if len(definitionEnvelope.ValidationExamples) == 0 {
+		return operationalValueReportDefinition{}, errors.New("operational-value evaluator definition requires primary-metric validation examples")
 	}
 	return definition, nil
 }
