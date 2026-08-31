@@ -110,21 +110,42 @@ const INVALID_REQUEST_ERROR_PATTERN = /invalid_request_error/i;
  * @returns {{ param?: string, code?: string } | null}
  */
 function extractNestedProviderErrorDetails(error) {
-  let current = error;
-  for (let depth = 0; depth < 4 && current && typeof current === "object"; depth++) {
-    const candidate = /** @type {{ param?: unknown, code?: unknown, message?: unknown }} */ current;
+  const candidates = [error];
+  for (let visited = 0; visited < 8 && candidates.length > 0; visited++) {
+    const current = candidates.shift();
+    if (!current || typeof current !== "object") continue;
+    /** @type {{ param?: unknown, code?: unknown, error?: unknown, message?: unknown, metadata?: unknown }} */
+    const candidate = current;
     if (typeof candidate.param === "string" && typeof candidate.code === "string") {
-      return /** @type {{ param: string, code: string }} */ candidate;
+      return { param: candidate.param, code: candidate.code };
     }
-    if (typeof candidate.message !== "string") break;
-    try {
-      const parsed = JSON.parse(candidate.message);
-      current = (parsed && typeof parsed === "object" && parsed.error) || parsed;
-    } catch {
-      break;
+    if (candidate.error && typeof candidate.error === "object") candidates.push(candidate.error);
+    if (typeof candidate.message === "string") {
+      const parsed = parseJsonOrUndefined(candidate.message);
+      if (parsed !== undefined) candidates.push(parsed);
+    }
+    if (candidate.metadata && typeof candidate.metadata === "object") {
+      /** @type {{ raw?: unknown }} */
+      const metadata = candidate.metadata;
+      if (typeof metadata.raw === "string") {
+        const parsed = parseJsonOrUndefined(metadata.raw);
+        if (parsed !== undefined) candidates.push(parsed);
+      }
     }
   }
   return null;
+}
+
+/**
+ * @param {string} value
+ * @returns {unknown}
+ */
+function parseJsonOrUndefined(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
 }
 
 // Post-result watchdog: once the agent writes a terminal safe-output the harness

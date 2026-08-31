@@ -626,6 +626,11 @@ env_key = "OPENAI_API_KEY"
       expect(isUnsupportedModelToolsError(output)).toBe(true);
     });
 
+    it("returns true for a provider metadata.raw envelope", () => {
+      const output = String.raw`{"type":"turn.failed","error":{"message":"{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\": \\\"invalid_request_error\\\",\\n    \\\"param\\\": \\\"tools\\\",\\n    \\\"code\\\": \\\"unknown_parameter\\\"}\"}}}"}}`;
+      expect(isUnsupportedModelToolsError(output)).toBe(true);
+    });
+
     it("returns false for an unrelated invalid_request_error (e.g. empty message array)", () => {
       const output = String.raw`{"type":"turn.failed","error":{"message":"{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\": \\\"invalid_request_error\\\",\\n    \\\"param\\\": \\\"messages[4].content\\\",\\n    \\\"code\\\": \\\"empty_array\\\"}\"}}}"}}`;
       expect(isUnsupportedModelToolsError(output)).toBe(false);
