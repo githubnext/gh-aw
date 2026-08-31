@@ -1,8 +1,8 @@
 # Formal Notes: safe-output-outcome-evaluation.md
 
-**Last formalized**: 2026-08-08-15-35-30
+**Last formalized**: 2026-08-31-15-31-26
 **Notation**: TLA+ / Z3 / F*
-**Issue**: created (see run 31264760862)
+**Issue**: created (see run 33408692217)
 
 ## Predicates
 
@@ -53,3 +53,5 @@
 - `evalCreatePullRequest` sets `ZeroTouch` only inside the `if report.Result == OutcomeAccepted` branch and only considers `HumanComments`/`HumanReviews`, not `HumanEdits` — the original P12 `ZeroTouchConstraint` (human_edits==0) was imprecise vs. the actual PR evaluator implementation; refined to P8/P15 using human_comments+human_reviews for the PR case.
 - `evalCreatePullRequest` has a `findPRByTimestamp` fallback searching recent PRs by `github-actions[bot]` author when the manifest doesn't record a PR number — worth formalizing as a lookup-correctness property in a future run (similar to the dispatch_workflow time-window note above).
 - Future run should read `pkg/cli/outcome_eval_issue.go`, `outcome_eval_label.go`, `outcome_eval_generic.go`, and `outcome_eval_workflow.go` directly to refine P6/P7/P9/P11 (create_issue, add_labels, close_sticky, dispatch_workflow) against real code rather than spec prose alone, since the PR evaluator review revealed spec/implementation nuances (e.g., ZeroTouch field composition) not obvious from the markdown spec.
+- 2026-08-31 run: current code (`pkg/cli/outcome_eval.go`, `pkg/cli/outcome_evaluation.go`) actually uses `OutcomeStatus`/`EvidenceStrength` types (not the older `OutcomeResult` naming noted above) with constants `OutcomeStatusAccepted/Rejected/Pending/Ignored/Skipped/Unknown/Lifecycle/LifecycleClose/Error`; `OutcomeReport` embeds `OutcomeEvaluation{OutcomeStatus, EvidenceStrength, Signal}`. This run produced a fresh, tighter 10-predicate formalization (P1-P10) focused on Norms #1-4 (API failure handling) and Provenance Limits #1/#3 (bot detection), plus per-type mappings for `create_pull_request`, `create_issue`, `add_comment`, and the `zero_touch` derivation — complementary to but not a full replacement of the prior 15-predicate set above (P1-P15), which still holds useful detail on `close_issue` ordering, `dispatch_workflow` time windows, and `findPRByTimestamp` fallback lookups not re-verified this run.
+- Still open for a future run: verify whether `ZeroTouch` in the current `OutcomeReport` struct is computed from `HumanComments`+`HumanReviews`+`HumanEdits` combined or a subset — this run's P10 assumed `humanEdits==0` only (matching the spec's "Common OTel Attributes" table prose), which may need reconciling against the 2026-08-08 finding that the real `evalCreatePullRequest` only checks `HumanComments`/`HumanReviews`.

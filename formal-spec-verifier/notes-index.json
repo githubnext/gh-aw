@@ -2,9 +2,9 @@
   "specs": {
     "specs/safe-output-outcome-evaluation.md": {
       "slug": "safe-output-outcome-evaluation",
-      "last_formalized": "2026-08-08-15-35-30",
-      "notation": "TLA+ / Z3 / F*",
-      "predicate_count": 15,
+      "last_formalized": "2026-08-31-15-31-26",
+      "notation": "TLA+ / Z3",
+      "predicate_count": 10,
       "issue_number": null
     },
     "specs/security-architecture-spec-summary.md": {
