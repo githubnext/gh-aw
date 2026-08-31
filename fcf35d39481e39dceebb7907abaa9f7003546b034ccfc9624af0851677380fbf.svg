@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="840" viewBox="0 0 1400 840">
+<rect width="100%" height="100%" fill="white"/>
+<text x="700.0" y="35" text-anchor="middle" font-size="28" font-family="Arial" font-weight="bold">Commit Activity & Contributors - Last 30 Days</text>
+<line x1="90" y1="70" x2="90" y2="750" stroke="#333" stroke-width="2"/>
+<line x1="90" y1="750" x2="1340" y2="750" stroke="#333" stroke-width="2"/>
+<line x1="1340" y1="70" x2="1340" y2="750" stroke="#333" stroke-width="2"/>
+<line x1="90" y1="750.0" x2="1340" y2="750.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="755.0" text-anchor="end" font-size="16" font-family="Arial">0</text>
+<line x1="90" y1="614.0" x2="1340" y2="614.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="619.0" text-anchor="end" font-size="16" font-family="Arial">8</text>
+<line x1="90" y1="478.0" x2="1340" y2="478.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="483.0" text-anchor="end" font-size="16" font-family="Arial">15</text>
+<line x1="90" y1="342.0" x2="1340" y2="342.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="347.0" text-anchor="end" font-size="16" font-family="Arial">23</text>
+<line x1="90" y1="206.0" x2="1340" y2="206.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="211.0" text-anchor="end" font-size="16" font-family="Arial">30</text>
+<line x1="90" y1="70.0" x2="1340" y2="70.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="75.0" text-anchor="end" font-size="16" font-family="Arial">38</text>
+<text x="25" y="410.0" transform="rotate(-90 25 410.0)" text-anchor="middle" font-size="18" font-family="Arial">Commits</text>
+<text x="1380" y="410.0" transform="rotate(90 1380 410.0)" text-anchor="middle" font-size="18" font-family="Arial">Contributors</text>
+<line x1="90.0" y1="750" x2="90.0" y2="756" stroke="#333" stroke-width="1"/>
+<text x="90.0" y="778" transform="rotate(45 90.0 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 02</text>
+<line x1="219.3" y1="750" x2="219.3" y2="756" stroke="#333" stroke-width="1"/>
+<text x="219.3" y="778" transform="rotate(45 219.3 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 05</text>
+<line x1="348.6" y1="750" x2="348.6" y2="756" stroke="#333" stroke-width="1"/>
+<text x="348.6" y="778" transform="rotate(45 348.6 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 08</text>
+<line x1="477.9" y1="750" x2="477.9" y2="756" stroke="#333" stroke-width="1"/>
+<text x="477.9" y="778" transform="rotate(45 477.9 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 11</text>
+<line x1="607.2" y1="750" x2="607.2" y2="756" stroke="#333" stroke-width="1"/>
+<text x="607.2" y="778" transform="rotate(45 607.2 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 14</text>
+<line x1="736.6" y1="750" x2="736.6" y2="756" stroke="#333" stroke-width="1"/>
+<text x="736.6" y="778" transform="rotate(45 736.6 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 17</text>
+<line x1="865.9" y1="750" x2="865.9" y2="756" stroke="#333" stroke-width="1"/>
+<text x="865.9" y="778" transform="rotate(45 865.9 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 20</text>
+<line x1="995.2" y1="750" x2="995.2" y2="756" stroke="#333" stroke-width="1"/>
+<text x="995.2" y="778" transform="rotate(45 995.2 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 23</text>
+<line x1="1124.5" y1="750" x2="1124.5" y2="756" stroke="#333" stroke-width="1"/>
+<text x="1124.5" y="778" transform="rotate(45 1124.5 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 26</text>
+<line x1="1253.8" y1="750" x2="1253.8" y2="756" stroke="#333" stroke-width="1"/>
+<text x="1253.8" y="778" transform="rotate(45 1253.8 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 29</text>
+<line x1="1340.0" y1="750" x2="1340.0" y2="756" stroke="#333" stroke-width="1"/>
+<text x="1340.0" y="778" transform="rotate(45 1340.0 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 31</text>
+<rect x="75.4" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="118.5" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="161.6" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="204.7" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="247.8" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="290.9" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="334.0" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="377.1" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="420.2" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="463.3" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="506.5" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="549.6" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="592.7" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="635.8" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="678.9" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="722.0" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="765.1" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="808.2" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="851.3" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="894.4" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="937.5" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="980.6" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="1023.7" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="1066.8" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="1109.9" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="1153.0" y="750.0" width="29.2" height="0.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="1196.1" y="302.6" width="29.2" height="447.4" fill="#4E79A7" opacity="0.85"/>
+<rect x="1239.2" y="70.0" width="29.2" height="680.0" fill="#4E79A7" opacity="0.85"/>
+<rect x="1282.3" y="213.2" width="29.2" height="536.8" fill="#4E79A7" opacity="0.85"/>
+<rect x="1325.4" y="624.7" width="29.2" height="125.3" fill="#4E79A7" opacity="0.85"/>
+<path d="M 90.0 750.0 L 133.1 750.0 L 176.2 750.0 L 219.3 750.0 L 262.4 750.0 L 305.5 750.0 L 348.6 750.0 L 391.7 750.0 L 434.8 750.0 L 477.9 750.0 L 521.0 750.0 L 564.1 750.0 L 607.2 750.0 L 650.3 750.0 L 693.4 750.0 L 736.6 750.0 L 779.7 750.0 L 822.8 750.0 L 865.9 750.0 L 909.0 750.0 L 952.1 750.0 L 995.2 750.0 L 1038.3 750.0 L 1081.4 750.0 L 1124.5 750.0 L 1167.6 750.0 L 1210.7 296.7 L 1253.8 70.0 L 1296.9 296.7 L 1340.0 296.7" fill="none" stroke="#F28E2B" stroke-width="4"/>
+<circle cx="90.0" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="133.1" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="176.2" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="219.3" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="262.4" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="305.5" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="348.6" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="391.7" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="434.8" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="477.9" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="521.0" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="564.1" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="607.2" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="650.3" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="693.4" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="736.6" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="779.7" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="822.8" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="865.9" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="909.0" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="952.1" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="995.2" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="1038.3" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="1081.4" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="1124.5" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="1167.6" cy="750.0" r="4" fill="#F28E2B"/>
+<circle cx="1210.7" cy="296.7" r="4" fill="#F28E2B"/>
+<circle cx="1253.8" cy="70.0" r="4" fill="#F28E2B"/>
+<circle cx="1296.9" cy="296.7" r="4" fill="#F28E2B"/>
+<circle cx="1340.0" cy="296.7" r="4" fill="#F28E2B"/>
+<line x1="1253.8" y1="70.0" x2="1313.8" y2="20.0" stroke="#555" stroke-width="2"/>
+<text x="1318.8" y="15.0" font-size="16" font-family="Arial">Commit crest: 38</text>
+<rect x="90" y="795" width="24" height="14" fill="#4E79A7" opacity="0.85"/><text x="124" y="807" font-size="16" font-family="Arial">Commits</text>
+<line x1="270" y1="802" x2="305" y2="802" stroke="#F28E2B" stroke-width="4"/><circle cx="288" cy="802" r="4" fill="#F28E2B"/><text x="315" y="807" font-size="16" font-family="Arial">Unique contributors</text>
+</svg>

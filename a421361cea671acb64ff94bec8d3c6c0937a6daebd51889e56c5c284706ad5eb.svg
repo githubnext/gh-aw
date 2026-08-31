@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="840" viewBox="0 0 1400 840">
+<rect width="100%" height="100%" fill="white"/>
+<text x="700.0" y="35" text-anchor="middle" font-size="28" font-family="Arial" font-weight="bold">Issues & PR Activity - Last 30 Days</text>
+<line x1="90" y1="70" x2="90" y2="750" stroke="#333" stroke-width="2"/>
+<line x1="90" y1="750" x2="1340" y2="750" stroke="#333" stroke-width="2"/>
+<line x1="90" y1="750.0" x2="1340" y2="750.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="755.0" text-anchor="end" font-size="16" font-family="Arial">0</text>
+<line x1="90" y1="614.0" x2="1340" y2="614.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="619.0" text-anchor="end" font-size="16" font-family="Arial">39</text>
+<line x1="90" y1="478.0" x2="1340" y2="478.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="483.0" text-anchor="end" font-size="16" font-family="Arial">79</text>
+<line x1="90" y1="342.0" x2="1340" y2="342.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="347.0" text-anchor="end" font-size="16" font-family="Arial">118</text>
+<line x1="90" y1="206.0" x2="1340" y2="206.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="211.0" text-anchor="end" font-size="16" font-family="Arial">158</text>
+<line x1="90" y1="70.0" x2="1340" y2="70.0" stroke="#ddd" stroke-width="1"/>
+<text x="78" y="75.0" text-anchor="end" font-size="16" font-family="Arial">197</text>
+<text x="25" y="410.0" transform="rotate(-90 25 410.0)" text-anchor="middle" font-size="18" font-family="Arial">Count</text>
+<line x1="90.0" y1="750" x2="90.0" y2="756" stroke="#333" stroke-width="1"/>
+<text x="90.0" y="778" transform="rotate(45 90.0 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 02</text>
+<line x1="219.3" y1="750" x2="219.3" y2="756" stroke="#333" stroke-width="1"/>
+<text x="219.3" y="778" transform="rotate(45 219.3 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 05</text>
+<line x1="348.6" y1="750" x2="348.6" y2="756" stroke="#333" stroke-width="1"/>
+<text x="348.6" y="778" transform="rotate(45 348.6 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 08</text>
+<line x1="477.9" y1="750" x2="477.9" y2="756" stroke="#333" stroke-width="1"/>
+<text x="477.9" y="778" transform="rotate(45 477.9 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 11</text>
+<line x1="607.2" y1="750" x2="607.2" y2="756" stroke="#333" stroke-width="1"/>
+<text x="607.2" y="778" transform="rotate(45 607.2 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 14</text>
+<line x1="736.6" y1="750" x2="736.6" y2="756" stroke="#333" stroke-width="1"/>
+<text x="736.6" y="778" transform="rotate(45 736.6 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 17</text>
+<line x1="865.9" y1="750" x2="865.9" y2="756" stroke="#333" stroke-width="1"/>
+<text x="865.9" y="778" transform="rotate(45 865.9 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 20</text>
+<line x1="995.2" y1="750" x2="995.2" y2="756" stroke="#333" stroke-width="1"/>
+<text x="995.2" y="778" transform="rotate(45 995.2 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 23</text>
+<line x1="1124.5" y1="750" x2="1124.5" y2="756" stroke="#333" stroke-width="1"/>
+<text x="1124.5" y="778" transform="rotate(45 1124.5 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 26</text>
+<line x1="1253.8" y1="750" x2="1253.8" y2="756" stroke="#333" stroke-width="1"/>
+<text x="1253.8" y="778" transform="rotate(45 1253.8 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 29</text>
+<line x1="1340.0" y1="750" x2="1340.0" y2="756" stroke="#333" stroke-width="1"/>
+<text x="1340.0" y="778" transform="rotate(45 1340.0 778)" text-anchor="start" font-size="14" font-family="Arial">Aug 31</text>
+<path d="M 90.0 750.0 L 133.1 750.0 L 176.2 750.0 L 219.3 750.0 L 262.4 750.0 L 305.5 750.0 L 348.6 750.0 L 391.7 750.0 L 434.8 750.0 L 477.9 750.0 L 521.0 750.0 L 564.1 750.0 L 607.2 750.0 L 650.3 750.0 L 693.4 750.0 L 736.6 750.0 L 779.7 750.0 L 822.8 750.0 L 865.9 750.0 L 909.0 750.0 L 952.1 750.0 L 995.2 750.0 L 1038.3 750.0 L 1081.4 750.0 L 1124.5 750.0 L 1167.6 750.0 L 1210.7 750.0 L 1253.8 679.5 L 1296.9 582.3 L 1340.0 503.4" fill="none" stroke="#E15759" stroke-width="4"/>
+<path d="M 90.0 750.0 L 133.1 750.0 L 176.2 750.0 L 219.3 750.0 L 262.4 750.0 L 305.5 750.0 L 348.6 750.0 L 391.7 750.0 L 434.8 750.0 L 477.9 750.0 L 521.0 750.0 L 564.1 750.0 L 607.2 750.0 L 650.3 750.0 L 693.4 750.0 L 736.6 750.0 L 779.7 750.0 L 822.8 750.0 L 865.9 750.0 L 909.0 750.0 L 952.1 750.0 L 995.2 750.0 L 1038.3 750.0 L 1081.4 750.0 L 1124.5 750.0 L 1167.6 750.0 L 1210.7 750.0 L 1253.8 710.6 L 1296.9 622.8 L 1340.0 574.0" fill="none" stroke="#59A14F" stroke-width="4"/>
+<path d="M 90.0 750.0 L 133.1 750.0 L 176.2 750.0 L 219.3 750.0 L 262.4 750.0 L 305.5 750.0 L 348.6 750.0 L 391.7 750.0 L 434.8 750.0 L 477.9 750.0 L 521.0 750.0 L 564.1 750.0 L 607.2 750.0 L 650.3 750.0 L 693.4 750.0 L 736.6 750.0 L 779.7 750.0 L 822.8 750.0 L 865.9 750.0 L 909.0 750.0 L 952.1 750.0 L 995.2 731.8 L 1038.3 673.6 L 1081.4 624.3 L 1124.5 600.6 L 1167.6 570.5 L 1210.7 547.8 L 1253.8 525.1 L 1296.9 528.6 L 1340.0 579.9" fill="none" stroke="#4E79A7" stroke-width="4"/>
+<path d="M 90.0 750.0 L 133.1 750.0 L 176.2 750.0 L 219.3 750.0 L 262.4 750.0 L 305.5 750.0 L 348.6 750.0 L 391.7 750.0 L 434.8 750.0 L 477.9 750.0 L 521.0 750.0 L 564.1 750.0 L 607.2 750.0 L 650.3 750.0 L 693.4 750.0 L 736.6 750.0 L 779.7 750.0 L 822.8 750.0 L 865.9 750.0 L 909.0 750.0 L 952.1 750.0 L 995.2 736.7 L 1038.3 702.2 L 1081.4 663.7 L 1124.5 643.5 L 1167.6 614.4 L 1210.7 595.7 L 1253.8 577.4 L 1296.9 575.9 L 1340.0 607.0" fill="none" stroke="#F28E2B" stroke-width="4"/>
+<circle cx="1296.9" cy="70.0" r="6" fill="#E15759"/>
+<line x1="1296.9" y1="70.0" x2="1356.9" y2="20.0" stroke="#555" stroke-width="2"/>
+<text x="1361.9" y="15.0" font-size="16" font-family="Arial">Peak issues opened: 197</text>
+<line x1="90" y1="810" x2="125" y2="810" stroke="#E15759" stroke-width="4"/>
+<text x="135" y="815" font-size="16" font-family="Arial">Issues opened (7d avg)</text>
+<line x1="380" y1="810" x2="415" y2="810" stroke="#59A14F" stroke-width="4"/>
+<text x="425" y="815" font-size="16" font-family="Arial">Issues closed (7d avg)</text>
+<line x1="670" y1="810" x2="705" y2="810" stroke="#4E79A7" stroke-width="4"/>
+<text x="715" y="815" font-size="16" font-family="Arial">PRs opened (7d avg)</text>
+<line x1="960" y1="810" x2="995" y2="810" stroke="#F28E2B" stroke-width="4"/>
+<text x="1005" y="815" font-size="16" font-family="Arial">PRs merged (7d avg)</text>
+</svg>
