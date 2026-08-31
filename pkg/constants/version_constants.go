@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.11.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.10"
+const DefaultFirewallVersion Version = "v0.28.11"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -107,7 +107,7 @@ const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 
 // AWFCloudHypervisorMinVersion is the minimum AWF version that supports the
 // cloud-hypervisor preview runtime and its release assets.
-const AWFCloudHypervisorMinVersion Version = "v0.28.1"
+const AWFCloudHypervisorMinVersion Version = "v0.28.11"
 
 // AWFLegacySecurityMinVersion is the minimum AWF version that supports the
 // --legacy-security flag and unconditional API proxy (gh-aw-firewall#6207).

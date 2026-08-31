@@ -120,7 +120,11 @@ func TestCloudHypervisorAWFCommandOmitsUnsupportedMountsAndTTY(t *testing.T) {
 
 	command := BuildAWFCommand(config)
 	assert.Contains(t, command, "sudo --preserve-env awf")
-	assert.Contains(t, command, `--cloud-hypervisor-virtiofsd-sha256 "${GH_AW_CLOUD_HYPERVISOR_VIRTIOFSD_SHA256}"`)
+	assert.Contains(t, command, `--cloud-hypervisor-artifact-manifest "${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_MANIFEST}"`)
+	assert.Contains(t, command, `--cloud-hypervisor-artifact-manifest-bundle "${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_MANIFEST_BUNDLE}"`)
+	assert.Contains(t, command, `--cloud-hypervisor-artifact-release-tag "${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_RELEASE_TAG}"`)
+	assert.NotContains(t, command, "--cloud-hypervisor-virtiofsd-sha256")
+	assert.NotContains(t, command, "development-allow-unattested-artifacts")
 	assert.NotContains(t, command, "--mount")
 	assert.NotContains(t, command, "--tty")
 	assert.NotContains(t, command, "--legacy-security")
@@ -221,6 +225,7 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 	assert.Contains(t, jsonStr, `"topologyAttach":["awmg-mcpg"]`)
 	assert.NotContains(t, jsonStr, "awmg-cli-proxy")
 	assert.Contains(t, jsonStr, `"agentTimeout":60`)
+	assert.Contains(t, jsonStr, `"cloudHypervisor":{"previewEnabled":true,"mountPolicy":"workspace-and-tool-cache","vcpuCount":2,"memoryMib":4096}`)
 	assert.Contains(t, jsonStr, `"allowWrite":["/tmp/gh-aw/agent","/tmp/gh-aw/sandbox/agent/logs","/workspace","/workspace/.awf-home"]`)
 }
 
@@ -257,6 +262,11 @@ func TestCloudHypervisorValidationRequiresPreviewVersion(t *testing.T) {
 
 	workflowData.SandboxConfig.Agent.Version = "v0.27.44"
 	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, string(constants.AWFCloudHypervisorMinVersion))
+
+	workflowData.SandboxConfig.Agent.Version = "v0.28.10"
+	err = validateSandboxConfig(workflowData)
 	require.Error(t, err)
 	require.ErrorContains(t, err, string(constants.AWFCloudHypervisorMinVersion))
 }
@@ -333,7 +343,7 @@ sandbox:
   agent:
     id: awf
     runtime: cloud-hypervisor
-    version: v0.28.1
+    version: v0.28.11
 ---
 
 # Test cloud-hypervisor Runtime
@@ -354,7 +364,7 @@ sandbox:
 	assert.Contains(t, lockStr, "Grant runner access to KVM")
 	assert.Contains(t, lockStr, "Check host eligibility for cloud-hypervisor")
 	assert.Contains(t, lockStr, "Download and verify cloud-hypervisor bundle")
-	assert.Contains(t, lockStr, "GH_AW_AWF_VERSION: v0.28.1")
+	assert.Contains(t, lockStr, "GH_AW_AWF_VERSION: v0.28.11")
 	assert.Contains(t, lockStr, "sudo --preserve-env awf")
 	assert.NotContains(t, lockStr, `install_awf_binary.sh" v0.28.1 --rootless`)
 	assert.NotContains(t, lockStr, `print_firewall_logs.sh" --rootless`)
@@ -363,8 +373,11 @@ sandbox:
 	assert.Contains(t, lockStr, "--cloud-hypervisor-vcpus 2")
 	assert.Contains(t, lockStr, "--cloud-hypervisor-memory-mib 4096")
 	assert.Contains(t, lockStr, "--cloud-hypervisor-kernel \"${GH_AW_CLOUD_HYPERVISOR_KERNEL}\"")
-	assert.Contains(t, lockStr, "--cloud-hypervisor-virtiofsd-sha256 \"${GH_AW_CLOUD_HYPERVISOR_VIRTIOFSD_SHA256}\"")
-	assert.Contains(t, lockStr, "--cloud-hypervisor-supervisor-sha256 \"${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR_SHA256}\"")
+	assert.Contains(t, lockStr, "--cloud-hypervisor-artifact-manifest \"${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_MANIFEST}\"")
+	assert.Contains(t, lockStr, "--cloud-hypervisor-artifact-manifest-bundle \"${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_MANIFEST_BUNDLE}\"")
+	assert.Contains(t, lockStr, "--cloud-hypervisor-artifact-release-tag \"${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_RELEASE_TAG}\"")
+	assert.NotContains(t, lockStr, "--cloud-hypervisor-virtiofsd-sha256")
+	assert.NotContains(t, lockStr, "development-allow-unattested-artifacts")
 	assert.Contains(t, lockStr, `\"agentTimeout\":60`)
 	assert.Contains(t, lockStr, `\"topologyAttach\":[\"awmg-mcpg\"]`)
 	assert.NotContains(t, lockStr, "--mount")
@@ -431,7 +444,7 @@ func TestCloudHypervisorShellScriptContent(t *testing.T) {
 		},
 		{
 			script:   "cloud_hypervisor_setup_bundle.sh",
-			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "cloud-hypervisor-test-x86_64.SHA256SUMS", "cloud-hypervisor-test-x86_64.manifest.json", "archive structure validated", "tar --no-same-owner --no-same-permissions", "validate_extracted_file", "vmlinux.bin", "rootfs.ext4", "awf-supervisor", "virtiofsd", "virtiofsd_path=", "virtiofsd_sha256="},
+			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "cloud-hypervisor-test-x86_64.manifest.json", "cloud-hypervisor-test-x86_64.manifest.sigstore.jsonl", "release.tag == $releaseTag", "archive structure validated", "tar --no-same-owner --no-same-permissions", "validate_extracted_file", "vmlinux.bin", "rootfs.ext4", "awf-supervisor", "virtiofsd", "virtiofsd_path=", "manifest_path=", "manifest_bundle_path=", "release_tag="},
 		},
 	}
 
