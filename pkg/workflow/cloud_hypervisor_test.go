@@ -520,7 +520,10 @@ func buildCloudHypervisorFixtureArchive(t *testing.T) []byte {
 // the requested URL's basename. A "<basename>.symlink-target" sidecar file
 // makes the shim create a symlink pointing at its contents instead of
 // copying a regular file, simulating a substituted/tampered artifact. A
-// missing fixture makes the shim fail closed like a real curl 404.
+// missing fixture makes the shim fail closed like a real curl 404. Requests
+// to the GitHub "latest release" API are answered from
+// fixtureDir/latest-release.json (written to stdout, since the real script
+// pipes that response into jq instead of passing -o).
 func writeCloudHypervisorCurlShim(t *testing.T, fixtureDir string) string {
 	t.Helper()
 	binDir := t.TempDir()
@@ -535,6 +538,14 @@ func writeCloudHypervisorCurlShim(t *testing.T, fixtureDir string) string {
 		"  prev=\"$arg\"\n" +
 		"done\n" +
 		"url=\"${!#}\"\n" +
+		"if [[ \"$url\" == *\"/repos/github/gh-aw-firewall/releases/latest\" ]]; then\n" +
+		"  src=\"" + fixtureDir + "/latest-release.json\"\n" +
+		"  if [[ ! -e \"$src\" ]]; then\n" +
+		"    exit 22\n" +
+		"  fi\n" +
+		"  cat \"$src\"\n" +
+		"  exit 0\n" +
+		"fi\n" +
 		"name=\"$(basename \"$url\")\"\n" +
 		"src=\"" + fixtureDir + "/${name}\"\n" +
 		"if [[ -f \"${src}.symlink-target\" ]]; then\n" +
@@ -555,6 +566,14 @@ func writeCloudHypervisorCurlShim(t *testing.T, fixtureDir string) string {
 // shim, so the script's own validation logic runs end-to-end.
 func runCloudHypervisorSetupBundleScript(t *testing.T, fixtureDir string) (string, error) {
 	t.Helper()
+	return runCloudHypervisorSetupBundleScriptWithVersion(t, fixtureDir, cloudHypervisorFixtureReleaseTag)
+}
+
+// runCloudHypervisorSetupBundleScriptWithVersion is like
+// runCloudHypervisorSetupBundleScript but lets the caller override
+// GH_AW_AWF_VERSION, e.g. to exercise the "latest" resolution path.
+func runCloudHypervisorSetupBundleScriptWithVersion(t *testing.T, fixtureDir, version string) (string, error) {
+	t.Helper()
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	scriptPath, err := filepath.Abs(filepath.Join(wd, "..", "..", "actions", "setup", "sh", "cloud_hypervisor_setup_bundle.sh"))
@@ -566,7 +585,7 @@ func runCloudHypervisorSetupBundleScript(t *testing.T, fixtureDir string) (strin
 	cmd := exec.Command("bash", scriptPath)
 	cmd.Env = append(os.Environ(),
 		"RUNNER_TEMP="+runnerTemp,
-		"GH_AW_AWF_VERSION="+cloudHypervisorFixtureReleaseTag,
+		"GH_AW_AWF_VERSION="+version,
 		"PATH="+binDir+":"+os.Getenv("PATH"),
 	)
 	out, err := cmd.CombinedOutput()

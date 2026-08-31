@@ -16,7 +16,28 @@ if [[ -z "${GH_AW_AWF_VERSION:-}" ]]; then
 fi
 
 version="${GH_AW_AWF_VERSION}"
-if [[ "${version}" != v* ]]; then
+if [[ "${version,,}" == "latest" ]]; then
+  # GitHub has no "releases/download/latest/<asset>" URL: only
+  # "releases/latest/download/<asset>" resolves the latest release, and it
+  # does not reveal the resolved tag. Resolve the concrete release tag up
+  # front so every subsequent step (asset URLs, manifest release-tag
+  # comparison) operates on a single explicit, verifiable version.
+  echo "::group::Resolve latest cloud-hypervisor release tag"
+  auth_header=()
+  if [[ -n "${GH_TOKEN:-}" ]]; then
+    auth_header=(-H "Authorization: token ${GH_TOKEN}")
+  elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
+  fi
+  version="$(curl -fsSL "${auth_header[@]}" -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/github/gh-aw-firewall/releases/latest" | jq -r '.tag_name // empty')"
+  if [[ -z "${version}" ]]; then
+    echo "::error::failed to resolve the latest gh-aw-firewall release tag"
+    exit 1
+  fi
+  echo "resolved latest release tag: ${version}"
+  echo "::endgroup::"
+elif [[ "${version}" != v* ]]; then
   version="v${version}"
 fi
 
