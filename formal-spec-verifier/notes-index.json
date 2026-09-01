@@ -114,9 +114,9 @@
     },
     "specs/safe-outputs-scratchpad-removal.md": {
       "slug": "safe-outputs-scratchpad-removal",
-      "last_formalized": "2026-08-17-15-37-40",
+      "last_formalized": "2026-09-01-15-46-43",
       "notation": "TLA+ / Z3-style guard conjunction / F*",
-      "predicate_count": 9,
+      "predicate_count": 11,
       "issue_number": null
     }
   }

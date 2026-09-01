@@ -1,6 +1,6 @@
 # Formal Notes: safe-outputs-scratchpad-removal.md
 
-**Last formalized**: 2026-08-17-15-37-40
+**Last formalized**: 2026-09-01-15-46-43
 **Notation**: TLA+ / Z3-style guard conjunction / F*
 **Issue**: created via safeoutputs create_issue (number assigned post-run)
 
@@ -17,6 +17,8 @@
 | P7 | `formalChecklistItemsMonotonic` | Verified "no dangling references" state cannot regress |
 | P8 | `formalDeadlineWellFormed` | Deadline constant parses to 2026-09-21 |
 | P9 | `formalIdempotentReferenceReplacement` | Replacing an already-canonical reference is a no-op |
+| P10 | `formalReferenceCountMonotonicDecreasing` | Migration never increases the count of deprecated-path references (new 2026-09-01) |
+| P11 | `formalDeadlineBoundaryInclusive` | On the exact deadline date, deletion is not yet force-required (new 2026-09-01) |
 
 ## Key Invariants
 
@@ -37,11 +39,13 @@
 
 - No production implementation exists yet for scratchpad-removal checking in `pkg/workflow/` or `pkg/cli/`;
   all helpers in the generated test file are stubs marked `// stub — replace with real implementation`.
-- Confirmed via `grep -rl "scratchpad/safe-outputs-specification"` that the deprecated file is still
-  referenced from `scratchpad/agents/hierarchical-agents-quickstart.md` and
-  `scratchpad/github-mcp-access-control-specification.md` as of this run — migration work (checklist
-  item 1) has not yet been completed in the repository.
-- A follow-up run could formalize the actual link-scanning tool (if one gets built) rather than relying
-  on the stub `reference`/`migrateReferences` model.
+- Re-confirmed on 2026-09-01 via `grep -rl "scratchpad/safe-outputs-specification"` that the deprecated
+  file is STILL referenced from `scratchpad/agents/hierarchical-agents-quickstart.md` and
+  `scratchpad/github-mcp-access-control-specification.md` — migration work (checklist item 1) remains
+  incomplete after two rotation cycles.
+- Extended the model this run with P10 (reference-count monotonic decrease during migration) and P11
+  (deadline-boundary inclusivity — being exactly on 2026-09-21 does not yet force deletion). A future run
+  could formalize the actual link-scanning tool (if one gets built) rather than relying on the stub
+  `reference`/`migrateReferences` model.
 - This spec is a lightweight, single-checklist document (9 lines) — much smaller than other specs in
-  rotation; formalization intentionally kept compact (9 predicates) to match its scope.
+  rotation; formalization intentionally kept compact (now 11 predicates, up from 9).
