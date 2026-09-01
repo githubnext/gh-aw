@@ -173,6 +173,16 @@ describe("detect_agent_errors.cjs", () => {
       expect(detectErrors(errorOutput).modelNotSupportedError).toBe(true);
     });
 
+    it("does not combine custom-value and tools fields from separate error objects", () => {
+      const errorOutput = `{
+  "message": "Invalid value: 'custom'"
+}
+{
+  "param": "tools"
+}`;
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(false);
+    });
+
     it("does not match 'No model available' without the policy-enablement hint", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("No model available. Retrying shortly.")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("No model available\nCheck policy enablement under GitHub Settings > Copilot")).toBe(false);
