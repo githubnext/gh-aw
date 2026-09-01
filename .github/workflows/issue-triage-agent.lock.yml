@@ -27,8 +27,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/github-guard-policy.md
-#     - shared/otlp.md
 #     - shared/reporting.md
+#     - shared/otlp.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

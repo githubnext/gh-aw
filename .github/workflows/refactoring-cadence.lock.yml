@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/activation-app.md
+#     - shared/skip-if-issue-open.md
 #     - shared/otlp.md
+#     - shared/activation-app.md
 #     - shared/reporting.md
 #     - shared/daily-issue-base.md
-#     - shared/skip-if-issue-open.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

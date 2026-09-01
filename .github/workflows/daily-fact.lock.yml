@@ -27,8 +27,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/mempalace.md
 #     - shared/otlp.md
+#     - shared/mcp/mempalace.md
 #     - shared/reporting.md
 #
 # inlined-imports: true

@@ -424,7 +424,8 @@ type PlaywrightToolConfig struct {
 	Version string `yaml:"version,omitempty"`
 	// Mode accepts "cli" for backward compatibility with explicit configurations.
 	// CLI mode is also used when this field is omitted.
-	Mode string `yaml:"mode,omitempty"`
+	Mode     string   `yaml:"mode,omitempty"`
+	Browsers []string `yaml:"browsers,omitempty"`
 }
 
 // IsCLIMode returns true when the Playwright tool uses the supported CLI mode.

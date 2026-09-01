@@ -27,13 +27,13 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/daily-audit-discussion.md
 #     - shared/meta-analysis-base.md
-#     - shared/otlp.md
 #     - shared/python-dataviz.md
+#     - shared/otlp.md
+#     - shared/trending-charts-simple.md
+#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#     - shared/trending-charts-simple.md
 #     - shared/daily-audit-charts.md
 #
 # Frontmatter env variables:
