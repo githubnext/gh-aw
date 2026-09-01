@@ -149,7 +149,7 @@ func fetchOperationalValueReportRunsRange(ctx context.Context, repository, hostn
 	return pages, totalCount, nil
 }
 
-func gradeOperationalValueReportRun(ctx context.Context, evaluator *operationalValueReportEvaluator, run operationalValueReportRun, evidenceAt time.Time, evaluatorHost string) operationalValueReportObservation {
+func gradeOperationalValueReportRun(ctx context.Context, evaluator *operationalValueReportEvaluator, run operationalValueReportRun, evidenceAt time.Time, evaluatorHost string) operationalValueReportObservation { //nolint:largefunc // Keeps one evaluator invocation and observation mapping atomic.
 	createdAt := run.CreatedAt.UTC().Format(time.RFC3339)
 	subject := graderArtifactSubject{
 		Type:       "workflow-run",

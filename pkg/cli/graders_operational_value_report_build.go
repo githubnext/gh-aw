@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func buildOperationalValueReport(evaluator *operationalValueReportEvaluator, observations []operationalValueReportObservation, generatedAt, windowEndAt time.Time, stats operationalValueReportBackfillStats) operationalValueReport {
+func buildOperationalValueReport(evaluator *operationalValueReportEvaluator, observations []operationalValueReportObservation, generatedAt, windowEndAt time.Time, stats operationalValueReportBackfillStats) operationalValueReport { //nolint:largefunc // Report assembly preserves the serialized contract order.
 	observations = slices.Clone(observations)
 	for index := range observations {
 		if observations[index].EvaluatorDigest == "" {

@@ -77,7 +77,7 @@ a JSON report, an SVG timeline, and a Markdown report with the frozen evidence c
 	return cmd
 }
 
-func RunOperationalValueReport(ctx context.Context, config OperationalValueReportConfig) error {
+func RunOperationalValueReport(ctx context.Context, config OperationalValueReportConfig) error { //nolint:largefunc // Coordinates the report pipeline and its cleanup in one lifecycle.
 	evidenceAt, err := operationalValueReportEvaluatorEvidenceTime(config.Until, time.Now())
 	if err != nil {
 		return err

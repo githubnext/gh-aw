@@ -150,7 +150,7 @@ func TestListOperationalValueReportRunsSplitsCreatedWindowAtCap(t *testing.T) {
 	seenRanges := make([]string, 0)
 	operationalValueReportRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		var createdRange string
-		for index := 0; index < len(args)-1; index++ {
+		for index := range len(args) - 1 {
 			if args[index] == "-f" && strings.HasPrefix(args[index+1], "created=") {
 				createdRange = strings.TrimPrefix(args[index+1], "created=")
 				break

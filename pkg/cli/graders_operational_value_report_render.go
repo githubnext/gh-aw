@@ -42,7 +42,7 @@ func writeOperationalValueReportArtifacts(report operationalValueReport, outputD
 	return paths, nil
 }
 
-func renderOperationalValueReportSVG(report operationalValueReport) []byte {
+func renderOperationalValueReportSVG(report operationalValueReport) []byte { //nolint:largefunc // SVG emission preserves deterministic visual element ordering.
 	const left, right = 120.0, 1160.0
 	const outcomeTop = 245.0
 	const primaryTop, primaryBottom = 730.0, 840.0
@@ -260,7 +260,7 @@ func renderOperationalValueReportSVG(report operationalValueReport) []byte {
 	return []byte(svg.String())
 }
 
-func renderOperationalValueReportMarkdown(report operationalValueReport, jsonName, svgName string) []byte {
+func renderOperationalValueReportMarkdown(report operationalValueReport, jsonName, svgName string) []byte { //nolint:largefunc // Markdown emission preserves deterministic report section ordering.
 	var markdown strings.Builder
 	fmt.Fprintf(&markdown, "# %s operational value\n\n", sanitizeOperationalValueMarkdown(report.WorkflowName))
 	fmt.Fprintf(&markdown, "![%s operational value timeline](%s)\n\n", sanitizeOperationalValueMarkdown(report.WorkflowName), svgName)

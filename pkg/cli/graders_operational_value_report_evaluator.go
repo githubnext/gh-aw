@@ -22,7 +22,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-func loadOperationalValueReportEvaluator(ctx context.Context, workflowArg, evaluatorHost string) (*operationalValueReportEvaluator, error) {
+func loadOperationalValueReportEvaluator(ctx context.Context, workflowArg, evaluatorHost string) (*operationalValueReportEvaluator, error) { //nolint:largefunc // Keeps evaluator validation and staged-file cleanup in one lifecycle.
 	workflowPath, err := ResolveWorkflowPath(workflowArg)
 	if err != nil {
 		return nil, err
@@ -165,7 +165,7 @@ func readOperationalValueReportEvaluator(repoRoot, evaluatorPath string) (string
 	return string(content), hex.EncodeToString(digest[:]), nil
 }
 
-func parseOperationalValueReportDefinition(data []byte) (operationalValueReportDefinition, error) {
+func parseOperationalValueReportDefinition(data []byte) (operationalValueReportDefinition, error) { //nolint:largefunc // Validates the complete frozen definition contract in field order.
 	if _, err := parseOperationalValueDefinition(data); err != nil {
 		return operationalValueReportDefinition{}, err
 	}
