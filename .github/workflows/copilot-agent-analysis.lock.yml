@@ -27,13 +27,13 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/repo-memory-standard.md
-#     - shared/otlp.md
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
+#     - shared/repo-memory-standard.md
 #     - shared/copilot-pr-data-fetch.md
 #     - shared/copilot-pr-analysis-base.md
+#     - shared/otlp.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

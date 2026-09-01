@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/otlp.md
-#     - shared/reporting.md
 #     - shared/python-dataviz.md
 #     - shared/trends.md
 #     - shared/charts-with-trending.md
+#     - shared/otlp.md
+#     - shared/reporting.md
 #
 # Secrets used:
 #   - CODEX_API_KEY
