@@ -3,6 +3,7 @@ network:
   allowed:
     - playwright
     - local
+    - host.docker.internal
 tools:
   playwright:
   bash:
@@ -19,7 +20,7 @@ steps:
       const fs = require("node:fs");
       const http = require("node:http");
 
-      const host = "127.0.0.1";
+      const host = "0.0.0.0";
       const port = Number(process.env.PLAYWRIGHT_TITLE_TEST_PORT);
       const title = `playwright-${crypto.randomBytes(24).toString("base64url")}`;
 
@@ -58,7 +59,7 @@ post-steps:
 
 ## Playwright title validation
 
-Use Playwright CLI to open `http://127.0.0.1:4173/` and read the page title after
+Use Playwright CLI to open `http://host.docker.internal:4173/` and read the page title after
 JavaScript runs. Read the expected value from
 `/tmp/gh-aw/agent/playwright-title-test-expected.txt`, compare the two values for
 exact equality, and report whether the test passed. Do not use curl or another
