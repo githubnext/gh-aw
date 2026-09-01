@@ -304,7 +304,7 @@ func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	require.True(t, ok, "Expected mentions key in config")
 	assert.True(t, mentions["enabled"].(bool), "enabled should be true")
 	assert.False(t, mentions["allowedCollaborators"].(bool), "allowedCollaborators should be false")
-	assert.Equal(t, "5", mentions["max"], "max should be 5")
+	assert.InDelta(t, float64(5), mentions["max"], 0.0001, "max should be 5")
 }
 
 func TestGenerateSafeOutputsConfigMentionsTemplatableMax(t *testing.T) {
