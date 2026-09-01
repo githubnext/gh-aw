@@ -69,7 +69,7 @@ Replace MCP tool calls in prompts with equivalent `playwright-cli` commands run 
 | `browser_snapshot` | `playwright-cli snapshot` |
 | `browser_take_screenshot` | `playwright-cli screenshot --filename <path>` |
 | `browser_click` | `playwright-cli click <ref>` |
-| `browser_evaluate` | `playwright-cli eval <function> [ref]` |
+| `browser_evaluate` | `playwright-cli eval "() => document.title"` |
 
 Use `localhost` directly for development servers because Playwright CLI runs on the runner. Remove Playwright MCP container arguments and MCP-specific tool names such as `mcp__playwright__browser_navigate` from prompts and engine allowlists.
 
