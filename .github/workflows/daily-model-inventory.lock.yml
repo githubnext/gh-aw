@@ -540,6 +540,15 @@ jobs:
         env:
           NPM_CONFIG_MIN_RELEASE_AGE: '3'
         timeout-minutes: 10
+      - name: Install Playwright chromium browser
+        run: playwright-cli install-browser chromium
+        timeout-minutes: 10
+      - name: Install Playwright firefox browser
+        run: playwright-cli install-browser firefox
+        timeout-minutes: 10
+      - name: Install Playwright webkit browser
+        run: playwright-cli install-browser webkit
+        timeout-minutes: 10
       - name: Install Playwright CLI skills
         run: playwright-cli install --skills
         env:
