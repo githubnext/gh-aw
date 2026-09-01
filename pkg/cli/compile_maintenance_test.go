@@ -186,11 +186,7 @@ func TestCompileSpecificFiles_PreservesDisabledImplicitActionFailureExpiry(t *te
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to change directory: %v", err)
-	}
+	t.Chdir(tempDir)
 
 	initCmd := exec.Command("git", "init")
 	initCmd.Dir = tempDir
