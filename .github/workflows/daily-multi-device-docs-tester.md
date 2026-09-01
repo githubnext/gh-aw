@@ -36,7 +36,6 @@ tools:
     mode: gh-proxy
   timeout: 120  # Multi-device runs include preview startup and Playwright tests
   playwright:
-    mode: cli
   bash:
     - "*"
 safe-outputs:

@@ -49,7 +49,6 @@ tools:
   github:
     mode: gh-proxy
   playwright:
-    mode: cli
   edit:
   bash:
     - "*"

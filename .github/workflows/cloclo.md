@@ -37,7 +37,6 @@ tools:
   agentic-workflows:
   edit:
   playwright:
-    mode: cli
   bash: true
   cache-memory:
     key: cloclo-memory-${{ github.workflow }}
