@@ -29,9 +29,9 @@
 #   Imports:
 #     - shared/opencode.md
 #     - shared/security-analysis-base.md
-#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:

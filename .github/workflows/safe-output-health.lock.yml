@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/daily-audit-discussion.md
-#     - shared/reporting.md
 #     - shared/aw-logs-24h-fetch.md
 #     - ../skills/jqschema/SKILL.md
 #     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
+#     - shared/reporting.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:

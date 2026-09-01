@@ -27,12 +27,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/activation-app.md
-#     - shared/reporting.md
-#     - shared/daily-issue-base.md
 #     - shared/gh.md
 #     - shared/mcp/graft.md
 #     - shared/noop-reminder.md
+#     - shared/activation-app.md
+#     - shared/reporting.md
+#     - shared/daily-issue-base.md
 #
 # Secrets used:
 #   - GH_AW_DEFAULT_OTLP_HEADERS

@@ -27,19 +27,19 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/trending-charts-simple.md
-#     - shared/daily-audit-discussion.md
 #     - shared/repo-memory-standard.md
 #     - ../skills/jqschema/SKILL.md
 #     - shared/reporting.md
 #     - shared/otlp.md
-#     - shared/daily-audit-base.md
-#     - shared/daily-audit-charts.md
 #     - shared/default-ai-credits-pricing.md
+#     - shared/trending-charts-simple.md
 #     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders/recurrence-determinism.md
 #     - shared/graders/recurrence-laminarity.md
 #     - shared/graders.md
+#     - shared/daily-audit-discussion.md
+#     - shared/daily-audit-base.md
+#     - shared/daily-audit-charts.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

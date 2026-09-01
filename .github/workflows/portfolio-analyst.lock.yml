@@ -29,9 +29,9 @@
 #   Imports:
 #     - shared/mcp/sentry.md
 #     - shared/mcp/grafana.md
+#     - shared/reporting.md
 #     - shared/python-dataviz.md
 #     - shared/trends.md
-#     - shared/reporting.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

@@ -28,16 +28,16 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp-pagination.md
-#     - shared/daily-audit-discussion.md
 #     - shared/repo-memory-standard.md
 #     - ../skills/jqschema/SKILL.md
 #     - shared/copilot-session-data-fetch.md
-#     - shared/python-dataviz.md
-#     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
 #     - shared/reporting.md
 #     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
 #     - shared/daily-audit-base.md
+#     - shared/python-dataviz.md
+#     - shared/session-analysis-charts.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
