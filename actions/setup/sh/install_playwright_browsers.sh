@@ -11,7 +11,7 @@ for browser in "$@"; do
     chrome|chromium) browser=chromium ;;
     firefox|webkit) ;;
     *)
-      echo "::error::Unsupported Playwright browser: ${browser}" >&2
+      echo "::error::Unsupported Playwright browser: ${browser}"
       exit 1
       ;;
   esac
@@ -22,7 +22,7 @@ for browser in "$@"; do
       break
     fi
     if [ "$attempt" -eq "$max_attempts" ]; then
-      echo "::error::Failed to install Playwright ${browser} browser after ${max_attempts} attempts" >&2
+      echo "::error::Failed to install Playwright ${browser} browser after ${max_attempts} attempts"
       exit 1
     fi
     sleep $((attempt * 5))

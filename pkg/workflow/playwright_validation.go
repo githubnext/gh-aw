@@ -25,7 +25,10 @@
 
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 func normalizePlaywrightBrowser(browser string) string {
 	switch strings.ToLower(strings.TrimSpace(browser)) {
@@ -74,7 +77,7 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 				if !ok || normalizePlaywrightBrowser(name) == "" {
 					return NewValidationError(
 						"tools.playwright.browsers",
-						name,
+						fmt.Sprint(browser),
 						"unsupported browser; choose chrome, chromium, firefox, or webkit",
 						"Set browsers to a list containing supported Playwright browser names",
 					)
