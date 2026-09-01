@@ -639,6 +639,103 @@
         }
       }
     },
+    "cloudHypervisor": {
+      "type": "object",
+      "description": "Cloud Hypervisor v53.0 microVM preview configuration. Requires container.containerRuntime: \"cloud-hypervisor\" and previewEnabled to execute workloads; supported only on GitHub-hosted Ubuntu x86_64 KVM runners.",
+      "additionalProperties": false,
+      "properties": {
+        "previewEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the Cloud Hypervisor v53.0 workload-execution preview. Requires container.containerRuntime: \"cloud-hypervisor\" and a GitHub-hosted Ubuntu x86_64 KVM runner."
+        },
+        "mountPolicy": {
+          "type": "string",
+          "enum": ["workspace-only", "workspace-and-tool-cache"],
+          "default": "workspace-only",
+          "description": "Host directory exposure policy. \"workspace-only\" is the secure default and exports the workspace plus only narrow gh-aw runtime directories when present. \"workspace-and-tool-cache\" additionally requires and mounts RUNNER_TOOL_CACHE or AGENT_TOOLSDIRECTORY read-only with host-enforced staging."
+        },
+        "cloudHypervisorBinary": {
+          "type": "string",
+          "description": "Absolute path to the Cloud Hypervisor v53.0 binary. Defaults to /usr/local/bin/cloud-hypervisor."
+        },
+        "kernelPath": {
+          "type": "string",
+          "description": "Absolute path to the trusted PCI-capable guest Linux kernel image."
+        },
+        "rootfsPath": {
+          "type": "string",
+          "description": "Absolute path to the trusted guest root filesystem image."
+        },
+        "supervisorPath": {
+          "type": "string",
+          "description": "Absolute path to the built AWF guest supervisor."
+        },
+        "artifactManifestPath": {
+          "type": "string",
+          "description": "Absolute path to the release-pinned Cloud Hypervisor artifact manifest."
+        },
+        "artifactManifestBundlePath": {
+          "type": "string",
+          "description": "Absolute path to the manifest GitHub artifact-attestation Sigstore bundle used for offline verification."
+        },
+        "artifactReleaseTag": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$",
+          "description": "Expected AWF release tag recorded in the attested artifact manifest."
+        },
+        "developmentAllowUnattestedArtifacts": {
+          "type": "boolean",
+          "default": false,
+          "description": "Development-only legacy bypass. Also requires AWF_CLOUD_HYPERVISOR_DEVELOPMENT_ALLOW_UNATTESTED_ARTIFACTS=1 and complete sha256 pins."
+        },
+        "vcpuCount": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2,
+          "description": "Number of guest virtual CPUs."
+        },
+        "memoryMib": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 512,
+          "description": "Guest memory in MiB."
+        },
+        "apiTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 5000,
+          "description": "Bounded timeout in milliseconds for Cloud Hypervisor API socket readiness and requests."
+        },
+        "sha256": {
+          "type": "object",
+          "description": "Development-only legacy SHA-256 pins. Release use derives all hashes from the verified artifact manifest.",
+          "additionalProperties": false,
+          "properties": {
+            "cloudHypervisor": {
+              "type": "string",
+              "pattern": "^[0-9A-Fa-f]{64}$"
+            },
+            "virtiofsd": {
+              "type": "string",
+              "pattern": "^[0-9A-Fa-f]{64}$"
+            },
+            "kernel": {
+              "type": "string",
+              "pattern": "^[0-9A-Fa-f]{64}$"
+            },
+            "rootfs": {
+              "type": "string",
+              "pattern": "^[0-9A-Fa-f]{64}$"
+            },
+            "supervisor": {
+              "type": "string",
+              "pattern": "^[0-9A-Fa-f]{64}$"
+            }
+          }
+        }
+      }
+    },
     "chroot": {
       "type": "object",
       "description": "Chroot execution overrides for split-filesystem ARC/DinD runners.",

@@ -28,7 +28,12 @@ func TestGradersCommandIntegration(t *testing.T) {
 		{
 			name:       "operational value help",
 			args:       []string{"graders", "operational-value", "--help"},
-			wantOutput: []string{"Regrade the operational-value observation", "--evidence-at", "--repo", "--json"},
+			wantOutput: []string{"Regrade the operational-value observation", "report", "--evidence-at", "--repo", "--json"},
+		},
+		{
+			name:       "operational value report help",
+			args:       []string{"graders", "operational-value", "report", "--help"},
+			wantOutput: []string{"complete operational-value history", "--until", "--cache-dir", "--refresh", "--output"},
 		},
 		{
 			name:       "operational value requires run ID",
