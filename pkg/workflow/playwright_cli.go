@@ -25,6 +25,8 @@ package workflow
 //	    mode: cli
 
 import (
+	"strings"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -93,26 +95,29 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 		}
 	}
 
-	// Install the supported browser binaries before the agent starts. Browser downloads
+	config := parsePlaywrightTool(workflowData.Tools["playwright"])
+	browsers := []string{"chromium"}
+	if config != nil && len(config.Browsers) > 0 {
+		browsers = make([]string, 0, len(config.Browsers))
+		seen := make(map[string]struct{})
+		for _, browser := range config.Browsers {
+			normalized := normalizePlaywrightBrowser(browser)
+			if normalized != "" {
+				if _, ok := seen[normalized]; ok {
+					continue
+				}
+				browsers = append(browsers, normalized)
+				seen[normalized] = struct{}{}
+			}
+		}
+	}
+
+	// Install the requested browser binaries before the agent starts. Browser downloads
 	// are prohibited during agent execution.
 	steps = append(steps,
 		GitHubActionStep{
-			"      - name: Install Playwright chromium browser",
-			"        run: playwright-cli install-browser chromium",
-			"        env:",
-			"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
-			"        timeout-minutes: 10",
-		},
-		GitHubActionStep{
-			"      - name: Install Playwright firefox browser",
-			"        run: playwright-cli install-browser firefox",
-			"        env:",
-			"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
-			"        timeout-minutes: 10",
-		},
-		GitHubActionStep{
-			"      - name: Install Playwright webkit browser",
-			"        run: playwright-cli install-browser webkit",
+			"      - name: Install Playwright browsers",
+			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_playwright_browsers.sh\" " + strings.Join(browsers, " "),
 			"        env:",
 			"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
 			"        timeout-minutes: 10",
