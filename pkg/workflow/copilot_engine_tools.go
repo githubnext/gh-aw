@@ -139,7 +139,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		}
 		// When playwright is configured in CLI mode, playwright-cli must be executable.
 		// Automatically add shell(playwright-cli:*) to the restricted bash allowlist.
-		if workflowData != nil && isPlaywrightCLIMode(workflowData.Tools) {
+		if isPlaywrightCLIMode(effectiveWorkflowData.Tools) {
 			args = append(args, "--allow-tool", "shell(playwright-cli:*)")
 		}
 		// When GitHub CLI mode is enabled (tools.github.mode: gh-proxy), GitHub access

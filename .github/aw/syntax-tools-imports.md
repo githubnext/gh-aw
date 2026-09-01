@@ -120,7 +120,7 @@ The `tools:` field configures which tools the coding agent may use.
   tools:
     bash: ["*"]
   ```
-- `playwright:` - Browser automation for visual regression, accessibility, and end-to-end testing. Use `mode: cli` (recommended) — no Docker, runs `playwright-cli <command>` in bash, `localhost` reaches local servers directly. `mode: mcp` is deprecated (Docker-based). Pin a version with `version:` and restrict network to `local` + `playwright`.
+- `playwright:` - Browser automation for visual regression, accessibility, and end-to-end testing. The built-in integration uses `playwright-cli <command>` in bash, and `localhost` reaches local servers directly. `mode: mcp` is removed; use a custom `mcp-servers` entry if MCP is required. Pin the CLI with `version:` and restrict network to `local` + `playwright`.
 
   ```yaml
   tools:

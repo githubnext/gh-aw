@@ -485,11 +485,6 @@
       "digest": "sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4",
       "pinned_image": "grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4"
     },
-    "mcr.microsoft.com/playwright/mcp": {
-      "image": "mcr.microsoft.com/playwright/mcp",
-      "digest": "sha256:18c0a9c934004fe9580cc79f1e8e6e6cde7c667348b215335e8a23fd3e509804",
-      "pinned_image": "mcr.microsoft.com/playwright/mcp@sha256:18c0a9c934004fe9580cc79f1e8e6e6cde7c667348b215335e8a23fd3e509804"
-    },
     "node:lts-alpine": {
       "image": "node:lts-alpine",
       "digest": "sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf",

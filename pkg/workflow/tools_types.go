@@ -421,16 +421,15 @@ type GitHubToolConfig struct {
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
 type PlaywrightToolConfig struct {
-	Version string   `yaml:"version,omitempty"`
-	Args    []string `yaml:"args,omitempty"`
-	// Mode selects the integration approach: "mcp" (default) runs a Docker-based MCP
-	// server; "cli" installs @playwright/cli via npm for token-efficient CLI invocations.
+	Version string `yaml:"version,omitempty"`
+	// Mode accepts "cli" for backward compatibility with explicit configurations.
+	// CLI mode is also used when this field is omitted.
 	Mode string `yaml:"mode,omitempty"`
 }
 
-// IsCLIMode returns true when the playwright tool is configured in CLI mode (mode: cli).
+// IsCLIMode returns true when the Playwright tool uses the supported CLI mode.
 func (p *PlaywrightToolConfig) IsCLIMode() bool {
-	return p != nil && strings.EqualFold(p.Mode, "cli")
+	return p != nil && (p.Mode == "" || strings.EqualFold(p.Mode, "cli"))
 }
 
 // BashToolConfig represents the configuration for the Bash tool

@@ -79,9 +79,6 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "github":
 			githubTool, _ := expandedTools["github"].(map[string]any)
 			renderer.RenderGitHubMCP(&mcpConfigContent, githubTool, workflowData)
-		case "playwright":
-			playwrightTool := expandedTools["playwright"]
-			renderer.RenderPlaywrightMCP(&mcpConfigContent, playwrightTool)
 		case "agentic-workflows":
 			renderer.RenderAgenticWorkflowsMCP(&mcpConfigContent)
 		case "safe-outputs":

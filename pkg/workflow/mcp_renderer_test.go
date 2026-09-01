@@ -598,12 +598,6 @@ func TestOptionCombinations(t *testing.T) {
 			// Test each render method doesn't panic
 			var yaml strings.Builder
 
-			playwrightTool := map[string]any{
-				"allowed-domains": []string{"example.com"},
-			}
-			renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
-
-			yaml.Reset()
 			renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 			yaml.Reset()

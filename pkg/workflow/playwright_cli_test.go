@@ -31,3 +31,12 @@ func TestGeneratePlaywrightCLIInstallSteps_DefaultVersionUsesCooldown(t *testing
 	assert.Contains(t, skillsStep, "playwright-cli install --skills")
 	assert.Contains(t, skillsStep, "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'")
 }
+
+func TestGeneratePlaywrightCLIInstallSteps_ModeOmitted(t *testing.T) {
+	steps := generatePlaywrightCLIInstallSteps(&WorkflowData{
+		Tools: map[string]any{"playwright": nil},
+	})
+
+	require.Len(t, steps, 2)
+	assert.Contains(t, strings.Join(steps[0], "\n"), "@playwright/cli@"+string(constants.DefaultPlaywrightCLIVersion))
+}

@@ -28,7 +28,6 @@ imports:
 tools:
   cli-proxy: true
   playwright:
-    mode: cli
   web-fetch:
   bash:
     - "curl*"

@@ -195,17 +195,11 @@ const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 // gh CLI token authorization for the issues-read-v1 enclave capability.
 const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.13"
 
-// DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.79"
-
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
-// Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
+// Used when tools.playwright is enabled.
 // Keep this version outside the default 3-day npm release-age cooldown window enforced by
 // generated Playwright CLI install steps. See TestDefaultPlaywrightCLIVersionOutsideCooldownWindow.
 const DefaultPlaywrightCLIVersion Version = "0.1.18"
-
-// DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
-const DefaultPlaywrightBrowserVersion Version = "v1.62.1"
 
 // DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
 const DefaultMCPSDKVersion Version = "1.30.0"

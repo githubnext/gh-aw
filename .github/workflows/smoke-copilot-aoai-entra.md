@@ -72,7 +72,6 @@ tools:
     trusted-users:
       - pelikhan
   playwright:
-    mode: cli
   web-fetch:
   cli-proxy: true
 runtimes:

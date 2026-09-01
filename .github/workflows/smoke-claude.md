@@ -63,7 +63,6 @@ tools:
     mode: gh-proxy
     toolsets: [repos, pull_requests]
   playwright:
-    mode: cli
   bash:
     - "*"
 runtimes:

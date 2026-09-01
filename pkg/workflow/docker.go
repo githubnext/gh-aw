@@ -16,7 +16,7 @@ var dockerLog = logger.New("workflow:docker")
 // When workflowData.ActionCache contains container pins, the returned slice uses
 // the pinned references (image:tag@sha256:…) instead of the bare tags, ensuring
 // deterministic and supply-chain-safe image pulls.
-func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actionMode ActionMode) []string {
+func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actionMode ActionMode) []string { //nolint:largefunc // Existing image collection remains centralized.
 	var images []string
 	imageSet := make(map[string]struct{}) // Use a set to avoid duplicates
 	var authoritativeAWFImages []string
@@ -37,19 +37,6 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 					imageSet[image] = struct {
 					}{}
 				}
-			}
-		}
-	}
-
-	// Check for Playwright tool (uses Docker image - no version tag, only one image)
-	// Only in MCP mode; CLI mode installs @playwright/cli via npm instead.
-	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		if !isPlaywrightCLIMode(tools) {
-			image := "mcr.microsoft.com/playwright/mcp"
-			if !setutil.Contains(imageSet, image) {
-				images = append(images, image)
-				imageSet[image] = struct {
-				}{}
 			}
 		}
 	}

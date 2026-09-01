@@ -169,20 +169,14 @@ network:
 
 ### Cannot Find Module 'playwright'
 
-`Error: Cannot find module 'playwright'` — Playwright is provided as MCP tools, not as an npm package. Use the MCP tools instead of `require('playwright')`:
+`Error: Cannot find module 'playwright'` — the built-in tool installs `@playwright/cli`, not the Playwright JavaScript library. Use `playwright-cli` commands instead of `require('playwright')`:
 
-```javascript
-// ❌ Don't: const playwright = require('playwright')
-// ✅ Do: use MCP tools
-await mcp__playwright__browser_navigate({ url: "https://example.com" });
-await mcp__playwright__browser_snapshot();
+```bash
+playwright-cli goto "https://example.com"
+playwright-cli snapshot
 ```
 
-See [Playwright Tool documentation](/gh-aw/reference/tools/#playwright-tool-playwright) for all available tools.
-
-### Playwright MCP Initialization Failure (EOF Error)
-
-`Failed to register tools error="initialize: EOF" name=playwright` — Chromium crashes before tool registration completes due to missing Docker security flags. Upgrade to 0.41.0+ with `gh extension upgrade gh-aw`.
+See the [Playwright reference](/gh-aw/reference/playwright/) for CLI commands and MCP migration guidance.
 
 ## Permission Issues
 
