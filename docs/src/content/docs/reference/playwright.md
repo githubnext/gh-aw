@@ -53,6 +53,17 @@ network:
 
 Allowing `example.com` automatically allows its subdomains.
 
+### AWF Sandbox Policy
+
+When the workflow runs inside the AWF sandbox (`sandbox.agent` enabled, or the
+firewall enabled by default for the configured engine), the compiler injects
+an additional policy prompt reinforcing the secure browser topology: bind
+local servers to `127.0.0.1` only, wait for a loopback readiness check before
+navigating, keep `localhost`/`127.0.0.1` on the proxy bypass list, and never
+install packages or browsers at runtime. This guidance takes precedence over
+generic Playwright CLI skill suggestions such as `npm install`/`npx` fallback
+installation or navigating to arbitrary example domains.
+
 ### Browser Support
 
 Chromium (Chrome/Edge), Firefox, and WebKit (Safari) are available.
