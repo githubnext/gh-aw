@@ -80,7 +80,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
 	if !hasMCPServers {
 		mcpLog.Print("No mcp-servers section found, checking for built-in tools")
-		// Process built-in MCP tools from tools section (github, playwright)
+		// Process built-in MCP tools from tools section.
 		if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		return nil, fmt.Errorf("mcp-servers section must be a map, got %T. Example:\nmcp-servers:\n  my-server:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", mcpServersSection)
 	}
 
-	// Process built-in MCP tools from tools section (github, playwright)
+	// Process built-in MCP tools from tools section.
 	if err := extractBuiltinMCPTools(frontmatter, serverFilter, &configs); err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func parseCustomMCPServerConfigs(mcpServers map[string]any, serverFilter string)
 	return configs, nil
 }
 
-// extractBuiltinMCPTools reads the tools section and appends github/playwright configs to configs.
+// extractBuiltinMCPTools reads the tools section and appends GitHub configs to configs.
 // It returns an error if a removed tool (serena) is present.
 func extractBuiltinMCPTools(frontmatter map[string]any, serverFilter string, configs *[]RegistryMCPServerConfig) error {
 	toolsSection, hasTools := frontmatter["tools"]
@@ -252,7 +252,7 @@ func extractBuiltinMCPTools(frontmatter map[string]any, serverFilter string, con
 		if toolName == "serena" {
 			return errors.New("tools.serena is removed")
 		}
-		if toolName == "github" || toolName == "playwright" {
+		if toolName == "github" {
 			config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
 			if err != nil {
 				return err
@@ -266,7 +266,7 @@ func extractBuiltinMCPTools(frontmatter map[string]any, serverFilter string, con
 	return nil
 }
 
-// processBuiltinMCPTool handles built-in MCP tools (github and playwright)
+// processBuiltinMCPTool handles built-in MCP tools.
 func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) (*RegistryMCPServerConfig, error) {
 	if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
 		return nil, nil
@@ -276,11 +276,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		config := buildGitHubBuiltinConfig(toolValue)
 		return &config, nil
 	}
-	if toolName == "playwright" {
-		config := buildPlaywrightBuiltinConfig(toolValue)
-		return &config, nil
-	}
-
 	return nil, nil
 }
 
@@ -346,33 +341,6 @@ func githubBuiltinMode(toolValue any) (bool, string, map[string]any) {
 		}
 	}
 	return useRemote, customToken, toolConfig
-}
-
-func buildPlaywrightBuiltinConfig(toolValue any) RegistryMCPServerConfig {
-	config := RegistryMCPServerConfig{
-		BaseMCPServerConfig: types.BaseMCPServerConfig{
-			Type:    "docker",
-			Command: "docker",
-			Args: []string{
-				"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-				"-v", constants.TmpMcpLogsMount,
-				"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
-			},
-			Env: make(map[string]string),
-		},
-		Name: "playwright",
-	}
-	toolConfig, ok := toolValue.(map[string]any)
-	if !ok {
-		return config
-	}
-	if version, exists := toolConfig["version"]; exists {
-		if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
-			replaceBuiltinImage(&config, "mcr.microsoft.com/playwright:", "mcr.microsoft.com/playwright:"+versionStr)
-		}
-	}
-	appendBuiltinArgs(&config, toolConfig["args"])
-	return config
 }
 
 func appendBuiltinAllowedTools(config *RegistryMCPServerConfig, toolConfig map[string]any) {

@@ -11,8 +11,8 @@
 //     JSONMCPConfigOptions, GitHubMCPDockerOptions, GitHubMCPRemoteOptions).
 //   - mcp_renderer_github.go  — GitHub MCP rendering: RenderGitHubMCP, renderGitHubTOML,
 //     RenderGitHubMCPDockerConfig, RenderGitHubMCPRemoteConfig.
-//   - mcp_renderer_builtin.go — Built-in MCP server renderers: Playwright,
-//     SafeOutputs, MCPScripts, AgenticWorkflows (JSON + TOML for each).
+//   - mcp_renderer_builtin.go — Built-in MCP server renderers: SafeOutputs,
+//     MCPScripts, AgenticWorkflows (JSON + TOML for each).
 //   - mcp_renderer_guard.go   — Guard / access-control policy rendering:
 //     renderGuardPoliciesJSON, renderGuardPoliciesToml.
 //
@@ -162,9 +162,6 @@ func RenderJSONMCPConfig( //nolint:largefunc // Existing renderer keeps MCP JSON
 		case "github":
 			githubTool, _ := tools["github"].(map[string]any)
 			options.Renderers.RenderGitHub(&configBuilder, githubTool, isLast, workflowData)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			options.Renderers.RenderPlaywright(&configBuilder, playwrightTool, isLast)
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":

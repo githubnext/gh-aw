@@ -598,7 +598,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 
 		assert.Contains(t, content, "run_shell_command(echo)", "Should include original restricted bash command")
 		assert.Contains(t, content, "run_shell_command(mymcp:*)", "Should include mounted custom MCP CLI command")
-		assert.Contains(t, content, "run_shell_command(playwright:*)", "Should include mounted playwright CLI command")
+		assert.Contains(t, content, "run_shell_command(playwright-cli:*)", "Should include Playwright CLI command")
 		assert.Contains(t, content, "run_shell_command(safeoutputs:*)", "Should include mounted safeoutputs CLI command")
 	})
 }

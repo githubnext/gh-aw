@@ -589,9 +589,6 @@ const TmpMcpLogsDir = TmpGhAwDir + "/mcp-logs/"
 // TmpMcpLogsSafeOutputsDir is the safe-outputs MCP server log directory.
 const TmpMcpLogsSafeOutputsDir = TmpGhAwDir + "/mcp-logs/safeoutputs"
 
-// TmpMcpLogsPlaywrightDir is the Playwright MCP server log directory.
-const TmpMcpLogsPlaywrightDir = TmpGhAwDir + "/mcp-logs/playwright"
-
 // TmpMcpLogsMount is the Docker volume mount spec for the MCP logs directory.
 const TmpMcpLogsMount = TmpGhAwDir + "/mcp-logs:" + TmpGhAwDir + "/mcp-logs"
 

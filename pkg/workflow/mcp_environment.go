@@ -60,7 +60,7 @@ var mcpEnvironmentLog = logger.New("workflow:mcp_environment")
 
 // collectMCPEnvironmentVariables collects all MCP-related environment variables
 // from the workflow configuration to be passed to both Start MCP gateway and MCP Gateway steps
-func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, workflowData *WorkflowData, hasAgenticWorkflows bool) map[string]string {
+func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, workflowData *WorkflowData, hasAgenticWorkflows bool) map[string]string { //nolint:largefunc // Existing MCP environment collection remains centralized.
 	envVars := make(map[string]string)
 
 	// Check for GitHub MCP server token
@@ -159,23 +159,11 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
 	}
 
-	// Check for Playwright domain secrets
-	hasPlaywright := slices.Contains(mcpTools, "playwright")
-	if hasPlaywright {
-		// Extract all expressions from playwright custom args using ExpressionExtractor
-		if playwrightTool, ok := tools["playwright"]; ok {
-			playwrightConfig := parsePlaywrightTool(playwrightTool)
-			customArgs := getPlaywrightCustomArgs(playwrightConfig)
-			playwrightArgSecrets := extractExpressionsFromPlaywrightArgs(customArgs)
-			maps.Copy(envVars, playwrightArgSecrets)
-		}
-	}
-
 	// Check for HTTP MCP servers with secrets in headers (e.g., Tavily)
 	// These need to be available as environment variables when the MCP gateway starts
 	for toolName, toolValue := range tools {
 		// Skip standard tools that are handled above
-		if toolName == "github" || toolName == "playwright" ||
+		if toolName == "github" ||
 			toolName == "cache-memory" || toolName == "agentic-workflows" ||
 			toolName == "safe-outputs" || toolName == "mcp-scripts" {
 			continue

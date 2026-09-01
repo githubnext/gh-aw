@@ -222,7 +222,7 @@ func TestLoadRepoConfig_ContainerPinsKeyNoDigestAllowed(t *testing.T) {
 		},
 		{
 			name: "image without tag accepted",
-			key:  `"mcr.microsoft.com/playwright/mcp"`,
+			key:  `"alpine"`,
 		},
 		{
 			name:    "digest-pinned key rejected",
