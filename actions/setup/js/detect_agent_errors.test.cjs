@@ -173,6 +173,16 @@ describe("detect_agent_errors.cjs", () => {
       expect(detectErrors(errorOutput).modelNotSupportedError).toBe(true);
     });
 
+    it("matches when the Codex error fields are reordered", () => {
+      const errorOutput = `{
+  "error": {
+    "param": "tools",
+    "message": "Invalid value: 'custom'"
+  }
+}`;
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
     it("does not combine custom-value and tools fields from separate error objects", () => {
       const errorOutput = `{
   "message": "Invalid value: 'custom'"

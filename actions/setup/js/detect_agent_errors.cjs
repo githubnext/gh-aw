@@ -157,7 +157,7 @@ function isAgenticEngineTimeout(logContent) {
 //   - Codex API rejects the `custom` tools value with `param: "tools"` for models that do not
 //     support custom tools.
 const MODEL_NOT_SUPPORTED_PATTERN =
-  /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found|No model available\b[^\n]*policy enablement|["']message["']\s*:\s*["']Invalid value:\s*['"`]custom['"`][^{}]{0,300}?["']param["']\s*:\s*["']tools["'])/i;
+  /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found|No model available\b[^\n]*policy enablement|(?:["']message["']\s*:\s*["']Invalid value:\s*['"`]custom['"`][^{}]{0,300}?["']param["']\s*:\s*["']tools["']|["']param["']\s*:\s*["']tools["'][^{}]{0,300}?["']message["']\s*:\s*["']Invalid value:\s*['"`]custom['"`]))/i;
 
 // Pattern: Generic HTTP 400 Bad Request responses emitted by engine / SDK wrappers.
 // NOTE: keep in sync with HTTP_400_RESPONSE_ERROR_PATTERN in copilot_harness.cjs.
