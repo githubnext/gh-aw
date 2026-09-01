@@ -310,6 +310,7 @@ touch %s
 		// approval mode when the workspace is untrusted, which causes exit code 55.
 		"GEMINI_CLI_TRUST_WORKSPACE": "true",
 	}
+	applyPlaywrightBrowserEnv(env, workflowData)
 	if !vertexWIF {
 		// Set static API key when WIF is not configured.
 		// When WIF is active, authentication is handled by the AWF api-proxy sidecar

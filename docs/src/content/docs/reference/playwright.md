@@ -17,15 +17,33 @@ tools:
     mode: cli
 ```
 
-The compiler installs `@playwright/cli` as a global npm package on the runner. The agent invokes `playwright-cli <command>` from bash:
+The compiler installs `@playwright/cli` as a global npm package, its skills, and
+Chromium before the agent runs. The default `open` browser is Chromium. Select
+additional browsers with `browsers`; `chrome` is accepted as an alias for
+`chromium`:
+
+```yaml wrap
+tools:
+  playwright:
+    browsers: [chrome, firefox]
+```
+
+The supported values are `chrome`, `chromium`, `firefox`, and `webkit`.
+Requested browsers are downloaded with retries before the agent starts; package
+and browser installation during agent execution is prohibited. The agent
+invokes `playwright-cli <command>` from bash:
 
 ```bash wrap
-playwright-cli goto "https://example.com"
+playwright-cli open "https://example.com"
 playwright-cli screenshot --filename /tmp/screenshot.png
 playwright-cli snapshot
 playwright-cli eval "() => document.title"
 playwright-cli run-code "async (page) => { await page.goto('https://example.com'); return await page.title(); }"
 ```
+
+With a restricted `tools.bash` allowlist, `playwright-cli:*` is added
+automatically. Explicit Bash entries are needed only for supporting lifecycle
+commands such as `npm`, `curl`, and `kill`.
 
 ### Version
 
@@ -40,7 +58,9 @@ tools:
 
 ### Network Access
 
-Domain access is controlled by the top-level [`network:`](/gh-aw/reference/network/) field. By default, Playwright can only reach `localhost` and `127.0.0.1`. Use ecosystem identifiers and explicit domains together:
+Domain access is controlled by the top-level [`network:`](/gh-aw/reference/network/) field. Playwright can reach `localhost` and `127.0.0.1` by default. A local server
+started in the same AWF sandbox does not require `network.allowed: local`. Use
+ecosystem identifiers and explicit external domains together:
 
 ```yaml wrap
 network:
@@ -64,9 +84,39 @@ install packages or browsers at runtime. This guidance takes precedence over
 generic Playwright CLI skill suggestions such as `npm install`/`npx` fallback
 installation or navigating to arbitrary example domains.
 
-### Browser Support
+### Browser Support and Sessions
 
-Chromium (Chrome/Edge), Firefox, and WebKit (Safari) are available.
+Chromium is the default. Use Firefox or WebKit with `--browser` when selected
+for provisioning:
+
+```bash wrap
+playwright-cli open "https://example.com"                  # Chromium
+playwright-cli -s=firefox open "https://example.com" --browser=firefox
+playwright-cli -s=webkit open "https://example.com" --browser=webkit
+playwright-cli -s=firefox close
+playwright-cli -s=webkit close
+```
+
+Named sessions (`-s=<name>`) keep cookies and storage isolated, which is useful
+for comparing authenticated and anonymous flows.
+
+### Publishing Screenshots
+
+Files under `/tmp` are ephemeral. To let users retrieve a screenshot, configure
+an artifact safe output and have the agent publish the file:
+
+```aw wrap
+---
+safe-outputs:
+  upload-artifact:
+    allowed-paths: ["/tmp/*.png"]
+    max-uploads: 1
+    retention-days: 7
+---
+
+Capture `/tmp/home.png`, then call `upload_artifact` with
+`name: "home-screenshot"` and `path: "/tmp/home.png"`.
+```
 
 ## Migrate from Playwright MCP
 
@@ -146,13 +196,15 @@ safe-outputs:
 Use Playwright to check docs.example.com for WCAG 2.1 Level AA compliance.
 
 ```bash
-playwright-cli browser_navigate --url "https://docs.example.com"
-playwright-cli browser_snapshot
+playwright-cli open "https://docs.example.com"
+playwright-cli snapshot
 ```
 
-Run automated accessibility checks using axe-core and report missing alt text,
-insufficient color contrast, missing ARIA labels, and keyboard navigation issues.
-Create an issue for each category found.
+Use snapshots for structural and manual checks of headings, labels, alternative
+text, and keyboard flows. Comprehensive WCAG checks (such as axe-core and
+programmatic contrast analysis) require dependencies prepared before the agent
+runs; the AWF sandbox prohibits runtime installation. Create focused issues for
+actionable findings.
 ```
 
 ### Visual Regression Testing
@@ -196,7 +248,6 @@ network:
   allowed:
     - defaults
     - playwright
-    - local
     - node
 
 permissions:
@@ -220,9 +271,9 @@ on the home, getting-started, and reference pages across three viewports:
 For each viewport, resize and screenshot:
 
 ```bash
-playwright-cli browser_resize --width 375 --height 812
-playwright-cli browser_navigate --url "http://localhost:4321/"
-playwright-cli browser_take_screenshot --filename /tmp/mobile-screenshot.png --full-page true
+playwright-cli open "http://localhost:4321/"
+playwright-cli resize 375 812
+playwright-cli screenshot --filename=/tmp/mobile-screenshot.png --full-page
 ```
 
 Compare against baseline and report differences as a PR comment with screenshots.
@@ -245,7 +296,6 @@ network:
   allowed:
     - defaults
     - playwright
-    - "localhost"
 
 permissions:
   contents: read
@@ -254,8 +304,8 @@ permissions:
 # E2E Testing
 
 Start the dev server on localhost:3000, then drive a full user journey with
-`playwright-cli browser_navigate --url "http://localhost:3000"`. Report any
-failures with screenshots.
+`playwright-cli open "http://localhost:3000"`. Report any failures with
+screenshots.
 ```
 
 ## Learn More

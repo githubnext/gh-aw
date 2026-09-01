@@ -170,3 +170,16 @@ func TestValidatePlaywrightModeNilWorkflow(t *testing.T) {
 	err = compiler.validatePlaywrightMode(&WorkflowData{Tools: nil})
 	require.NoError(t, err, "nil tools should not return error")
 }
+
+func TestValidatePlaywrightBrowsers(t *testing.T) {
+	compiler := NewCompiler()
+	err := compiler.validatePlaywrightMode(&WorkflowData{Tools: map[string]any{
+		"playwright": map[string]any{"browsers": []any{"chrome", "firefox"}},
+	}})
+	require.NoError(t, err)
+
+	err = compiler.validatePlaywrightMode(&WorkflowData{Tools: map[string]any{
+		"playwright": map[string]any{"browsers": []any{"safari"}},
+	}})
+	require.Error(t, err)
+}
