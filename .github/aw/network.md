@@ -162,7 +162,7 @@ For workflows that build, test, or install packages, add the matching ecosystem 
 
 ## Common Patterns
 
-### Workflow that reads GitHub data only
+Reads GitHub data only:
 
 ```yaml
 network:
@@ -171,16 +171,7 @@ network:
     - github
 ```
 
-### Node.js CI workflow
-
-```yaml
-network:
-  allowed:
-    - defaults
-    - node
-```
-
-### Multi-language project
+Multi-language project:
 
 ```yaml
 network:
@@ -190,19 +181,4 @@ network:
     - python
 ```
 
-### Calling an external API
-
-```yaml
-network:
-  allowed:
-    - defaults
-    - api.myservice.com
-    - "*.myservice.com"
-```
-
-### No outbound network access
-
-```yaml
-network:
-  allowed: []
-```
+Single ecosystem, external APIs, and no-network forms are in [Quick Reference](#quick-reference).
