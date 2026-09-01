@@ -324,6 +324,12 @@ type safeOutputsHandlerOutputsAndActionState struct {
 // processed by the consolidated handler manager step (as opposed to a dedicated job/step).
 func hasHandlerManagerTypes(data *WorkflowData) bool {
 	return data.SafeOutputs.CreateIssues != nil ||
+		data.SafeOutputs.CreateWorkItems != nil ||
+		data.SafeOutputs.UpdateWorkItems != nil ||
+		data.SafeOutputs.CommentOnWorkItems != nil ||
+		data.SafeOutputs.AssignWorkItems != nil ||
+		data.SafeOutputs.LinkWorkItems != nil ||
+		data.SafeOutputs.UploadWorkItemAttachments != nil ||
 		data.SafeOutputs.AddComments != nil ||
 		data.SafeOutputs.CreateDiscussions != nil ||
 		data.SafeOutputs.CloseIssues != nil ||
@@ -380,7 +386,7 @@ func (c *Compiler) appendCustomScriptFilesStep(data *WorkflowData, state *safeOu
 // staging artifact produced by the agent job, when the workflow uses the upload_artifact safe
 // output, so the handler manager can process staged files.
 func (c *Compiler) appendUploadArtifactStagingDownloadStep(data *WorkflowData, agentArtifactPrefix string, state *safeOutputsHandlerOutputsAndActionState) {
-	if data.SafeOutputs.UploadArtifact != nil {
+	if usesSafeOutputsArtifactStaging(data.SafeOutputs) {
 		consolidatedSafeOutputsJobLog.Print("Adding upload-artifact staging download step")
 		stagingArtifactName := agentArtifactPrefix + SafeOutputsUploadArtifactStagingArtifactName
 		state.steps = append(state.steps,

@@ -66,6 +66,36 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	// Fields are checked in the alphabetical order of their struct field names,
 	// matching the sort order of safeOutputFieldMapping keys for deterministic
 	// error reporting.
+	if config.AssignWorkItems != nil {
+		if err := checkMaxField("assign_work_item", config.AssignWorkItems.Max); err != nil {
+			return err
+		}
+	}
+	if config.CommentOnWorkItems != nil {
+		if err := checkMaxField("comment_on_work_item", config.CommentOnWorkItems.Max); err != nil {
+			return err
+		}
+	}
+	if config.CreateWorkItems != nil {
+		if err := checkMaxField("create_work_item", config.CreateWorkItems.Max); err != nil {
+			return err
+		}
+	}
+	if config.LinkWorkItems != nil {
+		if err := checkMaxField("link_work_items", config.LinkWorkItems.Max); err != nil {
+			return err
+		}
+	}
+	if config.UpdateWorkItems != nil {
+		if err := checkMaxField("update_work_item", config.UpdateWorkItems.Max); err != nil {
+			return err
+		}
+	}
+	if config.UploadWorkItemAttachments != nil {
+		if err := checkMaxField("upload_workitem_attachment", config.UploadWorkItemAttachments.Max); err != nil {
+			return err
+		}
+	}
 	if config.AddComments != nil {
 		if err := checkMaxField("add_comment", config.AddComments.Max); err != nil {
 			return err

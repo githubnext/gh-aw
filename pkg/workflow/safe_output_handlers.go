@@ -22,6 +22,42 @@ type safeOutputHandlerDescriptor struct {
 
 var safeOutputHandlers = []safeOutputHandlerDescriptor{
 	{
+		Key:         "create-work-item",
+		StructField: "CreateWorkItems",
+		ToolName:    "create-work-item",
+		NewConfig:   func() any { return &CreateWorkItemConfig{} },
+	},
+	{
+		Key:         "update-work-item",
+		StructField: "UpdateWorkItems",
+		ToolName:    "update-work-item",
+		NewConfig:   func() any { return &UpdateWorkItemConfig{} },
+	},
+	{
+		Key:         "comment-on-work-item",
+		StructField: "CommentOnWorkItems",
+		ToolName:    "comment-on-work-item",
+		NewConfig:   func() any { return &CommentOnWorkItemConfig{} },
+	},
+	{
+		Key:         "assign-work-item",
+		StructField: "AssignWorkItems",
+		ToolName:    "assign-work-item",
+		NewConfig:   func() any { return &AssignWorkItemConfig{} },
+	},
+	{
+		Key:         "link-work-items",
+		StructField: "LinkWorkItems",
+		ToolName:    "link-work-items",
+		NewConfig:   func() any { return &LinkWorkItemsConfig{} },
+	},
+	{
+		Key:         "upload-workitem-attachment",
+		StructField: "UploadWorkItemAttachments",
+		ToolName:    "upload-workitem-attachment",
+		NewConfig:   func() any { return &UploadWorkItemAttachmentConfig{} },
+	},
+	{
 		Key:         "create-issue",
 		StructField: "CreateIssues",
 		ToolName:    "create_issue",

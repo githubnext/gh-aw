@@ -40,6 +40,12 @@ type BaseSafeOutputConfig struct {
 type SafeOutputsConfig struct {
 	Steer                                  bool                                   `yaml:"steer,omitempty"` // Experimental. Create an issue and steer the agent from issue comments.
 	CreateIssues                           *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
+	CreateWorkItems                        *CreateWorkItemConfig                  `yaml:"create-work-item,omitempty"`
+	UpdateWorkItems                        *UpdateWorkItemConfig                  `yaml:"update-work-item,omitempty"`
+	CommentOnWorkItems                     *CommentOnWorkItemConfig               `yaml:"comment-on-work-item,omitempty"`
+	AssignWorkItems                        *AssignWorkItemConfig                  `yaml:"assign-work-item,omitempty"`
+	LinkWorkItems                          *LinkWorkItemsConfig                   `yaml:"link-work-items,omitempty"`
+	UploadWorkItemAttachments              *UploadWorkItemAttachmentConfig        `yaml:"upload-workitem-attachment,omitempty"`
 	CreateDiscussions                      *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
 	UpdateDiscussions                      *UpdateDiscussionsConfig               `yaml:"update-discussion,omitempty"`
 	CloseDiscussions                       *CloseDiscussionsConfig                `yaml:"close-discussion,omitempty"`

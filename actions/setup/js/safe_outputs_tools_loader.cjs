@@ -5,6 +5,8 @@ const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require(
 
 const fs = require("fs");
 
+const normalizeConfiguredToolName = name => String(name).replace(/-/g, "_").toLowerCase();
+
 /**
  * Check whether a schema enforces strict object keys.
  * @param {any} inputSchema - Tool input schema
@@ -191,10 +193,16 @@ function attachHandlers(tools, handlers, logger) {
     remove_labels: handlers.removeLabelsHandler,
     update_discussion: handlers.updateDiscussionHandler,
     close_discussion: handlers.closeDiscussionHandler,
+    create_work_item: handlers.createWorkItemHandler,
+    update_work_item: handlers.updateWorkItemHandler,
+    comment_on_work_item: handlers.commentOnWorkItemHandler,
+    assign_work_item: handlers.assignWorkItemHandler,
+    link_work_items: handlers.linkWorkItemsHandler,
+    upload_workitem_attachment: handlers.uploadWorkItemAttachmentHandler,
   };
 
   tools.forEach(tool => {
-    const handler = handlerMap[tool.name];
+    const handler = handlerMap[normalizeConfiguredToolName(tool.name)];
     if (handler) {
       tool.handler = handler;
     } else if (typeof handlers.defaultHandler === "function") {
@@ -273,10 +281,11 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
 
   tools.forEach(tool => {
     // Check if this is a regular tool matching a config key
-    if (Object.keys(config).find(configKey => normalizeTool(configKey) === tool.name)) {
+    const normalizedToolName = normalizeTool(tool.name);
+    if (Object.keys(config).find(configKey => normalizeTool(configKey) === normalizedToolName)) {
       let toolToRegister = tool;
-      const safetyWarning = toolSafetyWarnings[tool.name];
-      const isCreatePullRequestTool = tool.name === "create_pull_request" && config.create_pull_request;
+      const safetyWarning = toolSafetyWarnings[normalizedToolName];
+      const isCreatePullRequestTool = normalizedToolName === "create_pull_request" && config.create_pull_request;
       // Enrich create_pull_request tool description when target-repo is configured
       if (safetyWarning || isCreatePullRequestTool) {
         // The handler is a function and cannot be structurally cloned, so it is
@@ -387,7 +396,7 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
 
     // Skip if it's already a predefined tool, or if a dynamically generated tool named after
     // its target (identified by metadata) already covers this config key.
-    if (server.tools[normalizedKey] || tools.find(t => t.name === normalizedKey)) {
+    if (server.tools[normalizedKey] || tools.find(t => normalizeTool(t.name) === normalizedKey)) {
       return;
     }
     if (isConfigKeyCoveredByDynamicTool(tools, normalizedKey)) {

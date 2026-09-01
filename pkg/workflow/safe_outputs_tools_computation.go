@@ -20,6 +20,30 @@ func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 		enabledTools["create_issue"] = struct {
 		}{}
 	}
+	if data.SafeOutputs.CreateWorkItems != nil {
+		enabledTools["create-work-item"] = struct {
+		}{}
+	}
+	if data.SafeOutputs.UpdateWorkItems != nil {
+		enabledTools["update-work-item"] = struct {
+		}{}
+	}
+	if data.SafeOutputs.CommentOnWorkItems != nil {
+		enabledTools["comment-on-work-item"] = struct {
+		}{}
+	}
+	if data.SafeOutputs.AssignWorkItems != nil {
+		enabledTools["assign-work-item"] = struct {
+		}{}
+	}
+	if data.SafeOutputs.LinkWorkItems != nil {
+		enabledTools["link-work-items"] = struct {
+		}{}
+	}
+	if data.SafeOutputs.UploadWorkItemAttachments != nil {
+		enabledTools["upload-workitem-attachment"] = struct {
+		}{}
+	}
 	if data.SafeOutputs.CreateAgentSessions != nil {
 		enabledTools["create_agent_session"] = struct {
 		}{}

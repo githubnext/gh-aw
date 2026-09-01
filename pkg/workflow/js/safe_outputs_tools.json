@@ -2082,5 +2082,146 @@
         "anyOf": ["pull_request_number", "pr_number", "pr", "pull_number"]
       }
     }
+  },
+  {
+    "name": "create-work-item",
+    "description": "Create an Azure DevOps work item and return a temporary #aw_ ID for later work-item tools in this run.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["title", "description"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 255,
+          "description": "Concise work-item title."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 31,
+          "maxLength": 65000,
+          "description": "Detailed work-item description in Markdown."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "description": "Optional tags. Tags cannot contain semicolons and may be restricted by allowed-tags."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update-work-item",
+    "description": "Update explicitly enabled fields on an Azure DevOps work item.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": ["number", "string"],
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "body": { "type": "string", "maxLength": 65000 },
+        "state": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "area_path": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "iteration_path": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "assignee": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "comment-on-work-item",
+    "description": "Add a Markdown comment to an explicitly scoped Azure DevOps work item.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["work_item_id", "body"],
+      "properties": {
+        "work_item_id": {
+          "type": ["number", "string"],
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+        },
+        "body": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 65000,
+          "description": "Comment text in Markdown."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "assign-work-item",
+    "description": "Assign an allowed Azure DevOps identity to a work item.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["work_item_id", "assignee"],
+      "properties": {
+        "work_item_id": {
+          "type": ["number", "string"],
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+        },
+        "assignee": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Azure DevOps identity, such as an email address or display name."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "link-work-items",
+    "description": "Create a relationship between two explicitly scoped Azure DevOps work items.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["source_id", "target_id", "link_type"],
+      "properties": {
+        "source_id": {
+          "type": ["number", "string"],
+          "description": "Positive source work-item ID or a temporary #aw_ ID."
+        },
+        "target_id": {
+          "type": ["number", "string"],
+          "description": "Positive target work-item ID or a temporary #aw_ ID."
+        },
+        "link_type": {
+          "type": "string",
+          "enum": ["parent", "child", "related", "predecessor", "successor", "duplicate", "duplicate-of"]
+        },
+        "comment": { "type": "string", "minLength": 5, "maxLength": 1024 }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "upload-workitem-attachment",
+    "description": "Upload one workspace file and attach it to an Azure DevOps work item.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["work_item_id", "file_path"],
+      "properties": {
+        "work_item_id": {
+          "type": ["number", "string"],
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+        },
+        "file_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Workspace-relative file path. Absolute paths, traversal, colons, and symbolic links are rejected."
+        },
+        "comment": { "type": "string", "minLength": 3, "maxLength": 1024 }
+      },
+      "additionalProperties": false
+    }
   }
 ]

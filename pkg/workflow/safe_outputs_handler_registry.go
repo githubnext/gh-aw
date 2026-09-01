@@ -64,6 +64,7 @@ var handlerRegistry = mergeHandlerMaps(
 	commentHandlerRegistry,
 	releaseHandlerRegistry,
 	diagnosticHandlerRegistry,
+	azureDevOpsWorkItemHandlerRegistry,
 )
 
 func mergeHandlerMaps(registries ...map[string]handlerBuilder) map[string]handlerBuilder {
