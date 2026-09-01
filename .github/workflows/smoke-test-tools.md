@@ -55,6 +55,7 @@ imports:
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/reporting.md
+  - shared/playwright-title-test.md
 features:
   gh-aw-detection: false
 sandbox:
