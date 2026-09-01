@@ -33,8 +33,9 @@ var playwrightCLILog = logger.New("workflow:playwright_cli")
 
 const playwrightBrowsersPath = "${RUNNER_TEMP}/gh-aw/playwright-browsers"
 
-// isPlaywrightCLIMode returns true when the Playwright tool is enabled in the
-// supported CLI mode.
+// isPlaywrightCLIMode returns true when the built-in Playwright tool is enabled.
+// The built-in integration is CLI-only, so all valid built-in configurations use
+// this mode regardless of whether mode is omitted.
 func isPlaywrightCLIMode(tools map[string]any) bool {
 	playwrightTool, ok := tools["playwright"]
 	if !ok || playwrightTool == false {
