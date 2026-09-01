@@ -48,5 +48,6 @@ by the run. The original artifact is not modified.`,
 	_ = cmd.MarkFlagRequired("evidence-at")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
+	cmd.AddCommand(newGradersOperationalValueReportCommand())
 	return cmd
 }
