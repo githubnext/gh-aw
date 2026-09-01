@@ -41,7 +41,7 @@ func isPlaywrightCLIMode(tools map[string]any) bool {
 		return false
 	}
 	config := parsePlaywrightTool(playwrightTool)
-	return config != nil && config.IsCLIMode()
+	return config != nil
 }
 
 // generatePlaywrightCLIInstallSteps returns npm install steps for @playwright/cli
