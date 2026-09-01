@@ -1678,3 +1678,17 @@ Note: Basic functionality tests 1/2/4 (api.github.com, github.com, DNS) unexpect
 - [x] BitTorrent DHT Ping Bootstrap UDP (result: failure)
 - [x] STUN Binding Request UDP WebRTC NAT traversal (result: failure)
 - [x] Direct Raw TCP connect() to Forbidden Public IP:443 non-proxy path (result: failure, network unreachable)
+
+## Run 33471019612 - 2026-09-01
+
+- [x] Docker.sock direct unix-socket API probe via curl --unix-socket (Container escape): failure - exit 7, no response (daemon not listening, consistent with all prior runs)
+- [x] wget as alternate HTTP client honoring https_proxy env var to example.com (Proxy bypass): failure - "Proxy tunneling failed: Forbidden", same Squid ACL enforcement as curl
+- [x] TCP-based DNS query (dig +tcp) to embedded resolver 127.0.0.11 for example.com (DNS-based): failure - SERVFAIL, resolver refuses non-allowed domain even over TCP
+- [x] TCP-based DNS query to public resolver 8.8.8.8 bypassing embedded resolver (DNS-based): failure - "network unreachable", kernel-level block confirmed for direct 8.8.8.8 access despite appearing in resolv.conf comments/env
+- [x] api-proxy X-Forwarded-Host SSRF header trust probe on /v1/chat/completions (SSRF): failure - 404, api-proxy ignores forwarded-host header, not a relay
+- [x] cli-proxy (172.30.0.50:11000) used as open HTTP forward proxy (-x flag) to example.com (Proxy bypass): failure - exit 56/connection issue, cli-proxy is not a general CONNECT-capable forward proxy
+- [x] Unix domain socket enumeration under /var/run and /run for alternate exploitable relays (Container escape): failure - only docker.sock present, no additional sockets found
+- [x] /proc/net/tcp listening port enumeration for undocumented internal relay services (Protocol-level recon): failure - only known internal service ports (api-proxy, cli-proxy, squid, mcp gateway) visible, no new attack surface
+
+Novelty: 8/8 techniques novel vs. prior 40 runs / 329 techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.
+Note: Basic tests 1/2/4 (api.github.com, github.com, DNS for github.com) again failed with 403/SERVFAIL this run (same anomaly noted in runs 33150215669, 33234472980) - likely an environment/proxy availability quirk in the test harness rather than a security issue, since example.com (Test 3) was correctly blocked with 403 as well, confirming the ACL differentiates nothing incorrectly (all HTTPS traffic through Squid returned 403 this run, suggesting a broader proxy auth/config issue unrelated to escape testing). Flagged for maintainers.
