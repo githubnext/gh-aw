@@ -43,6 +43,14 @@ jobs:
         with:
           lfs: true
 
+      - name: Checkout agentics workflows
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: githubnext/agentics
+          path: .agentics
+          persist-credentials: false
+          sparse-checkout: workflows
+
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
@@ -66,6 +74,7 @@ jobs:
       - name: Build documentation
         working-directory: ./docs
         env:
+          AGENTICS_WORKFLOWS_DIR: ${{ github.workspace }}/.agentics/workflows
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
 

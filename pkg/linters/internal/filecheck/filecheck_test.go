@@ -11,6 +11,7 @@ import (
 )
 
 func TestBuildGeneratedIndex(t *testing.T) {
+	t.Parallel()
 	const generatedFilename = "generated.go"
 	const generatedAdjustedFilename = "/virtual/generated_alias.go"
 	const regularFilename = "regular.go"
@@ -50,6 +51,7 @@ func regular() {}
 }
 
 func TestShouldSkipFilename(t *testing.T) {
+	t.Parallel()
 	idx := GeneratedIndex{
 		"generated.go": {},
 	}
@@ -66,6 +68,7 @@ func TestShouldSkipFilename(t *testing.T) {
 }
 
 func TestBuildGeneratedIndexDoesNotMarkNonGeneratedWithLineDirective(t *testing.T) {
+	t.Parallel()
 	const regularFilename = "regular.go"
 	const adjustedFilename = "/virtual/regular_alias.go"
 

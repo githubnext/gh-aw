@@ -16,9 +16,10 @@ permissions:
   issues: read
   pull-requests: read
 max-turns: 100
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 tools:
   cli-proxy: true
   github:

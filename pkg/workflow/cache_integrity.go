@@ -123,42 +123,17 @@ func canonicalUserList(users []string) string {
 //   - ["b","a"]        → "a\nb"   (sorted, lowercased)
 //   - nil              → ""
 func canonicalReposScope(repos GitHubReposScope) string {
-	if repos == nil {
+	if len(repos) == 0 {
 		return ""
 	}
 
-	switch v := repos.(type) {
-	case string:
-		// Simple string scope: "all" or "public"
-		return strings.ToLower(v)
-
-	case []any:
-		// Array of repository patterns: sort, lowercase, deduplicate
-		strs := make([]string, 0, len(v))
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				strs = append(strs, strings.ToLower(s))
-			}
-		}
-		strs = sliceutil.Deduplicate(strs)
-		sort.Strings(strs)
-		return strings.Join(strs, "\n")
-
-	case []string:
-		// Typed string slice
-		strs := make([]string, len(v))
-		for i, s := range v {
-			strs[i] = strings.ToLower(s)
-		}
-		strs = sliceutil.Deduplicate(strs)
-		sort.Strings(strs)
-		return strings.Join(strs, "\n")
-
-	default:
-		// Unexpected type: return empty string for deterministic hash computation
-		// rather than using fmt.Sprintf which could produce inconsistent results.
-		return ""
+	strs := make([]string, len(repos))
+	for i, repo := range repos {
+		strs[i] = strings.ToLower(repo)
 	}
+	strs = sliceutil.Deduplicate(strs)
+	sort.Strings(strs)
+	return strings.Join(strs, "\n")
 }
 
 // cacheIntegrityLevel returns the integrity level string for cache key generation.

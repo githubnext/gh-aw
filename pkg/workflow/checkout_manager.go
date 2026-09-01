@@ -192,7 +192,7 @@ type CheckoutManager struct {
 	// actions/checkout default token".
 	pushToken string
 	// defaultRefOverride forces the workspace-root checkout to a compiler-generated
-	// ref, such as the branch allocated by create-pull-request.steer.
+	// ref, such as a branch allocated before agent execution.
 	defaultRefOverride string
 }
 

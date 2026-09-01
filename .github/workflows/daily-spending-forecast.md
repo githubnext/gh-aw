@@ -10,6 +10,10 @@ permissions:
   actions: read
   issues: read
   copilot-requests: write
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 imports:
   - shared/trending-charts-simple.md

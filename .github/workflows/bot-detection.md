@@ -16,6 +16,7 @@ imports:
   - shared/mcp-pagination.md
   - shared/otlp.md
   - shared/reporting.md
+  - shared/graders.md
 sandbox:
   agent:
     runtime: cloud-hypervisor
@@ -835,6 +836,10 @@ safe-outputs:
     allowed: ["@pelikhan"]
   threat-detection: false
 timeout-minutes: 10
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 
 evals:
@@ -842,6 +847,7 @@ evals:
     question: Did the agent investigate suspicious repository activity?
   - id: triage_issue_updated_or_noop
     question: Was the triage issue updated with findings, or was noop correctly used when no suspicious activity was detected?
+
 ---
 
 # Bot Detection

@@ -11,5 +11,6 @@ import (
 )
 
 func TestAnalyzer(t *testing.T) {
+	t.Parallel()
 	analysistest.Run(t, analysistest.TestData(), ossetenvlibrary.Analyzer, "ossetenvlibrary", "mainpkg", "fixtures/cmd/tool")
 }

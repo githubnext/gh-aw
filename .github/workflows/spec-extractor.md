@@ -144,8 +144,8 @@ tools:
     - "git status"
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 3d
     title-prefix: "[spec-extractor] "
     labels: [pkg-specifications, documentation, automation]

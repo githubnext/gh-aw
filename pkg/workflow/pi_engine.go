@@ -1,9 +1,9 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"maps"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -118,38 +118,19 @@ func piNativeProviderName(backend UniversalLLMBackend) string {
 	}
 }
 
-// buildPiModelsJSON returns a minimal Pi models.json payload that registers a
-// single custom provider named "aw-gateway" pointing at the AWF LLM gateway
-// sidecar.  Pi's resolveConfigValue() resolves the "apiKey" value by looking
-// up process.env[apiKey], so passing the secret env-var name (e.g.
-// "COPILOT_GITHUB_TOKEN") causes Pi to automatically use the value that is
-// already present in the container environment.
-//
-// The baseUrl uses the "api-proxy" Docker service hostname (not host.docker.internal)
-// so that Pi can reach the sidecar container within the AWF Docker network.
-// host.docker.internal points to the Docker host (runner), not the api-proxy
-// container, and is only available when --enable-host-access is set.
-//
-// All dynamic values are marshaled via encoding/json to prevent JSON injection.
-func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string {
-	payload := map[string]any{
-		"providers": map[string]any{
-			"aw-gateway": map[string]any{
-				"baseUrl": fmt.Sprintf("http://api-proxy:%d", gatewayPort),
-				"api":     "openai-completions",
-				"apiKey":  secretEnvVarName,
-				"models":  []map[string]any{{"id": modelID}},
-			},
-		},
+// piReflectProviderName maps an AWF UniversalLLMBackend to the normalized
+// provider name used by the AWF api-proxy /reflect endpoint and the
+// GH_AW_LLM_PROVIDER convention (see llm_provider.go). This is distinct from
+// piNativeProviderName, which returns Pi-CLI-specific provider identifiers.
+func piReflectProviderName(backend UniversalLLMBackend) string {
+	switch backend {
+	case UniversalLLMBackendAnthropic:
+		return string(LLMProviderAnthropic)
+	case UniversalLLMBackendCodex:
+		return string(LLMProviderOpenAI)
+	default:
+		return string(LLMProviderGitHub)
 	}
-	b, err := json.Marshal(payload)
-	if err != nil {
-		// Build-time invariant: the payload holds only strings, maps and slices —
-		// json.Marshal only errors for non-serialisable types such as channels or
-		// functions, so no runtime argument value can reach this branch.
-		panic(fmt.Sprintf("BUG: buildPiModelsJSON failed to marshal JSON: %v", err))
-	}
-	return string(b)
 }
 
 func resolvePiGatewaySecretEnvVar(profile universalLLMBackendProfile, backend UniversalLLMBackend) string {
@@ -348,17 +329,25 @@ func (e *PiEngine) buildPiModelsJSONSetup(workflowData *WorkflowData, profile un
 			piLog.Printf("Pi: no gateway apiKey env resolved for backend=%s; defaulting to COPILOT_GITHUB_TOKEN", backend)
 			gatewaySecretEnvVar = "COPILOT_GITHUB_TOKEN"
 		}
-		modelsJSON := buildPiModelsJSON(profile.gatewayPort, gatewaySecretEnvVar, modelID)
-		setup := fmt.Sprintf(`mkdir -p /tmp/gh-aw/pi-agent-dir && printf '%%s\n' %s > /tmp/gh-aw/pi-agent-dir/models.json && `, shellEscapeArg(modelsJSON))
+		reflectProvider := piReflectProviderName(backend)
+		// The compile-time gatewayPort is only a fallback: pi_models_json.cjs queries AWF's
+		// /reflect endpoint at runtime (when AWF_REFLECT_ENABLED=1) to resolve the live
+		// api-proxy port for reflectProvider, since AWF's actual port assignment is the
+		// source of truth and can drift from the compiled-in value.
+		setup := fmt.Sprintf(
+			`export GH_AW_PI_MODEL_ID=%s GH_AW_PI_GATEWAY_SECRET_ENV=%s GH_AW_PI_GATEWAY_FALLBACK_PORT=%d GH_AW_LLM_PROVIDER=%s && ( %s "%s/pi_models_json.cjs" ) && `,
+			shellEscapeArg(modelID), shellEscapeArg(gatewaySecretEnvVar), profile.gatewayPort, shellEscapeArg(reflectProvider),
+			nodeRuntimeResolutionCommand, SetupActionDestinationShell,
+		)
 		if !driverConfigured {
 			piArgs = append(piArgs, "--model", "aw-gateway/"+modelID)
 		}
-		piLog.Printf("Pi: using models.json gateway routing for model %q via aw-gateway (port %d)", modelID, profile.gatewayPort)
+		piLog.Printf("Pi: using /reflect-resolved models.json gateway routing for model %q via aw-gateway (fallback port %d)", modelID, profile.gatewayPort)
 		return setup, piArgs
 	}
 	if !driverConfigured {
 		nativeProvider := piNativeProviderName(backend)
-		piArgs = append(piArgs, "--model", nativeProvider+"/"+modelID)
+		piArgs = append(piArgs, "--model", path.Join(nativeProvider, modelID))
 		piLog.Printf("Pi: using native provider %q for model %q (no firewall)", nativeProvider, modelID)
 	}
 	return "", piArgs

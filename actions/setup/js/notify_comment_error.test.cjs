@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
+
+const { runtimePromptsDir } = syncRuntimePromptTemplates(import.meta.url);
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const mockCore = {
     debug: vi.fn(),
@@ -48,6 +51,7 @@ const mockCore = {
         (originalEnv = {
           GH_AW_COMMENT_ID: process.env.GH_AW_COMMENT_ID,
           GH_AW_COMMENT_REPO: process.env.GH_AW_COMMENT_REPO,
+          GH_AW_PROMPTS_DIR: process.env.GH_AW_PROMPTS_DIR,
           GH_AW_RUN_URL: process.env.GH_AW_RUN_URL,
           GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
           GH_AW_AGENT_CONCLUSION: process.env.GH_AW_AGENT_CONCLUSION,
@@ -60,7 +64,8 @@ const mockCore = {
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL,
           GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: process.env.GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL,
-        }));
+        }),
+        (process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir));
       const scriptPath = path.join(process.cwd(), "notify_comment_error.cjs");
       notifyCommentScript = fs.readFileSync(scriptPath, "utf8");
     }),

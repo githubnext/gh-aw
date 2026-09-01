@@ -3,7 +3,8 @@ private: true
 emoji: "🧪"
 name: Smoke Project
 description: Smoke Project - Test project operations
-on: 
+on:
+  schedule: every 2 days
   slash_command:
     name: smoke-project
     strategy: centralized
@@ -30,12 +31,12 @@ tools:
   bash:
     - "*"
 safe-outputs:
+    steer: true
     allowed-domains: [default-safe-outputs]
     add-comment:
       hide-older-comments: true
       max: 2
     create-pull-request:
-      steer: true
       title-prefix: "[smoke-project] "
       if-no-changes: "warn"
       labels: [ai-generated]

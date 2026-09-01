@@ -14,11 +14,13 @@ import (
 )
 
 func TestAnalyzer(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, mapclearloop.Analyzer, "mapclearloop")
 }
 
 func TestCoverageGateUsesBodyPosition(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("MAPCLEARLOOP_COVERAGE_HELPER") == "1" {
 		testdata := analysistest.TestData()
 		analysistest.Run(t, testdata, mapclearloop.Analyzer, "mapclearloopcoverage")

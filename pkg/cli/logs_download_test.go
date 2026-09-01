@@ -270,9 +270,9 @@ func TestCriticalArtifactNames(t *testing.T) {
 	t.Parallel()
 	// Verify the list of critical artifacts includes the expected names
 	expected := map[string]bool{
-		constants.ActivationArtifactName:          true,
-		constants.AgentArtifactName:               true,
-		constants.AgentOutputFallbackArtifactName: true,
+		constants.ActivationArtifactName.String():          true,
+		constants.AgentArtifactName.String():               true,
+		constants.AgentOutputFallbackArtifactName.String(): true,
 	}
 
 	if len(criticalArtifactNames) != len(expected) {

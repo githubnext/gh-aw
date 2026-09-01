@@ -20,6 +20,7 @@ import (
 // Invariant: a tool in DeniedTools is rejected even if it also appears in
 // AllowedTools.
 func TestAuthorizeTool_DeniedWins(t *testing.T) {
+	t.Parallel()
 	policy := intent.ExecutionPolicy{
 		AllowedTools: []string{"read", "write"},
 		DeniedTools:  []string{"write"},
@@ -32,6 +33,7 @@ func TestAuthorizeTool_DeniedWins(t *testing.T) {
 // TestAuthorizeTool_AllowlistGate (P10 — AuthorizeToolAllowlistGate)
 // Invariant: a non-nil allow list rejects tools not listed.
 func TestAuthorizeTool_AllowlistGate(t *testing.T) {
+	t.Parallel()
 	policy := intent.ExecutionPolicy{AllowedTools: []string{"read"}}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "exec")
 	require.ErrorIs(t, err, intent.ErrToolNotAllowed,
@@ -44,6 +46,7 @@ func TestAuthorizeTool_AllowlistGate(t *testing.T) {
 // TestAuthorizeTool_UnrestrictedWhenAllowedToolsNil (P11 — AuthorizeToolUnrestricted)
 // Invariant: nil AllowedTools means unrestricted (except explicit denies).
 func TestAuthorizeTool_UnrestrictedWhenAllowedToolsNil(t *testing.T) {
+	t.Parallel()
 	policy := intent.ExecutionPolicy{AllowedTools: nil, DeniedTools: []string{"exec"}}
 
 	require.NoError(t, intent.Authorizer{}.AuthorizeTool(policy, "read"),
@@ -59,6 +62,7 @@ func TestAuthorizeTool_UnrestrictedWhenAllowedToolsNil(t *testing.T) {
 // TestAuthorizeTool_EmptyAllowedToolsDeniesAll (P12 — AuthorizeToolEmptyDenyAll)
 // Invariant: a non-nil, empty AllowedTools denies every tool, distinct from nil.
 func TestAuthorizeTool_EmptyAllowedToolsDeniesAll(t *testing.T) {
+	t.Parallel()
 	policy := intent.ExecutionPolicy{AllowedTools: []string{}}
 	err := intent.Authorizer{}.AuthorizeTool(policy, "read")
 	require.ErrorIs(t, err, intent.ErrToolNotAllowed,
@@ -69,6 +73,7 @@ func TestAuthorizeTool_EmptyAllowedToolsDeniesAll(t *testing.T) {
 // Invariant: unlinked/ambiguous status forces the safest policy regardless of
 // configured rules.
 func TestSafestDefaultPolicy_FailClosedForIndeterminateStatus(t *testing.T) {
+	t.Parallel()
 	autoMerge := true
 	permissive := intent.PolicyRule{
 		ID: "wildcard-permissive",
@@ -101,6 +106,7 @@ func TestSafestDefaultPolicy_FailClosedForIndeterminateStatus(t *testing.T) {
 // TestEdgeCase_NilDeniedAndAllowedTools validates that AuthorizeTool does not
 // panic on a zero-value policy.
 func TestEdgeCase_NilDeniedAndAllowedTools(t *testing.T) {
+	t.Parallel()
 	require.NotPanics(t, func() {
 		err := intent.Authorizer{}.AuthorizeTool(intent.ExecutionPolicy{}, "read")
 		assert.NoError(t, err, "edge case: zero-value policy (nil AllowedTools/DeniedTools) must be unrestricted")
@@ -111,6 +117,7 @@ func TestEdgeCase_NilDeniedAndAllowedTools(t *testing.T) {
 // stricter constraint from an earlier rule isn't overridden by a later, more
 // lenient rule.
 func TestEdgeCase_MultipleMatchingRulesPreserveStricterConstraint(t *testing.T) {
+	t.Parallel()
 	strict := intent.PolicyRule{
 		ID: "strict-first",
 		Set: intent.ExecutionPolicy{

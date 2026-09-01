@@ -89,7 +89,7 @@ features:
 sandbox:
   mcp:
     port: 8080
-    api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
+    agent-id: "${{ secrets.MCP_GATEWAY_AGENT_ID }}"
 ```
 
 ### Combined Configuration
@@ -256,7 +256,7 @@ Rules enforced at compile time:
 
 - Every value must be a literal, registry-qualified reference with both a tag and an immutable digest: `registry/repository:tag@sha256:<64 lowercase hex characters>`. Expressions (`${{ ... }}`), environment interpolation, and any other dynamic value are rejected, so no runtime input can influence an infrastructure image.
 - Unknown roles are rejected.
-- The manifest must cover every role required by the enabled features: `squid`, `agent`, and `apiProxy` are always required; `cliProxy` is required with [`tools.github.mode: gh-proxy`](/gh-aw/reference/tools/), the `integrity-reactions` feature, or raw `--difc-proxy-host` AWF arguments; `buildTools` is required with [`runner.topology: arc-dind`](/gh-aw/reference/self-hosted-runners/); `dohProxy` is required when legacy-security raw AWF arguments enable `--dns-over-https`; `dindStaging` is required when raw AWF arguments enable `--dind-pre-stage-dirs`, `--dind-stage-engine-binary-path`, or `--dind-stage-engine-binary-target-path`; `enclaveScript` and `enclaveAgent` are required for their corresponding [enclave](/gh-aw/reference/enclaves/) executors, and `enclaveMcpServer` is required whenever any enclave is enabled. AWF fails closed rather than falling back to a default, so an incomplete manifest is a compile error.
+- The manifest must cover every role required by the enabled features: `squid`, `agent`, and `apiProxy` are always required; `cliProxy` is required with [`tools.github.mode: gh-proxy`](/gh-aw/reference/tools/), the `integrity-reactions` feature, or raw `--difc-proxy-host` AWF arguments; `buildTools` is required with [`runner.topology: arc-dind`](/gh-aw/reference/self-hosted-runners/); `dohProxy` is required when legacy-security raw AWF arguments enable `--dns-over-https`; `dindStaging` is required when raw AWF arguments enable `--dind-pre-stage-dirs`, `--dind-stage-engine-binary-path`, or `--dind-stage-engine-binary-target-path`; `enclaveScript` and `enclaveAgent` are required for their corresponding [enclave](/gh-aw/experimental/enclaves/) executors, and `enclaveMcpServer` is required whenever any enclave is enabled. AWF fails closed rather than falling back to a default, so an incomplete manifest is a compile error.
 - The manifest cannot be combined with controls that select a different effective image: SSL bump, per-enclave `image` overrides, and AWF arguments such as `--image-tag`, `--image-registry`, `--agent-image`, `--build-local`, `--sysroot-image`, and `--dind-staging-image`. The compiler-owned `container.imageTag` is suppressed when the manifest is set.
 
 Omit the field to keep AWF's default role references and gh-aw's existing digest-pin resolution.
@@ -491,7 +491,7 @@ jobs:
 Review the failing tests and apply a fix. Build artifacts are pre-cached.
 ```
 
-## Related Documentation
+## Learn More
 
 - [Network Permissions](/gh-aw/reference/network/) - Configure network access controls
 - [AI Engines](/gh-aw/reference/engines/) - Engine-specific configuration

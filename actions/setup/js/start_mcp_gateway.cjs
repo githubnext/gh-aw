@@ -18,7 +18,7 @@ require("./shim.cjs");
  *
  * Required environment variables:
  * - MCP_GATEWAY_DOCKER_COMMAND: Container image to run (required)
- * - MCP_GATEWAY_API_KEY: API key for gateway authentication (required for converter scripts)
+ * - MCP_GATEWAY_AGENT_ID: agent ID for gateway authentication (required for converter scripts)
  * - MCP_GATEWAY_PORT: Port for MCP gateway
  * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (e.g., host.docker.internal)
  * - RUNNER_TEMP: GitHub Actions runner temp directory
@@ -52,6 +52,127 @@ const CONTAINER_STATUS_TIMEOUT_MS = getSetupTimeoutMs("mcpContainerStatus");
 const CONFIG_CONVERTER_TIMEOUT_MS = getSetupTimeoutMs("mcpConfigConverter");
 const DOCKER_CLEANUP_TIMEOUT_MS = getSetupTimeoutMs("mcpDockerCleanup");
 const MCP_SERVER_CHECK_TIMEOUT_MS = getSetupTimeoutMs("mcpServerCheck");
+
+/**
+ * Default health-check retry parameters. The defaults give the gateway a retry
+ * budget that outlasts the MCP backend startup timeout, leaving room for backend
+ * cleanup and final server registration before the health check gives up.
+ */
+const MCP_GATEWAY_HEALTH_RETRY_DEFAULTS = Object.freeze({
+  maxTotalAttempts: 150,
+  initialDelayMs: 250,
+  maxDelayMs: 1000,
+  backoffMultiplier: 2,
+});
+
+/** Environment variable overrides for each health-check retry parameter. */
+const MCP_GATEWAY_HEALTH_RETRY_ENV = Object.freeze({
+  maxTotalAttempts: "GH_AW_MCP_GATEWAY_HEALTH_MAX_ATTEMPTS",
+  initialDelayMs: "GH_AW_MCP_GATEWAY_HEALTH_INITIAL_DELAY_MS",
+  maxDelayMs: "GH_AW_MCP_GATEWAY_HEALTH_MAX_DELAY_MS",
+  backoffMultiplier: "GH_AW_MCP_GATEWAY_HEALTH_BACKOFF_MULTIPLIER",
+  backendStartupTimeoutMs: "GH_AW_MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_MS",
+});
+
+/** Default MCP backend startup timeout the retry budget must outlast. */
+const MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS = 120_000;
+
+/** Upper bound on configurable health-check attempts, to keep the wait finite. */
+const MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT = 10_000;
+
+/**
+ * Extra time the health check must keep polling after the backend startup
+ * timeout so that backend cleanup and final server registration can complete.
+ */
+const MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS = 25_000;
+
+/**
+ * Reads a positive number from the environment, warning when the variable is
+ * set to a value that cannot be used.
+ *
+ * @param {string} envName
+ * @param {number} defaultValue
+ * @param {NodeJS.ProcessEnv} env
+ * @param {{ integer?: boolean }} [options]
+ * @returns {number}
+ */
+function readPositiveEnvNumber(envName, defaultValue, env, options = {}) {
+  const raw = env[envName];
+  if (raw === undefined || !raw.trim()) {
+    return defaultValue;
+  }
+  const parsed = Number(raw.trim());
+  const isValid = Number.isFinite(parsed) && parsed > 0 && (!options.integer || Number.isSafeInteger(parsed));
+  if (!isValid) {
+    core.warning(`Ignoring invalid ${envName}='${raw}': expected a positive ${options.integer ? "integer" : "number"}, using ${defaultValue}`);
+    return defaultValue;
+  }
+  return parsed;
+}
+
+/**
+ * Computes the cumulative retry delay withRetry will spend before exhausting
+ * its attempts. withRetry applies the backoff multiplier before its first sleep,
+ * so the first retry waits initialDelayMs * backoffMultiplier.
+ *
+ * @param {{ maxTotalAttempts: number, initialDelayMs: number, maxDelayMs: number, backoffMultiplier: number }} config
+ * @returns {number}
+ */
+function computeHealthRetryBudgetMs(config) {
+  let delayMs = config.initialDelayMs;
+  let budgetMs = 0;
+  for (let retry = 1; retry < config.maxTotalAttempts; retry += 1) {
+    delayMs = Math.min(delayMs * config.backoffMultiplier, config.maxDelayMs);
+    budgetMs += delayMs;
+  }
+  return budgetMs;
+}
+
+/**
+ * Resolves the gateway health-check retry parameters from the environment and
+ * validates that they are mutually consistent.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ maxTotalAttempts: number, initialDelayMs: number, maxDelayMs: number, backoffMultiplier: number, backendStartupTimeoutMs: number, retryBudgetMs: number }}
+ */
+function resolveGatewayHealthRetryConfig(env = process.env) {
+  let maxTotalAttempts = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.maxTotalAttempts, env, { integer: true });
+  const initialDelayMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.initialDelayMs, env, { integer: true });
+  let maxDelayMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.maxDelayMs, env, { integer: true });
+  let backoffMultiplier = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.backoffMultiplier, env);
+  const backendStartupTimeoutMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs, MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS, env, { integer: true });
+
+  if (maxTotalAttempts > MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT) {
+    core.warning(`${MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts}=${maxTotalAttempts} exceeds the supported maximum, using ${MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT}`);
+    maxTotalAttempts = MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT;
+  }
+
+  // A backoff multiplier below 1 would shrink the delay on every retry, which
+  // contradicts the exponential backoff the retry budget is sized for.
+  if (backoffMultiplier < 1) {
+    core.warning(`${MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier}=${backoffMultiplier} is below 1, using 1 (constant delay)`);
+    backoffMultiplier = 1;
+  }
+
+  // withRetry caps every delay at maxDelayMs, so a smaller cap than the initial
+  // delay would silently shorten the first sleep.
+  if (maxDelayMs < initialDelayMs) {
+    core.warning(`${MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs}=${maxDelayMs} is below ${MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs}=${initialDelayMs}, using ${initialDelayMs}`);
+    maxDelayMs = initialDelayMs;
+  }
+
+  const config = { maxTotalAttempts, initialDelayMs, maxDelayMs, backoffMultiplier, backendStartupTimeoutMs };
+  const retryBudgetMs = computeHealthRetryBudgetMs(config);
+
+  const requiredBudgetMs = backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
+  if (retryBudgetMs < requiredBudgetMs) {
+    core.warning(
+      `MCP gateway health retry budget is ${Math.round(retryBudgetMs / 1000)}s, which is below the ${Math.round(requiredBudgetMs / 1000)}s needed for the ${Math.round(backendStartupTimeoutMs / 1000)}s backend startup timeout plus cleanup and registration; the health check may give up before the gateway is ready`
+    );
+  }
+
+  return Object.freeze({ ...config, retryBudgetMs });
+}
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -128,7 +249,7 @@ function writeGatewayStartupMarker(markerPath) {
  */
 const gatewayCredentialRedactions = [
   { pattern: /(Bearer\s+)\S+/gi, replacement: "$1[REDACTED]" },
-  { pattern: /((?:api[_-]?key|token|secret|password|authorization)"?\s*[:=]\s*"?)[^\s,}"]+/gi, replacement: "$1[REDACTED]" },
+  { pattern: /((?:agent[_-]?id|api[_-]?key|token|secret|password|authorization)"?\s*[:=]\s*"?)[^\s,}"]+/gi, replacement: "$1[REDACTED]" },
 ];
 
 /**
@@ -539,7 +660,7 @@ async function main() {
   process.umask(0o077);
 
   const dockerCommand = process.env.MCP_GATEWAY_DOCKER_COMMAND;
-  const apiKey = process.env.MCP_GATEWAY_API_KEY;
+  const agentId = process.env.MCP_GATEWAY_AGENT_ID;
   const gatewayPort = process.env.MCP_GATEWAY_PORT;
   const gatewayDomain = process.env.MCP_GATEWAY_DOMAIN;
   const runnerTemp = process.env.RUNNER_TEMP;
@@ -700,8 +821,8 @@ async function main() {
     core.setFailed("ERROR: Gateway configuration is missing required 'domain' field");
     return;
   }
-  if (!("apiKey" in gw) || gw.apiKey == null) {
-    core.setFailed("ERROR: Gateway configuration is missing required 'apiKey' field");
+  if (!("agentId" in gw) || gw.agentId == null) {
+    core.setFailed("ERROR: Gateway configuration is missing required 'agentId' field");
     return;
   }
 
@@ -828,15 +949,18 @@ async function main() {
   const healthHost = "localhost";
   const healthUrl = `http://${healthHost}:${gatewayPort}/health`;
 
+  const healthRetryConfig = resolveGatewayHealthRetryConfig();
+  const retryBudgetSeconds = Math.round(healthRetryConfig.retryBudgetMs / 1000);
   core.info(`Health endpoint: ${healthUrl}`);
   core.info(`(Note: MCP_GATEWAY_DOMAIN is '${gatewayDomain}' for container access)`);
-  core.info("Retrying up to 120 times with exponential backoff (250ms to 1s, ~120s total timeout)");
+  core.info(
+    `Retrying up to ${healthRetryConfig.maxTotalAttempts} times with exponential backoff (${healthRetryConfig.initialDelayMs}ms initial delay, capped at ${healthRetryConfig.maxDelayMs}ms, ~${retryBudgetSeconds}s cumulative retry delay excluding request time)`
+  );
   core.info("");
 
-  const maxTotalAttempts = 120;
+  const maxTotalAttempts = healthRetryConfig.maxTotalAttempts;
   // withRetry's maxRetries excludes the initial attempt.
   const maxRetryCount = maxTotalAttempts - 1;
-  const initialRetryDelayMs = 250;
   let httpCode = 0;
   let healthBody = "";
   let succeeded = false;
@@ -865,9 +989,9 @@ async function main() {
       },
       {
         maxRetries: maxRetryCount,
-        initialDelayMs: initialRetryDelayMs,
-        maxDelayMs: 1000,
-        backoffMultiplier: 2,
+        initialDelayMs: healthRetryConfig.initialDelayMs,
+        maxDelayMs: healthRetryConfig.maxDelayMs,
+        backoffMultiplier: healthRetryConfig.backoffMultiplier,
         jitterMs: 0,
         // Preserve previous loop behavior: retry any health-check failure until attempts are exhausted.
         shouldRetry: () => true,
@@ -1013,11 +1137,11 @@ async function main() {
   const configConvertStart = nowMs();
   process.env.MCP_GATEWAY_OUTPUT = outputPath;
 
-  // Validate MCP_GATEWAY_API_KEY
-  if (!apiKey) {
+  // Validate MCP_GATEWAY_AGENT_ID
+  if (!agentId) {
     stopGatewayProcess(gatewayPid);
     core.error("This variable should be set in the workflow before calling start_mcp_gateway.cjs");
-    core.setFailed("ERROR: MCP_GATEWAY_API_KEY environment variable must be set for converter scripts");
+    core.setFailed("ERROR: MCP_GATEWAY_AGENT_ID environment variable must be set for converter scripts");
     return;
   }
 
@@ -1115,11 +1239,11 @@ async function main() {
 
   if (fs.existsSync(checkScript)) {
     core.info("Running MCP server checks...");
-    // Pass apiKey via MCP_GATEWAY_API_KEY env var (already set) rather than
+    // Pass agentId via MCP_GATEWAY_AGENT_ID env var (already set) rather than
     // as a shell argument to avoid shell metacharacter injection risks.
     const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
     try {
-      execFileSync("bash", [checkScript, outputPath, `http://localhost:${safePort}`, process.env.MCP_GATEWAY_API_KEY || ""], {
+      execFileSync("bash", [checkScript, outputPath, `http://localhost:${safePort}`, process.env.MCP_GATEWAY_AGENT_ID || ""], {
         stdio: "inherit",
         env: { ...process.env, GH_AW_MCP_OPTIONAL_SERVERS: optionalServerNames.join(",") },
         timeout: MCP_SERVER_CHECK_TIMEOUT_MS,
@@ -1210,7 +1334,7 @@ async function main() {
   // Write GitHub Actions step outputs
   // -----------------------------------------------------------------------
   if (githubOutput) {
-    const outputs = [`gateway-pid=${gatewayPid}`, `gateway-port=${gatewayPort}`, `gateway-api-key=${apiKey}`, `gateway-domain=${gatewayDomain}`].join("\n");
+    const outputs = [`gateway-pid=${gatewayPid}`, `gateway-port=${gatewayPort}`, `gateway-agent-id=${agentId}`, `gateway-domain=${gatewayDomain}`].join("\n");
     try {
       fs.appendFileSync(githubOutput, outputs + "\n");
     } catch {
@@ -1245,6 +1369,13 @@ module.exports = {
   getJSONParseErrorContext,
   getGatewayStartupMarkerPath,
   injectCustomGatewayEnvArgs,
+  computeHealthRetryBudgetMs,
+  MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT,
+  MCP_GATEWAY_HEALTH_RETRY_DEFAULTS,
+  MCP_GATEWAY_HEALTH_RETRY_ENV,
+  MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS,
+  MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS,
+  resolveGatewayHealthRetryConfig,
   normalizeSinkVisibilityEncoding,
   redactGatewayDiagnostics,
   resolveCopilotConfigPaths,

@@ -112,6 +112,68 @@ func TestValidateMainWorkflowFrontmatter_Plugins(t *testing.T) {
 	}
 }
 
+func TestValidateMainWorkflowFrontmatter_UserRateLimitMaxField(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name        string
+		rateLimit   map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "canonical max-runs-per-window",
+			rateLimit: map[string]any{
+				"max-runs-per-window": 5,
+			},
+		},
+		{
+			name:        "legacy max-runs alias",
+			rateLimit:   map[string]any{"max-runs": 5},
+			wantErr:     true,
+			errContains: "Unknown property: max-runs",
+		},
+		{
+			name:        "legacy max alias",
+			rateLimit:   map[string]any{"max": 5},
+			wantErr:     true,
+			errContains: "Unknown property: max",
+		},
+		{
+			name:        "legacy max-runs expression alias",
+			rateLimit:   map[string]any{"max-runs": "${{ inputs.max_runs }}"},
+			wantErr:     true,
+			errContains: "Unknown property: max-runs",
+		},
+		{
+			name:      "missing max field",
+			rateLimit: map[string]any{"window": 60},
+			wantErr:   true,
+		},
+		{
+			name:        "unknown nested field",
+			rateLimit:   map[string]any{"max-runs-per-window": 5, "limit": 5},
+			wantErr:     true,
+			errContains: "Unknown property: limit",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on":              "workflow_dispatch",
+				"user-rate-limit": tt.rateLimit,
+			}, "workflow.md")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validation error = %v, wantErr %t", err, tt.wantErr)
+			}
+			if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+				t.Fatalf("validation error = %v, want substring %q", err, tt.errContains)
+			}
+		})
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	valid := map[string]any{
 		"on":     "workflow_dispatch",
@@ -125,11 +187,14 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 				"timeout": 45,
 			},
 			map[string]any{
-				"agent": map[string]any{"model": "gpt-5"},
+				"agent": map[string]any{
+					"model":  "gpt-5",
+					"github": map[string]any{"cli": "issues-read-v1"},
+				},
 				"repos": []any{
 					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
-				"timeout": 540,
+				"timeout": 4740,
 			},
 		},
 	}
@@ -162,12 +227,34 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 				"repos": []any{
 					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
-				"timeout": 541,
+				"timeout": 4741,
 			},
 		},
 	}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(tooLong, "workflow.md"); err == nil {
-		t.Fatal("expected enclave timeout above 540 seconds to be rejected")
+		t.Fatal("expected enclave timeout above 4740 seconds to be rejected")
+	}
+
+	invalidMode := valid
+	invalidMode["enclaves"].([]any)[1].(map[string]any)["agent"].(map[string]any)["github"] = map[string]any{"cli": "read-only"}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidMode, "workflow.md"); err == nil {
+		t.Fatal("expected generic enclave GitHub CLI mode to be rejected")
+	}
+
+	scriptGitHub := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"script": map[string]any{"github": map[string]any{"cli": "issues-read-v1"}},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(scriptGitHub, "workflow.md"); err == nil {
+		t.Fatal("expected script enclave GitHub configuration to be rejected")
 	}
 }
 
@@ -497,6 +584,35 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsEngineToken
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsGitHubBoundedQueries(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "push",
+		"tools": map[string]any{
+			"github": map[string]any{
+				"bounded-queries": map[string]any{
+					"runtime": "sbx",
+					"private-repos": []any{
+						map[string]any{
+							"name":        "octo-org/private-service",
+							"sensitivity": "confidential",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/github-bounded-queries-rejected-test.md")
+	if err == nil {
+		t.Fatal("expected tools.github.bounded-queries to fail schema validation")
+	}
+	if !strings.Contains(err.Error(), "Unknown property: bounded-queries") {
+		t.Fatalf("expected bounded-queries rejection error, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPattern(t *testing.T) {
 	t.Parallel()
 
@@ -760,6 +876,20 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EnginePermissionMo
 	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-permission-mode-invalid-test.md")
 	if err == nil {
 		t.Fatal("expected invalid engine.permission-mode to fail schema validation")
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_PermissionsNoneShorthand(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on":          "push",
+		"permissions": "none",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/workflow.md")
+	if err != nil {
+		t.Fatalf("expected 'permissions: none' to pass schema validation, got: %v", err)
 	}
 }
 
@@ -1078,20 +1208,84 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_SandboxAgentPlatfo
 	})
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclusion(t *testing.T) {
+	t.Parallel()
+
+	workflowRunFrontmatter := func(conclusion any) map[string]any {
+		return map[string]any{
+			"on": map[string]any{
+				"workflow_run": map[string]any{
+					"workflows":  []any{"CI"},
+					"types":      []any{"completed"},
+					"conclusion": conclusion,
+				},
+			},
+		}
+	}
+
+	t.Run("conclusion as string is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := workflowRunFrontmatter("startup_failure")
+
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-string-test.md"); err != nil {
+			t.Fatalf("expected on.workflow_run.conclusion=startup_failure to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("conclusion as array is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := workflowRunFrontmatter([]any{"failure", "cancelled"})
+
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-array-test.md"); err != nil {
+			t.Fatalf("expected on.workflow_run.conclusion (array) to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("unknown conclusion value is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := workflowRunFrontmatter([]any{"bogus"})
+
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-invalid-test.md"); err == nil {
+			t.Fatal("expected on.workflow_run.conclusion with unknown value to fail schema validation")
+		}
+	})
+
+	t.Run("empty conclusion array is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := workflowRunFrontmatter([]any{})
+
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow-run-conclusion-empty-test.md"); err == nil {
+			t.Fatal("expected an empty on.workflow_run.conclusion array to fail schema validation")
+		}
+	})
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OperationalValueGrader(t *testing.T) {
 	t.Parallel()
 
-	frontmatter := map[string]any{
-		"on": "workflow_dispatch",
-		"graders": map[string]any{
-			"operational-value": map[string]any{
-				"run": ".github/graders/example-operational-value.sh",
-			},
-		},
-	}
+	for _, runPath := range []string{
+		".github/workflows/graders/example-operational-value.sh",
+		".github/workflows/graders/..secret.sh",
+		"./graders/example-operational-value.sh",
+	} {
+		t.Run(runPath, func(t *testing.T) {
+			frontmatter := map[string]any{
+				"on": "workflow_dispatch",
+				"graders": map[string]any{
+					"operational-value": map[string]any{
+						"run": runPath,
+					},
+				},
+			}
 
-	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/operational-value-grader-test.md"); err != nil {
-		t.Fatalf("expected operational-value evaluator to pass schema validation, got: %v", err)
+			if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/operational-value-grader-test.md"); err != nil {
+				t.Fatalf("expected operational-value evaluator to pass schema validation, got: %v", err)
+			}
+		})
 	}
 }
 

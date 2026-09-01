@@ -27,11 +27,13 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var compileExternalToolsLog = logger.New("cli:compile_external_tools")
@@ -86,13 +88,19 @@ func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 // unlike other tools it does not use Docker. When shellcheck is not available
 // the function returns nil (callers are responsible for warning the user).
 func RunShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
-	if len(lockFiles) == 0 {
-		compileExternalToolsLog.Printf("No lock files to process with shellcheck")
+	return RunShellcheckOnLockFilesAndResources(ctx, lockFiles, nil, verbose, strict)
+}
+
+// RunShellcheckOnLockFilesAndResources runs shellcheck on run steps extracted
+// from lock files and shell script resources defined in workflow frontmatter.
+func RunShellcheckOnLockFilesAndResources(ctx context.Context, lockFiles []string, resources []workflow.ShellScriptResource, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 && len(resources) == 0 {
+		compileExternalToolsLog.Printf("No shell script resources to process with shellcheck")
 		return nil
 	}
 
-	compileExternalToolsLog.Printf("Running batch shellcheck on %d lock files", len(lockFiles))
-	return handleBatchToolError("shellcheck", runShellcheckOnLockFiles(ctx, lockFiles, verbose, strict), strict, verbose)
+	compileExternalToolsLog.Printf("Running batch shellcheck on %d lock files and %d frontmatter resources", len(lockFiles), len(resources))
+	return handleBatchToolError("shellcheck", runShellcheckOnLockFilesAndResources(ctx, lockFiles, resources, verbose, strict), strict, verbose)
 }
 
 // RunSyftOnLockFiles runs the syft SBOM scanner on container images extracted
@@ -126,7 +134,8 @@ func handleBatchToolError(toolName string, err error, strict, verbose bool) erro
 	if err == nil {
 		return nil
 	}
-	if strict {
+	var fatal *fatalFindingError
+	if strict || errors.As(err, &fatal) {
 		return fmt.Errorf("%s failed: %w", toolName, err)
 	}
 	// In non-strict mode, errors are warnings

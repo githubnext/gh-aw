@@ -7,6 +7,8 @@ applyTo: ".github/workflows/*.md,.github/workflows/**/*.md"
 
 ## Persona-to-Pattern Quick Matrix
 
+Persona-lens view of the same facts as the canonical [Decision Matrix](triggers.md#decision-matrix) in triggers.md; update both when a trigger/tool/output mapping changes.
+
 | Persona | Preferred trigger and scope | Typical read tools | Typical write path | Explicit `noop` rule |
 |---|---|---|---|---|
 | Backend Engineer | `pull_request` with `paths:` scoped to migrations, schema, and API contracts | `github` (`gh-proxy`) | `add-comment` for PR-local findings; `create-issue` only for cross-cutting incidents | `noop` when no backend contract files changed |

@@ -14,10 +14,10 @@ permissions:
   actions: read
   discussions: read
 tracker-id: daily-fact-thread
-model: gpt-5.4
+model: openai/gpt-5.4
 engine:
-  id: codex
-  bare: true
+  id: pi
+  model-provider: openai
 strict: true
 experiments:
   reasoning_depth:

@@ -248,7 +248,7 @@ func processSingleRunDownload(
 // Errors are logged but not propagated — the caller proceeds with whatever was downloaded.
 func tryDownloadEvalsArtifactFallback(ctx context.Context, runID int64, runOutputDir string, params concurrentRunDownloadParams) {
 	logsOrchestratorLog.Printf("evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", runID)
-	evalsFilter := []string{constants.EvalsArtifactName}
+	evalsFilter := []string{constants.EvalsArtifactName.String()}
 	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: params.verbose, owner: params.dlOwner, repo: params.dlRepo, hostname: params.dlHost, artifactFilter: evalsFilter}); err != nil {
 		logsOrchestratorLog.Printf("Fallback evals artifact download failed for run %d: %v", runID, err)
 		if params.verbose {
@@ -331,7 +331,7 @@ func analyzeRunArtifacts(ctx context.Context, result *DownloadResult, runOutputD
 
 	// Firewall artifact gating: firewall/gateway logs live in the agent artifact.
 	// Skip silently when the artifact was intentionally excluded from the filter.
-	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
+	hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName.String(), artifactFilter)
 
 	applyRunSecurityAnalysis(result, runOutputDir, verbose, hasFirewallArtifact)
 
@@ -596,12 +596,12 @@ func runContainsSafeOutputType(runDir string, safeOutputType string, verbose boo
 	normalizedType := stringutil.NormalizeSafeOutputIdentifier(safeOutputType)
 
 	// Look for agent_output.json in the run directory
-	agentOutputPath := filepath.Join(runDir, constants.AgentOutputFilename)
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputFilename.String())
 
 	// Support both new flattened form and old directory form
 	if stat, err := os.Stat(agentOutputPath); err != nil || stat.IsDir() {
 		// Try old structure
-		oldPath := filepath.Join(runDir, constants.AgentOutputArtifactName, constants.AgentOutputArtifactName)
+		oldPath := filepath.Join(runDir, constants.AgentOutputArtifactName.String(), constants.AgentOutputArtifactName.String())
 		if fileutil.FileExists(oldPath) {
 			agentOutputPath = oldPath
 		} else {
@@ -707,12 +707,12 @@ func runHasEvals(runDir string, verbose bool) bool {
 	logsOrchestratorLog.Printf("Checking run for evals results: dir=%s", runDir)
 
 	// Case 1: flattenSingleFileArtifacts moved the file directly to the run root.
-	rootEvalsFile := filepath.Join(runDir, constants.EvalsResultFilename)
+	rootEvalsFile := filepath.Join(runDir, constants.EvalsResultFilename.String())
 	if fileutil.FileExists(rootEvalsFile) {
 		logsOrchestratorLog.Printf("Found evals results at: %s", rootEvalsFile)
 		return true
 	}
-	usageEvalsFile := filepath.Join(runDir, constants.UsageArtifactName, constants.EvalsResultFilename)
+	usageEvalsFile := filepath.Join(runDir, constants.UsageArtifactName.String(), constants.EvalsResultFilename.String())
 	if fileutil.FileExists(usageEvalsFile) {
 		logsOrchestratorLog.Printf("Found evals results in usage artifact at: %s", usageEvalsFile)
 		return true
@@ -729,16 +729,16 @@ func runHasEvals(runDir string, verbose bool) bool {
 		}
 		name := entry.Name()
 		// Match exact "evals" or workflow_call prefixed "{hash}-evals".
-		if name == constants.EvalsArtifactName || strings.HasSuffix(name, "-"+constants.EvalsArtifactName) {
-			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
+		if name == constants.EvalsArtifactName.String() || strings.HasSuffix(name, "-"+constants.EvalsArtifactName.String()) {
+			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename.String())
 			if fileutil.FileExists(evalsFile) {
 				logsOrchestratorLog.Printf("Found evals results at: %s", evalsFile)
 				return true
 			}
 		}
 		// Match workflow_call-prefixed "{hash}-usage".
-		if strings.HasSuffix(name, "-"+constants.UsageArtifactName) {
-			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename)
+		if strings.HasSuffix(name, "-"+constants.UsageArtifactName.String()) {
+			evalsFile := filepath.Join(runDir, name, constants.EvalsResultFilename.String())
 			if fileutil.FileExists(evalsFile) {
 				logsOrchestratorLog.Printf("Found evals results in workflow_call usage artifact at: %s", evalsFile)
 				return true

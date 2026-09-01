@@ -64,6 +64,77 @@ func (c CommandPrefix) IsValid() bool {
 //	func CompileWorkflow(id WorkflowID) error { ... }
 type WorkflowID string
 
+// String returns the string representation of the workflow ID
+func (w WorkflowID) String() string {
+	return string(w)
+}
+
+// IsValid returns true if the workflow ID is non-empty
+func (w WorkflowID) IsValid() bool {
+	return w != ""
+}
+
+// ArtifactName represents the name of a GitHub Actions artifact (as passed to
+// actions/upload-artifact and actions/download-artifact).
+// This semantic type distinguishes artifact names from arbitrary strings,
+// preventing accidental mixing of artifact names with filenames or file paths.
+//
+// Example usage:
+//
+//	const AgentArtifactName ArtifactName = "agent"
+//	func DownloadArtifact(name ArtifactName) error { ... }
+type ArtifactName string
+
+// String returns the string representation of the artifact name
+func (a ArtifactName) String() string {
+	return string(a)
+}
+
+// IsValid returns true if the artifact name is non-empty
+func (a ArtifactName) IsValid() bool {
+	return a != ""
+}
+
+// Filename represents the base name of a file (without a directory path).
+// This semantic type distinguishes filenames from full file paths or artifact
+// names, preventing accidental mixing of the two.
+//
+// Example usage:
+//
+//	const AgentOutputFilename Filename = "agent_output.json"
+//	func WriteFile(name Filename) error { ... }
+type Filename string
+
+// String returns the string representation of the filename
+func (f Filename) String() string {
+	return string(f)
+}
+
+// IsValid returns true if the filename is non-empty
+func (f Filename) IsValid() bool {
+	return f != ""
+}
+
+// FilePath represents a filesystem (or GitHub Actions expression) path to a
+// file or directory. This semantic type distinguishes file paths from bare
+// filenames, preventing accidental mixing of the two.
+//
+// Example usage:
+//
+//	const AWFConfigFilePath FilePath = "/tmp/gh-aw/awf-config.json"
+//	func ReadFile(path FilePath) ([]byte, error) { ... }
+type FilePath string
+
+// String returns the string representation of the file path
+func (p FilePath) String() string {
+	return string(p)
+}
+
+// IsValid returns true if the file path is non-empty
+func (p FilePath) IsValid() bool {
+	return p != ""
+}
+
 // MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline.
 const MaxExpressionLineLength LineLength = 120
 
@@ -122,11 +193,13 @@ const (
 	// MaxNetworkPort is the maximum valid network port number
 	MaxNetworkPort = 65535
 
-	// ClaudeLLMGatewayPort is the port for the Claude LLM gateway
-	ClaudeLLMGatewayPort = 10000
+	// CodexLLMGatewayPort is the port for the Codex/OpenAI LLM gateway.
+	// AWF's api-proxy sidecar assigns 10000 to the OpenAI-compatible provider.
+	CodexLLMGatewayPort = 10000
 
-	// CodexLLMGatewayPort is the port for the Codex LLM gateway
-	CodexLLMGatewayPort = 10001
+	// ClaudeLLMGatewayPort is the port for the Claude/Anthropic LLM gateway.
+	// AWF's api-proxy sidecar assigns 10001 to the Anthropic-compatible provider.
+	ClaudeLLMGatewayPort = 10001
 
 	// CopilotLLMGatewayPort is the port for the Copilot LLM gateway
 	CopilotLLMGatewayPort = 10002
@@ -169,7 +242,7 @@ const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
 
 // AWFDefaultCommand is the default AWF command prefix.
 // Strict security (no sudo) is the default since AWF v0.27.32.
-const AWFDefaultCommand = "awf"
+const AWFDefaultCommand CommandPrefix = "awf"
 
 // AWFCloudHypervisorCommand runs AWF with the host privileges required to
 // create a Cloud Hypervisor VM while preserving the runner paths it consumes.
@@ -188,7 +261,7 @@ const (
 const AWFLegacySecurityCommand = "sudo -E awf"
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs
-const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
+const AWFProxyLogsDir FilePath = "/tmp/gh-aw/sandbox/firewall/logs"
 
 // AWFProxyLogsDirExpr is the host-side AWF proxy logs path resolved by Actions expression.
 const AWFProxyLogsDirExpr = GhAwRootDir + "/sandbox/firewall/logs"
@@ -199,7 +272,7 @@ const AWFProxyLogsDirShell = GhAwRootDirShell + "/sandbox/firewall/logs"
 // AWFAuditDir is the directory for AWF audit files (policy-manifest.json, squid.conf, docker-compose.redacted.yml).
 // These files are written by AWF when --audit-dir is specified and provide structured policy/configuration data
 // needed by the `awf logs audit` command for enriching log entries with policy rule matching.
-const AWFAuditDir = "/tmp/gh-aw/sandbox/firewall/audit"
+const AWFAuditDir FilePath = "/tmp/gh-aw/sandbox/firewall/audit"
 
 // AWFAuditDirExpr is the host-side AWF audit dir path resolved by Actions expression.
 const AWFAuditDirExpr = GhAwRootDir + "/sandbox/firewall/audit"
@@ -211,7 +284,7 @@ const AWFAuditDirShell = GhAwRootDirShell + "/sandbox/firewall/audit"
 // The audit step runs after all pre-agent preparation (skills, agents, MCP servers) is
 // complete, capturing a file listing of agent-related directories before the AI engine
 // starts. This file is included in the agent artifact for post-run inspection.
-const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"
+const PreAgentAuditFilePath FilePath = "/tmp/gh-aw/pre-agent-audit.txt"
 
 // AWFConfigFilePath is the path inside the /tmp/gh-aw tree where the AWF config file
 // is copied so it can be included in the unified agent artifact.
@@ -219,7 +292,7 @@ const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"
 // but that path is outside the /tmp/gh-aw/ root used by all other artifact paths.
 // A copy at this path is created before artifact upload so the config is available
 // for post-run analysis without mixing path roots in the artifact.
-const AWFConfigFilePath = "/tmp/gh-aw/awf-config.json"
+const AWFConfigFilePath FilePath = "/tmp/gh-aw/awf-config.json"
 
 // AWFConfigFilePathExpr is the host-side AWF config path resolved by Actions expression.
 const AWFConfigFilePathExpr = GhAwRootDir + "/awf-config.json"
@@ -228,7 +301,7 @@ const AWFConfigFilePathExpr = GhAwRootDir + "/awf-config.json"
 // by the agent harness before exiting. It is co-located with other firewall observability
 // data under /tmp/gh-aw/sandbox/firewall/ so the existing chmod and artifact-upload steps
 // pick it up automatically.
-const AWFReflectFilePath = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json"
+const AWFReflectFilePath FilePath = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json"
 
 // AWFReflectFilePathExpr is the host-side AWF /reflect output path resolved by Actions expression.
 const AWFReflectFilePathExpr = GhAwRootDir + "/sandbox/firewall/awf-reflect.json"
@@ -515,9 +588,6 @@ const TmpMcpLogsDir = TmpGhAwDir + "/mcp-logs/"
 
 // TmpMcpLogsSafeOutputsDir is the safe-outputs MCP server log directory.
 const TmpMcpLogsSafeOutputsDir = TmpGhAwDir + "/mcp-logs/safeoutputs"
-
-// TmpMcpLogsPlaywrightDir is the Playwright MCP server log directory.
-const TmpMcpLogsPlaywrightDir = TmpGhAwDir + "/mcp-logs/playwright"
 
 // TmpMcpLogsMount is the Docker volume mount spec for the MCP logs directory.
 const TmpMcpLogsMount = TmpGhAwDir + "/mcp-logs:" + TmpGhAwDir + "/mcp-logs"

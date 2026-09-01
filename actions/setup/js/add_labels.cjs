@@ -36,6 +36,7 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const { normalizeIssueIntentLabelInputs, buildIssueIntentLabelUpdates } = require("./issue_intents.cjs");
 const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
 const { SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
+const { deterministicLabelColor } = require("./create_labels.cjs");
 
 /**
  * @param {{ rationale?: string, confidence?: string, suggest?: boolean } | null | undefined} spec
@@ -71,6 +72,57 @@ function mergeLabelNames(...labelGroups) {
     }
   }
   return merged;
+}
+
+/**
+ * Ensures the given label names exist in the target repository, creating any that are
+ * missing. A 422 response from createLabel means the label already exists (e.g. a
+ * concurrent creation) and is treated as success. Other creation errors are non-fatal
+ * and logged as warnings, since the caller will surface a clear "label not found" error
+ * later if the label is still required and missing.
+ * @param {any} githubClient - GitHub API client
+ * @param {{ owner: string, repo: string }} repoParts
+ * @param {string[]} labelNames - Requested label names to ensure exist
+ * @param {any} core - Actions core logging object
+ * @returns {Promise<void>}
+ */
+async function ensureLabelsExist(githubClient, repoParts, labelNames, core) {
+  if (labelNames.length === 0) {
+    return;
+  }
+
+  const repoLabels = await fetchAllRepoLabels(githubClient, repoParts.owner, repoParts.repo);
+  const existingNamesLower = new Set(repoLabels.map(label => label.name.toLowerCase()));
+  const missingLabelNames = labelNames.filter(name => !existingNamesLower.has(name.toLowerCase()));
+
+  if (missingLabelNames.length === 0) {
+    return;
+  }
+
+  core.info(`Creating ${missingLabelNames.length} missing label(s) in ${repoParts.owner}/${repoParts.repo}: ${JSON.stringify(missingLabelNames)}`);
+  for (const name of missingLabelNames) {
+    try {
+      await withRetry(
+        () =>
+          githubClient.rest.issues.createLabel({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            name,
+            color: deterministicLabelColor(name),
+            description: "",
+          }),
+        RATE_LIMIT_RETRY_CONFIG,
+        `create label ${JSON.stringify(name)} in ${repoParts.owner}/${repoParts.repo}`
+      );
+      core.info(`Created missing label ${JSON.stringify(name)} in ${repoParts.owner}/${repoParts.repo}`);
+    } catch (error) {
+      if (error !== null && typeof error === "object" && /** @type {any} */ error.status === 422) {
+        core.info(`Label ${JSON.stringify(name)} already exists in ${repoParts.owner}/${repoParts.repo}`);
+      } else {
+        core.warning(`Failed to create label ${JSON.stringify(name)} in ${repoParts.owner}/${repoParts.repo}: ${getErrorMessage(error)}`);
+      }
+    }
+  }
 }
 
 /**
@@ -162,6 +214,7 @@ const main = createCountGatedHandler({
     const { allowed: allowedLabels = [], blocked: blockedPatterns = [] } = config;
     const issueIntentEnabled = config.issue_intent !== false;
     const issueIntentStrict = config.issue_intent === true; // strict mode: plain-string labels rejected, metadata required
+    const createIfMissing = config.create_if_missing === true;
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
     const requiredTitlePrefix = config.required_title_prefix || "";
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
@@ -172,6 +225,7 @@ const main = createCountGatedHandler({
     if (blockedPatterns.length > 0) core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
     if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
     if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
+    core.info(`Create missing labels: ${createIfMissing}`);
     core.info(`Default target repo: ${defaultTargetRepo}`);
     if (allowedRepos.size > 0) core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
 
@@ -380,6 +434,10 @@ const main = createCountGatedHandler({
 
       try {
         const beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
+
+        if (createIfMissing) {
+          await ensureLabelsExist(githubClient, repoParts, uniqueLabels, core);
+        }
 
         if (useIssueIntentPath) {
           // Intent metadata is only supported via the GraphQL updateIssue mutation.

@@ -303,6 +303,8 @@ Implementations MUST validate all structured output against JSON schemas coverin
 - Enumerated value restrictions
 - Cross-field dependencies
 
+Staged mode previews (§4.4) MUST pass through this same validation guardrail order before any preview is rendered; previewing an operation is not a bypass of schema validation, max-count enforcement, content sanitization, target validation, or cross-repository validation.
+
 #### 3.4.2 Max Count Enforcement
 
 For each safe output type, implementations MUST:

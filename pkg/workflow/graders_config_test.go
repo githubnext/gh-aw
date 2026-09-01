@@ -125,25 +125,34 @@ func TestParseGradersFromFrontmatter_CustomGrader(t *testing.T) {
 
 func TestParseGradersFromFrontmatter_OperationalValueGrader(t *testing.T) {
 	var c Compiler
-	cfg, err := c.parseGradersFromFrontmatter(map[string]any{
-		"graders": map[string]any{
-			"operational-value": map[string]any{
-				"run": ".github/graders/example-operational-value.sh",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	grader := cfg.Graders["operational-value"]
-	if grader.Run != ".github/graders/example-operational-value.sh" {
-		t.Fatalf("unexpected operational-value run path: %q", grader.Run)
-	}
-	if grader.Unit != "ratio" || grader.Direction != "higher_is_better" {
-		t.Fatalf("unexpected operational-value defaults: unit=%q direction=%q", grader.Unit, grader.Direction)
-	}
-	if grader.Min == nil || *grader.Min != 0 || grader.Max == nil || *grader.Max != 1 {
-		t.Fatalf("expected operational-value range [0,1], got min=%v max=%v", grader.Min, grader.Max)
+	for _, runPath := range []string{
+		".github/workflows/graders/example-operational-value.sh",
+		".github/workflows/graders/..secret.sh",
+		"./graders/example-operational-value.sh",
+		"scripts/example-operational-value.sh",
+	} {
+		t.Run(runPath, func(t *testing.T) {
+			cfg, err := c.parseGradersFromFrontmatter(map[string]any{
+				"graders": map[string]any{
+					"operational-value": map[string]any{
+						"run": runPath,
+					},
+				},
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			grader := cfg.Graders["operational-value"]
+			if grader.Run != runPath {
+				t.Fatalf("unexpected operational-value run path: %q", grader.Run)
+			}
+			if grader.Unit != "ratio" || grader.Direction != "higher_is_better" {
+				t.Fatalf("unexpected operational-value defaults: unit=%q direction=%q", grader.Unit, grader.Direction)
+			}
+			if grader.Min == nil || *grader.Min != 0 || grader.Max == nil || *grader.Max != 1 {
+				t.Fatalf("expected operational-value range [0,1], got min=%v max=%v", grader.Min, grader.Max)
+			}
+		})
 	}
 }
 
@@ -155,15 +164,15 @@ func TestParseGradersFromFrontmatter_OperationalValueGraderValidation(t *testing
 		errText string
 	}{
 		{name: "missing run", entry: map[string]any{}, errText: "requires a 'run' field"},
-		{name: "path traversal", entry: map[string]any{"run": ".github/graders/../secret.sh"}, errText: "repository-relative"},
-		{name: "wrong directory", entry: map[string]any{"run": "scripts/operational-value.sh"}, errText: "repository-relative"},
-		{name: "wrong extension", entry: map[string]any{"run": ".github/graders/operational-value.js"}, errText: "repository-relative"},
-		{name: "inline script", entry: map[string]any{"run": ".github/graders/operational-value.sh", "script": "return 1"}, errText: "cannot have an inline script"},
-		{name: "direction", entry: map[string]any{"run": ".github/graders/operational-value.sh", "direction": "lower_is_better"}, errText: "direction must be 'higher_is_better'"},
-		{name: "minimum", entry: map[string]any{"run": ".github/graders/operational-value.sh", "min": 0.1}, errText: "range must be min: 0 and max: 1"},
-		{name: "maximum", entry: map[string]any{"run": ".github/graders/operational-value.sh", "max": 2.0}, errText: "range must be min: 0 and max: 1"},
-		{name: "threshold below range", entry: map[string]any{"run": ".github/graders/operational-value.sh", "threshold": -0.1}, errText: "threshold must be between 0 and 1"},
-		{name: "threshold above range", entry: map[string]any{"run": ".github/graders/operational-value.sh", "threshold": 1.1}, errText: "threshold must be between 0 and 1"},
+		{name: "path traversal", entry: map[string]any{"run": ".github/workflows/graders/../secret.sh"}, errText: "workspace-relative"},
+		{name: "absolute path", entry: map[string]any{"run": "/tmp/operational-value.sh"}, errText: "workspace-relative"},
+		{name: "wrong extension", entry: map[string]any{"run": ".github/workflows/graders/operational-value.js"}, errText: "workspace-relative"},
+		{name: "inline script", entry: map[string]any{"run": ".github/workflows/graders/operational-value.sh", "script": "return 1"}, errText: "cannot have an inline script"},
+		{name: "direction", entry: map[string]any{"run": ".github/workflows/graders/operational-value.sh", "direction": "lower_is_better"}, errText: "direction must be 'higher_is_better'"},
+		{name: "minimum", entry: map[string]any{"run": ".github/workflows/graders/operational-value.sh", "min": 0.1}, errText: "range must be min: 0 and max: 1"},
+		{name: "maximum", entry: map[string]any{"run": ".github/workflows/graders/operational-value.sh", "max": 2.0}, errText: "range must be min: 0 and max: 1"},
+		{name: "threshold below range", entry: map[string]any{"run": ".github/workflows/graders/operational-value.sh", "threshold": -0.1}, errText: "threshold must be between 0 and 1"},
+		{name: "threshold above range", entry: map[string]any{"run": ".github/workflows/graders/operational-value.sh", "threshold": 1.1}, errText: "threshold must be between 0 and 1"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -177,12 +186,54 @@ func TestParseGradersFromFrontmatter_OperationalValueGraderValidation(t *testing
 	}
 }
 
+func TestIsValidOperationalValueEvaluatorRunPath(t *testing.T) {
+	t.Parallel()
+
+	validCases := []string{
+		"evaluator.sh",
+		".github/workflows/graders/test.sh",
+		"./graders/test.sh",
+		"./evaluator.sh",
+		"scripts/nested/evaluator.sh",
+	}
+	for _, tc := range validCases {
+		t.Run("valid_"+tc, func(t *testing.T) {
+			assert.True(t, IsValidOperationalValueEvaluatorRunPath(tc), "expected %q to be valid", tc)
+		})
+	}
+
+	invalidCases := []string{
+		"",
+		"/abs/path.sh",
+		"//evil.com/test.sh",
+		"\\win\\path.sh",
+		"path\\with\\backslash.sh",
+		".",
+		"..",
+		"./",
+		"../test.sh",
+		"./../test.sh",
+		".github/workflows/../secret.sh",
+		".github/workflows//double_slash.sh",
+		"evaluator.js",
+		"evaluator.sh/",
+		"./.",
+		"./..",
+		"./evaluator.js",
+	}
+	for _, tc := range invalidCases {
+		t.Run("invalid_"+tc, func(t *testing.T) {
+			assert.False(t, IsValidOperationalValueEvaluatorRunPath(tc), "expected %q to be invalid", tc)
+		})
+	}
+}
+
 func TestParseGradersFromFrontmatter_RunRejectedForOtherGraders(t *testing.T) {
 	var c Compiler
 	_, err := c.parseGradersFromFrontmatter(map[string]any{
 		"graders": map[string]any{
 			"custom": map[string]any{
-				"run": ".github/graders/operational-value.sh",
+				"run": ".github/workflows/graders/operational-value.sh",
 			},
 		},
 	})
@@ -516,7 +567,7 @@ func TestBuildGraderManifest(t *testing.T) {
 func TestBuildGraderManifest_OperationalValueGrader(t *testing.T) {
 	grader := &GraderDefinition{
 		ID:  "operational-value",
-		Run: ".github/graders/example-operational-value.sh",
+		Run: ".github/workflows/graders/example-operational-value.sh",
 	}
 	grader.evaluatorContent = "#!/usr/bin/env bash\necho '{}'\n"
 	cfg := &GradersConfig{Graders: map[string]*GraderDefinition{"operational-value": grader}}
@@ -535,7 +586,7 @@ func TestBuildGraderManifest_OperationalValueGrader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal operational-value manifest: %v", err)
 	}
-	if !strings.Contains(string(manifestJSON), `"run":".github/graders/example-operational-value.sh"`) || strings.Contains(string(manifestJSON), `"evaluator"`) {
+	if !strings.Contains(string(manifestJSON), `"run":".github/workflows/graders/example-operational-value.sh"`) || strings.Contains(string(manifestJSON), `"evaluator"`) {
 		t.Fatalf("expected manifest to use run field, got %s", manifestJSON)
 	}
 
@@ -604,7 +655,7 @@ func TestGenerateGradersStep_OperationalValueUsesActivationRunMetadata(t *testin
 	c := &Compiler{}
 	initActionPinCacheForTest(c)
 	var yaml strings.Builder
-	data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+	data := operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh")
 
 	c.generateGradersStep(&yaml, data)
 

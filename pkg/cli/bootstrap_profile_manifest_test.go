@@ -334,6 +334,15 @@ func TestParseManifestBootstrapAction(t *testing.T) {
 			actionMap:  map[string]any{},
 			wantErrMsg: `config[0].type "" is not supported`,
 		},
+		{
+			name:       "wrong field type is rejected",
+			actionType: "repo-variable",
+			actionMap: map[string]any{
+				"name":   "EXAMPLE",
+				"prompt": 42,
+			},
+			wantErrMsg: "config[0].prompt",
+		},
 	}
 
 	for _, tt := range tests {

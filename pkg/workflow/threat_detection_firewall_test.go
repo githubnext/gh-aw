@@ -28,11 +28,11 @@ func TestCleanFirewallDirsStepPresent(t *testing.T) {
 	}
 
 	// It should remove the firewall logs and audit directories
-	if !strings.Contains(stepsString, constants.AWFProxyLogsDir) {
-		t.Errorf("Expected cleanup step to reference %s", constants.AWFProxyLogsDir)
+	if !strings.Contains(stepsString, constants.AWFProxyLogsDir.String()) {
+		t.Errorf("Expected cleanup step to reference %s", constants.AWFProxyLogsDir.String())
 	}
-	if !strings.Contains(stepsString, constants.AWFAuditDir) {
-		t.Errorf("Expected cleanup step to reference %s", constants.AWFAuditDir)
+	if !strings.Contains(stepsString, constants.AWFAuditDir.String()) {
+		t.Errorf("Expected cleanup step to reference %s", constants.AWFAuditDir.String())
 	}
 }
 
@@ -95,19 +95,19 @@ func TestBuildCopyDetectionFirewallLogsStep(t *testing.T) {
 		if !strings.Contains(steps, "continue-on-error: true") {
 			t.Fatalf("expected continue-on-error in copy step, got:\n%s", steps)
 		}
-		if !strings.Contains(steps, "if [ -d "+constants.AWFProxyLogsDir+" ]; then") {
+		if !strings.Contains(steps, "if [ -d "+constants.AWFProxyLogsDir.String()+" ]; then") {
 			t.Fatalf("expected logs copy to be guarded by an explicit directory check, got:\n%s", steps)
 		}
-		if !strings.Contains(steps, "if [ -d "+constants.AWFAuditDir+" ]; then") {
+		if !strings.Contains(steps, "if [ -d "+constants.AWFAuditDir.String()+" ]; then") {
 			t.Fatalf("expected audit copy to be guarded by an explicit directory check, got:\n%s", steps)
 		}
 		if strings.Contains(steps, "|| true") {
 			t.Fatalf("expected copy failures not to be suppressed, got:\n%s", steps)
 		}
-		if !strings.Contains(steps, "cp -r "+constants.AWFProxyLogsDir+"/. "+detectionFirewallLogsDir+"/logs/") {
+		if !strings.Contains(steps, "cp -r "+constants.AWFProxyLogsDir.String()+"/. "+detectionFirewallLogsDir+"/logs/") {
 			t.Fatalf("expected logs copy to use source contents and stable destination, got:\n%s", steps)
 		}
-		if !strings.Contains(steps, "cp -r "+constants.AWFAuditDir+"/. "+detectionFirewallLogsDir+"/audit/") {
+		if !strings.Contains(steps, "cp -r "+constants.AWFAuditDir.String()+"/. "+detectionFirewallLogsDir+"/audit/") {
 			t.Fatalf("expected audit copy to use source contents and stable destination, got:\n%s", steps)
 		}
 	})

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"maps"
 	"strings"
 
@@ -108,6 +109,9 @@ type Tools = ToolsConfig
 func ParseToolsConfig(toolsMap map[string]any) (*ToolsConfig, error) {
 	toolsTypesLog.Printf("Parsing tools configuration: tool_count=%d", len(toolsMap))
 	config := NewTools(toolsMap)
+	if config.GitHub != nil && config.GitHub.reposParseErr != nil {
+		return nil, config.GitHub.reposParseErr
+	}
 	toolNames := config.GetToolNames()
 	toolsTypesLog.Printf("Parsed tools configuration: result_count=%d, tools=%v", len(toolNames), toolNames)
 	return config, nil
@@ -178,7 +182,7 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 
 // ToMap converts the ToolsConfig back to a map[string]any for backward compatibility.
 // This is useful when interfacing with legacy code that expects map[string]any.
-func (t *ToolsConfig) ToMap() map[string]any {
+func (t *ToolsConfig) ToMap() map[string]any { //nolint:largefunc // Existing conversion preserves backwards-compatible map shape.
 	if t == nil {
 		toolsTypesLog.Print("Converting nil ToolsConfig to empty map")
 		return make(map[string]any)
@@ -303,7 +307,42 @@ const (
 
 // GitHubReposScope represents the repository scope for guard policy enforcement
 // Can be one of: "all", "public", or an array of repository patterns
-type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
+type GitHubReposScope []string
+
+func parseGitHubReposScope(value any) (GitHubReposScope, error) {
+	switch repos := value.(type) {
+	case string:
+		return GitHubReposScope{repos}, nil
+	case []string:
+		return GitHubReposScope(repos), nil
+	case []any:
+		result := make(GitHubReposScope, 0, len(repos))
+		for _, repo := range repos {
+			value, ok := repo.(string)
+			if !ok {
+				return nil, fmt.Errorf("repository scope entries must be strings, got %T", repo)
+			}
+			result = append(result, value)
+		}
+		return result, nil
+	default:
+		return nil, fmt.Errorf("repository scope must be a string or array of strings, got %T", value)
+	}
+}
+
+// UnmarshalYAML normalizes scalar and array repository scopes to a string slice.
+func (s *GitHubReposScope) UnmarshalYAML(unmarshal func(any) error) error {
+	var value any
+	if err := unmarshal(&value); err != nil {
+		return err
+	}
+	scope, err := parseGitHubReposScope(value)
+	if err != nil {
+		return err
+	}
+	*s = scope
+	return nil
+}
 
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
@@ -324,7 +363,8 @@ type GitHubToolConfig struct {
 	// Supports: "all", "public", or an array of patterns ["owner/repo", "owner/*"] (lowercase)
 	AllowedRepos GitHubReposScope `yaml:"allowed-repos,omitempty"`
 	// Repos is deprecated. Use AllowedRepos (yaml:"allowed-repos") instead.
-	Repos GitHubReposScope `yaml:"repos,omitempty"`
+	Repos         GitHubReposScope `yaml:"repos,omitempty"`
+	reposParseErr error
 	// MinIntegrity defines the minimum integrity level required: "none", "unapproved", "approved", "merged"
 	MinIntegrity GitHubIntegrityLevel `yaml:"min-integrity,omitempty"`
 	// BlockedUsers is an optional list of GitHub usernames whose content is unconditionally blocked.
@@ -377,102 +417,19 @@ type GitHubToolConfig struct {
 	//   - []string → compiler emits gateway.sinkVisibilityExemptServers with the listed IDs.
 	// See MCP Gateway Specification Section 10.9.
 	PrivateToPublicFlows any `yaml:"-"`
-
-	// BoundedQueries configures the AWF bounded-query subsystem for cross-repository
-	// private data access. When set, the agent may answer finite, pre-approved questions
-	// about the listed repositories without receiving raw source code.
-	// Requires the AWF sandbox (sandbox.agent.id: awf) and AWF v0.27.44+.
-	BoundedQueries *BoundedQueriesConfig `yaml:"bounded-queries,omitempty"`
-}
-
-// BoundedQueryRuntime identifies the isolated backend used for each bounded-query invocation.
-type BoundedQueryRuntime = string
-
-const (
-	BoundedQueryRuntimeDocker BoundedQueryRuntime = "docker"
-	BoundedQueryRuntimeGVisor BoundedQueryRuntime = "gvisor"
-	BoundedQueryRuntimeSbx    BoundedQueryRuntime = "sbx"
-)
-
-// BoundedQueriesConfig configures the AWF bounded-query subsystem, which allows the agent
-// to answer finite, pre-approved questions about private repositories without receiving
-// raw source content. The presence of this block enables the feature.
-//
-// Example frontmatter:
-//
-//	tools:
-//	  github:
-//	    bounded-queries:
-//	      private-repos:
-//	        - repo: my-org/internal-service
-//	          sensitivity: internal
-//	      runtime: docker
-//	      timeout: 30
-//	      memory-limit: 512m
-//	      interpreter: python3
-//	      max-invocations: 32
-type BoundedQueriesConfig struct {
-	// PrivateRepos is the list of private repositories that the agent may query.
-	// At least one entry is required when bounded-queries is configured.
-	// Each entry must have a valid "owner/repo" slug and a sensitivity classification.
-	PrivateRepos []*BoundedQueryPrivateRepo `yaml:"private-repos,omitempty"`
-
-	// Runtime is the container runtime used to execute bounded-query scripts.
-	// Optional; when omitted AWF uses its default runtime.
-	// Supported values: "docker", "gvisor", "sbx".
-	// This is independent from sandbox.agent.runtime. AWF creates a fresh
-	// backend-specific sandbox for every query and never falls back to another runtime.
-	Runtime BoundedQueryRuntime `yaml:"runtime,omitempty"`
-
-	// Timeout is the maximum execution time in seconds for a single bounded-query invocation.
-	// Optional; when omitted AWF uses its default timeout.
-	// Must be a positive integer in the range 1–540.
-	// A pointer distinguishes "not set" (nil) from an explicitly set zero, which is rejected.
-	Timeout *int `yaml:"timeout,omitempty"`
-
-	// MemoryLimit is the memory limit for bounded-query container execution (e.g. "512m", "1g").
-	// Optional; when omitted AWF uses its default memory limit.
-	MemoryLimit string `yaml:"memory-limit,omitempty"`
-
-	// Interpreter is the script interpreter for bounded-query execution (e.g. "python3").
-	// Optional; when omitted AWF uses its default interpreter.
-	Interpreter string `yaml:"interpreter,omitempty"`
-
-	// MaxInvocations is the maximum number of bounded-query invocations allowed per run.
-	// Optional; when omitted AWF uses its default.
-	// Must be a positive integer in the range 1–10000.
-	// A pointer distinguishes "not set" (nil) from an explicitly set zero, which is rejected.
-	MaxInvocations *int `yaml:"max-invocations,omitempty"`
-
-	// ParseError records a type mismatch or structural error encountered during YAML parsing.
-	// Non-empty when bounded-queries or private-repos had an unexpected type in the frontmatter.
-	// The compiler treats a non-empty ParseError as a hard validation error.
-	ParseError string `yaml:"-"`
-}
-
-// BoundedQueryPrivateRepo describes one private repository approved for bounded-query access.
-type BoundedQueryPrivateRepo struct {
-	// Repo is the "owner/repo" slug of the private repository.
-	// Must not contain GitHub Actions expressions.
-	Repo string `yaml:"repo"`
-
-	// Sensitivity is the confidentiality classification for this repository.
-	// Accepted values: "public", "internal", "confidential", "sealed".
-	Sensitivity string `yaml:"sensitivity"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
 type PlaywrightToolConfig struct {
-	Version string   `yaml:"version,omitempty"`
-	Args    []string `yaml:"args,omitempty"`
-	// Mode selects the integration approach: "mcp" (default) runs a Docker-based MCP
-	// server; "cli" installs @playwright/cli via npm for token-efficient CLI invocations.
+	Version string `yaml:"version,omitempty"`
+	// Mode accepts "cli" for backward compatibility with explicit configurations.
+	// CLI mode is also used when this field is omitted.
 	Mode string `yaml:"mode,omitempty"`
 }
 
-// IsCLIMode returns true when the playwright tool is configured in CLI mode (mode: cli).
+// IsCLIMode returns true when the Playwright tool uses the supported CLI mode.
 func (p *PlaywrightToolConfig) IsCLIMode() bool {
-	return p != nil && strings.EqualFold(p.Mode, "cli")
+	return p != nil && (p.Mode == "" || strings.EqualFold(p.Mode, "cli"))
 }
 
 // BashToolConfig represents the configuration for the Bash tool
@@ -555,7 +512,7 @@ type MCPGatewayRuntimeConfig struct {
 	EntrypointArgs       []string          `yaml:"entrypointArgs,omitempty"`         // Arguments passed to container entrypoint
 	Env                  map[string]string `yaml:"env,omitempty"`                    // Environment variables for the gateway
 	Port                 int               `yaml:"port,omitempty"`                   // Port for the gateway HTTP server (default: 8080)
-	APIKey               string            `yaml:"api-key,omitempty"`                // API key for gateway authentication
+	AgentID              string            `yaml:"agent-id,omitempty"`               // Agent/session identifier for gateway authentication
 	Domain               string            `yaml:"domain,omitempty"`                 // Domain for gateway URL (localhost or host.docker.internal)
 	Mounts               []string          `yaml:"mounts,omitempty"`                 // Volume mounts for the gateway container (format: "source:dest:mode")
 	PayloadDir           string            `yaml:"payload-dir,omitempty"`            // Directory path for storing large payload JSON files (must be absolute path)

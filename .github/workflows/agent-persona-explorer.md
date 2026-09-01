@@ -4,9 +4,10 @@ emoji: "🎭"
 description: Explores agentic-workflows custom agent behavior by generating software personas and analyzing responses to common automation tasks
 on: daily
 max-daily-ai-credits: 10000
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 permissions:
   contents: read
   actions: read
@@ -59,6 +60,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
 evals:
@@ -66,6 +68,7 @@ evals:
     question: Did the agent generate software personas for exploring custom agent behavior?
   - id: analysis_produced
     question: Was an analysis produced comparing agent responses across different automation tasks?
+
 ---
 
 # Agent Persona Explorer

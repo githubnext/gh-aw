@@ -58,6 +58,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gemini-3.1-flash` | `copilot/gemini-3.1*flash*`, `google/gemini-3.1*flash*`, `gemini/gemini-3.1*flash*` |
 | `gemini-3.5-flash` | `copilot/gemini-3.5*flash*`, `google/gemini-3.5*flash*`, `gemini/gemini-3.5*flash*` |
 | `gemini-3.6-flash` | `copilot/gemini-3.6*flash*`, `google/gemini-3.6*flash*`, `gemini/gemini-3.6*flash*` |
+| `gemini-3.7-flash` | `copilot/gemini-3.7*flash*`, `google/gemini-3.7*flash*`, `gemini/gemini-3.7*flash*` |
 | `antigravity` | `copilot/antigravity*`, `google/antigravity*`, `gemini/antigravity*` |
 | `nano-banana` | `copilot/nano-banana*`, `google/nano-banana*`, `gemini/nano-banana*` |
 | `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `gemini/*computer-use*`, `openai/*computer-use*` |

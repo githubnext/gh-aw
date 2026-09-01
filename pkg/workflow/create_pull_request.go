@@ -42,19 +42,18 @@ func isStackedPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 }
 
 func validateSteeringIssue(data *WorkflowData) error {
-	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !data.SafeOutputs.CreatePullRequests.Steer {
+	if data == nil || data.SafeOutputs == nil || !data.SafeOutputs.Steer {
 		return nil
 	}
 
-	config := data.SafeOutputs.CreatePullRequests
-	if isTemplatableStagedExpression(data.SafeOutputs.Staged) || isTemplatableStagedExpression(config.Staged) {
-		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with an expression-valued staged option")
+	if isTemplatableStagedExpression(data.SafeOutputs.Staged) {
+		return errors.New("safe-outputs.steer cannot be combined with an expression-valued staged option")
 	}
 	if isSteeringIssueStaged(data) {
 		return nil
 	}
 	if data.SafeOutputs.FailureIssueRepo != "" {
-		return errors.New("safe-outputs.create-pull-request.steer cannot be combined with safe-outputs.failure-issue-repo because the steering issue is reused for failure reporting")
+		return errors.New("safe-outputs.steer cannot be combined with safe-outputs.failure-issue-repo because the steering issue is reused for failure reporting")
 	}
 	return nil
 }
@@ -64,11 +63,11 @@ func validateSteeringIssuePermissions(data *WorkflowData, permissions *Permissio
 		return nil
 	}
 	if permissions == nil {
-		return errors.New("safe-outputs.create-pull-request steering requires issues: read, which is required to read steering issue comments")
+		return errors.New("safe-outputs.steer requires issues: read, which is required to read steering issue comments")
 	}
 	level, ok := permissions.Get(PermissionIssues)
 	if !ok || (level != PermissionRead && level != PermissionWrite) {
-		return errors.New("safe-outputs.create-pull-request steering requires issues: read, which is required to read steering issue comments")
+		return errors.New("safe-outputs.steer requires issues: read, which is required to read steering issue comments")
 	}
 	return nil
 }
@@ -84,7 +83,6 @@ type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig  `yaml:",inline"`
 	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
-	Steer                          bool             `yaml:"steer,omitempty"`         // Experimental. Create an issue and steer the agent from issue comments.
 	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
 	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
 	Labels                         []string         `yaml:"labels,omitempty"`

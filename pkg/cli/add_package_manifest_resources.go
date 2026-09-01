@@ -102,7 +102,12 @@ func normalizePackageResourcePaths(resources []repositoryPackageResource, packag
 			DestinationPath: resource.Destination,
 		})
 	}
+
 	return normalized
+}
+
+func packageResourceDestinationKey(destination string) string {
+	return strings.ToLower(filepath.ToSlash(filepath.Clean(destination)))
 }
 
 func normalizeLocalPackageResourcePaths(resources []repositoryPackageResource, packageDir string) ([]resolvedPackageResource, error) {

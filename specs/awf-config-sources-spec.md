@@ -19,6 +19,8 @@ sidebar:
 
 - [6. Conformance Requirements](#6-conformance-requirements)
   - [Norms](#norms)
+- [7. Drift Detection Procedure](#7-drift-detection-procedure)
+  - [Approach](#approach)
 - [8. REASONS Canvas](#8-reasons-canvas)
   - [Safeguards](#safeguards)
 
@@ -147,6 +149,7 @@ The following fields previously existed in schema but were missed in spec CLI ma
 | `apiProxy.targets.copilot.extraHeaders` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraHeaders`; maps to `AWF_BYOK_EXTRA_HEADERS`) | `pkg/workflow/copilot_byok_extra_fields_compilation_test.go` (`TestCopilotBYOKExtraFieldsInCompiledWorkflow`) |
 | `apiProxy.targets.copilot.extraBodyFields` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraBodyFields`; maps to `AWF_BYOK_EXTRA_BODY_FIELDS`) | `pkg/workflow/copilot_byok_extra_fields_compilation_test.go` (`TestCopilotBYOKExtraFieldsInCompiledWorkflow`) |
 | `apiProxy.targets.copilot.sessionId` | config-only (frontmatter: `sandbox.agent.targets.copilot.sessionId`; maps to `AWF_PROVIDER_SESSION_ID`) | `pkg/workflow/copilot_byok_extra_fields_compilation_test.go` (`TestCopilotBYOKExtraFieldsInCompiledWorkflow`) |
+| `apiProxy.caCert` | config-only (frontmatter: `sandbox.agent.ca-cert`; gated to AWF v0.28.10+ via `AWFAPIProxyCACertMinVersion`) | `pkg/workflow/awf_config_test.go` |
 | `container.dockerHostPathPrefix` | `--docker-host-path-prefix` | `pkg/workflow/awf_config_test.go` |
 
 Agents SHOULD treat this class of mismatch as a regression signal and open a corrective PR when detected.
@@ -180,6 +183,16 @@ This subsection identifies the normative behavior that conforming AWF config sou
 ## 7. Drift Detection Procedure
 
 This section describes the concrete steps for detecting schema drift between `gh-aw-firewall` and `gh-aw`.
+
+### Approach
+
+Drift detection uses a fetch-compare-report loop (Section 7.2) rather than a schema-diff bot for three reasons:
+
+1. **Two independent canonical sources must agree, not just diff cleanly.** A schema-diff bot would only compare `docs/awf-config.schema.json` against `src/awf-config-schema.json` (or a prior snapshot) for structural changes. This spec also requires reconciling the CLI mapping table in `docs/awf-config-spec.md` (CR-01, CR-02) against schema properties — a semantic comparison a generic diff tool cannot express, since a field can be structurally unchanged in the schema while its CLI mapping documentation still drifts from `gh-aw` implementation behavior.
+2. **Drift classification requires implementation-aware context.** Categorizing a drift item as `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch` (Section 7.2, Step 4) requires cross-referencing `pkg/workflow/` and `actions/setup/` implementation references, not just the two schema/spec artifacts. A schema-diff bot operating only on `github/gh-aw-firewall` content has no visibility into `github/gh-aw` implementation state.
+3. **Safeguards require explicit degraded-mode handling.** Section 8's safeguards (snapshot freshness, skip-destructive-actions-when-stale) depend on the fetch step's success/failure being observable and actionable within the same procedure. A separate schema-diff bot would need its own redundant fetch-and-cache logic to support these safeguards, duplicating state rather than sharing one fetch-compare-report loop.
+
+This rationale is why Section 7.2 is written as an explicit numbered procedure (fetch, extract, compare, classify, report, remediate) instead of delegating to an off-the-shelf schema-diff tool.
 
 ### 7.1 When to Run
 

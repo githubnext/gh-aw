@@ -650,6 +650,30 @@ func TestConclusionJobActionFailureIssueExpiration_DefaultFromRepoConfig(t *test
 	}
 }
 
+func TestConclusionJobActionFailureIssueExpiration_DisabledWhenFailureReportingIsOff(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp:                 &NoOpConfig{},
+			ReportFailureAsIssue: templatableBoolPtr("false"),
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	jobYAML := strings.Join(job.Steps, "")
+	if !strings.Contains(jobYAML, `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"`) {
+		t.Error("Expected disabled action failure issue expiration env var when failure reporting is disabled")
+	}
+}
+
 func TestConclusionJobActionFailureIssueExpiration_UsesAWJSONConfig(t *testing.T) {
 	gitRoot := t.TempDir()
 	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
@@ -1360,6 +1384,12 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(script, "cp /tmp/gh-aw/agent_usage.json /tmp/gh-aw/usage/agent_usage.json") {
 		t.Errorf("Expected collect script to copy agent_usage.json.\nScript:\n%s", script)
 	}
+	if !strings.Contains(script, "cp /tmp/gh-aw/agent/graders/grader_manifest.json /tmp/gh-aw/usage/graders/grader_manifest.json") {
+		t.Errorf("Expected collect script to copy grader manifest into usage.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "cp /tmp/gh-aw/agent/graders/grader_results.json /tmp/gh-aw/usage/graders/grader_results.json") {
+		t.Errorf("Expected collect script to copy grader results into usage.\nScript:\n%s", script)
+	}
 	if !strings.Contains(script, "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
 		t.Errorf("Expected collect script to include firewall audit token usage path for agent.\nScript:\n%s", script)
 	}
@@ -1456,6 +1486,12 @@ func TestConclusionJobIncludesEvalsInUsageArtifact(t *testing.T) {
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/evals.jsonl") {
 		t.Errorf("Expected usage artifact upload to include evals results.\nGenerated steps:\n%s", allSteps)
 	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/graders/grader_manifest.json") {
+		t.Errorf("Expected usage artifact upload to include grader manifest.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/graders/grader_results.json") {
+		t.Errorf("Expected usage artifact upload to include grader results.\nGenerated steps:\n%s", allSteps)
+	}
 }
 
 func TestUsageArtifactDownloadsUseExactNamesWithDownloadArtifactV3(t *testing.T) {
@@ -1463,7 +1499,7 @@ func TestUsageArtifactDownloadsUseExactNamesWithDownloadArtifactV3(t *testing.T)
 		return "actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0"
 	}), "")
 
-	for _, artifactName := range []string{constants.SafeOutputItemsArtifactName, constants.EvalsArtifactName} {
+	for _, artifactName := range []string{constants.SafeOutputItemsArtifactName.String(), constants.EvalsArtifactName.String()} {
 		if !strings.Contains(steps, "name: "+artifactName) {
 			t.Errorf("Expected download-artifact v3 usage download to use exact name for %q.\nGenerated steps:\n%s", artifactName, steps)
 		}

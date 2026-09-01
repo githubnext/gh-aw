@@ -7,6 +7,7 @@ import (
 )
 
 func TestResolverResolvePullRequestSingleClosingIssueMapped(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{
 		ResolverVersion: "test-v1",
 		MatchLabels: func(labels []string) []string {
@@ -39,6 +40,7 @@ func TestResolverResolvePullRequestSingleClosingIssueMapped(t *testing.T) {
 }
 
 func TestResolverResolvePullRequestSingleClosingIssueUnmapped(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{
 		MatchLabels: func(labels []string) []string {
 			return nil
@@ -59,6 +61,7 @@ func TestResolverResolvePullRequestSingleClosingIssueUnmapped(t *testing.T) {
 }
 
 func TestResolverResolvePullRequestArtifactFallbackMapped(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{
 		MatchLabels: func(labels []string) []string {
 			return []string{"automation"}
@@ -79,6 +82,7 @@ func TestResolverResolvePullRequestArtifactFallbackMapped(t *testing.T) {
 }
 
 func TestResolverResolvePullRequestArtifactFallbackClonesLabels(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	labels := []string{"automation", "maintenance"}
@@ -93,6 +97,7 @@ func TestResolverResolvePullRequestArtifactFallbackClonesLabels(t *testing.T) {
 }
 
 func TestResolverResolvePullRequestExplicitIntentPreservesVersion(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	explicit := IntentRecord{
@@ -112,6 +117,7 @@ func TestResolverResolvePullRequestExplicitIntentPreservesVersion(t *testing.T) 
 }
 
 func TestResolverResolvePullRequestExplicitIntentFillsVersion(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	explicit := IntentRecord{
@@ -132,6 +138,7 @@ func TestResolverResolvePullRequestExplicitIntentFillsVersion(t *testing.T) {
 }
 
 func TestResolverResolvePullRequestNoSourcesUnlinked(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	intent := resolver.ResolvePullRequest(PullRequestData{})
@@ -145,6 +152,7 @@ func TestResolverResolvePullRequestNoSourcesUnlinked(t *testing.T) {
 }
 
 func TestResolverResolvePullRequestMultipleClosingIssuesAmbiguous(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	intent := resolver.ResolvePullRequest(PullRequestData{
@@ -160,6 +168,7 @@ func TestResolverResolvePullRequestMultipleClosingIssuesAmbiguous(t *testing.T) 
 }
 
 func TestResolverResolvePullRequestNilMatchLabelsUnmapped(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	intent := resolver.ResolvePullRequest(PullRequestData{
@@ -181,6 +190,7 @@ func TestResolverResolvePullRequestNilMatchLabelsUnmapped(t *testing.T) {
 }
 
 func TestResolverResolveIssueMapped(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{
 		MatchLabels: func(labels []string) []string {
 			return []string{"documentation"}
@@ -197,6 +207,7 @@ func TestResolverResolveIssueMapped(t *testing.T) {
 }
 
 func TestResolverResolveIssueNoLabelsUnlinked(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	intent := resolver.ResolveIssue("I_kwDOAAABCQ4", "https://github.com/owner/repo/issues/42", nil)
@@ -210,6 +221,7 @@ func TestResolverResolveIssueNoLabelsUnlinked(t *testing.T) {
 }
 
 func TestResolverResolveIssueUnmapped(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{
 		ResolverVersion: "test-v1",
 		MatchLabels: func(labels []string) []string {
@@ -232,6 +244,7 @@ func TestResolverResolveIssueUnmapped(t *testing.T) {
 }
 
 func TestResolverResolveIssueNilMatchLabelsUnmapped(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	intent := resolver.ResolveIssue("I_kwDOAAABCQ4", "https://github.com/owner/repo/issues/42", []string{"triage"})
@@ -249,6 +262,7 @@ func TestResolverResolveIssueNilMatchLabelsUnmapped(t *testing.T) {
 }
 
 func TestResolverResolveIssueClonesLabels(t *testing.T) {
+	t.Parallel()
 	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	labels := []string{"triage", "bug"}

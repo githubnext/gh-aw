@@ -25,7 +25,8 @@ func NewEditCommand() *cobra.Command {
 		Long: `Experimental: edit schema-validated workflow frontmatter and recompile its generated file.
 
 The workflow-id may be a workflow name, a Markdown filename, or a path. Changes are
-validated before writing. Workflows managed by a source: declaration cannot be edited.
+validated before writing. Workflows managed by a source: declaration can be edited
+locally; by default, future updates will merge in those local changes (use --no-merge to override).
 
 Edits that change nothing leave the workflow untouched. When frontmatter does change it is
 re-serialized, so YAML comments, key ordering, and quoting styles are not preserved.`,
@@ -66,9 +67,6 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, managed := parsed.Frontmatter["source"]; managed {
-		return errors.New("cannot edit a source-managed workflow; update its source or pin, then run gh aw update")
-	}
 
 	changes, err := editChangesFromCommand(cmd, args)
 	if err != nil {
@@ -76,6 +74,13 @@ func runEditCommand(cmd *cobra.Command, args []string) error {
 	}
 	if len(changes) == 0 {
 		return errors.New("provide an assignment or an edit flag")
+	}
+	if _, managed := parsed.Frontmatter["source"]; managed {
+		for _, change := range changes {
+			if strings.Split(change.path, ".")[0] == "source" {
+				return errors.New("cannot edit source for a source-managed workflow")
+			}
+		}
 	}
 	edited := false
 	for _, change := range changes {

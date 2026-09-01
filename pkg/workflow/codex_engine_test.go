@@ -105,7 +105,6 @@ func TestCodexEngineCopilotModelUsesGitHubInference(t *testing.T) {
 	expected := []string{
 		`GH_AW_LLM_PROVIDER: github`,
 		`AWF_REFLECT_ENABLED: 1`,
-		`api.githubcopilot.com`,
 		`COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`,
 		constants.CopilotBYOKDummyAPIKeyEnvVar + `: ` + constants.CopilotBYOKDummyAPIKey,
 		`export CODEX_API_KEY="$` + constants.CopilotBYOKDummyAPIKeyEnvVar + `"`,
@@ -456,7 +455,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"gateway\": {",
 				"\"port\": $MCP_GATEWAY_PORT,",
 				"\"domain\": \"${MCP_GATEWAY_DOMAIN}\",",
-				"\"apiKey\": \"${MCP_GATEWAY_API_KEY}\",",
+				"\"agentId\": \"${MCP_GATEWAY_AGENT_ID}\",",
 				"\"payloadDir\": \"${MCP_GATEWAY_PAYLOAD_DIR}\",",
 				"\"startupTimeout\": 120",
 				"}",
@@ -466,6 +465,8 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"# Sync converter output to writable CODEX_HOME for Codex",
 				"mkdir -p /tmp/gh-aw/mcp-config",
 				"cat > \"/tmp/gh-aw/mcp-config/config.toml\" << GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
+				"[features]",
+				"plugins = false",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
 				"include_only = [\"^CODEX_API_KEY$\", \"^GITHUB_PERSONAL_ACCESS_TOKEN$\", \"^HOME$\", \"^OPENAI_API_KEY$\", \"^PATH$\"]",
@@ -545,7 +546,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"model_provider = \"openai-proxy\"",
 			"[model_providers.openai-proxy]",
 			"name = \"OpenAI AWF proxy\"",
-			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
+			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.CodexLLMGatewayPort),
 			"env_key = \"CODEX_API_KEY\"",
 			"wire_api = \"responses\"",
 			"requires_openai_auth = false",
@@ -633,7 +634,7 @@ func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 	engine := NewCodexEngine()
 
 	t.Run("defaults to the OpenAI gateway port", func(t *testing.T) {
-		expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+		expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CodexLLMGatewayPort))
 		workflowData := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}}
 
 		if actual := engine.getOpenAIProxyProviderBaseURL(workflowData); actual != expected {
@@ -1406,6 +1407,62 @@ func TestCodexEngineBashDisabled(t *testing.T) {
 		stepContent := strings.Join([]string(steps[0]), "\n")
 		if !strings.Contains(stepContent, `-c features.shell_tool=false`) {
 			t.Errorf(`Expected -c features.shell_tool=false config when bash is fully disabled, got:\n%s`, stepContent)
+		}
+	})
+}
+
+func TestCodexEnginePluginConfig(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("disables plugins when none are declared", func(t *testing.T) {
+		workflowData := &WorkflowData{Name: "test-workflow"}
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+		if config := yaml.String(); !strings.Contains(config, "[features]") || !strings.Contains(config, "plugins = false") {
+			t.Errorf("Expected generated Codex TOML to disable plugins when none are declared, got:\n%s", config)
+		}
+	})
+
+	t.Run("keeps plugins enabled when one is declared", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:    "test-workflow",
+			Plugins: []string{"octo-org/example@main"},
+		}
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+		if config := yaml.String(); strings.Contains(config, "plugins = false") {
+			t.Errorf("Expected generated Codex TOML to keep plugins enabled when one is declared, got:\n%s", config)
+		}
+	})
+
+	t.Run("merges plugin setting into a custom features table", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Config: "[features]\n shell_tool = false\n",
+			},
+		}
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, workflowData); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+		}
+		config := yaml.String()
+		shellPolicyStart := strings.Index(config, "# Sync converter output")
+		shellPolicyEnd := strings.Index(config, "# Append engine-level custom Codex config")
+		shellPolicy := config[shellPolicyStart:shellPolicyEnd]
+		if strings.Contains(shellPolicy, "[features]") || !strings.Contains(config, "[features]\nplugins = false\n shell_tool = false") {
+			t.Errorf("Expected plugin setting to be merged into custom Codex features table, got:\n%s", config)
+		}
+	})
+
+	t.Run("accepts nil workflow data", func(t *testing.T) {
+		var yaml strings.Builder
+		if err := engine.RenderMCPConfig(&yaml, map[string]any{}, nil, nil); err != nil {
+			t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
 		}
 	})
 }

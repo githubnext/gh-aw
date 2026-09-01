@@ -277,7 +277,12 @@ function registerConfiguredProviders(pi, logger) {
       ["openai", "codex"],
       {
         apiKey: openAIKey,
-        api: "openai-completions",
+        // Real OpenAI models are only published under "openai-responses" in Pi's
+        // upstream model catalog. OpenAI's Chat Completions endpoint rejects function
+        // tools whenever reasoning_effort is anything other than "none", so routing
+        // through /responses keeps tool calling working for reasoning-capable models.
+        // See: https://developers.openai.com/api/docs/guides/responses-vs-chat-completions
+        api: "openai-responses",
         ...(process.env.OPENAI_BASE_URL ? { baseUrl: process.env.OPENAI_BASE_URL } : {}),
       },
       logger

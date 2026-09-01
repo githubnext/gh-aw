@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test workflow that validates Gemini engine functionality twice daily
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-gemini
     strategy: centralized

@@ -3,10 +3,44 @@
 package workflow
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/types"
+	"gopkg.in/yaml.v3"
 )
+
+func TestGitHubReposScopeUnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    GitHubReposScope
+		wantErr bool
+	}{
+		{name: "scalar", input: "all", want: GitHubReposScope{"all"}},
+		{name: "array", input: "[owner/repo, owner/*]", want: GitHubReposScope{"owner/repo", "owner/*"}},
+		{name: "non-string array item", input: "[owner/repo, 42]", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var scope GitHubReposScope
+			err := yaml.Unmarshal([]byte(tt.input), &scope)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected unmarshal error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unmarshal GitHubReposScope: %v", err)
+			}
+			if !reflect.DeepEqual(tt.want, scope) {
+				t.Errorf("scope = %v, want %v", scope, tt.want)
+			}
+		})
+	}
+}
 
 func TestNewTools(t *testing.T) {
 	t.Run("creates empty tools from nil map", func(t *testing.T) {
@@ -255,6 +289,45 @@ func TestGitHubConfigParsing(t *testing.T) {
 		}
 	})
 
+	t.Run("normalizes repository scopes", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			value any
+			want  GitHubReposScope
+		}{
+			{name: "scalar", value: "all", want: GitHubReposScope{"all"}},
+			{name: "array", value: []any{"owner/repo", "owner/*"}, want: GitHubReposScope{"owner/repo", "owner/*"}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				tools := NewTools(map[string]any{
+					"github": map[string]any{"allowed-repos": tt.value},
+				})
+				if !reflect.DeepEqual(tt.want, tools.GitHub.AllowedRepos) {
+					t.Errorf("AllowedRepos = %v, want %v", tools.GitHub.AllowedRepos, tt.want)
+				}
+			})
+		}
+
+		t.Run("rejects malformed repository scopes", func(t *testing.T) {
+			toolsMap := map[string]any{
+				"github": map[string]any{"allowed-repos": []any{"owner/repo", 42}},
+			}
+			const want = "github.allowed-repos: repository scope entries must be strings, got int"
+
+			tools := NewTools(toolsMap)
+			if err := validateGitHubGuardPolicy(tools, "test-workflow"); err == nil || err.Error() != want {
+				t.Errorf("validateGitHubGuardPolicy() error = %v, want %q", err, want)
+			}
+
+			_, err := ParseToolsConfig(toolsMap)
+			if err == nil || err.Error() != want {
+				t.Errorf("ParseToolsConfig() error = %v, want %q", err, want)
+			}
+		})
+	})
+
 	t.Run("coerces single string toolsets to slice", func(t *testing.T) {
 		toolsMap := map[string]any{
 			"github": map[string]any{
@@ -337,8 +410,8 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 	t.Run("parses playwright config map", func(t *testing.T) {
 		toolsMap := map[string]any{
 			"playwright": map[string]any{
-				"version": "v1.41.0",
-				"args":    []any{"--headless"},
+				"version": "0.1.18",
+				"mode":    "cli",
 			},
 		}
 
@@ -349,12 +422,12 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 			t.Fatal("expected non-nil config")
 		}
 
-		if config.Version != "v1.41.0" {
-			t.Errorf("expected version 'v1.41.0', got %q", config.Version)
+		if config.Version != "0.1.18" {
+			t.Errorf("expected version '0.1.18', got %q", config.Version)
 		}
 
-		if len(config.Args) != 1 {
-			t.Errorf("expected 1 arg, got %d", len(config.Args))
+		if !config.IsCLIMode() {
+			t.Error("expected CLI mode")
 		}
 	})
 }

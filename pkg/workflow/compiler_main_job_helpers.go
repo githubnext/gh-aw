@@ -313,6 +313,19 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 		// DEFAULT_BRANCH is used by safeoutputs MCP server
 		// Use repository default branch from GitHub context
 		env["DEFAULT_BRANCH"] = "${{ github.event.repository.default_branch }}"
+
+		// Add PR head baseline environment variables used for incremental patches.
+		// These are only populated (via GITHUB_ENV) by the "Checkout PR branch" step,
+		// which is skipped for non-PR events (e.g. schedule, workflow_dispatch without
+		// a PR context). They must still be declared here (even empty) because the
+		// MCP gateway validates every ${VAR} reference in its config and fails with
+		// "undefined environment variable referenced" if the variable is entirely unset.
+		env["GH_AW_PR_HEAD_BASE_BRANCH"] = `""`
+		env["GH_AW_PR_HEAD_BASE_SHA"] = `""`
+		env["GH_AW_PR_HEAD_BASE_REPO"] = `""`
+		env["GH_AW_PR_HEAD_BASE_PR_NUMBER"] = `""`
+		env["GH_AW_PR_HEAD_BASE_REF"] = `""`
+		env["GH_AW_PR_HEAD_REPO"] = `""`
 	}
 
 	// Set GH_AW_WORKFLOW_ID_SANITIZED for cache-memory keys

@@ -164,7 +164,9 @@ Only report **new** findings, or previously reported findings that have since go
 
 If you find suspicious entries, create at most 3 issues, highest severity first, grouped by theme (for example one issue per engine, or one issue for cross-cutting PKI duplication).
 
-Issue body structure (use `###` and lower headings only):
+For each public-facing report, keep the concise summary, highest-priority findings, and recommended changes visible above the fold. Use `###` headings for report sections and `####` headings for subsections, and wrap long evidence or supporting context in `<details><summary><b>View full findings</b></summary>` blocks.
+
+Issue body structure:
 
 ```
 ### Summary

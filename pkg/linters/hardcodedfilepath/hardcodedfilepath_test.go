@@ -11,6 +11,7 @@ import (
 )
 
 func TestHardcodedFilePath(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, hardcodedfilepath.Analyzer, "constants", "hardcodedfilepath")
 }

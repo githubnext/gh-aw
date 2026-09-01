@@ -11,6 +11,8 @@ head:
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import safeOutputsIsolation from '../../../assets/diagrams/architecture-2026-08-29.svg';
 
 GitHub Agentic Workflows (gh-aw) runs AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions with a defense-in-depth security architecture that protects against prompt injection, rogue MCP servers, and compromised agents. This document provides an overview of the security model and its key components.
 
@@ -165,6 +167,8 @@ flowchart LR
     LABEL --> API
 ```
 
+<Image src={safeOutputsIsolation} alt="Diagram showing the agent job writing an agent_output.json artifact, which a threat detection job analyzes for secret leaks and malicious patches; only when approved do scoped safe-output jobs such as create_issue, add_comment, and create_pull_request call the GitHub API, while the agent itself never holds write permissions" />
+
 <Aside type="tip">
 The SafeOutputs subsystem provides security by design: the agent never requires write permissions because all write operations are performed by separate, validated jobs with minimal scoped permissions.
 </Aside>
@@ -194,7 +198,7 @@ Runner topology determines where the Docker daemon and workspace live. Agent run
 > [!IMPORTANT]
 > gVisor and Docker sbx are incompatible with `runner.topology: arc-dind`. Installing gVisor invokes `sudo` to register `runsc`, but the agent remains in the default rootless AWF mode. Docker sbx requires KVM access and the `DOCKER_USERNAME` and `DOCKER_PAT` secrets; the compiler derives the privileged setup it needs from `sandbox.agent.runtime: docker-sbx`. The compiler rejects incompatible runtime, topology, and AWF-version combinations; generated Docker sbx workflows fail fast at run time when KVM access or required secrets are unavailable.
 
-ARC DinD preserves AWF's egress policy through Docker network topology rather than host `iptables`: the DinD daemon creates an internal network with no direct internet route and a dual-homed Squid proxy as the sole egress path. See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) and [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/) for deployment details.
+ARC DinD preserves AWF's egress policy through Docker network topology rather than host `iptables`: the DinD daemon creates an internal network with no direct internet route and a dual-homed Squid proxy as the sole egress path. See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) and [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/reference/arc-dind-copilot-agent/) for deployment details.
 
 ```mermaid
 flowchart TB
@@ -288,7 +292,7 @@ flowchart LR
 5. When supported by an agent, AWF creates a trusted `api-proxy` that routes model traffic on the agent's behalf while keeping that traffic behind AWF's network controls. This proxy should not be treated as a separate caller-authentication boundary for arbitrary code already running inside the agent container.
 
 > [!WARNING]
-> The MCP gateway API key that is mounted into the agent container is not a strong security boundary against a compromised or malicious agent. An agent running arbitrary code may extract the key from process memory, runtime state, or other in-container channels. Treat this key as leaked by design and rely on substrate isolation, network policy, and staged permission separation for security.
+> The MCP gateway agent ID that is mounted into the agent container is not a strong security boundary against a compromised or malicious agent. An agent running arbitrary code may extract the identifier from process memory, runtime state, or other in-container channels. Treat this identifier as leaked by design and rely on substrate isolation, network policy, and staged permission separation for security.
 
 ## MCP Server Sandboxing
 
@@ -822,15 +826,11 @@ gh aw status
 | **Plan** | Output sanitization | Content injection, XSS |
 | **Plan** | Artifact preservation, CLI tools | Debugging failures, auditing security, cost tracking |
 
-## Related Documentation
+## Learn More
 
 - [Integrity Filtering](/gh-aw/reference/integrity/) - Author-trust and merge-status content filtering
 - [Threat Detection Guide](/gh-aw/reference/threat-detection/) - Configuring threat analysis
 - [Network Permissions](/gh-aw/reference/network/) - Network access control
-- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Runner selection, ARC DinD topology, and split-daemon configuration
-- [ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/) - Kubernetes runner deployment
 - [Sandbox Configuration](/gh-aw/reference/sandbox/) - Agent sandbox and runtime configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing configuration
-- [AI Engines](/gh-aw/reference/engines/) - Engine-specific security features
 - [Compilation Process](/gh-aw/reference/compilation-process/) - Build-time security validation
-- [CLI Commands](/gh-aw/setup/cli/) - Workflow management and observability tools

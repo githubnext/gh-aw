@@ -71,8 +71,8 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 	}
 
 	paths := []string{
-		constants.TmpGhAwDirSlash + constants.AgentOutputFilename,
-		constants.TmpGhAwDirSlash + constants.SafeOutputsFilename,
+		constants.TmpGhAwDirSlash + constants.AgentOutputFilename.String(),
+		constants.TmpGhAwDirSlash + constants.SafeOutputsFilename.String(),
 	}
 
 	// Include grader manifest/results in the fallback so detection and downstream

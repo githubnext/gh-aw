@@ -1,12 +1,12 @@
 ---
-title: What are GitHub Agentic Workflows?
+title: What are Agentic Workflows?
 description: Learn what GitHub Agentic Workflows (gh-aw) is, how agentic workflows use Markdown and YAML frontmatter, and how AI agents run through GitHub Actions.
 sidebar:
   label: What are Agentic Workflows?
   order: 1
 ---
 
-GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents through GitHub Actions. The `gh-aw` CLI compiles the source into a standard GitHub Actions workflow while adding controls for permissions, tools, sandboxing, and writes.
+GitHub Agentic Workflows lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents through GitHub Actions. The `gh-aw` CLI compiles the source into a standard GitHub Actions workflow while adding controls for permissions, tools, sandboxing, and writes.
 
 ## What is an agentic workflow?
 
@@ -51,7 +51,13 @@ The AI agent reads your repository context, understands the issue content, and t
 
 The generated agent job uses read-only permissions by default. The recommended write path is sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/), which can create issues, comments, and pull requests without granting the AI agent direct write access. Direct write permissions and custom jobs are also configurable and form separate trust boundaries. Review the [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) for these boundaries and exceptions.
 
-Browse [GitHub Agentic Workflows examples by task](/gh-aw/examples/) or explore the larger [Agentics collection](https://github.com/githubnext/agentics).
+## Learn More
+
+- [How Agentic Workflows Work](/gh-aw/introduction/how-they-work/)
+- [Security Architecture](/gh-aw/introduction/architecture/)
+- [Quick Start](/gh-aw/setup/quick-start/)
+- [GitHub Agentic Workflows Gallery](/gh-aw/gallery/)
+- [Agentics collection](https://github.com/githubnext/agentics)
 
 > [!TIP]
 > **Want a guided introduction?** The [**gh-aw-workshop**](https://github.com/githubnext/gh-aw-workshop) is a step-by-step workshop that walks you through building your first agentic workflow from scratch.

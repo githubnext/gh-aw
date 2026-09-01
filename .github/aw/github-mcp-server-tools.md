@@ -1,3 +1,7 @@
+---
+description: Toolset-by-toolset reference for GitHub MCP server tools, including purposes and key parameters.
+---
+
 # GitHub MCP Server — Tools by Toolset
 
 Full tool reference for each toolset. See [github-mcp-server.md](github-mcp-server.md) for overview, configuration, and recommended defaults.

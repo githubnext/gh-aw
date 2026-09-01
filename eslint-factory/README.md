@@ -25,6 +25,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-child-process-interpolated-command`](#no-child-process-interpolated-command) | Disallow interpolated command strings in shell-evaluated `child_process` calls |
 | [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
 | [`no-json-stringify-error`](#no-json-stringify-error) | Disallow `JSON.stringify()` on caught error variables |
+| [`no-json-stringify-equality`](#no-json-stringify-equality) | Disallow comparing two `JSON.stringify()` results for equality |
 | [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
@@ -36,6 +37,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`prefer-structured-clone`](#prefer-structured-clone) | Prefer `structuredClone(...)` over `JSON.parse(JSON.stringify(...))` for deep-cloning data |
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
+| [`require-decodeuricomponent-try-catch`](#require-decodeuricomponent-try-catch) | Require try/catch around `decodeURIComponent(...)` and `decodeURI(...)` on dynamic input |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
 | [`require-error-code-in-thrown-error`](#require-error-code-in-thrown-error) | Require standardized error codes in thrown errors when `error_codes.cjs` is imported |
 | [`require-error-code-for-github-api-throw`](#require-error-code-for-github-api-throw) | Require standardized error codes for `throw new Error(...)` after GitHub API calls |
@@ -48,6 +50,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
 | [`require-mkdirsync-try-catch`](#require-mkdirsync-try-catch) | Require try/catch around `fs.mkdirSync` calls |
 | [`require-mkdtempsync-try-catch`](#require-mkdtempsync-try-catch) | Require try/catch around `fs.mkdtempSync` calls |
+| [`require-realpathsync-try-catch`](#require-realpathsync-try-catch) | Require try/catch around `fs.realpathSync` calls |
 | [`require-new-url-try-catch`](#require-new-url-try-catch) | Require try/catch around `new URL(variable)` calls |
 | [`require-parseInt-radix`](#require-parseInt-radix) | Require an explicit radix argument to `parseInt()` |
 | [`require-nan-check-after-env-numeric-parse`](#require-nan-check-after-env-numeric-parse) | Require NaN validation after parsing numeric values from `process.env` |
@@ -513,9 +516,44 @@ try {
 }
 ```
 
+### `require-realpathsync-try-catch`
+
+Require `fs.realpathSync` calls to be wrapped in `try/catch`.
+
+Why: `realpathSync` throws synchronously when the target path is missing, permissions are denied, or a symlink cycle is encountered. Wrapping the call preserves call-site-specific error context and ensures path containment checks are not skipped on failure.
+
+**Detected forms:**
+- `fs.realpathSync(path)` — direct call on a known `require("fs")` result.
+- `fs["realpathSync"](path)` — computed string-literal property access.
+- `const { realpathSync } = require("fs"); realpathSync(path)` — destructured binding from `require("fs")` or `require("node:fs")`.
+- ESM namespace imports: `import * as fs from "fs"; fs.realpathSync(path)`.
+- ESM named imports: `import { realpathSync } from "fs"; realpathSync(path)`.
+
+**Out of scope:**
+- Objects whose `require` source is not the Node `fs` / `node:fs` module.
+- Calls already inside a `try` block with a `catch` clause.
+- `try { ... } finally { ... }` without a `catch` clause is still flagged.
+
+**Known limitation — no autofix for `VariableDeclaration`:** when the flagged call appears as a variable initializer, the rule reports the error but emits no autofix suggestion. Only `ExpressionStatement` and `ReturnStatement` positions receive an autofix suggestion.
+
+**Safe alternative:**
+```js
+try {
+  const resolved = fs.realpathSync(path);
+} catch (err) {
+  throw new Error("fs.realpathSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+```
+
 ### `require-new-url-try-catch`
 
 Require `new URL(variable)` calls to be wrapped in `try/catch`.
+
+### `require-decodeuricomponent-try-catch`
+
+Require `decodeURIComponent(...)` and `decodeURI(...)` on dynamic input to be wrapped in `try/catch`.
+
+Malformed percent-encoded input throws `URIError` and can crash the action if left unhandled.
 
 Why: the `URL` constructor throws a `TypeError` when given an invalid or relative URL string, which crashes the action with an unhelpful uncaught exception.
 
@@ -861,6 +899,25 @@ Interpolating an unescaped, user- or runtime-controlled value directly into a `n
 - `` new RegExp(`^${escapeRegExp(value)}$`) `` — interpolated value passed through a call whose name matches an escaping-helper pattern (contains both "escape" and "reg", e.g. `escapeRegExp`, `utils.escapeRegex`).
 - `` new RegExp(`^${escapedValue}$`) `` — interpolated identifier whose name starts with `escaped` (e.g. `escapedValue`, `ESCAPED_NAME`).
 - Static (non-interpolated) template literals.
+
+### `no-json-stringify-equality`
+
+Disallow comparing two `JSON.stringify()` results with an equality operator (`===`, `!==`, `==`, `!=`). `JSON.stringify()` output depends on object key insertion order, so two deeply-equal objects built with keys inserted in a different order serialize to different strings and are reported as unequal.
+
+**Flagged form:**
+```js
+return JSON.stringify(normalizedLeft) === JSON.stringify(normalizedRight);
+```
+
+**Safe alternative:**
+```js
+return deepEqual(normalizedLeft, normalizedRight);
+```
+
+**Not flagged:**
+- `JSON.stringify(value) === "{}"` — only one operand is a `JSON.stringify()` call, so no key-order ambiguity exists.
+- Non-equality operators such as `<`, `>` or `+`.
+- A locally shadowed `JSON` binding.
 
 ### `no-json-stringify-set-or-map`
 

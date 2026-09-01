@@ -399,9 +399,9 @@ tools:
 5. **Clarity**: Clear error messages and validation
 6. **Documentation**: Self-documenting through type system
 
-## Open Questions
+## Resolved Decisions
 
-> **Status**: All four open questions below have been resolved with decision records.
+> **Status**: All four questions below have been resolved with decision records.
 
 1. **Should we support negative patterns (e.g., exclude certain repos)?**
 
@@ -415,7 +415,7 @@ tools:
 
 3. **How should conflicts between lockdown and guard policies be resolved?**
 
-   **Decision**: The canonical [Evaluation Order](#41-evaluation-order) applies. The compiler SHOULD warn operators at compilation time when `lockdown: true` and guard-policy fields are both present; this is implemented in `pkg/workflow/tools_validation_github.go`, where `validateGitHubGuardPolicy()` detects the conflict and `emitGitHubLockdownGuardPolicyWarning()` surfaces the warning.
+   **Decision**: The canonical [Evaluation Order](#41-evaluation-order) applies. The compiler SHOULD warn operators at compilation time when `lockdown: true` and guard-policy fields are both present; this is implemented in `pkg/workflow/tools_validation_github.go`, where `validateGitHubGuardPolicy()` detects the conflict and `emitGitHubLockdownGuardPolicyWarning()` surfaces the warning. This mirrors [github-mcp-access-control-specification.md §9.5.1](github-mcp-access-control-specification.md#951-precedence-rule).
 
 4. **Should we add a "dry-run" mode to test policies before enforcement?**
 
@@ -531,7 +531,11 @@ Implementations MUST reject an empty `allowed-repos` array (`allowed-repos: []`)
 
 ### GP-S002: Lockdown Supremacy
 
-When `lockdown: true` is present on the same workflow, guard policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `approval-labels`) MUST NOT be evaluated for access-widening purposes. Implementations MUST treat lockdown as taking absolute precedence and MUST NOT combine lockdown with guard policies in any way that permits access beyond the single triggering repository.
+When `lockdown: true` is present on the same workflow, guard policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, `approval-labels`) MUST NOT be evaluated for access-widening purposes. Implementations MUST treat lockdown as taking absolute precedence and MUST NOT combine lockdown with guard policies in any way that permits access beyond the single triggering repository.
+
+**Shared precedence rule**: `lockdown: true` takes absolute precedence over `allowed-repos`, including non-empty allowlists, and over `min-integrity`; implementations MUST ignore those guard-policy fields for authorization while lockdown is active and MUST NOT allow them to widen access beyond the triggering repository.
+
+See also: [github-mcp-access-control-specification.md §9.5.1](github-mcp-access-control-specification.md#951-precedence-rule).
 
 Implementations MUST emit a compilation warning when both `lockdown: true` and any guard-policy field are present simultaneously, because the combination is almost certainly a misconfiguration (the guard-policy fields become inert).
 

@@ -28,6 +28,7 @@ type ImportsResult struct {
 	MergedMCPServers                 string                // Merged mcp-servers configuration from all imports
 	MergedEngines                    []string              // Merged engine configurations from all imports
 	MergedPlugins                    []string              // Agent Plugin references from all imports (merged after main-workflow plugins)
+	MergedPluginObjects              []map[string]any      // Object-form Agent Plugin references from all imports
 	MergedSafeOutputs                []string              // Merged safe-outputs configurations from all imports
 	MergedGraders                    string                // Merged graders configuration from all imports (JSON objects, one per line)
 	MergedMCPScripts                 []string              // Merged mcp-scripts configurations from all imports

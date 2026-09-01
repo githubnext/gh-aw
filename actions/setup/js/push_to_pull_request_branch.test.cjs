@@ -604,11 +604,15 @@ index 0000000..abc1234
 
       const patchPath = createPatchFile("should-detect-fork-pr-via-different-repository-names-and-fai");
 
+      global.getOctokit = vi.fn().mockReturnValue(mockGithub);
       const module = await loadModule();
-      const handler = await module.main({ target: "triggering" });
+      const handler = await module.main({
+        target: "triggering",
+        "github-token": "pat-that-may-have-fork-access",
+      });
       const result = await handler({ branch: "should-detect-fork-pr-via-different-repository-names-and-fai" }, {});
 
-      // Fork PRs should fail early with a clear error
+      // A PAT does not bypass the explicit head-repo destination policy.
       expect(result.success).toBe(false);
       expect(result.error).toContain("fork");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Cannot push to fork PR"));

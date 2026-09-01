@@ -16,6 +16,7 @@ import (
 )
 
 func TestFlattenSingleFileArtifacts(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		setup           func(string) error
@@ -122,6 +123,7 @@ func TestFlattenSingleFileArtifacts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Setup test structure
@@ -173,6 +175,7 @@ func TestFlattenSingleFileArtifacts(t *testing.T) {
 }
 
 func TestFlattenSingleFileArtifactsInvalidDirectory(t *testing.T) {
+	t.Parallel()
 	// Test with non-existent directory
 	err := flattenSingleFileArtifacts("/nonexistent/directory", false)
 	if err == nil {
@@ -181,6 +184,7 @@ func TestFlattenSingleFileArtifactsInvalidDirectory(t *testing.T) {
 }
 
 func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
+	t.Parallel()
 	// Test that flattening works correctly for typical audit artifact files
 	// This test uses unified agent structure
 	tmpDir := testutil.TempDir(t, "test-*")
@@ -284,6 +288,7 @@ func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 }
 
 func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
+	t.Parallel()
 	// Simulate what the audit command does - check that it can find artifacts after flattening
 	// This test uses unified agent structure
 	tmpDir := testutil.TempDir(t, "test-*")
@@ -350,6 +355,7 @@ func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
 }
 
 func TestFlattenUnifiedArtifact(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		setup           func(string) error
@@ -488,6 +494,7 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := testutil.TempDir(t, "test-flatten-unified-*")
 
 			// Setup test structure
@@ -542,35 +549,38 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 }
 
 func TestFlattenAgentOutputFallbackArtifact(t *testing.T) {
+	t.Parallel()
 	t.Run("fallback artifact gets flattened", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := testutil.TempDir(t, "test-flatten-agent-output-fallback-*")
-		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName)
+		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName.String())
 		require.NoError(t, os.MkdirAll(fallbackDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename), []byte(`{"items":[]}`), 0644))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename), []byte("{}\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename.String()), []byte(`{"items":[]}`), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename.String()), []byte("{}\n"), 0644))
 
 		require.NoError(t, flattenAgentOutputFallbackArtifact(tmpDir, true))
 
-		assert.FileExists(t, filepath.Join(tmpDir, constants.AgentOutputFilename))
-		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename))
+		assert.FileExists(t, filepath.Join(tmpDir, constants.AgentOutputFilename.String()))
+		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename.String()))
 		assert.NoDirExists(t, fallbackDir)
 	})
 
 	t.Run("primary files win when fallback duplicates existing files", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := testutil.TempDir(t, "test-flatten-agent-output-fallback-*")
-		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputFilename), []byte("primary"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputFilename.String()), []byte("primary"), 0644))
 
-		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName)
+		fallbackDir := filepath.Join(tmpDir, constants.AgentOutputFallbackArtifactName.String())
 		require.NoError(t, os.MkdirAll(fallbackDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename), []byte("fallback"), 0644))
-		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename), []byte("{}\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.AgentOutputFilename.String()), []byte("fallback"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, constants.SafeOutputsFilename.String()), []byte("{}\n"), 0644))
 
 		require.NoError(t, flattenAgentOutputFallbackArtifact(tmpDir, true))
 
-		content, err := os.ReadFile(filepath.Join(tmpDir, constants.AgentOutputFilename))
+		content, err := os.ReadFile(filepath.Join(tmpDir, constants.AgentOutputFilename.String()))
 		require.NoError(t, err)
 		assert.Equal(t, "primary", string(content))
-		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename))
+		assert.FileExists(t, filepath.Join(tmpDir, constants.SafeOutputsFilename.String()))
 		assert.NoDirExists(t, fallbackDir)
 	})
 }
@@ -578,6 +588,7 @@ func TestFlattenAgentOutputFallbackArtifact(t *testing.T) {
 // TestFlattenArtifactTree tests the shared flatten helper directly.
 
 func TestFlattenArtifactTreeBasic(t *testing.T) {
+	t.Parallel()
 	outputDir := t.TempDir()
 	artifactDir := filepath.Join(outputDir, "myartifact")
 	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create artifactDir")
@@ -595,6 +606,7 @@ func TestFlattenArtifactTreeBasic(t *testing.T) {
 }
 
 func TestFlattenArtifactTreeNestedDirs(t *testing.T) {
+	t.Parallel()
 	outputDir := t.TempDir()
 	artifactDir := filepath.Join(outputDir, "artifact")
 	nestedDir := filepath.Join(artifactDir, "subdir", "deeper")
@@ -613,6 +625,7 @@ func TestFlattenArtifactTreeNestedDirs(t *testing.T) {
 }
 
 func TestFlattenArtifactTreeDifferentSourceAndArtifactDir(t *testing.T) {
+	t.Parallel()
 	// Covers the old-structure unified artifact case where sourceDir is a subdirectory of artifactDir.
 	outputDir := t.TempDir()
 	artifactDir := filepath.Join(outputDir, "agent")
@@ -632,6 +645,7 @@ func TestFlattenArtifactTreeDifferentSourceAndArtifactDir(t *testing.T) {
 }
 
 func TestFlattenArtifactTreeEmptySource(t *testing.T) {
+	t.Parallel()
 	outputDir := t.TempDir()
 	artifactDir := filepath.Join(outputDir, "empty-artifact")
 	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create empty artifactDir")
@@ -644,6 +658,7 @@ func TestFlattenArtifactTreeEmptySource(t *testing.T) {
 }
 
 func TestFlattenArtifactTreeMultipleFiles(t *testing.T) {
+	t.Parallel()
 	outputDir := t.TempDir()
 	artifactDir := filepath.Join(outputDir, "multi")
 	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create artifactDir")
@@ -668,6 +683,7 @@ func TestFlattenArtifactTreeMultipleFiles(t *testing.T) {
 }
 
 func TestFlattenArtifactTreeVerboseMode(t *testing.T) {
+	t.Parallel()
 	outputDir := t.TempDir()
 	artifactDir := filepath.Join(outputDir, "verbose-artifact")
 	require.NoError(t, os.MkdirAll(artifactDir, 0750), "setup: create artifactDir")

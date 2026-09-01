@@ -39,11 +39,81 @@ function isGitHubScriptModule(sourceCode: TSESLint.SourceCode): boolean {
 }
 
 /**
- * True when the result of `node` is used as a value (assigned, returned, member-accessed, passed on,
- * ...) rather than being discarded as a bare expression statement.
+ * True when the returned `ChildProcess` handle is retained or directly exposed for streaming or
+ * lifecycle control.
+ *
+ * The check walks outward through value-preserving wrappers — `await`, array literals, object
+ * literals, and spread elements — so a handle nested inside one of those (`const child = await
+ * exec(...)`, `const [child] = [exec(...)]`, `const holder = { child: exec(...) }`) is still
+ * recognized as retained once its enclosing container reaches a retained shape. A bare `await`,
+ * `void`, or logical expression used as a statement is never itself a retained shape, so those
+ * remain flagged.
  */
-function retainsCallResult(node: TSESTree.CallExpression): boolean {
-  return node.parent != null && node.parent.type !== AST_NODE_TYPES.ExpressionStatement;
+function retainsCallResult(node: TSESTree.Node): boolean {
+  const parent = node.parent;
+  if (!parent) return false;
+
+  switch (parent.type) {
+    case AST_NODE_TYPES.VariableDeclarator:
+      return parent.init === node;
+    case AST_NODE_TYPES.AssignmentExpression:
+      return parent.right === node;
+    case AST_NODE_TYPES.ReturnStatement:
+      return parent.argument === node;
+    case AST_NODE_TYPES.ArrowFunctionExpression:
+      return parent.body === node;
+    case AST_NODE_TYPES.MemberExpression:
+      return parent.object === node;
+    case AST_NODE_TYPES.CallExpression:
+      return parent.arguments.some(argument => argument === node);
+    // Value-preserving wrappers/containers: the handle is still reachable through them, so
+    // whether it is retained depends on how the wrapper/container itself is used.
+    case AST_NODE_TYPES.AwaitExpression:
+    case AST_NODE_TYPES.SpreadElement:
+      return retainsCallResult(parent);
+    case AST_NODE_TYPES.ArrayExpression:
+      return parent.elements.some(element => element === node) && retainsCallResult(parent);
+    case AST_NODE_TYPES.Property: {
+      // `parent` is the `Property`; its own parent is the enclosing `ObjectExpression`, which is
+      // the container whose retention actually matters.
+      const objectExpression = parent.parent;
+      return parent.value === node && retainsCallResult(objectExpression);
+    }
+    default:
+      return false;
+  }
+}
+
+/**
+ * Walks outward from `node` to find the nearest enclosing function (declaration, expression, or
+ * arrow function). Returns `null` when the call sits at the top level of the module (no enclosing
+ * function), in which case there is no caller chain that would need to become `async`.
+ */
+function findEnclosingFunction(node: TSESTree.Node): TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression | null {
+  let current = node.parent;
+  while (current) {
+    if (current.type === AST_NODE_TYPES.FunctionDeclaration || current.type === AST_NODE_TYPES.FunctionExpression || current.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+      return current;
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+/**
+ * True when migrating this call to `@actions/exec` would require converting its enclosing
+ * function — and transitively every caller up the chain — to `async`/`await`.
+ *
+ * `@actions/exec`'s API is Promise-only, so this cascading conversion is only necessary when
+ * both of the following hold:
+ *  - the call lives inside a non-`async` function (a bare module-level statement has no caller
+ *    chain to convert), and
+ *  - the call's return value is consumed non-trivially (assigned, returned, or otherwise used —
+ *    see `retainsCallResult`), rather than invoked as a bare statement purely for its side effect.
+ */
+function requiresAsyncConversion(node: TSESTree.CallExpression): boolean {
+  const enclosingFunction = findEnclosingFunction(node);
+  return enclosingFunction !== null && !enclosingFunction.async && retainsCallResult(node);
 }
 
 function getImportSpecifierName(node: TSESTree.ImportSpecifier): string | null {
@@ -195,6 +265,8 @@ export const preferActionsExecOverChildProcessRule = createRule({
     messages: {
       preferActionsExec:
         "Prefer @actions/exec's exec()/getExecOutput() over child_process.{{method}}() to spawn processes in actions/github-script scripts. child_process.{{method}}() duplicates functionality already provided by the @actions/exec toolkit available in this context.",
+      preferActionsExecSyncContext:
+        "Prefer @actions/exec's exec()/getExecOutput() over child_process.{{method}}() to spawn processes in actions/github-script scripts. child_process.{{method}}() duplicates functionality already provided by the @actions/exec toolkit available in this context. @actions/exec's API is Promise-only, so migrating this call requires converting the enclosing (currently non-async) function — and every one of its callers up the chain — to async/await.",
     },
   },
   defaultOptions: [],
@@ -211,7 +283,7 @@ export const preferActionsExecOverChildProcessRule = createRule({
 
         context.report({
           node,
-          messageId: "preferActionsExec",
+          messageId: requiresAsyncConversion(node) ? "preferActionsExecSyncContext" : "preferActionsExec",
           data: { method: resolved.method },
         });
       },

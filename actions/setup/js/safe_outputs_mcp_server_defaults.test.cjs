@@ -1,7 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { spawn } from "child_process";
+
+const originalRunnerTemp = process.env.RUNNER_TEMP;
+const localRunnerTemp = originalRunnerTemp ? null : fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-runner-temp-"));
+if (localRunnerTemp) {
+  process.env.RUNNER_TEMP = localRunnerTemp;
+}
+
+afterAll(() => {
+  if (localRunnerTemp) {
+    fs.rmSync(localRunnerTemp, { recursive: true, force: true });
+    delete process.env.RUNNER_TEMP;
+  }
+});
 
 // Check if ${RUNNER_TEMP}/gh-aw/safeoutputs is writable (only available in agent container)
 function canWriteToDefaultPath() {

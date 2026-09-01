@@ -72,6 +72,11 @@ const (
 	// conclusion job (aw-info.jsonl, usage summaries, token usage JSONL).
 	ArtifactSetUsage ArtifactSet = "usage"
 
+	// ArtifactSetGraders downloads the artifacts that carry grader results
+	// (grader_results.json): the compact usage artifact, the agent artifact, and
+	// the fallback artifact used when uploading the unified agent artifact fails.
+	ArtifactSetGraders ArtifactSet = "graders"
+
 	// ArtifactSetEvals downloads the usage artifact, which now includes evals.jsonl
 	// produced by the evals job (copied into usage by the conclusion job).
 	ArtifactSetEvals ArtifactSet = "evals"
@@ -83,19 +88,22 @@ const (
 // ResolveArtifactFilter means no filter is active so the caller downloads all artifacts).
 var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetAll:        nil, // no filtering – download all artifacts
-	ArtifactSetActivation: {constants.ActivationArtifactName},
-	ArtifactSetAgent:      {constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
-	ArtifactSetMCP:        {constants.AgentArtifactName},
-	ArtifactSetFirewall:   {constants.AgentArtifactName},
-	ArtifactSetDetection:  {constants.DetectionArtifactName},
+	ArtifactSetActivation: {constants.ActivationArtifactName.String()},
+	ArtifactSetAgent:      {constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
+	ArtifactSetMCP:        {constants.AgentArtifactName.String()},
+	ArtifactSetFirewall:   {constants.AgentArtifactName.String()},
+	ArtifactSetDetection:  {constants.DetectionArtifactName.String()},
 	// github-api: both jobs upload github_rate_limits.jsonl; fetch both for a complete view.
-	ArtifactSetGitHubAPI: {constants.ActivationArtifactName, constants.AgentArtifactName},
+	ArtifactSetGitHubAPI: {constants.ActivationArtifactName.String(), constants.AgentArtifactName.String()},
 	// experiment: A/B experiment state uploaded by the activation job.
-	ArtifactSetExperiment: {constants.ExperimentArtifactName},
+	ArtifactSetExperiment: {constants.ExperimentArtifactName.String()},
 	// usage: compact conclusion artifact for lightweight reporting/forecasting.
-	ArtifactSetUsage: {constants.UsageArtifactName},
+	ArtifactSetUsage: {constants.UsageArtifactName.String()},
 	// evals: evals results are now included in the usage artifact.
-	ArtifactSetEvals: {constants.UsageArtifactName},
+	ArtifactSetEvals: {constants.UsageArtifactName.String()},
+	// graders: grader results are included in the usage artifact, remain part of
+	// the unified agent artifact, and are preserved in the fallback transport.
+	ArtifactSetGraders: {constants.UsageArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 }
 
 const maxArtifactHintExamples = 2
@@ -303,11 +311,11 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 }
 
 func agentOutputTransportAlternates(filterEntry, downloadedName string) bool {
-	if filterEntry == constants.AgentArtifactName {
-		return artifactNameMatchesBase(downloadedName, constants.AgentOutputFallbackArtifactName)
+	if filterEntry == constants.AgentArtifactName.String() {
+		return artifactNameMatchesBase(downloadedName, constants.AgentOutputFallbackArtifactName.String())
 	}
-	if filterEntry == constants.AgentOutputFallbackArtifactName {
-		return artifactNameMatchesBase(downloadedName, constants.AgentArtifactName)
+	if filterEntry == constants.AgentOutputFallbackArtifactName.String() {
+		return artifactNameMatchesBase(downloadedName, constants.AgentArtifactName.String())
 	}
 	return false
 }
@@ -354,10 +362,30 @@ func applyEvalsArtifact(artifacts []string, evalsOnly bool) []string {
 	return artifacts
 }
 
+// applyGradersArtifact appends the graders artifact set to artifacts when gradersOnly is true
+// and neither ArtifactSetGraders nor ArtifactSetAll is already present.
+func applyGradersArtifact(artifacts []string, gradersOnly bool) []string {
+	if len(artifacts) == 0 {
+		return artifacts
+	}
+	if gradersOnly &&
+		!slices.Contains(artifacts, string(ArtifactSetGraders)) &&
+		!slices.Contains(artifacts, string(ArtifactSetAll)) {
+		return append(artifacts, string(ArtifactSetGraders))
+	}
+	return artifacts
+}
+
 // isEvalsArtifactRequested reports whether evals were explicitly requested,
 // either via --evals or by including --artifacts evals. Callers use this to
 // decide whether to bypass stale cache entries and trigger legacy dedicated-evals
 // fallback downloads when evals.jsonl is missing from usage artifacts.
 func isEvalsArtifactRequested(evalsOnly bool, artifactSets []string) bool {
 	return evalsOnly || slices.Contains(artifactSets, string(ArtifactSetEvals))
+}
+
+// isGradersArtifactRequested reports whether grader artifacts were explicitly requested,
+// either via --graders or by including --artifacts graders.
+func isGradersArtifactRequested(gradersOnly bool, artifactSets []string) bool {
+	return gradersOnly || slices.Contains(artifactSets, string(ArtifactSetGraders))
 }

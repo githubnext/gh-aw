@@ -21,6 +21,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       close-older-issues: true        # Optional: close previous issues from same workflow (default: false)
       close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching (uses gh-aw-close-key marker)
       deduplicate-by-title: true      # Optional: skip creating an issue when one with the same title exists; integer N allows fuzzy matches up to edit distance N (default: off)
+      require-temporary-id: true      # Optional: require temporary_id on every create_issue call (default: false)
       normalize-closing-keywords: true # Optional: strip backticks around recognized issue-closing keywords in body text
       # create_issue output may set blocked_by to an issue reference or list of references
       footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
@@ -45,7 +46,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       expires: 7   # auto-close after 7 days
   ```
 
-  Without `skip-if-match`, the workflow creates a new issue on every scheduled run even when an identical open issue already exists.
+  Without `skip-if-match`, the workflow creates a new issue on every scheduled run even when an identical open issue already exists. For the frequent-schedule variant that serves one item at a time and learns from how the previous issue was closed, see the [All You Can Eat Pattern](workflow-patterns.md#all-you-can-eat-pattern).
 
   **Temporary IDs and Sub-Issues:**
   When creating multiple issues, use `temporary_id` (format: `aw_` + 3-8 alphanumeric chars) to reference parent issues before creation. References like `#aw_abc123` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
@@ -99,15 +100,16 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
       fallback-to-issue: true         # Optional: create issue if discussion creation fails (default: true)
       footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
+      min-body-length: 100            # Optional: minimum required body length (default: 64)
       target-repo: "owner/repo"       # Optional: cross-repository
       allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
   ```
 
   `category` accepts name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"); defaults to the first category. Resolution tries ID, then name, then slug.
 
-  `close-older-discussions: true` closes up to 10 older discussions matching the same title prefix or labels as "OUTDATED" with a comment linking to the new one. Requires `title-prefix` or `labels`.
+  `close-older-discussions: true` closes up to 10 older open discussions matching the same embedded workflow-id marker (or `close-older-key` if set) as "OUTDATED" with a comment linking to the new one.
 
-  `create_discussion` output validation requires `body` minimum length: **64** characters.
+  `create_discussion` output validation requires `body` minimum length: **64** characters by default; override with `min-body-length:`.
 
 - `close-discussion:` - Close discussions with comment and resolution
 
@@ -133,6 +135,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       target: "*"                     # Optional: target for comments (default: "triggering")
       required-labels: [approved]     # Optional: ALL of these labels must be present on the issue/PR for the comment to be posted
       required-title-prefix: "[bot]" # Optional: issue/PR title must start with this prefix
+      allows-comment-ids: ["123456"] # Optional: trusted allowlist of comment IDs the agent may update when target is "*"
       hide-older-comments: true       # Optional: minimize previous comments from same workflow
       allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
       normalize-closing-keywords: true # Optional: strip backticks around recognized issue-closing keywords in body text
@@ -173,6 +176,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
   safe-outputs:
     create-pull-request:
       title-prefix: "[ai] "           # Optional: prefix for PR titles
+      require-temporary-id: true      # Optional: require temporary_id on every create_pull_request call (default: false)
       branch-prefix: "signed/"        # Optional: prefix prepended to the PR branch name (e.g. for branch-protection conventions)
       labels: [automation, ai-agent]  # Optional: labels to attach to PRs
       allowed-labels: [bug, fix]      # Optional: restrict which labels the agent can set (any label allowed if omitted)
@@ -194,7 +198,11 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
       auto-close-issue: false         # Optional: when true (default), adds "Fixes #N" closing keyword when triggered from an issue; set to false to prevent auto-closing the triggering issue on merge. Accepts a boolean or GitHub Actions expression.
       normalize-closing-keywords: true # Optional: strip backticks around recognized issue-closing keywords in PR body text
+      close-older-pull-requests: true # Optional: close previous PRs from same workflow (default: false)
+      close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching
       target-repo: "owner/repo"       # Optional: cross-repository
+      head-repo: "fork-owner/repo"    # Optional: head (fork) repository for cross-repository PRs; defaults to target-repo
+      head-github-token: ${{ secrets.HEAD_REPO_PAT }}  # Optional: token for branch writes to head-repo when it differs from target-repo
       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
       allowed-files:                  # Recommended: always restrict to specific paths or extensions to limit agent scope
         - "src/**/*.ts"               # e.g. restrict to TypeScript source files

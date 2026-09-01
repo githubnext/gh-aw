@@ -40,6 +40,7 @@ func renderCrossRunReportMarkdownToWriter(w io.Writer, report *CrossRunAuditRepo
 	renderMarkdownErrorTrendToWriter(w, report)
 	renderMarkdownDomainInventoryToWriter(w, report)
 	renderMarkdownDrain3InsightsToWriter(w, report.Drain3Insights)
+	renderMarkdownClusterAnalysisToWriter(w, report.ClusterAnalysis)
 	renderMarkdownPerRunBreakdownToWriter(w, report.PerRunBreakdown)
 }
 
@@ -219,6 +220,7 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 	renderPrettyErrorTrend(report)
 	renderPrettyDomainInventory(report)
 	renderPrettyDrain3Insights(report.Drain3Insights)
+	renderPrettyClusterAnalysis(report.ClusterAnalysis)
 	renderPrettyPerRunBreakdown(report.PerRunBreakdown)
 	renderPrettyFinalStatus(report)
 }

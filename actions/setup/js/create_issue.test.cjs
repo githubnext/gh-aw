@@ -165,6 +165,21 @@ describe("create_issue", () => {
         })
       );
     });
+
+    it("should never send a blank title when the title only contains the configured prefix", async () => {
+      const handler = await main({ title_prefix: "[designer-drift-audit] " });
+      const result = await handler({
+        title: "[designer-drift-audit] ",
+        body: "Some body",
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "[designer-drift-audit] Agent Output",
+        })
+      );
+    });
   });
 
   describe("labels handling", () => {

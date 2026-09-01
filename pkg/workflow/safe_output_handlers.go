@@ -299,7 +299,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "RemoveLabels") {
 				return nil
 			}
-			return NewPermissionsIssuesWritePRWrite()
+			return buildRemoveLabelsPermissions(safeOutputs.RemoveLabels)
 		},
 	},
 	{

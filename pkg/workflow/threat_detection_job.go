@@ -214,7 +214,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 
 func buildDetectionActivationArtifactDownloadSteps(data *WorkflowData, pinAction func(string) string) []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName,
+		ArtifactName: artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName.String(),
 		DownloadPath: constants.TmpGhAwDir,
 		StepName:     "Download activation artifact",
 	}, pinAction)

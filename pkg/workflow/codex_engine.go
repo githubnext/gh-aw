@@ -153,18 +153,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		workflowData,
 	)
 	if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
-		version := string(constants.DefaultCodexVersion)
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-			version = workflowData.EngineConfig.Version
-		}
-		steps = append(steps, GenerateDockerSbxNpmCLIInstallStep(
-			"@openai/codex",
-			version,
-			"Install Codex CLI in docker-sbx path",
-			"codex",
-			false,
-			false,
-		))
+		steps = append(steps, generateCodexDockerSbxCLIInstallStep(workflowData))
 	}
 
 	// Add AWF installation step if firewall is enabled
@@ -205,6 +194,21 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	}
 
 	return steps
+}
+
+func generateCodexDockerSbxCLIInstallStep(workflowData *WorkflowData) GitHubActionStep {
+	version := string(constants.DefaultCodexVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+	return GenerateDockerSbxNpmCLIInstallStep(
+		"@openai/codex",
+		version,
+		"Install Codex CLI in docker-sbx path",
+		"codex",
+		false,
+		false,
+	)
 }
 
 // codexPluginMarketplaceName returns the deterministic local marketplace name Codex
@@ -417,7 +421,7 @@ mkdir -p "$CODEX_HOME/logs"
 func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
 	allowedDomains := workflowData.CachedAllowedDomainsStr
 	if !workflowData.CachedAllowedDomainsComputed {
-		allowedDomains = mergeDomainsWithNetworkToolsAndRuntimes(e.defaultDomains(workflowData), workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+		allowedDomains = GetAllowedDomainsForEngine(constants.CodexEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 	}
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 		allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
@@ -458,7 +462,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,
 		"GITHUB_STEP_SUMMARY":          AgentStepSummaryPath,
 		"RUNNER_TEMP":                  "${{ runner.temp }}",
-		"RUST_LOG":                     "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug' || 'warn' }}",
+		"RUST_LOG":                     "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,codex_exec=debug' || 'warn' }}",
 	}
 	if provider == LLMProviderGitHub {
 		copilotToken := llmProviderSecretExpression(provider, workflowData)
@@ -550,40 +554,21 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 	// Copy raw map
 	maps.Copy(result.raw, toolsConfig.raw)
 
-	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
+	// Playwright is a CLI tool and must not be added to the MCP configuration.
 	if toolsConfig.Playwright != nil {
-		// Create an updated Playwright config preserving all fields including Mode
-		playwrightConfig := &PlaywrightToolConfig{
-			Version: toolsConfig.Playwright.Version,
-			Args:    toolsConfig.Playwright.Args,
-			Mode:    toolsConfig.Playwright.Mode,
-		}
-
-		result.Playwright = playwrightConfig
-
-		// In CLI mode, playwright is not an MCP server — remove from raw map and skip MCP config entry.
-		// result.raw is populated by maps.Copy(result.raw, toolsConfig.raw) earlier in this function,
-		// so delete is safe regardless of whether the key was originally present.
-		if playwrightConfig.IsCLIMode() {
-			delete(result.raw, "playwright")
-		} else {
-			// Also update the Custom map entry for playwright with allowed tools list
-			playwrightMCP := map[string]any{
-				"allowed": GetPlaywrightTools(),
-			}
-			if playwrightConfig.Version != "" {
-				playwrightMCP["version"] = playwrightConfig.Version
-			}
-			if len(playwrightConfig.Args) > 0 {
-				playwrightMCP["args"] = playwrightConfig.Args
-			}
-
-			// Update raw map for backward compatibility
-			result.raw["playwright"] = playwrightMCP
-		}
+		applyCodexPlaywrightTool(result, toolsConfig.Playwright)
 	}
 
 	return result
+}
+
+func applyCodexPlaywrightTool(result *ToolsConfig, playwright *PlaywrightToolConfig) {
+	playwrightConfig := &PlaywrightToolConfig{
+		Version: playwright.Version,
+		Mode:    playwright.Mode,
+	}
+	result.Playwright = playwrightConfig
+	delete(result.raw, "playwright")
 }
 
 // expandNeutralToolsToCodexToolsFromMap is a backward compatibility wrapper

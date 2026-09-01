@@ -119,7 +119,7 @@ func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string
 		properties, _ := inputSchema["properties"].(map[string]any)
 		allowedRefsDesc := strings.Join(allowedRefs, ", ")
 
-		refDesc := fmt.Sprintf("The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: %s. If omitted, the dispatching workflow's ref is used.", allowedRefsDesc)
+		refDesc := fmt.Sprintf("The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: %s. If omitted, the ref is resolved from the triggering context, including the pull request head for pull request comments.", allowedRefsDesc)
 		properties["ref"] = map[string]any{
 			"type":        "string",
 			"description": refDesc,

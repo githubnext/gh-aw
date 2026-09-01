@@ -130,22 +130,23 @@ function resolveRetryConfig(env = process.env, logger = log) {
  * @returns {number}
  */
 function resolveStartupRetryLimit(env = process.env, logger = log) {
-  const raw = env.GH_AW_CLAUDE_STARTUP_RETRIES;
+  const envVar = env.GH_AW_HARNESS_STARTUP_RETRIES == null || env.GH_AW_HARNESS_STARTUP_RETRIES === "" ? "GH_AW_CLAUDE_STARTUP_RETRIES" : "GH_AW_HARNESS_STARTUP_RETRIES";
+  const raw = env[envVar];
   if (raw == null || raw === "") {
     return 1;
   }
   if (!/^[+-]?\d+$/.test(raw)) {
-    logger(`invalid GH_AW_CLAUDE_STARTUP_RETRIES='${raw}' (expected integer); using default startup retries=1`);
+    logger(`invalid ${envVar}='${raw}' (expected integer); using default startup retries=1`);
     return 1;
   }
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed)) {
-    logger(`invalid GH_AW_CLAUDE_STARTUP_RETRIES='${raw}' (not finite); using default startup retries=1`);
+    logger(`invalid ${envVar}='${raw}' (not finite); using default startup retries=1`);
     return 1;
   }
   const clamped = Math.min(Math.max(parsed, 0), MAX_STARTUP_RETRIES);
   if (clamped !== parsed) {
-    logger(`GH_AW_CLAUDE_STARTUP_RETRIES=${parsed} out of range; clamped to ${clamped}`);
+    logger(`${envVar}=${parsed} out of range; clamped to ${clamped}`);
   }
   return clamped;
 }
@@ -611,6 +612,18 @@ async function main() {
         useContinueOnRetry = false;
         log(`attempt ${attempt + 1}: connection refused before first assistant response — retrying as fresh run with backoff (attempt ${attempt + 2}/${maxRetries + 1})`);
         return { action: "retry" };
+      }
+
+      const isNoProgressOutputFailure = !sessionHasProgress && result.hasOutput && !isSignalTerminationExitCode(result.exitCode) && !isCrashSignalExitCode(result.exitCode);
+      if (isNoProgressOutputFailure && attempt < maxRetries && startupRetriesUsed < startupRetryLimit) {
+        startupRetriesUsed++;
+        useContinueOnRetry = false;
+        log(`attempt ${attempt + 1}: output produced but no Claude session progress — retrying startup as fresh run ` + `(startup retry ${startupRetriesUsed}/${startupRetryLimit}, next attempt ${attempt + 2}/${maxRetries + 1})`);
+        return { action: "retry", nextDelayMs: initialDelayMs };
+      }
+      if (isNoProgressOutputFailure) {
+        log(`attempt ${attempt + 1}: output produced but no Claude session progress — not retrying (startup retry budget exhausted: ${startupRetriesUsed}/${startupRetryLimit})`);
+        return { action: "stop" };
       }
 
       if (attempt < maxRetries && result.hasOutput) {

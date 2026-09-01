@@ -10,7 +10,7 @@
 
 ### Context
 
-The GitHub Agentic Workflows (gh-aw) compiler allows shared workflow files to be imported by main workflows, enabling reusable configuration for steps, tools, permissions, and similar fields. However, the `checkout` field — used to configure additional repository checkouts for SideRepoOps workflows — could only be declared in the main workflow file. This forced every workflow that needed to check out a shared target repository to duplicate an identical `checkout:` block, making shared workflows less self-contained and violating the DRY principle across the many SideRepoOps patterns in the codebase.
+The GitHub Agentic Workflows compiler allows shared workflow files to be imported by main workflows, enabling reusable configuration for steps, tools, permissions, and similar fields. However, the `checkout` field — used to configure additional repository checkouts for SideRepoOps workflows — could only be declared in the main workflow file. This forced every workflow that needed to check out a shared target repository to duplicate an identical `checkout:` block, making shared workflows less self-contained and violating the DRY principle across the many SideRepoOps patterns in the codebase.
 
 ### Decision
 

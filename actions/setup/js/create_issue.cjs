@@ -932,6 +932,15 @@ async function main(config = {}) {
     // Sanitize title for Unicode security and remove any duplicate prefixes
     title = sanitizeTitle(title, titlePrefix);
 
+    // Sanitization can empty the title (e.g. the agent supplied only the title
+    // prefix, or every character was stripped). GitHub rejects a blank title with
+    // "title can't be blank", which fails the whole safe_outputs job, so fall back
+    // to a generic title instead.
+    if (!title.trim()) {
+      core.warning(`create_issue title became empty after sanitization — falling back to "Agent Output"`);
+      title = "Agent Output";
+    }
+
     // Apply title prefix (only if it doesn't already exist)
     title = applyTitlePrefix(title, titlePrefix);
 

@@ -59,6 +59,8 @@ An imported workflow can only be imported once per workflow.
 
 In markdown, use `{{#runtime-import filepath}}` to inject the content of another file directly into the body at that position. This is useful for sharing reusable prompt snippets, tone instructions, or reference material across workflows.
 
+Imported markdown can include safe GitHub Actions expressions such as `${{ needs.pre_activation.outputs.activated }}` or `${{ needs.build.outputs.version }}`. gh-aw validates those expressions across the full nested runtime-import tree at compile time, so shared prompt files can reuse job outputs without weakening expression-safety checks.
+
 ```aw wrap
 ---
 on: schedule
@@ -229,7 +231,7 @@ Use this form when workflows in different directories need the same stable impor
 
 ### Cross-repo imports
 
-Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix can be a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA to support offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/reusing-workflows/) for installation and update flows.
+Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix can be a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA to support offline compilation; local imports are never cached. See [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for installation flows.
 
 ```aw wrap
 ---
@@ -565,9 +567,9 @@ gh aw compile my-workflow
 >
 > `inlined-imports: true` cannot be combined with agent file imports (`.github/agents/` files). If your workflow imports a custom agent file, remove it before enabling inlined imports.
 
-## Related Documentation
+## Learn More
 
-- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Adding and updating installed workflows with `gh aw add` and `gh aw update`
+- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) - Installing workflows with `gh aw add`
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output configuration details

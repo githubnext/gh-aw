@@ -84,7 +84,7 @@ func (u *GitHubRateLimitUsage) ResourceRows() []*GitHubRateLimitResourceUsage {
 // It checks the root of the run directory first (after artifact flattening) and then
 // performs a directory walk as a fallback to handle non-standard artifact structures.
 func findGitHubRateLimitsFile(runDir string) string {
-	filename := constants.GithubRateLimitsFilename
+	filename := constants.GithubRateLimitsFilename.String()
 
 	// Primary location: root of the run directory (after flattenUnifiedArtifact)
 	primary := filepath.Join(runDir, filename)

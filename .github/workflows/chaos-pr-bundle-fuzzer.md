@@ -10,9 +10,10 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 strict: true
 sandbox:
   agent:
@@ -46,8 +47,10 @@ timeout-minutes: 30
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
+
 ---
 
 # Chaos PR Bundle Fuzzer

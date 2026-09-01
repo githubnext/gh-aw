@@ -31,9 +31,10 @@ permissions:
   pull-requests: read
   issues: read
 max-turns: 30
-model: claude-sonnet-4-6
+model: openai/gpt-5.4
 engine:
-  id: claude
+  id: pi
+  model-provider: openai
 safe-outputs:
   add-comment:
     max: 2
@@ -48,7 +49,7 @@ safe-outputs:
   messages:
     footer: "> 🏗️ *ADR gate enforced by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is checking for design decision records on this {event_type}..."
-    run-success: "✅ [{workflow_name}]({run_url}) completed the design decision gate check."
+    run-success: "✅ [{workflow_name}]({run_url}) completed the design decision gate check. See the comment below for the result and any generated ADR draft."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during design decision gate check."
 timeout-minutes: 15
 features:
@@ -67,17 +68,7 @@ tools:
     mode: gh-proxy
     toolsets: [default, repos]
   edit:
-  bash:
-    - "git diff:*"
-    - "git log:*"
-    - "git ls-remote:*"
-    - "git show:*"
-    - "cat:*"
-    - "grep:*"
-    - "ls:*"
-    - "wc:*"
-    - "find:*"
-    - "echo:*"
+  bash: ["*"]
 steps:
   - name: Pre-fetch ADR gate PR context
     env:

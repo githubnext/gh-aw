@@ -49,8 +49,8 @@ When no workflow is specified, lists all workflows with a summary of their allow
 and blocked domain counts.
 
 When a workflow ID or file is specified, lists all effective allowed and blocked
-domains for that workflow, including domains expanded from ecosystem identifiers
-(e.g., "node", "python", "github") and engine defaults.
+domains for that workflow, including domains expanded from named domain sets
+(e.g., "node", "python", "github", "copilot").
 
 The workflow argument can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")

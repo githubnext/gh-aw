@@ -195,7 +195,7 @@ The `cli` package is intentionally large and command-oriented. The tables below 
 | `CheckStatePending` | `CheckState` | `"pending"` | Normalized CI state indicating checks are still running or queued. |
 | `CheckStateNoChecks` | `CheckState` | `"no_checks"` | Normalized CI state indicating no checks were configured or triggered. |
 | `CheckStatePolicyBlocked` | `CheckState` | `"policy_blocked"` | Normalized CI state indicating policy or account gates blocked the PR. |
-| `CheckStateSuccess` | `CheckState` | `"success"` | Normalized CI state indicating all required checks passed. | | Begins a background image pull; returns false if already pulling. The join function blocks until the goroutine exits and returns any download error. |
+| `CheckStateSuccess` | `CheckState` | `"success"` | Normalized CI state indicating all required checks passed. |
 | `CheckAndPrepareDockerImages` | `func(ctx context.Context, opts DockerImagesOptions) error` | Pre-pulls security-scanner Docker images |
 | `UpdateContainerPins` | `func(ctx, workflowDir string, verbose bool) error` | Updates container image SHA pins in workflow files |
 | `CreatePRWithChanges` | `func(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |

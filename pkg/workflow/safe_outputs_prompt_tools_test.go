@@ -369,9 +369,7 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 
 func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 	sections := buildSafeOutputsSections(&SafeOutputsConfig{
-		CreatePullRequests: &CreatePullRequestsConfig{
-			Steer: true,
-		},
+		Steer: true,
 	}, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")

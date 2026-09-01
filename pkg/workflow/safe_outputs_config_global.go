@@ -11,6 +11,13 @@ import (
 // extractGlobalConfigFields parses safe-outputs fields that apply across handlers,
 // keeping extractSafeOutputsConfig focused on routing handler-specific configuration.
 func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle steering issue mode.
+	if steer, exists := outputMap["steer"]; exists {
+		if steerBool, ok := steer.(bool); ok {
+			config.Steer = steerBool
+		}
+	}
+
 	// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 	if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 		if domainsArray, ok := allowedDomains.([]any); ok {

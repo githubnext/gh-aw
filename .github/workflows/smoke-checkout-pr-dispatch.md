@@ -4,6 +4,7 @@ emoji: "🧪"
 name: Smoke Checkout PR Dispatch
 description: Integration test validating that workflow_dispatch events with aw_context.item_type == 'pull_request' correctly check out the PR branch
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-checkout-pr-dispatch
     strategy: centralized

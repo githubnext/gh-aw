@@ -129,7 +129,7 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "agent resolves to agent artifact and output fallback",
 			sets:     []string{"agent"},
-			expected: []string{constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 		},
 		{
 			name:     "mcp resolves to agent artifact",
@@ -167,14 +167,19 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"usage"},
 		},
 		{
+			name:     "graders resolves to usage agent and output fallback",
+			sets:     []string{"graders"},
+			expected: []string{constants.UsageArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
+		},
+		{
 			name:     "multiple sets are merged and deduplicated",
 			sets:     []string{"activation", "agent"},
-			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.ActivationArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 		},
 		{
 			name:     "github-api and agent deduplicates agent",
 			sets:     []string{"github-api", "agent"},
-			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
+			expected: []string{constants.ActivationArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 		},
 	}
 
@@ -265,7 +270,7 @@ func TestValidArtifactSetNames(t *testing.T) {
 	names := ValidArtifactSetNames()
 	require.NotEmpty(t, names, "ValidArtifactSetNames should return non-empty slice")
 
-	expected := []string{"all", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "mcp", "usage"}
+	expected := []string{"all", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "graders", "mcp", "usage"}
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
 }
 
@@ -286,6 +291,32 @@ func TestApplyEvalsArtifact(t *testing.T) {
 		t.Parallel()
 		assert.Equal(t, []string{"usage"}, applyEvalsArtifact([]string{"usage"}, true))
 	})
+}
+
+func TestApplyGradersArtifact(t *testing.T) {
+	t.Parallel()
+	t.Run("returns empty slice unchanged when artifact list is empty", func(t *testing.T) {
+		t.Parallel()
+		assert.Empty(t, applyGradersArtifact(nil, true))
+		assert.Empty(t, applyGradersArtifact([]string{}, true))
+	})
+
+	t.Run("appends graders when graders requested and artifact list narrowed", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, []string{"usage", "graders"}, applyGradersArtifact([]string{"usage"}, true))
+	})
+
+	t.Run("does not append graders when already present", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, []string{"graders"}, applyGradersArtifact([]string{"graders"}, true))
+	})
+}
+
+func TestIsGradersArtifactRequested(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isGradersArtifactRequested(true, nil))
+	assert.True(t, isGradersArtifactRequested(false, []string{"graders"}))
+	assert.False(t, isGradersArtifactRequested(false, []string{"usage"}))
 }
 
 func TestIsEvalsArtifactRequested(t *testing.T) {

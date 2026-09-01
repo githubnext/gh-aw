@@ -24,19 +24,25 @@ tools:
   bash:
     - "*"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[docs-diagram] "
     labels: [documentation, automation]
     draft: true
     if-no-changes: ignore
     protected-files: blocked
     allowed-files:
+      - "docs/src/content/docs/*.mdx"
       - "docs/src/content/docs/**/*.mdx"
+      - "docs/src/assets/diagrams/*.svg"
       - "docs/src/assets/diagrams/**/*.svg"
     max-patch-files: 2
     max-patch-size: 512
   noop:
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 timeout-minutes: 20
 evals:

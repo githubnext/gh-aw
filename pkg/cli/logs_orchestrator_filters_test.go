@@ -250,6 +250,28 @@ func TestApplyRunFilters_FilteredIntegrity(t *testing.T) {
 	})
 }
 
+func TestApplyRunFilters_Graders(t *testing.T) {
+	t.Run("missing grader results are skipped", func(t *testing.T) {
+		result := makeDownloadResult(t, "")
+
+		skip := applyRunFilters(context.Background(), result, runFilterOpts{gradersOnly: true}, false)
+
+		assert.True(t, skip)
+	})
+
+	t.Run("grader results pass", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		gradersDir := filepath.Join(tmpDir, "usage", "graders")
+		require.NoError(t, os.MkdirAll(gradersDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(gradersDir, "grader_results.json"), []byte(`{"version":1,"results":[{"id":"quality","status":"pass","value":1,"passed":true}]}`), 0o600))
+		result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{DatabaseID: 9}}, LogsPath: tmpDir}
+
+		skip := applyRunFilters(context.Background(), result, runFilterOpts{gradersOnly: true}, false)
+
+		assert.False(t, skip)
+	})
+}
+
 // TestBuildProcessedRun verifies that buildProcessedRun correctly populates
 // the ProcessedRun fields from a DownloadResult.
 func TestBuildProcessedRun(t *testing.T) {

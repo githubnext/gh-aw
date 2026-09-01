@@ -26,7 +26,7 @@ func filterActionableDomains(domains []string) []string {
 }
 
 // generateFindings creates key findings from workflow run data
-func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ValidationIssue) []Finding {
+func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ValidationIssue) []AuditFinding {
 	auditReportLog.Printf("Generating findings: errors=%d, conclusion=%s", len(errors), processedRun.Run.Conclusion)
 	findings := appendFailureAndTimeoutFindings(nil, processedRun, metrics, errors)
 	findings = append(findings, generatePerformanceFindings(metrics)...)
@@ -48,7 +48,7 @@ func findFailedAgentJob(jobDetails []JobInfoWithDuration) (JobInfoWithDuration, 
 }
 
 // generateRecommendations creates actionable recommendations based on findings
-func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, findings []Finding) []Recommendation {
+func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, findings []AuditFinding) []Recommendation {
 	auditReportLog.Printf("Generating recommendations: findings_count=%d, workflow_conclusion=%s", len(findings), processedRun.Run.Conclusion)
 	var recommendations []Recommendation
 	hasCriticalFindings, hasHighCostFindings, hasManyTurns := analyzeRecommendationInputs(findings)
@@ -60,10 +60,10 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 	return recommendations
 }
 
-func appendFailureAndTimeoutFindings(findings []Finding, processedRun ProcessedRun, metrics MetricsData, errors []ValidationIssue) []Finding {
+func appendFailureAndTimeoutFindings(findings []AuditFinding, processedRun ProcessedRun, metrics MetricsData, errors []ValidationIssue) []AuditFinding {
 	run := processedRun.Run
 	if run.Conclusion == "failure" {
-		findings = append(findings, Finding{
+		findings = append(findings, AuditFinding{
 			Category:    "error",
 			Severity:    "critical",
 			Title:       "Workflow Failed",
@@ -72,7 +72,7 @@ func appendFailureAndTimeoutFindings(findings []Finding, processedRun ProcessedR
 		})
 	}
 	if run.Conclusion == "timed_out" {
-		findings = append(findings, Finding{
+		findings = append(findings, AuditFinding{
 			Category:    "performance",
 			Severity:    "high",
 			Title:       "Workflow Timeout",
@@ -112,10 +112,10 @@ func buildFailureFindingDescription(run WorkflowRun, jobDetails []JobInfoWithDur
 	return desc + ": " + stringutil.Truncate(errors[0].Message, maxErrMsgLen)
 }
 
-func generatePerformanceFindings(metrics MetricsData) []Finding {
-	var findings []Finding
+func generatePerformanceFindings(metrics MetricsData) []AuditFinding {
+	var findings []AuditFinding
 	if metrics.TokenUsage > 50000 {
-		findings = append(findings, Finding{
+		findings = append(findings, AuditFinding{
 			Category:    "performance",
 			Severity:    "medium",
 			Title:       "High Token Usage",
@@ -124,7 +124,7 @@ func generatePerformanceFindings(metrics MetricsData) []Finding {
 		})
 	}
 	if metrics.Turns > 10 {
-		findings = append(findings, Finding{
+		findings = append(findings, AuditFinding{
 			Category:    "performance",
 			Severity:    "medium",
 			Title:       "Many Iterations",
@@ -135,11 +135,11 @@ func generatePerformanceFindings(metrics MetricsData) []Finding {
 	return findings
 }
 
-func generateErrorVolumeFindings(errors []ValidationIssue) []Finding {
+func generateErrorVolumeFindings(errors []ValidationIssue) []AuditFinding {
 	if len(errors) <= 5 {
 		return nil
 	}
-	return []Finding{{
+	return []AuditFinding{{
 		Category:    "error",
 		Severity:    "high",
 		Title:       "Multiple Errors",
@@ -148,13 +148,13 @@ func generateErrorVolumeFindings(errors []ValidationIssue) []Finding {
 	}}
 }
 
-func generateToolingFindings(processedRun ProcessedRun) []Finding {
-	var findings []Finding
+func generateToolingFindings(processedRun ProcessedRun) []AuditFinding {
+	var findings []AuditFinding
 	if len(processedRun.MCPFailures) > 0 {
 		serverNames := sliceutil.Map(processedRun.MCPFailures, func(failure MCPFailureReport) string {
 			return failure.ServerName
 		})
-		findings = append(findings, Finding{
+		findings = append(findings, AuditFinding{
 			Category:    "tooling",
 			Severity:    "high",
 			Title:       "MCP Server Failures",
@@ -163,7 +163,7 @@ func generateToolingFindings(processedRun ProcessedRun) []Finding {
 		})
 	}
 	if len(processedRun.MissingTools) > 0 {
-		findings = append(findings, Finding{
+		findings = append(findings, AuditFinding{
 			Category:    "tooling",
 			Severity:    "medium",
 			Title:       "Tools Not Available",
@@ -185,12 +185,12 @@ func buildMissingToolsFindingDescription(missingTools []MissingToolReport) strin
 	return desc
 }
 
-func generateFirewallFindings(processedRun ProcessedRun) []Finding {
+func generateFirewallFindings(processedRun ProcessedRun) []AuditFinding {
 	if processedRun.FirewallAnalysis == nil || processedRun.FirewallAnalysis.BlockedRequests == 0 {
 		return nil
 	}
 	blockedDomains := filterActionableDomains(processedRun.FirewallAnalysis.GetBlockedDomains())
-	return []Finding{{
+	return []AuditFinding{{
 		Category:    "network",
 		Severity:    "medium",
 		Title:       "Blocked Network Requests",
@@ -216,11 +216,11 @@ func buildBlockedNetworkFindingDescription(blockedRequests int, blockedDomains [
 	}
 }
 
-func generateSuccessFindings(run WorkflowRun, metrics MetricsData, errors []ValidationIssue) []Finding {
+func generateSuccessFindings(run WorkflowRun, metrics MetricsData, errors []ValidationIssue) []AuditFinding {
 	if run.Conclusion != "success" || len(errors) > 0 {
 		return nil
 	}
-	return []Finding{{
+	return []AuditFinding{{
 		Category:    "success",
 		Severity:    "info",
 		Title:       "Workflow Completed Successfully",
@@ -229,7 +229,7 @@ func generateSuccessFindings(run WorkflowRun, metrics MetricsData, errors []Vali
 	}}
 }
 
-func analyzeRecommendationInputs(findings []Finding) (hasCriticalFindings, hasHighCostFindings, hasManyTurns bool) {
+func analyzeRecommendationInputs(findings []AuditFinding) (hasCriticalFindings, hasHighCostFindings, hasManyTurns bool) {
 	for _, finding := range findings {
 		if finding.Severity == "critical" {
 			hasCriticalFindings = true

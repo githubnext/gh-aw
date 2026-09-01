@@ -35,6 +35,59 @@ const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs")
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API, ERR_PERMISSION } = require("./error_codes.cjs");
 const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
+const PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
+
+/**
+ * Resolve the commit SHA actually checked out at HEAD.
+ *
+ * Payload/API `head.sha` values can go stale if the PR advances between the
+ * event/API read and the `git fetch` above, or be absent from a shallow
+ * fetch. Resolving `HEAD^{commit}` after checkout reflects exactly what was
+ * fetched and checked out, so patch generation never ranges over commits the
+ * workflow never saw.
+ *
+ * @returns {Promise<string | null>}
+ */
+async function resolveCheckedOutHeadSha() {
+  try {
+    const result = await exec.getExecOutput("git", ["rev-parse", "HEAD^{commit}"], {
+      silent: true,
+      ignoreReturnCode: true,
+    });
+    if (result.exitCode !== 0) {
+      return null;
+    }
+    const sha = result.stdout.trim();
+    return sha || null;
+  } catch (e) {
+    core.warning(`Could not resolve checked-out HEAD commit: ${getErrorMessage(e)}`);
+    return null;
+  }
+}
+
+async function exportPRHeadBaseline({ branchName, baseRepo, headRepo, prNumber }) {
+  if (!branchName) {
+    return;
+  }
+  const baseSha = await resolveCheckedOutHeadSha();
+  if (!baseSha) {
+    core.warning("Could not resolve checked-out HEAD commit; skipping PR head baseline export for incremental patches.");
+    return;
+  }
+  core.exportVariable("GH_AW_PR_HEAD_BASE_BRANCH", branchName);
+  core.exportVariable("GH_AW_PR_HEAD_BASE_SHA", baseSha);
+  if (baseRepo) {
+    core.exportVariable("GH_AW_PR_HEAD_BASE_REPO", baseRepo);
+  }
+  if (headRepo) {
+    core.exportVariable("GH_AW_PR_HEAD_REPO", headRepo);
+  }
+  if (prNumber != null) {
+    core.exportVariable("GH_AW_PR_HEAD_BASE_PR_NUMBER", String(prNumber));
+  }
+  core.exportVariable("GH_AW_PR_HEAD_BASE_REF", PR_HEAD_BASE_REF);
+  core.info(`Recorded PR head baseline for incremental patches: ${branchName}@${baseSha}`);
+}
 
 /**
  * Determine whether the current repository is a shallow clone.
@@ -313,6 +366,12 @@ async function main() {
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", branchName]);
 
+      await exportPRHeadBaseline({
+        branchName,
+        baseRepo: pullRequest.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
+        headRepo: pullRequest.head?.repo?.full_name,
+        prNumber: pullRequest.number,
+      });
       core.info(`✅ Successfully checked out branch: ${branchName}`);
     } else {
       // For pull_request_target, fork pull_request events, and other PR events,
@@ -350,12 +409,18 @@ async function main() {
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const prFetchArgs = await depthArgs(fetchDepth);
       core.info(prFetchArgs.length > 0 ? `Fetching with ${prFetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:refs/remotes/origin/pr-head`, ...prFetchArgs]);
+      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs]);
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
 
+      await exportPRHeadBaseline({
+        branchName,
+        baseRepo: fullPR.base?.repo?.full_name || `${context.repo.owner}/${context.repo.repo}`,
+        headRepo: fullPR.head?.repo?.full_name,
+        prNumber,
+      });
       core.info(`✅ Successfully checked out PR #${prNumber}`);
       core.info(`Current branch: ${branchName}`);
     }

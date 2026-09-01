@@ -112,12 +112,11 @@ safe-outputs:
 Review the pull request and use format-and-notify to post your summary.
 ```
 
-## Related Documentation
+## Learn More
 
 - [Pre-Activation Steps](/gh-aw/reference/triggers/#pre-activation-steps-onsteps) — Inline step injection into the pre-activation job
 - [Pre-Activation Permissions](/gh-aw/reference/triggers/#pre-activation-permissions-onpermissions) — Grant additional scopes for `on.steps:` API calls
 - [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) — Custom post-processing jobs
-- [Frontmatter Reference](/gh-aw/reference/frontmatter/) — Configuration options
 - [Compilation Process](/gh-aw/reference/compilation-process/) — How jobs are orchestrated
 - [Imports](/gh-aw/reference/imports/) — Sharing configurations across workflows
 - [Templating](/gh-aw/reference/templating/) — Using GitHub Actions expressions

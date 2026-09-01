@@ -577,7 +577,7 @@ gh aw audit 1234567890 --runtime gvisor                  # Skip run unless sandb
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
-The `--artifacts` flag selects which artifact sets to download (default: `all`). Valid sets include `activation`, `agent`, `all`, `detection`, `evals`, `experiment`, `firewall`, `github-api`, `mcp`, and `usage`. Use `all` to download the full artifact set. Unlike `gh aw logs`, which defaults to `usage`, `audit` defaults to `all` for comprehensive analysis. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
+The `--artifacts` flag selects which artifact sets to download (default: `all`). Valid sets include `activation`, `agent`, `all`, `detection`, `evals`, `experiment`, `firewall`, `github-api`, `graders`, `mcp`, and `usage`. Use `all` to download the full artifact set. Unlike `gh aw logs`, which defaults to `usage`, `audit` defaults to `all` for comprehensive analysis. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
 
 Logs are saved to `.github/aw/logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 
@@ -612,6 +612,17 @@ gh aw audit 12345 12346 --repo owner/repo   # Specify repository
 The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, run metric comparisons (token usage, duration, turns), tokens-per-turn changes, and per-tool and per-bash-command call breakdowns.
 
 **Options:** `--artifacts`, `--format` (pretty, markdown; default: pretty), `--json/-j`, `--output/-o`, `--repo/-r`
+
+#### `graders`
+
+Inspect and replay workflow graders. `graders operational-value` regrades the operational-value observation from a completed workflow run at an explicit evidence cutoff. It verifies and executes the evaluator archived by the run without modifying the original artifact.
+
+```bash wrap
+gh aw graders operational-value 123456789 \
+  --evidence-at 2026-08-30T12:00:00.000Z --json
+```
+
+**Options:** `--evidence-at` (required), `--json/-j`, `--repo/-r`
 
 #### `outcomes`
 
@@ -1061,11 +1072,11 @@ Works with: compile, enable, disable, logs, mcp commands.
 
 See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference](/gh-aw/troubleshooting/errors/) for detailed troubleshooting.
 
-## Related Documentation
+## Learn More
 
 - [Quick Start](/gh-aw/setup/quick-start/) - Get your first workflow running
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options
-- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Adding and updating workflows
+- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) - Adding workflows from other repositories
 - [Security Guide](/gh-aw/introduction/architecture/) - Security best practices
 - [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/) - MCP server configuration
 - [Agent Factory](/gh-aw/agent-factory-status/) - Agent factory status

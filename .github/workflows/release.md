@@ -602,15 +602,56 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |
-          echo "Creating GitHub release: $RELEASE_TAG"
+          log_diagnostic() {
+            local description="$1"
+            shift
+            local output
+            local status
+
+            echo "::group::${description}"
+            set +e
+            output=$("$@" 2>&1)
+            status=$?
+            set -e
+            printf '%s\n' "$output"
+            echo "Exit status: $status"
+            echo "::endgroup::"
+          }
+
+          echo "Creating GitHub release: $RELEASE_TAG (repository: $GITHUB_REPOSITORY)"
+          echo "::group::Release creation context"
+          gh --version
+          echo "Commit: $(git rev-parse HEAD)"
+          echo "Tag target: $(git rev-list -n 1 "$RELEASE_TAG")"
+          echo "Release assets:"
+          ls -lh dist/
+          sha256sum dist/*
+          echo "::endgroup::"
           
           # Create release with binaries (SBOM files will be added later)
-          gh release create "$RELEASE_TAG" \
+          set +e
+          release_create_output=$(gh release create "$RELEASE_TAG" \
             dist/* \
             --title "$RELEASE_TAG" \
             --generate-notes \
             --prerelease \
-            --latest=false
+            --latest=false 2>&1)
+          release_create_status=$?
+          set -e
+          printf '%s\n' "$release_create_output"
+
+          if [ "$release_create_status" -ne 0 ]; then
+            echo "Error: gh release create failed with exit status $release_create_status"
+            log_diagnostic "Release lookup after failed creation" \
+              gh release view "$RELEASE_TAG" --json databaseId,tagName,targetCommitish,isDraft,isPrerelease,url
+            log_diagnostic "Release API response after failed creation" \
+              gh api --include "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"
+            log_diagnostic "Tag API response after failed creation" \
+              gh api --include "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG"
+            log_diagnostic "GitHub API rate limit after failed creation" \
+              gh api rate_limit --jq '.resources.core | {limit, remaining, reset}'
+            exit "$release_create_status"
+          fi
           
           # Get release ID (retry to handle eventual consistency)
           MAX_ATTEMPTS=5
@@ -646,14 +687,14 @@ jobs:
         run: go mod download
 
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           artifact-name: sbom.spdx.json
           output-file: sbom.spdx.json
           format: spdx-json
 
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           artifact-name: sbom.cdx.json
           output-file: sbom.cdx.json

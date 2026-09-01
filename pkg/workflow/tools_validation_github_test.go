@@ -42,7 +42,7 @@ Guard policies are only evaluated when lockdown is not active.`
 // frontmatter parser never populates because it normalizes 'repos' into
 // 'allowed-repos'.
 func TestHasGitHubLockdownGuardPolicyConflictDeprecatedReposField(t *testing.T) {
-	github := &GitHubToolConfig{Lockdown: true, Repos: "all"}
+	github := &GitHubToolConfig{Lockdown: true, Repos: GitHubReposScope{"all"}}
 	assert.True(t, hasGitHubGuardPolicyFields(github),
 		"deprecated 'repos' alias must count as a configured guard-policy field")
 	assert.True(t, hasGitHubLockdownGuardPolicyConflict(github),
@@ -62,19 +62,19 @@ func TestHasGitHubLockdownGuardPolicyConflictDeprecatedReposField(t *testing.T) 
 // validation treats a struct-literal 'repos' value identically to
 // 'allowed-repos', including the min-integrity requirement.
 func TestValidateGitHubGuardPolicyNormalizesDeprecatedReposField(t *testing.T) {
-	tools := &Tools{GitHub: &GitHubToolConfig{Repos: "all"}}
+	tools := &Tools{GitHub: &GitHubToolConfig{Repos: GitHubReposScope{"all"}}}
 	err := validateGitHubGuardPolicy(tools, "test-workflow")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "'github.min-integrity' is required")
 
-	tools = &Tools{GitHub: &GitHubToolConfig{Repos: "not-a-valid-scope", MinIntegrity: GitHubIntegrityApproved}}
+	tools = &Tools{GitHub: &GitHubToolConfig{Repos: GitHubReposScope{"not-a-valid-scope"}, MinIntegrity: GitHubIntegrityApproved}}
 	err = validateGitHubGuardPolicy(tools, "test-workflow")
 	require.Error(t, err)
-	require.ErrorContains(t, err, "'github.allowed-repos' string must be")
+	require.ErrorContains(t, err, "must be in format")
 
-	tools = &Tools{GitHub: &GitHubToolConfig{Repos: "all", MinIntegrity: GitHubIntegrityApproved}}
+	tools = &Tools{GitHub: &GitHubToolConfig{Repos: GitHubReposScope{"all"}, MinIntegrity: GitHubIntegrityApproved}}
 	require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
-	assert.Equal(t, GitHubReposScope("all"), tools.GitHub.AllowedRepos,
+	assert.Equal(t, GitHubReposScope{"all"}, tools.GitHub.AllowedRepos,
 		"deprecated 'repos' alias must be normalized into 'allowed-repos'")
 }
 

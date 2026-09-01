@@ -3,8 +3,8 @@ set +o histexpand
 set -euo pipefail
 
 # Collect usage artifact files into /tmp/gh-aw/usage/ for upload.
-# Copies aw_info, agent/detection usage JSONL, evals, rate limits, and
-# token-usage logs from the firewall sandbox directories.
+# Copies aw_info, agent/detection usage JSONL, evals, grader results, rate limits,
+# and token-usage logs from the firewall sandbox directories.
 #
 # Token-usage files are copied in ascending priority order so the last
 # non-empty source wins:
@@ -22,6 +22,8 @@ for file in \
   /tmp/gh-aw/agent_usage.jsonl \
   /tmp/gh-aw/detection_usage.jsonl \
   /tmp/gh-aw/evals/evals.jsonl \
+  /tmp/gh-aw/agent/graders/grader_manifest.json \
+  /tmp/gh-aw/agent/graders/grader_results.json \
   /tmp/gh-aw/github_rate_limits.jsonl \
   /tmp/gh-aw/safe-output-items.jsonl \
   /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl \
@@ -39,6 +41,8 @@ if [ -f /tmp/gh-aw/agent_usage.json ]; then cp /tmp/gh-aw/agent_usage.json /tmp/
 if [ -f /tmp/gh-aw/agent_usage.jsonl ]; then cp /tmp/gh-aw/agent_usage.jsonl /tmp/gh-aw/usage/agent_usage.jsonl || true; fi
 if [ -f /tmp/gh-aw/detection_usage.jsonl ]; then cp /tmp/gh-aw/detection_usage.jsonl /tmp/gh-aw/usage/detection_usage.jsonl || true; fi
 if [ -f /tmp/gh-aw/evals/evals.jsonl ]; then cp /tmp/gh-aw/evals/evals.jsonl /tmp/gh-aw/usage/evals.jsonl || true; fi
+if [ -f /tmp/gh-aw/agent/graders/grader_manifest.json ]; then mkdir -p /tmp/gh-aw/usage/graders && cp /tmp/gh-aw/agent/graders/grader_manifest.json /tmp/gh-aw/usage/graders/grader_manifest.json || true; fi
+if [ -f /tmp/gh-aw/agent/graders/grader_results.json ]; then mkdir -p /tmp/gh-aw/usage/graders && cp /tmp/gh-aw/agent/graders/grader_results.json /tmp/gh-aw/usage/graders/grader_results.json || true; fi
 if [ -f /tmp/gh-aw/github_rate_limits.jsonl ]; then cp /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/usage/github_rate_limits.jsonl || true; fi
 
 # Agent token usage (ascending priority — last non-empty source wins).

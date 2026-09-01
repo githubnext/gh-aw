@@ -17,6 +17,7 @@ network:
   allowed:
     - defaults
     - go
+    - node
 engine:
   id: copilot
   copilot-sdk: true
@@ -35,6 +36,7 @@ imports:
       labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
       reviewers: [copilot]
   - shared/otlp.md
+  - shared/graders.md
 tools:
   cli-proxy: true
   bash: ["git diff:*", "git restore:*", "git status:*", "sed:*", wc]
@@ -65,6 +67,7 @@ evals:
     question: Did the agent analyze code scanning alerts and identify at least one fixable alert, or correctly skip when no fixable alerts were found?
   - id: pr_created_or_noop
     question: Was a pull request created with a remediation for a code scanning alert, or was noop used when no fixable alerts existed?
+
 ---
 
 # Code Scanning Alert Fixer Agent

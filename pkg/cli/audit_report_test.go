@@ -53,7 +53,7 @@ func createTestProcessedRun(opts ...func(*ProcessedRun)) ProcessedRun {
 }
 
 // assertFindingExists checks if a finding with the given category and severity exists
-func assertFindingExists(t *testing.T, findings []Finding, category, severity string, msgAndArgs ...any) {
+func assertFindingExists(t *testing.T, findings []AuditFinding, category, severity string, msgAndArgs ...any) {
 	t.Helper()
 	for _, f := range findings {
 		if f.Category == category && f.Severity.String() == severity {
@@ -64,7 +64,7 @@ func assertFindingExists(t *testing.T, findings []Finding, category, severity st
 }
 
 // findFindingByCategory returns the first finding with the given category, or nil if not found
-func findFindingByCategory(findings []Finding, category string) *Finding {
+func findFindingByCategory(findings []AuditFinding, category string) *AuditFinding {
 	for _, f := range findings {
 		if f.Category == category {
 			return &f
@@ -74,7 +74,7 @@ func findFindingByCategory(findings []Finding, category string) *Finding {
 }
 
 // assertFindingContains checks if a finding with the given category exists and title contains expected text
-func assertFindingContains(t *testing.T, findings []Finding, category, titleContains string, msgAndArgs ...any) {
+func assertFindingContains(t *testing.T, findings []AuditFinding, category, titleContains string, msgAndArgs ...any) {
 	t.Helper()
 	for _, f := range findings {
 		if f.Category == category && strings.Contains(f.Title, titleContains) {
@@ -103,7 +103,7 @@ func TestGenerateFindings(t *testing.T) {
 		metrics       MetricsData
 		errors        []ValidationIssue
 		expectedCount int
-		checkFindings func(t *testing.T, findings []Finding)
+		checkFindings func(t *testing.T, findings []AuditFinding)
 	}{
 		{
 			name: "successful workflow with no issues",
@@ -120,7 +120,7 @@ func TestGenerateFindings(t *testing.T) {
 			},
 			errors:        []ValidationIssue{},
 			expectedCount: 1, // Should have success finding
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingExists(t, findings, "success", "info",
 					"Successful workflow should generate a success finding")
 			},
@@ -140,7 +140,7 @@ func TestGenerateFindings(t *testing.T) {
 			},
 			errors:        []ValidationIssue{{Type: "error", Message: "Test error"}},
 			expectedCount: 1, // Should have failure finding
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should generate an error finding")
 				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
@@ -158,7 +158,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics:       MetricsData{ErrorCount: 1},
 			errors:        []ValidationIssue{{Type: "step_failure", Message: strings.Repeat("x", 500)}},
 			expectedCount: 1,
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Should generate an error finding")
 				assert.LessOrEqual(t, len(finding.Description), 300, "Description should be truncated for long error messages")
@@ -177,7 +177,7 @@ func TestGenerateFindings(t *testing.T) {
 			},
 			errors:        []ValidationIssue{},
 			expectedCount: 1,
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should generate an error finding")
 				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
@@ -200,7 +200,7 @@ func TestGenerateFindings(t *testing.T) {
 				{Type: "step_failure", Message: "##[error]Process completed with exit code 1."},
 			},
 			expectedCount: 1,
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should generate an error finding")
 				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
@@ -222,7 +222,7 @@ func TestGenerateFindings(t *testing.T) {
 			},
 			errors:        []ValidationIssue{},
 			expectedCount: 1,
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should still generate an error finding")
 				assert.Equal(t, scanfindings.SeverityCritical, finding.Severity, "Error finding should have critical severity")
@@ -264,7 +264,7 @@ func TestGenerateFindings(t *testing.T) {
 			},
 			errors:        []ValidationIssue{},
 			expectedCount: 1,
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				finding := findFindingByCategory(findings, "error")
 				require.NotNil(t, finding, "Failed workflow should still generate an error finding")
 				assert.Contains(t, finding.Description, "after agent activation",
@@ -287,7 +287,7 @@ func TestGenerateFindings(t *testing.T) {
 			},
 			errors:        []ValidationIssue{},
 			expectedCount: 1, // Timeout finding
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingContains(t, findings, "performance", "Timeout",
 					"Timed out workflow should generate a timeout finding")
 			},
@@ -302,7 +302,7 @@ func TestGenerateFindings(t *testing.T) {
 				Turns:      5,
 			},
 			errors: []ValidationIssue{},
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingContains(t, findings, "performance", "Token Usage",
 					"High token usage should generate a performance finding")
 			},
@@ -316,7 +316,7 @@ func TestGenerateFindings(t *testing.T) {
 				Turns: 15, // > 10 threshold
 			},
 			errors: []ValidationIssue{},
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingContains(t, findings, "performance", "Iterations",
 					"Many iterations should generate a performance finding")
 			},
@@ -338,7 +338,7 @@ func TestGenerateFindings(t *testing.T) {
 				{Type: "error", Message: "Error 5"},
 				{Type: "error", Message: "Error 6"},
 			},
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingContains(t, findings, "error", "Multiple Errors",
 					"Multiple errors should generate an error finding")
 			},
@@ -356,7 +356,7 @@ func TestGenerateFindings(t *testing.T) {
 				Turns: 5,
 			},
 			errors: []ValidationIssue{},
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingContains(t, findings, "tooling", "MCP Server",
 					"MCP server failures should generate a tooling finding")
 			},
@@ -375,7 +375,7 @@ func TestGenerateFindings(t *testing.T) {
 				Turns: 5,
 			},
 			errors: []ValidationIssue{},
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingContains(t, findings, "tooling", "Tools Not Available",
 					"Missing tools should generate a tooling finding")
 			},
@@ -397,7 +397,7 @@ func TestGenerateFindings(t *testing.T) {
 				Turns: 5,
 			},
 			errors: []ValidationIssue{},
-			checkFindings: func(t *testing.T, findings []Finding) {
+			checkFindings: func(t *testing.T, findings []AuditFinding) {
 				assertFindingContains(t, findings, "network", "Blocked",
 					"Firewall blocked requests should generate a network finding")
 			},
@@ -466,7 +466,7 @@ func TestGenerateRecommendations(t *testing.T) {
 		name                 string
 		processedRun         ProcessedRun
 		metrics              MetricsData
-		findings             []Finding
+		findings             []AuditFinding
 		expectedMinCount     int
 		checkRecommendations func(t *testing.T, recs []Recommendation)
 	}{
@@ -478,7 +478,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				return pr
 			}(),
 			metrics:          MetricsData{},
-			findings:         []Finding{},
+			findings:         []AuditFinding{},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
 				assertRecommendationExists(t, recs, "high", "error logs",
@@ -489,7 +489,7 @@ func TestGenerateRecommendations(t *testing.T) {
 			name:         "critical findings generate review recommendation",
 			processedRun: createTestProcessedRun(),
 			metrics:      MetricsData{},
-			findings: []Finding{
+			findings: []AuditFinding{
 				{Category: "error", Severity: "critical", Title: "Test Critical"},
 			},
 			expectedMinCount: 1,
@@ -508,7 +508,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				return pr
 			}(),
 			metrics:          MetricsData{},
-			findings:         []Finding{},
+			findings:         []AuditFinding{},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
 				found := false
@@ -531,7 +531,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				return pr
 			}(),
 			metrics:          MetricsData{},
-			findings:         []Finding{},
+			findings:         []AuditFinding{},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
 				found := false
@@ -554,7 +554,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				return pr
 			}(),
 			metrics:          MetricsData{},
-			findings:         []Finding{},
+			findings:         []AuditFinding{},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
 				found := false
@@ -575,7 +575,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				return pr
 			}(),
 			metrics:          MetricsData{},
-			findings:         []Finding{},
+			findings:         []AuditFinding{},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
 				assertRecommendationExists(t, recs, "low", "Monitor",
@@ -968,7 +968,7 @@ func TestRenderJSONComplete(t *testing.T) {
 			ErrorCount:   1,
 			WarningCount: 2,
 		},
-		KeyFindings: []Finding{
+		KeyFindings: []AuditFinding{
 			{Category: "success", Severity: "info", Title: "Test Finding", Description: "Test description"},
 		},
 		Recommendations: []Recommendation{
@@ -1195,7 +1195,7 @@ func TestRecommendationPriorityOrdering(t *testing.T) {
 
 	metrics := MetricsData{}
 
-	findings := []Finding{
+	findings := []AuditFinding{
 		{Category: "error", Severity: "critical", Title: "Critical"},
 		{Category: "cost", Severity: "high", Title: "High Cost"},
 	}
@@ -1777,7 +1777,7 @@ func TestGenerateFindingsFirewallWithBlockedDomains(t *testing.T) {
 
 	findings := generateFindings(pr, MetricsData{}, nil)
 
-	var networkFinding *Finding
+	var networkFinding *AuditFinding
 	for i := range findings {
 		if findings[i].Category == "network" {
 			networkFinding = &findings[i]
@@ -1805,7 +1805,7 @@ func TestGenerateRecommendationsFirewallSingleBlock(t *testing.T) {
 	fw.SetBlockedDomains([]string{"chatgpt.com"})
 	pr.FirewallAnalysis = fw
 
-	findings := []Finding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
+	findings := []AuditFinding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
 	recs := generateRecommendations(pr, MetricsData{}, findings)
 
 	var networkRec *Recommendation
@@ -1839,7 +1839,7 @@ func TestGenerateRecommendationsFiltersDashPlaceholder(t *testing.T) {
 	fw.SetBlockedDomains([]string{"-"})
 	pr.FirewallAnalysis = fw
 
-	findings := []Finding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
+	findings := []AuditFinding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
 	recs := generateRecommendations(pr, MetricsData{}, findings)
 
 	var networkRec *Recommendation
@@ -1871,7 +1871,7 @@ func TestGenerateRecommendationsFiltersUnknownSentinel(t *testing.T) {
 	fw.SetBlockedDomains([]string{unknownDomain})
 	pr.FirewallAnalysis = fw
 
-	findings := []Finding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
+	findings := []AuditFinding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
 	recs := generateRecommendations(pr, MetricsData{}, findings)
 
 	var networkRec *Recommendation

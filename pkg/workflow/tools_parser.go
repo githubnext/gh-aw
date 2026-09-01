@@ -107,7 +107,7 @@ var knownTools = map[string]struct{}{
 	"cli-proxy":         {},
 }
 
-func NewTools(toolsMap map[string]any) *Tools {
+func NewTools(toolsMap map[string]any) *Tools { //nolint:largefunc // Existing tool parsing remains centralized.
 	toolsParserLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
 	if toolsMap == nil {
 		return &Tools{
@@ -191,7 +191,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 }
 
 // parseGitHubTool converts raw github tool configuration to GitHubToolConfig
-func parseGitHubTool(val any) *GitHubToolConfig {
+func parseGitHubTool(val any) *GitHubToolConfig { //nolint:largefunc // Existing GitHub tool parsing remains centralized.
 	if val == nil {
 		toolsParserLog.Print("GitHub tool enabled with default configuration")
 		return &GitHubToolConfig{
@@ -295,13 +295,20 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 
 		// Parse guard policy fields (flat syntax: allowed-repos/repos and min-integrity directly under github:)
 		if allowedRepos, ok := configMap["allowed-repos"]; ok {
-			config.AllowedRepos = allowedRepos // Store as-is, validation will happen later
+			config.AllowedRepos, config.reposParseErr = parseGitHubReposScope(allowedRepos)
+			if config.reposParseErr != nil {
+				config.reposParseErr = fmt.Errorf("github.allowed-repos: %w", config.reposParseErr)
+			}
 		} else if repos, ok := configMap["repos"]; ok {
 			// Deprecated: use 'allowed-repos' instead of 'repos'.
 			// The deprecation warning is emitted by the generic schema-driven walker in
 			// warnDeprecatedFrontmatterFields; no extra hard-coded warning is needed here.
-			config.AllowedRepos = repos // Populate canonical field for validation
+			config.AllowedRepos, config.reposParseErr = parseGitHubReposScope(repos)
+			if config.reposParseErr != nil {
+				config.reposParseErr = fmt.Errorf("github.repos: %w", config.reposParseErr)
+			}
 		}
+
 		if integrity, ok := configMap["min-integrity"].(string); ok {
 			config.MinIntegrity = GitHubIntegrityLevel(integrity)
 		}
@@ -416,18 +423,6 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			}
 		}
 
-		// Parse bounded-queries configuration.
-		if rawBQ, ok := configMap["bounded-queries"]; ok {
-			if bqMap, ok := rawBQ.(map[string]any); ok {
-				config.BoundedQueries = parseBoundedQueriesConfig(bqMap)
-			} else {
-				// Wrong type — create a sentinel so the validator can emit a proper error.
-				config.BoundedQueries = &BoundedQueriesConfig{
-					ParseError: fmt.Sprintf("bounded-queries must be a mapping object, got %T", rawBQ),
-				}
-			}
-		}
-
 		return config
 	}
 
@@ -436,63 +431,6 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 	}
 }
 
-// parseBoundedQueriesConfig converts a raw map into a BoundedQueriesConfig.
-func parseBoundedQueriesConfig(bqMap map[string]any) *BoundedQueriesConfig {
-	config := &BoundedQueriesConfig{}
-
-	if rawRepos, ok := bqMap["private-repos"]; ok {
-		switch repos := rawRepos.(type) {
-		case []any:
-			config.PrivateRepos = make([]*BoundedQueryPrivateRepo, 0, len(repos))
-			for i, item := range repos {
-				if repoMap, ok := item.(map[string]any); ok {
-					entry := &BoundedQueryPrivateRepo{}
-					if repo, ok := repoMap["repo"].(string); ok {
-						entry.Repo = repo
-					}
-					if sensitivity, ok := repoMap["sensitivity"].(string); ok {
-						entry.Sensitivity = sensitivity
-					}
-					config.PrivateRepos = append(config.PrivateRepos, entry)
-				} else {
-					config.ParseError = fmt.Sprintf("private-repos[%d] must be a mapping object, got %T", i, item)
-					return config
-				}
-			}
-		default:
-			config.ParseError = fmt.Sprintf("private-repos must be an array, got %T", rawRepos)
-			return config
-		}
-	}
-
-	if runtime, ok := bqMap["runtime"].(string); ok {
-		config.Runtime = runtime
-	}
-	if rawTimeout, hasTimeout := bqMap["timeout"]; hasTimeout {
-		if timeout, ok := rawTimeout.(int); ok {
-			config.Timeout = &timeout
-		} else {
-			config.ParseError = fmt.Sprintf("timeout must be an integer, got %T", rawTimeout)
-			return config
-		}
-	}
-	if memoryLimit, ok := bqMap["memory-limit"].(string); ok {
-		config.MemoryLimit = memoryLimit
-	}
-	if interpreter, ok := bqMap["interpreter"].(string); ok {
-		config.Interpreter = interpreter
-	}
-	if rawMax, hasMax := bqMap["max-invocations"]; hasMax {
-		if maxInvocations, ok := rawMax.(int); ok {
-			config.MaxInvocations = &maxInvocations
-		} else {
-			config.ParseError = fmt.Sprintf("max-invocations must be an integer, got %T", rawMax)
-			return config
-		}
-	}
-
-	return config
-}
 func parseBashTool(val any) *BashToolConfig {
 	if val == nil {
 		// nil is no longer supported - return nil to indicate invalid configuration
@@ -541,6 +479,15 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	toolsParserLog.Print("Parsing playwright tool configuration")
 
 	if configMap, ok := val.(map[string]any); ok {
+		// A custom mcp-servers.playwright entry (command, url, container, or type) is
+		// merged into the same tools map under the "playwright" key. Don't misclassify
+		// it as the built-in CLI tool: leave tools.Playwright nil so it is handled as a
+		// regular custom MCP server instead.
+		if hasMcp, _ := hasMCPConfig(configMap); hasMcp {
+			toolsParserLog.Print("Playwright configuration has custom MCP fields; not treating as built-in CLI tool")
+			return nil
+		}
+
 		config := &PlaywrightToolConfig{}
 
 		// Handle version field - can be string or number
@@ -552,20 +499,6 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 			config.Version = strconv.FormatInt(versionNum, 10)
 		} else if versionNum, ok := configMap["version"].(float64); ok {
 			config.Version = fmt.Sprintf("%g", versionNum)
-		}
-
-		// Handle args field - can be []any or []string
-		if argsValue, ok := configMap["args"]; ok {
-			if arr, ok := argsValue.([]any); ok {
-				config.Args = make([]string, 0, len(arr))
-				for _, item := range arr {
-					if str, ok := item.(string); ok {
-						config.Args = append(config.Args, str)
-					}
-				}
-			} else if arr, ok := argsValue.([]string); ok {
-				config.Args = arr
-			}
 		}
 
 		// Handle mode field
@@ -695,7 +628,7 @@ func parseStartupTimeoutTool(val any) *TemplatableInt32 {
 }
 
 // parseMCPServerConfig converts raw MCP server configuration to MCPServerConfig
-func parseMCPServerConfig(val any) MCPServerConfig {
+func parseMCPServerConfig(val any) MCPServerConfig { //nolint:largefunc // Existing custom MCP parsing remains centralized.
 	config := MCPServerConfig{
 		CustomFields: make(map[string]any),
 	}

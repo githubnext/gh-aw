@@ -14,11 +14,12 @@ export const requireMkdirSyncTryCatchRule = createRule({
       description:
         "Require fs.mkdirSync calls in actions/setup/js scripts to be wrapped in try/catch. " +
         "mkdirSync throws synchronously on permission errors, invalid paths, or unexpected filesystem state; " +
-        "an unhandled throw crashes the action without surfacing a useful diagnostic.",
+        "without a call-site try/catch, the entrypoint-level catch produces a generic engine-level stack instead of a specific message that preserves the error as `{ cause }`.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap fs.mkdirSync({{arg}}) in try/catch — mkdirSync throws on permission denied, invalid path, or filesystem errors and will crash the action if unhandled.",
+      requireTryCatch:
+        "Wrap fs.mkdirSync({{arg}}) in try/catch — mkdirSync throws on permission denied, invalid path, or filesystem errors; without a call-site try/catch, you lose the original error context and get a generic engine-level stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },

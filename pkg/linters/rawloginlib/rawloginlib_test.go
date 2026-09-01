@@ -11,6 +11,7 @@ import (
 )
 
 func TestRawLogInLib(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, rawloginlib.Analyzer, "rawloginlib")
 }

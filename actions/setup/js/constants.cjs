@@ -99,6 +99,16 @@ const MANIFEST_FILE_PATH = `${TMP_GH_AW_PATH}/safe-output-items.jsonl`;
 const TEMPORARY_ID_MAP_FILE_PATH = `${TMP_GH_AW_PATH}/temporary-id-map.json`;
 
 /**
+ * Path to the safe-output error report JSON file.
+ * This file records structured diagnostics (error code, message, failing safe-output
+ * types) whenever the safe-output handler manager fails, so that failures of the
+ * "Process Safe Outputs" step remain diagnosable after the job logs expire.
+ * The file is uploaded as part of the safe-outputs-items artifact.
+ * @type {string}
+ */
+const SAFE_OUTPUT_ERRORS_FILE_PATH = `${TMP_GH_AW_PATH}/safe-output-errors.json`;
+
+/**
  * Path to the OTLP telemetry mirror file.
  * Every OTLP span payload is appended here as a JSON line for artifact inspection.
  * @type {string}
@@ -142,6 +152,7 @@ module.exports = {
   RPC_MESSAGES_PATH,
   MANIFEST_FILE_PATH,
   TEMPORARY_ID_MAP_FILE_PATH,
+  SAFE_OUTPUT_ERRORS_FILE_PATH,
   OTEL_JSONL_PATH,
   GITHUB_RATE_LIMITS_JSONL_PATH,
   DETECTION_LOG_FILENAME,

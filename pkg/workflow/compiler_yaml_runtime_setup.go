@@ -237,7 +237,7 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 	// Must happen before comment-memory preparation (needs prompt.txt for injection) and
 	// before the base-branch restore in generateEngineInstallAndPreAgentSteps.
 	compilerYamlLog.Print("Adding activation artifact download step")
-	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
+	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName.String()
 	yaml.WriteString("      - name: Download activation artifact\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")

@@ -214,11 +214,15 @@ func (c *Compiler) buildAgentFailureCoreVars(data *WorkflowData, mainJobName str
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
 
 	expiresHours := DefaultActionFailureIssueExpiresHours
-	repoConfig, err := c.loadRepoConfig()
-	if err != nil {
-		notifyCommentLog.Printf("Warning: failed to load repo config for action failure issue expiration (using default %d hours): %v. Check that %s exists and matches schema requirements", DefaultActionFailureIssueExpiresHours, err, RepoConfigFileName)
+	if data.SafeOutputs != nil && data.SafeOutputs.ReportFailureAsIssue != nil && data.SafeOutputs.ReportFailureAsIssue.String() == "false" {
+		expiresHours = 0
 	} else {
-		expiresHours = repoConfig.ActionFailureIssueExpiresHours()
+		repoConfig, err := c.loadRepoConfig()
+		if err != nil {
+			notifyCommentLog.Printf("Warning: failed to load repo config for action failure issue expiration (using default %d hours): %v. Check that %s exists and matches schema requirements", DefaultActionFailureIssueExpiresHours, err, RepoConfigFileName)
+		} else {
+			expiresHours = repoConfig.ActionFailureIssueExpiresHours()
+		}
 	}
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: %q\n", strconv.Itoa(expiresHours)))
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {

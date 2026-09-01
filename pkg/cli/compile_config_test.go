@@ -3,6 +3,7 @@ package cli
 import "testing"
 
 func TestCompileConfig_ShellcheckEnabled(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		config      CompileConfig
@@ -31,6 +32,7 @@ func TestCompileConfig_ShellcheckEnabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.config.shellcheckEnabled(); got != tt.wantEnabled {
 				t.Fatalf("shellcheckEnabled() = %v, want %v", got, tt.wantEnabled)
 			}

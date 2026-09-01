@@ -12,8 +12,11 @@ permissions:
   issues: read
   actions: read
   pull-requests: read
+  copilot-requests: write
 engine:
-  id: copilot
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 strict: true
 timeout-minutes: 35
 max-turns: 60
@@ -21,6 +24,7 @@ max-daily-ai-credits: 10000
 network:
   allowed:
     - defaults
+    - github
     - go
     - node
 tools:
@@ -142,8 +146,8 @@ steps:
       name: purelock-bundle-${{ github.run_id }}
       path: /tmp/gh-aw/purelock
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[purelock] "
     labels: [automation, testing, coverage]
     draft: true

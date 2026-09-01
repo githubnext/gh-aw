@@ -259,6 +259,7 @@ func TestBuildWorkingTreeResolutionOptions(t *testing.T) {
 }
 
 func TestFormatWorkingTreeBlockers(t *testing.T) {
+	t.Parallel()
 	description := formatWorkingTreeBlockers(addWorkingTreeBlockers{
 		staged:      []string{"notes.txt"},
 		overlapping: []string{".github/workflows/repo-assist.md", ".github/workflows/repo-assist.lock.yml"},

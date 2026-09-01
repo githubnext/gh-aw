@@ -49,6 +49,41 @@ function resolveEffectiveContext(invocationContext, rawContext) {
   };
 }
 
+function resolvePRHeadBaselineForPush(branchName, repoSlug, prNumber, server) {
+  const baselineBranch = (process.env.GH_AW_PR_HEAD_BASE_BRANCH || "").trim();
+  const baselineRepo = (process.env.GH_AW_PR_HEAD_BASE_REPO || "").trim();
+  const baselineRef = (process.env.GH_AW_PR_HEAD_BASE_REF || "").trim();
+  const baselineSha = (process.env.GH_AW_PR_HEAD_BASE_SHA || "").trim();
+  const baselinePRNumber = (process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER || "").trim();
+  const headRepo = (process.env.GH_AW_PR_HEAD_REPO || "").trim();
+
+  if (!baselineBranch || baselineBranch !== branchName || (!baselineRef && !baselineSha)) {
+    return null;
+  }
+
+  if (baselineRepo && baselineRepo.toLowerCase() !== repoSlug.toLowerCase()) {
+    server.debug(`Ignoring PR-head baseline for ${baselineBranch}: recorded repo ${baselineRepo} does not match target repo ${repoSlug}`);
+    return null;
+  }
+
+  // Branch name + repo alone don't uniquely identify a fork PR: two forks can open
+  // identically-named branches against the same base repo. In wildcard/batch workflows
+  // where the target PR differs from the triggering PR, require the recorded PR number
+  // to match the effective target PR before reusing the baseline.
+  const effectivePRNumber = prNumber != null ? String(prNumber).trim() : "";
+  if (!baselinePRNumber || !effectivePRNumber || effectivePRNumber !== baselinePRNumber) {
+    server.debug(`Ignoring PR-head baseline for ${baselineBranch}: recorded PR #${baselinePRNumber || "unknown"} does not match target PR #${effectivePRNumber || "unknown"}`);
+    return null;
+  }
+
+  server.debug(`Using recorded PR-head baseline for incremental push patch: ${baselineRef || baselineSha}`);
+  return {
+    ref: baselineRef,
+    sha: baselineSha,
+    headRepo,
+  };
+}
+
 /**
  * Read and parse a JSON file.
  * @param {string} filePath
@@ -1156,8 +1191,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * The destination branch is independently derived by the apply-time push handler
    * from pulls.get(pull_number).head.ref.
    *
-   * Note: Fork PR detection is handled by push_to_pull_request_branch.cjs handler
-   * which fetches the PR and calls detectForkPR() with full PR data.
+   * The recorded triggering-PR baseline includes its trusted head repository, so
+   * contributor forks that cannot be written are rejected before persisting an
+   * output. The apply-time handler still validates full PR data independently.
    */
   const pushToPullRequestBranchHandler = async args => {
     const entry = { ...(args || {}), type: "push_to_pull_request_branch" };
@@ -1342,6 +1378,52 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return buildIntentErrorResponse(intentValidationError);
     }
 
+    // Resolve the effective target PR number so a recorded PR-head baseline can be
+    // validated against it: branch name + repo alone don't uniquely identify a fork PR
+    // (two forks can open identically-named branches against the same base repo).
+    let effectivePushPRNumber = entry.pull_request_number != null ? parseInt(String(entry.pull_request_number), 10) : undefined;
+    if (effectivePushPRNumber == null || Number.isNaN(effectivePushPRNumber)) {
+      const pushInvocationContext = resolveInvocationContext(context);
+      const { effectivePayload: pushEffectivePayload } = resolveEffectiveContext(pushInvocationContext, context);
+      effectivePushPRNumber = pushEffectivePayload?.pull_request?.number || pushEffectivePayload?.issue?.number || undefined;
+    }
+
+    const prHeadBaseline = resolvePRHeadBaselineForPush(entry.branch, itemRepo, effectivePushPRNumber, server);
+    if (prHeadBaseline?.headRepo && prHeadBaseline.headRepo.toLowerCase() !== itemRepo.toLowerCase() && prHeadBaseline.headRepo.toLowerCase() !== configuredHeadRepo.toLowerCase()) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Cannot push to pull request #${effectivePushPRNumber}: its branch is in contributor fork '${prHeadBaseline.headRepo}', but safe-outputs.push-to-pull-request-branch.head-repo does not authorize that repository. A github-token or PAT alone does not authorize an unconfigured fork, even if the credential has write access. Configure head-repo as '${prHeadBaseline.headRepo}' with matching credentials to allow the push. Do not retry this push with the current configuration. If add_comment is available, comment on the pull request with the proposed code or patch; otherwise call report_incomplete with the proposed change and this error so the workflow can report it to the maintainer.`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Build common options for both patch and bundle generation
+    const pushTransportOptions = { mode: "incremental" };
+    if (prHeadBaseline) {
+      if (prHeadBaseline.ref) {
+        pushTransportOptions.incrementalBaseRef = prHeadBaseline.ref;
+      }
+      if (prHeadBaseline.sha) {
+        pushTransportOptions.incrementalBaseSha = prHeadBaseline.sha;
+      }
+    }
+    if (repoCwd) {
+      pushTransportOptions.cwd = repoCwd;
+      pushTransportOptions.repoSlug = repoResult.repo;
+    }
+    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
+    // Falls back to GITHUB_TOKEN if not set.
+    if (pushConfig["github-token"]) {
+      pushTransportOptions.token = pushConfig["github-token"];
+    }
+
     // Determine transport format: "bundle" (default) uses git bundle (preserves merge topology),
     // "am" uses git format-patch / git am (good for linear histories).
     // Use ?? (nullish coalescing) so an empty-string resolved value is preserved and
@@ -1379,23 +1461,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // only local refs (no extra fetch); a detection miss simply preserves the
     // existing behavior.
     if (!useBundle && !patchFormatExplicit && entry.branch) {
-      const hasMerges = hasMergeCommitsInRange(`refs/remotes/origin/${entry.branch}`, entry.branch, { cwd: repoCwd || undefined });
+      const rangeBaseRef = prHeadBaseline?.sha || prHeadBaseline?.ref || `refs/remotes/origin/${entry.branch}`;
+      const hasMerges = hasMergeCommitsInRange(rangeBaseRef, entry.branch, { cwd: repoCwd || undefined });
       if (hasMerges) {
-        server.debug(`push_to_pull_request_branch: detected merge commit(s) in incremental range origin/${entry.branch}..${entry.branch}; auto-switching to bundle transport (set patch-format: am to override).`);
+        server.debug(`push_to_pull_request_branch: detected merge commit(s) in incremental range ${rangeBaseRef}..${entry.branch}; auto-switching to bundle transport (set patch-format: am to override).`);
         useBundle = true;
       }
-    }
-
-    // Build common options for both patch and bundle generation
-    const pushTransportOptions = { mode: "incremental" };
-    if (repoCwd) {
-      pushTransportOptions.cwd = repoCwd;
-      pushTransportOptions.repoSlug = repoResult.repo;
-    }
-    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
-    // Falls back to GITHUB_TOKEN if not set.
-    if (pushConfig["github-token"]) {
-      pushTransportOptions.token = pushConfig["github-token"];
     }
 
     // SECURITY: Pin the branch ref to a SHA before generating any transport artifacts.

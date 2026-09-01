@@ -105,29 +105,58 @@ async function main(config = {}) {
     }
   };
 
-  // When running in a PR context, GITHUB_REF points to the merge ref (refs/pull/{PR_NUMBER}/merge)
-  // which is not a valid branch ref for dispatching workflows. Instead, we need to use
-  // GITHUB_HEAD_REF which contains the actual PR branch name.
+  // For pull_request events, GITHUB_REF points to a merge ref and GITHUB_HEAD_REF contains
+  // the PR branch. For issue_comment events on PRs, resolve the head branch through the API.
   // For cross-repo dispatch (workflow_call relay), the caller's GITHUB_REF has no meaning on
   // the target repository, so we use the compiler-injected target-ref instead.
-  let defaultRef;
-  if (config["target-ref"]) {
-    // Compiler-injected target ref for cross-repo dispatch (workflow_call relay pattern).
-    // Takes precedence over all environment variables to avoid using the caller's ref.
-    defaultRef = config["target-ref"];
-    core.info(`Using configured target-ref: ${defaultRef}`);
-  } else if (process.env.GITHUB_HEAD_REF) {
-    // We're in a pull_request event, use the PR branch ref
-    defaultRef = `refs/heads/${process.env.GITHUB_HEAD_REF}`;
-    core.info(`Using PR branch ref: ${defaultRef}`);
-  } else if (process.env.GITHUB_REF || context.ref) {
-    // Use GITHUB_REF for non-PR contexts (push, workflow_dispatch, etc.)
-    defaultRef = process.env.GITHUB_REF || context.ref;
-  } else {
+  const resolveDefaultRef = async () => {
+    if (config["target-ref"]) {
+      // Compiler-injected target ref for cross-repo dispatch (workflow_call relay pattern).
+      // Takes precedence over all environment variables to avoid using the caller's ref.
+      const ref = config["target-ref"];
+      core.info(`Using configured target-ref: ${ref}`);
+      return ref;
+    }
+    if (process.env.GITHUB_HEAD_REF) {
+      // We're in a pull_request event, use the PR branch ref
+      const ref = `refs/heads/${process.env.GITHUB_HEAD_REF}`;
+      core.info(`Using PR branch ref: ${ref}`);
+      return ref;
+    }
+    if (!isCrossRepoDispatch && context.eventName === "issue_comment" && context.payload.issue?.pull_request) {
+      const { data: pullRequest } = await githubClient.rest.pulls.get({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        pull_number: context.payload.issue.number,
+      });
+      if (!pullRequest?.head?.ref) {
+        throw new Error(`Unable to resolve head ref for pull request #${context.payload.issue.number}`);
+      }
+      const ref = `refs/heads/${pullRequest.head.ref}`;
+      core.info(`Using PR branch ref: ${ref}`);
+      return ref;
+    }
+    if (process.env.GITHUB_REF || context.ref) {
+      // Use GITHUB_REF for non-PR contexts (push, workflow_dispatch, etc.)
+      return process.env.GITHUB_REF || context.ref;
+    }
+
     // Last resort: fetch the repository's default branch
-    defaultRef = await getDefaultBranchRef();
-    core.info(`Using default branch ref: ${defaultRef}`);
-  }
+    const ref = await getDefaultBranchRef();
+    core.info(`Using default branch ref: ${ref}`);
+    return ref;
+  };
+  /** @type {Promise<string> | undefined} */
+  let defaultRefPromise;
+  // Cache the resolved ref so multiple dispatches share a single API lookup, but drop the
+  // cache on failure so a transient error doesn't poison every later dispatch in the run.
+  const getDefaultRef = () => {
+    defaultRefPromise ??= resolveDefaultRef().catch(error => {
+      defaultRefPromise = undefined;
+      throw error;
+    });
+    return defaultRefPromise;
+  };
 
   /**
    * Message handler function that processes a single dispatch_workflow message
@@ -184,7 +213,7 @@ async function main(config = {}) {
         core.warning(`message.ref must be a string; ignoring non-string value (type: ${typeof message.ref})`);
       }
       const outputRef = typeof message.ref === "string" ? message.ref.trim() : "";
-      let ref = defaultRef;
+      let ref;
       if (outputRef) {
         ref = normalizeRef(outputRef);
         if (allowedRefRegexes.length === 0) {
@@ -195,14 +224,19 @@ async function main(config = {}) {
             error,
           };
         }
-        if (!allowedRefRegexes.some(pattern => pattern.test(ref))) {
-          const error = `Ref '${ref}' is not in allowed-refs: ${allowedRefPatterns.join(", ")}`;
-          core.warning(error);
-          return {
-            success: false,
-            error,
-          };
-        }
+      } else {
+        ref = await getDefaultRef();
+      }
+      // Enforce allowed-refs for every agent-supplied ref, and for context-derived refs unless
+      // the ref came from the compiler-injected target-ref (which is trusted by construction and
+      // may legitimately point outside the allowlist for cross-repo dispatch).
+      if ((outputRef || !config["target-ref"]) && allowedRefRegexes.length > 0 && !allowedRefRegexes.some(pattern => pattern.test(ref))) {
+        const error = `Ref '${ref}' is not in allowed-refs: ${allowedRefPatterns.join(", ")}`;
+        core.warning(error);
+        return {
+          success: false,
+          error,
+        };
       }
 
       // Prepare inputs - convert all values to strings as required by workflow_dispatch

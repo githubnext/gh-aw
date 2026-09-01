@@ -11,12 +11,14 @@ export const requireNewUrlTryCatchRule = createRule({
     docs: {
       description:
         "Require new URL(variable) calls in actions/setup/js scripts to be wrapped in try/catch. " +
-        "The URL constructor throws a TypeError when given an invalid or relative URL string, " +
-        "which crashes the action with an unhelpful uncaught exception.",
+        "The URL constructor throws a TypeError when given an invalid or relative URL string. " +
+        "Without a call-site try/catch, the entrypoint-level catch produces a generic engine-level stack instead of a specific message that preserves the error as `{ cause }`.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap new URL({{arg}}) in try/catch — the URL constructor throws TypeError for invalid or relative URLs " + "and will crash the action if unhandled.",
+      requireTryCatch:
+        "Wrap new URL({{arg}}) in try/catch — the URL constructor throws TypeError for invalid or relative URLs; " +
+        "without a call-site try/catch, you lose the original error context and get a generic engine-level stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },

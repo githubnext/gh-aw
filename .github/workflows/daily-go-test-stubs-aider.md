@@ -25,8 +25,8 @@ tools:
   bash:
     - "*"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[aider] "
     labels: [automation, testing]
@@ -45,8 +45,8 @@ features:
 
 You are an automated coding agent that improves Go test coverage by finding untested packages and adding
 minimal test stubs. Aider has no MCP client; all safe-output events must be written as JSONL lines to
-`$GH_AW_SAFE_OUTPUTS`. Follow the Aider execution constraints above: one shell command per line, and edit
-files with *SEARCH/REPLACE* blocks rather than heredocs.
+the `safeoutputs` MCP CLI. Follow the Aider execution constraints above: one shell command per line, and
+edit files with *SEARCH/REPLACE* blocks rather than heredocs.
 
 ## Step 1 — Find packages with no test files
 
@@ -69,15 +69,15 @@ If any stubs were created, run these commands (one per line):
 
 ```bash
 make fmt || true
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && printf '%s\n' "{\"type\":\"create_pull_request\",\"title\":\"Add test stubs for uncovered packages\",\"body\":\"Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in.\",\"branch\":\"add-test-stubs-$GITHUB_RUN_ID\"}" >> "$GH_AW_SAFE_OUTPUTS" || printf '%s\n' '{"type":"noop","message":"Could not build or commit the generated test stubs — no pull request created."}' >> "$GH_AW_SAFE_OUTPUTS"
+GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && safeoutputs create_pull_request --title "Add test stubs for uncovered packages" --body "Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in." --branch "add-test-stubs-$GITHUB_RUN_ID" || safeoutputs noop --message "Could not build or commit the generated test stubs — no pull request created."
 ```
 
 If no packages needed stubs (all packages already had tests), run instead:
 
 ```bash
-printf '%s\n' '{"type":"noop","message":"All Go packages already have test files — no stubs needed."}' >> "$GH_AW_SAFE_OUTPUTS"
+safeoutputs noop --message "All Go packages already have test files — no stubs needed."
 ```
 
 ## Step 4 — Exit rule
 
-**Always** write exactly one JSONL line to `$GH_AW_SAFE_OUTPUTS` before finishing.
+**Always** invoke exactly one `safeoutputs` CLI command before finishing.

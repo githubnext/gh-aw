@@ -3,6 +3,7 @@ import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-stri
 import { noThrowPlainObjectRule } from "./rules/no-throw-plain-object";
 import { noGithubRequestInterpolatedRouteRule } from "./rules/no-github-request-interpolated-route";
 import { noJsonStringifyErrorRule } from "./rules/no-json-stringify-error";
+import { noJsonStringifyEqualityRule } from "./rules/no-json-stringify-equality";
 import { noJsonStringifySetOrMapRule } from "./rules/no-json-stringify-set-or-map";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
@@ -18,10 +19,12 @@ import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-r
 import { requireParseIntRadixRule } from "./rules/require-parseInt-radix";
 import { requireMkdirSyncTryCatchRule } from "./rules/require-mkdirsync-try-catch";
 import { requireMkdtempSyncTryCatchRule } from "./rules/require-mkdtempsync-try-catch";
+import { requireRealpathSyncTryCatchRule } from "./rules/require-realpathsync-try-catch";
 import { requireRmSyncTryCatchRule } from "./rules/require-rmsync-try-catch";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
 import { requireSpawnErrorListenerRule } from "./rules/require-spawn-error-listener";
+import { requireDecodeURIComponentTryCatchRule } from "./rules/require-decodeuricomponent-try-catch";
 import { requireNewUrlTryCatchRule } from "./rules/require-new-url-try-catch";
 import { preferCoreLoggingRule } from "./rules/prefer-core-logging";
 import { noCoreErrorThenProcessExitRule } from "./rules/no-core-error-then-process-exit";
@@ -67,6 +70,7 @@ const plugin = {
     "no-throw-plain-object": noThrowPlainObjectRule,
     "no-github-request-interpolated-route": noGithubRequestInterpolatedRouteRule,
     "no-json-stringify-error": noJsonStringifyErrorRule,
+    "no-json-stringify-equality": noJsonStringifyEqualityRule,
     "no-json-stringify-set-or-map": noJsonStringifySetOrMapRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
@@ -81,12 +85,14 @@ const plugin = {
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,
     "require-mkdirsync-try-catch": requireMkdirSyncTryCatchRule,
     "require-mkdtempsync-try-catch": requireMkdtempSyncTryCatchRule,
+    "require-realpathsync-try-catch": requireRealpathSyncTryCatchRule,
     "require-rmsync-try-catch": requireRmSyncTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
     "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
     "require-spawn-error-listener": requireSpawnErrorListenerRule,
     "require-new-url-try-catch": requireNewUrlTryCatchRule,
+    "require-decodeuricomponent-try-catch": requireDecodeURIComponentTryCatchRule,
     "prefer-core-logging": preferCoreLoggingRule,
     "no-core-error-then-process-exit": noCoreErrorThenProcessExitRule,
     "no-core-error-then-process-exitcode": noCoreErrorThenProcessExitCodeRule,

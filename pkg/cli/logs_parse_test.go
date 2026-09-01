@@ -12,6 +12,7 @@ import (
 )
 
 func TestParseAgentLogNoAgentOutput(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory without agent logs
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -36,6 +37,7 @@ func TestParseAgentLogNoAgentOutput(t *testing.T) {
 }
 
 func TestParseAgentLogNoEngine(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory with agent-stdio.log
 	tempDir := testutil.TempDir(t, "test-*")
 

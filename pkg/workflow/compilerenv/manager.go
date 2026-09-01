@@ -80,6 +80,15 @@ const (
 	// when rendering local times in CLI output.
 	DefaultUTC = "GH_AW_DEFAULT_UTC"
 
+	// DefaultOTLPEndpoint is the GitHub Actions variable used as the fallback
+	// OTLP endpoint when observability.otlp.endpoint is not configured in
+	// workflow frontmatter (or any imported workflow).
+	DefaultOTLPEndpoint = "GH_AW_DEFAULT_OTLP_ENDPOINT"
+	// DefaultOTLPHeaders is the GitHub Actions secret used as the fallback OTLP
+	// exporter headers (comma-separated key=value pairs) that accompany
+	// DefaultOTLPEndpoint.
+	DefaultOTLPHeaders = "GH_AW_DEFAULT_OTLP_HEADERS"
+
 	// DefaultModelCopilot is the enterprise override for Copilot fallback model selection.
 	DefaultModelCopilot = "GH_AW_DEFAULT_MODEL_COPILOT"
 	// DefaultModelClaude is the enterprise override for Claude fallback model selection.
@@ -261,6 +270,21 @@ func BuildDefaultEvalsMaxAICreditsExpression(builtinDefault string) string {
 // returned as the fallback so that an unset variable is treated as "no limit".
 func BuildDefaultMaxTurnsExpression() string {
 	return fmt.Sprintf("${{ vars.%s || '' }}", DefaultMaxTurns)
+}
+
+// BuildDefaultOTLPEndpointExpression builds a vars expression that resolves the
+// OTLP endpoint at runtime from the GH_AW_DEFAULT_OTLP_ENDPOINT GitHub variable.
+// The expression evaluates to an empty string when the variable is unset, which
+// downstream runtime code treats as "observability disabled".
+func BuildDefaultOTLPEndpointExpression() string {
+	return fmt.Sprintf("${{ vars.%s }}", DefaultOTLPEndpoint)
+}
+
+// BuildDefaultOTLPHeadersExpression builds a secrets expression that resolves the
+// OTLP exporter headers at runtime from the GH_AW_DEFAULT_OTLP_HEADERS GitHub
+// secret. The expression evaluates to an empty string when the secret is unset.
+func BuildDefaultOTLPHeadersExpression() string {
+	return fmt.Sprintf("${{ secrets.%s }}", DefaultOTLPHeaders)
 }
 
 // BuildModelOverrideExpression builds a vars expression with primary model var, enterprise

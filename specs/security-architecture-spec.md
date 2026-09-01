@@ -804,40 +804,49 @@ threat-detection:
 **TD-11**: The implementation MUST support custom detection prompts:
 
 ```yaml
-threat-detection:
-  prompt: "Focus on SQL injection vulnerabilities"
+safe-outputs:
+  threat-detection:
+    prompt: "Focus on SQL injection vulnerabilities"
 ```
 
 **TD-12**: Custom prompts MUST be appended to default detection instructions, not replace them.
+
+Custom prompt text is the `prompt` field under `safe-outputs.threat-detection`. The compiler parses it in `pkg/workflow/threat_detection_config.go` and passes it to the detection job as additional instructions after the baseline threat-detection prompt, so custom prompts can narrow focus but cannot remove the default detection categories.
 
 ### 9.7 Engine Configuration
 
 **TD-13**: The implementation MUST support overriding the AI engine for threat detection:
 
 ```yaml
-threat-detection:
-  engine: "copilot"  # String format
+safe-outputs:
+  threat-detection:
+    engine: "copilot"  # String format
 ```
 
 **TD-14**: The implementation MUST support full engine configuration objects:
 
 ```yaml
-threat-detection:
-  engine:
-    id: copilot
-    model: gpt-4
-    max-turns: 5
+safe-outputs:
+  threat-detection:
+    engine:
+      id: copilot
+      model: gpt-4
+      harness:
+        max-retries: 1
 ```
 
 **TD-15**: The implementation MUST support disabling AI-powered detection:
 
 ```yaml
-threat-detection:
-  engine: false
-  steps:  # Custom steps only
-    - name: Static Analysis
-      run: ./scan.sh
+safe-outputs:
+  threat-detection:
+    engine: false
+    steps:  # Custom steps only
+      - name: Static Analysis
+        run: ./scan.sh
 ```
+
+The current parser accepts the following `safe-outputs.threat-detection` option set: `enabled` (boolean or expression; `false` disables the detection job), `prompt`, `steps`, `post-steps`, `engine-timeout`, `max-turns`, `retries`, `max-ai-credits`, `runs-on`, `continue-on-error` (boolean or expression; default `true`), and `engine`. The `engine` field may be a string engine ID, `false` to skip AI-powered detection while retaining custom steps, or an engine configuration object parsed with the same `EngineConfig` rules as the primary workflow engine. Detection engine configuration inherits the primary engine when no detection-specific engine is provided; detection-specific engine fields take precedence, and `max-ai-credits` is resolved independently from the main agent budget.
 
 ---
 
@@ -1051,12 +1060,13 @@ A conforming implementation MUST execute runtime controls in this order:
 
 1. **Concurrency gate setup**: Apply `concurrency` grouping and cancellation policy before executing job logic (RS-16 through RS-22).
 2. **Freshness gate**: Validate source-vs-compiled timestamps and fail fast on stale lock files (RS-01 through RS-03).
-3. **Repository trust gate**: Validate repository identity and fork constraints for the active trigger (RS-04, RS-05, and RS-05a).
+3. **Repository trust gate**: Validate repository identity and fork constraints for the active trigger (RS-04, RS-05, and RS-05a). If `lockdown: true` is active, it takes absolute precedence over guard-policy fields such as `allowed-repos` and `min-integrity`; those fields MUST NOT be evaluated to widen access beyond the triggering repository.
 4. **Actor authorization gate**: Validate role membership and required privileges before any mutation-capable step (RS-06 through RS-08).
 5. **Credential gate**: Validate token shape and expression-only sourcing before token use (RS-09 through RS-11).
 6. **Network boundary gate**: Activate sandbox/proxy/iptables controls before running agent or MCP execution paths (RS-12 and RS-13).
-7. **Output integrity gate**: Validate agent output schema and required fields before dispatching safe outputs (RS-14 and RS-15).
-8. **Termination and audit**: Fail closed on any gate violation and emit a deterministic security failure reason for auditability.
+7. **Threat detection gate**: Run configured detection steps and the detection engine after the agent job and before safe-output dispatch. A strict-mode detection failure (`continue-on-error: false`) MUST block safe outputs; warn mode (`continue-on-error: true`, the default) MUST surface the finding without treating transient detector failures as access grants.
+8. **Output integrity gate**: Validate agent output schema and required fields before dispatching safe outputs (RS-14 and RS-15).
+9. **Termination and audit**: Fail closed on any gate violation and emit a deterministic security failure reason for auditability.
 
 ---
 
@@ -1847,6 +1857,9 @@ more test function names. Cells marked **covered** have at least one dedicated t
 cells marked **gap** lack direct formal test coverage; cells marked **partial** have
 related coverage that does not fully satisfy the checklist item.
 
+Path check revalidated on 2026-08-25: every named test below resolves in
+`pkg/workflow/security_architecture_sg_formal_test.go`.
+
 | Checklist Category | Formal Test(s) | Coverage |
 |---|---|---|
 | **G.1** Action pinning | _(none)_ | **gap** — no formal test verifies that compiled `uses:` lines are SHA-pinned; relies on actionlint/poutine in CI |
@@ -1856,19 +1869,18 @@ related coverage that does not fully satisfy the checklist item.
 | **G.4** Input sanitization | `TestFormalSG01_InputSanitizationInvariant` | **partial** — verifies that a generic `run:` step with a `${{ }}` expression is rewritten and an `env:` block is injected; does not assert either required activation step or that compiled prompts consume `steps.sanitized.outputs.text` |
 | **G.5** Threat detection | `TestFormalSG06_ThreatDetectionAuditArtifact`, `TestFormalThreatDetection_EnabledByDefault`, `TestFormalThreatDetection_ExplicitDisable` | **partial** — detection-job presence and configuration defaults are covered; `permissions: {}` on the detection job and the `needs.detection.outputs.success` gate on `safe_outputs` are not directly asserted |
 | **G.6** RBAC — job topology (PM-10b) | `TestFormalJobTopology_PipelineOrderEnforced` (verifies `pre_activation → activation` needs dependency) | covered |
-| **G.6** RBAC — membership check step (PM-11) | _(none)_ | **gap** — `TestFormalJobTopology_PipelineOrderEnforced` verifies job ordering but does NOT assert that the `pre_activation` job contains a `check_membership.cjs` step; no dedicated PM-11 formal test exists in this file |
+| **G.6** RBAC — membership check step (PM-11) | `TestFormalPM11_PreActivationContainsMembershipStep` | covered |
 | **G.7** AWF sandbox | `TestFormalSG05_SandboxIsolationPresence` | **partial** — verifies `isSandboxEnabled()` return value for configuration combinations (AWF type, disabled flag, firewall); does not compile a workflow or assert `install_awf_binary.sh` step presence or execution inside the AWF container |
 | **G.8** Concurrency control | _(none)_ | **gap** — no formal test verifies `concurrency.group` is set or that `cancel-in-progress` matches workflow type |
 | **G.9** Runtime validation — timestamp check | _(none)_ | **gap** — `TestFormalSG07_FailSecureOnSecurityError` tests write-permission rejection at compile time and is unrelated to the G.9 checklist items; neither the activation timestamp step nor conclusion-job behavior is asserted by any test in this file |
 
-**Summary of coverage gaps (as of 2026-07-11)**:
+**Summary of coverage gaps (as of 2026-08-25)**:
 
 - **G.1 Action pinning**: Formal test gap. CI tooling (actionlint, poutine) provides runtime coverage; consider adding a dedicated test that parses compiled lock file `uses:` patterns.
 - **G.2 Permission separation — safe_outputs job**: Partial coverage. `TestFormalStaged_HandlerRequiresNoWritePerms` does not inspect the compiled `safe_outputs` job's own `permissions:` block. A dedicated test compiling a safe-outputs workflow and asserting its permission scope would close this gap.
 - **G.3 Fork protection**: Partial coverage. `TestFormalBasicConformance_AllFourControls` does not inspect the activation job's `if:` expression or verify a repository-ID fork guard. A test asserting the exact `if:` condition on the compiled activation job is needed.
 - **G.4 Input sanitization**: Partial coverage. `TestFormalSG01_InputSanitizationInvariant` covers expression rewriting but not the full three-item checklist (activation step presence; `steps.sanitized.outputs.text` consumption in compiled prompts).
 - **G.5 Threat detection**: Partial coverage. Detection-job presence and defaults are covered. Tests asserting `permissions: {}` on the detection job and the `needs.detection.outputs.success` gate on `safe_outputs` are missing.
-- **G.6 RBAC (PM-11) membership check step**: Formal test gap. `pre_activation` job topology is verified, but the presence of `check_membership.cjs` as a step inside that job is not asserted by any test in this file. A dedicated `TestFormalPM11_PreActivationContainsMembershipStep` test should be added. See: specs/security-architecture-spec-validation.md §4b (PM-11 note).
 - **G.7 AWF sandbox**: Partial coverage. Configuration-logic checks are covered; lock-file-level assertions (`install_awf_binary.sh`, AWF container execution) are missing.
 - **G.8 Concurrency control**: Formal test gap. Concurrency group format is validated only by manual review. Consider a test that compiles a PR-trigger workflow and asserts `concurrency.group` contains the PR number expression.
 - **G.9 Runtime validation — timestamp check**: Formal test gap. No formal test verifies the activation timestamp step or conclusion-job behavior.
@@ -2090,5 +2102,7 @@ The revalidation cadence **SHOULD** also include a review of `specs/security-arc
 ### Last Revalidation
 
 The most recent full validation pass against this specification was completed on **2026-07-15**. The results are recorded in `specs/security-architecture-spec-validation.md`. Any changes to MUST-level requirements after this date require a new validation pass per the triggers above.
+
+Sync check on **2026-08-25** found no new minor-version bump, reported security incident, or reference-implementation change requiring a full revalidation since the 2026-07-15 pass. This maintenance pass synchronized §9/§11 prose to the existing `pkg/workflow/threat_detection_config.go` parser and `pkg/workflow/threat_detection_inline_engine.go` runtime behavior; because it clarifies MUST-level runtime sequencing text, a targeted §9/§11 revalidation is scheduled with the Security Architecture maintainers by **2026-09-01**. The known Appendix G.10 partial-coverage gaps remain tracked there.
 
 *This specification is provided under the MIT License.*

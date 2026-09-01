@@ -66,6 +66,7 @@ func exprsInReturn(file *ast.File, funcName string) []ast.Expr {
 }
 
 func TestSameExpr(t *testing.T) {
+	t.Parallel()
 	const src = `package src
 
 type S struct {

@@ -24,7 +24,7 @@ Copilot downloads the logs, identifies the root cause (missing tools, permission
 
 ### Alternative entry points
 
-- **Copilot Chat on GitHub.com** (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/)): `agentic-workflows debug <run-url>`
+- **Copilot Chat on GitHub.com** (requires [agentic authoring setup](/gh-aw/guides/working-with-workflows/#configuring-your-repository-for-agentic-authoring)): `agentic-workflows debug <run-url>`
 - **Any coding agent**: paste this prompt to install `gh aw` and run the standalone analysis:
 
   ```text

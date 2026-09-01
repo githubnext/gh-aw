@@ -14,7 +14,7 @@ func TestPrepareOperationalValueGrader(t *testing.T) {
 		t.Fatal(err)
 	}
 	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	evaluatorPath := filepath.Join(repoRoot, ".github", "graders", "example-operational-value.sh")
+	evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
 	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestPrepareOperationalValueGrader(t *testing.T) {
 	if err := os.WriteFile(evaluatorPath, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+	data := operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh")
 
 	if err := (&Compiler{}).prepareOperationalValueGrader(data, workflowPath); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -36,6 +36,30 @@ func TestPrepareOperationalValueGrader(t *testing.T) {
 	}
 	if len(grader.EvaluatorDigest()) != 64 {
 		t.Fatalf("expected SHA-256 digest, got %q", grader.EvaluatorDigest())
+	}
+}
+
+func TestPrepareOperationalValueGraderResolvesLocalDotPath(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
+	evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
+	if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "#!/usr/bin/env bash\nset -euo pipefail\n"
+	if err := os.WriteFile(evaluatorPath, []byte(content), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data := operationalValueGraderWorkflowData("./graders/example-operational-value.sh")
+
+	if err := (&Compiler{}).prepareOperationalValueGrader(data, workflowPath); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if data.Graders.Graders["operational-value"].evaluatorContent != content {
+		t.Fatal("expected ./ evaluator path to resolve relative to the workflow")
 	}
 }
 
@@ -57,7 +81,7 @@ func TestPrepareOperationalValueGraderRejectsInvalidFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 			workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-			evaluatorPath := filepath.Join(repoRoot, ".github", "graders", "example-operational-value.sh")
+			evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
 			if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
 				t.Fatal(err)
 			}
@@ -70,7 +94,7 @@ func TestPrepareOperationalValueGraderRejectsInvalidFiles(t *testing.T) {
 				}
 			}
 
-			err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh"), workflowPath)
+			err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh"), workflowPath)
 			if err == nil || !strings.Contains(err.Error(), test.errText) {
 				t.Fatalf("expected error containing %q, got %v", test.errText, err)
 			}
@@ -91,7 +115,7 @@ func TestPrepareOperationalValueGraderRejectsSymlinkEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	evaluatorPath := filepath.Join(repoRoot, ".github", "graders", "example-operational-value.sh")
+	evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
 	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +126,7 @@ func TestPrepareOperationalValueGraderRejectsSymlinkEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh"), workflowPath)
+	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh"), workflowPath)
 	if err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected symlink escape error, got %v", err)
 	}
@@ -117,7 +141,7 @@ func TestPrepareOperationalValueGraderRejectsRepositorySymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	gradersDir := filepath.Join(repoRoot, ".github", "graders")
+	gradersDir := filepath.Join(repoRoot, ".github", "workflows", "graders")
 	targetPath := filepath.Join(gradersDir, "target.sh")
 	evaluatorPath := filepath.Join(gradersDir, "example-operational-value.sh")
 	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
@@ -133,7 +157,7 @@ func TestPrepareOperationalValueGraderRejectsRepositorySymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh"), workflowPath)
+	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh"), workflowPath)
 	if err == nil || !strings.Contains(err.Error(), "must not be a symbolic link") {
 		t.Fatalf("expected symlink rejection error, got %v", err)
 	}

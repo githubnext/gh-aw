@@ -219,9 +219,9 @@ GitHub Actions only delivers events to the repository where they occur, so event
 
 Use a **bridge pattern** instead: a thin relay workflow in the main repository receives the slash command and forwards it to the side repository via `workflow_dispatch`.
 
-See [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) for a full walkthrough with examples and trade-offs.
+See [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/) for a full walkthrough with examples and trade-offs.
 
-## Related Documentation
+## Learn More
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization

@@ -201,6 +201,7 @@ func TestFormal_P6_ZeroLambdaNilResult(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			rng := rand.New(rand.NewSource(42)) //nolint:gosec
 			result := runMonteCarlo(obs, len(obs), tc.lambda, rng)
 			assert.Nil(t, result, "P6: λ=%v must yield nil (zero-projection fallback)", tc.lambda)
@@ -342,6 +343,7 @@ func TestFormal_P10_DurationDerivation(t *testing.T) {
 // Formal predicate: config.Days ∉ {7, 30} → RunForecast returns error
 // Specification reference: R-CLI-001; forecast.go:227-229
 func TestFormal_P11_FlagValidation_Days(t *testing.T) {
+	t.Parallel()
 	invalidCases := []int{0, 1, 6, 8, 14, 29, 31, 60, 90, 365}
 	for _, days := range invalidCases {
 		cfg := ForecastConfig{Days: days, Period: "month", JSONOutput: true, SampleSize: 10}
@@ -595,6 +597,7 @@ func TestFormal_FC_P8_RunSummaryRoundTrip(t *testing.T) {
 // Formal predicate (FC-P9): ∀f ∈ Fixtures: f.Run.StartedAt ≤ f.Run.UpdatedAt
 // Specification reference: §6.2.2 Duration Derivation
 func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
+	t.Parallel()
 	fixtures := []string{
 		"run_summary_minimal.json",
 		"run_summary_zero_et.json",
@@ -606,6 +609,7 @@ func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
 
 	for _, name := range fixtures {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			data, err := os.ReadFile(filepath.Join(fixtureDir(t), name))
 			require.NoError(t, err, "FC-P9: fixture file %q must be readable", name)
 
@@ -650,6 +654,7 @@ func TestFormal_FC_P10_MonteCarloInputCompleteness(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			fixturePath := filepath.Join(fixtureDir(t), tc.name)
 			if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
 				t.Skipf("FC-P10: fixture %s not present on disk — skipping", tc.name)
@@ -731,4 +736,30 @@ func TestFormal_FixtureCountConsistency(t *testing.T) {
 		"fixture files on disk in %s must match the README's documented fixture list exactly "+
 			"(update both the README and documentedForecastFixtures when fixtures change)",
 		dir)
+}
+
+// TestFormal_ForecastSpecSyncNoteAnchorsExist mechanically verifies the anchors
+// referenced by the README's "Sync note" (§12.1.3 Data Sampling Tests and §12.1.4
+// Monte Carlo Engine Tests) still exist in the forecast specification. If either
+// heading moves or is renamed, this test fails so the sync note in
+// specs/forecast-compliance-fixtures/README.md cannot silently drift out of date.
+func TestFormal_ForecastSpecSyncNoteAnchorsExist(t *testing.T) {
+	t.Parallel()
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "runtime.Caller must return a valid file path")
+	specPath := filepath.Join(filepath.Dir(thisFile), "..", "..", "docs", "src", "content", "docs", "specs", "forecast-specification.md")
+
+	data, err := os.ReadFile(specPath)
+	require.NoError(t, err, "forecast specification must be readable at %s", specPath)
+	spec := string(data)
+
+	for _, anchor := range []string{
+		"#### 12.1.3 Data Sampling Tests",
+		"#### 12.1.4 Monte Carlo Engine Tests",
+	} {
+		assert.Contains(t, spec, anchor,
+			"forecast-specification.md must still contain heading %q referenced by the "+
+				"Sync note in specs/forecast-compliance-fixtures/README.md; update the sync note "+
+				"if this heading moved or was renamed", anchor)
+	}
 }

@@ -7,6 +7,8 @@ evals:
   question: Did the agent generate an SVG diagram using glowmotion?
 - id: pull_request_created
   question: Was a pull request created with the generated SVG diagram committed?
+imports:
+  - shared/graders.md
 features:
   gh-aw-detection: true
 max-ai-credits: 500
@@ -25,8 +27,8 @@ safe-outputs:
     expires: 30d
     max: 1
     title-prefix: "[archivx] "
+  steer: true
   create-pull-request:
-    steer: true
     expires: 30d
     title-prefix: "[archivx] "
     labels: [automation, diagram]
@@ -56,14 +58,15 @@ tools:
   bash: true
   cli-proxy: true
   playwright:
-    mode: cli
     version: "0.1.18"
 network:
   allowed:
   - defaults
   - local
   - playwright
+
 ---
+
 # Archivx — Workflow Visualizer
 
 You are Archivx, a workflow visualizer that creates SVG summaries of agentic workflow health and activity using the glowmotion skill.

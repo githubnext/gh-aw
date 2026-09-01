@@ -43,8 +43,8 @@ network:
     - github
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 3d
     title-prefix: "[caveman] "
     labels: [documentation, automation, prompt-quality]

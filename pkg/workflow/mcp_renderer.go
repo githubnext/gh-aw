@@ -11,8 +11,8 @@
 //     JSONMCPConfigOptions, GitHubMCPDockerOptions, GitHubMCPRemoteOptions).
 //   - mcp_renderer_github.go  — GitHub MCP rendering: RenderGitHubMCP, renderGitHubTOML,
 //     RenderGitHubMCPDockerConfig, RenderGitHubMCPRemoteConfig.
-//   - mcp_renderer_builtin.go — Built-in MCP server renderers: Playwright,
-//     SafeOutputs, MCPScripts, AgenticWorkflows (JSON + TOML for each).
+//   - mcp_renderer_builtin.go — Built-in MCP server renderers: SafeOutputs,
+//     MCPScripts, AgenticWorkflows (JSON + TOML for each).
 //   - mcp_renderer_guard.go   — Guard / access-control policy rendering:
 //     renderGuardPoliciesJSON, renderGuardPoliciesToml.
 //
@@ -124,7 +124,7 @@ func HandleCustomMCPToolInSwitch(
 //   - mcpTools: Ordered list of MCP tool names to render
 //   - workflowData: Workflow configuration data
 //   - options: JSON MCP config rendering options
-func RenderJSONMCPConfig(
+func RenderJSONMCPConfig( //nolint:largefunc // Existing renderer keeps MCP JSON emission order stable for golden tests.
 	yaml *strings.Builder,
 	tools map[string]any,
 	mcpTools []string,
@@ -162,9 +162,6 @@ func RenderJSONMCPConfig(
 		case "github":
 			githubTool, _ := tools["github"].(map[string]any)
 			options.Renderers.RenderGitHub(&configBuilder, githubTool, isLast, workflowData)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			options.Renderers.RenderPlaywright(&configBuilder, playwrightTool, isLast)
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":
@@ -194,9 +191,9 @@ func RenderJSONMCPConfig(
 		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
 		fmt.Fprintf(&configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
 		fmt.Fprintf(&configBuilder, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
-		fmt.Fprintf(&configBuilder, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
+		fmt.Fprintf(&configBuilder, "              \"agentId\": \"%s\"", options.GatewayConfig.AgentID)
 
-		// Add optional fields if specified (apiKey always precedes them without a trailing comma)
+		// Add optional fields if specified (agentId always precedes them without a trailing comma)
 		if options.GatewayConfig.PayloadDir != "" {
 			fmt.Fprintf(&configBuilder, ",\n              \"payloadDir\": \"%s\"", options.GatewayConfig.PayloadDir)
 		}

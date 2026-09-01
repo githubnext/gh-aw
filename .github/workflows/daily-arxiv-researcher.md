@@ -395,4 +395,19 @@ N papers screened, M relevant, K opportunities identified.
 
 - [ ] Investigate: opportunity 1 (effort: low)
 - [ ] Investigate: opportunity 2 (effort: medium)
+
+<details>
+<summary><b>Quick-Win Agentic Prompts</b></summary>
+
+Paste one of these as a new issue or comment to kick off implementation with `@copilot`
+(one prompt per opportunity, in the same order as above):
+
+> @copilot Implement: <opportunity text> in gh-aw's <area> component. Rationale: <rationale>. Source: [Title](URL).
+
+</details>
 ```
+
+For each opportunity (max 3), render one `@copilot` prompt blockquote inside the `<details>` block
+by substituting `<opportunity text>`, `<area>`, `<rationale>`, `Title`, and `URL` with that
+opportunity's own values — do not paraphrase or shorten them. Omit the `<details>` block entirely
+when there are no opportunities.

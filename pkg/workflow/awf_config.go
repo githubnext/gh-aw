@@ -86,10 +86,6 @@ type AWFConfigFile struct {
 	// APIProxy contains API proxy (LLM gateway) configuration.
 	APIProxy *AWFAPIProxyConfig `json:"apiProxy,omitempty"`
 
-	// BoundedQueries configures the AWF bounded-query subsystem for approved
-	// cross-repository private data access. Omitted when not configured.
-	BoundedQueries *AWFBoundedQueriesConfig `json:"boundedQueries,omitempty"`
-
 	// Enclaves configures the unified AWF-owned script and agent enclave subsystem.
 	Enclaves []map[string]any `json:"enclaves,omitempty"`
 
@@ -102,53 +98,6 @@ type AWFConfigFile struct {
 	// Chroot contains chroot execution overrides for split-filesystem ARC/DinD runners.
 	// This field is not populated at compile time; it is injected at runtime when DinD topology is detected.
 	Chroot *AWFChrootConfig `json:"chroot,omitempty"`
-}
-
-// AWFBoundedQueriesConfig is the "boundedQueries" section of the AWF config file.
-// It controls the bounded-query subsystem that allows finite, pre-approved questions
-// about private repositories. All optional fields are omitted when unset so that
-// AWF remains the source of truth for default values.
-type AWFBoundedQueriesConfig struct {
-	// Enabled must be true when boundedQueries is present in the config.
-	// gh-aw always sets this to true when the section is generated.
-	Enabled bool `json:"enabled"`
-
-	// PrivateRepos is the list of private repositories approved for bounded-query access.
-	PrivateRepos []*AWFBoundedQueryPrivateRepo `json:"privateRepos,omitempty"`
-
-	// Runtime is the isolated backend for each bounded-query invocation.
-	// Optional; when omitted AWF uses its default. The value is emitted verbatim and
-	// remains independent from the primary agent container runtime.
-	Runtime BoundedQueryRuntime `json:"runtime,omitempty"`
-
-	// Timeout is the maximum execution time in seconds for a single invocation.
-	// Optional; when omitted AWF uses its default.
-	// A pointer mirrors BoundedQueriesConfig.Timeout so nil-vs-zero semantics stay in sync
-	// between the frontmatter and AWF-config-file shapes.
-	Timeout *int `json:"timeout,omitempty"`
-
-	// MemoryLimit is the memory limit for bounded-query container execution (e.g. "512m").
-	// Optional; when omitted AWF uses its default.
-	MemoryLimit string `json:"memoryLimit,omitempty"`
-
-	// Interpreter is the script interpreter for bounded-query execution (e.g. "python3").
-	// Optional; when omitted AWF uses its default.
-	Interpreter string `json:"interpreter,omitempty"`
-
-	// MaxInvocations is the maximum number of bounded-query invocations per run.
-	// Optional; when omitted AWF uses its default.
-	MaxInvocations int `json:"maxInvocations,omitempty"`
-}
-
-// AWFBoundedQueryPrivateRepo describes a single private repository approved for
-// bounded-query access, with its confidentiality classification.
-type AWFBoundedQueryPrivateRepo struct {
-	// Repo is the "owner/repo" slug of the approved private repository.
-	Repo string `json:"repo"`
-
-	// Sensitivity is the confidentiality classification.
-	// Accepted values: "public", "internal", "confidential", "sealed".
-	Sensitivity string `json:"sensitivity"`
 }
 
 // AWFRunnerConfig is the "runner" section of the AWF config file.
@@ -252,6 +201,12 @@ type AWFAPIProxyConfig struct {
 	AllowedModels []string `json:"allowedModels,omitempty"`
 	// DisallowedModels is the explicit denylist policy for model names/patterns.
 	DisallowedModels []string `json:"disallowedModels,omitempty"`
+
+	// CACert is a host path to an additional CA certificate for api-proxy
+	// upstream TLS verification. Maps to frontmatter sandbox.agent.ca-cert.
+	// Only emitted for AWF v0.28.10+ (see AWFAPIProxyCACertMinVersion); older
+	// AWF strict config validation rejects the unknown property.
+	CACert string `json:"caCert,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.

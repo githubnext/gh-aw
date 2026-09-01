@@ -29,8 +29,8 @@ permissions:
   issues: read
   pull-requests: read
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
 ---
 
 # Test Workflow
@@ -38,7 +38,7 @@ safe-outputs:
 			expectWarning: true,
 		},
 		{
-			name: "create-pull-request without steer does not produce experimental warning",
+			name: "safe-outputs without steer does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -79,7 +79,7 @@ safe-outputs:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: create-pull-request steer"
+			expectedMessage := "Using experimental feature: safe-outputs steer"
 			if tt.expectWarning {
 				if !strings.Contains(stderrOutput, expectedMessage) {
 					t.Errorf("expected warning containing %q, got stderr:\n%s", expectedMessage, stderrOutput)

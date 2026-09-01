@@ -1,3 +1,7 @@
+---
+description: Quick reference mappings from user requirements to agentic workflow triggers, outputs, tools, and guardrails.
+---
+
 # Designer Decision Heuristics
 
 Quick-reference mapping tables for `.github/aw/designer.md`. Load this file during Phase 2–7 of the interview when translating user answers into workflow syntax.
@@ -104,6 +108,7 @@ For less common ecosystems (Swift, PHP, Dart, Haskell, Perl, fonts, Deno, Elixir
 | "monitor workflow failures and trends" | `MonitorOps` |
 | "process a big backlog in chunks" | `BatchOps` |
 | "run manually with input parameters" | `DispatchOps` |
+| "keep advancing a feature one chunk at a time" | `Feature Grower` |
 | "apply a label-based workflow" | `LabelOps` |
 | "operate across multiple repositories" | `MultiRepoOps` |
 | "coordinate multiple sub-agents" | `Orchestration` |
@@ -151,4 +156,3 @@ Never suggest committing plaintext tokens.
 | "just respond to a comment" | no pre-fetch needed (event payload is enough) |
 | "process each item individually" | suggest sub-agent pattern with `model: small` |
 | "weekly digest", "compliance report", "license review", "policy audit" | pre-fetch with `gh` + `jq` into `/tmp/gh-aw/data/`; point prompt to those files |
-

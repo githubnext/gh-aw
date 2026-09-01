@@ -67,33 +67,33 @@ const (
 type AuthDefinition struct {
 	// Strategy selects the authentication flow (api-key, oauth-client-credentials, bearer).
 	// Defaults to api-key when Secret is non-empty and Strategy is unset.
-	Strategy AuthStrategy `yaml:"strategy,omitempty"`
+	Strategy AuthStrategy `yaml:"strategy,omitempty" json:"strategy"`
 
 	// Secret is the env-var / GitHub Actions secret name that holds the raw API key or token.
 	// Required for api-key and bearer strategies.
-	Secret string `yaml:"secret,omitempty"`
+	Secret string `yaml:"secret,omitempty" json:"secret"`
 
 	// TokenURL is the OAuth token endpoint (e.g. "https://auth.example.com/oauth/token").
 	// Required for oauth-client-credentials strategy.
-	TokenURL string `yaml:"token-url,omitempty"`
+	TokenURL string `yaml:"token-url,omitempty" json:"token-url"`
 
 	// ClientIDRef is the secret name that holds the OAuth client ID.
 	// The "Ref" suffix indicates this is a reference to a GitHub Actions secret name,
 	// not the secret value itself. Required for oauth-client-credentials strategy.
-	ClientIDRef string `yaml:"client-id,omitempty"`
+	ClientIDRef string `yaml:"client-id,omitempty" json:"client-id"`
 
 	// ClientSecretRef is the secret name that holds the OAuth client secret.
 	// The "Ref" suffix indicates this is a reference to a GitHub Actions secret name,
 	// not the secret value itself. Required for oauth-client-credentials strategy.
-	ClientSecretRef string `yaml:"client-secret,omitempty"`
+	ClientSecretRef string `yaml:"client-secret,omitempty" json:"client-secret"`
 
 	// TokenField is the JSON field name in the token response that contains the access token.
 	// Defaults to "access_token" when empty.
-	TokenField string `yaml:"token-field,omitempty"`
+	TokenField string `yaml:"token-field,omitempty" json:"token-field"`
 
 	// HeaderName is the HTTP header to inject the token into (e.g. "api-key").
 	// Required when strategy is not bearer (bearer always uses Authorization header).
-	HeaderName string `yaml:"header-name,omitempty"`
+	HeaderName string `yaml:"header-name,omitempty" json:"header-name"`
 }
 
 // RequestShape describes non-standard URL and body transformations applied to each
@@ -101,15 +101,15 @@ type AuthDefinition struct {
 type RequestShape struct {
 	// PathTemplate is a URL path template with {model} and other variable placeholders
 	// (e.g. "/openai/deployments/{model}/chat/completions").
-	PathTemplate string `yaml:"path-template,omitempty"`
+	PathTemplate string `yaml:"path-template,omitempty" json:"path-template"`
 
 	// Query holds static or template query-parameter values appended to every request
 	// (e.g. {"api-version": "2024-10-01-preview"}).
-	Query map[string]string `yaml:"query,omitempty"`
+	Query map[string]string `yaml:"query,omitempty" json:"query"`
 
 	// BodyInject holds key/value pairs injected into the JSON request body before sending
 	// (e.g. {"appKey": "{APP_KEY_SECRET}"}).
-	BodyInject map[string]string `yaml:"body-inject,omitempty"`
+	BodyInject map[string]string `yaml:"body-inject,omitempty" json:"body-inject"`
 }
 
 // ProviderSelection identifies the AI provider for an engine (e.g. "anthropic", "openai").

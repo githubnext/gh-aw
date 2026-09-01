@@ -43,8 +43,8 @@ tools:
       - pull_requests
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 7d
     title-prefix: "[spec-review] "
     labels: [documentation, safe-outputs, automation]

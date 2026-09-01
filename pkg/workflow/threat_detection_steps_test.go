@@ -275,7 +275,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 		"name: Upload threat detection log",
 		"if: always()",
 		"uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-		"name: " + constants.DetectionArtifactName,
+		"name: " + constants.DetectionArtifactName.String(),
 		"            /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",
 	}

@@ -43,9 +43,9 @@ tools:
 Analyze my-org/main-repo and create issues for stale PRs (>30 days), failed CI runs on main, and open security advisories.
 ```
 
-Using [Slash commands](/gh-aw/reference/command-triggers/) from a side repo require a bridge: a thin relay workflow in the main repo listens for the command and forwards it via `workflow_dispatch` to the side repo. See [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) for a complete walkthrough.
+Using [Slash commands](/gh-aw/reference/command-triggers/) from a side repo require a bridge: a thin relay workflow in the main repo listens for the command and forwards it via `workflow_dispatch` to the side repo. See [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/) for a complete walkthrough.
 
-Authentication details and step-by-step setup are covered in the [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) and [Code Quality Monitoring](/gh-aw/examples/multi-repo/code-quality-monitoring/) examples, and in the [Authentication reference](/gh-aw/reference/auth/).
+Authentication details and step-by-step setup are covered in the [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/) and [Code Quality Monitoring](/gh-aw/gallery/multi-repo/code-quality-monitoring/) examples, and in the [Authentication reference](/gh-aw/reference/auth/).
 
 ## CentralRepoOps
 
@@ -65,7 +65,24 @@ flowchart LR
     agent -->|create-pull-request| d3[Downstream N]
 ```
 
-Use `max` to control fan-out breadth, and `title-prefix` plus labels to make the automated PRs easy to filter. See [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) for a complete example.
+Use `max` to control fan-out breadth, and `title-prefix` plus labels to make the automated PRs easy to filter. See [Feature Synchronization](/gh-aw/gallery/multi-repo/feature-sync/) for a complete example.
+
+## Target-Only Checkout
+
+Side repositories that only need to check out a target repository — not their own hosting repository — can set `permissions.contents: none`. This skips the automatic workflow-repository checkout while keeping any explicitly configured `checkout:` entries (like a target repo) intact:
+
+```yaml
+permissions:
+  contents: none
+checkout:
+  - repository: octo-org/target-repository
+    path: target
+    github-app:
+      client-id: ${{ vars.TARGET_APP_CLIENT_ID }}
+      private-key: ${{ secrets.TARGET_APP_PRIVATE_KEY }}
+```
+
+See [Target-Only Checkout](/gh-aw/reference/checkout/#target-only-checkout-permissionscontents-none) in the checkout reference for details.
 
 ## Cross-Repository Safe Outputs
 
@@ -79,13 +96,12 @@ For direct repository access without agent involvement, check out multiple repos
 
 Use GitHub Apps over PATs for automatic token revocation; scope tokens minimally to target repositories. Set appropriate `max` limits and consistent label/prefix conventions. Test against public repositories first before rolling out to private or org-wide targets.
 
-## Related Documentation
+## Learn More
 
 - [CentralRepoOps](/gh-aw/patterns/central-repo-ops/) — Central control plane and tracker repo patterns
-- [IssueOps](/gh-aw/patterns/issue-ops/) — Single-repo issue automation
-- [ChatOps](/gh-aw/patterns/chat-ops/) — Command-driven workflows
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and `target-repo` configuration
+- [GitHub Repository Checkout](/gh-aw/reference/checkout/) — Full checkout configuration, including target-only checkout
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) — Complete safe output configuration
 - [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets
 - [Authentication](/gh-aw/reference/auth/) — PAT and GitHub App setup
-- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) — Sharing workflows across repos
+- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) — Sharing workflows across repos

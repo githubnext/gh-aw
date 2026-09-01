@@ -4,6 +4,7 @@ emoji: "🧪"
 name: Smoke Workflow Call
 description: Reusable workflow to validate checkout from fork works correctly in workflow_call context
 on:
+  schedule: every 2 days
   workflow_call:
     inputs:
       payload:

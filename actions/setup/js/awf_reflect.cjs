@@ -25,6 +25,15 @@ const tls = require("tls");
 const { withRetry, sleep } = require("./error_recovery.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+function parseReflectTimeoutMs(value) {
+  const rawValue = String(value || "").trim();
+  if (!/^\d+$/.test(rawValue)) {
+    return 60000;
+  }
+  const timeoutMs = Number(rawValue);
+  return Number.isSafeInteger(timeoutMs) ? timeoutMs : 60000;
+}
+
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
 // Docker network. From the agent container, the proxy is reachable via the "api-proxy" hostname.
@@ -32,7 +41,7 @@ const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
 // Persist outside the read-only gh-aw infrastructure mount.
 const AWF_REFLECT_OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "awf-reflect.json");
 // Milliseconds to wait for the /reflect endpoint before giving up.
-const AWF_REFLECT_TIMEOUT_MS = 60000;
+const AWF_REFLECT_TIMEOUT_MS = parseReflectTimeoutMs(process.env.GH_AW_REFLECT_TIMEOUT_MS);
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
 // Milliseconds to wait for an api-proxy provider listener to accept a real TCP connection.
@@ -367,7 +376,7 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  *   outputPath: string,
  *   bytesWritten?: number,
  *   reflectData?: object,
- *   reason?: "unexpected_status"|"timeout"|"request_failed",
+ *   reason?: "disabled"|"unexpected_status"|"timeout"|"request_failed",
  *   status?: number,
  *   error?: string,
  * }>}
@@ -379,6 +388,11 @@ async function fetchAWFReflect(options) {
   const modelsTimeoutMs = options && options.modelsTimeoutMs != null ? options.modelsTimeoutMs : AWF_MODELS_URL_TIMEOUT_MS;
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
   const writeFile = (options && options.writeFileSync) || fs.writeFileSync;
+
+  if (process.env.GH_AW_SKIP_REFLECT === "true") {
+    logger("awf-reflect: disabled by GH_AW_SKIP_REFLECT");
+    return { ok: false, reflectUrl, outputPath, reason: "disabled" };
+  }
 
   logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms)`);
 
@@ -1022,6 +1036,7 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS,
     DEFAULT_API_PROXY_HOST_BRIDGE,
     GEMINI_MODEL_NAME_PREFIX,
+    parseReflectTimeoutMs,
     enrichReflectModels,
     extractModelIds,
     fetchAWFReflect,

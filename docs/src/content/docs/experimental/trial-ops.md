@@ -143,10 +143,9 @@ gh aw trial v1.md v2.md v3.md --repeat 2
 cat trials/combined-results.*.json | jq '.results[] | {workflow: .workflow_name, issues: .safe_outputs.issues_created | length}'
 ```
 
-## Related Documentation
+## Learn More
 
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Run workflows from separate repositories
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) - Coordinate across multiple repositories
 - [OrchestratorOps](/gh-aw/patterns/orchestrator-ops/) — Orchestrate multi-step initiatives
 - [CLI Commands](/gh-aw/setup/cli/) - Complete CLI reference
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Configuration options

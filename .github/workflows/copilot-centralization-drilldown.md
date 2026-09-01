@@ -28,6 +28,10 @@ on:
 permissions:
   contents: read
   copilot-requests: write
+engine:
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 strict: true
 max-ai-credits: 120
 max-daily-ai-credits: 500

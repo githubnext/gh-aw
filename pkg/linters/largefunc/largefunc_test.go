@@ -12,5 +12,6 @@ import (
 )
 
 func TestLargeFunc(t *testing.T) {
+	t.Parallel()
 	analysistest.Run(t, analysistest.TestData(), largefunc.Analyzer, "a")
 }

@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: "Guard policy smoke test: repos=all, min-integrity=merged (most restrictive)"
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-agent-all-merged
     strategy: centralized

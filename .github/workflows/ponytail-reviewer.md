@@ -21,6 +21,10 @@ permissions:
   contents: read
   pull-requests: read
   copilot-requests: write
+tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
 features:
   gh-aw-detection: true
 imports:

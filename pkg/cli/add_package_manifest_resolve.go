@@ -6,10 +6,14 @@ package cli
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
+	addPackageManifestLog.Printf("Resolving repository package %q (packagePath=%q, host=%q)", repoSpec.RepoSlug, repoSpec.PackagePath, host)
 	owner, repo, err := splitRepositoryPackageSlug(repoSpec.RepoSlug)
 	if err != nil {
 		return nil, err
@@ -31,7 +35,10 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
-	resourceFiles := normalizePackageResourcePaths(manifest.Resources, packagePath)
+	resourceFiles, err := resolveRepositoryPackageResourceFiles(ctx, owner, repo, packagePath, ref, host, manifest, installationSources)
+	if err != nil {
+		return nil, err
+	}
 
 	docsPath, err := resolveRepositoryPackageDocsPath(ctx, owner, repo, packagePath, ref, host)
 	if err != nil {
@@ -58,6 +65,69 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	}
 
 	return newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, installationSources, resourceFiles, extensionFiles, warnings), nil
+}
+
+func resolveRepositoryPackageResourceFiles(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, installationSources []resolvedPackageInstallable) ([]resolvedPackageResource, error) {
+	resourceFiles := normalizePackageResourcePaths(manifest.Resources, packagePath)
+	return appendPackageGraderEvaluatorResources(ctx, owner, repo, ref, host, packagePath, resourceFiles, installationSources)
+}
+
+func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref, host, packagePath string, resourceFiles []resolvedPackageResource, installationSources []resolvedPackageInstallable) ([]resolvedPackageResource, error) {
+	seen := make(map[string]string, len(resourceFiles))
+	for _, resource := range resourceFiles {
+		seen[packageResourceDestinationKey(resource.DestinationPath)] = resource.SourcePath
+	}
+	addPackageManifestLog.Printf("resolving grader evaluators from %d installable package source(s)", len(installationSources))
+	for _, installable := range installationSources {
+		if !strings.HasSuffix(strings.ToLower(installable.SourcePath), ".md") {
+			continue
+		}
+		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, installable.SourcePath, ref, host)
+		if err != nil {
+			if isRepositoryFileNotFound(err) {
+				addPackageManifestLog.Printf("skipping grader evaluator resource discovery for unavailable package workflow %q: %v", installable.SourcePath, err)
+				continue
+			}
+			return nil, fmt.Errorf("failed to read package workflow %q while resolving grader evaluator resources: %w", installable.SourcePath, err)
+		}
+		entries, err := extractResourceEntries(string(content))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse package workflow %q grader resources: %w", installable.SourcePath, err)
+		}
+		for _, entry := range entries {
+			if !entry.isGraderEvaluator {
+				continue
+			}
+			resource := packageGraderEvaluatorResource(installable, entry.path, packagePath)
+			key := packageResourceDestinationKey(resource.DestinationPath)
+			if previousSource, exists := seen[key]; exists {
+				if previousSource != resource.SourcePath {
+					return nil, fmt.Errorf("package workflows reference multiple grader evaluator resources for %q: %q and %q", resource.DestinationPath, previousSource, resource.SourcePath)
+				}
+				continue
+			}
+			seen[key] = resource.SourcePath
+			resourceFiles = append(resourceFiles, resource)
+		}
+	}
+	return resourceFiles, nil
+}
+
+func packageGraderEvaluatorResource(installable resolvedPackageInstallable, runPath, packagePath string) resolvedPackageResource {
+	if localPath, ok := strings.CutPrefix(runPath, "./"); ok {
+		return resolvedPackageResource{
+			SourcePath:      path.Join(path.Dir(installable.SourcePath), localPath),
+			DestinationPath: path.Join(path.Dir(installable.DestinationPath), localPath),
+		}
+	}
+	sourcePath := joinRepositoryPackagePath(packagePath, runPath)
+	if localWorkflowsPath, ok := strings.CutPrefix(runPath, constants.WorkflowsDirSlash); ok {
+		sourcePath = path.Join(path.Dir(installable.SourcePath), localWorkflowsPath)
+	}
+	return resolvedPackageResource{
+		SourcePath:      sourcePath,
+		DestinationPath: runPath,
+	}
 }
 
 func splitRepositoryPackageSlug(repoSlug string) (string, string, error) {
@@ -96,12 +166,14 @@ func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, 
 
 	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
 	if len(installationSources) == 0 {
+		addPackageManifestLog.Print("No explicit installable paths in manifest, scanning repository for installables")
 		scanned, err := scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		installationSources = packageInstallablesFromSourcePaths(scanned)
 	}
+	addPackageManifestLog.Printf("Resolved %d installable source(s) for package", len(installationSources))
 	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
 		return nil, nil, nil, err
 	}
@@ -173,7 +245,7 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 
 func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, packagePath, ref, host string) (string, []byte, error) {
 	manifestPath := joinRepositoryPackagePath(packagePath, repositoryPackageManifestFileName)
-	repoSlug := owner + "/" + repo
+	repoSlug := fmt.Sprintf("%s/%s", owner, repo)
 	packageID := repositoryPackageIdentifier(repoSlug, packagePath)
 	content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, manifestPath, ref, host)
 	if err != nil {

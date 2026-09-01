@@ -50,7 +50,7 @@ var sandboxRuntimeProfiles = map[AgentRuntime]sandboxRuntimeProfile{
 		Runtime:          AgentRuntimeDocker,
 		NetworkIsolation: true,
 		Rootless:         true,
-		AWFCommand:       constants.AWFDefaultCommand,
+		AWFCommand:       constants.AWFDefaultCommand.String(),
 	},
 	AgentRuntimeDockerSudoIptables: {
 		Runtime:            AgentRuntimeDockerSudoIptables,
@@ -63,14 +63,14 @@ var sandboxRuntimeProfiles = map[AgentRuntime]sandboxRuntimeProfile{
 		Runtime:                AgentRuntimeGVisor,
 		NetworkIsolation:       true,
 		Rootless:               true,
-		AWFCommand:             constants.AWFDefaultCommand,
+		AWFCommand:             constants.AWFDefaultCommand.String(),
 		SupportsRuntimeInstall: true,
 	},
 	AgentRuntimeDockerSbx: {
 		Runtime:                AgentRuntimeDockerSbx,
 		NetworkIsolation:       true,
 		Rootless:               true,
-		AWFCommand:             constants.AWFDefaultCommand,
+		AWFCommand:             constants.AWFDefaultCommand.String(),
 		SupportsRuntimeInstall: true,
 	},
 	AgentRuntimeCloudHypervisor: {

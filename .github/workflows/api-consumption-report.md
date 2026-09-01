@@ -11,11 +11,11 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+  copilot-requests: write
 tracker-id: api-consumption-report-daily
 engine:
-  id: claude
-  mcp:
-    tool-timeout: 10m
+  id: codex
+  model-provider: github
 sandbox:
   agent:
     runtime: cloud-hypervisor
@@ -42,6 +42,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
 evals:
@@ -49,6 +50,8 @@ evals:
     question: Did the agent collect GitHub REST API consumption data across agentic workflows?
   - id: report_with_charts_created
     question: Was a report or discussion created with trending charts and quota analysis?
+
+model: copilot/mai-code-1-flash-picker
 ---
 
 # GitHub API Consumption Report Agent

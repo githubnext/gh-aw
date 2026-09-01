@@ -7,6 +7,31 @@ import (
 	"time"
 )
 
+func TestDefaultCLIMCPVersions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		got  Version
+		want Version
+	}{
+		{"Claude Code", DefaultClaudeCodeVersion, "2.1.247"},
+		{"Codex", DefaultCodexVersion, "0.150.1"},
+		{"GitHub MCP Server", DefaultGitHubMCPServerVersion, "v1.11.0"},
+		{"MCP Gateway", DefaultMCPGatewayVersion, "v0.4.14"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if tt.got != tt.want {
+				t.Fatalf("%s default version = %q, want %q", tt.name, tt.got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDefaultPlaywrightCLIVersionOutsideCooldownWindow(t *testing.T) {
 	t.Parallel()
 	const (

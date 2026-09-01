@@ -106,6 +106,10 @@ function getBundlePathForBranchInRepo(branchName, repoSlug) {
  * @param {string[]} [options.excludedFiles] - Glob patterns for files to exclude from the pushed commit set.
  *   When set, the bundle is synthesized from the same filtered patch used for validation so the pushed files
  *   match the validated patch file set.
+ * @param {string} [options.incrementalBaseRef] - Explicit local ref to use as the pre-agent
+ *   PR head in incremental mode (for example refs/remotes/origin/pr-head for fork PR checkouts).
+ * @param {string} [options.incrementalBaseSha] - Explicit commit SHA to use as the pre-agent
+ *   PR head in incremental mode. Takes precedence over incrementalBaseRef when present.
  * @returns {Promise<Object>} Object with bundle info or error
  */
 async function generateGitBundle(branchName, baseBranch, options = {}) {
@@ -161,31 +165,53 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
 
         if (mode === "incremental") {
           // INCREMENTAL MODE (for push_to_pull_request_branch):
-          // Only include commits that are new since origin/branchName.
-          // Tries a local-only check first, then a single network fetch attempt.
-          // The fetch will succeed for public repos (no credentials needed) and
-          // fail fast for private repos without credentials (execGitSync runs
-          // git with GIT_TERMINAL_PROMPT=0 and a 60s timeout).
-          debugLog(`Strategy 1 (incremental): Resolving origin/${branchName}`);
-          const incrementalRefResult = ensureOriginRemoteTrackingRef(branchName, { cwd, token: options.token, suppressLogs: true });
-          if (incrementalRefResult.exists) {
-            baseRef = `origin/${branchName}`;
-            if (incrementalRefResult.fetched) {
-              debugLog(`Strategy 1 (incremental): Fetched origin/${branchName} from remote, baseRef=${baseRef}`);
-            } else {
-              debugLog(`Strategy 1 (incremental): Using existing remote tracking ref, baseRef=${baseRef}`);
+          // Only include commits that are new since the pre-agent PR head. Prefer an
+          // explicit baseline captured by checkout_pr_branch.cjs (refs/pull/N/head
+          // fetched to origin/pr-head), because fork PR heads are not branches in the
+          // base repository's origin namespace and origin/<branchName> may refer to a
+          // same-named base-repo branch.
+          const explicitIncrementalBaseSha = normalizeCommitSHA(options.incrementalBaseSha);
+          const explicitIncrementalBaseRef = typeof options.incrementalBaseRef === "string" ? options.incrementalBaseRef.trim() : "";
+          if (explicitIncrementalBaseSha || explicitIncrementalBaseRef) {
+            const candidateBaseRef = explicitIncrementalBaseSha || explicitIncrementalBaseRef;
+            debugLog(`Strategy 1 (incremental): Using explicit PR-head baseline ${candidateBaseRef}`);
+            try {
+              baseRef = execGitSync(["rev-parse", "--verify", `${candidateBaseRef}^{commit}`], { cwd }).trim();
+            } catch (baselineError) {
+              errorMessage =
+                `Cannot generate incremental bundle: explicit PR-head baseline ${candidateBaseRef} is not present in checkout '${cwd}'. ` +
+                `Ensure the PR checkout step completed and fetched refs/pull/<number>/head before calling push_to_pull_request_branch.`;
+              debugLog(`Strategy 1 (incremental): explicit PR-head baseline failed: ${getErrorMessage(baselineError)}`);
+              return {
+                success: false,
+                error: errorMessage,
+                bundlePath,
+              };
             }
           } else {
-            debugLog(`Strategy 1 (incremental): origin/${branchName} not present locally and remote fetch failed (${incrementalRefResult.fetchError ? getErrorMessage(incrementalRefResult.fetchError) : "no error"}), failing`);
-            errorMessage =
-              `Cannot generate incremental bundle: refs/remotes/origin/${branchName} is not present in checkout '${cwd}' and could not be fetched ` +
-              `(the safe-outputs MCP server has no credentials for private repositories). ` +
-              `Add ${JSON.stringify(branchName)} to the workflow's checkout.fetch list so the branch is fetched during setup.`;
-            return {
-              success: false,
-              error: errorMessage,
-              bundlePath,
-            };
+            // Backward-compatible fallback for same-repository PRs and existing callers:
+            // try origin/branchName locally, then a single network fetch attempt.
+            debugLog(`Strategy 1 (incremental): Resolving origin/${branchName}`);
+            const incrementalRefResult = ensureOriginRemoteTrackingRef(branchName, { cwd, token: options.token, suppressLogs: true });
+            if (incrementalRefResult.exists) {
+              baseRef = `origin/${branchName}`;
+              if (incrementalRefResult.fetched) {
+                debugLog(`Strategy 1 (incremental): Fetched origin/${branchName} from remote, baseRef=${baseRef}`);
+              } else {
+                debugLog(`Strategy 1 (incremental): Using existing remote tracking ref, baseRef=${baseRef}`);
+              }
+            } else {
+              debugLog(`Strategy 1 (incremental): origin/${branchName} not present locally and remote fetch failed (${incrementalRefResult.fetchError ? getErrorMessage(incrementalRefResult.fetchError) : "no error"}), failing`);
+              errorMessage =
+                `Cannot generate incremental bundle: no pre-agent PR-head baseline was available for branch '${branchName}' in checkout '${cwd}'. ` +
+                `Tried refs/remotes/origin/${branchName}, but it is not present and could not be fetched from origin. ` +
+                `For fork PRs, ensure the workflow PR checkout step ran first so refs/pull/<number>/head is recorded as the bundle baseline; checkout.fetch cannot fetch fork branches from the base repository.`;
+              return {
+                success: false,
+                error: errorMessage,
+                bundlePath,
+              };
+            }
           }
         } else {
           // FULL MODE (for create_pull_request):
@@ -266,7 +292,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             try {
               execGitSync([...noHooksArgs, "worktree", "add", "--detach", tempWorktree, baseCommitSha], { cwd });
               execGitSync([...noHooksArgs, "am", "--3way", patchResult.patchPath], { cwd: tempWorktree });
-              execGitSync(["bundle", "create", bundlePath, `${baseCommitSha}..HEAD`], { cwd: tempWorktree });
+              execGitSync([...noHooksArgs, "bundle", "create", bundlePath, `${baseCommitSha}..HEAD`], { cwd: tempWorktree });
             } finally {
               try {
                 execGitSync([...noHooksArgs, "worktree", "remove", "--force", tempWorktree], { cwd });

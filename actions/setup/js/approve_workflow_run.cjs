@@ -36,6 +36,19 @@ const HANDLER_TYPE = "approve_workflow_run";
 const APPROVABLE_RUN_STATUSES = new Set(["action_required", "waiting"]);
 
 /**
+ * Detect permission-class API failures that should fail fast without retrying.
+ *
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isPermissionDeniedError(error) {
+  const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+  const normalized = getErrorMessage(error).toLowerCase();
+  const isKnownPermissionMessage = normalized.includes("resource not accessible by personal access token") || normalized.includes("resource not accessible by integration");
+  return isKnownPermissionMessage || (status === 403 && normalized.includes("resource not accessible"));
+}
+
+/**
  * Determine whether a workflow run is still awaiting approval.
  *
  * The pending-approval state is surfaced either on the run's `status` or, for runs
@@ -223,6 +236,9 @@ async function main(config = {}) {
   const githubToken = config["github-token"];
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
   let processedCount = 0;
+  // main() is constructed once per safe-outputs pass; cache token-level approval
+  // denials on this handler instance so subsequent messages can fail fast.
+  let approvePermissionDenied = false;
 
   core.info(`Approve workflow run configuration: max=${maxCount}`);
   if (allowedRepos.size > 0) {
@@ -238,6 +254,18 @@ async function main(config = {}) {
   const githubClient = isStaged ? null : await createAuthenticatedGitHubClient(config);
 
   return async function handleApproveWorkflowRun(message) {
+    if (approvePermissionDenied) {
+      const reason = "Skipping approve_workflow_run because this token cannot approve workflow runs (permission denied on a prior attempt)";
+      core.warning(reason);
+      return {
+        success: false,
+        skipped: true,
+        reasonCode: "APPROVE_WORKFLOW_RUN_PERMISSION_DENIED",
+        reason,
+        error: reason,
+      };
+    }
+
     const runId = parsePositiveInt(message.run_id);
     if (!runId) {
       const error = "run_id must be a positive integer";
@@ -345,7 +373,6 @@ async function main(config = {}) {
         }
       }
 
-      processedCount++;
       try {
         await githubClient.rest.actions.approveWorkflowRun({
           owner: context.repo.owner,
@@ -353,9 +380,22 @@ async function main(config = {}) {
           run_id: runId,
         });
       } catch (error) {
-        processedCount--;
+        const errorMessage = getErrorMessage(error);
+        if (isPermissionDeniedError(error)) {
+          approvePermissionDenied = true;
+          const reason = `Skipping approval for workflow run ${runId} because the configured token cannot approve workflow runs (${errorMessage})`;
+          core.warning(reason);
+          return {
+            success: false,
+            skipped: true,
+            reasonCode: "APPROVE_WORKFLOW_RUN_PERMISSION_DENIED",
+            reason,
+            error: reason,
+          };
+        }
         throw error;
       }
+      processedCount++;
 
       core.info(`Approved workflow run ${runId}: ${run.html_url}`);
 
@@ -384,6 +424,7 @@ module.exports = {
   normalizeWorkflowFilename,
   isAllowedWorkflow,
   isAwaitingApproval,
+  isPermissionDeniedError,
   getModifiedPullRequestFiles,
   getPullRequestHeadRepo,
   isHeadRepoAllowed,

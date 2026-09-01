@@ -164,6 +164,12 @@ func renderConsoleTokenUsage(tokenUsage *TokenUsageSummary) {
 		tokenUsage.TotalRequests,
 		console.FormatNumber(tokenUsage.TotalSteeringEvents),
 	)
+	if len(tokenUsage.Warnings) > 0 {
+		fmt.Fprintln(os.Stderr, "  token_usage_warnings:")
+		for _, warning := range tokenUsage.Warnings {
+			fmt.Fprintf(os.Stderr, "    %s\n", warning)
+		}
+	}
 }
 
 func renderConsoleGitHubAPIUsage(rateLimit *GitHubRateLimitUsage) {
@@ -232,7 +238,7 @@ func renderConsoleActionableSections(data AuditData) {
 	renderConsoleWarnings(data.Warnings)
 }
 
-func renderConsoleFindings(findings []Finding) {
+func renderConsoleFindings(findings []AuditFinding) {
 	if len(findings) == 0 {
 		return
 	}
@@ -418,6 +424,37 @@ func renderConsolePolicyAndExperiments(data AuditData) {
 		fmt.Fprintf(os.Stderr, "  firewall_policy: %s\n", data.PolicyAnalysis.PolicySummary)
 	}
 	renderConsoleExperiments(data.Experiments)
+	renderConsoleGraders(data.Graders)
+}
+
+func renderConsoleGraders(graders *GradersData) {
+	if graders == nil || len(graders.Results) == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  graders: pass=%d fail=%d error=%d unavailable=%d\n",
+		graders.Passed, graders.Failed, graders.ErrorCount, graders.UnavailableCount)
+	for _, result := range graders.Results {
+		line := fmt.Sprintf("    %s %s=%s", result.Status, result.ID, formatGraderValue(result))
+		if result.Threshold != nil {
+			line += fmt.Sprintf(" threshold=%g", *result.Threshold)
+		}
+		if result.Direction != "" {
+			line += " direction=" + result.Direction
+		}
+		if detail := graderDetailText(result); detail != "" {
+			line += " (" + detail + ")"
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+}
+
+// graderDetailText returns the error text for failed graders, falling back to the
+// informational message when no error was recorded.
+func graderDetailText(result GraderResult) string {
+	if result.Error != "" {
+		return result.Error
+	}
+	return result.Message
 }
 
 func renderConsoleExperiments(experiments *ExperimentData) {
@@ -438,8 +475,8 @@ func renderConsoleLogsPath(logsPath string) {
 }
 
 // filterActionableFindings returns findings with severity > info/success
-func filterActionableFindings(findings []Finding) []Finding {
-	var result []Finding
+func filterActionableFindings(findings []AuditFinding) []AuditFinding {
+	var result []AuditFinding
 	for _, f := range findings {
 		if f.Severity.AtLeast(scanfindings.SeverityLow) {
 			result = append(result, f)

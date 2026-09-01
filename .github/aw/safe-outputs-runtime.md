@@ -200,6 +200,10 @@ The `report-incomplete` safe-output is enabled by default and is distinct from `
       create-issue:
     ```
 
+- `steer:` - **Experimental.** Create a run-scoped issue during activation, before the agent starts, so users can steer the run via comments containing the keyword `steer` (boolean, default: `false`)
+  - Requires top-level `issues: read` permission (compiler errors instead of auto-adding it) and enables the GitHub MCP issues toolset for comment reads
+  - Activation/conclusion jobs need `issues: write` through the global `github-token` or `github-app` safe-output credential; on success the conclusion job closes the issue and links a created PR, on failure it retitles and updates the same issue instead of creating a second one
+  - Cannot be combined with `failure-issue-repo`; no steering issue is created in staged mode
 - `max-bot-mentions:` - Maximum bot trigger references (e.g. `@copilot`, `@github-actions`) allowed in output before all excess are escaped with backticks (integer or expression, default: 10)
   - Set to `0` to escape all bot trigger phrases
   - Example: `max-bot-mentions: 3`
@@ -257,6 +261,8 @@ Fields that influence permission computation (`add-comment.discussions`, `hide-c
     - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
     - `owner:` - Optional App installation owner (defaults to current repository owner)
     - `repositories:` - Optional list of repositories to grant access to
+    - `ignore-if-missing:` - When `true`, skip token minting instead of failing when `client-id`/`private-key` resolve empty (boolean, default: `false`)
+    - `permissions:` - Optional map of extra `permission-*` fields to merge into the minted token
   - Example:
 
     ```yaml

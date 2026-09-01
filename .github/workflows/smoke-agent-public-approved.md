@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test that validates assign-to-agent with the agentic-workflows custom agent
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-agent-public-approved
     strategy: centralized

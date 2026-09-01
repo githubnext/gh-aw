@@ -65,9 +65,6 @@ When calling `list_code_scanning_alerts` from workflow prompts, always bound the
 
 The `default` toolset includes `context`, `repos`, `issues`, and `pull_requests`. In workflows, `[default]` expands to toolsets that work with GitHub Actions tokens. The `users` toolset is excluded because those tokens do not support user operations.
 
-> [!WARNING]
-> **`get_me` is not usable under the integration token.** It returns HTTP 403 in all standard gh-aw runs. Do not call `get_me` to discover the agent's identity. Instead, read identity fields directly from the `<github-context>` block that is injected into every workflow prompt — it contains `actor`, `repository`, `run_id`, and other context values.
-
 ### Operating Modes
 
 Remote mode (`mode: remote`) connects to a hosted server with no Docker required. Local mode (`mode: local`) runs in Docker, enabling version pinning for offline or restricted environments. See [Remote vs Local Mode](/gh-aw/reference/github-tools/#github-tools-access-modes).
@@ -75,10 +72,6 @@ Remote mode (`mode: remote`) connects to a hosted server with no Docker required
 The GitHub MCP server always operates read-only. Write operations are handled through [safe outputs](/gh-aw/reference/safe-outputs/), which run in a separate permission-controlled job.
 
 ## Manually Configuring a Custom MCP Server
-
-> [!IMPORTANT]
->
-> Custom MCP servers should be **read-only**. Write operations must go through [safe outputs](/gh-aw/reference/safe-outputs/) or [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/). Ensure your MCP server implements authentication and authorization to prevent unauthorized write access.
 
 Add MCP servers to your workflow's frontmatter using the `mcp-servers:` section:
 
@@ -107,6 +100,8 @@ mcp-servers:
 
 # Your workflow content here
 ```
+
+Custom MCP servers should be **read-only**. Write operations must go through [safe outputs](/gh-aw/reference/safe-outputs/) or [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/). Ensure your MCP server implements authentication and authorization to prevent unauthorized write access.
 
 ## Custom MCP Server Types
 
@@ -343,7 +338,7 @@ For advanced debugging, import `shared/mcp-debug.md` to access diagnostic tools 
 
 Common issues are usually connection failures, which point to syntax, environment variable, or network problems, or missing tools, which usually mean the toolsets configuration or `allowed` list needs to be checked with `gh aw mcp inspect`.
 
-## Related Documentation
+## Learn More
 
 See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for inline tools without external MCP servers, [Tools](/gh-aw/reference/tools/) for the full tools reference, [CLI Commands](/gh-aw/setup/cli/) for commands such as `mcp inspect`, [Imports](/gh-aw/reference/imports/) for modular workflow composition, [Frontmatter](/gh-aw/reference/frontmatter/) for configuration details, and [Workflow Structure](/gh-aw/reference/workflow-structure/) for directory layout.
 

@@ -12,5 +12,6 @@ import (
 )
 
 func TestGoroutineMissingRecover(t *testing.T) {
+	t.Parallel()
 	analysistest.Run(t, analysistest.TestData(), goroutinemissingrecover.Analyzer, "a", "b")
 }

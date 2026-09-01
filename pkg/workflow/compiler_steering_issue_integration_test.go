@@ -25,8 +25,8 @@ strict: false
 permissions:
   issues: read
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     branch-prefix: "signed/"
 ---
 
@@ -84,4 +84,25 @@ safe-outputs:
 	compiler.SetActionMode(ActionModeDev)
 	err := compiler.CompileWorkflow(workflowPath)
 	require.ErrorContains(t, err, "pre-create")
+}
+
+func TestCompileRejectsCreatePullRequestSteer(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "nested-steer")
+	workflowPath := filepath.Join(tmpDir, "nested-steer.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`---
+on: workflow_dispatch
+engine: copilot
+strict: false
+safe-outputs:
+  create-pull-request:
+    steer: true
+---
+
+# Nested steering test
+`), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+	err := compiler.CompileWorkflow(workflowPath)
+	require.ErrorContains(t, err, "steer")
 }

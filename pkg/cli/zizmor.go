@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/scanfindings"
@@ -49,6 +50,154 @@ type zizmorFinding struct {
 	} `json:"locations"`
 }
 
+// buildZizmorContainerScanPath converts a repository-relative lock file path into a
+// container path safe to pass to zizmor. The "./" prefix confines the argument to the
+// mounted working directory and prevents a path such as "-x" from being parsed as a flag.
+func buildZizmorContainerScanPath(scanPath string) (string, error) {
+	if scanPath == "" {
+		return "", errors.New("zizmor scan path cannot be empty. Expected a relative path inside the repository. Example: .github/workflows/example.lock.yml")
+	}
+	cleanPath := filepath.Clean(scanPath)
+	if !filepath.IsLocal(cleanPath) {
+		return "", fmt.Errorf("zizmor scan path must stay local to the repository. Expected a relative path inside the repository. Example: .github/workflows/example.lock.yml. Got: %q", scanPath)
+	}
+	if containsControlCharacters(cleanPath) {
+		return "", fmt.Errorf("zizmor scan path contains invalid control characters. Expected a plain relative path. Example: .github/workflows/example.lock.yml. Got: %q", scanPath)
+	}
+	return "./" + filepath.ToSlash(cleanPath), nil
+}
+
+// zizmorScanPaths converts lock file paths into repository-relative paths (for display)
+// and container-safe scan paths (for the docker argv). Each candidate is validated with
+// fileutil.ValidatePathWithinBase, which resolves symlinks before comparison, so a
+// lock-file symlink that resolves outside the git root is rejected instead of silently
+// producing a container path that escapes the mounted checkout.
+func zizmorScanPaths(gitRoot string, lockFiles []string) (relPaths []string, containerPaths []string, err error) {
+	for _, lockFile := range lockFiles {
+		if err := fileutil.ValidatePathWithinBase(gitRoot, lockFile); err != nil {
+			return nil, nil, fmt.Errorf("zizmor lock file %q is invalid; expected a path inside the repository at %q: %w", lockFile, gitRoot, err)
+		}
+		relPath, relErr := filepath.Rel(gitRoot, lockFile)
+		if relErr != nil {
+			return nil, nil, fmt.Errorf("failed to get relative path for %s: %w", lockFile, relErr)
+		}
+		containerPath, pathErr := buildZizmorContainerScanPath(relPath)
+		if pathErr != nil {
+			return nil, nil, fmt.Errorf("zizmor scan path for %s is invalid; expected a relative path inside the repository. Example: .github/workflows/example.lock.yml: %w", lockFile, pathErr)
+		}
+		relPaths = append(relPaths, relPath)
+		containerPaths = append(containerPaths, containerPath)
+	}
+	return relPaths, containerPaths, nil
+}
+
+// zizmorDockerArgs builds the `docker run` arguments used to scan the given container paths.
+func zizmorDockerArgs(imageRef, volumeMount string, containerPaths []string) []string {
+	args := []string{
+		"run",
+		"--rm",
+		"-v", volumeMount,
+		"-w", "/workdir",
+		imageRef,
+		"--persona", "auditor",
+		"--format", "json",
+	}
+	return append(args, containerPaths...)
+}
+
+// fatalFindingError wraps an error that must fail compilation regardless of strict
+// mode (e.g. high/critical severity scanner findings). handleBatchToolError checks
+// for this type and refuses to suppress it even when strict is false.
+type fatalFindingError struct {
+	err error
+}
+
+func (e *fatalFindingError) Error() string { return e.err.Error() }
+func (e *fatalFindingError) Unwrap() error { return e.err }
+
+// interpretZizmorRunError maps the docker/zizmor exit status onto a gh-aw error.
+// zizmor uses exit codes to indicate findings:
+//
+//	0 = no findings, 10-13 = findings at different severity levels,
+//	14 = findings with mixed severities, other codes = actual errors.
+func interpretZizmorRunError(runErr error, totalWarnings, highSeverityCount int, fileDescription string, strict bool) error {
+	if runErr == nil {
+		return nil
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(runErr, &exitErr) {
+		// Non-ExitError errors (e.g., command not found)
+		return fmt.Errorf("zizmor failed: %w", runErr)
+	}
+	exitCode := exitErr.ExitCode()
+	zizmorLog.Printf("Zizmor exited with code %d (warnings=%d, high=%d)", exitCode, totalWarnings, highSeverityCount)
+	if exitCode < 10 || exitCode > 14 {
+		// Other exit codes are actual errors
+		return fmt.Errorf("zizmor failed with exit code %d on %s", exitCode, fileDescription)
+	}
+	// High/critical severity findings always fail, regardless of strict mode. Wrap in
+	// fatalFindingError so handleBatchToolError does not suppress it in non-strict mode.
+	if highSeverityCount > 0 {
+		return &fatalFindingError{err: fmt.Errorf("zizmor found %d high/critical severity finding(s) in %s", highSeverityCount, fileDescription)}
+	}
+	// In strict mode, all findings are treated as errors
+	if strict {
+		return fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s - workflows must have no zizmor findings in strict mode", totalWarnings, fileDescription)
+	}
+	// In non-strict mode, non-high findings are logged but not treated as errors
+	return nil
+}
+
+// buildZizmorCommand assembles the validated `docker run` invocation for the zizmor
+// scanner along with the repository-relative paths used for progress reporting.
+func buildZizmorCommand(lockFiles []string) (cmd *exec.Cmd, relPaths []string, dockerArgs []string, err error) {
+	// Find git root to get the absolute path for Docker volume mount
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	// Validate gitRoot is an absolute path before use in Docker volume mount
+	gitRoot, err = fileutil.ValidateAbsolutePath(gitRoot)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("git root %q is not a valid absolute path; zizmor requires an absolute repository root. Example: run gh aw from inside a git checkout: %w", gitRoot, err)
+	}
+
+	relPaths, containerPaths, err := zizmorScanPaths(gitRoot, lockFiles)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Build the Docker command with JSON output for easier parsing
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir <ZizmorImage> --persona auditor --format json <file1> <file2> ...
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("docker command not found: %w", err)
+	}
+	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("docker mount path for git root %q is invalid; expected an absolute host path. Example: /home/user/repo: %w", gitRoot, err)
+	}
+	zizmorImageRef, err := validateDockerImageRef(ZizmorImage)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("zizmor scanner image reference %q is invalid; expected a registry reference. Example: ghcr.io/owner/image:tag: %w", ZizmorImage, err)
+	}
+	for _, containerPath := range containerPaths {
+		if err := validateExecArgument(containerPath); err != nil {
+			return nil, nil, nil, fmt.Errorf("invalid zizmor scan path argument %q: %w", containerPath, err)
+		}
+	}
+	dockerArgs = zizmorDockerArgs(zizmorImageRef, volumeMount, containerPaths)
+
+	// #nosec G204 -- dockerPath is resolved from the allowlisted executable name "docker" via
+	// fileutil.ResolveExecutablePath. gitRoot comes from git rev-parse (trusted) and is validated
+	// as an absolute path before being turned into a docker -v mount. zizmorImageRef is the pinned
+	// image constant validated by validateDockerImageRef. containerPaths are derived from
+	// filepath.Rel(gitRoot, lockFile), confined to the repository root, and prefixed with "./" to
+	// prevent option injection. exec.Command passes args directly to the OS (no shell).
+	return exec.Command(dockerPath, dockerArgs...), relPaths, dockerArgs, nil
+}
+
 // runZizmorOnFiles runs the zizmor security scanner on one or more .lock.yml files using Docker
 func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
@@ -57,44 +206,10 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 
 	zizmorLog.Printf("Running zizmor security scanner on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
 
-	// Find git root to get the absolute path for Docker volume mount
-	gitRoot, err := gitutil.FindGitRoot()
+	cmd, relPaths, dockerArgs, err := buildZizmorCommand(lockFiles)
 	if err != nil {
-		return fmt.Errorf("failed to find git root: %w", err)
+		return err
 	}
-
-	// Validate gitRoot is an absolute path before use in Docker volume mount
-	if !filepath.IsAbs(gitRoot) {
-		return fmt.Errorf("git root must be an absolute path, got: %s", gitRoot)
-	}
-
-	// Get relative paths from git root for all files
-	var relPaths []string
-	for _, lockFile := range lockFiles {
-		relPath, err := filepath.Rel(gitRoot, lockFile)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
-		}
-		relPaths = append(relPaths, relPath)
-	}
-
-	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest --persona auditor --format json <file1> <file2> ...
-	dockerArgs := []string{
-		"run",
-		"--rm",
-		"-v", gitRoot + ":/workdir",
-		"-w", "/workdir",
-		"ghcr.io/zizmorcore/zizmor:latest",
-		"--persona", "auditor",
-		"--format", "json",
-	}
-	dockerArgs = append(dockerArgs, relPaths...)
-
-	// #nosec G204 -- exec.Command is used with separate args (not shell execution) to prevent shell injection.
-	// The gitRoot path is validated to be absolute, and relPaths are validated through filepath.Rel to be
-	// relative to gitRoot, preventing path traversal. The Docker container provides additional isolation.
-	cmd := exec.Command("docker", dockerArgs...)
 
 	// Always show that zizmor is running (regular verbosity)
 	if len(lockFiles) == 1 {
@@ -105,8 +220,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/zizmorcore/zizmor:latest --persona auditor --format json %s",
-			gitRoot, strings.Join(relPaths, " "))
+		dockerCmd := shellJoinArgs(append([]string{"docker"}, dockerArgs...))
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run zizmor directly: "+dockerCmd))
 	}
 
@@ -116,7 +230,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	cmd.Stderr = &stderr
 
 	// Run the command
-	err = cmd.Run()
+	runErr := cmd.Run()
 
 	// Parse and reformat the output, get total warning count and high severity count
 	totalWarnings, highSeverityCount, parseErr := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose)
@@ -136,38 +250,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		fileDescription = filepath.Base(lockFiles[0])
 	}
 
-	// Check if the error is due to findings (expected) or actual failure
-	if err != nil {
-		// zizmor uses exit codes to indicate findings:
-		// 0 = no findings
-		// 10-13 = findings at different severity levels
-		// 14 = findings with mixed severities
-		// Other codes = actual errors
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			exitCode := exitErr.ExitCode()
-			zizmorLog.Printf("Zizmor exited with code %d (warnings=%d, high=%d)", exitCode, totalWarnings, highSeverityCount)
-			// Exit codes 10-14 indicate findings
-			if exitCode >= 10 && exitCode <= 14 {
-				// High/critical severity findings always fail, regardless of strict mode
-				if highSeverityCount > 0 {
-					return fmt.Errorf("zizmor found %d high/critical severity finding(s) in %s", highSeverityCount, fileDescription)
-				}
-				// In strict mode, all findings are treated as errors
-				if strict {
-					return fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s - workflows must have no zizmor findings in strict mode", totalWarnings, fileDescription)
-				}
-				// In non-strict mode, non-high findings are logged but not treated as errors
-				return nil
-			}
-			// Other exit codes are actual errors
-			return fmt.Errorf("zizmor failed with exit code %d on %s", exitCode, fileDescription)
-		}
-		// Non-ExitError errors (e.g., command not found)
-		return fmt.Errorf("zizmor failed: %w", err)
-	}
-
-	return nil
+	return interpretZizmorRunError(runErr, totalWarnings, highSeverityCount, fileDescription, strict)
 }
 
 // runZizmorOnFile runs the zizmor security scanner on a single .lock.yml file using Docker
@@ -179,7 +262,7 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 
 // parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
 // Returns the total number of warnings found and the number of high/critical severity findings
-func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int, error) {
+func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int, error) { //nolint:largefunc
 	// Map findings to files for detailed display
 	fileFindings := make(map[string][]zizmorFinding)
 

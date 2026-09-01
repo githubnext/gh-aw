@@ -106,6 +106,29 @@ Create custom post-processing jobs registered as Model Context Protocol (MCP) to
 
 Mount any public GitHub Action as a once-callable MCP tool. The compiler pins the action reference to a SHA at compile time and derives the tool's input schema from the action's `action.yml`. See [GitHub Action Wrappers](/gh-aw/reference/custom-safe-outputs/#github-action-wrappers-safe-outputsactions).
 
+## Steering Issues (`steer:`)
+
+:::caution[Experimental]
+`steer` is an experimental option. `gh aw compile` emits an experimental feature warning when a workflow uses it.
+:::
+
+Set `steer: true` to create a run-scoped issue during the activation job, before the agent starts. Users can add comments containing the keyword `steer` while the run is in progress. The injected prompt identifies the exact issue and instructs the agent to read relevant user-authored comments with the GitHub MCP `issue_read` tool.
+
+Steering enables the GitHub MCP issues toolset for comment reads and requires top-level `issues: read` permission. The compiler reports an error instead of adding that permission automatically.
+
+```yaml
+permissions:
+  contents: read
+  issues: read
+
+safe-outputs:
+  steer: true
+```
+
+The activation and conclusion jobs require `issues: write` through the global [`github-token`](#custom-github-token-github-token) or [`github-app`](#using-a-github-app-for-authentication-github-app) safe-output credential. On success, the conclusion job closes the steering issue and links a created pull request when available. On failure, the same issue is retitled and updated with the agent failure report instead of creating a second issue. Because reuse requires a workflow-repository issue, `steer` cannot be combined with `safe-outputs.failure-issue-repo`.
+
+In [staged mode](#staged-mode), no steering issue is created because staged runs must not perform API side effects.
+
 ### Issue Creation (`create-issue:`)
 
 Creates GitHub issues based on workflow output.
@@ -357,6 +380,8 @@ Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels o
 
 Use `required-labels` to only add labels to issues/PRs that already have **all** of the specified labels. Use `required-title-prefix` to only add labels to issues/PRs whose title starts with the given prefix.
 
+By default, labels that don't already exist in the target repository are rejected with an error. Set `create-if-missing: true` to automatically create any missing labels before they are applied.
+
 ```yaml wrap
 safe-outputs:
   add-labels:
@@ -368,6 +393,7 @@ safe-outputs:
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     required-labels: [automated, bot]  # only operate if item has ALL of these labels
     required-title-prefix: "[bot] "    # only operate if item title starts with this prefix
+    create-if-missing: true            # auto-create labels that don't already exist (default: false)
 ```
 
 #### Blocked Label Patterns
@@ -405,6 +431,8 @@ safe-outputs:
   remove-labels:
     allowed: [automated, team-*] # restrict to specific labels or glob patterns (optional)
     blocked: ["~*"]              # deny removal of labels matching these glob patterns
+    issues: true                 # include issues: write permission (default: true)
+    pull-requests: false         # exclude pull-requests: write permission (default: true)
     max: 3                       # max operations (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
@@ -414,6 +442,8 @@ safe-outputs:
 ```
 
 **Target**: `"triggering"` (requires issue/PR event), `"*"` (any issue/PR), or number (specific issue/PR).
+
+Set `issues: false` or `pull-requests: false` to omit the corresponding write permission. Both default to `true` when omitted, and at least one must be enabled.
 
 When `allowed` is omitted or set to `null`, any labels can be removed. Use `allowed` to restrict removal to specific labels or glob patterns, providing control over which labels agents can manipulate. The `blocked` field takes precedence over `allowed`.
 
@@ -2035,7 +2065,7 @@ The `apply_safe_outputs` job downloads the `agent_output.json` artifact from the
 > [!TIP]
 > Find the run URL by opening the failed or cancelled run in the **Actions** tab — the URL in your browser's address bar is the run URL.
 
-## Related Documentation
+## Learn More
 
 - [Staged Mode](/gh-aw/reference/staged-mode/) - Preview safe output operations without making changes
 - [Threat Detection Guide](/gh-aw/reference/threat-detection/) - Complete threat detection documentation and examples

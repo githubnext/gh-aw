@@ -1,6 +1,6 @@
 ---
 title: GitHub Agentic Workflows FAQ
-description: Answers about GitHub Agentic Workflows (gh-aw), GitHub Actions, AI engines, workflow security, permissions, costs, and configuration.
+description: Answers about GitHub Agentic Workflows, GitHub Actions, AI engines, workflow security, permissions, costs, and configuration.
 sidebar:
   order: 50
 head:
@@ -17,7 +17,7 @@ head:
             "name": "What is GitHub Agentic Workflows?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "GitHub Agentic Workflows (gh-aw) lets developers define AI-powered repository automation in Markdown with YAML frontmatter, compile it into GitHub Actions workflows, and run AI agents with configurable security controls. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi."
+              "text": "GitHub Agentic Workflows lets developers define AI-powered repository automation in Markdown with YAML frontmatter, compile it into GitHub Actions workflows, and run AI agents with configurable security controls. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi."
             }
           },
           {
@@ -82,12 +82,12 @@ head:
 
 ## What is GitHub Agentic Workflows?
 
-GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation and run AI agents through GitHub Actions. Authors write Markdown instructions with YAML frontmatter, then `gh aw compile` generates the `.lock.yml` GitHub Actions workflow. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi.
+GitHub Agentic Workflows lets developers define AI-powered repository automation and run AI agents through GitHub Actions. Authors write Markdown instructions with YAML frontmatter, then `gh aw compile` generates the `.lock.yml` GitHub Actions workflow. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi.
 
 > [!NOTE]
 > GitHub Agentic Workflows is in Public Preview.
 
-Start with the [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/), learn how to [create an agentic workflow](/gh-aw/setup/creating-workflows/), or browse [examples by repository task](/gh-aw/examples/).
+Start with the [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/), learn how to [create an agentic workflow](/gh-aw/setup/creating-workflows/), or browse the [gallery by repository task](/gh-aw/gallery/).
 
 ## Determinism
 
@@ -139,7 +139,7 @@ Yes. Private repositories can support proprietary code, a "sidecar" repository w
 
 ### Can I edit workflows directly on GitHub.com without recompiling?
 
-Yes, for the **markdown body** (AI instructions) — loaded at runtime, takes effect on the next run. **Frontmatter** (tools, permissions, triggers, network rules) is embedded at compile time and requires `gh aw compile my-workflow` after edits. See [Editing Workflows](/gh-aw/guides/editing-workflows/).
+Yes, for the **markdown body** (AI instructions) — loaded at runtime, takes effect on the next run. **Frontmatter** (tools, permissions, triggers, network rules) is embedded at compile time and requires `gh aw compile my-workflow` after edits. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows).
 
 ### Can workflows trigger other workflows?
 
@@ -195,6 +195,39 @@ tools:
 
 See [Using MCPs](/gh-aw/guides/mcps/).
 
+### How do I use mirrored or approved container images on self-hosted runners?
+
+Use the existing image override paths instead of raw `sandbox.agent.args`:
+
+- For repository-wide container substitutions (tooling images, MCP images, and default AWF tags), configure `.github/workflows/aw.json` `container_pins`.
+- For AWF infrastructure roles specifically (for example `squid`, `agent`, `apiProxy`, `cliProxy`, `buildTools`), configure `sandbox.agent.images` with digest-pinned references.
+
+```json title=".github/workflows/aw.json"
+{
+  "container_pins": {
+    "ghcr.io/github/github-mcp-server:v1.10.1": {
+      "image": "registry.example.com/github-mcp-server:v1.10.1",
+      "digest": "sha256:3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}
+```
+
+```aw wrap
+sandbox:
+  agent:
+    version: v0.28.8
+    images:
+      squid: registry.example.com/approved/squid:v0.28.8@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      agent: registry.example.com/approved/agent:v0.28.8@sha256:1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      apiProxy: registry.example.com/approved/api-proxy:v0.28.8@sha256:2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+> [!NOTE]
+> The digest values in this example are placeholders. Replace them with the exact digests from your approved registry images.
+
+See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/#action-and-container-substitutions-awjson) and [Sandbox custom infrastructure images](/gh-aw/reference/sandbox/#custom-infrastructure-images-sandboxagentimages).
+
 ### If my agent can use a skill, can agentic workflows use it too?
 
 Usually yes. Prefer frontmatter [`skills:`](/gh-aw/reference/frontmatter/#frontmatter-skills-skills) to install skills for workflow runs: use local paths (for example, `skills/name` or `.github/skills/name`) during development and pinned external references for published workflows. Use [imports](/gh-aw/reference/imports/) for workflow-level config and prompts, and [APM (Agent Package Manager)](https://microsoft.github.io/apm/) for reusable package distribution of skills and other agent primitives. See [APM Dependencies](/gh-aw/reference/dependencies/).
@@ -228,7 +261,7 @@ imports:
   - githubnext/agentics/shared/common-tools.md
 ```
 
-See [Imports](/gh-aw/reference/imports/) and [Packaging Imports](/gh-aw/guides/reusing-workflows/).
+See [Imports](/gh-aw/reference/imports/) and [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows).
 
 ### Can I run workflows on a schedule?
 
@@ -770,13 +803,11 @@ These entries are **merged** with the built-in catalog at runtime — they overr
 
 See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) for budgeting options alongside custom pricing.
 
-## Related documentation
+## Learn More
 
 - [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/) — install `gh-aw` and run a first workflow
 - [Create a GitHub Agentic Workflow](/gh-aw/setup/creating-workflows/) — author Markdown instructions and compile them into GitHub Actions
-- [AI Issue Triage on GitHub](/gh-aw/guides/ai-issue-triage/) — labeling, deduplication, and clarifying questions
-- [Automated AI Pull Request Review](/gh-aw/guides/automated-pr-review/) — review diffs and post feedback on new PRs
-- [AI Release Notes and Reports](/gh-aw/guides/ai-release-notes/) — generate release summaries automatically
-- [Keeping Documentation Up to Date Automatically](/gh-aw/guides/docs-automation/) — propose docs updates as pull requests
+- [AI Issue Triage on GitHub](/gh-aw/gallery/ai-issue-triage/) — labeling, deduplication, and clarifying questions
+- [Automated AI Pull Request Review](/gh-aw/gallery/automated-pr-review/) — review diffs and post feedback on new PRs
 - [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) — compare Copilot, Claude Code, Codex, Gemini, and Pi
 - [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) — understand configurable permissions, isolation, and controlled writes

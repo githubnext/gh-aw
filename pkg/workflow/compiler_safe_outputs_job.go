@@ -175,6 +175,30 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, agentArtifactPrefix string) ([]string, error) {
 	var steps []string
 
+	steps = append(steps, c.buildSafeOutputsSetupSteps(data)...)
+	steps = append(steps, c.buildSafeOutputsDownloadSteps(data, agentArtifactPrefix)...)
+
+	// Configure GH_HOST for GHES/GHEC compatibility.
+	// The safe-outputs job runs as an independent GitHub Actions job and does not
+	// inherit GITHUB_ENV from the agent job. User-provided steps (below) and future
+	// safe-output handlers that invoke the gh CLI need GH_HOST to target the
+	// correct enterprise instance.
+	steps = append(steps, generateGHESHostConfigurationStep())
+
+	userSteps, err := c.buildSafeOutputsUserProvidedSteps(data)
+	if err != nil {
+		return nil, err
+	}
+	steps = append(steps, userSteps...)
+
+	return steps, nil
+}
+
+// buildSafeOutputsSetupSteps returns the setup action and OTLP header/attribute
+// masking steps that must run first in the consolidated safe-outputs job.
+func (c *Compiler) buildSafeOutputsSetupSteps(data *WorkflowData) []string {
+	var steps []string
+
 	// Add setup action to copy JavaScript files
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
@@ -200,6 +224,14 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 		steps = append(steps, generateOTLPAttributesMaskStep())
 	}
 
+	return steps
+}
+
+// buildSafeOutputsDownloadSteps returns the agent output artifact download steps,
+// plus (when applicable) the patch artifact download and shared PR checkout steps.
+func (c *Compiler) buildSafeOutputsDownloadSteps(data *WorkflowData, agentArtifactPrefix string) []string {
+	var steps []string
+
 	// Add artifact download steps after setup.
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
@@ -210,7 +242,7 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
+			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName.String(),
 			DownloadPath: constants.TmpGhAwDirSlash,
 			SetupEnvStep: false, // No environment variable needed, the script checks the file directly
 			StepName:     "Download patch artifact",
@@ -225,36 +257,38 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 		steps = append(steps, checkoutSteps...)
 	}
 
-	// Configure GH_HOST for GHES/GHEC compatibility.
-	// The safe-outputs job runs as an independent GitHub Actions job and does not
-	// inherit GITHUB_ENV from the agent job. User-provided steps (below) and future
-	// safe-output handlers that invoke the gh CLI need GH_HOST to target the
-	// correct enterprise instance.
-	steps = append(steps, generateGHESHostConfigurationStep())
+	return steps
+}
 
-	// Add user-provided steps after checkout/setup, before safe-output code
-	if len(data.SafeOutputs.Steps) > 0 {
-		consolidatedSafeOutputsJobLog.Printf("Adding %d user-provided steps to safe-outputs job", len(data.SafeOutputs.Steps))
-		for i, step := range data.SafeOutputs.Steps {
-			stepMap, ok := step.(map[string]any)
-			if !ok {
-				consolidatedSafeOutputsJobLog.Printf("Warning: safe-outputs step at index %d is not a valid step object (must be a map with properties like name, run, uses). Skipping this step.", i)
-				continue
-			}
-			typedStep, err := MapToStep(stepMap)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
-			}
-			pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
-			if err != nil {
-				return nil, fmt.Errorf("failed to pin action for safe-outputs step at index %d: %w", i, err)
-			}
-			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
-			}
-			steps = append(steps, stepYAML)
+// buildSafeOutputsUserProvidedSteps converts the user-provided safe-outputs.steps
+// frontmatter entries into pinned, YAML-rendered workflow steps.
+func (c *Compiler) buildSafeOutputsUserProvidedSteps(data *WorkflowData) ([]string, error) {
+	var steps []string
+
+	if len(data.SafeOutputs.Steps) == 0 {
+		return steps, nil
+	}
+
+	consolidatedSafeOutputsJobLog.Printf("Adding %d user-provided steps to safe-outputs job", len(data.SafeOutputs.Steps))
+	for i, step := range data.SafeOutputs.Steps {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			consolidatedSafeOutputsJobLog.Printf("Warning: safe-outputs step at index %d is not a valid step object (must be a map with properties like name, run, uses). Skipping this step.", i)
+			continue
 		}
+		typedStep, err := MapToStep(stepMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
+		}
+		pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to pin action for safe-outputs step at index %d: %w", i, err)
+		}
+		stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
+		}
+		steps = append(steps, stepYAML)
 	}
 
 	return steps, nil
@@ -648,7 +682,7 @@ func (c *Compiler) calculatePreambleInsertIndex(steps []string, data *WorkflowDa
 	}
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
+			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName.String(),
 			DownloadPath: constants.TmpGhAwDirSlash,
 			SetupEnvStep: false,
 			StepName:     "Download patch artifact",

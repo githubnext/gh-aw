@@ -123,7 +123,7 @@ Test workflow with agent sandbox disabled.
 		// MCP gateway should still be present (always enabled)
 		assert.Contains(t, result, "Start MCP Gateway", "MCP gateway should be present even when agent sandbox is disabled")
 		assert.Contains(t, result, "MCP_GATEWAY_PORT", "Gateway port should be set")
-		assert.Contains(t, result, "MCP_GATEWAY_API_KEY", "Gateway API key should be set")
+		assert.Contains(t, result, "MCP_GATEWAY_AGENT_ID", "Gateway agent ID should be set")
 	})
 
 	t.Run("sandbox.agent: false is refused in strict mode", func(t *testing.T) {
@@ -236,7 +236,7 @@ Test workflow with tools and agent sandbox disabled.
 
 	// Verify gateway configuration is present
 	assert.Contains(t, result, "MCP_GATEWAY_PORT", "Gateway port should be present")
-	assert.Contains(t, result, "MCP_GATEWAY_API_KEY", "Gateway API key should be present")
+	assert.Contains(t, result, "MCP_GATEWAY_AGENT_ID", "Gateway agent ID should be present")
 	assert.Contains(t, result, "MCP_GATEWAY_DOMAIN", "Gateway domain should be present")
 }
 

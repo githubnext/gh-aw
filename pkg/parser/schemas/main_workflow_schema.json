@@ -20,6 +20,12 @@
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
       "examples": ["Quickstart for using the GitHub Actions library"]
     },
+    "intent": {
+      "type": "string",
+      "maxLength": 10000,
+      "description": "Optional statement of the durable outcome the workflow exists to achieve. Unlike 'description', which explains what the workflow does, 'intent' explains why the workflow exists and should stay implementation-independent. Rendered as a comment in the generated GitHub Actions YAML file (.lock.yml).",
+      "examples": ["Reduce manual issue-triage work while keeping classifications evidence-based."]
+    },
     "emoji": {
       "type": "string",
       "description": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
@@ -1347,6 +1353,23 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "conclusion": {
+                  "description": "Filter by workflow run conclusion (for example, failure). Compiled into a guarded if: condition.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required", "stale", "startup_failure"]
+                      },
+                      "minItems": 1
+                    }
+                  ]
                 }
               },
               "oneOf": [
@@ -1910,7 +1933,7 @@
             },
             "stop-after": {
               "type": "string",
-              "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m). Maximum values for time deltas: 12mo, 52w, 365d, 8760h (365 days). Note: Minute unit 'm' is not allowed for stop-after; minimum unit is hours 'h'."
+              "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.), relative time deltas (+25h, +3d, +1d12h30m), or a GitHub Actions expression (e.g. ${{ inputs.stop-after }}) resolved at workflow runtime. Maximum values for time deltas: 12mo, 52w, 365d, 8760h (365 days). Note: Minute unit 'm' is not allowed for stop-after; minimum unit is hours 'h'."
             },
             "skip-if-match": {
               "oneOf": [
@@ -2137,6 +2160,12 @@
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
+            },
+            "cooldown": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Minimum time after the most recent completed workflow run where the agent job started before another agent run may start. Uses Go duration syntax (for example, '5m', '1h', or '1h30m'), must be at least 5 minutes, and does not support GitHub Actions expressions.",
+              "examples": ["5m", "30m", "1h30m"]
             },
             "reaction": {
               "oneOf": [
@@ -2455,16 +2484,42 @@
     },
     "plugins": {
       "type": "array",
-      "description": "\u26a0\ufe0f Experimental. Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA. Using this field emits a compile-time warning.",
+      "description": "\u26a0\ufe0f Experimental. Agent Plugins to install after the agentic engine. Each GitHub repository reference must include a ref that the compiler resolves to a commit SHA. Using this field emits a compile-time warning. Entries may also be objects to configure per-plugin authentication via github-token or github-app, for installing plugins from private repositories.",
       "items": {
-        "type": "string",
-        "minLength": 1,
-        "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
-        "description": "A plugin repository reference in owner/repository[/path]@ref format"
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
+            "description": "A plugin repository reference in owner/repository[/path]@ref format"
+          },
+          {
+            "type": "object",
+            "description": "Object-form plugin reference with per-plugin authentication.",
+            "required": ["plugin"],
+            "additionalProperties": false,
+            "properties": {
+              "plugin": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[A-Za-z0-9._/-]+$",
+                "description": "A plugin repository reference in owner/repository[/path]@ref format"
+              },
+              "github-token": {
+                "$ref": "#/$defs/github_token",
+                "description": "Optional GitHub token expression used only for this plugin's checkout, for installing plugins from private repositories."
+              },
+              "github-app": {
+                "$ref": "#/$defs/github_app",
+                "description": "Optional GitHub App config used to mint a token for this plugin's checkout, for installing plugins from private repositories."
+              }
+            }
+          }
+        ]
       },
       "minItems": 1,
       "uniqueItems": true,
-      "examples": [["github/awesome-copilot/plugins/example@v1"]]
+      "examples": [["github/awesome-copilot/plugins/example@v1"], [{ "plugin": "octo-org/private-plugin@main", "github-token": "${{ secrets.PRIVATE_PLUGIN_TOKEN }}" }]]
     },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
@@ -2486,8 +2541,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["read-all", "write-all"],
-          "description": "Simple permissions string: 'read-all' (all read permissions) or 'write-all' (all write permissions)"
+          "enum": ["read-all", "write-all", "none"],
+          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), or 'none' (no permissions)"
         },
         {
           "$ref": "#/$defs/github_actions_permissions"
@@ -3562,7 +3617,7 @@
               "repos": { "$ref": "#/$defs/enclave-repos" },
               "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
               "image": { "type": "string", "minLength": 1, "maxLength": 500 },
-              "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 30 },
+              "timeout": { "type": "integer", "minimum": 1, "maximum": 4740, "default": 30 },
               "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
               "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
               "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
@@ -3586,13 +3641,21 @@
                   "model": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$" },
                   "max-task-bytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 4096 },
                   "max-model-requests": { "type": "integer", "minimum": 1, "maximum": 64, "default": 8 },
-                  "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 }
+                  "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 },
+                  "github": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["cli"],
+                    "properties": {
+                      "cli": { "type": "string", "enum": ["issues-read-v1"] }
+                    }
+                  }
                 }
               },
               "repos": { "$ref": "#/$defs/enclave-repos" },
               "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
               "image": { "type": "string", "minLength": 1, "maxLength": 500 },
-              "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 120 },
+              "timeout": { "type": "integer", "minimum": 1, "maximum": 4740, "default": 120 },
               "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
               "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
               "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
@@ -3763,6 +3826,11 @@
                       "type": "boolean",
                       "description": "Enable or disable API proxy token steering. Set to false to preserve the explicitly configured provider and model.",
                       "examples": [false]
+                    },
+                    "ca-cert": {
+                      "type": "string",
+                      "description": "Host path to an additional CA certificate for API proxy upstream TLS verification. The file is bind-mounted read-only into the API proxy sidecar. Maps to apiProxy.caCert; requires AWF v0.28.10 or later.",
+                      "examples": ["/etc/ssl/certs/internal-ca.pem"]
                     },
                     "runtime": {
                       "type": "string",
@@ -3970,9 +4038,9 @@
                   "default": 8080,
                   "description": "Port number for the MCP gateway HTTP server (default: 8080)"
                 },
-                "api-key": {
+                "agent-id": {
                   "type": "string",
-                  "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
+                  "description": "Agent/session identifier for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 },
                 "domain": {
                   "type": "string",
@@ -4008,7 +4076,7 @@
           "mcp": {
             "container": "ghcr.io/githubnext/mcp-gateway",
             "port": 8080,
-            "api-key": "${{ secrets.MCP_GATEWAY_API_KEY }}"
+            "agent-id": "${{ secrets.MCP_GATEWAY_AGENT_ID }}"
           }
         }
       ]
@@ -4218,7 +4286,7 @@
       "description": "24-hour AI Credits guardrail for runs triggered by the same user. Omit the field to leave the guardrail disabled. Supports GitHub Actions expressions."
     },
     "max-runs": {
-      "$ref": "#/$defs/templatable_integer",
+      "$ref": "#/$defs/templatable_positive_integer",
       "default": 500,
       "description": "Deprecated legacy alias for AWF invocation cap (`apiProxy.maxRuns`). Use `max-turns` instead. Defaults to 500 when omitted. Supports GitHub Actions expressions.",
       "deprecated": true,
@@ -4557,64 +4625,6 @@
                 "features": {
                   "type": "string",
                   "description": "Comma-separated list of GitHub MCP server feature flags to enable. Forwarded as GITHUB_FEATURES (Docker/local) or X-MCP-Features (remote). When omitted, 'fields_param' is enabled by default for server v1.6.0 and later. Set to an empty string to disable all feature flags."
-                },
-                "bounded-queries": {
-                  "type": "object",
-                  "description": "AWF bounded-query configuration for cross-repository private data access (AWF v0.27.44+). Requires the AWF sandbox (sandbox.agent.id: awf). Query execution is independent from the primary agent sandbox, and every query runs in a fresh backend-specific sandbox.",
-                  "additionalProperties": false,
-                  "required": ["private-repos"],
-                  "properties": {
-                    "private-repos": {
-                      "type": "array",
-                      "description": "List of private repositories the agent may query via bounded queries.",
-                      "minItems": 1,
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["repo", "sensitivity"],
-                        "properties": {
-                          "repo": {
-                            "type": "string",
-                            "description": "Repository slug in 'owner/repo' format.",
-                            "pattern": "^[^/]+/[^/]+$",
-                            "minLength": 3
-                          },
-                          "sensitivity": {
-                            "type": "string",
-                            "description": "Confidentiality classification for this repository.",
-                            "enum": ["public", "internal", "confidential", "sealed"]
-                          }
-                        }
-                      }
-                    },
-                    "runtime": {
-                      "type": "string",
-                      "description": "Isolated backend used to execute each bounded-query script. Accepted values are docker, gvisor, and sbx. The sbx backend is experimental and capability-gated: AWF performs a fail-closed host preflight and never falls back to docker or gvisor. Current Docker Sandboxes v0.37.1 hosts do not provide all mandatory controls, so AWF rejects them unless the required capabilities become available. When omitted AWF uses its default.",
-                      "enum": ["docker", "gvisor", "sbx"]
-                    },
-                    "timeout": {
-                      "type": "integer",
-                      "description": "Maximum execution time in seconds for a single bounded-query invocation. When omitted AWF uses its default.",
-                      "minimum": 1,
-                      "maximum": 540
-                    },
-                    "memory-limit": {
-                      "type": "string",
-                      "description": "Memory limit for bounded-query container execution (e.g. \"512m\", \"2g\"). When omitted AWF uses its default.",
-                      "pattern": "^[1-9][0-9]*[bkmgBKMG]$"
-                    },
-                    "interpreter": {
-                      "type": "string",
-                      "description": "Script interpreter for bounded-query execution. When omitted AWF uses its default.",
-                      "enum": ["python3"]
-                    },
-                    "max-invocations": {
-                      "type": "integer",
-                      "description": "Maximum number of bounded-query invocations allowed per run. When omitted AWF uses its default.",
-                      "minimum": 1,
-                      "maximum": 10000
-                    }
-                  }
                 }
               },
               "additionalProperties": false,
@@ -4744,7 +4754,7 @@
           ]
         },
         "playwright": {
-          "description": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "description": "Playwright CLI browser automation tool for web scraping, testing, and UI interactions",
           "oneOf": [
             {
               "type": "null",
@@ -4752,24 +4762,33 @@
             },
             {
               "type": "object",
-              "description": "Playwright tool configuration with custom version and arguments",
+              "description": "Playwright CLI configuration",
               "properties": {
                 "version": {
                   "type": ["string", "number"],
-                  "description": "Optional version pin. In CLI mode (recommended): the @playwright/cli npm package version (e.g., '0.1.11'). In MCP mode (deprecated): the Playwright browser Docker image version (e.g., 'v1.56.1'). Omit to use the default version.",
-                  "examples": ["0.1.11", "v1.56.1"]
+                  "description": "Optional @playwright/cli npm package version pin. Omit to use the default version.",
+                  "examples": ["0.1.18"]
                 },
                 "args": {
                   "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
+                  "description": "Removed: legacy MCP-mode argument list. Accepted here only so the compiler can reject 'mode: mcp' configurations with actionable migration guidance instead of an unhelpful schema error.",
                   "items": {
                     "type": "string"
                   }
                 },
                 "mode": {
-                  "type": "string",
-                  "description": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations \u2014 use playwright-cli commands in bash and localhost to reach local servers; 'mcp' (deprecated) runs a Docker-based MCP server.",
-                  "enum": ["cli", "mcp"]
+                  "description": "Integration mode. Only 'cli' is supported. The compiler rejects the removed 'mcp' value with migration guidance. Must be a literal value; GitHub Actions expressions are rejected.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["cli", "mcp"]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "Not allowed at runtime: mode must be the literal 'cli' value, not a GitHub Actions expression."
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -5693,6 +5712,11 @@
         }
       ],
       "properties": {
+        "steer": {
+          "type": "boolean",
+          "description": "⚠️ Experimental. Create a run-scoped issue and let the agent read user-authored issue comments containing the keyword 'steer'. The issue is reused for agent failure reporting. Requires top-level issues: read permission.",
+          "default": false
+        },
         "urls": {
           "type": "string",
           "description": "URL sanitization policy for safe outputs. \"allowed-only\" sanitizes all non-allowed URLs everywhere. \"allowed-or-code-region\" preserves URLs inside fenced and inline code regions while sanitizing prose.",
@@ -5700,7 +5724,7 @@
         },
         "allowed-domains": {
           "type": "array",
-          "description": "List of allowed domains for URL redaction in safe output handlers. Supports ecosystem identifiers (e.g., \"python\", \"node\", \"default-safe-outputs\") like network.allowed. These domains are unioned with the engine defaults and network.allowed when computing the final allowed domain set. localhost and github.com are always included.",
+          "description": "List of allowed domains for URL redaction in safe output handlers. Supports domain set identifiers (e.g., \"python\", \"node\", \"default-safe-outputs\", \"copilot\") like network.allowed. These domains are unioned with network.allowed when computing the final allowed domain set. localhost and github.com are always included.",
           "items": {
             "type": "string"
           }
@@ -7487,11 +7511,6 @@
                   "type": "boolean",
                   "description": "Require create_pull_request tool calls to include a temporary_id."
                 },
-                "steer": {
-                  "type": "boolean",
-                  "description": "\u26a0\ufe0f Experimental. Create a run-scoped issue and let the agent read user-authored issue comments containing the keyword 'steer'. The issue is reused for agent failure reporting. Requires top-level issues: read permission.",
-                  "default": false
-                },
                 "title-prefix": {
                   "type": "string",
                   "description": "Optional prefix for the pull request title"
@@ -8604,15 +8623,15 @@
           "oneOf": [
             {
               "type": "null",
-              "description": "Null configuration allows any labels. Labels will be created if they don't already exist in the repository."
+              "description": "Null configuration allows any labels. Labels must already exist in the repository unless 'create-if-missing' is enabled."
             },
             {
               "type": "object",
-              "description": "Configuration for adding labels to issues/PRs from agentic workflow output. Labels will be created if they don't already exist in the repository.",
+              "description": "Configuration for adding labels to issues/PRs from agentic workflow output. Labels must already exist in the repository unless 'create-if-missing' is enabled.",
               "properties": {
                 "allowed": {
                   "type": "array",
-                  "description": "Optional list of allowed labels that can be added. Labels will be created if they don't already exist in the repository. If omitted, any labels are allowed (including creating new ones).",
+                  "description": "Optional list of allowed labels that can be added. Labels must already exist in the repository unless 'create-if-missing' is enabled. If omitted, any labels are allowed.",
                   "items": {
                     "type": "string"
                   },
@@ -8686,6 +8705,10 @@
                   "type": "boolean",
                   "description": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type."
                 },
+                "create-if-missing": {
+                  "type": "boolean",
+                  "description": "When true, automatically creates labels that don't already exist in the target repository. Default (omitted or false) rejects labels that don't already exist."
+                },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -8758,6 +8781,14 @@
                       "description": "GitHub Actions expression that resolves to an integer at runtime"
                     }
                   ]
+                },
+                "issues": {
+                  "type": "boolean",
+                  "description": "When false, excludes issues:write for remove-labels from both the safe_outputs job permissions and any minted GitHub App token. Default (omitted or true) includes issues:write."
+                },
+                "pull-requests": {
+                  "type": "boolean",
+                  "description": "When false, excludes pull-requests:write for remove-labels from both the safe_outputs job permissions and any minted GitHub App token. Default (omitted or true) includes pull-requests:write."
                 },
                 "target": {
                   "type": "string",
@@ -12417,7 +12448,7 @@
         },
         "events": {
           "type": "array",
-          "description": "Optional list of event types to apply rate limiting to. If not specified, rate limiting applies to all programmatically triggered events (e.g., workflow_dispatch, issue_comment, pull_request_review).",
+          "description": "Optional list of event types to apply rate limiting to. If not specified, rate limiting is inferred from the workflow triggers; if no supported programmatic triggers are found, it falls back to all supported programmatic events.",
           "items": {
             "type": "string",
             "enum": ["workflow_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "issues", "pull_request", "discussion_comment", "discussion", "repository_dispatch"]
@@ -12944,8 +12975,8 @@
               },
               "run": {
                 "type": "string",
-                "pattern": "^\\.github/graders/.+\\.sh$",
-                "description": "Repository-relative Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
+                "pattern": "^(?:\\./)?(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:[^./\\\\][^/\\\\]*|\\.[^./\\\\][^/\\\\]*|\\.\\.[^/\\\\]+))*\\.sh$",
+                "description": "Workspace-relative or ./ workflow-local Bash script for the operational-value evaluator. Supported only for the reserved operational-value grader ID."
               }
             }
           }
@@ -13214,6 +13245,20 @@
         {
           "type": "integer",
           "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{\\{.*\\}\\}$",
+          "description": "GitHub Actions expression that resolves to an integer at runtime"
+        }
+      ]
+    },
+    "templatable_positive_integer": {
+      "description": "A positive integer value that may also be specified as a GitHub Actions expression string that resolves to an integer at runtime (e.g. '${{ inputs.max-runs }}').",
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1
         },
         {
           "type": "string",
@@ -14918,6 +14963,16 @@
           "type": "string",
           "enum": ["read", "write", "none"],
           "description": "Permission level for organization projects (read/write/none). Controls access to manage organization-level GitHub Projects boards."
+        },
+        "organization-custom-org-roles": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for organization custom org roles (read/write/none). Controls access to custom organization role metadata."
+        },
+        "organization-custom-repository-roles": {
+          "type": "string",
+          "enum": ["read", "write", "none"],
+          "description": "Permission level for organization custom repository roles (read/write/none). Controls access to custom repository role metadata."
         },
         "security-events": {
           "type": "string",

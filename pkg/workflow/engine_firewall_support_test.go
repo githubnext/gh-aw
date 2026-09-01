@@ -273,7 +273,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 func TestGenerateFirewallLogParsingStepFixesFirewallPermissions(t *testing.T) {
 	step := generateFirewallLogParsingStep("test-workflow", nil)
 	stepContent := strings.Join(step, "\n")
-	expectedLogsDir := constants.AWFProxyLogsDir
+	expectedLogsDir := constants.AWFProxyLogsDir.String()
 
 	if !strings.Contains(stepContent, "AWF_LOGS_DIR: "+expectedLogsDir) {
 		t.Error("Expected firewall log parsing step to keep AWF_LOGS_DIR set to logs directory")

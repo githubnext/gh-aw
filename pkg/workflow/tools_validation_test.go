@@ -343,7 +343,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'github.allowed-repos' string must be 'all', 'public', or '${{ github.repository }}'",
+			errorMsg:    "must be in format",
 		},
 		{
 			name: "allowed-repos github.repository expression is valid",
@@ -733,37 +733,32 @@ func TestValidateGitHubGuardPolicyLockdownWarningWithoutCompiler(t *testing.T) {
 	assert.Empty(t, strings.TrimSpace(stderrOutput))
 }
 
-func TestValidateReposScopeWithStringSlice(t *testing.T) {
+func TestValidateReposScope(t *testing.T) {
 	tests := []struct {
 		name        string
-		repos       any
+		repos       GitHubReposScope
 		shouldError bool
 		errorMsg    string
 	}{
 		{
 			name:        "valid []string repos array",
-			repos:       []string{"owner/repo", "owner/*"},
+			repos:       GitHubReposScope{"owner/repo", "owner/*"},
 			shouldError: false,
 		},
 		{
 			name:        "valid []string repos array with github.repository expression",
-			repos:       []string{"${{ github.repository }}", "owner/repo"},
-			shouldError: false,
-		},
-		{
-			name:        "valid []any repos array",
-			repos:       []any{"owner/repo", "owner/*"},
+			repos:       GitHubReposScope{"${{ github.repository }}", "owner/repo"},
 			shouldError: false,
 		},
 		{
 			name:        "empty []string repos array",
-			repos:       []string{},
+			repos:       GitHubReposScope{},
 			shouldError: true,
 			errorMsg:    "array cannot be empty",
 		},
 		{
 			name:        "[]string with invalid pattern",
-			repos:       []string{"Owner/Repo"},
+			repos:       GitHubReposScope{"Owner/Repo"},
 			shouldError: true,
 			errorMsg:    "must be lowercase",
 		},

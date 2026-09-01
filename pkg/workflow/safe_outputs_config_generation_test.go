@@ -641,6 +641,52 @@ func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
 	assert.Equal(t, "triage-needed", blockedSlice[3], "Fourth blocked pattern should match")
 }
 
+// TestGenerateSafeOutputsConfigAddLabelsCreateIfMissing tests that the create-if-missing
+// field is included in config.json for add_labels when set, and omitted when nil.
+func TestGenerateSafeOutputsConfigAddLabelsCreateIfMissing(t *testing.T) {
+	trueVal := true
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			AddLabels: &AddLabelsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+				CreateIfMissing:      &trueVal,
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	addLabelsConfig, ok := parsed["add_labels"].(map[string]any)
+	require.True(t, ok, "Expected add_labels key in config")
+
+	createIfMissing, ok := addLabelsConfig["create_if_missing"]
+	require.True(t, ok, "Expected create_if_missing field in add_labels config")
+	assert.Equal(t, true, createIfMissing, "create_if_missing should be true")
+
+	// When CreateIfMissing is nil (default), the field should be omitted entirely.
+	dataDefault := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			AddLabels: &AddLabelsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+			},
+		},
+	}
+	resultDefault, err := generateSafeOutputsConfig(dataDefault)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+
+	var parsedDefault map[string]any
+	require.NoError(t, json.Unmarshal([]byte(resultDefault), &parsedDefault), "Result must be valid JSON")
+	addLabelsConfigDefault, ok := parsedDefault["add_labels"].(map[string]any)
+	require.True(t, ok, "Expected add_labels key in config")
+	_, ok = addLabelsConfigDefault["create_if_missing"]
+	assert.False(t, ok, "create_if_missing should be omitted when not configured")
+}
+
 // TestGenerateSafeOutputsConfigSafeJobMax tests that the max field is emitted in config.json
 // for custom safe-jobs so the output collector can enforce it.
 func TestGenerateSafeOutputsConfigSafeJobMax(t *testing.T) {

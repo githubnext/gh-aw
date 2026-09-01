@@ -11,9 +11,6 @@ The `gh aw compile --dependabot` command scans workflows for runtime tools (`npx
 
 Run `gh aw compile --dependabot` to compile all workflows and generate manifests in `.github/workflows/`.
 
-> [!IMPORTANT]
-> Must compile **all workflows** - cannot be used with specific files or `--dir` flag.
-
 **Prerequisites**: Node.js/npm required for `package-lock.json` generation. Pip and Go manifests generate without additional tools.
 
 ## Compiler-managed `gh-aw-actions` ignore rule
@@ -116,7 +113,7 @@ Updated dependency: [name@version]
 | **Dependency not detected** | Avoid shell variables (`${TOOL}`); use literal package names |
 | **Dependabot not opening PRs** | Verify `.github/dependabot.yml` is valid YAML and manifest files exist |
 
-## Related Documentation
+## Learn More
 
 - [CLI Commands](/gh-aw/setup/cli/#compile) - Complete compile command reference
 - [Compilation Process](/gh-aw/reference/compilation-process/) - How compilation works

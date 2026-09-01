@@ -91,6 +91,18 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			Content: playwrightPromptFile,
 			IsFile:  true,
 		})
+
+		// 3b. AWF-aware Playwright policy (CLI mode + firewall/AWF sandbox enabled).
+		// This reinforces the secure loopback/proxy topology and takes precedence
+		// over generic Playwright CLI skill guidance such as runtime npm installs
+		// or navigation to arbitrary example domains.
+		if isPlaywrightCLIMode(data.Tools) && isFirewallEnabled(data) {
+			unifiedPromptLog.Print("Adding playwright AWF policy section")
+			sections = append(sections, PromptSection{
+				Content: playwrightAWFPromptFile,
+				IsFile:  true,
+			})
+		}
 	}
 
 	// 4. Trial mode note (if in trial mode)
@@ -671,7 +683,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 		}
 	}
 
-	if len(tools) == 0 && commentMemory == nil {
+	if len(tools) == 0 && commentMemory == nil && !safeOutputs.Steer {
 		return nil
 	}
 
@@ -713,19 +725,19 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 	// File sections for tools with multi-step instructions
 	if safeOutputs.CreatePullRequests != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsCreatePRFile, IsFile: true})
-		if isSteeringIssueEnabled(&WorkflowData{SafeOutputs: safeOutputs}) {
-			steeringContent := "<issue-steering>\nThe steering issue for this run is #${{ needs.activation.outputs.steering_issue_number }}.\n"
-			extractor := NewExpressionExtractor()
-			envVars := map[string]string{}
-			if mappings, err := extractor.ExtractExpressions(steeringContent); err == nil {
-				steeringContent = extractor.ReplaceExpressionsWithEnvVars(steeringContent)
-				for _, mapping := range mappings {
-					envVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
-				}
+	}
+	if isSteeringIssueEnabled(&WorkflowData{SafeOutputs: safeOutputs}) {
+		steeringContent := "<issue-steering>\nThe steering issue for this run is #${{ needs.activation.outputs.steering_issue_number }}.\n"
+		extractor := NewExpressionExtractor()
+		envVars := map[string]string{}
+		if mappings, err := extractor.ExtractExpressions(steeringContent); err == nil {
+			steeringContent = extractor.ReplaceExpressionsWithEnvVars(steeringContent)
+			for _, mapping := range mappings {
+				envVars[mapping.EnvVar] = fmt.Sprintf("${{ %s }}", mapping.Content)
 			}
-			sections = append(sections, PromptSection{Content: steeringContent, IsFile: false, EnvVars: envVars})
-			sections = append(sections, PromptSection{Content: safeOutputsSteeringIssueFile, IsFile: true})
 		}
+		sections = append(sections, PromptSection{Content: steeringContent, IsFile: false, EnvVars: envVars})
+		sections = append(sections, PromptSection{Content: safeOutputsSteeringIssueFile, IsFile: true})
 	}
 	if safeOutputs.PushToPullRequestBranch != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsPushToBranchFile, IsFile: true})

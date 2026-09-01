@@ -27,10 +27,10 @@ permissions:
   pull-requests: read
 
 # AI engine configuration
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
-  bare: true
+  model-provider: openai
 
 # Import shared reporting guidelines
 imports:
@@ -95,8 +95,8 @@ safe-outputs:
     max: 5
 
   # Pull request creation
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[🎨 POETRY] "
     labels: [poetry, automation, creative-writing]

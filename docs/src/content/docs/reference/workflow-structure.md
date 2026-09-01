@@ -66,12 +66,12 @@ The `gh-aw-metadata` line is always first, enabling reliable machine parsing. Th
 
 The **markdown body** is loaded at runtime and can be edited directly on GitHub.com without recompilation. Only **frontmatter changes** require recompilation.
 
-See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance on when and how to recompile workflows.
+See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for complete guidance on when and how to recompile workflows.
 
 ## Best Practices
 
 Use descriptive kebab-case names such as `issue-responder.md` or `weekly-summary.md`, avoid spaces and special characters, and commit both the source `.md` files and generated `.lock.yml` files.
 
-## Related Documentation
+## Learn More
 
-See also [Editing Workflows](/gh-aw/guides/editing-workflows/) for recompilation guidance, [Frontmatter](/gh-aw/reference/frontmatter/) for configuration, [Markdown](/gh-aw/reference/markdown/) for the body format, [Imports](/gh-aw/reference/imports/) for shared content, [CLI Commands](/gh-aw/setup/cli/) for workflow management, and [MCPs](/gh-aw/guides/mcps/) for Model Context Protocol configuration.
+See also [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for recompilation guidance, [Frontmatter](/gh-aw/reference/frontmatter/) for configuration, [Markdown](/gh-aw/reference/markdown/) for the body format, [Imports](/gh-aw/reference/imports/) for shared content, [CLI Commands](/gh-aw/setup/cli/) for workflow management, and [MCPs](/gh-aw/guides/mcps/) for Model Context Protocol configuration.

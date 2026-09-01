@@ -1674,7 +1674,7 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 				assert.Contains(t, uploadSteps, "sha: ${{ github.sha }}",
 					"Upload step must include sha input")
 				// sarif_file must be the local path from the downloaded artifact (not a job output reference)
-				localSarifPath := path.Join(constants.SarifArtifactDownloadPath, constants.SarifFileName)
+				localSarifPath := path.Join(constants.SarifArtifactDownloadPath.String(), constants.SarifFileName.String())
 				assert.Contains(t, uploadSteps, localSarifPath,
 					"Upload step must use the locally downloaded SARIF file path")
 				assert.NotContains(t, uploadSteps, "needs.safe_outputs.outputs.sarif_file",

@@ -24,10 +24,10 @@ var (
 
 var notYetEnforced = map[string]string{
 	"errorfwrapv":                 "requires an enforcement audit after the recent false-positive fix (#51928)",
-	"errormessage":                "enforced by the dedicated lint-error-messages CI job",
-	"excessivefuncparams":         "legitimate high-parameter functions cannot yet be suppressed",
+	"errormessage":                "dedicated lint-error-messages CI job is intentionally advisory (continue-on-error per #54800)",
+	"excessivefuncparams":         "existing production violations need remediation before enforcement; nolint suppression already works",
 	"hardcodedfilepath":           "requires an enforcement audit after the same-package constant fix (#52428)",
-	"largefunc":                   "legitimate large functions cannot yet be suppressed",
+	"largefunc":                   "existing production violations need remediation before enforcement; nolint suppression already works",
 	"lenstringzero":               "requires an enforcement audit after the diagnostic-message fix (#54717)",
 	"manualpathconcat":            "existing production violations need remediation",
 	"packagelevelmutableslicemap": "existing production violations need remediation",
@@ -42,6 +42,7 @@ var notYetEnforced = map[string]string{
 // This prevents the header from silently drifting from the bullet list
 // (as seen in gh-aw#40436, gh-aw#45185, gh-aw#46131).
 func TestDocGo_CountMatchesBullets(t *testing.T) {
+	t.Parallel()
 	f, err := os.Open("doc.go")
 	require.NoError(t, err, "doc.go must be present in pkg/linters")
 	defer f.Close() //nolint:errcheck
@@ -74,6 +75,7 @@ func TestDocGo_CountMatchesBullets(t *testing.T) {
 }
 
 func TestDocGo_AnalyzersMatchREADME(t *testing.T) {
+	t.Parallel()
 	docSet := parseDocBulletSet(t)
 	readmeSet := parseReadmeSubpackageSet(t)
 	assert.Equal(t, sortedKeys(docSet), sortedKeys(readmeSet),
@@ -81,6 +83,7 @@ func TestDocGo_AnalyzersMatchREADME(t *testing.T) {
 }
 
 func TestDocSurfacesMatchRegistryAndSpecList(t *testing.T) {
+	t.Parallel()
 	registrySet := make(map[string]struct{})
 	for _, analyzer := range linters.All() {
 		registrySet[analyzer.Name] = struct{}{}
@@ -104,6 +107,7 @@ func TestDocSurfacesMatchRegistryAndSpecList(t *testing.T) {
 }
 
 func TestCIEnforcedLintersMatchRegistry(t *testing.T) {
+	t.Parallel()
 	workflowBytes, err := os.ReadFile("../../.github/workflows/cgo.yml")
 	require.NoError(t, err, "cgo.yml must be present")
 

@@ -11,6 +11,7 @@ import (
 )
 
 func TestCalculateWorkflowHealth(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		workflowName  string
@@ -93,6 +94,7 @@ func TestCalculateWorkflowHealth(t *testing.T) {
 }
 
 func TestCalculateTrend(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		runs     []WorkflowRun
@@ -159,6 +161,7 @@ func TestCalculateTrend(t *testing.T) {
 }
 
 func TestGroupRunsByWorkflow(t *testing.T) {
+	t.Parallel()
 	runs := []WorkflowRun{
 		{WorkflowName: "workflow-a", Conclusion: "success"},
 		{WorkflowName: "workflow-b", Conclusion: "success"},
@@ -176,6 +179,7 @@ func TestGroupRunsByWorkflow(t *testing.T) {
 }
 
 func TestCalculateHealthSummary(t *testing.T) {
+	t.Parallel()
 	workflowHealths := []WorkflowHealth{
 		{WorkflowName: "workflow-a", SuccessRate: 90.0, BelowThresh: false},
 		{WorkflowName: "workflow-b", SuccessRate: 75.0, BelowThresh: true},
@@ -192,6 +196,7 @@ func TestCalculateHealthSummary(t *testing.T) {
 }
 
 func TestCalculateHealthSummaryExcludesIntentionalFailure(t *testing.T) {
+	t.Parallel()
 	// Intentional-failure workflows (e.g. credit-guardrail stress tests) must be excluded
 	// from fleet-health rollup counts so they do not depress the real-regression baseline.
 	workflowHealths := []WorkflowHealth{
@@ -216,6 +221,7 @@ func TestCalculateHealthSummaryExcludesIntentionalFailure(t *testing.T) {
 }
 
 func TestTrendDirectionString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		trend    TrendDirection
@@ -247,6 +253,7 @@ func TestTrendDirectionString(t *testing.T) {
 }
 
 func TestFormatTokens(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		tokens   int
@@ -283,6 +290,7 @@ func TestFormatTokens(t *testing.T) {
 }
 
 func TestCalculateWorkflowHealthDriverExitClassification(t *testing.T) {
+	t.Parallel()
 	runs := []WorkflowRun{
 		{Conclusion: "success", Duration: 2 * time.Minute, Turns: 3, TurnsAvailable: true},
 		// driver-exit: failed with zero turns (TurnsAvailable confirms the count is real)
@@ -302,6 +310,7 @@ func TestCalculateWorkflowHealthDriverExitClassification(t *testing.T) {
 }
 
 func TestCalculateWorkflowHealthDriverExitCountZeroWhenNoFailures(t *testing.T) {
+	t.Parallel()
 	runs := []WorkflowRun{
 		{Conclusion: "success", Duration: 2 * time.Minute, Turns: 3},
 		{Conclusion: "success", Duration: 3 * time.Minute, Turns: 4},
@@ -314,6 +323,7 @@ func TestCalculateWorkflowHealthDriverExitCountZeroWhenNoFailures(t *testing.T) 
 }
 
 func TestCalculateWorkflowHealthTurnsUnavailableSkipsClassification(t *testing.T) {
+	t.Parallel()
 	// Simulate the gh aw health path: GitHub API metadata only, no artifact logs,
 	// so TurnsAvailable is false for every run. Classification should be skipped and
 	// both DriverExitCount and AgentLogicFailureCount must stay at zero.
@@ -331,6 +341,7 @@ func TestCalculateWorkflowHealthTurnsUnavailableSkipsClassification(t *testing.T
 }
 
 func TestIsDriverExitFailure(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		run      WorkflowRun

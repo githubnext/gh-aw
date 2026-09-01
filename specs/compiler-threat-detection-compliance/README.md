@@ -82,3 +82,9 @@ The Section 6 norm tests are implemented in `pkg/workflow/compiler_threat_optimi
 ```bash
 go test -run "TestThreatSuppression|TestThreatOptimizer" ./pkg/workflow/
 ```
+
+`TestFormal_ComplianceReadmeNormTestNamesStaySynced` in
+`pkg/workflow/compiler_threat_optimizer_protocol_naming_sync_formal_test.go` enforces that every
+`T-CTR-*` ID in the Section 6.4/6.6 norm tables above has a matching test function name in
+`compiler_threat_optimizer_protocol_test.go`, and vice versa, so the two artifacts cannot silently
+drift apart if a norm test is renamed or a table row changes.

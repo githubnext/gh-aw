@@ -105,8 +105,8 @@ steps:
   - name: Install development dependencies
     run: make deps-dev
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[ca] "
     protected-files: fallback-to-issue

@@ -131,14 +131,14 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	// This job runs in a fresh workspace so we must download the artifact before uploading
 	// to GitHub Code Scanning.
 	sarifDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: agentArtifactPrefix + constants.SarifArtifactName,
-		DownloadPath: constants.SarifArtifactDownloadPath,
+		ArtifactName: agentArtifactPrefix + constants.SarifArtifactName.String(),
+		DownloadPath: constants.SarifArtifactDownloadPath.String(),
 		StepName:     "Download SARIF artifact",
 	}, c.getActionPin)
 	steps = append(steps, sarifDownloadSteps...)
 
 	// The local SARIF file path after the artifact download completes.
-	localSarifPath := path.Join(constants.SarifArtifactDownloadPath, constants.SarifFileName)
+	localSarifPath := path.Join(constants.SarifArtifactDownloadPath.String(), constants.SarifFileName.String())
 
 	// Step: Upload SARIF file to GitHub Code Scanning.
 	steps = append(steps, "      - name: Upload SARIF to GitHub Code Scanning\n")

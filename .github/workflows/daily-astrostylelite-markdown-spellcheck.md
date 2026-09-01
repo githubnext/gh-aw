@@ -233,8 +233,8 @@ jobs:
           retention-days: 3
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 3d
     title-prefix: "[docs] "
     labels: [documentation, spellcheck, automation]

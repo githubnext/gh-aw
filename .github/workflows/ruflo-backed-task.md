@@ -38,8 +38,8 @@ tools:
   bash: true
 
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[ruflo] "
     labels: [automation]

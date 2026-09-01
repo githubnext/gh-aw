@@ -86,14 +86,21 @@ Keywords expanding to curated domain lists:
 | `lean` | Lean theorem prover | `lean-lang.org`, `elan.lean-lang.org`, `reservoir.lean-lang.org` |
 | `python-native` | Python native build deps | Native toolchain mirrors for building Python packages from source |
 | `copilot-vendor` | Copilot plan-specific APIs / telemetry | `api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`, `telemetry.enterprise.githubcopilot.com` |
+| `copilot` | Copilot engine transport | `api.githubcopilot.com`, GitHub API/web, `host.docker.internal`, `raw.githubusercontent.com` |
+| `claude` | Claude engine transport | Anthropic APIs, GitHub transport, certificate/OCSP services, Ubuntu package metadata, Playwright downloads |
+| `codex` | Codex engine transport | `api.openai.com`, `chatgpt.com`, GitHub API/web, `host.docker.internal` |
+| `gemini` | Gemini engine transport | `generativelanguage.googleapis.com`, `*.googleapis.com`, GitHub web, `host.docker.internal` |
+| `pi` | Pi engine transport | `api.githubcopilot.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com` |
+| `pi-base` | Pi provider-independent baseline | `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `threat-detection` | Compatibility alias for Copilot threat detection | Copilot API/telemetry hosts, GitHub API/web, `host.docker.internal`, `registry.npmjs.org` |
 
-## Automatic Engine Domain Sets
+## Engine Domain Sets
 
-Each engine automatically receives the domain set it requires in addition to
-`network.allowed`. These named sets are maintained by the compiler for analysis
-and reporting; they are not valid `network.allowed` identifiers, except for
-the legacy `threat-detection` compatibility alias listed above.
+Engine domain sets are named allow-list bundles for engine CLI authentication
+and direct provider transport. They are **not** added automatically. Add the
+matching identifier to `network.allowed` only when the agent needs direct
+egress to that engine's domains; agent inference normally runs through the AWF
+API proxy.
 
 | Engine set | Included domains |
 |---|---|
@@ -103,7 +110,7 @@ the legacy `threat-detection` compatibility alias listed above.
 | `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
 | `pi-base` | `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; applied as the provider-independent baseline before a provider prefix is resolved |
-| `threat-detection` | Applied automatically only to Copilot threat-detection runs: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. External Claude, Codex, Gemini, and other detection runs use their own engine defaults. |
+| `threat-detection` | Applied automatically only to Copilot threat-detection runs and available as a compatibility alias: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. |
 
 ## Invalid Shorthands
 

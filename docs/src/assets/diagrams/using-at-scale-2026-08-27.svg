@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" role="img" aria-labelledby="wf-sharing-title wf-sharing-desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Mona Sans', Helvetica, Arial, sans-serif">
+  <title id="wf-sharing-title">Two layers of workflow distribution across an organization</title>
+  <desc id="wf-sharing-desc">A central agentic-workflows repository is the source of truth. On the developer-facing layer, gh aw add and gh aw update pull workflows and imports into individual team repositories. On the governance layer, versioning with tags, import-schema parameters, and private visibility control how those workflows are shared.</desc>
+
+  <rect x="0" y="0" width="960" height="400" fill="#ffffff"/>
+
+  <!-- Central source-of-truth repo -->
+  <rect x="380" y="24" width="200" height="56" rx="4" fill="#f6f8fa" stroke="#0969da" stroke-width="1.5"/>
+  <text x="480" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2328">agentic-workflows</text>
+  <text x="480" y="66" text-anchor="middle" font-size="10" fill="#59636e">source of truth repo</text>
+
+  <!-- Arrow down to split -->
+  <line x1="480" y1="80" x2="480" y2="108" stroke="#0969da" stroke-width="1.5"/>
+
+  <!-- Branch lines to two layers -->
+  <line x1="480" y1="108" x2="240" y2="108" stroke="#0969da" stroke-width="1.5"/>
+  <line x1="480" y1="108" x2="720" y2="108" stroke="#0969da" stroke-width="1.5"/>
+  <line x1="240" y1="108" x2="240" y2="132" stroke="#0969da" stroke-width="1.5"/>
+  <line x1="720" y1="108" x2="720" y2="132" stroke="#0969da" stroke-width="1.5"/>
+
+  <!-- Layer 1: Developer-facing mechanics -->
+  <rect x="80" y="132" width="320" height="60" rx="4" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+  <text x="240" y="156" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">Developer-facing mechanics</text>
+  <text x="240" y="174" text-anchor="middle" font-size="10" fill="#59636e">gh aw add · gh aw update · imports:</text>
+
+  <!-- Layer 2: Organizational governance -->
+  <rect x="560" y="132" width="320" height="60" rx="4" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+  <text x="720" y="156" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">Organizational governance</text>
+  <text x="720" y="174" text-anchor="middle" font-size="10" fill="#59636e">version tags · import-schema · private:</text>
+
+  <!-- Arrows down to team repos -->
+  <line x1="240" y1="192" x2="240" y2="216" stroke="#59636e" stroke-width="1"/>
+  <line x1="720" y1="192" x2="720" y2="216" stroke="#59636e" stroke-width="1"/>
+
+  <!-- Team repos row -->
+  <rect x="60" y="220" width="140" height="52" rx="4" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="130" y="250" text-anchor="middle" font-size="11" fill="#1f2328">team-repo-a</text>
+
+  <rect x="220" y="220" width="140" height="52" rx="4" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="290" y="250" text-anchor="middle" font-size="11" fill="#1f2328">team-repo-b</text>
+
+  <rect x="640" y="220" width="140" height="52" rx="4" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="710" y="250" text-anchor="middle" font-size="11" fill="#1f2328">team-repo-c</text>
+
+  <rect x="800" y="220" width="140" height="52" rx="4" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="870" y="250" text-anchor="middle" font-size="11" fill="#1f2328">team-repo-d</text>
+
+  <line x1="200" y1="246" x2="220" y2="246" stroke="#59636e" stroke-width="1"/>
+  <line x1="780" y1="246" x2="800" y2="246" stroke="#59636e" stroke-width="1"/>
+
+  <!-- Legend -->
+  <line x1="80" y1="330" x2="110" y2="330" stroke="#0969da" stroke-width="1.5"/>
+  <text x="118" y="334" font-size="10" fill="#59636e">Distribution flow from source of truth</text>
+</svg>

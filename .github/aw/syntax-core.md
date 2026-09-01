@@ -23,6 +23,8 @@ The YAML frontmatter supports these fields:
   - **`skip-bots:`** - Skip workflow execution when triggered by specific GitHub actors (array)
     - Bot name matching is flexible (handles with/without `[bot]` suffix)
     - Example: `skip-bots: [dependabot, renovate]` - Skip for Dependabot and Renovate
+  - **`skip-author-associations:`** - Skip workflow execution per-event based on the triggering payload's `author_association` (object keyed by event name, e.g. `issue_comment`, `issues`, `pull_request`; each value a string or array of associations like `CONTRIBUTOR`, case-insensitive)
+    - Example: `skip-author-associations: { issue_comment: [first_time_contributor, contributor] }`
   - **`labels:`** - Filter label-triggered events to only fire when the triggering label matches one of these names (string or array)
     - String format: `labels: "my-label"` (single label name)
     - Array format: `labels: [label-a, label-b]` (any matching label fires the workflow)
@@ -97,6 +99,8 @@ The YAML frontmatter supports these fields:
   - **`stale-check:`** - Control whether the activation job verifies hashes against the compiled workflow (boolean or `"full"`, default: `true`)
     - When `false`, disables the hash check step; useful when workflow files are managed outside the default repository context (e.g., cross-repo org rulesets)
     - When `"full"`, checks both the frontmatter hash and body hash; use when prompt-body edits should also trigger recompilation detection
+
+- **`github-app:`** - Top-level GitHub App credentials, used as a fallback for every nested `github-app` token-minting operation (`on.github-app`, `safe-outputs.github-app`, `checkout.github-app`, `tools.github.github-app`, `dependencies.github-app`) that does not define its own. Same fields as `on.github-app` above (`client-id`/`app-id`, `private-key`, `owner`, `repositories`).
 
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `none` (and limited `write` for specific scopes)

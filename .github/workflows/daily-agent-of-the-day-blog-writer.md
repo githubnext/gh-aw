@@ -47,8 +47,8 @@ tools:
     wiki: true
     description: "Tracks persona/style rotation and recently featured workflows to keep daily entries varied"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 7d
     title-prefix: "[blog] "
     labels: [blog]

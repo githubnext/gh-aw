@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test workflow that validates Pi engine functionality
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-pi
     strategy: centralized
@@ -18,9 +19,10 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Pi
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 strict: true
 sandbox:
   agent:

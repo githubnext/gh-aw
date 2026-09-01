@@ -57,6 +57,10 @@ describe("add_labels", () => {
       rest: {
         issues: {
           addLabels: async () => ({}),
+          createLabel: async ({ name }) => {
+            mockGithub._repoLabels = [...(mockGithub._repoLabels || ["bug", "enhancement", "documentation", "security:low", "security:medium", "security:high"]), name];
+            return { data: { name } };
+          },
           get: async () => ({
             data: {
               node_id: "ISSUE_NODE_ID",
@@ -1648,6 +1652,130 @@ describe("add_labels", () => {
 
       expect(result.success).toBe(true);
       expect(addLabelsCalls.length).toBe(1);
+    });
+
+    describe("create-if-missing", () => {
+      it("should fail with a clear error mentioning create-if-missing when a label does not exist", async () => {
+        const handler = await main({ max: 10, issue_intent: true });
+
+        const result = await handler(
+          {
+            item_number: 456,
+            labels: [{ name: "new-label", rationale: "Needs triage", confidence: "HIGH" }],
+          },
+          {}
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Label "new-label" not found');
+        expect(result.error).toContain("create-if-missing");
+      });
+
+      it("should not create labels when create_if_missing is false (default)", async () => {
+        const handler = await main({ max: 10, issue_intent: true });
+        const createLabelCalls = [];
+        mockGithub.rest.issues.createLabel = async params => {
+          createLabelCalls.push(params);
+          return { data: { name: params.name } };
+        };
+
+        const result = await handler(
+          {
+            item_number: 456,
+            labels: [{ name: "new-label", rationale: "Needs triage", confidence: "HIGH" }],
+          },
+          {}
+        );
+
+        expect(result.success).toBe(false);
+        expect(createLabelCalls.length).toBe(0);
+      });
+
+      it("should create a missing label and apply it when create_if_missing is true (issue-intent path)", async () => {
+        const handler = await main({ max: 10, issue_intent: true, create_if_missing: true });
+        const createLabelCalls = [];
+        mockGithub.rest.issues.createLabel = async params => {
+          createLabelCalls.push(params);
+          mockGithub._repoLabels = [...(mockGithub._repoLabels || ["bug", "enhancement", "documentation", "security:low", "security:medium", "security:high"]), params.name];
+          return { data: { name: params.name } };
+        };
+
+        const graphqlMutationCalls = [];
+        const originalGraphql = mockGithub.graphql;
+        mockGithub.graphql = async (query, variables) => {
+          if (typeof query === "string" && query.includes("updateIssue")) {
+            graphqlMutationCalls.push(variables);
+          }
+          return originalGraphql(query, variables);
+        };
+
+        const result = await handler(
+          {
+            item_number: 456,
+            labels: [{ name: "new-label", rationale: "Needs triage", confidence: "HIGH" }],
+          },
+          {}
+        );
+
+        expect(result.success).toBe(true);
+        expect(createLabelCalls.length).toBe(1);
+        expect(createLabelCalls[0].name).toBe("new-label");
+        expect(graphqlMutationCalls).toHaveLength(1);
+        expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_new-label", rationale: "Needs triage", confidence: "HIGH" }]);
+      });
+
+      it("should create a missing label and apply it when create_if_missing is true (plain REST path)", async () => {
+        const handler = await main({ max: 10, create_if_missing: true });
+        const createLabelCalls = [];
+        mockGithub.rest.issues.createLabel = async params => {
+          createLabelCalls.push(params);
+          mockGithub._repoLabels = [...(mockGithub._repoLabels || ["bug", "enhancement", "documentation", "security:low", "security:medium", "security:high"]), params.name];
+          return { data: { name: params.name } };
+        };
+        const addLabelsCalls = [];
+        mockGithub.rest.issues.addLabels = async params => {
+          addLabelsCalls.push(params);
+          return { data: params.labels };
+        };
+
+        const result = await handler(
+          {
+            item_number: 456,
+            labels: ["good first issue", "needs investigation"],
+          },
+          {}
+        );
+
+        expect(result.success).toBe(true);
+        expect(createLabelCalls.map(c => c.name).sort()).toEqual(["good first issue", "needs investigation"]);
+        expect(addLabelsCalls.length).toBe(1);
+        expect(addLabelsCalls[0].labels).toEqual(["good first issue", "needs investigation"]);
+      });
+
+      it("should treat a 422 from createLabel as already-existing and continue", async () => {
+        const handler = await main({ max: 10, create_if_missing: true });
+        mockGithub.rest.issues.createLabel = async () => {
+          const err = new Error("Label already exists");
+          /** @type {any} */ err.status = 422;
+          throw err;
+        };
+        const addLabelsCalls = [];
+        mockGithub.rest.issues.addLabels = async params => {
+          addLabelsCalls.push(params);
+          return { data: params.labels };
+        };
+
+        const result = await handler(
+          {
+            item_number: 456,
+            labels: ["brand-new-label"],
+          },
+          {}
+        );
+
+        expect(result.success).toBe(true);
+        expect(addLabelsCalls.length).toBe(1);
+      });
     });
   });
 });

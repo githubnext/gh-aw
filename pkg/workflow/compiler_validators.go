@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/goccy/go-yaml"
 )
 
 // validateExpressions checks expression safety and runtime-import file references
@@ -40,13 +41,11 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Validate expressions in runtime-import files at compile time
-	if strings.Contains(workflowData.MarkdownContent, "{{#runtime-import") {
+	runtimeImportValidationSeed := runtimeImportValidationMarkdown(workflowData)
+	if strings.Contains(runtimeImportValidationSeed, "{{#runtime-import") || strings.Contains(runtimeImportValidationSeed, "{{#import") {
 		workflowLog.Printf("Validating runtime-import files")
-		// Go up from .github/workflows/file.md to repo root
-		workflowDir := filepath.Dir(markdownPath) // .github/workflows
-		githubDir := filepath.Dir(workflowDir)    // .github
-		workspaceDir := filepath.Dir(githubDir)   // repo root
-		subAgentWarnings, err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir)
+		workspaceDir := resolveWorkspaceRoot(markdownPath)
+		subAgentWarnings, err := validateRuntimeImportFiles(runtimeImportValidationSeed, workspaceDir)
 		// Emit best-effort sub-agent frontmatter warnings through the normal warning path
 		// so they are counted and consistently formatted with all other warnings.
 		for _, w := range subAgentWarnings {
@@ -71,6 +70,33 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	}
 
 	return nil
+}
+
+func runtimeImportValidationMarkdown(workflowData *WorkflowData) string {
+	if workflowData == nil {
+		return ""
+	}
+
+	var seed strings.Builder
+	seed.WriteString(workflowData.MarkdownContent)
+	if workflowData.MainWorkflowMarkdown != "" {
+		seed.WriteByte('\n')
+		seed.WriteString(workflowData.MainWorkflowMarkdown)
+	}
+	for _, importPath := range workflowData.ImportPaths {
+		seed.WriteString("\n{{#runtime-import ")
+		seed.WriteString(filepath.ToSlash(importPath))
+		seed.WriteString("}}")
+	}
+	for _, entry := range workflowData.PromptImports {
+		if entry.ImportPath == "" {
+			continue
+		}
+		seed.WriteString("\n{{#runtime-import ")
+		seed.WriteString(filepath.ToSlash(entry.ImportPath))
+		seed.WriteString("}}")
+	}
+	return seed.String()
 }
 
 // tmpNeedle is the literal prefix to scan for in prompt content.
@@ -195,6 +221,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating safe-outputs allowed-domains", validateFn: func() error { return c.validateSafeOutputsAllowedDomains(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs merge-pull-request", validateFn: func() error { return validateSafeOutputsMergePullRequest(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs add-labels permissions", validateFn: func() error { return validateAddLabelsPermissions(workflowData.SafeOutputs) }},
+		{logMessage: "Validating safe-outputs remove-labels permissions", validateFn: func() error { return validateRemoveLabelsPermissions(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs needs declarations", validateFn: func() error { return validateSafeOutputsNeeds(workflowData) }},
 		{logMessage: "Validating on.needs declarations", validateFn: func() error { return c.validateOnNeeds(workflowData) }},
 		{logMessage: "Validating safe-job needs declarations", validateFn: func() error { return validateSafeJobNeeds(workflowData) }},
@@ -212,7 +239,6 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating GCP WIF engine auth required fields", validateFn: func() error { return validateGCPWIFEngineAuth(workflowData) }},
 		{logMessage: "Validating OTLP workload identity configuration", validateFn: func() error { return validateOTLPWorkloadIdentity(workflowData) }},
 		{logMessage: "Validating default AI credits pricing values", validateFn: func() error { return validateDefaultAiCreditsPricing(workflowData) }},
-		{logMessage: "Validating tools.github.bounded-queries configuration", validateFn: func() error { return validateBoundedQueriesConfig(workflowData) }},
 		{logMessage: "Validating enclaves configuration", validateFn: func() error { return validateEnclavesConfig(workflowData) }},
 		{logMessage: "Validating drive-memory runtime", validateFn: func() error { return validateDriveMemoryRuntime(workflowData) }},
 	}
@@ -319,6 +345,12 @@ func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdo
 }
 
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {
+	if workflowData.SafeOutputs != nil && hasWorkflowDispatchInputs(workflowData.On) && workflowData.ConcurrencyJobDiscriminator == "" {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"workflow_dispatch workflow has no concurrency.job-discriminator; the generated conclusion concurrency group is shared by all dispatches of this workflow. "+
+				"Set a discriminator (for example, `${{ github.run_id }}`) to give each dispatch its own slot."))
+		c.IncrementWarningCount()
+	}
 	if workflowData.Concurrency != "" && strings.Contains(workflowData.Concurrency, "cancel-in-progress: true") && hasBotSelfCancelRisk(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"Custom workflow-level concurrency with cancel-in-progress: true may cause self-cancellation.\n"+
@@ -335,13 +367,6 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"The AI agent will have direct network access without firewall filtering. "+
 				"The MCP gateway remains enabled. Only use this for testing or in controlled "+
 				"environments where you trust the AI agent completely."))
-		c.IncrementWarningCount()
-	}
-	if usesSbxBoundedQueryRuntime(workflowData) {
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"tools.github.bounded-queries.runtime: sbx is experimental and capability-gated. "+
-				"AWF runs every query in a separate sbx VM and performs a fail-closed host capability preflight. "+
-				"Unsupported hosts are rejected; gh-aw and AWF do not fall back to docker or gvisor."))
 		c.IncrementWarningCount()
 	}
 	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
@@ -370,12 +395,21 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	}
 }
 
-func usesSbxBoundedQueryRuntime(workflowData *WorkflowData) bool {
-	return workflowData != nil &&
-		workflowData.ParsedTools != nil &&
-		workflowData.ParsedTools.GitHub != nil &&
-		workflowData.ParsedTools.GitHub.BoundedQueries != nil &&
-		workflowData.ParsedTools.GitHub.BoundedQueries.Runtime == BoundedQueryRuntimeSbx
+func hasWorkflowDispatchInputs(onYAML string) bool {
+	var parsedData map[string]any
+	if err := yaml.Unmarshal([]byte(onYAML), &parsedData); err != nil {
+		return false
+	}
+	onMap, ok := parsedData["on"].(map[string]any)
+	if !ok {
+		return false
+	}
+	workflowDispatch, ok := onMap["workflow_dispatch"].(map[string]any)
+	if !ok {
+		return false
+	}
+	inputs, ok := workflowDispatch["inputs"].(map[string]any)
+	return ok && len(inputs) > 0
 }
 
 func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
@@ -403,7 +437,7 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 		{enabled: len(workflowData.Plugins) > 0, message: "Using experimental feature: plugins"},
 		{enabled: workflowData.DriveMemoryConfig != nil && len(workflowData.DriveMemoryConfig.Drives) > 0, message: "Using experimental feature: drive-memory"},
 		{enabled: hasContinualExperiment(workflowData.ExperimentConfigs), message: "Using experimental feature: continual experiments"},
-		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.Steer, message: "Using experimental feature: create-pull-request steer"},
+		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.Steer, message: "Using experimental feature: safe-outputs steer"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {

@@ -74,13 +74,13 @@ func TestArtifactNamingBackwardCompatibility(t *testing.T) {
 		// Detection artifact - renamed from threat-detection.log to detection
 		{
 			name:               "old threat-detection.log artifact (legacy)",
-			artifactDirName:    constants.LegacyDetectionArtifactName,
+			artifactDirName:    constants.LegacyDetectionArtifactName.String(),
 			fileNameInArtifact: "detection.log",
 			expectedFileName:   "detection.log",
 		},
 		{
 			name:               "new detection artifact",
-			artifactDirName:    constants.DetectionArtifactName,
+			artifactDirName:    constants.DetectionArtifactName.String(),
 			fileNameInArtifact: "detection.log",
 			expectedFileName:   "detection.log",
 		},

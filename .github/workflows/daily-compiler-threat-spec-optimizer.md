@@ -16,8 +16,8 @@ imports:
     title-prefix: "[compiler-threat-spec] "
 - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     draft: false
     expires: 7d
     labels:

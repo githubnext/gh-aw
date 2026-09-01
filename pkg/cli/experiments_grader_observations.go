@@ -172,8 +172,8 @@ func (s *githubGraderRunArtifactSource) downloadGraderArtifact(ctx context.Conte
 	graderArtifacts := make([]string, 0, 2)
 	for _, name := range names {
 		if artifactMatchesFilter(name, []string{
-			constants.AgentArtifactName,
-			constants.AgentOutputFallbackArtifactName,
+			constants.AgentArtifactName.String(),
+			constants.AgentOutputFallbackArtifactName.String(),
 		}) {
 			graderArtifacts = append(graderArtifacts, name)
 		}
@@ -202,9 +202,9 @@ func (s *githubGraderRunArtifactSource) downloadGraderArtifact(ctx context.Conte
 }
 
 func readGraderResultsArtifact(runDir string) graderRunData {
-	resultsPath := filepath.Join(runDir, "agent", "graders", constants.GraderResultsFilename)
-	if _, err := os.Stat(resultsPath); err != nil {
-		resultsPath = filepath.Join(runDir, "graders", constants.GraderResultsFilename)
+	resultsPath := findGraderFile(runDir, constants.GraderResultsFilename.String())
+	if resultsPath == "" {
+		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
 	info, err := os.Stat(resultsPath)
 	if err != nil {

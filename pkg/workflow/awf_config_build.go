@@ -275,6 +275,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("Models policy: %d disallowed model pattern(s)", len(disallowedModels))
 	}
 
+	if caCert := extractAPIProxyCACert(config.WorkflowData); caCert != "" {
+		if awfSupportsAPIProxyCACert(firewallConfig) {
+			apiProxy.CACert = caCert
+			awfConfigLog.Printf("API proxy: caCert configured")
+		} else {
+			awfConfigLog.Printf("Skipping apiProxy.caCert: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAPIProxyCACertMinVersion)
+		}
+	}
+
 	awfConfig.APIProxy = apiProxy
 
 	// ── Container section ─────────────────────────────────────────────────────
@@ -341,16 +350,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfig.Logging.AuditDir = awfArcDindAuditDirExpr
 	}
 	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
-
-	// ── Bounded queries section ──────────────────────────────────────────────
-	if bq := extractBoundedQueriesConfig(config.WorkflowData); bq != nil {
-		if awfSupportsBoundedQueries(firewallConfig) {
-			awfConfig.BoundedQueries = bq
-			awfConfigLog.Printf("Bounded queries section: %d private repo(s)", len(bq.PrivateRepos))
-		} else {
-			awfConfigLog.Printf("Skipping boundedQueries: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFBoundedQueriesMinVersion)
-		}
-	}
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
@@ -425,6 +424,16 @@ func extractPlatformType(workflowData *WorkflowData) string {
 	return workflowData.SandboxConfig.Agent.Platform
 }
 
+// extractAPIProxyCACert returns sandbox.agent.ca-cert, the host path to an
+// additional CA certificate for api-proxy upstream TLS verification, or an
+// empty string when unset.
+func extractAPIProxyCACert(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
+		return ""
+	}
+	return workflowData.SandboxConfig.Agent.CACert
+}
+
 // extractModelFallback returns an AWFModelFallbackConfig if the workflow has configured
 // sandbox.agent.model-fallback, or nil if the field is absent (letting AWF use its default).
 func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
@@ -495,43 +504,6 @@ func extractModelCostProviders(workflowData *WorkflowData) map[string]any {
 	clone := make(map[string]any, len(providers))
 	maps.Copy(clone, providers)
 	return clone
-}
-
-// extractBoundedQueriesConfig returns an AWFBoundedQueriesConfig populated from
-// tools.github.bounded-queries, or nil when the field is absent.
-// Only fields explicitly set in frontmatter are included; optional fields that
-// were not specified are omitted so that AWF remains the source of truth for defaults.
-func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesConfig {
-	if workflowData == nil {
-		return nil
-	}
-	if workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
-		return nil
-	}
-	bq := workflowData.ParsedTools.GitHub.BoundedQueries
-	if bq == nil {
-		return nil
-	}
-
-	awfBQ := &AWFBoundedQueriesConfig{
-		Enabled:     true,
-		Runtime:     bq.Runtime,
-		MemoryLimit: bq.MemoryLimit,
-		Interpreter: bq.Interpreter,
-	}
-	awfBQ.Timeout = bq.Timeout
-	if bq.MaxInvocations != nil {
-		awfBQ.MaxInvocations = *bq.MaxInvocations
-	}
-
-	for _, r := range bq.PrivateRepos {
-		awfBQ.PrivateRepos = append(awfBQ.PrivateRepos, &AWFBoundedQueryPrivateRepo{
-			Repo:        r.Repo,
-			Sensitivity: r.Sensitivity,
-		})
-	}
-
-	return awfBQ
 }
 
 // getRunnerTopology extracts the runner topology from WorkflowData.

@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: "Guard policy smoke test: repos=[github/gh-aw, github/*], min-integrity=approved (scoped patterns)"
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-agent-scoped-approved
     strategy: centralized

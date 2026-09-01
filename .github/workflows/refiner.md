@@ -21,8 +21,8 @@ tools:
     mode: gh-proxy
     toolsets: [pull_requests, repos, issues]
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[refiner] "
     labels: [automation, refine-improvements]
     reviewers: [copilot]

@@ -19,6 +19,11 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 strict: true
+network:
+  allowed:
+    - defaults
+    - go
+    - node
 tracker-id: daily-secrets-analysis
 tools:
   cli-proxy: true
@@ -156,19 +161,16 @@ echo "Permission blocks: $PERMISSION_BLOCKS"
 Look for potential security concerns:
 
 ```bash
-# Find direct expression interpolation (potential template injection)
+# Check direct event-data interpolation (template injection risk)
 echo "=== Checking for template injection risks ==="
-# Search for github.event patterns that might indicate unsafe expression usage
-# Avoiding literal expression syntax to prevent actionlint parsing issues
-PATTERN='github.event.'
-DIRECT_INTERP=$(grep -rn "$PATTERN" .github/workflows/*.lock.yml | \
-  grep -c -v "env:")
-if [ "$DIRECT_INTERP" -gt 0 ]; then
-  echo "⚠️  Found $DIRECT_INTERP potential template injection risks"
-  echo "Files with direct interpolation:"
-  grep -rl "$PATTERN" .github/workflows/*.lock.yml | head -5
+# This Go test parses each workflow and inspects only executable run: blocks,
+# so github.event references in env: assignments do not cause false positives.
+if ! command -v go >/dev/null 2>&1; then
+  echo "ℹ️  Go toolchain unavailable here; this check is enforced in CI"
+elif go test ./pkg/workflow/ -run TestCompiledLockFiles_NoGitHubEventExpressionsInRunScripts; then
+  echo "✅ No direct github.event interpolation in run: scripts"
 else
-  echo "✅ No template injection risks found"
+  echo "⚠️  Template injection risk detected (see test output above)"
 fi
 
 # Check for secrets in outputs (security risk)

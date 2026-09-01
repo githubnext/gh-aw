@@ -11,8 +11,10 @@ permissions:
   issues: read
 
 
-engine: codex
-model: copilot/mai-code-1-flash-picker
+engine:
+  id: pi
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 network:
   allowed:

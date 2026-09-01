@@ -477,8 +477,8 @@ func prereleaseChannelNotice(currentVersion, latestStable string, includePrerele
 		return nil
 	}
 	return []string{
-		fmt.Sprintf("Current gh-aw version %s is newer than the latest stable release %s.", renderReleaseVersion(currentVersion), renderReleaseVersion(latestStable)),
-		"Run `gh aw upgrade --pre-releases` to check for newer pre-releases.",
+		fmt.Sprintf("Current gh-aw version %s is newer than the latest stable release %s; upgrading without --pre-releases would downgrade to that release.", renderReleaseVersion(currentVersion), renderReleaseVersion(latestStable)),
+		"Run `gh aw upgrade --pre-releases` to get the latest pre-release.",
 	}
 }
 

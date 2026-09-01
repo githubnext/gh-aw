@@ -234,7 +234,7 @@ func TestBuildAuditData(t *testing.T) {
 		MCPFailures:  mcpFailures,
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(run.LogsPath, safeOutputItemsManifestFilename), []byte("{\"type\":\"create_issue\",\"repo\":\"github/gh-aw\",\"number\":17,\"temporaryId\":\"aw_alpha\",\"timestamp\":\"2024-01-01T10:00:00Z\"}\n{\"type\":\"add_comment\",\"repo\":\"github/gh-aw\",\"number\":17,\"timestamp\":\"2024-01-01T10:01:00Z\"}\n"), 0o600), "should write safe output manifest")
-	require.NoError(t, os.WriteFile(filepath.Join(run.LogsPath, constants.TemporaryIdMapFilename), []byte("{\"aw_alpha\":{\"repo\":\"github/gh-aw\",\"number\":17}}"), 0o600), "should write temporary ID map")
+	require.NoError(t, os.WriteFile(filepath.Join(run.LogsPath, constants.TemporaryIdMapFilename.String()), []byte("{\"aw_alpha\":{\"repo\":\"github/gh-aw\",\"number\":17}}"), 0o600), "should write temporary ID map")
 
 	// Build audit data
 	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)

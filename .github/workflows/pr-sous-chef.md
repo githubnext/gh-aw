@@ -26,13 +26,15 @@ checkout:
   fetch-depth: 0
 network:
   allowed: ["defaults", "go"]
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 strict: true
 imports:
   - shared/mcp-pagination.md
   - shared/otlp.md
+  - shared/graders.md
 tools:
   cli-proxy: true
   github:
@@ -78,7 +80,7 @@ steps:
         set +e
         gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
           --state open \
-          --search "is:pr is:open -is:draft sort:updated-desc" \
+          --search "is:pr is:open -is:draft -label:broccoli sort:updated-desc" \
           --limit "$pr_limit" \
           --json number,title,url,headRefOid,headRefName,createdAt,updatedAt,changedFiles,author,mergeStateStatus,statusCheckRollup \
           > "$candidate_file" 2>&1
@@ -335,6 +337,8 @@ safe-outputs:
     commit-title-suffix: " [pr-sous-chef]"
     excluded-files:
       - ".github/workflows/**"
+      - "README.md"
+      - "docs/src/content/docs/index.mdx"
     max: 10
   create-issue:
     title-prefix: "[pr-sous-chef] "
@@ -357,6 +361,26 @@ evals:
     question: Does the agent output show a specific reason why the selected PR needs a nudge toward maintainer investigation?
   - id: pr-evaluated
     question: Does the agent output confirm that it evaluated at least one open PR for nudge eligibility?
+graders:
+  execution-duration: {}
+experiments:
+  remove_redundant_context_v1:
+    variants: [control, candidate]
+    description: "Test removing the 'Required skip rules per PR' backup table from the main-agent prompt: the same three conditions are already deterministically enforced by the fetch-prs prefilter step and re-verified by the pr-processor sub-agent, so the table is redundant context on every run."
+    hypothesis: "H0: No meaningful difference in execution-duration between control and candidate. H1: Removing the redundant backup skip-rules table decreases execution-duration without lowering the comment-added/pr-evaluated eval pass rate."
+    metric: "grader:execution-duration"
+    guardrail_metrics:
+      - name: "eval:comment-added"
+        threshold: ">=0.90"
+      - name: "eval:pr-evaluated"
+        threshold: ">=0.90"
+    min_samples: 20
+    analysis_type: mann_whitney
+    decision:
+      minimum_effect: 15000
+      regression_tolerance: 15000
+      confidence: 0.95
+    tags: ["harness_dimension:context assembly", "harness_subtype:remove_redundant_context"]
 ---
 
 # PR Sous Chef 🍳
@@ -366,6 +390,8 @@ You are **pr-sous-chef**, a lightweight PR progress assistant.
 ## Mission
 
 Move open non-draft PRs toward a state where a maintainer can investigate quickly.
+
+Do not modify the top-level `README.md` or `docs/src/content/docs/index.mdx`. These files contain primary project messaging that must only be changed by maintainers. If a formatter or branch-maintenance step would alter either file, leave that change out of the pushed update.
 
 ## Slash-command acknowledgement requirement (mandatory)
 
@@ -394,6 +420,7 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 8. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary issue payload and move to the next PR without retrying.
 9. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
 
+{{#if experiments.remove_redundant_context_v1 == 'control' }}
 ## Required skip rules per PR
 
 Skip when **any** of these hold (candidate prefilter eliminates most; these are backup checks):
@@ -403,6 +430,7 @@ Skip when **any** of these hold (candidate prefilter eliminates most; these are 
 | 1 | Any check `queued/in_progress/pending` started < 1h | Use `--head-sha <headRefOid>` with `gh aw checks`. Long-running checks (>1h) are ignored. | — |
 | 2 | Latest comment has marker `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot` | Marker-only comments (no `@copilot`) are informational and do not count. | Do **not** skip when `mergeStateStatus == CONFLICTING`. |
 | 3 | Any recent comment has marker **and** `@copilot` posted < 30min ago | Informational comments (no `@copilot`) do not trigger cooldown. | — |
+{{#endif}}
 
 ## Required nudges for prioritized eligible PRs
 

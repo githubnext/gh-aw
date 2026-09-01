@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/santhosh-tekuri/jsonschema/v6/kind"
 )
 
@@ -179,7 +180,31 @@ func TestLocateJSONPathForPathInfoSkipsRegexForNonAdditionalPropertiesErrorKind(
 	}
 }
 
-func TestLocateJSONPathForPathInfoUsesRegexFallbackForGroupErrorKind(t *testing.T) {
+func TestLocateJSONPathForPathInfoUsesGroupCausesForAdditionalProperties(t *testing.T) {
+	yamlContent := `on:
+  push:
+    branches: [main]
+  foobar: invalid`
+
+	info := JSONPathInfo{
+		Path:      "/on",
+		Message:   "this message is intentionally not parseable",
+		ErrorKind: &kind.Group{},
+		Causes: []*jsonschema.ValidationError{
+			{ErrorKind: &kind.AdditionalProperties{Properties: []string{"foobar"}}},
+		},
+	}
+
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found {
+		t.Fatal("expected location to be found")
+	}
+	if location.Line != 4 || location.Column != 3 {
+		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
+	}
+}
+
+func TestLocateJSONPathForPathInfoDoesNotRegexCompositeErrorKind(t *testing.T) {
 	yamlContent := `on:
   push:
     branches: [main]
@@ -192,15 +217,13 @@ func TestLocateJSONPathForPathInfoUsesRegexFallbackForGroupErrorKind(t *testing.
 	}
 
 	location := LocateJSONPathForPathInfo(yamlContent, info)
-	if !location.Found {
-		t.Fatal("expected location to be found")
-	}
-	if location.Line != 4 || location.Column != 3 {
-		t.Fatalf("expected additional property location at line 4, col 3; got line %d, col %d", location.Line, location.Column)
+	expected := LocateJSONPathInYAML(yamlContent, "/on")
+	if location != expected {
+		t.Fatalf("expected fallback to LocateJSONPathInYAML location %+v, got %+v", expected, location)
 	}
 }
 
-func TestLocateJSONPathForPathInfoUsesRegexFallbackForOneOfErrorKind(t *testing.T) {
+func TestLocateJSONPathForPathInfoUsesNestedAdditionalPropertiesErrorKind(t *testing.T) {
 	yamlContent := `on:
   push:
     branches: [main]
@@ -208,8 +231,17 @@ func TestLocateJSONPathForPathInfoUsesRegexFallbackForOneOfErrorKind(t *testing.
 
 	info := JSONPathInfo{
 		Path:      "/on",
-		Message:   "at '/on': 'oneOf' failed, none matched\n- at '/on': additional properties 'foobar' not allowed\n- at '/on': got object, want null",
+		Message:   "this message is intentionally not parseable",
 		ErrorKind: &kind.OneOf{},
+		Causes: []*jsonschema.ValidationError{
+			{
+				ErrorKind: &kind.Group{},
+				Causes: []*jsonschema.ValidationError{
+					{ErrorKind: &kind.AdditionalProperties{Properties: []string{"foobar"}}},
+				},
+			},
+			{ErrorKind: &kind.Type{}},
+		},
 	}
 
 	location := LocateJSONPathForPathInfo(yamlContent, info)

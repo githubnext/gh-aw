@@ -77,6 +77,42 @@ Outcome evaluation is based on visible repository state and visible actor identi
 | `noop` | skipped | skipped |
 | `missing_tool` | skipped | skipped |
 
+## Evaluating Outcomes in Practice
+
+Outcome evaluation does not require an `outcomes:` field in workflow
+frontmatter. Configure the actions the workflow may take under
+[`safe-outputs:`](/gh-aw/reference/safe-outputs/), then evaluate those actions
+after a run:
+
+```bash wrap
+gh aw outcomes 1234567890
+```
+
+The command downloads the run's safe-output artifacts, queries the current
+state of each affected GitHub object, and prints the item-level classifications
+and summary. Use a run ID from the repository's GitHub Actions page. Specify
+`--repo owner/repo` when running outside the target repository.
+
+Evaluation is a snapshot, not a permanent verdict. Run it after the workflow
+has produced safe outputs, allow an observation period appropriate to the
+output type, and evaluate it again while results remain `pending`. A pull
+request may remain pending until review and become accepted when merged; a
+comment may need time to receive a reply or reaction.
+
+Use JSON output to feed a report or inspect the summary:
+
+```bash wrap
+gh aw outcomes 1234567890 --json |
+  jq '.summary | {total, accepted, rejected, ignored, pending, acceptance_rate}'
+```
+
+Repeat this for comparable runs over a stable time window rather than drawing
+conclusions from one run. Compare workflows that produce the same kind of safe
+output, and examine item-level `object_url`, `outcome_status`, and
+`evidence_strength` fields when a summary changes unexpectedly. See
+[Measuring Impact](/gh-aw/practices/measuring-impact/) for combining these
+results with run volume and AIC.
+
 ## Telemetry
 
 Outcome data is derived from safe outputs and later checked against repository state. The system records the safe output produced by the workflow, looks up the affected repository object later, and classifies the observed state into an outcome.
@@ -85,7 +121,17 @@ This makes outcome evaluation external and observable. The workflow does not dec
 
 Outcome information appears in OpenTelemetry spans and related artifacts. Workflow-level rollups such as accepted counts and acceptance rate are emitted on outcome summary or conclusion spans, and per-item spans can carry more detailed fields such as object type, URL, comments, review activity, and zero-touch acceptance.
 
-For the span-level attribute inventory, see [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/).
+For the span-level attribute inventory, see [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry-attributes/).
+
+To write per-item outcome JSONL for an OTLP reporting pipeline, use:
+
+```bash wrap
+gh aw outcomes 1234567890 --outcomes-dir ./outcomes
+```
+
+For repository-wide or organization-wide reporting, collect these records on a
+schedule and aggregate the outcome attributes by workflow, repository, output
+type, and observation window.
 
 ## Cost and Rollups
 
@@ -101,9 +147,9 @@ The outcomes model is deliberately narrow. It does not try to estimate the full 
 
 Those questions may matter later, but they are separate from the base outcomes model described here.
 
-## Related Documentation
+## Learn More
 
 - [Cost Management](/gh-aw/reference/cost-management/) explains how workflow cost is measured and reduced.
-- [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/) describes the span attributes and artifacts that carry workflow telemetry.
+- [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry-attributes/) describes the span attributes and artifacts that carry workflow telemetry.
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) explains how workflows produce constrained actions.
 - [Safe Output Outcome Evaluation Specification](https://github.com/github/gh-aw/blob/main/specs/safe-output-outcome-evaluation.md) defines the detailed evaluation logic for each safe output type.

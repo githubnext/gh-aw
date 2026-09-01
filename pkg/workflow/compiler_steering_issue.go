@@ -5,32 +5,25 @@ import "fmt"
 const steeringIssueAppTokenStepID = "steering-issue-app-token"
 
 func isSteeringIssueEnabled(data *WorkflowData) bool {
-	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !data.SafeOutputs.CreatePullRequests.Steer {
+	if data == nil || data.SafeOutputs == nil || !data.SafeOutputs.Steer {
 		return false
 	}
 	return !isSteeringIssueStaged(data)
 }
 
 func isSteeringIssueStaged(data *WorkflowData) bool {
-	return isHandlerStaged(templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.CreatePullRequests.Staged)
+	return templatableBoolIsTrue(data.SafeOutputs.Staged)
 }
 
 func steeringIssueApp(data *WorkflowData) *GitHubAppConfig {
 	if !isSteeringIssueEnabled(data) {
 		return nil
 	}
-	if app := data.SafeOutputs.CreatePullRequests.GitHubApp; app != nil {
-		return app
-	}
 	return data.SafeOutputs.GitHubApp
 }
 
 func steeringIssueFallbackToken(data *WorkflowData) string {
-	token := data.SafeOutputs.CreatePullRequests.GitHubToken
-	if token == "" {
-		token = data.SafeOutputs.GitHubToken
-	}
-	return getEffectiveSafeOutputGitHubToken(token)
+	return getEffectiveSafeOutputGitHubToken(data.SafeOutputs.GitHubToken)
 }
 
 func (c *Compiler) buildSteeringIssueTokenSteps(data *WorkflowData, app *GitHubAppConfig, permissions *Permissions, stepName string, stepID string) ([]string, string) {
@@ -88,10 +81,6 @@ func (c *Compiler) buildConclusionSteeringIssueTokenSteps(data *WorkflowData) ([
 	app := steeringIssueApp(data)
 	stepID := "safe-outputs-app-token"
 	stepName := ""
-	if data.SafeOutputs.CreatePullRequests.GitHubApp != nil {
-		stepID = steeringIssueAppTokenStepID
-		stepName = "Generate GitHub App token (manage steering issue)"
-	}
 	return c.buildSteeringIssueTokenSteps(data, app, NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite}), stepName, stepID)
 }
 

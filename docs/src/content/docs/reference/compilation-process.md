@@ -11,7 +11,7 @@ This guide documents the internal compilation process that transforms markdown w
 
 The `gh aw compile` command transforms a markdown workflow file into a complete GitHub Actions `.lock.yml` by embedding frontmatter and setting up runtime loading of the markdown body. The process runs five compilation phases (parsing, validation, job construction, dependency resolution, and YAML generation) described below.
 
-When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for details.
+When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for details.
 
 ## Compilation Phases
 
@@ -241,7 +241,7 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw validate --strict` | Validate with strict mode enforced |
 
 > [!TIP]
-> Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for details.
+> Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for details.
 
 > [!NOTE]
 > The `--actions-repo` flag overrides the default `github/gh-aw-actions` repository used when `--action-mode action` is set. Use it together with `--action-tag` to compile against a branch or fork during development.
@@ -260,9 +260,9 @@ Simple workflows compile in ~100ms; workflows with imports in ~500ms; workflows 
 - **Schema extension**: add frontmatter fields by updating the workflow schema, rebuilding (`make build`), and wiring up parser handling.
 - **Workflow manifest**: imported files are tracked in lock file headers for update detection and audit trails.
 
-## Related Documentation
+## Learn More
 
-- [Editing Workflows](/gh-aw/guides/editing-workflows/) - When to recompile vs edit directly
+- [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) - When to recompile vs edit directly
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - All configuration options
 - [Tools Reference](/gh-aw/reference/tools/) - Tool configuration guide
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing

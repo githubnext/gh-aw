@@ -95,7 +95,7 @@ Drive memory is an experimental, feature-gated GitHub Drives integration. Do not
 configure it unless GitHub has explicitly enrolled the repository in the private
 preview.
 
-The [Drive Memory Reference](/gh-aw/reference/drive-memory/) records the preview
+The [Drive Memory Reference](/gh-aw/experimental/drive-memory/) records the preview
 behavior for enrolled repositories; it is not a recommendation for general use.
 
 ### Repo Memory (`repo-memory:`)
@@ -120,7 +120,7 @@ tools:
       - pattern: "docs/**/*.md"
 ```
 
-See **[QMD Reference](/gh-aw/reference/qmd/)** for complete configuration options, checkout support, GitHub search integration, and cache key usage.
+See **[QMD Documentation Search](/gh-aw/experimental/qmd/)** for complete configuration options, checkout support, GitHub search integration, and cache key usage.
 
 ### Introspection on Agentic Workflows (`agentic-workflows:`)
 
@@ -244,14 +244,11 @@ mcp-servers:
     args: ["-y", "@modelcontextprotocol/server-filesystem"]
 ```
 
-## Related Documentation
+## Learn More
 
 - [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations, toolsets, and modes
 - [Playwright](/gh-aw/reference/playwright/) - Browser automation and testing configuration
 - [Cache Memory](/gh-aw/reference/cache-memory/) - Persistent memory across workflow runs
 - [Repo Memory](/gh-aw/reference/repo-memory/) - Repository-specific memory storage
-- [QMD Documentation Search](/gh-aw/reference/qmd/) - Vector similarity search over documentation files
 - [MCP Scripts](/gh-aw/reference/mcp-scripts/) - Define custom inline tools with JavaScript or shell scripts
-- [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
-- [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Complete Model Context Protocol setup and usage

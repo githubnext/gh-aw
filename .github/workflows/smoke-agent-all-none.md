@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: "Guard policy smoke test: repos=all, min-integrity=none (most permissive)"
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-agent-all-none
     strategy: centralized

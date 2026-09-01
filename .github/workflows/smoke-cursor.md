@@ -3,6 +3,7 @@ private: true
 emoji: "🖱️"
 description: Smoke test workflow that validates Cursor engine functionality
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-cursor
     strategy: centralized

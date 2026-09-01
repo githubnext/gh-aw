@@ -10,7 +10,7 @@
 
 ### Context
 
-The GitHub Agentic Workflows (gh-aw) compiler supports shared workflow files that are imported by main workflows. These shared files allow teams to extract reusable steps, tools, permissions, and other configuration into composable fragments. Prior to this change, the `env` field was explicitly listed in `SharedWorkflowForbiddenFields`, meaning any `env:` block in a shared import was silently dropped with a warning. This prevented shared workflows from declaring workflow-level environment variables (e.g., `TARGET_REPOSITORY`, `SHARED_CONFIG`), forcing workflow authors to duplicate those declarations in every consuming main workflow — violating the DRY principle and making shared workflows less self-contained.
+The GitHub Agentic Workflows compiler supports shared workflow files that are imported by main workflows. These shared files allow teams to extract reusable steps, tools, permissions, and other configuration into composable fragments. Prior to this change, the `env` field was explicitly listed in `SharedWorkflowForbiddenFields`, meaning any `env:` block in a shared import was silently dropped with a warning. This prevented shared workflows from declaring workflow-level environment variables (e.g., `TARGET_REPOSITORY`, `SHARED_CONFIG`), forcing workflow authors to duplicate those declarations in every consuming main workflow — violating the DRY principle and making shared workflows less self-contained.
 
 ### Decision
 

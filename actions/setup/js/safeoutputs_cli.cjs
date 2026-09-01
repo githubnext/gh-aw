@@ -159,7 +159,16 @@ function emitInfrastructureIncomplete(details, options) {
  * Diagnostic safe-output types that represent infrastructure signals, not task-level work.
  * Entries with these types are excluded when checking whether expected outputs were produced.
  */
+// Expected-output checks look for task-level outputs only, so noop is diagnostic
+// there even though terminal-output checks treat noop as a completed result.
+// missing_data is not an infrastructure diagnostic for expected-output checks,
+// but it is non-terminal for shared harness checks by default. Engines with
+// legacy terminal semantics opt missing_data/report_incomplete in via flags.
+const TERMINAL_SAFE_OUTPUT_TYPES = new Set(["noop"]);
 const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
+// Types in this set are excluded by the catch-all fallthrough; opt-in checks for
+// missing_data/report_incomplete must run before that fallthrough.
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
 
 /**
  * Read the safe-outputs JSONL file and check whether it contains at least one
@@ -198,6 +207,85 @@ function hasExpectedSafeOutputs(safeOutputsPath, options) {
       const parsed = JSON.parse(trimmed);
       if (parsed && parsed.type && !DIAGNOSTIC_SAFE_OUTPUT_TYPES.has(parsed.type)) {
         logger(`hasExpectedSafeOutputs: non-diagnostic entry found in ${safeOutputsPath}: type=${parsed.type}`);
+        return true;
+      }
+    } catch {
+      // Malformed line — ignored, it does not represent a valid entry.
+    }
+  }
+  return false;
+}
+
+/**
+ * Read a safe-outputs JSONL file and check whether it contains a terminal agent
+ * result. Terminal outputs include noop and any non-diagnostic task output types.
+ * `byteOffset` scopes the check to output appended by the current attempt.
+ * @param {string} safeOutputsPath - Path to the safe-outputs JSONL file
+ * @param {{
+ *   byteOffset?: number,
+ *   includeMissingData?: boolean,
+ *   includeReportIncomplete?: boolean,
+ *   logger?: (msg: string) => void,
+ *   readFileSync?: (path: string, encoding: BufferEncoding) => string
+ * }=} options
+ * @returns {boolean}
+ */
+function hasTerminalSafeOutput(safeOutputsPath, options) {
+  const logger = options && options.logger ? options.logger : defaultLog;
+  const byteOffset = options && Number.isFinite(options.byteOffset) ? Number(options.byteOffset) : 0;
+
+  if (!safeOutputsPath) {
+    return false;
+  }
+  if (byteOffset > 0 && options?.readFileSync) {
+    logger("hasTerminalSafeOutput: byteOffset is unsupported with injected readFileSync; returning false");
+    return false;
+  }
+
+  let content;
+  try {
+    if (byteOffset > 0) {
+      const fd = fs.openSync(safeOutputsPath, "r");
+      try {
+        const stats = fs.fstatSync(fd);
+        const fileSize = stats.size;
+        if (fileSize <= byteOffset) return false;
+        const length = fileSize - byteOffset;
+        const buf = Buffer.allocUnsafe(length);
+        fs.readSync(fd, buf, 0, length, byteOffset);
+        content = buf.toString("utf8");
+      } finally {
+        fs.closeSync(fd);
+      }
+    } else {
+      const readFile = options && options.readFileSync ? options.readFileSync : fs.readFileSync;
+      content = readFile(safeOutputsPath, "utf8");
+    }
+  } catch {
+    return false;
+  }
+
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
+      if (!type) continue;
+      if (TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
+      if (type === "missing_data" && options?.includeMissingData) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
+      if (type === "report_incomplete" && options?.includeReportIncomplete) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
+      if (!NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
         return true;
       }
     } catch {
@@ -267,6 +355,7 @@ if (typeof module !== "undefined" && module.exports) {
     emitMissingToolPermissionIssue,
     emitInfrastructureIncomplete,
     hasExpectedSafeOutputs,
+    hasTerminalSafeOutput,
     hasNoopInSafeOutputs,
   };
 }

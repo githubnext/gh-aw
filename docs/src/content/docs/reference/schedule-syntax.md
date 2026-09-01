@@ -275,7 +275,7 @@ The compiler warns about patterns that create load spikes:
   fuzzy schedule 'weekly on monday' instead.
 ```
 
-## Related Documentation
+## Learn More
 
 - [Triggers](/gh-aw/reference/triggers/) - Complete trigger configuration
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Workflow configuration reference

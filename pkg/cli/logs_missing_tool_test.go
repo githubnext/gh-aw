@@ -116,7 +116,7 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create the safe output artifact file
-			safeOutputFile := filepath.Join(tmpDir, constants.AgentOutputArtifactName)
+			safeOutputFile := filepath.Join(tmpDir, constants.AgentOutputArtifactName.String())
 			err := os.WriteFile(safeOutputFile, []byte(tt.safeOutputContent), 0o644)
 			if err != nil {
 				t.Fatalf("Failed to create test safe output file: %v", err)
@@ -199,7 +199,7 @@ func TestExtractMissingToolsFromRun_IncludesExperimentProvenance(t *testing.T) {
 		],
 		"errors": []
 	}`
-	if err := os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputArtifactName), []byte(safeOutput), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, constants.AgentOutputArtifactName.String()), []byte(safeOutput), 0o644); err != nil {
 		t.Fatalf("Failed to create safe output file: %v", err)
 	}
 

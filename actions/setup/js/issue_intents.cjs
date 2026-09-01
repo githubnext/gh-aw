@@ -155,7 +155,7 @@ function buildIssueIntentLabelUpdates(labelSpecs, labelIdByName) {
   return labelSpecs.map(spec => {
     const labelId = labelIdByName.get(spec.name.toLowerCase());
     if (!labelId) {
-      throw new Error(`Label ${JSON.stringify(spec.name)} not found. Ensure the label exists in the target repository.`);
+      throw new Error(`Label ${JSON.stringify(spec.name)} not found. Set "create-if-missing: true" to automatically create missing labels, or ensure the label exists in the target repository.`);
     }
 
     return {

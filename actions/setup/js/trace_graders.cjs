@@ -460,8 +460,38 @@ function evaluateThreshold(value, direction, threshold) {
 function sanitizeSummaryText(value) {
   return String(value ?? "")
     .replace(/\r?\n/g, " ")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
     .replace(/[<>&]/g, ch => (ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&amp;"))
     .trim();
+}
+
+/**
+ * @param {GraderResult} result
+ * @returns {result is GraderResult & {value: number}}
+ */
+function hasComputedValue(result) {
+  return typeof result.value === "number";
+}
+
+/**
+ * Build the Graders section body for the GitHub Actions step summary.
+ * @param {GraderResult[]} results
+ * @returns {string}
+ */
+function buildGradersSummaryBody(results) {
+  const computedResults = results.filter(hasComputedValue);
+  if (computedResults.length === 0) {
+    return "\n\nNo grader values available.\n\n";
+  }
+
+  const statusLabels = { pass: "Pass", fail: "Fail", error: "Error", unavailable: "Unavailable" };
+  const rows = computedResults.map(result => {
+    const value = String(Number(result.value.toFixed(4)));
+    return `| ${statusLabels[result.status] || "Unknown"} | ${sanitizeSummaryText(result.name)} | ${sanitizeSummaryText(result.source)} | ${value} | ${sanitizeSummaryText(result.unit || "—")} |`;
+  });
+
+  return ["", "", "| Status | Grader | Source | Value | Unit |", "| --- | --- | --- | --- | --- |", ...rows, "", ""].join("\n");
 }
 
 /**
@@ -494,8 +524,7 @@ function normalizeResult(id, rawResult, meta) {
   if (typeof rawResult === "object" && rawResult !== null && !Array.isArray(rawResult)) {
     // Object result from custom script
     value = rawResult.value;
-    if (rawResult.unit) base.unit = String(rawResult.unit);
-    if (rawResult.severity) base.severity = String(rawResult.severity);
+    if (typeof rawResult.severity === "string" && ["error", "warning", "info", "note"].includes(rawResult.severity)) base.severity = rawResult.severity;
     if (rawResult.details) base.details = String(rawResult.details);
     if (rawResult.message) base.message = String(rawResult.message);
     if (typeof rawResult.passed === "boolean") base.passed = rawResult.passed;
@@ -806,25 +835,7 @@ async function main(manifestB64, execSpecB64) {
   }
 
   // Step summary
-  core.summary.addHeading("Graders", 3);
-  const tableResults = results.filter(r => r.status !== "unavailable");
-  if (tableResults.length > 0) {
-    const rows = tableResults.map(r => {
-      const statusIcon = r.status === "pass" ? "✅" : r.status === "fail" ? "❌" : "⚠️";
-      const val = r.value !== null ? String(Number(r.value.toFixed(4))) : "—";
-      return [statusIcon, sanitizeSummaryText(r.name), r.source, val, sanitizeSummaryText(r.unit || "—")];
-    });
-    core.summary.addTable([
-      [
-        { data: "", header: true },
-        { data: "Grader", header: true },
-        { data: "Source", header: true },
-        { data: "Value", header: true },
-        { data: "Unit", header: true },
-      ],
-      ...rows,
-    ]);
-  }
+  core.summary.addDetails("Graders", buildGradersSummaryBody(results));
   const errResults = results.filter(r => r.error);
   if (errResults.length > 0) {
     const errLines = errResults.map(r => `- **${sanitizeSummaryText(r.id)}**: runtime error (see step logs)`).join("\n");
@@ -850,6 +861,7 @@ module.exports = {
   runCustomGrader,
   runOperationalValueGrader,
   normalizeResult,
+  buildGradersSummaryBody,
   evaluateThreshold,
   BUILTIN_GRADERS,
   BUILTIN_META,

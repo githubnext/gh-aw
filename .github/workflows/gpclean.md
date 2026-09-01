@@ -55,6 +55,10 @@ experiments:
     weight: [50, 50]
     start_date: "2026-05-24"
 
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.3-codex
 strict: false
 
 imports:

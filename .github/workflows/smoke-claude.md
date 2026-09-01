@@ -2,7 +2,8 @@
 private: true
 emoji: "🧪"
 description: Smoke test workflow that validates Claude engine functionality by reviewing recent PRs twice daily
-on: 
+on:
+  schedule: every 2 days
   slash_command:
     name: smoke-claude
     strategy: centralized
@@ -62,7 +63,6 @@ tools:
     mode: gh-proxy
     toolsets: [repos, pull_requests]
   playwright:
-    mode: cli
   bash:
     - "*"
 runtimes:

@@ -10,6 +10,10 @@ on:
     events: [pull_request_comment]
 max-daily-ai-credits: 10000
 timeout-minutes: 10
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: false
 permissions:
   pull-requests: read
@@ -42,6 +46,7 @@ jobs:
             });
 imports:
   - shared/otlp.md
+  - shared/graders.md
 sandbox:
   agent:
     runtime: cloud-hypervisor
@@ -52,6 +57,7 @@ evals:
     question: Did the agent generate an ACE editor session link in response to the /ace command?
   - id: comment_posted
     question: Was a comment posted to the pull request with the ACE editor link?
+
 ---
 
 Classic action that generates an ACE editor session link on pull request comment slash command.

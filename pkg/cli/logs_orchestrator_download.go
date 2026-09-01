@@ -68,12 +68,13 @@ func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDow
 			safeOutputType:    opts.SafeOutputType,
 			filteredIntegrity: opts.FilteredIntegrity,
 			evalsOnly:         opts.EvalsOnly,
+			gradersOnly:       opts.GradersOnly,
 		},
 	}, nil
 }
 
 func logLogsDownloadStart(opts LogsDownloadOptions) {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, evalsOnly=%v, train=%v, format=%s, artifactSets=%v, after=%s", opts.WorkflowName, opts.Count, opts.StartDate, opts.EndDate, opts.OutputDir, opts.SummaryFile, opts.SafeOutputType, opts.FilteredIntegrity, opts.EvalsOnly, opts.Train, opts.Format, opts.ArtifactSets, opts.After)
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, evalsOnly=%v, gradersOnly=%v, train=%v, format=%s, artifactSets=%v, after=%s", opts.WorkflowName, opts.Count, opts.StartDate, opts.EndDate, opts.OutputDir, opts.SummaryFile, opts.SafeOutputType, opts.FilteredIntegrity, opts.EvalsOnly, opts.GradersOnly, opts.Train, opts.Format, opts.ArtifactSets, opts.After)
 }
 
 func resolveLogsArtifactFilter(artifactSets []string, verbose bool) ([]string, error) {
@@ -182,102 +183,107 @@ var (
 	logsProcessWorkflowRunBatch = processWorkflowRunBatch
 )
 
+type logsCollectionState struct {
+	processedRuns     []ProcessedRun
+	beforeDate        string
+	iteration         int
+	timeoutReached    bool
+	countLimitReached bool
+}
+
 func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownloadOptions) ([]ProcessedRun, bool, bool, string, error) {
-	var processedRuns []ProcessedRun
-	var beforeDate string
-	var iteration int
-	var timeoutReached, countLimitReached bool
-	for iteration < MaxIterations {
+	state := logsCollectionState{}
+	for state.iteration < MaxIterations {
 		stop, timedOut, err := shouldStopLogsIteration(runtime, opts)
 		if err != nil {
-			return processedRuns, timeoutReached || timedOut, countLimitReached, beforeDate, err
+			return state.processedRuns, state.timeoutReached || timedOut, state.countLimitReached, state.beforeDate, err
 		}
 		if stop {
-			timeoutReached = timeoutReached || timedOut
+			state.timeoutReached = state.timeoutReached || timedOut
 			break
 		}
-		if len(processedRuns) >= opts.Count {
-			countLimitReached = runtime.fetchAllInRange
+		if len(state.processedRuns) >= opts.Count {
+			state.countLimitReached = runtime.fetchAllInRange
 			break
 		}
-		if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, iteration); err != nil {
-			continue
-		}
-		iteration++
-		logLogsIterationFetch(opts, runtime.fetchAllInRange, iteration, len(processedRuns))
-		batch, err := logsFetchWorkflowRunBatch(runtime.activeCtx, opts, beforeDate, len(processedRuns), runtime.fetchAllInRange)
-		if err != nil {
-			// Context deadline exceeded means our own timeout fired mid-call.
-			// Treat it like a graceful timeout: return whatever was collected so far.
+		if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				timeoutReached = true
+				state.timeoutReached = true
 				break
 			}
-			// Context cancelled (e.g. user signal or outer gateway timeout): propagate
-			// the error without partial results.  The caller discards partial runs on
-			// error, so returning them here would be misleading.  We leave
-			// timeoutReached=false because this is an external cancellation, not the
-			// internal --timeout deadline firing.
 			if errors.Is(err, context.Canceled) {
 				return nil, false, false, "", err
 			}
-			return nil, false, false, "", err
+			logsOrchestratorLog.Printf("Rate limit wait failed, retrying iteration: %v", err)
+			state.iteration++
+			continue
 		}
-		if len(batch.runs) == 0 {
-			cursor, shouldContinue, shouldStop := handleEmptyWorkflowRunBatch(batch, opts.Verbose)
-			if shouldStop {
-				break
-			}
-			if shouldContinue {
-				beforeDate = cursor
-				continue
-			}
+		state.iteration++
+		stop, err = fetchAndProcessLogsBatch(&state, runtime, opts)
+		if err != nil {
+			return state.processedRuns, state.timeoutReached, state.countLimitReached, state.beforeDate, err
 		}
-		logWorkflowRunBatchFound(batch, iteration, opts.Verbose)
-		var batchProcessed int
-		var allRunsConsumed, batchTimedOut bool
-		// Assign (not :=) so the accumulated runs are not shadowed by a loop-scoped variable.
-		processedRuns, batchProcessed, allRunsConsumed, batchTimedOut = logsProcessWorkflowRunBatch(runtime.activeCtx, batch, processedRuns, processWorkflowRunBatchOptions{
-			count:          opts.Count,
-			outputDir:      opts.OutputDir,
-			verbose:        opts.Verbose,
-			repoOverride:   opts.RepoOverride,
-			artifactFilter: runtime.artifactFilter,
-			evalsOnly:      opts.EvalsOnly,
-			artifactSets:   opts.ArtifactSets,
-			parse:          opts.Parse,
-			filters:        runtime.filters,
-		})
-		timeoutReached = timeoutReached || batchTimedOut
-		logProcessedWorkflowRunBatch(opts, runtime.fetchAllInRange, iteration, batchProcessed, len(processedRuns), opts.Verbose)
-		if allRunsConsumed {
-			if cursor, ok := selectPaginationCursorDate(batch.runs, batch.oldestFetchedCreatedAt); ok {
-				beforeDate = cursor
-			}
-		}
-		if shouldStopAfterWorkflowRunBatch(batch, opts.Verbose) {
+		if stop {
 			break
 		}
 	}
-	logLogsIterationLimit(runtime.fetchAllInRange, iteration, len(processedRuns), opts.Count)
-	logLogsTimeoutResult(timeoutReached, len(processedRuns))
-	// Hitting MaxIterations without reaching the requested count or the timeout
-	// means pagination stopped before the explicit date range was fully scanned
-	// (e.g. a burst of non-matching runs consumed every iteration's batch before
-	// the cursor could walk across the whole window). Previously this silently
-	// returned whatever partial data had accumulated with no continuation cursor,
-	// so callers requesting a wide start_date/end_date window could mistake a
-	// narrow, stale slice of results for a complete scan of the range (see
-	// github/gh-aw#53995). Treat it the same as a count-limit break so a
-	// continuation is always surfaced for explicit date-range queries.
-	if runtime.fetchAllInRange && !timeoutReached && iteration >= MaxIterations {
-		countLimitReached = true
+	logLogsIterationLimit(runtime.fetchAllInRange, state.iteration, len(state.processedRuns), opts.Count)
+	logLogsTimeoutResult(state.timeoutReached, len(state.processedRuns))
+	if runtime.fetchAllInRange && !state.timeoutReached && state.iteration >= MaxIterations {
+		state.countLimitReached = true
 	}
-	// beforeDate reflects the pagination cursor collectProcessedWorkflowRuns actually
-	// advanced to (including iterations that fetched runs but matched none of them),
-	// so callers building a continuation can resume the scan from here instead of
-	// re-fetching pages already visited (see github/gh-aw#54110).
-	return processedRuns, timeoutReached, countLimitReached, beforeDate, nil
+	return state.processedRuns, state.timeoutReached, state.countLimitReached, state.beforeDate, nil
+}
+
+func fetchAndProcessLogsBatch(state *logsCollectionState, runtime logsDownloadRuntime, opts LogsDownloadOptions) (bool, error) {
+	logLogsIterationFetch(opts, runtime.fetchAllInRange, state.iteration, len(state.processedRuns))
+	batch, err := logsFetchWorkflowRunBatch(runtime.activeCtx, opts, state.beforeDate, len(state.processedRuns), runtime.fetchAllInRange)
+	if err != nil {
+		return handleLogsBatchError(state, runtime.activeCtx, err)
+	}
+	if len(batch.runs) == 0 {
+		cursor, shouldContinue, shouldStop := handleEmptyWorkflowRunBatch(batch, opts.Verbose)
+		if shouldStop {
+			return true, nil
+		}
+		if shouldContinue {
+			state.beforeDate = cursor
+			return false, nil
+		}
+	}
+	logWorkflowRunBatchFound(batch, state.iteration, opts.Verbose)
+	var batchProcessed int
+	var allRunsConsumed, batchTimedOut bool
+	state.processedRuns, batchProcessed, allRunsConsumed, batchTimedOut = logsProcessWorkflowRunBatch(runtime.activeCtx, batch, state.processedRuns, processWorkflowRunBatchOptions{
+		count:          opts.Count,
+		outputDir:      opts.OutputDir,
+		verbose:        opts.Verbose,
+		repoOverride:   opts.RepoOverride,
+		artifactFilter: runtime.artifactFilter,
+		evalsOnly:      opts.EvalsOnly,
+		artifactSets:   opts.ArtifactSets,
+		parse:          opts.Parse,
+		filters:        runtime.filters,
+	})
+	state.timeoutReached = state.timeoutReached || batchTimedOut
+	logProcessedWorkflowRunBatch(opts, runtime.fetchAllInRange, state.iteration, batchProcessed, len(state.processedRuns), opts.Verbose)
+	if allRunsConsumed {
+		if cursor, ok := selectPaginationCursorDate(batch.runs, batch.oldestFetchedCreatedAt); ok {
+			state.beforeDate = cursor
+		}
+	}
+	return shouldStopAfterWorkflowRunBatch(batch, opts.Verbose), nil
+}
+
+func handleLogsBatchError(state *logsCollectionState, ctx context.Context, err error) (bool, error) {
+	if errors.Is(err, context.DeadlineExceeded) {
+		state.timeoutReached = true
+		return true, nil
+	}
+	if errors.Is(err, context.Canceled) {
+		return true, err
+	}
+	return false, err
 }
 
 func shouldStopLogsIteration(runtime logsDownloadRuntime, opts LogsDownloadOptions) (bool, bool, error) {

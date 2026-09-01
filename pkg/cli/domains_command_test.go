@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow"
@@ -278,9 +277,7 @@ engine: copilot
 func TestComputeAllowedDomains(t *testing.T) {
 	t.Run("copilot engine without network config", func(t *testing.T) {
 		domains := computeAllowedDomains("copilot", nil, nil, nil)
-		// Copilot has default domains
-		assert.NotEmpty(t, domains, "Should have default Copilot domains")
-		assert.True(t, slices.Contains(domains, "api.github.com"), "Should contain api.github.com")
+		assert.Empty(t, domains, "Should not add default Copilot domains automatically")
 	})
 
 	t.Run("returns empty for unknown engine with empty network", func(t *testing.T) {

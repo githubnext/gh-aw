@@ -10,6 +10,7 @@ import (
 )
 
 func TestRunActionlintOnFiles_EmptyList(t *testing.T) {
+	t.Parallel()
 	err := RunActionlintOnFiles(context.Background(), nil, false, false)
 	if err != nil {
 		t.Fatalf("expected nil error for empty lock file list, got %v", err)
@@ -17,6 +18,7 @@ func TestRunActionlintOnFiles_EmptyList(t *testing.T) {
 }
 
 func TestRunBatchDirectoryTool_NonStrictSwallowsErrors(t *testing.T) {
+	t.Parallel()
 	runner := func(_ string, _ bool, _ bool) error {
 		return errors.New("boom")
 	}
@@ -28,6 +30,7 @@ func TestRunBatchDirectoryTool_NonStrictSwallowsErrors(t *testing.T) {
 }
 
 func TestRunBatchDirectoryTool_StrictWrapsErrors(t *testing.T) {
+	t.Parallel()
 	runner := func(_ string, _ bool, _ bool) error {
 		return errors.New("boom")
 	}

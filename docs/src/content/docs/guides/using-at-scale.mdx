@@ -3,32 +3,41 @@ title: Using at Scale in Organizations
 description: Guidance for adopting, sharing, and governing GitHub Agentic Workflows across teams and repositories.
 ---
 
-When agentic workflows move beyond a single repository and into an organization or enterprise, something qualitatively different becomes possible. Workflows can coordinate or scale across dozens of repositories simultaneously. For example, workflows can:
-- [Roll out changes org-wide](/gh-aw/examples/multi-repo/dependabot-rollout/)
-- [Assess code quality across 100s of repos](/gh-aw/examples/multi-repo/code-quality-monitoring/)
-- [Synchronize dependency updates](/gh-aw/examples/multi-repo/dependabot-rollout/)
-- [Propagate coding policy changes](/gh-aw/examples/multi-repo/feature-sync/)
-- [Shrink backlogs in multiple maintained repos](/gh-aw/examples/maintaining-repos/)
-- [Enforce coding standards across teams](/gh-aw/examples/multi-repo/code-quality-monitoring/)
-- [Aggregate issue tracking into a single control plane](/gh-aw/examples/multi-repo/issue-tracking/)
-- and many more possibilities.
-
-The possibilities are vast, but so are the challenges of secure authentication, cost management, and operational control at scale.
+When agentic workflows move beyond a single repository and into an organization or enterprise, something qualitatively different becomes possible. Workflows can coordinate or scale across dozens of repositories simultaneously.
 
 In this guide, we will explore recurring topics in organization and enterprise adoption of GitHub Agentic Workflows, including how to:
+- Use cases in organizations and enterprises
 - Share, reuse, and govern workflows across an organization
 - Coordinate agentic work across multiple repositories securely
 - Introduce production writes safely and roll back when needed
 - Track and reduce AI token costs at scale
 - Use with GitHub Enterprise Server and GitHub Enterprise Cloud
 
+## Use Cases in Organizations and Enterprises
+
+In organizations and enterprises, workflows can:
+- [Roll out changes org-wide](/gh-aw/gallery/multi-repo/dependabot-rollout/)
+- [Assess code quality across 100s of repos](/gh-aw/gallery/multi-repo/code-quality-monitoring/)
+- [Synchronize dependency updates](/gh-aw/gallery/multi-repo/dependabot-rollout/)
+- [Propagate coding policy changes](/gh-aw/gallery/multi-repo/feature-sync/)
+- [Shrink backlogs in multiple maintained repos](/gh-aw/gallery/maintaining-repos/)
+- [Enforce coding standards across teams](/gh-aw/gallery/multi-repo/code-quality-monitoring/)
+- [Aggregate issue tracking into a single control plane](/gh-aw/gallery/multi-repo/issue-tracking/)
+
+The possibilities are vast. Challenges include secure authentication, cost management, and operational control at scale.
+
 ## Reusing and Sharing Workflows in the Organization
 
 There are two complementary layers to workflow distribution across an organization.
 
-[Reusing Workflows](/gh-aw/guides/reusing-workflows/) covers the developer-facing mechanics: use `gh aw add` or `gh aw add-wizard` to install a workflow from another repository, and `gh aw update` to pull in upstream changes while preserving local edits. Use `imports:` in workflow frontmatter to pull in shared components (tool configs, MCP server definitions, prompt snippets) — see [Imports](/gh-aw/reference/imports/) for the full reference.
+[Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) covers the developer-facing mechanics: use `gh aw add` or `gh aw add-wizard` to install a workflow from another repository, and `gh aw update` to pull in upstream changes while preserving local edits. Use `imports:` in workflow frontmatter to pull in shared components (tool configs, MCP server definitions, prompt snippets) — see [Imports](/gh-aw/reference/imports/) for the full reference.
 
 [Sharing Workflows in the Organization](/gh-aw/practices/sharing-workflows/) covers the organizational governance layer: recommended techniques like maintaining a central `agentic-workflows` repository as the source of truth, versioning with exact tags (`@v1.2.0`), moving major refs (`@v1`), or SHA pins, parameterized shared components via `import-schema`, and controlling discoverability with `private: true`.
+
+import { Image } from 'astro:assets';
+import usingAtScaleSharing from '../../../assets/diagrams/using-at-scale-2026-08-27.svg';
+
+<Image src={usingAtScaleSharing} alt="Diagram showing the agentic-workflows source-of-truth repository feeding two layers: developer-facing mechanics (gh aw add, gh aw update, imports) and organizational governance (version tags, import-schema, private visibility), which together distribute workflows to team repositories" />
 
 ## Private Repositories
 
@@ -42,6 +51,8 @@ Workflows that read from or write to repositories other than the one they run in
 ## Security and Networking
 
 Agentic workflows run inside GitHub Actions and can make outbound network requests through the [network access](/gh-aw/reference/network/) sandbox layer. See the [Network Configuration guide](/gh-aw/guides/network-configuration/) for how to declare allowed domains, configure MCP server connectivity, and restrict outbound access. [Threat Detection](/gh-aw/reference/threat-detection/) provides runtime monitoring for prompt injection and unauthorized tool use.
+
+[Configuration Governance](/gh-aw/reference/governance/) explains how to apply consistent model, budget, timeout, and guardrail defaults at enterprise, organization, and repository scope. Use these layered defaults to establish organization-wide baselines while retaining explicit repository exceptions.
 
 ## Working Across Multiple Repositories
 
@@ -65,7 +76,7 @@ Repositories with thousands of open issues require chunked or parallel processin
 
 ## Large Monorepos
 
-Monorepos with many packages or deep histories can cause agent jobs to spend most of their time on repository checkout. Use `sparse-checkout` in the `checkout:` field to fetch only the paths a workflow actually needs — this can reduce checkout time from tens of minutes to seconds. For workflows that need to reason about the full codebase without fetching it, the [QMD search tool](/gh-aw/reference/qmd/) runs vector similarity search over indexed repository content without requiring a full clone. When full history is genuinely needed (e.g., changelog generation or blame analysis), `fetch-depth: 0` is available but should be combined with sparse paths to limit clone size.
+Monorepos with many packages or deep histories can cause agent jobs to spend most of their time on repository checkout. Use `sparse-checkout` in the `checkout:` field to fetch only the paths a workflow actually needs — this can reduce checkout time from tens of minutes to seconds. For workflows that need to reason about the full codebase without fetching it, the [QMD search tool](/gh-aw/experimental/qmd/) runs vector similarity search over indexed repository content without requiring a full clone. When full history is genuinely needed (e.g., changelog generation or blame analysis), `fetch-depth: 0` is available but should be combined with sparse paths to limit clone size.
 
 See [GitHub Repository Checkout](/gh-aw/reference/checkout/) for the full configuration reference and examples, including sparse checkout patterns and multi-repository checkouts.
 
@@ -76,9 +87,24 @@ Running agentic workflows at scale consumes compute and AI inference tokens. Use
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) — cap per-user and per-window run counts to prevent runaway spend
 - [Cost Management](/gh-aw/reference/cost-management/) — track and budget AI Credits (AIC) across workflows
 
+## Measuring Impact
+
+Measure whether organization-wide workflows produce accepted results as well
+as what they cost. Start with run volume, successful runs, AIC, accepted safe
+outputs, and AIC per accepted outcome; compare similar workflow and output
+types over a stable observation window.
+
+[Measuring Impact](/gh-aw/practices/measuring-impact/) describes the practical
+measurement loop, including how to evaluate safe outputs with `gh aw outcomes`
+and use outcome data to identify low-value or overlapping automation.
+
 ## OpenTelemetry
 
-GitHub Agentic Workflows can be configured to emit [OpenTelemetry](/gh-aw/guides/open-telemetry/) traces and spans for each workflow run, covering activation, agent execution, safe-output operations, and MCP tool calls. These can be forwarded to any OTLP-compatible backend for dashboards, alerting, and cost analysis. See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/) for configuration details.
+GitHub Agentic Workflows can be configured to emit [OpenTelemetry](/gh-aw/reference/open-telemetry/) traces and spans for each workflow run, covering activation, agent execution, safe-output operations, and MCP tool calls. These can be forwarded to any OTLP-compatible backend for dashboards, alerting, and cost analysis.
+
+## Azure OpenAI BYOK
+
+Organizations that route Copilot inference through their own Azure OpenAI deployment can use API keys or Microsoft Entra authentication. See [Azure OpenAI BYOK](/gh-aw/reference/azure-openai-byok/) for provider configuration, credential setup, and workflow frontmatter.
 
 ## GitHub Enterprise Server and Cloud
 
@@ -86,7 +112,7 @@ For deployments on GitHub Enterprise Server or GitHub Enterprise Cloud with data
 
 ## Self-Hosted Runners
 
-Organizations that need to run agentic workflows on their own infrastructure — for network isolation, compliance, or cost reasons — can use self-hosted runners. See the [Self-Hosted Runners guide](/gh-aw/reference/self-hosted-runners/) for configuration requirements, ARC/Kubernetes setup, and GHES-specific considerations. Runners must be Linux with Docker support; use the `runs-on:` frontmatter field to target them.
+Organizations that need to run agentic workflows on their own infrastructure — for network isolation, compliance, or cost reasons — can use self-hosted runners. See the [Self-Hosted Runners guide](/gh-aw/reference/self-hosted-runners/) for configuration requirements, ARC/Kubernetes setup, and GHES-specific considerations. For Kubernetes runner scale sets, [ARC DinD for Copilot Coding Agent](/gh-aw/reference/arc-dind-copilot-agent/) provides the complete Docker-in-Docker deployment configuration. Runners must be Linux with Docker support; use the `runs-on:` frontmatter field to target them.
 
 ## A/B Experiments
 

@@ -14,7 +14,7 @@ Another busy week for [github/gh-aw](https://github.com/github/gh-aw)! We shippe
 
 The [v0.87.4](https://github.com/github/gh-aw/releases/tag/v0.87.4) line of releases focused on compiler robustness, safe-output validation, and internal tooling and observability improvements across the agentic workflow pipeline.
 
-- **Pre-create pull request steering** ([#55171](https://github.com/github/gh-aw/pull/55171)): `safe-outputs.create-pull-request.steer: true` pre-creates a PR and lets agents read user feedback left in PR comments and review comments — without silently expanding workflow permissions. It requires explicit `pull-requests: read` and injects prompting so the agent knows to look for the `steer` keyword.
+- **Run steering** ([#55171](https://github.com/github/gh-aw/pull/55171)): `safe-outputs.create-pull-request.pre-create.steer: true` introduced run-scoped feedback issues and injected prompting for agents to read comments containing the `steer` keyword. The configuration was subsequently moved to [`safe-outputs.steer`](https://github.com/github/gh-aw/pull/55792), where it requires explicit `issues: read` without silently expanding workflow permissions.
 - **`gh aw models`** ([#55148](https://github.com/github/gh-aw/pull/55148)): a new CLI command surfaces catalog pricing, alias resolution, and observed automation models in one place.
 - **Copilot SDK startup diagnostics** ([#55149](https://github.com/github/gh-aw/pull/55149)): pre-ready crashes now surface the Copilot SDK's startup stderr, making a previously opaque failure mode much easier to debug.
 - **Automatic PR review dismissal ingestion** ([#55180](https://github.com/github/gh-aw/pull/55180)): workflows can now ingest automatic pull request review dismissals as part of their safe-output processing.
@@ -41,4 +41,4 @@ Somewhat fittingly, the workflow that teaches other PRs how to listen to reviewe
 
 ## Try It Out
 
-Grab the latest [v0.87.4](https://github.com/github/gh-aw/releases/tag/v0.87.4) release and try out pre-create PR steering on your next `create-pull-request` safe output. As always, questions, bug reports, and contributions are welcome over at [github/gh-aw](https://github.com/github/gh-aw).
+Grab the latest [v0.87.4](https://github.com/github/gh-aw/releases/tag/v0.87.4) release to try the initial pre-create PR steering configuration. Current workflows use `safe-outputs.steer` as described in [#55792](https://github.com/github/gh-aw/pull/55792). As always, questions, bug reports, and contributions are welcome over at [github/gh-aw](https://github.com/github/gh-aw).

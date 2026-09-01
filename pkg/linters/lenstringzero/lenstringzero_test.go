@@ -11,6 +11,7 @@ import (
 )
 
 func TestLenStringZero(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.RunWithSuggestedFixes(t, testdata, lenstringzero.Analyzer, "lenstringzero")
 }

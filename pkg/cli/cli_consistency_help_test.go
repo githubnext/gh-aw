@@ -72,7 +72,7 @@ func TestCompileDocsReflectCurrentOptions(t *testing.T) {
 	assert.Contains(t, compileSection, "does not run codemods unless you pass `--fix`", "compile docs should explain --fix opt-in behavior")
 }
 
-func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
+func TestCLIDocsReflectStatusAuditExperimentsAndGradersCommands(t *testing.T) {
 	t.Parallel()
 	_, currentFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "should resolve current test file path")
@@ -83,6 +83,8 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 
 	text := string(content)
 	assert.Contains(t, text, "#### `experiments`", "CLI setup docs should include the experiments command")
+	assert.Contains(t, text, "#### `graders`", "CLI setup docs should include the graders command")
+	assert.Contains(t, text, "**Options:** `--evidence-at` (required), `--json/-j`, `--repo/-r`", "graders docs should include all operational-value options")
 	assert.Contains(t, text, "#### `doctor`", "CLI setup docs should include the doctor command")
 	assert.Contains(t, text, "The `audit` command has two modes", "audit docs should describe the current two-mode behavior")
 	assert.NotContains(t, text, "enabled/disabled status, schedules, and labels", "status docs should not promise schedule output in console mode")
@@ -145,10 +147,33 @@ func TestHelpTextUsesStandardEgPunctuation(t *testing.T) {
 	t.Parallel()
 	assert.Contains(t, coolDownFlagUsage, "(e.g., 7d", "--cool-down help should use e.g., punctuation")
 	assert.Contains(t, NewEnvCommand().Long, "(e.g., default_max_turns)", "env help should use e.g., punctuation")
-	assert.Contains(t, NewDomainsCommand().Long, "(e.g., \"node\", \"python\", \"github\")", "domains help should use e.g., punctuation")
+	assert.Contains(t, NewDomainsCommand().Long, "(e.g., \"node\", \"python\", \"github\", \"copilot\")", "domains help should use e.g., punctuation")
 	assert.Contains(t, NewChecksCommand().Long, "(e.g., Vercel,", "checks help should use e.g., punctuation")
 	assert.Contains(t, NewViewCommand().Long, "(e.g., issues,", "view help should use e.g., punctuation")
 	assert.Contains(t, NewExperimentsAnalyzeSubcommand().Long, "e.g., \"my-workflow\"", "experiments analyze help should use e.g., punctuation")
+}
+
+func TestCommandExamplesDoNotEndWithTrailingNewline(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		cmd  *cobra.Command
+	}{
+		{name: "add", cmd: NewAddCommand(func(string) error { return nil })},
+		{name: "add-wizard", cmd: NewAddWizardCommand(func(string) error { return nil })},
+		{name: "logs", cmd: NewLogsCommand()},
+		{name: "trial", cmd: NewTrialCommand(func(string) error { return nil })},
+		{name: "mcp add", cmd: NewMCPAddSubcommand()},
+		{name: "mcp list", cmd: NewMCPListSubcommand()},
+		{name: "mcp inspect", cmd: NewMCPInspectSubcommand()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.NotEmpty(t, tt.cmd.Example, "%s command should have examples", tt.name)
+			assert.False(t, strings.HasSuffix(tt.cmd.Example, "\n"), "%s command Example should not end with a trailing newline, otherwise help output renders a double blank line before Flags:", tt.name)
+		})
+	}
 }
 
 func TestLegacyNestedGHHelpIsRejected(t *testing.T) {

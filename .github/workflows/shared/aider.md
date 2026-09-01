@@ -130,8 +130,8 @@ single reply is the whole run. Plan for that:
   line separately, so multi-line commands, backslash continuations and heredocs do not work.
   Chain steps with `&&` or `;` on a single line instead.
 - **Suggest at most a few commands**; they all run from the repository root.
-- **Emit safe outputs with a single-line command**, for example
-  `printf '%s\n' '{"type":"noop","message":"..."}' >> "$GH_AW_SAFE_OUTPUTS"`.
+- **Emit safe outputs through the `safeoutputs` MCP CLI**, for example
+  `safeoutputs noop --message "..."`.
 
 <!--
 # Aider CLI

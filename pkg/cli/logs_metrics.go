@@ -146,7 +146,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		}
 		// If the file is not already in the logDir root, copy it for convenience
 		if filepath.Dir(agentOutputPath) != logDir {
-			rootCopy := filepath.Join(logDir, constants.AgentOutputArtifactName)
+			rootCopy := filepath.Join(logDir, constants.AgentOutputArtifactName.String())
 			if _, err := os.Stat(rootCopy); errors.Is(err, os.ErrNotExist) {
 				if copyErr := fileutil.CopyFile(agentOutputPath, rootCopy); copyErr == nil && verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Copied agent_output.json to run root for easy access"))
@@ -208,7 +208,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 			if (strings.HasSuffix(fileName, ".log") ||
 				(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
 				!strings.Contains(fileName, "aw_output") &&
-				fileName != constants.AgentOutputFilename {
+				fileName != constants.AgentOutputFilename.String() {
 
 				fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotCodingAgent, verbose)
 				if err != nil && verbose {
@@ -285,7 +285,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool, ex
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
 	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename.String())
 
 	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
 	// 1. New: agent_output.json at root (after flattening)
@@ -300,11 +300,11 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool, ex
 		}
 	} else {
 		// Try old structure: agent-output directory
-		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName.String())
 		if stat, err := os.Stat(agentOutputPath); err == nil {
 			if stat.IsDir() {
 				// Directory form – look for nested file
-				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName.String())
 				if fileutil.FileExists(nested) {
 					resolvedAgentOutputFile = nested
 					if verbose {
@@ -417,7 +417,7 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool, experimen
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
 	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename.String())
 
 	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
 	// 1. New: agent_output.json at root (after flattening)
@@ -432,11 +432,11 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool, experimen
 		}
 	} else {
 		// Try old structure: agent-output directory
-		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName.String())
 		if stat, err := os.Stat(agentOutputPath); err == nil {
 			if stat.IsDir() {
 				// Directory form – look for nested file
-				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName.String())
 				if fileutil.FileExists(nested) {
 					resolvedAgentOutputFile = nested
 					if verbose {
@@ -545,7 +545,7 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool, exp
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
 	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename.String())
 
 	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
 	// 1. New: agent_output.json at root (after flattening)
@@ -560,11 +560,11 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool, exp
 		}
 	} else {
 		// Try old structure: agent-output directory
-		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName.String())
 		if stat, err := os.Stat(agentOutputPath); err == nil {
 			if stat.IsDir() {
 				// Directory form – look for nested file
-				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName.String())
 				if fileutil.FileExists(nested) {
 					resolvedAgentOutputFile = nested
 					if verbose {
@@ -923,16 +923,16 @@ func extractSkillActivationsFromAgentOutput(runDir string, run WorkflowRun, verb
 // the new flattened layout first and then the legacy nested layout.
 // Returns an empty string when no file is found.
 func resolveAgentOutputFile(runDir string, verbose bool) string {
-	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename.String())
 	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
 		return agentOutputJSONPath
 	}
 
 	// Legacy: agent-output directory
-	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName.String())
 	if stat, err := os.Stat(agentOutputPath); err == nil {
 		if stat.IsDir() {
-			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName.String())
 			if fileutil.FileExists(nested) {
 				return nested
 			}

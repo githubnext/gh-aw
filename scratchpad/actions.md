@@ -627,7 +627,7 @@ The CI runs when:
    - Integration tests with workflows
    - Mock GitHub Actions environment
 
-4. **Enhanced Validation**
+4. **Validation Tooling**
    - Lint JavaScript code
    - Validate against Actions schema
    - Check for common mistakes
@@ -650,7 +650,7 @@ The CI runs when:
 - Two initial actions created
 - CI integration complete
 
-**Phase 2**: Enhanced Tooling (Next)
+**Phase 2**: Tooling Improvements (Next)
 - Automatic dependency resolution
 - Better error messages
 - Validation improvements

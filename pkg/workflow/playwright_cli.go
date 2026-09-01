@@ -4,8 +4,8 @@ package workflow
 //
 // # Playwright CLI Mode
 //
-// When tools.playwright.mode is set to "cli", the compiler installs the
-// @playwright/cli npm package instead of launching the Docker-based MCP server.
+// When tools.playwright is enabled, the compiler installs the @playwright/cli
+// npm package. CLI is the only built-in Playwright integration.
 // This is a token-efficient alternative for coding agents that prefer CLI-based
 // workflows over MCP: CLI invocations avoid loading large tool schemas and verbose
 // accessibility trees into the model context.
@@ -13,8 +13,6 @@ package workflow
 // See https://github.com/microsoft/playwright-cli for details.
 //
 // In CLI mode:
-//   - The mcr.microsoft.com/playwright/mcp Docker image is NOT pulled.
-//   - playwright is NOT registered as an MCP server in the gateway config.
 //   - @playwright/cli is installed via npm (global) before the agent runs.
 //   - playwright-cli install --skills installs agent skill files so the coding
 //     agent can discover and use the available playwright-cli commands.
@@ -33,8 +31,8 @@ import (
 
 var playwrightCLILog = logger.New("workflow:playwright_cli")
 
-// isPlaywrightCLIMode returns true when the playwright tool in the given tools map
-// is configured with mode: cli.
+// isPlaywrightCLIMode returns true when the Playwright tool is enabled in the
+// supported CLI mode.
 func isPlaywrightCLIMode(tools map[string]any) bool {
 	playwrightTool, ok := tools["playwright"]
 	if !ok || playwrightTool == false {
@@ -45,7 +43,7 @@ func isPlaywrightCLIMode(tools map[string]any) bool {
 }
 
 // generatePlaywrightCLIInstallSteps returns npm install steps for @playwright/cli
-// when playwright is configured in CLI mode. Returns nil if playwright is in MCP mode.
+// when playwright is enabled.
 //
 // Node.js setup is intentionally omitted here because all supported engines
 // (copilot, claude, codex, gemini) include a Node.js setup step in their own

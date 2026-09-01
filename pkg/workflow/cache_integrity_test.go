@@ -19,7 +19,7 @@ func TestComputePolicyHash_NoPolicy(t *testing.T) {
 	}{
 		{name: "nil config", githubConfig: nil},
 		{name: "empty config", githubConfig: &GitHubToolConfig{}},
-		{name: "config without min-integrity", githubConfig: &GitHubToolConfig{AllowedRepos: "all"}},
+		{name: "config without min-integrity", githubConfig: &GitHubToolConfig{AllowedRepos: GitHubReposScope{"all"}}},
 	}
 
 	for _, tt := range tests {
@@ -34,7 +34,7 @@ func TestComputePolicyHash_NoPolicy(t *testing.T) {
 func TestComputePolicyHash_Deterministic(t *testing.T) {
 	cfg := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityUnapproved,
-		AllowedRepos: []any{"github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw"},
 		BlockedUsers: []string{"attacker1"},
 	}
 
@@ -49,7 +49,7 @@ func TestComputePolicyHash_Deterministic(t *testing.T) {
 func TestComputePolicyHash_FieldChanges(t *testing.T) {
 	base := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityUnapproved,
-		AllowedRepos: []any{"github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw"},
 		BlockedUsers: []string{},
 	}
 	baseHash := computePolicyHash(base)
@@ -62,7 +62,7 @@ func TestComputePolicyHash_FieldChanges(t *testing.T) {
 			name: "change min-integrity",
 			cfg: &GitHubToolConfig{
 				MinIntegrity: GitHubIntegrityApproved,
-				AllowedRepos: []any{"github/gh-aw"},
+				AllowedRepos: GitHubReposScope{"github/gh-aw"},
 				BlockedUsers: []string{},
 			},
 		},
@@ -70,7 +70,7 @@ func TestComputePolicyHash_FieldChanges(t *testing.T) {
 			name: "change repos",
 			cfg: &GitHubToolConfig{
 				MinIntegrity: GitHubIntegrityUnapproved,
-				AllowedRepos: []any{"github/other-repo"},
+				AllowedRepos: GitHubReposScope{"github/other-repo"},
 				BlockedUsers: []string{},
 			},
 		},
@@ -78,7 +78,7 @@ func TestComputePolicyHash_FieldChanges(t *testing.T) {
 			name: "add blocked user",
 			cfg: &GitHubToolConfig{
 				MinIntegrity: GitHubIntegrityUnapproved,
-				AllowedRepos: []any{"github/gh-aw"},
+				AllowedRepos: GitHubReposScope{"github/gh-aw"},
 				BlockedUsers: []string{"attacker1"},
 			},
 		},
@@ -86,7 +86,7 @@ func TestComputePolicyHash_FieldChanges(t *testing.T) {
 			name: "change repos to 'all'",
 			cfg: &GitHubToolConfig{
 				MinIntegrity: GitHubIntegrityUnapproved,
-				AllowedRepos: "all",
+				AllowedRepos: GitHubReposScope{"all"},
 				BlockedUsers: []string{},
 			},
 		},
@@ -104,12 +104,12 @@ func TestComputePolicyHash_FieldChanges(t *testing.T) {
 func TestComputePolicyHash_ListOrderIndependent(t *testing.T) {
 	cfg1 := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityUnapproved,
-		AllowedRepos: []any{"github/gh-aw-mcpg", "github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw-mcpg", "github/gh-aw"},
 		BlockedUsers: []string{"bob", "alice"},
 	}
 	cfg2 := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityUnapproved,
-		AllowedRepos: []any{"github/gh-aw", "github/gh-aw-mcpg"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw", "github/gh-aw-mcpg"},
 		BlockedUsers: []string{"alice", "bob"},
 	}
 
@@ -121,12 +121,12 @@ func TestComputePolicyHash_ListOrderIndependent(t *testing.T) {
 func TestComputePolicyHash_DuplicatesDeduped(t *testing.T) {
 	cfg1 := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityNone,
-		AllowedRepos: []any{"github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw"},
 		BlockedUsers: []string{"alice"},
 	}
 	cfg2 := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityNone,
-		AllowedRepos: []any{"github/gh-aw", "github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw", "github/gh-aw"},
 		BlockedUsers: []string{"alice", "alice"},
 	}
 
@@ -139,7 +139,7 @@ func TestComputePolicyHash_DuplicatesDeduped(t *testing.T) {
 func TestComputePolicyHash_BlockedUsersExpr(t *testing.T) {
 	base := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityUnapproved,
-		AllowedRepos: []any{"github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw"},
 		BlockedUsers: []string{},
 	}
 	baseHash := computePolicyHash(base)
@@ -147,7 +147,7 @@ func TestComputePolicyHash_BlockedUsersExpr(t *testing.T) {
 	// Switching to an expression-based blocked-users should produce a different hash
 	cfgWithExpr := &GitHubToolConfig{
 		MinIntegrity:     GitHubIntegrityUnapproved,
-		AllowedRepos:     []any{"github/gh-aw"},
+		AllowedRepos:     GitHubReposScope{"github/gh-aw"},
 		BlockedUsersExpr: "${{ vars.BLOCKED_USERS }}",
 	}
 	assert.NotEqual(t, baseHash, computePolicyHash(cfgWithExpr),
@@ -156,7 +156,7 @@ func TestComputePolicyHash_BlockedUsersExpr(t *testing.T) {
 	// Different expressions must produce different hashes
 	cfgWithExpr2 := &GitHubToolConfig{
 		MinIntegrity:     GitHubIntegrityUnapproved,
-		AllowedRepos:     []any{"github/gh-aw"},
+		AllowedRepos:     GitHubReposScope{"github/gh-aw"},
 		BlockedUsersExpr: "${{ vars.OTHER_BLOCKED_USERS }}",
 	}
 	assert.NotEqual(t, computePolicyHash(cfgWithExpr), computePolicyHash(cfgWithExpr2),
@@ -165,7 +165,7 @@ func TestComputePolicyHash_BlockedUsersExpr(t *testing.T) {
 	// Same expression must produce the same hash (deterministic)
 	cfgWithExprCopy := &GitHubToolConfig{
 		MinIntegrity:     GitHubIntegrityUnapproved,
-		AllowedRepos:     []any{"github/gh-aw"},
+		AllowedRepos:     GitHubReposScope{"github/gh-aw"},
 		BlockedUsersExpr: "${{ vars.BLOCKED_USERS }}",
 	}
 	assert.Equal(t, computePolicyHash(cfgWithExpr), computePolicyHash(cfgWithExprCopy),
@@ -176,12 +176,12 @@ func TestComputePolicyHash_BlockedUsersExpr(t *testing.T) {
 func TestComputePolicyHash_CaseInsensitive(t *testing.T) {
 	cfg1 := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityNone,
-		AllowedRepos: []any{"GitHub/GH-AW"},
+		AllowedRepos: GitHubReposScope{"GitHub/GH-AW"},
 		BlockedUsers: []string{"Alice"},
 	}
 	cfg2 := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityNone,
-		AllowedRepos: []any{"github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw"},
 		BlockedUsers: []string{"alice"},
 	}
 
@@ -197,14 +197,14 @@ func TestCanonicalReposScope(t *testing.T) {
 		expected string
 	}{
 		{name: "nil", repos: nil, expected: ""},
-		{name: "all string", repos: "all", expected: "all"},
-		{name: "public string", repos: "public", expected: "public"},
-		{name: "uppercase string", repos: "ALL", expected: "all"},
-		{name: "single repo array", repos: []any{"github/gh-aw"}, expected: "github/gh-aw"},
-		{name: "multi repo array sorted", repos: []any{"github/z-repo", "github/a-repo"}, expected: "github/a-repo\ngithub/z-repo"},
-		{name: "multi repo array uppercase", repos: []any{"GitHub/GH-AW"}, expected: "github/gh-aw"},
-		{name: "dedup array", repos: []any{"github/gh-aw", "github/gh-aw"}, expected: "github/gh-aw"},
-		{name: "sorted string slice", repos: []string{"b", "a"}, expected: "a\nb"},
+		{name: "all string", repos: GitHubReposScope{"all"}, expected: "all"},
+		{name: "public string", repos: GitHubReposScope{"public"}, expected: "public"},
+		{name: "uppercase string", repos: GitHubReposScope{"ALL"}, expected: "all"},
+		{name: "single repo array", repos: GitHubReposScope{"github/gh-aw"}, expected: "github/gh-aw"},
+		{name: "multi repo array sorted", repos: GitHubReposScope{"github/z-repo", "github/a-repo"}, expected: "github/a-repo\ngithub/z-repo"},
+		{name: "multi repo array uppercase", repos: GitHubReposScope{"GitHub/GH-AW"}, expected: "github/gh-aw"},
+		{name: "dedup array", repos: GitHubReposScope{"github/gh-aw", "github/gh-aw"}, expected: "github/gh-aw"},
+		{name: "sorted string slice", repos: GitHubReposScope{"b", "a"}, expected: "a\nb"},
 	}
 
 	for _, tt := range tests {
@@ -313,7 +313,7 @@ func TestCacheIntegrityLevel(t *testing.T) {
 func TestComputeIntegrityCacheKey_WithGitHubConfig(t *testing.T) {
 	cfg := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityUnapproved,
-		AllowedRepos: []any{"github/gh-aw"},
+		AllowedRepos: GitHubReposScope{"github/gh-aw"},
 	}
 	policyHash := computePolicyHash(cfg)
 	require.Len(t, policyHash, 8, "Policy hash must be 8 characters")
@@ -343,7 +343,7 @@ func TestComputeIntegrityCacheKey_NoPolicy(t *testing.T) {
 func TestComputeIntegrityCacheKey_CustomKey(t *testing.T) {
 	cfg := &GitHubToolConfig{
 		MinIntegrity: GitHubIntegrityMerged,
-		AllowedRepos: "all",
+		AllowedRepos: GitHubReposScope{"all"},
 	}
 	policyHash := computePolicyHash(cfg)
 

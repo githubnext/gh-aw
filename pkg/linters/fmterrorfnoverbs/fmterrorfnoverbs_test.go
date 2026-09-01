@@ -11,6 +11,7 @@ import (
 )
 
 func TestFmtErrorfNoVerbs(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, fmterrorfnoverbs.Analyzer, "fmterrorfnoverbs")
 }

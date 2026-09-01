@@ -101,7 +101,7 @@ func generateSquidLogsUploadStep(workflowName string, workflowData *WorkflowData
 	artifactName := "firewall-logs-" + sanitizedName
 	// Firewall logs location: /tmp/gh-aw on standard runners, ${{ runner.temp }}/gh-aw on ARC/DinD.
 	// Use ${{ runner.temp }} (Actions expression) because `with:` blocks don't expand shell vars.
-	firewallLogsDir := constants.AWFProxyLogsDir + "/"
+	firewallLogsDir := constants.AWFProxyLogsDir.String() + "/"
 	if isArcDindTopology(workflowData) {
 		firewallLogsDir = constants.AWFProxyLogsDirExpr + "/"
 	}
@@ -125,7 +125,7 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 	// Firewall logs are at a known location in the sandbox folder structure.
 	// On ARC/DinD, /tmp/gh-aw is not daemon-visible so logs land under runner.temp/gh-aw.
 	// For env: blocks, use ${{ runner.temp }} (Actions expression) since shell vars aren't expanded there.
-	firewallLogsDirEnv := constants.AWFProxyLogsDir
+	firewallLogsDirEnv := constants.AWFProxyLogsDir.String()
 	if isArcDindTopology(workflowData) {
 		firewallLogsDirEnv = constants.AWFProxyLogsDirExpr
 	}

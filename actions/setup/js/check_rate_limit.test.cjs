@@ -751,14 +751,18 @@ describe("check_rate_limit", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
   });
 
-  it("should skip non-programmatic events like pull_request by default", async () => {
+  it("should apply rate limiting to pull_request events by default", async () => {
     mockContext.eventName = "pull_request";
+
+    mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
+      data: { workflow_runs: [] },
+    });
 
     await checkRateLimit.main();
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Event 'pull_request' is not a programmatic trigger"));
-    expect(mockGithub.rest.actions.listWorkflowRuns).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Rate limiting applies to programmatic events"));
+    expect(mockGithub.rest.actions.listWorkflowRuns).toHaveBeenCalled();
   });
 
   it("should log stack trace for errors that have one", async () => {

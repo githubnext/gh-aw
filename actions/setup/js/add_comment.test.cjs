@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -7,7 +7,20 @@ import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-syncRuntimePromptTemplates(import.meta.url);
+const { runtimePromptsDir } = syncRuntimePromptTemplates(import.meta.url);
+const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+
+beforeAll(() => {
+  process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
+});
+
+afterAll(() => {
+  if (originalPromptsDir === undefined) {
+    delete process.env.GH_AW_PROMPTS_DIR;
+  } else {
+    process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+  }
+});
 
 describe("add_comment", () => {
   let mockCore;

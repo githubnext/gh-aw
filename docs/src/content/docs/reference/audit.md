@@ -7,9 +7,6 @@ sidebar:
 
 The `gh aw audit` commands download workflow run artifacts and logs, analyze MCP tool usage and network behavior, and produce structured reports suited for security reviews, debugging, and feeding to AI agents.
 
-> [!NOTE]
-> AI Credits (AIC) are the primary spend metric in gh-aw. Legacy Effective Tokens (ET) fields remain available for backward compatibility in report output.
-
 ## `gh aw audit <run-id-or-url> [<run-id-or-url>...]`
 
 Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report.
@@ -71,9 +68,11 @@ gh aw audit 12345 12346 --json                 # JSON for CI integration
 gh aw audit 12345 12346 --repo owner/repo      # Specify repository
 ```
 
-**Single-run report sections** (rendered in Markdown or JSON): Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items.
+**Single-run report sections** (rendered in Markdown or JSON): Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items, Graders.
 
 The Observability Insights section includes `skill_activations` when skill-invocation evidence is found. Each entry reports the skill name, `status` (`invoked`), the detection `source` (`agent_output` or `log_parse`), and provenance fields in JSON output. This makes it possible to distinguish skills that were merely restored or installed from skills that were actually invoked during the run.
+
+The Graders section is present when the run recorded deterministic grader results (`graders` declared in the workflow frontmatter). The `graders` object in JSON output lists each grader (`id`, `name`, `status`, `value`, `unit`, `passed`, and, when declared in the grader manifest, `direction` and `threshold`) plus aggregate counts: `total`, `passed`, `failed`, `error_count`, and `unavailable_count`. Grader results are read from the compact `usage` artifact (mirrored there by the conclusion job), the unified `agent` artifact, or the `agent-output-fallback` artifact, so they are available even when `--artifacts usage` narrows the download. The same `graders` object is included per run in `gh aw logs --json` output.
 
 The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run. It is absent when token-usage data is unavailable for the run — for example, when neither `token-usage.jsonl` nor the fallback `agent_usage.json` can be found in the downloaded artifacts, which is common for older runs and runs without firewall/usage artifacts:
 - `ambient_context.input_tokens` — input tokens for the first invocation
@@ -113,6 +112,41 @@ Top-level fields in `--json` output are stable; nested sub-fields may be extende
 
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
+When cross-run behavior data is available, JSON output also includes `cluster_analysis` with:
+
+- `clusters`: groups of runs sharing the same value for a behavioral dimension
+- `patterns`: automatically detected divergence signals across those groups
+
+### Interpreting `cluster_analysis` values
+
+**Cluster dimensions (`clusters[].dimension`)**
+
+| Dimension | Meaning | Typical values |
+|---|---|---|
+| `conclusion` | Workflow completion outcome | `success`, `failure`, `timed_out`, `cancelled` |
+| `task_domain` | Dominant task type inferred from run behavior | e.g. `code_editing`, `testing`, `unknown` |
+| `execution_style` | How the run progresses | e.g. `sequential`, `iterative`, `unknown` |
+| `resource_profile` | Relative resource usage posture | e.g. `light`, `heavy`, `unknown` |
+
+`clusters[].metrics` summarizes each group:
+- `avg_tokens`, `median_tokens`, `stddev_tokens`: token usage center/spread
+- `avg_turns`: average turns per run
+- `avg_duration_ns`: average runtime (nanoseconds)
+- `avg_errors_per_run`: average error count in the cluster
+- `success_rate`: fraction of runs in the cluster with `conclusion == "success"`
+
+Clusters from dimensions with only one observed value are omitted to avoid noise.
+
+**Pattern kinds (`patterns[].kind`)**
+
+| Kind | What it means | Severity rule |
+|---|---|---|
+| `resource_divergence` | Failed runs use more tokens than successful runs | `low` ≥1.5x, `medium` ≥2.0x, `high` ≥3.0x |
+| `failure_correlation` | A non-conclusion dimension value has only failed runs | always `high` |
+| `style_skew` | One non-conclusion value dominates the dataset | `low` when a value is >80% of runs (minimum 5 runs total) |
+
+Use these as triage signals: high-severity patterns are good candidates for immediate investigation; low-severity patterns are often workload-shape hints.
+
 For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, and legacy `effective_tokens`). It is absent when the downloaded artifacts do not contain usable `token-usage.jsonl` or fallback `agent_usage.json` data for that run.
 
 Detailed logs JSON output includes the same `working_set` object when the usage activity summary is available. The default `gh aw logs` runs table (both the compact agent-optimized format and the verbose `-v` format) also surfaces a single `WSRF` column with the rebuild factor rounded to two decimal places, showing `-` when the metric was not measured for that run.
@@ -135,12 +169,11 @@ gh aw logs --format pretty
 gh aw logs --format markdown --repo owner/repo --count 10
 ```
 
-## Related Documentation
+## Learn More
 
 - [Cost Management](/gh-aw/reference/cost-management/) — Track AIC-first spend and token usage
 - [Artifacts](/gh-aw/reference/artifacts/) — Artifact names, directory structures, and token usage file locations (`token-usage.jsonl` in `firewall-audit-logs`)
 - [AI Credits Specification](/gh-aw/specs/ai-credits-specification/) — Primary AIC computation details
-- [Effective Tokens Specification](/gh-aw/specs/effective-tokens-specification/) — Legacy ET computation details
 - [Network](/gh-aw/reference/network/) — Firewall and domain allow/deny configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — MCP server health and debugging
 - [CLI Commands](/gh-aw/setup/cli/) — Full CLI reference

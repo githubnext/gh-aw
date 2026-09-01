@@ -53,7 +53,7 @@ This keeps shared tooling portable across repositories and environments where av
 curl -s http://api-proxy:10000/reflect
 ```
 
-## Related Documentation
+## Learn More
 
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/)
 - [Cost Management](/gh-aw/reference/cost-management/)

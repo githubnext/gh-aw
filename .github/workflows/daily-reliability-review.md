@@ -23,6 +23,8 @@ network:
   allowed:
     - defaults
     - github
+    - go
+    - node
 tools:
   bash: true
   cli-proxy: true

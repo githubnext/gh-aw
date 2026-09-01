@@ -101,7 +101,7 @@ func findAgentOutputFile(logDir string) (string, bool) {
 		if info == nil {
 			return nil
 		}
-		if !info.IsDir() && strings.EqualFold(info.Name(), constants.AgentOutputArtifactName) {
+		if !info.IsDir() && strings.EqualFold(info.Name(), constants.AgentOutputArtifactName.String()) {
 			foundPath = path
 			return errWalkStop
 		}

@@ -270,12 +270,12 @@ MCP Scripts tools run on the GitHub Actions **runner host** — outside the agen
 
 ## Troubleshooting
 
-- **Tool Not Found**: Verify tool name matches exactly
-- **Script Errors**: Check workflow logs for syntax errors
-- **Secret Not Available**: Confirm secret name in repository/org settings
-- **Large Output**: Agent reads file path from response
+- **Tool Not Found**: The tool name the agent calls must exactly match the key under `mcp-scripts:` in frontmatter (case-sensitive). Check the agent's tool list in the run logs against your `mcp-scripts:` block.
+- **Script Errors**: Open the workflow run logs and search for the mcp-scripts server output (`MCP Scripts` step) for a stack trace or syntax error; the line number in the trace maps directly to your `script:`/`run:`/`py:`/`go:` block.
+- **Secret Not Available**: Confirm the secret referenced in `env:` (e.g., `${{ secrets.API_KEY }}`) is defined at the repository or organization level under **Settings > Secrets and variables > Actions**, and that its name matches exactly.
+- **Large Output**: When output exceeds 500 characters, the agent receives a file path instead of inline content (see [Large Output Handling](#large-output-handling)); read that file if the agent's response looks truncated.
 
-## Related Documentation
+## Learn More
 
 - [MCP Scripts Specification](/gh-aw/specs/mcp-scripts-specification/) - Formal W3C-style specification
 - [Tools](/gh-aw/reference/tools/) - Other tool configuration options

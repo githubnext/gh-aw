@@ -3,6 +3,7 @@ private: true
 emoji: "🔬"
 description: Smoke Copilot SDK
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-copilot-sdk
     strategy: centralized

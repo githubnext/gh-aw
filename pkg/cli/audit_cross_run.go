@@ -35,6 +35,7 @@ type CrossRunAuditReport struct {
 	DomainInventory []DomainInventoryEntry    `json:"domain_inventory"`
 	PerRunBreakdown []PerRunFirewallBreakdown `json:"per_run_breakdown"`
 	Drain3Insights  []ObservabilityInsight    `json:"drain3_insights,omitempty"`
+	ClusterAnalysis *ClusterAnalysis          `json:"cluster_analysis,omitempty"`
 }
 
 // CrossRunSummary provides top-level statistics across all analyzed runs.
@@ -185,15 +186,19 @@ type PerRunFirewallBreakdown struct {
 
 // crossRunInput bundles per-run data needed for aggregation.
 type crossRunInput struct {
-	RunID            int64
-	WorkflowName     string
-	Conclusion       string
-	Duration         time.Duration
-	FirewallAnalysis *FirewallAnalysis
-	Metrics          LogMetrics
-	MCPToolUsage     *MCPToolUsageData
-	MCPFailures      []MCPFailureReport
-	ErrorCount       int
+	RunID               int64
+	WorkflowName        string
+	Conclusion          string
+	Duration            time.Duration
+	FirewallAnalysis    *FirewallAnalysis
+	Metrics             LogMetrics
+	MCPToolUsage        *MCPToolUsageData
+	MCPFailures         []MCPFailureReport
+	ErrorCount          int
+	TaskDomain          *TaskDomainInfo
+	BehaviorFingerprint *BehaviorFingerprint
+	GradersCluster      string
+	EvalsCluster        string
 }
 
 // buildCrossRunAuditReport aggregates data from multiple runs into a CrossRunAuditReport.
@@ -215,6 +220,7 @@ func buildCrossRunAuditReport(inputs []crossRunInput) *CrossRunAuditReport {
 		report.RunsAnalyzed, report.RunsWithData, report.Summary.UniqueDomains, len(report.MCPHealth))
 
 	report.Drain3Insights = buildDrain3InsightsFromCrossRunInputs(inputs)
+	report.ClusterAnalysis = buildClusterAnalysis(inputs)
 	return report
 }
 

@@ -26,6 +26,7 @@ imports:
       labels: [architecture, automated-analysis, cookie]
       assignees: [copilot]
   - shared/otlp.md
+  - shared/graders.md
 sandbox:
   agent:
     runtime: cloud-hypervisor
@@ -140,6 +141,7 @@ evals:
     question: Did the workflow analyze changed Go or JavaScript files from the last 24 hours for architecture violations, or correctly conclude there were none?
   - id: issue-created-or-noop
     question: Was an architecture report issue created when violations were found, or was noop or skip behavior used appropriately when there was nothing actionable?
+
 ---
 
 # Architecture Guardian

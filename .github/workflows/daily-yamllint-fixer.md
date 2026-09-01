@@ -29,8 +29,8 @@ tools:
     - "*"
   edit:
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 7d
     title-prefix: "[yamllint-fixer] "
     labels: [automation, yamllint-fixer]

@@ -21,14 +21,15 @@ network:
     - defaults
     - github
     - go
+    - node
 
 imports:
   - shared/reporting.md
 
   - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     title-prefix: "[fp-enhancer] "
     labels: [refactoring, functional, immutability, code-quality]
     reviewers: [copilot]
@@ -43,6 +44,10 @@ tools:
     - "*"
 
 timeout-minutes: 45
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 
 

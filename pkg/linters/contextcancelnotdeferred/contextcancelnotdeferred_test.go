@@ -11,6 +11,7 @@ import (
 )
 
 func TestContextCancelNotDeferred(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, contextcancelnotdeferred.Analyzer, "contextcancelnotdeferred")
 }

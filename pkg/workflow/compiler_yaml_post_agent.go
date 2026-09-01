@@ -33,7 +33,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// tools can consume structured token data without parsing the step summary.
 	// Requires AWF v0.25.8+
 	if isFirewallEnabled(data) {
-		paths = append(paths, constants.TmpGhAwDirSlash+constants.TokenUsageFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.TokenUsageFilename.String())
 	}
 
 	// Collect agent stdio logs path for unified upload
@@ -41,7 +41,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 
 	// Include the pre-agent audit file (file listing of agent-related directories captured
 	// before agent execution) so it is available in the agent artifact for post-run inspection.
-	paths = append(paths, constants.PreAgentAuditFilePath)
+	paths = append(paths, constants.PreAgentAuditFilePath.String())
 
 	// Collect agent-generated files path for unified upload
 	// This directory is used by workflows that instruct the agent to write files
@@ -50,14 +50,14 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 
 	// Collect GitHub API rate-limit log for observability.
 	// Written by github_rate_limit_logger.cjs during REST API calls.
-	paths = append(paths, constants.TmpGhAwDirSlash+constants.GithubRateLimitsFilename)
+	paths = append(paths, constants.TmpGhAwDirSlash+constants.GithubRateLimitsFilename.String())
 
 	// Collect OTLP span mirror — enables post-hoc trace debugging without a live collector.
 	// Written by send_otlp_span.cjs; each line is a full OTLP/HTTP JSON traces payload.
 	// Only included when OTLP is configured for this workflow.
 	if isOTLPEnabled(data) {
-		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtelJsonlFilename)
-		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtlpExportErrorsFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtelJsonlFilename.String())
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtlpExportErrorsFilename.String())
 	}
 
 	// Collect grader manifest and results when graders are configured.
@@ -69,9 +69,9 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// These were previously uploaded as separate safe-output and agent-output artifacts.
 	if data.SafeOutputs != nil {
 		// Raw safe-output NDJSON (copied to /tmp/gh-aw/ by generateOutputCollectionStep)
-		paths = append(paths, constants.TmpGhAwDirSlash+constants.SafeOutputsFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.SafeOutputsFilename.String())
 		// Processed agent output JSON produced by collect_ndjson_output.cjs
-		paths = append(paths, constants.TmpGhAwDirSlash+constants.AgentOutputFilename)
+		paths = append(paths, constants.TmpGhAwDirSlash+constants.AgentOutputFilename.String())
 		if data.CommentMemoryConfig != nil {
 			paths = append(paths, constants.TmpCommentMemoryDir)
 		}
@@ -110,13 +110,13 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 			paths = append(paths, constants.AWFAuditDirExpr+"/")
 			paths = append(paths, constants.AWFReflectFilePathExpr)
 		} else {
-			paths = append(paths, constants.AWFConfigFilePath)
-			paths = append(paths, constants.AWFProxyLogsDir+"/")
-			paths = append(paths, constants.AWFAuditDir+"/")
+			paths = append(paths, constants.AWFConfigFilePath.String())
+			paths = append(paths, constants.AWFProxyLogsDir.String()+"/")
+			paths = append(paths, constants.AWFAuditDir.String()+"/")
 			// Include the AWF /reflect payload persisted by the agent harness.
 			// Co-located under /tmp/gh-aw/sandbox/firewall/ so the existing
 			// chmod -R a+rX step covers its permissions before upload.
-			paths = append(paths, constants.AWFReflectFilePath)
+			paths = append(paths, constants.AWFReflectFilePath.String())
 		}
 	}
 

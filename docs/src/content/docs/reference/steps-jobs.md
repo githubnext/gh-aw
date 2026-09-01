@@ -234,14 +234,15 @@ jobs:
     steps:
       - id: get_release
         run: echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
----
+```
 
+```markdown
 Generate highlights for release ${{ needs.release.outputs.version }}.
 ```
 
 Job outputs must be string values.
 
-## Related Documentation
+## Learn More
 
 - [DeterministicOps](/gh-aw/patterns/deterministic-ops/) — Patterns combining deterministic steps with AI reasoning
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) — Complete frontmatter field reference

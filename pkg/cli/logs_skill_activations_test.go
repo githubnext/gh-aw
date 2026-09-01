@@ -124,7 +124,7 @@ func TestExtractSkillActivationsFromAgentOutput(t *testing.T) {
 			t.Parallel()
 			tmpDir := testutil.TempDir(t, "skill-activations-*")
 			// Write agent_output.json
-			agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename)
+			agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename.String())
 			if err := os.WriteFile(agentOutputPath, []byte(tc.content), 0o600); err != nil {
 				t.Fatalf("failed to write agent_output.json: %v", err)
 			}
@@ -268,7 +268,7 @@ func TestExtractSkillActivationsBothSourcesMerged(t *testing.T) {
 			}
 		]
 	}`
-	agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename)
+	agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename.String())
 	if err := os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0o600); err != nil {
 		t.Fatalf("failed to write agent_output.json: %v", err)
 	}
@@ -329,7 +329,7 @@ func TestExtractSkillActivationsAgentOutputWinsOnDuplicate(t *testing.T) {
 			}
 		]
 	}`
-	agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename)
+	agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename.String())
 	if err := os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0o600); err != nil {
 		t.Fatalf("failed to write agent_output.json: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestExtractSkillActivationsProvenanceFields(t *testing.T) {
 			}
 		]
 	}`
-	agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename)
+	agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename.String())
 	if err := os.WriteFile(agentOutputPath, []byte(content), 0o600); err != nil {
 		t.Fatalf("failed to write agent_output.json: %v", err)
 	}

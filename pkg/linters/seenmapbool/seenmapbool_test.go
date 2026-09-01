@@ -9,11 +9,13 @@ import (
 )
 
 func TestSeenMapBool(t *testing.T) {
+	t.Parallel()
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, Analyzer, "seenmapbool")
 }
 
 func TestAnalyzerFields(t *testing.T) {
+	t.Parallel()
 	if Analyzer.Name != "seenmapbool" {
 		t.Errorf("expected Name %q, got %q", "seenmapbool", Analyzer.Name)
 	}

@@ -35,8 +35,8 @@ imports:
 safe-outputs:
   add-comment:
     max: 1
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[docs] "
     labels: [documentation]

@@ -14,7 +14,7 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - Set `sandbox.agent.runtime: docker-sbx` only when the runner supports KVM-backed microVMs.
 - Set `sandbox.agent.runtime: cloud-hypervisor` only for the preview microVM runtime on a GitHub-hosted Ubuntu x86_64 runner with `/dev/kvm`; prefer `docker-sbx` or `gvisor` when those host constraints are not guaranteed.
 - Do not set `sandbox.agent.runtime: docker`; Docker is selected by omitting the field.
-- Do not set `sandbox.agent.runtime: sbx`; `sbx` is only a bounded-query runtime name.
+- Do not set `sandbox.agent.runtime: sbx`; `sbx` is not a valid `sandbox.agent.runtime` value.
 - Set `runner.topology: arc-dind` for ARC or equivalent Kubernetes runners that use a Docker-in-Docker sidecar. This is a runner topology, not an agent runtime.
 
 ## Compatibility

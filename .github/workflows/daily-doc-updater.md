@@ -18,8 +18,8 @@ imports:
 - shared/ai-coding-dictionary.md
 - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     auto-merge: true
     draft: false
     expires: 1d
@@ -27,15 +27,19 @@ safe-outputs:
     - documentation
     - automation
     protected-files: fallback-to-issue
+    excluded-files:
+    - README.md
+    - docs/src/content/docs/index.mdx
     reviewers:
     - copilot
     title-prefix: "[docs] "
   noop: null
 description: Automatically reviews and updates documentation to ensure accuracy and completeness
 emoji: 📝
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 name: Daily Documentation Updater
 strict: true
 experiments:
@@ -88,6 +92,8 @@ You are an AI documentation agent that automatically updates the project documen
 ## Your Mission
 
 Scan the repository for merged pull requests and code changes from the last 24 hours, identify new features or changes that should be documented, and update the documentation accordingly.
+
+Do not modify the top-level `README.md` or `docs/src/content/docs/index.mdx`. These files contain primary project messaging that must only be changed by maintainers. If a discovered documentation gap appears to require either file, skip that edit and record it in the PR description's **Skipped Issues** or **Notes** section for maintainer follow-up.
 
 ## Tool Reference
 

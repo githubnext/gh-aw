@@ -47,7 +47,7 @@ func (e *GeminiEngine) GetModelEnvVarName() string {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Gemini engine
-// This includes GEMINI_API_KEY and optionally MCP_GATEWAY_API_KEY, GITHUB_MCP_SERVER_TOKEN,
+// This includes GEMINI_API_KEY and optionally MCP_GATEWAY_AGENT_ID, GITHUB_MCP_SERVER_TOKEN,
 // HTTP MCP header secrets, and mcp-scripts secrets.
 // When Google/Vertex WIF (github-oidc + provider=google) is configured, no static API key
 // is needed and only common MCP secrets are returned.
@@ -59,7 +59,7 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 		secrets = append(secrets, "GEMINI_API_KEY")
 	}
 
-	// Add common MCP secrets (MCP_GATEWAY_API_KEY if MCP servers present, mcp-scripts secrets)
+	// Add common MCP secrets (MCP_GATEWAY_AGENT_ID if MCP servers present, mcp-scripts secrets)
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
 
 	// Add GitHub token for GitHub MCP server if present
@@ -183,7 +183,7 @@ func (e *GeminiEngine) GetPreBundleSteps(workflowData *WorkflowData) []GitHubAct
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Gemini
-func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep { //nolint:largefunc // Existing Gemini step assembly is kept in generated order.
 	geminiLog.Printf("Generating execution steps for Gemini engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
 	var steps []GitHubActionStep

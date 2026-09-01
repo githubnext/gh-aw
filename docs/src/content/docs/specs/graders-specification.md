@@ -335,7 +335,7 @@ semantic task correctness. The normative readiness, decision, and JSON contracts
 
 ### Informative References
 
-- **[Graders Reference]** [Graders](/gh-aw/reference/trace-graders/)
+- **[Graders Reference]** [Graders](/gh-aw/experimental/trace-graders/)
 - **[Experiments Specification]** [Experiments Specification](/gh-aw/experimental/experiments-specification/)
 
 ---

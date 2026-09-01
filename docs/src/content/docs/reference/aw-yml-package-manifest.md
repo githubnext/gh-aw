@@ -32,6 +32,7 @@ The package root is the folder that contains `aw.yml`.
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
 | `files` | array of strings | No | Deprecated; use `includes`. Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
 | `includes` | array | No | Installable entries. Each entry is either a path string (same rules as `files`, plus skill and agent paths) or a source-to-destination mapping. |
+| `resources` | array | No | Repository assets copied from package-relative `source` paths to allowlisted repository-relative `destination` paths. |
 
 ## Installable workflows
 
@@ -69,6 +70,8 @@ Mappings are rejected when `source` or `destination` is absolute, contains `..`,
 
 `gh aw add`, `gh aw add-wizard`, and `gh aw update` all use these same mapping rules.
 
+String entries can also install skill directories under `skills/` or `.github/skills/` when they contain `SKILL.md`, and agent Markdown files under `agents/` or `.github/agents/`.
+
 If `files` is omitted, or no valid entries remain after filtering,
 `gh aw add` discovers installable markdown files under:
 
@@ -77,12 +80,24 @@ If `files` is omitted, or no valid entries remain after filtering,
 
 If no installable workflow files are resolved, validation fails.
 
+## Resources
+
+The `resources` field installs inert repository assets. Each entry maps a package-relative `source` to a repository-relative `destination`. Supported destinations are:
+
+- Direct children of `.github/ISSUE_TEMPLATE/` with a `.yml` or `.yaml` extension
+- `.github/CODEOWNERS`
+- Files under `.github/aw/`
+
+Resource destinations must be unique, including case-insensitive comparisons. Path traversal, symbolic links, non-regular local files, and destinations outside the allowlist are rejected. Installed resources are tracked with package-scoped ownership metadata in `.github/aw/packages/*.json`.
+
 ## Package documentation
 
 Package documentation must be `README.md` at the package root.
 The manifest does not support a `docs` field.
 
 Missing `README.md` causes package validation to fail.
+
+The embedded JSON schema source of truth is `pkg/parser/schemas/aw_manifest_schema.json`.
 
 ## Example
 

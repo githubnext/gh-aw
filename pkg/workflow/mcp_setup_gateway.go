@@ -18,8 +18,18 @@ const mcpGatewayCustomEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES"
 const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
 const mcpGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_"
 const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
+const mcpGatewayConfiguredAgentIDVar = "GH_AW_MCP_GATEWAY_CONFIGURED_AGENT_ID"
 
-func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
+var optionalPRHeadEnvVars = []string{
+	"GH_AW_PR_HEAD_BASE_BRANCH",
+	"GH_AW_PR_HEAD_BASE_SHA",
+	"GH_AW_PR_HEAD_BASE_REPO",
+	"GH_AW_PR_HEAD_BASE_PR_NUMBER",
+	"GH_AW_PR_HEAD_BASE_REF",
+	"GH_AW_PR_HEAD_REPO",
+}
+
+func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error { //nolint:largefunc // Existing setup generation preserves emitted step ordering.
 	// If the engine provides an MCP config-adapter script (e.g. Goose), write it to disk
 	// before starting the gateway so that start_mcp_gateway.cjs can execute it once the
 	// gateway has produced its output configuration.
@@ -37,7 +47,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
 	customGatewayEnvNames := sanitizedGatewayEnvNames(gatewayConfig.Env)
-	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env, customGatewayEnvNames)
+	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env, customGatewayEnvNames, gatewayConfig.AgentID)
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-config\"\n")
@@ -92,8 +102,8 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
-func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string, customEnvVarNames []string) {
-	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(customEnvVarNames) == 0 {
+func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string, customEnvVarNames []string, configuredAgentID string) {
+	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(customEnvVarNames) == 0 && configuredAgentID == "" {
 		return
 	}
 	yaml.WriteString("        env:\n")
@@ -138,6 +148,9 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 		for i, envVarName := range customEnvVarNames {
 			yaml.WriteString(formatYAMLEnv("          ", mcpGatewayCustomEnvTransportName(i), gatewayEnvVars[envVarName]))
 		}
+	}
+	if configuredAgentID != "" {
+		yaml.WriteString(formatYAMLEnv("          ", mcpGatewayConfiguredAgentIDVar, configuredAgentID))
 	}
 }
 
@@ -222,7 +235,7 @@ type writeMCPGatewayExportsOptions struct {
 	payloadSizeThreshold int
 }
 
-func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
+func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) { //nolint:largefunc // Existing export generation keeps related runtime variables together.
 	engine := opts.engine
 	workflowData := opts.workflowData
 	gatewayConfig := opts.gatewayConfig
@@ -258,13 +271,13 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		hostDomain = "localhost"
 	}
 	yaml.WriteString("          export MCP_GATEWAY_HOST_DOMAIN=\"" + hostDomain + "\"\n")
-	if gatewayConfig.APIKey == "" {
-		yaml.WriteString("          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
-		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
-		yaml.WriteString("          export MCP_GATEWAY_API_KEY\n")
+	if gatewayConfig.AgentID == "" {
+		yaml.WriteString("          MCP_GATEWAY_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')\n")
+		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_AGENT_ID}\"\n")
+		yaml.WriteString("          export MCP_GATEWAY_AGENT_ID\n")
 	} else {
-		yaml.WriteString("          export MCP_GATEWAY_API_KEY=\"" + gatewayConfig.APIKey + "\"\n")
-		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
+		yaml.WriteString("          export MCP_GATEWAY_AGENT_ID=\"${" + mcpGatewayConfiguredAgentIDVar + "}\"\n")
+		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_AGENT_ID}\"\n")
 	}
 	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_DIR=\"" + payloadDir + "\"\n")
 	yaml.WriteString("          mkdir -p \"${MCP_GATEWAY_PAYLOAD_DIR}\"\n")
@@ -275,6 +288,12 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// Allow read-write access to the host paths our built-in MCP servers mount
 	// (workspace, safe-outputs runtime dir, temp dir); see buildMCPGatewayAllowedMountRoots.
 	yaml.WriteString("          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS=\"" + buildMCPGatewayAllowedMountRoots(tools, gatewayConfig) + "\"\n")
+	// These values are populated only for pull request checkouts, but the safe-outputs
+	// server config always references them. Export empty defaults so Docker forwards
+	// defined values and strict gateway config expansion also works for other triggers.
+	for _, envVar := range optionalPRHeadEnvVars {
+		fmt.Fprintf(yaml, "          export %s=\"${%s:-}\"\n", envVar, envVar)
+	}
 	if enclavesEnabled(workflowData) {
 		yaml.WriteString("          AWF_ENCLAVE_MCP_CAPABILITY=$(openssl rand -hex 32)\n")
 		yaml.WriteString("          echo \"::add-mask::${AWF_ENCLAVE_MCP_CAPABILITY}\"\n")
@@ -283,7 +302,13 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_CONTAINER=\"awmg-mcpg\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT=\"http://localhost:${MCP_GATEWAY_PORT}/mcp/awf-enclave\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS=\"120000\"\n")
+		yaml.WriteString("          # The eager checker runs inside start_mcp_gateway.cjs in this step.\n")
+		fmt.Fprintf(yaml, "          export %s=%q\n", enclaveMCPDeferredServersEnv, enclaveMCPServerName)
+		// Masked values may be suppressed as GitHub Actions step outputs. Enclave host setup
+		// therefore carries the gateway agent ID through the same GITHUB_ENV channel as its other
+		// AWF-only handoffs; --exclude-env keeps it out of the primary agent.
 		yaml.WriteString("          {\n")
+		yaml.WriteString("            printf '%s=%s\\n' MCP_GATEWAY_AGENT_ID \"$MCP_GATEWAY_AGENT_ID\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_CAPABILITY \"$AWF_ENCLAVE_MCP_CAPABILITY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_IDENTITY \"$AWF_ENCLAVE_MCP_GATEWAY_IDENTITY\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_CONTAINER \"$AWF_ENCLAVE_MCP_GATEWAY_CONTAINER\"\n")
@@ -326,7 +351,7 @@ type buildMCPGatewayContainerCommandOptions struct {
 	customGatewayEnvNames   []string
 }
 
-func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string {
+func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string { //nolint:largefunc // Existing docker command assembly keeps flag ordering stable.
 	engine := opts.engine
 	workflowData := opts.workflowData
 	gatewayConfig := opts.gatewayConfig
@@ -411,7 +436,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPrefix string) {
 	containerCmd.WriteString(" -e MCP_GATEWAY_PORT")
 	containerCmd.WriteString(" -e MCP_GATEWAY_DOMAIN")
-	containerCmd.WriteString(" -e MCP_GATEWAY_API_KEY")
+	containerCmd.WriteString(" -e MCP_GATEWAY_AGENT_ID")
 	containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_DIR")
 	if payloadPathPrefix != "" {
 		containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_PATH_PREFIX")
@@ -426,6 +451,9 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS")
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH")
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH")
+	for _, envVar := range optionalPRHeadEnvVars {
+		containerCmd.WriteString(" -e " + envVar)
+	}
 	containerCmd.WriteString(" -e " + compilerenv.PolicyAllowCreatePullRequest)
 	containerCmd.WriteString(" -e GH_AW_ASSETS_BRANCH")
 	containerCmd.WriteString(" -e GH_AW_ASSETS_MAX_SIZE_KB")
@@ -689,7 +717,7 @@ func appendMCPGatewayCustomAndHTTPEnvFlagsWithCustomGatewayEnvNames(containerCmd
 func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, customGatewayEnvNames []string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) map[string]struct{} {
 	addedEnvVars := make(map[string]struct{})
 	standardEnvVars := []string{
-		"MCP_GATEWAY_PORT", "MCP_GATEWAY_DOMAIN", "MCP_GATEWAY_API_KEY", "MCP_GATEWAY_PAYLOAD_DIR", "DEBUG",
+		"MCP_GATEWAY_PORT", "MCP_GATEWAY_DOMAIN", "MCP_GATEWAY_AGENT_ID", "MCP_GATEWAY_PAYLOAD_DIR", "DEBUG",
 		"MCP_GATEWAY_LOG_DIR", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS",
 		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", compilerenv.PolicyAllowCreatePullRequest,
 		"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS",
@@ -704,6 +732,9 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, customGatewayEnvName
 		"GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "GITHUB_HEAD_REF", "GITHUB_BASE_REF",
 	}
 	for _, envVar := range standardEnvVars {
+		addedEnvVars[envVar] = struct{}{}
+	}
+	for _, envVar := range optionalPRHeadEnvVars {
 		addedEnvVars[envVar] = struct{}{}
 	}
 	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {

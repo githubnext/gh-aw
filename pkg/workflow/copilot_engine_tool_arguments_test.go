@@ -175,6 +175,13 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "github"},
 		},
 		{
+			name: "web-fetch tool",
+			tools: map[string]any{
+				"web-fetch": nil,
+			},
+			expected: []string{"--allow-tool", "web_fetch"},
+		},
+		{
 			name: "github tool with multiple allowed tools sorted",
 			tools: map[string]any{
 				"github": map[string]any{
@@ -338,7 +345,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"--allow-tool", "shell(echo)",
 				"--allow-tool", "shell(mcpscripts:*)",
 				"--allow-tool", "shell(mymcp:*)",
-				"--allow-tool", "shell(playwright:*)",
+				"--allow-tool", "shell(playwright-cli:*)",
 				"--allow-tool", "shell(safeoutputs:*)",
 			},
 		},
@@ -358,7 +365,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"--allow-tool", "safeoutputs",
 				"--allow-tool", "shell(custom-mcp-cli:*)",
 				"--allow-tool", "shell(echo)",
-				"--allow-tool", "shell(playwright:*)",
+				"--allow-tool", "shell(playwright-cli:*)",
 				"--allow-tool", "shell(safeoutputs:*)",
 			},
 		},
@@ -436,7 +443,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-all-tools"},
 		},
 		{
-			name: "playwright mcp mode with restricted bash does not add playwright-cli",
+			name: "playwright default mode with restricted bash auto-allows playwright-cli",
 			tools: map[string]any{
 				"bash":       []any{"echo"},
 				"playwright": true,
@@ -447,7 +454,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"playwright": true,
 				},
 			},
-			expected: []string{"--allow-tool", "shell(echo)"},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(playwright-cli:*)"},
 		},
 		// Single-quote sanitization tests - commands with single quotes are truncated
 		// to safe prefixes to avoid Copilot CLI startup crashes.

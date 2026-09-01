@@ -18,6 +18,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	run := func(*analysis.Pass) (any, error) { return nil, nil }
 
 	analyzer := New("example", "example documentation", run)
@@ -34,6 +35,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewAtPath(t *testing.T) {
+	t.Parallel()
 	analyzer := NewAtPath("example", "example documentation", "example-path", nil)
 
 	if analyzer.URL != repositoryURL+"example-path" {
@@ -42,6 +44,7 @@ func TestNewAtPath(t *testing.T) {
 }
 
 func TestPreorder(t *testing.T) {
+	t.Parallel()
 	file, err := parser.ParseFile(token.NewFileSet(), "example.go", `package example
 func example() {
 	first()
@@ -71,6 +74,7 @@ func example() {
 }
 
 func TestIndexes(t *testing.T) {
+	t.Parallel()
 	noLintIndex := nolint.DirectiveIndex{"example.go": {1: {"example": {}}}}
 	generatedFiles := filecheck.GeneratedIndex{"generated.go": {}}
 
@@ -94,6 +98,7 @@ func TestIndexes(t *testing.T) {
 }
 
 func TestIndexesError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		resultOf map[*analysis.Analyzer]any

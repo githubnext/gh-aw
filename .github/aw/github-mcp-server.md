@@ -1,3 +1,7 @@
+---
+description: Overview and practical guidance for configuring and using GitHub MCP server toolsets in agentic workflows.
+---
+
 # GitHub MCP Server Instructions
 
 **Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)

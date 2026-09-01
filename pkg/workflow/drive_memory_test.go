@@ -240,7 +240,7 @@ func TestGenerateDriveMemorySteps(t *testing.T) {
 func TestCopilotDriveMemoryAddDirWithoutCacheMemory(t *testing.T) {
 	args := (&CopilotEngine{}).buildCopilotFeatureArgs(&WorkflowData{
 		DriveMemoryConfig: &DriveMemoryConfig{Drives: []DriveMemoryEntry{{ID: "notes"}}},
-	}, nil)
+	}, nil, nil)
 
 	assert.Contains(t, args, "--add-dir")
 	assert.Contains(t, args, "/tmp/gh-aw/drive-memory-notes/")

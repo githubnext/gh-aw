@@ -19,7 +19,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows (gh-aw) project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future AI Credits (AIC) and legacy Effective Token (ET) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic token-consumption forecasts suitable for capacity planning, cost estimation, and budget governance.
+This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future AI Credits (AIC) and legacy Effective Token (ET) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic token-consumption forecasts suitable for capacity planning, cost estimation, and budget governance.
 
 ---
 
@@ -135,11 +135,11 @@ A single execution of a GitHub Actions workflow. A run has a unique numeric run 
 
 ### 3.3 Historical Window
 
-The time interval `[now − days, now]` used to bound the set of completed runs eligible for sampling. Controlled by the `--days` flag.
+The time interval `[now − days, now]` used to bound the set of completed and in-progress runs eligible for sampling. Controlled by the `--days` flag.
 
 ### 3.4 Sample
 
-The subset of completed workflow runs within the historical window selected for metric derivation. The maximum sample size per workflow is controlled by the `--sample` flag.
+The subset of completed and in-progress workflow runs within the historical window selected for metric derivation. The maximum sample size per workflow is controlled by the `--sample` flag.
 
 ### 3.5 Monte Carlo Trial
 
@@ -221,7 +221,7 @@ If a provided `workflow_id` does not match any discovered workflow, the implemen
 |---|---|---|---|
 | `--days` | int | `30` | Length of the historical sampling window in days. Permitted values: `7`, `30`. |
 | `--period` | string | `"month"` | Projection period length. Permitted values: `"week"`, `"month"`. |
-| `--sample` | int | `100` | Maximum number of completed runs to sample per workflow. MUST be ≥ 1. |
+| `--sample` | int | `100` | Maximum number of runs to sample per workflow. MUST be ≥ 1. |
 | `--max-age` | int | `90` | Maximum age in days for historical runs eligible for sampling. Implementations SHOULD discard runs older than this bound unless the caller overrides it. MUST be ≥ 1. |
 | `--repo` | string | (none) | Target a repository other than the current working directory, in `owner/repo` format. Enables remote mode. |
 | `--json` | bool | `false` | Emit machine-readable JSON output instead of console tables. |
@@ -335,13 +335,13 @@ Matching MUST be performed after discovery is complete; partial prefix matches a
 
 For each discovered workflow (or each workflow in the filtered set), the implementation MUST perform the following sampling procedure:
 
-1. **R-SAMP-001**: Query completed workflow runs within the historical window using the equivalent of `gh run list --workflow <id> --status completed --limit <sample> --created >=<cutoff>`.
+1. **R-SAMP-001**: Query workflow runs within the historical window using the equivalent of `gh run list --workflow <id> --limit <sample> --created >=<cutoff>`, retaining completed runs and in-progress runs with partial usage snapshots.
 2. **R-SAMP-002**: Limit the returned run set to at most `--sample` runs.
 3. **R-SAMP-003**: Implementations SHOULD discard historical runs older than 90 days by default, even when a broader sampling window is requested, and SHOULD expose this bound through a `--max-age` flag so operators can opt in to older samples when needed.
 4. **R-SAMP-004**: For each run in the sample, derive the per-run metrics defined in Section 6.2.
 5. **R-SAMP-005**: Record the count of runs with a successful conclusion separately from the total sampled count.
 
-If the historical window yields zero completed runs for a workflow, the implementation MUST:
+If the historical window yields zero sampled runs for a workflow, the implementation MUST:
 
 - **R-SAMP-006**: Return `nil` (or a sentinel empty result) for that workflow's Monte Carlo projection.
 - **R-SAMP-007**: Include the workflow in output with `sampled_runs: 0` and all projection fields set to zero.
@@ -555,7 +555,7 @@ When `--json` is not specified, the implementation MUST render a formatted conso
 | Column | Description |
 |---|---|
 | `Workflow` | Workflow display name or identifier |
-| `Sampled Runs` | Count of completed runs included in the sample |
+| `Sampled Runs` | Count of completed and in-progress runs included in the sample |
 | `Success Rate` | Fraction of sampled runs concluding with `success`, formatted as a percentage; `N/A` when no runs were sampled |
 | `Yield/Period` | Effective throughput rate (`success_rate × observed_runs_per_period`) formatted to one decimal place |
 | `Avg ET` | `avg_effective_tokens` formatted as K/M abbreviations (e.g. `12.5K`, `1.20M`); `-` when zero |

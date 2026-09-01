@@ -144,6 +144,9 @@ func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *Wor
 		"bash": []any{"*"},
 	}
 	d.EngineConfig = resolveExternalDetectorEngineConfig(data, engineID)
+	if engineID == "codex" && NewCodexEngine().ResolveLLMProvider(d) != LLMProviderGitHub {
+		d.EngineConfig.LLMProvider = LLMProviderOpenAI
+	}
 	d.EngineConfig.Env = mergeThreatDetectionEngineEnv(data, d.EngineConfig.Env)
 	if d.EngineConfig.APITarget == "" && data.EngineConfig != nil {
 		d.EngineConfig.APITarget = data.EngineConfig.APITarget

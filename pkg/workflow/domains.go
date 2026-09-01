@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -58,7 +59,11 @@ func getLoadedDomainSets() domainSets {
 }
 
 func getLoadedEcosystemDomains() map[string][]string {
-	return getLoadedDomainSets().Ecosystems
+	sets := getLoadedDomainSets()
+	domains := make(map[string][]string, typeutil.SafeAllocationCapacity(len(sets.Ecosystems), len(sets.EngineDefaults)))
+	maps.Copy(domains, sets.Ecosystems)
+	maps.Copy(domains, sets.EngineDefaults)
+	return domains
 }
 
 // Runtime engine default domain lists intentionally exclude package registries (npm, PyPI, ...).
@@ -84,10 +89,9 @@ func getLoadedEcosystemDomains() map[string][]string {
 // its dedicated detection allow-list includes registry.npmjs.org for read-only lockfile
 // validation, and that list is not part of normal agent engine defaults.
 
-// engineDefaultDomainSets centralizes every unconditional engine allow-list. These
-// sets are intentionally distinct from user-selectable ecosystem domain lists: the
-// compiler includes them automatically for the matching engine, rather than allowing
-// users to select them through network.allowed.
+// engineDefaultDomainSets centralizes every engine allow-list. These sets are
+// user-selectable domain lists: workflows opt into them through network.allowed
+// the same way they opt into ecosystem domain lists.
 //
 // Runtime engine default domain lists intentionally exclude package registries
 // (npm, PyPI, and similar). The threat-detection set is the exception because
@@ -96,7 +100,7 @@ func getLoadedEcosystemDomains() map[string][]string {
 var engineDefaultDomainSets = getLoadedDomainSets().EngineDefaults
 
 // GetEngineDefaultDomainSets returns copies of the named engine domain sets for
-// analysis and reporting. Engine domain sets are not valid network.allowed values.
+// analysis, reporting, and network.allowed expansion.
 func GetEngineDefaultDomainSets() map[string][]string {
 	sets := make(map[string][]string, len(engineDefaultDomainSets))
 	for name, domains := range engineDefaultDomainSets {
@@ -220,7 +224,10 @@ func getEcosystemDomains(category string) []string {
 	ecosystemDomains := getLoadedDomainSets().Ecosystems
 	domains, exists := ecosystemDomains[category]
 	if !exists {
-		return []string{}
+		domains, exists = engineDefaultDomainSets[category]
+		if !exists {
+			return []string{}
+		}
 	}
 	// Return a copy to avoid external modification. The underlying list is already
 	// sorted once at init() time so no per-call sort.Strings is needed.
@@ -440,12 +447,21 @@ func GetDomainEcosystem(domain string) string {
 		}
 	}
 
-	// Fall back to any ecosystems not in the priority list, sorted for determinism
-	remaining := make([]string, 0)
+	// Fall back to any domain sets not in the priority list, sorted for determinism
+	remainingSet := make(map[string]struct{})
 	for ecosystem := range getLoadedDomainSets().Ecosystems {
 		if _, ok := checked[ecosystem]; !ok {
-			remaining = append(remaining, ecosystem)
+			remainingSet[ecosystem] = struct{}{}
 		}
+	}
+	for ecosystem := range engineDefaultDomainSets {
+		if _, ok := checked[ecosystem]; !ok {
+			remainingSet[ecosystem] = struct{}{}
+		}
+	}
+	remaining := make([]string, 0, len(remainingSet))
+	for ecosystem := range remainingSet {
+		remaining = append(remaining, ecosystem)
 	}
 	sort.Strings(remaining)
 	for _, ecosystem := range remaining {
@@ -527,7 +543,7 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 
 // extractPlaywrightDomains returns Playwright domains when Playwright tool is configured
 // Returns a slice of domain names required for Playwright browser downloads
-// These domains are needed when Playwright MCP server initializes in the Docker container
+// These domains are needed when Playwright CLI installs browser binaries.
 func extractPlaywrightDomains(tools map[string]any) []string {
 	if tools == nil {
 		return []string{}
@@ -543,13 +559,13 @@ func extractPlaywrightDomains(tools map[string]any) []string {
 	return []string{}
 }
 
-// mergeDomainsWithNetworkToolsAndRuntimes combines default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// mergeDomainsWithNetworkToolsAndRuntimes combines explicit base domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+func mergeDomainsWithNetworkToolsAndRuntimes(baseDomains []string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	domainMap := make(map[string]struct{})
 
-	// Add default domains
-	for _, domain := range defaultDomains {
+	// Add base domains
+	for _, domain := range baseDomains {
 		domainMap[domain] = struct{}{}
 	}
 
@@ -664,19 +680,16 @@ func GetDefaultDomainsForEngine(engine constants.EngineName, model string) ([]st
 	return engineDeclaredNetworkDomains(string(engine), model)
 }
 
-// GetAllowedDomainsForEngineWithModel merges the engine's default domains with
-// NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
-// For engines with model/provider-specific defaults (such as behavior-defined engines), pass the
-// selected model so the correct default domains are included.
+// GetAllowedDomainsForEngineWithModel merges NetworkPermissions, HTTP MCP server
+// domains, and runtime ecosystem domains. Agent engine domain sets are not added
+// automatically; workflows must reference them explicitly in network.allowed.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's
 // --allow-domains flag.
-// Returns an error if the model string is malformed (e.g. a leading slash).
 func GetAllowedDomainsForEngineWithModel(engine constants.EngineName, model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) (string, error) {
-	defaults, err := GetDefaultDomainsForEngine(engine, model)
-	if err != nil {
+	if _, err := GetDefaultDomainsForEngine(engine, model); err != nil {
 		return "", err
 	}
-	return mergeDomainsWithNetworkToolsAndRuntimes(defaults, network, tools, runtimes), nil
+	return mergeDomainsWithNetworkToolsAndRuntimes(nil, network, tools, runtimes), nil
 }
 
 // mustGetAllowedDomainsForEngineWithModel is like GetAllowedDomainsForEngineWithModel but
@@ -690,14 +703,10 @@ func mustGetAllowedDomainsForEngineWithModel(engine constants.EngineName, model 
 	return result
 }
 
-// GetAllowedDomainsForEngine merges the engine's default domains with NetworkPermissions,
+// GetAllowedDomainsForEngine merges NetworkPermissions,
 // HTTP MCP server domains, and runtime ecosystem domains.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
-// Falls back to an empty default domain list for unknown engines.
-// For model/provider-specific engines such as behavior-defined engines, prefer
-// GetAllowedDomainsForEngineWithModel so provider domains are included.
 func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	// Empty model never triggers provider-format validation, so no error is possible here.
 	result, _ := GetAllowedDomainsForEngineWithModel(engine, "", network, tools, runtimes)
 	return result
 }
@@ -824,7 +833,7 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 }
 
 // computeAllowedDomainsForSanitization computes the allowed domains for sanitization
-// based on the engine and network configuration, matching what's provided to the firewall.
+// based on the network configuration, matching what's provided to the firewall.
 // The result is cached in data.CachedAllowedDomainsStr after the first call so that
 // repeated calls (e.g. from the activation job, safe-outputs steps, and agent run step)
 // do not recompute the same domain list.
@@ -850,50 +859,15 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 		}
 	}
 
-	// Determine which engine is being used
-	var engineID string
-	if data.EngineConfig != nil {
-		engineID = data.EngineConfig.ID
-	} else if data.AI != "" {
-		engineID = data.AI
+	engineID, err := validateDomainEngineModel(data)
+	if err != nil {
+		return "", err
 	}
 
-	// Compute domains based on engine type, including tools and runtimes to match
-	// what's provided to the actual firewall at runtime
-	var base string
-	engine := constants.EngineName(engineID)
-	switch engine {
-	case constants.CodexEngine:
-		base = mergeDomainsWithNetworkToolsAndRuntimes(NewCodexEngine().defaultDomains(data), data.NetworkPermissions, data.Tools, data.Runtimes)
-	case constants.CopilotEngine, constants.ClaudeEngine, constants.GeminiEngine,
-		constants.PiEngine:
-		model := ""
-		if data.EngineConfig != nil {
-			model = data.Model
-		}
-		var err error
-		base, err = GetAllowedDomainsForEngineWithModel(engine, model, data.NetworkPermissions, data.Tools, data.Runtimes)
-		if err != nil {
-			return "", err
-		}
-	default:
-		// Behavior-defined engines declare their defaults in behaviors.network.
-		model := ""
-		if data.EngineConfig != nil {
-			model = data.Model
-		}
-		declared, err := engineDeclaredNetworkDomains(engineID, model)
-		if err != nil {
-			return "", err
-		}
-		if len(declared) > 0 {
-			base = mergeDomainsWithNetworkToolsAndRuntimes(declared, data.NetworkPermissions, data.Tools, data.Runtimes)
-		} else {
-			// For other engines (e.g. custom), use network permissions only
-			domains := GetAllowedDomains(data.NetworkPermissions)
-			base = strings.Join(domains, ",")
-		}
-	}
+	// Compute domains from explicit network config, tools, and runtimes to match
+	// what's provided to the actual firewall at runtime. Engine domain sets are
+	// only included when explicitly referenced in network.allowed.
+	base := mergeDomainsWithNetworkToolsAndRuntimes(nil, data.NetworkPermissions, data.Tools, data.Runtimes)
 
 	// Add Copilot BYOK/API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with
 	// the runtime firewall allow-list for both standard and BYOK Copilot runs.
@@ -924,6 +898,24 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	return base, nil
 }
 
+func validateDomainEngineModel(data *WorkflowData) (string, error) {
+	var engineID string
+	if data.EngineConfig != nil {
+		engineID = data.EngineConfig.ID
+	} else if data.AI != "" {
+		engineID = data.AI
+	}
+	if engineID == "" {
+		return "", nil
+	}
+	model := ""
+	if data.EngineConfig != nil {
+		model = data.Model
+	}
+	_, err := GetDefaultDomainsForEngine(constants.EngineName(engineID), model)
+	return engineID, err
+}
+
 // expandAllowedDomains expands a list of domain entries (which may include ecosystem
 // identifiers like "python", "node", "dev-tools") into a deduplicated, sorted list of
 // concrete domain strings. This uses the same expansion logic as network.allowed.
@@ -948,7 +940,7 @@ func expandAllowedDomains(entries []string) []string {
 // The allowed-domains entries support ecosystem identifiers (same syntax as network.allowed).
 // Returns an error if the engine's model is malformed (e.g. a leading slash).
 func (c *Compiler) computeExpandedAllowedDomainsForSanitization(data *WorkflowData) (string, error) {
-	// Start from the base set (engine defaults + network.allowed + tools + runtimes)
+	// Start from the base set (network.allowed + tools + runtimes)
 	base, err := c.computeAllowedDomainsForSanitization(data)
 	if err != nil {
 		return "", err

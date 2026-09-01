@@ -18,9 +18,10 @@ env:
   GH_AW_HARNESS_MAX_RETRIES: "4"
 tracker-id: avenger-ci
 max-turns: 50
-model: claude-haiku-4-5
+model: openai/gpt-5.4
 engine:
-  id: claude
+  id: codex
+  model-provider: openai
 network:
   allowed:
     - defaults
@@ -38,7 +39,6 @@ sandbox:
     runtime: gvisor
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"
-      - "/usr/bin/go:/usr/bin/go:ro"
       - "/usr/local/bin/node:/usr/local/bin/node:ro"
       - "/usr/local/bin/npm:/usr/local/bin/npm:ro"
       - "/usr/local/lib/node_modules:/usr/local/lib/node_modules:ro"
@@ -111,8 +111,8 @@ steps:
   - name: Install development dependencies
     run: make deps-dev
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[avenger] "
     labels: [automated, ci-fix]
@@ -123,6 +123,7 @@ safe-outputs:
 timeout-minutes: 45
 imports:
   - shared/otlp.md
+  - shared/graders.md
 features:
   gh-aw-detection: true
 evals:
@@ -130,6 +131,7 @@ evals:
     question: Did the agent assess the current CI state and determine if intervention was needed?
   - id: pr_created_or_skipped
     question: Was a PR created with CI fixes, or was the run correctly skipped because CI was already passing?
+
 ---
 
 # Avenger — Hourly CI Fixer

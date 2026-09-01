@@ -139,7 +139,7 @@ func (c *Compiler) buildPushEvalsStateJob(data *WorkflowData) (*Job, error) {
 
 	steps = append(steps, c.generateGitConfigurationSteps()...)
 
-	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName
+	evalsArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.EvalsArtifactName.String()
 	downloadAction := c.getActionPin("actions/download-artifact")
 	steps = append(steps,
 		"      - name: Download evals artifact\n",

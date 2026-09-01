@@ -32,6 +32,15 @@ Provides a human-readable description of the workflow rendered as a comment in t
 description: "Workflow that analyzes pull requests and provides feedback"
 ```
 
+### Intent (`intent:`)
+
+Describes the durable outcome the workflow exists to achieve, rendered as a comment in the generated lock file. While `description` explains *what* the workflow does, `intent` explains *why* it exists and should stay implementation-independent, so it remains valid when the implementation changes.
+
+```yaml wrap
+intent: "Reduce maintainer attention spent identifying recurring CI regressions."
+description: "Analyzes failed CI runs and opens incidents for novel regressions."
+```
+
 ### Emoji (`emoji:`)
 
 An optional emoji to represent the workflow visually, for example in listings and UI surfaces.
@@ -174,7 +183,15 @@ ambient-folders:
 
 ### Permissions (`permissions:`)
 
-The `permissions:` section uses a syntax similar to standard GitHub Actions permissions syntax to specify the GitHub read permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Tools Read Permissions](/gh-aw/reference/permissions/).
+The `permissions:` section uses syntax similar to standard GitHub Actions permissions to configure the GitHub API scopes available to the workflow. Scopes support their permitted `read`, `write`, and `none` levels, including write-only `copilot-requests` and `id-token` scopes. GitHub App-only scopes, such as `secret-scanning-alerts` and `organization-*`, require an appropriate GitHub App token. See [GitHub Tools Read Permissions](/gh-aw/reference/permissions/).
+
+```yaml wrap
+permissions:
+  contents: write
+  copilot-requests: write
+  id-token: write
+  secret-scanning-alerts: read
+```
 
 ### GitHub App (`github-app:`)
 
@@ -329,7 +346,36 @@ The agent job checks out each pinned plugin immediately after installing the eng
 
 Shared agentic workflows may also declare plugins. When the same plugin path is declared more than once, identical refs are deduplicated and compatible semantic versions are merged to the highest version. Incompatible major versions or conflicting non-semver refs fail compilation.
 
-Plugin repositories must be public. The checkout step always uses the workflow's default `github.token`, which cannot read private repositories; unlike `skills:`, `plugins:` does not currently support per-entry `github-token`/`github-app` credentials.
+Supported entry formats:
+
+- String form (shared authentication):
+  - `owner/repo@<ref>`
+  - `owner/repo/plugins/path@<ref>`
+- Object form (per-plugin authentication):
+  - `plugin` (required)
+  - `github-token` (optional)
+  - `github-app` (optional)
+
+`github-token` and `github-app` are mutually exclusive for each object entry. By default (string form, or object form without either field), the checkout step uses the workflow's default `github.token`, which cannot read private repositories. Set a per-plugin `github-token` or `github-app` to install a plugin from a private repository:
+
+```yaml wrap
+engine: copilot
+plugins:
+  # Public plugin, shared auth via the workflow's default token
+  - octo-org/agent-plugin@v1
+
+  # Per-plugin PAT for a private plugin repository
+  - plugin: octo-org/private-plugin@6f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f90
+    github-token: ${{ secrets.PRIVATE_PLUGIN_TOKEN }}
+
+  # Per-plugin GitHub App credentials
+  - plugin: octo-org/private-marketplace/plugins/example@6f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f90
+    github-app:
+      client-id: ${{ vars.PLUGIN_APP_CLIENT_ID }}
+      private-key: ${{ secrets.PLUGIN_APP_PRIVATE_KEY }}
+```
+
+Because plugin support is implemented per agentic engine, per-plugin credentials only take effect for the checkout step; whether an engine can install a plugin at all still depends on that engine's own Agent Plugins support.
 
 ### MCP Scripts (`mcp-scripts:`)
 
@@ -349,6 +395,21 @@ safe-outputs:
 ```
 
 When omitted, `report-failed-jobs` defaults to `true`.
+
+Custom safe-output jobs are defined under `safe-outputs.jobs:`. They run after the agent completes and can expose a custom safe-output tool to the agent. The optional `output` field is the success message returned to the agent:
+
+```yaml wrap
+safe-outputs:
+  jobs:
+    notify:
+      description: "Send a notification"
+      runs-on: ubuntu-latest
+      output: "Notification sent"
+      steps:
+        - run: ./scripts/send-notification.sh
+```
+
+See [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) for job inputs, secrets, and third-party integrations.
 
 ### Threat Detection Suppression (`threat-detection-suppress:`)
 
@@ -459,6 +520,16 @@ This guardrail is disabled by default when omitted, and `-1` explicitly disables
 max-daily-ai-credits: 10000
 ```
 
+Use the object form to supply a dedicated GitHub App token for the guardrail's API calls:
+
+```yaml wrap
+max-daily-ai-credits:
+  value: 10000
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+```
+
 ```yaml wrap
 # Disable the guardrail explicitly
 max-daily-ai-credits: -1
@@ -466,13 +537,13 @@ max-daily-ai-credits: -1
 
 ### Per-User Rate Limiting (`user-rate-limit:`)
 
-Limits how frequently a single user can trigger the workflow. When the limit is exceeded, the pre-activation job cancels the run before the agent executes. Rate limiting applies to programmatically triggered events (such as `workflow_dispatch`, `issue_comment`, and `pull_request_review`); when `events` is omitted, the applicable events are inferred from the `on:` section.
+Limits how frequently a single user can trigger the workflow. When the limit is exceeded, the pre-activation job cancels the run before the agent executes. Rate limiting applies to programmatically triggered events (such as `workflow_dispatch`, `issue_comment`, and `pull_request_review`); when `events` is omitted, the applicable events are inferred from the `on:` section, falling back to all supported programmatic events if no supported triggers are found.
 
 ```yaml wrap
 user-rate-limit:
   max-runs-per-window: 5                      # Required: maximum runs per user per window (1-10)
   window: 60                                  # Optional: window in minutes (default: 60, max: 180)
-  events: [workflow_dispatch, issue_comment]  # Optional: events to rate limit (inferred from `on:` when omitted)
+  events: [workflow_dispatch, issue_comment]  # Optional: events to rate limit (inferred from `on:` when omitted; fallback to all supported programmatic events)
   ignored-roles: [admin, maintain]            # Optional: exempt roles (default: [admin, maintain, write])
 ```
 
@@ -480,7 +551,7 @@ user-rate-limit:
 
 Users with any of the `ignored-roles` are not rate limited. The default exemptions are `admin`, `maintain`, and `write`; set `ignored-roles: []` to rate limit every user, including administrators.
 
-Legacy frontmatter that used a top-level `rate-limit:` section, or `max:`/`max-runs:` instead of `max-runs-per-window:`, is migrated automatically by `gh aw fix`.
+Legacy frontmatter that used a top-level `rate-limit:` section, or `max:`/`max-runs:` instead of `max-runs-per-window:`, must be migrated with `gh aw fix`.
 
 See [Rate Limiting and Controls](/gh-aw/reference/rate-limiting-controls/) for more details.
 
@@ -562,7 +633,7 @@ observability:
       X-Tenant: my-org
 ```
 
-`endpoint` accepts a string, a `{url, headers}` object, or an array of endpoint objects for fan-out; `headers` accepts a map or comma-separated `key=value` string; `if-missing` supports `error` (default), `warn`, and `ignore`; `attributes` is an optional map of custom span attributes (values support GitHub Actions expressions); and `resource-attributes` appends custom OTel resource attributes to the built-in gh-aw/GitHub set. Use static strings or GitHub Actions expressions for `resource-attributes`, but do not use `secrets.*` or `vars.*` values because resource attributes are exported to external observability backends and are not treated as secret values. See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/) for setup and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/) for emitted fields.
+`endpoint` accepts a string, a `{url, headers}` object, or an array of endpoint objects for fan-out; `headers` accepts a map or comma-separated `key=value` string; `if-missing` supports `error` (default), `warn`, and `ignore`; `attributes` is an optional map of custom span attributes (values support GitHub Actions expressions); and `resource-attributes` appends custom OTel resource attributes to the built-in gh-aw/GitHub set. Use static strings or GitHub Actions expressions for `resource-attributes`, but do not use `secrets.*` or `vars.*` values because resource attributes are exported to external observability backends and are not treated as secret values. See the [OpenTelemetry guide](/gh-aw/reference/open-telemetry/) for setup and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry-attributes/) for emitted fields.
 
 ### Resources (`resources:`)
 
@@ -702,6 +773,6 @@ Workflows compiled with `strict: false` cannot run on public repositories. The w
 
 See [Network Permissions - Strict Mode Validation](/gh-aw/reference/network/#strict-mode-validation) for details on network validation and [CLI Commands](/gh-aw/setup/cli/#compile) for compilation options.
 
-## Related Documentation
+## Learn More
 
-See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Feature Flags](/gh-aw/reference/feature-flags/), [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/), [OpenTelemetry Guide](/gh-aw/guides/open-telemetry/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)
+See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/setup/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Feature Flags](/gh-aw/reference/feature-flags/), [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/), [OpenTelemetry Guide](/gh-aw/reference/open-telemetry/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)

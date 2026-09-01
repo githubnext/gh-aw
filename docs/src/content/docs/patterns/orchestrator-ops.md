@@ -61,7 +61,7 @@ Use `call-workflow` when actor attribution matters, workers must finish before t
 
 If your workers need shared context, pass an explicit input such as `tracker_id` (string) and include it in worker outputs (e.g., writing it into a Project custom field).
 
-## Related Documentation
+## Learn More
 
 - [BatchOps](/gh-aw/patterns/batch-ops/) — Parallel processing of large item volumes
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Central control plane pattern (orchestrator + worker across repos)

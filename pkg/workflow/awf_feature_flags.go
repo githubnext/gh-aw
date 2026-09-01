@@ -97,6 +97,12 @@ func awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig *FirewallConf
 	return awfVersionAtLeast(firewallConfig, constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)
 }
 
+// awfSupportsAPIProxyCACert returns true when the effective AWF version supports
+// apiProxy.caCert in awf-config.json.
+func awfSupportsAPIProxyCACert(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFAPIProxyCACertMinVersion)
+}
+
 // awfEmitsFilesystemAllowWrite reports whether the compiler may emit the
 // filesystem section of awf-config.json for this workflow.
 //
@@ -119,10 +125,4 @@ func awfEmitsFilesystemAllowWrite(workflowData *WorkflowData, firewallConfig *Fi
 		return false
 	}
 	return awfSupportsCloudHypervisorFilesystemAllowWrite(firewallConfig)
-}
-
-// awfSupportsBoundedQueries returns true when the effective AWF version supports
-// the boundedQueries section in awf-config.json.
-func awfSupportsBoundedQueries(firewallConfig *FirewallConfig) bool {
-	return awfVersionAtLeast(firewallConfig, constants.AWFBoundedQueriesMinVersion)
 }

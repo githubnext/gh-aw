@@ -243,7 +243,7 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 // flattenAgentOutputFallbackArtifact flattens the tiny fallback artifact that carries
 // agent_output.json and safeoutputs.jsonl when the unified agent artifact upload fails.
 func flattenAgentOutputFallbackArtifact(outputDir string, verbose bool) error {
-	fallbackDir := findArtifactDir(outputDir, constants.AgentOutputFallbackArtifactName, "")
+	fallbackDir := findArtifactDir(outputDir, constants.AgentOutputFallbackArtifactName.String(), "")
 	if fallbackDir == "" {
 		return nil
 	}
@@ -292,7 +292,7 @@ func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
 // where extractCreatedItemsFromManifest and loadResolvedTemporaryIDTargets expect them.
 // The artifact may be prefixed in workflow_call context: "<hash>-safe-outputs-items".
 func flattenSafeOutputsItemsArtifact(outputDir string, verbose bool) error {
-	safeOutputsItemsDir := findArtifactDir(outputDir, constants.SafeOutputItemsArtifactName, "")
+	safeOutputsItemsDir := findArtifactDir(outputDir, constants.SafeOutputItemsArtifactName.String(), "")
 	if safeOutputsItemsDir == "" {
 		// No safe-outputs-items artifact, nothing to flatten
 		return nil

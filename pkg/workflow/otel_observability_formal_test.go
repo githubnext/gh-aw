@@ -158,7 +158,7 @@ func TestFormal_FanOutPreservesDeclarationOrder(t *testing.T) {
 }
 
 func TestFormal_MirrorPathConstant(t *testing.T) {
-	assert.Equal(t, "/tmp/gh-aw/otel.jsonl", constants.TmpGhAwDirSlash+constants.OtelJsonlFilename)
+	assert.Equal(t, "/tmp/gh-aw/otel.jsonl", constants.TmpGhAwDirSlash+constants.OtelJsonlFilename.String())
 }
 
 func TestFormal_EmptyURLEntriesDiscarded(t *testing.T) {

@@ -89,6 +89,12 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `bazel` | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
 | `clojure` | Clojure packages (`clojars.org`) |
 | `copilot-vendor` | Plan-specific Copilot API hosts (`api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`) and Copilot telemetry (`telemetry.enterprise.githubcopilot.com`) — not enabled by default, since agents route inference through the firewall gateway |
+| `copilot` | Copilot engine transport (`api.githubcopilot.com`, GitHub API/web, `host.docker.internal`, `raw.githubusercontent.com`) |
+| `claude` | Claude engine transport (Anthropic APIs, GitHub transport, certificate/OCSP services, Ubuntu package metadata, Playwright downloads, `host.docker.internal`) |
+| `codex` | Codex engine transport (`api.openai.com`, `chatgpt.com`, GitHub API/web, `host.docker.internal`) |
+| `gemini` | Gemini engine transport (`generativelanguage.googleapis.com`, `*.googleapis.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
+| `pi` | Pi engine transport (`api.githubcopilot.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
+| `pi-base` | Pi provider-independent baseline (`github.com`, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `threat-detection` | Compatibility alias for Copilot threat-detection network access (`api.githubcopilot.com`, Copilot plan APIs, telemetry, `api.github.com`, `github.com`, `host.docker.internal`, `registry.npmjs.org`) |
 | `dart` | Dart/Flutter packages (`pub.dev`, `storage.googleapis.com`) |
 | `deno` | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
@@ -117,12 +123,13 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `swift` | Swift packages (`swift.org`, `cocoapods.org`) |
 | `zig` | Zig packages (`ziglang.org`) |
 
-## Automatic Engine Domain Sets
+## Engine Domain Sets
 
-Each engine automatically receives the domain set it requires in addition to
-`network.allowed`. These named sets are maintained by the compiler for analysis
-and reporting; they are not valid `network.allowed` identifiers, except for
-the legacy `threat-detection` compatibility alias listed above.
+Engine domain sets are named allow-list bundles for engine CLI authentication
+and direct provider transport. They are **not** added automatically. Add the
+matching identifier to `network.allowed` only when the agent needs direct
+egress to that engine's domains; agent inference normally runs through the AWF
+API proxy.
 
 | Engine set | Included domains |
 |---|---|
@@ -132,7 +139,7 @@ the legacy `threat-detection` compatibility alias listed above.
 | `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
 | `pi-base` | `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; applied as the provider-independent baseline before a provider prefix is resolved |
-| `threat-detection` | Applied automatically only to Copilot threat-detection runs: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. External Claude, Codex, Gemini, and other detection runs use their own engine defaults. |
+| `threat-detection` | Applied automatically only to Copilot threat-detection runs and available as a compatibility alias: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. |
 
 ### Ecosystem Identifier Validation
 
@@ -200,11 +207,11 @@ network:
     - "api.example.com"   # Custom domain
 ```
 
-Each engine has a built-in default domain list for its CLI authentication and model API transport. These lists are merged with your `network.allowed` entries and **never include the `node` or `python` ecosystem registries**: selecting an engine does not grant the agent access to `registry.npmjs.org`, `pypi.org`, or `files.pythonhosted.org`. Engine CLIs and SDKs are installed by workflow steps that run on the runner before the sandboxed agent starts, and containerized `npx`/`uvx` MCP servers are launched by the MCP gateway outside the agent firewall, so registry access inside the sandbox is not required for them.
+Each engine has a named domain set for its CLI authentication and model API transport. These sets expand only when explicitly listed in `network.allowed` and **never include the `node` or `python` ecosystem registries**: selecting an engine does not grant the agent access to `registry.npmjs.org`, `pypi.org`, or `files.pythonhosted.org`. Engine CLIs and SDKs are installed by workflow steps that run on the runner before the sandboxed agent starts, and containerized `npx`/`uvx` MCP servers are launched by the MCP gateway outside the agent firewall, so registry access inside the sandbox is not required for them.
 
-This guarantee is scoped to the `node` and `python` ecosystems. Some engine defaults still include unrelated infrastructure domains needed by the CLI itself (e.g., `ghcr.io`, `packagecloud.io`, `packages.microsoft.com` for OS-level package/container installation) — those are not language package registries and are not gated by `network.allowed`.
+This guarantee is scoped to the `node` and `python` ecosystems. Some engine domain sets still include unrelated infrastructure domains used by the CLI itself (e.g., `ghcr.io`, `packagecloud.io`, `packages.microsoft.com` for OS-level package/container installation) — those are not language package registries.
 
-To let the agent itself reach the `node` or `python` registries, opt in explicitly with the matching ecosystem identifier (`node`, `python`, …) in `network.allowed`, or declare the corresponding entry under `runtimes:`. With `network: {}` or `network: { allowed: [defaults, github] }`, those registries stay blocked.
+To let the agent itself reach engine domains or the `node`/`python` registries, opt in explicitly with the matching domain set or ecosystem identifier (`copilot`, `node`, `python`, …) in `network.allowed`, or declare the corresponding entry under `runtimes:` for language ecosystems. With `network: {}` or `network: { allowed: [defaults, github] }`, those domains stay blocked.
 
 See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists. This invariant is enforced by `TestEngineDefaultDomainsDoNotOverlapEcosystems` in [`domains_package_registry_test.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains_package_registry_test.go), which fails the build if any engine's static default domain list overlaps with the full `node` or `python` ecosystem domain sets — including registry entries added after this was written.
 
@@ -294,6 +301,6 @@ gh aw audit 12345678 12345679     # Compare two runs
 
 See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-blocking) and [Audit Commands](/gh-aw/reference/audit/) for more.
 
-## Related Documentation
+## Learn More
 
 See also the [Network Configuration Guide](/gh-aw/guides/network-configuration/), [Frontmatter](/gh-aw/reference/frontmatter/), [Tools](/gh-aw/reference/tools/), [Playwright](/gh-aw/reference/playwright/), [Audit Commands](/gh-aw/reference/audit/), and the [Security Guide](/gh-aw/introduction/architecture/).

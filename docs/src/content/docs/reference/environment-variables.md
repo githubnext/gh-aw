@@ -182,9 +182,9 @@ The warning repeats on each interval while the silence continues, and a `stall w
 | Variable | Engine | Default | Units / range | Description |
 | --- | --- | --- | --- | --- |
 | `GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD` | Copilot | `10000` | tokens; minimum `0` | Token threshold used to classify long-running partial executions as `long_run_exit` instead of a generic partial execution. Invalid or negative values use the default. |
-| `GH_AW_CLAUDE_STARTUP_RETRIES` | Claude | `1` | retry attempts; range `0`-`2` | Additional fresh-run retry budget for zero-output Claude startup failures. Invalid values use the default; out-of-range integers are clamped. |
+| `GH_AW_HARNESS_STARTUP_RETRIES` | All engine harnesses | `1` | retry attempts; range `0`-`2` | Additional fresh-run retry budget for startup failures before the harness records session progress. Invalid values use the default; out-of-range integers are clamped. `GH_AW_CLAUDE_STARTUP_RETRIES` is still accepted as a Claude-compatible fallback when the shared variable is unset. |
 
-There is no separate public Codex, Gemini, or Copilot startup-retry environment variable beyond the shared retry policy above. Copilot SDK driver settings such as `COPILOT_SDK_SEND_TIMEOUT_MS` are documented in [Copilot SDK Support](/gh-aw/reference/engines/#copilot-sdk-support) and the [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/).
+Copilot SDK driver settings such as `COPILOT_SDK_SEND_TIMEOUT_MS` are documented in [Copilot SDK Support](/gh-aw/reference/engines/#copilot-sdk-support) and the [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/).
 
 ### Internal runtime variables
 
@@ -210,6 +210,24 @@ The JavaScript setup helpers bound child processes, archive operations, and setu
 | `GH_AW_MCP_SERVER_CHECK_TIMEOUT_MS` | `120000` | MCP server health-check script. |
 | `GH_AW_OUTCOME_GH_TIMEOUT_MS` | `300000` | `gh` CLI calls made by outcome evaluation. |
 | `GH_AW_SAFEOUTPUTS_CLI_TIMEOUT_MS` | `120000` | `safeoutputs` CLI invocations used for structured diagnostics. |
+
+### MCP gateway readiness polling
+
+The MCP gateway startup step polls the gateway `/health` endpoint with exponential backoff until the gateway reports ready. Each retry parameter can be overridden; unset, zero, negative, or non-numeric values fall back to the default with a warning.
+
+| Variable | Default | Applies to |
+| --- | --- | --- |
+| `GH_AW_MCP_GATEWAY_HEALTH_MAX_ATTEMPTS` | `150` | Total health-check attempts, including the first one. |
+| `GH_AW_MCP_GATEWAY_HEALTH_INITIAL_DELAY_MS` | `250` | Delay the backoff starts from. |
+| `GH_AW_MCP_GATEWAY_HEALTH_MAX_DELAY_MS` | `1000` | Cap applied to every retry delay. |
+| `GH_AW_MCP_GATEWAY_HEALTH_BACKOFF_MULTIPLIER` | `2` | Multiplier applied to the delay before every retry. |
+| `GH_AW_MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_MS` | `120000` | MCP backend startup timeout the retry budget must outlast. |
+
+These values are cross-validated at startup:
+
+- A backoff multiplier below `1` is raised to `1` (constant delay).
+- A delay cap below the initial delay is raised to the initial delay.
+- The cumulative retry delay must cover the backend startup timeout plus 25 seconds for backend cleanup and final server registration; otherwise a warning is emitted that the health check may give up before the gateway is ready.
 
 ## CLI Configuration Variables
 
@@ -390,15 +408,11 @@ jobs:
 ---
 ```
 
-## Related Documentation
+## Learn More
 
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
-- [Governance Guide](/gh-aw/guides/governance/) - Roll out and manage defaults across enterprise, organization, and repository scopes
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
-- [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
+- [Governance Guide](/gh-aw/reference/governance/) - Roll out and manage defaults across enterprise, organization, and repository scopes
 - [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Enterprise defaults for timeout, max-turns, detection model, model fallback, and max-ai-credits guardrails
 - [Cost Management](/gh-aw/reference/cost-management/) - Practical model and token guardrail rollout guidance
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration and guard policies
-- [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration
-- [Engines](/gh-aw/reference/engines/) - AI engine configuration and model selection
 - [GitHub Actions Environment Variables](https://docs.github.com/en/actions/learn-github-actions/variables) - GitHub Actions documentation

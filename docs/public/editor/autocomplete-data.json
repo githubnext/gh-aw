@@ -10,6 +10,11 @@
       "desc": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
       "leaf": true
     },
+    "intent": {
+      "type": "string",
+      "desc": "Optional statement of the durable outcome the workflow exists to achieve.",
+      "leaf": true
+    },
     "emoji": {
       "type": "string",
       "desc": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
@@ -47,7 +52,14 @@
     },
     "metadata": {
       "type": "object",
-      "desc": "Optional metadata field for storing custom key-value pairs compatible with the custom agent spec."
+      "desc": "Optional metadata field for storing custom key-value pairs compatible with the custom agent spec.",
+      "children": {
+        "docs": {
+          "type": "string",
+          "desc": "Optional absolute HTTPS URL for human-facing workflow documentation.",
+          "leaf": true
+        }
+      }
     },
     "imports": {
       "type": "array|object",
@@ -303,6 +315,11 @@
           "desc": "Environment name that requires manual approval before the workflow can run.",
           "leaf": true
         },
+        "cooldown": {
+          "type": "string",
+          "desc": "Minimum time after the most recent completed workflow run where the agent job started before another agent run may start.",
+          "leaf": true
+        },
         "reaction": {
           "type": "string|integer|object",
           "desc": "AI reaction to add/remove on triggering item.",
@@ -351,10 +368,15 @@
         }
       }
     },
+    "plugins": {
+      "type": "array",
+      "desc": "⚠️ Experimental.",
+      "array": true
+    },
     "permissions": {
       "type": "string|object",
       "desc": "GitHub token permissions for the workflow.",
-      "enum": ["read-all", "write-all"],
+      "enum": ["read-all", "write-all", "none"],
       "children": {
         "actions": {
           "type": "string",
@@ -376,7 +398,7 @@
         },
         "code-quality": {
           "type": "string",
-          "desc": "Permission for the GitHub code coverage API (read: view coverage reports, write: upload coverage reports, none: no access). Required by the upload-code-coverage safe output.",
+          "desc": "Permission for the GitHub code coverage API (read: view coverage reports, write: upload coverage reports, none: no ac...",
           "enum": ["read", "write", "none"],
           "leaf": true
         },
@@ -401,6 +423,12 @@
         "discussions": {
           "type": "string",
           "desc": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "drives": {
+          "type": "string",
+          "desc": "Permission for the experimental GitHub Drives service",
           "enum": ["read", "write", "none"],
           "leaf": true
         },
@@ -458,10 +486,28 @@
           "enum": ["read", "write", "none"],
           "leaf": true
         },
+        "organization-custom-org-roles": {
+          "type": "string",
+          "desc": "Permission level for organization custom org roles (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "organization-custom-repository-roles": {
+          "type": "string",
+          "desc": "Permission level for organization custom repository roles (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
         "security-events": {
           "type": "string",
           "desc": "Permission level for security events (read/write/none).",
           "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "secret-scanning-alerts": {
+          "type": "string",
+          "desc": "Permission level for secret scanning alerts (read/none).",
+          "enum": ["read", "none"],
           "leaf": true
         },
         "statuses": {
@@ -541,7 +587,7 @@
     },
     "timeout-minutes": {
       "type": "integer|string",
-      "desc": "Workflow timeout in minutes (GitHub Actions standard field).",
+      "desc": "Agentic execution step timeout in minutes.",
       "leaf": true
     },
     "concurrency": {
@@ -584,6 +630,12 @@
         "intentional-failure": {
           "type": "boolean",
           "desc": "Mark the workflow as one that is intentionally expected to fail (e.g., guardrail stress-tests).",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "samples": {
+          "type": "boolean",
+          "desc": "Internal hidden feature.",
           "enum": [true, false],
           "leaf": true
         }
@@ -752,7 +804,7 @@
           "leaf": true
         },
         "agent": {
-          "type": "boolean|string|object",
+          "type": "null|boolean|string|object",
           "desc": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), or false to disable agent sandbox.",
           "enum": ["awf"],
           "children": {
@@ -803,6 +855,62 @@
               "desc": "Memory limit for the AWF container (e.g., '4g', '8g').",
               "leaf": true
             },
+            "images": {
+              "type": "object",
+              "desc": "Digest-pinned AWF infrastructure images (AWF v0.28.4+).",
+              "children": {
+                "squid": {
+                  "type": "string",
+                  "desc": "Squid forward-proxy image used for domain filtering.",
+                  "leaf": true
+                },
+                "agent": {
+                  "type": "string",
+                  "desc": "Agent container image that runs the agentic engine.",
+                  "leaf": true
+                },
+                "apiProxy": {
+                  "type": "string",
+                  "desc": "API proxy sidecar image that holds provider credentials.",
+                  "leaf": true
+                },
+                "cliProxy": {
+                  "type": "string",
+                  "desc": "CLI proxy sidecar image used by tools.github.mode: gh-proxy, integrity-reactions, or raw --difc-proxy-host AWF argume...",
+                  "leaf": true
+                },
+                "buildTools": {
+                  "type": "string",
+                  "desc": "Build-tools image used as the chroot sysroot base on runner.topology: arc-dind.",
+                  "leaf": true
+                },
+                "dohProxy": {
+                  "type": "string",
+                  "desc": "DNS-over-HTTPS proxy image required when legacy-security raw AWF arguments enable --dns-over-https.",
+                  "leaf": true
+                },
+                "enclaveScript": {
+                  "type": "string",
+                  "desc": "Script enclave image.",
+                  "leaf": true
+                },
+                "enclaveAgent": {
+                  "type": "string",
+                  "desc": "Agent enclave image.",
+                  "leaf": true
+                },
+                "enclaveMcpServer": {
+                  "type": "string",
+                  "desc": "Shared enclave MCP server image required whenever any enclave is enabled.",
+                  "leaf": true
+                },
+                "dindStaging": {
+                  "type": "string",
+                  "desc": "Docker-in-Docker staging image required when raw AWF arguments enable directory or engine-binary pre-staging.",
+                  "leaf": true
+                }
+              }
+            },
             "model-fallback": {
               "type": "boolean|string",
               "desc": "Enable or disable model fallback for unresolved model selections.",
@@ -812,6 +920,11 @@
               "type": "boolean",
               "desc": "Enable or disable API proxy token steering.",
               "enum": [true, false],
+              "leaf": true
+            },
+            "ca-cert": {
+              "type": "string",
+              "desc": "Host path to an additional CA certificate for API proxy upstream TLS verification.",
               "leaf": true
             },
             "runtime": {
@@ -951,9 +1064,9 @@
               "desc": "Port number for the MCP gateway HTTP server (default: 8080)",
               "leaf": true
             },
-            "api-key": {
+            "agent-id": {
               "type": "string",
-              "desc": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)",
+              "desc": "Agent/session identifier for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)",
               "leaf": true
             },
             "domain": {
@@ -1496,6 +1609,12 @@
                   "enum": ["read", "none", "write"],
                   "leaf": true
                 },
+                "secret-scanning-alerts": {
+                  "type": "string",
+                  "desc": "Permission level for secret scanning alerts (read/none).",
+                  "enum": ["read", "none"],
+                  "leaf": true
+                },
                 "repository-hooks": {
                   "type": "string",
                   "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
@@ -1748,44 +1867,6 @@
               "type": "string",
               "desc": "Comma-separated list of GitHub MCP server feature flags to enable.",
               "leaf": true
-            },
-            "bounded-queries": {
-              "type": "object",
-              "desc": "AWF bounded-query configuration for cross-repository private data access (AWF v0.27.44+).",
-              "children": {
-                "private-repos": {
-                  "type": "array",
-                  "desc": "List of private repositories the agent may query via bounded queries.",
-                  "array": true
-                },
-                "runtime": {
-                  "type": "string",
-                  "desc": "Isolated backend used to execute each bounded-query script.",
-                  "enum": ["docker", "gvisor", "sbx"],
-                  "leaf": true
-                },
-                "timeout": {
-                  "type": "integer",
-                  "desc": "Maximum execution time in seconds for a single bounded-query invocation.",
-                  "leaf": true
-                },
-                "memory-limit": {
-                  "type": "string",
-                  "desc": "Memory limit for bounded-query container execution (e.g.",
-                  "leaf": true
-                },
-                "interpreter": {
-                  "type": "string",
-                  "desc": "Script interpreter for bounded-query execution.",
-                  "enum": ["python3"],
-                  "leaf": true
-                },
-                "max-invocations": {
-                  "type": "integer",
-                  "desc": "Maximum number of bounded-query invocations allowed per run.",
-                  "leaf": true
-                }
-              }
             }
           }
         },
@@ -1819,22 +1900,17 @@
         },
         "playwright": {
           "type": "null|object",
-          "desc": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "desc": "Playwright CLI browser automation tool for web scraping, testing, and UI interactions",
           "children": {
             "version": {
               "type": "string|number",
-              "desc": "Optional version pin.",
+              "desc": "Optional @playwright/cli npm package version pin.",
               "leaf": true
-            },
-            "args": {
-              "type": "array",
-              "desc": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
-              "array": true
             },
             "mode": {
               "type": "string",
-              "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use play...",
-              "enum": ["cli", "mcp"],
+              "desc": "Integration mode. Only 'cli' is supported; 'mcp' is rejected with migration guidance.",
+              "enum": ["cli"],
               "leaf": true
             }
           }
@@ -1892,6 +1968,60 @@
                 "timeout-minutes": {
                   "type": "integer",
                   "desc": "Maximum validator runtime in minutes (default: 1, max: 5)",
+                  "leaf": true
+                }
+              }
+            }
+          },
+          "array": true
+        },
+        "drive-memory": {
+          "type": "boolean|null|object|array",
+          "desc": "Private-preview GitHub Drives configuration.",
+          "children": {
+            "drive-name": {
+              "type": "string",
+              "desc": "GitHub Drive name (default: 'default')",
+              "leaf": true
+            },
+            "description": {
+              "type": "string",
+              "desc": "Optional description shown in the agent prompt",
+              "leaf": true
+            },
+            "disk-size": {
+              "type": "string",
+              "desc": "Drive size used when creating the drive, as a number with an optional K, M, G, or T suffix (case-insensitive; normali...",
+              "leaf": true
+            },
+            "prefetch": {
+              "type": "boolean",
+              "desc": "Eagerly fetch existing drive contents after mounting (default: false)",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "restore-only": {
+              "type": "boolean",
+              "desc": "Mount the drive without committing changes",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "allowed-extensions": {
+              "type": "array",
+              "desc": "List of allowed file extensions.",
+              "array": true
+            },
+            "validation": {
+              "type": "object",
+              "children": {
+                "script": {
+                  "type": "string",
+                  "desc": "JavaScript validator body that runs over the drive-memory directory before persistence",
+                  "leaf": true
+                },
+                "timeout-minutes": {
+                  "type": "integer",
+                  "desc": "Maximum validator runtime in minutes",
                   "leaf": true
                 }
               }
@@ -2121,6 +2251,12 @@
       "type": "object",
       "desc": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI wo...",
       "children": {
+        "steer": {
+          "type": "boolean",
+          "desc": "⚠️ Experimental.",
+          "enum": [true, false],
+          "leaf": true
+        },
         "urls": {
           "type": "string",
           "desc": "URL sanitization policy for safe outputs.",
@@ -2373,6 +2509,11 @@
         "upload-artifact": {
           "type": "object|null",
           "desc": "Enable AI agents to upload files as run-scoped GitHub Actions artifacts.",
+          "leaf": true
+        },
+        "upload-code-coverage": {
+          "type": "object|null",
+          "desc": "⚠️ Experimental.",
           "leaf": true
         },
         "update-release": {
@@ -2930,6 +3071,12 @@
                   "enum": ["read", "none", "write"],
                   "leaf": true
                 },
+                "secret-scanning-alerts": {
+                  "type": "string",
+                  "desc": "Permission level for secret scanning alerts (read/none).",
+                  "enum": ["read", "none"],
+                  "leaf": true
+                },
                 "repository-hooks": {
                   "type": "string",
                   "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
@@ -3151,6 +3298,12 @@
                   "type": "string",
                   "desc": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler).",
                   "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "secret-scanning-alerts": {
+                  "type": "string",
+                  "desc": "Permission level for secret scanning alerts (read/none).",
+                  "enum": ["read", "none"],
                   "leaf": true
                 },
                 "repository-hooks": {
@@ -3403,6 +3556,12 @@
               "enum": ["read", "none", "write"],
               "leaf": true
             },
+            "secret-scanning-alerts": {
+              "type": "string",
+              "desc": "Permission level for secret scanning alerts (read/none).",
+              "enum": ["read", "none"],
+              "leaf": true
+            },
             "repository-hooks": {
               "type": "string",
               "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
@@ -3446,6 +3605,10 @@
       "desc": "Default LLM model, overridden by nested engine.model.",
       "leaf": true
     },
+    "graders": {
+      "type": "object",
+      "desc": "⚠️ Experimental."
+    },
     "evals": {
       "type": "array|object",
       "desc": "⚠️ Experimental.",
@@ -3484,6 +3647,7 @@
   "sortOrder": [
     "name",
     "description",
+    "intent",
     "on",
     "engine",
     "permissions",

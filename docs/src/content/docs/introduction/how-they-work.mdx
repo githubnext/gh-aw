@@ -1,11 +1,11 @@
 ---
-title: How GitHub Agentic Workflows Work
+title: How Agentic Workflows Work
 description: Learn how GitHub Agentic Workflows (gh-aw) compiles Markdown with YAML frontmatter into GitHub Actions workflows that run AI agents securely.
 sidebar:
   order: 2
 ---
 
-GitHub Agentic Workflows (`gh-aw`) compiles Markdown workflow files into [GitHub Actions](https://docs.github.com/en/actions) workflows that run AI agents for complex, multi-step repository tasks. GitHub Actions supplies the triggers, runners, logs, and job orchestration; `gh-aw` adds the AI engine, natural-language instructions, and security controls for agent execution.
+GitHub Agentic Workflows compiles Markdown workflow files into [GitHub Actions](https://docs.github.com/en/actions) workflows that run AI agents for complex, multi-step repository tasks. GitHub Actions supplies the triggers, runners, logs, and job orchestration; `gh-aw` adds the AI engine, natural-language instructions, and security controls for agent execution.
 
 ## Workflow Structure
 
@@ -29,11 +29,11 @@ Each engine authenticates with its own secret or permission:
 
 | Engine | Frontmatter `engine:` | Secret or permission required |
 |---|---|---|
-| [GitHub Copilot](/gh-aw/engines/copilot/) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) permission or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) |
+| [GitHub Copilot](/gh-aw/engines/copilot/) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) |
 | [Claude Code](/gh-aw/engines/claude/) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) |
 | [OpenAI Codex](/gh-aw/engines/codex/) | `codex` | `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini](/gh-aw/engines/gemini/) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) or [Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) |
-| [Pi](/gh-aw/engines/pi/) | `pi` | Copilot, Anthropic, or OpenAI/Codex authentication, depending on `model:` |
+| [Pi](/gh-aw/engines/pi/) | `pi` | Copilot, Anthropic, or OpenAI/Codex authentication |
 
 See [Authentication](/gh-aw/reference/auth/) for the full setup instructions for each engine.
 
@@ -62,32 +62,15 @@ flowchart LR
 
 Supported agent jobs run with minimal permissions and no write access by default. Configured safe outputs are processed in separate jobs before changes are applied, and critical actions can require human approval. Custom jobs and explicitly relaxed controls form separate trust boundaries. For details and exceptions, see the [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/).
 
-## MCP Scripts and Safe Outputs
-
-- **[MCP Scripts](/gh-aw/reference/mcp-scripts/)** (custom inline tools) - Custom MCP tools defined inline in workflow frontmatter
-- **[Safe outputs](/gh-aw/reference/safe-outputs/)** (validated GitHub operations) - Pre-approved actions the AI can request without write permissions
-
-## Regenerating the Lock File
-
-Use `gh aw compile` to generate [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) from the frontmatter of the workflow `.md` files. The `.md` file is the editable source of truth, while `.lock.yml` is the compiled GitHub Actions workflow with security hardening. Commit both files.
-
-## Continuous AI Patterns
-
-Enable [Continuous AI](https://githubnext.com/projects/continuous-ai) patterns like keeping documentation current, improving code quality incrementally, intelligently triaging issues and PRs, and automating code review.
-
 ## Best Practices
 
 Start simple and iterate with clear, specific instructions. Test workflows using `gh aw compile --watch` and `gh aw run`, monitor costs with `gh aw logs`, and review AI-generated content before merging. Use [`safe outputs`](/gh-aw/reference/safe-outputs/) (pre-approved GitHub operations) for controlled creation of issues, comments, and PRs.
 
-## Workshop
-
-> [!TIP]
-> **Ready to practice?** The [**gh-aw-workshop**](https://github.com/githubnext/gh-aw-workshop) is a self-contained, step-by-step workshop that reinforces these concepts with hands-on exercises. Fork it and work through the lessons at your own pace.
-
-## Next steps
+## Learn More
 
 - Follow the [GitHub Agentic Workflows quickstart](/gh-aw/setup/quick-start/).
 - Learn how to [create an agentic workflow](/gh-aw/setup/creating-workflows/).
 - Compare [supported AI engines and authentication](/gh-aw/reference/engines/).
-- Browse [GitHub Agentic Workflows examples by task](/gh-aw/examples/).
+- Browse the [GitHub Agentic Workflows gallery](/gh-aw/gallery/).
 - Read the [security architecture](/gh-aw/introduction/architecture/) and [FAQ](/gh-aw/reference/faq/).
+- Practice with the [gh-aw workshop](https://github.com/githubnext/gh-aw-workshop).

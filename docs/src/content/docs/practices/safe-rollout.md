@@ -54,7 +54,7 @@ A common repository split uses a production repository for live events and autho
 
 That shape is often useful, but it is still rollout guidance rather than a primary pattern.
 
-## Related Documentation
+## Learn More
 
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
 - [Staged Mode](/gh-aw/reference/staged-mode/)

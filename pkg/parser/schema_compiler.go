@@ -112,6 +112,7 @@ func CompileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
 
 	// Create a new compiler
 	compiler := jsonschema.NewCompiler()
+	compiler.AssertFormat()
 
 	// Parse the schema JSON first
 	var schemaDoc any

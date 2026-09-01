@@ -47,6 +47,10 @@ describe("prefer-actions-exec-over-child-process", () => {
         { code: ghScript(`const { exec } = require("child_process"); const child = exec("git status"); child.kill();`) },
         { code: ghScript(`const { execFile } = require("child_process"); execFile("git", ["status"]).stdout.pipe(process.stdout);`) },
         { code: ghScript(`const cp = require("child_process"); function f() { return cp.exec("git status"); }`) },
+        // Retained handles nested inside value-preserving wrappers/containers
+        { code: ghScript(`const { exec } = require("child_process"); async function f() { const child = await exec("git status"); child.kill(); }`) },
+        { code: ghScript(`const { exec } = require("child_process"); const children = [exec("git status")]; children[0].kill();`) },
+        { code: ghScript(`const { exec } = require("child_process"); const holder = { child: exec("git status") }; holder.child.kill();`) },
       ],
       invalid: [
         {
@@ -60,6 +64,18 @@ describe("prefer-actions-exec-over-child-process", () => {
         {
           code: ghScript(`const { execFile } = require("child_process"); execFile("git", ["status"], cb);`),
           errors: [{ messageId: "preferActionsExec", data: { method: "execFile" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); async function f() { await exec("git", args, cb); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); void exec("git", args, cb);`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
+        },
+        {
+          code: ghScript(`const { exec } = require("child_process"); exec("git", args, cb) || onError();`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "exec" } }],
         },
         {
           code: ghScript(`const { execFileSync } = require("child_process"); execFileSync("git", ["status"]);`),
@@ -89,6 +105,40 @@ describe("prefer-actions-exec-over-child-process", () => {
         {
           code: ghScript(`function f() { const { execSync } = require("child_process"); execSync("git status"); }`),
           errors: [{ messageId: "preferActionsExec", data: { method: "execSync" } }],
+        },
+      ],
+    });
+  });
+
+  it("flags a distinct message variant when migration requires converting a sync function (and its callers) to async", () => {
+    cjsRuleTester.run("prefer-actions-exec-over-child-process", preferActionsExecOverChildProcessRule, {
+      valid: [],
+      invalid: [
+        // Bare statement for side effects only — no return-value dependency, so plain message unchanged
+        {
+          code: ghScript(`const { execSync } = require("child_process"); function f() { execSync("git status"); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "execSync" } }],
+        },
+        // Already-async enclosing function — even though the result is returned, the enclosing
+        // function is already async, so no caller-chain conversion is needed; message unchanged
+        {
+          code: ghScript(`const { execSync } = require("child_process"); async function f() { return execSync("git status"); }`),
+          errors: [{ messageId: "preferActionsExec", data: { method: "execSync" } }],
+        },
+        // Non-async function whose return value is directly the call's result
+        {
+          code: ghScript(`const { execSync } = require("child_process"); function f() { return execSync("git status"); }`),
+          errors: [{ messageId: "preferActionsExecSyncContext", data: { method: "execSync" } }],
+        },
+        // Non-async function where the call's result is assigned and then consumed
+        {
+          code: ghScript(`const { execSync } = require("child_process"); function f() { const out = execSync("git status"); return out.trim(); }`),
+          errors: [{ messageId: "preferActionsExecSyncContext", data: { method: "execSync" } }],
+        },
+        // Also applies to arrow functions
+        {
+          code: ghScript(`const { execSync } = require("child_process"); const f = () => execSync("git status");`),
+          errors: [{ messageId: "preferActionsExecSyncContext", data: { method: "execSync" } }],
         },
       ],
     });

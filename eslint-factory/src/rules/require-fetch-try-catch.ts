@@ -83,12 +83,14 @@ export const requireFetchTryCatchRule = createRule({
     docs: {
       description:
         "Require `await fetch(...)` calls in actions/setup/js scripts to be wrapped in try/catch. " +
-        "The fetch API throws a TypeError on network failures (DNS errors, connection refused, etc.) " +
-        "which will crash the action with an unhelpful uncaught exception if unhandled.",
+        "The fetch API throws a TypeError on network failures (DNS errors, connection refused, etc.). " +
+        "Without a call-site try/catch, the entrypoint-level catch produces a generic engine-level stack instead of a specific message that preserves the error as `{ cause }`.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap `await fetch({{url}})` in try/catch — fetch throws TypeError on network errors " + "and will crash the action if unhandled.",
+      requireTryCatch:
+        "Wrap `await fetch({{url}})` in try/catch — fetch throws TypeError on network errors; " +
+        "without a call-site try/catch, you lose the original error context and get a generic engine-level stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },

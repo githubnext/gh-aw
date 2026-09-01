@@ -18,6 +18,7 @@ network:
   - defaults
 imports:
 - shared/otlp.md
+- shared/graders.md
 safe-outputs:
   create-issue:
     close-older-issues: true
@@ -32,10 +33,10 @@ safe-outputs:
     title-prefix: "[ab-advisor] "
 description: Daily A/B testing advisor that picks a random agentic workflow without an experiments section, devises an experiment campaign to improve it, and creates a GitHub issue with the implementation task
 emoji: 🧪
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
-  bare: true
   id: pi
+  model-provider: openai
 strict: true
 timeout-minutes: 30
 tools:
@@ -59,6 +60,7 @@ evals:
     question: Did the agent create a GitHub issue with an A/B experiment campaign for a selected workflow?
   - id: workflow_targeted
     question: Did the agent identify and target a workflow that lacks an experiments section?
+
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

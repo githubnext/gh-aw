@@ -67,11 +67,16 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		steps = append(steps, checkoutMgr.GenerateSafeOutputCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data))...)
 	}
 
-	// Default workspace checkout (identical to the agent job).
-	steps = append(steps, injectStepCondition(
-		checkoutMgr.GenerateDefaultCheckoutStep(c.trialMode, c.trialLogicalRepoSlug, c.getActionPin),
-		condition,
-	)...)
+	// Default workspace checkout (identical to the agent job). Skipped when
+	// permissions.contents: none signals a target-only checkout (see
+	// Compiler.shouldAddCheckoutStep for the equivalent agent-job gating); the
+	// hosting repository is then never cloned (or credentialed) in either job.
+	if !data.CheckoutSkipDefault {
+		steps = append(steps, injectStepCondition(
+			checkoutMgr.GenerateDefaultCheckoutStep(c.trialMode, c.trialLogicalRepoSlug, c.getActionPin),
+			condition,
+		)...)
+	}
 
 	// Additional (cross-repo / subdirectory) checkouts (identical to the agent job).
 	steps = append(steps, injectStepCondition(
@@ -221,6 +226,7 @@ func buildSafeOutputItemsManifestUploadStep(prefix string, pinAction func(string
 		"          path: |\n",
 		"            /tmp/gh-aw/safe-output-items.jsonl\n",
 		fmt.Sprintf("            /tmp/gh-aw/%s\n", constants.TemporaryIdMapFilename),
+		fmt.Sprintf("            /tmp/gh-aw/%s\n", constants.SafeOutputErrorsFilename),
 		"          if-no-files-found: ignore\n",
 	}
 }

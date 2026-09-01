@@ -9,6 +9,9 @@ on:
         required: true
         type: string
         default: "-30d..-0d"
+
+imports:
+  - shared/graders.md
 permissions:
   contents: read
   actions: read
@@ -94,6 +97,11 @@ evals:
     question: Did the agent analyze AIC usage for the user-specified date range?
   - id: trend_report_created
     question: Was a trend report created with per-workflow AIC data for the requested period?
+
+engine:
+  id: codex
+  model-provider: openai
+model: openai/gpt-5.4
 ---
 
 # On-Demand Agentic Workflow AIC Trend Audit

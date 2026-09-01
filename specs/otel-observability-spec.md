@@ -1,21 +1,21 @@
 ---
 title: gh-aw OpenTelemetry Observability Specification
 description: Formal W3C-style specification for observability contract for GitHub Agentic Workflows using OpenTelemetry traces, metrics, logs, and OTLP export.
-version: 0.4.0
+version: 0.5.0
 status: Working Draft
 date: 2026-06-18
-last_updated: 2026-08-01
+last_updated: 2026-08-27
 editors:
   - GitHub gh-aw Team
 ---
 
 # gh-aw OpenTelemetry Observability Specification
 
-**Version**: 0.4.0
+**Version**: 0.5.0
 **Status**: Working Draft  
 **Publication Date**: June 18, 2026
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/otel-observability-spec.md  
-**Previous Version**: 0.3.0
+**Previous Version**: 0.4.0
 **Editors**: GitHub gh-aw Team
 
 ---
@@ -278,6 +278,21 @@ When an endpoint URL is statically resolvable, the compiler MUST extract its hos
 
 Expressions such as `${{ secrets.OTLP_ENDPOINT }}` MUST NOT produce a compile-time hostname allowlist entry.
 
+### 5.8 Enterprise Default Fallback
+
+When a workflow declares no `observability.otlp` endpoint in its own frontmatter or in any imported workflow, the compiler MUST fall back to an enterprise/organization-level default endpoint expressed as `${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}` with headers `${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}`.
+
+An explicit `observability.otlp` endpoint from frontmatter or an import MUST take precedence over the default fallback; the fallback MUST only apply when no endpoint entry can be resolved from frontmatter or imports.
+
+The compiler MUST set the effective `if-missing` policy to `ignore` for the default fallback path when the workflow has not explicitly configured `if-missing`. This makes an unset `GH_AW_DEFAULT_OTLP_ENDPOINT` a silent no-op instead of a compile- or runtime-time failure.
+
+A default fallback endpoint that resolves to a non-empty URL at runtime but an empty headers value MUST NOT be exported unauthenticated. Implementations MUST:
+
+1. Drop such an endpoint from every runtime span emission path (job-setup, conclusion, outcome, and MCP gateway spans) before any network call is attempted, not only in the job that performs credential validation; and
+2. Additionally fail at least one job in the workflow (for example, via a runtime guard step) with a diagnostic that identifies the missing headers secret, so a misconfigured default is visible rather than silently degrading to no telemetry.
+
+The compiler MUST NOT emit an env-block mapping key that the workflow's own `env:` block already defines. When a user-defined key already exists (for example `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_HEADERS`, `GH_AW_OTLP_ALL_HEADERS`, `GH_AW_OTLP_ENDPOINTS`, `GH_AW_OTLP_IF_MISSING`, or `GH_AW_OTLP_ATTRIBUTES`), the compiler MUST skip injecting that key rather than emit a duplicate mapping key.
+
 ---
 
 ## 6. Runtime Environment and Export
@@ -294,7 +309,7 @@ When observability is enabled, the compiler MUST make the following non-secret v
 | `GITHUB_AW_OTEL_PARENT_SPAN_ID` | MUST contain the active setup or parent span ID when available. |
 | `TRACEPARENT` | SHOULD be emitted or forwarded where child tools can consume W3C Trace Context. |
 | `GH_AW_OTLP_ENDPOINTS` | SHOULD contain a compact JSON array for multi-endpoint fan-out when more than one endpoint or endpoint-local header set is configured. |
-| `GH_AW_OTLP_IF_MISSING` | SHOULD contain the resolved policy when runtime setup needs it. |
+| `GH_AW_OTLP_IF_MISSING` | SHOULD contain the resolved policy when runtime setup needs it; MUST be `ignore` when the endpoint was resolved through the enterprise default fallback (§5.8) and the workflow did not explicitly configure `if-missing`. |
 
 Future variables such as `GH_AW_OTLP_MODE`, `GH_AW_OTEL_SIGNALS`, and `GH_AW_OTEL_CAPTURE_CONTENT` MAY be added only as additive extensions.
 
@@ -325,6 +340,7 @@ In direct mode:
 3. A failure at one endpoint MUST NOT suppress an attempt to another endpoint.
 4. Export retry MUST be bounded by duration and attempt count.
 5. Export failure MUST be reported through a structured diagnostic and `gh_aw.otlp.export.failures` when metrics are enabled.
+6. Before attempting export, the resolution step that reads `GH_AW_OTLP_ENDPOINTS` MUST discard any entry whose URL is non-empty but whose headers are empty when `GH_AW_OTLP_IF_MISSING` is `ignore` (see §5.8). This check MUST be applied uniformly by every span emitter that consumes `GH_AW_OTLP_ENDPOINTS`, not only by whichever job runs first, so no job order can allow one unauthenticated export attempt to slip through before a credential-validation step runs.
 
 ### 6.5 Gateway Export
 
@@ -967,6 +983,13 @@ context is added to outcome spans or links.
 ---
 
 ## 19. Change Log
+
+### Version 0.5.0 (Working Draft, August 27, 2026)
+
+- **Added**: §5.8 Enterprise Default Fallback — the compiler falls back to `${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}` / `${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}` when no `observability.otlp` endpoint is configured in frontmatter or an import, forcing `if-missing: ignore` so an unset default is a silent no-op.
+- **Added**: A normative requirement (§5.8, §6.4) that a default endpoint resolved with a URL but empty headers MUST be dropped by every span-emitting runtime path (job-setup, conclusion, outcome, MCP gateway), not only by whichever job performs credential validation, so no job ordering can allow unauthenticated export.
+- **Added**: A normative requirement (§5.8) that the compiler MUST NOT emit a duplicate env-block mapping key when the workflow already defines an OTLP-related key (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_HEADERS`, `GH_AW_OTLP_ALL_HEADERS`, `GH_AW_OTLP_ENDPOINTS`, `GH_AW_OTLP_IF_MISSING`, `GH_AW_OTLP_ATTRIBUTES`).
+- **Clarified**: §6.1 table entry for `GH_AW_OTLP_IF_MISSING` now cross-references the enterprise default fallback.
 
 ### Version 0.4.0 (Working Draft, June 18, 2026)
 

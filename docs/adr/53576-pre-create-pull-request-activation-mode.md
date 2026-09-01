@@ -12,7 +12,7 @@ Agentic workflows compiled by gh-aw can run for minutes or hours. Users need a s
 
 ### Decision
 
-The opt-in `safe-outputs.create-pull-request.steer: true` setting creates a run-scoped issue during activation. The injected prompt identifies that issue and directs the agent to read user-authored comments containing `steer`. Pull request creation and checkout continue through the normal safe-output path without a pre-created branch.
+The opt-in `safe-outputs.steer: true` setting creates a run-scoped issue during activation. The injected prompt identifies that issue and directs the agent to read user-authored comments containing `steer`. Pull request creation and checkout continue through the normal safe-output path without a pre-created branch.
 
 On success, the conclusion job closes the steering issue and links the created pull request when available. On failure, the failure handler retitles and updates the same issue with the normal failure report instead of creating a second issue.
 

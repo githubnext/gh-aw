@@ -100,6 +100,7 @@ type AgentSandboxConfig struct {
 	Targets        map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`         // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
 	RuntimeInstall *bool                                 `yaml:"runtime-install,omitempty"` // Controls generation of runtime installation steps (gVisor/docker-sbx). Default: true. Noop when runtime is not set.
 	Images         map[string]string                     `yaml:"images,omitempty"`          // Digest-pinned AWF infrastructure images keyed by AWF image role (see sandbox_agent_images.go)
+	CACert         string                                `yaml:"ca-cert,omitempty"`         // Host path to an additional CA certificate for API proxy upstream TLS verification (maps to apiProxy.caCert, AWF v0.28.10+)
 }
 
 // AiCreditsPricingConfig holds per-token pricing rates ($/1M tokens) used as a fallback
@@ -326,6 +327,10 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig, engineConfig *Eng
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentWorkspaceWritePath)
 	if engineConfig != nil && engineConfig.ID == string(constants.CopilotEngine) {
 		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentLogsWritePath)
+	}
+	if engineConfig != nil && engineConfig.ID == string(constants.CodexEngine) {
+		// Codex writes runtime state under CODEX_HOME.
+		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, constants.TmpMcpConfigDir)
 	}
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorWorkspaceWritePath)
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cloudHypervisorAwfHomeWritePath)

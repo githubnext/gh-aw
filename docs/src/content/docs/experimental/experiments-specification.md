@@ -16,7 +16,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the A/B experiment system for GitHub Agentic Workflows (gh-aw).
+This specification defines the A/B experiment system for GitHub Agentic Workflows.
 It covers the `experiments:` frontmatter schema, variant selection algorithms, state persistence
 backends, expression and template integration, activation job structure, audit CLI integration,
 and statistical analysis requirements. Conforming implementations provide operators with a

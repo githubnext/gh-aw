@@ -83,23 +83,7 @@ agentic-workflows import issue-triage from githubnext/agentics and use claude en
 
 ### Debugging Agentic Workflows
 
-When workflows fail or behave unexpectedly, use the agentic-workflows skill to investigate and diagnose issues:
-
-```text wrap
-agentic-workflows debug why is my issue-triage workflow failing?
-```
-
-For the fastest diagnosis, pass the full run URL from the GitHub Actions page:
-
-```text wrap
-agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
-```
-
-The agent audits logs, identifies the root cause, and suggests targeted fixes. It handles permission errors, missing tools, network access issues, and safe-output problems — just describe the issue in natural language.
-
-### Self-Contained Debugging (Without Copilot)
-
-If your repository is not yet set up with the `agentic-workflows` agent, or if you prefer to use a different AI assistant, use the standalone debugging prompt by sharing its URL:
+For any AI assistant or coding agent, share the URL to the standalone debugging prompt:
 
 ```text wrap
 Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md

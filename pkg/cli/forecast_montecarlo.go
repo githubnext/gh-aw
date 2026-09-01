@@ -131,34 +131,30 @@ func runMonteCarlo(aicObservations []int, successCount int, observedRunsPerPerio
 				continue
 			}
 			// Bootstrap: sample AIC from the empirical distribution.
-			totalAICMilli += aicObservations[rng.Intn(n)]
+			totalAICMilli += bootstrapAICObservation(rng, aicObservations)
 		}
 
 		simAICMilli[i] = totalAICMilli
 	}
 
-	// Sort for percentile computation.
+	return summarizeMonteCarloAIC(simAICMilli, n)
+}
+
+func summarizeMonteCarloAIC(simAICMilli []int, observationCount int) *ForecastMonteCarloSummary {
 	sort.Ints(simAICMilli)
-
 	meanMilli, stddevMilli := meanStdDevInt(simAICMilli)
-	mean := roundForecastAIC(float64(meanMilli) / 1000)
-	stddev := roundForecastAIC(stddevMilli / 1000)
-	p10 := roundForecastAIC(float64(percentileInt(simAICMilli, 10)) / 1000)
-	p50 := roundForecastAIC(float64(percentileInt(simAICMilli, 50)) / 1000)
-	p90 := roundForecastAIC(float64(percentileInt(simAICMilli, 90)) / 1000)
-	reliable := n >= minObservationsForReliableForecast
-	forecastMonteCarloLog.Printf("Monte Carlo complete: mean_aic=%.3f, stddev=%.3f, p10=%.3f, p50=%.3f, p90=%.3f, reliable=%v",
-		mean, stddev, p10, p50, p90, reliable)
-
-	return &ForecastMonteCarloSummary{
+	summary := &ForecastMonteCarloSummary{
 		Iterations:       monteCarloIterations,
-		MeanProjectedAIC: mean,
-		StdDevAIC:        stddev,
-		P10ProjectedAIC:  p10,
-		P50ProjectedAIC:  p50,
-		P90ProjectedAIC:  p90,
-		IsReliable:       reliable,
+		MeanProjectedAIC: roundForecastAIC(float64(meanMilli) / 1000),
+		StdDevAIC:        roundForecastAIC(stddevMilli / 1000),
+		P10ProjectedAIC:  roundForecastAIC(float64(percentileInt(simAICMilli, 10)) / 1000),
+		P50ProjectedAIC:  roundForecastAIC(float64(percentileInt(simAICMilli, 50)) / 1000),
+		P90ProjectedAIC:  roundForecastAIC(float64(percentileInt(simAICMilli, 90)) / 1000),
+		IsReliable:       observationCount >= minObservationsForReliableForecast,
 	}
+	forecastMonteCarloLog.Printf("Monte Carlo complete: mean_aic=%.3f, stddev=%.3f, p10=%.3f, p50=%.3f, p90=%.3f, reliable=%v",
+		summary.MeanProjectedAIC, summary.StdDevAIC, summary.P10ProjectedAIC, summary.P50ProjectedAIC, summary.P90ProjectedAIC, summary.IsReliable)
+	return summary
 }
 
 // poissonSample draws a random variate from Poisson(lambda).
@@ -195,6 +191,10 @@ func poissonSample(rng *rand.Rand, lambda float64) int {
 
 func useNormalApproximationForPoisson(lambda float64) bool {
 	return lambda > poissonNormalApproximationThreshold
+}
+
+func bootstrapAICObservation(rng *rand.Rand, aicObservations []int) int {
+	return aicObservations[rng.Intn(len(aicObservations))]
 }
 
 // gammaSample draws a random variate from Gamma(shape, scale=1) using the

@@ -24,11 +24,19 @@ Use these variables to set organization- or repository-wide defaults without edi
 | `GH_AW_DEFAULT_MODEL_COPILOT` | GitHub Actions `vars.*` at runtime | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
 | `GH_AW_DEFAULT_MODEL_CLAUDE` | GitHub Actions `vars.*` at runtime | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
 | `GH_AW_DEFAULT_MODEL_CODEX` | GitHub Actions `vars.*` at runtime | Default fallback model for Codex | `GH_AW_MODEL_AGENT_CODEX` / `GH_AW_MODEL_DETECTION_CODEX` is unset |
+| `GH_AW_DEFAULT_OTLP_ENDPOINT` | GitHub Actions `vars.*` at runtime | Default OTLP exporter endpoint | `observability.otlp.endpoint` is not set in frontmatter or any imported workflow |
+| `GH_AW_DEFAULT_OTLP_HEADERS` | GitHub Actions `secrets.*` at runtime | Default OTLP exporter headers for `GH_AW_DEFAULT_OTLP_ENDPOINT` | `observability.otlp.endpoint` is not set in frontmatter or any imported workflow |
 
 Use `gh aw env get` and `gh aw env update` to manage these
 variables in batch at repo, org, or enterprise scope. The defaults file uses
 `default_`-prefixed keys such as `default_max_ai_credits`, `default_max_turn_cache_misses`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`, `default_agent_job_timeout_minutes`, `default_detection_job_timeout_minutes`,
-`default_model_copilot`, and `default_utc`.
+`default_model_copilot`, `default_otlp_endpoint`, and `default_utc`. `GH_AW_DEFAULT_OTLP_HEADERS` is a secret and must be
+set with `gh secret set` rather than `gh aw env`.
+
+```bash
+gh aw env update defaults.yml --scope org --org MY_ORG --visibility all
+gh aw env update defaults.yml --scope ent --enterprise MY_ENT --visibility all
+```
 
 ## Project Timezone
 
@@ -102,6 +110,20 @@ The generated `detection` job timeout follows the same chain with
 and a built-in default of 10 minutes. The `agentic_execution` step timeout uses
 top-level `timeout-minutes`, `vars.GH_AW_DEFAULT_TIMEOUT_MINUTES`, and a built-in
 default of 20 minutes.
+
+For OTLP observability, precedence is:
+
+1. `observability.otlp` in workflow frontmatter
+2. `observability.otlp` from imported shared workflows
+3. `vars.GH_AW_DEFAULT_OTLP_ENDPOINT` with `secrets.GH_AW_DEFAULT_OTLP_HEADERS` (action runtime)
+
+The compiler always emits OTLP environment variables. When no endpoint is configured in frontmatter or an import, it emits
+`${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}` and `${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}` so an organization or enterprise can
+enable telemetry for every agentic workflow without editing individual workflows. An unset variable resolves to an empty string
+and OTLP export becomes a no-op; a configured endpoint without the matching headers secret is dropped by every span-emitting job
+(setup, conclusion, outcome, and MCP gateway) instead of being exported unauthenticated, and the agent job additionally fails the
+run so the misconfiguration is visible. If a workflow's own `env:` block already defines one of the OTLP variables, the compiler
+skips injecting that variable rather than emitting a duplicate mapping key.
 
 For detection engine selection, precedence is:
 

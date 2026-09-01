@@ -48,17 +48,6 @@ func TestBuiltinEnginesRegisterWithoutError(t *testing.T) {
 	}
 }
 
-// TestBuildPiModelsJSONMarshalsRuntimeValues guards the panic in buildPiModelsJSON.
-// The payload mixes literals with runtime arguments, so this asserts that those
-// argument types always serialise.
-func TestBuildPiModelsJSONMarshalsRuntimeValues(t *testing.T) {
-	out := buildPiModelsJSON(4141, "COPILOT_GITHUB_TOKEN", "claude-sonnet-4-20250514")
-
-	var decoded map[string]any
-	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
-	assert.Contains(t, decoded, "providers")
-}
-
 // TestMCPGatewayCustomEnvNamesMarshal guards the panic in
 // writeMCPGatewayStepEnvWithCustomGatewayEnvNames, which fires only if the
 // []string of env var names fails to marshal.

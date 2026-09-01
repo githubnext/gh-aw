@@ -191,6 +191,34 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "valid max-runs positive integer",
+			frontmatter: map[string]any{
+				"on":       "push",
+				"max-runs": 1,
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
+			name: "valid max-runs expression",
+			frontmatter: map[string]any{
+				"on":       "push",
+				"max-runs": "${{ inputs.max-runs }}",
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
+		{
+			name: "invalid max-runs zero",
+			frontmatter: map[string]any{
+				"on":       "push",
+				"max-runs": 0,
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "minimum",
+		},
+		{
 			name: "invalid workflow frontmatter with location",
 			frontmatter: map[string]any{
 				"on":      "push",
@@ -331,6 +359,16 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			filePath:    "/test/workflow.md",
 			wantErr:     true,
 			errContains: "requird",
+		},
+		{
+			name: "top-level roles field is rejected pointing to on.roles",
+			frontmatter: map[string]any{
+				"on":    "push",
+				"roles": []string{"admin", "maintainer", "write"},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "'roles' belongs under 'on'",
 		},
 		{
 			name: "dispatch-repository key is accepted by schema",

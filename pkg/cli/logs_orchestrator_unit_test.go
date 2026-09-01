@@ -4,8 +4,12 @@ package cli
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -557,5 +561,47 @@ func TestDateRangeCoverageWarning(t *testing.T) {
 		warning := dateRangeCoverageWarning(runs, ninetyDaysAgo, end, true)
 		require.NotEmpty(t, warning)
 		assert.Contains(t, warning, "narrow slice")
+	})
+}
+
+// TestDeriveGradersClusterValue verifies that homogeneous grader outcomes map to
+// their status label while heterogeneous outcomes are reported as "mixed".
+func TestDeriveGradersClusterValue(t *testing.T) {
+	graderResults := func(statuses ...string) map[string]any {
+		results := make([]map[string]any, 0, len(statuses))
+		for i, status := range statuses {
+			results = append(results, map[string]any{
+				"id":     fmt.Sprintf("grader-%d", i),
+				"status": status,
+			})
+		}
+		return map[string]any{"version": 1, "results": results}
+	}
+
+	tests := []struct {
+		name     string
+		statuses []string
+		expected string
+	}{
+		{name: "all pass", statuses: []string{"pass", "pass"}, expected: "pass"},
+		{name: "all fail", statuses: []string{"fail", "fail"}, expected: "fail"},
+		{name: "all error", statuses: []string{"error"}, expected: "error"},
+		{name: "all unavailable", statuses: []string{"unavailable", "unavailable"}, expected: "unavailable"},
+		{name: "pass and fail", statuses: []string{"pass", "fail"}, expected: "mixed"},
+		{name: "every status", statuses: []string{"pass", "fail", "error", "unavailable"}, expected: "mixed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runDir := t.TempDir()
+			writeGraderFiles(t,
+				filepath.Join(runDir, constants.UsageArtifactName.String(), constants.GradersDirName.String()),
+				graderResults(tt.statuses...), nil)
+			assert.Equal(t, tt.expected, deriveGradersClusterValue(runDir))
+		})
+	}
+
+	t.Run("no grader artifact", func(t *testing.T) {
+		assert.Equal(t, "absent", deriveGradersClusterValue(t.TempDir()))
 	})
 }

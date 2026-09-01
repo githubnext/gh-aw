@@ -137,6 +137,10 @@ The macro syntax supports HTTP/HTTPS URLs. URLs are **not restricted to `.github
 
 Runtime imports automatically strip YAML front matter and HTML/XML comments. GitHub Actions expressions (`${{ ... }}`) are rejected to prevent template injection or unintended variable expansion.
 
+`needs.*.outputs.*` expressions are allowed inside imported markdown and are validated recursively across nested runtime imports. At compile time, gh-aw resolves every referenced runtime-import file under `.github`, checks the imported content for disallowed expressions, and follows any nested `{{#runtime-import ...}}` macros it finds. This lets shared prompt fragments safely reference job outputs such as `${{ needs.build.outputs.version }}` without bypassing expression safety checks.
+
+Imported prompt content is still evaluated in the activation job context. In practice, that means imported `needs.*` expressions must refer only to outputs that are available before activation runs, such as `needs.pre_activation.outputs.*` or outputs from custom jobs that explicitly run before activation.
+
 File paths are restricted to `.github` to prevent access to arbitrary repository files. Path traversal and absolute paths are rejected:
 
 ```aw wrap
@@ -174,7 +178,7 @@ Runtime imports are limited to the `.github` folder for files, do not support au
 | GitHub Actions macros | `File template.md contains GitHub Actions macros (${{ ... }}) which are not allowed in runtime imports` |
 | URL fetch failure | `Failed to fetch URL https://example.com/file.txt: HTTP 404` |
 
-## Related Documentation
+## Learn More
 
 - [Markdown](/gh-aw/reference/markdown/) for writing effective agentic markdown
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) for overall workflow organization

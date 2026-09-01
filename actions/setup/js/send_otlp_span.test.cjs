@@ -35,6 +35,8 @@ const {
   buildCurrentWorkflowCallId,
   buildEpisodeAttributesFromContext,
   buildExperimentAttributes,
+  buildGraderTelemetry,
+  buildEvalTelemetry,
   hasProxyConfigured,
   resolveEngineId,
   parseOTLPCustomAttributes,
@@ -2644,6 +2646,54 @@ describe("sendJobConclusionSpan", () => {
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
   });
 
+  it("emits graders only on the agent job conclusion span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "agent";
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/agent/graders/grader_results.json") {
+        return JSON.stringify({ results: [{ id: "quality", status: "pass", value: 0.9 }] });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion");
+    process.env.INPUT_JOB_NAME = "conclusion";
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const spans = mockFetch.mock.calls.map(([, request]) => JSON.parse(request.body).resourceSpans[0].scopeSpans[0].spans[0]);
+    expect(spans[0].attributes).toContainEqual(buildAttr("gh-aw.graders.count", 1));
+    expect(spans[0].events).toContainEqual(expect.objectContaining({ name: "grader.result" }));
+    expect(spans[1].attributes.map(attribute => attribute.key)).not.toContain("gh-aw.graders.count");
+    expect((spans[1].events ?? []).map(event => event.name)).not.toContain("grader.result");
+  });
+
+  it("emits eval results only on the evals job conclusion span", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.INPUT_JOB_NAME = "evals";
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/evals.jsonl") {
+        return `${JSON.stringify({ id: "quality", answer: "YES", model: "gpt-5" })}\n`;
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.evals.conclusion");
+    process.env.INPUT_JOB_NAME = "conclusion";
+    await sendJobConclusionSpan("gh-aw.conclusion.conclusion");
+    readFileSpy.mockRestore();
+
+    const spans = mockFetch.mock.calls.map(([, request]) => JSON.parse(request.body).resourceSpans[0].scopeSpans[0].spans[0]);
+    expect(spans[0].attributes).toContainEqual(buildAttr("gh-aw.evals.count", 1));
+    expect(spans[0].events).toContainEqual(expect.objectContaining({ name: "eval.result" }));
+    expect(spans[1].attributes.map(attribute => attribute.key)).not.toContain("gh-aw.evals.count");
+    expect((spans[1].events ?? []).map(event => event.name)).not.toContain("eval.result");
+  });
+
   it("emits live episode attributes on conclusion spans from aw_info workflow_call context", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -2692,6 +2742,9 @@ describe("sendJobConclusionSpan", () => {
       if (filePath === "/tmp/gh-aw/agent_output.json") {
         return JSON.stringify({ items: [{ type: "issue" }, { type: "pull_request" }] });
       }
+      if (filePath === "/tmp/gh-aw/agent/graders/grader_results.json") {
+        return JSON.stringify({ results: [{ id: "quality", status: "pass" }] });
+      }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
 
@@ -2716,6 +2769,9 @@ describe("sendJobConclusionSpan", () => {
     expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
     expect(agentSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
     expect(conclusionSpan.attributes).toContainEqual({ key: "gh-aw.output.item_count", value: { intValue: 2 } });
+    expect(agentSpan.attributes.map(attribute => attribute.key)).not.toContain("gh-aw.graders.count");
+    expect(conclusionSpan.attributes).toContainEqual(buildAttr("gh-aw.graders.count", 1));
+    expect(conclusionSpan.events).toContainEqual(expect.objectContaining({ name: "grader.result" }));
     const agentKeys = agentSpan.attributes.map(a => a.key);
     const conclusionKeys = conclusionSpan.attributes.map(a => a.key);
     expect(agentKeys).not.toContain("gh-aw.max_ai_credits");
@@ -6450,6 +6506,123 @@ describe("sendJobConclusionSpan", () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildGraderTelemetry
+// ---------------------------------------------------------------------------
+
+describe("buildGraderTelemetry", () => {
+  it("builds summary attributes and one event per grader result", () => {
+    const telemetry = buildGraderTelemetry(
+      {
+        results: [
+          {
+            id: "quality",
+            name: "Quality",
+            value: 0.75,
+            unit: "ratio",
+            passed: true,
+            status: "pass",
+            source: "builtin",
+            severity: "info",
+            baselineValue: 0.5,
+            deltaFromBaseline: 0.25,
+          },
+          { id: "reliability", name: "Reliability", value: null, passed: false, status: "fail", source: "inline" },
+          { id: "broken", status: "error", source: "inline" },
+          { id: "missing", status: "unavailable", source: "builtin" },
+        ],
+      },
+      1700000000000
+    );
+
+    expect(telemetry.attributes).toEqual([
+      buildAttr("gh-aw.graders.count", 4),
+      buildAttr("gh-aw.graders.passed", 1),
+      buildAttr("gh-aw.graders.failed", 1),
+      buildAttr("gh-aw.graders.errors", 1),
+      buildAttr("gh-aw.graders.unavailable", 1),
+      buildAttr("gh-aw.graders.other", 0),
+    ]);
+    expect(telemetry.events).toHaveLength(4);
+    expect(telemetry.events[0]).toEqual({
+      timeUnixNano: toNanoString(1700000000000),
+      name: "grader.result",
+      attributes: [
+        buildAttr("gh-aw.grader.id", "quality"),
+        buildAttr("gh-aw.grader.name", "Quality"),
+        buildAttr("gh-aw.grader.status", "pass"),
+        buildAttr("gh-aw.grader.source", "builtin"),
+        buildAttr("gh-aw.grader.unit", "ratio"),
+        buildDoubleAttr("gh-aw.grader.value", 0.75),
+        buildAttr("gh-aw.grader.passed", true),
+        buildAttr("gh-aw.grader.severity", "info"),
+        buildDoubleAttr("gh-aw.grader.baseline_value", 0.5),
+        buildDoubleAttr("gh-aw.grader.delta_from_baseline", 0.25),
+      ],
+    });
+  });
+
+  it("omits free-form and non-finite grader values", () => {
+    const telemetry = buildGraderTelemetry(
+      {
+        results: [
+          {
+            id: "custom",
+            status: "error",
+            value: Number.NaN,
+            message: "sensitive message",
+            details: "sensitive details",
+            error: "sensitive error",
+          },
+        ],
+      },
+      1
+    );
+
+    const eventKeys = telemetry.events[0].attributes.map(attribute => attribute.key);
+    expect(eventKeys).toEqual(["gh-aw.grader.id", "gh-aw.grader.status"]);
+    expect(JSON.stringify(telemetry)).not.toContain("sensitive");
+  });
+
+  it.each([null, {}, { results: [] }, { results: [null, {}, { id: "" }] }])("returns empty telemetry for output without valid results", output => {
+    expect(buildGraderTelemetry(output, 1)).toEqual({ attributes: [], events: [] });
+  });
+
+  it("counts unrecognized statuses as other", () => {
+    const telemetry = buildGraderTelemetry({ results: [{ id: "skipped", status: "skipped" }] }, 1);
+    expect(telemetry.attributes).toContainEqual(buildAttr("gh-aw.graders.other", 1));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildEvalTelemetry
+// ---------------------------------------------------------------------------
+
+describe("buildEvalTelemetry", () => {
+  it("builds summary attributes and one event per eval result", () => {
+    const telemetry = buildEvalTelemetry(
+      [
+        { id: "quality", question: "Sensitive free-form content", answer: " yes ", model: "gpt-5" },
+        { id: "tests", answer: "NO" },
+        { id: "unknown", answer: "MAYBE" },
+      ],
+      1700000000000
+    );
+
+    expect(telemetry.attributes).toEqual([buildAttr("gh-aw.evals.count", 3), buildAttr("gh-aw.evals.yes", 1), buildAttr("gh-aw.evals.no", 1), buildAttr("gh-aw.evals.unknown", 1)]);
+    expect(telemetry.events[0]).toEqual({
+      timeUnixNano: toNanoString(1700000000000),
+      name: "eval.result",
+      attributes: [buildAttr("gh-aw.eval.id", "quality"), buildAttr("gh-aw.eval.answer", "YES"), buildAttr("gh-aw.eval.model", "gpt-5")],
+    });
+    expect(JSON.stringify(telemetry)).not.toContain("Sensitive free-form content");
+  });
+
+  it.each([null, undefined, [], [null, {}, { id: "" }]])("returns empty telemetry without valid results", results => {
+    expect(buildEvalTelemetry(results, 1)).toEqual({ attributes: [], events: [] });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseOTLPEndpoints
 // ---------------------------------------------------------------------------
 
@@ -6505,6 +6678,34 @@ describe("parseOTLPEndpoints", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317" }]);
     const result = parseOTLPEndpoints();
     expect(result).toEqual([{ url: "https://traces.example.com:4317" }]);
+  });
+
+  describe("GH_AW_OTLP_IF_MISSING=ignore (enterprise-default fallback)", () => {
+    afterEach(() => {
+      delete process.env.GH_AW_OTLP_IF_MISSING;
+      delete process.env.GH_AW_OTLP_ENDPOINTS;
+    });
+
+    it("drops an endpoint with a URL but no headers to avoid unauthenticated export", () => {
+      process.env.GH_AW_OTLP_IF_MISSING = "ignore";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317" }]);
+      const result = parseOTLPEndpoints();
+      expect(result).toEqual([]);
+    });
+
+    it("keeps an endpoint when both URL and headers are set", () => {
+      process.env.GH_AW_OTLP_IF_MISSING = "ignore";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers: "Authorization=******" }]);
+      const result = parseOTLPEndpoints();
+      expect(result).toEqual([{ url: "https://traces.example.com:4317", headers: "Authorization=******" }]);
+    });
+
+    it("does not drop endpoints without headers when if-missing is not ignore", () => {
+      process.env.GH_AW_OTLP_IF_MISSING = "warn";
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317" }]);
+      const result = parseOTLPEndpoints();
+      expect(result).toEqual([{ url: "https://traces.example.com:4317" }]);
+    });
   });
 });
 

@@ -3,12 +3,70 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
+
+func TestRenderJSONMCPConfig_GatewayAgentIDValidatesAgainstSchema(t *testing.T) {
+	gatewayConfig := &MCPGatewayRuntimeConfig{
+		Domain:  "${MCP_GATEWAY_DOMAIN}",
+		AgentID: "${MCP_GATEWAY_AGENT_ID}",
+	}
+
+	var output strings.Builder
+	err := RenderJSONMCPConfig(
+		&output,
+		map[string]any{},
+		[]string{},
+		&WorkflowData{Name: "test-workflow", FrontmatterHash: "abc123"},
+		JSONMCPConfigOptions{
+			ConfigPath:    "/tmp/test/mcp-servers.json",
+			GatewayConfig: gatewayConfig,
+			Renderers:     MCPToolRenderers{},
+		},
+	)
+	if err != nil {
+		t.Fatalf("RenderJSONMCPConfig returned error: %v", err)
+	}
+
+	result := output.String()
+	if strings.Contains(result, `"apiKey"`) {
+		t.Fatalf("rendered gateway config must not contain apiKey:\n%s", result)
+	}
+	if !strings.Contains(result, `"agentId": "${MCP_GATEWAY_AGENT_ID}"`) {
+		t.Fatalf("rendered gateway config must contain agentId:\n%s", result)
+	}
+
+	start := strings.Index(result, "          {\n")
+	end := strings.LastIndex(result, "\n          GH_AW_MCP_CONFIG")
+	if start < 0 || end < 0 || end <= start {
+		t.Fatalf("failed to locate rendered gateway JSON in output:\n%s", result)
+	}
+	renderedJSON := strings.ReplaceAll(result[start:end], "$MCP_GATEWAY_PORT", "8080")
+	renderedJSON = strings.ReplaceAll(renderedJSON, "${MCP_GATEWAY_DOMAIN}", "localhost")
+	renderedJSON = strings.ReplaceAll(renderedJSON, "${MCP_GATEWAY_AGENT_ID}", "test-agent")
+	var renderedConfig map[string]any
+	if err := json.Unmarshal([]byte(renderedJSON), &renderedConfig); err != nil {
+		t.Fatalf("rendered gateway config should be valid JSON: %v\njson:\n%s", err, renderedJSON)
+	}
+
+	schemaJSON, err := os.ReadFile("schemas/mcp-gateway-config.schema.json")
+	if err != nil {
+		t.Fatalf("failed to read gateway schema: %v", err)
+	}
+	schema, err := compileSchema(string(schemaJSON), "https://docs.github.com/gh-aw/schemas/mcp-gateway-config.schema.json")
+	if err != nil {
+		t.Fatalf("failed to compile gateway schema: %v", err)
+	}
+	if err := schema.Validate(renderedConfig); err != nil {
+		t.Fatalf("rendered gateway config should validate against schema: %v\njson:\n%s", err, renderedJSON)
+	}
+}
 
 func TestNewMCPConfigRenderer(t *testing.T) {
 	tests := []struct {
@@ -111,6 +169,18 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"GITHUB_EVENT_PATH": "\${GITHUB_EVENT_PATH}"`) {
 		t.Error("Expected GitHub event path env var")
 	}
+	for _, name := range []string{
+		"GH_AW_PR_HEAD_BASE_BRANCH",
+		"GH_AW_PR_HEAD_BASE_SHA",
+		"GH_AW_PR_HEAD_BASE_REPO",
+		"GH_AW_PR_HEAD_BASE_PR_NUMBER",
+		"GH_AW_PR_HEAD_BASE_REF",
+		"GH_AW_PR_HEAD_REPO",
+	} {
+		if !strings.Contains(output, fmt.Sprintf(`"%s": "\${%s}"`, name, name)) {
+			t.Errorf("Expected PR head baseline env var %s", name)
+		}
+	}
 	if strings.Contains(output, `"url": "http://`) {
 		t.Error("Did not expect HTTP URL field")
 	}
@@ -195,7 +265,7 @@ func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
 	if !strings.Contains(output, `entrypointArgs = ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"]`) {
 		t.Error("Expected TOML entrypointArgs to run the stdio MCP server script")
 	}
-	if !strings.Contains(output, `env_vars = ["DEBUG", "DEFAULT_BRANCH", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH", "GITHUB_REPOSITORY", "GITHUB_SHA", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP"]`) {
+	if !strings.Contains(output, `env_vars = ["DEBUG", "DEFAULT_BRANCH", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST", "GH_AW_PR_HEAD_BASE_BRANCH", "GH_AW_PR_HEAD_BASE_SHA", "GH_AW_PR_HEAD_BASE_REPO", "GH_AW_PR_HEAD_BASE_PR_NUMBER", "GH_AW_PR_HEAD_BASE_REF", "GH_AW_PR_HEAD_REPO", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH", "GITHUB_REPOSITORY", "GITHUB_SHA", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP"]`) {
 		t.Error("Expected TOML env vars")
 	}
 	if strings.Contains(output, `type = "http"`) {
@@ -528,12 +598,6 @@ func TestOptionCombinations(t *testing.T) {
 			// Test each render method doesn't panic
 			var yaml strings.Builder
 
-			playwrightTool := map[string]any{
-				"allowed-domains": []string{"example.com"},
-			}
-			renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
-
-			yaml.Reset()
 			renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 			yaml.Reset()
@@ -581,7 +645,7 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gatewayConfig := &MCPGatewayRuntimeConfig{
 				Domain:       "localhost",
-				APIKey:       "test-api-key",
+				AgentID:      "test-api-key",
 				OTLPEndpoint: tt.otlpEndpoint,
 				OTLPHeaders:  tt.otlpHeaders,
 			}
@@ -664,7 +728,7 @@ func TestRenderJSONMCPConfig_SessionTimeout(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gatewayConfig := &MCPGatewayRuntimeConfig{
 				Domain:         "localhost",
-				APIKey:         "test-api-key",
+				AgentID:        "test-api-key",
 				SessionTimeout: tt.sessionTimeout,
 			}
 
@@ -744,7 +808,7 @@ func TestRenderJSONMCPConfig_ToolTimeout(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gatewayConfig := &MCPGatewayRuntimeConfig{
 				Domain:      "localhost",
-				APIKey:      "test-api-key",
+				AgentID:     "test-api-key",
 				ToolTimeout: tt.toolTimeout,
 			}
 
@@ -824,7 +888,7 @@ func TestRenderJSONMCPConfig_StartupTimeout(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gatewayConfig := &MCPGatewayRuntimeConfig{
 				Domain:         "localhost",
-				APIKey:         "test-api-key",
+				AgentID:        "test-api-key",
 				StartupTimeout: tt.startupTimeout,
 			}
 

@@ -53,6 +53,27 @@ describe("comment_limit_helpers", () => {
       expect(() => enforceCommentLimits(mentions)).toThrow(/E007.*mentions/i);
     });
 
+    it("should not count mentions inside inline markdown code", () => {
+      const mentionsInCode = Array.from({ length: MAX_MENTIONS + 2 }, (_, i) => `\`@user${i}\``).join(" ");
+      expect(() => enforceCommentLimits(mentionsInCode)).not.toThrow();
+    });
+
+    it("should not count mentions inside html code tags", () => {
+      const mentionsInCodeTags = Array.from({ length: MAX_MENTIONS + 2 }, (_, i) => `<code>@user${i}</code>`).join(" ");
+      expect(() => enforceCommentLimits(mentionsInCodeTags)).not.toThrow();
+    });
+
+    it("should still count live mentions outside code regions", () => {
+      const liveMentions = Array.from({ length: MAX_MENTIONS + 1 }, (_, i) => `@user${i}`).join(" ");
+      const body = `${liveMentions} \`@inert0\` <code>@inert1</code>`;
+      expect(() => enforceCommentLimits(body)).toThrow(/E007.*mentions/i);
+    });
+
+    it("should not count email addresses as mentions", () => {
+      const emails = Array.from({ length: MAX_MENTIONS + 1 }, (_, i) => `user${i}@example.com`).join(" ");
+      expect(() => enforceCommentLimits(emails)).not.toThrow();
+    });
+
     it("should accept comment with exactly maximum links", () => {
       const links = Array.from({ length: MAX_LINKS }, (_, i) => `https://example.com/${i}`).join(" ");
       expect(() => enforceCommentLimits(links)).not.toThrow();

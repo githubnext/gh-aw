@@ -5,7 +5,7 @@ sidebar:
   order: 1000
 ---
 
-Definitions of key terms used in GitHub Agentic Workflows (`gh-aw`), a system for running AI-powered repository automation through GitHub Actions.
+Definitions of key terms used in GitHub Agentic Workflows, a system for running AI-powered repository automation through GitHub Actions.
 
 ## Core Concepts
 
@@ -37,6 +37,10 @@ The reasoning component that interprets an agentic workflow's natural-language i
 
 Configuration section at the top of a workflow file, enclosed between `---` markers. Contains YAML settings controlling when the workflow runs, permissions, and available tools, separating technical configuration from natural language instructions.
 
+### Intent (`intent:`)
+
+Optional frontmatter field describing the durable outcome a workflow exists to achieve, rendered as a comment in the generated lock file. Unlike `description`, which explains what the workflow does, `intent` explains why it exists and stays implementation-independent, so it remains valid even as the workflow's implementation changes.
+
 ### Compilation
 
 Translating Markdown workflows (`.md` files) into GitHub Actions YAML format (`.lock.yml` files), including validation, import resolution, tool configuration, and security hardening.
@@ -63,6 +67,10 @@ A frontmatter field that passes additional GitHub bot identity strings to the [M
 
 The mechanism that transports `sandbox.mcp.env` custom environment variable values from workflow frontmatter into the MCP Gateway's Docker container. Values are routed through compiler-controlled, indexed transport variables (`GH_AW_MCP_GATEWAY_ENV_0`, `GH_AW_MCP_GATEWAY_ENV_1`, …) and a companion manifest variable (`GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES`), rather than being interpolated directly into the generated shell script or Docker command string. A JavaScript launcher (`start_mcp_gateway.cjs`) reads the manifest and reconstructs atomic `-e NAME=VALUE` Docker arguments at runtime. Both the Go compiler and the JS launcher validate variable names against `^[A-Z_][A-Z0-9_]*$`, preventing shell metacharacters or dangerous names (such as `BASH_ENV`) in custom values from being sourced or interpreted before the gateway process starts. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
 
+### Agent Identifier Configuration (`agentId`, `agentIds`)
+
+A [MCP Gateway](#mcp-gateway) configuration setting that identifies the agent or session(s) authenticating through the gateway. `agentId` specifies a single string identifier; `agentIds` specifies an array of one or more identifiers, enabling a primary agent and enclave sessions to share one gateway instance while retaining independent [DIFC](#difc-proxy-toolsgithubintegrity-proxy) state and policies. Exactly one of the two fields must be present in a given gateway configuration — specifying both, or neither, is rejected as invalid. Both replace the legacy `api_key`/`apiKey` spelling in generated configuration. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
+
 ### MCP Gateway Mount-Roots Allowlist (`MCP_GATEWAY_ALLOWED_MOUNT_ROOTS`)
 
 The compiler-computed value that authorizes host-path mounts for MCP backend server containers under the gateway's trusted host-path mount policy. `buildMCPGatewayAllowedMountRoots` collects every mount surface the compiler configures — the built-in workspace, gh-aw runtime, safeoutputs, and temp paths, gateway-level `sandbox.mcp.mounts`, and per-server `mounts` fields or `-v`/`--volume` args — and forwards the result to the gateway container via `-e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS`. Without an explicit allowlist entry, the gateway's default mount policy rejects read-write access to paths like `$GITHUB_WORKSPACE`, breaking tool registration for backends (such as `safeoutputs`) that require it. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
@@ -81,7 +89,7 @@ A response pattern used by the `gh aw` MCP server's `logs` tool when a gateway t
 
 ### QMD Documentation Search (`qmd:`)
 
-A built-in tool that provides vector similarity search over documentation files. Configured via `tools.qmd:` in frontmatter, the `qmd` tool runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query. The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`. Supports indexing from repository checkouts, GitHub code search queries, and cache-only read-only mode. See [QMD Documentation Search](/gh-aw/reference/qmd/).
+A built-in tool that provides vector similarity search over documentation files. Configured via `tools.qmd:` in frontmatter, the `qmd` tool runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query. The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`. Supports indexing from repository checkouts, GitHub code search queries, and cache-only read-only mode. See [QMD Documentation Search](/gh-aw/experimental/qmd/).
 
 ### Tools
 
@@ -145,7 +153,7 @@ safe-outputs:
 
 ### Enclaves (`enclaves:`)
 
-A top-level frontmatter array that enables finite-disclosure access to approved private repositories from within a public-facing workflow. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler can launch mcpg in bridge mode. Each request uses a fresh masked capability generated per workflow run, passed only to mcpg and AWF and excluded from the primary agent environment. See [Private Repository Enclaves](/gh-aw/reference/enclaves/).
+A top-level frontmatter array that enables finite-disclosure access to approved private repositories from within a public-facing workflow. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler can launch mcpg in bridge mode. Agent enclaves may opt into `github.cli: issues-read-v1`, a closed REST-only Issues profile backed by a separate compiler-owned mcpg proxy. The gateway capability is passed only to mcpg and AWF and excluded from the primary agent environment; AWF keeps each `awf-egh1` invocation capability in a mode-`0600` file and exposes only a PAT-free local proxy to the enclave. See [Private Repository Enclaves](/gh-aw/experimental/enclaves/).
 
 ### MCP Scripts
 
@@ -200,7 +208,7 @@ The simplest useful unit for measuring workflow effectiveness. An outcome is acc
 
 ### Outcome Efficiency
 
-A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
+A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/practices/measuring-impact/).
 
 ### Pwn Request
 
@@ -251,7 +259,7 @@ An MCP Gateway write-sink guard field that declares the visibility of the safe-o
 
 ### Integrity Reactions (`features.integrity-reactions`)
 
-A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/examples/maintaining-repos/#reactions-as-trust-signals).
+A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Promoting and demoting items via reactions](/gh-aw/reference/integrity/#promoting-and-demoting-items-via-reactions).
 
 ### Soft-Skip
 
@@ -358,7 +366,7 @@ A safe output capability for adding labels to issues or pull requests. Supports 
 
 ### Remove Labels (`remove-labels:`)
 
-A safe output capability for removing labels from issues or pull requests. Supports `allowed` to restrict which labels can be removed and `blocked` to prevent removal of labels matching glob patterns. Silently skips labels not present on the target. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels).
+A safe output capability for removing labels from issues or pull requests. Supports `allowed` to restrict which labels can be removed and `blocked` to prevent removal of labels matching glob patterns. Silently skips labels not present on the target. Accepts per-target `issues` and `pull-requests` boolean fields (both default to `true`) to omit the corresponding write permission from the compiled workflow when a target type is not needed; disabling both is rejected at compile time. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#remove-labels-remove-labels).
 
 ### Assign to Agent
 
@@ -751,6 +759,10 @@ engine:
 
 See [Engines Reference](/gh-aw/reference/engines/).
 
+### Pi Provider Prefix (`model:`)
+
+The provider segment of a Pi engine `model:` value (for example `copilot/gpt-5.4`, `anthropic/claude-sonnet-5`, or `openai/gpt-5`) that Pi uses to select an authentication method. Pi defaults to Copilot authentication, uses `ANTHROPIC_API_KEY` for `anthropic/...` models, and uses `CODEX_API_KEY` or `OPENAI_API_KEY` for `openai/...` and `codex/...` models. See [Quick Start](/gh-aw/setup/quick-start/).
+
 ### Pi Extensions (`engine.extensions`)
 
 A Pi engine configuration field that loads additional plugins via `pi install <extension>` before the agent runs. Each entry is an npm package name. Only the Pi engine reads this field; other engines ignore it. Each listed extension produces one additional install step in the compiled workflow.
@@ -1010,7 +1022,7 @@ A frontmatter field that enables OpenTelemetry trace
 export from workflow runs. It supports single-endpoint and
 multi-endpoint OTLP export with optional headers.
 
-See [OpenTelemetry](/gh-aw/guides/open-telemetry/) for
+See [OpenTelemetry](/gh-aw/reference/open-telemetry/) for
 setup, runtime variables, and span semantics.
 
 ### OTLP If-Missing (`observability.otlp.if-missing`)
@@ -1019,11 +1031,11 @@ Controls behavior when OTLP endpoint or header values resolve to empty at runtim
 
 ### OTLP Resource Attributes (`observability.otlp.resource-attributes`)
 
-A frontmatter option that appends custom key/value pairs to the standard gh-aw and GitHub resource attribute set exported with each OTLP trace. Use static strings or GitHub Actions expressions. Do not use `secrets.*` or `vars.*` values because resource attributes are sent to external observability backends and are not treated as secret values. See [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-resource-attributes).
+A frontmatter option that appends custom key/value pairs to the standard gh-aw and GitHub resource attribute set exported with each OTLP trace. Use static strings or GitHub Actions expressions. Do not use `secrets.*` or `vars.*` values because resource attributes are sent to external observability backends and are not treated as secret values. See [OpenTelemetry](/gh-aw/reference/open-telemetry/#custom-resource-attributes).
 
 ### Custom Span (`logSpan`)
 
-A telemetry API provided by the `otlp.cjs` helper that lets shared workflow imports emit their own OTLP spans alongside built-in gh-aw telemetry. Call `otlp.logSpan(toolName, attributes, options)` inside a `github-script` step to attach domain-specific measurements to the same distributed trace as the workflow run. The function is non-fatal and never throws — export failures are surfaced as warnings. See [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-spans-from-shared-imports).
+A telemetry API provided by the `otlp.cjs` helper that lets shared workflow imports emit their own OTLP spans alongside built-in gh-aw telemetry. Call `otlp.logSpan(toolName, attributes, options)` inside a `github-script` step to attach domain-specific measurements to the same distributed trace as the workflow run. The function is non-fatal and never throws — export failures are surfaced as warnings. See [OpenTelemetry](/gh-aw/reference/open-telemetry/#custom-spans-from-shared-imports).
 
 ### Activation Steps (`jobs.activation.steps`)
 
@@ -1047,7 +1059,11 @@ A frontmatter field that declares custom jobs that both the `pre_activation` and
 
 ### Stop After
 
-A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601) or relative time deltas (`+48h`, `+7d`). Minimum granularity is hours. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset the deadline. See [Ephemerals](/gh-aw/reference/ephemerals/).
+A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601), relative time deltas (`+48h`, `+7d`), or a GitHub Actions expression (for example `${{ inputs.stop-after }}`) resolved at workflow runtime. Literal values have a minimum granularity of hours and are resolved at compile time via a typed `on.stop-after` field; expression values pass through compilation unresolved and are evaluated when the workflow runs, enabling parameterized stop times from `workflow_dispatch` inputs or other runtime state. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset a literal deadline. See [Ephemerals](/gh-aw/reference/ephemerals/).
+
+### Cooldown (`on.cooldown`)
+
+A frontmatter field that blocks the `agent` job from starting again shortly after a recent completed run. The value must be a literal Go duration string of at least five minutes; GitHub Actions expressions are rejected so the compiler can validate the setting deterministically. The compiler injects a pre-activation run-history check (granting `actions: read` when needed) that inspects the most recent completed workflow run for a started `agent` job and skips activation if that run finished within the cooldown window; runs where the `agent` job was skipped are excluded, and the check fails open (allows activation) if run history cannot be queried. See [Triggers Reference](/gh-aw/reference/triggers/).
 
 ### `deployment_status` Trigger
 
@@ -1193,7 +1209,7 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 
 ### Codemod
 
-An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading](/gh-aw/guides/upgrading/).
+An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading Workflows](/gh-aw/guides/working-with-workflows/#upgrading-workflows).
 
 ### Doctor (`gh aw doctor`)
 
@@ -1233,7 +1249,7 @@ A CLI command that orchestrates full workflow rollout to a target repository in 
 
 ### `gh aw env`
 
-A CLI command that reads and writes [`GH_AW_DEFAULT_*`](#gh_aw_default_) governance variables as GitHub Actions variables at enterprise, organization, or repository scope. Use `gh aw env get` to export current values to a YAML file and `gh aw env update` to apply changes from a YAML file. Supports `--dry-run` to preview changes before applying and `--yes` to skip the confirmation prompt in automation. Defaults percolate through scopes following a most-specific-wins model: workflow frontmatter overrides repository variables, which override organization variables, which override enterprise defaults. See [Governance](/gh-aw/guides/governance/).
+A CLI command that reads and writes [`GH_AW_DEFAULT_*`](#gh_aw_default_) governance variables as GitHub Actions variables at enterprise, organization, or repository scope. Use `gh aw env get` to export current values to a YAML file and `gh aw env update` to apply changes from a YAML file. Supports `--dry-run` to preview changes before applying and `--yes` to skip the confirmation prompt in automation. Defaults percolate through scopes following a most-specific-wins model: workflow frontmatter overrides repository variables, which override organization variables, which override enterprise defaults. See [Governance](/gh-aw/reference/governance/).
 
 ### AI Credits (AIC)
 
@@ -1378,7 +1394,7 @@ A runtime HTTP endpoint exposed by the AWF API proxy at `http://api-proxy:10000/
 
 ### Bridge Pattern
 
-A cross-repository event forwarding architecture for side repository workflows. Because GitHub Actions only delivers webhook events to the repository where they occur, `slash_command:` triggers cannot fire directly in a side repository. The bridge pattern solves this with two workflows: a thin relay workflow in the main repository that receives the slash command and forwards it to the side repository via `workflow_dispatch`, and a worker workflow in the side repository that performs the actual work. See [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/).
+A cross-repository event forwarding architecture for side repository workflows. Because GitHub Actions only delivers webhook events to the repository where they occur, `slash_command:` triggers cannot fire directly in a side repository. The bridge pattern solves this with two workflows: a thin relay workflow in the main repository that receives the slash command and forwards it to the side repository via `workflow_dispatch`, and a worker workflow in the side repository that performs the actual work. See [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/).
 
 ### Cache Memory
 
@@ -1459,7 +1475,7 @@ A family of boolean GitHub Actions variables that enforce runtime capability gat
 Currently defined:
 - `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` — disables `safe-outputs.create-pull-request` when set to `"false"`.
 
-See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide) and [Runtime Policy Variables](/gh-aw/reference/environment-variables/#runtime-policy-variables).
+See [Governance](/gh-aw/reference/governance/#disabling-create-pull-request-org-wide) and [Runtime Policy Variables](/gh-aw/reference/environment-variables/#runtime-policy-variables).
 
 ### `GH_DEBUG=api`
 
@@ -1605,6 +1621,30 @@ A unique identifier enabling external monitoring and coordination without bidire
 ### Workflow Inputs
 
 Parameters provided when manually triggering a workflow with `workflow_dispatch`. Defined in the `on.workflow_dispatch.inputs` section with type, description, default value, and required status.
+
+### Workflow Documentation URL (`metadata.docs`)
+
+An optional field under top-level `metadata:` frontmatter holding an absolute HTTPS URL to human-facing documentation for a workflow. The compiler preserves the value in the generated lock file's metadata without fetching it or altering workflow execution. See [Frontmatter Reference](/gh-aw/reference/frontmatter-full/).
+
+### Graders (`graders:`)
+
+Deterministic, non-LLM checks that compute metrics from a workflow run's post-agent execution trace. Configured under the top-level `graders:` frontmatter field; an empty map (`graders: {}`) enables all built-in graders with default settings, and omitting the field disables grading entirely. Built-in graders cover tool success rate, retries, loop detection, trajectory efficiency, execution duration, and similar metrics. Custom inline graders run a trusted, sandboxed JavaScript expression against the preprocessed `trace` object. Graders are an experimental feature. See [Graders Reference](/gh-aw/experimental/trace-graders/).
+
+### Operational Value Grader (`graders.operational-value`)
+
+A reserved grader that evaluates operational repository outcomes using a repository-relative Bash evaluator script, frozen at compile time with its SHA-256 digest recorded for reproducibility. It returns an absolute operational attainment value in `[0,1]` for the run's assigned case, alongside the evaluation's evidence timestamp, maturity, and provenance. A frozen baseline is optional metadata used to derive `deltaFromBaseline` without changing the primary operational value. The evaluator receives the workflow token via `GH_TOKEN` with the agent job's declared permissions, but not workflow secrets, and enabling the grader does not add evidence permissions to the agent job. Historical runs can be recomputed with `gh aw graders operational-value <run-id> --evidence-at <timestamp>`. See [Graders Reference](/gh-aw/experimental/trace-graders/#operational-value-grader) and the `operational value designer` skill (`/operational-value-designer`) for inferring operational value from an agentic workflow.
+
+### Recurrence Trapping Time (RQA TT) (`graders.recurrence-trapping-time`)
+
+A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. It is not a built-in grader: it is an importable `graders:` fragment in the trajectory graders catalog (`.github/workflows/shared/graders/recurrence-trapping-time.md`) that a workflow opts into via `imports:`. See [Graders Reference](/gh-aw/experimental/trace-graders/) for built-in graders and grader configuration.
+
+### Trajectory IR
+
+The canonical, schema-defined intermediate representation of an agent run's execution trace, consumed by trajectory graders. It normalizes a run into `events[]` (ordered kinds such as `tool_call` and `state_change`), `observations[]` (each optionally carrying a `consumedByActionIds` list identifying which later actions referenced it), declared `states[]` and `objectives[]`, and optional `config.constraints`. Graders project purely from this structure rather than parsing raw logs, so new graders only need to reason about the IR's fields. See [Graders Reference](/gh-aw/experimental/trace-graders/).
+
+### Trajectory Graders (importable `graders:` fragments)
+
+A catalog of non-built-in, importable grader definitions under `.github/workflows/shared/graders/` that a workflow opts into individually via `imports:`. Each fragment computes a single metric from the [Trajectory IR](#trajectory-ir) — for example `tool-output-consumption-rate` (fraction of tool outputs later referenced by an action), `exploration-error` and `exploitation-error` (complementary attributions of objective failure to insufficient search versus unused evidence), `event-entropy-rate` and `lempel-ziv-trajectory-complexity` (information-theoretic measures of event-sequence unpredictability and compressibility), `policy-near-miss` (successful runs that skipped guard-shaped objectives), the Recurrence Quantification Analysis family `recurrence-rate`, `recurrence-laminarity`, `recurrence-determinism`, and `recurrence-trapping-time`, `skill-constraint-coverage` (fraction of declared behavioral constraints exercised and satisfied), and `state-revisit-probability-rep` (fraction of visited states that are redundant revisits). See [Graders Reference](/gh-aw/experimental/trace-graders/) and `.github/workflows/shared/graders/README.md`.
 
 ## Operational Patterns
 

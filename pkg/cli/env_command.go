@@ -22,9 +22,12 @@ import (
 var envCmdLog = logger.New("cli:env_command")
 
 const (
-	defaultsScopeRepo = "repo"
-	defaultsScopeOrg  = "org"
-	defaultsScopeEnt  = "ent"
+	defaultsScopeRepo      = "repo"
+	defaultsScopeOrg       = "org"
+	defaultsScopeEnt       = "ent"
+	defaultsVisibilityAll  = "all"
+	defaultsVisibilityPriv = "private"
+	defaultsVisibilitySel  = "selected"
 )
 
 type defaultsFile struct {
@@ -37,6 +40,7 @@ type defaultsFile struct {
 	DefaultAgentJobTimeoutMinutes     *string `yaml:"default_agent_job_timeout_minutes"`
 	DefaultDetectionJobTimeoutMinutes *string `yaml:"default_detection_job_timeout_minutes"`
 	DefaultDetectionModel             *string `yaml:"default_detection_model"`
+	DefaultOTLPEndpoint               *string `yaml:"default_otlp_endpoint"`
 	DefaultUTC                        *string `yaml:"default_utc"`
 	DefaultModelCopilot               *string `yaml:"default_model_copilot"`
 	DefaultModelClaude                *string `yaml:"default_model_claude"`
@@ -55,6 +59,7 @@ type defaultsTarget struct {
 	repoName   string
 	org        string
 	enterprise string
+	visibility string
 }
 
 type defaultsUpdateChange struct {
@@ -105,6 +110,7 @@ var defaultsBindings = []defaultsBinding{
 	{envName: compilerenv.DefaultAgentJobTimeoutMinutes, fieldName: "default_agent_job_timeout_minutes", get: func(f *defaultsFile) **string { return &f.DefaultAgentJobTimeoutMinutes }},
 	{envName: compilerenv.DefaultDetectionJobTimeoutMinutes, fieldName: "default_detection_job_timeout_minutes", get: func(f *defaultsFile) **string { return &f.DefaultDetectionJobTimeoutMinutes }},
 	{envName: compilerenv.DefaultDetectionModel, fieldName: "default_detection_model", get: func(f *defaultsFile) **string { return &f.DefaultDetectionModel }},
+	{envName: compilerenv.DefaultOTLPEndpoint, fieldName: "default_otlp_endpoint", get: func(f *defaultsFile) **string { return &f.DefaultOTLPEndpoint }},
 	{envName: compilerenv.DefaultUTC, fieldName: "default_utc", get: func(f *defaultsFile) **string { return &f.DefaultUTC }},
 	{envName: compilerenv.DefaultModelCopilot, fieldName: "default_model_copilot", get: func(f *defaultsFile) **string { return &f.DefaultModelCopilot }},
 	{envName: compilerenv.DefaultModelClaude, fieldName: "default_model_claude", get: func(f *defaultsFile) **string { return &f.DefaultModelClaude }},
@@ -155,7 +161,7 @@ Scope resolution:
 			if len(args) == 1 {
 				outputFile = args[0]
 			}
-			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, false)
+			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, "", false)
 			if err != nil {
 				return err
 			}
@@ -171,7 +177,7 @@ Scope resolution:
 }
 
 func newDefaultsUpdateCommand() *cobra.Command {
-	var scope, repo, org, enterprise string
+	var scope, repo, org, enterprise, visibility string
 	var yes, dryRun bool
 
 	cmd := &cobra.Command{
@@ -186,6 +192,7 @@ Scope and flag behavior:
 - repo scope uses --repo owner/repo, or the current repository when --repo is omitted.
 - org scope uses --org when provided; otherwise it infers the organization from --repo (or the current repository).
 - ent scope requires --enterprise <slug>.
+- --visibility controls access when creating org or ent variables (all|private|selected). Existing variables keep their visibility.
 - --dry-run previews planned changes and exits without applying updates.
 - --yes skips the confirmation prompt for real updates; it has no effect with --dry-run.`,
 		Args: cobra.MaximumNArgs(1),
@@ -194,7 +201,10 @@ Scope and flag behavior:
 			if len(args) == 1 {
 				inputFile = args[0]
 			}
-			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, true)
+			if err := validateDefaultsVisibility(scope, visibility, cmd.Flags().Changed("visibility")); err != nil {
+				return errors.New(console.FormatErrorMessage(err.Error()))
+			}
+			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, visibility, true)
 			if err != nil {
 				return err
 			}
@@ -206,6 +216,7 @@ Scope and flag behavior:
 	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Target repository (owner/repo format only; GHES host prefixes are not supported). Defaults to current repository")
 	cmd.Flags().StringVar(&org, "org", "", "Target organization (required for --scope org unless inferable from --repo/current repo)")
 	cmd.Flags().StringVar(&enterprise, "enterprise", "", "Target enterprise slug (required for --scope ent)")
+	cmd.Flags().StringVar(&visibility, "visibility", defaultsVisibilityAll, "Visibility for newly created org or ent variables (all|private|selected)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview updates without applying any changes")
 	_ = cmd.MarkFlagRequired("scope")
@@ -429,7 +440,19 @@ func defaultsUpdateRows(changes []defaultsUpdateChange) []defaultsUpdateRow {
 	return rows
 }
 
-func resolveDefaultsTarget(scope, repo, org, enterprise string, scopeRequired bool) (defaultsTarget, error) {
+func validateDefaultsVisibility(scope, visibility string, visibilitySet bool) error {
+	switch visibility {
+	case defaultsVisibilityAll, defaultsVisibilityPriv, defaultsVisibilitySel:
+	default:
+		return fmt.Errorf("invalid --visibility value %q. Expected one of all, private, selected. Example: gh aw env update defaults.yml --scope org --org my-org --visibility all", visibility)
+	}
+	if strings.TrimSpace(scope) == defaultsScopeRepo && visibilitySet {
+		return errors.New("--visibility is not valid for repo scope. Expected --scope org or --scope ent. Example: gh aw env update defaults.yml --scope org --org my-org --visibility all")
+	}
+	return nil
+}
+
+func resolveDefaultsTarget(scope, repo, org, enterprise, visibility string, scopeRequired bool) (defaultsTarget, error) {
 	normalizedScope := strings.TrimSpace(scope)
 	if normalizedScope == "" {
 		if scopeRequired {
@@ -470,13 +493,13 @@ func resolveDefaultsTarget(scope, repo, org, enterprise string, scopeRequired bo
 			}
 			targetOrg = owner
 		}
-		return defaultsTarget{scope: defaultsScopeOrg, org: targetOrg}, nil
+		return defaultsTarget{scope: defaultsScopeOrg, org: targetOrg, visibility: visibility}, nil
 	case defaultsScopeEnt:
 		targetEnt := strings.TrimSpace(enterprise)
 		if targetEnt == "" {
 			return defaultsTarget{}, errors.New("enterprise scope requires --enterprise <slug>")
 		}
-		return defaultsTarget{scope: defaultsScopeEnt, enterprise: targetEnt}, nil
+		return defaultsTarget{scope: defaultsScopeEnt, enterprise: targetEnt, visibility: visibility}, nil
 	default:
 		return defaultsTarget{}, fmt.Errorf("invalid scope %q; expected repo, org, or ent", scope)
 	}
@@ -500,7 +523,7 @@ func (t defaultsTarget) variableEndpoint(name string) string {
 func (t defaultsTarget) displayName() string {
 	switch t.scope {
 	case defaultsScopeRepo:
-		return t.repoOwner + "/" + t.repoName
+		return t.repoOwner + "/" + t.repoName //nolint:manualpathconcat // repository slug for display, not a filesystem path
 	case defaultsScopeOrg:
 		return t.org
 	default:
@@ -549,9 +572,23 @@ func upsertDefaultsVariable(target defaultsTarget, name, value string) error {
 	}
 
 	envCmdLog.Printf("Variable %s not found via PATCH, creating via POST", name)
-	out, err := runDefaultsGH("api", "-X", "POST", target.variablesEndpoint(), "-f", "name="+name, "-f", "value="+value)
+	args := []string{"api", "-X", "POST", target.variablesEndpoint(), "-f", "name=" + name, "-f", "value=" + value}
+	if target.scope == defaultsScopeOrg || target.scope == defaultsScopeEnt {
+		args = append(args, "-f", "visibility="+target.visibility)
+	}
+	out, err := runDefaultsGH(args...)
 	if err != nil {
-		return fmt.Errorf("failed to set %s: %w", name, errWithOutput(err, out))
+		if (target.scope == defaultsScopeOrg || target.scope == defaultsScopeEnt) && isDefaultsMissingVisibilityError(err, out) {
+			scopeName := "organization"
+			example := "gh aw env update defaults.yml --scope org --org my-org --visibility all"
+			if target.scope == defaultsScopeEnt {
+				scopeName = "enterprise"
+				example = "gh aw env update defaults.yml --scope ent --enterprise my-ent --visibility all"
+			}
+			message := fmt.Sprintf("failed to create %s at %s scope: %s variables require a visibility. Expected one of all, private, selected. Example: %s", name, target.scope, scopeName, example)
+			return fmt.Errorf("%s: %w", message, errWithOutput(err, out))
+		}
+		return fmt.Errorf("failed to create %s at %s scope: %w", name, target.scope, errWithOutput(err, out))
 	}
 	return nil
 }
@@ -573,6 +610,17 @@ func isDefaultsNotFoundError(err error, out []byte) bool {
 		return strings.Contains(strings.ToLower(ghErr.output), "http 404")
 	}
 	return strings.Contains(strings.ToLower(string(out)), "http 404")
+}
+
+func isDefaultsMissingVisibilityError(err error, out []byte) bool {
+	if err == nil {
+		return false
+	}
+	response := strings.ToLower(string(out))
+	return strings.Contains(response, "http 422") &&
+		(strings.Contains(response, "missing visibility") ||
+			strings.Contains(response, `"visibility" is missing`) ||
+			(strings.Contains(response, "missing required") && strings.Contains(response, "visibility")))
 }
 
 func errWithOutput(err error, out []byte) error {

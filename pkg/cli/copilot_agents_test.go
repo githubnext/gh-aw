@@ -282,6 +282,7 @@ func TestDeleteOldTemplateFiles(t *testing.T) {
 }
 
 func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
+	t.Parallel()
 	tempDir := testutil.TempDir(t, "test-*")
 
 	content, err := buildAgenticWorkflowsAgentContent(tempDir)
@@ -301,6 +302,7 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 }
 
 func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
+	t.Parallel()
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("Failed to locate test file")
@@ -428,6 +430,7 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 }
 
 func TestCheckedInInteractiveAgentDesignerMentionsRepoOverlay(t *testing.T) {
+	t.Parallel()
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("Failed to locate test file")
@@ -447,6 +450,7 @@ func TestCheckedInInteractiveAgentDesignerMentionsRepoOverlay(t *testing.T) {
 // added or removed from .github/aw/, the fallback list is kept in sync so that offline
 // compilation still produces an accurate SKILL.md.
 func TestFallbackAWFilesMatchesLocalAWDirectory(t *testing.T) {
+	t.Parallel()
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("Failed to locate test file")

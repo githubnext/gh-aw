@@ -62,27 +62,7 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `targe
 
 ### Steering issues
 
-:::caution[Experimental]
-`steer` is an experimental option. `gh aw compile` emits an experimental feature warning when a workflow uses it.
-:::
-
-Set `steer: true` to create a run-scoped issue during the activation job, before the agent starts. Users can add comments containing the keyword `steer` while the run is in progress. The injected prompt identifies the exact issue and instructs the agent to read relevant user-authored comments with the GitHub MCP `issue_read` tool.
-
-Steering enables the GitHub MCP issues toolset for comment reads and requires top-level `issues: read` permission. The compiler reports an error instead of adding that permission automatically.
-
-```yaml
-permissions:
-  contents: read
-  issues: read
-
-safe-outputs:
-  create-pull-request:
-    steer: true
-```
-
-The activation and conclusion jobs require `issues: write` through the configured create-pull-request safe-output credential. On success, the conclusion job closes the steering issue and links the created pull request when available. On failure, the same issue is retitled and updated with the agent failure report instead of creating a second issue. Because reuse requires a workflow-repository issue, `steer` cannot be combined with `safe-outputs.failure-issue-repo`.
-
-The pull request itself follows the normal `create-pull-request` flow. Steering does not pre-create or override a branch, so `branch-prefix`, cross-repository targets, allowed branch policies, multiple outputs, and checkout configuration retain their standard behavior. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode), no steering issue is created because staged runs must not perform API side effects.
+Configure steering independently at [`safe-outputs.steer`](/gh-aw/reference/safe-outputs/#steering-issues-steer). The pull request itself follows the normal `create-pull-request` flow: steering does not pre-create or override a branch, so `branch-prefix`, cross-repository targets, allowed branch policies, multiple outputs, and checkout configuration retain their standard behavior.
 
 ### Branch targeting
 
@@ -157,7 +137,7 @@ By default a random hex suffix is appended to the agent-provided branch name to 
 
 ### Other notes
 
-`draft` is a **policy**, not a default, so the agent cannot override it at runtime. `auto-close-issue` (default `true`) appends `Fixes #N` when the workflow is triggered from an issue; set it to `false` for partial-work or multi-PR flows. `normalize-closing-keywords` removes wrapping backticks from recognized issue-closing keywords in the PR body (for example, `` `Closes #123` `` → `Closes #123`). When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled. PRs do not trigger CI by default; see [Triggering CI](/gh-aw/reference/triggering-ci/). You can also disable `create-pull-request` at runtime without recompiling by setting the `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` GitHub Actions variable to `"false"` at repository, organization, or enterprise scope. See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide).
+`draft` is a **policy**, not a default, so the agent cannot override it at runtime. `auto-close-issue` (default `true`) appends `Fixes #N` when the workflow is triggered from an issue; set it to `false` for partial-work or multi-PR flows. `normalize-closing-keywords` removes wrapping backticks from recognized issue-closing keywords in the PR body (for example, `` `Closes #123` `` → `Closes #123`). When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled. PRs do not trigger CI by default; see [Triggering CI](/gh-aw/reference/triggering-ci/). You can also disable `create-pull-request` at runtime without recompiling by setting the `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` GitHub Actions variable to `"false"` at repository, organization, or enterprise scope. See [Governance](/gh-aw/reference/governance/#disabling-create-pull-request-org-wide).
 
 ### How it works
 
@@ -761,7 +741,7 @@ Protection covers three categories:
 > [!NOTE]
 > Runtime manifests and governance files (`CODEOWNERS`, `DESIGN.md`) are matched by **basename only** (the filename without its directory path), so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.githooks/`, `.husky/`, `.claude/`, `.codex/`) match the full relative path from the repository root.
 
-## Related Documentation
+## Learn More
 
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout, target-repo, allowed-repos, and fork-authentication rules
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Complete safe output reference

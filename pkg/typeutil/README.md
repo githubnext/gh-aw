@@ -29,6 +29,7 @@ Choose the right category based on the source: use strict conversions for YAML c
 | `LookupMap` | Safe map extraction from `map[string]any` by key |
 | `LookupString` | Safe string extraction from `map[string]any` by key |
 | `LookupStringPath` | Safe nested string extraction by key path |
+| `SafeAllocationCapacity` | Overflow-safe sum of capacity hints for slice/map preallocation |
 
 ### Strict Conversions
 
@@ -134,6 +135,17 @@ Extracts a nested string value by following a sequence of keys through `map[stri
 cmd, ok := typeutil.LookupStringPath(event, "input", "command")
 ```
 
+### Allocation Sizing
+
+#### `SafeAllocationCapacity(parts ...int) int`
+
+Returns the summed capacity hint from `parts` when the total fits in `int`. When the sum would overflow, or any part is negative, it returns `0` so callers can safely skip preallocation (e.g. `make([]T, 0, n)`) rather than change correctness or panic. Defined in `allocation.go`; intentionally side-effect free so it does not pull in a logging dependency.
+
+```go
+n := typeutil.SafeAllocationCapacity(len(a), len(b))
+result := make([]Item, 0, n)
+```
+
 ## Choosing the Right Function
 
 | Situation | Function to use |
@@ -148,6 +160,7 @@ cmd, ok := typeutil.LookupStringPath(event, "input", "command")
 | Numeric value from any source as float | `ConvertToFloat` |
 | Token/limit string with optional `K`/`M` suffix | `ParseInt64KMSuffix` |
 | Canonicalize a `K`/`M`-suffixed string to base-10 | `NormalizeInt64KMSuffix` |
+| Summing capacity hints for slice/map preallocation | `SafeAllocationCapacity` |
 
 ## Usage Examples
 
@@ -174,6 +187,10 @@ limit, ok := typeutil.ParseInt64KMSuffix("128K")
 if !ok {
     return errors.New("invalid token limit value")
 }
+
+// Safely size a preallocated slice from multiple length hints
+cap := typeutil.SafeAllocationCapacity(len(existing), len(incoming))
+merged := make([]Item, 0, cap)
 ```
 
 ## Dependencies
@@ -187,6 +204,7 @@ if !ok {
 - `float64 → int` truncation is logged at debug level when the fractional part is lost.
 - `uint64 → int` overflow returns `0` rather than panicking, following the defensive convention used elsewhere in the codebase.
 - Map-extraction helpers (`ParseBool`, `LookupMap`, `LookupString`, `LookupStringPath`) are defined in `lookup.go` to keep `convert.go` focused on single-value numeric conversion.
+- `SafeAllocationCapacity` (`allocation.go`) returns `0` on overflow or negative inputs rather than panicking, matching the defensive-zero convention used by the other overflow-safe conversions in this package.
 
 ---
 

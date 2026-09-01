@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -20,12 +21,14 @@ const (
 	enclaveMCPGatewayEndpointEnv  = "AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT"
 	enclaveMCPGatewayIdentityEnv  = "AWF_ENCLAVE_MCP_GATEWAY_IDENTITY"
 	enclaveMCPReadinessTimeoutEnv = "AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS"
+	enclaveMCPDeferredServersEnv  = "GH_AW_MCP_DEFERRED_SERVERS"
 	enclaveMCPGatewayRunLabel     = "com.github.gh-aw.mcpg.run"
 	enclaveMCPGatewayContainer    = "awmg-mcpg"
+	enclaveGitHubIssuesProfile    = "issues-read-v1"
 	enclaveMCPConnectTimeout      = 120
 	enclaveMCPReadinessTimeoutMS  = 120000
-	maxEnclaveTimingBucketSeconds = 600
-	enclaveMCPTransportAllowance  = 30
+	maxEnclaveTimingBucketSeconds = 4800
+	enclaveMCPTransportAllowance  = 60
 )
 
 var enclaveRepoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$`)
@@ -59,12 +62,17 @@ type ScriptEnclaveConfig struct {
 }
 
 type AgentEnclaveConfig struct {
-	Engine           string `json:"engine,omitempty"`
-	Profile          string `json:"profile,omitempty"`
-	Model            string `json:"model,omitempty"`
-	MaxTaskBytes     int    `json:"max-task-bytes,omitempty"`
-	MaxModelRequests int    `json:"max-model-requests,omitempty"`
-	MaxModelTokens   int    `json:"max-model-tokens,omitempty"`
+	Engine           string                    `json:"engine,omitempty"`
+	Profile          string                    `json:"profile,omitempty"`
+	Model            string                    `json:"model,omitempty"`
+	MaxTaskBytes     int                       `json:"max-task-bytes,omitempty"`
+	MaxModelRequests int                       `json:"max-model-requests,omitempty"`
+	MaxModelTokens   int                       `json:"max-model-tokens,omitempty"`
+	GitHub           *AgentEnclaveGitHubConfig `json:"github,omitempty"`
+}
+
+type AgentEnclaveGitHubConfig struct {
+	CLI string `json:"cli"`
 }
 
 // UnmarshalJSON preserves the explicit null marker produced by YAML `script:`.
@@ -87,6 +95,25 @@ func (e *EnclaveConfig) UnmarshalJSON(data []byte) error {
 
 func enclavesEnabled(workflowData *WorkflowData) bool {
 	return workflowData != nil && len(workflowData.Enclaves) > 0
+}
+
+func enclaveGitHubIssuesEnabled(workflowData *WorkflowData) bool {
+	return enclaveGitHubIssuesConfig(workflowData) != nil
+}
+
+func enclaveGitHubIssuesConfig(workflowData *WorkflowData) *EnclaveConfig {
+	if workflowData == nil {
+		return nil
+	}
+	for _, enclave := range workflowData.Enclaves {
+		if enclave != nil &&
+			enclave.Agent != nil &&
+			enclave.Agent.GitHub != nil &&
+			enclave.Agent.GitHub.CLI == enclaveGitHubIssuesProfile {
+			return enclave
+		}
+	}
+	return nil
 }
 
 func enabledEnclaveTools(workflowData *WorkflowData) []string {
@@ -121,56 +148,104 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 		enclavesLog.Print("Rejecting enclaves: AWF network isolation is not enabled")
 		return errors.New("enclaves requires AWF network isolation; enable the agent sandbox with a network-isolated runtime such as sandbox.agent.runtime: docker")
 	}
-	if workflowData.ParsedTools != nil &&
-		workflowData.ParsedTools.GitHub != nil &&
-		workflowData.ParsedTools.GitHub.BoundedQueries != nil {
-		enclavesLog.Print("Rejecting enclaves: incompatible with tools.github.bounded-queries")
-		return errors.New("enclaves cannot be combined with tools.github.bounded-queries; remove tools.github.bounded-queries to use enclaves. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential")
-	}
 	seenTypes := make(map[string]struct{}, len(workflowData.Enclaves))
 	repositorySensitivities := make(map[string]string)
 	for i, enclave := range workflowData.Enclaves {
-		if enclave == nil {
-			return fmt.Errorf("enclaves[%d] must be an object. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i)
+		if err := validateEnclaveEntry(i, enclave, seenTypes, repositorySensitivities); err != nil {
+			return err
 		}
-		enclaveType, ok := enclaveExecutor(enclave)
-		if !ok {
-			return fmt.Errorf("enclaves[%d] must contain exactly one of script or agent. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i)
+	}
+	if err := validateEnclaveGitHubIssuesVersions(workflowData); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateEnclaveEntry(index int, enclave *EnclaveConfig, seenTypes map[string]struct{}, repositorySensitivities map[string]string) error {
+	if enclave == nil {
+		return fmt.Errorf("enclaves[%d] must be an object. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
+	}
+	enclaveType, ok := enclaveExecutor(enclave)
+	if !ok {
+		return fmt.Errorf("enclaves[%d] must contain exactly one of script or agent. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
+	}
+	if _, ok := seenTypes[enclaveType]; ok {
+		return fmt.Errorf("enclaves contains duplicate executor type %q; each type may appear at most once. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential\n  - agent:\n      model: gpt-5\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", enclaveType)
+	}
+	seenTypes[enclaveType] = struct{}{}
+	if enclaveType == "agent" && enclave.Agent.Model == "" {
+		return fmt.Errorf("enclaves[%d].agent.model is required. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
+	}
+	if enclaveType == "agent" && enclave.Agent.GitHub != nil && enclave.Agent.GitHub.CLI != enclaveGitHubIssuesProfile {
+		return fmt.Errorf("enclaves[%d].agent.github.cli must be %q", index, enclaveGitHubIssuesProfile)
+	}
+	nonPublicRepositories, err := validateEnclaveRepositories(index, enclave, repositorySensitivities)
+	if err != nil {
+		return err
+	}
+	if enclaveType == "agent" && enclave.Agent.GitHub != nil && nonPublicRepositories > 1 {
+		return fmt.Errorf("enclaves[%d].agent.github.cli %q supports at most one non-public repository, but %d were configured", index, enclaveGitHubIssuesProfile, nonPublicRepositories)
+	}
+	return nil
+}
+
+func validateEnclaveRepositories(index int, enclave *EnclaveConfig, repositorySensitivities map[string]string) (int, error) {
+	if len(enclave.Repos) == 0 {
+		return 0, fmt.Errorf("enclaves[%d].repos must contain at least one repository. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
+	}
+	seenInEnclave := make(map[string]struct{}, len(enclave.Repos))
+	nonPublicRepositories := 0
+	for repoIndex, repo := range enclave.Repos {
+		if repo == nil {
+			return 0, fmt.Errorf("enclaves[%d].repos[%d] must be an object. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repoIndex)
 		}
-		if _, ok := seenTypes[enclaveType]; ok {
-			return fmt.Errorf("enclaves contains duplicate executor type %q; each type may appear at most once. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential\n  - agent:\n      model: gpt-5\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", enclaveType)
+		parts := strings.SplitN(repo.Repo, "/", 2)
+		if !enclaveRepoPattern.MatchString(repo.Repo) || len(parts) != 2 || parts[1] == "." || parts[1] == ".." || strings.Contains(parts[1], "..") {
+			return 0, fmt.Errorf("enclaves[%d].repos[%d].repo must be a bare owner/repository slug (e.g. org/my-repo). Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repoIndex)
 		}
-		seenTypes[enclaveType] = struct{}{}
-		if enclaveType == "agent" && enclave.Agent.Model == "" {
-			return fmt.Errorf("enclaves[%d].agent.model is required. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i)
+		key := strings.ToLower(repo.Repo)
+		if _, ok := seenInEnclave[key]; ok {
+			return 0, fmt.Errorf("enclaves[%d].repos contains duplicate repository %q; each repository may appear at most once per enclave entry. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repo.Repo)
 		}
-		if len(enclave.Repos) == 0 {
-			return fmt.Errorf("enclaves[%d].repos must contain at least one repository. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i)
+		seenInEnclave[key] = struct{}{}
+		switch repo.Sensitivity {
+		case "public", "internal", "confidential", "sealed":
+		default:
+			return 0, fmt.Errorf("enclaves[%d].repos[%d].sensitivity must be public, internal, confidential, or sealed. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repoIndex)
 		}
-		seenInEnclave := make(map[string]struct{}, len(enclave.Repos))
-		for j, repo := range enclave.Repos {
-			if repo == nil {
-				return fmt.Errorf("enclaves[%d].repos[%d] must be an object. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i, j)
-			}
-			parts := strings.SplitN(repo.Repo, "/", 2)
-			if !enclaveRepoPattern.MatchString(repo.Repo) || len(parts) != 2 || parts[1] == "." || parts[1] == ".." || strings.Contains(parts[1], "..") {
-				return fmt.Errorf("enclaves[%d].repos[%d].repo must be a bare owner/repository slug (e.g. org/my-repo). Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i, j)
-			}
-			key := strings.ToLower(repo.Repo)
-			if _, ok := seenInEnclave[key]; ok {
-				return fmt.Errorf("enclaves[%d].repos contains duplicate repository %q; each repository may appear at most once per enclave entry. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i, repo.Repo)
-			}
-			seenInEnclave[key] = struct{}{}
-			switch repo.Sensitivity {
-			case "public", "internal", "confidential", "sealed":
-			default:
-				return fmt.Errorf("enclaves[%d].repos[%d].sensitivity must be public, internal, confidential, or sealed. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", i, j)
-			}
-			if sensitivity, ok := repositorySensitivities[key]; ok && sensitivity != repo.Sensitivity {
-				return fmt.Errorf("repository %q must use the same sensitivity across enclave types; all enclave entries for a given repository must declare the same sensitivity. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential\n  - agent:\n      model: gpt-5\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", repo.Repo)
-			}
-			repositorySensitivities[key] = repo.Sensitivity
+		if repo.Sensitivity != "public" {
+			nonPublicRepositories++
 		}
+		if sensitivity, ok := repositorySensitivities[key]; ok && sensitivity != repo.Sensitivity {
+			return 0, fmt.Errorf("repository %q must use the same sensitivity across enclave types; all enclave entries for a given repository must declare the same sensitivity. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential\n  - agent:\n      model: gpt-5\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", repo.Repo)
+		}
+		repositorySensitivities[key] = repo.Sensitivity
+	}
+	return nonPublicRepositories, nil
+}
+
+func validateEnclaveGitHubIssuesVersions(workflowData *WorkflowData) error {
+	if !enclaveGitHubIssuesEnabled(workflowData) {
+		return nil
+	}
+
+	firewallConfig := getFirewallConfig(workflowData)
+	if !awfVersionAtLeast(firewallConfig, constants.AWFEnclaveGitHubIssuesMinVersion) {
+		effectiveVersion := string(constants.DefaultFirewallVersion)
+		if firewallConfig != nil && firewallConfig.Version != "" {
+			effectiveVersion = firewallConfig.Version
+		}
+		return fmt.Errorf("enclaves[].agent.github.cli %q requires AWF %s or newer, but the effective version is %s", enclaveGitHubIssuesProfile, constants.AWFEnclaveGitHubIssuesMinVersion, effectiveVersion)
+	}
+
+	effectiveVersion := string(constants.DefaultMCPGatewayVersion)
+	if workflowData.SandboxConfig != nil &&
+		workflowData.SandboxConfig.MCP != nil &&
+		workflowData.SandboxConfig.MCP.Version != "" {
+		effectiveVersion = workflowData.SandboxConfig.MCP.Version
+	}
+	if !versionAtLeast(effectiveVersion, string(constants.DefaultMCPGatewayVersion), string(constants.MCPGEnclaveGitHubIssuesMinVersion)) {
+		return fmt.Errorf("enclaves[].agent.github.cli %q requires MCPG %s or newer, but the effective version is %s; set sandbox.mcp.version to %s or newer", enclaveGitHubIssuesProfile, constants.MCPGEnclaveGitHubIssuesMinVersion, effectiveVersion, constants.MCPGEnclaveGitHubIssuesMinVersion)
 	}
 	return nil
 }
@@ -222,6 +297,9 @@ func buildAWFEnclavesConfig(config EnclavesConfig) []map[string]any {
 			addEnclaveInt(agent, "maxTaskBytes", enclave.Agent.MaxTaskBytes)
 			addEnclaveInt(agent, "maxModelRequests", enclave.Agent.MaxModelRequests)
 			addEnclaveInt(agent, "maxModelTokens", enclave.Agent.MaxModelTokens)
+			if enclave.Agent.GitHub != nil {
+				agent["github"] = map[string]any{"cli": enclave.Agent.GitHub.CLI}
+			}
 			values["agent"] = agent
 		}
 		result = append(result, values)

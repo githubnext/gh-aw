@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -499,6 +500,31 @@ exit 0
 		// though step-b triggered a finding.
 		assert.Equal(t, 3, strings.Count(string(calls), "run"), "all three steps should be invoked even in strict mode")
 	})
+}
+
+func TestRunShellcheckOnLockFilesAndResources(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses shell script stub")
+	}
+
+	restore := stubDockerCommand(t, `#!/bin/sh
+	if [ "${1:-}" = "info" ]; then
+	  exit 0
+	fi
+	test "$(/usr/bin/cat)" = "echo frontmatter script"
+	`)
+	defer restore()
+
+	origPath := os.Getenv("PATH")
+	t.Cleanup(func() { os.Setenv("PATH", origPath) })
+	require.NoError(t, os.Setenv("PATH", filepath.Dir(os.Getenv("DOCKER_BIN"))))
+
+	err := runShellcheckOnLockFilesAndResources(context.Background(), nil, []workflow.ShellScriptResource{{
+		Name:   "mcp-scripts.example",
+		Script: "echo frontmatter script",
+		Shell:  "bash",
+	}}, false, true)
+	require.NoError(t, err)
 }
 
 func stubDockerCommand(t *testing.T, script string) func() {

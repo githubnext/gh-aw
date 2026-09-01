@@ -1,11 +1,11 @@
 ---
-title: AI Engines for GitHub Agentic Workflows
-description: Compare the built-in AI engines for GitHub Agentic Workflows (gh-aw), including selection, authentication, capabilities, limitations, and examples for Copilot, Claude Code, Codex, Gemini, and Pi.
+title: AI Engines
+description: Compare the built-in AI engines for GitHub Agentic Workflows, including selection, authentication, capabilities, limitations, and examples for Copilot, Claude Code, Codex, Gemini, and Pi.
 sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows (`gh-aw`) uses an [AI engine](/gh-aw/reference/glossary/#engine) to run the AI agent that interprets a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
+GitHub Agentic Workflows uses an [AI engine](/gh-aw/reference/glossary/#engine) - usually a coding agent - to interpret a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
 
 ## Built-in AI engines
 
@@ -13,7 +13,7 @@ Set `engine:` in workflow frontmatter and configure the corresponding authentica
 
 | AI engine | `engine:` value | Authentication | Setup and example |
 |---|---|---|---|
-| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (recommended) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | [Using GitHub Copilot with GitHub Agentic Workflows](/gh-aw/engines/copilot/) |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | [Using GitHub Copilot with GitHub Agentic Workflows](/gh-aw/engines/copilot/) |
 | [Claude Code](https://www.anthropic.com/index/claude) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) | [Using Claude Code with GitHub Agentic Workflows](/gh-aw/engines/claude/) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | [Using OpenAI Codex with GitHub Agentic Workflows](/gh-aw/engines/codex/) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) or [Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) | [Using Google Gemini with GitHub Agentic Workflows](/gh-aw/engines/gemini/) |
@@ -317,7 +317,7 @@ network:
     - RESOURCE.openai.azure.com
 ```
 
-See [How to use Azure OpenAI with Copilot BYOK](/gh-aw/guides/azure-openai-byok/)
+See [How to use Azure OpenAI with Copilot BYOK](/gh-aw/reference/azure-openai-byok/)
 for deployment-name mapping, `responses` API guidance for GPT-5 and o-series
 models, and Azure-specific troubleshooting.
 
@@ -398,7 +398,7 @@ When an expression is used, it must already be in milliseconds (GitHub Actions e
 
 The post-result watchdog is dormant until the harness observes a terminal safe output. `noop` and ordinary task outputs such as comments, labels, pushes, and pull request creation are terminal; diagnostics such as `missing_tool`, `missing_data`, and `report_incomplete` are not. Once armed, any stdout or stderr activity resets the inactivity clock. A quiet child process can still be terminated while it is doing useful work, and the harness may treat that termination as successful when a terminal safe output already exists.
 
-You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control, including `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` for the post-result watchdog. Explicit `engine.env` values take precedence over `engine.harness` sub-key values. See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment-variables/#harness-settings-and-runtime-tuning-variables) for supported env vars, units, clamping behavior, and engine-specific controls such as `GH_AW_CLAUDE_STARTUP_RETRIES`.
+You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control, including `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` for the post-result watchdog and `GH_AW_HARNESS_STARTUP_RETRIES` for fresh startup retries. Explicit `engine.env` values take precedence over `engine.harness` sub-key values. See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment-variables/#harness-settings-and-runtime-tuning-variables) for supported env vars, units, and clamping behavior.
 
 Threat detection runs default `max-retries` to **0** instead of inheriting the harness default of 3, since detection is a bounded scan of already-completed agent output rather than the primary task — a failed attempt should not silently retry the whole detection run and burn extra time and model spend. Set `engine.harness.max-retries` (or `safe-outputs.threat-detection.engine.harness.max-retries`) explicitly to opt back into retries for detection.
 
@@ -609,13 +609,11 @@ mcp-servers:
 > [!WARNING]
 > Do not rely on `tools:` or `mcp-servers: allowed:` for security guarantees in `bypassPermissions` mode. The agent can already run arbitrary shell commands when unrestricted bash is granted, so `--allowed-tools` provides no meaningful additional boundary.
 
-## Related Documentation
+## Learn More
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
 - [Authentication](/gh-aw/reference/auth/) - Engine credentials and identity mechanisms
 - [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
 - [Security Guide](/gh-aw/introduction/architecture/) - Security considerations for AI engines
-- [Examples by Task](/gh-aw/examples/) - Agentic workflow examples and when to use them
+- [Gallery](/gh-aw/gallery/) - Agentic workflows organized by task
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
-- [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) - Timeout tuning for large repositories
-- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Fast hardware for long-running workflows

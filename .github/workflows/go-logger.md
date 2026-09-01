@@ -19,8 +19,8 @@ imports:
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     draft: false
     expires: 2d
     labels:

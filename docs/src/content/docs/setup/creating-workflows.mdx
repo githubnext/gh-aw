@@ -9,7 +9,7 @@ import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro
 import Video from '../../../components/Video.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A GitHub Agentic Workflows (`gh-aw`) source is a Markdown file in `.github/workflows/` that describes AI-powered repository automation. YAML frontmatter configures triggers, permissions, tools, safe outputs, and the AI engine; the Markdown body contains natural-language instructions. The `gh aw compile` command turns this source into the `.lock.yml` GitHub Actions workflow that runs GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi.
+A GitHub Agentic Workflows source is a Markdown file in `.github/workflows/` that describes AI-powered repository automation. YAML frontmatter configures triggers, permissions, tools, safe outputs, and the AI engine; the Markdown body contains natural-language instructions. The `gh aw compile` command turns this source into the `.lock.yml` GitHub Actions workflow that runs GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi.
 
 **⏱️ Estimated time: 5-15 minutes** depending on complexity
 
@@ -17,14 +17,11 @@ You can author new agentic workflows using a coding agent or other AI chat syste
 
 This guide shows how to create an agentic workflow in the GitHub web interface, with a coding agent, in VS Code Agent Mode, or by editing the source manually.
 
-> [!TIP]
-> Use the [GitHub Agentic Workflows wizard](https://githubnext.github.io/gh-aw-wizard/) for an interactive, guided workflow creation experience.
+## Create a New Workflow with the GitHub Web Interface
 
-## GitHub Web Interface
+If you have access to GitHub Copilot, you can create and edit agentic workflows directly from the GitHub web interface. This can turn a prompt into a proposed workflow.
 
-If you have access to GitHub Copilot, you can create and edit agentic workflows directly from the web interface. This asynchronous path can turn a prompt into a proposed workflow. For an interactive authoring session, use a coding agent as described in the next section.
-
-Use one of these prompts in your repository.
+1. Use one of these prompts in the "Agents" tab in your repository.
 
 <Tabs>
   <TabItem label="Issue Triage">
@@ -71,18 +68,20 @@ Use one of these prompts in your repository.
    thumbnail="/gh-aw/videos/create-workflow-on-github.png"
 />
 
-> [!TIP]
-> A workflow cannot run its AI engine until the required permission, secret, or workload identity is configured. Set up [AI engine authentication](/gh-aw/reference/auth/) before the first run.
+2. **Set up required authentication**.
 
-## Coding agent or VS Code
+   If you haven't done so already, [choose and authenticate an AI engine](/gh-aw/reference/engines/). Copilot is the default; set `engine:` in [frontmatter](/gh-aw/reference/frontmatter/) for Claude Code, OpenAI Codex, Google Gemini, or Pi.
+
+## Create a New Workflow with a Coding Agent or VS Code
 
 Follow these steps to create an agentic workflow using VS Code or a CLI coding agent.
 
 1. **Start your coding agent**.
 
    Choose your preferred coding agent and start it in the context of your repository. For example, you can:
-   - Start [VSCode Agent Mode](https://code.visualstudio.com/docs/copilot/agents/overview)
-   - Start your CLI coding agent in your repository
+   - Start [VSCode Agent Mode](https://code.visualstudio.com/docs/copilot/agents/overview), or
+   - Start your CLI coding agent in your repository, or
+   - Start any chat system that can access your repository
 
 2. **Create an agentic workflow**.
 
@@ -106,41 +105,7 @@ After merging the pull request, you can run the workflow to see it in action. Ei
 - trigger runs manually from the Actions tab in GitHub.com, or
 - use [the `gh aw run` command](/gh-aw/setup/cli/#run) to trigger runs from your terminal.
 
-## Choose the Right Step Lifecycle Hook
-
-When you add deterministic setup or cleanup to a workflow, choose the smallest hook that matches the lifecycle point you need. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/#choosing-the-right-step-hook) for the canonical ordering guide, including the distinction between pre-checkout `pre-steps:` and the later `pre-agent-steps:` phase.
-
-## Initialize the Repository
-
-Running `gh aw init` is **required** to enable the authoring experience in the GitHub code agent. This step configures your repository so that you can create and modify agentic workflows directly from [github.com](https://github.com) or the GitHub mobile app, using the Copilot coding agent.
-
-```bash wrap
-gh aw init
-```
-
-Alternatively, run this prompt in your coding agent:
-
-```text wrap
-Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
-```
-
-This command:
-
-- Creates a **dispatcher skill** at `.github/skills/agentic-workflows/SKILL.md`, which registers the `agentic-workflows` skill in GitHub Copilot and enables workflow authoring with the `agentic-workflows` skill in Copilot Chat on github.com and the GitHub mobile app.
-- Sets up **MCP server integration** so that Copilot has access to gh-aw tools when creating or editing workflows.
-- Updates `.gitattributes` to mark generated `.lock.yml` files correctly.
-- Configures **VS Code settings** for the best local authoring experience.
-
-Once initialized, you and your team can create and edit workflows by opening a Copilot Chat session on github.com or the GitHub app and running:
-
-```text wrap
-agentic-workflows Create a new workflow that...
-```
-
-> [!NOTE]
-> The `agentic-workflows` Copilot Chat skill requires a GitHub Copilot subscription. If you use Claude Code or another CLI coding agent without Copilot access, run `gh aw init --engine <engine>` with `claude`, `codex`, `gemini`, or `pi`. This skips the Copilot-specific MCP and skill files while still writing `.gitattributes`, VS Code settings, and the custom agent file. Then use the `create.md` approach in [Coding agent or VS Code](#coding-agent-or-vs-code) for guided workflow authoring.
-
-## Manual Editing
+## Create a New Workflow Manually
 
 If you prefer to create workflows manually, you can
 
@@ -151,7 +116,11 @@ If you prefer to create workflows manually, you can
    gh extension install github/gh-aw
    ```
 
-3. Compile the workflow markdown into a YAML workflow file using:
+3. **Choose an engine and set up required authentication**.
+
+   [Choose and authenticate an AI engine](/gh-aw/reference/engines/). Copilot is the default; set `engine:` in [frontmatter](/gh-aw/reference/frontmatter/) for Claude Code, OpenAI Codex, Google Gemini, or Pi.
+
+4. Compile the workflow markdown into a YAML workflow file using:
 
    ```bash wrap
    gh aw compile
@@ -159,7 +128,7 @@ If you prefer to create workflows manually, you can
 
    This will generate a workflow YAML lock file `.github/workflows/<workflow-name>.lock.yml` based on the content of your markdown file.
 
-4. Add, commit and push the workflow file and its lock file to your repository.
+5. Add, commit and push the workflow file and its lock file to your repository.
 
    ```bash wrap
    git add .github/workflows/<workflow-name>.md
@@ -168,22 +137,12 @@ If you prefer to create workflows manually, you can
    git push
    ```
 
-5. If you haven't done so already, [configure authentication for the selected AI engine](/gh-aw/reference/auth/).
-
 You can now trigger runs of the workflow either from the Actions tab in GitHub.com or using the `gh aw run` command from your terminal.
 
-## Adding an Existing Workflow
+## Learn More
 
-To add a workflow from another repository, see [Reusing Workflows](/gh-aw/guides/reusing-workflows/#adding-existing-workflows).
-
-## Workshop
-
-> [!TIP]
-> **Want a hands-on exercise to practice creating workflows?** The [**gh-aw-workshop**](https://github.com/githubnext/gh-aw-workshop) walks you through building, running, and customizing agentic workflows step by step. Fork it and follow along at your own pace.
-
-## Learn more
-
-- Use [Agentic Authoring](/gh-aw/guides/agentic-authoring/) for additional techniques to build workflows with an AI coding agent.
+- Use [Working with Workflows](/gh-aw/guides/working-with-workflows/) for additional authoring, editing, debugging, and upgrade techniques.
 - Compare [AI engines and authentication](/gh-aw/reference/engines/).
-- Browse [GitHub Agentic Workflows examples by task](/gh-aw/examples/).
+- Browse the [GitHub Agentic Workflows gallery](/gh-aw/gallery/).
 - Review the [security architecture](/gh-aw/introduction/architecture/) and [FAQ](/gh-aw/reference/faq/).
+- [**gh-aw-workshop**](https://github.com/githubnext/gh-aw-workshop).s

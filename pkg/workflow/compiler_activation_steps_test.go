@@ -377,7 +377,8 @@ func TestActivationStepsComputeActivationSanitizationDomains(t *testing.T) {
 
 	t.Run("uses base allowed domains when safe outputs are absent", func(t *testing.T) {
 		domains, err := compiler.computeActivationSanitizationDomains(&WorkflowData{
-			EngineConfig: &EngineConfig{ID: "copilot"},
+			EngineConfig:       &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{Allowed: []string{"copilot"}},
 		})
 
 		require.NoError(t, err)

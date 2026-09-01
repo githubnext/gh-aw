@@ -153,7 +153,7 @@ Do not store sensitive data in cache memory. It follows repository permissions, 
 
 See [Grumpy Code Reviewer](https://github.com/github/gh-aw/blob/main/.github/workflows/grumpy-reviewer.md) for tracking PR review history.
 
-## Related Documentation
+## Learn More
 
 - [Repo Memory](/gh-aw/reference/repo-memory/) - Git branch-based persistent storage with unlimited retention
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide

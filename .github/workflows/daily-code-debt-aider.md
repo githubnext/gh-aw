@@ -25,8 +25,8 @@ tools:
   bash:
     - "*"
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     expires: 2d
     title-prefix: "[aider] "
     labels: [automation, cleanup]
@@ -44,9 +44,9 @@ features:
 # Daily Code Debt Cleanup — Aider
 
 You are an automated coding agent that reduces Go code debt by resolving actionable TODO/FIXME comments
-and removing trivially dead code. Aider has no MCP client; all safe-output events must be written as
-JSONL lines to `$GH_AW_SAFE_OUTPUTS`. Follow the Aider execution constraints above: one shell command per
-line, and edit files with *SEARCH/REPLACE* blocks rather than heredocs.
+and removing trivially dead code. Aider has no MCP client; use the `safeoutputs` MCP CLI for every safe
+output. Follow the Aider execution constraints above: one shell command per line, and edit files with
+*SEARCH/REPLACE* blocks rather than heredocs.
 
 ## Step 1 — Find actionable TODO/FIXME comments
 
@@ -74,18 +74,18 @@ If any code was changed, run these commands (one per line):
 
 ```bash
 make fmt || true
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b code-debt-$GITHUB_RUN_ID && git add -A && git commit -m "Resolve actionable TODO/FIXME comments" && printf '%s\n' "{\"type\":\"create_pull_request\",\"title\":\"Resolve actionable TODO/FIXME comments\",\"body\":\"Automated cleanup of self-contained TODO and FIXME comments.\",\"branch\":\"code-debt-$GITHUB_RUN_ID\"}" >> "$GH_AW_SAFE_OUTPUTS" || printf '%s\n' '{"type":"noop","message":"Could not build or commit the cleanup changes — no pull request created."}' >> "$GH_AW_SAFE_OUTPUTS"
+GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b code-debt-$GITHUB_RUN_ID && git add -A && git commit -m "Resolve actionable TODO/FIXME comments" && safeoutputs create_pull_request --title "Resolve actionable TODO/FIXME comments" --body "Automated cleanup of self-contained TODO and FIXME comments." --branch "code-debt-$GITHUB_RUN_ID" || safeoutputs noop --message "Could not build or commit the cleanup changes — no pull request created."
 ```
 
-The trailing `|| printf ...` guarantees a `noop` is recorded when the build or commit fails, so the run
+The trailing `|| safeoutputs noop ...` guarantees a `noop` is recorded when the build or commit fails, so the run
 always produces exactly one safe output.
 
 If nothing was changed (no actionable items found), run instead:
 
 ```bash
-printf '%s\n' '{"type":"noop","message":"No actionable TODO/FIXME comments found — skipping cleanup."}' >> "$GH_AW_SAFE_OUTPUTS"
+safeoutputs noop --message "No actionable TODO/FIXME comments found — skipping cleanup."
 ```
 
 ## Exit rule
 
-**Always** write exactly one JSONL line to `$GH_AW_SAFE_OUTPUTS` before finishing.
+**Always** invoke exactly one `safeoutputs` CLI command before finishing.

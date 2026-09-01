@@ -7,6 +7,36 @@ sidebar:
 
 Integrity filtering (`tools.github.min-integrity`) controls which GitHub content an agent can access during a workflow run. Rather than filtering by permissions, it filters by **trust**: the author association of an issue, pull request, or comment, and whether that content has been merged into the main branch.
 
+## Migrate from lockdown mode
+
+GitHub lockdown mode has been superseded by integrity filtering. Replace `lockdown: true` with `min-integrity: approved`:
+
+```yaml wrap
+# Before (deprecated)
+tools:
+  github:
+    lockdown: true
+
+# After
+tools:
+  github:
+    min-integrity: approved
+```
+
+Replace `lockdown: false` with `min-integrity: none`:
+
+```yaml wrap
+# Before (deprecated)
+tools:
+  github:
+    lockdown: false
+
+# After
+tools:
+  github:
+    min-integrity: none
+```
+
 ## How It Works
 
 The MCP gateway intercepts tool calls to GitHub and applies integrity checks to each piece of content returned. If an item's integrity level is below the configured minimum, the gateway removes it before the AI engine sees it. This happens transparently — the agent receives a reduced result set, and filtered items are logged as `DIFC_FILTERED` events for later inspection.
@@ -354,7 +384,7 @@ gh aw logs --filtered-integrity
 
 This is useful when investigating whether your `min-integrity` configuration is filtering expected content or when tuning the level after observing real traffic patterns.
 
-## Related Documentation
+## Learn More
 
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) — Full `tools.github` configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — Gateway architecture and log format

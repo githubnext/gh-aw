@@ -16,9 +16,10 @@ permissions:
   contents: read
   issues: read
   copilot-requests: write
-model: copilot/gpt-5.4
+model: openai/gpt-5.4
 engine:
   id: pi
+  model-provider: openai
 strict: true
 network:
   allowed:
@@ -29,6 +30,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
   - shared/otlp.md
+  - shared/graders.md
 tools:
   cli-proxy: true
   github:
@@ -84,6 +86,7 @@ evals:
     question: If a report discussion was created, was its title exactly "Auto-Triage Issues Report" (ignoring the automatic "[Auto-Triage] " prefix)?
   - id: human-bug-labeled
     question: Did the agent label a non-report issue describing unexpected behavior, expected versus actual results, or a reproducible failure with `bug` and the relevant component label (or `needs-triage` if no component is clear)?
+
 ---
 
 # Auto-Triage Issues Agent 🏷️

@@ -466,7 +466,7 @@ func TestExtractExperimentsStorageFromFrontmatter(t *testing.T) {
 	tests := []struct {
 		name        string
 		frontmatter map[string]any
-		want        string
+		want        ExperimentStorageMode
 	}{
 		{
 			name:        "no experiments key returns repo default",

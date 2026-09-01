@@ -39,7 +39,7 @@ See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jo
 **Shorthand Options:**
 
 - **`read-all`**: Read access to all scopes (useful for inspection workflows)
-- **`{}`**: No permissions (for computation-only workflows)
+- **`{}`** or **`none`**: No permissions (for computation-only workflows)
 
 ### GitHub App-Only Permissions
 
@@ -94,7 +94,7 @@ When `copilot-requests: write` is set, gh-aw uses the GitHub Actions token for a
 
 The only valid value is `write`. See [Authentication → `copilot-requests: write` permission](/gh-aw/reference/auth/#copilot-requests-write-permission) for setup details and prerequisites.
 
-## Related Documentation
+## Learn More
 
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Secure write operations with content sanitization
 - [Security Guide](/gh-aw/introduction/architecture/) - Security best practices and permission strategies

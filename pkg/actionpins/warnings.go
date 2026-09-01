@@ -11,6 +11,7 @@ func (c *PinContext) emitOnce(key, msg string, format func(string) string) {
 		c.Warnings = make(map[string]bool)
 	}
 	if c.Warnings[key] {
+		actionPinsLog.Printf("Suppressing duplicate message for key=%s", key)
 		return
 	}
 	fmt.Fprintln(os.Stderr, format(msg))

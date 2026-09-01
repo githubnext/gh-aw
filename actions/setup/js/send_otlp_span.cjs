@@ -708,6 +708,87 @@ function buildExperimentAttributes(assignments) {
   return attrs;
 }
 
+/**
+ * Build summary attributes and per-result events from valid deterministic grader output.
+ * Free-form grader messages, details, and errors are intentionally excluded because
+ * custom graders may derive them from trace content containing sensitive values.
+ *
+ * @param {any} graderOutput
+ * @param {number} eventTimeMs
+ * @returns {{attributes: Array<{key: string, value: object}>, events: Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>}}
+ */
+function buildGraderTelemetry(graderOutput, eventTimeMs) {
+  if (!graderOutput || typeof graderOutput !== "object" || !Array.isArray(graderOutput.results) || graderOutput.results.length === 0) {
+    return { attributes: [], events: [] };
+  }
+
+  const results = graderOutput.results.filter(result => result && typeof result === "object" && typeof result.id === "string" && result.id);
+  if (results.length === 0) {
+    return { attributes: [], events: [] };
+  }
+
+  const countByStatus = status => results.filter(result => result.status === status).length;
+  const attributes = [
+    buildAttr("gh-aw.graders.count", results.length),
+    buildAttr("gh-aw.graders.passed", countByStatus("pass")),
+    buildAttr("gh-aw.graders.failed", countByStatus("fail")),
+    buildAttr("gh-aw.graders.errors", countByStatus("error")),
+    buildAttr("gh-aw.graders.unavailable", countByStatus("unavailable")),
+    buildAttr("gh-aw.graders.other", results.length - countByStatus("pass") - countByStatus("fail") - countByStatus("error") - countByStatus("unavailable")),
+  ];
+  const timeUnixNano = toNanoString(eventTimeMs);
+  const events = results.map(result => {
+    const resultAttributes = [buildAttr("gh-aw.grader.id", result.id)];
+    if (typeof result.name === "string" && result.name) resultAttributes.push(buildAttr("gh-aw.grader.name", result.name));
+    if (typeof result.status === "string" && result.status) resultAttributes.push(buildAttr("gh-aw.grader.status", result.status));
+    if (typeof result.source === "string" && result.source) resultAttributes.push(buildAttr("gh-aw.grader.source", result.source));
+    if (typeof result.unit === "string" && result.unit) resultAttributes.push(buildAttr("gh-aw.grader.unit", result.unit));
+    if (typeof result.value === "number" && Number.isFinite(result.value)) resultAttributes.push(buildDoubleAttr("gh-aw.grader.value", result.value));
+    if (typeof result.passed === "boolean") resultAttributes.push(buildAttr("gh-aw.grader.passed", result.passed));
+    if (typeof result.severity === "string" && result.severity) resultAttributes.push(buildAttr("gh-aw.grader.severity", result.severity));
+    if (typeof result.baselineValue === "number" && Number.isFinite(result.baselineValue)) resultAttributes.push(buildDoubleAttr("gh-aw.grader.baseline_value", result.baselineValue));
+    if (typeof result.deltaFromBaseline === "number" && Number.isFinite(result.deltaFromBaseline)) resultAttributes.push(buildDoubleAttr("gh-aw.grader.delta_from_baseline", result.deltaFromBaseline));
+    return { timeUnixNano, name: "grader.result", attributes: resultAttributes };
+  });
+
+  return { attributes, events };
+}
+
+/**
+ * Build summary attributes and per-result events from BinEval JSONL records.
+ * Only bounded, structured fields are included; free-form questions are excluded.
+ *
+ * @param {any[]} evalResults
+ * @param {number} eventTimeMs
+ * @returns {{attributes: Array<{key: string, value: object}>, events: Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>}}
+ */
+function buildEvalTelemetry(evalResults, eventTimeMs) {
+  if (!Array.isArray(evalResults)) {
+    return { attributes: [], events: [] };
+  }
+  const results = evalResults.filter(result => result && typeof result === "object" && typeof result.id === "string" && result.id);
+  if (results.length === 0) {
+    return { attributes: [], events: [] };
+  }
+
+  const normalizedAnswers = results.map(result => {
+    const answer = typeof result.answer === "string" ? result.answer.trim().toUpperCase() : "UNKNOWN";
+    return answer === "YES" || answer === "NO" ? answer : "UNKNOWN";
+  });
+  const countAnswer = answer => normalizedAnswers.filter(value => value === answer).length;
+  const attributes = [buildAttr("gh-aw.evals.count", results.length), buildAttr("gh-aw.evals.yes", countAnswer("YES")), buildAttr("gh-aw.evals.no", countAnswer("NO")), buildAttr("gh-aw.evals.unknown", countAnswer("UNKNOWN"))];
+  const timeUnixNano = toNanoString(eventTimeMs);
+  const events = results.map((result, index) => {
+    const resultAttributes = [buildAttr("gh-aw.eval.id", result.id), buildAttr("gh-aw.eval.answer", normalizedAnswers[index])];
+    if (typeof result.model === "string" && result.model) {
+      resultAttributes.push(buildAttr("gh-aw.eval.model", result.model));
+    }
+    return { timeUnixNano, name: "eval.result", attributes: resultAttributes };
+  });
+
+  return { attributes, events };
+}
+
 // ---------------------------------------------------------------------------
 // Custom OTLP attributes (GH_AW_OTLP_ATTRIBUTES)
 // ---------------------------------------------------------------------------
@@ -998,12 +1079,38 @@ function formatOTLPExportFailureMessage(response, reason) {
  */
 
 /**
+ * Normalizes GH_AW_OTLP_IF_MISSING to a supported mode. Mirrors the compiler's
+ * getOTLPIfMissingMode (pkg/workflow/observability_otlp.go) and the equivalent
+ * helper in start_mcp_gateway.cjs so every OTLP consumer applies the same
+ * missing-configuration policy.
+ * @param {string | undefined} value
+ * @returns {"error" | "warn" | "ignore"}
+ */
+function getOTLPIfMissingMode(value) {
+  const normalized = (value || "").trim().toLowerCase();
+  if (normalized === "warn" || normalized === "ignore") {
+    return normalized;
+  }
+  return "error";
+}
+
+/**
  * Resolve the list of configured OTLP endpoints for the current run.
  *
  * Reads `GH_AW_OTLP_ENDPOINTS` (JSON-encoded array produced by the gh-aw
  * compiler for all endpoint configurations, including single-endpoint setups).
  * Returns an empty array when no endpoint is configured, so callers can skip
  * the export step without additional checks.
+ *
+ * When `GH_AW_OTLP_IF_MISSING=ignore` (set only for the enterprise-default
+ * endpoint/headers fallback — see resolveOTLPEndpointEntries in
+ * pkg/workflow/observability_otlp.go), an endpoint with a URL but no headers is
+ * dropped rather than exported unauthenticated. This is the single choke point
+ * used by every span emitter (job-setup, conclusion, outcome, MCP gateway), so
+ * the guard applies uniformly regardless of job ordering — a half-configured
+ * default (endpoint set, headers secret unset) can never leak telemetry before
+ * the agent job's check_otlp_default_credentials.sh step runs, because that
+ * step only runs in one job while this function runs in all of them.
  *
  * @returns {OTLPEndpointEntry[]}
  */
@@ -1013,9 +1120,19 @@ function parseOTLPEndpoints() {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
+      const ignoreMissingCredentials = getOTLPIfMissingMode(process.env.GH_AW_OTLP_IF_MISSING) === "ignore";
       /** @type {OTLPEndpointEntry[]} */
       const valid = parsed
         .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
+        .filter(e => {
+          const hasHeaders = typeof e.headers === "string" && e.headers !== "";
+          if (ignoreMissingCredentials && !hasHeaders) {
+            // Enterprise-default endpoint configured without matching credentials:
+            // treat as unconfigured instead of exporting unauthenticated telemetry.
+            return false;
+          }
+          return true;
+        })
         .map(e => ({
           url: e.url,
           ...(typeof e.headers === "string" && e.headers ? { headers: e.headers } : {}),
@@ -1411,6 +1528,20 @@ function readJSONIfExists(filePath) {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
     return null;
+  }
+}
+
+/**
+ * Safely read and parse a JSONL file. Returns an empty array on any error.
+ *
+ * @param {string} filePath - Absolute path to the JSONL file
+ * @returns {any[]}
+ */
+function readJSONLIfExists(filePath) {
+  try {
+    return parseJsonlContent(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return [];
   }
 }
 
@@ -1955,6 +2086,8 @@ function readAgentRuntimeMetrics() {
  * - `/tmp/gh-aw/agent_usage.json` – per-type token breakdown written by parse_token_usage.cjs;
  *                                    provides `input_tokens`, `output_tokens`,
  *                                    `cache_read_tokens`, and `cache_write_tokens` counters
+ * - `/tmp/gh-aw/agent/graders/grader_results.json` – deterministic grader
+ *                                    summary attributes and per-result span events
  *
  * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.conclusion"`)
  * @param {{ startMs?: number }} [options]
@@ -2291,6 +2424,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
+  const graderTelemetry = jobName === "agent" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
+  const evalTelemetry = jobName === "evals" ? buildEvalTelemetry(readJSONLIfExists("/tmp/gh-aw/evals.jsonl"), endMs) : { attributes: [], events: [] };
+
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
     runId,
@@ -2349,7 +2485,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
       });
   };
 
-  const spanEvents = buildSpanEvents(endMs);
+  const spanEvents = [...buildSpanEvents(endMs), ...graderTelemetry.events, ...evalTelemetry.events];
 
   // Prefer the timestamp written at the very beginning of the Execute Agent CLI step
   // (captures true step start on the host, before the AWF container launches) so the
@@ -2444,6 +2580,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
+  // Grader results are run-level outcomes. They belong only on the agent job's
+  // conclusion span, rather than its dedicated child span or downstream jobs
+  // which may have downloaded the agent artifact.
+  attributes.push(...graderTelemetry.attributes);
+  attributes.push(...evalTelemetry.attributes);
+
   // Only attach token-usage attributes to jobs that actually executed model usage.
   // Most downstream jobs (conclusion, safe_outputs) may have agent_usage.json on
   // disk via artifact download but must NOT emit token data — otherwise every
@@ -2528,6 +2670,8 @@ module.exports = {
   OTEL_JSONL_PATH,
   appendToOTLPJSONL,
   buildExperimentAttributes,
+  buildGraderTelemetry,
+  buildEvalTelemetry,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,
 };

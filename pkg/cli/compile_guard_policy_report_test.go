@@ -48,7 +48,7 @@ func TestBuildGuardPolicyDryRunReport_NoGuardPolicy(t *testing.T) {
 // dry-run report is produced summarizing allowed-repos and min-integrity.
 func TestBuildGuardPolicyDryRunReport_AllowedReposAndMinIntegrity(t *testing.T) {
 	github := &workflow.GitHubToolConfig{
-		AllowedRepos: []any{"owner/repo-b", "owner/repo-a"},
+		AllowedRepos: workflow.GitHubReposScope{"owner/repo-b", "owner/repo-a"},
 		MinIntegrity: workflow.GitHubIntegrityApproved,
 	}
 
@@ -101,7 +101,7 @@ func TestBuildGuardPolicyDryRunReport_BlockedTrustedApproval(t *testing.T) {
 func TestBuildGuardPolicyDryRunReport_Lockdown(t *testing.T) {
 	github := &workflow.GitHubToolConfig{
 		Lockdown:     true,
-		AllowedRepos: "all",
+		AllowedRepos: workflow.GitHubReposScope{"all"},
 		MinIntegrity: workflow.GitHubIntegrityApproved,
 	}
 
@@ -119,7 +119,7 @@ func TestBuildGuardPolicyDryRunReport_Lockdown(t *testing.T) {
 func TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos(t *testing.T) {
 	github := &workflow.GitHubToolConfig{
 		Lockdown:     true,
-		Repos:        "all",
+		Repos:        workflow.GitHubReposScope{"all"},
 		MinIntegrity: workflow.GitHubIntegrityApproved,
 	}
 

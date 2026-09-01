@@ -183,48 +183,48 @@ func TestMergeTools(t *testing.T) {
 			},
 		},
 		{
-			name: "main bounded-query runtime overrides imported runtime",
+			name: "main runtime overrides imported runtime",
 			base: map[string]any{
 				"github": map[string]any{
-					"bounded-queries": map[string]any{
+					"nested-config": map[string]any{
 						"runtime": "sbx",
 					},
 				},
 			},
 			additional: map[string]any{
 				"github": map[string]any{
-					"bounded-queries": map[string]any{
+					"nested-config": map[string]any{
 						"runtime": "docker",
 					},
 				},
 			},
 			expected: map[string]any{
 				"github": map[string]any{
-					"bounded-queries": map[string]any{
+					"nested-config": map[string]any{
 						"runtime": "sbx",
 					},
 				},
 			},
 		},
 		{
-			name: "imported bounded-query runtime fills missing main field",
+			name: "imported runtime fills missing main field",
 			base: map[string]any{
 				"github": map[string]any{
-					"bounded-queries": map[string]any{
+					"nested-config": map[string]any{
 						"timeout": 30,
 					},
 				},
 			},
 			additional: map[string]any{
 				"github": map[string]any{
-					"bounded-queries": map[string]any{
+					"nested-config": map[string]any{
 						"runtime": "sbx",
 					},
 				},
 			},
 			expected: map[string]any{
 				"github": map[string]any{
-					"bounded-queries": map[string]any{
+					"nested-config": map[string]any{
 						"timeout": 30,
 						"runtime": "sbx",
 					},

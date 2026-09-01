@@ -75,7 +75,7 @@ gh aw run research --ref branch    # Run from a specific branch
 
 See [CLI Commands](/gh-aw/setup/cli/) for the full `gh aw run` reference.
 
-## Related Documentation
+## Learn More
 
 - [Triggers Reference](/gh-aw/reference/triggers/) — Complete `workflow_dispatch` syntax including all input types
 - [Templating](/gh-aw/reference/templating/) — Expressions and conditionals in workflow prompts

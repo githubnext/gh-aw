@@ -218,6 +218,30 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
+			name: "remove-labels with pull-requests:false - no pull-requests permission",
+			safeOutputs: &SafeOutputsConfig{
+				RemoveLabels: &RemoveLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
+					PullRequests:         ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
+			},
+		},
+		{
+			name: "remove-labels with issues:false - no issues permission",
+			safeOutputs: &SafeOutputsConfig{
+				RemoveLabels: &RemoveLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
+					Issues:               ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
 			name: "close-issue only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				CloseIssues: &CloseIssuesConfig{
@@ -1299,4 +1323,81 @@ func TestValidateAddLabelsPermissions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateRemoveLabelsPermissions(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		wantErr     bool
+	}{
+		{name: "nil config - no error", safeOutputs: nil},
+		{
+			name:        "both nil (defaults) - no error",
+			safeOutputs: &SafeOutputsConfig{RemoveLabels: &RemoveLabelsConfig{}},
+		},
+		{
+			name:        "issues:false, pull-requests:true - no error",
+			safeOutputs: &SafeOutputsConfig{RemoveLabels: &RemoveLabelsConfig{Issues: ptrBool(false), PullRequests: ptrBool(true)}},
+		},
+		{
+			name:        "issues:true, pull-requests:false - no error",
+			safeOutputs: &SafeOutputsConfig{RemoveLabels: &RemoveLabelsConfig{Issues: ptrBool(true), PullRequests: ptrBool(false)}},
+		},
+		{
+			name:        "both issues:false and pull-requests:false - error",
+			safeOutputs: &SafeOutputsConfig{RemoveLabels: &RemoveLabelsConfig{Issues: ptrBool(false), PullRequests: ptrBool(false)}},
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateRemoveLabelsPermissions(tt.safeOutputs)
+			if tt.wantErr {
+				require.ErrorContains(t, err, "safe-outputs.remove-labels: at least one of 'issues' or 'pull-requests' must be enabled")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestCompileRemoveLabelsRejectsAllPermissionsDisabled(t *testing.T) {
+	t.Parallel()
+	testFile := filepath.Join(t.TempDir(), "test.md")
+	content := `---
+on: issues
+strict: false
+safe-outputs:
+  remove-labels:
+    issues: false
+    pull-requests: false
+---
+Test workflow
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+
+	err := NewCompiler(WithVersion("1.0.0")).CompileWorkflow(testFile)
+	require.ErrorContains(t, err, "safe-outputs.remove-labels: at least one of 'issues' or 'pull-requests' must be enabled")
+}
+
+func TestCompileRemoveLabelsRejectsMalformedPermissionsConfig(t *testing.T) {
+	t.Parallel()
+	testFile := filepath.Join(t.TempDir(), "test.md")
+	content := `---
+on: issues
+strict: false
+safe-outputs:
+  remove-labels:
+    pull-requests: nope
+---
+Test workflow
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+
+	err := NewCompiler(WithVersion("1.0.0")).CompileWorkflow(testFile)
+	require.ErrorContains(t, err, "expected null or boolean")
 }

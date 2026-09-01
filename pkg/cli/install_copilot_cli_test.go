@@ -95,12 +95,21 @@ func TestInstallCopilotCLIScriptPreservesCachedBinaryAtInstallPath(t *testing.T)
 	cachedCopilot := filepath.Join(toolcacheBin, "copilot")
 	cachedContents := []byte("#!/usr/bin/env bash\necho 'copilot 1.2.3 preserved'\n")
 	require.NoError(t, os.WriteFile(cachedCopilot, cachedContents, 0o755))
+	fakeBinDir := filepath.Join(tempDir, "fake-bin")
+	require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "sudo"), []byte(`#!/usr/bin/env bash
+if [ "${1:-}" = "chown" ]; then
+  exit 0
+fi
+exec "$@"
+`), 0o755))
 
 	cmd := exec.Command("bash", installScript, "1.2.3")
 	cmd.Env = append(os.Environ(),
 		"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
 		"GITHUB_PATH="+filepath.Join(tempDir, "github-path"),
 		"COPILOT_INSTALL_DIR="+toolcacheBin,
+		"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
 	)
 
 	output, err := cmd.CombinedOutput()

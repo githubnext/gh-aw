@@ -17,7 +17,7 @@ Self-hosted runners may require `sudo` depending on the selected engine and conf
 
 ## ARC with Docker-in-Docker (DinD)
 
-For a complete ARC DinD setup walkthrough for GitHub Copilot coding agent, see [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/).
+For a complete ARC DinD setup walkthrough for GitHub Copilot coding agent, see [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/reference/arc-dind-copilot-agent/).
 
 Actions Runner Controller (ARC) deployments that use a Docker-in-Docker sidecar split the runner container and the Docker daemon container across separate filesystems.
 
@@ -212,6 +212,25 @@ Keys and values must use the `owner/repo@ref` format. Each source version must b
 
 Keys are source image references as they appear in compiled workflows. `image` must be a valid image reference without a digest, and `digest` must be a full `sha256:<64 lowercase hex characters>` digest.
 
+### AWF infrastructure image overrides (`sandbox.agent.images`)
+
+Use `container_pins` for general container substitutions, and use `sandbox.agent.images` when replacing AWF infrastructure roles themselves. This is the supported path for self-hosted and air-gapped setups that must mirror and approve AWF sidecar images with explicit digests.
+
+```aw wrap
+sandbox:
+  agent:
+    version: v0.28.8
+    images:
+      squid: registry.example.com/approved/squid:v0.28.8@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      agent: registry.example.com/approved/agent:v0.28.8@sha256:1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      apiProxy: registry.example.com/approved/api-proxy:v0.28.8@sha256:2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+> [!NOTE]
+> The digest values in this example are placeholders. Replace them with the exact digests from your approved registry images.
+
+When this manifest is set, AWF uses these references as authoritative runtime role images. Keep values literal and digest-pinned; expressions are rejected at compile time. For role requirements and constraints (for example `cliProxy` with `tools.github.mode: gh-proxy`, or `buildTools` with `runner.topology: arc-dind`), see [Sandbox custom infrastructure images](/gh-aw/reference/sandbox/#custom-infrastructure-images-sandboxagentimages).
+
 ### Combined example
 
 ```json title=".github/workflows/aw.json"
@@ -233,15 +252,43 @@ Re-run `gh aw compile` after modifying `aw.json` to regenerate all affected lock
 > [!NOTE]
 > Neither `action_pins` nor `container_pins` is supported in individual workflow frontmatter. Both are repository-level settings in `aw.json` that apply across all workflows in the repository.
 
-## Related documentation
+## Learn More
 
 - [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-runs-on-slim-timeout-minutes) — `runs-on` and `runs-on-slim` syntax reference
-- [Imports](/gh-aw/reference/imports/) — importable fields and merge semantics
 - [Threat Detection](/gh-aw/reference/threat-detection/) — detection job configuration
 - [Network Access](/gh-aw/reference/network/) — configuring outbound network permissions
 - [Sandbox](/gh-aw/reference/sandbox/) — container and Docker requirements
 - [Ephemerals](/gh-aw/reference/ephemerals/#maintenance-configuration) — full `aw.json` maintenance configuration reference
 - [Enterprise Configuration](/gh-aw/reference/enterprise-configuration/) — custom API endpoints for GHEC/GHES
+
+## GitHub Official Documentation
+
+These links point to the official GitHub documentation for self-hosted runners and related infrastructure:
+
+### Self-hosted runners
+
+- [About self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) — overview, system requirements, and supported architectures
+- [Adding self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners) — step-by-step setup for repository, organization, or enterprise
+- [Using self-hosted runners in a workflow](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/using-self-hosted-runners-in-a-workflow) — how to target self-hosted runners with `runs-on`
+- [Configuring the self-hosted runner application as a service](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/configuring-the-self-hosted-runner-application-as-a-service) — running the runner as a background service
+- [Monitoring and troubleshooting self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/monitoring-and-troubleshooting-self-hosted-runners) — runner logs, diagnostics, and connectivity checks
+
+### Labels and runner groups
+
+- [Using labels with self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/using-labels-with-self-hosted-runners) — default and custom labels for routing jobs
+- [Managing access to self-hosted runners using groups](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/managing-access-to-self-hosted-runners-using-groups) — runner groups for organization and enterprise
+
+### Actions Runner Controller (ARC)
+
+- [About Actions Runner Controller](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners-with-actions-runner-controller/about-actions-runner-controller) — overview of the Kubernetes-based autoscaling solution
+- [Quickstart for Actions Runner Controller](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners-with-actions-runner-controller/quickstart-for-actions-runner-controller) — getting started with ARC on Kubernetes
+- [Deploying runner scale sets with Actions Runner Controller](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners-with-actions-runner-controller/deploying-runner-scale-sets-with-actions-runner-controller) — Helm-based deployment of runner scale sets
+- [Authenticating to the GitHub API for Actions Runner Controller](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners-with-actions-runner-controller/authenticating-to-the-github-api) — PAT and GitHub App authentication for ARC
+
+### Security
+
+- [Security hardening for GitHub Actions](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) — best practices for secrets, permissions, and self-hosted runner security
+- [About security hardening with OpenID Connect](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect) — using OIDC tokens instead of long-lived credentials
 
 ## Runner environment requirements
 
@@ -253,7 +300,7 @@ A working Docker daemon is required. The MCP gateway and sandbox run as containe
 
 - **Unix socket**: Docker must be accessible via a Unix socket (typically `/var/run/docker.sock`). If `DOCKER_HOST` is unset, the gateway mounts `/var/run/docker.sock`. If `DOCKER_HOST` is `unix://...` or a bare absolute path, the gateway mounts that socket path. Other schemes (for example `tcp://...`) are ignored for mounts and default back to `/var/run/docker.sock`.
 - **Docker group**: The runner user must be in the `docker` group, or the socket must be world-readable.
-- **ARC/Kubernetes**: Docker-in-Docker (DinD) is **required** for ARC. Set `containerMode.type="dind"` in your ARC Helm configuration. The `containerMode.type="kubernetes"` mode is not supported. The dind sidecar must share the Docker socket via an `emptyDir` volume, and the gateway retries the socket check for up to 10 seconds to handle startup race conditions. See [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/) for the complete setup guide, and [ARC (Actions Runner Controller)](#arc-actions-runner-controller) below for pod security details.
+- **ARC/Kubernetes**: Docker-in-Docker (DinD) is **required** for ARC. Set `containerMode.type="dind"` in your ARC Helm configuration. The `containerMode.type="kubernetes"` mode is not supported. The dind sidecar must share the Docker socket via an `emptyDir` volume, and the gateway retries the socket check for up to 10 seconds to handle startup race conditions. See [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/reference/arc-dind-copilot-agent/) for the complete setup guide, and [ARC (Actions Runner Controller)](#arc-actions-runner-controller) below for pod security details.
 - **Split-daemon override**: On ARC or other split-daemon topologies where the socket path or group ID cannot be auto-detected, set `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID` environment variables at the runner level. See [Docker socket override for split-daemon topologies](#docker-socket-override-for-split-daemon-topologies) for details.
 
 ### Node.js
@@ -350,7 +397,7 @@ network:
 
 GitHub Copilot coding agent **requires** Docker-in-Docker (DinD) mode on ARC. Set `containerMode.type="dind"` in your ARC Helm configuration. The `containerMode.type="kubernetes"` mode is not supported.
 
-Set `runner.topology: arc-dind` in workflow frontmatter to enable ARC DinD split-filesystem handling. See the [ARC with Docker-in-Docker (DinD)](#arc-with-docker-in-docker-dind) section above and the [ARC DinD setup guide](/gh-aw/guides/arc-dind-copilot-agent/) for a complete walkthrough.
+Set `runner.topology: arc-dind` in workflow frontmatter to enable ARC DinD split-filesystem handling. See the [ARC with Docker-in-Docker (DinD)](#arc-with-docker-in-docker-dind) section above and the [ARC DinD setup guide](/gh-aw/reference/arc-dind-copilot-agent/) for a complete walkthrough.
 
 ### Docker-in-Docker (dind) sidecar
 
@@ -367,4 +414,4 @@ The dind sidecar requires `privileged: true` so `dockerd` can run. The runner co
 In network-isolation mode (the default for `topology: arc-dind`), AWF enforces egress via Docker network topology — an internal Docker network with no internet route and a dual-homed Squid proxy. All network enforcement happens inside the Docker daemon's domain (the dind sidecar). The runner container only issues Docker API commands via the socket; it never manipulates host `iptables` or network namespaces.
 
 > [!NOTE]
-> If your cluster enforces `allowPrivilegeEscalation: false` or `no-new-privileges` on the runner container, pass `--rootless` to the Copilot CLI install script so it installs to `~/.local/bin` without `sudo`. See [Pod security and rootless install](/gh-aw/guides/arc-dind-copilot-agent/#pod-security-and-rootless-install) in the ARC DinD guide.
+> If your cluster enforces `allowPrivilegeEscalation: false` or `no-new-privileges` on the runner container, pass `--rootless` to the Copilot CLI install script so it installs to `~/.local/bin` without `sudo`. See [Pod security and rootless install](/gh-aw/reference/arc-dind-copilot-agent/#pod-security-and-rootless-install) in the ARC DinD guide.

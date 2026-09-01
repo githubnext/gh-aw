@@ -1,6 +1,10 @@
 package workflow
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -123,26 +127,8 @@ func parseMaxToolDenialsValue(raw any) string {
 // an AuthDefinition with Strategy="" and Secret set (callers normalise Strategy to api-key).
 func parseAuthDefinition(authObj map[string]any) *AuthDefinition {
 	def := &AuthDefinition{}
-	if s, ok := authObj["strategy"].(string); ok {
-		def.Strategy = AuthStrategy(s)
-	}
-	if s, ok := authObj["secret"].(string); ok {
-		def.Secret = s
-	}
-	if s, ok := authObj["token-url"].(string); ok {
-		def.TokenURL = s
-	}
-	if s, ok := authObj["client-id"].(string); ok {
-		def.ClientIDRef = s
-	}
-	if s, ok := authObj["client-secret"].(string); ok {
-		def.ClientSecretRef = s
-	}
-	if s, ok := authObj["token-field"].(string); ok {
-		def.TokenField = s
-	}
-	if s, ok := authObj["header-name"].(string); ok {
-		def.HeaderName = s
+	if err := decodeEngineConfig(authObj, def); err != nil {
+		engineLog.Printf("Ignoring invalid engine provider auth configuration: %v", err)
 	}
 	return def
 }
@@ -150,50 +136,8 @@ func parseAuthDefinition(authObj map[string]any) *AuthDefinition {
 // parseEngineAuthConfig converts a raw engine.auth config map into EngineAuthConfig.
 func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 	auth := &EngineAuthConfig{}
-	if s, ok := authObj["type"].(string); ok {
-		auth.Type = s
-	}
-	if s, ok := authObj["audience"].(string); ok {
-		auth.Audience = s
-	}
-	if s, ok := authObj["provider"].(string); ok {
-		auth.Provider = s
-	}
-	if s, ok := authObj["azure-tenant-id"].(string); ok {
-		auth.AzureTenantID = s
-	}
-	if s, ok := authObj["azure-client-id"].(string); ok {
-		auth.AzureClientID = s
-	}
-	if s, ok := authObj["azure-scope"].(string); ok {
-		auth.AzureScope = s
-	}
-	if s, ok := authObj["azure-cloud"].(string); ok {
-		auth.AzureCloud = s
-	}
-	if s, ok := authObj["federation-rule-id"].(string); ok {
-		auth.AnthropicFederationRuleID = s
-	}
-	if s, ok := authObj["organization-id"].(string); ok {
-		auth.AnthropicOrganizationID = s
-	}
-	if s, ok := authObj["service-account-id"].(string); ok {
-		auth.AnthropicServiceAccountID = s
-	}
-	if s, ok := authObj["workspace-id"].(string); ok {
-		auth.AnthropicWorkspaceID = s
-	}
-	if s, ok := authObj["workload-identity-provider"].(string); ok {
-		auth.GoogleWorkloadIdentityProvider = s
-	}
-	if s, ok := authObj["service-account"].(string); ok {
-		auth.GoogleServiceAccount = s
-	}
-	if s, ok := authObj["project"].(string); ok {
-		auth.GoogleProject = s
-	}
-	if s, ok := authObj["location"].(string); ok {
-		auth.GoogleLocation = s
+	if err := decodeEngineConfig(authObj, auth); err != nil {
+		engineLog.Printf("Ignoring invalid engine auth configuration: %v", err)
 	}
 	return auth
 }
@@ -202,24 +146,74 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 // a RequestShape.
 func parseRequestShape(requestObj map[string]any) *RequestShape {
 	shape := &RequestShape{}
-	if s, ok := requestObj["path-template"].(string); ok {
-		shape.PathTemplate = s
-	}
-	if q, ok := requestObj["query"].(map[string]any); ok {
-		shape.Query = make(map[string]string, len(q))
-		for k, v := range q {
-			if vs, ok := v.(string); ok {
-				shape.Query[k] = vs
-			}
-		}
-	}
-	if b, ok := requestObj["body-inject"].(map[string]any); ok {
-		shape.BodyInject = make(map[string]string, len(b))
-		for k, v := range b {
-			if vs, ok := v.(string); ok {
-				shape.BodyInject[k] = vs
-			}
-		}
+	if err := decodeEngineConfig(requestObj, shape); err != nil {
+		engineLog.Printf("Ignoring invalid engine provider request configuration: %v", err)
 	}
 	return shape
+}
+
+// decodeEngineConfig decodes config into target, which must be a non-nil pointer to a
+// struct whose fields carry `json` tags describing the recognized keys. Unknown keys
+// are ignored for backward compatibility, but recognized keys with an explicit JSON
+// null value or an incompatible type are rejected. On error, target is left untouched
+// (it is never partially populated from a malformed configuration).
+func decodeEngineConfig(config map[string]any, target any) error {
+	if err := rejectNullKnownFields(config, target); err != nil {
+		return err
+	}
+	data, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("marshal configuration: %w", err)
+	}
+	// Decode into a fresh value of the same underlying type so a decode failure
+	// partway through never leaves target with a partially-populated struct.
+	fresh := reflect.New(reflect.TypeOf(target).Elem())
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if err := decoder.Decode(fresh.Interface()); err != nil {
+		return fmt.Errorf("decode configuration: %w", err)
+	}
+	reflect.ValueOf(target).Elem().Set(fresh.Elem())
+	return nil
+}
+
+// rejectNullKnownFields explicitly rejects an explicit JSON null for any key that maps
+// to a recognized struct field (encoding/json otherwise silently accepts null for
+// scalar and map fields, turning them into zero values without an error). It also
+// checks one level of nested map values (e.g. RequestShape.Query / BodyInject) since
+// those are declared as map[string]string and null entries would otherwise be dropped
+// silently as well. Unknown keys are left untouched for compatibility.
+func rejectNullKnownFields(config map[string]any, target any) error {
+	t := reflect.TypeOf(target)
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+	for _, field := range reflect.VisibleFields(t) {
+		name := strings.Split(field.Tag.Get("json"), ",")[0]
+		if name == "" || name == "-" {
+			continue
+		}
+		rawVal, present := config[name]
+		if !present {
+			continue
+		}
+		if rawVal == nil {
+			return fmt.Errorf("field %q must not be null", name)
+		}
+		if field.Type.Kind() != reflect.Map {
+			continue
+		}
+		nested, ok := rawVal.(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, val := range nested {
+			if val == nil {
+				return fmt.Errorf("field %q.%q must not be null", name, key)
+			}
+		}
+	}
+	return nil
 }

@@ -93,7 +93,7 @@ observability:
 
 The exported spans include workflow and model metadata such as `gh-aw.engine.id`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, and `gen_ai.usage.output_tokens`. Use these attributes to group usage by workflow, engine, model, repository, or team in the backend of your choice. For inference cost, derive AIC from raw token counts using provider pricing.
 
-OpenTelemetry helps answer questions like "Which repositories are driving the most token usage?", "Which model change caused a cost spike?", and "Which workflows should move to a smaller model or stricter trigger policy?" See the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/) for collector configuration and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry/) for emitted fields.
+OpenTelemetry helps answer questions like "Which repositories are driving the most token usage?", "Which model change caused a cost spike?", and "Which workflows should move to a smaller model or stricter trigger policy?" See the [OpenTelemetry guide](/gh-aw/reference/open-telemetry/) for collector configuration and the [OpenTelemetry attribute reference](/gh-aw/reference/open-telemetry-attributes/) for emitted fields.
 
 ## Trigger Frequency and Cost Risk
 
@@ -486,21 +486,11 @@ These are rough budgeting estimates; actual costs vary by prompt size, tool usag
 > [!TIP]
 > Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
 
-## Related Documentation
+## Learn More
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
-- [OpenTelemetry](/gh-aw/guides/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
-- [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
 - [AI Engines](/gh-aw/reference/engines/) - Engine and model configuration
-- [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining sub-agents with per-task model selection
-- [Imports](/gh-aw/reference/imports/) - Sharing workflow components across multiple workflows
-- [BatchOps](/gh-aw/patterns/batch-ops/) - Grouping work items into scheduled batch runs
-- [MonitorOps](/gh-aw/patterns/monitor-ops/) - Scheduled monitoring and escalation for agentic workflows
-- [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Default model and guardrail precedence
-- [Environment Variables](/gh-aw/reference/environment-variables/) - Variable scopes and compiler-managed defaults
-- [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Schedule format
-- [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) - `agentic-workflows` tool for self-inspection
 - [FAQ](/gh-aw/reference/faq/) - Common questions about cost and billing

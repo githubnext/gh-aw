@@ -38,6 +38,21 @@ func GenerateSchema[T any]() (*jsonschema.Schema, error) {
 	return jsonschema.For[T](nil)
 }
 
+func generateSchemaWithDefaults[T any](defaults map[string]any) (*jsonschema.Schema, error) {
+	schema, err := GenerateSchema[T]()
+	if err != nil {
+		return nil, err
+	}
+
+	for propertyName, value := range defaults {
+		if err := AddSchemaDefault(schema, propertyName, value); err != nil {
+			mcpSchemaLog.Printf("Failed to add default for %s: %v", propertyName, err)
+		}
+	}
+
+	return schema, nil
+}
+
 // AddSchemaDefault adds a default value to a property in a JSON schema.
 // This is useful for elicitation defaults (SEP-1024) that improve UX by
 // suggesting sensible starting values to MCP clients.
@@ -52,6 +67,7 @@ func GenerateSchema[T any]() (*jsonschema.Schema, error) {
 //	AddSchemaDefault(schema, "name", "default")     // string default
 func AddSchemaDefault(schema *jsonschema.Schema, propertyName string, value any) error {
 	if schema == nil || schema.Properties == nil {
+		// Defaults are meaningful only for object schemas with generated properties.
 		return nil
 	}
 

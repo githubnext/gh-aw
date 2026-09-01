@@ -383,6 +383,7 @@ func TestGenerateDispatchWorkflowToolWithAllowedRefs(t *testing.T) {
 	assert.Equal(t, "string", refProp["type"], "ref property should be a string")
 	assert.Contains(t, refProp["description"].(string), "silencer/*", "ref description should mention allowed patterns")
 	assert.Contains(t, refProp["description"].(string), "refs/heads/main", "ref description should mention all allowed patterns")
+	assert.Contains(t, refProp["description"].(string), "pull request head", "ref description should explain the PR comment fallback")
 
 	// ref should not be in required (it is optional)
 	required, hasRequired := inputSchema["required"].([]string)

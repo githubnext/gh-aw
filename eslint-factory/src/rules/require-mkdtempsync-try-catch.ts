@@ -14,11 +14,12 @@ export const requireMkdtempSyncTryCatchRule = createRule({
       description:
         "Require fs.mkdtempSync calls in actions/setup/js scripts to be wrapped in try/catch. " +
         "mkdtempSync throws synchronously when the parent directory does not exist, permissions are denied, " +
-        "or disk space is exhausted; an unhandled throw crashes the action without surfacing a useful diagnostic.",
+        "or disk space is exhausted; without a call-site try/catch, the entrypoint-level catch produces a generic engine-level stack instead of a specific message that preserves the error as `{ cause }`.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap fs.mkdtempSync({{arg}}) in try/catch — mkdtempSync throws on missing parent directory, permission denied, or filesystem errors and will crash the action if unhandled.",
+      requireTryCatch:
+        "Wrap fs.mkdtempSync({{arg}}) in try/catch — mkdtempSync throws on missing parent directory, permission denied, or filesystem errors; without a call-site try/catch, you lose the original error context and get a generic engine-level stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },

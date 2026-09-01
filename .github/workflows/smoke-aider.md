@@ -3,6 +3,7 @@ private: true
 emoji: "🧑‍✈️"
 description: Smoke test workflow that validates Aider engine functionality
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-aider
     strategy: centralized
@@ -62,7 +63,7 @@ sandbox:
 
 Aider has no MCP client support, so this smoke test exercises only the CLI-native
 capabilities: prompt delivery, shell commands, and file editing. Safe outputs are
-emitted by appending JSONL entries to the file referenced by `$GH_AW_SAFE_OUTPUTS`.
+emitted through the `safeoutputs` MCP CLI.
 
 ## Test Requirements
 
@@ -72,19 +73,19 @@ emitted by appending JSONL entries to the file referenced by `$GH_AW_SAFE_OUTPUT
 
 ## Output
 
-**ALWAYS create an issue** by appending a single line of JSON to the file at `$GH_AW_SAFE_OUTPUTS`, of the form
-`{"type":"create_issue","title":"...","body":"..."}`:
+**ALWAYS create an issue** with `safeoutputs create_issue`, for example
+`safeoutputs create_issue --title "..." --body "..."`:
 - Title: "Smoke Test: Aider - ${{ github.run_id }}"
 - Body should include:
   - Test results (✅ or ❌ for each test)
   - Overall status: PASS or FAIL
   - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-**Only if this workflow was triggered by a pull_request event**: append a
-`{"type":"add_comment","body":"..."}` line to `$GH_AW_SAFE_OUTPUTS` with a **very brief**
+**Only if this workflow was triggered by a pull_request event**: invoke
+`safeoutputs add_comment --body "..."` with a **very brief**
 comment (max 5-10 lines) containing:
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
-If all tests pass and this workflow was triggered by a pull_request event, also append
-`{"type":"add_labels","labels":["smoke-aider"]}` to `$GH_AW_SAFE_OUTPUTS`.
+If all tests pass and this workflow was triggered by a pull_request event, also invoke
+`safeoutputs add_labels --labels "smoke-aider"`.

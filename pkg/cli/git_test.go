@@ -571,6 +571,26 @@ func TestExtractHostFromRemoteURL(t *testing.T) {
 			url:      "https://ghes.example.com:8443/org/repo.git",
 			expected: "ghes.example.com:8443",
 		},
+		{
+			name:     "malformed URL falls back to manual parsing with userinfo and path",
+			url:      "https://baduser%zz@example.com/path",
+			expected: "example.com",
+		},
+		{
+			name:     "malformed URL falls back to manual parsing with userinfo and no path",
+			url:      "https://baduser%zz@example.com",
+			expected: "example.com",
+		},
+		{
+			name:     "malformed URL falls back to manual parsing with no userinfo and no path",
+			url:      "https://%zz",
+			expected: "%zz",
+		},
+		{
+			name:     "SSH scp-like with slash before colon does not match and defaults to github.com",
+			url:      "some/path:notaport",
+			expected: "github.com",
+		},
 	}
 
 	for _, tt := range tests {

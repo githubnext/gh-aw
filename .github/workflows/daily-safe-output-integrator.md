@@ -26,8 +26,8 @@ imports:
     title-prefix: "[safe-output-integrator] "
 - shared/otlp.md
 safe-outputs:
+  steer: true
   create-pull-request:
-    steer: true
     draft: false
     expires: 3d
     labels:

@@ -139,6 +139,7 @@ func TestParseGitHubRepoSlugFromURLGHE(t *testing.T) {
 }
 
 func TestGetRepositorySlugFromRemote(t *testing.T) {
+	t.Parallel()
 	// This test verifies that the function can execute without errors in a git repo
 	// The actual value will depend on the repository being tested
 	result := getRepositorySlugFromRemote()
@@ -153,6 +154,7 @@ func TestGetRepositorySlugFromRemote(t *testing.T) {
 }
 
 func TestFindGitRootForPath(t *testing.T) {
+	t.Parallel()
 	// Test with current file path
 	gitRoot, err := findGitRootForPath("git_helpers_test.go")
 	if err != nil {
@@ -169,6 +171,7 @@ func TestFindGitRootForPath(t *testing.T) {
 }
 
 func TestGetRepositorySlugFromRemoteForPath(t *testing.T) {
+	t.Parallel()
 	// Test with current file path
 	slug := getRepositorySlugFromRemoteForPath("git_helpers_test.go")
 

@@ -35,15 +35,16 @@ network:
 imports:
   - shared/otlp.md
   - shared/reporting.md
+  - shared/graders.md
 tools:
-  bash: false
-  cli-proxy: false
+  bash: ["*"]
+  cli-proxy: true
   cache-memory:
     key: spam-tracking-${{ github.repository_owner }}
     retention-days: 1
     allowed-extensions: [".json"]
   github:
-    mode: local
+    mode: gh-proxy
     read-only: true
     toolsets: [default]
     min-integrity: none
@@ -65,7 +66,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: cloud-hypervisor
+    runtime: gvisor
 pre-agent-steps:
   - name: Pre-fetch moderation context
     env:
@@ -129,6 +130,7 @@ evals:
     question: Does the agent output include a rationale explaining why the label(s) were applied or why noop was called?
   - id: no-unsupported-action
     question: Does the agent output show that only allowed safe-output actions (add-labels, hide-comment, noop) were used?
+
 ---
 
 # AI Moderator

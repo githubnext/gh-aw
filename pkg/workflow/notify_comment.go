@@ -30,40 +30,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		notifyCommentLog.Printf("Skipping job: no safe-outputs configured")
 		return nil, nil // No safe-outputs configured, no need for conclusion job
 	}
-	steps := c.buildConclusionSetupSteps(data)
-	steps = append(steps, c.buildConclusionNoOpStep(data, mainJobName)...)
-	steps = append(steps, c.buildConclusionDetectionRunsStep(data, mainJobName)...)
-	steps = append(steps, c.buildConclusionMissingToolStep(data, mainJobName)...)
-	steps = append(steps, c.buildConclusionReportIncompleteStep(data, mainJobName)...)
-	messagesJSON := serializeConclusionMessagesJSON(data)
-	steeringTokenSteps, steeringToken := c.buildConclusionSteeringIssueTokenSteps(data)
-	steps = append(steps, steeringTokenSteps...)
-	agentFailureSteps, err := c.buildAgentFailureStep(data, mainJobName, messagesJSON, steeringToken)
+	steps, err := c.buildConclusionJobSteps(data, mainJobName, safeOutputJobNames)
 	if err != nil {
 		return nil, err
-	}
-	steps = append(steps, agentFailureSteps...)
-	steps = append(steps, c.buildConclusionReportFailedJobsStep(data, mainJobName)...)
-	customEnvVars := c.buildConclusionScriptEnvVars(data, mainJobName, safeOutputJobNames, messagesJSON)
-	var token string
-	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
-		token = data.SafeOutputs.AddComments.GitHubToken
-	}
-	// Only add the conclusion update step if status comments are explicitly enabled
-	if data.StatusComment != nil && *data.StatusComment {
-		steps = append(steps, c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Update reaction comment with completion status",
-			StepID:        "conclusion",
-			MainJobName:   mainJobName,
-			CustomEnvVars: customEnvVars,
-			Script:        getNotifyCommentErrorScript(),
-			ScriptFile:    "notify_comment_error.cjs",
-			CustomToken:   token,
-		})...)
-	}
-	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
-	if c.actionMode.IsScript() {
-		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
 	needs := buildConclusionJobNeeds(data, mainJobName, safeOutputJobNames)
 	// If any message template references needs.pre_activation.outputs.*, add pre_activation
@@ -78,6 +47,66 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 	}
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
+	conclusionPerms := computeConclusionJobPermissions(data)
+	return &Job{
+		Name:        "conclusion",
+		If:          RenderCondition(c.buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
+		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
+		Permissions: conclusionPerms.RenderToYAML(),
+		Concurrency: c.buildConclusionJobConcurrency(data),
+		Steps:       steps,
+		Needs:       needs,
+		Outputs:     buildConclusionJobOutputs(data),
+	}, nil
+}
+
+// buildConclusionJobSteps assembles the ordered step list for the conclusion job: setup and
+// usage-artifact steps, noop/missing-tool/incomplete reporting, agent-failure and
+// failed-jobs reporting, the optional status-comment update, and the steering-issue step.
+func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName string, safeOutputJobNames []string) ([]string, error) {
+	steps := c.buildConclusionSetupSteps(data)
+	steps = append(steps, c.buildConclusionNoOpStep(data, mainJobName)...)
+	steps = append(steps, c.buildConclusionDetectionRunsStep(data, mainJobName)...)
+	steps = append(steps, c.buildConclusionMissingToolStep(data, mainJobName)...)
+	steps = append(steps, c.buildConclusionReportIncompleteStep(data, mainJobName)...)
+	messagesJSON := serializeConclusionMessagesJSON(data)
+	steeringTokenSteps, steeringToken := c.buildConclusionSteeringIssueTokenSteps(data)
+	steps = append(steps, steeringTokenSteps...)
+	agentFailureSteps, err := c.buildAgentFailureStep(data, mainJobName, messagesJSON, steeringToken)
+	if err != nil {
+		return nil, err
+	}
+	steps = append(steps, agentFailureSteps...)
+	steps = append(steps, c.buildConclusionReportFailedJobsStep(data, mainJobName)...)
+	// Only add the conclusion update step if status comments are explicitly enabled
+	if data.StatusComment != nil && *data.StatusComment {
+		var token string
+		if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
+			token = data.SafeOutputs.AddComments.GitHubToken
+		}
+		steps = append(steps, c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Update reaction comment with completion status",
+			StepID:        "conclusion",
+			MainJobName:   mainJobName,
+			CustomEnvVars: c.buildConclusionScriptEnvVars(data, mainJobName, safeOutputJobNames, messagesJSON),
+			Script:        getNotifyCommentErrorScript(),
+			ScriptFile:    "notify_comment_error.cjs",
+			CustomToken:   token,
+		})...)
+	}
+	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
+	if c.actionMode.IsScript() {
+		steps = append(steps, c.generateScriptModeCleanupStep())
+	}
+	return steps, nil
+}
+
+// computeConclusionJobPermissions resolves the GITHUB_TOKEN permissions for the conclusion
+// job: the base safe-outputs permissions plus the extra scopes required by the OTLP OIDC
+// token, the daily-AIC cache save step, the report-failed-jobs step, and any issue-creating
+// conclusion mechanism.
+func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 	// When observability.otlp.github-app is configured without app-id/private-key
 	// credentials, id-token: write is needed so the conclusion job can mint the OTLP
@@ -111,17 +140,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			conclusionPerms.Set(PermissionIssues, PermissionWrite)
 		}
 	}
-	return &Job{
-		Name:        "conclusion",
-		If:          RenderCondition(c.buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
-		RunsOn:      c.formatFrameworkJobRunsOn(data),
-		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
-		Permissions: conclusionPerms.RenderToYAML(),
-		Concurrency: c.buildConclusionJobConcurrency(data),
-		Steps:       steps,
-		Needs:       needs,
-		Outputs:     buildConclusionJobOutputs(data),
-	}, nil
+	return conclusionPerms
 }
 
 // conclusionReportFailedJobsEnabled returns true unless safe-outputs.report-failed-jobs is
@@ -170,14 +189,13 @@ func conclusionMayCreateIssue(data *WorkflowData) bool {
 	return false
 }
 
-// buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
-// The artifact includes aw_info.json, aw-info.jsonl, agent_usage.json, agent_usage.jsonl, detection_usage.jsonl,
-// evals.jsonl, and agent/detection token usage JSONL files (when present).
-// It also downloads the safe-outputs-items artifact so that generate_usage_activity_summary.cjs
-// can include safe-output item counts in the activity summary without requiring a separate artifact download.
-func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(string) string) []string {
-	usageArtifactName := prefix + "usage"
-	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
+// buildUsageArtifactInputDownloadSteps creates the artifact download steps that feed the
+// usage artifact: the safe-outputs items manifest (used by
+// generate_usage_activity_summary.cjs) and, when the workflow declares evals, the evals
+// artifact. Grader results need no dedicated download because the conclusion job already
+// downloads the unified agent artifact, which contains them.
+func buildUsageArtifactInputDownloadSteps(prefix string, hasEvals bool, pinAction func(string) string) []string {
+	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName.String()
 	safeOutputsDownloadAction := pinAction("actions/download-artifact")
 	steps := []string{
 		"      - name: Download Safe Outputs Items Manifest\n",
@@ -189,20 +207,31 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 	}
 	steps = append(steps, downloadArtifactInputLines(safeOutputsItemsArtifactName, safeOutputsDownloadAction)...)
 	steps = append(steps, "          path: /tmp/gh-aw/\n")
-	if hasEvals {
-		evalsArtifactName := prefix + constants.EvalsArtifactName
-		evalsDownloadAction := pinAction("actions/download-artifact")
-		steps = append(steps,
-			"      - name: Download evals artifact\n",
-			"        id: download-evals-artifact\n",
-			"        if: always()\n",
-			"        continue-on-error: true\n",
-			fmt.Sprintf("        uses: %s\n", evalsDownloadAction),
-			"        with:\n",
-		)
-		steps = append(steps, downloadArtifactInputLines(evalsArtifactName, evalsDownloadAction)...)
-		steps = append(steps, "          path: /tmp/gh-aw/evals/\n")
+	if !hasEvals {
+		return steps
 	}
+	evalsArtifactName := prefix + constants.EvalsArtifactName.String()
+	evalsDownloadAction := pinAction("actions/download-artifact")
+	steps = append(steps,
+		"      - name: Download evals artifact\n",
+		"        id: download-evals-artifact\n",
+		"        if: always()\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", evalsDownloadAction),
+		"        with:\n",
+	)
+	steps = append(steps, downloadArtifactInputLines(evalsArtifactName, evalsDownloadAction)...)
+	return append(steps, "          path: /tmp/gh-aw/evals/\n")
+}
+
+// buildUsageArtifactUploadSteps creates steps that collect and upload a compact usage artifact.
+// The artifact includes aw_info.json, aw-info.jsonl, agent_usage.json, agent_usage.jsonl, detection_usage.jsonl,
+// evals.jsonl, grader results, and agent/detection token usage JSONL files (when present).
+// It also downloads the safe-outputs-items artifact so that generate_usage_activity_summary.cjs
+// can include safe-output item counts in the activity summary without requiring a separate artifact download.
+func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(string) string) []string {
+	usageArtifactName := prefix + "usage"
+	steps := buildUsageArtifactInputDownloadSteps(prefix, hasEvals, pinAction)
 	steps = append(steps,
 		"      - name: Collect usage artifact files\n",
 		"        if: always()\n",
@@ -221,6 +250,8 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 		"            /tmp/gh-aw/usage/agent_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/detection_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/evals.jsonl\n",
+		"            /tmp/gh-aw/usage/graders/grader_manifest.json\n",
+		"            /tmp/gh-aw/usage/graders/grader_results.json\n",
 		"            /tmp/gh-aw/usage/github_rate_limits.jsonl\n",
 		"            /tmp/gh-aw/usage/agent/token_usage.jsonl\n",
 		"            /tmp/gh-aw/usage/detection/token_usage.jsonl\n",

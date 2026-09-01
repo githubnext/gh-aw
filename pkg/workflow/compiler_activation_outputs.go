@@ -155,7 +155,7 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 // addActivationArtifactUploadStep appends the activation artifact upload step for downstream jobs.
 func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
-	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName
+	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName.String()
 	ctx.steps = append(ctx.steps, generateStageAmbientFoldersStep(ctx.data)...)
 	ctx.steps = append(ctx.steps,
 		"      - name: Stage prompt files for artifact upload\n",
@@ -175,7 +175,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-template.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-import-tree.json\n")
-	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
+	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename.String()+"\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/base\n")
 	if len(ctx.data.AmbientFolders) > 0 {
 		ctx.steps = append(ctx.steps, "            /tmp/gh-aw/ambient-folders\n")

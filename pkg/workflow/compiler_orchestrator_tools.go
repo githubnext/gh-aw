@@ -40,18 +40,22 @@ type toolsProcessingResult struct {
 	hasExplicitGitHubTool bool // true if tools.github was explicitly configured in frontmatter
 }
 
-// processToolsAndMarkdown processes tools configuration, runtimes, and markdown content.
-// This function handles:
-// - Safe outputs and secret masking configuration
-// - Tools and MCP servers merging
-// - Runtimes merging
-// - MCP validations
-// - Markdown content expansion
-// - Workflow name extraction
-func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cleanPath string, markdownDir string,
-	agenticEngine CodingAgentEngine, engineSetting string, importsResult *parser.ImportsResult) (*toolsProcessingResult, error) {
-	orchestratorToolsLog.Printf("Processing tools and markdown")
-	workflowLog.Print("Processing tools and includes...")
+// toolsAndConfigData holds the pre-markdown-expansion configuration resolved
+// from frontmatter: safe outputs, secret masking, tools/mcp-servers, and
+// runtimes. It is an intermediate result used by processToolsAndMarkdown.
+type toolsAndConfigData struct {
+	effectiveMarkdown string
+	safeOutputs       *SafeOutputsConfig
+	secretMasking     *SecretMaskingConfig
+	toolsData         *mergedToolsData
+	runtimes          map[string]any
+	runInstallScripts bool
+}
+
+// resolveToolsAndConfig resolves safe outputs, secret masking, tools/mcp-servers,
+// and runtimes configuration ahead of markdown include expansion.
+func (c *Compiler) resolveToolsAndConfig(result *parser.FrontmatterResult, markdownDir string,
+	agenticEngine CodingAgentEngine, engineSetting string, importsResult *parser.ImportsResult) (*toolsAndConfigData, error) {
 	effectiveMarkdown, err := c.extractEffectiveMarkdown(importsResult, result.Markdown)
 	if err != nil {
 		return nil, err
@@ -70,7 +74,35 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if err != nil {
 		return nil, err
 	}
-	markdownData, err := c.resolveMarkdownArtifacts(effectiveMarkdown, markdownDir, cleanPath, result, importsResult, toolsData.includedToolFiles)
+	return &toolsAndConfigData{
+		effectiveMarkdown: effectiveMarkdown,
+		safeOutputs:       safeOutputs,
+		secretMasking:     secretMasking,
+		toolsData:         toolsData,
+		runtimes:          runtimes,
+		runInstallScripts: runInstallScripts,
+	}, nil
+}
+
+// processToolsAndMarkdown processes tools configuration, runtimes, and markdown content.
+// This function handles:
+// - Safe outputs and secret masking configuration
+// - Tools and MCP servers merging
+// - Runtimes merging
+// - MCP validations
+// - Markdown content expansion
+// - Workflow name extraction
+func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cleanPath string, markdownDir string,
+	agenticEngine CodingAgentEngine, engineSetting string, importsResult *parser.ImportsResult) (*toolsProcessingResult, error) {
+	orchestratorToolsLog.Printf("Processing tools and markdown")
+	workflowLog.Print("Processing tools and includes...")
+
+	config, err := c.resolveToolsAndConfig(result, markdownDir, agenticEngine, engineSetting, importsResult)
+	if err != nil {
+		return nil, err
+	}
+
+	markdownData, err := c.resolveMarkdownArtifacts(config.effectiveMarkdown, markdownDir, cleanPath, result, importsResult, config.toolsData.includedToolFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -82,28 +114,28 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	parsedFrontmatter := c.tryParseFrontmatterConfig(result.Frontmatter)
 
 	return &toolsProcessingResult{
-		tools:                 toolsData.tools,
-		resolvedMCPServers:    toolsData.resolvedMCPServers,
-		runtimes:              runtimes,
-		runInstallScripts:     runInstallScripts,
-		toolsTimeout:          toolsData.toolsTimeout,
-		toolsStartupTimeout:   toolsData.toolsStartupTimeout,
+		tools:                 config.toolsData.tools,
+		resolvedMCPServers:    config.toolsData.resolvedMCPServers,
+		runtimes:              config.runtimes,
+		runInstallScripts:     config.runInstallScripts,
+		toolsTimeout:          config.toolsData.toolsTimeout,
+		toolsStartupTimeout:   config.toolsData.toolsStartupTimeout,
 		markdownContent:       markdownData.markdownContent,
 		importedMarkdown:      markdownData.importedMarkdown,
 		importPaths:           markdownData.importPaths,
 		promptImports:         markdownData.promptImports,
 		mainWorkflowMarkdown:  markdownData.mainWorkflowMarkdown,
-		rawMainMarkdown:       effectiveMarkdown,
+		rawMainMarkdown:       config.effectiveMarkdown,
 		allIncludedFiles:      markdownData.allIncludedFiles,
 		workflowName:          markdownData.workflowName,
 		frontmatterName:       markdownData.frontmatterName,
 		frontmatterEmoji:      markdownData.frontmatterEmoji,
 		needsTextOutput:       needsTextOutput,
 		trackerID:             trackerID,
-		safeOutputs:           safeOutputs,
-		secretMasking:         secretMasking,
+		safeOutputs:           config.safeOutputs,
+		secretMasking:         config.secretMasking,
 		parsedFrontmatter:     parsedFrontmatter,
-		hasExplicitGitHubTool: toolsData.hasExplicitGitHubTool,
+		hasExplicitGitHubTool: config.toolsData.hasExplicitGitHubTool,
 	}, nil
 }
 

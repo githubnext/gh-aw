@@ -150,6 +150,7 @@ var issueHandlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed", c.Allowed).
 			AddStringSlice("blocked", c.Blocked).
 			AddBoolPtr("issue_intent", c.IssueIntent).
+			AddBoolPtr("create_if_missing", c.CreateIfMissing).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).

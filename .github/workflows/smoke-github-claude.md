@@ -3,6 +3,7 @@ private: true
 emoji: "🧪"
 description: Smoke test for Claude engine using GitHub provider that posts a concise PR summary comment
 on:
+  schedule: every 2 days
   slash_command:
     name: smoke-github-claude
     strategy: centralized

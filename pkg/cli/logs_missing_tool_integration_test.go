@@ -37,7 +37,7 @@ func TestMissingToolDetectionIntegration(t *testing.T) {
   "errors": []
 }`
 
-	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName.String())
 	err = os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write agent_output.json: %v", err)
@@ -126,7 +126,7 @@ func TestMissingToolTypeConsistency(t *testing.T) {
     }
   ]
 }`
-	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName.String())
 	err = os.WriteFile(agentOutputPath, []byte(correctTypeContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)

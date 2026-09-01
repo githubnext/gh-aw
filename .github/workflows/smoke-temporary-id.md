@@ -3,7 +3,8 @@ private: true
 emoji: "🧪"
 name: Smoke Temporary ID
 description: Test temporary ID functionality for issue chaining and cross-references
-on: 
+on:
+  schedule: every 2 days
   slash_command:
     name: smoke-temporary-id
     strategy: centralized

@@ -32,7 +32,7 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.245"
+const DefaultClaudeCodeVersion Version = "2.1.247"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.80"
 const DefaultCopilotSDKVersion Version = "1.0.11"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.149.1"
+const DefaultCodexVersion Version = "0.150.1"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.55.1"
@@ -54,7 +54,7 @@ const DefaultGeminiVersion Version = "0.55.1"
 const DefaultPiVersion Version = "0.84.3"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.10.1"
+const DefaultGitHubMCPServerVersion Version = "v1.11.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.10.1"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.7"
+const DefaultFirewallVersion Version = "v0.28.10"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -154,10 +154,15 @@ const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
 // AWFFilesystemAllowWriteMinVersion.
 const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
-// AWFBoundedQueriesMinVersion is the minimum AWF version that supports
-// the boundedQueries section in awf-config.json.
-// Workflows pinning an older AWF version must not emit this section.
-const AWFBoundedQueriesMinVersion Version = "v0.27.44"
+// AWFEnclaveGitHubIssuesMinVersion is the first AWF version whose
+// config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
+const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
+
+// AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
+// apiProxy.caCert in awf-config.json (mapped from frontmatter
+// sandbox.agent.ca-cert). Older AWF versions reject the unknown property
+// under strict config validation.
+const AWFAPIProxyCACertMinVersion Version = "v0.28.10"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
@@ -180,23 +185,21 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.10"
+const DefaultMCPGatewayVersion Version = "v0.4.14"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
-// DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.79"
+// MCPGEnclaveGitHubIssuesMinVersion is the first MCPG version with
+// gh CLI token authorization for the issues-read-v1 enclave capability.
+const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.13"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
-// Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
+// Used when tools.playwright is enabled.
 // Keep this version outside the default 3-day npm release-age cooldown window enforced by
 // generated Playwright CLI install steps. See TestDefaultPlaywrightCLIVersionOutsideCooldownWindow.
 const DefaultPlaywrightCLIVersion Version = "0.1.18"
-
-// DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
-const DefaultPlaywrightBrowserVersion Version = "v1.62.1"
 
 // DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
 const DefaultMCPSDKVersion Version = "1.30.0"
@@ -208,7 +211,7 @@ const DefaultGitHubScriptVersion Version = "v9"
 // This is used by the default external threat-detection path and when
 // `features: gh-aw-detection: true` is set in the workflow frontmatter, enabling the external
 // threat-detect binary path instead of the inline engine execution path.
-const DefaultThreatDetectVersion Version = "v0.4.12"
+const DefaultThreatDetectVersion Version = "v0.5.1"
 
 // GhSkillsMinVersion is the minimum gh CLI version required for frontmatter skill support
 // (installing gh extensions via `gh extension install`). Workflows that install frontmatter

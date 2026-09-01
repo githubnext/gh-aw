@@ -91,6 +91,7 @@ func TestResetDockerPullState(t *testing.T) {
 }
 
 func TestDockerImageConstants(t *testing.T) {
+	t.Parallel()
 	// Verify constants are defined correctly
 	if ZizmorImage == "" {
 		t.Error("ZizmorImage constant should not be empty")

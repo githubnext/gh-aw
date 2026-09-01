@@ -14,6 +14,10 @@ permissions:
   discussions: read
   copilot-requests: write
 tracker-id: daily-storify
+engine:
+  id: codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 strict: true
 timeout-minutes: 45
 network:
@@ -92,7 +96,7 @@ Use the pre-downloaded 24h logs first. If coverage is incomplete, run one additi
 {
   "start_date": "-1d",
   "count": 3000,
-  "artifacts": ["usage", "agent", "mcp", "github-api", "firewall", "experiment"]
+  "artifacts": ["usage"]
 }
 ```
 

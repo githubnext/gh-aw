@@ -207,7 +207,7 @@ All WorkQueueOps patterns should be **idempotent**: running the same item twice 
 | Concurrency groups | Use `concurrency.group` with `cancel-in-progress: false` to prevent parallel runs |
 | Retry budgets | Track failed items separately; set a retry limit before giving up |
 
-## Related Documentation
+## Learn More
 
 - [BatchOps](/gh-aw/patterns/batch-ops/) — Process large volumes in parallel chunks rather than sequentially
 - [ResearchPlanAssignOps](/gh-aw/patterns/research-plan-assign-ops/) — Research → Plan → Assign pattern for developer-supervised work

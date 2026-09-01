@@ -565,4 +565,59 @@ describe("approve_workflow_run", () => {
     expect((await handler({ run_id: 123 }, {})).success).toBe(true);
     expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    new Error("Resource not accessible by personal access token"),
+    new Error("Resource Not Accessible by Personal Access Token"),
+    new Error("Resource not accessible by integration"),
+    { status: 403, message: "Resource not accessible" },
+    { status: 403, message: "Resource Not Accessible" },
+  ])("detects permission-denied approval error %#", error => {
+    const { isPermissionDeniedError } = require("./approve_workflow_run.cjs");
+
+    expect(isPermissionDeniedError(error)).toBe(true);
+  });
+
+  const nonPermissionDeniedErrors = [
+    new Error("Resource not accessible to this webhook"),
+    { status: 404, message: "Resource not accessible" },
+    { status: 401, message: "Resource not accessible with unauthorized status" },
+    new Error("temporary API failure"),
+  ];
+
+  it.each(nonPermissionDeniedErrors)("does not over-match unrelated approval error %#", error => {
+    const { isPermissionDeniedError } = require("./approve_workflow_run.cjs");
+
+    expect(isPermissionDeniedError(error)).toBe(false);
+  });
+
+  it("skips permission-denied approval failures instead of failing", async () => {
+    mockApproveWorkflowRun.mockRejectedValueOnce(new Error("Resource not accessible by personal access token"));
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.reasonCode).toBe("APPROVE_WORKFLOW_RUN_PERMISSION_DENIED");
+    expect(result.reason).toContain("cannot approve workflow runs");
+  });
+
+  it("fails fast after a permission-denied approval error", async () => {
+    mockApproveWorkflowRun.mockRejectedValueOnce(new Error("Resource not accessible by personal access token"));
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const first = await handler({ run_id: 123 }, {});
+    const second = await handler({ run_id: 124 }, {});
+
+    expect(first.success).toBe(false);
+    expect(first.skipped).toBe(true);
+    expect(second.success).toBe(false);
+    expect(second.skipped).toBe(true);
+    expect(second.reasonCode).toBe("APPROVE_WORKFLOW_RUN_PERMISSION_DENIED");
+    expect(mockGetWorkflowRun).toHaveBeenCalledTimes(1);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
 });

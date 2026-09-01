@@ -42,7 +42,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if err != nil {
 		return err
 	}
-	results, err := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName, cfg.artifactFilter))
+	results, err := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName.String(), cfg.artifactFilter))
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func downloadLegacyEvalsArtifactIfNeeded(ctx context.Context, cfg auditRunConfig
 		return
 	}
 	auditLog.Printf("Evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", cfg.runID)
-	evalsArtifactFilter := []string{constants.EvalsArtifactName}
+	evalsArtifactFilter := []string{constants.EvalsArtifactName.String()}
 	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: cfg.runID, outputDir: cfg.outputDir, verbose: cfg.verbose, owner: cfg.owner, repo: cfg.repo, hostname: cfg.hostname, artifactFilter: evalsArtifactFilter}); err != nil {
 		auditLog.Printf("Fallback evals artifact download failed for run %d: %v", cfg.runID, err)
 		if cfg.verbose {

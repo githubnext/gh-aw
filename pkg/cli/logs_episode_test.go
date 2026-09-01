@@ -11,6 +11,8 @@ import (
 )
 
 func TestBuildEpisodeDataIncludesToolCalls(t *testing.T) {
+	t.Parallel()
+
 	runs := []RunData{
 		{
 			RunID:        101,
@@ -80,6 +82,8 @@ func TestBuildEpisodeDataIncludesToolCalls(t *testing.T) {
 }
 
 func TestBuildEpisodeDataSetsBlockedAtCapWhenFirewallCountHitsCap(t *testing.T) {
+	t.Parallel()
+
 	runs := []RunData{
 		{
 			RunID:        401,
@@ -113,6 +117,8 @@ func TestBuildEpisodeDataSetsBlockedAtCapWhenFirewallCountHitsCap(t *testing.T) 
 }
 
 func TestBuildEpisodeDataDoesNotSetBlockedAtCapBelowThreshold(t *testing.T) {
+	t.Parallel()
+
 	runs := []RunData{
 		{
 			RunID:        402,
@@ -146,6 +152,8 @@ func TestBuildEpisodeDataDoesNotSetBlockedAtCapBelowThreshold(t *testing.T) {
 }
 
 func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
+	t.Parallel()
+
 	runs := []RunData{
 		{
 			RunID:        200,
@@ -172,6 +180,8 @@ func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
 }
 
 func TestBuildEpisodeDataAggregatesAIC(t *testing.T) {
+	t.Parallel()
+
 	runs := []RunData{
 		{
 			RunID:        501,
@@ -203,6 +213,8 @@ func TestBuildEpisodeDataAggregatesAIC(t *testing.T) {
 }
 
 func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
+	t.Parallel()
+
 	// Two runs belonging to the same episode (via dispatch)
 	workflowCallID := "dispatch:wc-42"
 	runs := []RunData{
@@ -267,6 +279,8 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 }
 
 func TestMCPToolCallToEpisodeToolCall(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		input          MCPToolCall
@@ -343,6 +357,8 @@ func TestMCPToolCallToEpisodeToolCall(t *testing.T) {
 }
 
 func TestCompareEpisodeSeedsPrefersKindThenConfidence(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		left     episodeSeed
@@ -401,6 +417,8 @@ func TestCompareEpisodeSeedsPrefersKindThenConfidence(t *testing.T) {
 }
 
 func TestFilterLineageCandidatesPrefersSingleNonNestedCandidate(t *testing.T) {
+	t.Parallel()
+
 	child := RunData{
 		RunID:     30,
 		Event:     "workflow_run",
@@ -434,6 +452,8 @@ func TestFilterLineageCandidatesPrefersSingleNonNestedCandidate(t *testing.T) {
 }
 
 func TestBuildWorkflowRunEpisodeEdgeReturnsNoEdgeForAmbiguousCandidates(t *testing.T) {
+	t.Parallel()
+
 	child := RunData{
 		RunID:      300,
 		Event:      "workflow_run",
@@ -467,6 +487,8 @@ func TestBuildWorkflowRunEpisodeEdgeReturnsNoEdgeForAmbiguousCandidates(t *testi
 }
 
 func TestBuildDispatchEpisodeEdgeReturnsNoEdgeForInvalidRunID(t *testing.T) {
+	t.Parallel()
+
 	run := RunData{
 		RunID: 500,
 		AwContext: &AwContext{
@@ -483,6 +505,8 @@ func TestBuildDispatchEpisodeEdgeReturnsNoEdgeForInvalidRunID(t *testing.T) {
 }
 
 func TestBuildDispatchEpisodeEdgeReturnsNoEdgeWhenSourceRunMissing(t *testing.T) {
+	t.Parallel()
+
 	run := RunData{
 		RunID: 501,
 		AwContext: &AwContext{
@@ -499,6 +523,8 @@ func TestBuildDispatchEpisodeEdgeReturnsNoEdgeWhenSourceRunMissing(t *testing.T)
 }
 
 func TestClassifyEpisodeEscalationThresholds(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		episode        EpisodeData
@@ -553,6 +579,8 @@ func TestClassifyEpisodeEscalationThresholds(t *testing.T) {
 }
 
 func TestBuildSuggestedRoutePreferenceOrder(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		episode  EpisodeData

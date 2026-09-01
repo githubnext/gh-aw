@@ -106,12 +106,13 @@ type logsArgs struct {
 	Firewall          bool     `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
 	NoFirewall        bool     `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
 	FilteredIntegrity bool     `json:"filtered_integrity,omitempty" jsonschema:"Filter to only runs that contain DIFC integrity-filtered events in gateway logs"`
+	Graders           bool     `json:"graders,omitempty" jsonschema:"Filter to only runs with deterministic grader results"`
 	Branch            string   `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 	AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 	BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 	Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40, 2 minutes for 41-80, 3 minutes for 81-120, and so on)"`
 	MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
-	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage"`
+	Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: usage). Valid sets: all, activation, agent, detection, evals, experiment, firewall, github-api, graders, mcp, usage"`
 }
 
 func defaultMCPLogsToolTimeoutMinutesForCount(count int) int {
@@ -163,26 +164,20 @@ func effectiveMCPLogsToolSoftTimeoutSeconds(ctx context.Context, timeoutMinutes 
 // Returns an error if schema generation fails.
 func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	// Generate schema with elicitation defaults
-	logsSchema, err := GenerateSchema[logsArgs]()
+	logsSchema, err := generateSchemaWithDefaults[logsArgs](map[string]any{
+		"count":      defaultMCPLogsToolCount,
+		"max_tokens": 12000,
+		"artifacts":  []string{"usage"},
+	})
 	if err != nil {
 		mcpLog.Printf("Failed to generate logs tool schema: %v", err)
 		return err
-	}
-	// Add elicitation defaults for common parameters
-	if err := AddSchemaDefault(logsSchema, "count", defaultMCPLogsToolCount); err != nil {
-		mcpLog.Printf("Failed to add default for count: %v", err)
 	}
 	// No schema default for timeout: the runtime auto-computes it from the effective
 	// count and workflow_name so that no-workflow queries (which scan across all runs)
 	// receive a higher floor than single-workflow queries.  Setting a static default
 	// here would cause the go-sdk to fill it in before the handler sees the arguments,
 	// bypassing the per-request computation.
-	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
-		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
-	}
-	if err := AddSchemaDefault(logsSchema, "artifacts", []string{"usage"}); err != nil {
-		mcpLog.Printf("Failed to add default for artifacts: %v", err)
-	}
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "logs",
@@ -245,8 +240,8 @@ func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) f
 		cmdArgs, effectiveCount, timeoutValue := buildLogsCommandArgs(ctx, args)
 
 		// Log the command being executed for debugging
-		mcpLog.Printf("Executing logs tool: workflow=%s, requested_count=%d, effective_count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, timeout=%d, command_args=%v",
-			args.WorkflowName, args.Count, effectiveCount, args.Firewall, args.NoFirewall, args.FilteredIntegrity, timeoutValue, cmdArgs)
+		mcpLog.Printf("Executing logs tool: workflow=%s, requested_count=%d, effective_count=%d, firewall=%v, no_firewall=%v, filtered_integrity=%v, graders=%v, timeout=%d, command_args=%v",
+			args.WorkflowName, args.Count, effectiveCount, args.Firewall, args.NoFirewall, args.FilteredIntegrity, args.Graders, timeoutValue, cmdArgs)
 
 		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
 
@@ -353,6 +348,9 @@ func appendLogsFilterArgs(cmdArgs []string, args logsArgs) []string {
 	if args.FilteredIntegrity {
 		cmdArgs = append(cmdArgs, "--filtered-integrity")
 	}
+	if args.Graders {
+		cmdArgs = append(cmdArgs, "--graders")
+	}
 	if args.Branch != "" {
 		// The MCP parameter is named "branch" for backwards compatibility,
 		// but the logs CLI flag is --ref (which accepts branches and tags).
@@ -448,7 +446,7 @@ func normalizeAuditRunInput(input any, fieldName string) (string, bool, error) {
 // Returns an error if schema generation fails.
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	// Generate schema for audit tool
-	auditSchema, err := GenerateSchema[auditArgs]()
+	auditSchema, err := generateSchemaWithDefaults[auditArgs](nil)
 	if err != nil {
 		mcpLog.Printf("Failed to generate audit tool schema: %v", err)
 		return err
@@ -507,6 +505,7 @@ Single-run returns JSON with:
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
 - firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)
 - experiments: A/B experiment assignments if present (assignments map, cumulative_counts map)
+- graders: Deterministic grader results if present (results with id, name, status, value, unit, passed, direction, threshold, plus aggregate counts: total, passed, failed, error_count, unavailable_count)
 
 Multi-run diff returns JSON describing changes between the base and each comparison run.`
 
@@ -674,7 +673,7 @@ type auditDiffArgs struct {
 // registerAuditDiffTool registers the audit-diff tool with the MCP server.
 // It exposes the `gh aw audit diff` subcommand for comparing two workflow runs.
 func registerAuditDiffTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
-	schema, err := GenerateSchema[auditDiffArgs]()
+	schema, err := generateSchemaWithDefaults[auditDiffArgs](nil)
 	if err != nil {
 		mcpLog.Printf("Failed to generate audit-diff tool schema: %v", err)
 		return err

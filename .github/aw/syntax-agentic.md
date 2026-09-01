@@ -218,6 +218,17 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     checkout: false
     ```
 
+  - Target-only checkout for sidecar/MultiRepoOps workflows: set `permissions.contents: none` to skip only the automatic workflow-repository checkout while still checking out other explicitly configured `checkout:` entries (e.g. a target repository). Unlike `checkout: false`, additional checkout entries are unaffected:
+
+    ```yaml
+    permissions:
+      contents: none
+    checkout:
+      - repository: octo-org/target-repository
+        path: target
+        github-token: ${{ secrets.TARGET_REPO_PAT }}
+    ```
+
   - Single checkout (object):
 
     ```yaml
@@ -331,6 +342,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **`sandbox.agent.runtime-install`** (boolean) controls generated gVisor or Docker sbx provisioning and defaults to `true`. Set it to `false` only when the runner is pre-provisioned; Docker sbx credential refresh still runs. False wins when imported workflows merge this field. See [agent-runtime-instructions.md](agent-runtime-instructions.md) for requirements and troubleshooting.
   - **`sandbox.agent.allow-host-ports`** (array of integers) additional host TCP ports the agent may connect to. Requires `runtime: docker-sudo-iptables`. Ports published by `services:` are reached via `--allow-host-service-ports` instead; use this only for host daemons not declared there. There is no `sandbox.agent.legacy-security` field — that mode was replaced by `runtime: docker-sudo-iptables`.
   - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
+
+- **`enclaves:`** - AWF-owned private-repository executors exposed only through the compiler-launched MCP gateway (array). See [enclaves.md](enclaves.md) for the full schema and usage.
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
 

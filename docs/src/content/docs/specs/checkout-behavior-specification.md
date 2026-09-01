@@ -18,7 +18,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines normative checkout behavior in GitHub Agentic Workflows (`gh-aw`) for activation, agent, and `safe_outputs` jobs. It specifies credential and token precedence, `github-token` and `github-app` resolution, trial mode behavior, side-repo targeting, sparse/shallow/fetch semantics, symlink handling during sparse activation checkout, submodule cleanup semantics, and checkout-manifest behavior used by safe output handlers.
+This specification defines normative checkout behavior in GitHub Agentic Workflows for activation, agent, and `safe_outputs` jobs. It specifies credential and token precedence, `github-token` and `github-app` resolution, trial mode behavior, side-repo targeting, sparse/shallow/fetch semantics, symlink handling during sparse activation checkout, submodule cleanup semantics, and checkout-manifest behavior used by safe output handlers.
 
 ## Status of This Document
 
