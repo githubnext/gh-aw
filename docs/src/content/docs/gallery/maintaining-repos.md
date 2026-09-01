@@ -17,14 +17,9 @@ A [study of 15 open-source repositories](https://github.com/githubnext/repo-assi
 
 On each scheduled run, Repo Assist reads live repository data and selects three tasks using weights that change with the backlog. A repository with many unlabelled issues receives more labelling and investigation work. As the backlog clears, the workflow spends more time on engineering investments, testing, performance, documentation, and forward-looking improvements.
 
-Across runs, Repo Assist can:
+Across runs, Repo Assist can label and investigate issues and pull requests, implement focused issue fixes as draft pull requests, improve dependencies, CI, code, performance, tests, and documentation, maintain its own pull requests by addressing CI failures and merge conflicts, nudge authors of stale pull requests, and propose or continue work that advances the repository's goals.
 
-- label and investigate issues and pull requests;
-- implement focused issue fixes as draft pull requests;
-- improve dependencies, CI, code, performance, tests, and documentation;
-- maintain its own pull requests by addressing CI failures and merge conflicts;
-- nudge authors of stale pull requests; and
-- propose or continue work that advances the repository's goals.
+When a maintenance branch falls behind `origin/main`, workflows that include the conflict-resolution skill can use `./.github/skills/resolve-merge-conflicts/resolve.sh origin/main` to resume or start the merge, regenerate workflow lock files, and fail early if a workflow source file still contains conflict markers such as `<<<<<<<` or `||||||| base (original)`. This helps catch frontmatter breakage before `make recompile` or a later scheduled run surfaces a less obvious compiler error.
 
 The workflow uses repository memory to cover the backlog systematically and avoid repeating work. It also maintains a rolling monthly activity issue so maintainers can review its actions and suggested next steps in one place. The complete task list, selection weights, and behavioral guidelines are documented in the [Repo Assist documentation](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md).
 
@@ -63,6 +58,8 @@ An on-demand invocation follows the instruction instead of selecting scheduled t
 Repo Assist combines several GitHub Agentic Workflow capabilities in one reusable workflow: scheduled and command-driven triggers, deterministic preprocessing, adaptive task selection, repository memory, GitHub tools, and safe outputs. Safe outputs constrain the GitHub mutations the agent can request, while integrity filtering controls which repository content enters its context. These controls define boundaries for the workflow; they do not remove the need to review its configuration and output.
 
 Use the generated Repo Assist workflow as a working example when designing repository-specific maintenance automation. Inspect its permissions, tools, safe outputs, network access, schedule, and prompts, then narrow or adapt them to the repository's policies and maintainer capacity.
+
+For repositories that compile workflow markdown into generated lock files, prefer regeneration over manual edits during merge resolution. Regenerated lock files reflect the merged markdown source and avoid preserving stale conflict text in generated outputs.
 
 ## Learn More
 
