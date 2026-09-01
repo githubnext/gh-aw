@@ -179,6 +179,67 @@ Test workflow that creates issues without expiration.
 	}
 }
 
+func TestCompileSpecificFiles_PreservesDisabledImplicitActionFailureExpiry(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, ".github/workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tempDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repo: %v", err)
+	}
+
+	workflowContent := `---
+name: "Test Workflow No Expires"
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+Test workflow without expiration.
+`
+	workflowPath := filepath.Join(workflowsDir, "test-no-expires.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	config := CompileConfig{}
+	if _, err := CompileWorkflows(context.Background(), config); err != nil {
+		t.Fatalf("Full CompileWorkflows failed: %v", err)
+	}
+
+	lockPath := filepath.Join(workflowsDir, "test-no-expires.lock.yml")
+	fullCompileContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read full compile output: %v", err)
+	}
+	if !strings.Contains(string(fullCompileContent), `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"`) {
+		t.Fatal("Full compile should disable the implicit action failure expiry")
+	}
+
+	config.MarkdownFiles = []string{"test-no-expires"}
+	if _, err := CompileWorkflows(context.Background(), config); err != nil {
+		t.Fatalf("Targeted CompileWorkflows failed: %v", err)
+	}
+
+	targetedCompileContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read targeted compile output: %v", err)
+	}
+	if string(targetedCompileContent) != string(fullCompileContent) {
+		t.Fatal("Targeted compile should produce the same lock file as a full compile")
+	}
+}
+
 func TestCompileWithCustomDir_SkipsMaintenanceWorkflow(t *testing.T) {
 	// Create temporary directory structure
 	tempDir := testutil.TempDir(t, "test-*")

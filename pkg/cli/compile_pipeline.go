@@ -861,6 +861,12 @@ func runPostProcessing(
 	// Note: Maintenance workflow generation requires parsing all workflows in the directory
 	// to check for expires fields, so we skip it when compiling specific files to avoid
 	// unnecessary parsing and warnings from unrelated workflows
+	if !config.NoEmit && config.WorkflowDir == "" {
+		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
+			absWorkflowDir := getAbsoluteWorkflowDir(getWorkflowsDir(), gitRoot)
+			workflow.DisableDefaultActionFailureExpiryMarkersIfUnenforced(workflowDataList, absWorkflowDir)
+		}
+	}
 
 	// Prune stale gh-aw-actions entries before saving
 	pruneStaleActionCacheEntries(compiler, actionCache)
