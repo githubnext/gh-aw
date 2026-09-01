@@ -31,6 +31,8 @@ import (
 
 var playwrightCLILog = logger.New("workflow:playwright_cli")
 
+var playwrightBrowserNames = []string{"chromium", "firefox", "webkit"}
+
 // isPlaywrightCLIMode returns true when the Playwright tool is enabled in the
 // supported CLI mode.
 func isPlaywrightCLIMode(tools map[string]any) bool {
@@ -90,9 +92,12 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 		}
 	}
 
+	// Install the supported browser binaries before the agent starts. Browser downloads
+	// are prohibited during agent execution.
+	steps = append(steps, generatePlaywrightBrowserInstallSteps()...)
+
 	// Install playwright-cli skills so the coding agent can discover available commands.
-	// PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD keeps this step focused on skills installation;
-	// browser binaries can still be installed lazily when the agent runs browser commands.
+	// This step only installs skills; browser binaries are provisioned above.
 	installSkillsStep := GitHubActionStep{
 		"      - name: Install Playwright CLI skills",
 		"        run: playwright-cli install --skills",
@@ -103,5 +108,17 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 	steps = append(steps, installSkillsStep)
 
 	playwrightCLILog.Printf("Generated %d Playwright CLI install steps", len(steps))
+	return steps
+}
+
+func generatePlaywrightBrowserInstallSteps() []GitHubActionStep {
+	steps := make([]GitHubActionStep, 0, len(playwrightBrowserNames))
+	for _, browser := range playwrightBrowserNames {
+		steps = append(steps, GitHubActionStep{
+			"      - name: Install Playwright " + browser + " browser",
+			"        run: playwright-cli install-browser " + browser,
+			"        timeout-minutes: 10",
+		})
+	}
 	return steps
 }

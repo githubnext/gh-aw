@@ -18,8 +18,11 @@ tools:
 ```
 
 The compiler installs the pinned default `@playwright/cli` package and its agent
-skills. Do not add installation steps to the workflow. Pin `version` only when
-reproducible browser output is required, such as for visual baselines:
+skills. It also provisions Chromium, Firefox, and WebKit before the agent starts;
+the default `open` session uses Chromium. Do not add installation steps to the
+workflow: runtime installation of packages or browsers is prohibited. Pin
+`version` only when reproducible browser output is required, such as for visual
+baselines:
 
 ```yaml
 tools:
@@ -33,8 +36,9 @@ under `mcp-servers` and allow only the required tools.
 
 ## Configure network access
 
-Playwright can reach `localhost` and `127.0.0.1` by default. Add only the
-ecosystems and external domains the browser needs:
+Playwright can reach `localhost` and `127.0.0.1` by default; do not add `local`
+for a server started in the same AWF sandbox. Add only the ecosystems and
+external domains the browser needs:
 
 ```yaml
 network:
@@ -50,7 +54,9 @@ avoid broad wildcard domains.
 
 ## Use Playwright CLI
 
-Run `playwright-cli` through bash. Start with a snapshot and use its element refs
+Run `playwright-cli` through bash. With a restricted Bash allowlist, the compiler
+automatically allows `playwright-cli:*`; list only supporting lifecycle commands
+such as `npm`, `curl`, and `kill`. Start with a snapshot and use its element refs
 for later actions:
 
 ```bash
@@ -80,6 +86,17 @@ Prefer refs from the latest snapshot over brittle CSS selectors. Use `--raw`
 when piping a result or comparing snapshots so page status output does not
 pollute the data.
 
+`open` uses Chromium by default. Use `playwright-cli open --browser=firefox` or
+`playwright-cli open --browser=webkit` for the other provisioned browsers.
+Use named sessions when independent cookies or storage are useful:
+
+```bash
+playwright-cli -s=authenticated open "https://app.example.com/login"
+playwright-cli -s=public open "https://app.example.com/"
+playwright-cli -s=authenticated close
+playwright-cli -s=public close
+```
+
 ## Run against a local application
 
 Prepare dependencies in deterministic workflow steps, but start the server from
@@ -101,7 +118,6 @@ tools:
 network:
   allowed:
     - defaults
-    - local
     - playwright
 ```
 
@@ -129,6 +145,25 @@ If commands run in separate shell calls, write the PID to a file under `/tmp`
 and read it back for cleanup. Redirect server logs to `/tmp` so they do not
 consume the agent context; inspect only the relevant tail when startup fails.
 
+## Publish screenshots
+
+Files under `/tmp`, including screenshots, disappear when the run sandbox ends.
+Declare `upload-artifact` and instruct the agent to publish files users need to
+retrieve:
+
+```markdown
+---
+safe-outputs:
+  upload-artifact:
+    allowed-paths: ["/tmp/*.png"]
+    max-uploads: 1
+    retention-days: 7
+---
+
+Capture `/tmp/home.png`, then call `upload_artifact` with
+`name: "home-screenshot"` and `path: "/tmp/home.png"`.
+```
+
 ## Follow the AWF sandbox policy
 
 When Playwright runs in the AWF sandbox:
@@ -145,6 +180,19 @@ These rules differ from using the standalone `awf` command to wrap a host-side
 Playwright test. Standalone AWF uses `--allow-domains localhost` to expose
 selected host ports to its container. In a gh-aw agent sandbox, start the server
 inside the sandbox and keep it on loopback instead.
+
+## Accessibility and troubleshooting
+
+Snapshots enable structural and manual inspection of headings, labels,
+alternative text, and keyboard flows. Comprehensive WCAG testing (for example,
+axe-core or programmatic contrast analysis) needs dependencies prepared in
+workflow steps before the agent runs; the AWF sandbox prohibits runtime installs.
+
+For failures, inspect `playwright-cli console` and `playwright-cli requests`;
+use `playwright-cli request <index>` for a request's details. Surround a failing
+flow with `playwright-cli tracing-start` and `playwright-cli tracing-stop`, and
+inspect the relevant tail of redirected local-server logs (for example,
+`tail -n 100 /tmp/web-server.log`).
 
 ## Sample workflow
 
