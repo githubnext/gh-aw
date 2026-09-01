@@ -41,6 +41,7 @@ const RUNTIME_TO_MENTION_ALIAS_MAP = {
  * @typedef {Object} SanitizeOptions
  * @property {number} [maxLength] - Maximum length of content (default: 524288)
  * @property {string[]} [allowedAliases] - List of aliases (@mentions) that should not be neutralized
+ * @property {number} [maxMentions] - Maximum number of unique allowed aliases to preserve
  * @property {number} [maxBotMentions] - Maximum bot trigger references before filtering (default: 10)
  */
 
@@ -57,6 +58,8 @@ function sanitizeContent(content, maxLengthOrOptions) {
   /** @type {string[]} */
   let allowedAliasesLowercase = [];
   /** @type {number | undefined} */
+  let maxMentions;
+  /** @type {number | undefined} */
   let maxBotMentions;
 
   if (typeof maxLengthOrOptions === "number") {
@@ -66,6 +69,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
     // Pre-process allowed aliases to lowercase for efficient comparison
     const normalizedAllowedAliases = normalizeAllowedAliases(maxLengthOrOptions.allowedAliases);
     allowedAliasesLowercase = expandAllowedAliases(normalizedAllowedAliases);
+    maxMentions = maxLengthOrOptions.maxMentions;
     maxBotMentions = maxLengthOrOptions.maxBotMentions;
   }
 
@@ -124,7 +128,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
 
   // Neutralize mentions after truncation so the length boundary cannot split an
   // inserted code-span delimiter and reactivate a mention.
-  sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
+  sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase, maxMentions);
 
   // Neutralize GitHub references if restrictions are configured
   sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
@@ -185,18 +189,23 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * Neutralize @mentions with selective filtering
    * @param {string} s - The string to process
    * @param {string[]} allowedLowercase - List of allowed aliases (lowercase)
+   * @param {number | undefined} maxAllowed - Maximum number of unique allowed aliases to preserve
    * @returns {string} Processed string
    */
-  function neutralizeMentions(s, allowedLowercase) {
+  function neutralizeMentions(s, allowedLowercase, maxAllowed) {
     const wrapInCodeSpan = createRenderSafeCodeSpanWrapper(s);
+    const allowedAliasesSeen = new Set();
     return applyToNonCodeRegions(s, (segment, regionBefore = "", regionAfter = "") => {
       return segment.replace(/(^|[^A-Za-z0-9])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (match, prefix, alias, offset) => {
-        const isAllowed = allowedLowercase.includes(alias.toLowerCase());
-        if (isAllowed) {
+        const normalizedAlias = alias.toLowerCase();
+        const isAllowed = allowedLowercase.includes(normalizedAlias);
+        const isWithinLimit = maxAllowed === undefined || allowedAliasesSeen.has(normalizedAlias) || allowedAliasesSeen.size < maxAllowed;
+        if (isAllowed && isWithinLimit) {
+          allowedAliasesSeen.add(normalizedAlias);
           return `${prefix}@${alias}`;
         }
         if (typeof core !== "undefined" && core.info) {
-          core.info(`Escaped mention: @${alias} (not in allowed list)`);
+          core.info(isAllowed ? `Escaped mention: @${alias} (mention limit exceeded)` : `Escaped mention: @${alias} (not in allowed list)`);
         }
         const before = prefix || (offset === 0 ? regionBefore : "");
         const after = segment[offset + match.length] || (offset + match.length === segment.length ? regionAfter : "");

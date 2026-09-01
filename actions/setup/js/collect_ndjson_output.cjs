@@ -34,6 +34,7 @@ async function main() {
 
     // Extract mentions configuration from validation config
     const mentionsConfig = validationConfig?.mentions || null;
+    const maxMentions = parseIntTemplatable(mentionsConfig?.max, 50);
 
     // Resolve allowed mentions for the output collector
     // This determines which @mentions are allowed in the agent output
@@ -66,7 +67,7 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be a string`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions });
           break;
         case "boolean":
           if (typeof value !== "boolean") {
@@ -97,11 +98,11 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions });
           break;
         default:
           if (typeof value === "string") {
-            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
+            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions });
           }
           break;
       }
@@ -357,6 +358,7 @@ async function main() {
         if (hasValidationConfig(itemType)) {
           const validationResult = validateItem(item, itemType, i + 1, {
             allowedAliases: allowedMentions,
+            maxMentions,
             maxBotMentions,
             normalizeIssueClosingKeywords,
             dataEnabled: typeConfig !== null && typeof typeConfig === "object" && typeConfig.data_enabled === true,
