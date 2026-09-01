@@ -101,6 +101,35 @@ tools:
 	assert.Contains(t, err.Error(), "mcp-servers")
 }
 
+// TestCompileWorkflowRejectsLegacyPlaywrightMCPModeWithArgs ensures that a legacy
+// configuration combining `mode: mcp` with the removed MCP-only `args` field still
+// surfaces the actionable migration error instead of a generic JSON schema
+// "Unknown property: args" failure. Schema validation runs before
+// validatePlaywrightMode, so `args` must remain schema-accepted for this
+// dedicated validator to ever run.
+func TestCompileWorkflowRejectsLegacyPlaywrightMCPModeWithArgs(t *testing.T) {
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "test-workflow.md")
+	content := `---
+on: push
+engine: claude
+tools:
+  playwright:
+    mode: mcp
+    args: ["--no-sandbox"]
+---
+
+# Test Workflow
+`
+	require.NoError(t, os.WriteFile(mdPath, []byte(content), 0644))
+
+	err := NewCompiler().CompileWorkflow(mdPath)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "built-in Playwright MCP support has been removed")
+	assert.NotContains(t, err.Error(), "Unknown property")
+}
+
 // TestCompileWorkflowRejectsPlaywrightModeExpression ensures that a full compile
 // of a workflow with an expression-valued tools.playwright.mode surfaces the
 // field-specific error from validatePlaywrightMode, rather than the generic

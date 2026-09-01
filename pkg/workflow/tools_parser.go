@@ -479,6 +479,15 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	toolsParserLog.Print("Parsing playwright tool configuration")
 
 	if configMap, ok := val.(map[string]any); ok {
+		// A custom mcp-servers.playwright entry (command, url, container, or type) is
+		// merged into the same tools map under the "playwright" key. Don't misclassify
+		// it as the built-in CLI tool: leave tools.Playwright nil so it is handled as a
+		// regular custom MCP server instead.
+		if hasMcp, _ := hasMCPConfig(configMap); hasMcp {
+			toolsParserLog.Print("Playwright configuration has custom MCP fields; not treating as built-in CLI tool")
+			return nil
+		}
+
 		config := &PlaywrightToolConfig{}
 
 		// Handle version field - can be string or number

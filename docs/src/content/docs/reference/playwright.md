@@ -20,11 +20,11 @@ tools:
 The compiler installs `@playwright/cli` as a global npm package on the runner. The agent invokes `playwright-cli <command>` from bash:
 
 ```bash wrap
-playwright-cli browser_navigate --url "https://example.com"
-playwright-cli browser_take_screenshot --filename /tmp/screenshot.png --full-page true
-playwright-cli browser_snapshot
-playwright-cli browser_evaluate --expression "document.title"
-playwright-cli browser_run_code --code "async (page) => { await page.goto('https://example.com'); return await page.title(); }"
+playwright-cli goto "https://example.com"
+playwright-cli screenshot --filename /tmp/screenshot.png
+playwright-cli snapshot
+playwright-cli eval "() => document.title"
+playwright-cli run-code "async (page) => { await page.goto('https://example.com'); return await page.title(); }"
 ```
 
 ### Version
@@ -65,11 +65,11 @@ Replace MCP tool calls in prompts with equivalent `playwright-cli` commands run 
 
 | Playwright MCP tool | Playwright CLI command |
 | --- | --- |
-| `browser_navigate` | `playwright-cli browser_navigate --url <url>` |
-| `browser_snapshot` | `playwright-cli browser_snapshot` |
-| `browser_take_screenshot` | `playwright-cli browser_take_screenshot --filename <path>` |
-| `browser_click` | `playwright-cli browser_click --element <description> --ref <ref>` |
-| `browser_evaluate` | `playwright-cli browser_evaluate --function <javascript>` |
+| `browser_navigate` | `playwright-cli goto <url>` |
+| `browser_snapshot` | `playwright-cli snapshot` |
+| `browser_take_screenshot` | `playwright-cli screenshot --filename <path>` |
+| `browser_click` | `playwright-cli click <ref>` |
+| `browser_evaluate` | `playwright-cli eval <function> [ref]` |
 
 Use `localhost` directly for development servers because Playwright CLI runs on the runner. Remove Playwright MCP container arguments and MCP-specific tool names such as `mcp__playwright__browser_navigate` from prompts and engine allowlists.
 

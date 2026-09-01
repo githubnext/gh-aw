@@ -18,7 +18,7 @@
 //  2. Update prompts to use `playwright-cli <command>` via bash instead of
 //     MCP browser tool calls. For example:
 //     - Old: use browser_navigate MCP tool
-//     - New: run `playwright-cli browser_navigate --url <url>` in bash
+//     - New: run `playwright-cli goto <url>` in bash
 //
 //  3. Use `localhost` directly when accessing local servers — playwright-cli
 //     runs on the runner host, not in a separate Docker container.

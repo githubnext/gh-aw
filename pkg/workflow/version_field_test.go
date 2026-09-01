@@ -100,4 +100,14 @@ func TestVersionField(t *testing.T) {
 			t.Errorf("Expected 0.1.18, got %s", config.Version)
 		}
 	})
+
+	t.Run("Custom mcp-servers.playwright is not classified as CLI tool", func(t *testing.T) {
+		config := parsePlaywrightTool(map[string]any{
+			"command": "npx",
+			"args":    []any{"--yes", "@playwright/mcp@0.0.79"},
+		})
+		if config != nil {
+			t.Errorf("Expected nil PlaywrightToolConfig for custom MCP server entry, got: %+v", config)
+		}
+	})
 }

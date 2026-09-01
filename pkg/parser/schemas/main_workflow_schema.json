@@ -4769,6 +4769,13 @@
                   "description": "Optional @playwright/cli npm package version pin. Omit to use the default version.",
                   "examples": ["0.1.18"]
                 },
+                "args": {
+                  "type": "array",
+                  "description": "Removed: legacy MCP-mode argument list. Accepted here only so the compiler can reject 'mode: mcp' configurations with actionable migration guidance instead of an unhelpful schema error.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "mode": {
                   "description": "Integration mode. Only 'cli' is supported. The compiler rejects the removed 'mcp' value with migration guidance. Must be a literal value; GitHub Actions expressions are rejected.",
                   "oneOf": [

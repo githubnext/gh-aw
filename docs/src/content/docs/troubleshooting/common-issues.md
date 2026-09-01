@@ -172,8 +172,8 @@ network:
 `Error: Cannot find module 'playwright'` — the built-in tool installs `@playwright/cli`, not the Playwright JavaScript library. Use `playwright-cli` commands instead of `require('playwright')`:
 
 ```bash
-playwright-cli browser_navigate --url "https://example.com"
-playwright-cli browser_snapshot
+playwright-cli goto "https://example.com"
+playwright-cli snapshot
 ```
 
 See the [Playwright reference](/gh-aw/reference/playwright/) for CLI commands and MCP migration guidance.

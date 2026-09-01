@@ -41,3 +41,28 @@ func TestCodexEnginePlaywrightUsesCLI(t *testing.T) {
 		})
 	}
 }
+
+func TestCodexEnginePlaywrightPreservesCustomMCPServer(t *testing.T) {
+	engine := NewCodexEngine()
+
+	input := map[string]any{
+		"playwright": map[string]any{
+			"command": "npx",
+			"args":    []any{"--yes", "@playwright/mcp@0.0.79", "--no-sandbox"},
+			"allowed": []any{"browser_navigate", "browser_snapshot"},
+		},
+	}
+
+	result := engine.expandNeutralToolsToCodexToolsFromMap(input)
+	playwrightRaw, hasPlaywright := result["playwright"]
+	if !hasPlaywright {
+		t.Fatal("expected custom mcp-servers.playwright entry to be preserved for MCP rendering")
+	}
+	playwrightMap, ok := playwrightRaw.(map[string]any)
+	if !ok {
+		t.Fatalf("expected playwright entry to remain a map, got %T", playwrightRaw)
+	}
+	if command, _ := playwrightMap["command"].(string); command != "npx" {
+		t.Errorf("expected custom command to be preserved, got: %v", playwrightMap["command"])
+	}
+}

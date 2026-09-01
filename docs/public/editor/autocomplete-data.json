@@ -1909,8 +1909,8 @@
             },
             "mode": {
               "type": "string",
-              "desc": "Integration mode.",
-              "enum": ["cli", "mcp"],
+              "desc": "Integration mode. Only 'cli' is supported; 'mcp' is rejected with migration guidance.",
+              "enum": ["cli"],
               "leaf": true
             }
           }
