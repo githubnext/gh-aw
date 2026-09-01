@@ -9,6 +9,7 @@ on:
 permissions:
   actions: read
   contents: read
+  issues: read
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-windows-defender-scan
