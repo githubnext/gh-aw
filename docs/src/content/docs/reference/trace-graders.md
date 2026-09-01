@@ -88,13 +88,15 @@ The command downloads the original grader artifact and reuses its case, run subj
 gh aw graders operational-value report daily-file-diet
 ```
 
-The report command discovers every completed workflow run from the evaluator's declared adoption time through the current time. It applies the current evaluator digest to every run, including runs created before grader artifacts existed, and writes a structured JSON report, an SVG timeline, and a Markdown report under `reports/operational-value`.
+The report command discovers every completed workflow run from the evaluator's declared adoption time through the current time. It applies the current evaluator digest to every run, including runs created before grader artifacts existed, and writes a structured JSON report, an SVG timeline, and a Markdown report under `reports/operational-value`. The versioned JSON is the machine-readable integration contract. Each report observation has the stable identity `(repository, workflowId, runId, runAttempt, evaluatorDigest)`.
 
 Pre-grader runs do not have an archived case or event payload. Their evaluator request contains the run ID, attempt, repository, workflow, ref, commit SHA, event name, creation time, and `case: null`. The evaluator must reconstruct the case from that run subject. A result remains explicitly unavailable when the accepted evidence cannot reconstruct it; missing evidence is never scored as zero.
 
 Mature numeric observations are cached in Monday-based UTC weekly files under the user cache directory. Cache paths are partitioned by repository, workflow ID, evaluator digest, and week. Independent weeks are evaluated concurrently; use `--concurrency` to control the number of evaluator executions (the default is 8). Use `--refresh` to replay every run, `--until` to set an evidence endpoint, `--cache-dir` to relocate the cache, and `--output` to relocate the report artifacts.
 
 Every run remains present in the JSON report and timeline. Weekly primary means retain only the latest observation for each repeated `opportunityKey` within that week. Evaluators may also declare multiple normalized diagnostic metrics with `latest` or `mean` weekly aggregation; the report plots and tabulates each diagnostic independently without combining it into the primary value. The report includes coverage, errors, frozen contract details, baseline and delta when available, and a warning that the observations do not establish causation.
+
+The SVG and Markdown files are standalone local exports, not historical storage or source fixtures. Do not commit live report output merely to retain observations. Consumers such as Central Agentic Ops should ingest the JSON contract and own their presentation. The weekly user cache accelerates replay but is not authoritative; deleting it causes gh-aw to rebuild observations from target-repository run metadata and accepted evidence.
 
 ## Output files
 
