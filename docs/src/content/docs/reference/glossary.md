@@ -77,7 +77,11 @@ The compiler-computed value that authorizes host-path mounts for MCP backend ser
 
 ### MCP Server
 
-A service that implements the Model Context Protocol to provide specific capabilities to AI agents. Examples include the GitHub MCP server (for GitHub API operations), Playwright MCP server (for browser automation), or custom MCP servers for specialized tools. See [Playwright Reference](/gh-aw/reference/playwright/) for browser automation configuration.
+A service that implements the Model Context Protocol to provide specific capabilities to AI agents. Examples include the GitHub MCP server (for GitHub API operations) or custom `mcp-servers` entries for specialized tools. The built-in `tools.playwright` integration no longer provisions an MCP server; see [Playwright CLI Mode](#playwright-cli-mode-toolsplaywrightmode-cli) for the browser automation replacement.
+
+### Playwright CLI Mode (`tools.playwright.mode: cli`)
+
+The only supported mode for the built-in `tools.playwright` tool. The compiler installs `@playwright/cli` as a global npm package on the runner, and the agent drives browser automation by invoking `playwright-cli <command>` (for example `goto`, `snapshot`, `screenshot`, `eval`, `run-code`) from bash instead of loading MCP tool schemas into context. Built-in Playwright MCP support was removed; `mode: mcp` is now a compile-time error, and workflows that still require an MCP-backed Playwright must configure it explicitly as a custom `mcp-servers` entry. When the workflow runs inside the [AWF](#awf-agent-workflow-firewall) sandbox, the compiler injects an additional policy prompt that reinforces binding local servers to `127.0.0.1`, waiting for loopback readiness before navigating, and never installing packages or browsers at runtime. See [Playwright Reference](/gh-aw/reference/playwright/).
 
 ### Required Field (`required`)
 
@@ -93,7 +97,7 @@ A built-in tool that provides vector similarity search over documentation files.
 
 ### Tools
 
-Capabilities that an AI agent can use during workflow execution. Tools are configured in the frontmatter and include GitHub operations ([`github:`](/gh-aw/reference/github-tools/)), file editing (`edit:`), web access (`web-fetch:`, `web-search:`), shell commands (`bash:`), browser automation ([`playwright:`](/gh-aw/reference/playwright/)), and custom MCP servers.
+Capabilities that an AI agent can use during workflow execution. Tools are configured in the frontmatter and include GitHub operations ([`github:`](/gh-aw/reference/github-tools/)), file editing (`edit:`), web access (`web-fetch:`, `web-search:`), shell commands (`bash:`), browser automation ([`playwright:`](/gh-aw/reference/playwright/), CLI-only — see [Playwright CLI Mode](#playwright-cli-mode-toolsplaywrightmode-cli)), and custom MCP servers.
 
 ### GitHub Access Mode (`tools.github.mode`)
 
