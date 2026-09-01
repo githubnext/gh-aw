@@ -82,43 +82,52 @@ pollute the data.
 
 ## Run against a local application
 
-Start the application inside the agent sandbox, bind it only to `127.0.0.1`,
-and poll a health endpoint before opening the page. Do not use a fixed sleep.
+Prepare dependencies in deterministic workflow steps, but start the server from
+the agent when the agent needs to control its lifecycle:
 
 ```yaml
 steps:
-  - name: Start application
+  - name: Prepare application
     working-directory: ./web
-    run: |
-      npm ci
-      npm run dev -- --host 127.0.0.1 &
-      for attempt in $(seq 1 30); do
-        curl --fail --silent http://127.0.0.1:4321/ >/dev/null && exit 0
-        sleep 1
-      done
-      exit 1
+    run: npm ci
 
 tools:
   playwright:
   bash:
-    - "curl http://127.0.0.1:*"
+    - "npm run dev *"
+    - "curl *"
+    - "kill *"
 
 network:
   allowed:
     - defaults
     - local
-    - node
     - playwright
 ```
 
-Then direct the agent to use the loopback URL:
+The server process then runs in the same sandbox and network namespace as
+`playwright-cli`, so its loopback URL is reachable without exposing a host port
+or adding an external domain. It remains available across the agent's tool calls
+until it exits, the agent stops it, or the sandbox is torn down.
+
+Direct the agent to start the server in the background, retain its PID, and use
+one `curl` command with built-in retries and exponential backoff for readiness:
 
 ```bash
+npm run dev -- --host 127.0.0.1 > /tmp/web-server.log 2>&1 &
+server_pid=$!
+curl --fail --silent --show-error --retry 10 --retry-connrefused \
+  --retry-all-errors --retry-max-time 30 http://127.0.0.1:4321/ >/dev/null
 playwright-cli open "http://127.0.0.1:4321/"
 playwright-cli resize 1440 900
 playwright-cli screenshot --filename=/tmp/home.png
 playwright-cli close
+kill "$server_pid"
 ```
+
+If commands run in separate shell calls, write the PID to a file under `/tmp`
+and read it back for cleanup. Redirect server logs to `/tmp` so they do not
+consume the agent context; inspect only the relevant tail when startup fails.
 
 ## Follow the AWF sandbox policy
 
