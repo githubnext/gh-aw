@@ -293,7 +293,7 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("Hello @user7, @user8, and @user9");
     });
 
-    it("should neutralize additional allowed aliases after max is reached", () => {
+    it("should neutralize additional distinct allowed aliases after max is reached", () => {
       const result = sanitizeContent("@user1 @other @user2 @user3 @user1", {
         allowedAliases: ["user1", "user2", "user3"],
         maxMentions: 2,
