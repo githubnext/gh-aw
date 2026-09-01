@@ -28,15 +28,15 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/github-guard-policy.md
-#     - ../skills/jqschema/SKILL.md
-#     - shared/issues-data-fetch.md
-#     - shared/python-nlp.md
-#     - shared/otlp.md
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
+#     - ../skills/jqschema/SKILL.md
+#     - shared/issues-data-fetch.md
 #     - shared/python-dataviz.md
 #     - shared/trends.md
+#     - shared/python-nlp.md
+#     - shared/otlp.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -665,35 +665,6 @@ jobs:
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-      - name: Setup Python NLP environment
-        run: |
-          mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-          # Create a virtual environment for proper package isolation (avoids --break-system-packages)
-          # Use /tmp/gh-aw/python/venv to avoid polluting the agent artifact upload path (/tmp/gh-aw/agent/)
-          # Use uv-managed CPython so the interpreter works inside the agent sandbox (runner CPython needs a newer GLIBC).
-          # This must match shared/python-dataviz.md so either import can create the shared environment first.
-          if [ ! -d /tmp/gh-aw/python/venv ]; then
-            uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
-          fi
-          echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
-          /tmp/gh-aw/python/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud
-
-          # Download required NLTK corpora
-          /tmp/gh-aw/python/venv/bin/python3 -c "
-          import nltk
-          for corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:
-              nltk.download(corpus, quiet=True)
-          print('NLTK corpora ready')
-          "
-
-          /tmp/gh-aw/python/venv/bin/python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__}')"
-        env:
-          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
-          GH_REPO: ${{ github.repository }}
-          GITHUB_API_URL: https://localhost:18443/api/v3
-          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
-          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-          UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python
       - name: Setup Python environment
         run: |
           # Create working directory for Python scripts
@@ -756,6 +727,35 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
+      - name: Setup Python NLP environment
+        run: |
+          mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
+          # Create a virtual environment for proper package isolation (avoids --break-system-packages)
+          # Use /tmp/gh-aw/python/venv to avoid polluting the agent artifact upload path (/tmp/gh-aw/agent/)
+          # Use uv-managed CPython so the interpreter works inside the agent sandbox (runner CPython needs a newer GLIBC).
+          # This must match shared/python-dataviz.md so either import can create the shared environment first.
+          if [ ! -d /tmp/gh-aw/python/venv ]; then
+            uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
+          fi
+          echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
+          /tmp/gh-aw/python/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud
+
+          # Download required NLTK corpora
+          /tmp/gh-aw/python/venv/bin/python3 -c "
+          import nltk
+          for corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:
+              nltk.download(corpus, quiet=True)
+          print('NLTK corpora ready')
+          "
+
+          /tmp/gh-aw/python/venv/bin/python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__}')"
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+          UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
