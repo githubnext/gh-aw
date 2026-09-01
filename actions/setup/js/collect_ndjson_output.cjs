@@ -44,7 +44,7 @@ async function main() {
     /** @type {number | undefined} */
     let maxBotMentions;
 
-    function validateFieldWithInputSchema(value, fieldName, inputSchema, lineNum) {
+    function validateFieldWithInputSchema(value, fieldName, inputSchema, lineNum, allowedAliasesSeen) {
       if (inputSchema.required && (value === undefined || value === null)) {
         return {
           isValid: false,
@@ -67,7 +67,7 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be a string`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions, allowedAliasesSeen });
           break;
         case "boolean":
           if (typeof value !== "boolean") {
@@ -98,11 +98,11 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions, allowedAliasesSeen });
           break;
         default:
           if (typeof value === "string") {
-            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions });
+            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxMentions, maxBotMentions, allowedAliasesSeen });
           }
           break;
       }
@@ -121,9 +121,10 @@ async function main() {
           normalizedItem,
         };
       }
+      const allowedAliasesSeen = new Set();
       for (const [fieldName, inputSchema] of Object.entries(jobConfig.inputs)) {
         const fieldValue = item[fieldName];
-        const validation = validateFieldWithInputSchema(fieldValue, fieldName, inputSchema, lineNum);
+        const validation = validateFieldWithInputSchema(fieldValue, fieldName, inputSchema, lineNum, allowedAliasesSeen);
         if (!validation.isValid && validation.error) {
           errors.push(validation.error);
         } else if (validation.normalizedValue !== undefined) {

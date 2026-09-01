@@ -44,6 +44,7 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
+  const maxMentions = config.mentions?.max ?? 50;
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -174,7 +175,7 @@ async function main(config = {}) {
       }
 
       // Inject CAUTION at top of body unconditionally if threat detection warning was raised
-      let finalBody = sanitizeContent(body, { allowedAliases: allowedMentionAliases });
+      let finalBody = sanitizeContent(body, { allowedAliases: allowedMentionAliases, maxMentions });
       const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
       if (detectionCaution) {
         finalBody = detectionCaution + "\n\n" + finalBody;

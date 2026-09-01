@@ -58,6 +58,7 @@ async function main(config = {}) {
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
+  const maxMentions = config.mentions?.max ?? 50;
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -376,7 +377,7 @@ async function main(config = {}) {
     const bufferedComment = {
       path: commentItem.path,
       line: line,
-      body: sanitizeContent(commentItem.body.trim(), { allowedAliases: allowedMentionAliases }),
+      body: sanitizeContent(commentItem.body.trim(), { allowedAliases: allowedMentionAliases, maxMentions }),
       side: side,
     };
 

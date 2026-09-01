@@ -312,6 +312,7 @@ async function main(config = {}) {
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const maxMentions = config.mentions?.max ?? 50;
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -502,7 +503,7 @@ async function main(config = {}) {
     const preSanitizeBodyLength = processedBody.trim().length;
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
-    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
+    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases, maxMentions });
     if (minBodyLength > 0 && preSanitizeBodyLength < minBodyLength) {
       const error = `Discussion body length ${preSanitizeBodyLength} is below configured minimum ${minBodyLength}`;
       core.error(error);

@@ -273,6 +273,7 @@ async function main(config = {}, githubClient = null) {
   if (!github) {
     throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.`);
   }
+  const maxMentions = config.mentions?.max ?? 50;
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -367,7 +368,7 @@ async function main(config = {}, githubClient = null) {
       const status = validateStatus(output.status);
       const startDate = formatDate(output.start_date);
       const targetDate = formatDate(output.target_date);
-      const body = sanitizeContent(String(output.body), { allowedAliases: allowedMentionAliases });
+      const body = sanitizeContent(String(output.body), { allowedAliases: allowedMentionAliases, maxMentions });
 
       core.info(`Creating status update: ${status} (${startDate} → ${targetDate})`);
       core.info(`Body preview: ${body.substring(0, 100)}${body.length > 100 ? "..." : ""}`);

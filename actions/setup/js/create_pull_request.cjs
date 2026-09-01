@@ -782,6 +782,7 @@ async function main(config = {}) {
   // Tracks the pull requests created so far in this run so later messages can stack on top of them.
   const stackTracker = createStackTracker();
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const maxMentions = config.mentions?.max ?? 50;
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -1504,7 +1505,7 @@ async function main(config = {}) {
       processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
       // Sanitize body content to neutralize @mentions, URLs, and other security risks
-      processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
+      processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases, maxMentions });
 
       // Auto-add "Fixes #N" closing keyword if triggered from an issue and not already present.
       // This ensures the triggering issue is auto-closed when the PR is merged.
@@ -1898,7 +1899,7 @@ async function main(config = {}) {
                   baseBranch,
                   tempRef: createBundleTempRef(branchName),
                 });
-                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases, maxMentions })
                   .replace(/\s+/g, " ")
                   .trim();
                 const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
@@ -2267,7 +2268,7 @@ gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --hea
                   branchName,
                   baseBranch,
                 });
-                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases, maxMentions })
                   .replace(/\s+/g, " ")
                   .trim();
                 const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
