@@ -31,7 +31,7 @@ import (
 
 var playwrightCLILog = logger.New("workflow:playwright_cli")
 
-var playwrightBrowserNames = []string{"chromium", "firefox", "webkit"}
+const playwrightBrowsersPath = "${RUNNER_TEMP}/gh-aw/playwright-browsers"
 
 // isPlaywrightCLIMode returns true when the Playwright tool is enabled in the
 // supported CLI mode.
@@ -50,7 +50,7 @@ func isPlaywrightCLIMode(tools map[string]any) bool {
 // Node.js setup is intentionally omitted here because all supported engines
 // (copilot, claude, codex, gemini) include a Node.js setup step in their own
 // installation steps, which run before this function is called.
-func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActionStep {
+func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActionStep { //nolint:largefunc // Keeps Playwright setup steps in generated execution order.
 	if !isPlaywrightCLIMode(workflowData.Tools) {
 		return nil
 	}
@@ -94,7 +94,29 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 
 	// Install the supported browser binaries before the agent starts. Browser downloads
 	// are prohibited during agent execution.
-	steps = append(steps, generatePlaywrightBrowserInstallSteps()...)
+	steps = append(steps,
+		GitHubActionStep{
+			"      - name: Install Playwright chromium browser",
+			"        run: playwright-cli install-browser chromium",
+			"        env:",
+			"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
+			"        timeout-minutes: 10",
+		},
+		GitHubActionStep{
+			"      - name: Install Playwright firefox browser",
+			"        run: playwright-cli install-browser firefox",
+			"        env:",
+			"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
+			"        timeout-minutes: 10",
+		},
+		GitHubActionStep{
+			"      - name: Install Playwright webkit browser",
+			"        run: playwright-cli install-browser webkit",
+			"        env:",
+			"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
+			"        timeout-minutes: 10",
+		},
+	)
 
 	// Install playwright-cli skills so the coding agent can discover available commands.
 	// This step only installs skills; browser binaries are provisioned above.
@@ -103,22 +125,11 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 		"        run: playwright-cli install --skills",
 		"        env:",
 		"          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'",
+		"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
 		"        timeout-minutes: 10",
 	}
 	steps = append(steps, installSkillsStep)
 
 	playwrightCLILog.Printf("Generated %d Playwright CLI install steps", len(steps))
-	return steps
-}
-
-func generatePlaywrightBrowserInstallSteps() []GitHubActionStep {
-	steps := make([]GitHubActionStep, 0, len(playwrightBrowserNames))
-	for _, browser := range playwrightBrowserNames {
-		steps = append(steps, GitHubActionStep{
-			"      - name: Install Playwright " + browser + " browser",
-			"        run: playwright-cli install-browser " + browser,
-			"        timeout-minutes: 10",
-		})
-	}
 	return steps
 }

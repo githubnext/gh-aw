@@ -22,7 +22,7 @@ Chromium, Firefox, and WebKit before the agent runs. The default `open` browser
 is Chromium. The agent invokes `playwright-cli <command>` from bash:
 
 ```bash wrap
-playwright-cli goto "https://example.com"
+playwright-cli open "https://example.com"
 playwright-cli screenshot --filename /tmp/screenshot.png
 playwright-cli snapshot
 playwright-cli eval "() => document.title"
