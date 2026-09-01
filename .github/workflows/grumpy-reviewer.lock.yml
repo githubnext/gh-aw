@@ -27,8 +27,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/github-guard-policy.md
 #     - shared/otlp.md
+#     - shared/github-guard-policy.md
 #     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
 #

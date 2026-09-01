@@ -128,6 +128,10 @@ func newImportAccumulator() *importAccumulator {
 // skip-roles, skip-bots, pre-steps, pre-agent-steps, post-steps, labels, cache, and features.
 // The work is delegated to focused helper methods, each handling one logical phase.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]struct{}) error {
+	return acc.extractImportFields(content, item, visited, true)
+}
+
+func (acc *importAccumulator) extractImportFields(content []byte, item importQueueItem, visited map[string]struct{}, includeOrderedSteps bool) error {
 	parserLog.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 
 	// Phase 1: Parse, apply defaults, substitute inputs, extract tools and markdown.
@@ -161,6 +165,10 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 
 	// Phase 7: Extract feature flags, model aliases, run-install-scripts, and observability.
 	acc.extractFeatureAndObservabilityFields(fm, item.fullPath)
+
+	if includeOrderedSteps {
+		acc.extractOrderedStepFields(fm)
+	}
 
 	return nil
 }
@@ -410,7 +418,6 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
 	acc.appendJSONBuilderField(fm, "graders", "{}", &acc.gradersBuilder)
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
-	acc.appendYAMLBuilderField(fm, "steps", &acc.stepsBuilder)
 	acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
 	acc.appendYAMLBuilderField(fm, "services", &acc.servicesBuilder)
 	acc.appendJSONBuilderField(fm, "network", "{}", &acc.networkBuilder)
@@ -672,16 +679,6 @@ func (acc *importAccumulator) extractStepAndJobFields(fm map[string]any, importP
 		acc.preStepsBuilder.WriteString(preStepsContent + "\n")
 	}
 
-	// Extract pre-agent-steps (prepend in order).
-	if preAgentStepsContent, err := extractYAMLFieldFromMap(fm, "pre-agent-steps"); err == nil && preAgentStepsContent != "" {
-		acc.preAgentStepsBuilder.WriteString(preAgentStepsContent + "\n")
-	}
-
-	// Extract post-steps (append in order).
-	if postStepsContent, err := extractYAMLFieldFromMap(fm, "post-steps"); err == nil && postStepsContent != "" {
-		acc.postStepsBuilder.WriteString(postStepsContent + "\n")
-	}
-
 	// Extract jobs (append in order; merged into custom jobs map).
 	if jobsContent, err := extractFieldJSONFromMap(fm, "jobs", "{}"); err == nil && jobsContent != "" && jobsContent != "{}" {
 		acc.jobsBuilder.WriteString(jobsContent + "\n")
@@ -704,6 +701,16 @@ func (acc *importAccumulator) extractStepAndJobFields(fm map[string]any, importP
 	}
 
 	return nil
+}
+
+func (acc *importAccumulator) extractOrderedStepFields(fm map[string]any) {
+	acc.appendYAMLBuilderField(fm, "steps", &acc.stepsBuilder)
+	if preAgentStepsContent, err := extractYAMLFieldFromMap(fm, "pre-agent-steps"); err == nil && preAgentStepsContent != "" {
+		acc.preAgentStepsBuilder.WriteString(preAgentStepsContent + "\n")
+	}
+	if postStepsContent, err := extractYAMLFieldFromMap(fm, "post-steps"); err == nil && postStepsContent != "" {
+		acc.postStepsBuilder.WriteString(postStepsContent + "\n")
+	}
 }
 
 // extractFeatureAndObservabilityFields extracts labels, cache, feature flags, model

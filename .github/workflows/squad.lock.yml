@@ -29,9 +29,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/squad.md
 #     - shared/planning-ontology.md
 #     - shared/planning-policy.md
-#     - shared/squad.md
 #
 # Secrets used:
 #   - GH_AW_CI_TRIGGER_TOKEN

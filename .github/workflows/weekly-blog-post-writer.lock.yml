@@ -27,8 +27,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/github-guard-policy.md
 #     - shared/mcp-pagination.md
+#     - shared/github-guard-policy.md
 #     - shared/otlp.md
 #
 # Secrets used:

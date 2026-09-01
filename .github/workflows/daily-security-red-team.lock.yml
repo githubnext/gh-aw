@@ -27,12 +27,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/daily-audit-discussion.md
 #     - shared/opencode.md
-#     - shared/otlp.md
-#     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/security-analysis-base.md
+#     - shared/reporting.md
+#     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
