@@ -524,6 +524,16 @@
 - **[declined, deliberately closed not_planned]** #56032 (Copilot PR NLP empty-comment-data bug) — #57414 shows the same symptom still recurring today, but #56032 was closed `not_planned` (a maintainer decision) on 2026-08-28, not TTL-expired — correctly NOT re-filed per the expired-vs-declined distinction.
 - **[non-actionable, self-explained]** Copilot Session Insights 4% completion floor — fully explained as a smoke-test-matrix denominator artifact (84% branch concentration record), not a real regression. Its own recommendation (separate smoke-matrix-share metric from gate-bundle-share) noted but not filed as an issue given the 7-ceiling was reached with higher-impact items first.
 
+## 2026-09-01 cycle (window since #57495, 9 new discussions: 57497,57499,57504,57505,57508,57510,57525,57554,57558)
+- **[new, filed]** Tavily MCP wildcard tool allowlist (`allowed: ["*"]` in `shared/mcp/tavily.md`) stale since a 2026-05-19 TODO comment — never followed up, affects 5 workflows (scout, mcp-inspector, daily-news, research, smoke-claude). Matches the already-fixed `azure.md` precedent from the same date. Live-verified before filing.
+- **[watch, positive trend]** Unlabeled open-issue count dropped to 3 (from 95-140 range every prior cycle) — chronic auto-label gap may have resolved; confirm next cycle it's not a one-off.
+- **[declined, already tracked]** AI Moderator hang — 4/4 failures in this cycle's spot-check, corroborating already-open #57437 (94% failure rate). Not re-filed.
+- **[declined, worsening but still too diffuse]** CVE-remediation prompt merge rate now 50% (down from 65%, then 19-points-below-baseline before that) vs. 84.3% overall — 2+ prior investigation cycles found no single attributable issue-generation file; noted as a worsening trend but not re-filed without new evidence.
+- **[declined, chronic]** Daily Code Metrics baseline (#57497, 63.9/100 quality, 8.5:1 code-to-docs ratio, 10 files >500 LOC) — same generic shape as 8+ prior closed-without-sticking asks.
+- **[declined, chronic]** `gateway.jsonl` MCP telemetry gap reconfirmed in Observability Coverage #57525 (0/16 sampled runs emit it) — standing policy against re-filing without verified-merged evidence.
+- **[declined, chronic informational]** Daily Performance Summary #57510 (308 open issues, 1234 closed-unmerged PRs in 90 days) — no single code fix, backlog-only signal repeated many prior cycles.
+- **[declined, healthy/informational]** Daily Team Evolution #57505 (narrative, healthy), Lockfile Statistics #57504 (297 workflows stable), "copilot-arm64/copilot was here" smoke placeholders #57554/#57558 (routine, chronic Google-domain firewall blocks already declined) — no action.
+
 ## 2026-08-31 ~17:xxZ cycle (window since #57444, 9 new discussions)
 - **[new, filed]** Stale JS-embedding architecture references in `javascript-refactoring/SKILL.md` and `messages/SKILL.md` (describe dead `pkg/workflow/js.go` embed-directive flow, replaced by `actions/setup/js/*.cjs`) — Repository Quality Improvement Report #57448.
 - **[new, filed]** Bundled docs quick-wins: TL;DR summary for weekly-update blog posts + accepted-pattern doc example in `repo_memory_validation.go` — Delight UX Analysis #57460.
