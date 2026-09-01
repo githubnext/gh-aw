@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-09-01, ~06:40Z cycle, baseline #57574)
+
+### Reconfirmed: a "closed as COMPLETED" issue whose action item was "investigate whether this recurs" isn't the same as a "closed with a merged fix" — recurrence after closure needs a different response
+Firewall Escape Test's allowed-domain-blocked-alongside-test-domain anomaly was filed as #56577 on 2026-08-28 and closed COMPLETED, but recurred again on 2026-09-01 (3rd known occurrence: runs 33150215669, 33234472980, 33471019612). Because the original issue's suggested action was "investigate," not "fix," and it did recur, this isn't quite the standard "closed without fix, re-file" case — the investigation likely concluded transient/inconclusive rather than root-caused. **Lesson: track recurrence count across cycles for issues closed as "investigate and monitor" rather than "fix," and set an explicit reopen threshold (e.g. 3rd-4th occurrence) rather than re-filing on the first repeat or ignoring indefinitely.**
+
+### Reconfirmed: an unlabeled-issue-count anomaly should be treated as noise until confirmed across 2+ samples
+Last cycle's "only 3 unlabeled issues, sharp positive break from the chronic 95-140 range" was flagged as "not yet fully trusted." This cycle's sample shows 91 unlabeled — back in the normal chronic range. **Lesson: single-sample anomalies in issue-metadata counts (unlabeled, open>7 days, label distribution) are often measurement/sampling noise (e.g. different `count`/date-window parameters between cycles) rather than real state changes — wait for a second corroborating sample before treating a metric swing as a trend, same policy already applied to firewall-block-count spikes.**
+
 ## DeepReport Memory (2026-08-31, ~01:06Z cycle, baseline #57214)
 
 ### New pattern: a workflow that references a shared tracker issue by number is not necessarily the source of the sub-issues assigned against that tracker

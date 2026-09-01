@@ -1,3 +1,13 @@
+## Trend Data (2026-09-01, ~06:40Z cycle, window since #57574@01:21:07Z, 8 new discussions)
+
+- **Issue activity this cycle**: 1 issue filed (frontmatter_types.go permission-field gap), 1 comment added (quick-start.mdx typo appended to existing #57375), 1 discussion created (this briefing), 8 new discussions processed (57588,57590,57605,57607,57612,57617,57625,57626) — light window, mostly self-filed/healthy/chronic-declined.
+- **Weekly issues snapshot**: 158 open / 342 closed of 500 sampled. Top labels: agentic-workflows(250), automation(148), cookie(53), testing(48), cascade-suspected(45). 91 unlabeled (reverted to chronic range after last cycle's anomalous "3 unlabeled" reading — confirmed sampling noise, see [[known_patterns]]). 0 issues open >7 days — healthy churn continues.
+- **Reliability signal**: Fleet spot-check (25 runs/~3.3h, 2026-09-01T01:12-04:33Z): 88% success (22/25), 3 failures, none new/systemic (2 of 3 already logged in prior cycles as isolated flaky workflows).
+- **Chronic pattern confirmed still unfixed after 6+ attempts**: compiler.go error-wrapping/bare-return-err — see [[known_patterns]] and [[flagged_items]].
+- **Recurring-after-closure watch**: Firewall Escape allowed-domain-blocked anomaly now at 3rd occurrence despite a COMPLETED closure (#56577) — see [[known_patterns]].
+
+See [[known_patterns]], [[flagged_items]] for details.
+
 ## Trend Data (2026-08-31, ~01:06Z cycle, window since #57214@18:35:32Z, 9 new discussions)
 
 - **Issue activity this cycle**: 1 issue filed (Detection Analysis Report's first-time misconfiguration flag on 3 workflows), 0 comments, 1 discussion created, 9 new discussions processed (57217,57223,57235,57236,57241,57260,57261,57293,57299) — thinnest cycle in recent memory (1/7), mostly healthy/self-filed.
