@@ -695,4 +695,30 @@ func TestCloudHypervisorSetupBundleScriptExecutesAgainstFixtures(t *testing.T) {
 		require.Error(t, err, out)
 		assert.Contains(t, out, "is missing or malformed")
 	})
+
+	t.Run("latest resolves to concrete release tag", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "latest-release.json"),
+			[]byte(fmt.Sprintf(`{"tag_name": %q}`, cloudHypervisorFixtureReleaseTag)), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScriptWithVersion(t, dir, "latest")
+		require.NoError(t, err, out)
+		assert.Contains(t, out, "resolved latest release tag: "+cloudHypervisorFixtureReleaseTag)
+		assert.Contains(t, out, "Download cloud-hypervisor bundle ("+cloudHypervisorFixtureReleaseTag+")")
+		assert.Contains(t, out, "cloud-hypervisor bundle prepared")
+	})
+
+	t.Run("latest resolution failure fails closed", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+		// No latest-release.json fixture: the shim 404s the GitHub API call.
+
+		out, err := runCloudHypervisorSetupBundleScriptWithVersion(t, dir, "latest")
+		require.Error(t, err, out)
+	})
 }
