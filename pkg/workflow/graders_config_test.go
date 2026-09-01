@@ -665,6 +665,26 @@ func TestGenerateGradersStep_OperationalValueUsesActivationRunMetadata(t *testin
 	assert.NotContains(t, output, "getWorkflowRun")
 }
 
+func TestGenerateGradersStep_LargeOperationalValueEvaluatorStaysWithinExpressionLimit(t *testing.T) {
+	c := &Compiler{}
+	initActionPinCacheForTest(c)
+	var yaml strings.Builder
+	grader := &GraderDefinition{ID: "operational-value"}
+	grader.evaluatorContent = "#!/usr/bin/env bash\n" + strings.Repeat("printf value\\n\n", 1800)
+	data := &WorkflowData{Graders: &GradersConfig{Graders: map[string]*GraderDefinition{
+		"operational-value": grader,
+	}}}
+
+	c.generateGradersStep(&yaml, data)
+
+	assert.Contains(t, yaml.String(), "await main(graderManifestB64, graderExecB64)")
+	for lineNumber, line := range strings.Split(yaml.String(), "\n") {
+		if len(line) > MaxExpressionSize {
+			t.Fatalf("generated line %d is %d bytes; maximum is %d", lineNumber+1, len(line), MaxExpressionSize)
+		}
+	}
+}
+
 // TestGenerateGradersStep_BeforeArtifactUpload verifies ordering.
 func TestGenerateGradersStep_BeforeArtifactUpload(t *testing.T) {
 	c := &Compiler{}
