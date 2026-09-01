@@ -43,13 +43,13 @@ while IFS= read -r -d '' file; do
 
         if [[ "$candidate" == pkg/* ]]; then
             :
-        elif [[ "$candidate" == actions/setup/js/* ]]; then
-            :
         elif [[ "$candidate" == scripts/* ]]; then
             :
         elif [[ "$candidate" == internal/* || "$candidate" == cmd/* || "$candidate" == eslint-factory/* ]]; then
             :
         elif [[ "$candidate" == .github/skills/* ]]; then
+            :
+        elif [[ "$candidate" =~ ^actions/.+\.(cjs|js|mjs|ts|md|yaml|yml)$ || "$candidate" =~ ^actions/.+/src/.+ || "$candidate" =~ ^actions/.+/index\.(cjs|js|mjs)$ ]]; then
             :
         else
             continue
