@@ -21,6 +21,7 @@ const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorC
 const { createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const { parseIntTemplatable } = require("./templatable.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile, writeSafeOutputErrorReport } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
@@ -1365,6 +1366,8 @@ function getContentToCheck(messageType, message, result) {
  * @param {string} repo - Repository in "owner/repo" format
  * @param {number} issueNumber - Issue number to update
  * @param {string} updatedBody - Updated body content with resolved temp IDs
+ * @param {string[]} [allowedMentionAliases] - Mention aliases allowed by the workflow
+ * @param {number} [maxMentions] - Maximum distinct allowed mentions to preserve
  * @returns {Promise<void>}
  */
 async function updateIssueBody(github, context, repo, issueNumber, updatedBody, allowedMentionAliases = [], maxMentions = undefined) {
@@ -1389,6 +1392,8 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody, 
  * @param {string} repo - Repository in "owner/repo" format
  * @param {number} prNumber - Pull request number to update
  * @param {string} updatedBody - Updated body content with resolved temp IDs
+ * @param {string[]} [allowedMentionAliases] - Mention aliases allowed by the workflow
+ * @param {number} [maxMentions] - Maximum distinct allowed mentions to preserve
  * @returns {Promise<void>}
  */
 async function updatePullRequestBody(github, context, repo, prNumber, updatedBody, allowedMentionAliases = [], maxMentions = undefined) {
@@ -1413,6 +1418,8 @@ async function updatePullRequestBody(github, context, repo, prNumber, updatedBod
  * @param {string} repo - Repository in "owner/repo" format
  * @param {number} discussionNumber - Discussion number to update
  * @param {string} updatedBody - Updated body content with resolved temp IDs
+ * @param {string[]} [allowedMentionAliases] - Mention aliases allowed by the workflow
+ * @param {number} [maxMentions] - Maximum distinct allowed mentions to preserve
  * @returns {Promise<void>}
  */
 async function updateDiscussionBody(github, context, repo, discussionNumber, updatedBody, allowedMentionAliases = [], maxMentions = undefined) {
@@ -1467,6 +1474,8 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
  * @param {number} commentId - Comment ID to update
  * @param {string} updatedBody - Updated body content with resolved temp IDs
  * @param {boolean} isDiscussion - Whether this is a discussion comment
+ * @param {string[]} [allowedMentionAliases] - Mention aliases allowed by the workflow
+ * @param {number} [maxMentions] - Maximum distinct allowed mentions to preserve
  * @returns {Promise<void>}
  */
 async function updateCommentBody(github, context, repo, commentId, updatedBody, isDiscussion = false, allowedMentionAliases = [], maxMentions = undefined) {
@@ -1514,6 +1523,8 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
  * @param {Array<{type: string, message: any, result: any, originalTempIdMapSize: number}>} trackedOutputs - Outputs that need updating
  * @param {Map<string, {repo: string, number: number}>} temporaryIdMap - Current temporary ID map
  * @param {Map<string, string>} [artifactUrlMap] - Optional artifact URL map for resolving artifact references
+ * @param {string[]} [allowedMentionAliases] - Mention aliases allowed by the workflow
+ * @param {number} [maxMentions] - Maximum distinct allowed mentions to preserve
  * @returns {Promise<number>} Number of successful updates
  */
 async function processSyntheticUpdates(github, context, trackedOutputs, temporaryIdMap, artifactUrlMap, allowedMentionAliases = [], maxMentions = undefined) {
@@ -1679,7 +1690,7 @@ async function main() {
     }
 
     const allowedMentionAliases = config.mentions != null ? await resolveAllowedMentionsFromPayload(context, github, core, config.mentions) : [];
-    const maxMentions = config.mentions?.max ?? 50;
+    const maxMentions = parseIntTemplatable(config.mentions?.max, 50);
 
     // Load and initialize handlers based on configuration (factory pattern)
     const messageHandlers = await loadHandlers(config, prReviewBufferRegistry, allowedMentionAliases);

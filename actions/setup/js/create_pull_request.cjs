@@ -16,7 +16,7 @@ const { replaceTemporaryIdReferences, replaceTemporaryIdReferencesInPatch, getOr
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
-const { parseBoolTemplatable } = require("./templatable.cjs");
+const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
@@ -782,7 +782,7 @@ async function main(config = {}) {
   // Tracks the pull requests created so far in this run so later messages can stack on top of them.
   const stackTracker = createStackTracker();
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const maxMentions = config.mentions?.max ?? 50;
+  const maxMentions = parseIntTemplatable(config.mentions?.max, 50);
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;

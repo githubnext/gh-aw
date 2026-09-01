@@ -10,6 +10,7 @@ const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { logGraphQLError } = require("./github_api_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const { parseIntTemplatable } = require("./templatable.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -273,7 +274,7 @@ async function main(config = {}, githubClient = null) {
   if (!github) {
     throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.`);
   }
-  const maxMentions = config.mentions?.max ?? 50;
+  const maxMentions = parseIntTemplatable(config.mentions?.max, 50);
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;

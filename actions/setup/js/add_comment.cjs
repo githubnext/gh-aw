@@ -11,7 +11,7 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { parseBoolTemplatable } = require("./templatable.cjs");
+const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs");
 const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -507,7 +507,7 @@ async function main(config = {}) {
   const mentionsDisabled = config.mentions === false || config.mentions?.enabled === false;
   const preResolvedMentionAliases = !mentionsDisabled ? normalizeMentionAliases(config.allowedMentionAliases) : [];
   const configuredMentionAliases = !mentionsDisabled ? normalizeMentionAliases(config.mentions?.allowed) : [];
-  const maxMentions = mentionsDisabled ? undefined : (config.mentions?.max ?? 50);
+  const maxMentions = mentionsDisabled ? undefined : parseIntTemplatable(config.mentions?.max, 50);
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
