@@ -27,8 +27,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/activation-app.md
 #     - shared/otlp.md
+#     - shared/activation-app.md
 #     - shared/reporting.md
 #     - shared/daily-issue-base.md
 #

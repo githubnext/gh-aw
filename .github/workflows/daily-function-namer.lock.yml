@@ -27,12 +27,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/daily-audit-discussion.md
-#     - shared/mcp/serena-go.md
-#     - shared/mcp/serena.md
 #     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
+#     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

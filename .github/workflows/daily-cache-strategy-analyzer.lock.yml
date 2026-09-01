@@ -29,8 +29,8 @@
 #   Imports:
 #     - shared/aw-logs-24h-fetch-setup.md
 #     - shared/meta-analysis-base.md
-#     - shared/otlp.md
 #     - shared/reporting.md
+#     - shared/otlp.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

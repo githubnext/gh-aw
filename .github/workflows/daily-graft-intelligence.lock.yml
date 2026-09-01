@@ -27,10 +27,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/activation-app.md
 #     - shared/gh.md
 #     - shared/mcp/graft.md
 #     - shared/noop-reminder.md
+#     - shared/activation-app.md
 #     - shared/reporting.md
 #     - shared/daily-issue-base.md
 #

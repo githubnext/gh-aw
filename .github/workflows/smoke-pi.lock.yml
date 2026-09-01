@@ -29,9 +29,9 @@
 #   Imports:
 #     - shared/gh.md
 #     - shared/otlp.md
+#     - shared/smoke-test-brevity.md
 #     - shared/reporting.md
 #     - shared/reporting-otlp.md
-#     - shared/smoke-test-brevity.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

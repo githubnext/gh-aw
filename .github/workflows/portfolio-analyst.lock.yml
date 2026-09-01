@@ -27,10 +27,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/grafana.md
 #     - shared/mcp/sentry.md
-#     - shared/python-dataviz.md
+#     - shared/mcp/grafana.md
 #     - shared/reporting.md
+#     - shared/python-dataviz.md
 #     - shared/trends.md
 #
 # Secrets used:

@@ -27,14 +27,14 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/datadog.md
-#     - shared/grafana.md
 #     - shared/mcp/datadog.md
 #     - shared/mcp/grafana.md
 #     - shared/mcp/sentry.md
 #     - shared/otel-queries.md
-#     - shared/reporting.md
 #     - shared/sentry.md
+#     - shared/grafana.md
+#     - shared/datadog.md
+#     - shared/reporting.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

@@ -28,8 +28,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/community-attribution.md
-#     - shared/issue-dedup.md
 #     - shared/otlp.md
+#     - shared/issue-dedup.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

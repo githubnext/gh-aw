@@ -28,11 +28,11 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/aw-logs-24h-fetch-setup.md
+#     - shared/reporting.md
+#     - shared/trending-charts-simple.md
 #     - shared/daily-audit-discussion.md
 #     - shared/otlp.md
-#     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#     - shared/trending-charts-simple.md
 #     - shared/daily-audit-charts.md
 #
 # Secrets used:
