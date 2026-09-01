@@ -72,6 +72,14 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 			)
 		}
 		if browsers, ok := config["browsers"].([]any); ok {
+			if len(browsers) == 0 {
+				return NewValidationError(
+					"tools.playwright.browsers",
+					"[]",
+					"at least one browser is required",
+					"Omit browsers to use the default Chromium browser",
+				)
+			}
 			for _, browser := range browsers {
 				name, ok := browser.(string)
 				if !ok || normalizePlaywrightBrowser(name) == "" {
@@ -82,14 +90,6 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 						"Set browsers to a list containing supported Playwright browser names",
 					)
 				}
-			}
-			if len(browsers) == 0 {
-				return NewValidationError(
-					"tools.playwright.browsers",
-					"[]",
-					"at least one browser is required",
-					"Omit browsers to use the default Chromium browser",
-				)
 			}
 		}
 	}
