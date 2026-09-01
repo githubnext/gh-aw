@@ -127,7 +127,7 @@ tools:
 			// Expected: roots (d, e, f) first, then their dependents
 			// Multiple valid orderings exist due to independence between branches
 			// Key constraints: f before c, c and d before a, e before b
-			expectedOrder: []string{"d.md", "e.md", "b.md", "f.md", "c.md", "a.md"},
+			expectedOrder: []string{"d.md", "f.md", "c.md", "a.md", "e.md", "b.md"},
 		},
 		{
 			name: "wide tree with many independent branches",

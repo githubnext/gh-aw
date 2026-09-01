@@ -16,13 +16,13 @@ import (
 // workflowFile is the path to the top-level workflow file, used for error context
 // when a circular import is detected.
 // Returns an error if a circular import is detected.
-func topologicalSortImports(imports []string, dependencies map[string][]string, importPaths map[string]string, workflowFile string) ([]string, error) {
+func topologicalSortImports(imports []string, dependencies map[string][]string, importPaths map[string]string, priorities map[string]int, workflowFile string) ([]string, error) {
 	importLog.Printf("Starting topological sort of %d imports", len(imports))
 	allImportsSet := toImportSet(imports)
 	inDegree := calculateInDegree(imports, dependencies, allImportsSet)
 	importLog.Printf("Calculated in-degrees: %v", inDegree)
 	queue := collectRootImports(imports, inDegree)
-	result := runKahnTopologicalSort(imports, dependencies, allImportsSet, inDegree, queue)
+	result := runKahnTopologicalSort(imports, dependencies, allImportsSet, inDegree, queue, priorities)
 
 	importLog.Printf("Topological sort complete: %v", result)
 	if len(result) < len(imports) {
@@ -87,6 +87,7 @@ func runKahnTopologicalSort(
 	allImportsSet map[string]struct {
 	}, inDegree map[string]int,
 	queue []string,
+	priorities map[string]int,
 ) []string {
 	result := make([]string, 0, len(imports))
 	declarationOrder := make(map[string]int, len(imports))
@@ -95,6 +96,9 @@ func runKahnTopologicalSort(
 	}
 	for len(queue) > 0 {
 		slices.SortStableFunc(queue, func(a, b string) int {
+			if diff := priorities[a] - priorities[b]; diff != 0 {
+				return diff
+			}
 			return declarationOrder[a] - declarationOrder[b]
 		})
 		current := queue[0]

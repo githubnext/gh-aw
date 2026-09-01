@@ -62,6 +62,34 @@ imports:
 	}
 }
 
+// TestImportCycleDetection_SelfImport tests that a file importing itself is detected
+// as a cycle and reported with an actionable chain (e.g. ["a.md", "a.md"]).
+func TestImportCycleDetection_SelfImport(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-self-import-*")
+
+	fileA := filepath.Join(tempDir, "a.md")
+	fileAContent := `---
+imports:
+  - a.md
+---
+# File A
+`
+	require.NoError(t, os.WriteFile(fileA, []byte(fileAContent), 0644), "Failed to write file A")
+
+	frontmatter := map[string]any{
+		"imports": []string{"a.md"},
+	}
+
+	_, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, fileA, fileAContent)
+	require.Error(t, err, "Should detect self-import cycle")
+
+	var cycleErr *parser.ImportCycleError
+	require.ErrorAs(t, err, &cycleErr, "Error should be ImportCycleError")
+	require.NotNil(t, cycleErr)
+	assert.Equal(t, []string{"a.md", "a.md"}, cycleErr.Chain)
+	assert.Contains(t, err.Error(), "remove the import of 'a.md' from 'a.md'")
+}
+
 // TestImportCycleDetection_FourFiles tests that a 4-file cycle (A→B→C→D→B) is detected
 // This is the exact scenario from the issue requirements
 func TestImportCycleDetection_FourFiles(t *testing.T) {
@@ -262,7 +290,7 @@ func TestImportCycleError_FormattedOutput(t *testing.T) {
 			expectedParts: []string{
 				"circular import detected: a.md → b.md → a.md",
 				"Imports must form a directed acyclic graph",
-				"remove the 'uses: a.md' entry from b.md",
+				"remove the import of 'a.md' from 'b.md'",
 			},
 		},
 		{
@@ -271,7 +299,7 @@ func TestImportCycleError_FormattedOutput(t *testing.T) {
 			expectedParts: []string{
 				"circular import detected: b.md → c.md → d.md → b.md",
 				"Imports must form a directed acyclic graph",
-				"remove the 'uses: b.md' entry from d.md",
+				"remove the import of 'b.md' from 'd.md'",
 			},
 		},
 	}

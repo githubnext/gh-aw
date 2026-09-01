@@ -61,8 +61,10 @@ func dfsForCycle(current, target string, cycleNodes map[string]struct {
 
 	// Explore each dependency
 	for _, dep := range sortedDeps {
-		// Found the cycle - we've reached the target again
-		if !isFirst && dep == target {
+		// Found the cycle - we've reached the target again. A direct self-edge
+		// (dep == current) always counts as a cycle, even on the first call,
+		// so that self-imports (e.g. a.md importing a.md) are detected.
+		if dep == target && (!isFirst || dep == current) {
 			importLog.Printf("Cycle back-edge found: %s -> %s", current, dep)
 			*path = append(*path, dep) // Add the back-edge
 			return true

@@ -43,7 +43,11 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		return nil, err
 	}
 	parserLog.Printf("Completed BFS traversal. Processed %d imports in total", len(state.processedOrder))
-	topologicalOrder, err := topologicalSortImports(state.processedOrder, state.dependencies, state.importPaths, workflowFilePath)
+	priorities := make(map[string]int, len(state.processedOrder))
+	for fullPath, item := range state.processedItems {
+		priorities[fullPath] = item.priority
+	}
+	topologicalOrder, err := topologicalSortImports(state.processedOrder, state.dependencies, state.importPaths, priorities, workflowFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -129,15 +133,15 @@ func importSpecsFromStringSlice(paths []string) []ImportSpec {
 }
 
 func seedInitialImportQueue(importSpecs []ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
-	for _, importSpec := range importSpecs {
-		if err := seedSingleImportSpec(importSpec, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+	for index, importSpec := range importSpecs {
+		if err := seedSingleImportSpec(importSpec, index, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func seedSingleImportSpec(importSpec ImportSpec, priority int, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	importPath := importSpec.Path
 	filePath, sectionName := splitPathAndSection(importPath)
 	fullPath, err := resolveSeedImportPath(filePath, importPath, baseDir, cache, workflowFilePath, yamlContent)
@@ -153,7 +157,7 @@ func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCa
 	if err != nil {
 		return err
 	}
-	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, origin)
+	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, origin, priority)
 }
 
 func resolveSeedImportPath(filePath, importPath, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (string, error) {
@@ -209,12 +213,12 @@ func detectRemoteImportOrigin(filePath string) (*remoteImportOrigin, error) {
 	return origin, nil
 }
 
-func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, origin *remoteImportOrigin) error {
+func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, origin *remoteImportOrigin, priority int) error {
 	if !setutil.Contains(state.visited, fullPath) {
 		state.visited[fullPath] = struct{}{}
 		state.visitedInputs[fullPath] = inputs
 		state.queue = append(state.queue, importQueueItem{
-			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: origin,
+			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: origin, priority: priority,
 		})
 		parserLog.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		return nil
@@ -424,7 +428,7 @@ func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, bas
 	}
 	state.dependencies[item.fullPath] = append(state.dependencies[item.fullPath], nestedFullPath)
 	canonicalImportPath := canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir, nestedRemoteOrigin, nestedFullPath)
-	return enqueueNestedVisitedPath(state, canonicalImportPath, nestedFullPath, nestedSectionName, baseDir, entry.inputs, nestedRemoteOrigin)
+	return enqueueNestedVisitedPath(state, canonicalImportPath, nestedFullPath, nestedSectionName, baseDir, entry.inputs, nestedRemoteOrigin, item.priority)
 }
 
 func resolveNestedImportPathAndOrigin(item importQueueItem, nestedFilePath string) (string, *remoteImportOrigin, error) {
@@ -492,12 +496,12 @@ func canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir strin
 	return filepath.ToSlash(rel)
 }
 
-func enqueueNestedVisitedPath(state *importBFSState, nestedImportPath, nestedFullPath, nestedSectionName, baseDir string, inputs map[string]any, nestedRemoteOrigin *remoteImportOrigin) error {
+func enqueueNestedVisitedPath(state *importBFSState, nestedImportPath, nestedFullPath, nestedSectionName, baseDir string, inputs map[string]any, nestedRemoteOrigin *remoteImportOrigin, priority int) error {
 	if !setutil.Contains(state.visited, nestedFullPath) {
 		state.visited[nestedFullPath] = struct{}{}
 		state.visitedInputs[nestedFullPath] = inputs
 		state.queue = append(state.queue, importQueueItem{
-			importPath: nestedImportPath, fullPath: nestedFullPath, sectionName: nestedSectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: nestedRemoteOrigin,
+			importPath: nestedImportPath, fullPath: nestedFullPath, sectionName: nestedSectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: nestedRemoteOrigin, priority: priority,
 		})
 		parserLog.Printf("Discovered nested import: %s (queued)", nestedFullPath)
 		return nil
