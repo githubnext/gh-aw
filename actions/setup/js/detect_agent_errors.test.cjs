@@ -160,6 +160,19 @@ describe("detect_agent_errors.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
     });
 
+    it("matches the Codex custom-tools rejection from unsupported models", () => {
+      const errorOutput = `{
+  "error": {
+    "message": "Invalid value: 'custom'",
+    "type": "invalid_request_error",
+    "param": "tools",
+    "code": "unknown_parameter"
+  }
+}`;
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+      expect(detectErrors(errorOutput).modelNotSupportedError).toBe(true);
+    });
+
     it("does not match 'No model available' without the policy-enablement hint", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("No model available. Retrying shortly.")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("No model available\nCheck policy enablement under GitHub Settings > Copilot")).toBe(false);
