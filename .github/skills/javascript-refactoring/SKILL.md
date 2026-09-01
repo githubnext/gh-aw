@@ -185,7 +185,7 @@ Before committing your refactor:
 - [ ] Matching `.test.cjs` file created
 - [ ] Tests pass with `make test-js` or the targeted Vitest suite
 - [ ] The module is wired through the real action/workflow build path
-- [ ] No stale `pkg/workflow/js.go`/`scripts.go` embedding references were added
+- [ ] No stale embedding instructions were added for the current action-based JS build flow
 - [ ] Local `require()` statements work correctly in other JS files
 - [ ] Code formatted with `make fmt-cjs`
 - [ ] Relevant validation passes with `make lint-cjs` or `make test-unit`

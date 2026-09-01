@@ -176,7 +176,7 @@ Before committing a message change:
 - [ ] Tests added and passing
 - [ ] `messages_core.cjs` and `messages.cjs` updated if relevant
 - [ ] Generated action/build output refreshed when required
-- [ ] No stale `pkg/workflow/js.go` embedding instructions are introduced
+- [ ] No stale embedding instructions are introduced for the current action-based JS build flow
 
 ## References
 

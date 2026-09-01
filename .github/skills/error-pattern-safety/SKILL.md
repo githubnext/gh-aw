@@ -101,16 +101,15 @@ test("should not match empty string", () => {
 
 Use the relevant `*.test.cjs` suite under `actions/setup/js/` or `pkg/workflow/js/` for the area you changed, or run the repo’s JavaScript checks via `make test-js`.
 
-## Safety Mechanisms in validate_errors.cjs
+## Safety Mechanisms in the validation layer
 
-The `validate_errors.cjs` script has built-in protections:
+The repo’s validation helpers include built-in protections for dangerous regex patterns:
 
-1. **Zero-width detection**: Checks if `regex.lastIndex` stops advancing
-2. **Iteration warning**: Warns at 1000 iterations
-3. **Hard limit**: Stops at 10,000 iterations to prevent hang
+1. **Zero-width detection**: Checks whether a regex stops advancing across iterations
+2. **Iteration warning**: Warns when repeated runs approach a hang threshold
+3. **Hard limit**: Stops execution before runaway loops can lock the process
 
 ```javascript
-// Safety check in validate_errors.cjs
 if (regex.lastIndex === lastIndex) {
   core.error(`Infinite loop detected! Pattern: ${pattern.pattern}`);
   break;
