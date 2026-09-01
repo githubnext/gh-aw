@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,14 +38,14 @@ func TestBackfillOperationalValueReportObservationsUsesWeeklyCache(t *testing.T)
 	}
 	cacheRoot := t.TempDir()
 
-	first, firstStats, err := backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), cacheRoot, "", false)
+	first, firstStats, err := backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), cacheRoot, "", false, 1)
 	require.NoError(t, err)
 	require.Len(t, first, 2)
 	assert.Equal(t, 2, firstStats.Evaluated)
 	assert.Equal(t, 0, firstStats.CacheHits)
 	assert.Equal(t, 2, gradeCalls)
 
-	second, secondStats, err := backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC), cacheRoot, "", false)
+	second, secondStats, err := backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC), cacheRoot, "", false, 1)
 	require.NoError(t, err)
 	require.Len(t, second, 2)
 	assert.Equal(t, 0, secondStats.Evaluated)
@@ -76,13 +77,55 @@ func TestBackfillOperationalValueReportObservationsDoesNotCacheNonFinalResults(t
 			runs := []operationalValueReportRun{{ID: "1", Attempt: 1, CreatedAt: time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)}}
 			cacheRoot := t.TempDir()
 
-			_, _, err := backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Now(), cacheRoot, "", false)
+			_, _, err := backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Now(), cacheRoot, "", false, 1)
 			require.NoError(t, err)
-			_, _, err = backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Now(), cacheRoot, "", false)
+			_, _, err = backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Now(), cacheRoot, "", false, 1)
 			require.NoError(t, err)
 			assert.Equal(t, 2, gradeCalls)
 		})
 	}
+}
+
+func TestBackfillOperationalValueReportObservationsRunsWeeksConcurrently(t *testing.T) {
+	originalGradeRun := operationalValueReportGradeRun
+	t.Cleanup(func() { operationalValueReportGradeRun = originalGradeRun })
+
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	var active atomic.Int32
+	var maximum atomic.Int32
+	operationalValueReportGradeRun = func(_ context.Context, evaluator *operationalValueReportEvaluator, run operationalValueReportRun, _ time.Time, _ string) operationalValueReportObservation {
+		current := active.Add(1)
+		for current > maximum.Load() && !maximum.CompareAndSwap(maximum.Load(), current) {
+		}
+		started <- struct{}{}
+		<-release
+		active.Add(-1)
+		value := 1.0
+		return operationalValueReportObservation{Run: run, Value: &value, Status: "pass", Mature: true, EvaluatorDigest: evaluator.EvaluatorDigest}
+	}
+
+	evaluator := &operationalValueReportEvaluator{WorkflowID: "daily-file-diet", EvaluatorDigest: "abc123", Definition: operationalValueReportDefinition{Repository: "github/gh-aw"}}
+	runs := []operationalValueReportRun{
+		{ID: "1", Attempt: 1, CreatedAt: time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)},
+		{ID: "2", Attempt: 1, CreatedAt: time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)},
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := backfillOperationalValueReportObservations(context.Background(), evaluator, runs, time.Now(), t.TempDir(), "", true, 2)
+		done <- err
+	}()
+
+	for range 2 {
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for concurrent evaluator executions")
+		}
+	}
+	close(release)
+	require.NoError(t, <-done)
+	assert.Equal(t, int32(2), maximum.Load())
 }
 
 func TestListOperationalValueReportRunsPathEscapesWorkflowFile(t *testing.T) {

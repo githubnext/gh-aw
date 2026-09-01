@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"encoding/json"
+	"math"
 	"slices"
 	"sort"
 	"time"
@@ -61,10 +62,85 @@ func buildOperationalValueReport(evaluator *operationalValueReportEvaluator, obs
 		Coverage:     coverage,
 		Summary:      summarizeOperationalValueValues(values, evaluator.Definition.Baseline.Value),
 		Weekly:       buildOperationalValueReportWeeks(observations),
+		Diagnostics:  buildOperationalValueReportDiagnostics(evaluator.Definition.DiagnosticMetrics, observations),
 		Observations: observations,
 		Caveat:       "Operational value is observational. Replayed historical values apply one frozen evaluator digest to every run and do not establish that the workflow caused the measured outcome.",
 	}
 	return report
+}
+
+func buildOperationalValueReportDiagnostics(metrics []operationalValueReportDiagnosticMetric, observations []operationalValueReportObservation) []operationalValueReportDiagnosticSeries {
+	series := make([]operationalValueReportDiagnosticSeries, 0, len(metrics))
+	for _, metric := range metrics {
+		values := make([]float64, 0, len(observations))
+		for _, observation := range observations {
+			if value, ok := operationalValueReportDiagnosticValue(observation, metric.ID); ok {
+				values = append(values, value)
+			}
+		}
+		series = append(series, operationalValueReportDiagnosticSeries{
+			Metric:  metric,
+			Summary: summarizeOperationalValueValues(values, nil),
+			Weekly:  buildOperationalValueReportDiagnosticWeeks(metric, observations),
+		})
+	}
+	return series
+}
+
+func buildOperationalValueReportDiagnosticWeeks(metric operationalValueReportDiagnosticMetric, observations []operationalValueReportObservation) []operationalValueReportDiagnosticWeek {
+	grouped := make(map[time.Time][]operationalValueReportObservation)
+	for _, observation := range observations {
+		weekStart := operationalValueUTCWeekStart(observation.Run.CreatedAt)
+		grouped[weekStart] = append(grouped[weekStart], observation)
+	}
+	weekStarts := make([]time.Time, 0, len(grouped))
+	for weekStart := range grouped {
+		weekStarts = append(weekStarts, weekStart)
+	}
+	slices.SortFunc(weekStarts, func(left, right time.Time) int { return cmp.Compare(left.Unix(), right.Unix()) })
+
+	weeks := make([]operationalValueReportDiagnosticWeek, 0, len(weekStarts))
+	for _, weekStart := range weekStarts {
+		values := make([]float64, 0, len(grouped[weekStart]))
+		var latest *operationalValueReportObservation
+		for index := range grouped[weekStart] {
+			observation := &grouped[weekStart][index]
+			value, ok := operationalValueReportDiagnosticValue(*observation, metric.ID)
+			if !ok {
+				continue
+			}
+			values = append(values, value)
+			if latest == nil || operationalValueReportRunLess(latest.Run, observation.Run) {
+				latest = observation
+			}
+		}
+		week := operationalValueReportDiagnosticWeek{
+			WeekStart:    weekStart.Format(time.RFC3339),
+			WeekEnd:      weekStart.AddDate(0, 0, 7).Format(time.RFC3339),
+			NumericCount: len(values),
+		}
+		if len(values) > 0 {
+			value := averageOperationalValue(values)
+			if metric.Aggregation == "latest" {
+				value, _ = operationalValueReportDiagnosticValue(*latest, metric.ID)
+			}
+			week.Value = &value
+		}
+		weeks = append(weeks, week)
+	}
+	return weeks
+}
+
+func operationalValueReportDiagnosticValue(observation operationalValueReportObservation, metricID string) (float64, bool) {
+	raw, exists := observation.Diagnostics[metricID]
+	if !exists {
+		return 0, false
+	}
+	value, ok := raw.(float64)
+	if !ok || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 1 {
+		return 0, false
+	}
+	return value, true
 }
 
 func summarizeOperationalValueValues(values []float64, baseline *float64) operationalValueReportSummary {

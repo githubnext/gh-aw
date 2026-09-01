@@ -27,6 +27,7 @@ type OperationalValueReportConfig struct {
 	Until        string
 	OutputDir    string
 	CacheDir     string
+	Concurrency  int
 	Refresh      bool
 	JSONOutput   bool
 }
@@ -54,17 +55,20 @@ a JSON report, an SVG timeline, and a Markdown report with the frozen evidence c
 			until, _ := cmd.Flags().GetString("until")
 			outputDir, _ := cmd.Flags().GetString("output")
 			cacheDir, _ := cmd.Flags().GetString("cache-dir")
+			concurrency, _ := cmd.Flags().GetInt("concurrency")
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			refresh, _ := cmd.Flags().GetBool("refresh")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			return RunOperationalValueReport(cmd.Context(), OperationalValueReportConfig{
 				Workflow: args[0], RepoOverride: repoOverride, Until: until,
-				OutputDir: outputDir, CacheDir: cacheDir, Refresh: refresh, JSONOutput: jsonOutput,
+				OutputDir: outputDir, CacheDir: cacheDir, Concurrency: concurrency,
+				Refresh: refresh, JSONOutput: jsonOutput,
 			})
 		},
 	}
 	cmd.Flags().String("until", "", "UTC endpoint for evidence collection (defaults to now)")
 	cmd.Flags().String("cache-dir", "", "Weekly observation cache directory (defaults to the user cache)")
+	cmd.Flags().Int("concurrency", 0, "Maximum number of concurrent evaluator executions (0 = use default)")
 	cmd.Flags().Bool("refresh", false, "Re-evaluate observations instead of reading weekly cache entries")
 	addOutputFlag(cmd, defaultOperationalValueReportOutputDir)
 	addRepoFlag(cmd)
@@ -116,7 +120,7 @@ func RunOperationalValueReport(ctx context.Context, config OperationalValueRepor
 			return err
 		}
 	}
-	observations, stats, err := backfillOperationalValueReportObservations(ctx, evaluator, runs, evidenceAt, cacheDir, evaluatorHost, config.Refresh)
+	observations, stats, err := backfillOperationalValueReportObservations(ctx, evaluator, runs, evidenceAt, cacheDir, evaluatorHost, config.Refresh, config.Concurrency)
 	if err != nil {
 		return err
 	}

@@ -20,17 +20,18 @@ type operationalValueReportRun struct {
 }
 
 type operationalValueReportDefinition struct {
-	SchemaVersion    int                            `json:"schemaVersion"`
-	Grader           string                         `json:"grader"`
-	Repository       string                         `json:"repository"`
-	WorkflowName     string                         `json:"workflowName"`
-	SourcePath       string                         `json:"sourcePath"`
-	Adoption         operationalValueReportAdoption `json:"adoption"`
-	OperationalValue string                         `json:"operationalValue"`
-	Evidence         operationalValueReportEvidence `json:"evidence"`
-	PrimaryMetric    operationalValueReportMetric   `json:"primaryMetric"`
-	Baseline         operationalValueReportBaseline `json:"baseline"`
-	Raw              json.RawMessage                `json:"-"`
+	SchemaVersion     int                                      `json:"schemaVersion"`
+	Grader            string                                   `json:"grader"`
+	Repository        string                                   `json:"repository"`
+	WorkflowName      string                                   `json:"workflowName"`
+	SourcePath        string                                   `json:"sourcePath"`
+	Adoption          operationalValueReportAdoption           `json:"adoption"`
+	OperationalValue  string                                   `json:"operationalValue"`
+	Evidence          operationalValueReportEvidence           `json:"evidence"`
+	PrimaryMetric     operationalValueReportMetric             `json:"primaryMetric"`
+	DiagnosticMetrics []operationalValueReportDiagnosticMetric `json:"diagnosticMetrics,omitempty"`
+	Baseline          operationalValueReportBaseline           `json:"baseline"`
+	Raw               json.RawMessage                          `json:"-"`
 }
 
 type operationalValueReportAdoption struct {
@@ -53,6 +54,14 @@ type operationalValueReportMetric struct {
 	ID        string `json:"id"`
 	Formula   string `json:"formula"`
 	Direction string `json:"direction"`
+}
+
+type operationalValueReportDiagnosticMetric struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Formula     string `json:"formula"`
+	Direction   string `json:"direction"`
+	Aggregation string `json:"aggregation"`
 }
 
 type operationalValueReportBaseline struct {
@@ -92,6 +101,7 @@ type operationalValueReport struct {
 	Coverage         operationalValueReportCoverage           `json:"coverage"`
 	Summary          operationalValueReportSummary            `json:"summary"`
 	Weekly           []operationalValueReportWeek             `json:"weekly"`
+	Diagnostics      []operationalValueReportDiagnosticSeries `json:"diagnostics,omitempty"`
 	Observations     []operationalValueReportObservation      `json:"observations"`
 	Caveat           string                                   `json:"caveat"`
 }
@@ -139,6 +149,19 @@ type operationalValueReportWeek struct {
 	Mean                     *float64 `json:"mean"`
 	Minimum                  *float64 `json:"minimum"`
 	Maximum                  *float64 `json:"maximum"`
+}
+
+type operationalValueReportDiagnosticSeries struct {
+	Metric  operationalValueReportDiagnosticMetric `json:"metric"`
+	Summary operationalValueReportSummary          `json:"summary"`
+	Weekly  []operationalValueReportDiagnosticWeek `json:"weekly"`
+}
+
+type operationalValueReportDiagnosticWeek struct {
+	WeekStart    string   `json:"weekStart"`
+	WeekEnd      string   `json:"weekEnd"`
+	NumericCount int      `json:"numericCount"`
+	Value        *float64 `json:"value"`
 }
 
 type operationalValueReportObservation struct {

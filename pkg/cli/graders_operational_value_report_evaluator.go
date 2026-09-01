@@ -189,6 +189,22 @@ func parseOperationalValueReportDefinition(data []byte) (operationalValueReportD
 	if definition.PrimaryMetric.Direction != "higher_is_better" {
 		return operationalValueReportDefinition{}, errors.New("operational-value evaluator primaryMetric.direction must be higher_is_better")
 	}
+	metricIDs := map[string]struct{}{definition.PrimaryMetric.ID: {}}
+	for _, metric := range definition.DiagnosticMetrics {
+		if strings.TrimSpace(metric.ID) == "" || strings.TrimSpace(metric.Name) == "" || strings.TrimSpace(metric.Formula) == "" {
+			return operationalValueReportDefinition{}, errors.New("operational-value evaluator diagnosticMetrics require id, name, and formula")
+		}
+		if _, exists := metricIDs[metric.ID]; exists {
+			return operationalValueReportDefinition{}, fmt.Errorf("operational-value evaluator metric id %q is duplicated", metric.ID)
+		}
+		metricIDs[metric.ID] = struct{}{}
+		if metric.Direction != "higher_is_better" {
+			return operationalValueReportDefinition{}, fmt.Errorf("operational-value evaluator diagnostic metric %q direction must be higher_is_better", metric.ID)
+		}
+		if metric.Aggregation != "latest" && metric.Aggregation != "mean" {
+			return operationalValueReportDefinition{}, fmt.Errorf("operational-value evaluator diagnostic metric %q aggregation must be latest or mean", metric.ID)
+		}
+	}
 	if strings.TrimSpace(definition.Evidence.Opportunity) == "" ||
 		strings.TrimSpace(definition.Evidence.Assignment) == "" ||
 		strings.TrimSpace(definition.Evidence.Accepted) == "" ||

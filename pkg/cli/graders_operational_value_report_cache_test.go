@@ -32,7 +32,7 @@ func TestOperationalValueReportWeeklyCacheRoundTrip(t *testing.T) {
 	require.True(t, hit)
 	require.Len(t, loaded, 1)
 	assert.Equal(t, "12345", loaded[0].Run.ID)
-	assert.Equal(t, 0.75, *loaded[0].Value)
+	assert.InDelta(t, 0.75, *loaded[0].Value, 0.000001)
 
 	_, hit, err = loadOperationalValueReportWeeklyCache(path, "github/gh-aw", "daily-file-diet", "different", week)
 	require.NoError(t, err)

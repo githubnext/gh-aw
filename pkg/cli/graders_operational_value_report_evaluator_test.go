@@ -38,13 +38,34 @@ func TestParseOperationalValueReportDefinition(t *testing.T) {
 		"operationalValue":"Decompose the assigned oversized file.",
 		"evidence":{"opportunity":"An oversized file","assignment":"largest file","accepted":"Git evidence","repositories":["github/gh-aw"],"collection":"GitHub API","maturation":"48 hours","zeroRule":"none","missingRule":"null"},
 		"primaryMetric":{"id":"decomposition","formula":"reduction / target","direction":"higher_is_better"},
+		"diagnosticMetrics":[{"id":"health","name":"Repository health","formula":"healthy / total","direction":"higher_is_better","aggregation":"latest"}],
 		"baseline":{"mode":"baseline-comparable","value":0.25,"evidenceCutoff":"2025-11-15T13:27:11Z","provenance":[{"repository":"github/gh-aw","kind":"commit","ref":"abc123"}]},
 		"validationExamples":{"sample":{"valid":true}}
 	}`))
 	require.NoError(t, err)
 	assert.Equal(t, "github/gh-aw", definition.Repository)
+	require.Len(t, definition.DiagnosticMetrics, 1)
+	assert.Equal(t, "health", definition.DiagnosticMetrics[0].ID)
 	require.NotNil(t, definition.Baseline.Value)
-	assert.Equal(t, 0.25, *definition.Baseline.Value)
+	assert.InDelta(t, 0.25, *definition.Baseline.Value, 0.000001)
+}
+
+func TestParseOperationalValueReportDefinitionRejectsInvalidDiagnosticMetric(t *testing.T) {
+	_, err := parseOperationalValueReportDefinition([]byte(`{
+		"schemaVersion":4,
+		"grader":"operational-value",
+		"repository":"github/gh-aw",
+		"workflowName":"Daily File Diet",
+		"sourcePath":".github/workflows/daily-file-diet.md",
+		"adoption":{"commit":"abc123","adoptedAt":"2025-11-15T13:36:21Z"},
+		"operationalValue":"Decompose the assigned oversized file.",
+		"evidence":{"opportunity":"An oversized file","assignment":"largest file","accepted":"Git evidence","repositories":["github/gh-aw"],"collection":"GitHub API","maturation":"48 hours","zeroRule":"none","missingRule":"null"},
+		"primaryMetric":{"id":"decomposition","formula":"reduction / target","direction":"higher_is_better"},
+		"diagnosticMetrics":[{"id":"decomposition","name":"Duplicate","formula":"x","direction":"higher_is_better","aggregation":"latest"}],
+		"baseline":{"mode":"attainment-only","value":null,"evidenceCutoff":null,"provenance":[]},
+		"validationExamples":{"sample":{"valid":true}}
+	}`))
+	require.ErrorContains(t, err, "duplicated")
 }
 
 func TestParseOperationalValueReportDefinitionRejectsIncompleteContract(t *testing.T) {

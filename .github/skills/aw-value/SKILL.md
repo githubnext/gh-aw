@@ -9,7 +9,7 @@ metadata:
 
 # Operational Value Grader
 
-Design one deterministic `operational-value` grader that reports absolute operational attainment for each workflow run.
+Design one deterministic `operational-value` grader that reports absolute operational attainment for each workflow run. Keep exactly one authoritative primary value, and declare any normalized diagnostic metrics separately.
 
 Operational value is the degree to which the workflow's intended repository outcome is attained for the opportunity assigned to a run, demonstrated by accepted repository evidence under a frozen contract. It is not execution quality, output volume, safe-output creation, or an agent's assessment.
 
@@ -42,7 +42,7 @@ The grader's primary `value` is absolute attainment in `[0,1]`. A comparable fro
    - treat reruns with the same GitHub run ID as the same subject.
 4. Freeze accepted evidence, evidence repositories, matching rules, zero-versus-missing behavior, and `maturesAt` computation.
   - Declare only the workflow permission scopes required to collect that evidence. The evaluator receives `GH_TOKEN` with the agent job's declared permissions; gh-aw does not add evidence permissions automatically.
-5. Choose exactly one direct primary metric in `[0,1]`. Higher must always mean greater attainment. Keep trace graders and activity counts separate.
+5. Choose exactly one direct primary metric in `[0,1]`. Higher must always mean greater attainment. Optional diagnostic metrics may provide normalized outcome context, but must remain separate rather than being combined into the primary value. Keep trace graders and activity counts separate.
 6. If comparable pre-adoption evidence exists, score it with the same metric and freeze it under `baseline`. Otherwise use `attainment-only` with a null baseline value.
 7. Implement the evaluator interface below and run:
 
@@ -93,7 +93,7 @@ It returns:
   "provenance": [
     {"repository": "OWNER/REPO", "kind": "issue", "ref": "42"}
   ],
-  "diagnostics": {}
+  "diagnostics": {"repository-health": 0.8}
 }
 ```
 
@@ -121,9 +121,9 @@ gh aw graders operational-value report WORKFLOW-NAME
 
 This writes JSON, SVG, and Markdown artifacts under `reports/operational-value`. It applies the current evaluator digest to every run for comparability and backfills pre-grader runs by passing their run subject with `case: null` and `event: null`. The evaluator must reconstruct assignment from accepted evidence when the case is null.
 
-Mature numeric results are cached by repository, workflow, evaluator digest, and Monday-based UTC week. Unavailable, immature, and failed evaluations are retried. Use `--refresh` to bypass cached observations, `--until` to choose the evidence endpoint, and `--output` or `--cache-dir` to relocate generated files.
+Mature numeric results are cached by repository, workflow, evaluator digest, and Monday-based UTC week. Unavailable, immature, and failed evaluations are retried. Independent weeks are evaluated concurrently; use `--concurrency` to control evaluator executions (the default is 8). Use `--refresh` to bypass cached observations, `--until` to choose the evidence endpoint, and `--output` or `--cache-dir` to relocate generated files.
 
-Reports preserve all run-level points. Weekly means retain the latest observation per repeated `opportunityKey` within each week. Missing evidence remains null, and changes over time or from a baseline do not establish causation.
+Reports preserve all run-level points. Weekly primary means retain the latest observation per repeated `opportunityKey` within each week. Declared diagnostics are plotted independently using their `latest` or `mean` aggregation. Missing evidence remains null, and changes over time or from a baseline do not establish causation.
 
 ## Definition Contract
 
@@ -134,6 +134,7 @@ Reports preserve all run-level points. Weekly means retain the latest observatio
 - operational-value statement;
 - evidence opportunity, assignment, accepted evidence, repositories, collection, maturation, zero rule, and missing rule;
 - one primary metric with formula and validation examples;
+- optional `diagnosticMetrics`, each with a unique ID, name, formula, `higher_is_better` direction, and `latest` or `mean` aggregation;
 - baseline mode, value, cutoff, and provenance.
 
 For `baseline-comparable`, baseline value must be in `[0,1]` and have immutable provenance. For `attainment-only`, baseline value and cutoff must be null.
@@ -142,6 +143,7 @@ For `baseline-comparable`, baseline value must be in `[0,1]` and have immutable 
 
 - `value` answers “how fully was this run's assigned opportunity attained?”
 - `deltaFromBaseline` answers “how far is this observation above or below the frozen pre-adoption reference?”
+- Diagnostics provide separate normalized context and never contribute to `value`.
 - Neither establishes that the workflow caused the outcome.
 - Compare runs only under the same evaluator digest and evidence horizon.
 - Identify a replayed observation by `(runId, evaluatorDigest, evidenceAt)`.

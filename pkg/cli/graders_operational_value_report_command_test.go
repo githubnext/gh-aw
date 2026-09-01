@@ -16,7 +16,7 @@ import (
 func TestOperationalValueReportCommandFlags(t *testing.T) {
 	cmd := newGradersOperationalValueReportCommand()
 	assert.Equal(t, "report <workflow>", cmd.Use)
-	for _, flag := range []string{"until", "output", "cache-dir", "refresh", "repo", "json"} {
+	for _, flag := range []string{"until", "output", "cache-dir", "concurrency", "refresh", "repo", "json"} {
 		assert.NotNil(t, cmd.Flags().Lookup(flag), "expected --%s", flag)
 	}
 }

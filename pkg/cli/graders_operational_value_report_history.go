@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/workflow"
+	"golang.org/x/sync/errgroup"
 )
 
 type operationalValueGitHubWorkflowRun struct {
@@ -39,6 +41,7 @@ var operationalValueReportGradeRun = gradeOperationalValueReportRun
 var operationalValueReportRunGH = workflow.RunGHCombinedContext
 
 const operationalValueReportCreatedSearchCap = 1000
+const defaultOperationalValueReportConcurrency = 8
 
 func listOperationalValueReportRuns(ctx context.Context, repository, hostname, workflowFile string, startAt, endAt time.Time) ([]operationalValueReportRun, error) {
 	startAt = startAt.UTC().Truncate(time.Second)
@@ -235,9 +238,12 @@ type operationalValueReportBackfillStats struct {
 	Evaluated int
 }
 
-func backfillOperationalValueReportObservations(ctx context.Context, evaluator *operationalValueReportEvaluator, runs []operationalValueReportRun, evidenceAt time.Time, cacheRoot, evaluatorHost string, refresh bool) ([]operationalValueReportObservation, operationalValueReportBackfillStats, error) {
-	observations := make([]operationalValueReportObservation, 0, len(runs))
-	stats := operationalValueReportBackfillStats{}
+type operationalValueReportWeekBackfill struct {
+	observations []operationalValueReportObservation
+	stats        operationalValueReportBackfillStats
+}
+
+func backfillOperationalValueReportObservations(ctx context.Context, evaluator *operationalValueReportEvaluator, runs []operationalValueReportRun, evidenceAt time.Time, cacheRoot, evaluatorHost string, refresh bool, concurrency int) ([]operationalValueReportObservation, operationalValueReportBackfillStats, error) {
 	weeks := make(map[time.Time][]operationalValueReportRun)
 	for _, run := range runs {
 		week := operationalValueUTCWeekStart(run.CreatedAt)
@@ -249,66 +255,32 @@ func backfillOperationalValueReportObservations(ctx context.Context, evaluator *
 	}
 	slices.SortFunc(weekStarts, func(left, right time.Time) int { return cmp.Compare(left.Unix(), right.Unix()) })
 
-	for _, weekStart := range weekStarts {
-		cachePath, err := operationalValueReportWeeklyCachePath(cacheRoot, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart)
-		if err != nil {
-			return nil, stats, err
-		}
-		cached := []operationalValueReportObservation(nil)
-		if !refresh {
-			var hit bool
-			cached, hit, err = loadOperationalValueReportWeeklyCache(cachePath, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart)
+	if concurrency <= 0 {
+		concurrency = defaultOperationalValueReportConcurrency
+	}
+	results := make([]operationalValueReportWeekBackfill, len(weekStarts))
+	group, groupContext := errgroup.WithContext(ctx)
+	group.SetLimit(concurrency)
+	for index, weekStart := range weekStarts {
+		group.Go(func() error {
+			result, err := backfillOperationalValueReportWeek(groupContext, evaluator, weeks[weekStart], weekStart, evidenceAt, cacheRoot, evaluatorHost, refresh)
 			if err != nil {
-				return nil, stats, err
+				return err
 			}
-			if !hit {
-				cached = nil
-			}
-		}
-		cachedByRun := make(map[string]operationalValueReportObservation, len(cached))
-		for _, observation := range cached {
-			if observation.Mature && observation.Value != nil &&
-				(observation.Status == "pass" || observation.Status == "fail") &&
-				observation.EvaluatorDigest == evaluator.EvaluatorDigest {
-				cachedByRun[operationalValueReportObservationKey(observation)] = observation
-			}
-		}
-		weekCache := make(map[string]operationalValueReportObservation, len(cached)+len(weeks[weekStart]))
-		for key, observation := range cachedByRun {
-			weekCache[key] = observation
-		}
-		for _, run := range weeks[weekStart] {
-			key := run.ID + ":" + strconv.Itoa(run.Attempt)
-			if observation, ok := cachedByRun[key]; ok {
-				observations = append(observations, observation)
-				stats.CacheHits++
-				continue
-			}
-			observation := operationalValueReportGradeRun(ctx, evaluator, run, evidenceAt, evaluatorHost)
-			observations = append(observations, observation)
-			stats.Evaluated++
-			if observation.Mature && (observation.Status == "pass" || observation.Status == "fail") {
-				weekCache[key] = observation
-			}
-		}
-		cacheObservations := make([]operationalValueReportObservation, 0, len(weekCache))
-		for _, observation := range weekCache {
-			cacheObservations = append(cacheObservations, observation)
-		}
-		slices.SortFunc(cacheObservations, func(left, right operationalValueReportObservation) int {
-			if operationalValueReportRunLess(left.Run, right.Run) {
-				return -1
-			}
-			if operationalValueReportRunLess(right.Run, left.Run) {
-				return 1
-			}
-			return 0
+			results[index] = result
+			return nil
 		})
-		if len(cacheObservations) > 0 {
-			if err := saveOperationalValueReportWeeklyCache(cachePath, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart, cacheObservations); err != nil {
-				return nil, stats, err
-			}
-		}
+	}
+	if err := group.Wait(); err != nil {
+		return nil, operationalValueReportBackfillStats{}, err
+	}
+
+	observations := make([]operationalValueReportObservation, 0, len(runs))
+	stats := operationalValueReportBackfillStats{}
+	for _, result := range results {
+		observations = append(observations, result.observations...)
+		stats.CacheHits += result.stats.CacheHits
+		stats.Evaluated += result.stats.Evaluated
 	}
 	slices.SortFunc(observations, func(left, right operationalValueReportObservation) int {
 		if operationalValueReportRunLess(left.Run, right.Run) {
@@ -320,6 +292,68 @@ func backfillOperationalValueReportObservations(ctx context.Context, evaluator *
 		return 0
 	})
 	return observations, stats, nil
+}
+
+func backfillOperationalValueReportWeek(ctx context.Context, evaluator *operationalValueReportEvaluator, runs []operationalValueReportRun, weekStart, evidenceAt time.Time, cacheRoot, evaluatorHost string, refresh bool) (operationalValueReportWeekBackfill, error) {
+	result := operationalValueReportWeekBackfill{observations: make([]operationalValueReportObservation, 0, len(runs))}
+	cachePath, err := operationalValueReportWeeklyCachePath(cacheRoot, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart)
+	if err != nil {
+		return result, err
+	}
+	cached := []operationalValueReportObservation(nil)
+	if !refresh {
+		var hit bool
+		cached, hit, err = loadOperationalValueReportWeeklyCache(cachePath, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart)
+		if err != nil {
+			return result, err
+		}
+		if !hit {
+			cached = nil
+		}
+	}
+	cachedByRun := make(map[string]operationalValueReportObservation, len(cached))
+	for _, observation := range cached {
+		if observation.Mature && observation.Value != nil &&
+			(observation.Status == "pass" || observation.Status == "fail") &&
+			observation.EvaluatorDigest == evaluator.EvaluatorDigest {
+			cachedByRun[operationalValueReportObservationKey(observation)] = observation
+		}
+	}
+	weekCache := make(map[string]operationalValueReportObservation, len(cached)+len(runs))
+	maps.Copy(weekCache, cachedByRun)
+	for _, run := range runs {
+		key := run.ID + ":" + strconv.Itoa(run.Attempt)
+		if observation, ok := cachedByRun[key]; ok {
+			result.observations = append(result.observations, observation)
+			result.stats.CacheHits++
+			continue
+		}
+		observation := operationalValueReportGradeRun(ctx, evaluator, run, evidenceAt, evaluatorHost)
+		result.observations = append(result.observations, observation)
+		result.stats.Evaluated++
+		if observation.Mature && (observation.Status == "pass" || observation.Status == "fail") {
+			weekCache[key] = observation
+		}
+	}
+	cacheObservations := make([]operationalValueReportObservation, 0, len(weekCache))
+	for _, observation := range weekCache {
+		cacheObservations = append(cacheObservations, observation)
+	}
+	slices.SortFunc(cacheObservations, func(left, right operationalValueReportObservation) int {
+		if operationalValueReportRunLess(left.Run, right.Run) {
+			return -1
+		}
+		if operationalValueReportRunLess(right.Run, left.Run) {
+			return 1
+		}
+		return 0
+	})
+	if len(cacheObservations) > 0 {
+		if err := saveOperationalValueReportWeeklyCache(cachePath, evaluator.Definition.Repository, evaluator.WorkflowID, evaluator.EvaluatorDigest, weekStart, cacheObservations); err != nil {
+			return result, err
+		}
+	}
+	return result, nil
 }
 
 func operationalValueReportRunLess(left, right operationalValueReportRun) bool {
