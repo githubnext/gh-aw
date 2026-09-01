@@ -27,10 +27,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/github-guard-policy.md
 #     - shared/otlp.md
-#     - shared/pr-code-review-config.md
 #     - shared/pr-diff-data-fetch.md
+#     - shared/github-guard-policy.md
+#     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
 #
 # Secrets used:

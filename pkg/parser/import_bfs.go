@@ -43,12 +43,22 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		return nil, err
 	}
 	parserLog.Printf("Completed BFS traversal. Processed %d imports in total", len(state.processedOrder))
-	topologicalOrder, err := topologicalSortImports(state.processedOrder, baseDir, cache, workflowFilePath)
+	topologicalOrder, err := topologicalSortImports(state.processedOrder, state.dependencies, state.importPaths, workflowFilePath)
 	if err != nil {
 		return nil, err
 	}
-	parserLog.Printf("Sorted imports in topological order: %v", topologicalOrder)
-	return state.acc.toImportsResult(topologicalOrder), nil
+	for _, fullPath := range topologicalOrder {
+		item := state.processedItems[fullPath]
+		if item.frontmatter != nil {
+			state.acc.extractOrderedStepFields(item.frontmatter)
+		}
+	}
+	displayOrder := make([]string, 0, len(topologicalOrder))
+	for _, fullPath := range topologicalOrder {
+		displayOrder = append(displayOrder, state.importPaths[fullPath])
+	}
+	parserLog.Printf("Sorted imports in topological order: %v", displayOrder)
+	return state.acc.toImportsResult(displayOrder), nil
 }
 
 type nestedImportEntry struct {
@@ -61,14 +71,20 @@ type importBFSState struct {
 	visited        map[string]struct{}
 	visitedInputs  map[string]map[string]any
 	processedOrder []string
+	processedItems map[string]importQueueItem
+	dependencies   map[string][]string
+	importPaths    map[string]string
 	acc            *importAccumulator
 }
 
 func newImportBFSState() *importBFSState {
 	return &importBFSState{
-		visited:       make(map[string]struct{}),
-		visitedInputs: make(map[string]map[string]any),
-		acc:           newImportAccumulator(),
+		visited:        make(map[string]struct{}),
+		visitedInputs:  make(map[string]map[string]any),
+		processedItems: make(map[string]importQueueItem),
+		dependencies:   make(map[string][]string),
+		importPaths:    make(map[string]string),
+		acc:            newImportAccumulator(),
 	}
 }
 
@@ -224,7 +240,9 @@ func processImportQueue(baseDir string, cache *ImportCache, workflowFilePath str
 func processQueueItem(item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	parserLog.Printf("Processing import from queue: %s", item.fullPath)
 	maps.Copy(state.acc.importInputs, item.inputs)
-	state.processedOrder = append(state.processedOrder, item.importPath)
+	state.processedOrder = append(state.processedOrder, item.fullPath)
+	state.importPaths[item.fullPath] = item.importPath
+	state.processedItems[item.fullPath] = item
 	handled, err := handleAgentImportItem(item, state)
 	if handled || err != nil {
 		return err
@@ -326,14 +344,17 @@ func handleStandardImportItem(item importQueueItem, baseDir string, cache *Impor
 		return fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
 	}
 	result, parseErr := extractImportFrontmatterForNested(content, item)
+	item.content = content
 	if parseErr != nil {
 		parserLog.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, parseErr)
 	} else if result.Frontmatter != nil {
+		item.frontmatter = result.Frontmatter
 		if err := enqueueNestedImports(result.Frontmatter, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
 		}
 	}
-	return state.acc.extractAllImportFields(content, item, state.visited)
+	state.processedItems[item.fullPath] = item
+	return state.acc.extractImportFields(content, item, state.visited, false)
 }
 
 func extractImportFrontmatterForNested(content []byte, item importQueueItem) (*FrontmatterResult, error) {
@@ -401,6 +422,7 @@ func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, bas
 	if err != nil {
 		return formatNestedResolveError(nestedImportPath, nestedFilePath, item, workflowFilePath, yamlContent, err)
 	}
+	state.dependencies[item.fullPath] = append(state.dependencies[item.fullPath], nestedFullPath)
 	canonicalImportPath := canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir, nestedRemoteOrigin, nestedFullPath)
 	return enqueueNestedVisitedPath(state, canonicalImportPath, nestedFullPath, nestedSectionName, baseDir, entry.inputs, nestedRemoteOrigin)
 }

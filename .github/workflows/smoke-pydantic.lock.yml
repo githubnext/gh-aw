@@ -28,8 +28,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/pydantic.md
-#     - shared/reporting.md
 #     - shared/smoke-test-brevity.md
+#     - shared/reporting.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

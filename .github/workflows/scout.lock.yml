@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/reporting.md
+#     - shared/mcp/tavily.md
 #     - shared/mcp/deepwiki.md
 #     - shared/mcp/microsoft-docs.md
-#     - shared/mcp/tavily.md
 #     - shared/otlp.md
-#     - shared/reporting.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

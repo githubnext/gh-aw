@@ -30,10 +30,10 @@
 #     - shared/deepseek-harness.md
 #     - shared/gh.md
 #     - shared/otlp.md
+#     - shared/token-telemetry-check.md
+#     - shared/smoke-test-brevity.md
 #     - shared/reporting.md
 #     - shared/reporting-otlp.md
-#     - shared/smoke-test-brevity.md
-#     - shared/token-telemetry-check.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

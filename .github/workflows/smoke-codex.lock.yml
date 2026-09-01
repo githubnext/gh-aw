@@ -28,15 +28,15 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/gh.md
-#     - shared/mcp/serena-go.md
-#     - shared/mcp/serena.md
+#     - shared/trufflehog.md
 #     - shared/otlp.md
+#     - shared/token-telemetry-check.md
+#     - shared/smoke-test-brevity.md
 #     - shared/playwright-title-test.md
 #     - shared/reporting.md
 #     - shared/reporting-otlp.md
-#     - shared/smoke-test-brevity.md
-#     - shared/token-telemetry-check.md
-#     - shared/trufflehog.md
+#     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

@@ -28,9 +28,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/otlp.md
-#     - shared/playwright-title-test.md
-#     - shared/reporting.md
 #     - shared/token-telemetry-check.md
+#     - shared/reporting.md
+#     - shared/playwright-title-test.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

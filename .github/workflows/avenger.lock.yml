@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/otlp.md
+#     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders/recurrence-determinism.md
 #     - shared/graders/recurrence-laminarity.md
-#     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders.md
-#     - shared/otlp.md
 #
 # Frontmatter env variables:
 #   - GH_AW_HARNESS_MAX_RETRIES: (main workflow)

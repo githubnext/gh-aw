@@ -27,16 +27,16 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/azure-auth.md
-#     - shared/gh.md
 #     - shared/github-guard-policy.md
-#     - shared/github-queries-mcp-script.md
-#     - shared/mcp/serena-go.md
-#     - shared/mcp/serena.md
-#     - shared/otlp.md
+#     - shared/gh.md
 #     - shared/reporting.md
-#     - shared/smoke-test-brevity.md
+#     - shared/github-queries-mcp-script.md
+#     - shared/otlp.md
 #     - shared/token-telemetry-check.md
+#     - shared/azure-auth.md
+#     - shared/smoke-test-brevity.md
+#     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #
 # Frontmatter env variables:
 #   - AZURE_CONFIG_DIR: shared/azure-auth.md
@@ -804,6 +804,11 @@ jobs:
         env:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
+      - env:
+          GH_AW_AZURE_CLIENT_ID: adb907fd-188c-4029-b67f-2559d96b2f1b
+          GH_AW_AZURE_TENANT_ID: 398a6654-997b-47e9-b12b-9515b896b4de
+        name: Re-authenticate Azure CLI with OIDC
+        run: "if [ -z \"$GH_AW_AZURE_OIDC_TOKEN_FILE\" ] || [ ! -f \"$GH_AW_AZURE_OIDC_TOKEN_FILE\" ]; then\n  echo \"::error::Azure OIDC token file not found — the Fetch Azure OIDC token step may have failed\"\n  exit 1\nfi\nmkdir -p \"$AZURE_CONFIG_DIR\"\nchmod 700 \"$AZURE_CONFIG_DIR\"\ncleanup() {\n  rm -f \"$GH_AW_AZURE_OIDC_TOKEN_FILE\"\n}\ntrap cleanup EXIT\naz login --service-principal \\\n  --username \"$GH_AW_AZURE_CLIENT_ID\" \\\n  --tenant \"$GH_AW_AZURE_TENANT_ID\" \\\n  --federated-token \"$(cat \"$GH_AW_AZURE_OIDC_TOKEN_FILE\")\" \\\n  --output none \\\n  --only-show-errors\naz account show --output table\n"
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -811,11 +816,6 @@ jobs:
           go-version-file: go.mod
       - name: Verify Go installation
         run: go version
-      - env:
-          GH_AW_AZURE_CLIENT_ID: adb907fd-188c-4029-b67f-2559d96b2f1b
-          GH_AW_AZURE_TENANT_ID: 398a6654-997b-47e9-b12b-9515b896b4de
-        name: Re-authenticate Azure CLI with OIDC
-        run: "if [ -z \"$GH_AW_AZURE_OIDC_TOKEN_FILE\" ] || [ ! -f \"$GH_AW_AZURE_OIDC_TOKEN_FILE\" ]; then\n  echo \"::error::Azure OIDC token file not found — the Fetch Azure OIDC token step may have failed\"\n  exit 1\nfi\nmkdir -p \"$AZURE_CONFIG_DIR\"\nchmod 700 \"$AZURE_CONFIG_DIR\"\ncleanup() {\n  rm -f \"$GH_AW_AZURE_OIDC_TOKEN_FILE\"\n}\ntrap cleanup EXIT\naz login --service-principal \\\n  --username \"$GH_AW_AZURE_CLIENT_ID\" \\\n  --tenant \"$GH_AW_AZURE_TENANT_ID\" \\\n  --federated-token \"$(cat \"$GH_AW_AZURE_OIDC_TOKEN_FILE\")\" \\\n  --output none \\\n  --only-show-errors\naz account show --output table\n"
 
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.12@sha256:390051be4ed1847f774fd8980b61d3a3523574c0175d00c3fc7cdf2002a88202 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.12@sha256:d7d533d87c80d87ff91ac0e21e9299055c3beedff1536262b97ed700fb065a32 ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.12@sha256:5250629d48eaedfedf2e948785228e8da29eec2a83cbab58ea0751c14a7b021d ghcr.io/github/gh-aw-firewall/squid:0.28.12@sha256:52c34aca98d2a6833c329f1505912a6949c4fda16618c010c979bd59ea99254f ghcr.io/github/gh-aw-mcpg:v0.4.14@sha256:b2f0c2b2f17b5fbe809e5bb99dc185b6ddd70df25295dc63a6d526350334eff5 ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699 ghcr.io/oraios/serena:1.7.0@sha256:6c9459e4246a39c9deaa4f23fb05a526ac6e237b24c8e84a927a098fa1ab6730

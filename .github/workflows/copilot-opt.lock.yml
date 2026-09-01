@@ -28,10 +28,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - ../skills/jqschema/SKILL.md
-#     - shared/copilot-pr-data-fetch.md
 #     - shared/copilot-session-data-fetch.md
-#     - shared/otlp.md
+#     - shared/copilot-pr-data-fetch.md
 #     - shared/reporting.md
+#     - shared/otlp.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

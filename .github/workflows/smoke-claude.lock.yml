@@ -28,14 +28,14 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/gh.md
-#     - shared/github-mcp-app.md
-#     - shared/go-make.md
 #     - shared/mcp/tavily.md
+#     - shared/go-make.md
+#     - shared/github-mcp-app.md
 #     - shared/otlp.md
+#     - shared/token-telemetry-check.md
+#     - shared/smoke-test-brevity.md
 #     - shared/playwright-title-test.md
 #     - shared/reporting.md
-#     - shared/smoke-test-brevity.md
-#     - shared/token-telemetry-check.md
 #
 # inlined-imports: true
 #
