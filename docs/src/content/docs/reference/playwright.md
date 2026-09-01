@@ -7,11 +7,9 @@ sidebar:
 
 Playwright enables headless browser control for accessibility testing, visual regression detection, end-to-end testing, and web scraping.
 
-## Modes
+## Configuration
 
-Playwright supports two integration modes. **CLI mode is recommended** for all new workflows — it is token-efficient (no large MCP schemas in context), avoids Docker overhead, and lets the agent reach local dev servers via `localhost` directly.
-
-### CLI Mode (Recommended)
+The built-in Playwright tool uses CLI mode. It is token-efficient because it does not load MCP tool schemas into the agent context, avoids Docker overhead, and reaches local development servers through `localhost`.
 
 ```yaml wrap
 tools:
@@ -19,42 +17,25 @@ tools:
     mode: cli
 ```
 
-CLI mode installs `@playwright/cli` as a global npm package on the runner. The agent invokes `playwright-cli <command>` from bash:
+The compiler installs `@playwright/cli` as a global npm package on the runner. The agent invokes `playwright-cli <command>` from bash:
 
 ```bash wrap
-playwright-cli browser_navigate --url "https://example.com"
-playwright-cli browser_take_screenshot --filename /tmp/screenshot.png --full-page true
-playwright-cli browser_snapshot
-playwright-cli browser_evaluate --expression "document.title"
-playwright-cli browser_run_code --code "async (page) => { await page.goto('https://example.com'); return await page.title(); }"
+playwright-cli goto "https://example.com"
+playwright-cli screenshot --filename /tmp/screenshot.png
+playwright-cli snapshot
+playwright-cli eval "() => document.title"
+playwright-cli run-code "async (page) => { await page.goto('https://example.com'); return await page.title(); }"
 ```
-
-### MCP Mode (Deprecated)
-
-MCP mode is deprecated and emits a compile-time warning. Migrate to `mode: cli` for the reasons listed above. MCP mode runs Playwright in a Docker container with `--network host`, so `localhost` resolves to the Docker host and bridge IP detection is required to reach local servers.
-
-```yaml wrap
-tools:
-  playwright:
-    mode: mcp  # deprecated — use mode: cli instead
-```
-
-## Configuration
 
 ### Version
 
-The `version` field has different meaning per mode:
-
-| Mode | Pins | Default |
-|------|------|---------|
-| `cli` (recommended) | `@playwright/cli` npm package | `0.1.13` |
-| `mcp` (deprecated) | Playwright browser Docker image | built-in |
+The `version` field pins the `@playwright/cli` npm package. Omit it to use the compiler default.
 
 ```yaml wrap
 tools:
   playwright:
     mode: cli
-    version: "0.1.13"
+    version: "0.1.18"
 ```
 
 ### Network Access
@@ -74,7 +55,51 @@ Allowing `example.com` automatically allows its subdomains.
 
 ### Browser Support
 
-Chromium (Chrome/Edge), Firefox, and WebKit (Safari) are all available in both modes.
+Chromium (Chrome/Edge), Firefox, and WebKit (Safari) are available.
+
+## Migrate from Playwright MCP
+
+Remove `mode: mcp` or replace it with `mode: cli`. The compiler now reports `mode: mcp` as an error.
+
+Replace MCP tool calls in prompts with equivalent `playwright-cli` commands run through bash:
+
+| Playwright MCP tool | Playwright CLI command |
+| --- | --- |
+| `browser_navigate` | `playwright-cli goto <url>` |
+| `browser_snapshot` | `playwright-cli snapshot` |
+| `browser_take_screenshot` | `playwright-cli screenshot --filename <path>` |
+| `browser_click` | `playwright-cli click <ref>` |
+| `browser_evaluate` | `playwright-cli eval "() => document.title"` |
+
+Use `localhost` directly for development servers because Playwright CLI runs on the runner. Remove Playwright MCP container arguments and MCP-specific tool names such as `mcp__playwright__browser_navigate` from prompts and engine allowlists.
+
+## What if you really want to use MCP?
+
+The built-in tool no longer manages Playwright MCP. Configure it as a custom server under `mcp-servers` and select the package version explicitly:
+
+```aw wrap
+---
+mcp-servers:
+  playwright:
+    command: npx
+    args:
+      - --yes
+      - "@playwright/mcp@0.0.79"
+      - --no-sandbox
+    allowed:
+      - browser_navigate
+      - browser_snapshot
+      - browser_take_screenshot
+
+network:
+  allowed:
+    - defaults
+    - node
+    - playwright
+---
+```
+
+Custom MCP servers are not covered by the built-in Playwright compatibility or version tracking. Pin and update the package deliberately, restrict `allowed` to the required tools, and follow the [custom MCP server guidance](/gh-aw/guides/mcps/#manually-configuring-a-custom-mcp-server).
 
 ## Common Use Cases
 
@@ -151,7 +176,7 @@ steps:
 tools:
   playwright:
     mode: cli
-    version: "0.1.13"  # pins `@playwright/cli` npm package; see Configuration > Version
+    version: "0.1.18"  # pins `@playwright/cli` npm package; see Configuration > Version
   bash:
     - "npm *"
     - "curl http://localhost:*"

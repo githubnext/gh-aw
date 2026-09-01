@@ -554,7 +554,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 	// Copy raw map
 	maps.Copy(result.raw, toolsConfig.raw)
 
-	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
+	// Playwright is a CLI tool and must not be added to the MCP configuration.
 	if toolsConfig.Playwright != nil {
 		applyCodexPlaywrightTool(result, toolsConfig.Playwright)
 	}
@@ -565,27 +565,10 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 func applyCodexPlaywrightTool(result *ToolsConfig, playwright *PlaywrightToolConfig) {
 	playwrightConfig := &PlaywrightToolConfig{
 		Version: playwright.Version,
-		Args:    playwright.Args,
 		Mode:    playwright.Mode,
 	}
 	result.Playwright = playwrightConfig
-
-	// In CLI mode, playwright is not an MCP server — remove from raw map and skip MCP config entry.
-	if playwrightConfig.IsCLIMode() {
-		delete(result.raw, "playwright")
-		return
-	}
-
-	playwrightMCP := map[string]any{
-		"allowed": GetPlaywrightTools(),
-	}
-	if playwrightConfig.Version != "" {
-		playwrightMCP["version"] = playwrightConfig.Version
-	}
-	if len(playwrightConfig.Args) > 0 {
-		playwrightMCP["args"] = playwrightConfig.Args
-	}
-	result.raw["playwright"] = playwrightMCP
+	delete(result.raw, "playwright")
 }
 
 // expandNeutralToolsToCodexToolsFromMap is a backward compatibility wrapper

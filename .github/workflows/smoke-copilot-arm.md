@@ -46,7 +46,6 @@ tools:
     - "*"
   github:
   playwright:
-    mode: cli
   web-fetch:
 runtimes:
   go:

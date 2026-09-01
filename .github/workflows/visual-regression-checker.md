@@ -22,7 +22,6 @@ imports:
 tools:
   cli-proxy: true
   playwright:
-    mode: cli
   bash:
     - "npm *"
     - "npx *"
