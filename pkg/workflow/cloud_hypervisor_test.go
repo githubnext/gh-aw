@@ -720,5 +720,18 @@ func TestCloudHypervisorSetupBundleScriptExecutesAgainstFixtures(t *testing.T) {
 
 		out, err := runCloudHypervisorSetupBundleScriptWithVersion(t, dir, "latest")
 		require.Error(t, err, out)
+		assert.Contains(t, out, "failed to resolve the latest gh-aw-firewall release tag: could not reach the GitHub releases API")
+	})
+
+	t.Run("latest resolution missing tag_name fails closed", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, archiveName), validArchive, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, manifestName), []byte(validManifest), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, bundleName), []byte(cloudHypervisorFixtureBundle), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "latest-release.json"), []byte(`{}`), 0o644))
+
+		out, err := runCloudHypervisorSetupBundleScriptWithVersion(t, dir, "latest")
+		require.Error(t, err, out)
+		assert.Contains(t, out, "failed to resolve the latest gh-aw-firewall release tag: no tag_name in API response")
 	})
 }

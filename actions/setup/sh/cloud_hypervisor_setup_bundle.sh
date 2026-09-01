@@ -29,10 +29,14 @@ if [[ "${version,,}" == "latest" ]]; then
   elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
     auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
   fi
-  version="$(curl -fsSL "${auth_header[@]}" -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/github/gh-aw-firewall/releases/latest" | jq -r '.tag_name // empty')"
+  if ! latest_release_json="$(curl -fsSL "${auth_header[@]}" -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/github/gh-aw-firewall/releases/latest")"; then
+    echo "::error::failed to resolve the latest gh-aw-firewall release tag: could not reach the GitHub releases API"
+    exit 1
+  fi
+  version="$(jq -r '.tag_name // empty' <<<"${latest_release_json}")"
   if [[ -z "${version}" ]]; then
-    echo "::error::failed to resolve the latest gh-aw-firewall release tag"
+    echo "::error::failed to resolve the latest gh-aw-firewall release tag: no tag_name in API response"
     exit 1
   fi
   echo "resolved latest release tag: ${version}"
