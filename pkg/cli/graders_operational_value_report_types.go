@@ -165,6 +165,7 @@ type operationalValueReportDiagnosticWeek struct {
 }
 
 type operationalValueReportObservation struct {
+	ID                string                    `json:"id"`
 	Run               operationalValueReportRun `json:"run"`
 	Value             *float64                  `json:"value"`
 	Status            string                    `json:"status"`
@@ -185,4 +186,8 @@ type operationalValueReportObservation struct {
 
 func operationalValueReportObservationKey(observation operationalValueReportObservation) string {
 	return observation.Run.ID + ":" + strconv.Itoa(observation.Run.Attempt)
+}
+
+func operationalValueReportObservationID(repository, workflowID string, observation operationalValueReportObservation) string {
+	return repository + ":" + workflowID + ":" + operationalValueReportObservationKey(observation) + ":" + observation.EvaluatorDigest
 }

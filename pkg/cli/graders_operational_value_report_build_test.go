@@ -31,6 +31,7 @@ func TestBuildOperationalValueReportIncludesEveryPointAndDeduplicatesWeeklyMean(
 
 	report := buildOperationalValueReport(evaluator, observations, time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC), time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), operationalValueReportBackfillStats{CacheHits: 2, Evaluated: 1})
 	require.Len(t, report.Observations, 3)
+	assert.Equal(t, "github/gh-aw:daily-file-diet:1:0:"+strings.Repeat("a", 64), report.Observations[0].ID)
 	require.Len(t, report.Weekly, 1)
 	assert.Equal(t, "2026-08-01T00:00:00Z", report.Window.StartAt)
 	assert.Equal(t, 2, report.Weekly[0].DistinctOpportunityCount)

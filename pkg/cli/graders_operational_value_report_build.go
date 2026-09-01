@@ -10,6 +10,13 @@ import (
 )
 
 func buildOperationalValueReport(evaluator *operationalValueReportEvaluator, observations []operationalValueReportObservation, generatedAt, windowEndAt time.Time, stats operationalValueReportBackfillStats) operationalValueReport {
+	observations = slices.Clone(observations)
+	for index := range observations {
+		if observations[index].EvaluatorDigest == "" {
+			observations[index].EvaluatorDigest = evaluator.EvaluatorDigest
+		}
+		observations[index].ID = operationalValueReportObservationID(evaluator.Definition.Repository, evaluator.WorkflowID, observations[index])
+	}
 	values := make([]float64, 0, len(observations))
 	distinctNumericOpportunities := make(map[string]struct{})
 	coverage := operationalValueReportCoverage{
