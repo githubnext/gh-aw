@@ -28,8 +28,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/aider.md
-#     - shared/reporting.md
 #     - shared/smoke-test-brevity.md
+#     - shared/reporting.md
 #
 # Secrets used:
 #   - GH_AW_DEFAULT_OTLP_HEADERS

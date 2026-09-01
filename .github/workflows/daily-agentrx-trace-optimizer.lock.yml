@@ -29,8 +29,8 @@
 #   Imports:
 #     - shared/aw-logs-24h-fetch-setup.md
 #     - shared/daily-audit-discussion.md
-#     - shared/otlp.md
 #     - shared/reporting.md
+#     - shared/otlp.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:

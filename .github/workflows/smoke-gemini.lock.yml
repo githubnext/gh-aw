@@ -28,11 +28,11 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/otlp.md
+#     - shared/token-telemetry-check.md
+#     - shared/smoke-test-brevity.md
 #     - shared/playwright-title-test.md
 #     - shared/reporting.md
 #     - shared/reporting-otlp.md
-#     - shared/smoke-test-brevity.md
-#     - shared/token-telemetry-check.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

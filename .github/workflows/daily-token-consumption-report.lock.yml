@@ -27,12 +27,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/daily-audit-discussion.md
 #     - shared/goose.md
-#     - shared/mcp/grafana.md
 #     - shared/mcp/sentry.md
-#     - shared/otlp.md
+#     - shared/mcp/grafana.md
 #     - shared/reporting.md
+#     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:

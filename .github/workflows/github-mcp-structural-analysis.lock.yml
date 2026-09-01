@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/daily-audit-discussion.md
-#     - shared/github-mcp-pagination-wrappers.md
 #     - shared/mcp-pagination.md
-#     - shared/otlp.md
+#     - shared/github-mcp-pagination-wrappers.md
 #     - shared/python-dataviz.md
+#     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
 #

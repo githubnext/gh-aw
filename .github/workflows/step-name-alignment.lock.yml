@@ -27,9 +27,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/ai-coding-dictionary.md
-#     - shared/otlp.md
 #     - shared/reporting.md
+#     - shared/otlp.md
+#     - shared/ai-coding-dictionary.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

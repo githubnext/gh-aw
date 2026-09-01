@@ -27,16 +27,16 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/gh.md
 #     - shared/github-guard-policy.md
-#     - shared/github-queries-mcp-script.md
-#     - shared/mcp/serena-go.md
-#     - shared/mcp/serena.md
-#     - shared/otlp.md
-#     - shared/playwright-title-test.md
+#     - shared/gh.md
 #     - shared/reporting.md
-#     - shared/smoke-test-brevity.md
+#     - shared/github-queries-mcp-script.md
+#     - shared/otlp.md
 #     - shared/token-telemetry-check.md
+#     - shared/smoke-test-brevity.md
+#     - shared/playwright-title-test.md
+#     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

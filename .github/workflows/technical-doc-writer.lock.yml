@@ -27,8 +27,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
+#     - ../agents/technical-doc-writer.agent.md
 #     - shared/ai-coding-dictionary.md
 #     - shared/otlp.md
 #     - shared/reporting.md

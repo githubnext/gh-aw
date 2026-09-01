@@ -29,8 +29,8 @@
 #   Imports:
 #     - shared/github-guard-policy.md
 #     - shared/otlp.md
-#     - shared/playwright-title-test.md
 #     - shared/reporting.md
+#     - shared/playwright-title-test.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

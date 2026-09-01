@@ -27,19 +27,19 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/daily-audit-discussion.md
 #     - shared/mcp/ast-grep.md
 #     - shared/mcp/datadog.md
 #     - shared/mcp/deepwiki.md
 #     - shared/mcp/microsoft-docs.md
 #     - shared/mcp/sentry.md
-#     - shared/mcp/serena-go.md
-#     - shared/mcp/serena.md
 #     - shared/mcp/slack.md
 #     - shared/mcp/tavily.md
 #     - shared/otlp.md
+#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
+#     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

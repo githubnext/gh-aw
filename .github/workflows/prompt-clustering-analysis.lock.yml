@@ -27,15 +27,15 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/meta-analysis-base.md
 #     - ../skills/jqschema/SKILL.md
 #     - shared/copilot-pr-data-fetch.md
-#     - shared/daily-audit-discussion.md
-#     - shared/meta-analysis-base.md
-#     - shared/otlp.md
 #     - shared/python-nlp.md
+#     - shared/otlp.md
+#     - shared/trending-charts-simple.md
+#     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
-#     - shared/trending-charts-simple.md
 #     - shared/daily-audit-charts.md
 #
 # Secrets used:

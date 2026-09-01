@@ -27,13 +27,13 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/otlp.md
+#     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
+#     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders/recurrence-determinism.md
 #     - shared/graders/recurrence-laminarity.md
-#     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders.md
-#     - shared/mcp/serena-go.md
-#     - shared/mcp/serena.md
-#     - shared/otlp.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
